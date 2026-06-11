@@ -782,6 +782,15 @@ fn main() {
         return;
     }
 
+    if command == "integrity" {
+        if path.is_empty() {
+            eprintln!("Usage: storehouse integrity <root-or-bluebook>");
+            std::process::exit(1);
+        }
+        cmd_integrity(path);
+        return;
+    }
+
     if path.is_empty() {
         eprintln!("Usage: storehouse {} <bluebook-file-or-dir>", command);
         std::process::exit(1);
@@ -3489,6 +3498,31 @@ fn make_serve_legacy_hook(
 }
 
 /// Dispatch a command through the hecksagon — merge all bluebooks, find the command, run it.
+fn cmd_integrity(agg_dir: &str) {
+    let data_dir = find_world_heki_dir(agg_dir)
+        .unwrap_or_else(|| format!("{}/data", agg_dir.trim_end_matches('/')));
+    let combined = if std::path::Path::new(agg_dir).is_file() {
+        parser::parse(&fs::read_to_string(agg_dir).unwrap_or_default())
+    } else {
+        load_combined_domain(agg_dir)
+    };
+    let hecksagons = load_all_hecksagons(agg_dir);
+    let mut rt = Runtime::boot_with_hecksagons(combined, Some(data_dir), hecksagons);
+    storehouse::world::attach::apply_per_domain_world_dirs(&mut rt, agg_dir);
+    storehouse::world::attach::attach_world_adapter_bindings(&mut rt, agg_dir);
+    let dangling = storehouse::run_integrity::check(&rt);
+    if dangling.is_empty() {
+        println!("INTEGRITY OK — no dangling cross-aggregate references");
+    } else {
+        println!("INTEGRITY — {} dangling reference(s):", dangling.len());
+        for d in &dangling {
+            println!("  {}({}).{} -> {} '{}' : target record not found",
+                d.aggregate, d.record_id, d.field, d.target, d.value);
+        }
+        std::process::exit(1);
+    }
+}
+
 fn cmd_state(agg_dir: &str, agg_name: &str, id: &str) {
     let data_dir = find_world_heki_dir(agg_dir)
         .unwrap_or_else(|| format!("{}/data", agg_dir.trim_end_matches('/')));
