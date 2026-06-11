@@ -79,12 +79,14 @@ Hecks.bluebook "Mindstream", version: "2026.05.12.1" do
   # one Procfile line and contributes (or not) to the mindstream's
   # OVERMIND_CAN_DIE list based on its lifespan.
 
-  aggregate "MindstreamMember", "One Procfile entry — a single process flowing in the mindstream. Belongs to one Mindstream via reference_to(Mindstream)." do
+  aggregate "MindstreamMember", "One Procfile entry — a single process flowing in the mindstream. Belongs to one Mindstream (references-not-ids : a stored Mindstream FK synthesised by belongs_to)." do
     identified_by :name
 
     attribute :name,     Name
     attribute :command,  ShellCommand
     attribute :lifespan, Lifespan
+
+    belongs_to Mindstream
 
     # ── Value-objects : the domain's language ──
 
@@ -118,10 +120,11 @@ Hecks.bluebook "Mindstream", version: "2026.05.12.1" do
     command "Register" do
       role "Framework"
       description "Add a member to a mindstream. Inputs : the member name, the mindstream it joins, the shell command overmind invokes, and its lifespan."
-      reference_to(Mindstream)
-      attribute :name,     Name
-      attribute :command,  ShellCommand
-      attribute :lifespan, Lifespan
+      attribute :name,       Name
+      attribute :mindstream, Mindstream
+      attribute :command,    ShellCommand
+      attribute :lifespan,   Lifespan
+      then_set :mindstream,  to: :mindstream
       emits "Registered"
     end
 
