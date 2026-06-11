@@ -65,3 +65,49 @@ intermediate would saw off the branch she's sitting on. Steps, each gated on
 Removable, but it is a deliberate language redesign (option A), not a sweep,
 and the naive approach silently breaks creation semantics. Recommend : decide
 A-vs-C explicitly ; if A, execute next session in a worktree, design-locked.
+
+---
+
+# LOCKED : relationship-reference grammar (the Ruby convention)
+
+_Decided 2026-06-11 with Chris. Companion to the reference_to retirement —
+same relationship-grammar redesign. This is the cross-aggregate side ;
+reference_to(Self) is the command-self-target side._
+
+The qualifier IS Ruby's constant-resolution rule, applied to `has_many` /
+`has_one` / `belongs_to`. The leaf is ALWAYS a root (DDD : you reference the
+Head by identity, never an internal entity) ; the prefix is pure location.
+
+| form | scope | meaning |
+|---|---|---|
+| `has_many Things` | current (bare) | COMPOSITION — my own internal entity, inside the boundary |
+| `has_many ::Things` | top-level | CROSS-AGGREGATE — a sibling root in THIS bounded context |
+| `has_many Domain::Things` | namespaced | CROSS-CONTEXT — a root in ANOTHER bounded context |
+
+Why it's unambiguous (no name-guess, which was the whole point) : the tier is
+read off the PREFIX SHAPE alone. A token before `::` is ALWAYS a domain, never
+an aggregate — so the old `Plan::Story` "is Plan a domain or the Plan
+aggregate?" collision is gone. bare / `::` / `Domain::` are three distinct
+shapes.
+
+DDD grounding (Evans + Vernon) : the aggregate root is the only externally
+referenceable member ; cross-aggregate relationships hold the root's IDENTITY,
+never a path into internals. So the leaf is never `Aggregate::InternalEntity`.
+
+## Two invariants (the validator enforces them)
+1. **`belongs_to` / outward `has_one` are NEVER bare.** You always belong to
+   ANOTHER root — so they're always `::` or `Domain::`. A bare `belongs_to` is
+   an error.
+2. **bare is legal only when the leaf is a real internal entity.** A bare name
+   that resolves to a ROOT (e.g. `has_many Story` where Story is an aggregate)
+   is an error : "did you mean `::Story`?". The convention is ENFORCED, not a
+   style guide — a misqualified reference fails, it does not silently resolve
+   to the wrong target (the same anti-silent-resolution principle as the
+   integrity gate).
+
+## Migration (own sprint, gated, worktree)
+The IR already carries `Reference.domain` (None / Some) — extend to the three
+tiers. Then : parser reads tier off prefix shape ; validator enforces the two
+invariants ; normalize the ~32 bare-but-cross-aggregate decls to `::` (audit
+2026-06-11) ; re-qualify the lone cross-domain `Plan::Story` to the dot/
+namespace form. Each step gated on suite + behaviors + integrity + golden.
