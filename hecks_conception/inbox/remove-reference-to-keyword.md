@@ -111,3 +111,37 @@ tiers. Then : parser reads tier off prefix shape ; validator enforces the two
 invariants ; normalize the ~32 bare-but-cross-aggregate decls to `::` (audit
 2026-06-11) ; re-qualify the lone cross-domain `Plan::Story` to the dot/
 namespace form. Each step gated on suite + behaviors + integrity + golden.
+
+---
+
+# RESOLVED : commands don't need reference_to at all (2026-06-11, Chris)
+
+The self-ref half of the retirement has a clean answer. A command needs ONE
+bit — create a new instance, or mutate an existing one. `reference_to(Self)`
+carries that bit BACKWARDS : it marks every TRANSITION (the common case), so
+"create" becomes the implicit default. Marking the majority to leave the
+minority implicit is why it feels redundant — it is.
+
+**Flip the default :**
+- TRANSITION is the default — a command loads its aggregate's existing record
+  by the universal `id` (i519 already provides this). Self-targeting needs NO
+  declaration : the command lives on its aggregate, so it targets that
+  aggregate by definition. reference_to(Self) is pure redundancy → delete.
+- CREATIONS declare themselves (a `creates` marker / the command that brings
+  the aggregate into being). The rare case is marked, not the common one.
+- ENTITY commands : the parent-root id is INFERRED from nesting (the parser
+  already knows the entity's owning aggregate) → reference_to(Root) deleted too.
+
+**The guardrail (same principle as the integrity gate) :** the create/transition
+bit must be DECLARED, never GUESSED. Do NOT infer it from "does this id already
+exist" (upsert) — a typo'd id on a transition would then SILENTLY MINT a new
+record instead of failing. Creations declare ; transitions must find their
+record or fail loud. The current `is_create = name.starts_with("Create"|"Add"
+|...)` heuristic is exactly this forbidden guess (it collides on AddStory) and
+is retired by the flip.
+
+Net : reference_to retires in two complementary moves, neither needing the
+keyword — (1) relationships → the bare/`::`/`Domain::` grammar [DONE for
+cross-agg] ; (2) command self-target → flip-the-default + `creates` marker +
+entity-parent inference [this section]. Then parser rejects `reference_to`,
+macrophage keeps it dead, goldens regenerate. One worktree sprint, gated.
