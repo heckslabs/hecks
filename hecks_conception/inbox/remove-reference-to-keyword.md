@@ -80,7 +80,7 @@ Head by identity, never an internal entity) ; the prefix is pure location.
 
 | form | scope | meaning |
 |---|---|---|
-| `has_many Things` | current (bare) | COMPOSITION — my own internal entity, inside the boundary |
+| `has_many Things` | current (bare) | SELF — something in my own boundary : an internal entity I compose, OR my own type (recursive self-reference, e.g. `Category has_many Categories`, by identity) |
 | `has_many ::Things` | top-level | CROSS-AGGREGATE — a sibling root in THIS bounded context |
 | `has_many Domain::Things` | namespaced | CROSS-CONTEXT — a root in ANOTHER bounded context |
 
@@ -98,12 +98,20 @@ never a path into internals. So the leaf is never `Aggregate::InternalEntity`.
 1. **`belongs_to` / outward `has_one` are NEVER bare.** You always belong to
    ANOTHER root — so they're always `::` or `Domain::`. A bare `belongs_to` is
    an error.
-2. **bare is legal only when the leaf is a real internal entity.** A bare name
-   that resolves to a ROOT (e.g. `has_many Story` where Story is an aggregate)
-   is an error : "did you mean `::Story`?". The convention is ENFORCED, not a
-   style guide — a misqualified reference fails, it does not silently resolve
-   to the wrong target (the same anti-silent-resolution principle as the
-   integrity gate).
+2. **bare means SELF scope ; the error fires only on a FOREIGN root.** Three
+   cases for a bare leaf :
+   - resolves to an internal entity → ✓ composition.
+   - resolves to MY OWN aggregate name → ✓ self-reference by identity (recursive
+     tree, e.g. `Category has_many Categories`). Bare is correct here —
+     referencing yourself is staying in your own boundary, not reaching for a
+     sibling, so NO `::` and no `self` token.
+   - resolves to a DIFFERENT root (e.g. `has_many Story` where Story is another
+     aggregate) → ✗ error : "did you mean `::Story`?".
+   The parser already knows the container's own name, so the "is this leaf me?"
+   check is trivial and rename-proof. The convention is ENFORCED, not a style
+   guide — a misqualified (foreign-root) bare reference fails, it does not
+   silently resolve to the wrong target (the same anti-silent-resolution
+   principle as the integrity gate).
 
 ## Migration (own sprint, gated, worktree)
 The IR already carries `Reference.domain` (None / Some) — extend to the three
