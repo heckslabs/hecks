@@ -466,8 +466,13 @@ Hecks.bluebook "Plan", version: "2026.06.05.4" do
     attribute :summary,        Summary
     attribute :target,         Target
 
-    # ---- Sprint membership ----
-    # Reverse navigation only — Sprint.has_many Stories (owner side).
+    # ---- Sprint membership (Sprint 24 : typed reference) ----
+    # belongs_to Sprint declares the 'sprint' scalar AssignToSprint writes
+    # and Story.BySprint reads — formalising the dependent-side FK that
+    # already exists so storehouse integrity can resolve it. A Story
+    # pointing at a deleted Sprint is now a caught dangling reference,
+    # not a silent orphan. Sprint.has_many Stories stays owner-side nav.
+    belongs_to Sprint
 
     # ---- Project assignment ----
     # Story is the dependent side — it navigates TO Project by carrying the

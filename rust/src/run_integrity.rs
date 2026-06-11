@@ -53,13 +53,14 @@ pub fn check(rt: &Runtime) -> Vec<Dangling> {
             }
             let field = crate::util::snake_case(&r.name);
             for rec in rt.all(&agg.name) {
+                // Only a non-empty scalar (Str / Int) is a resolvable FK.
+                // Null, empty string, and list values (an unset reference
+                // renders as an empty list) carry no target to resolve.
                 let val = match rec.fields.get(&field) {
-                    Some(v) => v.to_string(),
-                    None => continue,
+                    Some(crate::runtime::Value::Str(s)) if !s.is_empty() => s.clone(),
+                    Some(crate::runtime::Value::Int(n)) => n.to_string(),
+                    _ => continue,
                 };
-                if val.is_empty() || val == "null" || val == "[]" {
-                    continue;
-                }
                 if rt.find(&r.target, &val).is_none() {
                     out.push(Dangling {
                         aggregate: agg.name.clone(),
