@@ -145,3 +145,46 @@ keyword — (1) relationships → the bare/`::`/`Domain::` grammar [DONE for
 cross-agg] ; (2) command self-target → flip-the-default + `creates` marker +
 entity-parent inference [this section]. Then parser rejects `reference_to`,
 macrophage keeps it dead, goldens regenerate. One worktree sprint, gated.
+
+---
+
+# LOCKED : factories behind `create` (2026-06-11, Chris)
+
+The mechanism for the command-self-target half : a `create` declaration that
+is a sibling of `command`. The declaration KEYWORD carries the create-vs-
+transition bit — Evans's Factory/Repository split surfaced in the DSL.
+
+    create  "Plan"     do ... end   # FACTORY    : mint identity, new record
+    command "Activate" do ... end   # TRANSITION : load by id or FAIL (default)
+
+This retires, in one move : reference_to(Self) (the default is now transition,
+no marker needed) ; the is_create name heuristic (Create/Add/Register prefix —
+gone) ; AND the find-or-create UPSERT footgun.
+
+## The strict-semantics safety rule (the whole point)
+- `create` = create-or-ERROR-if-id-exists.  (NOT the current find-or-create.)
+- `command` = load-or-FAIL-if-absent.       (NOT the current no-self_ref upsert.)
+A mis-tagged command fails LOUD instead of silently minting/corrupting — the
+same anti-silent principle as the integrity gate. Today `id_for_command` +
+the no-self_ref branch do find-or-create (upsert) ; the migration must flip
+both doors to strict, and AUDIT which commands currently lean on upsert
+(idempotent re-Register / re-Add).
+
+## Identity (unchanged)
+`create` mints via identified_by (caller-supplied value) or the next_id
+counter or the singleton fallback ; `command` resolves the target id via the
+universal `id` key (i519). No new machinery.
+
+## Open : entity creation
+Adding an entity (e.g. Attachment under Story) : `create` scoped to the entity
+with the PARENT root id inferred from nesting (the parser knows the entity's
+owning aggregate) — the same inference that retires entity→root reference_to.
+Needs a concrete rule before the sweep.
+
+## Whole-retirement summary
+reference_to retires in TWO halves, neither needing the keyword :
+1. RELATIONSHIPS → bare / `::` / `Domain::` grammar  [grammar DONE for cross-agg]
+2. COMMAND self-target → `create` vs `command` + universal `id` + entity-nesting
+   inference  [this section]
+Then : parser rejects `reference_to` ; macrophage keeps it dead ; goldens
+regenerate. One worktree sprint, gated (suite + behaviors + integrity + golden).
