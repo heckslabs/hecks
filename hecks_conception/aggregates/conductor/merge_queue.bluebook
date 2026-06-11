@@ -64,6 +64,7 @@ Hecks.bluebook "Conductor", version: "2026.06.02.2" do
       reference_to(MergeQueue)
       attribute :story_ref, StoryRef
       then_set :state,   to: "idle"
+      then_set :current, to: ""
       emits "MergeCompleted"
     end
 
@@ -74,6 +75,7 @@ Hecks.bluebook "Conductor", version: "2026.06.02.2" do
       attribute :story_ref, StoryRef
       attribute :reason,    Reason
       then_set :state,   to: "idle"
+      then_set :current, to: ""
       emits "MergeFailed"
     end
 
