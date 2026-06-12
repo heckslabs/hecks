@@ -152,3 +152,45 @@ end"#;
     assert!(c.cmd.contains("halt_error(1) end"), "full filter must survive: got {}", c.cmd);
     assert!(!c.cmd.contains("result_into"), "cmd must not swallow result_into");
 }
+
+// ---- create-keyword (reference_to retirement step 1) ----------------------
+// Proves `create "X"` sets Command.creates and that the FLAG, not the name
+// heuristic, drives creation in dispatch. The corpus uses zero `create`
+// markers today, so these are the only thing exercising the new path.
+const CREATE_KW_BB: &str = r#"Hecks.bluebook "Widgets" do
+  aggregate "Widget", "a widget" do
+    identified_by :name
+    attribute :name, String
+    create "Spawn" do
+      reference_to(Widget)
+      emits "WidgetSpawned"
+    end
+    command "Poke" do
+      reference_to(Widget)
+      emits "WidgetPoked"
+    end
+  end
+end
+"#;
+
+#[test]
+fn create_keyword_sets_creates_flag_command_does_not() {
+    let domain = parser::parse(CREATE_KW_BB);
+    let agg = domain.aggregates.iter().find(|a| a.name == "Widget").unwrap();
+    let spawn = agg.commands.iter().find(|c| c.name == "Spawn").unwrap();
+    let poke = agg.commands.iter().find(|c| c.name == "Poke").unwrap();
+    assert!(spawn.creates, "`create \"Spawn\"` must set creates=true");
+    assert!(!poke.creates, "`command \"Poke\"` must leave creates=false");
+}
+
+#[test]
+fn create_flag_drives_minting_independent_of_name_heuristic() {
+    // "Spawn" matches no name heuristic ; it mints only because creates=true.
+    let domain = parser::parse(CREATE_KW_BB);
+    let mut rt = Runtime::boot_with_hecksagons(domain, None, vec![]);
+    let spawned = rt.dispatch("Widgets::Widget.Spawn", attrs(&[("name", s("w1"))]));
+    assert!(spawned.is_ok(), "create-keyword Spawn should mint, got: {:?}", spawned);
+    // creates=false sibling, no id, no heuristic match -> must not silently mint.
+    let poked = rt.dispatch("Widgets::Widget.Poke", attrs(&[]));
+    assert!(poked.is_err(), "command Poke must not mint, got: {:?}", poked);
+}

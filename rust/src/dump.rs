@@ -171,6 +171,7 @@ fn dump_command(cmd: &Command) -> Value {
         "name": cmd.name,
         "description": cmd.description,
         "role": cmd.role,
+        "creates": cmd.creates,
         "emits": cmd.emits,
         "emits_identified_by": cmd.emits_identified_by,
         "attributes": cmd.attributes.iter().map(dump_attribute).collect::<Vec<_>>(),

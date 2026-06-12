@@ -65,11 +65,20 @@ fn {name}(domain: &Domain) -> Vec<String> {{
 fn emit_non_empty(rule: &Fixture) -> String {
     let description = util::attr(rule, "description");
     let name = util::attr(rule, "rust_fn_name");
+    // Optional category exemption : a `skip_if_category` attr makes the rule
+    // return no errors for domains of that category (e.g. `meta` bluebooks that
+    // document IR shape and legitimately declare no commands).
+    let skip_guard = match util::attr_opt(rule, "skip_if_category") {
+        Some(cat) if !cat.is_empty() => format!(
+            "    if domain.category.as_deref() == Some(\"{cat}\") {{ return vec![]; }}\n"
+        ),
+        _ => String::new(),
+    };
     format!(
         "\
 /// {description}.
 fn {name}(domain: &Domain) -> Vec<String> {{
-    domain
+{skip_guard}    domain
         .aggregates
         .iter()
         .filter(|a| a.commands.is_empty())

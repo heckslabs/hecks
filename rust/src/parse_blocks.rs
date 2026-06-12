@@ -95,8 +95,9 @@ pub fn parse_command(lines: &[&str]) -> (Command, usize) {
         first.split_whitespace().next().unwrap_or("").to_string()
     });
 
+    let creates = first.split_whitespace().next() == Some("create"); // create keyword = Factory
     let mut cmd = Command {
-        name, description: None, role: None, attributes: vec![],
+        name, description: None, role: None, creates, attributes: vec![],
         references: vec![], emits: None, emits_identified_by: None,
         givens: vec![], mutations: vec![],
     };
@@ -596,7 +597,7 @@ pub fn parse_entity(lines: &[&str]) -> (Entity, usize) {
         }
 
         if depth == 1 {
-            if line.starts_with("command") || is_shorthand_command(line) {
+            if line.starts_with("command") || line.starts_with("create ") || is_shorthand_command(line) {
                 let (cmd, consumed) = parse_command(&lines[i..]);
                 ent.commands.push(cmd);
                 i += consumed;

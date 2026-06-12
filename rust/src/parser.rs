@@ -301,7 +301,7 @@ fn parse_aggregate(lines: &[&str]) -> (Aggregate, usize) {
         }
 
         if depth == 1 {
-            if line.starts_with("command") || is_shorthand_command(line) {
+            if line.starts_with("command") || line.starts_with("create ") || is_shorthand_command(line) {
                 let (cmd, consumed) = parse_command(&lines[i..]);
                 agg.commands.push(cmd);
                 i += consumed;

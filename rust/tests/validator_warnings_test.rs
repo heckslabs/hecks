@@ -23,7 +23,7 @@ fn agg(name: &str, refs: Vec<Reference>) -> Aggregate {
         description: None,
         attributes: vec![],
         commands: vec![Command {
-            name: format!("Touch{}", name),
+            name: format!("Touch{}", name), creates: false,
             description: None,
             role: None,
             attributes: vec![],

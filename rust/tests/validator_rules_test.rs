@@ -79,7 +79,7 @@ fn duplicate_aggregate_names() {
                 description: None,
                 attributes: vec![],
                 commands: vec![Command {
-                    name: "CreatePizza".into(),
+                    name: "CreatePizza".into(), creates: false,
                     description: None,
                     role: None,
                     attributes: vec![],
@@ -101,7 +101,7 @@ fn duplicate_aggregate_names() {
                 description: None,
                 attributes: vec![],
                 commands: vec![Command {
-                    name: "UpdatePizza".into(),
+                    name: "UpdatePizza".into(), creates: false,
                     description: None,
                     role: None,
                     attributes: vec![],
@@ -174,7 +174,7 @@ fn bad_command_naming() {
             // First-word noun: validator's noun-suffix detector flags
             // the leading word ("Configuration"), not the trailing one.
             commands: vec![Command {
-                name: "ConfigurationPizza".into(),
+                name: "ConfigurationPizza".into(), creates: false,
                 description: None,
                 role: None,
                 attributes: vec![],
@@ -292,7 +292,7 @@ fn unknown_policy_trigger() {
             description: None,
             attributes: vec![],
             commands: vec![Command {
-                name: "PlaceOrder".into(),
+                name: "PlaceOrder".into(), creates: false,
                 description: None,
                 role: None,
                 attributes: vec![],

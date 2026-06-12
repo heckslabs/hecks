@@ -44,6 +44,7 @@ fn unique_aggregate_names(domain: &Domain) -> Vec<String> {
 
 /// Every aggregate must have at least one command.
 fn aggregates_have_commands(domain: &Domain) -> Vec<String> {
+    if domain.category.as_deref() == Some("meta") { return vec![]; }
     domain
         .aggregates
         .iter()

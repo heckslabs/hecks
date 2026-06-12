@@ -390,6 +390,7 @@ pub struct Command {
     pub name: String,
     pub description: Option<String>,
     pub role: Option<String>,
+    pub creates: bool,
     pub attributes: Vec<Attribute>,
     pub references: Vec<Reference>,
     pub emits: Option<String>,
