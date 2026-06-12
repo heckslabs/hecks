@@ -25,6 +25,28 @@ k=v parsing before `old_string` reaches the edit matcher. `new_string`
 leading whitespace appears preserved (only the MATCH side fails), so the
 damage is on input parsing of `old_string`, not output.
 
+## Resolution (2026-06-12) — cannot reproduce ; argv path pinned
+
+Full repro matrix on the live door + fresh binary (built 2026-06-12) :
+multi-line `old_string` at 4 / 12 / 24-space indents, tab-indented
+continuation lines, `=` inside the value, blank lines mid-match — ALL
+pass, through BOTH the direct CLI (`storehouse <dir> Tools::FileTool.Edit
+old_string=$'…\n    …'`) and the MCP door. The suspected k=v collapse is
+disproven : the one-shot path passes each attr as a distinct argv element
+(`spawn`, no shell), `splitn(2, '=')` preserves the remainder including
+newlines, and the warm socket path (which IS line-framed and would mangle)
+already rejects `Tools::` commands + whitespace-bearing args (guards from
+2026-05-23, predating this card). Most plausible cause of the 06-11
+failures : the supplied `old_string` genuinely mismatched the file
+(freshly-specialized `.rs` renders differ from assumed indentation) — the
+single-line-anchor "workaround" succeeded because it avoided the
+mismatched context lines, not because it avoided the transport.
+
+Mechanical pin so any future recurrence goes red instead of anecdotal :
+`rust/tests/filetool_edit_argv_test.rs` spawns the REAL binary with
+multi-line/tab/equals `old_string` argv and asserts byte-exact edits —
+the full argv → k=v parse → matcher path the unit tests bypass. 3/3 green.
+
 ## Fix direction
 The FileTool adapter should receive `old_string` / `new_string` as opaque
 values that survive newlines+indentation byte-for-byte — e.g. length-prefixed
