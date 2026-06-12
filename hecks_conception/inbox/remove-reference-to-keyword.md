@@ -228,3 +228,66 @@ Both are the domain reaching for a RUNTIME PRIMITIVE instead of a DOMAIN
 CONCEPT : `reference_to` for "a relationship", `id` for "an identity". Same
 fix : the bluebook names the concept (belongs_to / the typed identity) ; the
 runtime adapter handles the plumbing beneath. They retire in the SAME sprint.
+
+---
+
+# RESOLVED : Plan is a Domain Module, not an aggregate (2026-06-11, Chris + audit)
+
+Surfaced while choosing the `create` keyword : the card's example `create "Plan"`
+felt wrong because you do NOT create a Plan — "we just create sprints, stories,
+tasks." Chris : "Maybe Plan is a Domain Module — I don't think we have that
+concept yet." Audited Plan's full surface to decide retire-vs-keep on evidence.
+
+## The deciding question (Evans) : does a singleton aggregate guard a spanning invariant?
+A singleton aggregate is legitimate in exactly ONE case — it enforces an invariant
+that spans its contents (e.g. uniqueness across a registry). Otherwise it is the
+bounded-context / Module masquerading as an Entity (the singleton-registry smell).
+
+## Audit verdict : Plan is hollow (inv_4cc1e915 / 6af0cfc2 / 4e0aea5e / 6821c576)
+| probe | finding |
+|---|---|
+| commands | ONE — `Open`. No command touches its own contents (no AddProject/SetBoard). |
+| queries | zero. |
+| invariants (`invariant`/`requires`/`unique`/`guard`/`state`) | **zero** — grep on the root is empty. |
+| `PlanOpened` cascades / driven policies | zero. The event fires into the void. |
+| callers of `Plan.Open` | zero across conception/miette/miette_family. Nothing opens a Plan. |
+| `PlanOpened` in any golden | zero. |
+| `plan.heki` live store | none — never instantiated at runtime. |
+| back-references (Board/Project → Plan) | none. |
+| `has_one Board` / `has_many Projects` | declared, NEVER populated — no command sets them. |
+
+The one candidate spanning-invariant — one-active-sprint-per-project uniqueness —
+is explicitly homed UPSTREAM on **Project** (sprint.bluebook:273), not on Plan.
+So the steelman is dead : Plan guards nothing. Meanwhile the real Factories live
+where the lifecycles are — `Board.Open`, `Project.Register`, `Sprint.Plan`,
+`Story.Capture`, `Task.Add` — all minting independently of Plan. "The registry of
+Projects" is just `Project.all`, a query, not Plan's `has_many`. And the doubling :
+the *bluebook* already declares "The Planning bounded context" ; the *aggregate*
+Plan re-declares it with zero behaviour.
+
+## Decision
+- **Retire the Plan singleton aggregate.** The bluebook IS the Planning module.
+  Board, Project, Sprint, Story, Task, Backlog, UseCase, Epic, Demo are the
+  aggregates with real Factories (`create`). Removing Plan deletes a `create`-able
+  thing that was never on the create/command axis — it makes the model stop lying
+  about what gets born. Validates "we just create sprints, stories, tasks."
+- **"Domain Module" : born minimal, or deferred.** The bluebook already plays
+  bounded-context (cross-context refs use `Domain::`). Promote Module to a
+  first-class declared/queryable node ONLY when something needs to query or
+  annotate the context — not preemptively. Lean : retire Plan now, let the
+  bluebook stay the module ; note Module-as-first-class as deferred.
+
+## Migration (execute FRESH, not at session-tail — same byte-precision discipline)
+Small but golden-touching, so clean-headed :
+1. VERIFY the rust/src wiring (main.rs / storehouse_router.rs / world/attach.rs /
+   io_validator.rs matched "Plan" — confirm it's generated router registration
+   that regenerates away, not hand-wiring that breaks compile).
+2. Delete the `aggregate "Plan"` block from plan.bluebook (the Name VO + `Open`
+   command + has_one Board / has_many Projects go with it). The bluebook stays
+   named "Plan" (the bounded context) ; only the aggregate is removed.
+3. Regenerate goldens ; green : full suite + behaviors + integrity + golden.
+4. Confirm no view/diagram assumed a Plan root (safety grep already clean : no
+   render enumerates one).
+Blast radius measured SMALL : PlanOpened in zero goldens, zero behavior callers,
+zero live data. Not the two-parser breadth of the reference_to sweep — a clean
+single-bluebook deletion.
