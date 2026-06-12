@@ -99,6 +99,11 @@ Hecks.bluebook "Bluebook", version: "2026.05.12.1" do
       attribute :name, String
       attribute :description, String
       attribute :role, String
+      # creates : the create-vs-command keyword bit. `create "X"` (Factory —
+      # mint, error if id exists) sets it true ; `command "X"` (transition —
+      # load existing by universal id) leaves it false. String here mirrors
+      # the IR-shape-is-primitive convention used for Attribute.list.
+      attribute :creates, String
       attribute :emits, String
     end
 

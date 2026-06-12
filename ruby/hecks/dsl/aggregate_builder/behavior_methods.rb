@@ -12,7 +12,14 @@ module Hecks
         # @param name [String] the command name (e.g. "CreatePizza")
         # @yield block evaluated in the context of CommandBuilder
         # @return [void]
-        def command(name, &block)
+        def create(name, &block)
+              builder = CommandBuilder.new(name, creates: true)
+              builder.instance_eval(&block) if block
+              @commands << builder.build
+            end
+
+            # Define a transition command (loads existing by universal id).
+            def command(name, &block)
           builder = CommandBuilder.new(name)
           builder.instance_eval(&block) if block
           @commands << builder.build

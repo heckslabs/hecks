@@ -50,7 +50,7 @@ module Hecks
       # Sets up empty collections for all command facets.
       #
       # @param name [String] the command name (e.g. "CreatePizza", "UpdateAccount")
-      def initialize(name)
+      def initialize(name, creates: false)
         @name = name
         @attributes = []
         @references = []
@@ -69,6 +69,7 @@ module Hecks
         @goal = nil
         @givens = []
         @mutations = []
+            @creates = creates
       end
 
       # Override the generated Ruby method name.
@@ -382,7 +383,7 @@ module Hecks
           emits: @emits, emits_identified_by: @emits_identified_by,
           description: @description,
           method_name: @method_name, goal: @goal,
-          givens: @givens, mutations: @mutations
+          givens: @givens, mutations: @mutations, creates: @creates
         )
       end
 

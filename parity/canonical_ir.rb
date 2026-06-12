@@ -254,6 +254,7 @@ module Hecks
           "name"                 => cmd.name,
           "description"          => command_description(cmd),
           "role"                 => primary_role(cmd),
+          "creates"              => (cmd.respond_to?(:creates) ? !!cmd.creates : false),
           "emits"                => emit_string(cmd.emits),
           # i250 — events have identity. `emits "X", identified_by: :y`
           # carries the event-identity attribute name. Same word

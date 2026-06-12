@@ -1,0 +1,24 @@
+Hecks.bluebook "CreateKeyword", version: "2026.06.11.1" do
+  vision "create vs command keyword — exercises the creates flag in both parsers (reference_to retirement step 1)"
+
+  aggregate "Widget", "A widget minted by a create-keyword factory" do
+    identified_by :name
+    attribute :name, WidgetName
+
+    value_object "WidgetName" do
+      attribute :value, String
+    end
+
+    create "Spawn" do
+      role "System"
+      attribute :name, WidgetName
+      emits "WidgetSpawned"
+    end
+
+    command "Poke" do
+      role "System"
+      attribute :name, WidgetName
+      emits "WidgetPoked"
+    end
+  end
+end

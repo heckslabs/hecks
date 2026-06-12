@@ -7,7 +7,14 @@ module Hecks
   class Workshop
     class AggregateHandle
       module BehaviorMethods
-        def command(name, &block)
+        def create(name, &block)
+              name = normalize_name(name)
+              @builder.create(name, &block)
+              puts "#{name} create command created on #{@name}"
+              self
+            end
+
+            def command(name, &block)
           name = normalize_name(name)
           @builder.command(name, &block)
           puts "#{name} command created on #{@name}"

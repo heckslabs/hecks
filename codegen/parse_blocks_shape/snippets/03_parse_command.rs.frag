@@ -5,8 +5,9 @@ pub fn parse_command(lines: &[&str]) -> (Command, usize) {
         first.split_whitespace().next().unwrap_or("").to_string()
     });
 
+    let creates = first.split_whitespace().next() == Some("create"); // create keyword = Factory
     let mut cmd = Command {
-        name, description: None, role: None, attributes: vec![],
+        name, description: None, role: None, creates, attributes: vec![],
         references: vec![], emits: None, emits_identified_by: None,
         givens: vec![], mutations: vec![],
     };

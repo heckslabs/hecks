@@ -48,7 +48,7 @@ module Hecks
                   :external_systems, :actors, :call_body, :sets,
                   :preconditions, :postconditions, :emits, :emits_identified_by,
                   :description, :goal,
-                  :givens, :mutations
+                  :givens, :mutations, :creates
 
       # Creates a new Command IR node.
       #
@@ -70,7 +70,7 @@ module Hecks
                      call_body: nil, sets: {}, preconditions: [], postconditions: [], emits: nil,
                      emits_identified_by: nil,
                      description: nil, method_name: nil, goal: nil,
-                     givens: [], mutations: [])
+                     givens: [], mutations: [], creates: false)
         @name = Names.command_name(name)
         @attributes = attributes
         @references = references
@@ -90,6 +90,7 @@ module Hecks
         @goal = goal
         @givens = givens
         @mutations = mutations
+            @creates = creates
       end
 
       # Returns the event name(s) this command emits.
