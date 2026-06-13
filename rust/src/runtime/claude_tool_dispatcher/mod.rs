@@ -181,29 +181,27 @@ fn run_edit(attrs: &HashMap<String, String>) -> ClaudeToolResult {
         Err(e) => return err("edit", &format!("read {}: {}", path, e)),
     };
 
-    // Enforce uniqueness unless replace_all=true.
-    if !replace_all {
-        let count = contents.matches(&old).count();
-        if count == 0 {
-            // Including a peek of the file's head helps the caller
-            // diagnose "did the value get mangled in transit?" — the
-            // shell arg parser is a frequent culprit for multi-line
-            // strings with quote/newline issues.
+    // Locate old_string and produce the edited contents. Exact (byte-for-byte)
+    // match first ; if old_string isn't found exactly, fall back to a
+    // whitespace-tolerant line match that compares lines by their TRIMMED
+    // content and re-indents new_string to the file's actual indentation. This
+    // rescues the recurring toil where old_string carried the wrong leading
+    // whitespace (authored from memory, not the file's current bytes).
+    let new_contents = match locate_replace(&contents, &old, &new, replace_all) {
+        Ok(c) => c,
+        Err(MatchErr::NotFound) => {
+            // A peek of the file's head helps diagnose "did the value get
+            // mangled in transit?" — a frequent culprit for multi-line strings.
             let head: String = contents.chars().take(200).collect();
             return err("edit", &format!(
                 "old_string not found in {} ; first 200 chars of file: {:?}",
                 path, head));
         }
-        if count > 1 {
+        Err(MatchErr::Ambiguous(count)) => {
             return err("edit", &format!(
                 "old_string appears {} times in {} — make it unique with more context, or pass replace_all=true",
                 count, path));
         }
-    }
-    let new_contents = if replace_all {
-        contents.replace(&old, &new)
-    } else {
-        contents.replacen(&old, &new, 1)
     };
 
     match std::fs::write(&path, &new_contents) {
@@ -216,6 +214,70 @@ fn run_edit(attrs: &HashMap<String, String>) -> ClaudeToolResult {
         },
         Err(e) => err("edit", &format!("write {}: {}", path, e)),
     }
+}
+
+/// Outcome of locating an Edit's old_string in the file.
+enum MatchErr {
+    NotFound,
+    Ambiguous(usize),
+}
+
+/// Count of leading ASCII spaces/tabs on a line (its indentation).
+fn indent_len(line: &str) -> usize {
+    line.chars().take_while(|c| *c == ' ' || *c == '\t').count()
+}
+
+/// Replace `old` with `new` in `contents`. EXACT match first (byte-for-byte,
+/// unambiguous) ; on no exact match, a whitespace-TOLERANT fallback compares
+/// lines by their trimmed content and re-indents `new` to the file's actual
+/// indentation — rescuing the common case where `old` was authored with the
+/// wrong leading whitespace. The tolerant path requires a UNIQUE trimmed-line
+/// match (unless replace_all) so it can't silently edit the wrong region.
+fn locate_replace(contents: &str, old: &str, new: &str, replace_all: bool) -> Result<String, MatchErr> {
+    // Exact path — unchanged behavior for byte-exact old_strings.
+    let exact = contents.matches(old).count();
+    if exact == 1 || (replace_all && exact >= 1) {
+        return Ok(if replace_all { contents.replace(old, new) } else { contents.replacen(old, new, 1) });
+    }
+    if exact > 1 {
+        return Err(MatchErr::Ambiguous(exact));
+    }
+
+    // Tolerant fallback — match a contiguous run of lines by trimmed content.
+    let old_body = old.strip_suffix('\n').unwrap_or(old);
+    let new_body = new.strip_suffix('\n').unwrap_or(new);
+    let old_lines: Vec<&str> = old_body.split('\n').collect();
+    let n = old_lines.len();
+    if n == 0 { return Err(MatchErr::NotFound); }
+    let old_trim: Vec<&str> = old_lines.iter().map(|l| l.trim()).collect();
+
+    let file_lines: Vec<&str> = contents.split('\n').collect();
+    if file_lines.len() < n { return Err(MatchErr::NotFound); }
+
+    let starts: Vec<usize> = (0..=file_lines.len() - n)
+        .filter(|&i| (0..n).all(|j| file_lines[i + j].trim() == old_trim[j]))
+        .collect();
+    match starts.len() {
+        0 => return Err(MatchErr::NotFound),
+        1 => {}
+        c => if !replace_all { return Err(MatchErr::Ambiguous(c)); }
+    }
+
+    // Splice replacements from LAST match to first so earlier indices stay
+    // valid. Each new line is shifted by the delta between the file's actual
+    // indent and old_string's first-line indent ; blank lines stay empty.
+    let mut out: Vec<String> = file_lines.iter().map(|s| s.to_string()).collect();
+    for &i in starts.iter().rev() {
+        let delta = indent_len(file_lines[i]) as isize - indent_len(old_lines[0]) as isize;
+        let reindented: Vec<String> = new_body.split('\n').map(|l| {
+            if l.trim().is_empty() { return String::new(); }
+            let cur = indent_len(l);
+            let target = (cur as isize + delta).max(0) as usize;
+            format!("{}{}", " ".repeat(target), &l[cur..])
+        }).collect();
+        out.splice(i..i + n, reindented);
+    }
+    Ok(out.join("\n"))
 }
 
 // ── :read — read file_path, return contents (truncated) ──
@@ -614,6 +676,46 @@ mod tests {
         ]));
         assert!(!r.ok);
         assert!(r.error.unwrap().contains("missing required attr: old_string"));
+        let _ = std::fs::remove_file(&tmp);
+    }
+
+    // ── whitespace-tolerant matching ──
+
+    #[test]
+    fn edit_tolerant_matches_despite_wrong_indentation() {
+        // File is indented 12 spaces ; old_string is authored with 8. Exact
+        // match fails ; the tolerant fallback matches by trimmed line content
+        // and re-indents new_string to the file's real 12-space indent.
+        let tmp = format!("/tmp/claude_tool_edit_tol_{}.txt", std::process::id());
+        std::fs::write(&tmp, "fn f() {\n            let x = 1;\n            let y = 2;\n}\n").unwrap();
+        let r = dispatch("edit", &attrs(&[
+            ("file_path", &tmp),
+            ("old_string", "        let x = 1;\n        let y = 2;"),
+            ("new_string", "        let x = 10;\n        let y = 20;"),
+        ]));
+        assert!(r.ok, "tolerant edit should succeed: {:?}", r);
+        assert_eq!(
+            std::fs::read_to_string(&tmp).unwrap(),
+            "fn f() {\n            let x = 10;\n            let y = 20;\n}\n",
+            "new_string must be re-indented to the file's 12-space indent",
+        );
+        let _ = std::fs::remove_file(&tmp);
+    }
+
+    #[test]
+    fn edit_tolerant_ambiguous_is_refused() {
+        // Two trimmed-equal lines ; old_string (tab-prefixed) has no exact
+        // match, so the tolerant path runs and must refuse the ambiguous
+        // match rather than corrupt the file.
+        let tmp = format!("/tmp/claude_tool_edit_tolamb_{}.txt", std::process::id());
+        std::fs::write(&tmp, "  foo();\n  foo();\n").unwrap();
+        let r = dispatch("edit", &attrs(&[
+            ("file_path", &tmp),
+            ("old_string", "\tfoo();"),
+            ("new_string", "bar();"),
+        ]));
+        assert!(!r.ok, "ambiguous tolerant match must be refused: {:?}", r);
+        assert!(r.error.unwrap().contains("appears 2 times"));
         let _ = std::fs::remove_file(&tmp);
     }
 }
