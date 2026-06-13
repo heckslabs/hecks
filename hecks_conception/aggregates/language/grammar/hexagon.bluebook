@@ -1,0 +1,224 @@
+Hecks.bluebook "Hexagon", version: "2026.06.12.3" do
+  vision "A domain's boundary wiring : the ports it exposes and the adapters that fulfil them. The domain stays synchronous ; everything that leaves it is an async adapter."
+  category "language"
+
+  # ── The model ───────────────────────────────────────────────
+  # An aggregate IS a port definition (its commands-in / events-out
+  # ARE the contract ; no separate Port concept). The domain is purely
+  # synchronous and handles its OWN intra-domain aggregate calls by
+  # naming convention ; the hexagon wires only what LEAVES the domain.
+  #
+  # An ADAPTER is anything OUTSIDE the domain boundary — persistence,
+  # HTTP, a payment gateway, reporting, or CALLING ANOTHER BLUEBOOK
+  # (via storehouse, the universal dispatch door). Every adapter is
+  # async ; the domain stays sync. Calling another bluebook is just one
+  # outside thing among many : the adapter routes a command through
+  # storehouse and the target domain's aggregate implements directly —
+  # a bluebook working as an adapter.
+  #
+  # persisted_by / charged_by are NOT port methods ; they are how we
+  # implement, specifically, naming an impure family. The colour is
+  # free : domain always sync, adapters always async, never declared.
+  # Cross-domain wiring is the hexagon's job at runtime through
+  # storehouse (runtime discovery) ; Hexagon.Verify is the optional
+  # startup fail-fast. Cross-domain VOCABULARY lives in Composition ;
+  # this chapter is the runtime WIRING.
+
+  # ============================================================
+  # HEXAGON — root : aggregates a domain's port-bindings
+  # ============================================================
+  #
+  # One per domain. Names the domain and aggregates the bindings that
+  # wire its ports' boundary edges. Intra-domain calls are NOT here
+  # (the bluebook handles them by naming convention) ; only the edges
+  # that leave the domain.
+  aggregate "Hexagon", "The hexagon of one domain. Names the domain and aggregates the port-bindings that wire its boundary edges — the impure-adapter and fulfillment (cross-domain) edges. Intra-domain calls are not wired here." do
+    identified_by :domain
+    attribute :domain, DomainName
+    has_many Binding
+
+    value_object "DomainName" do
+      # The domain whose ports this hexagon aggregates — "Pizzas".
+      attribute :value, String
+    end
+
+    command "Conceive" do
+      role "Framework"
+      description "Bring a domain's hexagon into being — its domain name. Its bindings are sibling Binding records aggregated via has_many."
+      attribute :domain, DomainName
+      emits "Conceived"
+      then_set :domain, to: :domain
+    end
+
+    command "Verify" do
+      role "Framework"
+      description "Startup validation — the OPTIONAL fail-fast guard over runtime discovery. Load the hexagon and check every binding's adapter resolves its target through storehouse ; fail fast if any wiring is missing or misconfigured, instead of breaking at first-fire. The binding is still resolved at RUNTIME ; Verify only moves discovery of a misconfiguration forward to startup. This is the flexibility/safety trade-off made explicit."
+      reference_to(Hexagon)
+      emits "Verified"
+    end
+  end
+
+  # ============================================================
+  # FAMILY — an impure boundary kind (persistence, payment)
+  # ============================================================
+  #
+  # Impure side only. Names the how-verb the bind uses (persisted_by,
+  # charged_by) — how we implement, specifically, NOT a port method —
+  # its signal (reply | effect), and the config fields its adapters
+  # carry. Never names its adapters (they declare their use of it).
+  # Fulfillment needs no family : it routes via storehouse.
+  aggregate "Family", "An impure boundary kind (persistence, payment). Names its how-verb (persisted_by, charged_by) — how we implement, specifically, not a port method — its signal (reply | effect), and the config fields its adapters carry. Never names its adapters." do
+    identified_by :name
+    attribute :name,   FamilyName
+    attribute :verb,   HowVerb
+    attribute :signal, Signal
+    has_many Field
+
+    value_object "FamilyName" do
+      # The family's name — "persistence", "payment".
+      attribute :value, String
+    end
+
+    value_object "HowVerb" do
+      # The implementation verb the bind hangs off the aggregate FQN
+      # ("persisted_by", "charged_by"). NOT a port method — how we
+      # implement, specifically.
+      attribute :value, String
+    end
+
+    value_object "Signal" do
+      # "reply"  — returns a value to the sync domain (persistence).
+      # "effect" — event out, async verdict re-enters as a command.
+      attribute :value, String
+    end
+
+    command "Declare" do
+      role "Framework"
+      description "Bring an impure family into being — its name, how-verb, and signal (reply | effect). Its config fields are sibling Field records that belong_to it ; its adapters are NEVER listed here."
+      attribute :name,   FamilyName
+      attribute :verb,   HowVerb
+      attribute :signal, Signal
+      emits "Declared"
+      then_set :name,   to: :name
+      then_set :verb,   to: :verb
+      then_set :signal, to: :signal
+    end
+  end
+
+  # ============================================================
+  # FIELD — one config field a family's adapters carry
+  # ============================================================
+  #
+  # The field NAME only ; the VALUE lives in .world (db, endpoint,
+  # timeout_ms). Belongs to its family.
+  aggregate "Field", "One configuration field a family's adapters carry (db, endpoint, timeout_ms). The name only — the value lives in .world. Belongs to its family." do
+    identified_by :name
+    attribute :name, FieldName
+
+    value_object "FieldName" do
+      # The field's name — "db", "endpoint", "timeout_ms".
+      attribute :value, String
+    end
+
+    command "Declare" do
+      role "Framework"
+      description "Declare one config field on a family. The value is supplied per-deployment in .world."
+      attribute :name, FieldName
+      emits "Declared"
+      then_set :name, to: :name
+    end
+  end
+
+  # ============================================================
+  # ADAPTER — a concrete async impure implementation of a family
+  # ============================================================
+  #
+  # The inverted arrow : the adapter declares the family it implements.
+  # Always async — the colour is free. Configuration lives in .world.
+  # A fulfillment (cross-domain) bind needs NO declared adapter ; it
+  # routes via storehouse to a target aggregate that implements directly.
+  aggregate "Adapter", "A concrete async impure implementation (heki, sqlite, shell) of a family. Declares the family it implements — the inverted arrow. Always async ; the colour is free. Configuration lives in .world." do
+    identified_by :name
+    belongs_to Family
+    attribute :name, AdapterName
+
+    value_object "AdapterName" do
+      # The adapter's name — "heki", "shell", "fulfillment". The string
+      # the bind passes : `persisted_by('Heki')`. The adapter declaration
+      # already knows which domain it routes to ; the hexagon does the
+      # cross-domain wiring at runtime through storehouse — no FQN is
+      # stored in the bluebook.
+      attribute :value, String
+    end
+
+    command "Declare" do
+      role "Framework"
+      description "Declare an adapter — it belongs_to the family it implements. Config is in .world ; cross-domain wiring is the hexagon's job at runtime, so no FQN is stored here."
+      attribute :name, AdapterName
+      emits "Declared"
+      then_set :name, to: :name
+    end
+  end
+
+  # ============================================================
+  # BINDING — a port's boundary edge wired to an implementer
+  # ============================================================
+  #
+  # The Binding names only THIS domain : the port (aggregate) and the
+  # event that triggers the adapter (on). It has_one Adapter ; the adapter
+  # declaration already knows which domain it routes to, and the hexagon
+  # does the cross-domain wiring at runtime through storehouse — no FQN is
+  # stored. The how-verb is derived via the adapter's family. Surface shapes :
+  #
+  #   reply        Pizza::Order.persisted_by('Heki')
+  #     aggregate=Pizza::Order  adapter=Heki   (no on — returns a value)
+  #
+  #   effect       Pizza::Order.charged_by('Shell', on: 'OrderPlaced')
+  #     aggregate=Pizza::Order  on=OrderPlaced  adapter=Shell
+  #     — Shell does external IO, then routes its verdict back through the
+  #       hexagon via storehouse.
+  #
+  #   fulfillment  Pizza::Order.on('OrderAuthorized') -> [fulfillment adapter]
+  #     aggregate=Pizza::Order  on=OrderAuthorized  adapter=fulfillment
+  #     — the fulfillment adapter already knows it routes to the Fulfillment
+  #       domain ; the hexagon wires it through storehouse. The binding NEVER
+  #       names the other bluebook.
+  aggregate "Binding", "One port's boundary edge wired to an adapter (has_one). References only THIS domain : the port (aggregate) and the triggering event (on). The cross-domain target FQN lives in the adapter, never here — a bluebook never references another bluebook directly." do
+    identified_by :phrase
+    has_one Adapter
+    attribute :phrase,    Phrase
+    attribute :aggregate, AggregateRef
+    attribute :on,        EventRef, default: ""
+
+    value_object "Phrase" do
+      # The bind identity — "Pizza::Order.persisted_by" or
+      # "Pizza::Order.OrderAuthorized".
+      attribute :value, String
+    end
+
+    value_object "AggregateRef" do
+      # The aggregate in THIS domain that IS the port — "Pizza::Order".
+      # Same-domain only ; the cross-domain target FQN lives in the
+      # adapter, never here (a bluebook never references another).
+      attribute :value, String
+    end
+
+    value_object "EventRef" do
+      # The event the port emits that calls the adapter (inbound edge).
+      # Empty for reply binds.
+      attribute :value, String
+    end
+
+    command "Bind" do
+      role "Framework"
+      description "Wire a port (this domain's aggregate) + its triggering event to an adapter (has_one). The adapter holds the FQN it dispatches through storehouse ; the binding never names another bluebook. The how-verb is derived through the adapter's family."
+      attribute :phrase,    Phrase
+      attribute :aggregate, AggregateRef
+      attribute :on,        EventRef
+      emits "Bound"
+      then_set :phrase,    to: :phrase
+      then_set :aggregate, to: :aggregate
+      then_set :on,        to: :on
+    end
+  end
+end

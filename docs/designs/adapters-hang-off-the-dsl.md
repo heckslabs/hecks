@@ -82,10 +82,16 @@ the async outcome re-enters as (outbound edge, a discriminated union —
 success→Authorize, failure→Decline). Both edges are carried by the ONE port
 verb.
 
-The round-trip binding IS the **Subscription** — keep that name (Directive 1).
-Its only fields are the edges (`on`/`into`, i.e. trigger/result). It needs NO
-`description` ; the edges ARE the whole contract. Expressed as the port's own
-signature — not two loose struct fields, and not a prose-described object.
+The round-trip needs NO name — not "Subscription", not "Binding". **The verb
+carries the semantics.** `charged_by` already says "fires on an event, returns a
+command" (effect-port) ; `persisted_by` says "backs storage, returns a value"
+(reply-port). The verb's declaration in its family IS the whole contract — no
+wrapper object, no `description`. The edges (`on`/`into`) are the verb's own
+signature where it has them ; a reply-port verb carries none.
+
+(The pre-existing `Subscription` value object in `hecksagon_ir.bluebook` is a
+DIFFERENT concept — the cross-domain `subscribe "OtherDomain"` edge — and is
+untouched. This design introduces NO "Subscription" ; it is extra to the UL.)
 
 ### 4. Families are groups of explicitly-declared ports
 The port vocabulary is **open**, organized into families. Each port is
@@ -119,10 +125,10 @@ portable.
 
 ## What this supersedes
 The restart card's change-surface (lift `trigger_on`/`result_into` into a shared
-Subscription STRUCT, parse them on the `:shell` arm) was the right mechanism at
+two-field STRUCT, parse them on the `:shell` arm) was the right mechanism at
 the IR level but the wrong SURFACE. The surface is not a struct with two
 fields — it is a **port bound off the aggregate FQN, filled by an adapter that
-declares its family**. Directive 1 (the Subscription) and Directive 2 (project
+declares its family**. Directive 1 (the trigger/result edges) and Directive 2 (project
 to Rust) fuse: the port IS the declaration, and the typed round-trip it carries
 is exactly what projects to typed async Rust (the generated worker knows the
 event payload and the command attributes → typed glue, not stringly dispatch).
@@ -136,3 +142,101 @@ event payload and the command attributes → typed glue, not stringly dispatch).
   functions. The bus boundary is the only seam where the two colors meet.
 - Migration: the flat `adapter :shell, name:, trigger_on:, result_into:` form is
   replaced wholesale (no first user; no compat shim).
+
+## Worked example — written in the hecksagon (impure adapter vs cross-domain)
+
+The wiring lives in the `.hecksagon` either way — a bluebook-as-adapter does NOT
+wire itself ; the cross-domain edge is still declared in the hexagon. The
+aggregate IS the port definition (`Pizza::Order`'s events/commands ARE the
+contract) ; `persisted_by` / `charged_by` are NOT port methods — they are how we
+implement, specifically, via an adapter. Cross-domain needs no how-verb and no
+adapter : the target aggregate's command fills the port directly.
+
+```ruby
+# pizzas.hecksagon — Pizza::Order is a PORT DEFINITION ; two implementations.
+Hecks.hecksagon "Pizzas" do
+
+  # IMPURE — the payment gateway crosses the purity boundary, so it needs an
+  # ADAPTER. `charged_by` is how we implement, specifically : payment, via the
+  # Shell adapter. The async verdict re-enters the SAME domain.
+  Pizza::Order.charged_by("Shell",
+                          on:   "OrderPlaced",
+                          into: "Order.Authorize | Order.Decline")
+
+  # REPLY — persistence is also impure (disk IO), so also an adapter. No edges :
+  # a reply port returns a value, the domain sees a plain find/save that returns.
+  Pizza::Order.persisted_by("Heki")
+
+  # CROSS-DOMAIN — Order's authorized event ROUTES into the Fulfillment domain
+  # through a FULFILLMENT ADAPTER : a domain-routing adapter (async, like every
+  # adapter) whose job is to carry the call from one domain to another. It does
+  # no external IO — the Fulfillment bluebook's aggregate DIRECTLY implements
+  # the contract (no implementation code written). The bluebook works as the
+  # adapter ; the routing IS the adapter.
+  Pizza::Order.on("OrderAuthorized").into("Fulfillment::Shipment.Release")
+
+end
+```
+
+TWO adapter kinds, both async, both wired in the hexagon :
+- an **impure adapter** (`charged_by("Shell")`, `persisted_by("Heki")`) does
+  external IO and crosses the PURITY boundary ;
+- a **domain-routing adapter** (the fulfillment adapter above) routes a call from
+  one domain to another and crosses the DOMAIN boundary, delegating to a target
+  aggregate that DIRECTLY implements the contract — the bluebook works as the
+  adapter, no implementation code written.
+
+The only adapter-free, synchronous path is INTRA-domain (aggregate->aggregate,
+same domain, by naming convention). Everything that LEAVES a domain — impure
+outside OR another domain — is an async adapter. That is exactly why "we only
+wire cross-domain in the hexagon" : leaving the domain is what needs an adapter.
+
+### How a port is fulfilled at runtime — the adapter calls storehouse
+
+The aggregate-port calls the adapter to fulfil it ; the adapter fulfils the port
+by calling the STOREHOUSE (the bus) to dispatch a command. The storehouse is the
+universal door — `storehouse.dispatch("Domain::Aggregate.Command", …)`. So `into`
+names the command the adapter dispatches :
+
+- **Fulfillment (domain-routing) adapter** — calls `storehouse.dispatch(
+  "Fulfillment::Shipment.Release", …)`. The bus lands it in the OTHER domain,
+  which handles it synchronously within itself. The storehouse call IS the
+  routing ; the Fulfillment bluebook is what works as the adapter.
+- **Impure effect adapter** (gateway) — runs its external IO, THEN calls
+  `storehouse.dispatch` to put the verdict (`Order.Authorize | Order.Decline`)
+  back into the SAME domain. `result_into` is literally the command it dispatches.
+
+Same mechanism either way : the adapter is async, and its act of fulfilment is a
+storehouse dispatch. `on` is the event that calls the adapter ; `into` is the
+command the adapter dispatches through storehouse to fulfil the port.
+
+This is the SAME thing today's parseable `driven on EVENT do dispatch
+"Other::Agg.Command" end` form already does (the cross-domain dispatch target is
+a pure aggregate command, no adapter struct) — the FQN-verb surface above is its
+target spelling, hung off the aggregate-port instead of a `driven` block.
+
+## CONCEIVED — the hexagon bluebook is now the source of truth
+
+The model is conceived as a validated bluebook :
+`aggregates/language/grammar/hexagon.bluebook` (+ `.behaviors`, 7 green).
+Where this prose and the bluebook differ (some earlier sections still show an
+`into` FQN on the binding), the **bluebook wins**. Final shape :
+
+- **Hexagon** (root) — `domain`, `has_many Binding` ; commands `Conceive` and
+  `Verify` (optional startup wiring check).
+- **Family** — `name`, `verb` (the how-verb, e.g. `persisted_by`), `signal`
+  (reply | effect), `has_many Field`.
+- **Field** — one config field NAME (the value lives in `.world`).
+- **Adapter** — `name`, `belongs_to Family`. **No FQN** : the adapter
+  declaration already knows which domain it routes to.
+- **Binding** — `aggregate` (own-domain port), `on` (triggering event),
+  `has_one Adapter`. References ONLY its own domain.
+
+Locked structural rules : single-direction relationships (**never
+bidirectional**) ; **no `list_of`** (collections are `has_many`) ; an adapter is
+anything **outside the domain boundary** (persistence, HTTP, calling another
+bluebook). A bluebook never references another bluebook directly — the adapter is
+the indirection. Cross-domain wiring is the **hexagon's job at RUNTIME** through
+storehouse (**runtime discovery**) ; `Hexagon.Verify` is the optional fail-fast
+that moves a misconfiguration from first-fire to startup — the
+flexibility/safety trade-off made explicit.
