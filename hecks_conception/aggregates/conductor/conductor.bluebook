@@ -1,5 +1,4 @@
 Hecks.bluebook "Conductor", version: "2026.06.02.1" do
   vision "The Conductor domain : workforce orchestration. Workers claim stories, hold worktrees via Leases, and push through a serialised MergeQueue. The domain is built entirely on the sprint-14 runtime substrate — no rust/ edits. Four aggregates, file-per-aggregate, all under this Conductor header. Sibling cards add commands, events, behaviors, and hecksagon adapter wiring. This file is the composition root : vision, category, delivery mode."
   category "framework"
-  delivery :actor
 end
