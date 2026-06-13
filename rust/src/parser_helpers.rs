@@ -60,6 +60,68 @@ pub fn extract_string(line: &str) -> Option<String> {
     None
 }
 
+/// Extract a possibly multi-line `"..."` string literal beginning on
+/// `lines[start]`, returning the UNESCAPED content and the number of
+/// physical lines consumed.
+///
+/// Mirrors Ruby's string-literal lexing : when the opening `"` is not
+/// closed on the same physical line, the literal continues onto the next
+/// raw (untrimmed) line with a `\n` re-inserted at each break, preserving
+/// continuation-line indentation byte-for-byte. Single-line literals close
+/// on the first iteration and return `(value, 1)`, identical to
+/// `extract_string`. Used for top-level `vision` strings, which may span
+/// several physical lines (paragraphs, arrows, backticked phrases) — Ruby
+/// reads them natively because the DSL is `instance_eval`'d ; the Rust
+/// line-walker must reassemble them to stay byte-equal.
+///
+/// Divergence (unreachable in the corpus, guarded by the parity gate) : a
+/// backslash at the very end of a physical line is a Ruby line-continuation
+/// that drops both the `\` and the newline ; here it yields a `\n`.
+pub fn extract_string_spanning(lines: &[&str], start: usize) -> (Option<String>, usize) {
+    let first = lines[start];
+    let open = match first.find('"') {
+        Some(p) => p + 1,
+        None => return (None, 1),
+    };
+    let mut out = String::new();
+    let mut idx = start;
+    let mut segment = &first[open..];
+    loop {
+        let mut chars = segment.chars();
+        let mut closed = false;
+        while let Some(c) = chars.next() {
+            if c == '\\' {
+                match chars.next() {
+                    Some('"')  => out.push('"'),
+                    Some('\\') => out.push('\\'),
+                    Some('n')  => out.push('\n'),
+                    Some('t')  => out.push('\t'),
+                    Some('r')  => out.push('\r'),
+                    Some('0')  => out.push('\0'),
+                    Some(other) => out.push(other),
+                    None => break,
+                }
+                continue;
+            }
+            if c == '"' {
+                closed = true;
+                break;
+            }
+            out.push(c);
+        }
+        let consumed = idx - start + 1;
+        if closed {
+            return (Some(out), consumed);
+        }
+        idx += 1;
+        if idx >= lines.len() {
+            return (None, consumed);
+        }
+        out.push('\n');
+        segment = lines[idx];
+    }
+}
+
 /// Two-string-form helper for `aggregate "Name", "Description" do` and
 /// the matching `command`/`entity` shapes. Returns the UNESCAPED second
 /// string — escape-aware throughout, mirroring `extract_string` above.
