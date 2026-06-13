@@ -1,0 +1,158 @@
+Hecks.bluebook "Extraction", version: "2026.06.13.1" do
+  vision "The declarative extraction grammar : for every block keyword, the rules that turn source lines into IR fields. This is the layer BELOW block_grammar's routing (which already picks WHICH parser a keyword opens) and the layer the live parser still authors TWICE — once as Rust .rs.frag functions (parse_attribute, parse_command …), once as Ruby DSL builders. That double authorship is the root of every Ruby<->Rust parser drift : the five retired on 2026-06-13 (harry_wingate inline comment, inbox nested policy, voice_latency / storehouse_log query attributes, conductor delivery) were ALL extraction-layer disagreements, never routing ones — routing is already data (BlockGrammar), so routing never drifts. Once a small kernel interpreter reads this grammar, both parsers reduce to projections of one source and drift becomes structurally impossible, not merely gated by parity. CONCEPTION ONLY (2026-06-13) : this models the shape and stress-tests it below against the three hard cases ; the kernel interpreter that reads it is fresh-head, gated-worktree work and is deliberately NOT built here — inventing the interpreter is design judgement parity cannot verify, and that judgement is what the byte-precise kernel discipline fences off from a high-context session."
+  category "language"
+
+  # ============================================================
+  # STRESS TEST — does this shape survive the HARD cases?
+  # ============================================================
+  # A conception that only handles `attribute` is a toy that would be
+  # discovered as a toy only after the fresh-head session cut interpreter
+  # code against it. So the conception's whole job is to fail fast. Three
+  # cases, easy -> hard :
+  #
+  # 1. attribute  (flat, single line)            — SURVIVES as flat FieldRules.
+  #      keyword="attribute" opens_block=false produces="Attribute"
+  #      FieldRules : name(leading_symbol | bare_vo), type(positional |
+  #      list_of | default "String"), default(kwarg, string-aware),
+  #      required(flag), list(list_of-presence). Every field reads off ONE
+  #      line. A flat field table is enough here — and ONLY here.
+  #
+  # 2. command  (deeply nested, heterogeneous)    — FORCES RECURSION.
+  #      A command body holds attribute / given / then_set / emits /
+  #      reference_to lines, each its OWN extraction rule. A flat field
+  #      table CANNOT express a body-of-child-blocks. Hence BlockRule
+  #      carries opens_block + `contains` (the child keywords legal in the
+  #      body) and a FieldRule may have strategy=nested_block : the grammar
+  #      is RECURSIVE, a tree, not a table. THIS is the finding that kills
+  #      the naive shape. lifecycle (transitions) and value_object (nested
+  #      attributes) are the same shape — bodies of child blocks.
+  #
+  # 3. vision  (multi-line string literal)        — FORCES A TOKENIZER PRIMITIVE.
+  #      vision "...\n  ..." spans physical lines until the quote closes
+  #      (the exact drift fixed 2026-06-13 : extract_string_spanning).
+  #      "read positional token N" cannot express it — the read must consume
+  #      continuation lines, escape-aware, until the string closes. So
+  #      ReadStrategy is NOT a small set of token positions ; it must
+  #      include a string_spanning tokenization primitive.
+  #
+  # CONCLUSION (locked design) : the extraction grammar must be
+  #   (a) RECURSIVE — BlockRule.contains lets a block hold child blocks ; and
+  #   (b) carry a ReadStrategy rich enough to include multi-line string
+  #       spanning and nested-block recursion, not just positional tokens.
+  # A flat positional field table is a toy that dies on cases 2 and 3.
+  # The model below — Grammar -> BlockRule (recursive via contains) ->
+  # FieldRule (carrying a ReadStrategy) — survives all three. That is the
+  # shape the fresh-head kernel interpreter should read.
+
+  # ============================================================
+  # GRAMMAR — root : the whole declarative parse grammar
+  # ============================================================
+  aggregate "Grammar", "The whole declarative parse grammar — every block keyword's extraction rule, aggregated. The single source a kernel interpreter reads to parse any bluebook (including this one)." do
+    identified_by :name
+    attribute :name, GrammarName
+    has_many BlockRule
+
+    value_object "GrammarName" do
+      # "canonical_bluebook", "canonical_behaviors" — a named grammar, the
+      # same identity BlockGrammar::canonical_bluebook() carries today.
+      attribute :value, String
+    end
+
+    command "Conceive" do
+      role "Framework"
+      description "Bring a named grammar into being. Its BlockRules are sibling records aggregated via has_many."
+      attribute :name, GrammarName
+      emits "Conceived"
+      then_set :name, to: :name
+    end
+  end
+
+  # ============================================================
+  # BLOCKRULE — one keyword's extraction rule (recursive)
+  # ============================================================
+  aggregate "BlockRule", "One keyword's extraction rule : the IR node it produces, whether it opens a do/end body, the child keywords legal in that body (the recursion), and the FieldRules that read its own scalar fields. Belongs to a Grammar." do
+    identified_by :keyword
+    belongs_to Grammar
+    attribute :keyword, Keyword
+    attribute :produces, IrNode
+    attribute :opens_block, Flag
+    # contains : the child keywords legal inside this block's body. This is
+    # the recursion — command contains attribute / given / then_set / emits.
+    # Empty for a leaf rule like attribute.
+    attribute :contains, list_of(Keyword)
+    has_many FieldRule
+
+    value_object "Keyword" do
+      # The leading DSL keyword — "attribute", "command", "vision".
+      attribute :value, String
+    end
+    value_object "IrNode" do
+      # The IR node this rule yields — "Attribute", "Command", "Domain".
+      attribute :value, String
+    end
+    value_object "Flag" do
+      # "true" / "false" — does this keyword open a do/end body.
+      attribute :value, String
+    end
+
+    command "Declare" do
+      role "Framework"
+      description "Declare a block rule — its keyword, the IR node it produces, and whether it opens a body. Its contained child keywords and FieldRules attach via the list attribute and has_many."
+      attribute :keyword, Keyword
+      attribute :produces, IrNode
+      attribute :opens_block, Flag
+      emits "Declared"
+      then_set :keyword, to: :keyword
+      then_set :produces, to: :produces
+      then_set :opens_block, to: :opens_block
+    end
+  end
+
+  # ============================================================
+  # FIELDRULE — how ONE field is read from a block's source
+  # ============================================================
+  aggregate "FieldRule", "How one IR field is read from a block's source lines : the field name and the ReadStrategy that extracts it. Belongs to a BlockRule. The string_spanning and nested_block strategies are what the multi-line-vision and nested-command hard cases forced into the model." do
+    identified_by :field
+    belongs_to BlockRule
+    attribute :field, FieldName
+    attribute :strategy, ReadStrategy
+    # source_token : the kwarg key or keyword the strategy keys on, when it
+    # needs one ("default:" for kwarg, "" for positional / string).
+    attribute :source_token, SourceToken
+
+    value_object "FieldName" do
+      # The IR field this rule populates — "name", "type", "vision".
+      attribute :value, String
+    end
+    value_object "SourceToken" do
+      attribute :value, String
+    end
+    value_object "ReadStrategy" do
+      # The discovered extraction strategies. Deliberately NOT a fixed set
+      # of token positions : string_spanning (case 3) and nested_block
+      # (case 2) are the primitives the hard cases forced.
+      #   leading_symbol  — `:name` at the head            (attribute name)
+      #   bare_vo         — bare PascalCase VO + optional as:(attribute name)
+      #   positional      — the Nth token after the keyword (attribute type)
+      #   kwarg           — `key: value`                    (default:, required:)
+      #   string          — first "..." on the line         (name, description)
+      #   string_spanning — "..." that may cross lines       (vision) <- case 3
+      #   list_of         — `list_of(X)` -> list=true        (collection attrs)
+      #   flag            — presence of a token -> bool       (required:)
+      #   nested_block    — recurse into a child BlockRule    (command body) <- case 2
+      attribute :value, String
+    end
+
+    command "Declare" do
+      role "Framework"
+      description "Declare how one field is read — its name, ReadStrategy, and the source token the strategy keys on. Belongs to a BlockRule."
+      attribute :field, FieldName
+      attribute :strategy, ReadStrategy
+      attribute :source_token, SourceToken
+      emits "Declared"
+      then_set :field, to: :field
+      then_set :strategy, to: :strategy
+      then_set :source_token, to: :source_token
+    end
+  end
+end
