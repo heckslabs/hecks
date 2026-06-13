@@ -12,7 +12,7 @@
 //!   p.absorb(add_item_cmd);            // one Append on `items`
 //!   assert_eq!(p.append_count("items"), 1);
 
-use crate::ir::{Command, MutationOp};
+use crate::ir::{Aggregate, Command, MutationOp};
 use std::collections::{BTreeMap, BTreeSet};
 
 use super::grammar::{KindRule, Precondition, Satisfy};
@@ -28,8 +28,11 @@ pub struct ProducedState {
 }
 
 impl ProducedState {
-    /// Record a chain step's direct effects.
-    pub fn absorb(&mut self, cmd: &Command) {
+    /// Record a chain step's direct effects — Set/Append/Increment mutations and
+    /// any lifecycle transition this command drives (a transition lands the
+    /// lifecycle field at its to_state, the same as a Set, so a later
+    /// from_state precondition sees it satisfied).
+    pub fn absorb(&mut self, agg: &Aggregate, cmd: &Command) {
         for m in &cmd.mutations {
             match m.operation {
                 MutationOp::Set => {
@@ -46,6 +49,13 @@ impl ProducedState {
                     self.incremented_fields.insert(m.field.clone());
                 }
                 MutationOp::Decrement | MutationOp::Toggle | MutationOp::Delete | MutationOp::Remove => {}
+            }
+        }
+        if let Some(lc) = &agg.lifecycle {
+            for t in &lc.transitions {
+                if t.command == cmd.name {
+                    self.set_facts.insert((lc.field.clone(), t.to_state.clone()));
+                }
             }
         }
     }
