@@ -47,11 +47,30 @@ enum Outcome<'a> {
     Unsatisfiable,
 }
 
+/// `plan_commands`' outcome — the setup chain as borrowed commands (the shape the
+/// live renderer needs to emit setup lines), or Unsatisfiable. Same content as
+/// `Plan` but carries `&Command` instead of names, avoiding a name→command
+/// round-trip: the recursion already holds the borrows.
+pub enum PlanCommands<'a> {
+    Chain(Vec<&'a Command>),
+    Unsatisfiable,
+}
+
 /// Plan the setup chain that brings `agg` to the state `cmd`'s givens require.
 pub fn plan(agg: &Aggregate, cmd: &Command) -> Plan {
     match plan_chain(agg, cmd, DEPTH_CAP, &mut Vec::new()) {
         Outcome::Chain(cs) => Plan::Chain(cs.iter().map(|c| c.name.clone()).collect()),
         Outcome::Unsatisfiable => Plan::Unsatisfiable,
+    }
+}
+
+/// Like `plan`, but returns the chain as command references borrowing `agg`
+/// rather than names — what `generator::command_test` renders setup lines from.
+/// Same engine, same DEPTH_CAP, fresh visited set.
+pub fn plan_commands<'a>(agg: &'a Aggregate, cmd: &'a Command) -> PlanCommands<'a> {
+    match plan_chain(agg, cmd, DEPTH_CAP, &mut Vec::new()) {
+        Outcome::Chain(cs) => PlanCommands::Chain(cs),
+        Outcome::Unsatisfiable => PlanCommands::Unsatisfiable,
     }
 }
 
