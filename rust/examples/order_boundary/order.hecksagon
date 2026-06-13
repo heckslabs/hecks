@@ -1,0 +1,44 @@
+Hecks.hecksagon "OrderBoundary" do
+  # ============================================================
+  # ORDER BOUNDARY — the ports. The bus is the ONLY port.
+  # ============================================================
+  #
+  # The domain (order.bluebook) never names an adapter, a trait, a
+  # channel, or a runtime. It composes effects (events) and receives
+  # commands. These declarations are the entire async surface :
+  #
+  #   REPLY port — the store. The dispatch pipeline needs find/save
+  #   answers NOW (synchronously), so the adapter bridges with
+  #   mpsc + oneshot : the sync side blocks on the oneshot reply
+  #   (bounded by timeout_ms) while an async worker does the IO.
+  #   Retries and backoff live inside the worker. The domain sees a
+  #   plain `find` that returns.
+  #
+  #   EFFECT port — the payment gateway. Fire-and-forget from the
+  #   domain's side : OrderPlaced is handed to the adapter at the bus
+  #   boundary, the worker charges the remote (retries + exponential
+  #   backoff inside), and the verdict RE-ENTERS the domain as a plain
+  #   synchronous command — Authorize or Decline. The branch on the
+  #   verdict is EDGE logic ; the domain stays declarative.
+  #
+  # The handwritten Rust beside this file is the projection the code
+  # generator should emit for these declarations : ports.rs (the two
+  # bridge shapes), adapters/store_async.rs (reply port worker),
+  # adapters/payment.rs (effect port worker), bus.rs (the sync
+  # boundary), domain.rs (pure — generated from order.bluebook).
+
+  # The store — reply port. :memory in tests ; the async worker in
+  # main.rs simulates a slow backend (the heki_r2 / sqlite shape).
+  adapter :memory
+
+  # The payment gateway — effect port. Triggered by the domain event,
+  # outcome re-enters as a command ; the adapter decides WHICH command
+  # from the remote verdict.
+  adapter :shell, name: :payment_gateway,
+          trigger_on: "OrderPlaced",
+          result_into: "Order.Authorize | Order.Decline",
+          command: "examples/order_boundary/bin/charge-gateway {{ref}} {{amount_cents}}",
+          timeout_ms: 3000,
+          retries: 3,
+          backoff: "exponential"
+end

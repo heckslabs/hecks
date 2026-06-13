@@ -1,0 +1,82 @@
+Hecks.bluebook "OrderBoundary", version: "2026.06.12.1" do
+  vision "REFERENCE PATTERN — sync domain, async adapters. The domain is purely synchronous : no tokio, no Mutex, no channel, no IO ever appears in aggregate logic. Every async concern (latency, retries, backoff, timeouts, database IO) lives EXCLUSIVELY in adapters at the bus boundary. The domain composes the effect ; the adapter runs it ; the adapter's asynchronous outcome re-enters the domain as a plain synchronous command (the result_into shape). This aggregate runs unchanged under the storehouse memory runtime (order.behaviors proves the domain is host-independent) AND under the handwritten Rust host in this directory (main.rs) — same decide logic, two hosts. The sibling hecksagon declares the ports ; the .rs files are the handwritten projection the code generator should emit."
+  category "examples"
+
+  aggregate "Order", "One customer order. Born pending via the Place factory ; the payment gateway's asynchronous verdict re-enters as Authorize or Decline — the branch is decided at the EDGE, the domain stays declarative. Cancel is customer-initiated and only valid while pending." do
+    identified_by :ref
+
+    attribute :ref,           Ref
+    attribute :customer_name, CustomerName
+    attribute :amount_cents,  AmountCents
+    attribute :status,        Status, default: "pending"
+    attribute :payment_ref,   PaymentRef
+
+    value_object "Ref" do
+      # Natural key — the caller-supplied order reference.
+      attribute :value, String
+    end
+
+    value_object "CustomerName" do
+      attribute :value, String
+    end
+
+    value_object "AmountCents" do
+      # Integer cents — no floating-point money.
+      attribute :value, Integer
+    end
+
+    value_object "Status" do
+      # Lifecycle token : pending / authorized / declined / cancelled.
+      attribute :value, String
+    end
+
+    value_object "PaymentRef" do
+      # The gateway's charge reference, set by the verdict commands.
+      attribute :value, String
+    end
+
+    factory "Place" do
+      role "Customer"
+      description "Birth an order (pending). Emits OrderPlaced ; the payment_gateway adapter charges asynchronously and its verdict re-enters via Authorize or Decline. The domain never waits."
+      attribute :ref,           Ref
+      attribute :customer_name, CustomerName
+      attribute :amount_cents,  AmountCents
+      given("amount must be positive") { amount_cents > 0 }
+      then_set :ref,           to: :ref
+      then_set :customer_name, to: :customer_name
+      then_set :amount_cents,  to: :amount_cents
+      emits "OrderPlaced"
+    end
+
+    command "Authorize" do
+      role "System"
+      description "Cascade-internal : the gateway's APPROVED verdict landing as a plain synchronous transition. Dispatched by the payment adapter, never by hand."
+      reference_to(Order)
+      attribute :payment_ref, PaymentRef
+      then_set :payment_ref, to: :payment_ref
+      emits "OrderAuthorized"
+    end
+
+    command "Decline" do
+      role "System"
+      description "Cascade-internal : the gateway's DECLINED verdict. Same shape as Authorize — the adapter picks the command, the domain stays declarative."
+      reference_to(Order)
+      attribute :payment_ref, PaymentRef
+      then_set :payment_ref, to: :payment_ref
+      emits "OrderDeclined"
+    end
+
+    command "Cancel" do
+      role "Customer"
+      description "Customer-initiated cancellation — only valid while pending (the lifecycle guards it)."
+      reference_to(Order)
+      emits "OrderCancelled"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "Authorize" => "authorized"
+      transition "Decline"   => "declined"
+      transition "Cancel"    => "cancelled"
+    end
+  end
+end
