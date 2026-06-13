@@ -1,4 +1,9 @@
 pub fn parse_attribute(line: &str) -> Option<Attribute> {
+    // Ruby's lexer drops trailing `# …` comments before `attribute` runs,
+    // so the positional type / default never see them. Strip here too
+    // (comment-aware : a `#` inside a quoted default is preserved) or the
+    // comment leaks into attr_type — the harry_wingate parity drift.
+    let line = strip_trailing_comment(line);
     let parts: Vec<&str> = line.splitn(3, ',').collect();
     let first = parts.first()?.trim();
 
