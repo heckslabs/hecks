@@ -1337,82 +1337,14 @@ fn build_input(
 ///     emit→policy→trigger walk. Drift in policies surfaces as a test
 ///     failure — VCR for the cascade graph.
 /// Falls back to `ok: "true"` when nothing else qualifies.
+/// Delegates to the kernel's expected-state builder (conception_kernel::expect).
 fn build_expect(
-    _domain: &Domain,
+    domain: &Domain,
     agg: &Aggregate,
     cmd: &Command,
-    _lifecycle_to: Option<(String, String)>,
+    lifecycle_to: Option<(String, String)>,
 ) -> Vec<(String, String)> {
-    let mut out: Vec<(String, String)> = Vec::new();
-    let mut seen: BTreeSet<String> = BTreeSet::new();
-
-    let agg_attr_names: BTreeSet<&str> = agg.attributes.iter()
-        .map(|a| a.name.as_str())
-        .collect();
-
-    // 1. Create-style: runtime copies matching cmd attrs to aggregate state.
-    if is_create_command(cmd) {
-        for attr in &cmd.attributes {
-            if agg_attr_names.contains(attr.name.as_str()) && seen.insert(attr.name.clone()) {
-                out.push((attr.name.clone(), sample_value(&attr.attr_type)));
-            }
-        }
-        // Lifecycle default: only emit if the create command itself has
-        // no transition (otherwise the transition below adds the to_state,
-        // which is more specific).
-        if let Some(lc) = &agg.lifecycle {
-            let has_transition = lc.transitions.iter().any(|t| t.command == cmd.name);
-            if !has_transition && !lc.default.is_empty() && seen.insert(lc.field.clone()) {
-                out.push((lc.field.clone(), quote_string(&lc.default)));
-            }
-        }
-    }
-
-    // 2. Direct mutations on `cmd` (no cascade simulation — the cascade
-    //    is locked down via `emits:` instead).
-    for m in &cmd.mutations {
-        match m.operation {
-            MutationOp::Set => {
-                let value = resolve_mutation_value(&m.value, cmd);
-                out.retain(|(k, _)| k != &m.field);
-                out.push((m.field.clone(), value));
-                seen.insert(m.field.clone());
-            }
-            MutationOp::Append => {
-                let key = format!("{}_size", m.field);
-                if seen.insert(key.clone()) {
-                    out.push((key, "1".into()));
-                }
-            }
-            MutationOp::Toggle => {
-                if seen.insert(m.field.clone()) {
-                    out.push((m.field.clone(), "true".into()));
-                }
-            }
-            // Increment/Decrement depend on prior state — skip prediction.
-            _ => {}
-        }
-    }
-
-    // 3. Direct lifecycle transition for `cmd`.
-    if let Some(lc) = &agg.lifecycle {
-        if let Some(t) = lc.transitions.iter().find(|t| t.command == cmd.name) {
-            out.retain(|(k, _)| k != &lc.field);
-            out.push((lc.field.clone(), quote_string(&t.to_state)));
-            seen.insert(lc.field.clone());
-        }
-    }
-
-    // The cascade lockdown lives in a SEPARATE test (kind: :cascade) —
-    // see emit_cascade_test below. Mixing it into the state assertion
-    // causes overshoot: the state has cascaded past the command's
-    // direct mutations, so per-field assertions fail. The split keeps
-    // each test single-purpose.
-
-    if out.is_empty() {
-        out.push(("ok".into(), "\"true\"".into()));
-    }
-    out
+    crate::conception_kernel::expect::build_expect(domain, agg, cmd, lifecycle_to)
 }
 
 // ─── format helpers ──────────────────────────────────────────────────
@@ -1435,38 +1367,6 @@ fn kwargs_inline(cmd: &Command) -> String {
 /// final gate deletes it.
 fn sample_value(t: &str) -> String {
     crate::conception_kernel::sample::sample_value(t)
-}
-
-/// Wrap a bare string token in quotes so it parses as a string in
-/// the behaviors DSL (which extracts via extract_string).
-fn quote_string(s: &str) -> String { format!("{:?}", s) }
-
-/// Resolve a mutation's source-token value into the sample value the
-/// runtime would actually store. Strings/numbers come through as-is;
-/// `:symbol` is treated as a reference to either a command attribute
-/// (resolved to its sample value) or a command reference (resolved to
-/// the cross-ref id "1" — same id the synthesized input passes).
-fn resolve_mutation_value(raw: &str, cmd: &Command) -> String {
-    let trimmed = raw.trim();
-    if let Some(name) = trimmed.strip_prefix(':') {
-        if let Some(attr) = cmd.attributes.iter().find(|a| a.name == name) {
-            return sample_value(&attr.attr_type);
-        }
-        // Reference (cross-ref or self-ref): synthesized input passes
-        // "1" for every reference; the runtime stores that id on the
-        // aggregate's <ref_name> field.
-        if cmd.references.iter().any(|r| r.name == name) {
-            return "1".into();
-        }
-    }
-    raw.to_string()
-}
-
-fn is_create_command(cmd: &Command) -> bool {
-    for prefix in &["Create", "Add", "Place", "Register", "Open"] {
-        if cmd.name.starts_with(prefix) { return true; }
-    }
-    false
 }
 
 fn test_name(cmd: &Command, _agg: &Aggregate) -> String {
