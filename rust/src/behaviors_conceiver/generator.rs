@@ -194,9 +194,13 @@ fn command_test(
     // us closer to the state the test command requires. Returns None
     // when every candidate producer cascades past the precondition
     // state via policies — in that case, skip the test entirely.
-    let chain = match plan_setup_chain(domain, agg, cmd, 5, &mut Vec::new()) {
-        SetupPlan::Chain(chain) => chain,
-        SetupPlan::Unsatisfiable => return None,
+    //
+    // Planner switch (final-gate step 2b): driven by the kernel interpreter's
+    // plan_commands, not generator's plan_setup_chain. Same recursion and depth
+    // cap; the kernel returns the chain as &Command refs directly.
+    let chain = match crate::conception_kernel::planner::plan_commands(agg, cmd) {
+        crate::conception_kernel::planner::PlanCommands::Chain(chain) => chain,
+        crate::conception_kernel::planner::PlanCommands::Unsatisfiable => return None,
     };
     for chain_cmd in &chain {
         setups.push(emit_setup(agg, chain_cmd));
