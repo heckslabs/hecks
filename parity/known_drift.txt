@@ -13,13 +13,11 @@
 
 # (empty — full parity 113/113 as of 2026-04-18, then drift below as new gaps surface)
 
-# inbox.bluebook — 2026-05-14 : Rust parser doesn't serialize the
-# LockOnSignoff policy (Ruby parses it, Rust drops policies+process_managers
-# from its serialized IR for this bluebook). Real Rust parser gap — added
-# as part of the card-as-lock arc (see hecks_conception/inbox/i602.md).
-# Retires when the Rust parser handles the policy-emit shape used by
-# LockOnSignoff.
-hecks_conception/aggregates/library/stores/inbox.bluebook  # Rust parser drops the LockOnSignoff policy from its serialized IR (policies + process_managers) ; Ruby keeps it. Real Rust parser gap (i602).
+# inbox.bluebook drift retired 2026-06-12 — fixed in the parser projection :
+# parse_aggregate (parser_shape) now collects policies declared INSIDE an
+# aggregate body and bubbles them to domain.policies via the dispatch call
+# site, mirroring Ruby's AggregateBuilder + canonical collect_all_policies
+# flatten. inbox's LockOnSignoff now serialises on both sides (i602).
 
 # nursery/verbs drift retired 2026-04-30 — the failure was inside the
 # Lexicon aggregate (given :verb, not_in: :known_verbs structured form

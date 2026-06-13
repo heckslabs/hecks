@@ -140,7 +140,7 @@ fn keyword_matches(line: &str, keyword: &str) -> bool {
 fn invoke(parser: BlockParser, slice: &[&str], domain: &mut Domain) -> usize {
     match parser {
         BlockParser::Aggregate => {
-            let (mut agg, consumed) = parse_aggregate(slice);
+            let (mut agg, nested_policies, consumed) = parse_aggregate(slice);
             if !domain.name.is_empty() {
                 agg.context = Some(domain.name.clone());
             }
@@ -153,6 +153,11 @@ fn invoke(parser: BlockParser, slice: &[&str], domain: &mut Domain) -> usize {
                 agg.category = domain.category.clone();
             }
             domain.aggregates.push(agg);
+            // Bubble aggregate-nested policies (inbox's LockOnSignoff) up to
+            // domain.policies, mirroring Ruby's canonical flatten. Only inbox
+            // declares one today ; no bluebook mixes nested + top-level, so
+            // source order matches Ruby's `agg_policies + domain_policies`.
+            domain.policies.extend(nested_policies);
             consumed
         }
         BlockParser::Section => {
@@ -276,7 +281,7 @@ pub fn strip_shebang(source: &str) -> &str {
     source
 }
 
-fn parse_aggregate(lines: &[&str]) -> (Aggregate, usize) {
+fn parse_aggregate(lines: &[&str]) -> (Aggregate, Vec<Policy>, usize) {
     let first = lines[0].trim();
     let name = extract_string(first).unwrap_or_default();
     let desc = extract_second_string(first);
@@ -293,6 +298,13 @@ fn parse_aggregate(lines: &[&str]) -> (Aggregate, usize) {
         invariants: vec![],
         views: vec![],
     };
+
+    // Policies declared INSIDE the aggregate (lifecycle reactions like
+    // inbox's LockOnSignoff). Ruby's AggregateBuilder collects these onto
+    // the aggregate ; the canonical dump flattens aggregate policies ahead
+    // of domain-level ones. Collected here and bubbled to domain.policies
+    // by the caller so the projected IR matches Ruby byte-for-byte.
+    let mut nested_policies: Vec<Policy> = vec![];
 
     let mut i = 1;
     let mut depth = 1;
@@ -411,6 +423,16 @@ fn parse_aggregate(lines: &[&str]) -> (Aggregate, usize) {
                 let consumed = consume_rule_block(&lines[i..]);
                 i += consumed;
                 continue;
+            } else if line.starts_with("policy ") || line.starts_with("policy\t") {
+                // A policy declared inside the aggregate body. parse_policy
+                // consumes the whole `policy "..." do … end` block ; the result
+                // bubbles to domain.policies via the caller. The word-boundary
+                // guard mirrors the top-level policy dispatch so a hypothetical
+                // `policy_foo` keyword can't claim it.
+                let (policy, consumed) = parse_policy(&lines[i..]);
+                nested_policies.push(policy);
+                i += consumed;
+                continue;
             } else if ends_with_do_block(line) {
                 depth += 1;
             }
@@ -421,7 +443,7 @@ fn parse_aggregate(lines: &[&str]) -> (Aggregate, usize) {
         i += 1;
     }
 
-    (agg, i + 1)
+    (agg, nested_policies, i + 1)
 }
 
 fn absorb_reference_to(line: &str, agg: &mut Aggregate) {
