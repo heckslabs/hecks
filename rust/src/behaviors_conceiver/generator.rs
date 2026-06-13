@@ -1310,12 +1310,9 @@ fn find_append_producer<'a>(agg: &'a Aggregate, field: &str) -> Option<&'a Comma
 /// Emit a single setup line for a command on `agg`. Reference kwargs
 /// are NOT emitted — the runner injects them from its in-scope map
 /// at dispatch time. Bluebook layer stays id-free.
+/// Delegates to the kernel's per-command renderer (conception_kernel::emit).
 fn emit_setup(_agg: &Aggregate, cmd: &Command) -> String {
-    let pairs: Vec<(String, String)> = cmd.attributes.iter()
-        .map(|attr| (attr.name.clone(), sample_value(&attr.attr_type)))
-        .collect();
-    let kvs = if pairs.is_empty() { String::new() } else { format!(", {}", join_kvs(&pairs)) };
-    format!("    setup  {:?}{}", cmd.name, kvs)
+    crate::conception_kernel::emit::setup_line(cmd)
 }
 
 /// Inputs for the command under test. References are NOT emitted here:
@@ -1327,9 +1324,7 @@ fn build_input(
     _self_ref: &Option<String>,
     _cross_refs: &[&crate::ir::Reference],
 ) -> Vec<(String, String)> {
-    cmd.attributes.iter()
-        .map(|attr| (attr.name.clone(), sample_value(&attr.attr_type)))
-        .collect()
+    crate::conception_kernel::emit::input_pairs(cmd)
 }
 
 /// Expectations for the command under test. Sources, merged in order:
@@ -1423,21 +1418,14 @@ fn build_expect(
 // ─── format helpers ──────────────────────────────────────────────────
 
 fn join_kvs(pairs: &[(String, String)]) -> String {
-    pairs.iter()
-        .map(|(k, v)| format!("{}: {}", k, v))
-        .collect::<Vec<_>>()
-        .join(", ")
+    crate::conception_kernel::emit::join_kvs(pairs)
 }
 
 /// kwargs prepended with ", " for use after a positional first arg.
 /// Domain attrs only — references are injected by the runner from
 /// its in-scope map, never typed in the test source.
 fn kwargs_inline(cmd: &Command) -> String {
-    if cmd.attributes.is_empty() { return String::new(); }
-    let kvs: Vec<(String, String)> = cmd.attributes.iter()
-        .map(|a| (a.name.clone(), sample_value(&a.attr_type)))
-        .collect();
-    format!(", {}", join_kvs(&kvs))
+    crate::conception_kernel::emit::kwargs_inline(cmd)
 }
 
 /// Reasonable-looking sample for a stub. The author edits these to
