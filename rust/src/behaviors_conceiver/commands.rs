@@ -21,8 +21,6 @@ pub fn run_conceive_behaviors(args: &[String]) {
         std::process::exit(1);
     });
 
-    let force = args.iter().any(|a| a == "--force");
-
     let source = std::fs::read_to_string(source_path).unwrap_or_else(|e| {
         eprintln!("Cannot read {}: {}", source_path, e);
         std::process::exit(1);
@@ -30,6 +28,21 @@ pub fn run_conceive_behaviors(args: &[String]) {
     let domain = parser::parse(&source);
     if domain.aggregates.is_empty() {
         eprintln!("Source bluebook has no aggregates — nothing to test");
+        std::process::exit(1);
+    }
+
+    // Fail loudly on givens the conceiver cannot parse — intent it cannot
+    // honor. Silently dropping the command yields a stale, lying suite ; the
+    // bluebook is the intent, so refuse rather than emit an incomplete one.
+    let unparseable = behaviors_conceiver::generator::detect_unparseable_givens(&domain);
+    if !unparseable.is_empty() {
+        eprintln!("\n✗ Cannot conceive {} — {} given(s) the conceiver can't satisfy:",
+                  source_path, unparseable.len());
+        for (agg, cmd, expr) in &unparseable {
+            eprintln!("    {}.{} — given {{ {} }}", agg, cmd, expr);
+        }
+        eprintln!("Extend the precondition taxonomy (behaviors_conception.bluebook) to cover");
+        eprintln!("these, or revise the bluebook. Refusing to emit a suite that drops them.");
         std::process::exit(1);
     }
 
@@ -65,14 +78,10 @@ pub fn run_conceive_behaviors(args: &[String]) {
     }
 
     let target = target_path(source_path);
-    if std::path::Path::new(&target).exists() && !force {
-        eprintln!("\n{} already exists.", target);
-        eprintln!("To overwrite, re-run with --force.");
-        eprintln!("To preview the diff:");
-        eprintln!("  diff -u {} <(storehouse conceive-behaviors {} --print)", target, source_path);
-        std::process::exit(1);
-    }
-
+    // Generated artifacts are disposable projections of the bluebook — the
+    // intent. Always overwrite ; never preserve a previously-generated copy.
+    // A stale .behaviors masquerading as green is exactly the trap that hides
+    // conceiver regressions, so the source of truth (the bluebook) always wins.
     std::fs::write(&target, &text).unwrap_or_else(|e| {
         eprintln!("Cannot write {}: {}", target, e);
         std::process::exit(1);
