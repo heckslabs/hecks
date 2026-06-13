@@ -220,9 +220,11 @@ fn command_test(
     let chain_creates_entity = chain.iter().any(|c| self_ref_for(agg, c).is_none());
     if self_ref.is_some() && !chain_creates_entity {
         if let Some(create) = pick_create_command(agg) {
-            let create_chain = match plan_setup_chain(domain, agg, create, 5, &mut Vec::new()) {
-                SetupPlan::Chain(c) => c,
-                SetupPlan::Unsatisfiable => return None,
+            // Planner switch (step 2b): bootstrap-create prepend driven by the
+            // kernel interpreter's plan_commands.
+            let create_chain = match crate::conception_kernel::planner::plan_commands(agg, create) {
+                crate::conception_kernel::planner::PlanCommands::Chain(c) => c,
+                crate::conception_kernel::planner::PlanCommands::Unsatisfiable => return None,
             };
             // The chain planner is lenient about missing producers
             // (returns Chain([]) when no producer exists at all). For
@@ -254,9 +256,12 @@ fn command_test(
     for cref in &cross_refs {
         if let Some(target_agg) = domain.aggregates.iter().find(|a| a.name == cref.target) {
             if let Some(create) = pick_create_command(target_agg) {
-                let create_chain = match plan_setup_chain(domain, target_agg, create, 5, &mut Vec::new()) {
-                    SetupPlan::Chain(c) => c,
-                    SetupPlan::Unsatisfiable => return None,
+                // Planner switch (step 2b): cross-ref create prepend driven by
+                // the kernel interpreter's plan_commands, in the TARGET agg's
+                // context (the chain is same-aggregate within target_agg).
+                let create_chain = match crate::conception_kernel::planner::plan_commands(target_agg, create) {
+                    crate::conception_kernel::planner::PlanCommands::Chain(c) => c,
+                    crate::conception_kernel::planner::PlanCommands::Unsatisfiable => return None,
                 };
                 if !preconditions_covered(target_agg, create, &create_chain) {
                     return None;
