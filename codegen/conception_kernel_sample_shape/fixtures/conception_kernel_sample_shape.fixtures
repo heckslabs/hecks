@@ -1,0 +1,18 @@
+Hecks.fixtures "ConceptionKernelSampleShape" do
+  # The SampleValueRule catalog (behaviors_conception.bluebook) as DATA : one
+  # row per explicit IR type -> sample literal. The specializer emits one match
+  # arm per row, in this order, then a FIXED catch-all arm (the
+  # `"sample_<lowercased>"` default) which is logic, not a data row. This is the
+  # conception's "simplest proof that the DATA layer is real and projectable".
+  #
+  # `sample` is the literal STRING sample_value returns ; the specializer wraps
+  # it in a Rust string literal via {:?}, so Boolean's `"true"` (quotes included)
+  # round-trips to `"\"true\"".into()`.
+
+  aggregate "SampleValueRule" do
+    fixture "Integer", type_name: "Integer", sample: "1"
+    fixture "Float",   type_name: "Float",   sample: "1.0"
+    fixture "Boolean", type_name: "Boolean", sample: "\"true\""
+    fixture "String",  type_name: "String",  sample: "\"sample\""
+  end
+end

@@ -430,6 +430,28 @@ fn rust_specializer_produces_byte_identical_heki_query_rs() {
 }
 
 #[test]
+fn rust_specializer_produces_byte_identical_conception_kernel_sample_rs() {
+    // Data-driven projection (NOT section-as-snippet) : the SampleValueRule
+    // catalog fixtures drive one generated match arm per type -> literal row,
+    // plus a fixed catch-all. This is the conception's named "simplest proof
+    // that the DATA layer is real and projectable today" — the first
+    // behaviors-conception file to become a golden-tested specializer target.
+    let root = repo_root();
+    let bin = root.join("rust/target/release/storehouse");
+    assert!(bin.exists(), "storehouse binary missing — build release first");
+    let output = Command::new(&bin)
+        .args(["specialize", "conception_kernel_sample"])
+        .current_dir(&root)
+        .output()
+        .expect("storehouse specialize conception_kernel_sample failed");
+    assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
+    let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
+    let tracked = fs::read_to_string(root.join("rust/src/conception_kernel/sample.rs"))
+        .expect("conception_kernel/sample.rs missing");
+    assert_eq!(generated, tracked, "Rust specializer output drifted from tracked file");
+}
+
+#[test]
 fn rust_specializer_produces_byte_identical_run_boot_discover_rs() {
     // i147 wave 2 — Rust-native specializer for run_boot/discover.rs.
     // Section-as-snippet shape (mirrors heki_query) : five ordered
