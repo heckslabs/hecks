@@ -4,7 +4,7 @@ status: open
 category: session-restart
 priority: high
 posted_at: 2026-06-12
-value: 'Two LOCKED directives from Chris (2026-06-12, evening). (1) GRAMMAR GAP : trigger_on/result_into must carry through ALL adapter kinds, not just the driven/report family. Today :shell drops them silently (parser-parity proven : dump-hecksagon omits them). (2) Reframe the order_boundary Rust as GENERATED OUTPUT from pizzas.bluebook — not a standalone example. Bluebook is source of truth, Rust is what it compiles to ; show the full pipeline (bluebook validates → projects to this Rust → adapters wire at runtime). DO NOT retire it. Both are on branch order-boundary-reference / PR #734. Execute FRESH — parser-parity is kernel-floor, byte-precise, not a session-tail job.'
+value: 'Two LOCKED directives from Chris (2026-06-12, evening). (1) GRAMMAR GAP : trigger_on/result_into must carry through ALL adapter kinds, not just the driven/report family. Today :shell drops them silently (parser-parity proven : dump-hecksagon omits them). DESIGN LOCKED : LIFT both into ONE shared Subscription shape every adapter composes (NOT per-struct copies) ; existing per-kind trigger_on/response_into fields COLLAPSE into it, no compat shim. (2) Reframe the order_boundary Rust as GENERATED OUTPUT from pizzas.bluebook — not a standalone example. Bluebook is source of truth, Rust is what it compiles to ; show the full pipeline (bluebook validates → projects to this Rust → adapters wire at runtime). DO NOT retire it. Both are on branch order-boundary-reference / PR #734. Execute FRESH — parser-parity is kernel-floor, byte-precise, not a session-tail job.'
 ---
 
 # Session-restart handoff — adapter trigger/result grammar + Rust-as-generated (2026-06-12)
