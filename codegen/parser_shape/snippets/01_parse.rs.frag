@@ -35,9 +35,15 @@ pub fn parse(source: &str) -> Domain {
         }
 
         if line.starts_with("vision") {
-            if let Some(v) = extract_string(line) {
+            // vision strings may span several physical lines (the DSL is
+            // Ruby-evaluated, so Ruby's lexer reads multi-line literals
+            // natively) ; reassemble from raw lines to stay byte-equal.
+            let (v, consumed) = extract_string_spanning(&lines, i);
+            if let Some(v) = v {
                 domain.vision = Some(v);
             }
+            i += consumed;
+            continue;
         }
 
         if line.starts_with("entrypoint") {
