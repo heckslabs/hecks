@@ -11,7 +11,28 @@
 //!   let line = conception_kernel::emit::setup_line(cmd); // "    setup  \"X\", k: v"
 
 use crate::conception_kernel::sample::sample_value;
-use crate::ir::Command;
+use crate::ir::{Aggregate, Attribute, Command};
+
+/// The conceived test's name — `"Cmd runs"` when the command has no
+/// scalar attributes, else `"Cmd sets a + b"` over its scalar attrs. The
+/// aggregate is part of the verbatim signature and unused today.
+pub fn test_name(cmd: &Command, _agg: &Aggregate) -> String {
+    if cmd.attributes.is_empty() {
+        format!("{} runs", cmd.name)
+    } else {
+        let attrs: Vec<String> = cmd
+            .attributes
+            .iter()
+            .filter(|a| matches!(a.attr_type.as_str(), "String" | "Integer" | "Float" | "Boolean"))
+            .map(|a: &Attribute| a.name.clone())
+            .collect();
+        if attrs.is_empty() {
+            format!("{} runs", cmd.name)
+        } else {
+            format!("{} sets {}", cmd.name, attrs.join(" + "))
+        }
+    }
+}
 
 /// `[(k, v), ...]` -> `"k: v, k2: v2"`.
 pub fn join_kvs(pairs: &[(String, String)]) -> String {
