@@ -1,97 +1,13 @@
-//! conception_kernel planner tests — gates the kernel interpreter's setup-chain
-//! plan against `behaviors_conceiver/generator.rs` (the byte-oracle) for the
-//! kinds the first slice covers: `Equals` + the list kinds.
+//! conception_kernel planner tests — `Equals` + the list kinds (slice 1).
 //!
-//! Two gates per fixture:
-//!   1. The kernel's `plan()` equals the hand-derived expected chain.
-//!   2. CROSS-CHECK: for every producer the kernel plans, the count of
-//!      `setup  "<producer>"` lines generator.rs emits for that command equals
-//!      the kernel's count. This makes generator.rs the live oracle — the
-//!      kernel is correct iff it agrees with the code it will replace.
-//!
-//! The kinds here exercise the real point of an interpreter: the recursive,
-//! depth-capped engine with `ProducedState` threading and `AppendN` (see
-//! `recursion_no_double_seed`, mirroring the oracle's
-//! `min_size_list_is_idempotent_across_recursion`).
+//! Each test gates the kernel's `plan()` against `generate_behaviors` (the
+//! byte-oracle) via `common::assert_matches_oracle`: same chain, same
+//! per-producer setup counts. `recursion_no_double_seed` mirrors the oracle's
+//! `min_size_list_is_idempotent_across_recursion` — recursion + ProducedState
+//! threading without re-seeding the appends.
 
-use std::collections::BTreeMap;
-use storehouse::behaviors_conceiver::generator::generate_behaviors;
-use storehouse::conception_kernel::planner::{plan, Plan};
-use storehouse::ir::Domain;
-use storehouse::parser;
-
-/// Find aggregate + command by name and return the kernel's plan as a Vec of
-/// command names (panics if not found).
-fn kernel_chain(domain: &Domain, agg_name: &str, cmd_name: &str) -> Vec<String> {
-    let agg = domain
-        .aggregates
-        .iter()
-        .find(|a| a.name == agg_name)
-        .expect("aggregate");
-    let cmd = agg
-        .commands
-        .iter()
-        .find(|c| c.name == cmd_name)
-        .expect("command");
-    match plan(agg, cmd) {
-        Plan::Chain(names) => names,
-        Plan::Unsatisfiable => panic!("unexpected Unsatisfiable for {cmd_name}"),
-    }
-}
-
-fn counts(names: &[String]) -> BTreeMap<String, usize> {
-    let mut m = BTreeMap::new();
-    for n in names {
-        *m.entry(n.clone()).or_insert(0) += 1;
-    }
-    m
-}
-
-/// Extract the `test "..." do ... end` block whose body declares
-/// `tests "<cmd_name>"`.
-fn test_block(out: &str, cmd_name: &str) -> String {
-    let needle = format!("tests {cmd_name:?}");
-    let mut block = String::new();
-    let mut cur = String::new();
-    let mut in_test = false;
-    for line in out.lines() {
-        if line.trim_start().starts_with("test ") && line.contains(" do") {
-            in_test = true;
-            cur.clear();
-        }
-        if in_test {
-            cur.push_str(line);
-            cur.push('\n');
-        }
-        if in_test && line.trim() == "end" {
-            if cur.contains(&needle) {
-                block = cur.clone();
-                break;
-            }
-            in_test = false;
-        }
-    }
-    block
-}
-
-/// Assert the kernel agrees with generator.rs: same per-producer setup counts.
-fn assert_matches_oracle(source: &str, agg: &str, cmd: &str, expected: &[&str]) {
-    let domain = parser::parse(source);
-    let chain = kernel_chain(&domain, agg, cmd);
-    let expected: Vec<String> = expected.iter().map(|s| s.to_string()).collect();
-    assert_eq!(chain, expected, "kernel plan for {cmd} != expected");
-
-    let out = generate_behaviors(&domain, None);
-    let block = test_block(&out, cmd);
-    assert!(!block.is_empty(), "no test block for {cmd} in:\n{out}");
-    for (producer, k) in counts(&chain) {
-        let oracle = block.matches(&format!("setup  {producer:?}")).count();
-        assert_eq!(
-            oracle, k,
-            "oracle emitted {oracle} `setup {producer:?}` for {cmd}, kernel planned {k}\n{block}"
-        );
-    }
-}
+mod common;
+use common::{assert_empty_chain_but_emits, assert_matches_oracle};
 
 const CART: &str = r#"Hecks.bluebook "Cart" do
   aggregate "Cart" do
@@ -146,12 +62,7 @@ fn size_gt_one_is_two_appends() {
 
 #[test]
 fn empty_list_default_held_no_steps() {
-    // EmptyList is default-held: the chain is empty (the empty default list
-    // satisfies `items.empty?`), and the oracle still emits the test.
-    let domain = parser::parse(CART);
-    assert_eq!(kernel_chain(&domain, "Cart", "Reset"), Vec::<String>::new());
-    let out = generate_behaviors(&domain, None);
-    assert!(out.contains("tests \"Reset\""), "Reset test should emit:\n{out}");
+    assert_empty_chain_but_emits(CART, "Cart", "Reset");
 }
 
 const SWITCH: &str = r#"Hecks.bluebook "Switch" do
@@ -247,13 +158,6 @@ end
 #[test]
 fn recursion_no_double_seed() {
     // Audit needs size>=2 (2 AddItem) AND status==finalized (Finalize, which
-    // ITSELF needs size>=2). The recursion must not re-seed the appends:
-    // chain = [AddItem, AddItem, Finalize]. Mirrors the oracle's
-    // min_size_list_is_idempotent_across_recursion.
-    assert_matches_oracle(
-        RECURSE,
-        "Cart",
-        "Audit",
-        &["AddItem", "AddItem", "Finalize"],
-    );
+    // ITSELF needs size>=2). The recursion must not re-seed the appends.
+    assert_matches_oracle(RECURSE, "Cart", "Audit", &["AddItem", "AddItem", "Finalize"]);
 }

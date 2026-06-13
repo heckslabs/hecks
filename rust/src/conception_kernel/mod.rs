@@ -33,4 +33,5 @@
 pub mod grammar;
 pub mod recognize;
 pub mod produced_state;
+pub mod producers;
 pub mod planner;
