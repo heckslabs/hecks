@@ -4,7 +4,7 @@ status: open
 category: session-restart
 priority: high
 posted_at: 2026-06-12
-value: 'PHASE 1 DONE — PR #730 open (branch worktree-factories-phase1-ir, commit d877b4cf) : Factory IR node in both parsers + both dumps, creates deleted, all gates green (cargo 0 warnings, 6/6 parity, pizzas smoke). Next after merge : PHASE 2 — two-path dispatch split, DELETE the is_create heuristic + the materialize_factory_commands boot seam in runtime/mod.rs. Design LOCKED in docs/designs/first-class-factories.md ; execute the phasing, do not re-derive.'
+value: 'PHASE 1 MERGED (#730, 2026-06-13). Also landed : Plan singleton retired (#731), cluster-detector qualified-policy-edges fix (#732). Worktree pruned, main clean, 0 warnings. NEXT : PHASE 2 — two-path dispatch split (Factory → mint / Command → load), DELETE the is_create heuristic + the materialize_factory_commands boot seam in runtime/mod.rs. THE silent-regression phase — full corpus run required. Design LOCKED in docs/designs/first-class-factories.md ; execute the phasing, do not re-derive.'
 ---
 
 # Session-restart handoff — first-class factories (2026-06-12)
