@@ -37,18 +37,6 @@ use crate::cascade;
 use crate::ir::{Aggregate, Attribute, Command, Domain, MutationOp, Query, Transition};
 use std::collections::{BTreeMap, BTreeSet};
 
-/// Outcome of planning a setup chain. The planner can either:
-///   * `Chain(...)` — here's an ordered chain of commands that will leave
-///     the aggregate in the precondition state (possibly empty).
-///   * `Unsatisfiable` — every candidate producer cascades PAST the
-///     precondition state via policies, so no setup can stop at the
-///     target state. The caller should skip emitting this test entirely;
-///     the upstream test that exercises the cascade already covers it.
-enum SetupPlan<'a> {
-    Chain(Vec<&'a Command>),
-    Unsatisfiable,
-}
-
 /// One thing the test command requires of the aggregate's state before it
 /// can run. Each variant captures a satisfaction strategy the planner
 /// knows about — anything we can't fit here we can't auto-setup, and the
@@ -332,10 +320,9 @@ fn emit_cascade_test(
                 crate::conception_kernel::planner::PlanCommands::Unsatisfiable => return None,
             };
             // Create command first, then its dependency chain, then the
-            // existing setups. plan_setup_chain returns prerequisites of
-            // the create — those run BEFORE the create itself does not
-            // make sense; the chain of a Create command is empty in
-            // practice, so the order here only matters for completeness.
+            // existing setups. The kernel returns the create's prerequisites;
+            // the chain of a Create command is empty in practice, so the order
+            // here only matters for completeness.
             prerequisites.push(emit_setup(agg, create));
             for cc in create_chain { prerequisites.push(emit_setup(agg, cc)); }
         }
@@ -371,7 +358,7 @@ fn emit_cascade_test(
 
     // Then, for each cross-aggregate, chain through any preconditions the
     // cascade-triggered commands need that the cascade WON'T satisfy.
-    // `plan_setup_chain_filtered` skips producers that would pre-advance
+    // the kernel's `plan_commands_filtered` skips producers that would pre-advance
     // a cascade-triggered lifecycle transition — e.g. in restaurant_
     // reservations, the precondition `status == "waiting"` on NotifyParty
     // is satisfied by AddToWaitlist, which IS cascade-triggered but has
@@ -385,9 +372,13 @@ fn emit_cascade_test(
         let Some(target_agg) = domain.aggregates.iter().find(|a| &a.name == target_agg_name) else { continue };
         for triggered_name in &triggered_in_cascade {
             let Some(triggered) = target_agg.commands.iter().find(|c| &c.name == triggered_name) else { continue };
-            let chain = match plan_setup_chain_filtered(domain, target_agg, triggered, 5, &mut Vec::new(), &triggered_in_cascade) {
-                SetupPlan::Chain(c) => c,
-                SetupPlan::Unsatisfiable => continue,
+            // Planner switch (slice 3b): the cascade-aware filtered chain is
+            // driven by the kernel interpreter's plan_commands_filtered. The
+            // cascade-triggered set (triggered_in_cascade) is the caller's
+            // precomputed input; the kernel applies the producer-exclusion.
+            let chain = match crate::conception_kernel::planner::plan_commands_filtered(target_agg, triggered, &triggered_in_cascade) {
+                crate::conception_kernel::planner::PlanCommands::Chain(c) => c,
+                crate::conception_kernel::planner::PlanCommands::Unsatisfiable => continue,
             };
             for step in chain {
                 let setup_line = emit_setup(target_agg, step);
@@ -596,7 +587,7 @@ fn pick_safe_bootstrap<'a>(
 
 /// Collect every command name that will be dispatched by the cascade
 /// rooted at `cmd` (following emit → policy → trigger edges). Used by
-/// `pick_safe_bootstrap` and `plan_setup_chain_filtered` to avoid
+/// `pick_safe_bootstrap` and the kernel's `plan_commands_filtered` to avoid
 /// choosing pre-setups the cascade would also run. (i4 gap 6.)
 fn commands_triggered_by_cascade(domain: &Domain, cmd: &Command) -> BTreeSet<String> {
     let mut out = BTreeSet::new();
@@ -617,108 +608,6 @@ fn commands_triggered_by_cascade(domain: &Domain, cmd: &Command) -> BTreeSet<Str
         }
     }
     out
-}
-
-/// Append `producer` to `chain` the right number of times for `pre`:
-///   * MinSizeList(_, n) — repeat the producer until the post-absorb
-///     append count on its field reaches n. Existing entries in `chain`
-///     (and their already-absorbed effects in `produced`) count toward n,
-///     so an already-seeded chain doesn't double-seed.
-///   * Everything else — add the producer once, deduped against an
-///     already-present producer by name.
-/// Updates `produced` for each added step so later preconditions see
-/// the new state.
-fn append_producer_for<'a>(
-    pre: &Precondition,
-    producer: &'a Command,
-    agg: &'a Aggregate,
-    chain: &mut Vec<&'a Command>,
-    produced: &mut ProducedState,
-) {
-    if let Precondition::MinSizeList(field, n) = pre {
-        let target = (*n).max(0) as usize;
-        while produced.append_count(field) < target {
-            chain.push(producer);
-            produced.absorb(agg, producer);
-        }
-        return;
-    }
-    if !chain.iter().any(|c| c.name == producer.name) {
-        chain.push(producer);
-        produced.absorb(agg, producer);
-    }
-}
-
-/// Same as `plan_setup_chain` but skips producer candidates that would
-/// conflict with a cascade's own dispatch. A producer is skipped iff it's
-/// in `exclude` (cascade-triggered) AND carries a lifecycle transition
-/// on `agg`. The double condition is important:
-///   * Cascade-triggered only → safe to pre-run when the command has
-///     no lifecycle transition (e.g. AddToWaitlist in restaurant_
-///     reservations: cascade-triggered via TableOccupied, but no
-///     lifecycle transition, so pre-running doesn't advance state).
-///   * Cascade-triggered AND lifecycle-transition → pre-running
-///     advances state past the from_state the cascade expects, so
-///     leave it to the cascade (e.g. DeployPages for MarkLive's
-///     precondition in CloudflareDeploy).
-/// When the only producer is excluded, the precondition is left unmet —
-/// correct for cascade tests because the cascade runs the producer
-/// itself during event propagation. (i4 gap 6.)
-fn plan_setup_chain_filtered<'a>(
-    domain: &'a Domain,
-    agg: &'a Aggregate,
-    target_cmd: &'a Command,
-    depth: usize,
-    visited: &mut Vec<&'a str>,
-    exclude: &BTreeSet<String>,
-) -> SetupPlan<'a> {
-    if depth == 0 { return SetupPlan::Chain(Vec::new()); }
-    if visited.contains(&target_cmd.name.as_str()) { return SetupPlan::Chain(Vec::new()); }
-    visited.push(target_cmd.name.as_str());
-    let mut chain: Vec<&Command> = Vec::new();
-    let mut produced: ProducedState = ProducedState::default();
-    let mut unsatisfiable = false;
-
-    let is_cascade_triggered_transition = |p: &&Command| -> bool {
-        if !exclude.contains(&p.name) { return false; }
-        if let Some(lc) = &agg.lifecycle {
-            return lc.transitions.iter().any(|t| t.command == p.name);
-        }
-        false
-    };
-
-    for pre in collect_preconditions(agg, target_cmd) {
-        if produced.satisfies(&pre) { continue; }
-        if precondition_default_holds(agg, &pre) { continue; }
-        let producer = find_producer(domain, agg, &pre)
-            .filter(|p| !is_cascade_triggered_transition(p));
-        match producer {
-            Some(producer) => {
-                let sub_chain = match plan_setup_chain_filtered(domain, agg, producer, depth - 1, visited, exclude) {
-                    SetupPlan::Chain(sub) => sub,
-                    SetupPlan::Unsatisfiable => {
-                        unsatisfiable = true;
-                        break;
-                    }
-                };
-                for sub in sub_chain {
-                    if !chain.iter().any(|c| c.name == sub.name) {
-                        chain.push(sub);
-                        produced.absorb(agg, sub);
-                    }
-                }
-                append_producer_for(&pre, producer, agg, &mut chain, &mut produced);
-            }
-            None => {
-                // No non-excluded producer — the cascade itself will
-                // satisfy this precondition, or there's genuinely no
-                // producer. Either way, leave it unchained.
-            }
-        }
-    }
-
-    visited.pop();
-    if unsatisfiable { SetupPlan::Unsatisfiable } else { SetupPlan::Chain(chain) }
 }
 
 /// Track what facts a chain step has produced. Used to short-circuit
@@ -857,16 +746,6 @@ fn precondition_default_holds(agg: &Aggregate, pre: &Precondition) -> bool {
         // need a producer.
         _ => false,
     }
-}
-
-/// True if a mutation's RHS token (raw from the bluebook source) lands
-/// at `value`. Tolerates the three forms a Set mutation might write a
-/// string in: bare token (`accepted`), quoted (`"accepted"`), or
-/// already-trimmed.
-fn mutation_value_matches(raw: &str, value: &str) -> bool {
-    raw == value
-        || raw == format!("\"{}\"", value)
-        || raw.trim_matches('"') == value
 }
 
 /// Preconditions on the same aggregate that `cmd` requires. Returns
@@ -1047,101 +926,6 @@ fn is_simple_field(s: &str) -> bool {
     !s.is_empty() && s.chars().all(|c| c.is_alphanumeric() || c == '_')
 }
 
-/// Find a command on `agg` whose direct effects satisfy `pre`. Direct
-/// producers only — no cascade simulation. The cascade is locked down
-/// separately via the `emits:` assertion in build_expect.
-///
-/// Strategy varies by precondition shape:
-///   * Equals(f,v)  — Set mutation `to: v` on f, OR lifecycle transition
-///     to v on f.
-///   * GreaterThan(f,n) / GreaterOrEqual(f,n) — Set mutation landing f
-///     at an integer ≥ n+1 (or n for >=), OR an Increment mutation on f.
-///   * LessThan(f,n) — Set mutation landing f at an integer < n.
-///   * NonEmptyList(f) — Append mutation on f.
-///   * MinSizeList(f, _) — Append mutation on f (caller repeats it N times).
-///   * EmptyList — never reached (default-satisfied earlier).
-fn find_producer<'a>(
-    _domain: &'a Domain,
-    agg: &'a Aggregate,
-    pre: &Precondition,
-) -> Option<&'a Command> {
-    match pre {
-        Precondition::Equals(field, value) => find_equals_producer(agg, field, value),
-        Precondition::GreaterThan(field, n) => find_int_producer(agg, field, *n + 1, true),
-        Precondition::GreaterOrEqual(field, n) => find_int_producer(agg, field, *n, true),
-        Precondition::LessThan(field, n) => find_int_producer(agg, field, *n - 1, false),
-        Precondition::NonEmptyList(field) => find_append_producer(agg, field),
-        Precondition::MinSizeList(field, _) => find_append_producer(agg, field),
-        Precondition::EmptyList(_) => None,
-    }
-}
-
-fn find_equals_producer<'a>(
-    agg: &'a Aggregate,
-    field: &str,
-    value: &str,
-) -> Option<&'a Command> {
-    let by_mutation = agg.commands.iter().find(|c| {
-        c.mutations.iter().any(|m| {
-            matches!(m.operation, MutationOp::Set)
-                && m.field == field
-                && mutation_value_matches(&m.value, value)
-        })
-    });
-    if by_mutation.is_some() { return by_mutation; }
-
-    if let Some(lc) = &agg.lifecycle {
-        if lc.field == field {
-            return lc.transitions.iter()
-                .filter(|t| t.to_state == value)
-                .find_map(|t| agg.commands.iter().find(|c| c.name == t.command));
-        }
-    }
-
-    None
-}
-
-/// Find a producer that lands `field` at an integer satisfying the
-/// caller's bound. `at_least` chooses the direction: true means the
-/// chosen value must be ≥ `target`, false means ≤ `target`.
-fn find_int_producer<'a>(
-    agg: &'a Aggregate,
-    field: &str,
-    target: i64,
-    at_least: bool,
-) -> Option<&'a Command> {
-    let by_set = agg.commands.iter().find(|c| {
-        c.mutations.iter().any(|m| {
-            if !matches!(m.operation, MutationOp::Set) || m.field != field { return false; }
-            let raw = m.value.trim().trim_matches('"');
-            let Ok(n) = raw.parse::<i64>() else { return false; };
-            if at_least { n >= target } else { n <= target }
-        })
-    });
-    if by_set.is_some() { return by_set; }
-
-    // Increment counts as a "raise it" producer; only useful for at_least
-    // bounds where target is small (one increment lands at 1).
-    if at_least && target <= 1 {
-        let by_inc = agg.commands.iter().find(|c| {
-            c.mutations.iter().any(|m| {
-                matches!(m.operation, MutationOp::Increment) && m.field == field
-            })
-        });
-        if by_inc.is_some() { return by_inc; }
-    }
-
-    None
-}
-
-fn find_append_producer<'a>(agg: &'a Aggregate, field: &str) -> Option<&'a Command> {
-    agg.commands.iter().find(|c| {
-        c.mutations.iter().any(|m| {
-            matches!(m.operation, MutationOp::Append) && m.field == field
-        })
-    })
-}
-
 /// Emit a single setup line for a command on `agg`. Reference kwargs
 /// are NOT emitted — the runner injects them from its in-scope map
 /// at dispatch time. Bluebook layer stays id-free.
@@ -1202,7 +986,7 @@ fn test_name(cmd: &Command, agg: &Aggregate) -> String {
 /// aggregate that owns it — but only for aggregates other than the
 /// command's own.
 ///
-/// Superseded by `commands_triggered_by_cascade` + `plan_setup_chain_filtered`
+/// Superseded by `commands_triggered_by_cascade` + the kernel's `plan_commands_filtered`
 /// in the cascade-test builder. Kept for parity with the other conceiver
 /// and possible future use. (i4 gap 6.)
 #[allow(dead_code)]
