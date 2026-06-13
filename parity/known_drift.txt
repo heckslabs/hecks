@@ -73,16 +73,12 @@ hecks_conception/aggregates/library/stores/inbox.bluebook  # Rust parser drops t
 # longer leaks into the role name. Both parsers extract "Role"
 # byte-equal. dispatch_audit parses byte-equal again.
 
-# harry_wingate.bluebook drift surfaced 2026-05-12 — added during
-# wave-10 merge consolidator window (miette_family a49b5f5 adds
-# `attribute :nickname, String  # what people who know him call
-# him — "Trip"`). The Rust parse_blocks.rs attribute parser
-# (parse_attribute, ~L766) copies the raw second part verbatim
-# into attr_type, picking up the trailing inline comment. Ruby's
-# parser strips it. Real parser gap — filed for proper fix (strip
-# ` # …` from `raw` before to_string()). Tracked separately ;
-# not blocking the wave-10 merge train.
-/Users/christopheryoung/Projects/miette_family/harry_wingate/harry_wingate.bluebook  # Rust attribute parser copies a trailing inline comment into attr_type ; Ruby strips it. Real Rust parser gap.
+# harry_wingate.bluebook drift retired 2026-06-12 — fixed in the parser
+# projections : codegen/parser_helpers_shape gains a comment-aware
+# strip_trailing_comment (a `#` inside a quoted default is preserved), and
+# parse_blocks_shape's parse_attribute strips the trailing Ruby comment
+# before extracting the positional type. Ruby's lexer drops comments
+# natively ; both parsers now agree. harry_wingate parses byte-equal again.
 
 # voice_latency.bluebook drift surfaced 2026-05-21 — Ruby's QueryRecorder
 # (bluebook_model/behavior/query.rb) has no `attribute` method, so

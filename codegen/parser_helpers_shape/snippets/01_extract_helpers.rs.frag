@@ -105,6 +105,27 @@ pub fn extract_string_spanning(lines: &[&str], start: usize) -> (Option<String>,
     }
 }
 
+/// Strip a trailing Ruby line-comment from `line`, returning the slice up
+/// to (and trim-ending before) the first `#` that sits OUTSIDE a string
+/// literal. Mirrors Ruby's lexer, which drops comments before the DSL
+/// method is ever called — so `attribute :nickname, String  # "Trip"`
+/// parses with type `String`, not `String  # "Trip"`. A `#` inside a
+/// double-quoted string (e.g. `default: "#tag"`) is protected and left
+/// intact. Lines with no out-of-string `#` are returned unchanged.
+pub fn strip_trailing_comment(line: &str) -> &str {
+    let mut in_str = false;
+    let mut prev = '\0';
+    for (idx, c) in line.char_indices() {
+        match c {
+            '"' if prev != '\\' => in_str = !in_str,
+            '#' if !in_str => return line[..idx].trim_end(),
+            _ => {}
+        }
+        prev = c;
+    }
+    line
+}
+
 /// Two-string-form helper for `aggregate "Name", "Description" do` and
 /// the matching `command`/`entity` shapes. Returns the UNESCAPED second
 /// string — escape-aware throughout, mirroring `extract_string` above.
