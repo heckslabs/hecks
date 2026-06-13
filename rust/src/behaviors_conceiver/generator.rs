@@ -1369,20 +1369,9 @@ fn sample_value(t: &str) -> String {
     crate::conception_kernel::sample::sample_value(t)
 }
 
-fn test_name(cmd: &Command, _agg: &Aggregate) -> String {
-    if cmd.attributes.is_empty() {
-        format!("{} runs", cmd.name)
-    } else {
-        let attrs: Vec<String> = cmd.attributes.iter()
-            .filter(|a| matches!(a.attr_type.as_str(), "String" | "Integer" | "Float" | "Boolean"))
-            .map(|a: &Attribute| a.name.clone())
-            .collect();
-        if attrs.is_empty() {
-            format!("{} runs", cmd.name)
-        } else {
-            format!("{} sets {}", cmd.name, attrs.join(" + "))
-        }
-    }
+/// Delegates to the kernel's test namer (conception_kernel::emit).
+fn test_name(cmd: &Command, agg: &Aggregate) -> String {
+    crate::conception_kernel::emit::test_name(cmd, agg)
 }
 
 /// Walk the static cascade from `cmd` and gather every aggregate type
