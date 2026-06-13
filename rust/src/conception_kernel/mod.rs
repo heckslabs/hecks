@@ -31,6 +31,7 @@
 //!   // Plan::Chain(["AddItem", "AddItem", "AddItem"]) for `items.size >= 3`.
 
 pub mod grammar;
+pub mod sample;
 pub mod recognize;
 pub mod produced_state;
 pub mod producers;

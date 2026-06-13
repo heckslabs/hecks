@@ -1442,14 +1442,11 @@ fn kwargs_inline(cmd: &Command) -> String {
 
 /// Reasonable-looking sample for a stub. The author edits these to
 /// match real intent — the generator just has to make the file parse.
+/// Delegates to the kernel's `SampleValueRule` table (conception_kernel::sample).
+/// The DATA layer now lives in the kernel; generator.rs is a caller until the
+/// final gate deletes it.
 fn sample_value(t: &str) -> String {
-    match t {
-        "Integer" => "1".into(),
-        "Float"   => "1.0".into(),
-        "Boolean" => "\"true\"".into(),
-        "String"  => "\"sample\"".into(),
-        _         => format!("\"sample_{}\"", t.to_lowercase()),
-    }
+    crate::conception_kernel::sample::sample_value(t)
 }
 
 /// Wrap a bare string token in quotes so it parses as a string in
