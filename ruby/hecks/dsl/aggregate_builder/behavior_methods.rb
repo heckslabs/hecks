@@ -1,3 +1,8 @@
+# [antibody-exempt: ruby/hecks/dsl/aggregate_builder/behavior_methods.rb —
+#  kernel-floor DSL builder : the factory keyword now builds a real
+#  Behavior::Factory node with produces kwarg (first-class factories
+#  phase 1) ; create aliases factory transitionally.]
+#
 # Hecks::DSL::AggregateBuilder::BehaviorMethods
 #
 # Command, policy, lifecycle, event subscriber, and specification
@@ -12,14 +17,15 @@ module Hecks
         # @param name [String] the command name (e.g. "CreatePizza")
         # @yield block evaluated in the context of CommandBuilder
         # @return [void]
+        # Transitional alias for the #729 `create` keyword — builds a
+        # first-class Factory node (phase-4 of the factories arc retires
+        # this spelling ; new bluebooks say `factory`).
         def create(name, &block)
-              builder = CommandBuilder.new(name, creates: true)
-              builder.instance_eval(&block) if block
-              @commands << builder.build
-            end
+          factory(name, &block)
+        end
 
-            # Define a transition command (loads existing by universal id).
-            def command(name, &block)
+        # Define a transition command (loads existing by universal id).
+        def command(name, &block)
           builder = CommandBuilder.new(name)
           builder.instance_eval(&block) if block
           @commands << builder.build

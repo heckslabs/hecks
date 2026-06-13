@@ -78,8 +78,9 @@ fn duplicate_aggregate_names() {
                 name: "Pizza".into(),
                 description: None,
                 attributes: vec![],
+                factories: vec![],
                 commands: vec![Command {
-                    name: "CreatePizza".into(), creates: false,
+                    name: "CreatePizza".into(),
                     description: None,
                     role: None,
                     attributes: vec![],
@@ -100,8 +101,9 @@ fn duplicate_aggregate_names() {
                 name: "Pizza".into(),
                 description: None,
                 attributes: vec![],
+                factories: vec![],
                 commands: vec![Command {
-                    name: "UpdatePizza".into(), creates: false,
+                    name: "UpdatePizza".into(),
                     description: None,
                     role: None,
                     attributes: vec![],
@@ -141,6 +143,7 @@ fn aggregate_without_commands() {
             name: "Orphan".into(),
             description: None,
             attributes: vec![],
+            factories: vec![],
             commands: vec![],
             value_objects: vec![], entities: vec![], context: None, category: None,
             references: vec![],
@@ -171,10 +174,11 @@ fn bad_command_naming() {
             name: "Pizza".into(),
             description: None,
             attributes: vec![],
+            factories: vec![],
             // First-word noun: validator's noun-suffix detector flags
             // the leading word ("Configuration"), not the trailing one.
             commands: vec![Command {
-                name: "ConfigurationPizza".into(), creates: false,
+                name: "ConfigurationPizza".into(),
                 description: None,
                 role: None,
                 attributes: vec![],
@@ -291,8 +295,9 @@ fn unknown_policy_trigger() {
             name: "Order".into(),
             description: None,
             attributes: vec![],
+            factories: vec![],
             commands: vec![Command {
-                name: "PlaceOrder".into(), creates: false,
+                name: "PlaceOrder".into(),
                 description: None,
                 role: None,
                 attributes: vec![],

@@ -48,7 +48,10 @@ fn aggregates_have_commands(domain: &Domain) -> Vec<String> {
     domain
         .aggregates
         .iter()
-        .filter(|a| a.commands.is_empty())
+        // First-class factories (2026-06-12) : a factory IS a verb. An
+        // aggregate whose only declared action is a birth (factory-only
+        // Backlog drafting Stories) is fully actionable.
+        .filter(|a| a.commands.is_empty() && a.factories.is_empty())
         .map(|a| format!("{} has no commands", a.name))
         .collect()
 }

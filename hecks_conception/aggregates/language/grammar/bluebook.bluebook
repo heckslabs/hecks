@@ -95,15 +95,22 @@ Hecks.bluebook "Bluebook", version: "2026.05.12.1" do
     end
 
     entity "Command" do
-      description "An intent to change aggregate state — role, attributes, mutations, emits"
+      description "A transition on an EXISTING aggregate instance — load by universal id, operate, emit. Births belong to Factory, the sibling entity ; a Command never mints."
       attribute :name, String
       attribute :description, String
       attribute :role, String
-      # creates : the create-vs-command keyword bit. `create "X"` (Factory —
-      # mint, error if id exists) sets it true ; `command "X"` (transition —
-      # load existing by universal id) leaves it false. String here mirrors
-      # the IR-shape-is-primitive convention used for Attribute.list.
-      attribute :creates, String
+      attribute :emits, String
+    end
+
+    entity "Factory" do
+      description "A birth — mints a NEW aggregate instance, error if the id already exists. Declared with the `factory` keyword inside the aggregate that OWNS creation (Evans : creation lives where the knowledge lives, not necessarily on the created thing). Carries its own attributes and creation givens ; supersedes the Command.creates bool and the is_create name-heuristic (2026-06-12 locked design : docs/designs/first-class-factories.md)."
+      attribute :name, String
+      attribute :description, String
+      attribute :role, String
+      # produces : the aggregate this factory births. Defaults to the
+      # ENCLOSING aggregate ; `produces:` names another (Backlog drafts
+      # Story) — the cross-aggregate case the creates-bool could not say.
+      attribute :produces, String
       attribute :emits, String
     end
 

@@ -37,7 +37,10 @@ Hecks.bluebook "Sentence", version: "2026.05.12.1" do
     end
 
     value_object "CommandName" do
-      # The aggregate's command this sentence maps to.
+      # The aggregate's verb this sentence maps to — one of the THREE
+      # utterance kinds : a command (transition on an existing instance),
+      # a query (pure read), or a factory (birth — mints a new instance ;
+      # first-class as of the 2026-06-12 factories design).
       attribute :value, String
     end
 

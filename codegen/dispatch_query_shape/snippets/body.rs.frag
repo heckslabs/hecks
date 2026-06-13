@@ -449,7 +449,6 @@ end
     /// without pulling tempfile in as a dependency. Returns a path
     /// the caller is responsible for cleaning up.
     fn tempdir_under(prefix: &str) -> std::path::PathBuf {
-        use std::time::{SystemTime, UNIX_EPOCH};
         let nanos = crate::clock::now_duration()
             .as_nanos();
         let p = std::env::temp_dir().join(format!("{}{}", prefix, nanos));

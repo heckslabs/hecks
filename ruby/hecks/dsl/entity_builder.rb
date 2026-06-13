@@ -1,3 +1,6 @@
+# [antibody-exempt: ruby/hecks/dsl/entity_builder.rb — kernel-floor DSL
+#  builder : entity-level create RETIRED (zero corpus uses, first-class
+#  factories phase 1) ; factories are aggregate-only.]
 module Hecks
   module DSL
 
@@ -69,14 +72,7 @@ module Hecks
       # @param name [String] the command name (e.g. "AddEntry")
       # @yield block evaluated in CommandBuilder context
       # @return [void]
-      def create(name, &block)
-            builder = CommandBuilder.new(name, creates: true)
-            builder.instance_eval(&block) if block
-            @commands << builder.build
-          end
-
-          # Define a transition command owned by this entity.
-          def command(name, &block)
+      def command(name, &block)
         builder = CommandBuilder.new(name)
         builder.instance_eval(&block) if block
         @commands << builder.build

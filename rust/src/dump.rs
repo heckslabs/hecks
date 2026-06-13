@@ -23,7 +23,7 @@
 //!   # → JSON to stdout, exit 0
 
 use crate::ir::{
-    Aggregate, Attribute, Cardinality, Command, Direction, Domain, Entity, Fixture, Given,
+    Aggregate, Attribute, Cardinality, Command, Direction, Domain, Entity, Factory, Fixture, Given,
     Invariant, Lifecycle, LimitSpec, Mutation, MutationOp, OrderBy, Policy,
     DispatchSpec, ProcessManager, ProcessManagerHandler, Query, Reference, ReferenceKind, Transition, ValueSpec,
     ValueObject, View, WhereClause, WhereOp,
@@ -131,6 +131,7 @@ fn dump_aggregate(agg: &Aggregate) -> Value {
         "value_objects": agg.value_objects.iter().map(dump_value_object).collect::<Vec<_>>(),
         "entities": agg.entities.iter().map(dump_entity).collect::<Vec<_>>(),
         "references": agg.references.iter().map(dump_reference).collect::<Vec<_>>(),
+        "factories": agg.factories.iter().map(dump_factory).collect::<Vec<_>>(),
         "commands": agg.commands.iter().map(dump_command).collect::<Vec<_>>(),
         "queries": agg.queries.iter().map(dump_query).collect::<Vec<_>>(),
         "lifecycle": agg.lifecycle.as_ref().map(dump_lifecycle),
@@ -171,7 +172,6 @@ fn dump_command(cmd: &Command) -> Value {
         "name": cmd.name,
         "description": cmd.description,
         "role": cmd.role,
-        "creates": cmd.creates,
         "emits": cmd.emits,
         "emits_identified_by": cmd.emits_identified_by,
         "attributes": cmd.attributes.iter().map(dump_attribute).collect::<Vec<_>>(),
@@ -360,6 +360,21 @@ fn dump_invariant(inv: &Invariant) -> Value {
     json!({
         "name": inv.name,
         "expression": inv.expression,
+    })
+}
+
+fn dump_factory(fac: &Factory) -> Value {
+    json!({
+        "name": fac.name,
+        "description": fac.description,
+        "role": fac.role,
+        "produces": fac.produces,
+        "emits": fac.emits,
+        "emits_identified_by": fac.emits_identified_by,
+        "attributes": fac.attributes.iter().map(dump_attribute).collect::<Vec<_>>(),
+        "references": fac.references.iter().map(dump_reference).collect::<Vec<_>>(),
+        "givens": fac.givens.iter().map(dump_given).collect::<Vec<_>>(),
+        "mutations": fac.mutations.iter().map(dump_mutation).collect::<Vec<_>>(),
     })
 }
 

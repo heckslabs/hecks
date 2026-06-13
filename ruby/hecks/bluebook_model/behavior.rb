@@ -1,3 +1,7 @@
+# [antibody-exempt: ruby/hecks/bluebook_model/behavior.rb — kernel-floor
+#  behavior namespace of the Ruby grammar mirror ; gains the Factory
+#  autoload (first-class factories phase 1). Retires when the Ruby mirror
+#  is generated from the grammar bluebooks.]
 module Hecks
   module BluebookModel
 
@@ -29,6 +33,7 @@ module Hecks
     #
     module Behavior
       autoload :Command,     "hecks/bluebook_model/behavior/command"
+      autoload :Factory,     "hecks/bluebook_model/behavior/factory"
       autoload :Condition,   "hecks/bluebook_model/behavior/condition"
       autoload :BluebookEvent, "hecks/bluebook_model/behavior/bluebook_event"
       autoload :Policy,      "hecks/bluebook_model/behavior/policy"

@@ -5,9 +5,8 @@ pub fn parse_command(lines: &[&str]) -> (Command, usize) {
         first.split_whitespace().next().unwrap_or("").to_string()
     });
 
-    let creates = first.split_whitespace().next() == Some("create"); // create keyword = Factory
     let mut cmd = Command {
-        name, description: None, role: None, creates, attributes: vec![],
+        name, description: None, role: None, attributes: vec![],
         references: vec![], emits: None, emits_identified_by: None,
         givens: vec![], mutations: vec![],
     };
@@ -154,6 +153,45 @@ fn parse_role_arg(line: &str) -> Option<String> {
         .find(|c: char| c == ',' || c.is_whitespace())
         .unwrap_or(after.len());
     let token = after[..end].trim();
+    if token.is_empty() { None } else { Some(token.to_string()) }
+}
+
+/// Parse a `factory "X"[, produces: Y] do … end` block — a BIRTH
+/// (2026-06-12 first-class-factories design). The body grammar is
+/// identical to a command's (role, attributes, givens, emits,
+/// then_set …), so the body is read by parse_command and lifted into
+/// the Factory node. `produces:` names the aggregate this factory
+/// mints ; None = the enclosing aggregate. The transitional `create`
+/// keyword (#729) parses through here too until the phase-4 sweep.
+pub fn parse_factory(lines: &[&str]) -> (Factory, usize) {
+    let first = lines[0].trim();
+    let produces = extract_produces(first);
+    let (cmd, consumed) = parse_command(lines);
+    let factory = Factory {
+        name: cmd.name,
+        description: cmd.description,
+        role: cmd.role,
+        produces,
+        attributes: cmd.attributes,
+        references: cmd.references,
+        emits: cmd.emits,
+        emits_identified_by: cmd.emits_identified_by,
+        givens: cmd.givens,
+        mutations: cmd.mutations,
+    };
+    (factory, consumed)
+}
+
+/// Extract the bare-constant target of a `produces:` kwarg —
+/// `factory "DraftStory", produces: Story do` → Some("Story").
+/// Bare PascalCase ident ; trailing `do` / `,` / `{` delimiters end it.
+fn extract_produces(first: &str) -> Option<String> {
+    let pos = first.find("produces:")?;
+    let after = first[pos + "produces:".len()..].trim_start();
+    let end = after
+        .find(|c: char| !(c.is_alphanumeric() || c == '_' || c == ':'))
+        .unwrap_or(after.len());
+    let token = after[..end].trim().trim_end_matches(':');
     if token.is_empty() { None } else { Some(token.to_string()) }
 }
 

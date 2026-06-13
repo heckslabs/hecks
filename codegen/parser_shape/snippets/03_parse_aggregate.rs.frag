@@ -8,6 +8,7 @@ fn parse_aggregate(lines: &[&str]) -> (Aggregate, usize) {
         context: None, // populated by parse() after parse_aggregate returns
         category: None, // i560 v2 — stamped from domain.category by invoke()
         attributes: vec![],
+        factories: vec![], // births — first-class Factory nodes (2026-06-12)
         commands: vec![], queries: vec![], value_objects: vec![],
         entities: vec![],
         references: vec![], lifecycle: None, identified_by: None,
@@ -29,7 +30,17 @@ fn parse_aggregate(lines: &[&str]) -> (Aggregate, usize) {
         }
 
         if depth == 1 {
-            if line.starts_with("command") || line.starts_with("create ") || is_shorthand_command(line) {
+            if line.starts_with("factory ") || line.starts_with("create ") {
+                // A BIRTH — first-class Factory node. `factory` is the
+                // keyword (2026-06-12 design) ; `create` (#729) parses
+                // through the same reader until the phase-4 sweep
+                // retires it. Routed BEFORE the command arm — a factory
+                // is not a command wearing a hat.
+                let (factory, consumed) = parse_factory(&lines[i..]);
+                agg.factories.push(factory);
+                i += consumed;
+                continue;
+            } else if line.starts_with("command") || is_shorthand_command(line) {
                 let (cmd, consumed) = parse_command(&lines[i..]);
                 agg.commands.push(cmd);
                 i += consumed;

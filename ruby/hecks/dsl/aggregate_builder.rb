@@ -275,14 +275,31 @@ module Hecks
         end
       end
 
-      # Declare a factory for complex aggregate construction.
-      #   factory "BuildFromCart" do
-      #     attribute :cart_id, String
+      # Declare a FACTORY — a birth, first-class sibling to command
+      # (2026-06-12 locked design, docs/designs/first-class-factories.md).
+      # Mints a new instance ; `produces:` names another aggregate for the
+      # cross-aggregate case (creation lives where the knowledge lives).
+      # The body grammar is a command's — CommandBuilder reads the block
+      # and the result is lifted into a Behavior::Factory node. Supersedes
+      # both the legacy { name, attributes } hash form (which nothing
+      # consumed) and the transient #729 `create` keyword.
+      #
+      #   factory "Plan" do                       # births this aggregate
+      #     attribute :number, SprintNumber
+      #     given { number.positive? }
+      #     emits "SprintPlanned"
       #   end
-      def factory(name, &block)
-        builder = EventBuilder.new(name)  # reuse for attribute collection
+      #
+      #   factory "DraftStory", produces: Story do  # Backlog drafts Story
+      #     attribute :title, Title
+      #     emits "StoryDrafted"
+      #   end
+      def factory(name, produces: nil, &block)
+        builder = CommandBuilder.new(name)
         builder.instance_eval(&block) if block
-        @factories << { name: name, attributes: builder.build.attributes }
+        @factories << BluebookModel::Behavior::Factory.from_command(
+          builder.build, produces: produces&.to_s
+        )
       end
 
       # Declare an explicit domain event (not inferred from a command).

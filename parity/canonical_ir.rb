@@ -162,6 +162,9 @@ module Hecks
           "value_objects" => (agg.value_objects || []).map { |vo| dump_value_object(vo) },
           "entities"      => (agg.entities || []).map { |ent| dump_entity(ent) },
           "references"    => (agg.references || []).map { |r| dump_reference(r) },
+          # First-class factories (2026-06-12) — births, BEFORE commands,
+          # mirroring dump.rs's `factories: Vec<Factory>` at the same slot.
+          "factories"     => (agg.respond_to?(:factories) ? (agg.factories || []) : []).map { |f| dump_factory(f) },
           "commands"      => (agg.commands || []).map { |c| dump_command(c) },
           "queries"       => (agg.queries || []).map { |q| dump_query(q) },
           "lifecycle"     => agg.lifecycle && dump_lifecycle(agg.lifecycle),
@@ -254,7 +257,6 @@ module Hecks
           "name"                 => cmd.name,
           "description"          => command_description(cmd),
           "role"                 => primary_role(cmd),
-          "creates"              => (cmd.respond_to?(:creates) ? !!cmd.creates : false),
           "emits"                => emit_string(cmd.emits),
           # i250 — events have identity. `emits "X", identified_by: :y`
           # carries the event-identity attribute name. Same word
@@ -265,6 +267,25 @@ module Hecks
           "references"           => (cmd.references || []).map { |r| dump_reference(r) },
           "givens"               => (cmd.respond_to?(:givens) && cmd.givens || []).map { |g| dump_given(g) },
           "mutations"            => (cmd.respond_to?(:mutations) && cmd.mutations || []).map { |m| dump_mutation(m) },
+        }
+      end
+
+      # First-class factories (2026-06-12) — a birth's canonical IR.
+      # Field order mirrors dump.rs's dump_factory exactly : produces sits
+      # in the role-adjacent slot. `produces` nil = births the enclosing
+      # aggregate ; a name = the cross-aggregate case (Backlog drafts Story).
+      def dump_factory(fac)
+        {
+          "name"                 => fac.name,
+          "description"          => command_description(fac),
+          "role"                 => primary_role(fac),
+          "produces"             => (fac.respond_to?(:produces) ? fac.produces : nil),
+          "emits"                => emit_string(fac.emits),
+          "emits_identified_by"  => (fac.respond_to?(:emits_identified_by) ? fac.emits_identified_by : nil),
+          "attributes"           => (fac.attributes || []).map { |a| dump_attribute(a) },
+          "references"           => (fac.references || []).map { |r| dump_reference(r) },
+          "givens"               => (fac.respond_to?(:givens) && fac.givens || []).map { |g| dump_given(g) },
+          "mutations"            => (fac.respond_to?(:mutations) && fac.mutations || []).map { |m| dump_mutation(m) },
         }
       end
 

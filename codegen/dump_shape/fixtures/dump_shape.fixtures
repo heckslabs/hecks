@@ -56,6 +56,10 @@ Hecks.fixtures "DumpShape" do
     # { name, expression }. Emitted last (highest order) ; the Aggregate
     # serializer references it by helper_fn for the invariants key.
     fixture "DumpInvariant", name: "dump_invariant", target_type: "Invariant", input_binding: "inv", return_type: "Value", is_entry: false, body_kind: "json_object", snippet_path: "", order: 27
+    # First-class factories (2026-06-12) — Factory is a sibling node to
+    # Command : a birth with its own attributes, creation givens, and a
+    # `produces` target. dump_aggregate references it for the factories key.
+    fixture "DumpFactory", name: "dump_factory", target_type: "Factory", input_binding: "fac", return_type: "Value", is_entry: false, body_kind: "json_object", snippet_path: "", order: 28
   end
 
   # ── JsonField — one row per JSON key in each json_object serializer ──
@@ -94,12 +98,13 @@ Hecks.fixtures "DumpShape" do
     fixture "Agg_value_objects", serializer: "dump_aggregate", order: 5,  key: "value_objects", source: "value_objects", mapping_kind: "recurse_list",     helper_fn: "dump_value_object"
     fixture "Agg_entities",      serializer: "dump_aggregate", order: 6,  key: "entities",      source: "entities",      mapping_kind: "recurse_list",     helper_fn: "dump_entity"
     fixture "Agg_references",    serializer: "dump_aggregate", order: 7,  key: "references",    source: "references",    mapping_kind: "recurse_list",     helper_fn: "dump_reference"
-    fixture "Agg_commands",      serializer: "dump_aggregate", order: 8,  key: "commands",      source: "commands",      mapping_kind: "recurse_list",     helper_fn: "dump_command"
-    fixture "Agg_queries",       serializer: "dump_aggregate", order: 9,  key: "queries",       source: "queries",       mapping_kind: "recurse_list",     helper_fn: "dump_query"
-    fixture "Agg_lifecycle",     serializer: "dump_aggregate", order: 10, key: "lifecycle",     source: "lifecycle",     mapping_kind: "recurse_optional", helper_fn: "dump_lifecycle"
-    fixture "Agg_invariants",    serializer: "dump_aggregate", order: 11, key: "invariants",    source: "invariants",    mapping_kind: "recurse_list",     helper_fn: "dump_invariant"
+    fixture "Agg_factories",     serializer: "dump_aggregate", order: 8,  key: "factories",     source: "factories",     mapping_kind: "recurse_list",     helper_fn: "dump_factory"
+    fixture "Agg_commands",      serializer: "dump_aggregate", order: 9,  key: "commands",      source: "commands",      mapping_kind: "recurse_list",     helper_fn: "dump_command"
+    fixture "Agg_queries",       serializer: "dump_aggregate", order: 10, key: "queries",       source: "queries",       mapping_kind: "recurse_list",     helper_fn: "dump_query"
+    fixture "Agg_lifecycle",     serializer: "dump_aggregate", order: 11, key: "lifecycle",     source: "lifecycle",     mapping_kind: "recurse_optional", helper_fn: "dump_lifecycle"
+    fixture "Agg_invariants",    serializer: "dump_aggregate", order: 12, key: "invariants",    source: "invariants",    mapping_kind: "recurse_list",     helper_fn: "dump_invariant"
     # i254 — views per role.
-    fixture "Agg_views",         serializer: "dump_aggregate", order: 12, key: "views",         source: "views",         mapping_kind: "recurse_list",     helper_fn: "dump_view"
+    fixture "Agg_views",         serializer: "dump_aggregate", order: 13, key: "views",         source: "views",         mapping_kind: "recurse_list",     helper_fn: "dump_view"
 
     # dump_attribute — 4 fields (one rename: attr_type → "type")
     fixture "Attr_name",    serializer: "dump_attribute", order: 1, key: "name",    source: "name",      mapping_kind: "direct", helper_fn: ""
@@ -131,17 +136,30 @@ Hecks.fixtures "DumpShape" do
     fixture "Ref_kind",        serializer: "dump_reference", order: 4, key: "kind",        source: "kind",        mapping_kind: "helper_call", helper_fn: "dump_reference_kind"
     fixture "Ref_cardinality", serializer: "dump_reference", order: 5, key: "cardinality", source: "cardinality", mapping_kind: "helper_call", helper_fn: "dump_cardinality"
 
-    # dump_command — 10 fields (i250 added emits_identified_by)
+    # dump_command — 9 fields (i250 added emits_identified_by ; the #729
+    # creates bool is retired — births dump via dump_factory now)
     fixture "Cmd_name",                 serializer: "dump_command", order: 1, key: "name",                 source: "name",                 mapping_kind: "direct",       helper_fn: ""
     fixture "Cmd_description",          serializer: "dump_command", order: 2, key: "description",          source: "description",          mapping_kind: "direct",       helper_fn: ""
     fixture "Cmd_role",                 serializer: "dump_command", order: 3, key: "role",                 source: "role",                 mapping_kind: "direct",       helper_fn: ""
-    fixture "Cmd_creates",              serializer: "dump_command", order: 4, key: "creates",              source: "creates",              mapping_kind: "direct",       helper_fn: ""
-    fixture "Cmd_emits",                serializer: "dump_command", order: 5, key: "emits",                source: "emits",                mapping_kind: "direct",       helper_fn: ""
-    fixture "Cmd_emits_identified_by",  serializer: "dump_command", order: 6, key: "emits_identified_by",  source: "emits_identified_by",  mapping_kind: "direct",       helper_fn: ""
-    fixture "Cmd_attributes",           serializer: "dump_command", order: 7, key: "attributes",           source: "attributes",           mapping_kind: "recurse_list", helper_fn: "dump_attribute"
-    fixture "Cmd_references",           serializer: "dump_command", order: 8, key: "references",           source: "references",           mapping_kind: "recurse_list", helper_fn: "dump_reference"
-    fixture "Cmd_givens",               serializer: "dump_command", order: 9, key: "givens",               source: "givens",               mapping_kind: "recurse_list", helper_fn: "dump_given"
-    fixture "Cmd_mutations",            serializer: "dump_command", order: 10, key: "mutations",            source: "mutations",            mapping_kind: "recurse_list", helper_fn: "dump_mutation"
+    fixture "Cmd_emits",                serializer: "dump_command", order: 4, key: "emits",                source: "emits",                mapping_kind: "direct",       helper_fn: ""
+    fixture "Cmd_emits_identified_by",  serializer: "dump_command", order: 5, key: "emits_identified_by",  source: "emits_identified_by",  mapping_kind: "direct",       helper_fn: ""
+    fixture "Cmd_attributes",           serializer: "dump_command", order: 6, key: "attributes",           source: "attributes",           mapping_kind: "recurse_list", helper_fn: "dump_attribute"
+    fixture "Cmd_references",           serializer: "dump_command", order: 7, key: "references",           source: "references",           mapping_kind: "recurse_list", helper_fn: "dump_reference"
+    fixture "Cmd_givens",               serializer: "dump_command", order: 8, key: "givens",               source: "givens",               mapping_kind: "recurse_list", helper_fn: "dump_given"
+    fixture "Cmd_mutations",            serializer: "dump_command", order: 9, key: "mutations",            source: "mutations",            mapping_kind: "recurse_list", helper_fn: "dump_mutation"
+
+    # dump_factory — 10 fields. Mirrors dump_command with `produces` in
+    # the role-adjacent slot ; a birth's canonical IR. (2026-06-12 design)
+    fixture "Fac_name",                 serializer: "dump_factory", order: 1, key: "name",                 source: "name",                 mapping_kind: "direct",       helper_fn: ""
+    fixture "Fac_description",          serializer: "dump_factory", order: 2, key: "description",          source: "description",          mapping_kind: "direct",       helper_fn: ""
+    fixture "Fac_role",                 serializer: "dump_factory", order: 3, key: "role",                 source: "role",                 mapping_kind: "direct",       helper_fn: ""
+    fixture "Fac_produces",             serializer: "dump_factory", order: 4, key: "produces",             source: "produces",             mapping_kind: "direct",       helper_fn: ""
+    fixture "Fac_emits",                serializer: "dump_factory", order: 5, key: "emits",                source: "emits",                mapping_kind: "direct",       helper_fn: ""
+    fixture "Fac_emits_identified_by",  serializer: "dump_factory", order: 6, key: "emits_identified_by",  source: "emits_identified_by",  mapping_kind: "direct",       helper_fn: ""
+    fixture "Fac_attributes",           serializer: "dump_factory", order: 7, key: "attributes",           source: "attributes",           mapping_kind: "recurse_list", helper_fn: "dump_attribute"
+    fixture "Fac_references",           serializer: "dump_factory", order: 8, key: "references",           source: "references",           mapping_kind: "recurse_list", helper_fn: "dump_reference"
+    fixture "Fac_givens",               serializer: "dump_factory", order: 9, key: "givens",               source: "givens",               mapping_kind: "recurse_list", helper_fn: "dump_given"
+    fixture "Fac_mutations",            serializer: "dump_factory", order: 10, key: "mutations",           source: "mutations",            mapping_kind: "recurse_list", helper_fn: "dump_mutation"
 
     # dump_query — 6 fields (i101 added attributes / wheres / order_by / limit)
     fixture "Qry_name",        serializer: "dump_query", order: 1, key: "name",        source: "name",        mapping_kind: "direct",           helper_fn: ""

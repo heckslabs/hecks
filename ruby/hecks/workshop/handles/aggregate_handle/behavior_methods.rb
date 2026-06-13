@@ -1,3 +1,8 @@
+# [antibody-exempt: ruby/hecks/workshop/handles/aggregate_handle/behavior_methods.rb —
+#  kernel-surface workshop handle : dispatches the factory keyword (and
+#  transitional create alias) to the upgraded builder (first-class
+#  factories phase 1).]
+#
 # Hecks::Workshop::AggregateHandle::BehaviorMethods
 #
 # Command, policy, lifecycle, transition, event subscriber, and specification
@@ -7,14 +12,21 @@ module Hecks
   class Workshop
     class AggregateHandle
       module BehaviorMethods
-        def create(name, &block)
-              name = normalize_name(name)
-              @builder.create(name, &block)
-              puts "#{name} create command created on #{@name}"
-              self
-            end
+        # Declare a factory — a birth (first-class node, 2026-06-12).
+        # `create` remains as a transitional spelling until the phase-4
+        # sweep ; both route to the builder's factory keyword.
+        def factory(name, produces: nil, &block)
+          name = normalize_name(name)
+          @builder.factory(name, produces: produces, &block)
+          puts "#{name} factory created on #{@name}"
+          self
+        end
 
-            def command(name, &block)
+        def create(name, &block)
+          factory(name, &block)
+        end
+
+        def command(name, &block)
           name = normalize_name(name)
           @builder.command(name, &block)
           puts "#{name} command created on #{@name}"

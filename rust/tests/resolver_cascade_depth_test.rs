@@ -174,13 +174,23 @@ end
 "#;
 
 #[test]
-fn create_keyword_sets_creates_flag_command_does_not() {
+fn create_keyword_builds_factory_node_command_stays_command() {
+    // First-class factories phase 1 : the transitional `create` keyword
+    // (and the `factory` keyword) build a Factory NODE in
+    // aggregate.factories — the #729 creates bool is gone. A plain
+    // command stays in aggregate.commands.
     let domain = parser::parse(CREATE_KW_BB);
     let agg = domain.aggregates.iter().find(|a| a.name == "Widget").unwrap();
-    let spawn = agg.commands.iter().find(|c| c.name == "Spawn").unwrap();
-    let poke = agg.commands.iter().find(|c| c.name == "Poke").unwrap();
-    assert!(spawn.creates, "`create \"Spawn\"` must set creates=true");
-    assert!(!poke.creates, "`command \"Poke\"` must leave creates=false");
+    let spawn = agg.factories.iter().find(|f| f.name == "Spawn");
+    assert!(spawn.is_some(), "`create \"Spawn\"` must build a Factory node");
+    assert!(spawn.unwrap().produces.is_none(),
+        "no produces: kwarg → the factory births its enclosing aggregate");
+    assert!(agg.commands.iter().all(|c| c.name != "Spawn"),
+        "a factory must NOT appear in the parsed IR's commands");
+    let poke = agg.commands.iter().find(|c| c.name == "Poke");
+    assert!(poke.is_some(), "`command \"Poke\"` stays a Command");
+    assert!(agg.factories.iter().all(|f| f.name != "Poke"),
+        "a command must NOT appear in factories");
 }
 
 #[test]

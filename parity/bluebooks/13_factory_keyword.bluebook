@@ -1,0 +1,58 @@
+Hecks.bluebook "FactoryKeyword", version: "2026.06.12.1" do
+  vision "factory keyword — first-class births in both parsers : self-producing and cross-aggregate (produces:)"
+
+  aggregate "Sprint", "A sprint born from a Plan factory" do
+    identified_by :number
+    attribute :number, SprintNumber
+
+    value_object "SprintNumber" do
+      attribute :value, String
+    end
+
+    factory "Plan" do
+      role "System"
+      attribute :number, SprintNumber
+      emits "SprintPlanned"
+    end
+
+    command "Activate" do
+      role "System"
+      attribute :number, SprintNumber
+      emits "SprintActivated"
+    end
+  end
+
+  aggregate "Backlog", "Creation lives where the knowledge lives — the backlog drafts stories" do
+    identified_by :name
+    attribute :name, BacklogName
+
+    value_object "BacklogName" do
+      attribute :value, String
+    end
+
+    factory "DraftStory", produces: Story do
+      role "System"
+      attribute :title, StoryTitle
+      emits "StoryDrafted"
+    end
+
+    value_object "StoryTitle" do
+      attribute :value, String
+    end
+  end
+
+  aggregate "Story", "A story minted by the Backlog's factory" do
+    identified_by :title
+    attribute :title, StoryTitle
+
+    value_object "StoryTitle" do
+      attribute :value, String
+    end
+
+    command "Start" do
+      role "System"
+      attribute :title, StoryTitle
+      emits "StoryStarted"
+    end
+  end
+end
