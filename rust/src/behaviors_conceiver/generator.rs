@@ -522,18 +522,9 @@ fn collect_lifecycle_index(domain: &Domain) -> Vec<(String, String, String)> {
 /// The command's self-ref name (snake-cased aggregate name) if any
 /// reference targets the same aggregate. Mirrors `find_self_ref` in
 /// command_dispatch.rs — must agree for setup→input chains to work.
+/// Delegates to the kernel's self-reference detector (conception_kernel::bootstrap).
 fn self_ref_for(agg: &Aggregate, cmd: &Command) -> Option<String> {
-    let agg_snake = to_snake_case(&agg.name);
-    for r in &cmd.references {
-        let ref_snake = to_snake_case(&r.target);
-        if ref_snake == agg_snake || agg_snake.ends_with(&ref_snake) {
-            // Use r.name (which honors `role: :alias`) so this matches
-            // command_dispatch::find_self_ref. Both must agree on the
-            // kwarg name the runner injects from in_scope.
-            return Some(r.name.clone());
-        }
-    }
-    None
+    crate::conception_kernel::bootstrap::self_ref_for(agg, cmd)
 }
 
 /// References that point to OTHER aggregates (not self-ref). The
@@ -564,23 +555,9 @@ fn cross_refs_for<'a>(agg: &Aggregate, cmd: &'a Command) -> Vec<&'a crate::ir::R
 /// `AddComponent`, etc. The runtime treats them as create when no
 /// self-ref id is given, but for setups we want the unambiguous
 /// bootstrap command.
+/// Delegates to the kernel's bootstrap-command selector (conception_kernel::bootstrap).
 fn pick_create_command(agg: &Aggregate) -> Option<&Command> {
-    // A bootstrap command must not have a self-ref (otherwise it
-    // requires an existing entity to operate on). Cross-refs are
-    // fine — the runner resolves them from in_scope at dispatch.
-    let is_bootstrap = |c: &&Command| self_ref_for(agg, c).is_none();
-
-    let prefixes = ["Create", "Define", "Place", "Register", "Open",
-                    "Plan", "Spawn", "Boot", "Start", "Initialize",
-                    "Seed", "Provision", "Issue"];
-    for prefix in &prefixes {
-        if let Some(c) = agg.commands.iter()
-            .find(|c| c.name.starts_with(prefix) && is_bootstrap(c))
-        {
-            return Some(c);
-        }
-    }
-    agg.commands.iter().find(is_bootstrap)
+    crate::conception_kernel::bootstrap::pick_create_command(agg)
 }
 
 /// Pick a bootstrap command for `agg` that's safe as a cascade-test
