@@ -346,6 +346,7 @@ pub struct Aggregate {
     /// value, no special case.
     pub identified_by: Option<String>,
     pub attributes: Vec<Attribute>,
+    pub factories: Vec<Factory>,
     pub commands: Vec<Command>,
     pub queries: Vec<Query>,
     pub value_objects: Vec<ValueObject>,
@@ -390,7 +391,6 @@ pub struct Command {
     pub name: String,
     pub description: Option<String>,
     pub role: Option<String>,
-    pub creates: bool,
     pub attributes: Vec<Attribute>,
     pub references: Vec<Reference>,
     pub emits: Option<String>,
@@ -812,4 +812,18 @@ impl Reference {
             kind: ReferenceKind::HasMany,
         }
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct Factory {
+    pub name: String,
+    pub description: Option<String>,
+    pub role: Option<String>,
+    pub produces: Option<String>,
+    pub attributes: Vec<Attribute>,
+    pub references: Vec<Reference>,
+    pub emits: Option<String>,
+    pub emits_identified_by: Option<String>,
+    pub givens: Vec<Given>,
+    pub mutations: Vec<Mutation>,
 }

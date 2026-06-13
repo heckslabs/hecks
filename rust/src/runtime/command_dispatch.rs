@@ -122,10 +122,20 @@ fn dispatch_inner(
         }
     }
 
-    // reference_to retirement step 1 : the `create` keyword (cmd.creates) is
-    // the authoritative creation bit. Additive — true forces create ; false
-    // falls through to the unchanged name-heuristic + reference_to path.
-    let is_create = cmd_for(rt, res).creates
+    // First-class factories phase 1 : a verb that names a Factory on the
+    // resolved aggregate IS a birth — the node type carries the bit the
+    // #729 creates bool used to. The name-heuristic survives only until
+    // phase 2 replaces this whole block with the two-path split
+    // (Factory → mint, Command → load).
+    let is_factory_verb = {
+        let resolved_name = &cmd_for(rt, res).name;
+        match res {
+            Resolution::Aggregate(a, _) => rt.domain.aggregates[a]
+                .factories.iter().any(|f| &f.name == resolved_name),
+            Resolution::Entity(..) => false,
+        }
+    };
+    let is_create = is_factory_verb
         || command_name.starts_with("Create")
         || command_name.starts_with("Add")
         || command_name.starts_with("Place")

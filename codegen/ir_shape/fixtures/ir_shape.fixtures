@@ -135,6 +135,13 @@ Hecks.fixtures "IrShape" do
     # boilerplate. The bare struct literal is still valid for tests + tooling.
     fixture "ImplReference",     name: "ImplReference",     order: 43, body_kind: "impl",   derives: "",                            impl_target: "Reference",     body_snippet: "codegen/ir_shape/snippets/impls/reference.rs.frag",           doc_snippet: "",                                                          description: "Reference constructors keyed by DSL keyword"
 
+    # Factory — first-class birth node (2026-06-12 locked design,
+    # docs/designs/first-class-factories.md). Sibling to Command in the
+    # IR : Factory MINTS a new instance of `produces`, Command transitions
+    # an existing one. Supersedes the #729 `creates` bool + the is_create
+    # name-heuristic.
+    fixture "Factory", name: "Factory", order: 44, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Factory — a birth ; mints a new instance of `produces` (Self by default)"
+
   end
 
   # ── Field — pub fields of every struct row, sorted by `order` ──────────
@@ -219,18 +226,22 @@ Hecks.fixtures "IrShape" do
     fixture "Aggregate_category",      type_name: "Aggregate", order: 4,  name: "category",      field_type: "Option<String>",  doc_snippet: "codegen/ir_shape/snippets/docs/aggregate_category.rs.frag"
     fixture "Aggregate_identified_by", type_name: "Aggregate", order: 5,  name: "identified_by", field_type: "Option<String>",  doc_snippet: "codegen/ir_shape/snippets/docs/aggregate_identified_by.rs.frag"
     fixture "Aggregate_attributes",    type_name: "Aggregate", order: 6,  name: "attributes",    field_type: "Vec<Attribute>",  doc_snippet: ""
-    fixture "Aggregate_commands",      type_name: "Aggregate", order: 7,  name: "commands",      field_type: "Vec<Command>",    doc_snippet: ""
-    fixture "Aggregate_queries",       type_name: "Aggregate", order: 8,  name: "queries",       field_type: "Vec<Query>",      doc_snippet: ""
-    fixture "Aggregate_value_objects", type_name: "Aggregate", order: 9,  name: "value_objects", field_type: "Vec<ValueObject>", doc_snippet: ""
-    fixture "Aggregate_entities",      type_name: "Aggregate", order: 10, name: "entities",      field_type: "Vec<Entity>",     doc_snippet: "codegen/ir_shape/snippets/docs/aggregate_entities.rs.frag"
-    fixture "Aggregate_references",    type_name: "Aggregate", order: 11, name: "references",    field_type: "Vec<Reference>",  doc_snippet: ""
-    fixture "Aggregate_lifecycle",     type_name: "Aggregate", order: 12, name: "lifecycle",     field_type: "Option<Lifecycle>", doc_snippet: ""
+    # factories — births, BEFORE commands (transitions) per the 2026-06-12
+    # first-class-factories design : a Factory mints a new instance, a
+    # Command operates on an existing one. docs/designs/first-class-factories.md
+    fixture "Aggregate_factories",     type_name: "Aggregate", order: 7,  name: "factories",     field_type: "Vec<Factory>",    doc_snippet: ""
+    fixture "Aggregate_commands",      type_name: "Aggregate", order: 8,  name: "commands",      field_type: "Vec<Command>",    doc_snippet: ""
+    fixture "Aggregate_queries",       type_name: "Aggregate", order: 9,  name: "queries",       field_type: "Vec<Query>",      doc_snippet: ""
+    fixture "Aggregate_value_objects", type_name: "Aggregate", order: 10, name: "value_objects", field_type: "Vec<ValueObject>", doc_snippet: ""
+    fixture "Aggregate_entities",      type_name: "Aggregate", order: 11, name: "entities",      field_type: "Vec<Entity>",     doc_snippet: "codegen/ir_shape/snippets/docs/aggregate_entities.rs.frag"
+    fixture "Aggregate_references",    type_name: "Aggregate", order: 12, name: "references",    field_type: "Vec<Reference>",  doc_snippet: ""
+    fixture "Aggregate_lifecycle",     type_name: "Aggregate", order: 13, name: "lifecycle",     field_type: "Option<Lifecycle>", doc_snippet: ""
     # f4 — aggregate-level invariants, checked on the resulting state after
     # every command. Sits between lifecycle and views, mirroring ir.rs.
-    fixture "Aggregate_invariants",    type_name: "Aggregate", order: 13, name: "invariants",    field_type: "Vec<Invariant>",   doc_snippet: "codegen/ir_shape/snippets/docs/aggregate_invariants.rs.frag"
+    fixture "Aggregate_invariants",    type_name: "Aggregate", order: 14, name: "invariants",    field_type: "Vec<Invariant>",   doc_snippet: "codegen/ir_shape/snippets/docs/aggregate_invariants.rs.frag"
     # i254 — views per role. Ordered Vec ; declaration order survives
     # JSON round-trip so portal renderers can iterate views deterministically.
-    fixture "Aggregate_views",         type_name: "Aggregate", order: 14, name: "views",         field_type: "Vec<View>",         doc_snippet: "codegen/ir_shape/snippets/docs/aggregate_views.rs.frag"
+    fixture "Aggregate_views",         type_name: "Aggregate", order: 15, name: "views",         field_type: "Vec<View>",         doc_snippet: "codegen/ir_shape/snippets/docs/aggregate_views.rs.frag"
 
     # Attribute — 5 fields.
     fixture "Attribute_name",      type_name: "Attribute", order: 1, name: "name",      field_type: "String",         doc_snippet: ""
@@ -239,19 +250,37 @@ Hecks.fixtures "IrShape" do
     fixture "Attribute_list",      type_name: "Attribute", order: 4, name: "list",      field_type: "bool",           doc_snippet: ""
     fixture "Attribute_required",  type_name: "Attribute", order: 5, name: "required",  field_type: "bool",           doc_snippet: ""
 
-    # Command — 10 fields. i250 — `emits_identified_by` carries the
+    # Command — 9 fields. i250 — `emits_identified_by` carries the
     # event-identity attribute when `emits "X", identified_by: :y` is
-    # used. `None` for the back-compat unqualified form.
+    # used. `None` for the back-compat unqualified form. The transient
+    # `creates` bool (#729) is RETIRED — births are first-class Factory
+    # nodes now (docs/designs/first-class-factories.md).
     fixture "Command_name",        type_name: "Command", order: 1, name: "name",        field_type: "String",          doc_snippet: ""
     fixture "Command_description", type_name: "Command", order: 2, name: "description", field_type: "Option<String>",  doc_snippet: ""
     fixture "Command_role",        type_name: "Command", order: 3, name: "role",        field_type: "Option<String>",  doc_snippet: ""
-    fixture "Command_creates",     type_name: "Command", order: 4, name: "creates",     field_type: "bool",            doc_snippet: ""
-    fixture "Command_attributes",  type_name: "Command", order: 5, name: "attributes",  field_type: "Vec<Attribute>",  doc_snippet: ""
-    fixture "Command_references",  type_name: "Command", order: 6, name: "references",  field_type: "Vec<Reference>",  doc_snippet: ""
-    fixture "Command_emits",       type_name: "Command", order: 7, name: "emits",       field_type: "Option<String>",  doc_snippet: ""
-    fixture "Command_emits_identified_by", type_name: "Command", order: 8, name: "emits_identified_by", field_type: "Option<String>", doc_snippet: ""
-    fixture "Command_givens",      type_name: "Command", order: 9, name: "givens",      field_type: "Vec<Given>",      doc_snippet: ""
-    fixture "Command_mutations",   type_name: "Command", order: 10, name: "mutations",   field_type: "Vec<Mutation>",   doc_snippet: ""
+    fixture "Command_attributes",  type_name: "Command", order: 4, name: "attributes",  field_type: "Vec<Attribute>",  doc_snippet: ""
+    fixture "Command_references",  type_name: "Command", order: 5, name: "references",  field_type: "Vec<Reference>",  doc_snippet: ""
+    fixture "Command_emits",       type_name: "Command", order: 6, name: "emits",       field_type: "Option<String>",  doc_snippet: ""
+    fixture "Command_emits_identified_by", type_name: "Command", order: 7, name: "emits_identified_by", field_type: "Option<String>", doc_snippet: ""
+    fixture "Command_givens",      type_name: "Command", order: 8, name: "givens",      field_type: "Vec<Given>",      doc_snippet: ""
+    fixture "Command_mutations",   type_name: "Command", order: 9, name: "mutations",   field_type: "Vec<Mutation>",   doc_snippet: ""
+
+    # Factory — 10 fields. A BIRTH : mints a new instance of `produces`
+    # (Self by default ; another aggregate for the cross-aggregate case —
+    # Backlog drafts Story). Field set mirrors Command minus `creates`
+    # plus `produces`, so dispatch synthesis is lossless and the parser
+    # mirror is mechanical. `references` is transitional until the
+    # reference_to retirement (phase 5) sweeps creator self-refs.
+    fixture "Factory_name",        type_name: "Factory", order: 1, name: "name",        field_type: "String",          doc_snippet: ""
+    fixture "Factory_description", type_name: "Factory", order: 2, name: "description", field_type: "Option<String>",  doc_snippet: ""
+    fixture "Factory_role",        type_name: "Factory", order: 3, name: "role",        field_type: "Option<String>",  doc_snippet: ""
+    fixture "Factory_produces",    type_name: "Factory", order: 4, name: "produces",    field_type: "Option<String>",  doc_snippet: ""
+    fixture "Factory_attributes",  type_name: "Factory", order: 5, name: "attributes",  field_type: "Vec<Attribute>",  doc_snippet: ""
+    fixture "Factory_references",  type_name: "Factory", order: 6, name: "references",  field_type: "Vec<Reference>",  doc_snippet: ""
+    fixture "Factory_emits",       type_name: "Factory", order: 7, name: "emits",       field_type: "Option<String>",  doc_snippet: ""
+    fixture "Factory_emits_identified_by", type_name: "Factory", order: 8, name: "emits_identified_by", field_type: "Option<String>", doc_snippet: ""
+    fixture "Factory_givens",      type_name: "Factory", order: 9, name: "givens",      field_type: "Vec<Given>",      doc_snippet: ""
+    fixture "Factory_mutations",   type_name: "Factory", order: 10, name: "mutations",  field_type: "Vec<Mutation>",   doc_snippet: ""
 
     # Query — 6 fields ; i101 added attributes, wheres, order_by, limit.
     fixture "Query_name",        type_name: "Query", order: 1, name: "name",        field_type: "String",            doc_snippet: ""
