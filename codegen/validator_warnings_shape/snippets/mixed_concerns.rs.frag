@@ -55,14 +55,27 @@
             }
         }
     }
-    // Edges from within-domain policies (a policy on A triggers a command on B)
+    // Edges from within-domain policies (a policy on A triggers a command on B).
+    // Both endpoints may be aggregate-qualified (`on "Task.TaskAdded"`,
+    // `trigger "Story.BumpPendingTaskCount"`) — read the qualifier when it
+    // names a local aggregate ; fall back to the bare-name maps for the
+    // historical unqualified form. Cross-domain triggers (a `::` prefix,
+    // e.g. "Primitive::Process.Spawn") resolve to no local aggregate and
+    // are skipped, matching the target_domain guard.
     for policy in &domain.policies {
         if policy.target_domain.is_some() {
             continue;
         }
-        let from = event_to_agg.get(policy.on_event.as_str());
-        let to = cmd_to_agg.get(policy.trigger_command.as_str());
-        if let (Some(&f), Some(&t)) = (from, to) {
+        let from = policy
+            .event_qualifier()
+            .filter(|q| name_set.contains(*q))
+            .or_else(|| event_to_agg.get(policy.event_name()).copied());
+        let to = match policy.trigger_command.split_once('.') {
+            Some((agg, _)) if name_set.contains(agg) => Some(agg),
+            Some(_) => None,
+            None => cmd_to_agg.get(policy.trigger_command.as_str()).copied(),
+        };
+        if let (Some(f), Some(t)) = (from, to) {
             if f != t {
                 adj.get_mut(f).map(|s| s.insert(t));
                 adj.get_mut(t).map(|s| s.insert(f));
