@@ -416,34 +416,9 @@ fn emit_cascade_test(
     Some(s)
 }
 
+/// Delegates to the kernel's query starter-test renderer (conception_kernel::query).
 fn query_test(agg: &Aggregate, q: &Query) -> String {
-    let setup = pick_create_command(agg).map(|c| format!(
-        "    setup  {:?}{}\n", c.name, kwargs_inline(c),
-    ));
-    // Wire each param where-clause (IR value `:param`) to the sample value of
-    // the FIELD it filters, so the query matches its own setup row. The create
-    // stores `field: sample_value(<field type>)` ; the query input passes that
-    // same sample under the param name. Literal wheres (no leading colon) need
-    // no input. (2026-06-13 — pizzas ByDescription returned 0 matches before.)
-    let inputs: Vec<(String, String)> = q.wheres.iter()
-        .filter_map(|w| w.value.strip_prefix(':').map(|param| {
-            let sample = agg.attributes.iter()
-                .find(|a| a.name == w.field)
-                .map(|a| sample_value(&a.attr_type))
-                .unwrap_or_else(|| sample_value("String"));
-            (param.to_string(), sample)
-        }))
-        .collect();
-    let mut s = String::new();
-    s.push_str(&format!("  test \"{} returns matching records\" do\n", q.name));
-    s.push_str(&format!("    tests {:?}, on: {:?}, kind: :query\n", q.name, agg.name));
-    if let Some(line) = setup { s.push_str(&line); }
-    if !inputs.is_empty() {
-        s.push_str(&format!("    input  {}\n", join_kvs(&inputs)));
-    }
-    s.push_str("    expect count: 1\n");
-    s.push_str("  end\n");
-    s
+    crate::conception_kernel::query::query_test(agg, q)
 }
 
 // ─── plan helpers ────────────────────────────────────────────────────
@@ -1328,22 +1303,6 @@ fn build_expect(
 
 fn join_kvs(pairs: &[(String, String)]) -> String {
     crate::conception_kernel::emit::join_kvs(pairs)
-}
-
-/// kwargs prepended with ", " for use after a positional first arg.
-/// Domain attrs only — references are injected by the runner from
-/// its in-scope map, never typed in the test source.
-fn kwargs_inline(cmd: &Command) -> String {
-    crate::conception_kernel::emit::kwargs_inline(cmd)
-}
-
-/// Reasonable-looking sample for a stub. The author edits these to
-/// match real intent — the generator just has to make the file parse.
-/// Delegates to the kernel's `SampleValueRule` table (conception_kernel::sample).
-/// The DATA layer now lives in the kernel; generator.rs is a caller until the
-/// final gate deletes it.
-fn sample_value(t: &str) -> String {
-    crate::conception_kernel::sample::sample_value(t)
 }
 
 /// Delegates to the kernel's test namer (conception_kernel::emit).
