@@ -420,10 +420,27 @@ fn query_test(agg: &Aggregate, q: &Query) -> String {
     let setup = pick_create_command(agg).map(|c| format!(
         "    setup  {:?}{}\n", c.name, kwargs_inline(c),
     ));
+    // Wire each param where-clause (IR value `:param`) to the sample value of
+    // the FIELD it filters, so the query matches its own setup row. The create
+    // stores `field: sample_value(<field type>)` ; the query input passes that
+    // same sample under the param name. Literal wheres (no leading colon) need
+    // no input. (2026-06-13 — pizzas ByDescription returned 0 matches before.)
+    let inputs: Vec<(String, String)> = q.wheres.iter()
+        .filter_map(|w| w.value.strip_prefix(':').map(|param| {
+            let sample = agg.attributes.iter()
+                .find(|a| a.name == w.field)
+                .map(|a| sample_value(&a.attr_type))
+                .unwrap_or_else(|| sample_value("String"));
+            (param.to_string(), sample)
+        }))
+        .collect();
     let mut s = String::new();
     s.push_str(&format!("  test \"{} returns matching records\" do\n", q.name));
     s.push_str(&format!("    tests {:?}, on: {:?}, kind: :query\n", q.name, agg.name));
     if let Some(line) = setup { s.push_str(&line); }
+    if !inputs.is_empty() {
+        s.push_str(&format!("    input  {}\n", join_kvs(&inputs)));
+    }
     s.push_str("    expect count: 1\n");
     s.push_str("  end\n");
     s
@@ -456,6 +473,25 @@ pub fn detect_dangling_gate_flags(domain: &Domain) -> Vec<(String, String)> {
             });
             if !has_writer {
                 out.push((agg.name.clone(), attr.name.clone()));
+            }
+        }
+    }
+    out
+}
+
+/// Detect givens the conceiver cannot parse into a known Precondition.
+/// Returns (aggregate, command, expression) for each. An unparseable given is
+/// intent the conceiver cannot honor — the caller FAILS LOUDLY rather than
+/// silently dropping the command (which would yield a stale, lying suite). The
+/// bluebook is the intent. (2026-06-13.)
+pub fn detect_unparseable_givens(domain: &Domain) -> Vec<(String, String, String)> {
+    let mut out: Vec<(String, String, String)> = Vec::new();
+    for agg in &domain.aggregates {
+        for cmd in &agg.commands {
+            for g in &cmd.givens {
+                if parse_precondition(&g.expression).is_none() {
+                    out.push((agg.name.clone(), cmd.name.clone(), g.expression.clone()));
+                }
             }
         }
     }
@@ -1147,6 +1183,11 @@ fn parse_precondition(expr: &str) -> Option<Precondition> {
             "gte" if n >= 2 => Some(Precondition::MinSizeList(field, n)),
             "gt"  if n >= 1 => Some(Precondition::MinSizeList(field, n + 1)),
             "empty" | "eq" if n == 0 => Some(Precondition::EmptyList(field)),
+            // `size < N` (N>=1) is satisfied by the EMPTY list a fresh create
+            // yields (size 0 < N) — default-held, no setup step. Without this,
+            // a command guarded by `toppings.size < 10` had an unparseable
+            // given and was silently dropped from the suite. (2026-06-13.)
+            "lt" if n >= 1 => Some(Precondition::EmptyList(field)),
             _ => None, // Other size shapes — not satisfiable in a single step.
         };
     }

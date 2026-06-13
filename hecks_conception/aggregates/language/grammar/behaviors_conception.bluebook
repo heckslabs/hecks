@@ -1,0 +1,325 @@
+Hecks.bluebook "BehaviorsConception", version: "2026.06.13.1" do
+  vision "The declarative conception grammar : for every command and query in a domain's IR, the rules that synthesize a behaviors TestSuite. This is the INVERSE of Extraction — extraction reads source into IR, conception writes IR into tests — and the second half of the same parser-in-bluebook recursion. Today that transformation is authored ONCE, by hand, as 1579 lines of recursive heuristic Rust (behaviors_conceiver/generator.rs). Unlike parser.rs (a specializer target, corpus-claimed) or the small conceiver/generator.rs (i147 wave-2 section-as-snippet shape), the behaviors conceiver is a genuine gap : nothing generates it, so the antibody flags it correctly. The card's instruction — 'the generator should be a bluebook' — does NOT mean the section-as-snippet chop (that relocates Rust verbatim ; it captures no knowledge). It means re-expressing the LOGIC declaratively : this bluebook. The whole point of conceiving the domain is to discover its fault line, and the fault line is sharp — a DATA layer that is fully declarable today (sample-value table, precondition taxonomy, producer strategies, expect-sources) and a PLANNING ALGORITHM that is not (the recursive, depth-capped setup-chain with produced-fact tracking and cascade-filtering). CONCEPTION ONLY (2026-06-13) : this models the shape and stress-tests it below ; the projection that cuts generator.rs from it is fresh-head, gated-worktree work and is deliberately NOT built here — it depends on the SAME kernel interpreter extraction.bluebook waits on, because the planner is recursive and a section-concatenating specializer cannot execute rules. Inventing that interpreter is design judgement parity cannot verify."
+  category "language"
+
+  # ============================================================
+  # STRESS TEST — does this shape survive the HARD cases?
+  # ============================================================
+  # A conception that only handles the query test is a toy that would be
+  # discovered as a toy only after a fresh-head session cut interpreter code
+  # against it. So the conception's whole job is to fail fast. Four cases,
+  # easy -> hard, drawn from the live generator's own behaviour :
+  #
+  # 1. query test  (flat, no state)              — SURVIVES as a flat template.
+  #      setup the aggregate's create command, expect count: 1. No given to
+  #      satisfy, no chain to plan. A single Behavior row with one SetupStep
+  #      is enough — and ONLY here. (generator::query_test.)
+  #
+  # 2. command + one equality given              — FORCES THE TAXONOMY.
+  #      `given { status == "executed" }` is not satisfiable by a template :
+  #      the grammar must PARSE the given into a Precondition (Equals), then
+  #      FIND a producer (a Set mutation to: "executed", or a lifecycle
+  #      transition to that state) and emit it as a setup step. That is the
+  #      Precondition taxonomy + ProducerSeek below. Still a single lookup —
+  #      no recursion yet. (parse_precondition -> find_equals_producer.)
+  #
+  # 3. command + a CHAINED precondition          — FORCES RECURSION.
+  #      The producer that satisfies the given may ITSELF carry a given, and
+  #      a MinSizeList precondition (`toppings.size >= 3`) needs its Append
+  #      producer run N times MINUS the count an earlier chain step already
+  #      produced. A flat table CANNOT express 'recurse into the producer,
+  #      depth-cap the recursion, track the facts produced so far, subtract
+  #      existing instances'. THIS is the finding that kills the naive shape —
+  #      exactly as `command`'s nested body killed the flat field table in
+  #      Extraction. Hence SetupPlan carries depth_cap + a ProducedState the
+  #      planner threads through the recursion. (plan_setup_chain + absorb.)
+  #
+  # 4. cascade-triggered command                 — FORCES SKIP + FILTER.
+  #      When every producer of a precondition is itself fired by the
+  #      command's own cascade AND carries a lifecycle transition, pre-running
+  #      it advances state PAST the from_state the cascade expects. The plan
+  #      must be left to the cascade (filter that producer out) ; and if it is
+  #      the ONLY producer, the whole test is Unsatisfiable and must be
+  #      SKIPPED, not emitted broken. A data table has no notion of 'skip the
+  #      output row' — that is a planner outcome. (plan_setup_chain_filtered
+  #      -> SetupPlan::Unsatisfiable -> command_test returns None.)
+  #
+  # CONCLUSION (locked design) : the conception splits along one fault line.
+  #   (a) DATA layer — fully declarable TODAY, projectable by a simple
+  #       template specializer : SampleValueRule (type -> literal), the
+  #       Precondition taxonomy (parse-shape + satisfy-strategy), ProducerSeek
+  #       (precondition kind -> mutation op sought), and ExpectSource (the
+  #       three merged sources). Cases 1 and 2 live entirely here.
+  #   (b) PLANNING ALGORITHM — NOT declarable as a table : SetupPlan is
+  #       recursive (case 3) and produces a skip outcome (case 4). It can only
+  #       be faithfully projected by the kernel interpreter that reads the
+  #       grammar and EXECUTES its rules — the same interpreter Extraction
+  #       waits on. A section-concatenating specializer cannot run a recursion.
+  # That fault line IS the deliverable of this head : the data layer is ready
+  # to project ; the algorithm layer is fenced off, named, and handed to the
+  # interpreter arc.
+
+  # ============================================================
+  # TESTSUITE — root : the whole conceived behaviors file
+  # ============================================================
+  aggregate "TestSuite", "The behaviors file conceived from one domain — its vision line, any suite-level gate-flag warnings, and one Behavior per command, cascade, and query. The single artifact `storehouse conceive-behaviors` prints. Identified by the domain it was conceived from." do
+    identified_by :domain_name
+    attribute :domain_name, DomainName
+    attribute :vision, Vision
+    attribute :gate_flag_warnings, list_of(GateFlagWarning)
+    has_many Behavior
+
+    value_object "DomainName" do
+      # The source domain's name — "Pizzas". Drives the suite header and vision.
+      attribute :value, String
+    end
+    value_object "Vision" do
+      # The generated suite vision line — "Behavioral tests for the X domain".
+      attribute :value, String
+    end
+    value_object "GateFlagWarning" do
+      # A Boolean attribute with default:false that no command flips — an
+      # inert gate, surfaced as a suite-level comment so regeneration makes it
+      # visible. (detect_dangling_gate_flags.) Carries aggregate + attribute.
+      attribute :aggregate, String
+      attribute :attribute, String
+    end
+
+    command "Conceive" do
+      role "Framework"
+      description "Conceive a behaviors suite from a domain. Its Behaviors are sibling records aggregated via has_many. The conceived artifact is a disposable projection of the bluebook (the intent) : conceiving ALWAYS overwrites any previously-generated suite — a preserved stale copy is a lying suite (2026-06-13)."
+      attribute :domain_name, DomainName
+      attribute :vision, Vision
+      emits "Conceived"
+      then_set :domain_name, to: :domain_name
+      then_set :vision, to: :vision
+    end
+  end
+
+  # ============================================================
+  # BEHAVIOR — one conceived test (command | cascade | query)
+  # ============================================================
+  aggregate "Behavior", "One conceived test : the target it exercises, the aggregate it runs on, its kind, the setup chain that brings the aggregate to the required state, the input the target receives, and the expectation. Belongs to a TestSuite. The three kinds differ only in how expect is built — state assertion (command), emits assertion (cascade), count assertion (query)." do
+    identified_by :title
+    belongs_to TestSuite
+    attribute :title, Title
+    attribute :tests, TargetName
+    attribute :on, AggregateName
+    attribute :kind, BehaviorKind
+    attribute :setup, list_of(SetupStep)
+    attribute :input, list_of(KeyValue)
+    attribute :expect, list_of(KeyValue)
+
+    value_object "Title" do
+      # The test's quoted title — "CreatePizza creates a pizza".
+      attribute :value, String
+    end
+    value_object "TargetName" do
+      # The command or query name the test exercises.
+      attribute :value, String
+    end
+    value_object "AggregateName" do
+      attribute :value, String
+    end
+    value_object "BehaviorKind" do
+      # The discovered kinds — each fixes how `expect` is composed :
+      #   command — per-field state assertion from ExpectSource (the merge).
+      #   cascade — `emits: [E1, E2, ...]` from the static emit->policy walk ;
+      #             emitted only when the command's cascade has > 1 event.
+      #   query   — `count: 1` after a single create setup.
+      attribute :value, String
+    end
+    value_object "SetupStep" do
+      # One `setup "Command", k: v` line. References are NOT emitted — the
+      # runner injects them from its in-scope map ; the bluebook layer is
+      # id-free. command_name + the sample kwargs the create needs.
+      attribute :command_name, String
+      attribute :kwargs, list_of(KeyValue)
+    end
+    value_object "KeyValue" do
+      # A rendered `key: value` pair — value already a behaviors literal
+      # (quoted string, bare integer). Used for input, expect, and kwargs.
+      attribute :key, String
+      attribute :value, String
+    end
+
+    command "Compose" do
+      role "Framework"
+      description "Compose a behavior — its title, target, aggregate, and kind. Setup, input, and expect attach via the list attributes."
+      attribute :title, Title
+      attribute :tests, TargetName
+      attribute :on, AggregateName
+      attribute :kind, BehaviorKind
+      emits "Composed"
+      then_set :title, to: :title
+      then_set :tests, to: :tests
+      then_set :on, to: :on
+      then_set :kind, to: :kind
+    end
+  end
+
+  # ============================================================
+  # PRECONDITION — the taxonomy : how a `given` becomes a setup need
+  # ============================================================
+  aggregate "Precondition", "One thing a command requires of aggregate state before it runs, parsed from a `given` expression. The taxonomy IS the data heart of the conception : each kind carries the source SHAPE it is parsed from and the STRATEGY that satisfies it. A given that matches no kind is unparseable, and the command's test is skipped. Belongs to nothing — it is a catalog of kinds, the closed set the planner knows." do
+    identified_by :kind
+    attribute :kind, PreconditionKind
+    attribute :parse_shape, ParseShape
+    attribute :satisfy_via, ProducerSeek
+    attribute :default_holds, DefaultRule
+
+    value_object "PreconditionKind" do
+      # The closed set the planner can satisfy. A given OUTSIDE this set is
+      # intent the conceiver cannot honor : it FAILS LOUDLY (the conceive
+      # errors), never silently dropped. The bluebook is the intent ; a
+      # silently-skipped command yields a stale, lying suite — exactly the
+      # AddTopping trap (size < 10 was unhandled, so the whole command
+      # vanished with no error). (2026-06-13.)
+      #   equals        — field == "value" / :value / true / false
+      #   greater_than   — field > N
+      #   greater_equal  — field >= N
+      #   less_than      — field < N   (scalar ; default-held when attr default < N)
+      #   non_empty_list — field.size > 0 / >= 1 / .any?
+      #   min_size_list  — field.size >= N (N>=2) / > N (N>=1) ; carries min N
+      #   empty_list     — field.empty? / size == 0 / size < N (N>=1)  (default-held :
+      #                    the empty default list satisfies size<N, so a command
+      #                    guarded by toppings.size < 10 is met with no setup step)
+      attribute :value, String
+    end
+    value_object "ParseShape" do
+      # The source expression shape this kind is recognised from. Parse order
+      # matters : size-checks BEFORE inequality so `field.size > 0` is not
+      # mis-read as an inequality on `field.size`. (parse_precondition.)
+      #   equality      — `<field> == <rhs>` ; rhs may be "str", :sym, bool
+      #   inequality    — `<field> <op> <int>` ; op in > >= <
+      #   size_check    — `<field>.size <op> <int>` (incl. `< N`, the default-held
+      #                   empty-list case) or `<field>.empty?` / `<field>.any?`
+      attribute :value, String
+    end
+    value_object "DefaultRule" do
+      # When the aggregate's defaults ALREADY satisfy this kind, no chain step
+      # is needed. Integer defaults to 0 (< any positive N -> less_than holds) ;
+      # lists default empty (empty_list holds, min/non-empty do NOT).
+      #   always   — empty_list : lists start empty (size 0 satisfies empty? AND size<N).
+      #   if_default_below — less_than : holds when attr default < N.
+      #   never    — equals / greater_* / *_list>0 : a producer is required.
+      attribute :value, String
+    end
+
+    command "Catalog" do
+      role "Framework"
+      description "Catalog one precondition kind — the shape it is parsed from, the producer it is satisfied via, and when defaults already hold."
+      attribute :kind, PreconditionKind
+      attribute :parse_shape, ParseShape
+      attribute :satisfy_via, ProducerSeek
+      attribute :default_holds, DefaultRule
+      emits "Cataloged"
+      then_set :kind, to: :kind
+      then_set :parse_shape, to: :parse_shape
+      then_set :satisfy_via, to: :satisfy_via
+      then_set :default_holds, to: :default_holds
+    end
+
+    # ProducerSeek lives here because it is the satisfy half of each kind :
+    # given a precondition, which mutation on which command produces the
+    # required fact. (find_producer + the find_*_producer family.)
+    value_object "ProducerSeek" do
+      # The mutation op (or lifecycle transition) a producer must carry to
+      # satisfy the owning kind, plus the direction/target where numeric.
+      #   set_to        — a Set mutation `to: value` on the field (equals).
+      #   transition_to — a lifecycle transition to the value (equals).
+      #   set_int_at_least  — a Set landing field >= target (greater_*), or an
+      #                       Increment when target <= 1.
+      #   set_int_at_most   — a Set landing field <= target (less_than).
+      #   append_once   — one Append on the field (non_empty_list).
+      #   append_n      — N Appends on the field, N = min minus existing count
+      #                   (min_size_list ; the produced-fact subtraction).
+      attribute :value, String
+    end
+  end
+
+  # ============================================================
+  # SAMPLEVALUERULE — the trivial table : type -> literal
+  # ============================================================
+  aggregate "SampleValueRule", "How a type becomes a placeholder literal in synthesized input, setup kwargs, and expect. Pure lookup — the simplest proof that the DATA layer is real and projectable today : a flat table, no algorithm. (sample_value.)" do
+    identified_by :type_name
+    attribute :type_name, TypeName
+    attribute :sample, SampleLiteral
+
+    value_object "TypeName" do
+      # The IR attribute type — "Integer", "Float", "Boolean", "String", or any
+      # value-object type name (the catch-all).
+      attribute :value, String
+    end
+    value_object "SampleLiteral" do
+      # The rendered literal :
+      #   Integer -> 1   Float -> 1.0   Boolean -> "true"   String -> "sample"
+      #   <VO>    -> "sample_<lowercased type>"   (the default arm)
+      attribute :value, String
+    end
+
+    command "Define" do
+      role "Framework"
+      description "Define one type's sample literal."
+      attribute :type_name, TypeName
+      attribute :sample, SampleLiteral
+      emits "Defined"
+      then_set :type_name, to: :type_name
+      then_set :sample, to: :sample
+    end
+  end
+
+  # ============================================================
+  # SETUPPLAN — the ALGORITHM : the part that forces the interpreter
+  # ============================================================
+  aggregate "SetupPlan", "The recursive, depth-capped planner that turns a command's preconditions into an ordered setup chain — or declares the command Unsatisfiable so its test is skipped. This is the conception's fault line made explicit : it is NOT a data table. It recurses (a producer may carry its own given), threads a ProducedState through the recursion (to subtract already-produced facts and stop double-seeding a min_size_list), and filters cascade-triggered producers that would advance state past the cascade's from_state. A section-concatenating specializer cannot project it ; only a kernel interpreter that EXECUTES these rules can. Modeled here so the interpreter arc has a contract to read, NOT so a specializer can chop it. (plan_setup_chain, plan_setup_chain_filtered, ProducedState.)" do
+    identified_by :target_command
+    attribute :target_command, TargetName
+    attribute :depth_cap, DepthCap
+    attribute :outcome, PlanOutcome
+    attribute :tracks, list_of(ProducedFact)
+
+    value_object "TargetName" do
+      attribute :value, String
+    end
+    value_object "DepthCap" do
+      # The recursion bound — 5 in the live planner. A producer chain deeper
+      # than this yields a lenient empty chain rather than looping forever.
+      attribute :value, Integer
+    end
+    value_object "PlanOutcome" do
+      # The two outcomes the planner returns :
+      #   chain         — an ordered Vec of commands that lands the required
+      #                   state (possibly empty when defaults already hold).
+      #   unsatisfiable — every producer cascades PAST the target state ; the
+      #                   caller skips emitting the test (the cascade test
+      #                   already covers it). THIS outcome — 'emit no row' — is
+      #                   why the algorithm is not a table.
+      attribute :value, String
+    end
+    value_object "ProducedFact" do
+      # What a chain step has produced so far, threaded through the recursion
+      # so a later precondition already covered by an earlier step adds no new
+      # step. (ProducedState : set_facts, append_counts, incremented_fields.)
+      #   set_fact      — (field, value) from a Set or lifecycle transition.
+      #   append_count  — per-field count of Append steps (>=1 non-empty,
+      #                   >=N min-size ; existing count subtracted).
+      #   incremented   — field touched by Increment/Multiply/Decay/Clamp.
+      attribute :kind, String
+      attribute :field, String
+      attribute :value, String
+    end
+
+    command "Plan" do
+      role "Framework"
+      description "Record a planning outcome for a target command — its depth cap and whether it produced a chain or proved unsatisfiable. The produced facts attach via the list attribute. NOTE : recording the outcome is data ; COMPUTING it is the recursion the interpreter must execute."
+      attribute :target_command, TargetName
+      attribute :depth_cap, DepthCap
+      attribute :outcome, PlanOutcome
+      emits "Planned"
+      then_set :target_command, to: :target_command
+      then_set :depth_cap, to: :depth_cap
+      then_set :outcome, to: :outcome
+    end
+  end
+end
