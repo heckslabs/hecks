@@ -307,9 +307,11 @@ fn emit_cascade_test(
 ) -> Option<String> {
     // Reuse the regular setup planning so the cascade test starts in
     // the same satisfied precondition state as the state test.
-    let chain = match plan_setup_chain(domain, agg, cmd, 5, &mut Vec::new()) {
-        SetupPlan::Chain(chain) => chain,
-        SetupPlan::Unsatisfiable => return None,
+    // Planner switch (step 2b): the cascade test's prerequisite chain is driven
+    // by the kernel interpreter's plan_commands, same as the state test.
+    let chain = match crate::conception_kernel::planner::plan_commands(agg, cmd) {
+        crate::conception_kernel::planner::PlanCommands::Chain(chain) => chain,
+        crate::conception_kernel::planner::PlanCommands::Unsatisfiable => return None,
     };
     let self_ref = self_ref_for(agg, cmd);
     let cross_refs = cross_refs_for(agg, cmd);
@@ -323,9 +325,11 @@ fn emit_cascade_test(
     let chain_creates_entity = chain.iter().any(|c| self_ref_for(agg, c).is_none());
     if self_ref.is_some() && !chain_creates_entity {
         if let Some(create) = pick_create_command(agg) {
-            let create_chain = match plan_setup_chain(domain, agg, create, 5, &mut Vec::new()) {
-                SetupPlan::Chain(c) => c,
-                SetupPlan::Unsatisfiable => return None,
+            // Planner switch (step 2b): cascade-test bootstrap prepend driven by
+            // the kernel interpreter's plan_commands.
+            let create_chain = match crate::conception_kernel::planner::plan_commands(agg, create) {
+                crate::conception_kernel::planner::PlanCommands::Chain(c) => c,
+                crate::conception_kernel::planner::PlanCommands::Unsatisfiable => return None,
             };
             // Create command first, then its dependency chain, then the
             // existing setups. plan_setup_chain returns prerequisites of
@@ -615,87 +619,6 @@ fn commands_triggered_by_cascade(domain: &Domain, cmd: &Command) -> BTreeSet<Str
     out
 }
 
-/// Plan a chain of commands that puts `agg` into the state `target_cmd`
-/// requires. Preconditions come from two sources:
-///   • `target_cmd.givens` — equality predicates like `status == "X"`
-///   • The aggregate's lifecycle — if `target_cmd` is a transition
-///     with from_state ≠ default, we need to be in from_state.
-///
-/// For each precondition, find a command that produces it (then_set
-/// or transition to that value), recurse on its preconditions, then
-/// emit the chain in correct order.
-///
-/// Returns commands in execution order. Empty when no preconditions
-/// are unmet OR when no producing command exists (the test will
-/// surface a real gap to the user).
-///
-/// `depth` budgets recursion. `visited` carries (cmd_name) to prevent
-/// cycles when commands mutually depend.
-fn plan_setup_chain<'a>(
-    domain: &'a Domain,
-    agg: &'a Aggregate,
-    target_cmd: &'a Command,
-    depth: usize,
-    visited: &mut Vec<&'a str>,
-) -> SetupPlan<'a> {
-    if depth == 0 { return SetupPlan::Chain(Vec::new()); }
-    if visited.contains(&target_cmd.name.as_str()) { return SetupPlan::Chain(Vec::new()); }
-    visited.push(target_cmd.name.as_str());
-    let mut chain: Vec<&Command> = Vec::new();
-    let mut produced: ProducedState = ProducedState::default();
-    let mut unsatisfiable = false;
-
-    for pre in collect_preconditions(agg, target_cmd) {
-        // Already satisfied by an earlier step in this chain?
-        if produced.satisfies(&pre) { continue; }
-        // Trivially true by the aggregate's defaults?
-        if precondition_default_holds(agg, &pre) { continue; }
-        // Pick a producer that, after its full policy cascade, still
-        // leaves the aggregate in the precondition state. If a candidate
-        // exists but every candidate cascades past the target state, mark
-        // the chain unsatisfiable so the test is skipped (the upstream
-        // test already exercises the cascade through `target_cmd`).
-        match find_producer(domain, agg, &pre) {
-            Some(producer) => {
-                // Recurse: producer may itself have preconditions. We run
-                // this ONCE even for MinSizeList (repeated Append calls
-                // share the same prerequisite state — a second dispatch of
-                // AddItem doesn't need another CreateCart).
-                let sub_chain = match plan_setup_chain(domain, agg, producer, depth - 1, visited) {
-                    SetupPlan::Chain(sub) => sub,
-                    SetupPlan::Unsatisfiable => {
-                        unsatisfiable = true;
-                        break;
-                    }
-                };
-                for sub in sub_chain {
-                    if !chain.iter().any(|c| c.name == sub.name) {
-                        chain.push(sub);
-                        produced.absorb(agg, sub);
-                    }
-                }
-                append_producer_for(&pre, producer, agg, &mut chain, &mut produced);
-            }
-            None => {
-                // Distinguish two cases:
-                //   * No producer command exists at all in the bluebook
-                //     for this precondition — silently skip (matches the
-                //     historical lenient behavior; the test will fail
-                //     loudly and the user can fix the bluebook).
-                //   * A producer DOES exist but its cascaded final state
-                //     lands past the target — mark unsatisfiable.
-                if any_producer_exists(agg, &pre) {
-                    unsatisfiable = true;
-                    break;
-                }
-            }
-        }
-    }
-
-    visited.pop();
-    if unsatisfiable { SetupPlan::Unsatisfiable } else { SetupPlan::Chain(chain) }
-}
-
 /// Append `producer` to `chain` the right number of times for `pre`:
 ///   * MinSizeList(_, n) — repeat the producer until the post-absorb
 ///     append count on its field reaches n. Existing entries in `chain`
@@ -933,55 +856,6 @@ fn precondition_default_holds(agg: &Aggregate, pre: &Precondition) -> bool {
         // > / >= / NonEmptyList / MinSizeList never hold by default —
         // need a producer.
         _ => false,
-    }
-}
-
-/// True if SOME command on `agg` declares an effect that COULD satisfy
-/// `pre` — independent of whether that effect survives the policy
-/// cascade. Used to distinguish "no producer at all" (lenient skip) from
-/// "every producer over-cascades" (mark test unsatisfiable).
-fn any_producer_exists(agg: &Aggregate, pre: &Precondition) -> bool {
-    match pre {
-        Precondition::Equals(field, value) => {
-            let by_mutation = agg.commands.iter().any(|c| {
-                c.mutations.iter().any(|m| {
-                    matches!(m.operation, MutationOp::Set)
-                        && &m.field == field
-                        && mutation_value_matches(&m.value, value)
-                })
-            });
-            if by_mutation { return true; }
-            if let Some(lc) = &agg.lifecycle {
-                if &lc.field == field {
-                    return lc.transitions.iter().any(|t| &t.to_state == value);
-                }
-            }
-            false
-        }
-        Precondition::GreaterThan(field, _) | Precondition::GreaterOrEqual(field, _) => {
-            agg.commands.iter().any(|c| {
-                c.mutations.iter().any(|m| {
-                    &m.field == field
-                        && matches!(m.operation, MutationOp::Set | MutationOp::Increment)
-                })
-            })
-        }
-        Precondition::LessThan(field, _) => {
-            agg.commands.iter().any(|c| {
-                c.mutations.iter().any(|m| {
-                    &m.field == field
-                        && matches!(m.operation, MutationOp::Set | MutationOp::Decrement)
-                })
-            })
-        }
-        Precondition::NonEmptyList(field) | Precondition::MinSizeList(field, _) => {
-            agg.commands.iter().any(|c| {
-                c.mutations.iter().any(|m| {
-                    &m.field == field && matches!(m.operation, MutationOp::Append)
-                })
-            })
-        }
-        Precondition::EmptyList(_) => true,
     }
 }
 
