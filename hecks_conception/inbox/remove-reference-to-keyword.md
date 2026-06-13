@@ -231,7 +231,7 @@ runtime adapter handles the plumbing beneath. They retire in the SAME sprint.
 
 ---
 
-# RESOLVED : Plan is a Domain Module, not an aggregate (2026-06-11, Chris + audit)
+# RESOLVED + EXECUTED : Plan is a Domain Module, not an aggregate (2026-06-11, Chris + audit ; executed 2026-06-12, PR #731)
 
 Surfaced while choosing the `create` keyword : the card's example `create "Plan"`
 felt wrong because you do NOT create a Plan — "we just create sprints, stories,

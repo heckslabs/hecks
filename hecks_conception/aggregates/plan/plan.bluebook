@@ -1,28 +1,15 @@
-Hecks.bluebook "Plan", version: "2026.06.05.4" do
+Hecks.bluebook "Plan", version: "2026.06.12.1" do
   vision "The Planning bounded context. All planning aggregates in one bluebook : Sprint (time-box), Story (work unit), Task (one unit of work under a Story), Board (singleton roster), Backlog (intake pool), UseCase (acceptance scenarios), Project (registry), Demo (the act of showing). Same-bluebook cross-aggregate references resolve natively — no namespace prefix. Task was promoted to a first-class aggregate sprint 14 (task-completion-state) ; Story carries pending_task_count maintained by cascade policy on Task lifecycle events."
   category "plan"
 
-  aggregate "Plan", "The Planning bounded context as a singleton aggregate. Owns the Board (the one working surface) and the registry of Projects. Sprints live under Projects ; Stories live under Sprints ; UseCases live under Stories. The top of the Plan domain tree." do
-    identified_by :name
-
-    attribute :name, Name, default: "plan"
-
-    has_one Board
-    has_many Projects
-
-    value_object "Name" do
-      # Singleton key — conventionally "plan". There is one Plan.
-      attribute :value, String
-    end
-
-    command "Open" do
-      role "Miette"
-      description "Open the Plan singleton. The creation command — there is only one Plan."
-      attribute :name, Name
-      then_set :name, to: :name
-      emits "PlanOpened"
-    end
-  end
+  # The Plan singleton aggregate is RETIRED (2026-06-12, locked 2026-06-11
+  # with Chris — see inbox/remove-reference-to-keyword.md § Plan-is-a-Module).
+  # The bluebook ITSELF is the Planning bounded context / module ; the
+  # aggregate doubled that declaration with zero behaviour (no invariants,
+  # zero callers of Plan.Open, PlanOpened fired into the void, has_one Board /
+  # has_many Projects never populated). "The registry of Projects" is
+  # Project.all — a query, not a has_many. Module-as-first-class is DEFERRED
+  # until something needs to query or annotate the context.
 
   # ===== from sprint/sprint.bluebook =====
   aggregate "Sprint", "One time-boxed sprint — a number, a goal, a list of committed stories, a closure checklist, and a lifecycle state." do

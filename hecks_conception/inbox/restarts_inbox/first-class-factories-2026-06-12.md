@@ -4,7 +4,7 @@ status: open
 category: session-restart
 priority: high
 posted_at: 2026-06-12
-value: 'reference_to step 1 (the creates bool) is MERGED (#729, main @ c4defd33). Next : build first-class factories — a Factory IR node that REPLACES the bool + the is_create heuristic. Design is LOCKED in docs/designs/first-class-factories.md. Resume by EXECUTING the phasing, not re-deriving.'
+value: 'PHASE 1 DONE — PR #730 open (branch worktree-factories-phase1-ir, commit d877b4cf) : Factory IR node in both parsers + both dumps, creates deleted, all gates green (cargo 0 warnings, 6/6 parity, pizzas smoke). Next after merge : PHASE 2 — two-path dispatch split, DELETE the is_create heuristic + the materialize_factory_commands boot seam in runtime/mod.rs. Design LOCKED in docs/designs/first-class-factories.md ; execute the phasing, do not re-derive.'
 ---
 
 # Session-restart handoff — first-class factories (2026-06-12)
@@ -61,9 +61,10 @@ integrity + golden + parity, merge only green :
   <f>` per file (the sweep wrapper is worktree-deferred) ; `storehouse
   integrity` (run on the live tree).
 
-## Side-thread still open (smaller, optional)
-Thread A from the prior handoff — **Plan singleton retirement** — is still
-unbuilt. Blast radius MEASURED small (PlanOpened in zero goldens/callers/data).
+## Side-thread DONE (2026-06-12)
+Thread A — **Plan singleton retirement** — executed : PR #731
+(plan-singleton-retirement). The bluebook IS the module ; no Module concept
+built (deferred per the locked decision). Previously : Blast radius MEASURED small (PlanOpened in zero goldens/callers/data).
 See `inbox/remove-reference-to-keyword.md` § Plan-is-a-Module. Do it as a quick
 warm-up or fold it in ; not on the factories critical path.
 
