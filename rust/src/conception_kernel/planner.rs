@@ -58,7 +58,7 @@ pub enum PlanCommands<'a> {
 
 /// Plan the setup chain that brings `agg` to the state `cmd`'s givens require.
 pub fn plan(agg: &Aggregate, cmd: &Command) -> Plan {
-    match plan_chain(agg, cmd, DEPTH_CAP, &mut Vec::new()) {
+    match plan_chain(agg, cmd, DEPTH_CAP, &mut Vec::new(), &BTreeSet::new()) {
         Outcome::Chain(cs) => Plan::Chain(cs.iter().map(|c| c.name.clone()).collect()),
         Outcome::Unsatisfiable => Plan::Unsatisfiable,
     }
@@ -68,10 +68,40 @@ pub fn plan(agg: &Aggregate, cmd: &Command) -> Plan {
 /// rather than names — what `generator::command_test` renders setup lines from.
 /// Same engine, same DEPTH_CAP, fresh visited set.
 pub fn plan_commands<'a>(agg: &'a Aggregate, cmd: &'a Command) -> PlanCommands<'a> {
-    match plan_chain(agg, cmd, DEPTH_CAP, &mut Vec::new()) {
+    match plan_chain(agg, cmd, DEPTH_CAP, &mut Vec::new(), &BTreeSet::new()) {
         Outcome::Chain(cs) => PlanCommands::Chain(cs),
         Outcome::Unsatisfiable => PlanCommands::Unsatisfiable,
     }
+}
+
+/// Like `plan_commands`, but for cascade tests: a producer is skipped when it is
+/// cascade-triggered (its name is in `exclude`) AND carries a lifecycle
+/// transition on `agg` — pre-running it would advance the aggregate past the
+/// from_state the cascade's own dispatch expects, refusing the cascade. The
+/// `exclude` set is the caller's precomputed cascade-triggered command names
+/// (the cascade-graph walk stays at the caller). With an empty `exclude` this is
+/// exactly `plan_commands`.
+pub fn plan_commands_filtered<'a>(
+    agg: &'a Aggregate,
+    cmd: &'a Command,
+    exclude: &BTreeSet<String>,
+) -> PlanCommands<'a> {
+    match plan_chain(agg, cmd, DEPTH_CAP, &mut Vec::new(), exclude) {
+        Outcome::Chain(cs) => PlanCommands::Chain(cs),
+        Outcome::Unsatisfiable => PlanCommands::Unsatisfiable,
+    }
+}
+
+/// A producer is cascade-excluded when it is cascade-triggered (in `exclude`)
+/// AND carries a lifecycle transition on `agg`. Mirrors the live
+/// `is_cascade_triggered_transition`. Empty `exclude` ⇒ never excluded, so the
+/// unfiltered planners are unaffected.
+fn cascade_excluded(agg: &Aggregate, producer: &Command, exclude: &BTreeSet<String>) -> bool {
+    exclude.contains(&producer.name)
+        && agg
+            .lifecycle
+            .as_ref()
+            .is_some_and(|lc| lc.transitions.iter().any(|t| t.command == producer.name))
 }
 
 fn plan_chain<'a>(
@@ -79,6 +109,7 @@ fn plan_chain<'a>(
     target: &'a Command,
     depth: usize,
     visited: &mut Vec<&'a str>,
+    exclude: &BTreeSet<String>,
 ) -> Outcome<'a> {
     if depth == 0 || visited.contains(&target.name.as_str()) {
         return Outcome::Chain(Vec::new());
@@ -96,9 +127,9 @@ fn plan_chain<'a>(
         if default_holds(&rule, agg, &pre) {
             continue;
         }
-        match find_producer(agg, &pre, rule.producer) {
+        match find_producer(agg, &pre, rule.producer).filter(|p| !cascade_excluded(agg, p, exclude)) {
             Some(producer) => {
-                match plan_chain(agg, producer, depth - 1, visited) {
+                match plan_chain(agg, producer, depth - 1, visited, exclude) {
                     Outcome::Chain(sub) => {
                         for c in sub {
                             if !chain.iter().any(|x| x.name == c.name) {
