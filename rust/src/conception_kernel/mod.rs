@@ -33,6 +33,7 @@
 pub mod grammar;
 pub mod sample;
 pub mod emit;
+pub mod expect;
 pub mod recognize;
 pub mod produced_state;
 pub mod producers;
