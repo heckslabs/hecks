@@ -69,7 +69,7 @@ fn plan_chain<'a>(
     let mut produced = ProducedState::default();
     let mut unsatisfiable = false;
 
-    for pre in collect_preconditions(target) {
+    for pre in collect_preconditions(agg, target) {
         let rule = grammar::rule_for(pre.kind);
         if produced.satisfies(&pre, &rule) {
             continue;
@@ -84,7 +84,7 @@ fn plan_chain<'a>(
                         for c in sub {
                             if !chain.iter().any(|x| x.name == c.name) {
                                 chain.push(c);
-                                produced.absorb(c);
+                                produced.absorb(agg, c);
                             }
                         }
                     }
@@ -93,7 +93,7 @@ fn plan_chain<'a>(
                         break;
                     }
                 }
-                append_producer(&pre, producer, rule.producer, &mut chain, &mut produced);
+                append_producer(&pre, producer, rule.producer, &mut chain, &mut produced, agg);
             }
             // No producer for this precondition: lenient skip (the test fails
             // loudly if the bluebook truly can't reach the state). The
@@ -110,15 +110,38 @@ fn plan_chain<'a>(
     }
 }
 
-/// Parse `cmd`'s givens into the taxonomy's preconditions. Givens outside the
-/// taxonomy are skipped here. Deduped, given-declaration order preserved.
-fn collect_preconditions(cmd: &Command) -> Vec<Precondition> {
+/// Parse `cmd`'s givens into the taxonomy's preconditions, then add the
+/// lifecycle from_state precondition. Givens outside the taxonomy are skipped.
+/// Deduped, given-declaration order preserved (lifecycle precondition last).
+fn collect_preconditions(agg: &Aggregate, cmd: &Command) -> Vec<Precondition> {
     let mut out: Vec<Precondition> = Vec::new();
     let mut seen: BTreeSet<Precondition> = BTreeSet::new();
     for g in &cmd.givens {
         if let Some(pre) = recognize::parse_given(&g.expression) {
             if seen.insert(pre.clone()) {
                 out.push(pre);
+            }
+        }
+    }
+    // Lifecycle from_state: when EVERY transition for this command requires a
+    // from_state, the command can only fire from that state — require it as an
+    // Equals precondition (the first from_state is the satisfiable choice). A
+    // transition with no from_state means the command can fire from default,
+    // so no precondition is added.
+    if let Some(lc) = &agg.lifecycle {
+        let trans: Vec<_> = lc.transitions.iter().filter(|t| t.command == cmd.name).collect();
+        if !trans.is_empty() && trans.iter().all(|t| t.from_state.is_some()) {
+            if let Some(from) = trans.first().and_then(|t| t.from_state.as_ref()) {
+                let pre = Precondition {
+                    kind: grammar::Kind::Equals,
+                    field: lc.field.clone(),
+                    count: 0,
+                    target: 0,
+                    value: from.clone(),
+                };
+                if seen.insert(pre.clone()) {
+                    out.push(pre);
+                }
             }
         }
     }

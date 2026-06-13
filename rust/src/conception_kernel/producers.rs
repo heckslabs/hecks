@@ -21,13 +21,32 @@ pub fn find_producer<'a>(
     seek: ProducerSeek,
 ) -> Option<&'a Command> {
     match seek {
-        ProducerSeek::SetTo => agg.commands.iter().find(|c| {
-            c.mutations.iter().any(|m| {
-                matches!(m.operation, MutationOp::Set)
-                    && m.field == pre.field
-                    && value_matches(&m.value, &pre.value)
-            })
-        }),
+        // A command that ESTABLISHES set_fact(field = value) — by a Set
+        // mutation, or (fallback) a lifecycle transition to that value on the
+        // lifecycle field. Both land the same fact (see ProducedState::absorb).
+        // Set wins over transition, matching generator's find_equals_producer.
+        ProducerSeek::SetTo => {
+            let by_set = agg.commands.iter().find(|c| {
+                c.mutations.iter().any(|m| {
+                    matches!(m.operation, MutationOp::Set)
+                        && m.field == pre.field
+                        && value_matches(&m.value, &pre.value)
+                })
+            });
+            if by_set.is_some() {
+                return by_set;
+            }
+            if let Some(lc) = &agg.lifecycle {
+                if lc.field == pre.field {
+                    return lc
+                        .transitions
+                        .iter()
+                        .filter(|t| t.to_state == pre.value)
+                        .find_map(|t| agg.commands.iter().find(|c| c.name == t.command));
+                }
+            }
+            None
+        }
         ProducerSeek::AppendOnce | ProducerSeek::AppendN => agg.commands.iter().find(|c| {
             c.mutations
                 .iter()
@@ -83,18 +102,19 @@ pub fn append_producer<'a>(
     seek: ProducerSeek,
     chain: &mut Vec<&'a Command>,
     produced: &mut ProducedState,
+    agg: &Aggregate,
 ) {
     if seek == ProducerSeek::AppendN {
         let target = pre.count.max(0) as usize;
         while produced.append_count(&pre.field) < target {
             chain.push(producer);
-            produced.absorb(producer);
+            produced.absorb(agg, producer);
         }
         return;
     }
     if !chain.iter().any(|c| c.name == producer.name) {
         chain.push(producer);
-        produced.absorb(producer);
+        produced.absorb(agg, producer);
     }
 }
 
@@ -111,6 +131,19 @@ pub fn default_holds(rule: &KindRule, agg: &Aggregate, pre: &Precondition) -> bo
                     .attributes
                     .iter()
                     .any(|a| a.name == pre.field && a.attr_type == "Integer")
+        }
+        // Equals holds at birth: the lifecycle default IS the value, or an
+        // attribute's default IS the value. Verbatim port of generator's
+        // precondition_default_holds Equals arm.
+        DefaultRule::IfDefaultMatches => {
+            if let Some(lc) = &agg.lifecycle {
+                if lc.field == pre.field && lc.default == pre.value {
+                    return true;
+                }
+            }
+            agg.attributes.iter().any(|a| {
+                a.name == pre.field && a.default.as_deref().map(|d| d.trim()) == Some(pre.value.as_str())
+            })
         }
     }
 }

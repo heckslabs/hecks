@@ -120,6 +120,11 @@ pub enum DefaultRule {
     /// `LessThan`: holds when `n > 0` and the field is an Integer attribute
     /// (integers default to 0, and `0 < n`).
     IfDefaultBelow,
+    /// `Equals`: holds when the aggregate already starts at the value — the
+    /// lifecycle default IS the value, or a Boolean/typed attribute's default
+    /// IS the value. (A command transitioning TO the lifecycle default needs
+    /// no setup; the aggregate is born there.)
+    IfDefaultMatches,
 }
 
 /// One row of the taxonomy — data. Behaviour is the composition of the three
@@ -151,7 +156,7 @@ pub fn rule_for(kind: Kind) -> KindRule {
     match kind {
         Kind::Equals => KindRule {
             producer: P::SetTo,
-            default: D::Never,
+            default: D::IfDefaultMatches,
             satisfy: HasSetFact,
         },
         Kind::NonEmptyList => KindRule {
