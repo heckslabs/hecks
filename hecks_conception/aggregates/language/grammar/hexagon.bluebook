@@ -1,28 +1,14 @@
-Hecks.bluebook "Hexagon", version: "2026.06.12.3" do
-  vision "A domain's boundary wiring : the ports it exposes and the adapters that fulfil them. The domain stays synchronous ; everything that leaves it is an async adapter."
-  category "language"
+Hecks.bluebook "Hexagon", version: "2026.06.12.4" do
+  vision "A domain's boundary wiring — the ports it exposes and the adapters that fulfil them. Everything inside the boundary is one synchronous domain ; everything that leaves it is an asynchronous adapter, and the colour is never declared because the boundary itself decides it.
 
-  # ── The model ───────────────────────────────────────────────
-  # An aggregate IS a port definition (its commands-in / events-out
-  # ARE the contract ; no separate Port concept). The domain is purely
-  # synchronous and handles its OWN intra-domain aggregate calls by
-  # naming convention ; the hexagon wires only what LEAVES the domain.
-  #
-  # An ADAPTER is anything OUTSIDE the domain boundary — persistence,
-  # HTTP, a payment gateway, reporting, or CALLING ANOTHER BLUEBOOK
-  # (via storehouse, the universal dispatch door). Every adapter is
-  # async ; the domain stays sync. Calling another bluebook is just one
-  # outside thing among many : the adapter routes a command through
-  # storehouse and the target domain's aggregate implements directly —
-  # a bluebook working as an adapter.
-  #
-  # persisted_by / charged_by are NOT port methods ; they are how we
-  # implement, specifically, naming an impure family. The colour is
-  # free : domain always sync, adapters always async, never declared.
-  # Cross-domain wiring is the hexagon's job at runtime through
-  # storehouse (runtime discovery) ; Hexagon.Verify is the optional
-  # startup fail-fast. Cross-domain VOCABULARY lives in Composition ;
-  # this chapter is the runtime WIRING.
+  A port is not a separate concept : an aggregate IS the port — its commands-in and events-out ARE the contract. The domain handles its own intra-domain aggregate calls by naming convention, so the hexagon wires only the edges that LEAVE the domain, never the ones inside it.
+
+  An adapter is anything outside the boundary — persistence, HTTP, a payment gateway, a report, or calling another bluebook through storehouse, the universal dispatch door. Calling another domain is just one outside thing among many : the adapter routes a command through storehouse and the target aggregate implements it directly — a bluebook working as an adapter. So this chapter never names another bluebook ; the adapter is the indirection.
+
+  The impure edges are grouped into families named by their how-verb — persisted_by, charged_by — which says how we implement, not what a port means. A family carries a signal (reply returns a value to the synchronous domain ; effect emits an event whose verdict re-enters as a command) and the config fields its adapters need, whose values live per-deployment in .world. An adapter declares the family it implements — the inverted arrow — and already knows where it routes, so no FQN is stored here.
+
+  Cross-domain wiring is the hexagon's job at runtime through storehouse's discovery ; Hexagon.Verify is the optional startup fail-fast that moves discovery of a misconfiguration forward from first-fire to boot. Cross-domain VOCABULARY lives in Composition — this chapter is the runtime WIRING."
+  category "language"
 
   # ============================================================
   # HEXAGON — root : aggregates a domain's port-bindings
