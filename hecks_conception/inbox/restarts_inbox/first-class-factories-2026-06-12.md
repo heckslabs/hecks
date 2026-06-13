@@ -4,7 +4,7 @@ status: open
 category: session-restart
 priority: high
 posted_at: 2026-06-12
-value: 'PHASE 1 MERGED (#730, 2026-06-13). Also landed : Plan singleton retired (#731), cluster-detector qualified-policy-edges fix (#732). Worktree pruned, main clean, 0 warnings. NEXT : PHASE 2 — two-path dispatch split (Factory → mint / Command → load), DELETE the is_create heuristic + the materialize_factory_commands boot seam in runtime/mod.rs. THE silent-regression phase — full corpus run required. Design LOCKED in docs/designs/first-class-factories.md ; execute the phasing, do not re-derive.'
+value: 'PHASE 2 BUILT — PR #733 open (worktree factories-phase2-dispatch, commit dcdb7d30). Two-path split live : Resolution::Factory → mint (AggregateAlreadyExists on duplicate), Command → load ; is_create heuristic + materialize seam DELETED ; BehaviorRef erases Factory/Command for the shared pipeline ; interpreter takes slices. Audit clean : only semantics change is AddTopping-without-id no longer silently minting. Gates 70/70 cargo, 165 behaviors, 6/6 parity, smoke. NEXT after merge : PHASE 3 — produces: cross-aggregate routing (factory on Backlog mints a Story) + real corpus example. Design LOCKED in docs/designs/first-class-factories.md.'
 ---
 
 # Session-restart handoff — first-class factories (2026-06-12)
