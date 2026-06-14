@@ -40,7 +40,7 @@
 //! becomes `exec storehouse run capabilities/boot/boot.bluebook` —
 //! one line. Until then, it's the wrapper for those two phases.
 
-mod classify;
+pub mod classify;
 mod daemons;
 mod discover;
 mod system_prompt;
