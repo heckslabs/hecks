@@ -36,7 +36,9 @@ fn terminal_hecksagon_parses_with_stdio_adapters() {
     let src = fs::read_to_string(HECKSAGON).expect("missing terminal.hecksagon");
     let hex = hecksagon_parser::parse(&src);
     assert_eq!(hex.name, "Terminal");
-    assert_eq!(hex.persistence.as_deref(), Some("memory"));
+    // i728 — terminal.hecksagon declares no persistence adapter ; unwired now
+    // parses to None (the None→"memory" normalization was removed).
+    assert_eq!(hex.persistence.as_deref(), None);
     assert!(hex.io_adapter("stdout").is_some(), "stdout adapter missing");
     assert!(hex.io_adapter("stdin").is_some(),  "stdin adapter missing");
     assert!(hex.io_adapter("stderr").is_some(), "stderr adapter missing");
