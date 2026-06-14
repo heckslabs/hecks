@@ -15,7 +15,9 @@ fn real_antibody_hecksagon_parses_non_empty() {
     let src = fs::read_to_string("../discipline/antibody/antibody.hecksagon").expect("cannot find antibody.hecksagon");
     let hex = hecksagon_parser::parse(&src);
     assert_eq!(hex.name, "Antibody");
-    assert_eq!(hex.persistence.as_deref(), Some("memory"));
+    // i728 — antibody.hecksagon declares no persistence adapter (only :shell) ;
+    // unwired now parses to None (the None→"memory" normalization was removed).
+    assert_eq!(hex.persistence.as_deref(), None);
     assert_eq!(hex.shell_adapters.len(), 7);
     assert_eq!(hex.gates.len(), 3);
 }

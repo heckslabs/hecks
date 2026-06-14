@@ -1,0 +1,35 @@
+Hecks.behavior_kind "render_report" do
+  # The report PORT : render a query's result records into a report, generic
+  # over the aggregate. The kernel runs the :query, takes its result records,
+  # and the FIRING ADAPTER FAMILY renders them — :markdown and :html are
+  # DISTINCT adapter families off this one port, each its own rendering. Same
+  # records, different projection ; the adapter IS the format. There is NO
+  # format/provider selector dimension — the adapter KIND (:markdown / :html)
+  # is the choice, declared in the consumer's hecksagon.
+  #
+  # Presentation is NOT domain : the bluebook declares the :query and never
+  # knows about markdown or html. The rendering lives entirely in the adapter.
+  #
+  # Two transports off the same port :
+  #   - chained  — trigger_on event → render → result_into follow-on dispatch
+  #                (e.g. a markdown turn-pulse injected into AiSession)
+  #   - served   — HTTP / CLI request → render → respond (e.g. an html diagram)
+  #
+  # Mirrors back_aggregate_storage : one behavior_kind (the port), N distinct
+  # adapter families implementing it, hooks resolved per adapter family.
+
+  vision "Render a query result as a report. The kernel hook accepts
+          (query_verb, result_records, instance_fields) and the firing adapter
+          family returns a rendered string — generic over the aggregate, no
+          per-aggregate layout (presentation is not domain). :markdown and
+          :html are distinct adapter families off this port ; the adapter is
+          the format. The string chains to :result_into, or a transport serves
+          it. Declared here, the kernel arm is projected from this contract."
+
+  # The contract : every adapter family off this port must provide a :query
+  # (what to render). The chained transport adds :result_into (where the
+  # report goes as a follow-on dispatch) ; the served transport binds a route.
+  requires_field :query
+
+  trigger_attribute :id   # the triggering event's id is the input handle
+end

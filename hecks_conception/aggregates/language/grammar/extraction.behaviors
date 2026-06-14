@@ -1,0 +1,21 @@
+Hecks.behaviors "Extraction" do
+  vision "Behavioral tests for the Extraction grammar — Conceive a named Grammar, Declare a BlockRule, Declare a FieldRule. Each test exercises one command's state contract in memory."
+
+  test "Conceive mints a named grammar" do
+    tests "Conceive", on: "Grammar"
+    input  name: "canonical_bluebook"
+    expect name: "canonical_bluebook"
+  end
+
+  test "Declare records a block rule's keyword, produced node, and body flag" do
+    tests "Declare", on: "BlockRule"
+    input  keyword: "command", produces: "Command", opens_block: "true"
+    expect keyword: "command", produces: "Command", opens_block: "true"
+  end
+
+  test "Declare records a field rule — the multi-line vision uses string_spanning" do
+    tests "Declare", on: "FieldRule"
+    input  field: "vision", strategy: "string_spanning", source_token: ""
+    expect field: "vision", strategy: "string_spanning"
+  end
+end

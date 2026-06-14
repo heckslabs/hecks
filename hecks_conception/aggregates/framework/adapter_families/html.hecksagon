@@ -1,0 +1,32 @@
+Hecks.adapter_family "html" do
+  # The :html adapter — the sibling of :markdown off the report port
+  # (behavior_kind render_report). Runs a :query and renders its result
+  # records as HTML. Two transports, same render :
+  #   - SERVED  : bind an HTTP route (get: / post:) ; the response IS the HTML
+  #               (the diagram / web view). A consumer declares
+  #                 adapter :html, query: "Pizzas::Order.all", get: "/orders"
+  #   - CHAINED : fire on trigger_on, dispatch the HTML into result_into
+  #               (symmetric with :markdown).
+  # Sibling of :markdown — same report port, distinct adapter, no format
+  # selector ; the adapter KIND is the choice. Presentation is not domain :
+  # the bluebook declares only the :query and never knows about HTML ; the
+  # rendering lives entirely here.
+
+  vision "Render a query result as HTML, served over HTTP (get:/post: route)
+          or chained to a follow-on command (trigger_on/result_into). Carries
+          the query to run plus its transport binding. One of the distinct
+          adapters off the report port (render_report) ; the adapter is the
+          format. Behavior_kind = render_report."
+
+  fields  :name,         # symbolic adapter name in the consumer's hecksagon
+          :query,        # the query verb to render (Domain::Aggregate.snake_case)
+          :get,          # served : HTTP GET route pattern (e.g. "/orders/:id")
+          :post,         # served : HTTP POST route pattern
+          :trigger_on,   # chained : "Aggregate.Event" that fires this adapter
+          :result_into   # chained : "Aggregate.Command" carrying the HTML
+
+  trigger_field :trigger_on
+  response_field :result_into
+
+  behavior :render_report
+end

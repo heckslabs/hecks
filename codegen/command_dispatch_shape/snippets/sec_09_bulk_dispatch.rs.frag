@@ -192,6 +192,11 @@ fn save_one_row(
     } else {
         unknown_aggregate_message(rt, aggregate_name)
     };
+    // i735 defect 2 — see the sibling guard above ; a refused-persistence
+    // aggregate errors loudly here too rather than reading as unknown.
+    if let Some(reason) = rt.refused_persistence.get(&repo_hash_key) {
+        return Err(RuntimeError::PersistenceRefused(reason.clone()));
+    }
     let repo = rt
         .repositories
         .get_mut(&repo_hash_key)

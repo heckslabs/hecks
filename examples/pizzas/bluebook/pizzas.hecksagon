@@ -1,0 +1,53 @@
+Hecks.hecksagon "Pizzas" do
+  capabilities :crud
+
+  # ============================================================
+  # The async boundary — declared here, never in the domain.
+  # ============================================================
+  #
+  # The Order aggregate's domain logic (pizzas.bluebook) is purely
+  # synchronous : PlaceOrder validates and emits OrderPlaced, full
+  # stop. The CHARGE — a remote call with latency, timeouts, retries,
+  # a flaky gateway — lives entirely in this one adapter. The verdict
+  # re-enters the domain as a plain Order.Authorize / Order.Decline
+  # command (the result_into shape). No tokio, no Mutex, no channel
+  # ever reaches aggregate code ; the adapter owns all of it.
+  #
+  # WHERE the gateway lives (endpoint, timeout, retry budget) is
+  # per-deployment config — it lives in pizzas.world, not here. This
+  # hecksagon declares the WIRING shape ; the world supplies the
+  # location. Same split as :heki (adapter here, dir in .world).
+  #
+  # The handwritten Rust projection of this boundary — the sync port /
+  # async worker / re-entry bridge the code generator should emit —
+  # lives beside this file under adapters/.
+  adapter :shell, name: :payment_gateway,
+          trigger_on: "OrderPlaced",
+          result_into: "Order.Authorize | Order.Decline",
+          command: "bin/charge-gateway",
+          args: ["{{ref}}", "{{quantity}}"]
+
+  # ============================================================
+  # Persistence — the ADAPTER specifies the port ; the world configures it.
+  # ============================================================
+  #
+  # The Order / Pizza aggregates (pizzas.bluebook) talk to the persistence
+  # PORT (back_aggregate_storage) ; the BLUEBOOK never names a store. THIS
+  # hecksagon — the wiring, not the domain — binds the port to :heki. WHICH
+  # store is the adapter's job ; the per-deployment VALUE (the .heki dir) is
+  # CONFIG in pizzas.world (heki do dir "pizzas/.heki" end). Same split as
+  # the payment adapter : adapter here, endpoint/timeout in the world.
+  # Default (no persistence adapter) is memory + sync ; :heki / :sqlite are
+  # the overrides. Swap stores by changing this one line.
+  adapter :heki
+
+  # ============================================================
+  # Reporting — a distinct adapter off the render_report port.
+  # ============================================================
+  #
+  # The domain declares the QUERY (Order.Pending) ; it is format-blind. The
+  # ADAPTER is the format : :html serves the pending-orders report at /orders,
+  # its sibling :markdown would render the SAME query as markdown (a chained
+  # report). Presentation is not domain — the bluebook never knows about HTML.
+  adapter :html, query: "Pizzas::Order.pending", get: "/orders"
+end

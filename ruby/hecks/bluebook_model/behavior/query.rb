@@ -78,6 +78,7 @@ module Hecks
           recorder.instance_exec(*stubs, &block)
         end
         @description = recorder.recorded_description
+        @attributes.concat(recorder.attributes)
         @wheres      = recorder.wheres
         @order_by    = recorder.recorded_order_by
         @limit       = recorder.recorded_limit
@@ -109,13 +110,14 @@ module Hecks
         def to_s            = ":#{@name}"
       end
 
-      attr_reader :wheres
+      attr_reader :wheres, :attributes
 
       def initialize
         @description = nil
         @wheres = []
         @order_by = nil
         @limit = nil
+        @attributes = []
       end
 
       # Accessors for the recorded ivars under names that don't collide
@@ -129,6 +131,17 @@ module Hecks
       # `description "Return the current count"` — human-readable goal.
       def description(text)
         @description = text.to_s
+        self
+      end
+
+      # `attribute :limit, RecentLimit` — a declared query attribute. Mirrors
+      # the Rust parser's collection of `attribute` declarations inside a
+      # query block so the canonical query IR carries the same `attributes`
+      # list on both sides. Without this the declaration fell through to
+      # method_missing and silently no-op'd, dropping the attribute the Rust
+      # parser kept (voice_latency / storehouse_log drift).
+      def attribute(name, type = nil, **_opts)
+        @attributes << BluebookModel::Structure::Attribute.new(name: name, type: type)
         self
       end
 

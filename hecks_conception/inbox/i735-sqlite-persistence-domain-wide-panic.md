@@ -48,3 +48,42 @@ in the combined domain) panicked. Immediate fix: governance.hecksagon →
   and fall back to the heki/memory repo for that aggregate.
 - Then governance.hecksagon can re-enable `:sqlite` (revert to the
   sqlite adapter) and validate it persists across Propose/Permit/Activate.
+
+## RESOLVED 2026-06-14 (both defects)
+
+**Defect 1 (scoping).** `apply_sqlite_persistence` now maps `context → db`
+for every `:sqlite` hecksagon and rebuilds ONLY aggregates whose
+`agg.context == hecksagon.name`. No more domain-wide over-apply. Guard :
+`rust/tests/sqlite_scope_test.rs :: sqlite_scopes_to_its_declaring_context_only`.
+
+**Defect 2 (no panic).** `SqliteRepository::new` + `create_table` are now
+FALLIBLE (return `Result`, no `panic!`). Because the lazy `OnceCell` init
+cannot host a fallible constructor AND the forwarded read surface
+(`find`/`save`) is infallible, `Backend::Sql` became EAGER : the repo is
+built at boot in `apply_sqlite_persistence`. On failure the aggregate is
+REFUSED — its repository is dropped (no silent heki fallback, per Decision
+1), a loud reason is recorded in `Runtime.refused_persistence` + logged,
+and a dispatch returns the new `RuntimeError::PersistenceRefused` (never a
+panic, never a misleading UnknownAggregate). Guard :
+`a_sql_incompatible_column_refuses_the_aggregate_without_panicking`
+(boot refusal + behavioral dispatch assertion).
+
+**Bonus fix.** Eager construction surfaced a LATENT collision : every
+aggregate carries an `id` attribute, which `apply_sqlite_persistence`
+included in the typed columns while `create_table` always adds
+`id TEXT PRIMARY KEY` → "duplicate column name: id". Sqlite was effectively
+broken for ANY real aggregate (latent only because the old lazy path never
+built a table in production). Fixed by excluding `id`/`created_at`/
+`updated_at` from the typed columns.
+
+**The `command_dispatch.rs` guard is GENERATED** — it lives in the snippets
+`codegen/command_dispatch_shape/snippets/{phase_05_repo_borrow,sec_09_bulk_dispatch}.rs.frag`
+and was regenerated (golden byte-identical). Never hand-edit the tracked
+file.
+
+**Tradeoff accepted (note for future-me).** Eager SQL means a fork-per-
+dispatch boot opens the connection + loads the full table for EVERY wired
+sqlite aggregate, even untouched ones — the lazy path avoided that. Nothing
+is wired to `:sqlite` today so there is no live cost ; this is the price of
+boot-time storage self-awareness (Decision 1). Revisit if a hot sqlite
+domain ever makes per-boot eager-load-all measurable.

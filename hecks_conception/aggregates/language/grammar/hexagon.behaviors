@@ -1,0 +1,53 @@
+Hecks.behaviors "Hexagon" do
+  vision "Behavioral tests for the Hexagon grammar — Conceive a hexagon, Declare a family + adapter, Bind a port (impure reply + cross-domain fulfillment)."
+
+  # ── Hexagon root — aggregates a domain's port-bindings (has_many Binding) ──
+  test "Conceive sets domain" do
+    tests "Conceive", on: "Hexagon"
+    input  domain: "Pizzas"
+    expect domain: "Pizzas"
+  end
+
+  # ── Hexagon — optional startup validation : adapter targets resolve ──
+  test "Verify runs the startup wiring check" do
+    tests "Verify", on: "Hexagon"
+    setup  "Hexagon.Conceive", domain: "Pizzas"
+    expect emits: ["Verified"]
+  end
+
+  # ── Family — impure boundary kind, names its how-verb ──
+  test "Family.Declare sets name + verb + signal" do
+    tests "Declare", on: "Family"
+    input  name: "persistence", verb: "persisted_by", signal: "reply"
+    expect name: "persistence", verb: "persisted_by", signal: "reply"
+  end
+
+  # ── Field — one config field belonging to a family ──
+  test "Field.Declare sets name" do
+    tests "Declare", on: "Field"
+    input  name: "db"
+    expect name: "db"
+  end
+
+  # ── Adapter — declares the family it implements (inverted arrow) ──
+  test "Adapter.Declare sets name (belongs_to Family ; routing is the hexagon's job)" do
+    tests "Declare", on: "Adapter"
+    input  name: "fulfillment"
+    expect name: "fulfillment"
+  end
+
+  # ── Binding — reply port ; verb derived through the adapter's family ──
+  test "Bind wires a reply port — own-domain port only" do
+    tests "Bind", on: "Binding"
+    input  phrase: "Pizza::Order.persisted_by", aggregate: "Pizza::Order", on: ""
+    expect aggregate: "Pizza::Order"
+  end
+
+  # ── Binding — references only its own domain (port + event) ; the
+  # cross-domain FQN lives in the adapter, resolved through storehouse ──
+  test "Bind references only its own domain — no cross-domain FQN" do
+    tests "Bind", on: "Binding"
+    input  phrase: "Pizza::Order.OrderAuthorized", aggregate: "Pizza::Order", on: "OrderAuthorized"
+    expect aggregate: "Pizza::Order", on: "OrderAuthorized"
+  end
+end

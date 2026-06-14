@@ -48,7 +48,9 @@ fn specializer_hecksagon_wiring_is_present() {
     let hex = hecksagon_parser::parse(&src);
 
     assert_eq!(hex.name, "Specializer");
-    assert_eq!(hex.persistence.as_deref(), Some("memory"));
+    // i728 — specializer.hecksagon declares no persistence adapter ; unwired now
+    // parses to None (the None→"memory" normalization was removed).
+    assert_eq!(hex.persistence.as_deref(), None);
     // Phase E removed all shell adapters — `storehouse specialize`
     // (a Rust subcommand) is now the sole codegen path. The hecksagon
     // file keeps the `:memory` + `:fs` adapters + the Specializer

@@ -233,7 +233,7 @@ Hecks.bluebook "Tools", version: "2026.05.14.1" do
     # ── Edit ──
     command "Edit" do
       role "Miette"
-      description "Apply a string substitution to a file. Records the dispatch as a FileTool record and emits EditApplied carrying the file_path, old_string, new_string, replace_all flag, and description. The full old/new strings live in the event payload ; aggregate state stores only the file_path + description."
+      description "Apply a string substitution to a file. old_string is matched EXACTLY first ; on no exact match a whitespace-TOLERANT fallback matches by trimmed line content and re-indents new_string to the file's actual indentation, requiring a unique match (else it refuses) — so an old_string authored with the wrong leading whitespace still lands (2026-06-13). The byte-matching primitive itself lives at the :claude_tool kernel-floor edge ; this names its contract. Records the dispatch as a FileTool record and emits EditApplied carrying the file_path, old_string, new_string, replace_all flag, and description. The full old/new strings live in the event payload ; aggregate state stores only the file_path + description."
       attribute :id, Id
       attribute :file_path, FilePath
       attribute :old_string, OldString

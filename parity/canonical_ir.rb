@@ -599,14 +599,13 @@ module Hecks
       end
 
       def hecksagon_persistence(hex)
-        # Rust defaults unspecified persistence to "memory" in a post-parse
-        # normalization step (storehouse/src/hecksagon_parser.rs). The canonical
-        # IR matches that default: absent `persistence` means memory. Ruby's
-        # DomainContext stores the persistence hash on the block form and
-        # leaves it nil on the shorthand / absent form — both canonicalize to
-        # "memory".
-        return "memory" unless hex.persistence
-        hex.persistence[:type]&.to_s || "memory"
+        # i728 — unwired persistence is None on BOTH sides. Rust no longer
+        # normalizes an absent adapter to "memory" (the parse-time normalization
+        # was removed when `None` became the explicit "unwired" signal). The
+        # canonical IR mirrors that: absent `persistence` dumps nil ; an explicit
+        # `adapter :memory|:heki|:sqlite` dumps its type string.
+        return nil unless hex.persistence
+        hex.persistence[:type]&.to_s
       end
 
       def dump_shell_adapter(sa)

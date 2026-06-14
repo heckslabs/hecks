@@ -1,0 +1,31 @@
+Hecks.world "Pizzas" do
+  # WHERE the async boundary's two sides live for this deployment.
+  #
+  # The .hecksagon declares the WIRING (Order emits OrderPlaced → the
+  # payment_gateway adapter charges → verdict re-enters as Authorize /
+  # Decline). This .world supplies the LOCATION + the retry budget —
+  # the per-deployment knobs the domain must never see. Same split as
+  # the planning domain : adapter in the hecksagon, dir in the world.
+
+  # WHERE orders persist. memory is the runtime default (behaviors run
+  # here, no disk) ; this is the production override location the :heki
+  # adapter writes to.
+  heki do
+    dir "pizzas/.heki"
+  end
+
+  # WHERE the payment gateway is, and how hard the adapter tries.
+  # The endpoint token is read from ENV at dispatch — never stored in
+  # the bluebook. Absent ENV means the charge is recorded but the
+  # transport is skipped (honest gating), exactly like the MCP world.
+  # latency / retries / backoff are the async concerns that live ONLY
+  # at this edge ; the domain's Authorize / Decline commands know none
+  # of them.
+  gateway do
+    endpoint_env "PIZZAS_PAYMENT_ENDPOINT"
+    token_env    "PIZZAS_PAYMENT_TOKEN"
+    timeout_ms   3000
+    retries      3
+    backoff      "exponential"
+  end
+end

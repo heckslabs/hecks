@@ -13,13 +13,11 @@
 
 # (empty — full parity 113/113 as of 2026-04-18, then drift below as new gaps surface)
 
-# inbox.bluebook — 2026-05-14 : Rust parser doesn't serialize the
-# LockOnSignoff policy (Ruby parses it, Rust drops policies+process_managers
-# from its serialized IR for this bluebook). Real Rust parser gap — added
-# as part of the card-as-lock arc (see hecks_conception/inbox/i602.md).
-# Retires when the Rust parser handles the policy-emit shape used by
-# LockOnSignoff.
-hecks_conception/aggregates/library/stores/inbox.bluebook  # Rust parser drops the LockOnSignoff policy from its serialized IR (policies + process_managers) ; Ruby keeps it. Real Rust parser gap (i602).
+# inbox.bluebook drift retired 2026-06-12 — fixed in the parser projection :
+# parse_aggregate (parser_shape) now collects policies declared INSIDE an
+# aggregate body and bubbles them to domain.policies via the dispatch call
+# site, mirroring Ruby's AggregateBuilder + canonical collect_all_policies
+# flatten. inbox's LockOnSignoff now serialises on both sides (i602).
 
 # nursery/verbs drift retired 2026-04-30 — the failure was inside the
 # Lexicon aggregate (given :verb, not_in: :known_verbs structured form
@@ -73,34 +71,24 @@ hecks_conception/aggregates/library/stores/inbox.bluebook  # Rust parser drops t
 # longer leaks into the role name. Both parsers extract "Role"
 # byte-equal. dispatch_audit parses byte-equal again.
 
-# harry_wingate.bluebook drift surfaced 2026-05-12 — added during
-# wave-10 merge consolidator window (miette_family a49b5f5 adds
-# `attribute :nickname, String  # what people who know him call
-# him — "Trip"`). The Rust parse_blocks.rs attribute parser
-# (parse_attribute, ~L766) copies the raw second part verbatim
-# into attr_type, picking up the trailing inline comment. Ruby's
-# parser strips it. Real parser gap — filed for proper fix (strip
-# ` # …` from `raw` before to_string()). Tracked separately ;
-# not blocking the wave-10 merge train.
-/Users/christopheryoung/Projects/miette_family/harry_wingate/harry_wingate.bluebook  # Rust attribute parser copies a trailing inline comment into attr_type ; Ruby strips it. Real Rust parser gap.
+# harry_wingate.bluebook drift retired 2026-06-12 — fixed in the parser
+# projections : codegen/parser_helpers_shape gains a comment-aware
+# strip_trailing_comment (a `#` inside a quoted default is preserved), and
+# parse_blocks_shape's parse_attribute strips the trailing Ruby comment
+# before extracting the positional type. Ruby's lexer drops comments
+# natively ; both parsers now agree. harry_wingate parses byte-equal again.
 
-# voice_latency.bluebook drift surfaced 2026-05-21 — Ruby's QueryRecorder
-# (bluebook_model/behavior/query.rb) has no `attribute` method, so
-# `attribute :limit, RecentLimit` inside `query Recent do … end` silently
-# no-ops via method_missing and produces "attributes": []. Rust correctly
-# collects the declaration. Gap is on the Ruby side. Retires when
-# QueryRecorder gains an `attribute` recorder method.
-/Users/christopheryoung/Projects/miette/body/voice/latency/voice_latency.bluebook  # Ruby QueryRecorder drops `attribute` declarations in query blocks (method_missing) ; Rust collects them. Ruby-side gap.
+# voice_latency.bluebook + storehouse_log.bluebook drift retired 2026-06-13 —
+# fixed in the Ruby reference (parity-harness wrap) : QueryRecorder
+# (bluebook_model/behavior/query.rb) gains an `attribute` recorder method and
+# Query#record_block_structure! merges the recorded attributes, so a
+# query-block `attribute :x, T` declaration now lands in the canonical query
+# IR on both sides. Both parse byte-equal again.
 
-# storehouse_log.bluebook (SessionLog) drift surfaced 2026-05-22 — same
-# root as voice_latency : the StorehouseEntry queries Recent / ByParent /
-# BySource each declare an `attribute` inside their `query … do` block,
-# which Ruby QueryRecorder drops (method_missing no-op) while Rust
-# collects it. Retires together with voice_latency when QueryRecorder
-# gains an `attribute` recorder method.
-hecks_conception/aggregates/framework/session/storehouse_log.bluebook  # Ruby QueryRecorder drops query-block `attribute` declarations (method_missing) ; Rust collects them. Ruby-side gap (same as voice_latency).
-# conductor/conductor.bluebook error-before-diff surfaced 2026-06-02 — Ruby BluebookBuilder
-# does not implement `delivery` (Rust-only keyword). The Rust parser validates and
-# serialises it ; Ruby raises NoMethodError before the diff can run. Same gap class as
-# migration_coexistence vision reference to delivery :actor.
-hecks_conception/aggregates/conductor/conductor.bluebook  # Ruby BluebookBuilder does not implement `delivery` keyword ; Rust handles it. Ruby-side gap.
+# conductor.bluebook drift retired 2026-06-13 — the `delivery :actor` keyword
+# was vestigial : captured by neither IR (the Rust parser silently ignored it)
+# and selecting a runtime delivery-mode fork that was itself already retired
+# (command_dispatch.rs : "legacy delivery-mode fork retired"). Removed the dead
+# keyword from conductor.bluebook rather than teach Ruby to swallow it. Both
+# parsers now read conductor identically. (If actor-delivery lands later it
+# returns properly : grammar + both IRs + actual consumption.)

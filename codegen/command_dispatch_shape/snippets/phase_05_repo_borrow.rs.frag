@@ -27,5 +27,11 @@
             .and_then(|rec| rec.fields.get(&fname))
             .and_then(|v| v.as_str().map(str::to_string))
     });
+    // i735 defect 2 — an aggregate whose `:sqlite` adapter was refused at
+    // boot has NO repository (dropped, never silently swapped to heki).
+    // Surface the loud reason instead of a misleading "unknown aggregate".
+    if let Some(reason) = rt.refused_persistence.get(&repo_hash_key) {
+        return Err(RuntimeError::PersistenceRefused(reason.clone()));
+    }
     let repo = rt.repositories.get_mut(&repo_hash_key)
         .ok_or(RuntimeError::UnknownAggregate(unknown_agg_msg))?;
