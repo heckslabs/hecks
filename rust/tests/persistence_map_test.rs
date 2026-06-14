@@ -77,6 +77,17 @@ fn source_labels_unwired_declared_and_conflict() {
 }
 
 #[test]
+fn classify_name_accounts_for_boundary_categories() {
+    use storehouse::run_boot::classify::classify_name;
+    // Known boundary stores are accounted for ; an unknown store is the
+    // genuinely-UNACCOUNTED set the persistence verifier drives to zero (G3).
+    assert_eq!(classify_name("subconscious"), "linked");
+    assert_eq!(classify_name("craving"), "private");
+    assert_eq!(classify_name("item"), "retired");
+    assert_eq!(classify_name("a_store_no_list_knows"), "unknown");
+}
+
+#[test]
 fn orphans_normalize_case_and_surface_process_managers() {
     let base = std::env::temp_dir().join(format!("pmap_orphan_test_{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&base);
