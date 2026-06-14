@@ -1,18 +1,21 @@
-Hecks.bluebook "Lexicon", version: "2026.04.28.1" do
+Hecks.bluebook "Vocabulary", version: "2026.06.14.1" do
   vision "The compiled vocabulary — all sentences, compositions, and ACLs indexed for matching"
   category "language"
 
   # ============================================================
-  # LEXICON — the full compiled phrase book
+  # VOCABULARY — the grammar's compiled phrase book
   # ============================================================
   #
-  # Lifted out of vocabulary.bluebook in i112. Sibling aggregates
-  # moved to language/ : sentence, composition, acl. The three
-  # Compile-on-* policies all trigger Lexicon.Compile, so they
-  # live here alongside the trigger target — the across qualifier
-  # drops since the policy is now in the same bluebook as Compile.
+  # Renamed from "Lexicon" (i728) : the storehouse callable-phrase index
+  # (storehouse/lexicon.bluebook — glass's compile/lookup/list) keeps the
+  # name "Lexicon". This is the GRAMMAR's compiled vocabulary (sentences /
+  # compositions / ACLs indexed for matching) — a distinct domain that had
+  # collided with glass's Lexicon on name, store, AND event. It carried the
+  # name "Vocabulary" originally (lifted from vocabulary.bluebook in i112) ;
+  # restored here so the two no longer clash. The three Compile-on-* policies
+  # trigger Compile, so they live alongside the trigger target.
 
-  aggregate "Lexicon", "The compiled vocabulary — all sentences, compositions, and ACLs indexed for matching" do
+  aggregate "Vocabulary", "The compiled vocabulary — all sentences, compositions, and ACLs indexed for matching" do
     identified_by :name
     attribute :name,              Name
     attribute :sentence_count,    EntryCount
@@ -21,12 +24,12 @@ Hecks.bluebook "Lexicon", version: "2026.04.28.1" do
     attribute :last_compiled,     Timestamp
 
     value_object "Name" do
-      # Stable slug naming this lexicon snapshot.
+      # Stable slug naming this vocabulary snapshot.
       attribute :value, String
     end
 
     value_object "EntryCount" do
-      # Count of entries (sentences, compositions, ACLs) in the compiled lexicon.
+      # Count of entries (sentences, compositions, ACLs) in the compiled vocabulary.
       attribute :value, Integer
     end
 
@@ -36,21 +39,21 @@ Hecks.bluebook "Lexicon", version: "2026.04.28.1" do
     end
 
     value_object "Input" do
-      # A natural-language input the lexicon attempts to match.
+      # A natural-language input the vocabulary attempts to match.
       attribute :value, String
     end
 
     command "Compile" do
       role "System"
       description "Walk all bluebooks, enumerate valid sentences and compositions, build the phrase book"
-      emits "LexiconCompiled"
+      emits "VocabularyCompiled"
       then_set :last_compiled, to: "now"
     end
 
     command "Match" do
       role "System"
-      description "Match natural input against the lexicon — return the command path or nothing"
-      reference_to(Lexicon)
+      description "Match natural input against the vocabulary — return the command path or nothing"
+      reference_to(Vocabulary)
       attribute :input, Input
       emits "InputMatched"
     end

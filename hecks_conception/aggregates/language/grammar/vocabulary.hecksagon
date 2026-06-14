@@ -1,0 +1,11 @@
+Hecks.hecksagon "Vocabulary" do
+  # Persistence (i728 Phase B) : :heki, durable-by-default. The compiled
+  # grammar vocabulary persists to vocabulary.heki under information/.
+  # Renamed from "Lexicon" so it no longer collides with glass's callable-
+  # phrase index (storehouse Lexicon, which keeps lexicon.heki) on name,
+  # store, and the LexiconCompiled event — this one now emits
+  # VocabularyCompiled and persists vocabulary.heki. Regenerable (Compile
+  # rebuilds from the corpus), so MAY become :memory once Compile-on-boot
+  # is wired.
+  adapter :heki
+end

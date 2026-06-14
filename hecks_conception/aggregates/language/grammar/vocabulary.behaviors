@@ -1,0 +1,17 @@
+Hecks.behaviors "Vocabulary" do
+  vision "Behavioral tests for the Vocabulary aggregate — compile and match."
+
+  # ── Vocabulary aggregate (renamed from Lexicon, i728) ────────────────
+
+  test "Compile runs" do
+    tests "Compile", on: "Vocabulary"
+    expect last_compiled: "now"
+  end
+
+  test "Match sets input" do
+    tests "Match", on: "Vocabulary"
+    setup  "Vocabulary.Compile"
+    input  input: "sample"
+    expect ok: "true"
+  end
+end
