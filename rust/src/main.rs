@@ -528,6 +528,38 @@ fn main() {
         std::process::exit(storehouse::run_mailboxes::run(&args));
     }
 
+    // `storehouse persistence-map <agg-dir> [--json]` — the i728 Phase-B
+    // persistence projection : which backend every aggregate's port
+    // resolves to and WHY (declared :heki / :memory / unwired → default),
+    // plus ORPHAN stores no aggregate claims (the G3 universe :
+    // process-manager instances + other non-aggregate writers). A
+    // READ-ONLY view derived from the loaded IR — the hecksagons are the
+    // sole source of truth, this map is computed not stored, so it cannot
+    // drift. Loads the SAME domain + hecksagon set the runtime boots from
+    // (load_combined_domain + load_all_hecksagons) so the projection is
+    // consistent-by-construction with what actually persists ; no boot
+    // (the backend resolution is read off declarations, not repositories).
+    if command == "persistence-map" {
+        let agg_dir = args
+            .iter()
+            .skip(2)
+            .find(|a| !a.starts_with("--"))
+            .cloned()
+            .unwrap_or_else(|| ".".to_string());
+        let json = args.iter().any(|a| a == "--json");
+        let domain = load_combined_domain(&agg_dir);
+        let hecksagons = load_all_hecksagons(&agg_dir);
+        let info_dir = storehouse::heki::resolve_info_dir()
+            .to_string_lossy()
+            .into_owned();
+        std::process::exit(storehouse::run_persistence_map::run(
+            &domain,
+            &hecksagons,
+            &info_dir,
+            json,
+        ));
+    }
+
     // Retired `storehouse actors` CLI — hard switch, no deprecated
     // alias. Without this explicit reject arm the args fall through to
     // the generic single-file parse path which would emit a confusing
