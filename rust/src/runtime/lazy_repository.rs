@@ -61,8 +61,9 @@ pub struct SqliteConfig {
 
 /// Which storage substrate a repository wraps. Chosen at construction
 /// from the hecksagon's `persistence` declaration — heki/memory is the
-/// default ; `adapter :sqlite, db:` selects Sql. Both variants defer
-/// their first disk touch to first access via a OnceCell.
+/// default ; `adapter :sqlite, db:` selects Sql. Heki/memory defer their
+/// first disk touch to first access via a OnceCell ; Sql is EAGER (built
+/// at boot) because its construction is fallible (i735 defect 2).
 enum Backend {
     /// The explicit in-memory adapter (`adapter :memory`). A pure in-process
     /// HashMap keyed by aggregate id, alive for the process, gone on restart.
@@ -82,9 +83,15 @@ enum Backend {
         context: Option<String>,
         cell: OnceCell<Repository>,
     },
+    /// The SQL adapter (`adapter :sqlite, db:`). EAGER, unlike the lazy
+    /// heki/memory cells : the `SqliteRepository` (open + CREATE TABLE +
+    /// row-load) is built at boot by `Runtime::apply_sqlite_persistence`,
+    /// because construction is FALLIBLE (i735 defect 2) and the infallible
+    /// forwarded read surface (`find`/`save`) cannot host a deferred
+    /// `Result`. A failed table-create never reaches here — that aggregate
+    /// is refused at boot, not silently swapped to heki.
     Sql {
-        config: SqliteConfig,
-        cell: OnceCell<SqliteRepository>,
+        repo: Box<SqliteRepository>,
     },
 }
 
@@ -134,14 +141,15 @@ impl LazyRepository {
         }
     }
 
-    /// Construct a SQLite-backed lazy wrapper. The `SqliteRepository`
-    /// (and its CREATE TABLE + eager row-load) materialises on first
-    /// access, same defer-to-first-touch contract as the heki path.
-    pub fn new_sqlite(config: SqliteConfig) -> Self {
+    /// Wrap an ALREADY-constructed `SqliteRepository`. Unlike the heki/
+    /// memory path this is EAGER : the repo (open + CREATE TABLE +
+    /// row-load) is built by the caller (`apply_sqlite_persistence`) so a
+    /// fallible table-create is decided at boot, not deferred behind a
+    /// OnceCell the infallible read surface can't fail through.
+    pub fn new_sqlite(repo: SqliteRepository) -> Self {
         LazyRepository {
             backend: Backend::Sql {
-                config,
-                cell: OnceCell::new(),
+                repo: Box::new(repo),
             },
         }
     }
@@ -179,14 +187,7 @@ impl LazyRepository {
     /// OnceCell contract as `repo()`.
     fn sql(&self) -> &SqliteRepository {
         match &self.backend {
-            Backend::Sql { config, cell } => cell.get_or_init(|| {
-                SqliteRepository::new(
-                    &config.aggregate_type,
-                    &config.db_path,
-                    config.identified_by.clone(),
-                    config.columns.clone(),
-                )
-            }),
+            Backend::Sql { repo } => repo.as_ref(),
             Backend::Heki { .. } | Backend::Memory { .. } => {
                 unreachable!("sql() on a non-SQL LazyRepository")
             }
@@ -194,8 +195,10 @@ impl LazyRepository {
     }
 
     /// True when this wrapper is SQL-backed (selected by `adapter
-    /// :sqlite`). Read methods branch on it to route to the right cell.
-    fn is_sql(&self) -> bool {
+    /// :sqlite`). Read methods branch on it to route to the right cell ;
+    /// `apply_sqlite_persistence`'s per-context scoping test asserts on it
+    /// (i735) to prove only the declaring domain's repos became SQL.
+    pub fn is_sql(&self) -> bool {
         matches!(self.backend, Backend::Sql { .. })
     }
 
@@ -215,7 +218,7 @@ impl LazyRepository {
     fn sql_mut(&mut self) -> &mut SqliteRepository {
         let _ = self.sql();
         match &mut self.backend {
-            Backend::Sql { cell, .. } => cell.get_mut().expect("cell initialised by sql() above"),
+            Backend::Sql { repo } => repo.as_mut(),
             Backend::Heki { .. } | Backend::Memory { .. } => {
                 unreachable!("sql_mut() on a non-SQL LazyRepository")
             }
@@ -228,7 +231,8 @@ impl LazyRepository {
     pub fn is_hydrated(&self) -> bool {
         match &self.backend {
             Backend::Heki { cell, .. } | Backend::Memory { cell, .. } => cell.get().is_some(),
-            Backend::Sql { cell, .. } => cell.get().is_some(),
+            // SQL is eager — built at boot, so always hydrated.
+            Backend::Sql { .. } => true,
         }
     }
 

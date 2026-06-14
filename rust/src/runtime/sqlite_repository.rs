@@ -25,7 +25,7 @@
 //!
 //! Usage:
 //!   let cols = vec![("title".into(), "VARCHAR(255)".into())];
-//!   let repo = SqliteRepository::new("BlogEntry", "/tmp/app.db", None, cols);
+//!   let repo = SqliteRepository::new("BlogEntry", "/tmp/app.db", None, cols)?; // fallible
 
 use super::sqlite_mapping::{value_from_sql, value_to_sql};
 use super::AggregateState;
@@ -53,20 +53,25 @@ impl SqliteRepository {
     /// `columns` is `(attribute_name, sql_type)` pairs — the caller
     /// (runtime boot) maps each scalar attribute's `attr_type` through
     /// `sql_type` to get the SQL type, mirroring Ruby's SqlBoot.
+    /// i735 defect 2 — FALLIBLE : open + CREATE TABLE return `Err`
+    /// instead of panicking. A SQL-incompatible column (reserved word,
+    /// `id` collision) or an unopenable db no longer takes down the bus ;
+    /// the runtime refuses that aggregate's persistence LOUDLY (see
+    /// `Runtime::apply_sqlite_persistence`) rather than panicking or
+    /// silently swapping to heki.
     pub fn new(
         aggregate_type: &str,
         db_path: &str,
         identified_by: Option<String>,
         columns: Vec<(String, String)>,
-    ) -> Self {
+    ) -> Result<Self, rusqlite::Error> {
         if let Some(parent) = std::path::Path::new(db_path).parent() {
             let _ = std::fs::create_dir_all(parent);
         }
-        let conn = Connection::open(db_path)
-            .unwrap_or_else(|e| panic!("sqlite open {db_path}: {e}"));
+        let conn = Connection::open(db_path)?;
         let table = crate::util::snake_case(aggregate_type);
         let col_names: Vec<String> = columns.iter().map(|(n, _)| n.clone()).collect();
-        Self::create_table(&conn, &table, &columns);
+        Self::create_table(&conn, &table, &columns)?;
         let mut repo = SqliteRepository {
             conn,
             table,
@@ -76,10 +81,14 @@ impl SqliteRepository {
             identified_by,
         };
         repo.load_persisted();
-        repo
+        Ok(repo)
     }
 
-    fn create_table(conn: &Connection, table: &str, columns: &[(String, String)]) {
+    fn create_table(
+        conn: &Connection,
+        table: &str,
+        columns: &[(String, String)],
+    ) -> Result<(), rusqlite::Error> {
         let mut defs = vec!["id TEXT PRIMARY KEY".to_string()];
         for (name, ty) in columns {
             defs.push(format!("{name} {ty}"));
@@ -87,8 +96,8 @@ impl SqliteRepository {
         defs.push("created_at DATETIME".to_string());
         defs.push("updated_at DATETIME".to_string());
         let ddl = format!("CREATE TABLE IF NOT EXISTS {table} (\n  {}\n)", defs.join(",\n  "));
-        conn.execute_batch(&ddl)
-            .unwrap_or_else(|e| panic!("sqlite create {table}: {e}"));
+        conn.execute_batch(&ddl)?;
+        Ok(())
     }
 
     fn load_persisted(&mut self) {
