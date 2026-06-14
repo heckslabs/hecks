@@ -64,6 +64,17 @@ pub struct SqliteConfig {
 /// default ; `adapter :sqlite, db:` selects Sql. Both variants defer
 /// their first disk touch to first access via a OnceCell.
 enum Backend {
+    /// The explicit in-memory adapter (`adapter :memory`). A pure in-process
+    /// HashMap keyed by aggregate id, alive for the process, gone on restart.
+    /// Distinct from `Heki { data_dir: None }` : memory is a wired CHOICE, not
+    /// an implicit fallback. Reuses `Repository` with `data_dir = None` so every
+    /// disk branch is skipped — no heki path is ever reached.
+    Memory {
+        aggregate_type: String,
+        identified_by: Option<String>,
+        context: Option<String>,
+        cell: OnceCell<Repository>,
+    },
     Heki {
         aggregate_type: String,
         data_dir: Option<String>,
@@ -103,6 +114,26 @@ impl LazyRepository {
         }
     }
 
+    /// Construct the explicit in-memory adapter (`adapter :memory`). A pure
+    /// in-process HashMap keyed by aggregate id ; survives the process, vanishes
+    /// on restart. The materialised Repository carries `data_dir = None`, so no
+    /// disk read/write is ever performed. Distinct from `new(.., None, ..)` :
+    /// memory is a deliberate, wired choice, not an implicit fallback.
+    pub fn new_memory(
+        aggregate_type: &str,
+        identified_by: Option<String>,
+        context: Option<String>,
+    ) -> Self {
+        LazyRepository {
+            backend: Backend::Memory {
+                aggregate_type: aggregate_type.to_string(),
+                identified_by,
+                context,
+                cell: OnceCell::new(),
+            },
+        }
+    }
+
     /// Construct a SQLite-backed lazy wrapper. The `SqliteRepository`
     /// (and its CREATE TABLE + eager row-load) materialises on first
     /// access, same defer-to-first-touch contract as the heki path.
@@ -119,6 +150,17 @@ impl LazyRepository {
     /// takes `&self`, so this is callable from `&self` runtime paths.
     fn repo(&self) -> &Repository {
         match &self.backend {
+            Backend::Memory { aggregate_type, identified_by, context, cell } => {
+                cell.get_or_init(|| {
+                    // data_dir = None → pure in-memory ; no disk branch is reached.
+                    Repository::new_with_context(
+                        aggregate_type,
+                        None,
+                        identified_by.clone(),
+                        context.clone(),
+                    )
+                })
+            }
             Backend::Heki { aggregate_type, data_dir, identified_by, context, cell } => {
                 cell.get_or_init(|| {
                     Repository::new_with_context(
@@ -145,7 +187,9 @@ impl LazyRepository {
                     config.columns.clone(),
                 )
             }),
-            Backend::Heki { .. } => unreachable!("sql() on a heki-backed LazyRepository"),
+            Backend::Heki { .. } | Backend::Memory { .. } => {
+                unreachable!("sql() on a non-SQL LazyRepository")
+            }
         }
     }
 
@@ -160,7 +204,9 @@ impl LazyRepository {
     fn repo_mut(&mut self) -> &mut Repository {
         let _ = self.repo();
         match &mut self.backend {
-            Backend::Heki { cell, .. } => cell.get_mut().expect("cell initialised by repo() above"),
+            Backend::Heki { cell, .. } | Backend::Memory { cell, .. } => {
+                cell.get_mut().expect("cell initialised by repo() above")
+            }
             Backend::Sql { .. } => unreachable!("repo_mut() on a SQL-backed LazyRepository"),
         }
     }
@@ -170,7 +216,9 @@ impl LazyRepository {
         let _ = self.sql();
         match &mut self.backend {
             Backend::Sql { cell, .. } => cell.get_mut().expect("cell initialised by sql() above"),
-            Backend::Heki { .. } => unreachable!("sql_mut() on a heki-backed LazyRepository"),
+            Backend::Heki { .. } | Backend::Memory { .. } => {
+                unreachable!("sql_mut() on a non-SQL LazyRepository")
+            }
         }
     }
 
@@ -179,7 +227,7 @@ impl LazyRepository {
     /// story (un-hydrated cells drop for free).
     pub fn is_hydrated(&self) -> bool {
         match &self.backend {
-            Backend::Heki { cell, .. } => cell.get().is_some(),
+            Backend::Heki { cell, .. } | Backend::Memory { cell, .. } => cell.get().is_some(),
             Backend::Sql { cell, .. } => cell.get().is_some(),
         }
     }
@@ -234,5 +282,30 @@ impl LazyRepository {
 
     pub fn set_next_id(&mut self, value: u64) {
         if self.is_sql() { self.sql_mut().set_next_id(value) } else { self.repo_mut().set_next_id(value) }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn memory_backend_retains_within_process_and_vanishes_on_restart() {
+        // The explicit in-memory stub : a HashMap keyed by aggregate id, alive
+        // for the process, gone on restart. No disk is ever touched.
+        let mut repo = LazyRepository::new_memory("Order", Some("id".into()), None);
+        repo.save(
+            AggregateState::new("order-1"),
+            heki::WriteContext::OutOfBand { reason: "test" },
+        );
+        // Stored and retrievable by id within the process.
+        assert!(repo.find("order-1").is_some());
+        assert_eq!(repo.count(), 1);
+
+        // A fresh memory repository (process "restart") starts empty — no disk
+        // means nothing survives the new instance.
+        let fresh = LazyRepository::new_memory("Order", Some("id".into()), None);
+        assert!(fresh.find("order-1").is_none());
+        assert_eq!(fresh.count(), 0);
     }
 }
