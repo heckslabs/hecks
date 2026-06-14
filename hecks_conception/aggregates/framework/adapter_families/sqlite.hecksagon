@@ -1,0 +1,25 @@
+Hecks.adapter_family "sqlite" do
+  # The :sqlite adapter — a typed SQL table per aggregate, one .db file. One of
+  # the distinct adapters off the persistence port
+  # (behavior_kind back_aggregate_storage). A consumer declares
+  #   adapter :sqlite, db: "data/app.db"
+  # The runtime builds one column per attribute from the bluebook IR. WHERE the
+  # .db file lives (db:) is the connection field. Sibling of :memory / :heki —
+  # same persistence port, distinct adapter. sqlite / postgres / mysql share
+  # the SQL output — a future :sql adapter may nest them as providers (i728) ;
+  # today :sqlite is its own family. Substrate : no trigger, no result_into.
+  # Generic runtime resolution is i728 ; the over-apply panic is i735.
+
+  vision "Back an aggregate's repository with a typed SQLite table per
+          aggregate (one column per IR attribute), one .db file at db:. One of
+          the distinct adapters off the persistence port
+          (back_aggregate_storage). Behavior_kind = back_aggregate_storage."
+
+  fields :name,   # optional symbolic adapter name
+         :db      # filesystem path to the .db file
+
+  trigger_field :none
+  response_field :none
+
+  behavior :back_aggregate_storage
+end

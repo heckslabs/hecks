@@ -1,0 +1,30 @@
+Hecks.behavior_kind "back_aggregate_storage" do
+  # The persistence PORT : back an aggregate's find / save / all with a
+  # concrete store. SUBSTRATE, not a firing adapter — it has no trigger command
+  # and chains into nothing ; it backs the repository the bus already uses.
+  # :memory, :heki, :sqlite are DISTINCT adapter families off this one port,
+  # each its own store. The adapter KIND is the choice, declared in the
+  # consumer's hecksagon ; per-deployment connection config (sqlite db path,
+  # postgres host) lives in the .world. (sqlite / postgres / mysql share the
+  # SQL output and may nest as providers of a future :sql adapter — see i728.)
+  #
+  # Resolution differs from driving adapters : a driving adapter (e.g. the
+  # report port) fires a kernel hook ON a command (trigger → hook → cascade).
+  # This port is resolved at REPOSITORY-MINT time — the runtime picks the
+  # backend constructor by adapter kind when it builds the aggregate's
+  # repository. Growing the FrameworkRegistry a storage-backend hook category
+  # to resolve it generically (instead of the hardcoded apply_sqlite_persistence
+  # read of hex.persistence in rust/src/runtime/mod.rs) is i728 ; the panic
+  # when :sqlite over-applies across a multi-aggregate domain is i735. This
+  # contract is the source of truth for the declaration shape.
+
+  vision "Back an aggregate's repository (find / save / all) with a concrete
+          store. Substrate : no trigger, no response cascade — resolved at
+          repository-mint time by adapter kind, not fired on a command.
+          :memory / :heki / :sqlite are distinct adapter families off this
+          port. Generic runtime resolution is i728 ; the over-apply panic is
+          i735."
+
+  # Substrate : no trigger command, no follow-on. Each adapter family off this
+  # port supplies its own connection fields ; the store itself is the contract.
+end

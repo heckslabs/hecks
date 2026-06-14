@@ -1,0 +1,20 @@
+Hecks.adapter_family "memory" do
+  # The :memory adapter — one of the distinct adapters off the persistence port
+  # (behavior_kind back_aggregate_storage). In-process HashMap store, the
+  # runtime default ; behaviors run here, no disk. A consumer declares
+  #   adapter :memory
+  # Sibling of :heki / :sqlite — same persistence port, distinct adapter, no
+  # provider selector. Substrate : no trigger, no result_into.
+
+  vision "Back an aggregate's repository with an in-process HashMap — the
+          runtime default, no disk. One of the distinct adapters off the
+          persistence port (back_aggregate_storage). Behavior_kind =
+          back_aggregate_storage."
+
+  fields :name   # optional symbolic adapter name (persistence is a singleton per hecksagon)
+
+  trigger_field :none
+  response_field :none
+
+  behavior :back_aggregate_storage
+end

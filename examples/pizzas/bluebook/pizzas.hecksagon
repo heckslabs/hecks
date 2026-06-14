@@ -26,4 +26,25 @@ Hecks.hecksagon "Pizzas" do
           result_into: "Order.Authorize | Order.Decline",
           command: "bin/charge-gateway",
           args: ["{{ref}}", "{{quantity}}"]
+
+  # ============================================================
+  # Persistence — a distinct adapter off the back_aggregate_storage port.
+  # ============================================================
+  #
+  # :heki backs the Order / Pizza repositories with markdown-line .heki
+  # files. WHERE they live (dir) is per-deployment config in pizzas.world
+  # (heki do dir "pizzas/.heki" end) — the hecksagon declares the WIRING, the
+  # world supplies the location. Swapping to :sqlite or :memory is one word
+  # here ; the domain never knows which store backs it.
+  adapter :heki
+
+  # ============================================================
+  # Reporting — a distinct adapter off the render_report port.
+  # ============================================================
+  #
+  # The domain declares the QUERY (Order.Pending) ; it is format-blind. The
+  # ADAPTER is the format : :html serves the pending-orders report at /orders,
+  # its sibling :markdown would render the SAME query as markdown (a chained
+  # report). Presentation is not domain — the bluebook never knows about HTML.
+  adapter :html, query: "Pizzas::Order.pending", get: "/orders"
 end

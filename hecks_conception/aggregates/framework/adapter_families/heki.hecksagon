@@ -1,0 +1,23 @@
+Hecks.adapter_family "heki" do
+  # The :heki adapter — markdown-line .heki file store (Miette's organ store).
+  # One of the distinct adapters off the persistence port
+  # (behavior_kind back_aggregate_storage). A consumer declares
+  #   adapter :heki
+  # WHERE the .heki files live (dir) is per-deployment config — it lives in the
+  # .world (heki do dir "..." end), not here ; the hecksagon declares the
+  # WIRING, the world supplies the location. Sibling of :memory / :sqlite —
+  # same persistence port, distinct adapter. Substrate : no trigger, no
+  # result_into.
+
+  vision "Back an aggregate's repository with markdown-line .heki files. The
+          store directory lives in the .world (heki do dir end). One of the
+          distinct adapters off the persistence port (back_aggregate_storage).
+          Behavior_kind = back_aggregate_storage."
+
+  fields :name   # optional symbolic adapter name
+
+  trigger_field :none
+  response_field :none
+
+  behavior :back_aggregate_storage
+end
