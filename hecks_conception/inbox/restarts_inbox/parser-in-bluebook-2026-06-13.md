@@ -76,7 +76,7 @@ becomes a residual after the grammar is specialized against.
 next-arc was "project the Rust IR/parser FROM the bluebook" — the SAME arc.
 Folded in: regenerate `rust/src/hecksagon_ir.rs` from the bluebook
 (addendum-pt-8 / i695 Phase 2), and make `rust/examples/order_boundary/*.rs` a
-projection of `examples/pizzas/hecks/pizzas.bluebook` (Directive 2). hexagon
+projection of `examples/pizzas/bluebook/pizzas.bluebook` (Directive 2). hexagon
 bluebook itself is conceived + committed (c6f5f606) ; only the projection
 remains.
 

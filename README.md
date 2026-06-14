@@ -139,9 +139,10 @@ storehouse <aggregates_dir> Primitive::Process.Spawn program=echo
 A Hecks app is a small set of declarative DSL files, each guarded by an allow-list. None of them is general-purpose Ruby — the loaders refuse anything outside the surface, so the runtime parses them and gets one canonical answer.
 
 ```
-examples/pizzas/hecks/
-├── pizzas.bluebook    # the domain — aggregates, commands, events
-└── pizzas.hecksagon   # the wiring — which adapters
+examples/pizzas/bluebook/
+├── pizzas.bluebook    # the domain — aggregates, commands, events (synchronous)
+├── pizzas.hecksagon   # the wiring — which adapters (the async boundary)
+└── pizzas.world       # the config — per-deployment locations + budgets
 ```
 
 Larger or multi-deployment domains add a third file — a `.world` for per-deployment values :
