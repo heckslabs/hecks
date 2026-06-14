@@ -94,3 +94,24 @@ pub fn emit(target: &str, repo_root: &Path) -> Result<String, Box<dyn Error>> {
         .into()),
     }
 }
+
+/// Emit a single named section of a multi-section specializer target — the
+/// scoped sub-target behind `storehouse specialize <target> --section
+/// <name>`. Powers the per-concern byte-identity goldens the
+/// runtime-as-bluebook strangler relies on (see
+/// inbox/runtime-as-bluebook.md). Only `runtime` supports sections today ;
+/// other targets return an error naming the limitation.
+pub fn emit_section(
+    target: &str,
+    repo_root: &Path,
+    section: &str,
+) -> Result<String, Box<dyn Error>> {
+    match target {
+        "runtime" => runtime::root::emit_section(repo_root, section),
+        other => Err(format!(
+            "specializer target '{}' does not support --section (only 'runtime' does)",
+            other
+        )
+        .into()),
+    }
+}

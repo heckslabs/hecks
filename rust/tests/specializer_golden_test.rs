@@ -965,3 +965,59 @@ fn wrangler_toml_emitter_matches_committed_deployment_toml() {
          --output deployments/daily_musing_cf/worker/wrangler.toml`",
     );
 }
+
+#[test]
+fn runtime_section_subtarget_emits_byte_identical_sections() {
+// runtime-as-bluebook strangler — the scoped `specialize runtime
+// --section <name>` sub-target. The whole-file `runtime` golden is
+// `#[ignore]`d during the drift-reduction program, so each concern
+// gets its OWN live byte-identity golden via this sub-target. This is
+// the fast inner loop (subprocess + string compare, no runtime boot)
+// that every cluster extraction is gated by. See
+// inbox/runtime-as-bluebook.md.
+let root = repo_root();
+let bin = root.join("rust/target/release/storehouse");
+assert!(
+    bin.exists(),
+    "storehouse binary missing — build release first",
+);
+// (section name, tracked snippet) pairs. value_enum / runtime_error_enum
+// are verbatim_section rows (snippet is both source and oracle).
+// backend_info is the first struct_from_fields row — the snippet is
+// ONLY the byte-identity oracle ; the emitter builds the struct from
+// Field rows + the Section's doc/derives attrs, NOT from the snippet.
+// As more concerns convert to row-driven body_kinds the snippet stays
+// the byte-identity target the emitter must reproduce.
+let cases = [
+    ("value_enum", "codegen/runtime_shape/snippets/30_value_enum.rs.frag"),
+    (
+        "runtime_error_enum",
+        "codegen/runtime_shape/snippets/33_runtime_error_enum.rs.frag",
+    ),
+    (
+        "backend_info",
+        "codegen/runtime_shape/snippets/02_struct_backend_info.rs.frag",
+    ),
+];
+for (section, snippet) in cases {
+    let output = Command::new(&bin)
+        .args(["specialize", "runtime", "--section", section])
+        .current_dir(&root)
+        .output()
+        .expect("storehouse specialize --section failed");
+    assert!(
+        output.status.success(),
+        "section {} stderr: {}",
+        section,
+        String::from_utf8_lossy(&output.stderr),
+    );
+    let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
+    let tracked = fs::read_to_string(root.join(snippet))
+        .unwrap_or_else(|_| panic!("snippet missing: {}", snippet));
+    assert_eq!(
+        generated, tracked,
+        "section '{}' drifted from its tracked snippet",
+        section,
+    );
+}
+}
