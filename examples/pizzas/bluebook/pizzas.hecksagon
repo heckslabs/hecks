@@ -28,14 +28,17 @@ Hecks.hecksagon "Pizzas" do
           args: ["{{ref}}", "{{quantity}}"]
 
   # ============================================================
-  # Persistence — a distinct adapter off the back_aggregate_storage port.
+  # Persistence — the ADAPTER specifies the port ; the world configures it.
   # ============================================================
   #
-  # :heki backs the Order / Pizza repositories with markdown-line .heki
-  # files. WHERE they live (dir) is per-deployment config in pizzas.world
-  # (heki do dir "pizzas/.heki" end) — the hecksagon declares the WIRING, the
-  # world supplies the location. Swapping to :sqlite or :memory is one word
-  # here ; the domain never knows which store backs it.
+  # The Order / Pizza aggregates (pizzas.bluebook) talk to the persistence
+  # PORT (back_aggregate_storage) ; the BLUEBOOK never names a store. THIS
+  # hecksagon — the wiring, not the domain — binds the port to :heki. WHICH
+  # store is the adapter's job ; the per-deployment VALUE (the .heki dir) is
+  # CONFIG in pizzas.world (heki do dir "pizzas/.heki" end). Same split as
+  # the payment adapter : adapter here, endpoint/timeout in the world.
+  # Default (no persistence adapter) is memory + sync ; :heki / :sqlite are
+  # the overrides. Swap stores by changing this one line.
   adapter :heki
 
   # ============================================================
