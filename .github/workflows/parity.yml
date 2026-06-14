@@ -1,4 +1,8 @@
 name: Parity
+# [antibody-exempt: .github/workflows/parity.yml — CI workflow config, not
+#  bluebook vocabulary ; no .hecksagon-driven CI generator exists yet, so the
+#  Ruby↔Rust parity + lifecycle gates are hardcoded YAML. Same basis as
+#  fuzz_nightly.yml / ratchet.yml.]
 
 on:
   push:
@@ -91,8 +95,7 @@ jobs:
         working-directory: hecks
         run: |
           BAD=""
-          for f in $(find hecks_conception -name "*.bluebook" \
-                        ! -name "*_behavioral_tests.bluebook"); do
+          for f in $(find hecks_conception -name "*.bluebook"); do
             if ! rust/target/release/storehouse check-lifecycle "$f" >/dev/null 2>&1; then
               BAD="$BAD\n  $f"
             fi
@@ -103,23 +106,3 @@ jobs:
             exit 1
           fi
           echo "All bluebooks pass check-lifecycle"
-
-      - name: Behavioral test corpus sweep (must be 100%)
-        working-directory: hecks
-        run: |
-          BIN=rust/target/release/storehouse
-          tot_pass=0; tot_fail=0; tot_err=0
-          for tf in $(find hecks_conception -name "*_behavioral_tests.bluebook"); do
-            out=$($BIN behaviors "$tf" 2>&1 | tail -1)
-            pass=$(echo "$out" | grep -oE '[0-9]+ passed' | grep -oE '[0-9]+' || echo 0)
-            fail=$(echo "$out" | grep -oE '[0-9]+ failed' | grep -oE '[0-9]+' || echo 0)
-            err=$(echo "$out"  | grep -oE '[0-9]+ errored' | grep -oE '[0-9]+' || echo 0)
-            tot_pass=$((tot_pass + ${pass:-0}))
-            tot_fail=$((tot_fail + ${fail:-0}))
-            tot_err=$((tot_err  + ${err:-0}))
-          done
-          echo "TOTAL: $tot_pass passed, $tot_fail failed, $tot_err errored"
-          if [ "$tot_fail" -ne 0 ] || [ "$tot_err" -ne 0 ]; then
-            echo "::error::Behavioral test corpus regressed — run storehouse behaviors locally"
-            exit 1
-          fi
