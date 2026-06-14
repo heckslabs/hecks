@@ -1,0 +1,6 @@
+Hecks.hecksagon "MiettePhone" do
+  # Persistence (i728 Phase B) : :heki (domain declares the port ; deployment
+  # configures where). This aggregate persists a live heki store under
+  # information/ ; declared explicit before apply_memory_persistence.
+  adapter :heki
+end
