@@ -1,0 +1,10 @@
+Hecks.hecksagon "Plan" do
+  # Persistence (i728 Phase B) : durable-by-default. The Plan context's
+  # aggregates (Backlog, Board, Project, Sprint, Story, Task, UseCase) ARE
+  # Miette's planning data — they persist to live heki stores under
+  # information/ (plan/.heki round-trips across boots). :heki declared so the
+  # backing is explicit BEFORE apply_memory_persistence makes :memory real.
+  # The sibling Plan hecksagons in this directory declare DRIVEN adapters
+  # (cross-aggregate reactions) ; this one declares the persistence port.
+  adapter :heki
+end

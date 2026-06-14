@@ -1,0 +1,6 @@
+Hecks.hecksagon "Session" do
+  # Persistence (i728 Phase B) : durable-by-default. This aggregate persists
+  # to a live heki store under information/ ; :heki declared so the backing is
+  # explicit BEFORE apply_memory_persistence makes :memory real.
+  adapter :heki
+end
