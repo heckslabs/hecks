@@ -42,15 +42,33 @@ pub fn render_table(rows: &[Row], orphans: &[String], info_dir: &str) -> String 
         ));
     }
 
+    // i728 G3 — account for every orphan (non-aggregate writer) against the
+    // boundary lists (classify.rs). `unknown` is the genuinely-UNACCOUNTED set ;
+    // the comb is complete only when it reaches zero. PM-instance stores are
+    // their own category (process-manager engine state, not aggregates).
+    let mut by_cat: std::collections::BTreeMap<&str, Vec<&String>> = std::collections::BTreeMap::new();
+    for o in orphans {
+        let cat = if o.starts_with("process_managers/") {
+            "pm-instance"
+        } else {
+            crate::run_boot::classify::classify_name(o)
+        };
+        by_cat.entry(cat).or_default().push(o);
+    }
+    let unknown = by_cat.get("unknown").map(|v| v.len()).unwrap_or(0);
     s.push_str(&format!(
-        "\norphan stores ({} — live under information/, no aggregate row):\n",
-        orphans.len()
+        "\norphan stores ({} — live under information/, no aggregate ; {} genuinely UNACCOUNTED):\n",
+        orphans.len(),
+        unknown
     ));
     if orphans.is_empty() {
         s.push_str("  (none)\n");
     } else {
-        for o in orphans {
-            s.push_str(&format!("  {o}\n"));
+        for (cat, items) in &by_cat {
+            s.push_str(&format!("  [{}] ({}):\n", cat, items.len()));
+            for o in items {
+                s.push_str(&format!("    {o}\n"));
+            }
         }
     }
     s.push_str(

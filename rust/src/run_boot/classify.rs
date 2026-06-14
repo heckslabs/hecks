@@ -65,6 +65,25 @@ pub struct Classification {
     pub unclassified: Vec<String>,
 }
 
+/// Classify a store stem by NAME against the boundary lists (i728 G3). The
+/// persistence-map uses this to ACCOUNT FOR non-aggregate writers — stores
+/// under information/ with no aggregate behind them (process-manager instances,
+/// daemon/direct heki writes). Returns the boundary category ; `"unknown"` is
+/// the genuinely-unaccounted set the persistence verifier drives to zero, so the
+/// assertion is "everything that writes to information/ is accounted for", not
+/// merely "every aggregate is".
+pub fn classify_name(stem: &str) -> &'static str {
+    if RETIRED_STORES.contains(&stem) {
+        "retired"
+    } else if PRIVATE_STORES.contains(&stem) {
+        "private"
+    } else if LINKED_STORES.contains(&stem) {
+        "linked"
+    } else {
+        "unknown"
+    }
+}
+
 pub fn classify(info_dir: &str) -> Classification {
     let mut out = Classification::default();
     let dir = Path::new(info_dir);
