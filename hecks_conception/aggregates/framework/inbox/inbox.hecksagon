@@ -29,5 +29,13 @@ Hecks.hecksagon "Inbox" do
   # from hecks_conception/, so `bin/inbox_poll.mjs` resolves identically
   # whether the loop or a manual dispatch fired it.
 
-  adapter :memory
+  # Persistence (i728 Phase B) : :heki, not :memory. The Inbox store holds
+  # the durable Gmail `last_history_id` watermark — the delta cursor the poll
+  # reads to fetch only mail since the last check. Memory-backing it would
+  # reset the watermark to "clean start" on every boot, silently missing
+  # mail. Reclassified from a mis-declared :memory (written while :memory was
+  # inert, never validated) BEFORE apply_memory_persistence goes live, so the
+  # memory-apply cannot regress it. Bare :heki resolves via resolve_info_dir
+  # + aggregate name to the same information/inbox/ store it writes today.
+  adapter :heki
 end
