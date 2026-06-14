@@ -338,6 +338,50 @@ impl Runtime {
         rt
     }
 
+    /// Test-harness boot (i735 plan step 4) : every aggregate gets the
+    /// EXPLICIT in-process `Backend::Memory` repository, not the implicit
+    /// `Backend::Heki { data_dir: None }` default. "The harness chooses its
+    /// storage" — in-process, no disk, alive for the process and gone on
+    /// restart. The behaviors runner boots through this so the corpus stays
+    /// explicitly wired once the unwired-=-error enforcement flip lands.
+    pub fn boot_in_memory(domain: Domain) -> Self {
+        let mut rt = Self::boot(domain);
+        rt.force_memory_repositories();
+        rt
+    }
+
+    /// `boot_in_memory` + attached hecksagons, so the behaviors runner's
+    /// `driven on` adapter handlers still fire while every repository is
+    /// memory-backed.
+    pub fn boot_in_memory_with_hecksagons(domain: Domain, hecksagons: Vec<Hecksagon>) -> Self {
+        let mut rt = Self::boot_with_hecksagons(domain, None, hecksagons);
+        rt.force_memory_repositories();
+        rt
+    }
+
+    /// Replace every repository with an explicit `Backend::Memory` wrapper.
+    /// Safe post-boot because the lazy repos are still un-hydrated (no disk
+    /// touch yet) — the same swap `apply_per_domain_world_dirs` performs.
+    fn force_memory_repositories(&mut self) {
+        let patches: Vec<(String, String, Option<String>, Option<String>)> = self
+            .domain
+            .aggregates
+            .iter()
+            .map(|agg| {
+                (
+                    repo_key(agg.context.as_deref(), &agg.name),
+                    agg.name.clone(),
+                    agg.identified_by.clone(),
+                    agg.context.clone(),
+                )
+            })
+            .collect();
+        for (key, name, identified_by, context) in patches {
+            self.repositories
+                .insert(key, LazyRepository::new_memory(&name, identified_by, context));
+        }
+    }
+
     /// Sprint 14 (`wire-mailbox-registry-into-event-bus`) — publish an
     /// event through the per-aggregate mailbox. After
     /// `retire-sync-cascade-pipeline`, dispatch publishes inline rather
