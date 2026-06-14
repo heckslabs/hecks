@@ -34,13 +34,19 @@ fn run_one(
     // Sprint 14 first-adapter slice — when hecksagons are supplied
     // (the conception-aware caller in run_behaviors), boot with them
     // attached so `driven on` adapter handlers fire on event emission.
-    // The pre-sprint path (Runtime::boot, no hecksagons) is preserved
-    // for direct/library callers that don't supply any.
+    // The pre-sprint path (no hecksagons) is preserved for direct/library
+    // callers that don't supply any.
+    //
+    // i735 plan step 4 — the harness CHOOSES its storage : both paths boot
+    // every aggregate on the EXPLICIT in-process Backend::Memory, not the
+    // implicit Heki{data_dir:None} default. In-process, no disk ; keeps the
+    // behaviors corpus explicitly wired once unwired-=-error enforcement
+    // lands.
     let mut rt = match hecksagons {
         Some(hs) if !hs.is_empty() => {
-            Runtime::boot_with_hecksagons(domain, None, hs.to_vec())
+            Runtime::boot_in_memory_with_hecksagons(domain, hs.to_vec())
         }
-        _ => Runtime::boot(domain),
+        _ => Runtime::boot_in_memory(domain),
     };
 
     // The translation layer between the bluebook (refs only) and the
