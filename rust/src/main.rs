@@ -867,7 +867,15 @@ fn main() {
                 .map(|s| s.as_str());
             let mut errors = validator::validate(&domain);
             if let Some(dir) = check_refs_dir {
-                let corpus = load_combined_domain(dir);
+                let mut corpus = load_combined_domain(dir);
+                // The validated file's OWN aggregates belong to the
+                // reference universe too — a bluebook living OUTSIDE the
+                // corpus dir (rust/examples/, parity fixtures) must still
+                // resolve its self- and sibling references. Conception
+                // files only ever resolved because they happened to live
+                // inside the joined dir ; the universe is file ∪ corpus
+                // by definition.
+                corpus.aggregates.extend(domain.aggregates.iter().cloned());
                 errors.extend(storehouse::validator_corpus::unknown_aggregate_errors(&domain, &corpus));
             }
             if let Some(dir) = corpus_dir {

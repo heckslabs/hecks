@@ -42,7 +42,7 @@ fn keyword_matches(line: &str, keyword: &str) -> bool {
 fn invoke(parser: BlockParser, slice: &[&str], domain: &mut Domain) -> usize {
     match parser {
         BlockParser::Aggregate => {
-            let (mut agg, consumed) = parse_aggregate(slice);
+            let (mut agg, nested_policies, consumed) = parse_aggregate(slice);
             if !domain.name.is_empty() {
                 agg.context = Some(domain.name.clone());
             }
@@ -55,6 +55,11 @@ fn invoke(parser: BlockParser, slice: &[&str], domain: &mut Domain) -> usize {
                 agg.category = domain.category.clone();
             }
             domain.aggregates.push(agg);
+            // Bubble aggregate-nested policies (inbox's LockOnSignoff) up to
+            // domain.policies, mirroring Ruby's canonical flatten. Only inbox
+            // declares one today ; no bluebook mixes nested + top-level, so
+            // source order matches Ruby's `agg_policies + domain_policies`.
+            domain.policies.extend(nested_policies);
             consumed
         }
         BlockParser::Section => {

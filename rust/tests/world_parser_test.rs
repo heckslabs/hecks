@@ -1,9 +1,30 @@
 //! World parser tests — pin the shapes the parity suite depends on.
 //!
+//! [antibody-exempt: rust/tests/world_parser_test.rs — infrastructure test
+//!  pinning the host-side .world parse shapes the parity suite depends on ;
+//!  behaviours suites cannot exercise the .world parser. i728 added dormant
+//!  persistence-strict coverage.]
+//!
 //! Covers both families: runtime/extension config (heki, ollama, …) and
 //! strategic descriptors (purpose, vision, audience, concern).
 
 use storehouse::world::parser as world_parser;
+
+#[test]
+fn persistence_strict_flag_parses_but_is_dormant() {
+    // i728 — `persistence do strict true end` parses generically (no parser
+    // change) and reads back as strict. Dormant : nothing enforces it yet.
+    let strict = "Hecks.world \"Conception\" do\n  persistence do\n    strict true\n  end\nend\n";
+    assert!(world_parser::parse(strict).persistence_strict(), "strict true → strict");
+
+    // No persistence block → non-strict (the it-just-works default).
+    let lax = "Hecks.world \"Adhoc\" do\nend\n";
+    assert!(!world_parser::parse(lax).persistence_strict(), "no block → non-strict");
+
+    // Explicit `strict false` → non-strict.
+    let off = "Hecks.world \"Off\" do\n  persistence do\n    strict false\n  end\nend\n";
+    assert!(!world_parser::parse(off).persistence_strict(), "strict false → non-strict");
+}
 
 const MIETTE: &str = r#"Hecks.world "Miette" do
   heki do

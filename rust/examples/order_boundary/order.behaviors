@@ -1,0 +1,35 @@
+Hecks.behaviors "OrderBoundary" do
+  vision "Host-independence proof : the same Order domain that the handwritten Rust hosts in this directory runs unchanged under the storehouse memory runtime. If the domain needed an executor, a lock, or a channel, these tests could not pass here."
+
+  test "Place mints a pending order" do
+    tests "Place", on: "Order"
+    input  ref: "ord-1", customer_name: "Chris", amount_cents: 4200
+    expect ref: "ord-1", customer_name: "Chris", status: "pending"
+  end
+
+  test "Place refuses a non-positive amount" do
+    tests "Place", on: "Order"
+    input  ref: "ord-2", customer_name: "Chris", amount_cents: 0
+    expect refused: "amount must be positive"
+  end
+
+  test "Authorize transitions pending to authorized" do
+    tests "Authorize", on: "Order"
+    setup  "Place", ref: "ord-1", customer_name: "Chris", amount_cents: 4200
+    input  payment_ref: "pay_ord-1_3"
+    expect status: "authorized", payment_ref: "pay_ord-1_3"
+  end
+
+  test "Decline transitions pending to declined" do
+    tests "Decline", on: "Order"
+    setup  "Place", ref: "ord-1", customer_name: "Chris", amount_cents: 4200
+    input  payment_ref: "pay_ord-1_dead"
+    expect status: "declined"
+  end
+
+  test "Cancel only from pending" do
+    tests "Cancel", on: "Order"
+    setup  "Place", ref: "ord-1", customer_name: "Chris", amount_cents: 4200
+    expect status: "cancelled"
+  end
+end
