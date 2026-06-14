@@ -72,21 +72,43 @@ pub fn emit(repo_root: &Path) -> Result<String, Box<dyn Error>> {
 
     let mut out = String::new();
     for sec in &sections {
-        match util::attr(sec, "body_kind") {
-            "verbatim_section" => {
-                let snippet_path = repo_root.join(util::attr(sec, "snippet_path"));
-                let body = util::read_snippet_raw(&snippet_path)?;
-                out.push_str(&body);
-            }
-            "runtime_impl" => {
-                out.push_str(&emit_runtime_impl(repo_root, &fixtures)?);
-            }
-            other => {
-                return Err(format!("unknown body_kind: {}", other).into());
-            }
-        }
+        out.push_str(&emit_one_section(repo_root, sec, &fixtures)?);
     }
     Ok(out)
+}
+
+/// Emit a single Section by its `name` attr — the scoped sub-target behind
+/// `storehouse specialize runtime --section <name>`. This powers the
+/// per-concern byte-identity goldens the runtime-as-bluebook strangler
+/// relies on while the whole-file `runtime` golden stays `#[ignore]`d
+/// during the drift-reduction program (see inbox/runtime-as-bluebook.md).
+pub fn emit_section(repo_root: &Path, name: &str) -> Result<String, Box<dyn Error>> {
+    let shape = repo_root.join(SHAPE_REL);
+    let fixtures = util::load_fixtures(&shape)?;
+    let sections = util::by_aggregate_sorted(&fixtures, "Section", "order");
+    let sec = sections
+        .iter()
+        .find(|s| util::attr(s, "name") == name)
+        .ok_or_else(|| format!("no runtime Section named '{}'", name))?;
+    emit_one_section(repo_root, sec, &fixtures)
+}
+
+/// Emit one Section, dispatching on its `body_kind`. Shared by the
+/// whole-file `emit` walk and the scoped `emit_section` sub-target so both
+/// paths produce byte-identical output for the same row.
+fn emit_one_section(
+    repo_root: &Path,
+    sec: &Fixture,
+    fixtures: &[Fixture],
+) -> Result<String, Box<dyn Error>> {
+    match util::attr(sec, "body_kind") {
+        "verbatim_section" => {
+            let snippet_path = repo_root.join(util::attr(sec, "snippet_path"));
+            Ok(util::read_snippet_raw(&snippet_path)?)
+        }
+        "runtime_impl" => emit_runtime_impl(repo_root, fixtures),
+        other => Err(format!("unknown body_kind: {}", other).into()),
+    }
 }
 
 /// Emit the `impl Runtime { … }` block. Walks RuntimeMethod rows in

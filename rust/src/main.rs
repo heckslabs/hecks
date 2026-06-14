@@ -1912,6 +1912,15 @@ fn run_specialize(args: &[String]) {
         .position(|a| a == "--output" || a == "-o")
         .and_then(|i| args.get(i + 1).cloned());
 
+    // `--section <name>` emits a single named section of a multi-section
+    // target (only `runtime` today). The scoped sub-target behind the
+    // per-concern byte-identity goldens of the runtime-as-bluebook
+    // strangler (inbox/runtime-as-bluebook.md).
+    let section: Option<String> = args
+        .iter()
+        .position(|a| a == "--section")
+        .and_then(|i| args.get(i + 1).cloned());
+
     let repo_root = match specialize_repo_root() {
         Ok(p) => p,
         Err(e) => {
@@ -1920,7 +1929,11 @@ fn run_specialize(args: &[String]) {
         }
     };
 
-    let rust = match storehouse::specializer::emit(target, &repo_root) {
+    let emit_result = match &section {
+        Some(name) => storehouse::specializer::emit_section(target, &repo_root, name),
+        None => storehouse::specializer::emit(target, &repo_root),
+    };
+    let rust = match emit_result {
         Ok(s) => s,
         Err(e) => {
             eprintln!("specialize {} failed: {}", target, e);
