@@ -96,10 +96,21 @@ pub fn classify_name(stem: &str) -> &'static str {
         "private"
     } else if LINKED_STORES.contains(&stem) {
         "linked"
+    } else if FRAMEWORK_STORES.contains(&stem) {
+        "framework"
     } else {
         "unknown"
     }
 }
+
+/// Storehouse runtime self-description stores — written by framework machinery
+/// (the run_lexicon shim), NOT by a walk-loaded aggregate. Their bluebooks live
+/// in `hecks_conception/storehouse/*.bluebook`, outside the aggregates/ walk, so
+/// no loaded aggregate claims the store ; classified `framework` so the
+/// persistence-map accounts for them rather than flagging them unknown.
+const FRAMEWORK_STORES: &[&str] = &[
+    "lexicon", // glass's callable-phrase index (storehouse Lexicon : compile/lookup/list)
+];
 
 pub fn classify(info_dir: &str) -> Classification {
     let mut out = Classification::default();
