@@ -79,6 +79,7 @@ pub fn emit(target: &str, repo_root: &Path) -> Result<String, Box<dyn Error>> {
         "lifecycle_validator" => lifecycle_validator::emit(repo_root),
         "parse_blocks" => parse_blocks::emit(repo_root),
         "parser" => parser::emit(repo_root),
+        "persistence_resolution" => runtime::persistence_resolution::emit(repo_root),
         "parser_helpers" => parser_helpers::emit(repo_root),
         "repository" => repository::emit(repo_root),
         "runtime" => runtime::root::emit(repo_root),

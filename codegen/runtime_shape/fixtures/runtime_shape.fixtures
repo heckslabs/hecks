@@ -343,4 +343,31 @@ Hecks.fixtures "RuntimeShape" do
       order: 2,
       description: "BackendInfo.heki_path — the on-disk .heki path when kind is heki ; None otherwise."
   end
+
+  # i728 runtime-as-bluebook strangler — the FILE-SPLIT (machinery cost #2).
+  # Each ResolutionMethod is an inherent `impl Runtime` method that moves OUT
+  # of runtime/mod.rs into its own generated, golden-gated file
+  # rust/src/runtime/persistence_resolution.rs (`storehouse specialize
+  # persistence_resolution`). The method lives ONLY in the generated file —
+  # no 2nd copy, no drift surface. Emitted in `order` ascending inside one
+  # `impl Runtime { … }` block, separated by blank lines. verbatim_method :
+  # body is the snippet (genuinely-complex logic stays Rust) ; the STRUCTURE
+  # (which methods, what order, which file) is the row data here.
+  aggregate "ResolutionMethod" do
+    fixture "DumpBackendMap",
+      name: "dump_backend_map",
+      file: "persistence_resolution",
+      order: 0,
+      body_kind: "verbatim_method",
+      snippet_path: "codegen/runtime_shape/snippets/resolution_dump_backend_map.rs.frag",
+      description: "Runtime::dump_backend_map — snapshot every repository's resolved backend (i728 Phase-A enforcement read). Returns Vec<BackendInfo>."
+
+    fixture "UnwiredAggregates",
+      name: "unwired_aggregates",
+      file: "persistence_resolution",
+      order: 1,
+      body_kind: "verbatim_method",
+      snippet_path: "codegen/runtime_shape/snippets/resolution_unwired_aggregates.rs.frag",
+      description: "Runtime::unwired_aggregates — i728 DORMANT is-wired check ; repo_keys of aggregates whose governing hecksagon declares no persistence adapter. Returns Vec<String>."
+  end
 end
