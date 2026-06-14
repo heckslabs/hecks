@@ -1,0 +1,30 @@
+Hecks.adapter_family "markdown" do
+  # The :markdown adapter — one of the distinct adapters off the report port
+  # (behavior_kind render_report). Runs a :query, renders its result records as
+  # markdown, and chains the string to :result_into as a follow-on dispatch.
+  # A consumer declares
+  #   adapter :markdown, name: :turn_pulse,
+  #           query: "Plan::Story.board",
+  #           trigger_on: "AiTurn.TurnFinished",
+  #           result_into: "AiSession.Inject"
+  # No layout logic on the adapter ; the kernel renders the records generically
+  # as markdown. Sibling of :html — same report port, distinct adapter, no
+  # format selector. Presentation is not domain : the bluebook declares only
+  # the :query and never knows about markdown.
+
+  vision "Render a query result as markdown and chain it to a follow-on
+          command. Carries the query to run, the event that fires it, and the
+          result_into target the markdown is dispatched into. One of the
+          distinct adapters off the report port (render_report) ; the adapter
+          is the format. Behavior_kind = render_report."
+
+  fields  :name,         # symbolic adapter name in the consumer's hecksagon
+          :query,        # the query verb to render (Domain::Aggregate.snake_case)
+          :trigger_on,   # "Aggregate.Event" — what fires this adapter
+          :result_into   # "Aggregate.Command" — follow-on dispatch carrying the markdown
+
+  trigger_field :trigger_on
+  response_field :result_into
+
+  behavior :render_report
+end
