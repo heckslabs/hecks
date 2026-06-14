@@ -107,8 +107,45 @@ fn emit_one_section(
             Ok(util::read_snippet_raw(&snippet_path)?)
         }
         "runtime_impl" => emit_runtime_impl(repo_root, fixtures),
+        "struct_from_fields" => emit_struct_from_fields(sec, fixtures),
         other => Err(format!("unknown body_kind: {}", other).into()),
     }
+}
+
+/// Emit a `pub struct` declaration from `Field` rows + the Section row's
+/// `struct_name` / `derives` / `doc` attributes — the runtime-as-bluebook
+/// strangler's first STRUCTURE-from-data body_kind (the command_dispatch
+/// "pipeline as rows" precedent applied to a value object ; the grammar
+/// has no variant/struct concept, so the shape carries it as rows, NOT a
+/// `.rs.frag` snippet). `doc` is a `\n`-joined run of `///` lines (the
+/// same multi-line attribute encoding fixtures_parser uses for `imports`).
+/// Fields are the `Field` rows whose `struct` attr matches `struct_name`,
+/// in `order` ascending ; each emits `    pub <name>: <rust_type>,`.
+fn emit_struct_from_fields(
+    sec: &Fixture,
+    fixtures: &[Fixture],
+) -> Result<String, Box<dyn Error>> {
+    let struct_name = util::attr(sec, "struct_name");
+    let mut out = String::new();
+    let doc = util::attr(sec, "doc");
+    if !doc.is_empty() {
+        out.push_str(doc);
+        out.push('\n');
+    }
+    out.push_str(&format!("#[derive({})]\n", util::attr(sec, "derives")));
+    out.push_str(&format!("pub struct {} {{\n", struct_name));
+    for f in util::by_aggregate_sorted(fixtures, "Field", "order") {
+        if util::attr(f, "struct") != struct_name {
+            continue;
+        }
+        out.push_str(&format!(
+            "    pub {}: {},\n",
+            util::attr(f, "name"),
+            util::attr(f, "rust_type")
+        ));
+    }
+    out.push_str("}\n");
+    Ok(out)
 }
 
 /// Emit the `impl Runtime { … }` block. Walks RuntimeMethod rows in

@@ -981,14 +981,22 @@ assert!(
     bin.exists(),
     "storehouse binary missing — build release first",
 );
-// (section name, tracked snippet) pairs. Both currently verbatim_section
-// rows ; as concerns convert to row-driven body_kinds the snippet
-// stays the byte-identity target the emitter must reproduce.
+// (section name, tracked snippet) pairs. value_enum / runtime_error_enum
+// are verbatim_section rows (snippet is both source and oracle).
+// backend_info is the first struct_from_fields row — the snippet is
+// ONLY the byte-identity oracle ; the emitter builds the struct from
+// Field rows + the Section's doc/derives attrs, NOT from the snippet.
+// As more concerns convert to row-driven body_kinds the snippet stays
+// the byte-identity target the emitter must reproduce.
 let cases = [
     ("value_enum", "codegen/runtime_shape/snippets/30_value_enum.rs.frag"),
     (
         "runtime_error_enum",
         "codegen/runtime_shape/snippets/33_runtime_error_enum.rs.frag",
+    ),
+    (
+        "backend_info",
+        "codegen/runtime_shape/snippets/02_struct_backend_info.rs.frag",
     ),
 ];
 for (section, snippet) in cases {

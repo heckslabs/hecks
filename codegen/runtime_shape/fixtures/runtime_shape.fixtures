@@ -23,16 +23,25 @@ Hecks.fixtures "RuntimeShape" do
       snippet_path: "codegen/runtime_shape/snippets/00_header.rs.frag",
       description: "module doc-comment + antibody-exempt headers + mod / pub-use declarations + crate imports — everything before `pub struct Runtime`. i630 follow-up : lifted out of the root.rs HEADER const so the runtime header is declared section data like every other section, not ~100 lines of hardcoded Rust (same i80 / autophagy retirement direction ; removes the non-bluebook .rs surface instead of overriding the LoC ratchet)."
 
+    fixture "BackendInfo",
+      name: "backend_info",
+      order: 1,
+      body_kind: "struct_from_fields",
+      struct_name: "BackendInfo",
+      derives: "Debug, Clone",
+      doc: "/// One row of the backend-map projection (i728) — which backend each repository\n/// resolved to, without hydrating it. `Runtime::dump_backend_map` builds the Vec ;\n/// the Phase-A enforcement gate diffs it before/after a change and treats any\n/// unexpected backend flip as an automatic stop.",
+      description: "pub struct BackendInfo (i728) — the backend-map projection row. STRUCTURE-from-data : emitted from Field rows + this row's struct_name/derives/doc, the first struct_from_fields body_kind (runtime-as-bluebook strangler Step 1). Byte-identity oracle : codegen/runtime_shape/snippets/02_struct_backend_info.rs.frag."
+
     fixture "StructRuntime",
       name: "struct_runtime",
-      order: 1,
+      order: 2,
       body_kind: "verbatim_section",
       snippet_path: "codegen/runtime_shape/snippets/01_struct_runtime.rs.frag",
       description: "pub struct Runtime — seven fields (domain, repositories, event_bus, policy_engine, projections, middleware, data_dir) ; preceded by a leading blank-line separator from HEADER's last `use` line, terminated by a trailing blank-line separator before impl Runtime"
 
     fixture "ImplRuntime",
       name: "impl_runtime",
-      order: 2,
+      order: 3,
       body_kind: "runtime_impl",
       description: "impl Runtime { … } — emits the impl block by walking RuntimeMethod rows in `order` ascending"
 
@@ -304,5 +313,34 @@ Hecks.fixtures "RuntimeShape" do
       order: 5,
       snippet_path: "codegen/runtime_shape/snippets/phase_4_assemble_runtime.rs.frag",
       description: "Phase 4 — Runtime { … } literal that takes domain + data_dir from the function args, the locals built by phases 1-3, and fresh EventBus::new() + MiddlewareStack::new() instances"
+  end
+
+  # i728 runtime-as-bluebook strangler — STRUCTURE-from-data. Each Field row
+  # is one field of a `struct_from_fields` Section, joined by its `struct`
+  # attr (the struct_name). Emitted in `order` ascending as
+  # `    pub <name>: <rust_type>,`. The grammar has no struct/variant
+  # concept, so the runtime's plain-Rust types are carried as rows here
+  # (the command_dispatch "pipeline as rows" precedent), NOT a .rs.frag.
+  aggregate "Field" do
+    fixture "BackendInfoRepoKey",
+      struct: "BackendInfo",
+      name: "repo_key",
+      rust_type: "String",
+      order: 0,
+      description: "BackendInfo.repo_key — the repo_key the backend resolved for."
+
+    fixture "BackendInfoKind",
+      struct: "BackendInfo",
+      name: "kind",
+      rust_type: "BackendKind",
+      order: 1,
+      description: "BackendInfo.kind — which backend (memory/heki/sqlite) the repo_key resolved to."
+
+    fixture "BackendInfoHekiPath",
+      struct: "BackendInfo",
+      name: "heki_path",
+      rust_type: "Option<String>",
+      order: 2,
+      description: "BackendInfo.heki_path — the on-disk .heki path when kind is heki ; None otherwise."
   end
 end
