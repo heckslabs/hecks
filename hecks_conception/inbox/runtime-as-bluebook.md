@@ -242,3 +242,58 @@ struct @220 in `rust/src/runtime/mod.rs`). So Step 1 also CLOSES that drift.
 6. **Backstop** — `cargo test` + 233 behaviors green to CLOSE Step 1.
 Then Step 2 reuses the Field machinery for the rest of cluster 2 +
 introduces the `Variant` body_kind for the enums.
+
+## STEP 1 SHIPPED (PR #736, merged to main c182f1c4, 2026-06-14)
+- `--section` scoped sub-target + `struct_from_fields` body_kind + BackendInfo
+  as rows. Whole-file drift 2357→2367. Golden suite 29✓/3 ignored.
+
+## STEP 2 FINDING — method-lifts need WHOLE-FILE reconciliation, not incremental snippets
+
+Empirical (this session) : the shape's RuntimeMethod ORDER has fully diverged
+from mod.rs. Generated order : boot, boot_with_hecksagons, register_llm_provider,
+boot_with_data_dir, …. mod.rs order : boot, boot_with_hecksagons, boot_in_memory,
+boot_in_memory_with_hecksagons, force_memory_repositories, dump_backend_map,
+unwired_aggregates, enqueue_and_drain, fire_driving_cron_ticks,
+apply_sqlite_persistence, materialize_factory_commands, register_llm_provider (12th),
+boot_with_data_dir (13th), …. mod.rs was hand-reorganized AND has ~33 interleaved
+drift methods absent from the shape.
+
+Consequence : lifting a single persistence method into a RuntimeMethod row
+leaves it UNPOSITIONED — whole-file `specialize runtime` still won't match
+mod.rs (wrong order + 32 other missing methods), and the whole-file golden
+that WOULD gate composition is `#[ignore]`d. So an isolated verbatim-method
+lift is unverifiable busywork that ADDS drift surface (a 2nd copy that can
+silently diverge — the exact failure that created today's drift).
+
+The unblock is NOT whole-file byte-identity (that's the big-bang Chris
+rejected — a one-shot regenerate of the most-consumed file, one byte off =
+fail). The advisor (2026-06-14) corrected an earlier draft that proposed it.
+
+The REAL Phase-C unblock = **machinery cost #2, the adapter file-split**
+(Chris : "wrap mod in an adapter, pull concerns into separate adapters").
+The discriminating test : *can a method become domain-authoritative without
+regenerating the whole kernel?* YES — by living in its OWN generated file :
+  1. New emit produces `rust/src/runtime/persistence_resolution.rs` — an
+     `impl Runtime { … }` block built from the persistence-cluster
+     RuntimeMethod rows + snippets + a module header (`use super::*;` etc.).
+     Reuses a filtered `emit_runtime_impl` + the existing `--output`.
+  2. **Delete those methods from `runtime/mod.rs`**, add
+     `mod persistence_resolution;`.
+  3. Live per-file golden (NOT ignored) :
+     `specialize persistence_resolution == runtime/persistence_resolution.rs`
+     + behaviors green.
+Why this beats the reconcile : the method lives ONLY in the generated file —
+no 2nd copy, no drift surface (the exact failure that created today's drift).
+Verifiable (own golden), authoritative (mod.rs no longer has it → Phase C
+edits the shape), incremental (mod.rs shrinks ~235 lines), and whole-file
+order/identity is IRRELEVANT (we don't generate the giant file). The
+done-condition (all of mod.rs generated) is reached by repeating the split
+per concern until mod.rs is thin — NOT one reconcile.
+
+Rust constraint to confirm on first build : an inherent `impl Runtime` in a
+child module `runtime::persistence_resolution` can access Runtime's
+private fields + private helpers (child modules see ancestor-private items).
+
+Step-1's `--section` sub-target + `struct_from_fields` remain the right
+machinery for the struct/enum leaves emitted INTO mod.rs ; the file-split is
+the right machinery for method CLUSTERS that move OUT of mod.rs.

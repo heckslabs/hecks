@@ -967,6 +967,39 @@ fn wrangler_toml_emitter_matches_committed_deployment_toml() {
 }
 
 #[test]
+fn persistence_resolution_file_split_is_byte_identical() {
+    // runtime-as-bluebook strangler — the FILE-SPLIT (machinery cost #2).
+    // The persistence-resolution `impl Runtime` methods moved OUT of
+    // runtime/mod.rs into their own generated file. mod.rs no longer holds
+    // them — there is no 2nd copy — so this LIVE golden is the sole gate
+    // keeping the bluebook shape and the generated Rust identical. See
+    // inbox/runtime-as-bluebook.md.
+    let root = repo_root();
+    let bin = root.join("rust/target/release/storehouse");
+    assert!(
+        bin.exists(),
+        "storehouse binary missing — build release first",
+    );
+    let output = Command::new(&bin)
+        .args(["specialize", "persistence_resolution"])
+        .current_dir(&root)
+        .output()
+        .expect("storehouse specialize persistence_resolution failed");
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr),
+    );
+    let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
+    let tracked = fs::read_to_string(root.join("rust/src/runtime/persistence_resolution.rs"))
+        .expect("runtime/persistence_resolution.rs missing");
+    assert_eq!(
+        generated, tracked,
+        "persistence_resolution.rs drifted from its runtime_shape ResolutionMethod rows",
+    );
+}
+
+#[test]
 fn runtime_section_subtarget_emits_byte_identical_sections() {
 // runtime-as-bluebook strangler — the scoped `specialize runtime
 // --section <name>` sub-target. The whole-file `runtime` golden is

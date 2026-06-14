@@ -41,6 +41,12 @@ mod middleware;
 mod policy_engine;
 mod projection;
 mod repository;
+// i728 runtime-as-bluebook strangler file-split — the persistence-resolution
+// `impl Runtime` methods (dump_backend_map, unwired_aggregates) live in this
+// GENERATED, golden-gated child module, not in mod.rs. Inherent impl in a
+// child module attaches to Runtime ; regenerate with `storehouse specialize
+// persistence_resolution`.
+mod persistence_resolution;
 // SQLite persistence backend — the SQL mirror of the heki Repository,
 // activated by `adapter :sqlite, db:` in a hecksagon. Typed columns
 // from the bluebook IR, one table per aggregate. LazyRepository
@@ -391,53 +397,6 @@ impl Runtime {
             self.repositories
                 .insert(key, LazyRepository::new_memory(&name, identified_by, context));
         }
-    }
-
-    /// Snapshot every repository's resolved backend (kind + heki path) WITHOUT
-    /// hydrating any of them. The i728 Phase-A enforcement gate diffs this
-    /// before/after a change ; any unexpected backend flip is an automatic stop.
-    /// Sorted by repo_key so the diff is deterministic.
-    pub fn dump_backend_map(&self) -> Vec<BackendInfo> {
-        let mut rows: Vec<BackendInfo> = self
-            .repositories
-            .iter()
-            .map(|(key, repo)| BackendInfo {
-                repo_key: key.clone(),
-                kind: repo.backend_kind(),
-                heki_path: repo.heki_path(),
-            })
-            .collect();
-        rows.sort_by(|a, b| a.repo_key.cmp(&b.repo_key));
-        rows
-    }
-
-    /// i728 DORMANT is-wired check — repo_keys of aggregates whose governing
-    /// hecksagon declares NO persistence adapter (`persistence.is_none()`),
-    /// i.e. would be UNWIRED. In Phase C a STRICT `.world` turns a non-empty
-    /// result into a boot error ; here it is plumbing only — no caller
-    /// enforces it, and `boot_in_memory` (the behaviors harness) bypasses it.
-    /// A context is wired when some attached hecksagon names it AND declares
-    /// a persistence adapter (mirrors `apply_sqlite_persistence`'s match).
-    pub fn unwired_aggregates(&self) -> Vec<String> {
-        let wired_contexts: std::collections::HashSet<&str> = self
-            .hecksagons
-            .iter()
-            .filter(|hex| hex.persistence.is_some())
-            .map(|hex| hex.name.as_str())
-            .collect();
-        let mut out: Vec<String> = self
-            .domain
-            .aggregates
-            .iter()
-            .filter(|agg| {
-                agg.context
-                    .as_deref()
-                    .map_or(true, |ctx| !wired_contexts.contains(ctx))
-            })
-            .map(|agg| repo_key(agg.context.as_deref(), &agg.name))
-            .collect();
-        out.sort();
-        out
     }
 
     /// Sprint 14 (`wire-mailbox-registry-into-event-bus`) — publish an
