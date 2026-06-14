@@ -1,5 +1,10 @@
 //! World IR — Rust mirror of Hecksagon::Structure::World for .world files.
 //!
+//! [antibody-exempt: rust/src/world/ir.rs — kernel-floor .world IR : the Rust
+//!  mirror of the .world grammar's parsed form, sibling to world/attach.rs
+//!  (already exempt). Host-side config types, not bluebookable domain. i728
+//!  added the dormant persistence_strict() reader.]
+//!
 //! A .world declares runtime configuration — extension options, heki data
 //! location, strategic descriptors — that sits alongside the .bluebook
 //! (domain definition) and .hecksagon (wiring) files.
@@ -111,6 +116,16 @@ impl World {
     /// Look up an extension config block by name.
     pub fn config_for(&self, name: &str) -> Option<&ExtensionConfig> {
         self.configs.iter().find(|c| c.name == name)
+    }
+
+    /// i728 DORMANT strict flag — `persistence do strict true end` in a
+    /// `.world` marks the deployment STRICT : in Phase C an unwired domain
+    /// becomes a BOOT ERROR rather than defaulting to memory. Parsed
+    /// generically as a `persistence` extension block ; this reader is the
+    /// only consumer and is NOT yet wired into boot enforcement (the Phase A
+    /// keystone is additive — the flag exists but changes no behaviour yet).
+    pub fn persistence_strict(&self) -> bool {
+        self.config_for("persistence").and_then(|c| c.get("strict")) == Some("true")
     }
 
     /// Look up an MCP server declaration by name (i610). Trims a leading

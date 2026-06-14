@@ -95,6 +95,16 @@ enum Backend {
     },
 }
 
+/// The persistence backend a `LazyRepository` resolved to — the read-only
+/// discriminant `backend_kind()` exposes for the i728 backend-map gate (the
+/// Phase-A enforcement check that no production domain silently changes backend).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BackendKind {
+    Heki,
+    Memory,
+    Sql,
+}
+
 pub struct LazyRepository {
     backend: Backend,
 }
@@ -200,6 +210,26 @@ impl LazyRepository {
     /// (i735) to prove only the declaring domain's repos became SQL.
     pub fn is_sql(&self) -> bool {
         matches!(self.backend, Backend::Sql { .. })
+    }
+
+    /// The backend variant this repository resolved to, WITHOUT hydrating the
+    /// OnceCell — a `&self` peek at the enum tag. Feeds `Runtime::dump_backend_map`,
+    /// the i728 Phase-A gate asserting no production domain silently changes backend.
+    pub fn backend_kind(&self) -> BackendKind {
+        match &self.backend {
+            Backend::Heki { .. } => BackendKind::Heki,
+            Backend::Memory { .. } => BackendKind::Memory,
+            Backend::Sql { .. } => BackendKind::Sql,
+        }
+    }
+
+    /// The heki store dir this repository is rooted at, when heki-backed. `None`
+    /// for memory (no disk) and sql (its own db path). Peeks without hydrating.
+    pub fn heki_path(&self) -> Option<String> {
+        match &self.backend {
+            Backend::Heki { data_dir, .. } => data_dir.clone(),
+            _ => None,
+        }
     }
 
     /// Mutable hydrate-on-first-access (heki). Forces the cell via the
