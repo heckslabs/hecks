@@ -209,6 +209,12 @@ pub struct PendingReaction {
 pub struct Runtime {
     pub domain: Domain,
     pub repositories: HashMap<String, LazyRepository>,
+    /// i735 defect 2 — aggregates whose wired `:sqlite` adapter FAILED to
+    /// build at boot (SQL-incompatible column, unopenable db). Keyed by
+    /// repo_key → the loud reason. Their repository is removed (no silent
+    /// heki fallback) ; a dispatch against them returns
+    /// `RuntimeError::PersistenceRefused` rather than panicking.
+    pub refused_persistence: HashMap<String, String>,
     pub event_bus: EventBus,
     /// Phase 3 — the outbox. Enqueued reactions awaiting delivery by
     /// `pump()`. A command's core mutation pushes its result here and
@@ -417,43 +423,112 @@ impl Runtime {
         driving_adapter_resolver::fire_driving_cron_ticks(self);
     }
 
-    /// If any attached hecksagon declares a `:sqlite` persistence kind,
-    /// swap every aggregate's repository to the SQL backend, with typed
-    /// columns derived from the bluebook IR (one column per scalar
-    /// attribute, types via `sqlite_repository::sql_type`). The db path
-    /// comes from the hecksagon's `db:` option. Idempotent and a no-op
-    /// when no sqlite override is present.
+    /// Rebuild on the SQL backend ONLY those aggregates whose governing
+    /// hecksagon declares `:sqlite` — matched by `agg.context ==
+    /// hecksagon.name`. A hecksagon is a bluebook's companion file ; its
+    /// name is the bluebook name, which the parser stamps as every
+    /// aggregate's `context`. Typed columns derive from the bluebook IR
+    /// (one column per scalar attribute, types via `sqlite_mapping::
+    /// sql_type`) ; the db path is that hecksagon's `db:` option. Every
+    /// other aggregate keeps the heki/memory repository
+    /// `boot_with_data_dir` built. A no-op when no `:sqlite` hecksagon is
+    /// attached.
+    ///
+    /// i735 — previously this OVER-APPLIED : any one `:sqlite` hecksagon
+    /// rebuilt EVERY aggregate in a combined multi-domain root on SQL,
+    /// panicking the whole bus when an unrelated aggregate carried
+    /// SQL-incompatible columns. Scoping by context confines `:sqlite` to
+    /// its own declaring domain, so it is safe to declare anywhere.
     #[cfg(not(target_arch = "wasm32"))]
     fn apply_sqlite_persistence(&mut self) {
-        let Some(db_path) = self.sqlite_db_path() else { return };
-        let mut repositories = HashMap::new();
-        for agg in &self.domain.aggregates {
-            let mut columns: Vec<(String, String)> = agg
-                .attributes
-                .iter()
-                .filter(|a| !a.list)
-                .map(|a| (a.name.clone(), sqlite_mapping::sql_type(&a.attr_type).to_string()))
-                .collect();
-            // The lifecycle state field (e.g. `status`) is set on the
-            // AggregateState at dispatch but is not a declared
-            // attribute. The heki backend persists every field ; the
-            // typed-columns backend must give it a column too, else a
-            // cold-process query filtering on it (`where status:
-            // "published"`) reads back nothing. TEXT — it holds a
-            // state-name string.
-            if let Some(lc) = &agg.lifecycle {
-                columns.push((lc.field.clone(), "TEXT".to_string()));
-            }
-            let config = lazy_repository::SqliteConfig {
-                aggregate_type: agg.name.clone(),
-                db_path: db_path.clone(),
-                identified_by: agg.identified_by.clone(),
-                columns,
-            };
-            let key = repo_key(agg.context.as_deref(), &agg.name);
-            repositories.insert(key, LazyRepository::new_sqlite(config));
+        // context → db_path for every hecksagon that wired :sqlite.
+        let sqlite_dbs: HashMap<String, String> = self
+            .hecksagons
+            .iter()
+            .filter(|hex| hex.persistence.as_deref() == Some("sqlite"))
+            .filter_map(|hex| {
+                // parse_options keeps the raw token (quotes included) ;
+                // strip the surrounding quotes to get the bare path.
+                hex.persistence_option("db")
+                    .map(|db| (hex.name.clone(), db.trim_matches('"').to_string()))
+            })
+            .collect();
+        if sqlite_dbs.is_empty() {
+            return;
         }
-        self.repositories = repositories;
+        // Collect patches under the immutable borrow of self.domain, then
+        // apply them under the mutable borrow of self.repositories — the
+        // two borrows cannot overlap through &mut self.
+        let patches: Vec<(String, lazy_repository::SqliteConfig)> = self
+            .domain
+            .aggregates
+            .iter()
+            .filter_map(|agg| {
+                let db_path = agg.context.as_deref().and_then(|ctx| sqlite_dbs.get(ctx))?;
+                let mut columns: Vec<(String, String)> = agg
+                    .attributes
+                    .iter()
+                    // Exclude the auto-managed columns `create_table` always
+                    // adds itself : `id TEXT PRIMARY KEY`, `created_at`,
+                    // `updated_at`. Every aggregate carries an `id` attribute
+                    // (its identity) ; including it here produced a "duplicate
+                    // column name: id" CREATE TABLE failure — latent under the
+                    // old lazy path, surfaced now that construction is eager.
+                    .filter(|a| {
+                        !a.list
+                            && !matches!(a.name.as_str(), "id" | "created_at" | "updated_at")
+                    })
+                    .map(|a| (a.name.clone(), sqlite_mapping::sql_type(&a.attr_type).to_string()))
+                    .collect();
+                // The lifecycle state field (e.g. `status`) is set on the
+                // AggregateState at dispatch but is not a declared
+                // attribute ; the typed-columns backend needs a TEXT
+                // column for it or a cold query filtering on it reads
+                // back nothing.
+                if let Some(lc) = &agg.lifecycle {
+                    columns.push((lc.field.clone(), "TEXT".to_string()));
+                }
+                let key = repo_key(agg.context.as_deref(), &agg.name);
+                Some((
+                    key,
+                    lazy_repository::SqliteConfig {
+                        aggregate_type: agg.name.clone(),
+                        db_path: db_path.clone(),
+                        identified_by: agg.identified_by.clone(),
+                        columns,
+                    },
+                ))
+            })
+            .collect();
+        for (key, config) in patches {
+            // EAGER construction (i735 defect 2) : open + CREATE TABLE +
+            // row-load happen now, at boot, because they are FALLIBLE.
+            match sqlite_repository::SqliteRepository::new(
+                &config.aggregate_type,
+                &config.db_path,
+                config.identified_by.clone(),
+                config.columns.clone(),
+            ) {
+                Ok(repo) => {
+                    self.repositories
+                        .insert(key, LazyRepository::new_sqlite(repo));
+                }
+                Err(e) => {
+                    // Never panic the bus ; never silently fall back to heki.
+                    // Refuse THIS aggregate LOUDLY : drop its repository so no
+                    // heki repo survives to be silently swapped in, and record
+                    // the reason. The boot log names it now ; a dispatch
+                    // against it returns a loud PersistenceRefused error.
+                    let reason = format!(
+                        "{key} : sqlite persistence refused — open/CREATE TABLE failed for db `{}`: {e}",
+                        config.db_path
+                    );
+                    eprintln!("[persistence] {reason}");
+                    self.repositories.remove(&key);
+                    self.refused_persistence.insert(key, reason);
+                }
+            }
+        }
     }
 
     /// TRANSITIONAL — first-class factories phase 1 ; phase 2 deletes
@@ -480,22 +555,6 @@ impl Runtime {
             }
         }
         domain
-    }
-
-    /// Resolve the SQLite db path from the attached hecksagons : the
-    /// first hecksagon whose `persistence == "sqlite"` and that carries
-    /// a `db:` option. None when no sqlite override is declared.
-    #[cfg(not(target_arch = "wasm32"))]
-    fn sqlite_db_path(&self) -> Option<String> {
-        self.hecksagons.iter().find_map(|hex| {
-            (hex.persistence.as_deref() == Some("sqlite"))
-                .then(|| hex.persistence_option("db"))
-                .flatten()
-                // parse_options keeps the raw token (quotes included, as
-                // io_adapter options do) ; strip the surrounding string
-                // quotes to get the bare filesystem path.
-                .map(|s| s.trim_matches('"').to_string())
-        })
     }
 
     /// i221 — register an LLM provider under a backend name. Lets the
@@ -567,6 +626,7 @@ impl Runtime {
         Runtime {
             domain,
             repositories,
+            refused_persistence: HashMap::new(),
             event_bus: EventBus::new(),
             outbox: std::collections::VecDeque::new(),
             policy_engine,
@@ -3153,6 +3213,12 @@ impl std::fmt::Display for Value {
 pub enum RuntimeError {
     UnknownCommand(String),
     UnknownAggregate(String),
+    /// i735 defect 2 — a dispatch targeted an aggregate whose wired
+    /// `:sqlite` adapter failed to build at boot (the table could not be
+    /// created / the db could not be opened). The runtime refused that
+    /// aggregate's persistence rather than panicking or silently swapping
+    /// to heki ; the message carries the loud reason recorded at boot.
+    PersistenceRefused(String),
     GivenFailed { message: String, expression: String },
     /// f4 — an aggregate-level invariant's `holds_when` predicate was false
     /// on the resulting state after a command's mutations. The command is
@@ -3183,6 +3249,7 @@ impl std::fmt::Display for RuntimeError {
         match self {
             RuntimeError::UnknownCommand(c) => write!(f, "unknown command: {}", c),
             RuntimeError::UnknownAggregate(a) => write!(f, "unknown aggregate: {}", a),
+            RuntimeError::PersistenceRefused(m) => write!(f, "{}", m),
             RuntimeError::GivenFailed { message, .. } => write!(f, "given failed: {}", message),
             RuntimeError::InvariantViolation { name, .. } => write!(f, "invariant violation: {}", name),
             RuntimeError::AggregateNotFound(id) => write!(f, "aggregate not found: {}", id),
