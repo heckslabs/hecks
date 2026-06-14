@@ -56,7 +56,24 @@ const PRIVATE_STORES: &[&str] = &[
 /// `inbox.heki`. Two debugging rows survive in `item.heki` in the
 /// miette-state repo (i997 "abs path trace", i998 "HECKS_INFO
 /// trace" — April 28 path-resolution debugging).
-const RETIRED_STORES: &[&str] = &["item"];
+const RETIRED_STORES: &[&str] = &[
+    "item",
+    // i728 G3 — non-aggregate stores with no live domain behind them, classified
+    // so the persistence-map's `unknown` set reaches zero ("everything that
+    // writes to information/ is accounted for"). Two kinds :
+    //   dead framework/daemon stores (no current writer) :
+    "enforcer",                        // renamed → macrophage (pre-rename orphan)
+    "tools",                           // dead flat Tools store (pre 5-category split)
+    "antibody_exemption_macrophage",   // stale macrophage check state, no writer
+    "bluebook_first_macrophage",       // stale macrophage check state, no writer
+    "calling_strategy",                // stale, no writer
+    "domain_visualizer",               // stale, no writer
+    //   test-leak artifacts (rows are stale leaks ; live writers now isolate to
+    //   a tempdir via HECKS_INFO so they no longer reach the live store) :
+    "hello",                           // examples/executable hello integration test
+    "note",                            // run_script / query_step test fixtures
+    "dispatch",                        // storehouse-mcp dispatch render test fixture
+];
 
 #[derive(Debug, Clone, Default)]
 pub struct Classification {
