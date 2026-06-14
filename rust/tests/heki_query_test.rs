@@ -56,15 +56,30 @@ fn write_store(path: &Path, records: &[(&str, serde_json::Value)]) {
 }
 
 fn run(args: &[&str]) -> (i32, String, String) {
-    let out = Command::new(binary())
-        .args(args)
-        .output()
-        .expect("binary should run");
-    (
-        out.status.code().unwrap_or(-1),
-        String::from_utf8_lossy(&out.stdout).to_string(),
-        String::from_utf8_lossy(&out.stderr).to_string(),
-    )
+    // Retry on SPAWN failure ONLY. Under the full `cargo test` run (~70+ test
+    // binaries spawning the storehouse binary concurrently), fork/exec can
+    // transiently fail with EAGAIN/ENOMEM — a `Command::output()` Err that
+    // panicked here as an intermittent, load-only "FAILED" (passes in
+    // isolation). Retrying the spawn handles the environmental contention; a
+    // spawn that SUCCEEDS and returns wrong output is returned as-is, so no
+    // assertion / logic bug is ever masked.
+    let mut last_err = None;
+    for attempt in 0..5u64 {
+        match Command::new(binary()).args(args).output() {
+            Ok(out) => {
+                return (
+                    out.status.code().unwrap_or(-1),
+                    String::from_utf8_lossy(&out.stdout).to_string(),
+                    String::from_utf8_lossy(&out.stderr).to_string(),
+                );
+            }
+            Err(e) => {
+                last_err = Some(e);
+                std::thread::sleep(std::time::Duration::from_millis(20 * (attempt + 1)));
+            }
+        }
+    }
+    panic!("binary should run (failed to spawn after 5 retries): {last_err:?}");
 }
 
 fn sample_inbox(path: &Path) {
