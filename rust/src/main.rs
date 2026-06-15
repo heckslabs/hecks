@@ -2936,7 +2936,7 @@ fn dump_hecksagon_json(hex: &storehouse::hecksagon_ir::Hecksagon) -> serde_json:
             "response_into_attr":   ca.response_into_attr,
         })
     }).collect();
-    serde_json::json!({
+    let mut obj = serde_json::json!({
         "name":             hex.name,
         // Phase 1 of adapter-family activation : meta-layer files
         // (Hecks.adapter_family / Hecks.provider / Hecks.behavior_kind)
@@ -2953,7 +2953,24 @@ fn dump_hecksagon_json(hex: &storehouse::hecksagon_ir::Hecksagon) -> serde_json:
         "llm_adapters":     llm_adapters,
         "compute_adapters": compute_adapters,
         "gates":            gates,
-    })
+    });
+    // bucket-3 — families/adapters appear ONLY for *.family / *.adapter
+    // files (non-empty). Gated so the shared .hecksagon canonical shape
+    // — byte-compared against parity/canonical_ir.rb, which has no notion
+    // of these extensions — stays untouched (empty → key absent → no drift).
+    if !hex.families.is_empty() {
+        let families: Vec<serde_json::Value> = hex.families.iter().map(|f| serde_json::json!({
+            "name": f.name, "verb": f.verb, "signal": f.signal, "fields": f.fields,
+        })).collect();
+        obj["families"] = serde_json::json!(families);
+    }
+    if !hex.adapters.is_empty() {
+        let adapters: Vec<serde_json::Value> = hex.adapters.iter().map(|a| serde_json::json!({
+            "name": a.name, "family": a.family,
+        })).collect();
+        obj["adapters"] = serde_json::json!(adapters);
+    }
+    obj
 }
 
 /// Canonical JSON for a `.world` file — matches the shape the Ruby
@@ -3187,7 +3204,12 @@ fn load_all_hecksagons(agg_dir: &str) -> Vec<storehouse::hecksagon_ir::Hecksagon
             }
             if p.is_dir() {
                 walk(&p, out, seen);
-            } else if p.extension().map(|e| e == "hecksagon").unwrap_or(false) {
+            } else if p.extension().map(|e| e == "hecksagon" || e == "family" || e == "adapter").unwrap_or(false) {
+                // bucket-3 — `*.family` / `*.adapter` are FIXED FRAMEWORK
+                // vocabulary parsed to IR through the SAME hecksagon
+                // parser (the detector now recognises `Hecks.family` /
+                // `Hecks.adapter`). Read, not stored : the resolver
+                // reads the loaded IR ; there is no persistence side-table.
                 let key = std::fs::canonicalize(&p).unwrap_or_else(|_| p.clone());
                 if !seen.insert(key) { continue; }
                 if let Ok(source) = fs::read_to_string(&p) {
@@ -3245,6 +3267,20 @@ fn load_all_hecksagons(agg_dir: &str) -> Vec<storehouse::hecksagon_ir::Hecksagon
                 hex.persistence_options.push(("db".to_string(), db.clone()));
             }
         }
+    }
+    // bucket-3 — gated trace (same HECKS_STOREHOUSE_VERBOSE switch the
+    // dispatch path uses) so the walk that reaches `*.family` /
+    // `*.adapter` is observable. Step 1 only PARSES them to IR ; the
+    // resolver that consults the loaded families/adapters lands in a
+    // later bucket-3 step, so this trace is the honest surface until
+    // then.
+    if std::env::var("HECKS_STOREHOUSE_VERBOSE").ok().as_deref() == Some("1") {
+        let families: usize = out.iter().map(|h| h.families.len()).sum();
+        let adapters: usize = out.iter().map(|h| h.adapters.len()).sum();
+        eprintln!(
+            "[load_all_hecksagons] {} hecksagons, {} families, {} adapters",
+            out.len(), families, adapters
+        );
     }
     out
 }

@@ -105,6 +105,48 @@ pub struct Hecksagon {
     /// `http_post` and `file_watch` parse but are runtime stubs (see
     /// runtime/driving_adapter_resolver.rs follow-up cards).
     pub driving_adapters: Vec<DrivingAdapter>,
+    /// bucket-3 — `Hecks.family "name" do verb "v" ; signal :s ; field :f
+    /// end` declarations loaded from `*.family` files. A family names an
+    /// impure-boundary PORT : its how-verb, its signal, and the config
+    /// field NAMES its adapters carry (values live per-deployment in
+    /// `.world`). Each `*.family` file parses to one Hecksagon carrying a
+    /// single Family ; the resolver flat-maps across the loaded Vec.
+    pub families: Vec<Family>,
+    /// bucket-3 — `Hecks.adapter "Name" do family "fam" end` declarations
+    /// loaded from `*.adapter` files. The inverted arrow : an adapter
+    /// DECLARES the family it implements ; the family never names it.
+    /// Each `*.adapter` file parses to one Hecksagon carrying a single
+    /// Adapter.
+    pub adapters: Vec<Adapter>,
+}
+
+/// bucket-3 — a `*.family` declaration. A family is an impure-boundary
+/// PORT declared once and used across every domain's hexagon : the bind
+/// `Aggregate.<verb>(...)` resolves THROUGH it. Names only ; the
+/// per-deployment values live in `.world`.
+#[derive(Debug, Clone, Default)]
+pub struct Family {
+    /// Family name — between the quotes after `Hecks.family`.
+    pub name: String,
+    /// The how-verb the bind hangs off the aggregate FQN (`persisted_by`).
+    pub verb: String,
+    /// Signal kind verbatim, colon stripped — `reply` / `effect` /
+    /// `fulfillment`. Empty when undeclared.
+    pub signal: String,
+    /// Config FIELD names the family's adapters carry (`dir`, `endpoint`).
+    /// Names only ; the values live per-deployment in `.world`.
+    pub fields: Vec<String>,
+}
+
+/// bucket-3 — a `*.adapter` declaration. The inverted arrow : an adapter
+/// DECLARES the family it implements ; the family never names the adapter.
+#[derive(Debug, Clone, Default)]
+pub struct Adapter {
+    /// Adapter name — between the quotes after `Hecks.adapter` (its
+    /// IDENTITY, e.g. `Heki` / `Stripe`, never its transport).
+    pub name: String,
+    /// The family this adapter implements (`persistence` / `payment`).
+    pub family: String,
 }
 
 /// Sprint 14 sibling of `DrivenAdapter` — externally-triggered adapter

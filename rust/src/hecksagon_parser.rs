@@ -44,7 +44,9 @@ pub fn is_hecksagon_source(source: &str) -> bool {
         return t.starts_with("Hecks.hecksagon")
             || t.starts_with("Hecks.adapter_family")
             || t.starts_with("Hecks.provider")
-            || t.starts_with("Hecks.behavior_kind");
+            || t.starts_with("Hecks.behavior_kind")
+            || t.starts_with("Hecks.family")
+            || t.starts_with("Hecks.adapter");
     }
     false
 }
@@ -138,6 +140,20 @@ pub fn parse(source: &str) -> Hecksagon {
         if line.starts_with("adapter ") || line.starts_with("adapter(") {
             let (joined, consumed) = join_adapter_lines(&raw[i..]);
             absorb_adapter(&joined, &mut hex);
+            i += consumed;
+            continue;
+        }
+
+        if line.starts_with("Hecks.family") {
+            let (gate, consumed) = parse_family(&raw[i..]);
+            if let Some(g) = gate { hex.families.push(g); }
+            i += consumed;
+            continue;
+        }
+
+        if line.starts_with("Hecks.adapter \"") {
+            let (gate, consumed) = parse_adapter_decl(&raw[i..]);
+            if let Some(g) = gate { hex.adapters.push(g); }
             i += consumed;
             continue;
         }
@@ -779,4 +795,54 @@ fn parse_canned_kv(line: &str) -> Option<(String, String)> {
     let rest = t[ident_end..].trim().trim_end_matches(';').trim();
     if rest.is_empty() { return None; }
     Some((key, rest.to_string()))
+}
+
+/// bucket-3 step 1 — parse one `Hecks.family "name" do verb "v" ;
+/// signal :s ; field :f end` block into a Family. Returns the parsed
+/// Family and the line count consumed (through the matching `end`).
+fn parse_family(lines: &[&str]) -> (Option<Family>, usize) {
+    fn sym_after(line: &str, keyword: &str) -> String {
+        let rest = match line.strip_prefix(keyword) { Some(r) => r.trim_start(), None => return String::new() };
+        let rest = rest.strip_prefix(':').unwrap_or(rest);
+        let end = rest.find(|c: char| c.is_whitespace() || c == '#').unwrap_or(rest.len());
+        rest[..end].trim().to_string()
+    }
+    let first = lines[0].trim();
+    let name = match between_quotes(first) { Some(n) => n, None => return (None, 1) };
+    let mut family = Family { name, verb: String::new(), signal: String::new(), fields: Vec::new() };
+    let mut i = 1;
+    while i < lines.len() {
+        let t = lines[i].trim();
+        if t == "end" { return (Some(family), i + 1); }
+        if t.is_empty() || t.starts_with('#') { i += 1; continue; }
+        match t.split_whitespace().next().unwrap_or("") {
+            "verb" => { if let Some(v) = between_quotes(t) { family.verb = v; } }
+            "signal" => { family.signal = sym_after(t, "signal"); }
+            "field" => { let f = sym_after(t, "field"); if !f.is_empty() { family.fields.push(f); } }
+            _ => {}
+        }
+        i += 1;
+    }
+    (Some(family), i)
+}
+
+/// bucket-3 step 1 — parse one `Hecks.adapter "Name" do family "fam"
+/// end` block into an Adapter (the inverted arrow : the adapter
+/// declares the family it implements). Returns the Adapter and the
+/// line count consumed (through the matching `end`).
+fn parse_adapter_decl(lines: &[&str]) -> (Option<Adapter>, usize) {
+    let first = lines[0].trim();
+    let name = match between_quotes(first) { Some(n) => n, None => return (None, 1) };
+    let mut adapter = Adapter { name, family: String::new() };
+    let mut i = 1;
+    while i < lines.len() {
+        let t = lines[i].trim();
+        if t == "end" { return (Some(adapter), i + 1); }
+        if t.is_empty() || t.starts_with('#') { i += 1; continue; }
+        if t.split_whitespace().next() == Some("family") {
+            if let Some(f) = between_quotes(t) { adapter.family = f; }
+        }
+        i += 1;
+    }
+    (Some(adapter), i)
 }
