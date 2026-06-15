@@ -419,5 +419,31 @@ Hecks.fixtures "RuntimeShape" do
       body_kind: "verbatim_method",
       snippet_path: "codegen/runtime_shape/snippets/event_driving_fire_driving_cron_ticks.rs.frag",
       description: "Runtime::fire_driving_cron_ticks — fire every `driving on cron` adapter handler ; pure delegation to driving_adapter_resolver. Called by LoopDriver::tick_once."
+
+    # file: reaction — cluster 4b. Phase-3 reaction delivery : run the
+    # impure adapter edge + policy/PM/driven cascade for a dispatched result.
+    fixture "React",
+      name: "react",
+      file: "reaction",
+      order: 0,
+      body_kind: "verbatim_method",
+      snippet_path: "codegen/runtime_shape/snippets/reaction_react.rs.frag",
+      description: "Runtime::react — Phase 3 : run every reaction for one dispatched result (compute/policy/PM cascade, IO-edge adapters, driven-on adapters). Invoked only by pump(). pub(super) : called from mod.rs dispatch paths."
+
+    fixture "ReactPorts",
+      name: "react_ports",
+      file: "reaction",
+      order: 1,
+      body_kind: "verbatim_method",
+      snippet_path: "codegen/runtime_shape/snippets/reaction_react_ports.rs.frag",
+      description: "Runtime::react_ports — the IMPURE hexagonal edge : adapters that talk to the outside world, fired eagerly even on the deferred path. pub(super) : called from mod.rs."
+
+    fixture "Pump",
+      name: "pump",
+      file: "reaction",
+      order: 2,
+      body_kind: "verbatim_method",
+      snippet_path: "codegen/runtime_shape/snippets/reaction_pump.rs.frag",
+      description: "Runtime::pump — drain enqueued reactions to quiescence so eager callers see a settled cascade."
   end
 end
