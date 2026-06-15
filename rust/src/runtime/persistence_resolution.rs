@@ -204,4 +204,73 @@ impl Runtime {
             }
         }
     }
+
+    /// Sweep every Repository and reload it from disk if its heki
+    /// file has been written by a sibling process since our last
+    /// load or save. The kernel-floor implementation of the
+    /// `RefreshOnPulse` policy declared in
+    /// runtime/storage/storage.bluebook : LoopDriver calls this at
+    /// the start of every tick so a long-running daemon's in-memory
+    /// store stays current with writes from sibling processes
+    /// (e.g. `storehouse sleep` dispatching EnterSleep against a
+    /// heki the run-loop daemon will read on its next tick).
+    ///
+    /// **Opt-in via `HECKS_REFRESH_REPOS=1`** — refresh is off by
+    /// default. Production daemons (mindstream / long-running
+    /// run-loops) set the env var to pick up cross-process state.
+    /// Single-process smoke tests and one-shot dispatches leave it
+    /// off so refresh doesn't interact with their in-memory cascade
+    /// state (e.g. by re-reading partially-written counter-minted
+    /// records and mid-cascade breaking singleton fallback ; see
+    /// dream_content_smoke flakiness 2026-05-09).
+    ///
+    /// Cost when on : one stat() per repo per tick when nothing
+    /// changed ; per-repo refresh_from_heki gates the actual read
+    /// on mtime advance.
+    /// Cost when off : zero — the function returns immediately.
+    /// Closes the i517 root cause for the production-daemon path.
+    pub fn refresh_repositories_from_heki(&mut self) {
+        if std::env::var("HECKS_REFRESH_REPOS").ok().as_deref() != Some("1") {
+            return;
+        }
+        for repo in self.repositories.values_mut() {
+            repo.refresh_from_heki();
+        }
+    }
+
+    /// Warm-serve freshness sweep — refresh ONLY the repos already
+    /// hydrated in this resident process. Sibling to
+    /// `refresh_repositories_from_heki`, with two deliberate
+    /// differences that make it the right primitive for `serve` mode :
+    ///
+    ///   1. **No env gate.** `serve` calls this unconditionally before
+    ///      every dispatch. The `HECKS_REFRESH_REPOS=1` guard on the
+    ///      sibling exists to keep one-shot CLI dispatches and in-memory
+    ///      smoke tests from re-reading mid-cascade ; a resident server
+    ///      that answers from a warm runtime must ALWAYS reconcile with
+    ///      disk first, because daemons (heart/breath) write `.heki`
+    ///      concurrently between requests.
+    ///
+    ///   2. **Hydrated-only.** `LazyRepository::refresh_from_heki` forces
+    ///      `repo_mut()` → `get_or_init` → hydration. Sweeping ALL repos
+    ///      would hydrate every aggregate on the first request and throw
+    ///      away the lazy-boot win this whole feature is built on. We
+    ///      filter on `is_hydrated()` : a repo that's never been touched
+    ///      stays cold (and, when it IS first touched by a later
+    ///      dispatch, the OnceCell init reads current disk by
+    ///      definition — so cold repos are fresh for free). Only the
+    ///      handful of repos this process has actually served pay the
+    ///      one `stat()` per request ; the mtime gate inside
+    ///      `refresh_from_heki` skips the re-read when disk is unchanged.
+    ///
+    /// This is THE correctness crux of warm serve : the IR stays warm
+    /// (the boot is paid once) but the touched aggregate's STATE is
+    /// never stale.
+    pub fn refresh_hydrated_repositories_from_heki(&mut self) {
+        for repo in self.repositories.values_mut() {
+            if repo.is_hydrated() {
+                repo.refresh_from_heki();
+            }
+        }
+    }
 }
