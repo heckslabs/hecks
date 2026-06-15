@@ -18,6 +18,7 @@ pub mod command_dispatch;
 pub mod event_driving;
 pub mod interpreter;
 pub mod persistence_resolution;
+pub mod query;
 pub mod reaction;
 pub mod root;
 pub mod split_file;
