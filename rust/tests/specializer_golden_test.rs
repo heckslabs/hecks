@@ -967,6 +967,34 @@ fn wrangler_toml_emitter_matches_committed_deployment_toml() {
 }
 
 #[test]
+fn event_driving_file_split_is_byte_identical() {
+    // runtime-as-bluebook strangler — cluster 4 file-split (event/outbox
+    // driving), built on the generalized `split_file` helper + `SplitMethod`
+    // rows. enqueue_and_drain + fire_driving_cron_ticks live ONLY in the
+    // generated file ; this LIVE golden keeps the bluebook shape ≡ Rust.
+    let root = repo_root();
+    let bin = root.join("rust/target/release/storehouse");
+    assert!(bin.exists(), "storehouse binary missing — build release first");
+    let output = Command::new(&bin)
+        .args(["specialize", "event_driving"])
+        .current_dir(&root)
+        .output()
+        .expect("storehouse specialize event_driving failed");
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr),
+    );
+    let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
+    let tracked = fs::read_to_string(root.join("rust/src/runtime/event_driving.rs"))
+        .expect("runtime/event_driving.rs missing");
+    assert_eq!(
+        generated, tracked,
+        "event_driving.rs drifted from its runtime_shape SplitMethod rows",
+    );
+}
+
+#[test]
 fn persistence_resolution_file_split_is_byte_identical() {
     // runtime-as-bluebook strangler — the FILE-SPLIT (machinery cost #2).
     // The persistence-resolution `impl Runtime` methods moved OUT of
