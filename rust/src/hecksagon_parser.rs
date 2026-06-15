@@ -158,6 +158,20 @@ pub fn parse(source: &str) -> Hecksagon {
             continue;
         }
 
+        // bucket-3 step 2 — the hexagon bind surface
+        // `Aggregate::Path.verb("Adapter"[, on: "Event"])`. Its leading FQN varies,
+        // so it dispatches on a STRUCTURAL predicate (is_binding_line) rather than a
+        // fixed starts_with prefix. Ordered LAST so every keyword line is consumed
+        // by an earlier dispatch first ; only genuine bind lines fall through to the
+        // predicate. Reuses multiline_block : parse_binding returns
+        // (Option<Binding>, 1), always consuming exactly one line.
+        if is_binding_line(line) {
+            let (gate, consumed) = parse_binding(&raw[i..]);
+            if let Some(g) = gate { hex.bindings.push(g); }
+            i += consumed;
+            continue;
+        }
+
         i += 1;
     }
 
@@ -845,4 +859,42 @@ fn parse_adapter_decl(lines: &[&str]) -> (Option<Adapter>, usize) {
         i += 1;
     }
     (Some(adapter), i)
+}
+
+/// bucket-3 step 2 — true when a line is a hexagon bind
+/// `Aggregate::Path.verb(...)`. Structural predicate for the
+/// condition_kind: predicate dispatch (the leading FQN varies, so no
+/// fixed starts_with prefix fits).
+fn is_binding_line(line: &str) -> bool {
+    let t = line.trim();
+    match t.find("::") {
+        Some(idx) if idx > 0 => {
+            let head = &t[..idx];
+            head.starts_with(|c: char| c.is_ascii_uppercase())
+                && head.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+                && t.contains('.')
+                && t.contains('(')
+        }
+        _ => false,
+    }
+}
+
+/// bucket-3 step 2 — decompose one bind line `aggregate . verb (
+/// "adapter" [, on: "event"] )` into a Binding. Returns the Binding and
+/// 1 (always consumes a single line, so it slots into multiline_block).
+fn parse_binding(lines: &[&str]) -> (Option<Binding>, usize) {
+    let t = lines[0].trim();
+    let paren = match t.find('(') { Some(p) => p, None => return (None, 1) };
+    let head = &t[..paren];
+    let dot = match head.rfind('.') { Some(d) => d, None => return (None, 1) };
+    let aggregate = head[..dot].trim().to_string();
+    let verb = head[dot + 1..].trim().to_string();
+    if aggregate.is_empty() || verb.is_empty() { return (None, 1); }
+    let args = &t[paren + 1..];
+    let adapter = between_quotes(args).unwrap_or_default();
+    let on = match args.find("on:") {
+        Some(idx) => between_quotes(&args[idx..]).unwrap_or_default(),
+        None => String::new(),
+    };
+    (Some(Binding { aggregate, verb, adapter, on }), 1)
 }
