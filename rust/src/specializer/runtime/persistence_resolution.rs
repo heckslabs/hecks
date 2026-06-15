@@ -46,6 +46,15 @@ const HEADER: &str = r#"//! Runtime persistence resolution (i728) — the backen
 
 use super::*;
 
+// apply_sqlite_persistence is the only #[cfg(not(wasm32))] method here and the
+// only user of these two ; gate the imports to match so the wasm build carries
+// no unused-import warning. Everything else resolves through the `super::*`
+// glob (BackendInfo, LazyRepository, repo_key, the pub sqlite_* modules).
+#[cfg(not(target_arch = "wasm32"))]
+use std::collections::HashMap;
+#[cfg(not(target_arch = "wasm32"))]
+use super::lazy_repository;
+
 "#;
 
 pub fn emit(repo_root: &Path) -> Result<String, Box<dyn Error>> {
