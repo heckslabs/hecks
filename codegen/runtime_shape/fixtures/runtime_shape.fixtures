@@ -385,5 +385,21 @@ Hecks.fixtures "RuntimeShape" do
       body_kind: "verbatim_method",
       snippet_path: "codegen/runtime_shape/snippets/resolution_apply_sqlite_persistence.rs.frag",
       description: "Runtime::apply_sqlite_persistence — the keystone i735 resolver : rebuild on the SQL backend ONLY aggregates whose governing hecksagon declares :sqlite (scoped by context). EAGER, fallible, refuses LOUDLY. THE method Phase C edits. #[cfg(not(wasm32))] — its HashMap + lazy_repository imports are cfg-gated in the file header to match."
+
+    fixture "RefreshRepositoriesFromHeki",
+      name: "refresh_repositories_from_heki",
+      file: "persistence_resolution",
+      order: 4,
+      body_kind: "verbatim_method",
+      snippet_path: "codegen/runtime_shape/snippets/resolution_refresh_repositories_from_heki.rs.frag",
+      description: "Runtime::refresh_repositories_from_heki — RefreshOnPulse policy floor ; reload every repo from disk when a sibling process advanced its heki mtime. Opt-in via HECKS_REFRESH_REPOS=1."
+
+    fixture "RefreshHydratedRepositoriesFromHeki",
+      name: "refresh_hydrated_repositories_from_heki",
+      file: "persistence_resolution",
+      order: 5,
+      body_kind: "verbatim_method",
+      snippet_path: "codegen/runtime_shape/snippets/resolution_refresh_hydrated_repositories_from_heki.rs.frag",
+      description: "Runtime::refresh_hydrated_repositories_from_heki — warm-serve freshness sweep ; refresh ONLY already-hydrated repos (no env gate, no cold-repo hydration). THE correctness crux of warm serve."
   end
 end
