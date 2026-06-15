@@ -649,14 +649,18 @@ Hecks.behaviors "Plan" do
     expect state: "started"
   end
 
-  # Board query : runtime enforces the STATE-SET filter via WhereOp::In
-  # (where state: { in: [untasked, tasked, started, ready_for_review] }).
-  # The active-sprint membership half stays projector-side until its
-  # cross-aggregate WhereOp lands.
+  # Board query : both filters are now aggregate-LOCAL reads on Story state —
+  # the state-set filter (where state: { in: [...] }, WhereOp::In) AND the
+  # active-sprint membership (where sprint_active: true, the replicated local
+  # flag MarkSprintActive sets, the read-side twin of the Story.Start gate).
+  # So a board story must be in an active sprint : Capture seeds it untasked
+  # with sprint_active=false, then MarkSprintActive (what the seed_sprint_active
+  # adapter fires on SprintActivated) flips the flag so it appears on the board.
 
   test "Board includes an untasked story" do
     tests "Board", on: "Story", kind: :query
     setup  "Capture", ref: "bd1", title: "B1", tier: 1, summary: "s", target: "t", project: "plan"
+    setup  "MarkSprintActive", ref: "bd1"
     expect includes: { ref: "bd1", state: "untasked" }
   end
 
@@ -664,6 +668,7 @@ Hecks.behaviors "Plan" do
     tests "Board", on: "Story", kind: :query
     setup  "Capture", ref: "bd2", title: "B2", tier: 1, summary: "s", target: "t", project: "plan"
     setup  "Tasked",  ref: "bd2"
+    setup  "MarkSprintActive", ref: "bd2"
     expect includes: { ref: "bd2", state: "tasked" }
   end
 
