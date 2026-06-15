@@ -72,8 +72,9 @@ pub fn render_table(rows: &[Row], orphans: &[String], info_dir: &str) -> String 
         }
     }
     s.push_str(
-        "\nnote: :memory is INERT until apply_memory_persistence lands (Phase B step 0) —\n\
-         every unwired AND every declared-:memory aggregate resolves to heki TODAY.\n",
+        "\nnote: declared :memory now resolves to Backend::Memory (apply_memory_persistence,\n\
+         the i728 keystone). UNWIRED still falls through to the implicit heki default\n\
+         until the Phase C strict flip — the 'unwired → default' rows above are heki TODAY.\n",
     );
     s
 }

@@ -402,6 +402,14 @@ Hecks.fixtures "RuntimeShape" do
       snippet_path: "codegen/runtime_shape/snippets/resolution_refresh_hydrated_repositories_from_heki.rs.frag",
       description: "Runtime::refresh_hydrated_repositories_from_heki — warm-serve freshness sweep ; refresh ONLY already-hydrated repos (no env gate, no cold-repo hydration). THE correctness crux of warm serve."
 
+    fixture "ApplyMemoryPersistence",
+      name: "apply_memory_persistence",
+      file: "persistence_resolution",
+      order: 6,
+      body_kind: "verbatim_method",
+      snippet_path: "codegen/runtime_shape/snippets/resolution_apply_memory_persistence.rs.frag",
+      description: "Runtime::apply_memory_persistence — the keystone : rebuild on the explicit Backend::Memory ONLY aggregates whose hecksagon declares :memory (scoped by context, mirroring apply_sqlite_persistence). Makes :memory actually select memory (was INERT, fell through to the heki default). NOT cfg-gated — memory is host- and wasm-valid."
+
     # file: event_driving — cluster 4 (event/outbox driving). The runtime's
     # event-advancement surface OUTSIDE the main dispatch path.
     fixture "EnqueueAndDrain",

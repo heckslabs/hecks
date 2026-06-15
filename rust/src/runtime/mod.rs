@@ -358,6 +358,11 @@ impl Runtime {
         // runs the in-memory repository (the rusqlite dep is gated out).
         #[cfg(not(target_arch = "wasm32"))]
         rt.apply_sqlite_persistence();
+        // i728 keystone — make `adapter :memory` actually select Backend::Memory.
+        // Until this ran, :memory was inert : a declared-:memory aggregate fell
+        // through to the implicit heki default, indistinguishable from unwired.
+        // Ungated — memory is host- AND wasm-valid, so it runs on every target.
+        rt.apply_memory_persistence();
         rt
     }
 

@@ -1,21 +1,18 @@
-//! Phase-A persistence-enforcement gate (i728) — the EMPTY-diff invariant.
+//! Persistence backend-map gate (i728) — backend resolution at boot.
 //!
 //! [antibody-exempt: rust/tests/backend_map_phase_a_test.rs — infrastructure
 //!  test asserting LazyRepository backend resolution at boot, like
 //!  sqlite_scope_test.rs / persistence_recovery_test.rs (both exempt) ;
 //!  behaviours suites are pure-memory and cannot observe per-repo backend kind.]
 //!
-//! The keystone change (removing the parser's `None→"memory"` normalization) is
-//! ADDITIVE : `apply_memory_persistence` is NOT wired until Phase B, so an
-//! explicit `adapter :memory` must NOT flip its repository to `Backend::Memory`.
-//! No production aggregate changes backend in Phase A — proven here by booting
-//! the real conception with a `:memory` hecksagon attached and asserting that
-//! `dump_backend_map()` reports ZERO memory-backed repositories. A non-empty
-//! memory set is an automatic stop, not a reviewable gate.
-//!
-//! `dump_backend_map()` / `backend_kind()` / `heki_path()` are the read-only
-//! introspection Phase B's classification surface and Phase C's resolution
-//! rewrite build on ; this test also pins their correctness.
+//! The i728 keystone — `apply_memory_persistence` — is now WIRED : an explicit
+//! `adapter :memory` selects `Backend::Memory` for its OWN context (scoped by
+//! `agg.context == hecksagon.name`, the same match `:sqlite` uses), and ONLY
+//! that context. Proven by booting the real conception with a `:memory`
+//! hecksagon attached and asserting only that context flips ; everything else
+//! keeps the heki default `boot_with_data_dir` built. The remaining tests pin
+//! the `dump_backend_map()` / `backend_kind()` / `heki_path()` / `unwired`
+//! introspection surface Phase C's resolution rewrite builds on.
 
 use storehouse::corpus_loader::load_combined_domain;
 use storehouse::hecksagon_parser;
@@ -25,13 +22,13 @@ fn aggregates_dir() -> String {
     format!("{}/../hecks_conception/aggregates", env!("CARGO_MANIFEST_DIR"))
 }
 
-// An explicit `adapter :memory` for the Inbox context — one of the 14 real
-// :memory hecksagons. In Phase A this must stay INERT : memory-selection is not
-// wired, so Inbox keeps the heki default rather than flipping to Backend::Memory.
+// An explicit `adapter :memory` for the Inbox context. Now that
+// apply_memory_persistence is wired, this flips the Inbox repository to
+// Backend::Memory — overriding the heki default boot_with_data_dir built.
 const INBOX_MEMORY_HEX: &str = "Hecks.hecksagon \"Inbox\" do\n  adapter :memory\nend\n";
 
 #[test]
-fn explicit_memory_does_not_flip_backend_in_phase_a() {
+fn explicit_memory_flips_only_its_own_context() {
     let domain = load_combined_domain(&aggregates_dir());
     let rt = Runtime::boot_with_hecksagons(
         domain,
@@ -39,16 +36,18 @@ fn explicit_memory_does_not_flip_backend_in_phase_a() {
         vec![hecksagon_parser::parse(INBOX_MEMORY_HEX)],
     );
 
+    // apply_memory_persistence flips the :memory-declared context to memory —
+    // and ONLY that context. The whole-map filter is the scoping guard.
     let map = rt.dump_backend_map();
     let memory_backed: Vec<&str> = map
         .iter()
         .filter(|b| b.kind == BackendKind::Memory)
         .map(|b| b.repo_key.as_str())
         .collect();
-    assert!(
-        memory_backed.is_empty(),
-        "Phase A must flip NO aggregate to Backend::Memory until Phase B wires \
-         apply_memory_persistence (found: {memory_backed:?})",
+    assert_eq!(
+        memory_backed,
+        vec!["Inbox::Inbox"],
+        "only the :memory-declared Inbox context flips to Backend::Memory",
     );
 }
 
