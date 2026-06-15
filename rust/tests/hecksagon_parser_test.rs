@@ -107,6 +107,44 @@ fn parses_adapter_decl_with_family() {
     assert_eq!(ad.family, "persistence");
 }
 
+// bucket-3 step 2 — the hexagon bind surface parses into Binding IR.
+// reply ports carry no `on` ; effect ports carry the triggering event.
+// The aggregate FQN keeps its `::` ; the verb is the segment after the
+// last `.` before `(`.
+const PIZZAS_BINDS: &str = r#"Hecks.hecksagon "Pizzas" do
+  Pizzas::Pizza.persisted_by("Heki")
+  Pizzas::Order.persisted_by("Heki")
+  Pizzas::Order.charged_by("Stripe", on: "OrderPlaced")
+end
+"#;
+
+#[test]
+fn parses_reply_and_effect_bindings() {
+    let hex = hecksagon_parser::parse(PIZZAS_BINDS);
+    assert_eq!(hex.name, "Pizzas");
+    assert_eq!(hex.bindings.len(), 3, "expected three binds");
+
+    let reply = &hex.bindings[0];
+    assert_eq!(reply.aggregate, "Pizzas::Pizza");
+    assert_eq!(reply.verb, "persisted_by");
+    assert_eq!(reply.adapter, "Heki");
+    assert_eq!(reply.on, "", "a reply port carries no triggering event");
+
+    let effect = &hex.bindings[2];
+    assert_eq!(effect.aggregate, "Pizzas::Order");
+    assert_eq!(effect.verb, "charged_by");
+    assert_eq!(effect.adapter, "Stripe");
+    assert_eq!(effect.on, "OrderPlaced", "an effect port carries its triggering event");
+}
+
+// bucket-3 step 2 — the predicate must NOT misfire on keyword forms. A
+// keyword-heavy hecksagon (adapters + gates + shell) yields zero binds.
+#[test]
+fn binding_predicate_ignores_keyword_lines() {
+    let hex = hecksagon_parser::parse(ANTIBODY);
+    assert!(hex.bindings.is_empty(), "keyword-only hecksagon has no binds");
+}
+
 #[test]
 fn parses_antibody_to_seven_shell_adapters() {
     let hex = hecksagon_parser::parse(ANTIBODY);

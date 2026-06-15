@@ -174,8 +174,7 @@ fn emit_parse(parser: &Fixture, dispatches: &[&Fixture]) -> String {
 }
 
 fn emit_dispatch_block(dispatch: &Fixture) -> String {
-    let starts_with = util::attr(dispatch, "starts_with");
-    let condition = dispatch_condition(starts_with);
+    let condition = dispatch_condition(dispatch);
     let body = dispatch_body_lines(dispatch);
     let mut lines: Vec<String> = Vec::new();
     // Phase 1 of adapter-family activation : a fixture may carry an
@@ -201,9 +200,21 @@ fn emit_dispatch_block(dispatch: &Fixture) -> String {
     out
 }
 
-fn dispatch_condition(starts_with: &str) -> String {
-    starts_with
-        .split(',')
+fn dispatch_condition(dispatch: &Fixture) -> String {
+        // Default condition is `line.starts_with(<prefix>)` (a comma-joined
+        // OR-chain when several prefixes share a handler). A row may instead
+        // declare `condition_kind: "predicate"` + `condition_fn: <helper>`
+        // to dispatch on a STRUCTURAL match the helper computes — used for
+        // the hexagon bind surface (`Aggregate::Path.verb(...)`), whose
+        // leading FQN varies so no fixed prefix exists. This is the ONE
+        // generic branch ; every existing row omits condition_kind and keeps
+        // the starts_with path byte-for-byte.
+        if util::attr(dispatch, "condition_kind") == "predicate" {
+            let helper = util::attr(dispatch, "condition_fn");
+            return format!("{helper}(line)");
+        }
+        util::attr(dispatch, "starts_with")
+            .split(',')
         .map(|p| {
             // Escape embedded `"` so prefixes like `adapter "` (the Sprint
             // 14 quoted-name DrivenAdapter form) emit as valid Rust string

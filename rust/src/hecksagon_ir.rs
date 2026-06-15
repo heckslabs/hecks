@@ -118,6 +118,14 @@ pub struct Hecksagon {
     /// Each `*.adapter` file parses to one Hecksagon carrying a single
     /// Adapter.
     pub adapters: Vec<Adapter>,
+    /// bucket-3 — `Aggregate.verb("Adapter"[, on: "Event"])` hexagon binds
+    /// lifted off a `.hecksagon` : the composition line that hangs a
+    /// how-verb off an aggregate FQN and names the adapter it resolves
+    /// through. reply ports carry no `on` ; effect ports carry the
+    /// triggering event. Step 2 PARSES these ; the typed attach checkpoint
+    /// (adapter→family→verb) and the dispatch-time consult land in later
+    /// bucket-3 steps.
+    pub bindings: Vec<Binding>,
 }
 
 /// bucket-3 — a `*.family` declaration. A family is an impure-boundary
@@ -147,6 +155,27 @@ pub struct Adapter {
     pub name: String,
     /// The family this adapter implements (`persistence` / `payment`).
     pub family: String,
+}
+
+/// bucket-3 — one hexagon bind decomposed as `aggregate . verb ( adapter
+/// [, on: event] )`. The composition line names verbs, ports, and
+/// adapters ; it never names a value (per-deployment values live in
+/// `.world`). reply ports leave `on` empty ; effect ports carry the
+/// triggering event.
+#[derive(Debug, Clone, Default)]
+pub struct Binding {
+    /// The aggregate FQN the how-verb hangs off (`Pizzas::Order`).
+    pub aggregate: String,
+    /// The how-verb — the FAMILY the bind resolves through
+    /// (`persisted_by` → persistence, `charged_by` → payment).
+    pub verb: String,
+    /// The adapter the bind names (`Heki` / `Stripe`) — the positional
+    /// quoted argument. The typed attach checkpoint (later step) verifies
+    /// this adapter's family carries `verb`.
+    pub adapter: String,
+    /// The triggering event for an effect port (`on: "OrderPlaced"`).
+    /// Empty for a reply port, which returns rather than round-trips.
+    pub on: String,
 }
 
 /// Sprint 14 sibling of `DrivenAdapter` — externally-triggered adapter

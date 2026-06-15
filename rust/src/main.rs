@@ -2970,6 +2970,12 @@ fn dump_hecksagon_json(hex: &storehouse::hecksagon_ir::Hecksagon) -> serde_json:
         })).collect();
         obj["adapters"] = serde_json::json!(adapters);
     }
+    if !hex.bindings.is_empty() {
+        let bindings: Vec<serde_json::Value> = hex.bindings.iter().map(|b| serde_json::json!({
+            "aggregate": b.aggregate, "verb": b.verb, "adapter": b.adapter, "on": b.on,
+        })).collect();
+        obj["bindings"] = serde_json::json!(bindings);
+    }
     obj
 }
 
@@ -3277,9 +3283,10 @@ fn load_all_hecksagons(agg_dir: &str) -> Vec<storehouse::hecksagon_ir::Hecksagon
     if std::env::var("HECKS_STOREHOUSE_VERBOSE").ok().as_deref() == Some("1") {
         let families: usize = out.iter().map(|h| h.families.len()).sum();
         let adapters: usize = out.iter().map(|h| h.adapters.len()).sum();
+        let bindings: usize = out.iter().map(|h| h.bindings.len()).sum();
         eprintln!(
-            "[load_all_hecksagons] {} hecksagons, {} families, {} adapters",
-            out.len(), families, adapters
+            "[load_all_hecksagons] {} hecksagons, {} families, {} adapters, {} bindings",
+            out.len(), families, adapters, bindings
         );
     }
     out
