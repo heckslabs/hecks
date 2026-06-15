@@ -1,27 +1,29 @@
 Hecks.world "Pizzas" do
-  # WHERE the async boundary's two sides live for this deployment.
-  #
-  # The .hecksagon declares the WIRING (Order emits OrderPlaced → the
-  # payment_gateway adapter charges → verdict re-enters as Authorize /
-  # Decline). This .world supplies the LOCATION + the retry budget —
-  # the per-deployment knobs the domain must never see. Same split as
-  # the planning domain : adapter in the hecksagon, dir in the world.
+  # The per-deployment VALUES the bound adapters need — and ONLY values. The
+  # .hecksagon names WHICH adapter fills each port ; this file says WHERE and
+  # HOW HARD : the knobs the synchronous domain must never see. Swap this world
+  # — same domain, same composition, different deployment. Each block is keyed
+  # by the adapter it configures.
 
-  # WHERE orders persist. memory is the runtime default (behaviors run
-  # here, no disk) ; this is the production override location the :heki
-  # adapter writes to.
+  # The Heki persistence adapter  (Pizzas::Pizza / Pizzas::Order persisted_by "Heki").
+  #
+  # The .world is the SINGLE source of the store location — there is no
+  # environment variable. The adapter writes <dir>/<domain>/<aggregate>.heki,
+  # so this deployment lands at
+  #   ~/.heki/pizzas/pizza.heki   and   ~/.heki/pizzas/order.heki
+  # (Behaviors run in memory — no disk — because no world is loaded under
+  # test ; this is the production location.)
   heki do
-    dir "pizzas/.heki"
+    dir "~/.heki"
   end
 
-  # WHERE the payment gateway is, and how hard the adapter tries.
-  # The endpoint token is read from ENV at dispatch — never stored in
-  # the bluebook. Absent ENV means the charge is recorded but the
-  # transport is skipped (honest gating), exactly like the MCP world.
-  # latency / retries / backoff are the async concerns that live ONLY
-  # at this edge ; the domain's Authorize / Decline commands know none
-  # of them.
-  gateway do
+  # The Stripe payment adapter  (Pizzas::Order charged_by "Stripe").
+  #
+  # WHERE the gateway is, the ENV NAME of the secret token (the secret itself
+  # never lives in a bluebook — only its name does), and how hard the async
+  # adapter tries. latency / retries / backoff are edge-only concerns ; the
+  # domain's Authorize / Decline commands know none of them.
+  stripe do
     endpoint_env "PIZZAS_PAYMENT_ENDPOINT"
     token_env    "PIZZAS_PAYMENT_TOKEN"
     timeout_ms   3000

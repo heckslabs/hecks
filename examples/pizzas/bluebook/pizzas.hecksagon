@@ -1,55 +1,50 @@
+# The Pizzas hexagon — the ports-and-adapters ring around a synchronous
+# domain core. Everything INSIDE the boundary (pizzas.bluebook) is ONE
+# synchronous domain ; everything that LEAVES it is an ASYNCHRONOUS adapter,
+# and the colour is never declared — the boundary itself decides it
+# (two-color rule : domain sync always, adapter async always).
+#
+# An aggregate IS the port : its commands-in and events-out — declared in
+# pizzas.bluebook — ARE the contract. A port is not a separate concept and
+# is never re-declared here. This file wires only the edges that LEAVE the
+# domain : the impure adapters. Intra-domain aggregate calls are handled by
+# naming convention and never appear in the hexagon.
+#
+# One line of composition decomposes as  aggregate . port ( adapter ) :
+#
+#     Pizzas::Order . persisted_by ( "Heki" )
+#        aggregate       how-verb      adapter
+#
+# The how-verb (persisted_by, charged_by) names the FAMILY the bind resolves
+# through ; the adapter declares which family it implements (the inverted
+# arrow), so the bind type-checks against the family at attach. Per-deployment
+# VALUES — the heki dir, the gateway endpoint + retry budget — live in
+# pizzas.world, never here. Composition names verbs, ports, and adapters ;
+# it never names a value.
 Hecks.hecksagon "Pizzas" do
-  capabilities :crud
 
-  # ============================================================
-  # The async boundary — declared here, never in the domain.
-  # ============================================================
-  #
-  # The Order aggregate's domain logic (pizzas.bluebook) is purely
-  # synchronous : PlaceOrder validates and emits OrderPlaced, full
-  # stop. The CHARGE — a remote call with latency, timeouts, retries,
-  # a flaky gateway — lives entirely in this one adapter. The verdict
-  # re-enters the domain as a plain Order.Authorize / Order.Decline
-  # command (the result_into shape). No tokio, no Mutex, no channel
-  # ever reaches aggregate code ; the adapter owns all of it.
-  #
-  # WHERE the gateway lives (endpoint, timeout, retry budget) is
-  # per-deployment config — it lives in pizzas.world, not here. This
-  # hecksagon declares the WIRING shape ; the world supplies the
-  # location. Same split as :heki (adapter here, dir in .world).
-  #
-  # The adapter IS this declaration — the hecksagon wraps the impure
-  # call. The :shell adapter runs bin/charge-gateway (the impure edge :
-  # the actual remote charge) when OrderPlaced fires, and folds the
-  # verdict back in as Order.Authorize / Order.Decline. No handwritten
-  # Rust, no generated bridge ; the wrapping lives here, in the bluebook.
-  adapter :shell, name: :payment_gateway,
-          trigger_on: "OrderPlaced",
-          result_into: "Order.Authorize | Order.Decline",
-          command: "bin/charge-gateway",
-          args: ["{{ref}}", "{{quantity}}"]
+  # ── REPLY PORT · persistence ────────────────────────────────────────
+  # Disk IO is impure, so persistence is an adapter. `persisted_by` belongs
+  # to the persistence family, whose signal is REPLY : the domain sees a
+  # plain find/save that RETURNS a value. A reply port carries no triggering
+  # event — it returns, it does not round-trip. WHERE the Heki adapter writes
+  # (the .heki dir) is configuration in pizzas.world. Swap "Heki" for another
+  # persistence-family adapter and the domain never notices.
+  Pizzas::Pizza.persisted_by("Heki")
+  Pizzas::Order.persisted_by("Heki")
 
-  # ============================================================
-  # Persistence — the ADAPTER specifies the port ; the world configures it.
-  # ============================================================
-  #
-  # The Order / Pizza aggregates (pizzas.bluebook) talk to the persistence
-  # PORT (back_aggregate_storage) ; the BLUEBOOK never names a store. THIS
-  # hecksagon — the wiring, not the domain — binds the port to :heki. WHICH
-  # store is the adapter's job ; the per-deployment VALUE (the .heki dir) is
-  # CONFIG in pizzas.world (heki do dir "pizzas/.heki" end). Same split as
-  # the payment adapter : adapter here, endpoint/timeout in the world.
-  # Default (no persistence adapter) is memory + sync ; :heki / :sqlite are
-  # the overrides. Swap stores by changing this one line.
-  adapter :heki
+  # ── EFFECT PORT · payment ───────────────────────────────────────────
+  # The charge is a remote call — latency, retries, a flaky gateway — impure
+  # AND async, so an adapter. `charged_by` belongs to the payment family,
+  # whose signal is EFFECT : the whole round-trip rides ONE verb. The Order
+  # emits OrderPlaced (the inbound edge, `on:`) ; the Stripe adapter does the
+  # external IO ; then it routes its verdict back through the hexagon via
+  # storehouse as Order.Authorize | Order.Decline — own-domain commands the
+  # binding never has to name (the adapter holds the dispatch target). The
+  # domain stays purely synchronous : it announces OrderPlaced and later
+  # receives Authorize or Decline, knowing nothing of the gateway. The adapter
+  # is named for its identity (the payment provider) — not its transport ;
+  # WHERE the gateway is and how hard it tries live in pizzas.world.
+  Pizzas::Order.charged_by("Stripe", on: "OrderPlaced")
 
-  # ============================================================
-  # Reporting — a distinct adapter off the render_report port.
-  # ============================================================
-  #
-  # The domain declares the QUERY (Order.Pending) ; it is format-blind. The
-  # ADAPTER is the format : :html serves the pending-orders report at /orders,
-  # its sibling :markdown would render the SAME query as markdown (a chained
-  # report). Presentation is not domain — the bluebook never knows about HTML.
-  adapter :html, query: "Pizzas::Order.pending", get: "/orders"
 end

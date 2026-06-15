@@ -1,5 +1,7 @@
 Hecks.bluebook "Hexagon", version: "2026.06.12.4" do
-  vision "A domain's boundary wiring — the ports it exposes and the adapters that fulfil them. Everything inside the boundary is one synchronous domain ; everything that leaves it is an asynchronous adapter, and the colour is never declared because the boundary itself decides it.
+  vision "A domain's boundary wiring — the ports it exposes and the adapters that fulfil them. Everything inside the boundary is one synchronous domain ; everything that leaves it is an asynchronous adapter, and the colour is never declared because the boundary itself decides it. The domain NEVER locks — no Mutex, no contention — because every async concern lives at the adapter edge, never in the synchronous core.
+
+  This is non-blocking BY CONSTRUCTION, not by convention. Three structural properties make it impossible for an adapter to block the domain or a sibling : (1) no state is shared across the boundary — each aggregate-actor and each adapter owns its own — so no lock can exist, there is simply nothing to guard ; (2) every edge is an async message (event out, command in) — the domain never holds a reference to an adapter and waits on it, so the wait-path does not exist ; (3) the domain projects to sync functions with no async or lock primitive in scope, so the compiler itself refuses a blocking domain. The reply signal looks synchronous but is not : the runtime hydrates state BEFORE the sync core runs and persists AFTER it returns, so find/save is an in-memory touch, never a mid-logic IO wait. An adapter may be SLOW — IO takes time, bounded by the family's timeout — but slow never propagates : it stalls only its own task.
 
   A port is not a separate concept : an aggregate IS the port — its commands-in and events-out ARE the contract. The domain handles its own intra-domain aggregate calls by naming convention, so the hexagon wires only the edges that LEAVE the domain, never the ones inside it.
 
@@ -73,8 +75,15 @@ Hecks.bluebook "Hexagon", version: "2026.06.12.4" do
     end
 
     value_object "Signal" do
-      # "reply"  — returns a value to the sync domain (persistence).
-      # "effect" — event out, async verdict re-enters as a command.
+      # Both signals are non-blocking BY CONSTRUCTION — the domain never waits
+      # on an adapter.
+      # "reply"  — returns a value to the sync domain (persistence). The wait
+      #            is structurally removed : the runtime hydrates state BEFORE
+      #            the sync core runs and persists AFTER it returns, so find /
+      #            save is an in-memory touch, never a mid-logic IO wait.
+      # "effect" — event out, async verdict re-enters as a command. The edge is
+      #            a message round-trip, never a synchronous call, so the
+      #            domain announces and moves on — it never blocks on the verdict.
       attribute :value, String
     end
 

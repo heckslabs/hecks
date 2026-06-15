@@ -1,0 +1,12 @@
+# Stripe — a concrete async PAYMENT adapter. Declares its family (payment) —
+# the inverted arrow. Named for its IDENTITY (the payment gateway), NOT its
+# transport : that an implementation shells out, or speaks HTTP, is a detail of
+# HOW it charges, configured in .world — never the adapter's name. Always async,
+# never locks.
+#
+# The bind `Pizzas::Order.charged_by("Stripe", on: "OrderPlaced")` resolves IFF
+# Stripe's family (payment) carries `charged_by`. Endpoint, token, and the retry
+# budget live in .world.
+Hecks.adapter "Stripe" do
+  family "payment"
+end

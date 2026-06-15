@@ -107,3 +107,14 @@
 #   - hecks_conception/aggregates/discipline/immune_system/macrophage/fixtures/adapter_discipline/negative_success_only_adapter.hecksagon
 #   - hecks_conception/aggregates/discipline/immune_system/macrophage/fixtures/adapter_discipline/negative_callback_adapter.hecksagon
 #   - hecks_conception/aggregates/discipline/immune_system/macrophage/fixtures/adapter_discipline/negative_opt_in_idempotent.hecksagon
+
+# ── 2026-06-15 — pizzas.hecksagon : the ports-and-adapters surface ──
+# pizzas.hecksagon is the north-star for the locked aggregate-as-port design
+# (Pizzas::Order.persisted_by("Heki") / charged_by("Stripe", on: "OrderPlaced")).
+# The Rust parser TOLERATES the FQN-verb surface (captures/ignores it for now) ;
+# the legacy Ruby HecksagonBuilder ERRORS — it resolves `Pizzas::Order` as a Ruby
+# constant (AnnotationSelector) and has no `.persisted_by` verb. Ruby is being
+# retired ; the Rust runtime is the one that matters. The drift retires when the
+# hecksagon parser lift teaches the surface and resolves the binds (load the
+# framework families/adapters, type-check the attach).
+examples/pizzas/bluebook/pizzas.hecksagon  # ports-and-adapters surface — legacy Ruby parser errors on Pizzas::Order.persisted_by ; retires when the hecksagon parser lift lands

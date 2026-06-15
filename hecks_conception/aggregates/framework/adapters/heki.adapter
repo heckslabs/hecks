@@ -1,0 +1,12 @@
+# Heki — a concrete async PERSISTENCE adapter. The contract : it DECLARES the
+# family it implements (the inverted arrow) ; the family never names it. Always
+# async, never locks.
+#
+# The bind `Pizzas::Order.persisted_by("Heki")` resolves IFF Heki's declared
+# family (persistence) carries the `persisted_by` verb — the typed attach
+# checkpoint. An adapter whose family lacks the verb fails the attach, loudly,
+# at wiring. Per-deployment values (the store `dir`) live in .world ; the
+# adapter declaration carries no values.
+Hecks.adapter "Heki" do
+  family "persistence"
+end

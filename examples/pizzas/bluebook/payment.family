@@ -1,0 +1,18 @@
+# payment — an impure-boundary PORT, declared once and used across every
+# domain's hexagon. Two-color rule : sync domain, async adapter, NEVER a lock.
+#
+# Signal is EFFECT (not reply) : the aggregate EMITS an event, the adapter does
+# its async external IO, and the verdict RE-ENTERS the same domain as a command.
+# The whole round-trip rides one how-verb — `charged_by` — hung off the
+# aggregate FQN with its triggering event (`on:`). The config FIELDS its
+# adapters carry are named here ; their VALUES live per-deployment in .world.
+# The family never names its adapters (the inverted arrow lives in .adapter).
+Hecks.family "payment" do
+  verb   "charged_by"
+  signal :effect
+  field  :endpoint
+  field  :token
+  field  :timeout_ms
+  field  :retries
+  field  :backoff
+end
