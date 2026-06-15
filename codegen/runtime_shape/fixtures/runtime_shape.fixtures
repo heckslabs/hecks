@@ -445,5 +445,23 @@ Hecks.fixtures "RuntimeShape" do
       body_kind: "verbatim_method",
       snippet_path: "codegen/runtime_shape/snippets/reaction_pump.rs.frag",
       description: "Runtime::pump — drain enqueued reactions to quiescence so eager callers see a settled cascade."
+
+    # file: query — cluster 7. Context-qualified read side : the (context, name)
+    # lookups that disambiguate same-name aggregates across bluebooks (i142).
+    fixture "AllQualified",
+      name: "all_qualified",
+      file: "query",
+      order: 0,
+      body_kind: "verbatim_method",
+      snippet_path: "codegen/runtime_shape/snippets/query_all_qualified.rs.frag",
+      description: "Runtime::all_qualified — context-qualified record retrieval ; goes straight to the (context, name) repo key, bypassing repo_lookup_key's HashMap-iter-order non-determinism (the dream_content_smoke flake fix)."
+
+    fixture "ResolveQueryQualified",
+      name: "resolve_query_qualified",
+      file: "query",
+      order: 1,
+      body_kind: "verbatim_method",
+      snippet_path: "codegen/runtime_shape/snippets/query_resolve_query_qualified.rs.frag",
+      description: "Runtime::resolve_query_qualified — context+aggregate-qualified query resolution (the i142 Context.Aggregate.query frame). resolve_query delegates here with (None, \"\")."
   end
 end
