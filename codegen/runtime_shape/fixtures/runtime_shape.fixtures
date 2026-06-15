@@ -369,5 +369,21 @@ Hecks.fixtures "RuntimeShape" do
       body_kind: "verbatim_method",
       snippet_path: "codegen/runtime_shape/snippets/resolution_unwired_aggregates.rs.frag",
       description: "Runtime::unwired_aggregates — i728 DORMANT is-wired check ; repo_keys of aggregates whose governing hecksagon declares no persistence adapter. Returns Vec<String>."
+
+    fixture "ForceMemoryRepositories",
+      name: "force_memory_repositories",
+      file: "persistence_resolution",
+      order: 2,
+      body_kind: "verbatim_method",
+      snippet_path: "codegen/runtime_shape/snippets/resolution_force_memory_repositories.rs.frag",
+      description: "Runtime::force_memory_repositories — swap every repository for an explicit Backend::Memory wrapper (the behaviors harness path). Safe pre-hydration."
+
+    fixture "ApplySqlitePersistence",
+      name: "apply_sqlite_persistence",
+      file: "persistence_resolution",
+      order: 3,
+      body_kind: "verbatim_method",
+      snippet_path: "codegen/runtime_shape/snippets/resolution_apply_sqlite_persistence.rs.frag",
+      description: "Runtime::apply_sqlite_persistence — the keystone i735 resolver : rebuild on the SQL backend ONLY aggregates whose governing hecksagon declares :sqlite (scoped by context). EAGER, fallible, refuses LOUDLY. THE method Phase C edits. #[cfg(not(wasm32))] — its HashMap + lazy_repository imports are cfg-gated in the file header to match."
   end
 end
