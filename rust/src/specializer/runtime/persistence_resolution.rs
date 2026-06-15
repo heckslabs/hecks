@@ -21,11 +21,9 @@
 //!  kernel-floor retirement contract as its command_dispatch / root siblings ;
 //!  retires at the i78 meta-shape.]
 
-use crate::specializer::util;
+use super::split_file;
 use std::error::Error;
 use std::path::Path;
-
-const SHAPE_REL: &str = "codegen/runtime_shape/fixtures/runtime_shape.fixtures";
 
 const HEADER: &str = r#"//! Runtime persistence resolution (i728) — the backend-map projection read
 //! + the dormant is-wired check. GENERATED from codegen/runtime_shape (the
@@ -58,24 +56,5 @@ use super::lazy_repository;
 "#;
 
 pub fn emit(repo_root: &Path) -> Result<String, Box<dyn Error>> {
-    let shape = repo_root.join(SHAPE_REL);
-    let fixtures = util::load_fixtures(&shape)?;
-    let methods: Vec<_> = util::by_aggregate_sorted(&fixtures, "ResolutionMethod", "order")
-        .into_iter()
-        .filter(|m| util::attr(m, "file") == "persistence_resolution")
-        .collect();
-
-    let mut out = String::from(HEADER);
-    out.push_str("impl Runtime {\n");
-    let last = methods.len().saturating_sub(1);
-    for (i, m) in methods.iter().enumerate() {
-        let snippet_path = repo_root.join(util::attr(m, "snippet_path"));
-        let body = util::read_snippet_raw(&snippet_path)?;
-        out.push_str(&body);
-        if i != last {
-            out.push('\n');
-        }
-    }
-    out.push_str("}\n");
-    Ok(out)
+    split_file::emit(repo_root, "persistence_resolution", HEADER)
 }
