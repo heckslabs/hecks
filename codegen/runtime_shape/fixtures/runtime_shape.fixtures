@@ -416,9 +416,11 @@ Hecks.fixtures "RuntimeShape" do
       name: "fire_driving_cron_ticks",
       file: "event_driving",
       order: 1,
-      body_kind: "verbatim_method",
-      snippet_path: "codegen/runtime_shape/snippets/event_driving_fire_driving_cron_ticks.rs.frag",
-      description: "Runtime::fire_driving_cron_ticks — fire every `driving on cron` adapter handler ; pure delegation to driving_adapter_resolver. Called by LoopDriver::tick_once."
+      body_kind: "delegate",
+      doc: "    /// Sprint 14 — fire every `driving on cron` adapter handler attached\n    /// to this runtime. v1 fires every cron handler unconditionally on\n    /// each call (no expression evaluation yet) ; live `storehouse loop`\n    /// runs invoke this from `LoopDriver::tick_once`, behaviors tests\n    /// invoke it via `kind: :driving_tick`. Pure delegation to the\n    /// resolver module ; kept on Runtime so callers don't need to import\n    /// the resolver path.",
+      signature: "pub fn fire_driving_cron_ticks(&mut self)",
+      delegate_call: "driving_adapter_resolver::fire_driving_cron_ticks(self)",
+      description: "Runtime::fire_driving_cron_ticks — FULLY BLUEBOOK (body_kind: delegate). The whole method is data : doc + signature + delegate_call ; no .rs.frag. Its body bottoms out in the cron adapter resolver (the impure edge) — the literal answer to 'a bluebook body, with adapters'. The first runtime method whose BODY is bluebook."
 
     # file: reaction — cluster 4b. Phase-3 reaction delivery : run the
     # impure adapter edge + policy/PM/driven cascade for a dispatched result.
