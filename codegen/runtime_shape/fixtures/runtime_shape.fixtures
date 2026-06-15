@@ -353,7 +353,7 @@ Hecks.fixtures "RuntimeShape" do
   # `impl Runtime { … }` block, separated by blank lines. verbatim_method :
   # body is the snippet (genuinely-complex logic stays Rust) ; the STRUCTURE
   # (which methods, what order, which file) is the row data here.
-  aggregate "ResolutionMethod" do
+  aggregate "SplitMethod" do
     fixture "DumpBackendMap",
       name: "dump_backend_map",
       file: "persistence_resolution",
@@ -401,5 +401,23 @@ Hecks.fixtures "RuntimeShape" do
       body_kind: "verbatim_method",
       snippet_path: "codegen/runtime_shape/snippets/resolution_refresh_hydrated_repositories_from_heki.rs.frag",
       description: "Runtime::refresh_hydrated_repositories_from_heki — warm-serve freshness sweep ; refresh ONLY already-hydrated repos (no env gate, no cold-repo hydration). THE correctness crux of warm serve."
+
+    # file: event_driving — cluster 4 (event/outbox driving). The runtime's
+    # event-advancement surface OUTSIDE the main dispatch path.
+    fixture "EnqueueAndDrain",
+      name: "enqueue_and_drain",
+      file: "event_driving",
+      order: 0,
+      body_kind: "verbatim_method",
+      snippet_path: "codegen/runtime_shape/snippets/event_driving_enqueue_and_drain.rs.frag",
+      description: "Runtime::enqueue_and_drain — Sprint 14 actor path : wrap the event in an Envelope, deliver to the per-aggregate mailbox, drain it FIFO through the event bus."
+
+    fixture "FireDrivingCronTicks",
+      name: "fire_driving_cron_ticks",
+      file: "event_driving",
+      order: 1,
+      body_kind: "verbatim_method",
+      snippet_path: "codegen/runtime_shape/snippets/event_driving_fire_driving_cron_ticks.rs.frag",
+      description: "Runtime::fire_driving_cron_ticks — fire every `driving on cron` adapter handler ; pure delegation to driving_adapter_resolver. Called by LoopDriver::tick_once."
   end
 end
