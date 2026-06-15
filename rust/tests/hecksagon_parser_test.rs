@@ -62,6 +62,49 @@ end
 fn detects_hecksagon_source() {
     assert!(hecksagon_parser::is_hecksagon_source(ANTIBODY));
     assert!(!hecksagon_parser::is_hecksagon_source("Hecks.bluebook \"X\" do\nend"));
+    // bucket-3 — the `*.family` / `*.adapter` top-level forms detect as
+    // hecksagon source too (same parser, new detector keywords).
+    assert!(hecksagon_parser::is_hecksagon_source("Hecks.family \"persistence\" do\nend"));
+    assert!(hecksagon_parser::is_hecksagon_source("Hecks.adapter \"Heki\" do\nend"));
+}
+
+// bucket-3 step 1 — a `.family` declaration parses into a single Family
+// carrying verb / signal / fields. Trailing `#` comments and irregular
+// spacing on the inner lines must NOT ride into the IR.
+const PERSISTENCE_FAMILY: &str = r#"# persistence — an impure-boundary PORT
+Hecks.family "persistence" do
+  verb   "persisted_by"   # the how-verb the bind hangs off the FQN
+  signal :reply           # returns a value to the synchronous domain
+  field  :dir             # WHERE the store writes ; value in .world
+end
+"#;
+
+#[test]
+fn parses_family_verb_signal_and_fields() {
+    let hex = hecksagon_parser::parse(PERSISTENCE_FAMILY);
+    assert_eq!(hex.families.len(), 1, "expected one family");
+    let fam = &hex.families[0];
+    assert_eq!(fam.name, "persistence");
+    assert_eq!(fam.verb, "persisted_by");
+    assert_eq!(fam.signal, "reply", "signal token must drop the colon AND the trailing comment");
+    assert_eq!(fam.fields, vec!["dir".to_string()], "field token must drop the colon AND the trailing comment");
+}
+
+// bucket-3 step 1 — an `.adapter` declaration parses into a single Adapter
+// naming the family it implements (the inverted arrow).
+const HEKI_ADAPTER: &str = r#"# Heki — a concrete async PERSISTENCE adapter
+Hecks.adapter "Heki" do
+  family "persistence"
+end
+"#;
+
+#[test]
+fn parses_adapter_decl_with_family() {
+    let hex = hecksagon_parser::parse(HEKI_ADAPTER);
+    assert_eq!(hex.adapters.len(), 1, "expected one adapter");
+    let ad = &hex.adapters[0];
+    assert_eq!(ad.name, "Heki");
+    assert_eq!(ad.family, "persistence");
 }
 
 #[test]
