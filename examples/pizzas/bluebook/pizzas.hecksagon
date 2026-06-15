@@ -18,9 +18,11 @@ Hecks.hecksagon "Pizzas" do
   # hecksagon declares the WIRING shape ; the world supplies the
   # location. Same split as :heki (adapter here, dir in .world).
   #
-  # The handwritten Rust projection of this boundary — the sync port /
-  # async worker / re-entry bridge the code generator should emit —
-  # lives beside this file under adapters/.
+  # The adapter IS this declaration — the hecksagon wraps the impure
+  # call. The :shell adapter runs bin/charge-gateway (the impure edge :
+  # the actual remote charge) when OrderPlaced fires, and folds the
+  # verdict back in as Order.Authorize / Order.Decline. No handwritten
+  # Rust, no generated bridge ; the wrapping lives here, in the bluebook.
   adapter :shell, name: :payment_gateway,
           trigger_on: "OrderPlaced",
           result_into: "Order.Authorize | Order.Decline",

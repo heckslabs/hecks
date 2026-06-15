@@ -95,8 +95,6 @@ Bluebook DSL  →  Builders  →  Hecksagon IR  →  Generators  →  Ruby/Go co
 | `examples/banking/` | Lifecycle/state machines, domain services |
 | `examples/multi_domain/` | Cross-domain events, FilteredEventBus, subscribe DSL |
 | `examples/pizzas_rails/` | Rails integration with `Hecks.configure` |
-| `examples/pizzas_static_ruby/` | Static Ruby target output |
-| `examples/pizzas_static_go/` | Static Go target output |
 | `examples/governance/` | Policy-heavy domain, specifications |
 | `examples/sinatra_app/` | Sinatra integration |
 
