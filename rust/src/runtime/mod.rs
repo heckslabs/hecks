@@ -31,6 +31,7 @@ pub(crate) mod interpreter;
 pub mod adapter_io;
 pub mod adapter_llm;
 pub mod adapter_registry;
+pub mod hexagon_resolution;
 // adapter_terminal — host-only stdin/stdout REPL shim (drives
 // `crate::run_stdin_loop`, which is gated out of wasm). The Worker
 // has no terminal.

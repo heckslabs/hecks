@@ -823,6 +823,15 @@ fn main() {
         return;
     }
 
+    if command == "verify" {
+        if path.is_empty() {
+            eprintln!("Usage: storehouse verify <root>");
+            std::process::exit(1);
+        }
+        cmd_verify(path);
+        return;
+    }
+
     if path.is_empty() {
         eprintln!("Usage: storehouse {} <bluebook-file-or-dir>", command);
         std::process::exit(1);
@@ -3617,6 +3626,44 @@ fn cmd_integrity(agg_dir: &str) {
         }
         std::process::exit(1);
     }
+}
+
+/// `storehouse verify <agg_dir>` — the typed attach checkpoint
+/// (Hexagon.Verify, bucket-3). Loads the hecksagons and resolves every
+/// hexagon bind against the framework families/adapters : a bind
+/// `aggregate.verb("Adapter")` resolves IFF the adapter's family carries
+/// `verb`. Prints a clean summary, or lists every unresolved bind and
+/// exits non-zero — the OPTIONAL startup fail-fast the grammar names,
+/// moving discovery of a wiring mistake forward from first-fire to here.
+/// Pure over the loaded IR (bucket-3) — no boot, no dispatch.
+fn cmd_verify(agg_dir: &str) {
+use storehouse::runtime::hexagon_resolution::{resolve_bindings, ResolveOutcome};
+let hecksagons = load_all_hecksagons(agg_dir);
+let verdicts = resolve_bindings(&hecksagons);
+let broken: Vec<_> = verdicts.iter().filter(|r| !r.is_ok()).collect();
+if broken.is_empty() {
+    println!("VERIFY OK — {} hexagon bind(s) resolved", verdicts.len());
+    return;
+}
+println!("VERIFY — {} bind(s) failed to resolve:", broken.len());
+for r in &broken {
+    let why = match &r.outcome {
+        ResolveOutcome::UnknownAdapter =>
+            format!("no adapter named \"{}\" is declared", r.adapter),
+        ResolveOutcome::AdapterFamilyMissing { family } => format!(
+            "adapter \"{}\" declares family \"{}\", which no .family declares",
+            r.adapter, family
+        ),
+        ResolveOutcome::VerbMismatch { family, family_verb } => format!(
+            "adapter \"{}\"'s family \"{}\" carries \"{}\", not \"{}\"",
+            r.adapter, family, family_verb, r.verb
+        ),
+        // is_ok() filtered Resolved / Fulfillment out already.
+        _ => "unresolved".to_string(),
+    };
+    println!("  {}.{}(\"{}\") : {}", r.aggregate, r.verb, r.adapter, why);
+}
+std::process::exit(1);
 }
 
 fn cmd_state(agg_dir: &str, agg_name: &str, id: &str) {
