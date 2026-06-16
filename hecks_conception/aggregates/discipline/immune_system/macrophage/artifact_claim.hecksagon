@@ -1,0 +1,10 @@
+Hecks.hecksagon "ArtifactClaim" do
+  # Persistence : durable-by-default, mirroring governed_door.hecksagon.
+  # Both ArtifactClaim (per-claim) and NoPromisesSweep (singleton) in
+  # artifact_claim.bluebook persist to live heki stores under information/.
+  # :heki declared so the backing is explicit. The Scan / Verify side
+  # effects are NOT adapters here — they are ordinary bluebook policies
+  # firing Primitive::Process.Spawn (see artifact_claim.bluebook), the
+  # canonical pattern that retired the :exec family.
+  adapter :heki
+end
