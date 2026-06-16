@@ -65,6 +65,7 @@ fn is_ir_only(strct: &str, field: &str) -> bool {
 fn relationship_field(agg: &str, kind: &ReferenceKind, target: &str) -> String {
     match (agg, kind, target) {
         ("Family", ReferenceKind::HasMany, "Field") => "fields".to_string(),
+        ("Family", ReferenceKind::HasMany, "ProducedField") => "produces".to_string(),
         ("Adapter", ReferenceKind::BelongsTo, "Family") => "family".to_string(),
         ("Binding", ReferenceKind::HasOne, "Adapter") => "adapter".to_string(),
         _ => panic!(

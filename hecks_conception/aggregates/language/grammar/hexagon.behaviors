@@ -29,6 +29,13 @@ Hecks.behaviors "Hexagon" do
     expect name: "db"
   end
 
+  # ── ProducedField — one output a family's handlers must emit ──
+  test "ProducedField.Declare sets name" do
+    tests "Declare", on: "ProducedField"
+    input  name: "payment_ref"
+    expect name: "payment_ref"
+  end
+
   # ── Adapter — declares the family it implements (inverted arrow) ──
   test "Adapter.Declare sets name (belongs_to Family ; routing is the hexagon's job)" do
     tests "Declare", on: "Adapter"

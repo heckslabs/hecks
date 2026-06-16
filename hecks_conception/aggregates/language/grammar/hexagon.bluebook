@@ -63,6 +63,7 @@ Hecks.bluebook "Hexagon", version: "2026.06.16.2" do
     attribute :verb,   HowVerb
     attribute :signal, Signal
     has_many Field
+    has_many ProducedField
 
     value_object "FamilyName" do
       # The family's name — "persistence", "payment".
@@ -148,6 +149,33 @@ Hecks.bluebook "Hexagon", version: "2026.06.16.2" do
       emits "Declared"
       then_set :name,   to: :name
       then_set :source, to: :source
+    end
+  end
+
+  # ============================================================
+  # PRODUCED_FIELD — one output the family's handlers must emit
+  # ============================================================
+  #
+  # The OUTPUT half of the family contract, symmetric with Field (the INPUT
+  # half). A verdict-data key a conforming handler must emit on stdout (k=v)
+  # — "payment_ref". Names only ; a conformance test asserts the handler
+  # actually emits them. The runtime flattens these to plain names in the IR.
+  aggregate "ProducedField", "One verdict-data key a conforming handler must emit on stdout for its family's port (payment -> payment_ref). The OUTPUT half of the family contract, symmetric with Field. Names only ; a conformance test asserts the handler emits them." do
+    identified_by :name
+    attribute :name, ProducedFieldName
+
+    value_object "ProducedFieldName" do
+      # The output key the handler must emit on stdout — "payment_ref".
+      # Carried verbatim into the verdict command as an attribute.
+      attribute :value, String
+    end
+
+    command "Declare" do
+      role "Framework"
+      description "Declare one output field a family's handlers must emit — its name. A conformance test asserts the family's adapters' handlers actually produce it on the success branch."
+      attribute :name, ProducedFieldName
+      emits "Declared"
+      then_set :name, to: :name
     end
   end
 

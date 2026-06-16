@@ -10,9 +10,10 @@
 Hecks.family "payment" do
   verb   "charged_by"
   signal :effect
-  field  :endpoint
-  field  :token
+  field  :endpoint, from: :env   # .world value is the ENV-VAR NAME the runtime reads
+  secret :token                  # env-var name too, but NEVER logged or echoed
   field  :timeout_ms
   field  :retries
   field  :backoff
+  produces :payment_ref          # the verdict data a conforming handler must emit on success
 end

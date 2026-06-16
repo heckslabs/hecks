@@ -4,4 +4,5 @@ Hecks.family "payment" do
   field  :endpoint
   field  :retries
   field  :timeout_ms
+  produces :payment_ref
 end

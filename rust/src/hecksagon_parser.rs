@@ -835,7 +835,7 @@ fn parse_family(lines: &[&str]) -> (Option<Family>, usize) {
         }
         let first = lines[0].trim();
         let name = match between_quotes(first) { Some(n) => n, None => return (None, 1) };
-        let mut family = Family { name, verb: String::new(), signal: String::new(), fields: Vec::new() };
+        let mut family = Family { name, verb: String::new(), signal: String::new(), fields: Vec::new(), produces: Vec::new() };
         let mut i = 1;
         while i < lines.len() {
             let t = lines[i].trim();
@@ -855,6 +855,10 @@ fn parse_family(lines: &[&str]) -> (Option<Family>, usize) {
                     if !name.is_empty() {
                         family.fields.push(FamilyField { name, source: "secret".to_string() });
                     }
+                }
+                "produces" => {
+                    let name = sym_after(t, "produces");
+                    if !name.is_empty() { family.produces.push(name); }
                 }
                 _ => {}
             }

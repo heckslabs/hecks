@@ -35,6 +35,7 @@ Hecks.fixtures "HecksagonIrShape" do
     fixture "Family_verb",         type_name: "Family",      order: 2, name: "verb",      field_type: "String",            doc_snippet: "codegen/hecksagon_ir_shape/snippets/docs/family_verb.rs.frag"
     fixture "Family_signal",       type_name: "Family",      order: 3, name: "signal",    field_type: "String",            doc_snippet: "codegen/hecksagon_ir_shape/snippets/docs/family_signal.rs.frag"
     fixture "Family_fields",       type_name: "Family",      order: 4, name: "fields",    field_type: "Vec<FamilyField>",  doc_snippet: "codegen/hecksagon_ir_shape/snippets/docs/family_fields.rs.frag"
+    fixture "Family_produces",     type_name: "Family",      order: 5, name: "produces",  field_type: "Vec<String>",       doc_snippet: "codegen/hecksagon_ir_shape/snippets/docs/family_produces.rs.frag"
     fixture "FamilyField_name",    type_name: "FamilyField", order: 1, name: "name",      field_type: "String",            doc_snippet: "codegen/hecksagon_ir_shape/snippets/docs/family_field_name.rs.frag"
     fixture "FamilyField_source",  type_name: "FamilyField", order: 2, name: "source",    field_type: "String",            doc_snippet: "codegen/hecksagon_ir_shape/snippets/docs/family_field_source.rs.frag"
     fixture "Adapter_name",        type_name: "Adapter",     order: 1, name: "name",      field_type: "String",            doc_snippet: "codegen/hecksagon_ir_shape/snippets/docs/adapter_name.rs.frag"

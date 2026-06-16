@@ -15,4 +15,5 @@ Hecks.family "payment" do
   field  :timeout_ms
   field  :retries
   field  :backoff
+  produces :payment_ref          # the verdict data a conforming handler must emit on success
 end
