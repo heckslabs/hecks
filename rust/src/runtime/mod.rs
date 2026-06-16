@@ -713,6 +713,12 @@ impl Runtime {
         // `react` in a SEPARATE pump phase, never inline here. Eager callers
         // auto-pump so the cascade still settles before return;
         // `dispatch_deferred` skips the pump to prove the async seam.
+        // Event-out messaging port — record a durable OutboundEvent for every
+        // standalone (separate-program) adapter subscribing to this event via
+        // an EFFECT binding, so an out-of-process host can consume it. Sync
+        // domain bookkeeping on emit (the async charge happens off-core in the
+        // host) ; no-op when OutboundEvent isn't loaded or nothing subscribes.
+        self.record_effect_outbound(&result);
         // Transactional outbox — record this command's domain reactions to
         // the persistent CascadeRun outbox. The reaction is delivered ONLY by
         // pump_outbox (its own transaction, on a later tick), never inline.
@@ -852,6 +858,96 @@ impl Runtime {
             &agg_id,
         );
         true
+    }
+
+    /// Event-out messaging port (effect-port slice a) — record one durable
+    /// `OutboundEvent` per standalone adapter that subscribes to this
+    /// command's emitted event via an EFFECT binding (`Agg.charged_by("X",
+    /// on: E, into: "Agg.Ok | Agg.No")`). The out-of-process analog of
+    /// `record_cascade_run` : where that records IN-PROCESS domain reactions
+    /// for the pump, this records OUT-OF-PROCESS deliveries for a separate-
+    /// program host to consume. Runs on emit ; sync domain bookkeeping (the
+    /// host does the async charge off-core). No-op when `OutboundEvent` isn't
+    /// loaded or no effect binding names this event. delivery_id =
+    /// source::id::event::adapter, so a re-emit is the same idempotent delivery.
+    fn record_effect_outbound(&mut self, result: &CommandResult) {
+        let event = match &result.event {
+            Some(e) => e.clone(),
+            None => return,
+        };
+        if !self.domain.aggregates.iter().any(|a| a.name == "OutboundEvent") {
+            return;
+        }
+        // adapter -> family, family -> verb : the typed attach checkpoint, so a
+        // broken bind records nothing (mirrors resolve_bindings' flat-map).
+        let mut adapter_family: HashMap<String, String> = HashMap::new();
+        let mut family_verb: HashMap<String, String> = HashMap::new();
+        for hex in &self.hecksagons {
+            for a in &hex.adapters {
+                adapter_family.insert(a.name.clone(), a.family.clone());
+            }
+            for f in &hex.families {
+                family_verb.insert(f.name.clone(), f.verb.clone());
+            }
+        }
+        // Snapshot the Record attr-maps under the immutable borrow ; dispatch
+        // after (dispatch_cascade takes &mut self).
+        let mut records: Vec<HashMap<String, Value>> = Vec::new();
+        for hex in &self.hecksagons {
+            for b in &hex.bindings {
+                // Effect port subscribing to THIS event : has `on` + `into`.
+                if b.on != event.name || b.into.is_empty() {
+                    continue;
+                }
+                match adapter_family.get(&b.adapter) {
+                    Some(fam)
+                        if family_verb.get(fam).map(String::as_str)
+                            == Some(b.verb.as_str()) => {}
+                    _ => continue,
+                }
+                // Verdict commands are `Aggregate.Command` ; prepend the bind's
+                // context to form the dispatch FQN the host will re-enter with.
+                let context = b.aggregate.rsplit_once("::").map(|(c, _)| c).unwrap_or("");
+                let qualify = |cmd: &str| {
+                    if context.is_empty() {
+                        cmd.to_string()
+                    } else {
+                        format!("{}::{}", context, cmd)
+                    }
+                };
+                let success = qualify(&b.into[0]);
+                let failure = b.into.get(1).map(|f| qualify(f)).unwrap_or_default();
+                let mut data_obj = serde_json::Map::new();
+                for (k, v) in &event.data {
+                    data_obj.insert(k.clone(), value_to_json(v));
+                }
+                let payload = serde_json::Value::Object(data_obj).to_string();
+                let delivery_id = format!(
+                    "{}::{}::{}::{}",
+                    event.aggregate_type, event.aggregate_id, event.name, b.adapter
+                );
+                let mut attrs = HashMap::new();
+                attrs.insert("delivery_id".to_string(), Value::Str(delivery_id));
+                attrs.insert("adapter".to_string(), Value::Str(b.adapter.clone()));
+                attrs.insert("event".to_string(), Value::Str(event.name.clone()));
+                attrs.insert("source_type".to_string(), Value::Str(event.aggregate_type.clone()));
+                attrs.insert("source_id".to_string(), Value::Str(event.aggregate_id.clone()));
+                attrs.insert("payload".to_string(), Value::Str(payload));
+                attrs.insert("success_command".to_string(), Value::Str(success));
+                attrs.insert("failure_command".to_string(), Value::Str(failure));
+                attrs.insert("attempts".to_string(), Value::Int(0));
+                records.push(attrs);
+            }
+        }
+        for attrs in records {
+            let _ = command_dispatch::dispatch_cascade(
+                self,
+                "OutboundEvent::OutboundEvent.Record",
+                attrs,
+                &event.aggregate_type,
+                &event.aggregate_id,
+            );
+        }
     }
 
     /// C2 (transactional outbox) — drain the persistent CascadeRun outbox.
