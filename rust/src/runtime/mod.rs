@@ -364,6 +364,13 @@ impl Runtime {
         // through to the implicit heki default, indistinguishable from unwired.
         // Ungated — memory is host- AND wasm-valid, so it runs on every target.
         rt.apply_memory_persistence();
+        // bucket-3 step 4 — the hexagon-binding CONSULT. Reads the NEW
+        // port-verb binding surface (`Pizzas::Order.persisted_by("Heki")`)
+        // that steps 1-3 parse + resolve, and rebuilds each
+        // persistence-family-bound aggregate on the backend its adapter
+        // names. Runs LAST so a binding (the new surface) wins over a legacy
+        // persistence block ; additive for every aggregate with no binding.
+        rt.apply_hexagon_persistence();
         rt
     }
 
