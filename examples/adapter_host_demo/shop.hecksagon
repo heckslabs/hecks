@@ -5,5 +5,8 @@
 # about transport — that the edge is satisfied out-of-process is a wiring
 # choice (effect port -> separate program), not part of the binding.
 Hecks.hecksagon "Shop" do
-  Shop::Order.charged_by("Stripe", on: "OrderPlaced", into: "Order.Authorize | Order.Decline")
+  Shop::Order.charged_by("Stripe", on: "OrderPlaced") do
+    success "Order.Authorize"
+    failure "Order.Decline"
+  end
 end

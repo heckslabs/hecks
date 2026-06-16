@@ -398,7 +398,7 @@ impl Runtime {
     fn ensure_outbox_substrate(mut domain: Domain, hecksagons: &[Hecksagon]) -> Domain {
         let has_effect = hecksagons
             .iter()
-            .any(|h| h.bindings.iter().any(|b| !b.into.is_empty()));
+            .any(|h| h.bindings.iter().any(|b| !b.success.is_empty()));
         if !has_effect || domain.aggregates.iter().any(|a| a.name == "OutboundEvent") {
             return domain;
         }
@@ -936,8 +936,8 @@ impl Runtime {
         let mut records: Vec<HashMap<String, Value>> = Vec::new();
         for hex in &self.hecksagons {
             for b in &hex.bindings {
-                // Effect port subscribing to THIS event : has `on` + `into`.
-                if b.on != event.name || b.into.is_empty() {
+                // Effect port subscribing to THIS event : has `on` + a verdict block.
+                if b.on != event.name || b.success.is_empty() {
                     continue;
                 }
                 match adapter_family.get(&b.adapter) {
@@ -956,8 +956,8 @@ impl Runtime {
                         format!("{}::{}", context, cmd)
                     }
                 };
-                let success = qualify(&b.into[0]);
-                let failure = b.into.get(1).map(|f| qualify(f)).unwrap_or_default();
+                let success = qualify(&b.success);
+                let failure = if b.failure.is_empty() { String::new() } else { qualify(&b.failure) };
                 let mut data_obj = serde_json::Map::new();
                 for (k, v) in &event.data {
                     data_obj.insert(k.clone(), value_to_json(v));

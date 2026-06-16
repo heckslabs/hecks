@@ -190,13 +190,15 @@ pub struct Binding {
     /// The triggering event for an effect port (`on: "OrderPlaced"`).
     /// Empty for a reply port, which returns rather than round-trips.
     pub on: String,
-    /// The verdict union for an effect port — the discriminated re-entry
-    /// commands (`into: "Order.Authorize | Order.Decline"`), success first,
-    /// failure second. Empty for reply / fulfillment binds. The binding is the
-    /// ONLY home on the locked surface for these names : the family and adapter
-    /// are generic (declared once, used across domains), the binding alone is
-    /// domain-specific.
-    pub into: Vec<String>,
+    /// The effect-port verdict re-entry commands, named in a `do success
+    /// "..." failure "..." end` block on the bind. `success` is dispatched
+    /// when the adapter reports success, `failure` on failure. Both empty
+    /// for reply / fulfillment binds (no block). The binding is the ONLY
+    /// home on the locked surface for these names : the family and adapter
+    /// are generic (declared once, used across domains) ; the binding alone
+    /// is domain-specific.
+    pub success: String,
+    pub failure: String,
 }
 
 /// Sprint 14 sibling of `DrivenAdapter` — externally-triggered adapter

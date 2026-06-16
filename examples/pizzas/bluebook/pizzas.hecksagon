@@ -47,6 +47,9 @@ Hecks.hecksagon "Pizzas" do
   # receives Authorize or Decline, knowing nothing of the gateway. The adapter
   # is named for its identity (the payment provider) — not its transport ;
   # WHERE the gateway is and how hard it tries live in pizzas.world.
-  Pizzas::Order.charged_by("Stripe", on: "OrderPlaced", into: "Order.Authorize | Order.Decline")
+  Pizzas::Order.charged_by("Stripe", on: "OrderPlaced") do
+    success "Order.Authorize"
+    failure "Order.Decline"
+  end
 
 end

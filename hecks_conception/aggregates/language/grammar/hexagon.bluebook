@@ -1,4 +1,4 @@
-Hecks.bluebook "Hexagon", version: "2026.06.16.1" do
+Hecks.bluebook "Hexagon", version: "2026.06.16.2" do
   vision "A domain's boundary wiring — the ports it exposes and the adapters that fulfil them. Everything inside the boundary is one synchronous domain ; everything that leaves it is an asynchronous adapter, and the colour is never declared because the boundary itself decides it. The domain NEVER locks — no Mutex, no contention — because every async concern lives at the adapter edge, never in the synchronous core.
 
   This is non-blocking BY CONSTRUCTION, not by convention. Three structural properties make it impossible for an adapter to block the domain or a sibling : (1) no state is shared across the boundary — each aggregate-actor and each adapter owns its own — so no lock can exist, there is simply nothing to guard ; (2) every edge is an async message (event out, command in) — the domain never holds a reference to an adapter and waits on it, so the wait-path does not exist ; (3) the domain projects to sync functions with no async or lock primitive in scope, so the compiler itself refuses a blocking domain. The reply signal looks synchronous but is not : the runtime hydrates state BEFORE the sync core runs and persists AFTER it returns, so find/save is an in-memory touch, never a mid-logic IO wait. An adapter may be SLOW — IO takes time, bounded by the family's timeout — but slow never propagates : it stalls only its own task.
@@ -195,10 +195,13 @@ Hecks.bluebook "Hexagon", version: "2026.06.16.1" do
   #   reply        Pizza::Order.persisted_by('Heki')
   #     aggregate=Pizza::Order  adapter=Heki   (no on — returns a value)
   #
-  #   effect       Pizza::Order.charged_by('Shell', on: 'OrderPlaced')
+  #   effect       Pizza::Order.charged_by('Shell', on: 'OrderPlaced') do
+  #                  success 'Order.Authorize' ; failure 'Order.Decline'
+  #                end
   #     aggregate=Pizza::Order  on=OrderPlaced  adapter=Shell
-  #     — Shell does external IO, then routes its verdict back through the
-  #       hexagon via storehouse.
+  #     success=Order.Authorize  failure=Order.Decline
+  #     — Shell does external IO, then routes its verdict (success | failure)
+  #       back through the hexagon via storehouse.
   #
   #   fulfillment  Pizza::Order.on('OrderAuthorized') -> [fulfillment adapter]
   #     aggregate=Pizza::Order  on=OrderAuthorized  adapter=fulfillment
@@ -211,6 +214,8 @@ Hecks.bluebook "Hexagon", version: "2026.06.16.1" do
     attribute :phrase,    Phrase
     attribute :aggregate, AggregateRef
     attribute :on,        EventRef, default: ""
+    attribute :success,   VerdictRef, default: ""
+    attribute :failure,   VerdictRef, default: ""
 
     value_object "Phrase" do
       # The bind identity — "Pizza::Order.persisted_by" or
@@ -231,16 +236,29 @@ Hecks.bluebook "Hexagon", version: "2026.06.16.1" do
       attribute :value, String
     end
 
+    value_object "VerdictRef" do
+      # An effect port's re-entry command, named in the bind's
+      # `do success "..." failure "..." end` block — the command the adapter
+      # dispatches back through storehouse on success / failure. A plain
+      # "Aggregate.Command" ; the bind's context qualifies it at fire time.
+      # Empty for reply / fulfillment binds (no block).
+      attribute :value, String
+    end
+
     command "Bind" do
       role "Framework"
       description "Wire a port (this domain's aggregate) + its triggering event to an adapter (has_one). The adapter holds the FQN it dispatches through storehouse ; the binding never names another bluebook. The how-verb is derived through the adapter's family."
       attribute :phrase,    Phrase
       attribute :aggregate, AggregateRef
       attribute :on,        EventRef
+      attribute :success,   VerdictRef
+      attribute :failure,   VerdictRef
       emits "Bound"
       then_set :phrase,    to: :phrase
       then_set :aggregate, to: :aggregate
       then_set :on,        to: :on
+      then_set :success,   to: :success
+      then_set :failure,   to: :failure
     end
   end
 end
