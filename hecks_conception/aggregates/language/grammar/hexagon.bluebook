@@ -163,6 +163,7 @@ Hecks.bluebook "Hexagon", version: "2026.06.16.2" do
     identified_by :name
     belongs_to Family
     attribute :name, AdapterName
+    attribute :handler, HandlerPath, default: ""
 
     value_object "AdapterName" do
       # The adapter's name — "heki", "shell", "fulfillment". The string
@@ -173,12 +174,24 @@ Hecks.bluebook "Hexagon", version: "2026.06.16.2" do
       attribute :value, String
     end
 
+    value_object "HandlerPath" do
+      # The standalone handler the adapter-host execs for THIS adapter —
+      # "bin/stripe-handler". Set on out-of-process adapters (payment,
+      # report, tts) ; empty for the in-process persistence adapters
+      # (heki / memory), which the runtime injects directly and never
+      # shells out to. Tightly bound to its caller : the binary IS part of
+      # the adapter's declaration, not a per-deployment .world value.
+      attribute :value, String
+    end
+
     command "Declare" do
       role "Framework"
-      description "Declare an adapter — it belongs_to the family it implements. Config is in .world ; cross-domain wiring is the hexagon's job at runtime, so no FQN is stored here."
+      description "Declare an adapter — it belongs_to the family it implements, and names the standalone handler the adapter-host execs (empty for in-process persistence adapters). Config is in .world ; cross-domain wiring is the hexagon's job at runtime, so no FQN is stored here."
       attribute :name, AdapterName
+      attribute :handler, HandlerPath, default: ""
       emits "Declared"
       then_set :name, to: :name
+      then_set :handler, to: :handler
     end
   end
 

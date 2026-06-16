@@ -2987,7 +2987,7 @@ fn dump_hecksagon_json(hex: &storehouse::hecksagon_ir::Hecksagon) -> serde_json:
     }
     if !hex.adapters.is_empty() {
         let adapters: Vec<serde_json::Value> = hex.adapters.iter().map(|a| serde_json::json!({
-            "name": a.name, "family": a.family,
+            "name": a.name, "family": a.family, "handler": a.handler,
         })).collect();
         obj["adapters"] = serde_json::json!(adapters);
     }

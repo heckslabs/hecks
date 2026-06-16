@@ -18,15 +18,30 @@
 #   4. dispatch <success_command|failure_command> id=<source_id>  — verdict re-entry
 #   5. ack      OutboundEvent.MarkDelivered           — close the delivery
 #
-# Usage: adapter-host <root> <adapter> <handler-cmd> [--once]
+# Usage: adapter-host <root> <adapter> [--once]
+#   The handler is resolved DECLARATIVELY from <root>/<adapter>.adapter's
+#   `handler "..."` line — no CLI arg. Which binary IS this adapter lives in
+#   the bluebook, not the invocation.
 #   STOREHOUSE=/path/to/storehouse  POLL_INTERVAL=2  (env overrides)
 set -euo pipefail
 
-ROOT="${1:?usage: adapter-host <root> <adapter> <handler-cmd> [--once]}"
+ROOT="${1:?usage: adapter-host <root> <adapter> [--once]}"
 ADAPTER="${2:?adapter name required}"
-HANDLER="${3:?handler command required}"
-ONCE="${4:-}"
+ONCE="${3:-}"
 SH="${STOREHOUSE:-storehouse}"
+
+# Resolve the handler DECLARATIVELY from the adapter's *.adapter file — the
+# `handler "..."` line, parsed by storehouse. No CLI arg.
+ADAPTER_FILE="$ROOT/$(echo "$ADAPTER" | tr '[:upper:]' '[:lower:]').adapter"
+[ -f "$ADAPTER_FILE" ] || { echo "[adapter-host] no adapter declaration at $ADAPTER_FILE" >&2; exit 1; }
+HANDLER=$("$SH" dump-hecksagon "$ADAPTER_FILE" | jq -r '.adapters[0].handler // empty')
+
+# Fail LOUD. An empty handler would make bash exec "" (exit 127) and silently
+# take the FAILURE branch — every charge would Decline while the host looked
+# healthy. A non-executable handler is the same class of silent-wrong. Refuse
+# to poll until the declaration is real.
+[ -n "$HANDLER" ] || { echo "[adapter-host] adapter '$ADAPTER' declares no handler (handler \"...\") in $ADAPTER_FILE" >&2; exit 1; }
+[ -x "$HANDLER" ] || { echo "[adapter-host] handler '$HANDLER' for '$ADAPTER' is not executable (cwd $PWD)" >&2; exit 1; }
 
 process_one() {
   local d="$1" did src success failure payload verdict

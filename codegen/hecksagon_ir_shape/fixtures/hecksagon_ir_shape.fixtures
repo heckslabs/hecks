@@ -39,6 +39,7 @@ Hecks.fixtures "HecksagonIrShape" do
     fixture "FamilyField_source",  type_name: "FamilyField", order: 2, name: "source",    field_type: "String",            doc_snippet: "codegen/hecksagon_ir_shape/snippets/docs/family_field_source.rs.frag"
     fixture "Adapter_name",        type_name: "Adapter",     order: 1, name: "name",      field_type: "String",            doc_snippet: "codegen/hecksagon_ir_shape/snippets/docs/adapter_name.rs.frag"
     fixture "Adapter_family",      type_name: "Adapter",     order: 2, name: "family",    field_type: "String",            doc_snippet: "codegen/hecksagon_ir_shape/snippets/docs/adapter_family.rs.frag"
+    fixture "Adapter_handler",     type_name: "Adapter",     order: 3, name: "handler",   field_type: "String",            doc_snippet: "codegen/hecksagon_ir_shape/snippets/docs/adapter_handler.rs.frag"
     fixture "Binding_aggregate",   type_name: "Binding",     order: 1, name: "aggregate", field_type: "String",            doc_snippet: "codegen/hecksagon_ir_shape/snippets/docs/binding_aggregate.rs.frag"
     fixture "Binding_verb",        type_name: "Binding",     order: 2, name: "verb",      field_type: "String",            doc_snippet: "codegen/hecksagon_ir_shape/snippets/docs/binding_verb.rs.frag"
     fixture "Binding_adapter",     type_name: "Binding",     order: 3, name: "adapter",   field_type: "String",            doc_snippet: "codegen/hecksagon_ir_shape/snippets/docs/binding_adapter.rs.frag"

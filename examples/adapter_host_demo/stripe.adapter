@@ -1,3 +1,4 @@
 Hecks.adapter "Stripe" do
   family "payment"
+  handler "examples/adapter_host_demo/stripe-handler"
 end
