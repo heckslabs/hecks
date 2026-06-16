@@ -93,6 +93,30 @@ fn effect_binding_records_one_outbound_event_on_emit() {
         &s("Shop::Order.Decline"),
         "into[1] — the verdict on failure",
     );
+
+    // The host's poll : Pending(adapter) returns the delivery for its adapter.
+    let mut q = HashMap::new();
+    q.insert("adapter".to_string(), "Stripe".to_string());
+    let pending = rt.resolve_query("Pending", &q);
+    let state = &pending["state"];
+    assert_eq!(
+        state["adapter"].as_str(),
+        Some("Stripe"),
+        "Pending(adapter: Stripe) returns the Stripe delivery",
+    );
+    assert_eq!(state["status"].as_str(), Some("pending"));
+    assert_eq!(state["success_command"].as_str(), Some("Shop::Order.Authorize"));
+
+    // A non-subscribing adapter sees nothing — the host only consumes its own.
+    let mut q2 = HashMap::new();
+    q2.insert("adapter".to_string(), "Ghost".to_string());
+    let none = rt.resolve_query("Pending", &q2);
+    assert!(
+        none["state"].as_str().is_none()
+            && none["state"].as_object().is_none(),
+        "Pending(adapter: Ghost) returns no delivery (got {:?})",
+        none["state"],
+    );
 }
 
 #[test]

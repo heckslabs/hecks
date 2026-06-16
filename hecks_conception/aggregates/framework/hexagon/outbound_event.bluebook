@@ -169,5 +169,13 @@ Hecks.bluebook "OutboundEvent", version: "2026.06.16.1" do
       then_set :last_error, to: :error
       emits "OutboundEventFailed"
     end
+
+    # ── Queries ──────────────────────────────────────────────
+
+    query "Pending" do
+      description "The host's poll — every delivery still pending for a given adapter. Pass adapter: <name> (e.g. Stripe). The shared host loops this query, Claims each result, runs the thin handler off-core, dispatches the success_command or failure_command back through the command port, then MarkDelivered. Filtering status == pending makes consumption idempotent : a claimed/delivered row never reappears."
+      where adapter: :adapter
+      where status:  "pending"
+    end
   end
 end
