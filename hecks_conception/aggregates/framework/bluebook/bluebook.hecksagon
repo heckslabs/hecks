@@ -1,0 +1,14 @@
+# Bluebook — Hecksagon
+#
+# Persistence (i728 step 2 : make the implicit explicit, behavior-preserving).
+# The Diagram aggregate records the markdown rendered from a bluebook (the six
+# self-reading surfaces) on last_render and persists across boots today
+# (information/bluebook/diagram.heki). It reached heki via the implicit default ;
+# :heki is declared here so the backing is EXPLICIT before the default flips to
+# memory. (If the rendered surfaces are later judged a pure cache, this is the
+# one place to switch to :memory — but today it persists, so heki preserves it.)
+# Pairs with bluebook.bluebook.
+#
+Hecks.hecksagon "Bluebook" do
+  adapter :heki
+end

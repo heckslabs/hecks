@@ -1,0 +1,13 @@
+# Conductor — Hecksagon
+#
+# Persistence (i728 step 2 : make the implicit explicit, behavior-preserving).
+# The Conductor context's aggregates (Claim, Lease, MergeQueue, Sweeper, Worker)
+# hold the live merge-queue / worker-lease state and persist across boots today
+# (information/conductor/{claim,lease,merge_queue,sweeper,worker}.heki round-trip).
+# They reached heki via the implicit default ; :heki is declared here so the
+# backing is EXPLICIT before the default flips to memory — without it the flip
+# would silently drop the queue. Pairs with conductor.bluebook (+ entity files).
+#
+Hecks.hecksagon "Conductor" do
+  adapter :heki
+end
