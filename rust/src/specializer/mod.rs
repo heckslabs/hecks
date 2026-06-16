@@ -31,6 +31,7 @@ pub mod dispatch_query;
 pub mod dump;
 pub mod embedded_bluebooks;
 pub mod fixtures_parser;
+pub mod hecksagon_ir;
 pub mod hecksagon_parser;
 pub mod heki_query;
 pub mod html_domain;
@@ -71,6 +72,7 @@ pub fn emit(target: &str, repo_root: &Path) -> Result<String, Box<dyn Error>> {
         "dispatch_query" => dispatch_query::emit(repo_root),
         "dump" => dump::emit(repo_root),
         "fixtures_parser" => fixtures_parser::emit(repo_root),
+        "hecksagon_ir" => hecksagon_ir::emit(repo_root),
         "hecksagon_parser" => hecksagon_parser::emit(repo_root),
         "heki_query" => heki_query::emit(repo_root),
         "html_domain" => html_domain::emit(repo_root),
@@ -91,7 +93,7 @@ pub fn emit(target: &str, repo_root: &Path) -> Result<String, Box<dyn Error>> {
         "validator_corpus" => validator_corpus::emit(repo_root),
         "validator_warnings" => validator_warnings::emit(repo_root),
         other => Err(format!(
-            "unknown specializer target: {}. Known: adapter_llm, aggregate_state, assemble, behaviors_fixtures, behaviors_parser, behaviors_runner, cli_dispatch, command_dispatch, conceiver_generator, discover, dispatch_query, dump, fixtures_parser, hecksagon_parser, heki_query, html_domain, interpreter, ir, lifecycle_validator, parse_blocks, parser, parser_helpers, repository, runtime, run_statusline, system_prompt, validator, validator_corpus, validator_warnings",
+            "unknown specializer target: {}. Known: adapter_llm, aggregate_state, assemble, behaviors_fixtures, behaviors_parser, behaviors_runner, cli_dispatch, command_dispatch, conceiver_generator, discover, dispatch_query, dump, fixtures_parser, hecksagon_ir, hecksagon_parser, heki_query, html_domain, interpreter, ir, lifecycle_validator, parse_blocks, parser, parser_helpers, repository, runtime, run_statusline, system_prompt, validator, validator_corpus, validator_warnings",
             other
         )
         .into()),

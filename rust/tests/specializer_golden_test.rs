@@ -927,6 +927,32 @@ fn rust_specializer_produces_byte_identical_lifecycle_validator_rs() {
 }
 
 #[test]
+fn rust_specializer_produces_byte_identical_hecksagon_ir_rs() {
+    // Hexagon IR generator (thread B) — Rust-native specializer for
+    // hecksagon_ir.rs. The 4 grammar-modelled structs (Family,
+    // FamilyField, Adapter, Binding) are field-decomposed into Field
+    // rows ; the file header + Hecksagon container and the 13 legacy
+    // adapter structs ride two verbatim sections, held intact until each
+    // legacy adapter migrates into the Family/Adapter/Binding grammar.
+    // Closes the double-maintenance the restart note flagged : the IR was
+    // hand-edited twice in parallel with the grammar. Editing the IR is
+    // now a fixture-row edit + regenerate, not a Rust hand-edit.
+    let root = repo_root();
+    let bin = root.join("rust/target/release/storehouse");
+    assert!(bin.exists(), "storehouse binary missing — build release first");
+    let output = Command::new(&bin)
+        .args(["specialize", "hecksagon_ir"])
+        .current_dir(&root)
+        .output()
+        .expect("storehouse specialize hecksagon_ir failed");
+    assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
+    let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
+    let tracked = fs::read_to_string(root.join("rust/src/hecksagon_ir.rs"))
+        .expect("hecksagon_ir.rs missing");
+    assert_eq!(generated, tracked, "Rust specializer output drifted from tracked file");
+}
+
+#[test]
 fn wrangler_toml_emitter_matches_committed_deployment_toml() {
     // Per-deployment emitter golden — unlike the tracked rust/src/*.rs
     // goldens above, the wrangler_toml emitter reads a deployment's
