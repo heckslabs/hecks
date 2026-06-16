@@ -410,6 +410,14 @@ Hecks.fixtures "RuntimeShape" do
       snippet_path: "codegen/runtime_shape/snippets/resolution_apply_memory_persistence.rs.frag",
       description: "Runtime::apply_memory_persistence — the keystone : rebuild on the explicit Backend::Memory ONLY aggregates whose hecksagon declares :memory (scoped by context, mirroring apply_sqlite_persistence). Makes :memory actually select memory (was INERT, fell through to the heki default). NOT cfg-gated — memory is host- and wasm-valid."
 
+    fixture "ApplyHexagonPersistence",
+      name: "apply_hexagon_persistence",
+      file: "persistence_resolution",
+      order: 7,
+      body_kind: "verbatim_method",
+      snippet_path: "codegen/runtime_shape/snippets/resolution_apply_hexagon_persistence.rs.frag",
+      description: "Runtime::apply_hexagon_persistence — bucket-3 step 4, the hexagon-binding CONSULT. Reads the NEW port-verb binding surface (Pizzas::Order.persisted_by(\"Heki\")) via resolve_bindings and rebuilds each persistence-family-bound aggregate's repository on the backend its adapter names (Heki->heki at data_dir, Memory->Backend::Memory). Additive over boot_with_data_dir ; runs LAST so a binding wins over a legacy block. Ungated — heki/memory constructors are host- and wasm-valid."
+
     # file: event_driving — cluster 4 (event/outbox driving). The runtime's
     # event-advancement surface OUTSIDE the main dispatch path.
     fixture "EnqueueAndDrain",
