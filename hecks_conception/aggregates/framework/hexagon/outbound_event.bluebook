@@ -1,5 +1,5 @@
 Hecks.bluebook "OutboundEvent", version: "2026.06.16.1" do
-  vision "The durable event-out messaging port — the transactional outbox a SEPARATE-PROGRAM adapter edge consumes. When the core emits an event a hexagon binding subscribes to (an EFFECT port, e.g. Pizzas::Order.charged_by(\"Stripe\", on: \"OrderPlaced\", into: \"Order.Authorize | Order.Decline\")), the runtime records ONE OutboundEvent per subscribing adapter — durably, in the same breath as the emit. A standalone adapter HOST then consumes it out-of-process: claim, do the impure async work (the charge, with its own retries/timeout), dispatch the verdict back through the command port, and mark it delivered. The core NEVER waits — non-blocking by construction, because there is no call to block on. This is the messaging-port analog of CascadeRun: CascadeRun is the transactional outbox for IN-PROCESS domain reactions (delivered by the pump) ; OutboundEvent is the transactional outbox for OUT-OF-PROCESS adapter edges (delivered by a standalone host). Lifecycle: pending -> claimed -> delivered | failed."
+  vision "The durable event-out messaging port — the transactional outbox a SEPARATE-PROGRAM adapter edge consumes. When the core emits an event a hexagon binding subscribes to (an EFFECT port, e.g. Pizzas::Order.charged_by(\"Stripe\", on: \"OrderPlaced\") do success \"Order.Authorize\" ; failure \"Order.Decline\" end), the runtime records ONE OutboundEvent per subscribing adapter — durably, in the same breath as the emit. A standalone adapter HOST then consumes it out-of-process: claim, do the impure async work (the charge, with its own retries/timeout), dispatch the verdict back through the command port, and mark it delivered. The core NEVER waits — non-blocking by construction, because there is no call to block on. This is the messaging-port analog of CascadeRun: CascadeRun is the transactional outbox for IN-PROCESS domain reactions (delivered by the pump) ; OutboundEvent is the transactional outbox for OUT-OF-PROCESS adapter edges (delivered by a standalone host). Lifecycle: pending -> claimed -> delivered | failed."
   category "framework"
 
   # ── The general standalone-adapter contract ──────────────────────────
@@ -21,7 +21,7 @@ Hecks.bluebook "OutboundEvent", version: "2026.06.16.1" do
   #   2. EVENT-OUT   (driven)   — THIS aggregate. The core announces outward ;
   #      a host consumes. Durable so a restart never drops a payment event.
   #   3. DISCOVERY   (read)     — a projection over the hexagon IR (the
-  #      bindings, with their into: verdicts) + .world config. The host reads
+  #      bindings, with their success/failure verdicts) + .world config. The host reads
   #      it to learn "which events do I subscribe to, which verdicts do I
   #      dispatch, with what config". No core code specific to any adapter.
   #
@@ -94,10 +94,11 @@ Hecks.bluebook "OutboundEvent", version: "2026.06.16.1" do
     end
 
     value_object "CommandRef" do
-      # A fully-qualified verdict command from the binding's into: union —
-      # success_command = into[0] (e.g. "Pizzas::Order.Authorize"),
-      # failure_command = into[1] (e.g. "Pizzas::Order.Decline"). The host
-      # dispatches exactly one of the two back through the command port.
+      # A fully-qualified verdict command from the binding's `do success /
+      # failure end` block — success_command = the `success` verdict (e.g.
+      # "Pizzas::Order.Authorize"), failure_command = the `failure` verdict
+      # (e.g. "Pizzas::Order.Decline"). The host dispatches exactly one of
+      # the two back through the command port.
       attribute :value, String
     end
 
