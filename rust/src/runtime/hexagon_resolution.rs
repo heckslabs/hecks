@@ -24,7 +24,7 @@
 //!   let verdicts = resolve_bindings(&runtime.hecksagons);
 //!   let broken: Vec<_> = verdicts.iter().filter(|r| !r.is_ok()).collect();
 
-use crate::hecksagon_ir::{DrivenAdapter, DrivenDispatch, DrivenHandler, Hecksagon};
+use crate::hecksagon_ir::Hecksagon;
 use std::collections::HashMap;
 
 /// The verdict for one binding's adapter→family→verb resolution.
@@ -118,77 +118,4 @@ pub fn resolve_bindings(hecksagons: &[Hecksagon]) -> Vec<BindingResolution> {
         }
     }
     out
-}
-
-/// Bucket-3 effect-port wiring (E2) — translate every resolved `charged_by`
-/// effect binding into a `DrivenAdapter` the mature `driven_adapter_resolver`
-/// already executes. An effect bind `Aggregate.charged_by("Stripe", on: "E",
-/// into: "Agg.Success | Agg.Failure")` becomes a driven handler : on event `E`,
-/// dispatch the SUCCESS verdict (`into[0]`). This is translation, not new
-/// infrastructure — the resolver's event match, cascade dispatch (which threads
-/// the upstream aggregate id), outbox, and depth-guard are reused wholesale, the
-/// same way the persistence consult reused repo-mint.
-///
-/// SCOPE : the success branch only. The runtime always fires `into[0]` ; mapping
-/// a real gateway verdict to success→`into[0]` / failure→`into[1]` is the
-/// deferred second sub-decision (needs the adapter's actual async result). So
-/// this lights the round-trip WIRING ; it does not yet DISCRIMINATE the verdict.
-///
-/// A bind is synthesised IFF it carries both `on` and `into` (an effect port —
-/// reply ports have neither) AND its adapter resolves to a family carrying the
-/// bind's verb (the same typed attach checkpoint `resolve_bindings` applies). A
-/// broken or reply bind synthesises nothing. The synthesised adapter is appended
-/// to the SAME hecksagon that owns the bind, so the resolver finds it in scope.
-pub fn synthesize_effect_driven_adapters(hecksagons: &mut [Hecksagon]) {
-    // Owned name→family / family→verb maps so the immutable borrow is dropped
-    // before the per-hex mutation below (mirrors resolve_bindings' flat-map).
-    let mut adapter_family: HashMap<String, String> = HashMap::new();
-    let mut family_verb: HashMap<String, String> = HashMap::new();
-    for hex in hecksagons.iter() {
-        for a in &hex.adapters {
-            adapter_family.insert(a.name.clone(), a.family.clone());
-        }
-        for f in &hex.families {
-            family_verb.insert(f.name.clone(), f.verb.clone());
-        }
-    }
-    for hex in hecksagons.iter_mut() {
-        let mut synthesized: Vec<DrivenAdapter> = Vec::new();
-        for b in &hex.bindings {
-            // Effect port only : reply ports carry neither `on` nor `into`.
-            if b.on.is_empty() || b.into.is_empty() {
-                continue;
-            }
-            // Typed attach checkpoint : the adapter's family must carry the verb.
-            match adapter_family.get(&b.adapter) {
-                Some(fam) if family_verb.get(fam).map(String::as_str) == Some(b.verb.as_str()) => {}
-                _ => continue,
-            }
-            // The verdict is written `Aggregate.Command` ; prepend the bind's
-            // context (everything before the last `::` of the aggregate FQN) to
-            // form the dispatch FQN `Context::Aggregate.Command`.
-            let context = b.aggregate.rsplit_once("::").map(|(c, _)| c).unwrap_or("");
-            let success = &b.into[0];
-            let command = if context.is_empty() {
-                success.clone()
-            } else {
-                format!("{}::{}", context, success)
-            };
-            synthesized.push(DrivenAdapter {
-                name: b.adapter.clone(),
-                handlers: vec![DrivenHandler {
-                    event_ref: b.on.clone(),
-                    canned: None,
-                    dispatches: vec![DrivenDispatch {
-                        command,
-                        attrs: Vec::new(),
-                        for_each: None,
-                    }],
-                    runs: Vec::new(),
-                    checks: Vec::new(),
-                }],
-            });
-        }
-        hex.driven_adapters.extend(synthesized);
-    }
 }
