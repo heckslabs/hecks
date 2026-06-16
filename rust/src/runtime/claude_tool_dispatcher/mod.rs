@@ -282,16 +282,39 @@ fn locate_replace(contents: &str, old: &str, new: &str, replace_all: bool) -> Re
 
 // ── :read — read file_path, return contents (truncated) ──
 
+/// Narrow file content to a 1-based line window `[offset, offset+limit)`.
+/// `offset` defaults to line 1 ; `limit` defaults to the whole remainder.
+/// Mirrors the underlying Read tool's offset/limit semantics so callers can
+/// page large files instead of slurping from the top. When neither is given
+/// the content is returned verbatim (backward-compatible whole-file read).
+fn window_lines(content: &str, offset: Option<usize>, limit: Option<usize>) -> String {
+    if offset.is_none() && limit.is_none() {
+        return content.to_string();
+    }
+    let lines: Vec<&str> = content.lines().collect();
+    let start = offset.unwrap_or(1).max(1) - 1; // 1-based → 0-based
+    if start >= lines.len() {
+        return String::new();
+    }
+    let end = match limit {
+        Some(n) => start.saturating_add(n).min(lines.len()),
+        None => lines.len(),
+    };
+    lines[start..end].join("\n")
+}
+
 fn run_read(attrs: &HashMap<String, String>) -> ClaudeToolResult {
     let path = match attr(attrs, "file_path") {
         Some(p) => p.to_string(),
         None => return err("read", "missing required attr: file_path"),
     };
+    let offset = attr(attrs, "offset").and_then(|s| s.trim().parse::<usize>().ok());
+    let limit = attr(attrs, "limit").and_then(|s| s.trim().parse::<usize>().ok());
     match std::fs::read_to_string(&path) {
         Ok(c) => ClaudeToolResult {
             tool: "read".into(),
             ok: true,
-            output: truncate(c),
+            output: truncate(window_lines(&c, offset, limit)),
             exit_code: 0,
             error: None,
         },
@@ -442,6 +465,26 @@ mod tests {
         assert!(w.ok, "{:?}", w);
         let r = dispatch("read", &attrs(&[("file_path", &tmp)]));
         assert!(r.ok && r.output == "hi there", "{:?}", r);
+        let _ = std::fs::remove_file(&tmp);
+    }
+
+    #[test]
+    fn read_honors_offset_and_limit() {
+        let tmp = format!("/tmp/claude_tool_window_{}.txt", std::process::id());
+        std::fs::write(&tmp, "l1\nl2\nl3\nl4\nl5").unwrap();
+        // offset=2, limit=2 -> 1-based lines 2..=3
+        let r = dispatch("read", &attrs(&[("file_path", &tmp), ("offset", "2"), ("limit", "2")]));
+        assert!(r.ok, "{:?}", r);
+        assert_eq!(r.output, "l2\nl3", "windowed read returns only the requested lines");
+        // offset only -> from line 4 to end
+        let r2 = dispatch("read", &attrs(&[("file_path", &tmp), ("offset", "4")]));
+        assert_eq!(r2.output, "l4\nl5");
+        // neither -> whole file (backward compatible)
+        let r3 = dispatch("read", &attrs(&[("file_path", &tmp)]));
+        assert_eq!(r3.output, "l1\nl2\nl3\nl4\nl5");
+        // offset past EOF -> empty, not a panic
+        let r4 = dispatch("read", &attrs(&[("file_path", &tmp), ("offset", "99")]));
+        assert!(r4.ok && r4.output.is_empty(), "{:?}", r4);
         let _ = std::fs::remove_file(&tmp);
     }
 
