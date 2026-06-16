@@ -24,8 +24,8 @@ Hecks.world "Pizzas" do
   # adapter tries. latency / retries / backoff are edge-only concerns ; the
   # domain's Authorize / Decline commands know none of them.
   stripe do
-    endpoint_env "PIZZAS_PAYMENT_ENDPOINT"
-    token_env    "PIZZAS_PAYMENT_TOKEN"
+    endpoint "PIZZAS_PAYMENT_ENDPOINT"
+    token    "PIZZAS_PAYMENT_TOKEN"
     timeout_ms   3000
     retries      3
     backoff      "exponential"

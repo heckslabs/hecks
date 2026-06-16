@@ -1,6 +1,6 @@
 # The Shop hexagon. ONE effect-port edge : Order is charged_by the Stripe
 # adapter when OrderPlaced fires, and the async verdict re-enters as one of
-# the `into:` union. This binding is the CONTRACT a standalone Stripe host
+# the bind's `success` / `failure` verdicts. This binding is the CONTRACT a standalone Stripe host
 # reads (which event to watch, which verdicts to dispatch) ; it says nothing
 # about transport — that the edge is satisfied out-of-process is a wiring
 # choice (effect port -> separate program), not part of the binding.

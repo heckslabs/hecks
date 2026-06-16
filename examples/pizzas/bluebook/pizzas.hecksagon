@@ -39,8 +39,8 @@ Hecks.hecksagon "Pizzas" do
   # whose signal is EFFECT : the whole round-trip rides ONE verb. The Order
   # emits OrderPlaced (the inbound edge, `on:`) ; the Stripe adapter does the
   # external IO ; then it routes its verdict back through the hexagon via
-  # storehouse as one of the `into:` union — Order.Authorize on success,
-  # Order.Decline on failure. The verdict commands are domain-specific, so
+  # storehouse as the bind's `do success / failure end` block — Order.Authorize
+  # on success, Order.Decline on failure. The verdict commands are domain-specific, so
   # they live on the binding (the family + adapter are generic, declared once
   # across every domain ; the binding alone names this aggregate). The
   # domain stays purely synchronous : it announces OrderPlaced and later
