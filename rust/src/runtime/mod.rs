@@ -371,6 +371,11 @@ impl Runtime {
         // names. Runs LAST so a binding (the new surface) wins over a legacy
         // persistence block ; additive for every aggregate with no binding.
         rt.apply_hexagon_persistence();
+        // effect-port wiring (E2) — translate each resolved `charged_by`
+        // effect bind into a DrivenAdapter so the mature driven-adapter
+        // resolver fires the verdict on the triggering event. Mutates the
+        // attached hecksagons in place ; a no-op when no effect bind exists.
+        hexagon_resolution::synthesize_effect_driven_adapters(&mut rt.hecksagons);
         rt
     }
 
