@@ -169,6 +169,12 @@ pub struct Adapter {
     pub name: String,
     /// The family this adapter implements (`persistence` / `payment`).
     pub family: String,
+    /// The standalone handler the adapter-host execs for this adapter
+    /// (`bin/stripe-handler`). Set on out-of-process adapters (payment,
+    /// report, tts) ; empty for in-process persistence adapters (heki /
+    /// memory), which the runtime injects directly and never shells out.
+    /// Parsed from the `handler "..."` line of the `*.adapter` declaration.
+    pub handler: String,
 }
 
 /// bucket-3 — one hexagon bind decomposed as `aggregate . verb ( adapter

@@ -7,7 +7,7 @@
 // the match.
     let first = lines[0].trim();
     let name = match between_quotes(first) { Some(n) => n, None => return (None, 1) };
-    let mut adapter = Adapter { name, family: String::new() };
+    let mut adapter = Adapter { name, family: String::new(), handler: String::new() };
     let mut i = 1;
     while i < lines.len() {
         let t = lines[i].trim();
@@ -15,6 +15,9 @@
         if t.is_empty() || t.starts_with('#') { i += 1; continue; }
         if t.split_whitespace().next() == Some("family") {
             if let Some(f) = between_quotes(t) { adapter.family = f; }
+        }
+        if t.split_whitespace().next() == Some("handler") {
+            if let Some(h) = between_quotes(t) { adapter.handler = h; }
         }
         i += 1;
     }
