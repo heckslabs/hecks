@@ -2982,6 +2982,7 @@ fn dump_hecksagon_json(hex: &storehouse::hecksagon_ir::Hecksagon) -> serde_json:
                 "fields": f.fields.iter().map(|fld| serde_json::json!({
                     "name": fld.name, "source": fld.source,
                 })).collect::<Vec<_>>(),
+                "produces": f.produces,
             })).collect();
         obj["families"] = serde_json::json!(families);
     }
