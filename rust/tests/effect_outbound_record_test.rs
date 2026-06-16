@@ -17,12 +17,16 @@ use std::fs;
 const SHOP: &str = r#"Hecks.bluebook "Shop" do
   aggregate "Order" do
     identified_by :id
-    attribute :id,    OrderId
-    attribute :total, Total
+    attribute :id,     OrderId
+    attribute :total,  Total
+    attribute :status, Status, default: "pending"
     value_object "OrderId" do
       attribute :value, String
     end
     value_object "Total" do
+      attribute :value, String
+    end
+    value_object "Status" do
       attribute :value, String
     end
     command "PlaceOrder" do
@@ -31,6 +35,18 @@ const SHOP: &str = r#"Hecks.bluebook "Shop" do
       attribute :total, Total
       then_set :total, to: :total
       emits "OrderPlaced"
+    end
+    command "Authorize" do
+      role "System"
+      attribute :id, OrderId
+      then_set :status, to: "authorized"
+      emits "OrderAuthorized"
+    end
+    command "Decline" do
+      role "System"
+      attribute :id, OrderId
+      then_set :status, to: "declined"
+      emits "OrderDeclined"
     end
   end
 end
@@ -145,5 +161,69 @@ fn reply_binding_records_no_outbound_event() {
     assert!(
         rt.all("OutboundEvent").is_empty(),
         "a reply port is DI/in-process — it records no outbound delivery",
+    );
+}
+
+#[test]
+fn host_round_trip_consumes_claims_dispatches_verdict_and_acks() {
+    // The FULL effect-port round-trip, end to end, through the SAME public door a
+    // standalone host speaks (resolve_query + dispatch) — no host code in the
+    // crate, so nothing re-couples : this test simulates the out-of-process host.
+    let mut domain = parser::parse(SHOP);
+    let outbound = parser::parse(&outbound_event_src());
+    domain.aggregates.extend(outbound.aggregates);
+    let hecksagons = vec![
+        hecksagon_parser::parse(
+            "Hecks.family \"payment\" do\n  verb \"charged_by\"\n  signal :effect\n  field :endpoint\nend\n",
+        ),
+        hecksagon_parser::parse("Hecks.adapter \"Stripe\" do\n  family \"payment\"\nend\n"),
+        hecksagon_parser::parse(
+            "Hecks.hecksagon \"Shop\" do\n  Shop::Order.charged_by(\"Stripe\", on: \"OrderPlaced\", into: \"Order.Authorize | Order.Decline\")\nend\n",
+        ),
+    ];
+    let mut rt = Runtime::boot_with_hecksagons(domain, None, hecksagons);
+
+    // 1. Driving command — the core emits OrderPlaced and records the delivery.
+    let mut place = HashMap::new();
+    place.insert("id".to_string(), s("order-7"));
+    place.insert("total".to_string(), s("999"));
+    rt.dispatch("PlaceOrder", place).expect("PlaceOrder");
+
+    // 2. HOST: poll its pending deliveries.
+    let mut q = HashMap::new();
+    q.insert("adapter".to_string(), "Stripe".to_string());
+    let pending = rt.resolve_query("Pending", &q);
+    let d = &pending["state"];
+    let delivery_id = d["delivery_id"].as_str().expect("delivery_id").to_string();
+    let source_id = d["source_id"].as_str().expect("source_id").to_string();
+    let success_command = d["success_command"].as_str().expect("success_command").to_string();
+    // The host re-enters with the verdict command the delivery named.
+    let verdict_bare = success_command.rsplit('.').next().unwrap().to_string();
+
+    // 3. HOST: claim -> (thin handler returns success) -> dispatch verdict -> ack.
+    let mut claim = HashMap::new();
+    claim.insert("delivery_id".to_string(), s(&delivery_id));
+    rt.dispatch("Claim", claim).expect("Claim");
+
+    let mut verdict = HashMap::new();
+    verdict.insert("id".to_string(), s(&source_id));
+    rt.dispatch(&verdict_bare, verdict).expect("verdict dispatch");
+
+    let mut ack = HashMap::new();
+    ack.insert("delivery_id".to_string(), s(&delivery_id));
+    rt.dispatch("MarkDelivered", ack).expect("MarkDelivered");
+
+    // The verdict landed on the originating order, and the delivery closed.
+    let order = rt.find("Order", "order-7").expect("order exists");
+    assert_eq!(
+        order.get("status"),
+        &s("authorized"),
+        "the host's success verdict (Authorize) re-entered onto the right order",
+    );
+    let closed = rt.find("OutboundEvent", &delivery_id).expect("delivery exists");
+    assert_eq!(
+        closed.get("status"),
+        &s("delivered"),
+        "the host acked the delivery after dispatching the verdict",
     );
 }
