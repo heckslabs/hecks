@@ -38,13 +38,17 @@ process_one() {
 
   "$SH" "$ROOT" OutboundEvent::OutboundEvent.Claim delivery_id="$did" >/dev/null
 
-  # The thin handler does the impure async work and PICKS THE BRANCH : the
-  # verdict discrimination lives off-core, in the adapter, exactly as designed.
-  if echo "$payload" | "$HANDLER"; then verdict="$success"; else verdict="$failure"; fi
+  # The thin handler does the impure async work. Its STDOUT is the verdict DATA
+  # (key=value lines, e.g. payment_ref=ch_x) that the verdict command carries ;
+  # its EXIT CODE picks the branch. Discrimination + data both live off-core, in
+  # the adapter, exactly as designed.
+  local data
+  if data=$(echo "$payload" | "$HANDLER"); then verdict="$success"; else verdict="$failure"; fi
 
-  "$SH" "$ROOT" "$verdict" id="$src" >/dev/null
+  # shellcheck disable=SC2086  # $data is intentionally word-split into k=v attrs
+  "$SH" "$ROOT" "$verdict" id="$src" $data >/dev/null
   "$SH" "$ROOT" OutboundEvent::OutboundEvent.MarkDelivered delivery_id="$did" >/dev/null
-  echo "[adapter-host] $ADAPTER : $did -> $verdict"
+  echo "[adapter-host] $ADAPTER : $did -> $verdict ${data:+($data)}"
 }
 
 poll() {

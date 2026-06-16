@@ -18,9 +18,16 @@
 set -euo pipefail
 
 payload=$(cat)
+order_id=$(echo "$payload" | jq -r '.id // "unknown"' 2>/dev/null || echo unknown)
+
+# STDOUT is the verdict DATA the host threads into the verdict command : the
+# gateway's charge reference. Emitted on BOTH branches (a declined charge still
+# has a gateway ref). STDERR is logs. EXIT CODE is the branch.
+echo "payment_ref=ch_${order_id}"
 
 # Demo: authorize every charge (exit 0). Set STRIPE_DECLINE=1 to exercise the
-# failure branch (the host then dispatches Decline). Real IO replaces this block.
+# failure branch (the host then dispatches Decline). Real gateway IO + the
+# retry/timeout budget from .world replace this block.
 if [ "${STRIPE_DECLINE:-0}" = "1" ]; then
   echo "[stripe-handler] DECLINED $payload" >&2
   exit 1
