@@ -1,8 +1,8 @@
-Hecks.bluebook "GovernedDoor", version: "2026.05.26.1" do
-  vision "The GovernedDoor rule of the immune system — the macrophage sibling that makes governance structural instead of vigilant. A native harness tool (Bash, Edit, Write, Read, Grep, Glob, MultiEdit, NotebookEdit, WebFetch, WebSearch) emits NO bus event, so an act made through it is ungoverned — invisible to the dispatch log, outside the Transparency vow. Each such tool has a storehouse-door equivalent (Tools::ShellTool.Bash, Tools::FileTool.Edit/Update/Read, Tools::SearchTool.Grep/Glob, Tools::WebTool.WebFetch/WebSearch). This aggregate is the registry of that mapping and the audit trail of blocks. Its enforcement SURFACE is the PreToolUse hook bin/governed-door-hook, which hard-blocks a native IO tool (exit 2) and redirects the caller to the door. Control-plane tools (Agent, Task*, advisor, AskUserQuestion, ToolSearch) and mcp__storehouse__* are NOT governed here — they orchestrate, they do not act on the world."
+Hecks.bluebook "GovernedDoor", version: "2026.06.16.1" do
+  vision "The GovernedDoor rule of the immune system — the macrophage sibling that makes governance structural instead of vigilant. A native harness tool (Bash, Edit, Write, Read, Grep, Glob, MultiEdit, NotebookEdit, WebFetch, WebSearch) emits NO bus event, so an act made through it is ungoverned — invisible to the dispatch log, outside the Transparency vow. Each such tool has a storehouse-door equivalent (Tools::ShellTool.Bash, Tools::FileTool.Edit/Update/Read, Tools::SearchTool.Grep/Glob, Tools::WebTool.WebFetch/WebSearch). This aggregate is the registry of that mapping and the audit trail of blocks. Its enforcement SURFACE is the PreToolUse hook ~/.claude/hooks/governed-door (wired in ~/.claude/settings.json), which hard-blocks a native IO tool (exit 2) and redirects the caller to the door. An out-of-band admin escape (launch with HECKS_GOVERNANCE_OFF=1) disables blocking for upgrades; the hook fails OPEN if the registry is unreachable, so a broken governance machine never bricks the session. Control-plane tools (Agent, Task*, advisor, AskUserQuestion, ToolSearch) and mcp__storehouse__* are NOT governed here — they orchestrate, they do not act on the world."
   category "discipline"
 
-  aggregate "GovernedDoor", "One governed native tool, its storehouse-door equivalent, and the running count of times the macrophage blocked it. The bluebook of record for what bin/governed-door-hook enforces." do
+  aggregate "GovernedDoor", "One governed native tool, its storehouse-door equivalent, and the running count of times the macrophage blocked it. The bluebook of record for what ~/.claude/hooks/governed-door enforces." do
     identified_by :tool
 
     attribute :tool,            ToolName
@@ -55,6 +55,7 @@ Hecks.bluebook "GovernedDoor", version: "2026.05.26.1" do
       reference_to(GovernedDoor)
       attribute :last_blocked_at, Timestamp
       then_set :last_blocked_at, to: :last_blocked_at
+      then_set :blocked_count,   increment: 1
       emits "NativeToolBlocked"
     end
 
