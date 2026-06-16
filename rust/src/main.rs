@@ -832,6 +832,15 @@ fn main() {
         return;
     }
 
+    if command == "backends" {
+        if path.is_empty() {
+            eprintln!("Usage: storehouse backends <root>");
+            std::process::exit(1);
+        }
+        cmd_backends(path);
+        return;
+    }
+
     if path.is_empty() {
         eprintln!("Usage: storehouse {} <bluebook-file-or-dir>", command);
         std::process::exit(1);
@@ -3664,6 +3673,51 @@ for r in &broken {
     println!("  {}.{}(\"{}\") : {}", r.aggregate, r.verb, r.adapter, why);
 }
 std::process::exit(1);
+}
+
+/// `storehouse backends <root>` — the i728 RUNTIME-DISCOVERED persistence
+/// inventory : boot the runtime exactly as production does, then project
+/// every aggregate's RESOLVED backend (kind + heki path) via
+/// `dump_backend_map`, flagging the ones `unwired_aggregates` reports as
+/// having NO persistence adapter declared. Read-only — the lazy repos are
+/// never hydrated, so nothing touches disk. This is the "what persists
+/// where / who's unwired" map the cutover needs, and the before/after diff
+/// gate for every later persistence change (a backend flip is a stop).
+fn cmd_backends(agg_dir: &str) {
+let data_dir = find_world_heki_dir(agg_dir)
+    .unwrap_or_else(|| format!("{}/data", agg_dir.trim_end_matches('/')));
+let combined = if std::path::Path::new(agg_dir).is_file() {
+    parser::parse(&fs::read_to_string(agg_dir).unwrap_or_default())
+} else {
+    load_combined_domain(agg_dir)
+};
+let hecksagons = load_all_hecksagons(agg_dir);
+let mut rt = Runtime::boot_with_hecksagons(combined, Some(data_dir), hecksagons);
+storehouse::world::attach::apply_per_domain_world_dirs(&mut rt, agg_dir);
+storehouse::world::attach::attach_world_adapter_bindings(&mut rt, agg_dir);
+
+let map = rt.dump_backend_map();
+let unwired: std::collections::HashSet<String> =
+    rt.unwired_aggregates().into_iter().collect();
+
+let (mut heki, mut mem, mut sql) = (0usize, 0usize, 0usize);
+println!("# backend inventory — {} aggregate(s) (runtime-discovered)", map.len());
+for b in &map {
+    let kind = format!("{:?}", b.kind);
+    match kind.as_str() {
+        "Heki" => heki += 1,
+        "Memory" => mem += 1,
+        "Sql" => sql += 1,
+        _ => {}
+    }
+    let path = b.heki_path.clone().unwrap_or_else(|| "-".to_string());
+    let wired = if unwired.contains(&b.repo_key) { "UNWIRED" } else { "wired" };
+    println!("  {:<46} {:<7} {:<34} {}", b.repo_key, kind, path, wired);
+}
+println!(
+    "# totals : {} heki, {} memory, {} sql ; {} unwired (no persistence adapter declared)",
+    heki, mem, sql, unwired.len()
+);
 }
 
 fn cmd_state(agg_dir: &str, agg_name: &str, id: &str) {
