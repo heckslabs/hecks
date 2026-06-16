@@ -39,12 +39,14 @@ Hecks.hecksagon "Pizzas" do
   # whose signal is EFFECT : the whole round-trip rides ONE verb. The Order
   # emits OrderPlaced (the inbound edge, `on:`) ; the Stripe adapter does the
   # external IO ; then it routes its verdict back through the hexagon via
-  # storehouse as Order.Authorize | Order.Decline — own-domain commands the
-  # binding never has to name (the adapter holds the dispatch target). The
+  # storehouse as one of the `into:` union — Order.Authorize on success,
+  # Order.Decline on failure. The verdict commands are domain-specific, so
+  # they live on the binding (the family + adapter are generic, declared once
+  # across every domain ; the binding alone names this aggregate). The
   # domain stays purely synchronous : it announces OrderPlaced and later
   # receives Authorize or Decline, knowing nothing of the gateway. The adapter
   # is named for its identity (the payment provider) — not its transport ;
   # WHERE the gateway is and how hard it tries live in pizzas.world.
-  Pizzas::Order.charged_by("Stripe", on: "OrderPlaced")
+  Pizzas::Order.charged_by("Stripe", on: "OrderPlaced", into: "Order.Authorize | Order.Decline")
 
 end

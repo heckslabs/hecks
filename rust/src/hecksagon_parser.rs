@@ -896,5 +896,17 @@ fn parse_binding(lines: &[&str]) -> (Option<Binding>, usize) {
         Some(idx) => between_quotes(&args[idx..]).unwrap_or_default(),
         None => String::new(),
     };
-    (Some(Binding { aggregate, verb, adapter, on }), 1)
+    // `into: "Order.Authorize | Order.Decline"` — the effect-port verdict union,
+    // success first, failure second. Split on `|`, trim each. `find("into:")`
+    // cannot collide with `on:` (the substring `on:` does not occur in `into:`).
+    let into: Vec<String> = match args.find("into:") {
+        Some(idx) => between_quotes(&args[idx..])
+            .unwrap_or_default()
+            .split('|')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect(),
+        None => Vec::new(),
+    };
+    (Some(Binding { aggregate, verb, adapter, on, into }), 1)
 }

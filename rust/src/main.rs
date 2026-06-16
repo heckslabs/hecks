@@ -2990,7 +2990,7 @@ fn dump_hecksagon_json(hex: &storehouse::hecksagon_ir::Hecksagon) -> serde_json:
     }
     if !hex.bindings.is_empty() {
         let bindings: Vec<serde_json::Value> = hex.bindings.iter().map(|b| serde_json::json!({
-            "aggregate": b.aggregate, "verb": b.verb, "adapter": b.adapter, "on": b.on,
+            "aggregate": b.aggregate, "verb": b.verb, "adapter": b.adapter, "on": b.on, "into": b.into,
         })).collect();
         obj["bindings"] = serde_json::json!(bindings);
     }
