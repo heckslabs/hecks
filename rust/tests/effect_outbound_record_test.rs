@@ -10,7 +10,6 @@ use storehouse::hecksagon_parser;
 use storehouse::parser;
 use storehouse::runtime::{Runtime, Value};
 use std::collections::HashMap;
-use std::fs;
 
 // A minimal driving domain : an Order whose PlaceOrder emits OrderPlaced — the
 // event the effect binding hangs off.
@@ -52,14 +51,6 @@ const SHOP: &str = r#"Hecks.bluebook "Shop" do
 end
 "#;
 
-fn outbound_event_src() -> String {
-    let p = format!(
-        "{}/../hecks_conception/aggregates/framework/hexagon/outbound_event.bluebook",
-        env!("CARGO_MANIFEST_DIR")
-    );
-    fs::read_to_string(&p).expect("outbound_event.bluebook readable")
-}
-
 fn s(v: &str) -> Value {
     Value::Str(v.to_string())
 }
@@ -68,9 +59,9 @@ fn s(v: &str) -> Value {
 fn effect_binding_records_one_outbound_event_on_emit() {
     // Merge the driving domain (Order) with the framework OutboundEvent so the
     // runtime can dispatch OutboundEvent.Record.
-    let mut domain = parser::parse(SHOP);
-    let outbound = parser::parse(&outbound_event_src());
-    domain.aggregates.extend(outbound.aggregates);
+    // No manual OutboundEvent merge : boot_with_hecksagons loads the framework
+    // outbox SUBSTRATE automatically because an effect binding is present.
+    let domain = parser::parse(SHOP);
 
     let hecksagons = vec![
         hecksagon_parser::parse(
@@ -138,9 +129,9 @@ fn effect_binding_records_one_outbound_event_on_emit() {
 #[test]
 fn reply_binding_records_no_outbound_event() {
     // persisted_by is a reply port (DI, in-process) — no event-out, no delivery.
-    let mut domain = parser::parse(SHOP);
-    let outbound = parser::parse(&outbound_event_src());
-    domain.aggregates.extend(outbound.aggregates);
+    // No manual OutboundEvent merge : boot_with_hecksagons loads the framework
+    // outbox SUBSTRATE automatically because an effect binding is present.
+    let domain = parser::parse(SHOP);
 
     let hecksagons = vec![
         hecksagon_parser::parse(
@@ -169,9 +160,9 @@ fn host_round_trip_consumes_claims_dispatches_verdict_and_acks() {
     // The FULL effect-port round-trip, end to end, through the SAME public door a
     // standalone host speaks (resolve_query + dispatch) — no host code in the
     // crate, so nothing re-couples : this test simulates the out-of-process host.
-    let mut domain = parser::parse(SHOP);
-    let outbound = parser::parse(&outbound_event_src());
-    domain.aggregates.extend(outbound.aggregates);
+    // No manual OutboundEvent merge : boot_with_hecksagons loads the framework
+    // outbox SUBSTRATE automatically because an effect binding is present.
+    let domain = parser::parse(SHOP);
     let hecksagons = vec![
         hecksagon_parser::parse(
             "Hecks.family \"payment\" do\n  verb \"charged_by\"\n  signal :effect\n  field :endpoint\nend\n",

@@ -347,6 +347,13 @@ impl Runtime {
         data_dir: Option<String>,
         hecksagons: Vec<Hecksagon>,
     ) -> Self {
+        // Framework substrate — an effect binding needs the OutboundEvent
+        // event-out port to record deliveries. Merge the embedded framework
+        // outbox aggregate so ANY root (a self-contained example included) can
+        // round-trip an effect port without copying the bluebook. Gated on an
+        // effect binding being present ; a domain already declaring
+        // OutboundEvent wins (no double-load).
+        let domain = Self::ensure_outbox_substrate(domain, &hecksagons);
         let mut rt = Self::boot_with_data_dir(domain, data_dir);
         rt.hecksagons = hecksagons;
         // Persistence override (i642) — when a hecksagon declares
@@ -372,6 +379,40 @@ impl Runtime {
         // persistence block ; additive for every aggregate with no binding.
         rt.apply_hexagon_persistence();
         rt
+    }
+
+    /// The embedded framework outbox bluebook — the OutboundEvent event-out
+    /// port, compiled in as runtime standard-library substrate so any booted
+    /// domain with an effect binding gets it without copying. Single source
+    /// of truth : the conception's canonical framework bluebook.
+    const OUTBOX_SUBSTRATE: &'static str = include_str!(
+        "../../../hecks_conception/aggregates/framework/hexagon/outbound_event.bluebook"
+    );
+
+    /// Merge the framework outbox aggregate into `domain` when (a) some
+    /// attached hecksagon declares an EFFECT binding (a bind carrying `into`)
+    /// and (b) the domain doesn't already declare OutboundEvent. The outbox is
+    /// needed exactly when an effect port exists ; an effect-free domain stays
+    /// untouched, and a domain that already carries OutboundEvent (the
+    /// conception, or an example that copied it) wins — no double-load.
+    fn ensure_outbox_substrate(mut domain: Domain, hecksagons: &[Hecksagon]) -> Domain {
+        let has_effect = hecksagons
+            .iter()
+            .any(|h| h.bindings.iter().any(|b| !b.into.is_empty()));
+        if !has_effect || domain.aggregates.iter().any(|a| a.name == "OutboundEvent") {
+            return domain;
+        }
+        let substrate = crate::parser::parse(Self::OUTBOX_SUBSTRATE);
+        for agg in substrate.aggregates {
+            if !domain
+                .aggregates
+                .iter()
+                .any(|e| e.name == agg.name && e.context == agg.context)
+            {
+                domain.aggregates.push(agg);
+            }
+        }
+        domain
     }
 
     /// Test-harness boot (i735 plan step 4) : every aggregate gets the
