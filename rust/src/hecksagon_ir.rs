@@ -141,9 +141,23 @@ pub struct Family {
     /// Signal kind verbatim, colon stripped — `reply` / `effect` /
     /// `fulfillment`. Empty when undeclared.
     pub signal: String,
-    /// Config FIELD names the family's adapters carry (`dir`, `endpoint`).
-    /// Names only ; the values live per-deployment in `.world`.
-    pub fields: Vec<String>,
+    /// Config FIELDS the family's adapters carry — each a name + a source.
+    /// The family's fields ESTABLISH the schema its adapters' `.world` blocks
+    /// must conform to. Names + sources only ; the VALUES live in `.world`.
+    pub fields: Vec<FamilyField>,
+}
+
+/// bucket-3 — one config field a family declares. The name a `.world` block
+/// keys on, plus where its value comes from (the declaration form sets it) :
+///   `field  :timeout_ms`           -> source `direct` : the `.world` value IS the literal.
+///   `field  :endpoint, from: :env` -> source `env`    : the `.world` value is an env-var NAME.
+///   `secret :token`                -> source `secret` : env-var name, never logged.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct FamilyField {
+    /// The field name — the `.world` block key matches this EXACTLY.
+    pub name: String,
+    /// `direct` | `env` | `secret`. Default `direct`.
+    pub source: String,
 }
 
 /// bucket-3 — a `*.adapter` declaration. The inverted arrow : an adapter

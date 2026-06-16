@@ -87,7 +87,39 @@ fn parses_family_verb_signal_and_fields() {
     assert_eq!(fam.name, "persistence");
     assert_eq!(fam.verb, "persisted_by");
     assert_eq!(fam.signal, "reply", "signal token must drop the colon AND the trailing comment");
-    assert_eq!(fam.fields, vec!["dir".to_string()], "field token must drop the colon AND the trailing comment");
+    assert_eq!(
+        fam.fields,
+        vec![storehouse::hecksagon_ir::FamilyField { name: "dir".to_string(), source: "direct".to_string() }],
+        "field token drops the colon AND the trailing comment ; bare `field` defaults to source `direct`"
+    );
+}
+
+// A family's fields establish the world block, each carrying a SOURCE the
+// declaration form sets : `field` -> direct, `field … from: :env` -> env,
+// `secret` -> secret. The world key matches the field name (no _env suffix).
+const PAYMENT_FAMILY: &str = r#"Hecks.family "payment" do
+  verb   "charged_by"
+  signal :effect
+  field  :timeout_ms
+  field  :endpoint, from: :env
+  secret :token
+end
+"#;
+
+#[test]
+fn parses_family_field_sources() {
+    use storehouse::hecksagon_ir::FamilyField;
+    let hex = hecksagon_parser::parse(PAYMENT_FAMILY);
+    let fam = &hex.families[0];
+    assert_eq!(
+        fam.fields,
+        vec![
+            FamilyField { name: "timeout_ms".to_string(), source: "direct".to_string() },
+            FamilyField { name: "endpoint".to_string(),   source: "env".to_string() },
+            FamilyField { name: "token".to_string(),      source: "secret".to_string() },
+        ],
+        "field -> direct ; field+from: :env -> env ; secret -> secret ; names drop the comma"
+    );
 }
 
 // bucket-3 step 1 — an `.adapter` declaration parses into a single Adapter
