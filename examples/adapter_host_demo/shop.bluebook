@@ -1,0 +1,44 @@
+Hecks.bluebook "Shop" do
+  vision "A one-aggregate driving domain for the standalone-adapter host demo. PlaceOrder emits OrderPlaced (the effect-port trigger) ; Authorize / Decline are the verdict commands the standalone host re-enters with after the charge."
+
+  aggregate "Order" do
+    identified_by :id
+    attribute :id,     OrderId
+    attribute :total,  Total
+    attribute :status, Status, default: "pending"
+
+    value_object "OrderId" do
+      attribute :value, String
+    end
+    value_object "Total" do
+      attribute :value, String
+    end
+    value_object "Status" do
+      attribute :value, String
+    end
+
+    command "PlaceOrder" do
+      role "Customer"
+      attribute :id,    OrderId
+      attribute :total, Total
+      then_set :total, to: :total
+      emits "OrderPlaced"
+    end
+
+    command "Authorize" do
+      role "System"
+      description "The gateway's APPROVED verdict, re-entered by the standalone host. pending -> authorized."
+      attribute :id, OrderId
+      then_set :status, to: "authorized"
+      emits "OrderAuthorized"
+    end
+
+    command "Decline" do
+      role "System"
+      description "The gateway's DECLINED verdict, re-entered by the standalone host. pending -> declined."
+      attribute :id, OrderId
+      then_set :status, to: "declined"
+      emits "OrderDeclined"
+    end
+  end
+end

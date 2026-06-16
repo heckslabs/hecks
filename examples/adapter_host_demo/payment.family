@@ -1,0 +1,7 @@
+Hecks.family "payment" do
+  verb   "charged_by"
+  signal :effect
+  field  :endpoint
+  field  :retries
+  field  :timeout_ms
+end

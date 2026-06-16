@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+# adapter-host — the ONE shared, generic standalone-adapter host.
+#
+# Hexagonal ports-and-adapters : the core (storehouse runtime) owns the ports ;
+# this host runs OUTSIDE it, as a separate process, and speaks ONLY the public
+# door — the query port (OutboundEvent.pending) and the command port (dispatch).
+# It is generic : parameterised by an adapter name + a thin handler command, it
+# reimplements NO subscribe/dispatch plumbing per adapter. Many adapters (Stripe,
+# email, ...) are just different handlers plugged into this one loop.
+#
+# The loop (the standalone-adapter contract, OutboundEvent.bluebook):
+#   1. poll     OutboundEvent.pending(adapter)        — the durable event-out port
+#   2. claim    OutboundEvent.Claim                   — at-least-once guard
+#   3. handle   $HANDLER <payload-on-stdin>           — the async charge, OFF-CORE
+#               exit 0 -> success verdict ; non-zero -> failure verdict.
+#               Retries / timeout / backoff live HERE or in the handler, never
+#               in the core — non-blocking by construction.
+#   4. dispatch <success_command|failure_command> id=<source_id>  — verdict re-entry
+#   5. ack      OutboundEvent.MarkDelivered           — close the delivery
+#
+# Usage: adapter-host <root> <adapter> <handler-cmd> [--once]
+#   STOREHOUSE=/path/to/storehouse  POLL_INTERVAL=2  (env overrides)
+set -euo pipefail
+
+ROOT="${1:?usage: adapter-host <root> <adapter> <handler-cmd> [--once]}"
+ADAPTER="${2:?adapter name required}"
+HANDLER="${3:?handler command required}"
+ONCE="${4:-}"
+SH="${STOREHOUSE:-storehouse}"
+
+process_one() {
+  local d="$1" did src success failure payload verdict
+  did=$(echo "$d"      | jq -r .delivery_id)
+  src=$(echo "$d"      | jq -r .source_id)
+  success=$(echo "$d"  | jq -r .success_command)
+  failure=$(echo "$d"  | jq -r .failure_command)
+  payload=$(echo "$d"  | jq -r .payload)
+
+  "$SH" "$ROOT" OutboundEvent::OutboundEvent.Claim delivery_id="$did" >/dev/null
+
+  # The thin handler does the impure async work and PICKS THE BRANCH : the
+  # verdict discrimination lives off-core, in the adapter, exactly as designed.
+  if echo "$payload" | "$HANDLER"; then verdict="$success"; else verdict="$failure"; fi
+
+  "$SH" "$ROOT" "$verdict" id="$src" >/dev/null
+  "$SH" "$ROOT" OutboundEvent::OutboundEvent.MarkDelivered delivery_id="$did" >/dev/null
+  echo "[adapter-host] $ADAPTER : $did -> $verdict"
+}
+
+poll() {
+  local result state
+  result=$("$SH" query "$ROOT" OutboundEvent::OutboundEvent.pending adapter="$ADAPTER")
+  state=$(echo "$result" | jq -c '.state // empty')
+  [ -z "$state" ] && return 0
+  [ "$state" = "[]" ] && return 0
+  if echo "$state" | jq -e 'type == "array"' >/dev/null; then
+    echo "$state" | jq -c '.[]' | while read -r d; do process_one "$d"; done
+  else
+    process_one "$state"
+  fi
+}
+
+if [ "$ONCE" = "--once" ]; then
+  poll
+else
+  while true; do poll; sleep "${POLL_INTERVAL:-2}"; done
+fi

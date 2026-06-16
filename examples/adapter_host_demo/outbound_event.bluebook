@@ -1,0 +1,181 @@
+Hecks.bluebook "OutboundEvent", version: "2026.06.16.1" do
+  vision "The durable event-out messaging port — the transactional outbox a SEPARATE-PROGRAM adapter edge consumes. When the core emits an event a hexagon binding subscribes to (an EFFECT port, e.g. Pizzas::Order.charged_by(\"Stripe\", on: \"OrderPlaced\", into: \"Order.Authorize | Order.Decline\")), the runtime records ONE OutboundEvent per subscribing adapter — durably, in the same breath as the emit. A standalone adapter HOST then consumes it out-of-process: claim, do the impure async work (the charge, with its own retries/timeout), dispatch the verdict back through the command port, and mark it delivered. The core NEVER waits — non-blocking by construction, because there is no call to block on. This is the messaging-port analog of CascadeRun: CascadeRun is the transactional outbox for IN-PROCESS domain reactions (delivered by the pump) ; OutboundEvent is the transactional outbox for OUT-OF-PROCESS adapter edges (delivered by a standalone host). Lifecycle: pending -> claimed -> delivered | failed."
+  category "framework"
+
+  # ── The general standalone-adapter contract ──────────────────────────
+  #
+  # Hexagonal / ports-and-adapters (Cockburn). The core (runtime + bluebook)
+  # owns the PORTS ; adapters live OUTSIDE and depend INWARD (Dependency Rule).
+  # An edge's WIRING is chosen per-edge, not system-wide:
+  #   - REPLY port  (persisted_by) -> DI, in-process, called inline. Fast,
+  #     deterministic. The repo is injected at mint (the step-4 consult).
+  #     No OutboundEvent is ever recorded for a reply edge.
+  #   - EFFECT port (charged_by)   -> SEPARATE PROGRAM, out-of-process. Slow,
+  #     impure, failure-prone. The core emits and moves on ; THIS aggregate is
+  #     the durable hand-off. The async / retry / timeout live in the host.
+  # Same DSL, same binding ; .world carries the per-edge wiring strategy.
+  #
+  # ── The three ports (all owned by the core) ─────────────────────────
+  #   1. COMMAND-IN  (driving)  — storehouse dispatch. The world drives the
+  #      core ; the adapter re-enters here to deliver its verdict.
+  #   2. EVENT-OUT   (driven)   — THIS aggregate. The core announces outward ;
+  #      a host consumes. Durable so a restart never drops a payment event.
+  #   3. DISCOVERY   (read)     — a projection over the hexagon IR (the
+  #      bindings, with their into: verdicts) + .world config. The host reads
+  #      it to learn "which events do I subscribe to, which verdicts do I
+  #      dispatch, with what config". No core code specific to any adapter.
+  #
+  # ── The ONE shared host protocol (generic ; thin handlers plug in) ──────
+  #   loop:
+  #     1. discover   — read my bindings (event -> success/failure verdict) +
+  #                     config, by adapter name.
+  #     2. consume    — query OutboundEvent.pending(adapter), claim each.
+  #     3. act        — call the thin handler (the charge) ASYNC, with the
+  #                     retry/timeout budget from .world. Entirely off-core.
+  #     4. dispatch   — storehouse dispatch the success_command (ok) or
+  #                     failure_command (declined/exhausted), carrying source_id.
+  #     5. ack        — MarkDelivered (or MarkFailed to retry within budget).
+  # At-least-once + idempotent re-entry : Claim guards against two hosts ; the
+  # verdict commands are domain transitions, safe to replay. The host
+  # reimplements NOTHING — subscribe/dispatch plumbing lives here once.
+
+  aggregate "OutboundEvent", "A durable record of an event the core announced to a separate-program adapter edge, awaiting a standalone host's action. Identified by delivery_id. Lifecycle: pending -> claimed -> delivered | failed." do
+    identified_by :delivery_id
+
+    attribute :delivery_id,     DeliveryId
+    attribute :adapter,         AdapterName
+    attribute :event,           EventName
+    attribute :source_type,     SourceType
+    attribute :source_id,       SourceId
+    attribute :payload,         Payload
+    attribute :success_command, CommandRef
+    attribute :failure_command, CommandRef
+    attribute :status,          Status, default: "pending"
+    attribute :attempts,        Attempts
+    attribute :last_error,      ErrorMessage
+
+    # ── Value objects ─────────────────────────────────────────
+
+    value_object "DeliveryId" do
+      # Stable delivery identifier. Minted by the runtime at Record time —
+      # typically the emitting event's id joined with the adapter name, so a
+      # re-emit of the same event for the same adapter is the same delivery
+      # (idempotent recording).
+      attribute :value, String
+    end
+
+    value_object "AdapterName" do
+      # The subscribing adapter, verbatim from the binding (e.g. "Stripe").
+      # The host's pending() query filters on this.
+      attribute :value, String
+    end
+
+    value_object "EventName" do
+      # The triggering event the binding's on: names (e.g. "OrderPlaced").
+      attribute :value, String
+    end
+
+    value_object "SourceType" do
+      # The emitting aggregate's type FQN (e.g. "Pizzas::Order"), so the
+      # verdict command can reference the right aggregate on re-entry.
+      attribute :value, String
+    end
+
+    value_object "SourceId" do
+      # The emitting aggregate's id. Carried into the verdict dispatch so
+      # Authorize/Decline land on the originating order.
+      attribute :value, String
+    end
+
+    value_object "Payload" do
+      # JSON of the triggering event's data — the charge inputs the handler
+      # needs (amount, currency, ...). Opaque to the core ; the host reads it.
+      attribute :value, String
+    end
+
+    value_object "CommandRef" do
+      # A fully-qualified verdict command from the binding's into: union —
+      # success_command = into[0] (e.g. "Pizzas::Order.Authorize"),
+      # failure_command = into[1] (e.g. "Pizzas::Order.Decline"). The host
+      # dispatches exactly one of the two back through the command port.
+      attribute :value, String
+    end
+
+    value_object "Status" do
+      # Lifecycle token: pending | claimed | delivered | failed.
+      attribute :value, String
+    end
+
+    value_object "Attempts" do
+      # How many times a host has claimed this delivery. The host reads it
+      # against its OWN retry budget (from .world) ; the core never retries.
+      attribute :value, Integer
+    end
+
+    value_object "ErrorMessage" do
+      # Captured failure from the most recent host attempt.
+      attribute :value, String
+    end
+
+    # ── Commands ────────────────────────────────────────────
+
+    command "Record" do
+      role "System"
+      description "The core records an outbound event for a subscribing adapter — dispatched by the runtime when it emits an event an effect binding subscribes to, one Record per subscribing adapter. Durable hand-off to the event-out port. Status starts pending. Idempotent on delivery_id (re-recording the same emit is a no-op)."
+      attribute :delivery_id,     DeliveryId
+      attribute :adapter,         AdapterName
+      attribute :event,           EventName
+      attribute :source_type,     SourceType
+      attribute :source_id,       SourceId
+      attribute :payload,         Payload
+      attribute :success_command, CommandRef
+      attribute :failure_command, CommandRef
+      then_set :delivery_id,     to: :delivery_id
+      then_set :adapter,         to: :adapter
+      then_set :event,           to: :event
+      then_set :source_type,     to: :source_type
+      then_set :source_id,       to: :source_id
+      then_set :payload,         to: :payload
+      then_set :success_command, to: :success_command
+      then_set :failure_command, to: :failure_command
+      then_set :status,          to: "pending"
+      emits "OutboundEventRecorded"
+    end
+
+    command "Claim" do
+      role "System"
+      description "A standalone host claims a pending delivery before acting — the at-least-once guard against two hosts processing the same event. Valid only while pending. Increments attempts."
+      attribute :delivery_id, DeliveryId
+      given("only a pending delivery may be claimed") { status == "pending" }
+      then_set :status, to: "claimed"
+      emits "OutboundEventClaimed"
+    end
+
+    command "MarkDelivered" do
+      role "System"
+      description "The host acks after it has dispatched the verdict (success_command or failure_command) back through the command port. Terminal. The verdict's own re-entry is a separate dispatch ; this only closes the delivery."
+      attribute :delivery_id, DeliveryId
+      given("only a claimed delivery may be delivered") { status == "claimed" }
+      then_set :status, to: "delivered"
+      emits "OutboundEventDelivered"
+    end
+
+    command "MarkFailed" do
+      role "System"
+      description "The host records a failed attempt (the charge could not reach a verdict within its budget). Captures the error and returns the delivery to pending for another host pass, OR the host dispatches the failure_command (Decline) and marks delivered — the host's policy, never the core's. The core never silently retries ; recovery is the host re-claiming or a new command."
+      attribute :delivery_id, DeliveryId
+      attribute :error,       ErrorMessage
+      then_set :status,     to: "pending"
+      then_set :last_error, to: :error
+      emits "OutboundEventFailed"
+    end
+
+    # ── Queries ──────────────────────────────────────────────
+
+    query "Pending" do
+      description "The host's poll — every delivery still pending for a given adapter. Pass adapter: <name> (e.g. Stripe). The shared host loops this query, Claims each result, runs the thin handler off-core, dispatches the success_command or failure_command back through the command port, then MarkDelivered. Filtering status == pending makes consumption idempotent : a claimed/delivered row never reappears."
+      where adapter: :adapter
+      where status:  "pending"
+    end
+  end
+end

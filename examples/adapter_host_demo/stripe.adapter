@@ -1,0 +1,3 @@
+Hecks.adapter "Stripe" do
+  family "payment"
+end

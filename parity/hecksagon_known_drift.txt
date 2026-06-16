@@ -118,3 +118,4 @@
 # hecksagon parser lift teaches the surface and resolves the binds (load the
 # framework families/adapters, type-check the attach).
 examples/pizzas/bluebook/pizzas.hecksagon  # ports-and-adapters surface — legacy Ruby parser errors on Pizzas::Order.persisted_by ; retires when the hecksagon parser lift lands
+examples/adapter_host_demo/shop.hecksagon  # same ports-and-adapters surface (Shop::Order.charged_by + into:) — legacy Ruby parser errors ; the standalone-adapter host demo, retires with the parser lift
