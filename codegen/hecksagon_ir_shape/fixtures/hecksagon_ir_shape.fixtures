@@ -1,0 +1,49 @@
+Hecks.fixtures "HecksagonIrShape" do
+  # Single-line fixtures per i57 parser limitation.
+  #
+  # The shape of rust/src/hecksagon_ir.rs as fixture rows. The
+  # hecksagon_ir specializer walks the Type rows in `order` and emits the
+  # byte-identical .rs. Two body_kinds today :
+  #
+  #   struct           — `<struct doc>\n#[derive(<derives>)]\npub struct
+  #                      <name> {\n<fields>\n}\n`. Fields come from Field
+  #                      rows filtered by type_name, sorted by order ; each
+  #                      may carry a 4-space-indented doc_snippet.
+  #   verbatim_section — emit the body_snippet .rs.frag verbatim. Holds the
+  #                      file header + Hecksagon container struct, and the
+  #                      13 legacy adapter structs (driven/driving/shell/llm/
+  #                      compute/tts/gate/io/...) held intact until each is
+  #                      migrated into the Family/Adapter/Binding grammar.
+  #
+  # Only the 4 grammar-modelled structs (Family, FamilyField, Adapter,
+  # Binding) are field-decomposed — they are what the grammar↔fixtures
+  # parity test binds against. Everything else rides the two verbatim
+  # sections, so editing the grammar regenerates the IR for exactly the
+  # structs the grammar owns, no hand-edit.
+
+  aggregate "Type" do
+    fixture "HeaderHecksagon", name: "HeaderHecksagon", order: 1, body_kind: "verbatim_section", derives: "",                              impl_target: "", body_snippet: "codegen/hecksagon_ir_shape/snippets/sections/header_hecksagon.rs.frag", doc_snippet: "",                                                              description: "File header doc + Hecksagon container struct (verbatim)"
+    fixture "Family",          name: "Family",          order: 2, body_kind: "struct",           derives: "Debug, Clone, Default",            impl_target: "", body_snippet: "",                                                                    doc_snippet: "codegen/hecksagon_ir_shape/snippets/docs/family_type.rs.frag",        description: "A *.family declaration — name, verb, signal, fields"
+    fixture "FamilyField",     name: "FamilyField",     order: 3, body_kind: "struct",           derives: "Debug, Clone, Default, PartialEq", impl_target: "", body_snippet: "",                                                                    doc_snippet: "codegen/hecksagon_ir_shape/snippets/docs/family_field_type.rs.frag",  description: "One config field a family declares — name + source"
+    fixture "Adapter",         name: "Adapter",         order: 4, body_kind: "struct",           derives: "Debug, Clone, Default",            impl_target: "", body_snippet: "",                                                                    doc_snippet: "codegen/hecksagon_ir_shape/snippets/docs/adapter_type.rs.frag",       description: "A *.adapter declaration — the inverted arrow"
+    fixture "Binding",         name: "Binding",         order: 5, body_kind: "struct",           derives: "Debug, Clone, Default",            impl_target: "", body_snippet: "",                                                                    doc_snippet: "codegen/hecksagon_ir_shape/snippets/docs/binding_type.rs.frag",       description: "One hexagon bind — aggregate.verb(adapter[, on: event])"
+    fixture "Legacy",          name: "Legacy",          order: 6, body_kind: "verbatim_section", derives: "",                              impl_target: "", body_snippet: "codegen/hecksagon_ir_shape/snippets/sections/legacy.rs.frag",          doc_snippet: "",                                                              description: "13 legacy adapter structs (verbatim, awaiting migration)"
+  end
+
+  aggregate "Field" do
+    fixture "Family_name",         type_name: "Family",      order: 1, name: "name",      field_type: "String",            doc_snippet: "codegen/hecksagon_ir_shape/snippets/docs/family_name.rs.frag"
+    fixture "Family_verb",         type_name: "Family",      order: 2, name: "verb",      field_type: "String",            doc_snippet: "codegen/hecksagon_ir_shape/snippets/docs/family_verb.rs.frag"
+    fixture "Family_signal",       type_name: "Family",      order: 3, name: "signal",    field_type: "String",            doc_snippet: "codegen/hecksagon_ir_shape/snippets/docs/family_signal.rs.frag"
+    fixture "Family_fields",       type_name: "Family",      order: 4, name: "fields",    field_type: "Vec<FamilyField>",  doc_snippet: "codegen/hecksagon_ir_shape/snippets/docs/family_fields.rs.frag"
+    fixture "FamilyField_name",    type_name: "FamilyField", order: 1, name: "name",      field_type: "String",            doc_snippet: "codegen/hecksagon_ir_shape/snippets/docs/family_field_name.rs.frag"
+    fixture "FamilyField_source",  type_name: "FamilyField", order: 2, name: "source",    field_type: "String",            doc_snippet: "codegen/hecksagon_ir_shape/snippets/docs/family_field_source.rs.frag"
+    fixture "Adapter_name",        type_name: "Adapter",     order: 1, name: "name",      field_type: "String",            doc_snippet: "codegen/hecksagon_ir_shape/snippets/docs/adapter_name.rs.frag"
+    fixture "Adapter_family",      type_name: "Adapter",     order: 2, name: "family",    field_type: "String",            doc_snippet: "codegen/hecksagon_ir_shape/snippets/docs/adapter_family.rs.frag"
+    fixture "Binding_aggregate",   type_name: "Binding",     order: 1, name: "aggregate", field_type: "String",            doc_snippet: "codegen/hecksagon_ir_shape/snippets/docs/binding_aggregate.rs.frag"
+    fixture "Binding_verb",        type_name: "Binding",     order: 2, name: "verb",      field_type: "String",            doc_snippet: "codegen/hecksagon_ir_shape/snippets/docs/binding_verb.rs.frag"
+    fixture "Binding_adapter",     type_name: "Binding",     order: 3, name: "adapter",   field_type: "String",            doc_snippet: "codegen/hecksagon_ir_shape/snippets/docs/binding_adapter.rs.frag"
+    fixture "Binding_on",          type_name: "Binding",     order: 4, name: "on",        field_type: "String",            doc_snippet: "codegen/hecksagon_ir_shape/snippets/docs/binding_on.rs.frag"
+    fixture "Binding_success",     type_name: "Binding",     order: 5, name: "success",   field_type: "String",            doc_snippet: "codegen/hecksagon_ir_shape/snippets/docs/binding_success.rs.frag"
+    fixture "Binding_failure",     type_name: "Binding",     order: 6, name: "failure",   field_type: "String",            doc_snippet: ""
+  end
+end
