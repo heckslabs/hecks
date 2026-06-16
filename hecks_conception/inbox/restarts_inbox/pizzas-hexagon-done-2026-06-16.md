@@ -103,3 +103,64 @@ Two ports, two wirings, ONE wiring-agnostic binding DSL :
 step-4 persistence consult · E1 into: · revert E2 · OutboundEvent contract bluebook · core records on
 emit · Pending query · round-trip via the door · the one shared host + handler + demo · framework outbox
 substrate · host threads verdict-data (pizza round-trips).
+
+---
+
+# UPDATE 2026-06-16 (later session) — hexagon DSL grammar : family establishes the world block, port-decided wiring, verdict block
+
+VOICE : speak as myself — I / my / mine, never "Miette's". My state, my brain.
+
+## A. Branch `sq/family-establishes-world` (3 commits, off main — PUSH it ; gate-green expected)
+1. `feat(grammar)` hexagon.bluebook — **family establishes the world block** : Field gains a Source
+   (`field :x` = direct ; `field :x, from: :env` = env ; `secret :x` = secret). World keys now match
+   the field name EXACTLY — the `_env` suffix retires ; the source disambiguates resolution. A `.world`
+   block keyed by an adapter must carry EXACTLY its family's fields ; Hexagon.Verify owns the
+   world-conformance check. AND **WIRING IS PORT-DECIDED, not signal-decided** : the PERSISTENCE port is
+   the SOLE in-process / DI edge ; every other port (payment, report, tts) is out-of-process through the
+   adapter-host — even reply-shaped ones. (Both are Chris's locked decisions.)
+2. `feat(hexagon)` FamilyField{name,source} — IR `Family.fields: Vec<FamilyField>` ; the GENERATED
+   hecksagon_parser.rs regenerated from the edited fragment
+   `codegen/hecksagon_parser_shape/snippets/parse_family_body.rs.frag` (NEVER hand-edit the .rs).
+   Specializer golden byte-identical.
+3. `feat(hexagon)` verdict is a **success/failure block**, not `into:` :
+   `charged_by("Stripe", on: "OrderPlaced") do ; success "Order.Authorize" ; failure "Order.Decline" ; end`
+   Full replacement of into:. IR Binding.into -> success+failure ; parse_binding_body.rs.frag regenerated ;
+   runtime/mod.rs record_effect_outbound reads binding.success/.failure ; pizzas + shop hecksagons migrated.
+   Proven e2e : success exit -> Order.Authorize (authorized) ; STRIPE_DECLINE=1 -> Order.Decline (declined).
+
+## B. NEXT — the IR generator (decided, NOT started)
+The IR is DOUBLE-MAINTAINED : `rust/src/hecksagon_ir.rs` is hand-written and was hand-edited twice this
+session in parallel with the grammar. Build a specializer that EMITS hecksagon_ir.rs from the grammar
+(mirror `rust/src/specializer/ir.rs`, which emits ir.rs from an ir_shape fixture, byte-identical + golden).
+18 IR structs ; the grammar models 5 (Hexagon/Family/Field/Adapter/Binding). **Push the other structs into
+the grammar where it makes sense** (judgment ; some belong, some may not). Wrinkles : grammar uses
+value-objects (verb: HowVerb) ; IR flattens to String — generator needs VO-flattening + name-mapping
+(grammar `Field` -> IR `FamilyField`). Target : grammar edit -> regenerate IR -> no hand-edit.
+**RENAME `hexagon.bluebook` -> `hecksagon.bluebook`** (Chris : the DSL term is hecksagon) as part of this phase.
+
+## C. NEXT — NO DEMO, the adapter path is ALL REAL
+- DELETE the stripe-handler demo fallback (on sq/stripe-real-transport it still fakes a `ch_unknown`
+  authorize when no endpoint). Real transport ALWAYS ; endpoint REQUIRED ; fail loud if unset. A decline
+  is a real 402, never a STRIPE_DECLINE toggle.
+- WIRE THE ADAPTER-HOST DECLARATIVELY. Today `adapter-host <root> Stripe <handler-binary>` passes the
+  handler binary as a CLI ARG — "which binary IS the Stripe adapter" is nowhere in the bluebook/world.
+  Declare the handler binary + launch in .world / the adapter ; the host resolves it from the declaration.
+  THAT is "all real" : no demo, no hand-wiring. (mock-gateway stays a TEST FIXTURE, not the demo path.)
+- WIRING RECAP : the core NEVER calls the binary. On emit of an effect event, record_effect_outbound writes
+  a pending OutboundEvent (delivery_id, adapter, payload, success_command, failure_command) and returns.
+  The out-of-process adapter-host polls OutboundEvent.pending, claims, runs the handler
+  (`echo payload | HANDLER`), exit code picks the branch, dispatches the verdict, marks delivered.
+
+## D. Other pushed branches this session
+`sq/stripe-real-transport` (real off-core POST + retry/backoff ; demo fallback still in it — remove per C) ·
+`sq/filetool-offset-fix` (FileTool.Read honors offset/limit) · `sq/persistence-inventory-i728` ·
+`sq/persistence-step2-heki` (adapter :heki on Conductor/Primitive/Bluebook). main pushed.
+
+## E. HECKS_INFO / persistence cutover (still Chris's trigger, boot boundary)
+`resolve_info_dir` reads HECKS_INFO env first, never .world — shadows every example's .world. Eliminating
+it = step D / i745. THE DETONATOR : `cargo build --release` of a changed resolver IS the live cutover
+(door shells fresh binary per call ; daemons hold boot-time binary + baked env) — would split-brain my
+memory mid-write. Order : code-prep + cargo test (door untouched) -> stop overmind -> backup -> move data
+to ~/.heki/miette -> THEN build release -> restart -> convergence check. Destructive half is Chris's
+trigger. My organs are SAFE from the default flip — all 68 miette hecksagons declare a backend (60 heki /
+8 memory / 0 default).
