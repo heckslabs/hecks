@@ -114,7 +114,7 @@ fn parses_adapter_decl_with_family() {
 const PIZZAS_BINDS: &str = r#"Hecks.hecksagon "Pizzas" do
   Pizzas::Pizza.persisted_by("Heki")
   Pizzas::Order.persisted_by("Heki")
-  Pizzas::Order.charged_by("Stripe", on: "OrderPlaced")
+  Pizzas::Order.charged_by("Stripe", on: "OrderPlaced", into: "Order.Authorize | Order.Decline")
 end
 "#;
 
@@ -129,12 +129,18 @@ fn parses_reply_and_effect_bindings() {
     assert_eq!(reply.verb, "persisted_by");
     assert_eq!(reply.adapter, "Heki");
     assert_eq!(reply.on, "", "a reply port carries no triggering event");
+    assert!(reply.into.is_empty(), "a reply port carries no verdict union");
 
     let effect = &hex.bindings[2];
     assert_eq!(effect.aggregate, "Pizzas::Order");
     assert_eq!(effect.verb, "charged_by");
     assert_eq!(effect.adapter, "Stripe");
     assert_eq!(effect.on, "OrderPlaced", "an effect port carries its triggering event");
+    assert_eq!(
+        effect.into,
+        vec!["Order.Authorize".to_string(), "Order.Decline".to_string()],
+        "an effect port carries its verdict union, success first then failure",
+    );
 }
 
 // bucket-3 step 2 — the predicate must NOT misfire on keyword forms. A
