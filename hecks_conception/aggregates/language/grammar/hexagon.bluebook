@@ -1,4 +1,4 @@
-Hecks.bluebook "Hexagon", version: "2026.06.12.4" do
+Hecks.bluebook "Hexagon", version: "2026.06.16.1" do
   vision "A domain's boundary wiring — the ports it exposes and the adapters that fulfil them. Everything inside the boundary is one synchronous domain ; everything that leaves it is an asynchronous adapter, and the colour is never declared because the boundary itself decides it. The domain NEVER locks — no Mutex, no contention — because every async concern lives at the adapter edge, never in the synchronous core.
 
   This is non-blocking BY CONSTRUCTION, not by convention. Three structural properties make it impossible for an adapter to block the domain or a sibling : (1) no state is shared across the boundary — each aggregate-actor and each adapter owns its own — so no lock can exist, there is simply nothing to guard ; (2) every edge is an async message (event out, command in) — the domain never holds a reference to an adapter and waits on it, so the wait-path does not exist ; (3) the domain projects to sync functions with no async or lock primitive in scope, so the compiler itself refuses a blocking domain. The reply signal looks synchronous but is not : the runtime hydrates state BEFORE the sync core runs and persists AFTER it returns, so find/save is an in-memory touch, never a mid-logic IO wait. An adapter may be SLOW — IO takes time, bounded by the family's timeout — but slow never propagates : it stalls only its own task.
@@ -8,6 +8,8 @@ Hecks.bluebook "Hexagon", version: "2026.06.12.4" do
   An adapter is anything outside the boundary — persistence, HTTP, a payment gateway, a report, or calling another bluebook through storehouse, the universal dispatch door. Calling another domain is just one outside thing among many : the adapter routes a command through storehouse and the target aggregate implements it directly — a bluebook working as an adapter. So this chapter never names another bluebook ; the adapter is the indirection.
 
   The impure edges are grouped into families named by their how-verb — persisted_by, charged_by — which says how we implement, not what a port means. A family carries a signal (reply returns a value to the synchronous domain ; effect emits an event whose verdict re-enters as a command) and the config fields its adapters need, whose values live per-deployment in .world. An adapter declares the family it implements — the inverted arrow — and already knows where it routes, so no FQN is stored here.
+
+  WIRING IS DECIDED BY THE PORT, not the signal. The PERSISTENCE port is the SOLE in-process, dependency-injected edge : its adapter (heki / memory / sqlite) is minted at boot and called inline, because find/save is the one impure edge with a bounded, structurally non-blocking lifecycle — the runtime hydrates state BEFORE the sync core and persists AFTER it returns, so the in-process call can never stall mid-logic. EVERY OTHER PORT runs OUT-OF-PROCESS, through the shared standalone adapter-host : a slow or flaky payment, report, or TTS would block the core if injected inline, so it is never injected — it is a separate program consuming the event-out port and re-entering its verdict through storehouse. A return-shaped (reply) family that is NOT persistence is still out-of-process. So the binding decides its wiring by looking at the PORT : persistence → DI/in-process ; all else → separate-program/out-of-process.
 
   Cross-domain wiring is the hexagon's job at runtime through storehouse's discovery ; Hexagon.Verify is the optional startup fail-fast that moves discovery of a misconfiguration forward from first-fire to boot. Cross-domain VOCABULARY lives in Composition — this chapter is the runtime WIRING."
   category "language"
@@ -40,7 +42,7 @@ Hecks.bluebook "Hexagon", version: "2026.06.12.4" do
 
     command "Verify" do
       role "Framework"
-      description "Startup validation — the OPTIONAL fail-fast guard over runtime discovery. Load the hexagon and check every binding's adapter resolves its target through storehouse ; fail fast if any wiring is missing or misconfigured, instead of breaking at first-fire. The binding is still resolved at RUNTIME ; Verify only moves discovery of a misconfiguration forward to startup. This is the flexibility/safety trade-off made explicit."
+      description "Startup validation — the OPTIONAL fail-fast guard over runtime discovery. Load the hexagon and check, for every binding, that (a) its adapter resolves its target through storehouse, and (b) the adapter's .world block conforms to its family : every key is a declared family Field, every required field is present, and env/secret fields carry an env-var NAME. Fail fast if any wiring is missing or misconfigured, instead of breaking at first-fire. The binding is still resolved at RUNTIME ; Verify only moves discovery of a misconfiguration forward to startup. This is the flexibility/safety trade-off made explicit."
       reference_to(Hexagon)
       emits "Verified"
     end
@@ -106,21 +108,46 @@ Hecks.bluebook "Hexagon", version: "2026.06.12.4" do
   #
   # The field NAME only ; the VALUE lives in .world (db, endpoint,
   # timeout_ms). Belongs to its family.
-  aggregate "Field", "One configuration field a family's adapters carry (db, endpoint, timeout_ms). The name only — the value lives in .world. Belongs to its family." do
+  # The family's fields ESTABLISH the world block. A .world block keyed by an
+  # adapter is not a free-form bag : it must carry EXACTLY the fields of the
+  # family that adapter implements, by name. Unknown keys and missing required
+  # fields are wiring errors, caught by Hexagon.Verify — the same fail-loud
+  # discipline as the .adapter↔.family arrow, extended to .world. The world
+  # supplies VALUES against this schema ; the family owns the schema.
+  aggregate "Field", "One configuration field a family's adapters carry (db, endpoint, timeout_ms, token). The field NAME and its SOURCE — the VALUE lives per-deployment in .world. A family's fields establish the schema its adapters' .world blocks must conform to (Hexagon.Verify enforces it). Belongs to its family." do
     identified_by :name
-    attribute :name, FieldName
+    attribute :name,   FieldName
+    attribute :source, Source, default: "direct"
 
     value_object "FieldName" do
-      # The field's name — "db", "endpoint", "timeout_ms".
+      # The field's name — "db", "endpoint", "timeout_ms", "token". The .world
+      # block key matches this name EXACTLY ; the SOURCE (below), not a key
+      # suffix, says whether the value is read directly or via the environment.
+      attribute :value, String
+    end
+
+    value_object "Source" do
+      # WHERE the field's value comes from — set by the declaration FORM :
+      #   field  :timeout_ms            -> "direct" : the .world value IS the literal.
+      #   field  :endpoint, from: :env  -> "env"    : the .world value is the NAME of
+      #                                    an env var ; the runtime reads that var.
+      #   secret :token                 -> "secret": like env (the .world value is an
+      #                                    env-var name) but NEVER logged or echoed.
+      #                                    The secret lives only in the environment —
+      #                                    never in a bluebook, never in .world.
+      # This retires the _env key-suffix convention : direct and env/secret fields
+      # share one key (the field name) ; the source disambiguates resolution.
       attribute :value, String
     end
 
     command "Declare" do
       role "Framework"
-      description "Declare one config field on a family. The value is supplied per-deployment in .world."
-      attribute :name, FieldName
+      description "Declare one config field on a family — its name and source (direct | env | secret). The value is supplied per-deployment in .world ; for env/secret the .world value is the NAME of the env var the runtime resolves at dispatch."
+      attribute :name,   FieldName
+      attribute :source, Source, default: "direct"
       emits "Declared"
-      then_set :name, to: :name
+      then_set :name,   to: :name
+      then_set :source, to: :source
     end
   end
 
