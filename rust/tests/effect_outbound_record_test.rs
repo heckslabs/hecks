@@ -69,7 +69,7 @@ fn effect_binding_records_one_outbound_event_on_emit() {
         ),
         hecksagon_parser::parse("Hecks.adapter \"Stripe\" do\n  family \"payment\"\nend\n"),
         hecksagon_parser::parse(
-            "Hecks.hecksagon \"Shop\" do\n  Shop::Order.charged_by(\"Stripe\", on: \"OrderPlaced\", into: \"Order.Authorize | Order.Decline\")\nend\n",
+            "Hecks.hecksagon \"Shop\" do\n  Shop::Order.charged_by(\"Stripe\", on: \"OrderPlaced\") do\n    success \"Order.Authorize\"\n    failure \"Order.Decline\"\n  end\nend\n",
         ),
     ];
     let mut rt = Runtime::boot_with_hecksagons(domain, None, hecksagons);
@@ -93,12 +93,12 @@ fn effect_binding_records_one_outbound_event_on_emit() {
     assert_eq!(
         d.get("success_command"),
         &s("Shop::Order.Authorize"),
-        "into[0], context-qualified — the verdict the host dispatches on success",
+        "the block's success verdict, context-qualified — dispatched on success",
     );
     assert_eq!(
         d.get("failure_command"),
         &s("Shop::Order.Decline"),
-        "into[1] — the verdict on failure",
+        "the block's failure verdict",
     );
 
     // The host's poll : Pending(adapter) returns the delivery for its adapter.
@@ -169,7 +169,7 @@ fn host_round_trip_consumes_claims_dispatches_verdict_and_acks() {
         ),
         hecksagon_parser::parse("Hecks.adapter \"Stripe\" do\n  family \"payment\"\nend\n"),
         hecksagon_parser::parse(
-            "Hecks.hecksagon \"Shop\" do\n  Shop::Order.charged_by(\"Stripe\", on: \"OrderPlaced\", into: \"Order.Authorize | Order.Decline\")\nend\n",
+            "Hecks.hecksagon \"Shop\" do\n  Shop::Order.charged_by(\"Stripe\", on: \"OrderPlaced\") do\n    success \"Order.Authorize\"\n    failure \"Order.Decline\"\n  end\nend\n",
         ),
     ];
     let mut rt = Runtime::boot_with_hecksagons(domain, None, hecksagons);
