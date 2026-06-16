@@ -2978,8 +2978,11 @@ fn dump_hecksagon_json(hex: &storehouse::hecksagon_ir::Hecksagon) -> serde_json:
     // of these extensions — stays untouched (empty → key absent → no drift).
     if !hex.families.is_empty() {
         let families: Vec<serde_json::Value> = hex.families.iter().map(|f| serde_json::json!({
-            "name": f.name, "verb": f.verb, "signal": f.signal, "fields": f.fields,
-        })).collect();
+                "name": f.name, "verb": f.verb, "signal": f.signal,
+                "fields": f.fields.iter().map(|fld| serde_json::json!({
+                    "name": fld.name, "source": fld.source,
+                })).collect::<Vec<_>>(),
+            })).collect();
         obj["families"] = serde_json::json!(families);
     }
     if !hex.adapters.is_empty() {

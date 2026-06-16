@@ -815,30 +815,53 @@ fn parse_canned_kv(line: &str) -> Option<(String, String)> {
 /// signal :s ; field :f end` block into a Family. Returns the parsed
 /// Family and the line count consumed (through the matching `end`).
 fn parse_family(lines: &[&str]) -> (Option<Family>, usize) {
-    fn sym_after(line: &str, keyword: &str) -> String {
-        let rest = match line.strip_prefix(keyword) { Some(r) => r.trim_start(), None => return String::new() };
-        let rest = rest.strip_prefix(':').unwrap_or(rest);
-        let end = rest.find(|c: char| c.is_whitespace() || c == '#').unwrap_or(rest.len());
-        rest[..end].trim().to_string()
-    }
-    let first = lines[0].trim();
-    let name = match between_quotes(first) { Some(n) => n, None => return (None, 1) };
-    let mut family = Family { name, verb: String::new(), signal: String::new(), fields: Vec::new() };
-    let mut i = 1;
-    while i < lines.len() {
-        let t = lines[i].trim();
-        if t == "end" { return (Some(family), i + 1); }
-        if t.is_empty() || t.starts_with('#') { i += 1; continue; }
-        match t.split_whitespace().next().unwrap_or("") {
-            "verb" => { if let Some(v) = between_quotes(t) { family.verb = v; } }
-            "signal" => { family.signal = sym_after(t, "signal"); }
-            "field" => { let f = sym_after(t, "field"); if !f.is_empty() { family.fields.push(f); } }
-            _ => {}
+        fn sym_after(line: &str, keyword: &str) -> String {
+            let rest = match line.strip_prefix(keyword) { Some(r) => r.trim_start(), None => return String::new() };
+            let rest = rest.strip_prefix(':').unwrap_or(rest);
+            let end = rest.find(|c: char| c.is_whitespace() || c == '#' || c == ',').unwrap_or(rest.len());
+            rest[..end].trim().to_string()
         }
-        i += 1;
+        // `field :x, from: :env` -> "env" ; `field :x` -> "direct". The source
+        // the declaration FORM carries (secret is handled by its own arm).
+        fn source_from_decl(line: &str) -> String {
+            if let Some(idx) = line.find("from:") {
+                let after = line[idx + "from:".len()..].trim_start();
+                let after = after.strip_prefix(':').unwrap_or(after);
+                let end = after.find(|c: char| c.is_whitespace() || c == '#' || c == ',').unwrap_or(after.len());
+                let s = after[..end].trim();
+                if !s.is_empty() { return s.to_string(); }
+            }
+            "direct".to_string()
+        }
+        let first = lines[0].trim();
+        let name = match between_quotes(first) { Some(n) => n, None => return (None, 1) };
+        let mut family = Family { name, verb: String::new(), signal: String::new(), fields: Vec::new() };
+        let mut i = 1;
+        while i < lines.len() {
+            let t = lines[i].trim();
+            if t == "end" { return (Some(family), i + 1); }
+            if t.is_empty() || t.starts_with('#') { i += 1; continue; }
+            match t.split_whitespace().next().unwrap_or("") {
+                "verb" => { if let Some(v) = between_quotes(t) { family.verb = v; } }
+                "signal" => { family.signal = sym_after(t, "signal"); }
+                "field" => {
+                    let name = sym_after(t, "field");
+                    if !name.is_empty() {
+                        family.fields.push(FamilyField { name, source: source_from_decl(t) });
+                    }
+                }
+                "secret" => {
+                    let name = sym_after(t, "secret");
+                    if !name.is_empty() {
+                        family.fields.push(FamilyField { name, source: "secret".to_string() });
+                    }
+                }
+                _ => {}
+            }
+            i += 1;
+        }
+        (Some(family), i)
     }
-    (Some(family), i)
-}
 
 /// bucket-3 step 1 — parse one `Hecks.adapter "Name" do family "fam"
 /// end` block into an Adapter (the inverted arrow : the adapter
