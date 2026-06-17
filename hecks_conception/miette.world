@@ -1,0 +1,15 @@
+Hecks.world "Miette" do
+  # Miette's conception persists to the DEFAULT location : rooted at ~/.heki,
+  # OUTSIDE ~/Projects (so live state needs no gitignore), mirroring where the
+  # bluebooks live as <chain>/<domain>/<aggregate>.heki. `dir :default`
+  # documents that choice ; the runtime derives the folder chain from where the
+  # dispatch resolves, with no hand-coded path or realm.
+  #
+  # TRANSITIONAL : HECKS_INFO is the master switch. While it is set in the
+  # launching env, state stays at its current location ; both the dispatch
+  # writer and the state reader honour it first. The flip to ~/.heki is
+  # `env -u HECKS_INFO` at boot plus a one-time copy of the existing store.
+  heki do
+    dir :default
+  end
+end

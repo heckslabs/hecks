@@ -155,6 +155,16 @@ pub(crate) fn resolve_fs_root_with(
     if let Some(v) = env_override {
         if !v.is_empty() { return v.to_string(); }
     }
+    // World resolution (when HECKS_INFO is unset) — fold onto the ONE
+    // canonical store resolver so the status report reads the SAME folder
+    // the dispatch writer (find_world_heki_dir) and the state reader
+    // (resolve_info_dir) resolve. Presence-switched : returns None unless
+    // the conception declares a realm/:default world, leaving the legacy
+    // hecksagon-root + script-dir walk below untouched.
+    let agg = conception_dir(script_path).join("aggregates");
+    if let Some(d) = crate::heki::resolve_world_store_dir(&agg.to_string_lossy()) {
+        return d;
+    }
     let root = adapter.options.iter().find(|(k, _)| k == "root")
         .map(|(_, v)| v.trim_matches('"').to_string())
         .unwrap_or_else(|| "information".to_string());

@@ -35,10 +35,20 @@ fn binary() -> PathBuf {
     p
 }
 
+// Per-process monotonic counter so two parallel tests that call tmpdir() in
+// the SAME nanosecond still get distinct dirs. Without it, same-nanos collisions
+// (pid is identical across threads) gave two tests the SAME dir ; since several
+// tests reuse a filename (12 use inbox.heki, 2 use m.heki), one test's
+// write_store clobbered another's store — an intermittent wrong-count failure
+// under the full `cargo test` load. The seq makes the dir unconditionally unique.
+static TMPDIR_SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
 fn tmpdir() -> PathBuf {
-    let d = std::env::temp_dir().join(format!("hq_{}_{}",
+    let seq = TMPDIR_SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let d = std::env::temp_dir().join(format!("hq_{}_{}_{}",
         std::process::id(),
-        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()));
+        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos(),
+        seq));
     std::fs::create_dir_all(&d).unwrap();
     d
 }
