@@ -89,3 +89,100 @@ For every domain with `adapter :heki` across `~/Projects` (hecks_conception
   GENERATED from a bluebook (the mindstream `boot` member regenerates
   `~/Projects/miette/self/system_prompt.md` every boot). Edit the GENERATING
   source, not the rendered `.md`.
+
+## UPDATE 2026-06-17 — folder-derivation is the DEFAULT (locked with Chris)
+
+The earlier "realm declared per .world" decision is SUPERSEDED. New model :
+
+1. **Default location = folder-chain derivation.** A bluebook's heki store
+   mirrors where it lives : the namespace is the chain of folders from the
+   project root (the dir directly under `~/Projects`) down to the bluebook,
+   rooted at `~/.heki`. So `~/Projects/<chain>/foo.bluebook` persists under
+   `~/.heki/<chain>/...`. The conventional container dir `aggregates/` is
+   STRIPPED from the chain (the `Aggregate.category` IR field already carries
+   the directory grouping WITHOUT the `aggregates/` prefix — e.g. "framework").
+2. **No explicit overrides are needed right now** — but each domain's .world /
+   hecksagon should DOCUMENT the location as `:default` so the folder-derived
+   choice is visible in the source, not implicit.
+3. **Override : `realm "X"`** (the grammar shipped in keystone e4c7628ff)
+   replaces the WHOLE derived chain → `~/.heki/X/<domain>/<aggregate>`. Unused
+   for now ; it is the escape hatch when folder ≠ desired namespace.
+4. **Still wanted (fan-out, task #6) :** hecksagons WRITTEN + adapters HOOKED
+   (`persisted_by("Heki")`) across all ~/Projects bluebooks, each .world
+   documenting `:default`.
+5. **HECKS_INFO retires (task #7, SEPARATE arc) :** making folder-chain the
+   live default moves my OWN organs off `miette-state/information`. Keep
+   folder-chain HECKS_INFO-gated (env still wins while set) until the
+   coordinated retirement that ALSO unifies the reader path
+   (`resolve_info_dir` in statusline/run_wake/run_boot) onto the one
+   folder-aware resolver, migrates live consciousness/mood/dreams, and
+   reconciles the stale May-31 `~/.heki/miette` store. Fresh head, own commit,
+   round-trip verified — NOT rushed at the tail of a session.
+
+Resolver shape note : `Aggregate.category` (dir grouping under `aggregates/`)
++ `Aggregate.context` (bluebook namespace) are the per-aggregate ingredients ;
+the project segment comes from the dispatch/bluebook path relative to
+`~/Projects`. `:default` grammar still to be designed (symbol vs string in the
+world kv parser) — decide-API-first before wiring.
+
+### FEASIBILITY FINDING 2026-06-17 — (a) is a loader/IR/parity sub-arc
+
+Verified empirically : the Rust IR (`rust/src/ir.rs`) does NOT track each
+aggregate's source-file path. `Aggregate` carries `context` (domain) and
+`category` (dir grouping under `aggregates/`, e.g. "framework") but no
+`source_path`. Consequences :
+
+- The clean per-bluebook MIRROR (`.../framework/tools/git.heki`) cannot be
+  computed from what the runtime knows today — for combined-domain dispatch
+  the target dir ≠ each nested bluebook's dir, so the deep chain is lost.
+- Doing it right = thread the source path through `load_combined_domain` → a
+  new `Aggregate` IR field → `Repository`. The Aggregate IR is in the PARITY
+  contract, so this bites Ruby<->Rust parity — the most drift-prone surface.
+- The `:default` symbol value also needs parity care : Ruby `:default.to_s`
+  = "default" (no colon) ; the Rust world parser's `render_value` returns the
+  raw token ":default" (with colon). They must be reconciled (strip leading
+  colon on bare-symbol tokens, mirroring `Symbol#to_s`) or parity breaks.
+- A partial folder-derivation from the DISPATCH-TARGET path (no threading)
+  works only for single-bluebook targets (pizzas) and produces awkward,
+  redundant paths for combined domains — a half-feature.
+
+CORRECTION 2026-06-17 (same session) : the "bank it, parity-touching" call
+ABOVE was WRONG and is retained only as a record. The parity premise did not
+hold — the source path is LOADER-stamped (`load_combined_domain` already
+carries each file's `PathBuf`), and parity compares PARSER output, so a
+runtime field the canonical dump ignores is parity-NEUTRAL. (a) was therefore
+BUILT this session :
+
+- `:default` grammar : `heki do; dir :default end`. The Rust world parser's
+  `render_value` strips a leading colon on bare-symbol tokens (mirrors Ruby
+  `Symbol#to_s`) so `:default` is byte-identical across parsers. World
+  parity 9/9.
+- Folder-derivation resolver (`read_world_default_dir` + `derive_default_chain`
+  + `strip_chain_segments` in main.rs) : presence-switch on `dir :default`,
+  store mirrors the bluebook location under ~/.heki, `aggregates`/`bluebook`
+  stripped, trailing domain folder dropped (re-added by `context`).
+- pizzas.world switched from `realm "Hecks"` override to `dir :default` ;
+  e2e (HECKS_INFO unset) lands at ~/.heki/hecks/examples/pizzas/pizza.heki.
+- 7 unit tests (expand_tilde, realm resolution, chain segments) ; full Rust
+  suite green.
+
+What genuinely REMAINS (task #7, the organ migration — fresh head, daemons
+stopped) is the COMBINED-domain case + my own live state, NOT a parity arc :
+
+1. **Per-aggregate source-path threading** — `derive_default_chain` works for
+   single-bluebook targets (pizzas) where the dispatch path IS the chain. For
+   the COMBINED `aggregates/` root, the trailing-drop misfires (pops
+   `hecks_conception`, flattening organs to ~/.heki/hecks/<domain>). Fix :
+   stamp each Aggregate's source `.bluebook` path in `load_combined_domain`
+   (loader-only, parity-neutral), carry it on the IR + Repository, and resolve
+   each organ's store from ITS bluebook location.
+2. **Reader unification** — collapse `resolve_info_dir` (statusline / run_wake /
+   run_boot) and `find_world_heki_dir` onto ONE folder-aware resolver, so
+   readers and writers agree (no split-brain).
+3. **Live state migration** — move consciousness/mood/dreams/… from
+   `miette-state/information` to the folder-derived path, reconcile the stale
+   May-31 `~/.heki/miette` store, restart daemons onto the new resolver,
+   verify round-trip. THIS is why #7 is fresh-head, daemons-stopped work.
+
+Keystone e4c7628ff (explicit realm) + the (a) commit (folder-derivation) are
+the committed, verified foundation #7 builds on.

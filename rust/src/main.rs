@@ -3180,6 +3180,16 @@ fn find_world_heki_dir(aggregates_path: &str) -> Option<String> {
     if let Some(realm_dir) = read_world_realm_dir(aggregates_path) {
         return Some(realm_dir);
     }
+    // Folder-derivation (presence-switch on `dir :default`) : a nearby
+    // `.world` whose heki block says `dir :default` documents that the
+    // store MIRRORS where the bluebook lives — rooted at ~/.heki, the
+    // chain of folders from the project (the dir under ~/Projects) down to
+    // the bluebook, with the conventional containers `aggregates`/`bluebook`
+    // stripped. Only worlds that declare `:default` take this branch, so
+    // every other deployment is untouched.
+    if let Some(default_dir) = read_world_default_dir(aggregates_path) {
+        return Some(default_dir);
+    }
     if let Some(world_dir) = read_world_heki_dir(aggregates_path) {
         return Some(world_dir);
     }
@@ -3269,6 +3279,82 @@ fn expand_tilde(p: &str) -> String {
         }
     }
     p.to_string()
+}
+
+/// Folder-derivation store-root resolution (presence-switch on
+/// `dir :default`). When a nearby `.world` declares `heki do; dir :default
+/// end`, the store MIRRORS the bluebook's location : rooted at ~/.heki, the
+/// folder chain from the project (the dir under ~/Projects) down to the
+/// bluebook, with `aggregates`/`bluebook` containers stripped. The trailing
+/// domain segment is dropped because the aggregate's `context` re-adds it,
+/// so `<root>/<context>/<aggregate>.heki` reconstructs the full mirror
+/// without redundancy. Returns `None` unless a nearby world opts in.
+fn read_world_default_dir(aggregates_path: &str) -> Option<String> {
+    use std::path::{Path, PathBuf};
+    let agg = Path::new(aggregates_path);
+    let base = if agg.is_dir() { agg } else { agg.parent()? };
+    let mut opts_in = false;
+    for dir in [Some(base), base.parent()].into_iter().flatten() {
+        let Ok(entries) = std::fs::read_dir(dir) else { continue };
+        let mut worlds: Vec<PathBuf> = entries
+            .filter_map(|e| e.ok())
+            .map(|e| e.path())
+            .filter(|p| p.extension().map_or(false, |x| x == "world"))
+            .collect();
+        worlds.sort();
+        for wf in worlds {
+            let Ok(src) = std::fs::read_to_string(&wf) else { continue };
+            let world = storehouse::world::parser::parse(&src);
+            if world.config_for("heki").and_then(|c| c.get("dir")) == Some("default") {
+                opts_in = true;
+                break;
+            }
+        }
+        if opts_in { break; }
+    }
+    if !opts_in { return None; }
+    let chain = derive_default_chain(aggregates_path)?;
+    let root = Path::new(&expand_tilde("~/.heki")).join(chain);
+    std::fs::create_dir_all(&root).ok()?;
+    Some(root.to_string_lossy().into_owned())
+}
+
+/// Derive the project-relative folder chain for `:default` stores : the
+/// path under ~/Projects, `.bluebook` filename dropped, `aggregates`/
+/// `bluebook` containers stripped, and the trailing domain folder dropped
+/// (the aggregate's `context` re-adds it). `None` when the target is not
+/// under ~/Projects or nothing meaningful remains.
+fn derive_default_chain(aggregates_path: &str) -> Option<String> {
+    use std::path::{Component, Path};
+    let abs = std::fs::canonicalize(aggregates_path)
+        .unwrap_or_else(|_| Path::new(aggregates_path).to_path_buf());
+    let projects_raw = expand_tilde("~/Projects");
+    let projects = std::fs::canonicalize(&projects_raw)
+        .unwrap_or_else(|_| Path::new(&projects_raw).to_path_buf());
+    let rel = abs.strip_prefix(&projects).ok()?;
+    let segs: Vec<String> = rel.components()
+        .filter_map(|c| match c {
+            Component::Normal(s) => s.to_str().map(|x| x.to_string()),
+            _ => None,
+        })
+        .collect();
+    strip_chain_segments(segs)
+}
+
+/// Pure segment transform for `:default` chains : drop a trailing
+/// `*.bluebook` filename, strip `aggregates`/`bluebook` containers, then
+/// drop the trailing domain folder (re-added by the aggregate `context`).
+/// `None` when nothing meaningful remains. Extracted from
+/// `derive_default_chain` so the path arithmetic is unit-testable without
+/// touching the filesystem.
+fn strip_chain_segments(mut segs: Vec<String>) -> Option<String> {
+    if segs.last().map_or(false, |s| s.ends_with(".bluebook")) {
+        segs.pop();
+    }
+    segs.retain(|s| s != "aggregates" && s != "bluebook");
+    segs.pop(); // trailing domain folder — re-added by the aggregate context
+    if segs.is_empty() { return None; }
+    Some(segs.join("/"))
 }
 
 /// i221 — load every `*.hecksagon` reachable from agg_dir (the agg_dir
@@ -6331,9 +6417,41 @@ mod realm_resolution_tests {
 //! heki path `<dir>/<realm>/<domain>/<aggregate>.heki`. Hermetic : no env
 //! mutation, absolute dirs only, so these never race on `$HOME` or a
 //! shared temp dir.
-use super::{expand_tilde, read_world_realm_dir};
+use super::{expand_tilde, read_world_realm_dir, strip_chain_segments};
 use std::fs;
 use std::time::{SystemTime, UNIX_EPOCH};
+
+fn segs(parts: &[&str]) -> Vec<String> {
+    parts.iter().map(|s| s.to_string()).collect()
+}
+
+#[test]
+fn default_chain_pizzas_strips_bluebook_and_trailing_domain() {
+    // ~/Projects/hecks/examples/pizzas/bluebook (dir target) → the chain
+    // under ~/.heki is hecks/examples ; the trailing "pizzas" is the
+    // domain folder the aggregate context re-adds.
+    assert_eq!(
+        strip_chain_segments(segs(&["hecks", "examples", "pizzas", "bluebook"])),
+        Some("hecks/examples".to_string())
+    );
+}
+
+#[test]
+fn default_chain_strips_aggregates_and_drops_bluebook_filename() {
+    // A single-bluebook file target nested under aggregates/ : the
+    // .bluebook filename is dropped, `aggregates` stripped, trailing
+    // domain folder dropped.
+    assert_eq!(
+        strip_chain_segments(segs(&["hecks", "hecks_conception", "aggregates", "framework", "tools", "git.bluebook"])),
+        Some("hecks/hecks_conception/framework".to_string())
+    );
+}
+
+#[test]
+fn default_chain_too_shallow_is_none() {
+    assert_eq!(strip_chain_segments(segs(&["hecks"])), None);
+    assert_eq!(strip_chain_segments(segs(&["aggregates", "bluebook"])), None);
+}
 
 fn tempdir(tag: &str) -> std::path::PathBuf {
     let nanos = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();

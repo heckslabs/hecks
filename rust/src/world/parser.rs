@@ -283,6 +283,14 @@ fn render_value(raw: &str) -> String {
     if is_single_quoted_string(t) {
         return strip_quotes(t);
     }
+    // Bare Ruby symbol token (`:default`) — canonicalize to match Ruby's
+    // `Symbol#to_s`, which drops the leading colon. Keeps .world symbol
+    // sentinels (`dir :default`) byte-identical across both parsers.
+    if let Some(sym) = t.strip_prefix(':') {
+        if !sym.is_empty() && sym.chars().all(|c| c.is_alphanumeric() || c == '_') {
+            return sym.to_string();
+        }
+    }
     t.to_string()
 }
 
