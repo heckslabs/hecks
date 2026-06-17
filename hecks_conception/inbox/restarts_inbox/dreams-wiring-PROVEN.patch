@@ -1,0 +1,169 @@
+# PROVEN dream-cascade wiring diff (session 6). behaviors_runner.rs is a
+# SPECIALIZER GOLDEN (codegen/behaviors_runner_shape) — do NOT hand-edit it.
+# Reproduce at the right layer: edit snippets/05_run_one.rs.frag (run_one sig +
+# boot+register block) AND rust/src/specializer/behaviors_runner.rs suite_overload
+# synthesis (emit the 6th run_one arg + add llm_canned param to the
+# _with_domain_and_hecksagons overload), then storehouse specialize behaviors_runner.
+# main.rs + dream.behaviors below are hand-editable as-is.
+
+##### hecks: rust/src/behaviors_runner.rs + rust/src/main.rs #####
+
+##### miette: body/dream/dream.behaviors #####
+diff --git a/body/dream/dream.behaviors b/body/dream/dream.behaviors
+index 6cc59af..1bc2e53 100644
+--- a/body/dream/dream.behaviors
++++ b/body/dream/dream.behaviors
+@@ -117,6 +117,32 @@ Hecks.behaviors "BodyDream" do
+            emits: ["SeedsGathered"]
+   end
+ 
++  # ── gap3 CLOSED — the :dream_image adapter cascade, in-memory ────
++  #
++  # The behaviors runner now WIRES the canned :llm provider as a test
++  # double : the sibling dream.fixtures rows are registered under the
++  # adapter's declared backend (`:claude`) on the in-memory runtime.
++  # So a `kind: :cascade` dispatch of Dream.ProduceImage resolves the
++  # :dream_image adapter and cascades its response into
++  # Dream.RecordImage — with NO network call and NO env flip. Memory
++  # adapter for persistence ; canned provider for the LLM ; the real
++  # ClaudeProvider stays wired in prod via the same backend key.
++  #
++  # The emit of DreamImageRecorded is the proof : it can ONLY appear
++  # if the wired :dream_image adapter fired and cascaded RecordImage.
++  # Without the wiring, ProduceImage emits DreamImageRequested alone
++  # and this assertion fails. This is the in-memory parallel of
++  # tests/dream_content_smoke.sh's run-loop cascade.
++  test "REM cascade : the wired :dream_image adapter fires and cascades RecordImage" do
++    tests "ProduceImage", on: "Dream", kind: :cascade
++    setup  "PlantSeeds", recent_dreams_seed: "the corridor of file paths",
++                         body_state_seed: "tired ; carrying the written-but-not-functioning sweep",
++                         vow_tensions_seed: "silence-while-i-talk",
++                         commits_today_seed: "fb813ae : session-5 restart entry"
++    input  sleep_cycle: 1
++    expect emits: ["DreamImageRequested", "DreamImageRecorded"]
++  end
++
+   # ── UNCOVERED — runtime-level smoke assertions ──────────────────
+   #
+   # UNCOVERED : dream_seed.heki growth via for_each Musings.Musing.recent —
+
+##### hecks rust diff (vs HEAD) #####
+diff --git a/rust/src/behaviors_runner.rs b/rust/src/behaviors_runner.rs
+index a03702709..ac6024f08 100644
+--- a/rust/src/behaviors_runner.rs
++++ b/rust/src/behaviors_runner.rs
+@@ -74,7 +74,7 @@ pub fn run_suite_with_fixtures(
+     fixtures: Option<&FixturesFile>,
+ ) -> SuiteResult {
+     let runs = suite.tests.iter()
+-        .map(|t| run_one(source_text, t, fixtures, None, None))
++        .map(|t| run_one(source_text, t, fixtures, None, None, None))
+         .collect();
+     SuiteResult { runs }
+ }
+@@ -95,7 +95,7 @@ pub fn run_suite_with_domain(
+     fixtures: Option<&FixturesFile>,
+ ) -> SuiteResult {
+     let runs = suite.tests.iter()
+-        .map(|t| run_one(source_text, t, fixtures, Some(domain_template), None))
++        .map(|t| run_one(source_text, t, fixtures, Some(domain_template), None, None))
+         .collect();
+     SuiteResult { runs }
+ }
+@@ -112,9 +112,10 @@ pub fn run_suite_with_domain_and_hecksagons(
+     suite: &TestSuite,
+     fixtures: Option<&FixturesFile>,
+     hecksagons: &[Hecksagon],
++    llm_canned: Option<&std::collections::HashMap<String, String>>,
+ ) -> SuiteResult {
+     let runs = suite.tests.iter()
+-        .map(|t| run_one(source_text, t, fixtures, Some(domain_template), Some(hecksagons)))
++        .map(|t| run_one(source_text, t, fixtures, Some(domain_template), Some(hecksagons), llm_canned))
+         .collect();
+     SuiteResult { runs }
+ }
+@@ -125,6 +126,7 @@ fn run_one(
+     fixtures: Option<&FixturesFile>,
+     full_domain: Option<&Domain>,
+     hecksagons: Option<&[Hecksagon]>,
++    llm_canned: Option<&std::collections::HashMap<String, String>>,
+ ) -> TestRun {
+     // `kind: :pending` — runner-level skip for tests known to be stale
+     // or blocked on out-of-scope work. Counted as a Pass with the
+@@ -170,6 +172,38 @@ fn run_one(
+         _ => Runtime::boot_in_memory(domain),
+     };
+ 
++    // Wire canned LLM responses as a TEST DOUBLE. Register the
++    // fixture-backed TestProvider under each backend the attached
++    // hecksagons' :llm adapters declare (e.g. `backend :claude`).
++    // This is WIRING, not an env flip : the production hecksagon
++    // keeps `backend :claude`, prod wires the real ClaudeProvider,
++    // and the behaviors harness wires the canned double under the
++    // same key so a `kind: :cascade` dispatch of e.g.
++    // `Dream.ProduceImage` resolves the :dream_image adapter to a
++    // deterministic reading in-memory with no network call. When
++    // `llm_canned` is None or no :llm backend is declared, nothing
++    // is registered and the path stays byte-identical. Closes the
++    // dream.behaviors gap3 (:adapter_cascade) note.
++    if let (Some(canned), Some(hs)) = (llm_canned, hecksagons) {
++        let mut backends: std::collections::HashSet<String> =
++            std::collections::HashSet::new();
++        for h in hs {
++            for la in &h.llm_adapters {
++                if let Some(b) = la.backend.as_deref() {
++                    backends.insert(b.to_string());
++                }
++            }
++        }
++        for backend in backends {
++            rt.register_llm_provider(
++                backend,
++                Box::new(crate::runtime::llm_providers::TestProvider::new(
++                    canned.clone(),
++                )),
++            );
++        }
++    }
++
+     // The translation layer between the bluebook (refs only) and the
+     // runtime (ids). Maps an aggregate type → the id of the most
+     // recently created instance of that type in this test. Setups
+diff --git a/rust/src/main.rs b/rust/src/main.rs
+index d68e417e2..5ae38f10c 100644
+--- a/rust/src/main.rs
++++ b/rust/src/main.rs
+@@ -1149,9 +1149,15 @@ fn run_behaviors(args: &[String]) {
+     let hecksagons = behaviors_aggregates_root(suite_path)
+         .map(|root| load_all_hecksagons(&root))
+         .unwrap_or_default();
++    // Canned :llm responses wired as a test double (no env flip) :
++    // the sibling `<stem>.fixtures` of every hecksagon, folded into
++    // one prompt-keyed map, registered under the adapter's declared
++    // backend by the runner. Prod keeps the real ClaudeProvider.
++    let llm_canned = behaviors_aggregates_root(suite_path)
++        .map(|root| collect_sibling_fixtures(&root));
+     let result = match combined.as_ref() {
+         Some(d) => storehouse::behaviors_runner::run_suite_with_domain_and_hecksagons(
+-            &source_text, d, &suite, fixtures.as_ref(), &hecksagons,
++            &source_text, d, &suite, fixtures.as_ref(), &hecksagons, llm_canned.as_ref(),
+         ),
+         None    => storehouse::behaviors_runner::run_suite_with_fixtures(
+             &source_text, &suite, fixtures.as_ref(),
+@@ -1355,9 +1361,15 @@ fn run_one_suite(suite_path: &str, opts: &TestOpts) -> SuiteRunReport {
+             .map(|root| load_all_hecksagons(&root))
+             .unwrap_or_default(),
+     };
++    // Canned :llm responses wired as a test double (no env flip).
++    let llm_canned = match &opts.corpus {
++        Some(root) => Some(collect_sibling_fixtures(root)),
++        None => behaviors_aggregates_root(suite_path)
++            .map(|root| collect_sibling_fixtures(&root)),
++    };
+     let result = match combined.as_ref() {
+         Some(d) => storehouse::behaviors_runner::run_suite_with_domain_and_hecksagons(
+-            &source_text, d, &suite, fixtures.as_ref(), &hecksagons,
++            &source_text, d, &suite, fixtures.as_ref(), &hecksagons, llm_canned.as_ref(),
+         ),
+         None => storehouse::behaviors_runner::run_suite_with_fixtures(
+             &source_text, &suite, fixtures.as_ref(),
