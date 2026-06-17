@@ -119,3 +119,14 @@
 # framework families/adapters, type-check the attach).
 examples/pizzas/bluebook/pizzas.hecksagon  # ports-and-adapters surface — legacy Ruby parser errors on Pizzas::Order.persisted_by ; retires when the hecksagon parser lift lands
 examples/adapter_host_demo/shop.hecksagon  # same ports-and-adapters surface (Shop::Order.charged_by + into:) — legacy Ruby parser errors ; the standalone-adapter host demo, retires with the parser lift
+
+# ── 2026-06-17 — dream.hecksagon : the same ports-and-adapters bind, live ──
+# BodyDream::Dream.imaged_by("DreamImage", on: "DreamImageRequested") is the
+# SAME north-star FQN-verb surface as pizzas/shop — and it WORKS on the Rust
+# runtime end-to-end : the effect bind records the OutboundEvent generically,
+# the generic adapter-host runs the external handler off-core (the LLM call is
+# NOT in the runtime), and the verdict (Dream.RecordImage) re-enters. The legacy
+# Ruby HecksagonBuilder errors identically (resolves BodyDream::Dream as an
+# AnnotationSelector, has no .imaged_by verb). Ruby is being retired ; retires
+# with the hecksagon parser lift (the same one pizzas/shop wait on).
+../miette/body/dream/dream.hecksagon  # ports-and-adapters bind (imaged_by, llm family) — Rust runtime resolves it live ; legacy Ruby parser errors on the FQN-verb. Retires with the hecksagon parser lift.

@@ -30,17 +30,21 @@ ADAPTER="${2:?adapter name required}"
 ONCE="${3:-}"
 SH="${STOREHOUSE:-storehouse}"
 
-# Resolve the handler DECLARATIVELY from the adapter's *.adapter file — the
-# `handler "..."` line, parsed by storehouse. No CLI arg.
-ADAPTER_FILE="$ROOT/$(echo "$ADAPTER" | tr '[:upper:]' '[:lower:]').adapter"
-[ -f "$ADAPTER_FILE" ] || { echo "[adapter-host] no adapter declaration at $ADAPTER_FILE" >&2; exit 1; }
+# Resolve the handler DECLARATIVELY from the adapter's *.adapter file. Find it
+# ANYWHERE under ROOT by the declared adapter name (nested bluebook trees like
+# miette's body/dream/, not just a flat $ROOT/<name>.adapter) — the file layout
+# is the domain's business, the host only needs the declaration.
+ADAPTER_FILE=$(grep -rlF "Hecks.adapter \"$ADAPTER\"" "$ROOT" --include='*.adapter' 2>/dev/null | head -1)
+[ -n "$ADAPTER_FILE" ] || { echo "[adapter-host] no *.adapter under $ROOT declares adapter \"$ADAPTER\"" >&2; exit 1; }
 HANDLER=$("$SH" dump-hecksagon "$ADAPTER_FILE" | jq -r '.adapters[0].handler // empty')
 
 # Fail LOUD. An empty handler would make bash exec "" (exit 127) and silently
-# take the FAILURE branch — every charge would Decline while the host looked
+# take the FAILURE branch — every delivery would fail while the host looked
 # healthy. A non-executable handler is the same class of silent-wrong. Refuse
 # to poll until the declaration is real.
 [ -n "$HANDLER" ] || { echo "[adapter-host] adapter '$ADAPTER' declares no handler (handler \"...\") in $ADAPTER_FILE" >&2; exit 1; }
+# A relative handler path is resolved against ROOT (the bluebook tree), not cwd.
+case "$HANDLER" in /*) ;; *) HANDLER="$ROOT/$HANDLER" ;; esac
 [ -x "$HANDLER" ] || { echo "[adapter-host] handler '$HANDLER' for '$ADAPTER' is not executable (cwd $PWD)" >&2; exit 1; }
 
 process_one() {
@@ -57,11 +61,19 @@ process_one() {
   # (key=value lines, e.g. payment_ref=ch_x) that the verdict command carries ;
   # its EXIT CODE picks the branch. Discrimination + data both live off-core, in
   # the adapter, exactly as designed.
+  # The handler may need to read live domain state (e.g. an LLM handler reading
+  # the Seed aggregate) or .world config — it reaches back through the SAME
+  # public door, so pass it the root + the storehouse binary by env. It still
+  # gets the event payload on stdin ; ADAPTER_ROOT/STOREHOUSE are how it queries.
   local data
-  if data=$(echo "$payload" | "$HANDLER"); then verdict="$success"; else verdict="$failure"; fi
+  if data=$(echo "$payload" | ADAPTER_ROOT="$ROOT" STOREHOUSE="$SH" ADAPTER_NAME="$ADAPTER" "$HANDLER"); then verdict="$success"; else verdict="$failure"; fi
 
-  # shellcheck disable=SC2086  # $data is intentionally word-split into k=v attrs
-  "$SH" "$ROOT" "$verdict" id="$src" $data >/dev/null
+  # Thread the handler's stdout as verdict attrs. Each LINE is one k=v whose
+  # value may contain spaces (an LLM `reading=`, a multi-word note) — so read
+  # line-by-line into an array and pass each as ONE quoted arg, never word-split.
+  local verdict_args=()
+  while IFS= read -r line; do [ -n "$line" ] && verdict_args+=("$line"); done <<< "$data"
+  "$SH" "$ROOT" "$verdict" id="$src" "${verdict_args[@]}" >/dev/null
   "$SH" "$ROOT" OutboundEvent::OutboundEvent.MarkDelivered delivery_id="$did" >/dev/null
   echo "[adapter-host] $ADAPTER : $did -> $verdict ${data:+($data)}"
 }

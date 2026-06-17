@@ -116,9 +116,14 @@ mkdir -p "$TMP/information/consciousness" "$TMP/information/dream" \
 for src in \
   "$BODY_DIR/sleep/consciousness.bluebook" \
   "$BODY_DIR/dream/dream.bluebook" \
-  "$BODY_DIR/dream/dream.hecksagon" ; do
+  "$BODY_DIR/dream/dream.hecksagon" \
+  "$BODY_DIR/dream/dream_image.adapter" \
+  "$BODY_DIR/dream/llm.family" ; do
   [ -f "$src" ] && ln -sf "$src" "$TMP/aggregates/"
 done
+# The effect bind (dream.hecksagon : Dream.imaged_by("DreamImage")) records a
+# DreamImageRequested OutboundEvent ONLY when the adapter+family load and the
+# DreamImage->llm->imaged_by typed attach resolves — hence the two extra links.
 # i516 v3 (2026-05-08) : Musings.Musing.recent retired as a seed
 # source. The mind-side musings.bluebook + the dream_seed.bluebook
 # sweep target are no longer needed. Seeds now arrive via
@@ -239,6 +244,32 @@ if grep -qE 'panicked|RuntimeError|undefined method|NameError' "$RUN_LOG"; then
 fi
 
 echo "PM boot via run-loop : OK"
+
+# ── Off-core dream-image landing (ports-and-adapters architecture) ──
+# The Dream PM's per-tick Dream.ProduceImage no longer fires an inline :llm
+# adapter ; it records a DreamImageRequested OutboundEvent for the DreamImage
+# adapter (the effect bind in dream.hecksagon). The runtime makes NO model
+# call. The generic adapter-host (bin/adapter-host) drains that outbox
+# OFF-CORE and runs the external dream-image-handler. We drive that one drain
+# here with the test provider so the deterministic reading lands via
+# Dream.RecordImage — exercising the whole off-core pipeline, offline.
+# The PM dispatches Dream.ProduceImage on each generating-PhaseElapsed ; under
+# the run-loop's emit-ordering that's racy, so dispatch it explicitly here to
+# record the DreamImageRequested outbox deterministically (the seeds the PM
+# gathered are already on the singleton).
+HECKS_INFO="$TMP/information" "$HECKS" "$TMP/aggregates" 'BodyDream::Dream.ProduceImage' \
+  name=dream sleep_cycle=1 >/dev/null 2>&1 || true
+DREAM_OUTBOX=$(HECKS_INFO="$TMP/information" "$HECKS" query "$TMP/aggregates" \
+  'OutboundEvent::OutboundEvent.pending' adapter=DreamImage 2>/dev/null | \
+  jq -r '(.state | if type=="array" then .[0] else . end) // {} | .payload // ""' 2>/dev/null)
+if [ -n "$DREAM_OUTBOX" ] && [ "$DREAM_OUTBOX" != "null" ]; then
+  DREAM_VERDICT=$(printf '%s' "$DREAM_OUTBOX" | HECKS_LLM_PROVIDER=test "$BODY_DIR/dream/dream-image-handler" 2>/dev/null)
+  HECKS_INFO="$TMP/information" "$HECKS" "$TMP/aggregates" 'BodyDream::Dream.RecordImage' \
+    id=dream "$DREAM_VERDICT" >/dev/null 2>&1 || true
+  echo "off-core adapter-host drain : OK"
+else
+  echo "WARN : run-loop recorded no DreamImage outbox" >&2
+fi
 
 # ── Growth assertions (PM-driven, no shell fallback) ───────────────
 # i516 v3 (Musings retirement, 2026-05-08) — the for_each
