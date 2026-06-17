@@ -4,6 +4,7 @@
     let mut vars = variables_for_being(being);
     vars.insert("standards", primary_standards(conception_dir));
     vars.insert("grammar", grammar_block());
+    vars.insert("pizzas", pizzas_block());
 
     let fixtures_path = match content_fixtures_path_for_being(being) {
         Some(p) => p,

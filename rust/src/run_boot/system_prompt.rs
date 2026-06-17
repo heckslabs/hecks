@@ -47,6 +47,7 @@ pub fn render(conception_dir: &Path, being: &str) -> usize {
     let mut vars = variables_for_being(being);
     vars.insert("standards", primary_standards(conception_dir));
     vars.insert("grammar", grammar_block());
+    vars.insert("pizzas", pizzas_block());
 
     let fixtures_path = match content_fixtures_path_for_being(being) {
         Some(p) => p,
@@ -171,6 +172,61 @@ fn grammar_block() -> String {
     }
     bullets.sort();
     bullets.join("\n")
+}
+
+/// Project the `{{pizzas}}` section body — the canonical Pizzas example,
+/// loaded VERBATIM from `examples/pizzas/bluebook/` so the shape every
+/// build references is always present AND always current (a living
+/// projection, the same idea as `grammar_block` — but full source, not a
+/// vision bullet, because the example is meant to be READ, not summarised).
+/// Each file is fenced under a per-file header, ordered domain → hexagon →
+/// families → adapters → world. New files in the dir (e.g. a freshly added
+/// family/adapter that extends the example) appear automatically. Empty
+/// when the dir is absent.
+fn pizzas_block() -> String {
+    let dir = match crate::heki::repo_root() {
+        Some(root) => root.join("examples/pizzas/bluebook"),
+        None => return String::new(),
+    };
+    fn rank(ext: &str) -> u8 {
+        match ext {
+            "bluebook" => 0,
+            "hecksagon" => 1,
+            "family" => 2,
+            "adapter" => 3,
+            "world" => 4,
+            _ => 5,
+        }
+    }
+    let mut files: Vec<(u8, String, String)> = Vec::new();
+    if let Ok(entries) = fs::read_dir(&dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            let ext = match path.extension().and_then(|e| e.to_str()) {
+                Some(e) => e.to_string(),
+                None => continue,
+            };
+            if !matches!(
+                ext.as_str(),
+                "bluebook" | "hecksagon" | "family" | "adapter" | "world"
+            ) {
+                continue;
+            }
+            let name = match path.file_name().and_then(|n| n.to_str()) {
+                Some(n) => n.to_string(),
+                None => continue,
+            };
+            if let Ok(src) = fs::read_to_string(&path) {
+                files.push((rank(&ext), name, src));
+            }
+        }
+    }
+    files.sort_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
+    files
+        .iter()
+        .map(|(_, name, src)| format!("### `{}`\n\n```\n{}\n```", name, src.trim_end()))
+        .collect::<Vec<_>>()
+        .join("\n\n")
 }
 
 /// Return the text between the first `marker` (ending at an opening
