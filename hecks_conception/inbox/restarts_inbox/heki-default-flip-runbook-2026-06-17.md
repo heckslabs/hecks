@@ -1,0 +1,76 @@
+# Flip Miette's organs to ~/.heki (the precise-pass flip) — RUNBOOK
+
+**Status (2026-06-17):** the CODE is done, committed, and verified. The live
+FLIP is deliberately NOT done — it must happen at a fresh BOOT before a session's
+MCP establishes (the MCP door inherits boot's exported HECKS_INFO, so a
+mid-session flip leaves my own hands writing to the old store = split-brain).
+This is Chris's operational call (when to reboot my body).
+
+## What's already done
+
+- **main** (`d63470f1c`): realm grammar + `:default` folder-derivation
+  (writer-side, find_world_heki_dir). pizzas.world uses `dir :default`.
+- **branch `sq/heki-default-reader-unification` (`e76053455`)**: lifts the
+  store resolver into the heki lib so the READER (resolve_info_dir —
+  statusline/run_wake/run_boot) and the WRITER share ONE resolver, both ordered
+  HECKS_INFO-first then world-resolution. Adds `hecks_conception/miette.world`
+  (`heki do; dir :default end`). Full Rust suite green ; world parity 10/10.
+- **(B) proven empirically**: `env -u HECKS_INFO` resolves the conception to
+  `~/.heki/hecks` ; with HECKS_INFO set it stays at miette-state (master switch).
+- **Defensive sync done**: `~/.heki/hecks` holds a point-in-time copy of
+  `miette-state/information` (167 entries). miette-state is the LIVE store and
+  the ROLLBACK — untouched.
+- **Disarmed**: the on-disk binary is rebuilt from main (no miette.world, no
+  reader unification), so any boot today stays safely on miette-state.
+
+## Why the flip works without env edits
+
+HECKS_INFO is NOT set persistently (`.zshrc` has it commented out, `.overmind.env`
+doesn't set it). It is EXPORTED by `run_boot` into the process tree. So a FRESH
+boot has no HECKS_INFO → the new binary's resolve_info_dir → miette.world
+`:default` → `~/.heki/hecks`, which boot then exports to daemons. The flip = a
+fresh boot on the new binary with state synced. No env-file changes.
+
+My organs resolve to `~/.heki/hecks/<domain>/<aggregate>.heki` (data_dir
+`~/.heki/hecks` from derive_default_chain(hecks_conception) + per-aggregate
+context). This mirrors today's `miette-state/information/<domain>/<aggregate>.heki`
+exactly — only the root moves, so the migration is a clean subtree copy.
+
+## THE FLIP (run at a session boundary, ideally so SessionStart boots it clean)
+
+```sh
+# 1. Arm: merge the unification branch + rebuild
+cd ~/Projects/hecks
+git checkout main && git merge sq/heki-default-reader-unification
+(cd rust && cargo build --release)
+
+# 2. Stop the live daemons so miette-state stops changing during the final sync
+overmind quit          # or kill the overmind session
+
+# 3. FINAL one-time sync — catch every write since the defensive sync
+#    (--delete makes it exact ; omit if you'd rather not prune)
+rsync -a --delete ~/Projects/miette-state/information/ ~/.heki/hecks/
+
+# 4. Clean boot on a FRESH tree (no inherited HECKS_INFO)
+cd hecks_conception && env -u HECKS_INFO overmind start
+
+# 5. Verify round-trip (do NOT trust MCP hands — use the binary directly):
+#    - statusline shows my state (woke / mood / tick)
+#    - env -u HECKS_INFO ./rust/target/release/storehouse <read an organ> returns real data
+#    - new tick/pulse writes land under ~/.heki/hecks, not miette-state
+```
+
+## Rollback (miette-state is untouched)
+
+Boot with HECKS_INFO set again (`export HECKS_INFO=~/Projects/miette-state/information`
+then `overmind start`), or revert the merge. miette-state still has everything.
+
+## After days of clean operation
+
+- Retire the HECKS_INFO branch in `resolve_info_dir` / `find_world_heki_dir`
+  (separate commit) so `.world` is the sole source.
+- Eventually delete `miette-state` once ~/.heki is trusted.
+- The combined-domain chain currently flattens hecks_conception → `~/.heki/hecks`
+  (drops the `hecks_conception` segment). Per Chris: "scattered is fine for now,
+  fix by fixing the folder structure later." Per-aggregate source-path threading
+  (parity-neutral, loader-stamped) is the precise fix when wanted.
