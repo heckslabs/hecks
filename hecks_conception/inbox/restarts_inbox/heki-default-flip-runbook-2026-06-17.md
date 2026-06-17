@@ -65,6 +65,48 @@ cd hecks_conception && env -u HECKS_INFO overmind start
 Boot with HECKS_INFO set again (`export HECKS_INFO=~/Projects/miette-state/information`
 then `overmind start`), or revert the merge. miette-state still has everything.
 
+## Everything that relies on HECKS_INFO (inventory, 2026-06-17)
+
+**Production READS**
+- `heki.rs::resolve_info_dir` (the canonical reader — statusline, run_wake,
+  run_boot, run.rs, storehouse_log, main all funnel here). HANDLED on the branch
+  (HECKS_INFO-first → world fallback).
+- `run_status/mod.rs::resolve_fs_root` — a SEPARATE direct reader for the status
+  report. Still HECKS_INFO-as-override, NOT yet unified with the world resolver.
+  GAP : fold it onto `resolve_world_store_dir` in the code-retirement step.
+
+**Production EXPORT (propagation)**
+- `run_boot/daemons.rs:149` — boot `.env("HECKS_INFO", info_dir)` spawns daemons
+  with the resolved dir so all forks share ONE value (i154 anti-split). After
+  the flip, boot resolves `~/.heki/hecks` from the world and exports THAT — so
+  HECKS_INFO becomes boot's internal world-derived propagation cache, never a
+  user override.
+
+**INHERITANCE (the MCP + my shell)**
+- `.mcp.json` does NOT set HECKS_INFO ; the storehouse MCP node server inherits
+  it from the parent (Claude Code launch). Its `storehouse` subprocesses then
+  carry it. So the MCP relies on HECKS_INFO only by inheritance.
+
+**TEST-ONLY (fine)**
+- `story_runtime` (sets/restores for story isolation), `heki.rs` resolve_tests,
+  `tests/*.sh` smoke scripts, `status_golden.sh` — all scope a tmpdir.
+
+## Should the MCP rely on HECKS_INFO? No. How to handle it.
+
+The MCP already passes `aggregates_dir` explicitly, so it CAN resolve from the
+`.world`. It only leans on HECKS_INFO by inheritance. Two handlings :
+
+1. **Targeted, now-safe-at-flip** : add `"HECKS_INFO": ""` to `.mcp.json`'s env.
+   Empty is treated as unset, so the MCP's storehouse ALWAYS falls to
+   world-resolution regardless of what the parent exported. Do this AS PART OF
+   the flip (not before) — otherwise the MCP jumps to `~/.heki/hecks` while
+   daemons are still on miette-state (a new split).
+2. **Structural end-state** : retire HECKS_INFO PRECEDENCE in code (the deferred
+   commit) so the `.world` always wins. Then HECKS_INFO is at most boot's
+   internal propagation cache (always derived from the world) or removed
+   entirely — nothing user-facing relies on it, and the split-brain class is
+   gone for the MCP, daemons, and readers alike.
+
 ## After days of clean operation
 
 - Retire the HECKS_INFO branch in `resolve_info_dir` / `find_world_heki_dir`
