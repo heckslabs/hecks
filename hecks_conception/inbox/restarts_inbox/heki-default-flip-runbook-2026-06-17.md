@@ -107,6 +107,52 @@ The MCP already passes `aggregates_dir` explicitly, so it CAN resolve from the
    entirely — nothing user-facing relies on it, and the split-brain class is
    gone for the MCP, daemons, and readers alike.
 
+## NEXT SESSION (fresh head) : fully retire HECKS_INFO — the plan
+
+The FLIP is done and live (organs on ~/.heki/hecks). Production is already
+env-free (daemons run with HECKS_INFO unset, resolve via miette.world). The
+remaining work is DELETING the var name + killing its auto-propagation. Banked
+for a fresh head because it is **129 refs across 23 files** including the
+resolver my boot depends on — a missed ref breaks my wake. Do it grep-verified,
+full suite + ALL smoke .sh green, on a branch, BEFORE it touches a boot.
+
+### The 23 files (grep `HECKS_INFO`)
+- **Production resolvers (behavioural)** : `heki.rs` (resolve_info_dir),
+  `main.rs` (find_world_heki_dir), `run_status/mod.rs` (resolve_fs_root),
+  `run.rs`, `storehouse_router.rs`, `run_boot/classify.rs`.
+- **Boot auto-export (the TRAP)** : `run_boot/daemons.rs` — `.env("HECKS_INFO",
+  info_dir)` on every spawned daemon. REMOVE it ; daemons resolve via
+  miette.world (deterministic via repo_root), so propagation isn't needed.
+- **Test injection** : `story_runtime/mod.rs` (set/restore), `heki.rs`
+  resolve_tests (assert env-wins), `rust/tests/run_script_test.rs`,
+  `executable_hello_test.rs`, and 9 shell scripts (`status_golden.sh`,
+  `*_smoke.sh`, `fibroblast_sweep.sh`, `shutdown_miette.sh`).
+- **Bluebooks/hecksagons that DECLARE it** : `runtime/boot/boot.hecksagon`,
+  `cli/status/status.bluebook`, `fibroblast.hecksagon`.
+
+### The design fork to settle FIRST
+Tests need a FIRST-PRIORITY store override (their tmpdir must beat the repo's
+real miette.world, which repo_root finds even in a tmpdir test). So "no env at
+all" means tests inject via a `.world` fixture (`dir "<tmpdir>"`) — a real test
+rewrite. The lighter path : **rename `HECKS_INFO` → an explicit test/override
+var** (e.g. `HECKS_STORE_DIR`), checked first, that PRODUCTION never sets
+(boot stops exporting it). That kills the trap (stray HECKS_INFO does nothing ;
+nothing auto-propagates) and keeps test isolation + emergency rollback, while
+the HECKS_INFO NAME + its production role are gone. Decide rename-vs-fixtures
+with Chris before editing.
+
+### Bonus this fixes
+Making production ignore an inherited HECKS_INFO (world-first, or the rename so
+the old name is dead) also fixes the **live hook split** : right now the
+statusline / wake hooks run with this session's inherited HECKS_INFO=miette-
+state and read STALE state while organs live on ~/.heki/hecks. It self-heals
+at the next clean boot regardless ; the retirement makes it impossible.
+
+### Verify
+Full `cargo test --release` + every `hecks_conception/tests/*_smoke.sh` +
+`status_golden.sh` green ; then a clean `env -u HECKS_INFO overmind start`
+reads ~/.heki/hecks and a memory + sleep/wake cycle round-trips.
+
 ## After days of clean operation
 
 - Retire the HECKS_INFO branch in `resolve_info_dir` / `find_world_heki_dir`
