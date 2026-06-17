@@ -31,7 +31,7 @@ pub fn is_world_source(source: &str) -> bool {
     false
 }
 
-const SCALAR_KEYS: &[&str] = &["purpose", "vision", "audience"];
+const SCALAR_KEYS: &[&str] = &["purpose", "vision", "audience", "realm"];
 
 pub fn parse(source: &str) -> World {
     let mut world = World::default();
@@ -60,6 +60,7 @@ pub fn parse(source: &str) -> World {
                     "purpose"  => world.purpose  = Some(v),
                     "vision"   => world.vision   = Some(v),
                     "audience" => world.audience = Some(v),
+                    "realm"    => world.realm    = Some(v),
                     _ => {}
                 }
             }
@@ -281,6 +282,14 @@ fn render_value(raw: &str) -> String {
     let t = raw.trim().trim_end_matches(';').trim();
     if is_single_quoted_string(t) {
         return strip_quotes(t);
+    }
+    // Bare Ruby symbol token (`:default`) — canonicalize to match Ruby's
+    // `Symbol#to_s`, which drops the leading colon. Keeps .world symbol
+    // sentinels (`dir :default`) byte-identical across both parsers.
+    if let Some(sym) = t.strip_prefix(':') {
+        if !sym.is_empty() && sym.chars().all(|c| c.is_alphanumeric() || c == '_') {
+            return sym.to_string();
+        }
     }
     t.to_string()
 }

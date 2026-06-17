@@ -1,0 +1,274 @@
+Hecks.bluebook "ArtifactClaim", version: "2026.06.16.1" do
+  vision "The ArtifactClaim rule of the immune system — the macrophage sibling that enforces Chris's standard 'Never document what doesn't exist. No promises.' A bluebook's source (vision, comments, attribute values) often names a concrete artifact it claims to rely on : a hook path, a bin/ script, a .rs module, an executable. When that path does not exist on disk, the bluebook is documenting the unbuilt — a promise the system cannot keep (the live instance that motivated this : governed_door.bluebook once named a bin/ hook path that was never the installed enforcement surface). This aggregate is the registry of DISCOVERED artifact claims and the running verdict on each — satisfied (the path exists), broken (the promise is empty), unverified (scanned, not yet checked), or retracted (the source stopped claiming it). Claims are DISCOVERED by scanning bluebook source, not authored ; an immune cell catches what humans miss with no opt-in. A claim is a STANDING FACT keyed by (source, claimed_path), not an event — re-scanning UPSERTS the same claim rather than appending a duplicate. Warn-first : the rule surfaces broken promises as complaints (severity 'warn') until the existing over-promises clear, then flips to 'block' (the 'flip the validator last' precedent)."
+  category "discipline"
+
+  # ============================================================
+  # ArtifactClaim — one discovered claim, its verdict, its trail
+  # ============================================================
+  #
+  # Sibling of GovernedDoor / AgentDiscipline in the macrophage
+  # immune_system. Where those hold a CLOSED registry seeded by
+  # fixtures (a fixed set of governed tools / violation kinds),
+  # ArtifactClaim holds an OPEN, discovered set : every path token
+  # a scanner extracts from bluebook source becomes a claim, and
+  # the macrophage renders a verdict on each.
+  #
+  # ── Why a STANDING FACT, not an accreting event ──
+  #
+  # The scanner runs every session. If each scan APPENDED a record,
+  # the same claim ('governed_door.bluebook claims bin/foo') would
+  # duplicate without bound. So the claim is keyed by its natural
+  # identity (source + claimed_path) and RecordClaim UPSERTS : the
+  # second scan of an unchanged source is a no-op on identity and a
+  # re-stamp of last_scanned_at. The verdict is CURRENT STATE on the
+  # claim, never a 'broken!' event re-emitted per scan. Roll-up counts
+  # (how many broken) are QUERIES, not stored counters — there is no
+  # per-scan increment to drift (the trap GovernedDoor's blocked_count
+  # avoids by only counting genuine block events).
+  #
+  # ── Lifecycle : satisfied / broken / unverified / retracted ──
+  #
+  #   RecordClaim  → unverified  (scanner found the token; re-arms verify)
+  #   MarkSatisfied → satisfied  (filesystem reply: path exists)
+  #   MarkBroken   → broken      (filesystem reply: path missing — the promise)
+  #   Retract      → retracted   (scanner reconciled: source no longer claims it)
+  #
+  # A claim the source stops making must be retractable, or the
+  # macrophage complains forever about a promise no longer on the
+  # page. The scanner reconciles per-source : claims present last
+  # scan but absent this scan get Retract'd (the stale-claim sweep).
+  #
+  # ── The mechanism : Primitive::Process.Spawn -> Cascade.RecordResult ──
+  #
+  # Both impure edges run through the runtime's canonical spawn pattern
+  # (the one that retired the :exec family ; i648 process-health uses it).
+  # NO new adapter family, NO generated Rust :
+  #   * SCAN   : a policy spawns the path-token extractor over bluebook
+  #     source ; Cascade.RecordResult routes each token into RecordClaim.
+  #   * VERIFY : a policy over Unverified claims spawns `test -e <path>` ;
+  #     Cascade.RecordResult routes the exit code into MarkSatisfied (0)
+  #     or MarkBroken (non-0). The only imperative leaf is the spawn
+  #     syscall + the small extractor program (named, exemption-tagged).
+  # This aggregate only RECORDS the verdict the mechanism produces ; it
+  # is identical to how it would look behind any other driver.
+
+  aggregate "ArtifactClaim", "One artifact path a bluebook claims to exist, the source that claims it, and the macrophage's current verdict on whether the promise is kept. The bluebook of record for the no-promises check ; keyed by (source, claimed_path) so re-scans upsert." do
+    identified_by :claim_id
+
+    attribute :claim_id,        ClaimId
+    attribute :source,          SourceRef
+    attribute :claimed_path,    ArtifactPath
+    attribute :context,         ClaimContext
+    attribute :verdict,         Verdict,    default: "unverified"
+    attribute :severity,        Severity,   default: "warn"
+    attribute :last_scanned_at, Timestamp
+    attribute :last_verified_at, Timestamp
+
+    value_object "ClaimId" do
+      # Deterministic composite identity : "<source>::<claimed_path>".
+      # Two sources claiming the same path are two distinct claims (the
+      # promise is per-source). The scanner constructs it so re-scanning
+      # the same source+path lands on the same record (upsert).
+      attribute :value, String
+    end
+
+    value_object "SourceRef" do
+      # The bluebook that made the claim — a repo-relative path or name
+      # (e.g. "aggregates/.../macrophage/governed_door.bluebook"). Named
+      # in complaints so the broken promise points back to its page.
+      attribute :value, String
+    end
+
+    value_object "ArtifactPath" do
+      # The path token the source claims exists on disk — a hook path,
+      # bin/ script, .rs module, executable (e.g. "bin/governed-door-hook").
+      # This is the thing the filesystem check verifies.
+      attribute :value, String
+    end
+
+    value_object "ClaimContext" do
+      # Where in the source the claim appeared (e.g. "vision", "comment",
+      # "attribute:default") — context for the complaint so a human can
+      # find and fix or retract the promise.
+      attribute :value, String
+    end
+
+    value_object "Verdict" do
+      # Current state of the promise. "unverified" (scanned, not yet
+      # checked) | "satisfied" (path exists) | "broken" (path missing —
+      # the documented-the-unbuilt violation) | "retracted" (source no
+      # longer claims it).
+      attribute :value, String, enum: ["unverified", "satisfied", "broken", "retracted"]
+    end
+
+    value_object "Severity" do
+      # "warn" (surface a complaint without blocking) or "block" (hard
+      # stop). Starts "warn" while the existing over-promises clear ;
+      # flips to "block" LAST, once the work-list is empty.
+      attribute :value, String
+    end
+
+    value_object "Timestamp" do
+      # UTC ISO-8601 instant — last_scanned_at (when the scanner last saw
+      # the token) and last_verified_at (when the filesystem check last ran).
+      attribute :value, String
+    end
+
+    # ── Commands ───────────────────────────────────────────────
+
+    command "RecordClaim" do
+      role "Scanner"
+      description "The scanner extracted an artifact-path token from a bluebook's source. UPSERT keyed by claim_id : a fresh scan of an unchanged claim only re-stamps last_scanned_at. Sets the source / claimed_path / context and re-arms the claim to 'unverified' so the next verify pass re-checks it (a path that vanished after once being satisfied must be re-verifiable). emits ArtifactClaimRecorded."
+      attribute :claim_id,        ClaimId
+      attribute :source,          SourceRef
+      attribute :claimed_path,    ArtifactPath
+      attribute :context,         ClaimContext
+      attribute :last_scanned_at, Timestamp
+      then_set :claim_id,        to: :claim_id
+      then_set :source,          to: :source
+      then_set :claimed_path,    to: :claimed_path
+      then_set :context,         to: :context
+      then_set :last_scanned_at, to: :last_scanned_at
+      then_set :verdict,         to: "unverified"
+      emits "ArtifactClaimRecorded"
+    end
+
+    command "MarkSatisfied" do
+      role "Macrophage"
+      description "The filesystem existence check replied true : the claimed path exists on disk, the promise is kept. Sets verdict 'satisfied' and stamps last_verified_at. No complaint."
+      reference_to(ArtifactClaim)
+      attribute :last_verified_at, Timestamp
+      then_set :verdict,          to: "satisfied"
+      then_set :last_verified_at, to: :last_verified_at
+      emits "ArtifactClaimSatisfied"
+    end
+
+    command "MarkBroken" do
+      role "Macrophage"
+      description "The filesystem existence check replied false : the claimed path does NOT exist — the bluebook is documenting the unbuilt. Sets verdict 'broken' and stamps last_verified_at. This is the complaint event ; warn-first, the hook surfaces it without blocking until the work-list clears. emits BrokenPromiseDetected."
+      reference_to(ArtifactClaim)
+      attribute :last_verified_at, Timestamp
+      then_set :verdict,          to: "broken"
+      then_set :last_verified_at, to: :last_verified_at
+      emits "BrokenPromiseDetected"
+    end
+
+    command "Retract" do
+      role "Scanner"
+      description "The scanner reconciled a source and found this claim is no longer made (the path token was removed or the promise rewritten). Sets verdict 'retracted' so the macrophage stops complaining about a promise no longer on the page. The record is kept as audit trail, not deleted. emits ArtifactClaimRetracted."
+      reference_to(ArtifactClaim)
+      then_set :verdict, to: "retracted"
+      emits "ArtifactClaimRetracted"
+    end
+
+    # ── Queries ────────────────────────────────────────────────
+
+    query "ListAll" do
+      description "Every discovered artifact claim and its current verdict — the full registry."
+    end
+
+    query "BrokenPromises" do
+      description "Claims whose path does not exist on disk — the no-promises work-list. These are the over-promises Arcs 1 & 2 must clear before the rule flips from warn to block."
+      where verdict: "broken"
+    end
+
+    query "Unverified" do
+      description "Claims scanned but not yet existence-checked — the queue the verify pass drains by composing the filesystem check and dispatching MarkSatisfied / MarkBroken per claim."
+      where verdict: "unverified"
+    end
+
+    query "ForSource" do
+      description "Every claim made by one bluebook source — the scanner reads this to reconcile a re-scan and Retract claims no longer present."
+      where source: :source
+    end
+  end
+
+  # ============================================================
+  # NoPromisesSweep — the singleton driver (ProcessMacrophage analog)
+  # ============================================================
+  #
+  # ArtifactClaim is the per-claim Sentinel ; this is the singleton
+  # sweeper that drives discovery + verification, exactly as
+  # ProcessMacrophage drives the per-process ProcessSentinel fan-out.
+  # Two recurring verbs, each firing a Process.Spawn policy :
+  #
+  #   Scan   → emits ScanRequested   → spawns bin/artifact_claim_scan
+  #            (extract path tokens from bluebook source under scan_root,
+  #             RecordClaim per token, Retract claims no longer present)
+  #   Verify → emits VerifyRequested → spawns bin/artifact_claim_verify
+  #            (test -e per Unverified claim, MarkSatisfied / MarkBroken)
+  #
+  # The command only records the tick happened ; the per-claim fan-out
+  # is the spawned leaf's job (mirrors Sweep / Inbox.Check, which record
+  # the tick without expressing the fan-out in the bluebook). The leaves
+  # dispatch the per-claim commands back through the door ; their stdout
+  # cascades into Cascade.RecordResult.
+
+  aggregate "NoPromisesSweep", "The singleton no-promises driver. Holds the scan root + last-run timestamps ; Scan and Verify are the two recurring verbs whose emitted events fire the Process.Spawn policies that run the discovery + verification leaves. One per being." do
+    identified_by :name
+
+    attribute :name,             SweepName,  default: "no_promises"
+    attribute :scan_root,        ScanRoot,   default: "aggregates"
+    attribute :last_scanned_at,  Timestamp,  default: "—"
+    attribute :last_verified_at, Timestamp,  default: "—"
+
+    value_object "SweepName" do
+      # Singleton key — there is one NoPromisesSweep per being.
+      # Default "no_promises".
+      attribute :value, String
+    end
+
+    value_object "ScanRoot" do
+      # The directory the scanner walks for .bluebook sources, relative
+      # to the aggregates root's parent (the runtime cwd). Default
+      # "aggregates" — the whole conception.
+      attribute :value, String
+    end
+
+    value_object "Timestamp" do
+      # ISO-8601 wall-clock instant — last_scanned_at (last discovery run)
+      # and last_verified_at (last existence-check run).
+      attribute :value, String
+    end
+
+    command "Scan" do
+      role "Macrophage"
+      description "One discovery tick. The runtime (the RunScanOnScanRequested policy) binds this to bin/artifact_claim_scan.mjs via Process.Spawn ; the leaf walks scan_root for .bluebook source, extracts artifact-path tokens, dispatches RecordClaim per token, and Retracts claims a source no longer makes. Scan itself only records the tick — the per-claim fan-out is the leaf's job."
+      attribute :last_scanned_at, Timestamp
+      then_set :last_scanned_at, to: :last_scanned_at
+      emits "ScanRequested"
+    end
+
+    command "Verify" do
+      role "Macrophage"
+      description "One verification tick. The RunVerifyOnVerifyRequested policy binds this to bin/artifact_claim_verify.mjs via Process.Spawn ; the leaf reads the Unverified work-list, runs `test -e` per claimed_path, and dispatches MarkSatisfied (exit 0) or MarkBroken (non-0) back per claim. Verify itself only records the tick."
+      attribute :last_verified_at, Timestamp
+      then_set :last_verified_at, to: :last_verified_at
+      emits "VerifyRequested"
+    end
+  end
+
+  # ── Process.Spawn policies — the bluebook owns the wiring ──
+  #
+  # Mirrors filesystem.bluebook / process_health.bluebook exactly : each
+  # policy fires on the sweep event and spawns the matching leaf, routing
+  # its captured output into Cascade.RecordResult. The cmd strings are
+  # static (the policy DSL `with "cmd"` accepts only literals) ; the
+  # leaves read their inputs by querying the aggregate through the door,
+  # not from interpolated args. The only imperative leaves in the whole
+  # rule are these two spawned programs.
+
+  policy "RunScanOnScanRequested" do
+    on "NoPromisesSweep.ScanRequested"
+    trigger "Primitive::Process.Spawn"
+    with "cmd", "node bin/artifact_claim_scan.mjs"
+    with "result_into", "Cascade.RecordResult"
+  end
+
+  policy "RunVerifyOnVerifyRequested" do
+    on "NoPromisesSweep.VerifyRequested"
+    trigger "Primitive::Process.Spawn"
+    with "cmd", "node bin/artifact_claim_verify.mjs"
+    with "result_into", "Cascade.RecordResult"
+  end
+end

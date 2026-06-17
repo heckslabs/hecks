@@ -18,15 +18,16 @@
 module Hecksagon
   module Structure
     class World
-      attr_reader :name, :purpose, :vision, :audience, :concerns, :configs,
-                  :servers
+      attr_reader :name, :purpose, :vision, :audience, :realm, :concerns,
+                  :configs, :servers
 
       def initialize(name:, purpose: nil, vision: nil, audience: nil,
-                     concerns: [], configs: {}, servers: [])
+                     realm: nil, concerns: [], configs: {}, servers: [])
         @name     = name
         @purpose  = purpose
         @vision   = vision
         @audience = audience
+        @realm    = realm
         @concerns = concerns
         @configs  = configs
         @servers  = servers
@@ -83,6 +84,7 @@ module Hecksagon
           "purpose"  => @purpose,
           "vision"   => @vision,
           "audience" => @audience,
+          "realm"    => @realm,
           "concerns" => concerns_h,
           "configs"  => configs_h,
           "servers"  => servers_h,

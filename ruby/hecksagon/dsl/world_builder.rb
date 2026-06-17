@@ -42,7 +42,7 @@ module Hecksagon
       # Scalar top-level keywords — purpose / vision / audience store a
       # single string each. Anything else with a block is an extension
       # config.
-      SCALAR_KEYS = %i[purpose vision audience].freeze
+      SCALAR_KEYS = %i[purpose vision audience realm].freeze
 
       def initialize(name = nil)
         @name = name
@@ -58,6 +58,9 @@ module Hecksagon
       def vision(value)  = @scalars[:vision]  = value
       # Top-level `audience "..."` — who the world is for.
       def audience(value) = @scalars[:audience] = value
+      # Top-level `realm "..."` — the namespace ABOVE domain in the heki
+      # store path. Optional ; presence is the switch.
+      def realm(value) = @scalars[:realm] = value
 
       # `concern "Name" do; description "..." end` — named concern block.
       def concern(name, &block)
@@ -99,6 +102,7 @@ module Hecksagon
           purpose:  @scalars[:purpose],
           vision:   @scalars[:vision],
           audience: @scalars[:audience],
+          realm:    @scalars[:realm],
           concerns: @concerns,
           configs:  @configs,
           servers:  @servers,
