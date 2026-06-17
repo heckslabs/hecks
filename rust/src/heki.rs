@@ -630,6 +630,140 @@ fn walk_up_for_repo_root() -> Option<std::path::PathBuf> {
     None
 }
 
+// ---------------------------------------------------------------------------
+// World-aware store resolution (realm + :default folder-derivation)
+// ---------------------------------------------------------------------------
+//
+// The ONE resolver both the WRITER (main::find_world_heki_dir, the dispatch
+// store path) and the READER (resolve_info_dir, used by statusline / run_wake /
+// run_boot) consult, so readers and writers never split on where state lives.
+// `.world` is the single source of the store location. HECKS_INFO remains the
+// transitional master switch in both callers : env wins while set, world
+// resolution is the fallback when it is unset — so adding a :default/realm world
+// does not move live state until HECKS_INFO leaves the launching env.
+
+/// Expand a leading `~` / `~/` to `$HOME` ; non-tilde paths pass through.
+pub fn expand_tilde(p: &str) -> String {
+    if p == "~" {
+        return std::env::var("HOME").unwrap_or_else(|_| p.to_string());
+    }
+    if let Some(rest) = p.strip_prefix("~/") {
+        if let Ok(home) = std::env::var("HOME") {
+            return format!("{}/{}", home.trim_end_matches('/'), rest);
+        }
+    }
+    p.to_string()
+}
+
+/// Realm override resolution (presence-switch) : a nearby `.world` declaring
+/// `realm "..."` makes its `heki.dir` authoritative, tilde-expanded, with the
+/// snake-cased realm as the namespace dir. `<root>/<context>/<aggregate>.heki`
+/// nests under it. `None` when no nearby world declares a realm.
+pub fn resolve_realm_dir(aggregates_path: &str) -> Option<String> {
+    use std::path::{Path, PathBuf};
+    let agg = Path::new(aggregates_path);
+    let base = if agg.is_dir() { agg } else { agg.parent()? };
+    for dir in [Some(base), base.parent()].into_iter().flatten() {
+        let entries = match std::fs::read_dir(dir) { Ok(e) => e, Err(_) => continue };
+        let mut worlds: Vec<PathBuf> = entries
+            .filter_map(|e| e.ok())
+            .map(|e| e.path())
+            .filter(|p| p.extension().map_or(false, |ext| ext == "world"))
+            .collect();
+        worlds.sort();
+        for wf in worlds {
+            let source = match std::fs::read_to_string(&wf) { Ok(s) => s, Err(_) => continue };
+            let world = crate::world::parser::parse(&source);
+            let realm = match &world.realm { Some(r) if !r.is_empty() => r, _ => continue };
+            let dir_value = match world.config_for("heki").and_then(|c| c.get("dir")) {
+                Some(d) => d, None => continue,
+            };
+            let root = Path::new(&expand_tilde(dir_value))
+                .join(crate::util::snake_case(realm));
+            std::fs::create_dir_all(&root).ok()?;
+            return Some(root.to_string_lossy().into_owned());
+        }
+    }
+    None
+}
+
+/// Folder-derivation resolution (presence-switch on `dir :default`). When a
+/// nearby `.world` declares `heki do; dir :default end`, the store mirrors the
+/// bluebook location : rooted at ~/.heki, the project-relative folder chain
+/// with `aggregates`/`bluebook` containers stripped and the trailing domain
+/// folder dropped (the aggregate `context` re-adds it). `None` unless a nearby
+/// world opts in.
+pub fn resolve_default_dir(aggregates_path: &str) -> Option<String> {
+    use std::path::{Path, PathBuf};
+    let agg = Path::new(aggregates_path);
+    let base = if agg.is_dir() { agg } else { agg.parent()? };
+    let mut opts_in = false;
+    for dir in [Some(base), base.parent()].into_iter().flatten() {
+        let Ok(entries) = std::fs::read_dir(dir) else { continue };
+        let mut worlds: Vec<PathBuf> = entries
+            .filter_map(|e| e.ok())
+            .map(|e| e.path())
+            .filter(|p| p.extension().map_or(false, |x| x == "world"))
+            .collect();
+        worlds.sort();
+        for wf in worlds {
+            let Ok(src) = std::fs::read_to_string(&wf) else { continue };
+            let world = crate::world::parser::parse(&src);
+            if world.config_for("heki").and_then(|c| c.get("dir")) == Some("default") {
+                opts_in = true;
+                break;
+            }
+        }
+        if opts_in { break; }
+    }
+    if !opts_in { return None; }
+    let chain = default_chain(aggregates_path)?;
+    let root = Path::new(&expand_tilde("~/.heki")).join(chain);
+    std::fs::create_dir_all(&root).ok()?;
+    Some(root.to_string_lossy().into_owned())
+}
+
+/// Project-relative chain for `:default` stores : path under ~/Projects,
+/// `.bluebook` filename dropped, containers stripped, trailing domain folder
+/// dropped. `None` when the target is not under ~/Projects.
+pub fn default_chain(aggregates_path: &str) -> Option<String> {
+    use std::path::{Component, Path};
+    let abs = std::fs::canonicalize(aggregates_path)
+        .unwrap_or_else(|_| Path::new(aggregates_path).to_path_buf());
+    let projects_raw = expand_tilde("~/Projects");
+    let projects = std::fs::canonicalize(&projects_raw)
+        .unwrap_or_else(|_| Path::new(&projects_raw).to_path_buf());
+    let rel = abs.strip_prefix(&projects).ok()?;
+    let segs: Vec<String> = rel.components()
+        .filter_map(|c| match c {
+            Component::Normal(s) => s.to_str().map(|x| x.to_string()),
+            _ => None,
+        })
+        .collect();
+    strip_chain_segments(segs)
+}
+
+/// Pure segment transform for `:default` chains : drop a trailing `*.bluebook`
+/// filename, strip `aggregates`/`bluebook` containers, drop the trailing domain
+/// folder (re-added by `context`). `None` when nothing meaningful remains.
+pub fn strip_chain_segments(mut segs: Vec<String>) -> Option<String> {
+    if segs.last().map_or(false, |s| s.ends_with(".bluebook")) {
+        segs.pop();
+    }
+    segs.retain(|s| s != "aggregates" && s != "bluebook");
+    segs.pop(); // trailing domain folder — re-added by the aggregate context
+    if segs.is_empty() { return None; }
+    Some(segs.join("/"))
+}
+
+/// The ONE world-store resolver : realm override first, then `:default`
+/// folder-derivation. `None` when no nearby world opts into either — caller
+/// falls back to its legacy path. Shared by the writer (find_world_heki_dir)
+/// and the reader (resolve_info_dir) so they never disagree.
+pub fn resolve_world_store_dir(aggregates_path: &str) -> Option<String> {
+    resolve_realm_dir(aggregates_path).or_else(|| resolve_default_dir(aggregates_path))
+}
+
 /// Canonical info_dir resolver — single source of truth for every
 /// storehouse entry point (boot, statusline, loop, clock, manual CLI).
 /// All three of `run_boot::resolve_info_dir`, `run_statusline::resolve_info_dir`,
@@ -657,6 +791,19 @@ pub fn resolve_info_dir() -> std::path::PathBuf {
     if let Ok(v) = std::env::var("HECKS_INFO") {
         if !v.is_empty() {
             return std::path::PathBuf::from(v);
+        }
+    }
+    // World resolution (when HECKS_INFO is unset) — readers resolve the
+    // conception's own store the SAME way the dispatch writer does, so a
+    // :default/realm world keeps readers and writers on one folder. The
+    // reader has no dispatch target, so it probes the conception's
+    // aggregates dir under the repo root. Presence-switched : returns None
+    // unless a world there opts into realm/:default, leaving the legacy
+    // sibling/in-tree resolution below untouched.
+    if let Some(repo) = walk_up_for_repo_root() {
+        let agg = repo.join("hecks_conception/aggregates");
+        if let Some(d) = resolve_world_store_dir(&agg.to_string_lossy()) {
+            return std::path::PathBuf::from(d);
         }
     }
     if let Some(repo) = walk_up_for_repo_root() {
@@ -846,4 +993,87 @@ pub fn print_summary(stores: &HashMap<String, Store>) {
         creativity, precision, conscious_state, age_days);
 
     println!("  {} stores, {} total records", stores.len(), total);
+}
+
+#[cfg(test)]
+mod world_resolution_tests {
+//! World-aware store resolution — realm override + :default folder chain.
+//! Hermetic : no env mutation, absolute dirs only, so these never race on
+//! `$HOME` or a shared temp dir.
+use super::{expand_tilde, resolve_realm_dir, strip_chain_segments};
+use std::fs;
+use std::time::{SystemTime, UNIX_EPOCH};
+
+fn segs(parts: &[&str]) -> Vec<String> {
+    parts.iter().map(|s| s.to_string()).collect()
+}
+
+#[test]
+fn default_chain_pizzas_strips_bluebook_and_trailing_domain() {
+    assert_eq!(
+        strip_chain_segments(segs(&["hecks", "examples", "pizzas", "bluebook"])),
+        Some("hecks/examples".to_string())
+    );
+}
+
+#[test]
+fn default_chain_strips_aggregates_and_drops_bluebook_filename() {
+    assert_eq!(
+        strip_chain_segments(segs(&["hecks", "hecks_conception", "aggregates", "framework", "tools", "git.bluebook"])),
+        Some("hecks/hecks_conception/framework".to_string())
+    );
+}
+
+#[test]
+fn default_chain_too_shallow_is_none() {
+    assert_eq!(strip_chain_segments(segs(&["hecks"])), None);
+    assert_eq!(strip_chain_segments(segs(&["aggregates", "bluebook"])), None);
+}
+
+fn tempdir(tag: &str) -> std::path::PathBuf {
+    let nanos = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+    let p = std::env::temp_dir().join(format!("world_res_test_{}_{}", tag, nanos));
+    fs::create_dir_all(&p).unwrap();
+    p
+}
+
+#[test]
+fn expand_tilde_expands_home_prefix() {
+    let home = std::env::var("HOME").expect("HOME set in test env");
+    assert_eq!(expand_tilde("~/.heki"), format!("{}/.heki", home.trim_end_matches('/')));
+    assert_eq!(expand_tilde("~"), home);
+}
+
+#[test]
+fn expand_tilde_passes_through_absolute_and_relative() {
+    assert_eq!(expand_tilde("/abs/path"), "/abs/path");
+    assert_eq!(expand_tilde("rel/path"), "rel/path");
+}
+
+#[test]
+fn realm_world_nests_snake_realm_and_creates_dir() {
+    let dir = tempdir("present");
+    let store = dir.join("store");
+    let world = format!(
+        "Hecks.world \"Demo\" do\n  realm \"MyRealm\"\n  heki do\n    dir \"{}\"\n  end\nend\n",
+        store.to_string_lossy()
+    );
+    fs::write(dir.join("demo.world"), world).unwrap();
+
+    let resolved = resolve_realm_dir(dir.to_str().unwrap())
+        .expect("realm-bearing world resolves");
+    let expected = store.join("my_realm");
+    assert_eq!(resolved, expected.to_string_lossy());
+    assert!(expected.is_dir(), "realm dir is created on resolution");
+}
+
+#[test]
+fn realm_less_world_declines_so_legacy_path_is_untouched() {
+    let root = tempdir("absent");
+    let agg = root.join("agg");
+    fs::create_dir_all(&agg).unwrap();
+    let world = "Hecks.world \"Demo\" do\n  heki do\n    dir \"~/.heki\"\n  end\nend\n";
+    fs::write(agg.join("demo.world"), world).unwrap();
+    assert!(resolve_realm_dir(agg.to_str().unwrap()).is_none());
+}
 }
