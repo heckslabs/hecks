@@ -186,3 +186,32 @@ stopped) is the COMBINED-domain case + my own live state, NOT a parity arc :
 
 Keystone e4c7628ff (explicit realm) + the (a) commit (folder-derivation) are
 the committed, verified foundation #7 builds on.
+
+## FINAL FRAMING 2026-06-17 — default everywhere, no hand-coded realms, precise later
+
+Chris's calls at end of session (these SUPERSEDE the realm-per-repo plan and
+the "realm miette for my home" idea) :
+
+- **NO hand-coded realms for now.** Every domain uses `:default`
+  (folder-derivation). The `realm "X"` grammar (keystone e4c7628ff) STAYS as a
+  dormant override for the precise pass — not deleted, just unused. pizzas.world
+  already switched off its `realm "Hecks"` override to `dir :default`.
+- **Everything under `~/.heki`, OUTSIDE `~/Projects`** — so live state needs no
+  gitignore. The bluebook stays in its folder ; its STORE mirrors that location
+  under ~/.heki. "For now I just like the idea of everything being under
+  ~/.heki."
+- **The precise pass is LATER.** First pull embryonaut features OUT of hecks so
+  the realms / bounded contexts are clean, THEN set exact per-aggregate nesting
+  + migrate live organs. "We'll be precise later."
+
+**Therefore the live organ migration (task #7) is DEFERRED, not banked-for-
+fresh-head-this-week.** My organs stay on HECKS_INFO / miette-state until the
+precise pass — NO split-brain, NO surgery now. What is DONE and sufficient for
+"the idea" : the `:default` mechanism (the (a) commit) realizes everything-
+under-~/.heki for single-bluebook targets, verified on pizzas.
+
+What the precise pass will still need (unchanged from above, just sequenced
+after embryonaut extraction) : per-aggregate source-path threading (so
+combined-domain organs nest by their bluebook location instead of flattening),
+reader unification (`resolve_info_dir` ↔ the writer resolver), the live state
+copy + HECKS_INFO retirement + daemon restart.
