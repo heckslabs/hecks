@@ -5,9 +5,13 @@
 # Synapse rows via raw `heki append`. With heki direct writes retired,
 # seeding flows through bus dispatch :
 #
-#   - Body::Signal.FireSignal seeds each cold signal (the bluebook
-#     command sets kind/payload/strength/access_count/created_at).
-#   - Body::Synapse.CreateSynapse seeds the doomed weak synapses.
+#   - Body::Signal.FireSignal seeds the somatic + concept signals. Signal is
+#     last-value-per-kind (identified_by :kind, 2026-06-17 over-fire fix), so
+#     N fires of a kind upsert ONE row : the store holds exactly 2 rows. The
+#     old signal-as-log seeding (N distinct cold signals) retired with the
+#     dormant signal-consolidation path.
+#   - Body::Synapse.CreateSynapse seeds the doomed weak synapses (dedup-by-
+#     source : identified_by :from, distinct from-topics key distinct rows).
 #
 # After seeding, drives the Consolidation PM via `storehouse run-loop`
 # emitting a synthetic SleepEntered → PhaseElapsed. Asserts that the
@@ -81,22 +85,28 @@ iso_offset() {
 OLD=$(iso_offset 120)
 NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
-# ── Seed cold signals via BUS dispatch (Body::Signal.FireSignal) ──
-for i in 1 2 3 4 5; do
+# ── Seed signals via BUS dispatch (Body::Signal.FireSignal) ──
+# Signal is LAST-VALUE-PER-KIND (identified_by :kind, the 2026-06-17 over-fire
+# fix) : repeated fires of a kind UPSERT one row, so the store holds exactly
+# one somatic + one concept row regardless of fire count. The old signal-as-log
+# seeding (N distinct cold signals -> NREM promote/archive) is retired with the
+# now-dormant signal-consolidation path ; this asserts the bounded contract.
+for i in 1 2 3; do
   "$HECKS" "$TMP/aggregates" Body::Signal.FireSignal \
-    id="cold_signal_$i" kind=concept payload="cold_$i" strength=0.5 created_at="$OLD" >/dev/null 2>&1 \
-    || fail "Body::Signal.FireSignal cold_$i dispatch failed"
+    kind=somatic payload="pulse_$i" strength=0.5 created_at="$NOW" >/dev/null 2>&1 \
+    || fail "Body::Signal.FireSignal somatic_$i dispatch failed"
 done
-for i in 1 2; do
-  "$HECKS" "$TMP/aggregates" Body::Signal.FireSignal \
-    id="fresh_signal_$i" kind=concept payload="fresh_$i" strength=0.5 created_at="$NOW" >/dev/null 2>&1 \
-    || fail "Body::Signal.FireSignal fresh_$i dispatch failed"
-done
+"$HECKS" "$TMP/aggregates" Body::Signal.FireSignal \
+  kind=concept payload="thought" strength=0.5 created_at="$NOW" >/dev/null 2>&1 \
+  || fail "Body::Signal.FireSignal concept dispatch failed"
 
 # ── Seed doomed synapses via BUS dispatch (Body::Synapse.CreateSynapse) ──
+# Synapse is DEDUP-BY-SOURCE (identified_by :from) : distinct from-topics key
+# distinct rows. strength below the 0.1 compost threshold so the NREM sweep's
+# Synapse.cold path can pick them up.
 for t in doomed_a doomed_b; do
   "$HECKS" "$TMP/aggregates" Body::Synapse.CreateSynapse \
-    id="$t" from="$t" to="$t" strength=0.1 >/dev/null 2>&1 \
+    from="$t" to="$t" strength=0.05 >/dev/null 2>&1 \
     || fail "Body::Synapse.CreateSynapse $t dispatch failed"
 done
 
@@ -105,9 +115,10 @@ signals_before=$("$HECKS" heki read "$TMP/information/signal/signal.heki" 2>/dev
 synapses_before=$("$HECKS" heki read "$TMP/information/synapse/synapse.heki" 2>/dev/null \
   | python3 -c 'import sys,json; d=json.load(sys.stdin); print(len(d))' 2>/dev/null || echo 0)
 
-[ "$signals_before" -ge 7 ] || fail "expected ≥7 signals seeded via bus, got $signals_before"
+# Last-value-per-kind : 4 fires (3 somatic + 1 concept) collapse to exactly 2 rows.
+[ "$signals_before" -eq 2 ] || fail "expected exactly 2 signals (last-value per kind: somatic+concept), got $signals_before"
 [ "$synapses_before" -ge 2 ] || fail "expected ≥2 synapses seeded via bus, got $synapses_before"
-echo "seeded via bus: signals=$signals_before synapses=$synapses_before"
+echo "seeded via bus (last-value signal): signals=$signals_before synapses=$synapses_before"
 
 # ── Drive the Consolidation PM via SleepEntered → PhaseElapsed ──
 # Dispatch through Consciousness (EnterDaydream → EnterSleep emits SleepEntered ;
