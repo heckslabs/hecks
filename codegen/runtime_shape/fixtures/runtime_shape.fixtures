@@ -461,5 +461,13 @@ Hecks.fixtures "RuntimeShape" do
       body_kind: "verbatim_method",
       snippet_path: "codegen/runtime_shape/snippets/reaction_pump.rs.frag",
       description: "Runtime::pump — drain enqueued reactions to quiescence so eager callers see a settled cascade."
+
+    fixture "PumpOutbox",
+      name: "pump_outbox",
+      file: "reaction",
+      order: 3,
+      body_kind: "verbatim_method",
+      snippet_path: "codegen/runtime_shape/snippets/reaction_pump_outbox.rs.frag",
+      description: "Runtime::pump_outbox — drain the persistent CascadeRun outbox: deliver each Active run's steps as their own transactions AND fire react_ports per delivered step so PM/policy steps that target :llm/compute/tool ports (e.g. the Dream PM's Dream.ProduceImage -> :dream_image) actually fire their adapter when delivered via the outbox pump, not just mutate state."
   end
 end
