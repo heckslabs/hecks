@@ -5,14 +5,21 @@ Hecks.world "Pizzas" do
   # — same domain, same composition, different deployment. Each block is keyed
   # by the adapter it configures.
 
+  # The realm — the top-level namespace ABOVE domain. With a realm declared,
+  # the heki store nests under <dir>/<realm>/<domain>/<aggregate>.heki ; without
+  # one it stays <dir>/<domain>/<aggregate> (realm is the presence-switch, so
+  # adding it to a world is purely additive — nothing else moves).
+  realm "Hecks"
+
   # The Heki persistence adapter  (Pizzas::Pizza / Pizzas::Order persisted_by "Heki").
   #
   # The .world is the SINGLE source of the store location — there is no
-  # environment variable. The adapter writes <dir>/<domain>/<aggregate>.heki,
-  # so this deployment lands at
-  #   ~/.heki/pizzas/pizza.heki   and   ~/.heki/pizzas/order.heki
-  # (Behaviors run in memory — no disk — because no world is loaded under
-  # test ; this is the production location.)
+  # environment variable. The adapter writes
+  # <dir>/<realm>/<domain>/<aggregate>.heki, so this deployment lands at
+  #   ~/.heki/hecks/pizzas/pizza.heki   and   ~/.heki/hecks/pizzas/order.heki
+  # (the realm is lower-cased on disk, like every domain/aggregate component).
+  # Behaviors run in memory — no disk — because no world is loaded under
+  # test ; this is the production location.
   heki do
     dir "~/.heki"
   end

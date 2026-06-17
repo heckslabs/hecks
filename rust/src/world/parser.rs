@@ -31,7 +31,7 @@ pub fn is_world_source(source: &str) -> bool {
     false
 }
 
-const SCALAR_KEYS: &[&str] = &["purpose", "vision", "audience"];
+const SCALAR_KEYS: &[&str] = &["purpose", "vision", "audience", "realm"];
 
 pub fn parse(source: &str) -> World {
     let mut world = World::default();
@@ -60,6 +60,7 @@ pub fn parse(source: &str) -> World {
                     "purpose"  => world.purpose  = Some(v),
                     "vision"   => world.vision   = Some(v),
                     "audience" => world.audience = Some(v),
+                    "realm"    => world.realm    = Some(v),
                     _ => {}
                 }
             }
