@@ -43,6 +43,11 @@ pub struct World {
     pub vision: Option<String>,
     /// `audience "..."` — who the world is for.
     pub audience: Option<String>,
+    /// `realm "name"` — the top-level namespace ABOVE domain. When declared,
+    /// the heki store nests under `<dir>/<realm>/<domain>/<aggregate>.heki`.
+    /// Absent realm keeps the legacy `<dir>/<domain>/<aggregate>` path, so
+    /// adding realm to a world is purely additive (presence is the switch).
+    pub realm: Option<String>,
     /// `concern "Name" do; description "..." end` entries.
     pub concerns: Vec<Concern>,
     /// Extension config blocks — one entry per `extension_name do ... end`
