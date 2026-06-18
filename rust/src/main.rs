@@ -4079,6 +4079,41 @@ fn require_fqn_dispatch_address(subcommand: &str, address: &str) {
 // (aggregates/discipline/macrophage/macrophage.bluebook) stays
 // unchanged ; the shell glue retires.
 
+/// Scan a .bluebook / .hecksagon for codey `::` cross-reference targets —
+/// the relationship grammar's no-`::` rule (RelationshipDiscipline,
+/// codey_double_colon check, i744). A cross verb (has_one / has_many /
+/// belongs_to) whose target is `::`-qualified (`has_one Plan::Story`) is the
+/// codey form ; the English `belongs_to Story from Plan` is canonical.
+/// Returns (1-based line number, trimmed line) per offending line. Scoped to
+/// cross-verb lines so a .hecksagon FQN bind (`Pizzas::Order.persisted_by`) —
+/// which is not a relationship declaration — never matches.
+fn codey_cross_reference_violations(file_path: &str) -> Vec<(usize, String)> {
+    let content = match std::fs::read_to_string(file_path) {
+        Ok(c) => c,
+        Err(_) => return vec![],
+    };
+    let mut out = vec![];
+    for (i, raw) in content.lines().enumerate() {
+        let line = raw.trim();
+        if line.starts_with('#') {
+            continue;
+        }
+        let is_cross = line.starts_with("has_one ")
+            || line.starts_with("has_many ")
+            || line.starts_with("belongs_to ");
+        if !is_cross {
+            continue;
+        }
+        // The target is the token right after the verb ; flag a `::` in it.
+        if let Some(target) = line.split_whitespace().nth(1) {
+            if target.contains("::") {
+                out.push((i + 1, line.to_string()));
+            }
+        }
+    }
+    out
+}
+
 fn run_macrophage(_args: &[String]) {
     use std::io::Read;
     let mut input = String::new();
@@ -4187,6 +4222,40 @@ fn run_macrophage(_args: &[String]) {
         // name within the loaded domain. Same shape run_loop uses.
         dispatch_hecksagon(&agg_dir, cmd_name, attrs.clone());
     });
+
+    // Relationship-grammar surface check (i744 ; RelationshipDiscipline) :
+    // a `::` in a cross-reference target (`has_one Plan::Story`) is the
+    // codey form the relationship chapter retires — the English `Story from
+    // Plan` is canonical. Now that the from-parser is merged, `from` is the
+    // live remedy, so this no longer contradicts the
+    // AmbiguousCrossReferenceErrors validator. Scoped to .bluebook /
+    // .hecksagon ; cross-verb lines only, so hecksagon FQN binds never
+    // false-positive. Advisory : the hook surfaces the complaint, never blocks.
+    if matches!(kind, FileKind::Bluebook)
+        && (file_path.ends_with(".bluebook") || file_path.ends_with(".hecksagon"))
+    {
+        if let Some((line_no, line)) =
+            codey_cross_reference_violations(&file_path).into_iter().next()
+        {
+            let complaint = format!(
+                "The RelationshipDiscipline macrophage expected the English `from <Context>` \
+                 form, not the codey `::` — {}:{} : `{}`. Rewrite `Domain::Type` as \
+                 `Type from <Domain>` ; the verb carries the boundary, no constant-resolution \
+                 operator in the domain language.",
+                file_path, line_no, line
+            );
+            let ts = chrono_utc_now();
+            let mut complain_attrs = std::collections::HashMap::new();
+            complain_attrs.insert("file_path".into(), serde_json::Value::String(file_path.clone()));
+            complain_attrs.insert("complaint".into(), serde_json::Value::String(complaint.clone()));
+            complain_attrs.insert("last_complaint_at".into(), serde_json::Value::String(ts));
+            let _ = std::panic::catch_unwind(|| {
+                dispatch_hecksagon(&agg_dir, "Complain", complain_attrs);
+            });
+            eprintln!("[macrophage] {}", complaint);
+            std::process::exit(2);
+        }
+    }
 
     // --reason lint — fires on any .sh file (exempt or not) that has
     // a `heki append/upsert/delete/mark` invocation without --reason.
