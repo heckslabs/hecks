@@ -58,6 +58,8 @@ pub mod behaviors_parser;
 pub mod behaviors_dump;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod behaviors_conceiver;
+
+pub mod conception_kernel;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod behaviors_runner;
 #[cfg(not(target_arch = "wasm32"))]
