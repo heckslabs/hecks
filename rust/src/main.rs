@@ -927,6 +927,11 @@ fn main() {
                 // by definition.
                 corpus.aggregates.extend(domain.aggregates.iter().cloned());
                 errors.extend(storehouse::validator_corpus::unknown_aggregate_errors(&domain, &corpus));
+                // INVALID-grade : an unqualified cross ref whose target
+                // name is declared in 2+ contexts with no same-context
+                // candidate is ambiguous (the relationship grammar's
+                // no-silent-guess rule). Same two-domain split as above.
+                errors.extend(storehouse::validator_corpus::ambiguous_cross_reference_errors(&domain, &corpus));
             }
             if let Some(dir) = corpus_dir {
                 let corpus = load_combined_domain(dir);
@@ -940,6 +945,10 @@ fn main() {
                 // belongs_to resolves only once the corpus is joined ; the
                 // per-file check false-positived on legit sibling refs.
                 errors.extend(storehouse::validator_corpus::unknown_aggregate_errors(&corpus, &corpus));
+                // INVALID-grade : unqualified cross ref ambiguous across
+                // contexts with no same-context resolution (relationship
+                // grammar's no-silent-guess rule).
+                errors.extend(storehouse::validator_corpus::ambiguous_cross_reference_errors(&corpus, &corpus));
                 for w in storehouse::validator_corpus::policy_event_warnings(&corpus) {
                     eprintln!("{}", w);
                 }
