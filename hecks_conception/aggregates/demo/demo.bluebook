@@ -22,7 +22,7 @@ Hecks.bluebook "Demo", version: "2026.05.28.1" do
     # honored. The previous `attribute Story` shape erred in Ruby
     # (`undefined method to_sym for module Story`) ; bare-constant
     # attribute is not a supported DSL form for cross-bluebook refs.
-    belongs_to Plan::Story
+    belongs_to Story from Plan
 
     # ---- Composition ----
     # Slides are OWNED entities (no identity outside this Demo).

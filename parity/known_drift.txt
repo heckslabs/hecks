@@ -13,6 +13,8 @@
 
 # (empty — full parity 113/113 as of 2026-04-18, then drift below as new gaps surface)
 
+hecks_conception/aggregates/demo/demo.bluebook  # `belongs_to Story from Plan` — the English ` from <Context>` cross-context qualifier (Relationship grammar, replacing the codey `Context::X`) is space-separated and NOT Ruby-eval-compatible : the Rust text-parser reads it, the legacy Ruby DSL evaluates `from` as a bare method call on AggregateBuilder and errors. Same class as the north-star FQN-verb binds (a66c9dccd) ; retires with the Ruby parser lift. (2026-06-18)
+
 # inbox.bluebook drift retired 2026-06-12 — fixed in the parser projection :
 # parse_aggregate (parser_shape) now collects policies declared INSIDE an
 # aggregate body and bubbles them to domain.policies via the dispatch call
