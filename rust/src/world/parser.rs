@@ -92,6 +92,22 @@ pub fn parse(source: &str) -> World {
             continue;
         }
 
+        // New world shape — the world MIRRORS the hexagon's bind selectors.
+        // A family-verb CALL carrying VALUES : `persisted_by("Heki") do … end`
+        // (persistence, bluebook-wide, top level) or `Domain::Agg.verb("Adapter")
+        // do … end` (a per-edge config dotted off the same aggregate binding the
+        // hexagon declares). Keyed by the ADAPTER NAME (lowercased) extracted from
+        // the call argument, so `config_for("heki")` / `config_for("stripe")`
+        // resolves IDENTICALLY to the old `heki do …` / `stripe do …` blocks —
+        // the verb + aggregate are the human-readable selector, the adapter name
+        // is the config key.
+        if let Some(adapter_name) = verb_call_adapter(line) {
+            let (cfg, consumed) = parse_verb_config_block(&raw[i..], &adapter_name);
+            if let Some(c) = cfg { world.configs.push(c); }
+            i += consumed;
+            continue;
+        }
+
         // Block header: `mcp` opens MCP servers (i610) ; any other IDENT
         // opens a flat extension config block.
         if let Some(ext_name) = extension_block_header(line) {
@@ -256,6 +272,58 @@ fn parse_extension_block(lines: &[&str], name: &str) -> (Option<ExtensionConfig>
 pub(crate) fn ends_with_do(line: &str) -> bool {
     let t = line.trim_end();
     t == "do" || t.ends_with(" do")
+}
+
+/// Recognize the new world shape that mirrors the hexagon's bind selectors :
+/// `persisted_by("Heki") do …` (bluebook-wide persistence) and
+/// `Domain::Agg.verb("Adapter") do …` (a per-edge config). Both are family-verb
+/// CALLS opening a config block. Returns the ADAPTER name (the call's quoted
+/// argument, lowercased) — the config key, so config_for("heki")/("stripe")
+/// resolves as before. None when the line isn't such a verb-call block header.
+fn verb_call_adapter(line: &str) -> Option<String> {
+    let t = line.trim();
+    // Must OPEN a block : a `… do` header, or an inline `… do; … end`.
+    let is_block = ends_with_do(t) || (t.contains(" do") && t.ends_with("end"));
+    if !is_block { return None; }
+    // Must be a CALL : a verb/selector ident immediately before `("…")`.
+    let open = t.find("(\"")?;
+    let before = &t[..open];
+    if before.is_empty() || !before.ends_with(|c: char| c.is_alphanumeric() || c == '_') {
+        return None;
+    }
+    let after = &t[open + 2..];
+    let close = after.find('"')?;
+    let adapter = &after[..close];
+    if adapter.is_empty() { return None; }
+    Some(adapter.to_lowercase())
+}
+
+/// Parse a family-verb config block body into an ExtensionConfig keyed by the
+/// (already-extracted) adapter `name`. Same k/v body shape as
+/// `parse_extension_block` ; only the key SOURCE differs (the adapter name from
+/// the call argument, not the leading IDENT).
+fn parse_verb_config_block(lines: &[&str], name: &str) -> (Option<ExtensionConfig>, usize) {
+    let first = lines[0].trim();
+    let mut cfg = ExtensionConfig::default();
+    cfg.name = name.to_string();
+
+    // Inline form : `verb("X") do; key "val" end`
+    if first.ends_with("end") && first.contains("do") {
+        absorb_inline_block_body(first, &mut |k, v| cfg.values.push((k, v)));
+        return (Some(cfg), 1);
+    }
+
+    let mut i = 1;
+    let mut depth = if ends_with_do(first) { 1 } else { 0 };
+    while i < lines.len() && depth > 0 {
+        let t = lines[i].trim();
+        if t == "end" { depth -= 1; i += 1; continue; }
+        if t.is_empty() || t.starts_with('#') { i += 1; continue; }
+        if ends_with_do(t) { depth += 1; i += 1; continue; }
+        if let Some((k, v)) = parse_kv_line(t) { cfg.values.push((k, v)); }
+        i += 1;
+    }
+    (Some(cfg), i)
 }
 
 /// Parse a single `key value` line. Values can be:

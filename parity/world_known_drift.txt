@@ -6,3 +6,15 @@
 #
 # When a listed fixture starts passing, the parity suite flags it as
 # ⚑ and asks you to remove the line.
+
+# ── 2026-06-17 — pizzas.world : the ports-and-adapters world shape ──
+# pizzas.world now MIRRORS pizzas.hecksagon's bind selectors : the family verb
+# carries values — persisted_by("Heki") do dir :default end (bluebook-wide
+# persistence, top level) + Pizzas::Order.charged_by("Stripe") do endpoint … end
+# (the per-edge config dotted off the same aggregate binding). The Rust
+# world_parser resolves it (config_for keyed by the adapter name — verified :
+# config_for("heki")=dir:default, config_for("stripe")=endpoint/token/…). The
+# legacy Ruby WorldBuilder errors on the FQN-verb dotted form (uninitialized
+# constant Pizzas) — the SAME `::` const-resolution limit as pizzas.hecksagon.
+# Ruby is being retired ; retires with the hecksagon parser lift.
+examples/pizzas/bluebook/pizzas.world  # ports-and-adapters world shape (persisted_by("Heki") / Pizzas::Order.charged_by("Stripe")) — Rust resolves it ; legacy Ruby WorldBuilder errors on the FQN-verb form. Retires with the hecksagon parser lift.

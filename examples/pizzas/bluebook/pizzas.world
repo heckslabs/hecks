@@ -1,37 +1,31 @@
 Hecks.world "Pizzas" do
-  # The per-deployment VALUES the bound adapters need — and ONLY values. The
-  # .hecksagon names WHICH adapter fills each port ; this file says WHERE and
-  # HOW HARD : the knobs the synchronous domain must never see. Swap this world
-  # — same domain, same composition, different deployment. Each block is keyed
-  # by the adapter it configures.
+  # The per-deployment VALUES the bound adapters need — and ONLY values. This file
+  # MIRRORS pizzas.hecksagon's shape : the SAME family-verb selectors, carrying
+  # values instead of wiring. The family declares the verb ; the hexagon hangs the
+  # WIRING (on:, success/failure) off `verb("Adapter")` ; this world hangs the
+  # VALUES off the same selector. You read one line in both files and know the edge.
 
-  # The Heki persistence adapter  (Pizzas::Pizza / Pizzas::Order persisted_by "Heki").
-  #
-  # `dir :default` documents that the store uses the DEFAULT location :
-  # rooted at ~/.heki, MIRRORING where this bluebook lives — the chain of
-  # folders from the project (the dir under ~/Projects) down to the bluebook,
-  # with the conventional containers `aggregates`/`bluebook` stripped. So this
-  # bluebook at ~/Projects/hecks/examples/pizzas/bluebook/ lands at
-  #   ~/.heki/hecks/examples/pizzas/pizza.heki   and   .../order.heki
-  # No environment variable, no hard-coded path — the location follows the
-  # source tree. To pin a different namespace, declare `realm "X"` (which
-  # replaces the whole derived chain). Behaviors run in memory — no disk —
-  # because no world is loaded under test ; this is the production location.
-  heki do
+  # Persistence — bluebook-wide, so it sits at the TOP LEVEL (not dotted off one
+  # aggregate). `persisted_by("Heki")` is the persistence family's verb + the Heki
+  # adapter ; `dir :default` is the store location : rooted at ~/.heki, MIRRORING
+  # where this bluebook lives (the source-tree chain, with aggregates/bluebook
+  # stripped) — e.g. ~/Projects/hecks/examples/pizzas/bluebook/ -> ~/.heki/hecks/
+  # examples/pizzas/{pizza,order}.heki, each aggregate its own folder. No env var,
+  # no hard-coded path. `realm "X"` pins a different namespace. :default is a
+  # DECLARED value that resolves by convention — never a silent fallback.
+  persisted_by("Heki") do
     dir :default
   end
 
-  # The Stripe payment adapter  (Pizzas::Order charged_by "Stripe").
-  #
-  # WHERE the gateway is, the ENV NAME of the secret token (the secret itself
-  # never lives in a bluebook — only its name does), and how hard the async
-  # adapter tries. latency / retries / backoff are edge-only concerns ; the
-  # domain's Authorize / Decline commands know none of them.
-  stripe do
-    endpoint "PIZZAS_PAYMENT_ENDPOINT"
-    token    "PIZZAS_PAYMENT_TOKEN"
-    timeout_ms   3000
-    retries      3
-    backoff      "exponential"
+  # Payment — dotted off the SAME Order.charged_by("Stripe") binding the hexagon
+  # declares. WHERE the gateway is, the ENV NAME of the secret (the secret itself
+  # never lives in a bluebook — only its name does), and how hard the async adapter
+  # tries. latency / retries / backoff are edge-only ; Authorize / Decline know none.
+  Pizzas::Order.charged_by("Stripe") do
+    endpoint   "PIZZAS_PAYMENT_ENDPOINT"
+    token      "PIZZAS_PAYMENT_TOKEN"
+    timeout_ms 3000
+    retries    3
+    backoff    "exponential"
   end
 end
