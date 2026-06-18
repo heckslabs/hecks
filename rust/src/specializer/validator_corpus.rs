@@ -1,14 +1,13 @@
 //! Rust-native specializer for `storehouse/src/validator_corpus.rs`.
 //!
-//! Emits the three corpus-aware lint extensions
-//! (`corpus_phantom_trigger_errors`, `identified_by_warnings`,
-//! `policy_event_warnings`) byte-identical to the tracked file. Reads
+//! Emits the corpus-aware lint extensions byte-identical to the tracked
+//! file. Reads
 //! the `CorpusRule` fixture rows from validator_corpus_shape, sorts by
 //! `order`, and concatenates each row's verbatim `.rs.frag` snippet
 //! (doc comment + signature + body + closing brace) separated by a
 //! single blank line.
 //!
-//! All three rules are sui generis — every body is a unique walk of
+//! Every rule is sui generis — each body is a unique walk of
 //! `domain.aggregates` / `domain.policies` that doesn't fit a
 //! check_kind primitive. The specializer is correspondingly small : no
 //! body emission, just header + imports + N verbatim snippets.
@@ -59,7 +58,7 @@ const HEADER: &str = r#"//! Validator extensions that run against the corpus-mer
 //! Regenerate: storehouse specialize validator_corpus --output storehouse/src/validator_corpus.rs
 //! Contract:  storehouse/src/specializer/validator_corpus.rs (Rust-native)
 //!
-//! Five rules :
+//! Six rules :
 //!
 //!   - `corpus_phantom_trigger_errors` — INVALID-grade : a policy's
 //!     `trigger_command` is not declared by any aggregate in the
@@ -84,6 +83,13 @@ const HEADER: &str = r#"//! Validator extensions that run against the corpus-mer
 //!     anywhere in the merged corpus. Unqualified cross-bluebook
 //!     `belongs_to` refs resolve once the corpus is joined ; only a
 //!     true typo (`belongs_to Wrker`) survives as an error.
+//!
+//!   - `ambiguous_cross_reference_errors` — INVALID-grade : an unqualified
+//!     cross reference (`has_one` / `has_many` / `belongs_to`, no
+//!     `from <Context>`) whose target name is declared in 2+ contexts with
+//!     NO same-context candidate. Mirrors the runtime's same-context-first
+//!     resolution, so a ref the runtime resolves never errors ; the fix is
+//!     `Target from <Context>`. The relationship grammar's no-silent-guess rule.
 
 "#;
 

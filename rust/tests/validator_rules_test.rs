@@ -18,7 +18,7 @@
 use storehouse::ir::{Aggregate, Command, Domain, Policy};
 use storehouse::parser;
 use storehouse::validator::validate;
-use storehouse::validator_corpus::unknown_aggregate_errors;
+use storehouse::validator_corpus::{ambiguous_cross_reference_errors, unknown_aggregate_errors};
 
 #[test]
 fn valid_domain_passes() {
@@ -332,4 +332,66 @@ fn unknown_policy_trigger() {
     assert!(errors
         .iter()
         .any(|e| e.contains("triggers unknown command")));
+}
+
+// ── ambiguous_cross_reference_errors (the no-silent-guess rule) ──
+// Build a corpus where `Worker` is declared in two contexts (Conductor +
+// SeedingWorker), plus a `Thing` whose context + cross-ref line vary per
+// test. Mirrors the real corpus shape that motivated the rule.
+fn corpus_with_two_workers(thing_context: &str, thing_ref_line: &str) -> Domain {
+    let mut corpus = parser::parse(&format!(
+        "Hecks.bluebook \"Probe\" do\n  aggregate \"Thing\" do\n    {}\n    command \"Make\" do role \"T\" end\n  end\nend",
+        thing_ref_line
+    ));
+    corpus.aggregates[0].context = Some(thing_context.to_string());
+    for ctx in ["Conductor", "SeedingWorker"] {
+        let mut w = parser::parse(
+            "Hecks.bluebook \"W\" do\n  aggregate \"Worker\" do\n    command \"Reg\" do role \"T\" end\n  end\nend",
+        )
+        .aggregates
+        .remove(0);
+        w.context = Some(ctx.to_string());
+        corpus.aggregates.push(w);
+    }
+    corpus
+}
+
+#[test]
+fn flags_unqualified_cross_ref_ambiguous_across_contexts() {
+    // Thing lives in neither Worker context -> no same-context candidate.
+    let corpus = corpus_with_two_workers("ThingCtx", "has_one Worker");
+    let errors = ambiguous_cross_reference_errors(&corpus, &corpus);
+    assert!(
+        errors.iter().any(|e| e.contains("Thing has_one Worker is ambiguous")
+            && e.contains("Conductor")
+            && e.contains("SeedingWorker")),
+        "ambiguous unqualified cross ref must error, got: {:?}",
+        errors
+    );
+}
+
+#[test]
+fn same_context_candidate_resolves_unqualified_cross_ref() {
+    // Thing shares the Conductor context with one Worker -> resolves, as
+    // the runtime resolves (same-context first). No error.
+    let corpus = corpus_with_two_workers("Conductor", "has_one Worker");
+    let errors = ambiguous_cross_reference_errors(&corpus, &corpus);
+    assert!(
+        !errors.iter().any(|e| e.contains("ambiguous")),
+        "a same-context candidate must resolve the ref, got: {:?}",
+        errors
+    );
+}
+
+#[test]
+fn qualified_cross_ref_is_not_flagged() {
+    // A qualified target (Conductor::Worker sets reference.domain) names
+    // its context, so the rule skips it even with no same-context match.
+    let corpus = corpus_with_two_workers("ThingCtx", "has_one Conductor::Worker");
+    let errors = ambiguous_cross_reference_errors(&corpus, &corpus);
+    assert!(
+        !errors.iter().any(|e| e.contains("ambiguous")),
+        "a qualified cross ref must not be flagged, got: {:?}",
+        errors
+    );
 }
