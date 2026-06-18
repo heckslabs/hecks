@@ -59,4 +59,22 @@ Hecks.behaviors "Pizzas" do
     expect count: 1
   end
 
+  # ── Cart aggregate (ephemeral, memory-backed) ──────────────
+  # Exercises the Memory-bound aggregate exactly like the Heki-bound ones —
+  # behaviors run in-memory regardless of backend, so the SAME test shape
+  # proves the domain logic ; the persistence binding is a wiring concern.
+
+  test "StartCart runs" do
+    tests "StartCart", on: "Cart"
+    input  line_count: "sample_linecount"
+    expect line_count: "sample_linecount"
+  end
+
+  test "AddLine runs" do
+    tests "AddLine", on: "Cart"
+    setup  "StartCart", line_count: "sample_linecount"
+    input  line_count: "sample_linecount"
+    expect line_count: "sample_linecount"
+  end
+
 end

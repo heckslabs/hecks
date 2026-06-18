@@ -33,6 +33,17 @@ Hecks.hecksagon "Pizzas" do
   Pizzas::Pizza.persisted_by("Heki")
   Pizzas::Order.persisted_by("Heki")
 
+  # ── REPLY PORT · persistence (MEMORY) ───────────────────────────────
+  # The Cart is transient — an in-progress selection discarded on checkout
+  # or abandonment, never worth surviving a restart. So its persistence port
+  # binds the MEMORY adapter, a sibling of Heki on the same `persisted_by`
+  # family-verb : the runtime keeps it in an in-process HashMap and writes no
+  # disk. Memory carries no location, so it has NO matching pizzas.world
+  # block (nothing to configure). This is the discriminating case — Cart on
+  # Memory beside Pizza / Order on Heki in one domain proves the binding,
+  # not the heki default, selects the backend.
+  Pizzas::Cart.persisted_by("Memory")
+
   # ── EFFECT PORT · payment ───────────────────────────────────────────
   # The charge is a remote call — latency, retries, a flaky gateway — impure
   # AND async, so an adapter. `charged_by` belongs to the payment family,

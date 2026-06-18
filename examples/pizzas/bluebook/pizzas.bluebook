@@ -146,4 +146,31 @@ Hecks.bluebook "Pizzas" do
       where(status: "pending")
     end
   end
+
+  aggregate "Cart" do
+    description "A customer's in-progress selection, held IN MEMORY only — the transient staging area before PlaceOrder mints the durable Order. A half-filled or abandoned cart is worth nothing across a restart, so it never touches disk. This is the exemplar EPHEMERAL aggregate : wired `Pizzas::Cart.persisted_by(\"Memory\")` in pizzas.hecksagon, so the runtime keeps it in an in-process HashMap — the discriminating case that proves the memory adapter BITES, sitting beside Pizza / Order on Heki in the same domain."
+    reference_to Pizza
+    attribute :line_count, LineCount
+
+    value_object "LineCount" do
+      attribute :value, Integer
+      invariant "non-negative" do
+        value >= 0
+      end
+    end
+
+    command "StartCart" do
+      role "Customer"
+      goal "Begin a new in-memory cart for a customer browsing the menu"
+      attribute :line_count, LineCount
+    end
+
+    command "AddLine" do
+      role "Customer"
+      goal "Add a pizza selection to the in-progress cart"
+      reference_to Cart
+      attribute :line_count, LineCount
+      then_set :line_count, to: :line_count
+    end
+  end
 end

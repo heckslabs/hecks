@@ -1,0 +1,16 @@
+# Memory — a concrete PERSISTENCE adapter that keeps an aggregate's repository
+# in an in-process HashMap : no disk, discarded on shutdown. The sibling of Heki
+# on the SAME persistence family — same `persisted_by` verb, same reply signal,
+# distinct backing. It DECLARES the family it implements (the inverted arrow) ;
+# the family never names it.
+#
+# The bind `SomeDomain::Agg.persisted_by("Memory")` resolves IFF Memory's
+# declared family (persistence) carries `persisted_by` — the same typed attach
+# checkpoint Heki passes. Memory carries NO per-deployment values (no location
+# to configure), so unlike Heki it has no matching .world block : the bind alone
+# is the whole wiring. This is the adapter the conception's ephemeral / compute /
+# pure-projection domains bind, declaring them transient on purpose rather than
+# riding the heki default by accident.
+Hecks.adapter "Memory" do
+  family "persistence"
+end
