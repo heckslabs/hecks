@@ -1,0 +1,12 @@
+# Primitive — Hecksagon
+#
+# Persistence (i728 step 2 : make the implicit explicit, behavior-preserving).
+# The Process aggregate records one process-spawn side-effect per row (ok,
+# output, exit_code, audit) and persists across boots today
+# (information/primitive/process.heki). It reached heki via the implicit
+# default ; :heki is declared here so the backing is EXPLICIT before the
+# default flips to memory. Pairs with primitive.bluebook.
+#
+Hecks.hecksagon "Primitive" do
+  adapter :heki
+end
