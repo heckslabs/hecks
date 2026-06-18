@@ -993,6 +993,33 @@ fn wrangler_toml_emitter_matches_committed_deployment_toml() {
 }
 
 #[test]
+fn query_file_split_is_byte_identical() {
+    // runtime-as-bluebook strangler — cluster 7 (context-qualified read side).
+    // all_qualified + resolve_query_qualified live ONLY in the generated file ;
+    // this LIVE golden keeps the bluebook shape ≡ Rust.
+    let root = repo_root();
+    let bin = root.join("rust/target/release/storehouse");
+    assert!(bin.exists(), "storehouse binary missing — build release first");
+    let output = Command::new(&bin)
+        .args(["specialize", "query"])
+        .current_dir(&root)
+        .output()
+        .expect("storehouse specialize query failed");
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr),
+    );
+    let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
+    let tracked = fs::read_to_string(root.join("rust/src/runtime/query.rs"))
+        .expect("runtime/query.rs missing");
+    assert_eq!(
+        generated, tracked,
+        "query.rs drifted from its runtime_shape SplitMethod rows",
+    );
+}
+
+#[test]
 fn reaction_file_split_is_byte_identical() {
     // runtime-as-bluebook strangler — cluster 4b (Phase-3 reaction delivery),
     // built on the generalized split_file + SplitMethod. react/react_ports/pump

@@ -83,6 +83,7 @@ pub fn emit(target: &str, repo_root: &Path) -> Result<String, Box<dyn Error>> {
         "parser" => parser::emit(repo_root),
         "event_driving" => runtime::event_driving::emit(repo_root),
         "persistence_resolution" => runtime::persistence_resolution::emit(repo_root),
+        "query" => runtime::query::emit(repo_root),
         "reaction" => runtime::reaction::emit(repo_root),
         "parser_helpers" => parser_helpers::emit(repo_root),
         "repository" => repository::emit(repo_root),
