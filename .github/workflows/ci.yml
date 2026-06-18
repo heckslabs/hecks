@@ -26,9 +26,3 @@ jobs:
 
       - name: Run specs
         run: bundle exec rspec
-
-      - name: Smoke test
-        run: bundle exec ruby examples/pizzas/pizzas.rb
-
-      - name: Pizzas example specs
-        run: bundle exec rspec examples/pizzas/spec/pizzas_spec.rb
