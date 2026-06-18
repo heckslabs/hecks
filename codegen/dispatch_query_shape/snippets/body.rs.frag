@@ -7,8 +7,15 @@ pub fn is_specializer_target(file_path: &str) -> Option<DispatchInfo> {
 
     for target in SPECIALIZER_TARGETS {
         let target_file = format!("rust/src/{}.rs", target);
+        // Runtime-subdir targets (command_dispatch, repository, interpreter,
+        // reaction, aggregate_state, event_driving, persistence_resolution)
+        // emit under rust/src/runtime/<name>.rs, not the flat path.
+        let runtime_file = format!("rust/src/runtime/{}.rs", target);
         let specializer_file = format!("rust/src/specializer/{}.rs", target);
-        if normalized.ends_with(&target_file) || normalized.ends_with(&specializer_file) {
+        if normalized.ends_with(&target_file)
+            || normalized.ends_with(&runtime_file)
+            || normalized.ends_with(&specializer_file)
+        {
             return Some(DispatchInfo {
                 source: "rust/src/specializer/mod.rs".into(),
                 kind: "specializer target".into(),
@@ -287,7 +294,18 @@ mod tests {
     #[test]
     fn unknown_rs_files_return_none() {
         assert!(is_specializer_target("rust/src/main.rs").is_none());
-        assert!(is_specializer_target("rust/src/runtime/repository.rs").is_none());
+        // A runtime/ file that is NOT a specializer target stays unclaimed.
+        assert!(is_specializer_target("rust/src/runtime/lazy_repository.rs").is_none());
+    }
+
+    #[test]
+    fn runtime_subdir_targets_recognized_at_real_path() {
+        // command_dispatch / repository / interpreter etc. emit under
+        // rust/src/runtime/<name>.rs, not the flat rust/src/<name>.rs.
+        let info = is_specializer_target("rust/src/runtime/command_dispatch.rs")
+            .expect("command_dispatch is a specializer target at its runtime/ path");
+        assert_eq!(info.identifier, "command_dispatch");
+        assert!(is_specializer_target("rust/src/runtime/repository.rs").is_some());
     }
 
     #[test]

@@ -219,23 +219,4 @@ fn unknown_command_message_bare(rt: &Runtime, cmd_name: &str) -> String {
     }
 }
 
-/// Compose the "you need to pass a self-ref kwarg" error message.
-/// Names the command and the expected attribute names — both the
-/// reference's own `name` (which is what gets passed) and the
-/// universal `id` fallback so the caller can pick either form.
-fn self_ref_missing_message(
-    rt: &Runtime, res: Resolution, command_name: &str, ref_name: &str,
-) -> String {
-    let cmd = cmd_for(rt, res);
-    // Collect the reference target so the message names what's
-    // being addressed (e.g. "reference_to Pizza" → mention Pizza).
-    let target_hint = cmd.references.iter()
-        .find(|r| &r.name == ref_name)
-        .map(|r| format!(" (reference_to {})", r.target))
-        .unwrap_or_default();
-    format!(
-        "command '{}' requires self-ref attribute '{}=<id>' or 'id=<id>'{}",
-        command_name, ref_name, target_hint,
-    )
-}
 

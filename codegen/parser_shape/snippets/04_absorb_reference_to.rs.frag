@@ -37,7 +37,10 @@ fn singularize(plural: &str) -> String {
 
 /// Split a possibly-qualified type token `Domain::Sub::Type` into
 /// (domain, target) : domain is the `::`-joined prefix or None, target is the
-/// final segment. Mirrors the Ruby builders `type.to_s.split("::")`.
+/// final segment. Mirrors the Ruby builders `type.to_s.split("::")`. The `::`
+/// form is retired in favour of the English ` from <Context>` qualifier
+/// (parse_from_context) ; this stays only to parse legacy declarations until
+/// the corpus drops them.
 fn split_qualified_type(token: &str) -> (Option<String>, String) {
     match token.rsplit_once("::") {
         Some((dom, t)) => (Some(dom.to_string()), t.to_string()),
@@ -51,24 +54,43 @@ fn parse_as_alias(line: &str) -> Option<String> {
     line.find(", as:").and_then(|pos| extract_symbol(&line[pos + ", as:".len()..]))
 }
 
-/// `has_many Xs[, as: :alias]` — owner-side collection. The target is the
-/// singular of the plural type token ; the attribute name is the `as:` alias
-/// or the snake_case plural. Unbounded cardinality (min 0, max None) ; `max:` /
-/// `at_least:` are not used in the live corpus and are not parsed here.
+/// Extract the ` from <Context>` cross-context qualifier — the English form of
+/// the retired `Context::X` prefix (`::` is codey ; a bluebook reads as words).
+/// `belongs_to Story from Plan` -> Some("Plan") ; the leaf stays bare and the
+/// context rides separately, so the IR is identical to the old `Plan::Story`.
+fn parse_from_context(line: &str) -> Option<String> {
+    line.find(" from ").and_then(|pos| {
+        line[pos + " from ".len()..]
+            .split_whitespace()
+            .next()
+            .map(|s| s.to_string())
+            .filter(|s| !s.is_empty())
+    })
+}
+
+/// `has_many Xs[ from Context][, as: :alias]` — owner-side collection. The
+/// target is the singular of the plural type token ; the attribute name is the
+/// `as:` alias or the snake_case plural. The cross-context tier comes from the
+/// English ` from <Context>` qualifier (or, transitionally, a `::` prefix).
+/// Unbounded cardinality (min 0, max None) ; `max:` / `at_least:` are not used
+/// in the live corpus and are not parsed here.
 fn absorb_has_many(line: &str, agg: &mut Aggregate) {
     if let Some(token) = extract_word_after(line, "has_many") {
-        let (domain, plural) = split_qualified_type(&token);
+        let (split_domain, plural) = split_qualified_type(&token);
+        let domain = parse_from_context(line).or(split_domain);
         let target = singularize(&plural);
         let name = parse_as_alias(line).unwrap_or_else(|| to_snake_case(&plural));
         agg.references.push(Reference::many(name, target, domain));
     }
 }
 
-/// `has_one X[, as: :alias]` — owner-side single. Target verbatim (no
-/// singularization) ; name is the `as:` alias or snake_case target.
+/// `has_one X[ from Context][, as: :alias]` — owner-side single. Target verbatim
+/// (no singularization) ; name is the `as:` alias or snake_case target ; the
+/// cross-context tier comes from ` from <Context>` (or a legacy `::` prefix).
 fn absorb_has_one(line: &str, agg: &mut Aggregate) {
     if let Some(token) = extract_word_after(line, "has_one") {
-        let (domain, target) = split_qualified_type(&token);
+        let (split_domain, target) = split_qualified_type(&token);
+        let domain = parse_from_context(line).or(split_domain);
         let name = parse_as_alias(line).unwrap_or_else(|| to_snake_case(&target));
         agg.references.push(Reference::has_one(name.clone(), target.clone(), domain));
         // references-not-ids : synthesise a stored FK attribute (the target
@@ -85,11 +107,13 @@ fn absorb_has_one(line: &str, agg: &mut Aggregate) {
     }
 }
 
-/// `belongs_to X[, as: :alias]` — dependent-side single. IR-equivalent to
-/// has_one ; the distinction is authored intent. Target verbatim.
+/// `belongs_to X[ from Context][, as: :alias]` — dependent-side single.
+/// IR-equivalent to has_one ; the distinction is authored intent. Target
+/// verbatim ; cross-context tier from ` from <Context>` (or a legacy `::`).
 fn absorb_belongs_to(line: &str, agg: &mut Aggregate) {
     if let Some(token) = extract_word_after(line, "belongs_to") {
-        let (domain, target) = split_qualified_type(&token);
+        let (split_domain, target) = split_qualified_type(&token);
+        let domain = parse_from_context(line).or(split_domain);
         let name = parse_as_alias(line).unwrap_or_else(|| to_snake_case(&target));
         agg.references.push(Reference::belongs_to(name.clone(), target.clone(), domain));
         // references-not-ids : synthesise a stored FK attribute (the target
