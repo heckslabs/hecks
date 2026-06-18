@@ -71,7 +71,16 @@ aggregate→writable-source-file map. There isn't one :
 1. **Source tooling** (task #5) : thread aggregate→source through
    `load_combined_domain` into the backend map ; add the source path (and a
    synthetic/no-source flag) to `storehouse backends` output (or a dedicated
-   query). Runtime-discovered, not grep. Same kernel-change shape as the keystone.
+   query). Runtime-discovered, not grep. **LESSON (this session)** : a contained
+   single-root walk in `cmd_backends` (parse every `*.bluebook` under `agg_dir`)
+   is INSUFFICIENT — it mislabels real aggregates as synthetic, because
+   `load_combined_domain` also loads sibling `capabilities/`, the `../miette`
+   body repo (via `heki::repo_root()`), and the framework buckets. The source
+   map MUST reuse the loader's actual multi-root walk, so provenance has to be
+   captured INSIDE the loader (return file origin per aggregate), not
+   reconstructed after. Only then is the `(synthetic)` set trustworthy — today
+   even `Antibody::*` can't be confirmed synthetic vs just-loaded-from-elsewhere
+   until the map covers every root the runtime does.
 2. **Build the work-list** from that : group by source-file = the wiring unit ;
    list synthetic aggregates separately for Chris.
 3. **Fan out** (Workflow, per source-file) : each agent reads the file's vision,
