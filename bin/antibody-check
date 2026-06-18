@@ -40,11 +40,15 @@ require "open3"
 
 # Extensions the antibody flags as should-be-bluebook:
 #   - code: rb rs py sh js ts go html css
-#   - config-as-data: yml yaml (→ .fixtures in Hecks)
+# Configuration / declarative data is NOT flagged. A config file is
+# declarative, not imperative code-that-should-be-a-bluebook — the
+# macrophage shouldn't block declarative files (Chris, 2026-06-18).
+# .yml / .yaml join their config siblings .toml / .json on the allowed
+# side: declarative deployment/CI config, never the self-hosting path.
 # Not listed: .bluebook, .behaviors, .fixtures, .hecksagon, .world,
-# .md, .toml, .json, .heki — source or artifacts outside the
-# self-hosting path.
-CODE_EXTS = %w[rb rs py sh js ts go html css yml yaml].freeze
+# .md, .toml, .json, .yml, .yaml, .heki — source, config, or artifacts
+# outside the self-hosting path.
+CODE_EXTS = %w[rb rs py sh js ts go html css].freeze
 
 # Map shebang keywords → logical extension, so extensionless binaries
 # under bin/ get classified by their interpreter. Any shebang not in
