@@ -34,7 +34,21 @@ module Hecks
         # @return [void]
         def invariant(message, &block)
           capture = HoldsWhenCapture.new
-          capture.instance_eval(&block) if block
+          # Only the f4 `holds_when { ... }` form is captured as a machine
+          # predicate (holds_when reads its inner block's SOURCE, never
+          # executing it). The legacy direct-block form
+          # (`invariant("msg") { scope == ... }`) is documentation-only :
+          # instance_eval would evaluate its bare attribute names as method
+          # calls on the capture and raise NameError. We rescue that and
+          # leave the expression nil — mirroring the Rust parser (which
+          # records an expression ONLY for the holds_when form) and
+          # ValueObjectBuilder (which never executes the block). canonical_ir
+          # then filters nil-expression invariants, so both sides agree.
+          begin
+            capture.instance_eval(&block) if block
+          rescue NameError
+            # direct-form predicate over attributes — documentation-only
+          end
           @invariants << BluebookModel::Structure::Invariant.new(
             message: message,
             block: capture.predicate || block,
