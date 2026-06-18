@@ -4,33 +4,86 @@
 # Contract with the host : read the charge PAYLOAD (the OrderPlaced event data)
 # on stdin, perform the charge, exit 0 if AUTHORIZED, non-zero if DECLINED. The
 # host maps exit 0 -> the delivery's success_command, non-zero -> failure_command.
-# This is the ONLY adapter-specific code ; subscribe / claim / dispatch / ack all
-# live in the shared host.
+# STDOUT is the verdict DATA (k=v lines, e.g. payment_ref=ch_x) threaded into the
+# verdict command ; STDERR is logs ; the EXIT CODE picks the branch. This is the
+# ONLY adapter-specific code ; subscribe / claim / dispatch / ack live in the host.
 #
-# Where the real gateway IO goes (and why it is safe here, never in the core):
-#   - read endpoint / token / retries / timeout_ms / backoff from .world
-#     (config_for "stripe") ;
-#   - POST the charge to the gateway ;
-#   - RETRY transport failures within that budget — this is a separate process,
-#     so a slow/looping charge never blocks the synchronous domain core.
-# A declined charge is a VERDICT (exit 1), never a retry : recovery is a new
+# REAL TRANSPORT (this file) : POST the charge to the gateway with the bearer
+# token, within the timeout, and RETRY TRANSPORT FAILURES ONLY (curl error /
+# timeout / 5xx / 429) within the retry budget with backoff between attempts.
+# Because this is a SEPARATE PROCESS, a slow or looping charge can NEVER block
+# the synchronous domain core — that is the whole point of the effect port.
+# A DECLINED charge is a VERDICT (exit 1), never a retry : recovery is a new
 # command, per the no-silent-retry standard.
+#
+# CONFIG (TRANSITIONAL — read from env) : endpoint/token/retries/timeout_ms/
+# backoff come from the process environment for now. When the .world discovery
+# port lands (the 3rd core-owned port), these move behind the door via
+# `config_for "stripe"`. The secret token NEVER lives in a bluebook — only its
+# env-name does (.world : token_env "PIZZAS_PAYMENT_TOKEN").
 set -euo pipefail
 
+ENDPOINT="${PIZZAS_PAYMENT_ENDPOINT:-}"
+TOKEN="${PIZZAS_PAYMENT_TOKEN:-}"
+RETRIES="${PAYMENT_RETRIES:-3}"
+TIMEOUT_MS="${PAYMENT_TIMEOUT_MS:-3000}"
+BACKOFF="${PAYMENT_BACKOFF:-exponential}"
+
+log() { echo "[stripe-handler] $*" >&2; }
+
+backoff_delay() { # $1 = attempt number (1-based)
+  local base=0.2
+  if [ "$BACKOFF" = "fixed" ]; then echo "$base"; return; fi
+  awk "BEGIN{printf \"%.3f\", ${base} * (2 ^ ($1 - 1))}"
+}
+
 payload=$(cat)
-order_id=$(echo "$payload" | jq -r '.id // "unknown"' 2>/dev/null || echo unknown)
+order_id=$(printf '%s' "$payload" | jq -r '.id // "unknown"' 2>/dev/null || echo unknown)
 
-# STDOUT is the verdict DATA the host threads into the verdict command : the
-# gateway's charge reference. Emitted on BOTH branches (a declined charge still
-# has a gateway ref). STDERR is logs. EXIT CODE is the branch.
-echo "payment_ref=ch_${order_id}"
-
-# Demo: authorize every charge (exit 0). Set STRIPE_DECLINE=1 to exercise the
-# failure branch (the host then dispatches Decline). Real gateway IO + the
-# retry/timeout budget from .world replace this block.
-if [ "${STRIPE_DECLINE:-0}" = "1" ]; then
-  echo "[stripe-handler] DECLINED $payload" >&2
-  exit 1
+# ---- DEMO fallback : no gateway wired ------------------------------------
+# Preserves the originally-proven round-trip. STRIPE_DECLINE=1 -> Decline branch.
+if [ -z "$ENDPOINT" ]; then
+  echo "payment_ref=ch_${order_id}"
+  if [ "${STRIPE_DECLINE:-0}" = "1" ]; then log "DEMO DECLINED $payload"; exit 1; fi
+  log "DEMO AUTHORIZED $payload"; exit 0
 fi
-echo "[stripe-handler] AUTHORIZED $payload" >&2
-exit 0
+
+# ---- real transport ------------------------------------------------------
+timeout_s=$(awk "BEGIN{printf \"%.3f\", ${TIMEOUT_MS}/1000}")
+attempt=0
+while :; do
+  attempt=$((attempt + 1))
+  body_file=$(mktemp)
+  if curl -sS -o "$body_file" -w '%{http_code}' \
+       --max-time "$timeout_s" \
+       -H "Authorization: Bearer ${TOKEN}" \
+       -H "Content-Type: application/json" \
+       -d "$payload" "$ENDPOINT" >/tmp/stripe_code.$$  2>/dev/null; then
+    curl_ok=1
+  else
+    curl_ok=0
+  fi
+  code=$(cat /tmp/stripe_code.$$ 2>/dev/null || echo 000); rm -f /tmp/stripe_code.$$
+  body=$(cat "$body_file" 2>/dev/null || true); rm -f "$body_file"
+  ref=$(printf '%s' "$body" | jq -r '.id // empty' 2>/dev/null || true)
+  [ -z "$ref" ] && ref="ch_${order_id}"
+
+  # transport failure : curl error / timeout / 5xx / 429 -> RETRY within budget
+  if [ "$curl_ok" -eq 0 ] || [ "${code:-000}" -ge 500 ] || [ "$code" = "429" ]; then
+    if [ "$attempt" -le "$RETRIES" ]; then
+      delay=$(backoff_delay "$attempt")
+      log "transport failure (code=${code} curl_ok=${curl_ok}) attempt=${attempt}/${RETRIES} — retry in ${delay}s"
+      sleep "$delay"; continue
+    fi
+    echo "payment_ref=${ref}"
+    log "transport failure — retries exhausted (${RETRIES}) — FAILURE verdict"
+    exit 1
+  fi
+
+  # definitive charge verdict — NO retry (no-silent-retry standard)
+  echo "payment_ref=${ref}"
+  if [ "$code" -ge 200 ] && [ "$code" -lt 300 ]; then
+    log "AUTHORIZED code=${code} ref=${ref}"; exit 0
+  fi
+  log "DECLINED code=${code} ref=${ref} body=${body}"; exit 1
+done
