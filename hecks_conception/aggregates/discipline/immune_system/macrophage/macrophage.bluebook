@@ -3467,4 +3467,237 @@ Hecks.bluebook "Macrophage", version: "2026.05.14.1" do
       emits "ExemptionGranted"
     end
   end
+
+  # ============================================================
+  # RELATIONSHIP DISCIPLINE — one macrophage, one rule
+  # ============================================================
+  #
+  # Filed under the relationship grammar (Stage 3 ; relationship.bluebook).
+  # The chapter's principle : the verb carries the boundary, in ENGLISH.
+  # `list_of` / `reference_to` are INSIDE (composition, local identity) ;
+  # `has_one` / `has_many` / `belongs_to` are CROSS (reference, global
+  # identity). Cross-context is the English `belongs_to Story from Plan`,
+  # never the codey `Plan::Story` (`::` is Ruby's constant-resolution
+  # operator leaking into the domain language).
+  #
+  # Three checks (each a hard violation) :
+  #
+  #   * codey_double_colon          — a `::` in a cross-reference target in
+  #                                   a .bluebook / .hecksagon (e.g.
+  #                                   `has_one Plan::Story`). Codey ; the
+  #                                   English form is `has_one Story from
+  #                                   Plan`. NET-NEW : textually detectable,
+  #                                   NOT covered by any validator (the
+  #                                   parser resolves `::` fine, so gate 2b
+  #                                   is silent). This is the rule's core.
+  #   * cross_verb_at_value_object  — a cross verb (`has_one` / `has_many` /
+  #                                   `belongs_to`) whose target is a value
+  #                                   object or entity, not a root. ALREADY
+  #                                   COVERED by the validator's
+  #                                   `unknown_aggregate_errors` (a VO/entity
+  #                                   isn't an aggregate name) — the exact
+  #                                   check that caught the driving.bluebook
+  #                                   `has_many Dispatch` bug. Named here for
+  #                                   completeness ; detection stays in the
+  #                                   validator, NOT duplicated live.
+  #   * inside_verb_at_root         — an inside verb (`list_of` /
+  #                                   `reference_to`) whose target is another
+  #                                   aggregate root (should be cross). The
+  #                                   genuine gap the validator misses, but
+  #                                   detecting it needs CORPUS knowledge (is
+  #                                   the target a root?) the textual
+  #                                   PostToolUse hook does not have. Named ;
+  #                                   detection deferred to a corpus pass.
+  #
+  # DETECTION GATING (Chris, 2026-06-18) : this is CONCEPTION ONLY. Live
+  # detection of codey_double_colon is GATED on the upsert-on-identity merge
+  # (the English ` from <Context>` parser). Until `from` parses on this
+  # branch, `::` is the ONLY working cross-context remedy — the
+  # AmbiguousCrossReferenceErrors validator literally suggests
+  # `Context::Target` — so an ACTIVE `::` flag would contradict that gate and
+  # strand authors with no valid path. The wiring is a sibling card gated on
+  # the merge ; this aggregate is the spec it implements, matching the
+  # chapter's `no ::` end-state.
+  #
+  # File kinds checked : .bluebook and .hecksagon only. i595 family member.
+
+  aggregate "RelationshipDiscipline", "Per-rule macrophage for the relationship-grammar surface enforcement — the verb carries the boundary, in English. Tracks three structural checks against .bluebook / .hecksagon source (codey_double_colon : `::` in a cross-reference target ; cross_verb_at_value_object : a cross verb pointing at a VO/entity, already caught by the validator ; inside_verb_at_root : an inside verb pointing at another root, needs a corpus pass) and maintains the complaint history for this rule alone. CONCEPTION ONLY — live codey_double_colon detection is gated on the upsert-on-identity merge that lands the English `from <Context>` parser, because until then `::` is the only working cross-context remedy the AmbiguousCrossReferenceErrors validator can suggest." do
+    identified_by :name
+
+    attribute :name, Name
+
+    # Session metadata
+    attribute :session_started_at, Timestamp
+
+    # Scan tallies — scoped to this rule, per session.
+    attribute :files_checked,                       CheckCount
+    attribute :codey_double_colon_violations,       ViolationCount
+    attribute :inside_verb_at_root_violations,      ViolationCount
+    attribute :cross_verb_at_value_object_violations, ViolationCount
+    attribute :total_violations,                    ViolationCount
+    attribute :exempted_violations,                 ViolationCount
+
+    # Latest-violation surface — quick read for the statusline.
+    attribute :last_complaint,      ComplaintText
+    attribute :last_complaint_at,   Timestamp
+    attribute :last_offending_file, FilePath
+    attribute :last_offending_kind, ViolationKind
+
+    # ── Value-objects : this rule's language ──
+
+    value_object "Name" do
+      # Singleton key for this macrophage.
+      attribute :value, String
+    end
+
+    value_object "Timestamp" do
+      # ISO-8601 instant — session_started_at, complaint + per-entity stamps.
+      attribute :value, String
+    end
+
+    value_object "FilePath" do
+      # Relative path to the .bluebook / .hecksagon where the offending
+      # relationship line was found. Relative so records survive machine moves.
+      attribute :value, String
+    end
+
+    value_object "AggregateName" do
+      # The PascalCase aggregate (or value-object) name on whose declaration
+      # the offending relationship line appears.
+      attribute :value, String
+    end
+
+    value_object "ReferenceLine" do
+      # The verbatim source line that triggered the violation, e.g.
+      # `has_one Plan::Story` — quoted in the complaint so the author sees
+      # exactly what to change.
+      attribute :value, String
+    end
+
+    value_object "ViolationKind" do
+      # Which of the three checks fired :
+      #   "codey_double_colon"          — `::` in a cross-reference target
+      #   "inside_verb_at_root"         — list_of / reference_to at a root
+      #   "cross_verb_at_value_object"  — has_* / belongs_to at a VO/entity
+      attribute :value, String, enum: ["codey_double_colon", "inside_verb_at_root", "cross_verb_at_value_object"]
+    end
+
+    value_object "CheckCount" do
+      # Count of files scanned this session.
+      attribute :value, Integer
+    end
+
+    value_object "ViolationCount" do
+      # Count of violations detected this session (per kind and total).
+      attribute :value, Integer
+    end
+
+    value_object "ComplaintText" do
+      # The stderr body. Begins 'The RelationshipDiscipline macrophage
+      # expected ...' so rule attribution + corrective action are visible.
+      attribute :value, String
+    end
+
+    value_object "ReasonText" do
+      # Required rationale for an exemption — a blank reason is itself a
+      # violation of the exemption discipline (same as AntibodyExemption).
+      attribute :value, String
+    end
+
+    value_object "LineNumber" do
+      # 1-based line number of the offending declaration within the file.
+      attribute :value, Integer
+    end
+
+    # ── Entity — violation audit trail ──
+
+    entity "NotationViolation" do
+      description "One historical relationship-discipline violation event. Records the file, the aggregate/VO whose declaration carried the offending line, the verbatim reference line, which check fired, the line number, the full complaint text, and when it was recorded. The last_complaint / last_offending_* scalars on the root mirror the most recent entry ; this collection holds the full audit trail."
+      attribute :recorded_at,    Timestamp
+      attribute :file_path,      FilePath
+      attribute :aggregate_name, AggregateName
+      attribute :reference_line, ReferenceLine
+      attribute :kind,           ViolationKind
+      attribute :line_number,    LineNumber
+      attribute :complaint_text, ComplaintText
+    end
+
+    # ── Entity — named exemptions ──
+
+    entity "ExemptedReference" do
+      description "A specific relationship line whose violation is officially exempted with a named, case-by-case reason. Registered via ExemptReference AFTER the macrophage has complained and the team has decided the conversion is queued, not skipped — never pre-emptively. The reason must be non-empty. Check skips a matching file + reference_line + kind silently on future runs."
+      attribute :registered_at,  Timestamp
+      attribute :file_path,      FilePath
+      attribute :reference_line, ReferenceLine
+      attribute :kind,           ViolationKind
+      attribute :reason,         ReasonText
+    end
+
+    # ── Session lifecycle ──
+
+    command "StartSession" do
+      role "System"
+      description "Reset per-session counters at boot. The macrophage keeps a per-session tally so the discipline scoreboard reflects what was scanned today, not lifetime totals. The NotationViolation and ExemptedReference collections are NOT reset — they are audit trail and standing rules respectively."
+      attribute :session_started_at, Timestamp
+      then_set :session_started_at, to: :session_started_at
+      emits "SessionStarted"
+    end
+
+    # ── Primary scan command ──
+
+    command "Check" do
+      role "Hook"
+      description "Scan one .bluebook / .hecksagon file for relationship-discipline violations. Increments files_checked. Walks each relationship declaration (list_of / reference_to / has_one / has_many / belongs_to) ; for codey_double_colon (a `::` in a cross-reference target) dispatches RecordViolation. cross_verb_at_value_object is left to the validator's unknown_aggregate_errors ; inside_verb_at_root needs a corpus pass. The hook calls this once per .bluebook / .hecksagon write ; the macrophage decides what fired. No complaint is issued here — Complain is the surface command. CONCEPTION ONLY until the upsert-on-identity merge (see the block comment above)."
+      attribute :file_path, FilePath
+      emits "CheckRun"
+    end
+
+    command "RecordViolation" do
+      role "Hook"
+      description "A specific relationship-discipline violation was detected. Records the file, aggregate/VO name, the verbatim reference line, the violation kind, and the line number ; appends a NotationViolation entity ; increments the kind-specific counter and total_violations ; updates last_offending_file and last_offending_kind. The hook chains into Complain to surface the violation — this command records the fact ; Complain records the reaction. If the file + reference_line + kind appears in ExemptedReference, the hook skips Complain and increments exempted_violations instead."
+      attribute :file_path,      FilePath
+      attribute :aggregate_name, AggregateName
+      attribute :reference_line, ReferenceLine
+      attribute :kind,           ViolationKind
+      attribute :line_number,    LineNumber
+      attribute :recorded_at,    Timestamp
+      then_set :last_offending_file, to: :file_path
+      then_set :last_offending_kind, to: :kind
+      emits "ViolationRecorded"
+    end
+
+    command "Complain" do
+      role "Hook"
+      description "The RelationshipDiscipline macrophage detected a relationship-grammar violation. Records the complaint text + timestamp on the root for fast statusline reads. The hook ALSO prints to stderr so Claude Code surfaces it on the next turn — the feedback loop that closes the discipline. For codey_double_colon the complaint reads 'The RelationshipDiscipline macrophage expected the English `from <Context>` form, not the codey `::` — <line>. Rewrite `Domain::Type` as `Type from <Domain>` ; the verb carries the boundary, no constant-resolution operator in the domain language.'"
+      attribute :kind,             ViolationKind
+      attribute :complaint,        ComplaintText
+      attribute :last_complaint_at, Timestamp
+      then_set :last_complaint,    to: :complaint
+      then_set :last_complaint_at, to: :last_complaint_at
+      emits "ComplaintIssued"
+    end
+
+    # ── Exemption surface ──
+
+    command "ExemptReference" do
+      role "System"
+      description "Register a named exemption for a specific relationship line so the macrophage will not complain about its violation of a given kind. The reason must be non-empty — an exemption without a named reason falls into the pre-emptive trap the AntibodyExemption discipline forbids. Registered after the macrophage has fired, never before ; the NotationViolation audit trail should already hold an entry for this file + line. Appends an ExemptedReference entity."
+      attribute :file_path,      FilePath
+      attribute :reference_line, ReferenceLine
+      attribute :kind,           ViolationKind
+      attribute :reason,         ReasonText
+      attribute :registered_at,  Timestamp
+      emits "ExemptionGranted"
+    end
+
+    command "RevokeExemption" do
+      role "System"
+      description "Remove an existing exemption — typically after the `::` -> `from` conversion has landed and the line should no longer fire. Matches by file_path + reference_line + kind. The ExemptedReference entity is marked revoked rather than deleted so the audit trail of who exempted what when stays intact."
+      attribute :file_path,      FilePath
+      attribute :reference_line, ReferenceLine
+      attribute :kind,           ViolationKind
+      attribute :revoked_at,     Timestamp
+      emits "ExemptionRevoked"
+    end
+  end
 end

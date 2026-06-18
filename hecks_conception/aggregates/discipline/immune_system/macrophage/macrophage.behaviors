@@ -546,4 +546,61 @@ Hecks.behaviors "Macrophage" do
            exempted_at: { value: "2026-05-30T10:30:03Z" }
     expect emits: ["ExemptionGranted"]
   end
+
+  # ── RelationshipDiscipline aggregate (relationship grammar, Stage 3) ──
+
+  test "RelationshipDiscipline StartSession records session_started_at" do
+    tests "StartSession", on: "RelationshipDiscipline"
+    input  session_started_at: { value: "2026-06-18T10:00:00Z" }
+    expect session_started_at: { value: "2026-06-18T10:00:00Z" }
+  end
+
+  test "RelationshipDiscipline Check emits CheckRun" do
+    tests "Check", on: "RelationshipDiscipline"
+    setup  "StartSession", session_started_at: { value: "2026-06-18T10:00:00Z" }
+    input  file_path: { value: "/tmp/fake-aggregates/has_codey_ref.bluebook" }
+    expect emits: ["CheckRun"]
+  end
+
+  test "RelationshipDiscipline RecordViolation appends a NotationViolation entity" do
+    tests "RecordViolation", on: "RelationshipDiscipline"
+    setup  "StartSession", session_started_at: { value: "2026-06-18T10:00:00Z" }
+    input  file_path:      { value: "/tmp/fake-aggregates/has_codey_ref.bluebook" },
+           aggregate_name: { value: "Lease" },
+           reference_line: { value: "has_one Plan::Story" },
+           kind:           { value: "codey_double_colon" },
+           line_number:    { value: 13 },
+           recorded_at:    { value: "2026-06-18T10:00:01Z" }
+    expect emits: ["ViolationRecorded"]
+  end
+
+  test "RelationshipDiscipline Complain sets last_complaint" do
+    tests "Complain", on: "RelationshipDiscipline"
+    setup  "StartSession", session_started_at: { value: "2026-06-18T10:00:00Z" }
+    input  kind:              { value: "codey_double_colon" },
+           complaint:         { value: "The RelationshipDiscipline macrophage expected the English `from <Context>` form, not the codey `::`." },
+           last_complaint_at: { value: "2026-06-18T10:00:02Z" }
+    expect last_complaint: { value: "The RelationshipDiscipline macrophage expected the English `from <Context>` form, not the codey `::`." }
+  end
+
+  test "RelationshipDiscipline ExemptReference emits ExemptionGranted" do
+    tests "ExemptReference", on: "RelationshipDiscipline"
+    setup  "StartSession", session_started_at: { value: "2026-06-18T10:00:00Z" }
+    input  file_path:      { value: "/tmp/fake-aggregates/has_codey_ref.bluebook" },
+           reference_line: { value: "has_one Plan::Story" },
+           kind:           { value: "codey_double_colon" },
+           reason:         { value: "transitional :: until the from-parser merges — see upsert-on-identity" },
+           registered_at:  { value: "2026-06-18T10:00:03Z" }
+    expect emits: ["ExemptionGranted"]
+  end
+
+  test "RelationshipDiscipline RevokeExemption emits ExemptionRevoked" do
+    tests "RevokeExemption", on: "RelationshipDiscipline"
+    setup  "StartSession", session_started_at: { value: "2026-06-18T10:00:00Z" }
+    input  file_path:      { value: "/tmp/fake-aggregates/has_codey_ref.bluebook" },
+           reference_line: { value: "has_one Plan::Story" },
+           kind:           { value: "codey_double_colon" },
+           revoked_at:     { value: "2026-06-18T10:01:00Z" }
+    expect emits: ["ExemptionRevoked"]
+  end
 end
