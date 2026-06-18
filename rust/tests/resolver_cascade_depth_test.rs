@@ -194,13 +194,19 @@ fn create_keyword_builds_factory_node_command_stays_command() {
 }
 
 #[test]
-fn create_flag_drives_minting_independent_of_name_heuristic() {
-    // "Spawn" matches no name heuristic ; it mints only because creates=true.
+fn upsert_resolves_create_vs_update_by_identity_presence() {
+    // Pure upsert (Relationship grammar, 2026-06-18) : minting is driven by
+    // identity presence, not a `creates` flag or a name heuristic. Spawn brings
+    // w1 into being (absent -> insert). A later command on the same identity
+    // UPDATES it rather than erroring — the old "non-creator must not mint"
+    // guard retired with the heuristic. (`factory` survives as a PARSER concept
+    // for explicit births ; it is no longer REQUIRED to mint.)
     let domain = parser::parse(CREATE_KW_BB);
     let mut rt = Runtime::boot_with_hecksagons(domain, None, vec![]);
     let spawned = rt.dispatch("Widgets::Widget.Spawn", attrs(&[("name", s("w1"))]));
-    assert!(spawned.is_ok(), "create-keyword Spawn should mint, got: {:?}", spawned);
-    // creates=false sibling, no id, no heuristic match -> must not silently mint.
+    assert!(spawned.is_ok(), "Spawn brings w1 into being, got: {:?}", spawned);
+    // Poke resolves the existing Widget (singleton) and updates it — upsert,
+    // no error.
     let poked = rt.dispatch("Widgets::Widget.Poke", attrs(&[]));
-    assert!(poked.is_err(), "command Poke must not mint, got: {:?}", poked);
+    assert!(poked.is_ok(), "upsert: Poke updates the existing Widget, got: {:?}", poked);
 }

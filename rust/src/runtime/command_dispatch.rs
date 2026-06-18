@@ -122,26 +122,10 @@ fn dispatch_inner(
         }
     }
 
-    // First-class factories phase 1 : a verb that names a Factory on the
-    // resolved aggregate IS a birth — the node type carries the bit the
-    // #729 creates bool used to. The name-heuristic survives only until
-    // phase 2 replaces this whole block with the two-path split
-    // (Factory → mint, Command → load).
-    let is_factory_verb = {
-        let resolved_name = &cmd_for(rt, res).name;
-        match res {
-            Resolution::Aggregate(a, _) => rt.domain.aggregates[a]
-                .factories.iter().any(|f| &f.name == resolved_name),
-            Resolution::Entity(..) => false,
-        }
-    };
-    let is_create = is_factory_verb
-        || command_name.starts_with("Create")
-        || command_name.starts_with("Add")
-        || command_name.starts_with("Place")
-        || command_name.starts_with("Register")
-        || command_name.starts_with("Open");
-
+    // create-vs-update is now a persistence upsert keyed on identity (see
+    // the resolution block below) — the #729 name-heuristic and the
+    // first-class-factory `is_create` bit both retired. `self_ref` survives
+    // only to resolve the id a legacy `reference_to` kwarg carries.
     let self_ref = find_self_ref_res(rt, res);
     let aggregate_name = rt.domain.aggregates[agg_idx].name.clone();
     let aggregate_context = rt.domain.aggregates[agg_idx].context.clone();
@@ -238,63 +222,29 @@ fn dispatch_inner(
     let repo = rt.repositories.get_mut(&repo_hash_key)
         .ok_or(RuntimeError::UnknownAggregate(unknown_agg_msg))?;
 
-    let (mut state, is_new) = if let Some(ref_name) = &self_ref {
-        // Universal self-ref dispatch — i519 sidequest. Callers may pass
-        // either the snake-cased aggregate name (the historical kwarg
-        // determined by `find_self_ref_res`) or the universal `id` key.
-        // The snake-cased lookup takes precedence so existing dispatches
-        // are byte-identical ; the `id` fallback removes the convention-
-        // discovery cliff for new callers (`reference_to(ExemptRegistry)`
-        // is no longer "guess `exempt_registry=`").
-        //
-        // Safety : the `attribute :id` / `reference_to` collision was
-        // checked across every bluebook in the corpus at i519-time ; no
-        // command declares its own `id` attribute alongside a self-ref.
-        // The corpus contract is enforceable by a validator if it ever
-        // drifts.
-        let self_ref_id = attrs.get(ref_name).map(|v| v.to_string())
+    // Pure upsert on identity (Relationship grammar, 2026-06-18) — create
+    // vs update is a PERSISTENCE contract, not a declaration. Resolve the
+    // identity from every source, then find-or-create : present -> update,
+    // absent -> insert. No name heuristic, no reference_to(Self) error-on-
+    // absent — the row's existence IS the create/update bit, so AddStory
+    // can no longer mint a phantom Sprint. `find_self_ref_res` survives
+    // only to keep resolving the id a legacy `reference_to` kwarg carries
+    // (e.g. `sprint=`) until the corpus drops the self-ref form ; new
+    // commands resolve via the universal `id` key or id_for_command.
+    let resolved_id = if let Some(ref_name) = &self_ref {
+        attrs.get(ref_name).map(|v| v.to_string())
             .or_else(|| cascade_fk_id.clone())
-            .or_else(|| attrs.get("id").map(|v| v.to_string()));
-        if let Some(id) = self_ref_id {
-            match repo.find(&id).cloned() {
-                Some(s) => (s, false),
-                None => return Err(RuntimeError::AggregateNotFound(
-                    format!("no aggregate of type '{}' found with id '{}' — the dispatch expected an existing record but none matched (passed via attr '{}')",
-                        aggregate_name, id, ref_name)
-                )),
-            }
-        } else if let Some(ref id) = cascade_id {
-            // Cascade hint resolved a same-type id — reuse it even
-            // when the command has a self-ref kwarg the cascade didn't
-            // populate (the upstream event carries the id, not the
-            // kwarg name).
-            match repo.find(id).cloned() {
-                Some(s) => (s, false),
-                None => return Err(RuntimeError::AggregateNotFound(
-                    format!("no aggregate of type '{}' found with id '{}' — the dispatch expected an existing record but none matched (cascade hint)",
-                        aggregate_name, id)
-                )),
-            }
-        } else if is_create {
-            (AggregateState::new(&repo.id_for_command(&attrs)), true)
-        } else {
-            return Err(RuntimeError::MissingAttribute(
-                self_ref_missing_message(rt, res, command_name, ref_name)
-            ));
-        }
-    } else if let Some(ref id) = cascade_id {
-        // Same-type cascade with an existing record — reuse it,
-        // skipping id_for_command's counter-mint.
-        match repo.find(id).cloned() {
-            Some(s) => (s, false),
-            None => (AggregateState::new(id), true),
-        }
+            .or_else(|| attrs.get("id").map(|v| v.to_string()))
+            .or_else(|| cascade_id.clone())
+            .unwrap_or_else(|| repo.id_for_command(&attrs))
+    } else if let Some(id) = cascade_id.clone() {
+        id
     } else {
-        let id = repo.id_for_command(&attrs);
-        match repo.find(&id).cloned() {
-            Some(s) => (s, false),
-            None => (AggregateState::new(&id), true),
-        }
+        repo.id_for_command(&attrs)
+    };
+    let (mut state, is_new) = match repo.find(&resolved_id).cloned() {
+        Some(s) => (s, false),
+        None => (AggregateState::new(&resolved_id), true),
     };
 
     if is_new {
@@ -1013,25 +963,6 @@ fn unknown_command_message_bare(rt: &Runtime, cmd_name: &str) -> String {
     }
 }
 
-/// Compose the "you need to pass a self-ref kwarg" error message.
-/// Names the command and the expected attribute names — both the
-/// reference's own `name` (which is what gets passed) and the
-/// universal `id` fallback so the caller can pick either form.
-fn self_ref_missing_message(
-    rt: &Runtime, res: Resolution, command_name: &str, ref_name: &str,
-) -> String {
-    let cmd = cmd_for(rt, res);
-    // Collect the reference target so the message names what's
-    // being addressed (e.g. "reference_to Pizza" → mention Pizza).
-    let target_hint = cmd.references.iter()
-        .find(|r| &r.name == ref_name)
-        .map(|r| format!(" (reference_to {})", r.target))
-        .unwrap_or_default();
-    format!(
-        "command '{}' requires self-ref attribute '{}=<id>' or 'id=<id>'{}",
-        command_name, ref_name, target_hint,
-    )
-}
 
 // ============================================================
 // Many-form bulk dispatch — i113 / i116

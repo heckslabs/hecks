@@ -751,7 +751,13 @@ end"#);
 }
 
 #[test]
-fn aggregate_not_found() {
+fn missing_id_upserts_rather_than_erroring() {
+    // Pure upsert (Relationship grammar, 2026-06-18) : create-vs-update is a
+    // persistence contract keyed on identity presence, so a command targeting
+    // an identity that does not yet exist CREATES it (absent -> insert) rather
+    // than raising AggregateNotFound. The old error-on-missing guard retired
+    // with the name heuristic. (An unknown aggregate TYPE — no repository at
+    // all — still errors as UnknownAggregate ; that is a different path.)
     let mut rt = boot(r#"Hecks.bluebook "T" do
   aggregate "Order" do
     description "An order"
@@ -762,9 +768,8 @@ fn aggregate_not_found() {
   end
 end"#);
 
-    let err = rt.dispatch("CancelOrder", attrs(&[("order", s("999"))]));
-    assert!(err.is_err());
-    assert!(format!("{}", err.unwrap_err()).contains("not found"));
+    let res = rt.dispatch("CancelOrder", attrs(&[("order", s("999"))]));
+    assert!(res.is_ok(), "upsert creates on a missing id, got: {:?}", res);
 }
 
 // --- Life domain self-hosting ---
