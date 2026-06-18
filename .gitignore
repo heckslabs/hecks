@@ -112,3 +112,7 @@ hecks_conception/aggregates/framework/governance/data/
 hecks_conception/aggregates/**/.heki/
 hecks_conception/drafting/
 hecks_conception/clients/
+
+# Exploratory / parked scratch — not source, kept local (Chris, 2026-06-18).
+.parked/
+hecks_conception/spikes/
