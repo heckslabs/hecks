@@ -841,6 +841,15 @@ fn main() {
         return;
     }
 
+    if command == "wire-persistence" {
+        if path.is_empty() {
+            eprintln!("Usage: storehouse wire-persistence <bluebook> [--memory Agg1,Agg2] [--stdout]");
+            std::process::exit(1);
+        }
+        cmd_wire_persistence(path, &args);
+        return;
+    }
+
     if path.is_empty() {
         eprintln!("Usage: storehouse {} <bluebook-file-or-dir>", command);
         std::process::exit(1);
@@ -3712,6 +3721,98 @@ std::process::exit(1);
 /// never hydrated, so nothing touches disk. This is the "what persists
 /// where / who's unwired" map the cutover needs, and the before/after diff
 /// gate for every later persistence change (a backend flip is a stop).
+/// Parse `--memory A,B,C` from argv into a set of aggregate simple-names.
+fn parse_memory_flag(args: &[String]) -> std::collections::HashSet<String> {
+    let mut out = std::collections::HashSet::new();
+    if let Some(i) = args.iter().position(|a| a == "--memory") {
+        if let Some(list) = args.get(i + 1) {
+            for n in list.split(',') {
+                let n = n.trim();
+                if !n.is_empty() { out.insert(n.to_string()); }
+            }
+        }
+    }
+    out
+}
+
+/// `storehouse wire-persistence <bluebook> [--memory A,B] [--stdout]` — project a
+/// bluebook's persistence hexagon wiring in the PIZZAS EXEMPLAR form : one
+/// `Ctx::Agg.persisted_by("Heki"|"Memory")` line per aggregate in the companion
+/// `.hecksagon`, plus a `.world` `persisted_by("Heki") do dir :default end` when
+/// any aggregate is heki-backed (Memory has no location, so a memory-only domain
+/// gets no world). The form is GUARANTEED to match pizzas by
+/// persistence_wiring_golden_test, which regenerates pizzas' wiring here and
+/// diffs the committed exemplar — so every domain gets the identical shape by
+/// construction, never a hand-copy that can drift. The only judgment is the
+/// `--memory` classification (durable→Heki / ephemeral→Memory), read from the
+/// domain's vision. (Heki rollout, i750.)
+fn cmd_wire_persistence(bb_path: &str, args: &[String]) {
+    let src = std::fs::read_to_string(bb_path).unwrap_or_else(|e| {
+        eprintln!("cannot read {}: {}", bb_path, e);
+        std::process::exit(1);
+    });
+    let domain = parser::parse(&src);
+    let memory = parse_memory_flag(args);
+
+    let mut hex = format!("Hecks.hecksagon \"{}\" do\n", domain.name);
+    for a in &domain.aggregates {
+        let ctx = a.context.clone().unwrap_or_else(|| domain.name.clone());
+        let adapter = if memory.contains(&a.name) { "Memory" } else { "Heki" };
+        hex.push_str(&format!("  {}::{}.persisted_by(\"{}\")\n", ctx, a.name, adapter));
+    }
+    hex.push_str("end\n");
+
+    let any_heki = domain.aggregates.iter().any(|a| !memory.contains(&a.name));
+    let world = if any_heki {
+        Some(format!(
+            "Hecks.world \"{}\" do\n  persisted_by(\"Heki\") do\n    dir :default\n  end\nend\n",
+            domain.name
+        ))
+    } else {
+        None
+    };
+
+    if args.iter().any(|a| a == "--stdout") {
+        print!("{}", hex);
+        if let Some(w) = &world {
+            println!("---WORLD---");
+            print!("{}", w);
+        }
+        return;
+    }
+
+    let stem = std::path::Path::new(bb_path)
+        .file_stem().and_then(|s| s.to_str()).unwrap_or("domain");
+    let dir = std::path::Path::new(bb_path).parent()
+        .unwrap_or_else(|| std::path::Path::new("."));
+    let hex_path = dir.join(format!("{}.hecksagon", stem));
+    // Preserve a hecksagon that carries non-persistence binds (charged_by,
+    // driven_*) — those must be merged by hand, not clobbered (e.g. pizzas).
+    if hex_path.exists() {
+        let existing = std::fs::read_to_string(&hex_path).unwrap_or_default();
+        if existing.contains("charged_by") || existing.contains("driven") {
+            eprintln!("SKIP {} : existing hecksagon has non-persistence binds — merge by hand", hex_path.display());
+            return;
+        }
+    }
+    std::fs::write(&hex_path, &hex).unwrap();
+    println!("wrote {}", hex_path.display());
+    if let Some(w) = world {
+        let world_path = dir.join(format!("{}.world", stem));
+        if world_path.exists() {
+            let existing = std::fs::read_to_string(&world_path).unwrap_or_default();
+            // A world that configures more than persistence (a payment block,
+            // etc.) is hand-merged, not overwritten.
+            if existing.contains("charged_by") || existing.contains("endpoint") {
+                eprintln!("SKIP {} : existing world has extra config — merge by hand", world_path.display());
+                return;
+            }
+        }
+        std::fs::write(&world_path, &w).unwrap();
+        println!("wrote {}", world_path.display());
+    }
+}
+
 fn cmd_backends(agg_dir: &str) {
 let data_dir = find_world_heki_dir(agg_dir)
     .unwrap_or_else(|| format!("{}/data", agg_dir.trim_end_matches('/')));
