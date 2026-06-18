@@ -1,0 +1,126 @@
+Hecks.bluebook "Relationship", version: "2026.06.18.2" do
+  vision "How an aggregate relates to another type — in ENGLISH, never in code. The bluebook is an executable ubiquitous language : a domain expert reads it, they do not parse it, so the boundary that matters most (is this thing PART of me, or another root I point at?) rides the KEYWORD, not a codey prefix. Every relationship is BY IDENTITY ; the keyword says which identity. INSIDE my boundary, by LOCAL identity : list_of(X) embeds a collection of owned members ; reference_to X names a single internal member. ACROSS aggregates, by GLOBAL identity (Evans : you reference another root by its identity, never embed it ; Vernon Rule 3) : has_one X / has_many X point at another root or a collection of them ; belongs_to X is the dependent side. So 'reference' does not fight the canon — inside you reference your own members by local id, across you reference roots by global id, and the keyword alone tells you which. There is NO :: — `::Thing` is Ruby's constant-resolution operator leaking into the domain language, the implementation showing through the words. A cross-CONTEXT target (a root in another bounded context) resolves by NAME ; the validator ERRORS on a genuine ambiguity rather than silently guessing (the same no-silent-resolution principle the :: notation enforced as syntax, now enforced at resolve time), and an English `from <Context>` qualifies only when a name truly collides. Create-vs-update is NOT here either : it is an UPSERT keyed on identity (absent -> insert ; present -> update ; entity commands recurse — root identity keys the store, local identity keys the collection, the owning root inferred from nesting), a persistence contract, never a relationship. This chapter conceives the RELATIONSHIP category ; the parser that resolves a leaf to inside-or-cross, the persistence upsert, and the macrophage are its PROJECTIONS — sibling cards, not built here."
+  category "language"
+
+  # ============================================================
+  # RELATIONSHIP — one declared edge, in English, boundary in the verb
+  # ============================================================
+  #
+  # Every edge is BY IDENTITY. The VERB says which identity — local (inside
+  # my boundary) or global (another root) — and the cardinality :
+  #
+  #   | verb           | scope  | cardinality | meaning                          |
+  #   | list_of(X)      | inside | many        | embed a collection of members    |
+  #   | reference_to X  | inside | one         | one internal member, local id    |
+  #   | has_one X       | cross  | one         | one other root, global id        |
+  #   | has_many X      | cross  | many        | many other roots, global id      |
+  #   | belongs_to X    | cross  | one         | dependent on another root        |
+  #
+  # NATURE is read off the scope : inside -> composition (the member lives in
+  # me, persisted with me) ; cross -> reference (I hold the root's identity,
+  # never embed it). The leaf is ALWAYS a root or an owned member, never a
+  # path into another aggregate's internals (Evans : reference the Head only).
+  #
+  # NO :: — it is codey. A cross-context root resolves by name ; ambiguity is
+  # an ERROR, not a silent guess ; `from <Context>` qualifies only on collision.
+  #
+  # Primitives wrapped in typed value-objects per no-primitive-envy : a Verb
+  # is not a String, a Scope is not a String — each carries its concept.
+
+  aggregate "Relationship", "One relationship declaration on an owner aggregate, read in English : the verb that names it (list_of / reference_to inside ; has_one / has_many / belongs_to across) carries both the boundary and the cardinality, and the leaf it targets. Keyed by the phrase that authors it." do
+    identified_by :phrase
+
+    attribute :phrase,      Phrase
+    attribute :owner,       AggregateName
+    attribute :verb,        Verb
+    attribute :leaf,        LeafName
+    attribute :scope,       Scope,       default: "unresolved"
+    attribute :nature,      Nature,      default: "unresolved"
+    attribute :cardinality, Cardinality, default: "unresolved"
+
+    # ── Value-objects : the relationship's vocabulary ──
+
+    value_object "Phrase" do
+      # The natural reading that names this edge — "Pizza list_of Toppings",
+      # "Order has_one Pizza", "Order belongs_to Customer". The identity.
+      attribute :value, String
+    end
+
+    value_object "AggregateName" do
+      # The declaring owner — the aggregate the edge hangs off. The parser
+      # already knows it (the container), so 'is this leaf me?' is rename-proof.
+      attribute :value, String
+    end
+
+    value_object "Verb" do
+      # The English relationship verb. The verb alone carries the boundary :
+      #   list_of / reference_to -> INSIDE (by local identity)
+      #   has_one / has_many / belongs_to -> ACROSS (by global identity)
+      attribute :value, String, enum: ["list_of", "reference_to", "has_one", "has_many", "belongs_to"]
+    end
+
+    value_object "LeafName" do
+      # The target type — ALWAYS a root or an owned member, NEVER a path into
+      # another aggregate's internals. A cross leaf resolves by NAME (no ::) ;
+      # ambiguity across contexts is an error, qualified `from <Context>` only
+      # when a name truly collides.
+      attribute :value, String
+    end
+
+    value_object "Scope" do
+      # Read off the verb, never authored :
+      #   inside = list_of / reference_to  (a member of my boundary, local id)
+      #   cross  = has_one / has_many / belongs_to  (another root, global id)
+      attribute :value, String, enum: ["inside", "cross", "unresolved"]
+    end
+
+    value_object "Nature" do
+      # Read off the scope :
+      #   composition (inside) — the leaf lives in me, persisted with me.
+      #   reference (cross) — I hold the leaf root's identity, never embed it.
+      attribute :value, String, enum: ["composition", "reference", "unresolved"]
+    end
+
+    value_object "Cardinality" do
+      # Read off the verb : reference_to / has_one / belongs_to -> one ;
+      # list_of / has_many -> many.
+      attribute :value, String, enum: ["one", "many", "unresolved"]
+    end
+
+    command "Declare" do
+      role "Modeler"
+      description "Author a relationship in English — owner verb leaf ; the verb carries the boundary and cardinality"
+      attribute :phrase, Phrase
+      attribute :owner,  AggregateName
+      attribute :verb,   Verb
+      attribute :leaf,   LeafName
+      emits "RelationshipDeclared"
+      then_set :phrase, to: :phrase
+      then_set :owner,  to: :owner
+      then_set :verb,   to: :verb
+      then_set :leaf,   to: :leaf
+    end
+
+    command "Resolve" do
+      role "System"
+      description "Resolve scope, nature, and cardinality from the verb — never authored, always derived"
+      attribute :scope,       Scope
+      attribute :nature,      Nature
+      attribute :cardinality, Cardinality
+      emits "RelationshipResolved"
+      then_set :scope,       to: :scope
+      then_set :nature,      to: :nature
+      then_set :cardinality, to: :cardinality
+    end
+
+    # ── Invariants — the validator's rules, as state predicates ──
+
+    invariant "the verb carries the boundary — inside scope is exactly the inside verbs" do
+      scope == "unresolved" || (scope == "inside") == (verb == "list_of" || verb == "reference_to")
+    end
+
+    invariant "composition is inside ; reference is cross — the scope decides the nature" do
+      nature == "unresolved" || (nature == "composition") == (scope == "inside")
+    end
+  end
+end

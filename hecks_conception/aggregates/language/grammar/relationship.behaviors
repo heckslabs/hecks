@@ -1,0 +1,36 @@
+Hecks.behaviors "Relationship" do
+  vision "Behavioral tests for the Relationship grammar — declaring an edge in English across the boundary the verb carries : inside composition (list_of), a single cross reference (has_one), and a dependent cross reference (belongs_to). Each Declare run without setup applies its then_sets to fresh state, the same creator path Compose uses."
+
+  # Inside, composition — list_of embeds a collection of owned members
+  # (Pizza's Toppings). The verb alone says 'inside, by local identity'.
+  test "Declare an inside composition (list_of)" do
+    tests "Declare", on: "Relationship"
+    input  phrase: "Pizza list_of Toppings", owner: "Pizza", verb: "list_of", leaf: "Topping"
+    expect phrase: "Pizza list_of Toppings", owner: "Pizza", verb: "list_of", leaf: "Topping"
+  end
+
+  # Across, single — has_one points at another root by global identity
+  # (Order has one Pizza). No ::, no prefix : the verb carries the boundary.
+  test "Declare a cross reference (has_one)" do
+    tests "Declare", on: "Relationship"
+    input  phrase: "Order has_one Pizza", owner: "Order", verb: "has_one", leaf: "Pizza"
+    expect owner: "Order", verb: "has_one", leaf: "Pizza"
+  end
+
+  # Across, dependent — belongs_to is the dependent side of a cross reference
+  # (Order belongs to Customer). Cross by global identity, in plain English.
+  test "Declare a dependent cross reference (belongs_to)" do
+    tests "Declare", on: "Relationship"
+    input  phrase: "Order belongs_to Customer", owner: "Order", verb: "belongs_to", leaf: "Customer"
+    expect owner: "Order", verb: "belongs_to", leaf: "Customer"
+  end
+
+  # Resolve derives scope, nature, and cardinality from the verb — never
+  # authored, always derived. A cross has_one resolves to cross / reference /
+  # one : across roots by global identity, a single target.
+  test "Resolve derives scope, nature, and cardinality (cross has_one)" do
+    tests "Resolve", on: "Relationship"
+    input  scope: "cross", nature: "reference", cardinality: "one"
+    expect scope: "cross", nature: "reference", cardinality: "one"
+  end
+end
