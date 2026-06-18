@@ -27,6 +27,7 @@ pub mod behaviors_runner;
 pub mod cf_function_proxy;
 pub mod cli_dispatch;
 pub mod conceiver;
+pub mod conception_kernel;
 pub mod dispatch_query;
 pub mod dump;
 pub mod embedded_bluebooks;
@@ -68,6 +69,7 @@ pub fn emit(target: &str, repo_root: &Path) -> Result<String, Box<dyn Error>> {
         "cli_dispatch" | "main" => cli_dispatch::emit(repo_root),
         "command_dispatch" => runtime::command_dispatch::emit(repo_root),
         "conceiver_generator" => conceiver::generator::emit(repo_root),
+        "conception_kernel_sample" => conception_kernel::sample::emit(repo_root),
         "discover" => run_boot::discover::emit(repo_root),
         "dispatch_query" => dispatch_query::emit(repo_root),
         "dump" => dump::emit(repo_root),
@@ -94,28 +96,28 @@ pub fn emit(target: &str, repo_root: &Path) -> Result<String, Box<dyn Error>> {
         "validator_corpus" => validator_corpus::emit(repo_root),
         "validator_warnings" => validator_warnings::emit(repo_root),
         other => Err(format!(
-            "unknown specializer target: {}. Known: adapter_llm, aggregate_state, assemble, behaviors_fixtures, behaviors_parser, behaviors_runner, cli_dispatch, command_dispatch, conceiver_generator, discover, dispatch_query, dump, fixtures_parser, hecksagon_ir, hecksagon_parser, heki_query, html_domain, interpreter, ir, lifecycle_validator, parse_blocks, parser, parser_helpers, repository, runtime, run_statusline, system_prompt, validator, validator_corpus, validator_warnings",
-            other
-        )
-        .into()),
+            "unknown specializer target: {}. Known: adapter_llm, aggregate_state, assemble, behaviors_fixtures, behaviors_parser, behaviors_runner, cli_dispatch, command_dispatch, conceiver_generator, conception_kernel_sample, discover, dispatch_query, dump, fixtures_parser, hecksagon_ir, hecksagon_parser, heki_query, html_domain, interpreter, ir, lifecycle_validator, parse_blocks, parser, parser_helpers, repository, runtime, run_statusline, system_prompt, validator, validator_corpus, validator_warnings",
+                other
+            )
+            .into()),
+        }
     }
-}
 
-/// Emit a single named section of a multi-section specializer target — the
-/// scoped sub-target behind `storehouse specialize <target> --section
-/// <name>`. Powers the per-concern byte-identity goldens the
-/// runtime-as-bluebook strangler relies on (see
-/// inbox/runtime-as-bluebook.md). Only `runtime` supports sections today ;
-/// other targets return an error naming the limitation.
-pub fn emit_section(
-    target: &str,
-    repo_root: &Path,
-    section: &str,
-) -> Result<String, Box<dyn Error>> {
-    match target {
-        "runtime" => runtime::root::emit_section(repo_root, section),
-        other => Err(format!(
-            "specializer target '{}' does not support --section (only 'runtime' does)",
+    /// Emit a single named section of a multi-section specializer target — the
+    /// scoped sub-target behind `storehouse specialize <target> --section
+    /// <name>`. Powers the per-concern byte-identity goldens the
+    /// runtime-as-bluebook strangler relies on (see
+    /// inbox/runtime-as-bluebook.md). Only `runtime` supports sections today ;
+    /// other targets return an error naming the limitation.
+    pub fn emit_section(
+        target: &str,
+        repo_root: &Path,
+        section: &str,
+    ) -> Result<String, Box<dyn Error>> {
+        match target {
+            "runtime" => runtime::root::emit_section(repo_root, section),
+            other => Err(format!(
+                "specializer target '{}' does not support --section (only 'runtime' does)",
             other
         )
         .into()),
