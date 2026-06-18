@@ -62,11 +62,10 @@ pub fn ambiguous_cross_reference_errors(domain: &Domain, corpus: &Domain) -> Vec
             ctxs.sort();
             ctxs.dedup();
             errors.push(format!(
-                "{} is ambiguous — '{}' is declared in contexts [{}] ; qualify with `{} from <Context>` (or legacy `<Context>::{}` until the from-parser lands)",
+                "{} is ambiguous — '{}' is declared in contexts [{}] ; qualify with `{} from <Context>`",
                 label,
                 reference.target,
                 ctxs.join(", "),
-                reference.target,
                 reference.target
             ));
         }
