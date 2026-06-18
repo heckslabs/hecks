@@ -7,6 +7,7 @@ Hecks.bluebook "Pizzas" do
     attribute :name, Name
     attribute :description, Description
     attribute :toppings, list_of(Topping)
+    attribute :price, Price
 
     value_object "Name" do
       attribute :value, String
@@ -37,6 +38,7 @@ Hecks.bluebook "Pizzas" do
       goal "Add a new pizza to the menu"
       attribute :name, Name
       attribute :description, Description
+      attribute :price, Price
     end
 
     command "AddTopping" do
@@ -103,6 +105,9 @@ Hecks.bluebook "Pizzas" do
       reference_to Pizza
       attribute :customer_name, CustomerName
       attribute :quantity, Quantity
+      # Record a line item from the quantity, so the OrderItem invariant
+      # (quantity > 0) actually guards something — mirrors AddTopping's append.
+      then_set :items, append: { quantity: :quantity }
       # Composing the effect, not running it : OrderPlaced is handed to
       # the payment_gateway adapter at the bus boundary (pizzas.hecksagon).
       # The domain never waits for the charge.

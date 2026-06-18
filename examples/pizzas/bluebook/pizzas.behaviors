@@ -5,7 +5,7 @@ Hecks.behaviors "Pizzas" do
 
   test "CreatePizza runs" do
     tests "CreatePizza", on: "Pizza"
-    input  name: "sample_name", description: "sample_description"
+    input  name: "sample_name", description: "sample_description", price: "sample_price"
     expect name: "sample_name", description: "sample_description"
   end
 
@@ -30,21 +30,21 @@ Hecks.behaviors "Pizzas" do
     tests "PlaceOrder", on: "Order"
     setup  "CreatePizza", name: "sample_name", description: "sample_description"
     input  customer_name: "sample_customername", quantity: "sample_quantity"
-    expect customer_name: "sample_customername", status: "pending"
+    expect customer_name: "sample_customername", status: "pending", items_size: 1, emits: ["OrderPlaced"]
   end
 
   test "Authorize runs" do
     tests "Authorize", on: "Order"
     setup  "PlaceOrder", customer_name: "sample_customername", quantity: "sample_quantity"
     input  payment_ref: "sample_paymentref"
-    expect payment_ref: "sample_paymentref", status: "authorized"
+    expect payment_ref: "sample_paymentref", status: "authorized", emits: ["OrderAuthorized"]
   end
 
   test "Decline runs" do
     tests "Decline", on: "Order"
     setup  "PlaceOrder", customer_name: "sample_customername", quantity: "sample_quantity"
     input  payment_ref: "sample_paymentref"
-    expect payment_ref: "sample_paymentref", status: "declined"
+    expect payment_ref: "sample_paymentref", status: "declined", emits: ["OrderDeclined"]
   end
 
   test "CancelOrder runs" do
