@@ -221,3 +221,30 @@ end
     let w = world_parser::parse(src);
     assert!(w.adapter_bindings.is_empty());
 }
+
+#[test]
+fn parses_verb_selector_world_shape() {
+    // The ports-and-adapters world shape — the world MIRRORS the hexagon's
+    // bind selectors. The family verb carries VALUES : persisted_by("Heki")
+    // do dir :default end (bluebook-wide persistence, top level) and
+    // Domain::Agg.verb("Adapter") do … end (a per-edge config dotted off the
+    // same aggregate binding). Config is keyed by the ADAPTER NAME (lowercased)
+    // from the call, so config_for("heki")/("stripe") resolves exactly as the
+    // old `heki do …` / `stripe do …` blocks. Canonical : pizzas.world.
+    let src = r#"Hecks.world "Pizzas" do
+persisted_by("Heki") do
+dir :default
+end
+Pizzas::Order.charged_by("Stripe") do
+endpoint   "PIZZAS_PAYMENT_ENDPOINT"
+timeout_ms 3000
+end
+end
+"#;
+    let w = world_parser::parse(src);
+    let heki = w.config_for("heki").expect("config_for(heki) from persisted_by(Heki)");
+    assert!(heki.values.iter().any(|(k, v)| k == "dir" && v == "default"));
+    let stripe = w.config_for("stripe").expect("config_for(stripe) from Order.charged_by(Stripe)");
+    assert!(stripe.values.iter().any(|(k, v)| k == "endpoint" && v == "PIZZAS_PAYMENT_ENDPOINT"));
+    assert!(stripe.values.iter().any(|(k, v)| k == "timeout_ms" && v == "3000"));
+}
