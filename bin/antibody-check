@@ -159,6 +159,23 @@ def ir_claimed?(path)
   $dispatch_cache[path] = status.exitstatus == 0
 end
 
+# Files that are imperative BY NATURE — a consequence of the source change,
+# never a domain gap (Chris, 2026-06-18). Like the corpus-claimed generated
+# files, exempt categorically : no per-file marker required.
+#   tests / specs  — a test cannot be a bluebook ; it proves one
+#   benchmarks     — same nature as tests, measuring not modelling
+#   build.rs       — Cargo's required build hook, a build-system consequence
+# Deliberately NOT exempt (still need a named marker, so the gap stays visible) :
+# dev/glue shell scripts, examples (those can often BE a bluebook), and
+# config-as-data yaml (→ .fixtures).
+def imperative_by_nature?(path)
+  base = File.basename(path)
+  path =~ %r{(^|/)(tests?|spec|benches?)/}i ||
+    base =~ /(_test|_spec|_bench(?:mark)?)\.[a-z]+\z/i ||
+    base =~ /\Atest_/i ||
+    base == "build.rs"
+end
+
 def filter_code_files(paths)
   paths.select do |p|
     ext = File.extname(p).delete_prefix(".").downcase
@@ -171,7 +188,7 @@ def filter_code_files(paths)
     # back to the marker pathway for files the IR doesn't yet see
     # (the residual exempt_registry entries each carry a named
     # retirement arc in the inbox).
-    is_code && !ir_claimed?(p)
+    is_code && !imperative_by_nature?(p) && !ir_claimed?(p)
   end
 end
 
