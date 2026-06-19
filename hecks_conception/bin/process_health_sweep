@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# process_health_sweep — the ProcessMacrophage.Sweep liveness-probe executor.
+#
+# [antibody-exempt: bin/process_health_sweep — the program the
+#  ProcessMacrophage.Sweep policy (RunSweepOnSwept in
+#  framework/process_health/process_health.hecksagon) spawns via
+#  Primitive::Process.Spawn. The ProcessHealth bluebook names the contract
+#  (Sweep records the tick + emits Swept) ; this script is its impure
+#  liveness-probe executor (overmind status -> MarkAlive | MarkHanged |
+#  MarkDead per ProcessSentinel). Kernel-adjacent by nature : no bluebook can
+#  hold an OS liveness probe. Sibling of bin/process_health_heal.mjs.]
+#
+# Contract (process_health.bluebook) : walk the supervised processes, gather a
+# liveness signal per process, and dispatch MarkAlive | MarkHanged | MarkDead on
+# the matching ProcessSentinel (identified_by process_name ; auto-materialized on
+# first MarkX).
+#
+# Liveness source : `overmind status` — the supervisor's own view of its members,
+# the authoritative truth for the overmind-managed daemons. `boot` is excluded :
+# a one-shot that exits after booting, so its "dead" is expected, not a fault.
+#
+# v1 fidelity : running -> MarkAlive (signal_source=log_mtime, overmind-tracked
+# liveness) ; dead/missing -> MarkDead ; any other state -> MarkHanged. The
+# bluebook's finer heartbeat-vs-log_mtime-vs-pgrep layering (telling a live-but-
+# stuck pid from an actively-working one) is a refinement on top of this
+# death-detecting v1 — death detection is the signal the feature was built to
+# catch (overmind died silently overnight and the work kept going forward).
+#
+# Paths resolve from THIS script's location (mirrors process_health_heal.mjs), so
+# the loop dispatch and a manual run behave identically regardless of cwd.
+set -uo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+CONCEPTION="$(cd "$SCRIPT_DIR/.." && pwd)"
+SH="${STOREHOUSE:-$CONCEPTION/../rust/target/release/storehouse}"
+ROOT="$CONCEPTION/aggregates"
+NOW="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+overmind status 2>/dev/null | tail -n +2 | while read -r name pid status _rest; do
+  [ -z "$name" ] && continue
+  [ "$name" = "boot" ] && continue
+  case "$status" in
+    running)
+      "$SH" "$ROOT" ProcessHealth::ProcessSentinel.MarkAlive \
+        process_name="$name" last_seen_at="$NOW" signal_source=log_mtime >/dev/null 2>&1 ;;
+    dead|"")
+      "$SH" "$ROOT" ProcessHealth::ProcessSentinel.MarkDead \
+        process_name="$name" last_seen_at="$NOW" >/dev/null 2>&1 ;;
+    *)
+      "$SH" "$ROOT" ProcessHealth::ProcessSentinel.MarkHanged \
+        process_name="$name" last_seen_at="$NOW" consecutive_misses=1 >/dev/null 2>&1 ;;
+  esac
+done
+exit 0
