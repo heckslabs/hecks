@@ -105,9 +105,11 @@ trap 'kill -- -$$ 2>/dev/null || true; rm -rf "$TMP"' EXIT
 # sweeps it. Seed sources land via Dream.GatherSeeds (recent_dreams,
 # body_state, vow_tensions, commits_today) supplied as
 # --dispatch attributes on the run-loop invocation below.
-mkdir -p "$TMP/information/consciousness" "$TMP/information/dream" \
-         "$TMP/information/body_dream" \
-         "$TMP/aggregates"
+mkdir -p "$TMP/aggregates"
+# The :default world co-locates the store at <dispatch-dir>/.heki, keyed by the
+# conception dir. Per-aggregate stores land at $STORE/<aggregate>/<aggregate>.heki.
+STORE="$TMP/aggregates/.heki"
+mkdir -p "$STORE/consciousness" "$STORE/dream" "$STORE/body_dream"
 
 # Symlink the body bluebooks the Dream PM dispatches into. Without
 # these the PM boots but observes events with no receiving aggregate
@@ -131,10 +133,13 @@ done
 # recent_dreams_seed / body_state_seed / vow_tensions_seed /
 # commits_today_seed atomically on SleepEntered.
 
-cat > "$TMP/dream_content_smoke.world" <<'EOF'
+cat > "$TMP/aggregates/dream_content_smoke.world" <<'EOF'
 Hecks.world "DreamContentSmoke" do
+  # dir :default keys the store by THIS conception's directory. The dispatch
+  # dir ($TMP/aggregates) is not under ~/Projects, so :default co-locates the
+  # store at $TMP/aggregates/.heki — isolated from the live ~/.heki, no HECKS_INFO.
   heki do
-    dir "information"
+    dir :default
   end
 end
 EOF
@@ -154,7 +159,7 @@ COMMITS_TODAY_SEED="9e928778 : i497 session continuation
 
 # Force consciousness into REM, first cycle, no pulses yet — same
 # state rem_branch.sh expected when it dispatched dream production.
-"$HECKS" heki upsert "$TMP/information/consciousness/consciousness.heki" \
+"$HECKS" heki upsert "$STORE/consciousness/consciousness.heki" \
   --reason "test setup : force Consciousness into REM cycle 1 so Dream PM can drive image production" \
   state=sleeping sleep_stage=rem sleep_cycle=1 sleep_total=8 \
   phase_ticks=0 dream_pulses=0 dream_pulses_needed=5 is_lucid=no \
@@ -172,7 +177,7 @@ field_value() {
   "$HECKS" heki latest-field "$1" "$2" 2>/dev/null || echo ""
 }
 
-pulses_before=$(field_value "$TMP/information/consciousness/consciousness.heki" dream_pulses)
+pulses_before=$(field_value "$STORE/consciousness/consciousness.heki" dream_pulses)
 [ -z "$pulses_before" ] && pulses_before=0
 
 # ── Drive the PM via `storehouse run-loop` ─────────────────────────
@@ -207,7 +212,6 @@ RUN_LOG="$TMP/run_loop.log"
 # below ensures the seed bundle is populated regardless of policy
 # routing edge cases.
 HECKS_LLM_PROVIDER=test \
-HECKS_INFO="$TMP/information" \
 HECKS_AGG="$TMP/aggregates" \
 HECKS_BIN="$HECKS" \
 "$HECKS" run-loop "$TMP/aggregates" \
@@ -257,14 +261,14 @@ echo "PM boot via run-loop : OK"
 # the run-loop's emit-ordering that's racy, so dispatch it explicitly here to
 # record the DreamImageRequested outbox deterministically (the seeds the PM
 # gathered are already on the singleton).
-HECKS_INFO="$TMP/information" "$HECKS" "$TMP/aggregates" 'BodyDream::Dream.ProduceImage' \
+"$HECKS" "$TMP/aggregates" 'BodyDream::Dream.ProduceImage' \
   name=dream sleep_cycle=1 >/dev/null 2>&1 || true
-DREAM_OUTBOX=$(HECKS_INFO="$TMP/information" "$HECKS" query "$TMP/aggregates" \
+DREAM_OUTBOX=$("$HECKS" query "$TMP/aggregates" \
   'OutboundEvent::OutboundEvent.pending' adapter=DreamImage 2>/dev/null | \
   jq -r '(.state | if type=="array" then .[0] else . end) // {} | .payload // ""' 2>/dev/null)
 if [ -n "$DREAM_OUTBOX" ] && [ "$DREAM_OUTBOX" != "null" ]; then
   DREAM_VERDICT=$(printf '%s' "$DREAM_OUTBOX" | HECKS_LLM_PROVIDER=test "$BODY_DIR/dream/dream-image-handler" 2>/dev/null)
-  HECKS_INFO="$TMP/information" "$HECKS" "$TMP/aggregates" 'BodyDream::Dream.RecordImage' \
+  "$HECKS" "$TMP/aggregates" 'BodyDream::Dream.RecordImage' \
     id=dream "$DREAM_VERDICT" >/dev/null 2>&1 || true
   echo "off-core adapter-host drain : OK"
 else
@@ -292,7 +296,7 @@ fi
 # increments dream_pulses. With multiple PhaseElapsed emits the
 # counter advances.
 
-pulses_after=$(field_value "$TMP/information/consciousness/consciousness.heki" dream_pulses)
+pulses_after=$(field_value "$STORE/consciousness/consciousness.heki" dream_pulses)
 [ -z "$pulses_after" ] && pulses_after=0
 
 echo "After Dream PM run :"
@@ -325,7 +329,7 @@ echo "  dream_pulses       : $pulses_before → $pulses_after"
 # pairing post-i142, so the singleton lands at
 # `body_dream/dream.heki`, not `dream/dream.heki` (the latter is
 # the PM persistence heki — same file basename, different role).
-DREAM_HEKI="$TMP/information/body_dream/dream.heki"
+DREAM_HEKI="$STORE/body_dream/dream.heki"
 # i516 single-phase rename : assertion target moved from text_fr to
 # `reading` (the canonical single-phase precise output). text_fr/text_en
 # stay as one-cycle back-compat fields but aren't populated by the

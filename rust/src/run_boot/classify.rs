@@ -69,7 +69,7 @@ const RETIRED_STORES: &[&str] = &[
     "calling_strategy",                // stale, no writer
     "domain_visualizer",               // stale, no writer
     //   test-leak artifacts (rows are stale leaks ; live writers now isolate to
-    //   a tempdir via HECKS_INFO so they no longer reach the live store) :
+    //   a tempdir conception via `dir :default` so they no longer reach the live store) :
     "hello",                           // examples/executable hello integration test
     "note",                            // run_script / query_step test fixtures
     "dispatch",                        // storehouse-mcp dispatch render test fixture

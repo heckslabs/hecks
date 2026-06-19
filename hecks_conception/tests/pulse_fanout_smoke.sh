@@ -61,7 +61,7 @@ TMP=$(mktemp -d -t pulse_fanout_smoke.XXXXXX)
 # spawned during the test can't survive into the next test.
 trap 'kill -- -$$ 2>/dev/null || true; rm -rf "$TMP"' EXIT
 
-mkdir -p "$TMP/information" "$TMP/aggregates"
+mkdir -p "$TMP/aggregates"
 
 # Link all aggregates so cross-bluebook dispatch resolves. The across
 # "Pulse" hop in mindstream.bluebook only fires if pulse.bluebook is in
@@ -78,12 +78,15 @@ if [ -d "$MIETTE_BODY" ]; then
   find "$MIETTE_BODY" -name "*.bluebook" -exec ln -sf {} "$TMP/aggregates/" \;
 fi
 
-# *.world pins the heki dir — the runtime reads it relative to CWD.
-cat > "$TMP/pulse_fanout_smoke.world" <<'EOF'
+# *.world pins the heki dir. `dir :default` keys the store by the dispatched
+# conception dir ; the world must live INSIDE the dispatched aggregates dir so
+# the runtime co-locates the store at <aggregates>/.heki. The tmpdir is not
+# under ~/Projects, so :default isolates from the live ~/.heki — no HECKS_INFO.
+cat > "$TMP/aggregates/pulse_fanout_smoke.world" <<'EOF'
 Hecks.world "PulseFanoutSmoke" do
-  heki do
-    dir "information"
-  end
+heki do
+  dir :default
+end
 end
 EOF
 
@@ -94,7 +97,7 @@ fail() { echo "FAIL — $1"; exit 1; }
 # canonical dispatch entry point gates on `::`. Tick lives in
 # /Users/christopheryoung/Projects/miette/body/cycles/tick.bluebook
 # which declares category "body".
-(cd "$TMP" && HECKS_INFO="$TMP/information" HECKS_AGG="$TMP/aggregates" \
+(cd "$TMP" && HECKS_AGG="$TMP/aggregates" \
   "$HECKS" "$TMP/aggregates" Body::Tick.MindstreamTick >/dev/null 2>&1) \
   || fail "Body::Tick.MindstreamTick dispatch failed"
 
@@ -105,10 +108,11 @@ field() {
   "$HECKS" heki latest-field "$1" "$2" 2>/dev/null || true
 }
 
-pulse_count=$(field "$TMP/information/pulse/pulse.heki" count)
-pulses=$(field "$TMP/information/heartbeat/heartbeat.heki" pulses_since_sleep)
-pruned=$(field "$TMP/information/signal_consolidation/signal_consolidation.heki" synapses_pruned)
-nerve_active=$(field "$TMP/information/nerve/nerve.heki" active)
+STORE="$TMP/aggregates/.heki"
+pulse_count=$(field "$STORE/pulse/pulse.heki" count)
+pulses=$(field "$STORE/heartbeat/heartbeat.heki" pulses_since_sleep)
+pruned=$(field "$STORE/signal_consolidation/signal_consolidation.heki" synapses_pruned)
+nerve_active=$(field "$STORE/nerve/nerve.heki" active)
 
 echo "After 1 tick:"
 echo "  pulse.count:                          $pulse_count"

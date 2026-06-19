@@ -71,8 +71,8 @@ Hecks.fixtures "Mindstream" do
             command:    { line: "../rust/target/release/storehouse loop aggregates Inbox::Inbox.Check --every 900s" },
             lifespan:   { kind: "persistent", may_exit: false, restart_on_failure: true }
 
-    # The slow loop. Speech proposes (durable :heki under the global
-    # HECKS_INFO root) ; every 5s this member dispatches
+    # The slow loop. Speech proposes (durable :heki under the world-resolved
+    # store dir) ; every 5s this member dispatches
     # MietteMind::Reconciler.Reconcile against the mietteai root. The
     # :exec adapter (mietteai.hecksagon mind_reconcile) runs
     # slow_loop/reconcile.mjs : set-diff pending Proposals vs

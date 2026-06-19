@@ -50,14 +50,11 @@ cd hecks_conception/information
 # The .gitignore keeps them from entering public history.
 ```
 
-Or set `HECKS_INFO` to point the runtime at a different root (this is the long-term pattern):
-
-```sh
-export HECKS_INFO=/path/to/miette-state/information
-cd hecks_conception && overmind start
-```
-
-The boot mindstream and daemons read `HECKS_INFO` via the `:fs, root: ...` hecksagon adapter. If unset, they default to this directory (backward-compat for anyone still running in-tree).
+The store location is set by the `.world` file (`dir :default`), not an env var.
+`dir :default` keys the store by the conception directory : a conception under
+`~/Projects` persists to `~/.heki/<chain>` ; anywhere else (a /tmp test conception)
+co-locates the store at `<dir>/.heki`. There is no `HECKS_INFO` — the world is the
+single store authority.
 
 ## What's still public
 

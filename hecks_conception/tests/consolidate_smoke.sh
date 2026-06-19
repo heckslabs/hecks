@@ -55,22 +55,27 @@ fi
 TMP=$(mktemp -d -t consolidate_smoke.XXXXXX)
 trap 'kill -- -$$ 2>/dev/null || true; rm -rf "$TMP"' EXIT
 
-mkdir -p "$TMP/information" "$TMP/aggregates"
+mkdir -p "$TMP/aggregates"
 find "$CONCEPT_DIR/aggregates" -name "*.bluebook" -exec ln -sf {} "$TMP/aggregates/" \;
 if [ -d "$BODY_DIR" ]; then
   find "$BODY_DIR" -name "*.bluebook" -exec ln -sf {} "$TMP/aggregates/" \;
   find "$BODY_DIR" -name "*.hecksagon" -exec ln -sf {} "$TMP/aggregates/" \;
 fi
 
-cat > "$TMP/consolidate_smoke.world" <<'EOF'
+cat > "$TMP/aggregates/consolidate_smoke.world" <<'EOF'
 Hecks.world "ConsolidateSmoke" do
+  # dir :default keys the store by THIS conception's directory. The dispatch
+  # dir ($TMP/aggregates) is not under ~/Projects, so :default co-locates the
+  # store at $TMP/aggregates/.heki — isolated from the live ~/.heki, no HECKS_INFO.
   heki do
-    dir "information"
+    dir :default
   end
 end
 EOF
 
-export HECKS_INFO="$TMP/information"
+# The :default world co-locates the store at <dispatch-dir>/.heki, keyed by the
+# conception dir. Per-aggregate stores land at $STORE/<aggregate>/<aggregate>.heki.
+STORE="$TMP/aggregates/.heki"
 cd "$TMP"
 
 fail() { echo "FAIL — $1"; exit 1; }
@@ -110,9 +115,9 @@ for t in doomed_a doomed_b; do
     || fail "Body::Synapse.CreateSynapse $t dispatch failed"
 done
 
-signals_before=$("$HECKS" heki read "$TMP/information/signal/signal.heki" 2>/dev/null \
+signals_before=$("$HECKS" heki read "$STORE/signal/signal.heki" 2>/dev/null \
   | python3 -c 'import sys,json; d=json.load(sys.stdin); print(len(d))' 2>/dev/null || echo 0)
-synapses_before=$("$HECKS" heki read "$TMP/information/synapse/synapse.heki" 2>/dev/null \
+synapses_before=$("$HECKS" heki read "$STORE/synapse/synapse.heki" 2>/dev/null \
   | python3 -c 'import sys,json; d=json.load(sys.stdin); print(len(d))' 2>/dev/null || echo 0)
 
 # Last-value-per-kind : 4 fires (3 somatic + 1 concept) collapse to exactly 2 rows.
@@ -130,9 +135,9 @@ echo "seeded via bus (last-value signal): signals=$signals_before synapses=$syna
 "$HECKS" "$TMP/aggregates" Mind::Consciousness.ElapsePhase >/dev/null 2>&1 \
   || fail "ElapsePhase dispatch failed (PhaseElapsed → Consolidation sweep)"
 
-store_rows=$("$HECKS" heki read "$TMP/information/store/store.heki" 2>/dev/null \
+store_rows=$("$HECKS" heki read "$STORE/store/store.heki" 2>/dev/null \
   | python3 -c 'import sys,json; d=json.load(sys.stdin); print(len(d))' 2>/dev/null || echo 0)
-remains_rows=$("$HECKS" heki read "$TMP/information/remains/remains.heki" 2>/dev/null \
+remains_rows=$("$HECKS" heki read "$STORE/remains/remains.heki" 2>/dev/null \
   | python3 -c 'import sys,json; d=json.load(sys.stdin); print(len(d))' 2>/dev/null || echo 0)
 
 echo "after sweep: store_rows=$store_rows remains_rows=$remains_rows"

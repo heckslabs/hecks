@@ -51,22 +51,27 @@ fi
 TMP=$(mktemp -d -t interpret_dream_smoke.XXXXXX)
 trap 'kill -- -$$ 2>/dev/null || true; rm -rf "$TMP"' EXIT
 
-mkdir -p "$TMP/information" "$TMP/aggregates"
+mkdir -p "$TMP/aggregates"
 find "$CONCEPT_DIR/aggregates" -name "*.bluebook" -exec ln -sf {} "$TMP/aggregates/" \;
 if [ -d "$BODY_DIR" ]; then
   find "$BODY_DIR" -name "*.bluebook" -exec ln -sf {} "$TMP/aggregates/" \;
   find "$BODY_DIR" -name "*.hecksagon" -exec ln -sf {} "$TMP/aggregates/" \;
 fi
 
-cat > "$TMP/interpret_dream_smoke.world" <<'EOF'
+cat > "$TMP/aggregates/interpret_dream_smoke.world" <<'EOF'
 Hecks.world "InterpretDreamSmoke" do
+  # dir :default keys the store by THIS conception's directory. The dispatch
+  # dir ($TMP/aggregates) is not under ~/Projects, so :default co-locates the
+  # store at $TMP/aggregates/.heki — isolated from the live ~/.heki, no HECKS_INFO.
   heki do
-    dir "information"
+    dir :default
   end
 end
 EOF
 
-export HECKS_INFO="$TMP/information"
+# The :default world co-locates the store at <dispatch-dir>/.heki, keyed by the
+# conception dir. Per-aggregate stores land at $STORE/<aggregate>/<aggregate>.heki.
+STORE="$TMP/aggregates/.heki"
 cd "$TMP"
 
 fail() { echo "FAIL — $1"; exit 1; }
@@ -81,7 +86,7 @@ fail() { echo "FAIL — $1"; exit 1; }
   reading="ocean dissolving boundary library glow spark" >/dev/null 2>&1 \
   || fail "BodyDream::Dream.RecordImage seed dispatch failed"
 
-dream_rows=$("$HECKS" heki read "$TMP/information/body_dream/dream.heki" 2>/dev/null \
+dream_rows=$("$HECKS" heki read "$STORE/body_dream/dream.heki" 2>/dev/null \
   | python3 -c 'import sys,json; d=json.load(sys.stdin); print(len(d))' 2>/dev/null || echo 0)
 [ "$dream_rows" -ge 1 ] || fail "expected ≥1 dream singleton seeded via bus, got $dream_rows"
 echo "seeded via bus: dream singleton rows = $dream_rows"
@@ -101,12 +106,12 @@ echo "seeded via bus: dream singleton rows = $dream_rows"
 # singleton was minted somewhere under the info dir (the GatherOnWake
 # policy resolved). Domain dir layout varies (mind/, dream/, or root)
 # so we glob.
-consciousness_state=$("$HECKS" heki latest-field "$TMP/information/consciousness/consciousness.heki" state 2>/dev/null || echo "")
+consciousness_state=$("$HECKS" heki latest-field "$STORE/consciousness/consciousness.heki" state 2>/dev/null || echo "")
 echo "post-wake consciousness.state = $consciousness_state"
 [ "$consciousness_state" = "attentive" ] \
   || fail "consciousness did not reach attentive after WakeUp cascade : $consciousness_state"
 
-di_paths=$(find "$TMP/information" -name 'dream_interpretation.heki' 2>/dev/null | head -3)
+di_paths=$(find "$STORE" -name 'dream_interpretation.heki' 2>/dev/null | head -3)
 if [ -n "$di_paths" ]; then
   for p in $di_paths; do
     rows=$("$HECKS" heki read "$p" 2>/dev/null \

@@ -63,24 +63,39 @@ WORK="$(mktemp -d -t statusline_work.XXXXXX)"
 trap 'kill -- -$$ 2>/dev/null || true; rm -rf "$SYMLINK_DIR" "$FAKE_HOME" "$WORK"' EXIT
 ln -s "$CONCEPT_DIR/statusline-command.sh" "$SYMLINK_DIR/statusline-command.sh"
 
-mkdir -p "$WORK/information" "$WORK/aggregates"
+mkdir -p "$WORK/aggregates"
 find "$CONCEPT_DIR/aggregates" -name "*.bluebook" -exec ln -sf {} "$WORK/aggregates/" \;
 [ -n "$BODY_DIR" ] && [ -d "$BODY_DIR" ] && \
   find "$BODY_DIR" -name "*.bluebook" -exec ln -sf {} "$WORK/aggregates/" \; 2>/dev/null
+
+# *.world pins the heki dir for the BUS SEED only. `dir :default` keys the store
+# by the dispatched conception dir ; living inside $WORK/aggregates (a tmpdir,
+# outside ~/Projects) it co-locates the seed at $WORK/aggregates/.heki, isolated
+# from the live ~/.heki — no HECKS_INFO. NOTE the render reads a DIFFERENT store :
+# `storehouse statusline` resolves its store via resolve_info_dir(), which walks
+# up to the REAL repo's hecks_conception/aggregates world (the live ~/.heki),
+# ignoring both this seed dir and FAKE_HOME (FAKE_HOME only drives the inbox
+# walk). The seed is therefore not visible to the render ; the assertions below
+# are STRUCTURAL (non-empty line, retired signals absent, empty-channel clean).
+cat > "$WORK/aggregates/statusline_regression.world" <<'EOF'
+Hecks.world "StatuslineRegression" do
+  heki do
+    dir :default
+  end
+end
+EOF
 
 # ── BUS-routed seed of tick + consciousness vitals ──
 # Replaces the deleted `heki upsert tick.heki cycle=...` +
 # `heki upsert consciousness.heki state=attentive ...` raw writes.
 seed_via_bus() {
-  local info="$1"
-  HECKS_INFO="$info" "$HECKS" "$WORK/aggregates" Body::Tick.MindstreamTick >/dev/null 2>&1 || true
-  HECKS_INFO="$info" "$HECKS" "$WORK/aggregates" Mind::Consciousness.BecomeAttentive >/dev/null 2>&1 || true
-  HECKS_INFO="$info" "$HECKS" "$WORK/aggregates" Body::Heart.Beat >/dev/null 2>&1 || true
+  "$HECKS" "$WORK/aggregates" Body::Tick.MindstreamTick >/dev/null 2>&1 || true
+  "$HECKS" "$WORK/aggregates" Mind::Consciousness.BecomeAttentive >/dev/null 2>&1 || true
+  "$HECKS" "$WORK/aggregates" Body::Heart.Beat >/dev/null 2>&1 || true
 }
 
 render() {
-  local info="$1"
-  HOME="$FAKE_HOME" HECKS_INFO="$info" \
+  HOME="$FAKE_HOME" \
     "$SYMLINK_DIR/statusline-command.sh" 2>/dev/null || true
 }
 
@@ -88,9 +103,8 @@ render() {
 #
 # A broken symlink degrades to an empty line ; this asserts the readlink
 # chain still resolves to the real script dir under the worktree.
-INFO1="$WORK/information"
-seed_via_bus "$INFO1"
-LINE="$(render "$INFO1")"
+seed_via_bus
+LINE="$(render)"
 if [ -n "$LINE" ]; then
   note_pass "symlink resolution — statusline renders via ~/.claude entry-point alias"
 else

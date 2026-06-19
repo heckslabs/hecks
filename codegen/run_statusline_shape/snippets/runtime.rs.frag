@@ -147,9 +147,9 @@ fn char_width(c: char) -> usize {
 // ────────────────────────────────────────────────────────────────
 
 /// Delegates to `heki::resolve_info_dir` — the canonical i154 helper.
-/// Same fallback order : HECKS_INFO env → ../miette-state/information
-/// sibling → hecks_conception/information → literal fallback. Kept as
-/// a thin wrapper so internal callsites don't change.
+/// Resolution order : sibling `.world` (dir :default / realm) → repo-root
+/// canonical store → literal fallback. Kept as a thin wrapper so internal
+/// callsites don't change.
 fn resolve_info_dir() -> PathBuf {
     crate::heki::resolve_info_dir()
 }

@@ -3200,7 +3200,7 @@ fn run_terminal(project_dir: &str, being: &str) {
 ///      (each `/tmp/fuzz-<seed>` tree carries its own `information/`
 ///      + `fuzz.world`) and by any caller that wires a sibling world.
 ///   2. Otherwise fall back to `heki::resolve_info_dir` (the i154
-///      canonical helper — repo-root-anchored, HECKS_INFO-aware).
+///      canonical helper — repo-root-anchored, world-resolved).
 ///
 /// Earlier this function ignored `aggregates_path` entirely and
 /// always returned the canonical info dir — that closed the i149/i153
@@ -5802,8 +5802,8 @@ fn run_sleep(_args: &[String]) {
 
     // Resolve aggregates dir + heki dir the same way run_macrophage
     // does — HECKS_HOME, then walk up from the binary. The find_world_
-    // heki_dir helper honors HECKS_INFO override, so private-state
-    // setups (~/Projects/miette-state/information) keep working.
+    // heki_dir helper resolves the store from the world (dir :default),
+    // so private-state setups keep working with no env var.
     let agg_dir = match resolve_aggregates_dir() {
         Some(p) => p,
         None    => {

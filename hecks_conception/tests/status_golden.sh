@@ -50,12 +50,22 @@ BODY_DIR="${HECKS_BODY_DIR:-}"
 tmp="$(mktemp -d -t status_golden.XXXXXX)"
 trap 'kill -- -$$ 2>/dev/null || true; rm -rf "$tmp"' EXIT
 
-mkdir -p "$tmp/information" "$tmp/aggregates"
+mkdir -p "$tmp/aggregates"
 find "$conception/aggregates" -name "*.bluebook" -exec ln -sf {} "$tmp/aggregates/" \;
 [ -n "$BODY_DIR" ] && [ -d "$BODY_DIR" ] && \
   find "$BODY_DIR" -name "*.bluebook" -exec ln -sf {} "$tmp/aggregates/" \; 2>/dev/null
 
-export HECKS_INFO="$tmp/information"
+# *.world pins the heki dir. `dir :default` keys the store by the dispatched
+# conception dir ; living inside the dispatched aggregates dir, the runtime
+# co-locates the seed store at <aggregates>/.heki (tmpdir is outside ~/Projects,
+# so it isolates from the live ~/.heki). No HECKS_INFO ; the world is authority.
+cat > "$tmp/aggregates/status_golden.world" <<'EOF'
+Hecks.world "StatusGolden" do
+  heki do
+    dir :default
+  end
+end
+EOF
 cd "$tmp"
 
 fail() { echo "FAIL — $1" >&2; exit 1; }
@@ -74,7 +84,7 @@ if [ ! -x "$conception/status.sh" ]; then
   fail "status.sh missing or not executable at $conception/status.sh"
 fi
 
-raw="$(HECKS_INFO="$HECKS_INFO" "$conception/status.sh" --no-color 2>&1 || true)"
+raw="$("$conception/status.sh" --no-color 2>&1 || true)"
 
 # Strip dispatch-line noise so the assertion shape stays stable.
 normalized="$(printf '%s\n' "$raw" \

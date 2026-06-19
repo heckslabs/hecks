@@ -18,7 +18,7 @@
 
 set -e
 DIR="$(cd "$(dirname "$0")" && pwd)"
-INFO="${HECKS_INFO:-$DIR/information}"
+INFO="$DIR/information"
 
 shutdown_pidfile() {
   pidfile="$1"

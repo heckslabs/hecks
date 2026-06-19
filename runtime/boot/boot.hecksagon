@@ -49,7 +49,7 @@ Hecks.hecksagon "Boot" do
   #
   # Each daemon is one row in the EnsureDaemons phase. The runner
   # iterates these and dispatches the :daemon adapter for each.
-  # Pidfile paths are relative to HECKS_INFO ; commands are absolute
+  # Pidfile paths are relative to the resolved store dir ; commands are absolute
   # paths the runner resolves against the script directory.
   #
   # Today these are declared as adapter options ; once the runtime

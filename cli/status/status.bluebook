@@ -143,7 +143,7 @@ Hecks.bluebook "Status", version: "2026.05.12.1" do
 
     command "ResolveFsRoot" do
       role "System"
-      description "Resolve the :fs adapter's `root:` option against the script path. HECKS_INFO in the environment wins if non-empty ; absolute roots pass through ; relative roots walk up from the script's directory to find a matching subdir."
+      description "Resolve the :fs adapter's `root:` option against the script path. Absolute roots pass through ; relative roots walk up from the script's directory to find a matching subdir."
       attribute :script_path, Path
       attribute :fs_root, Path
       then_set :phase, to: "resolving"

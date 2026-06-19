@@ -12,7 +12,7 @@
 //! Fired by `storehouse statusline` (CLI subcommand). Claude Code's
 //! statusline-command.sh becomes a 3-line wrapper that exec's this.
 //!
-//! ## Inputs (heki + filesystem under HECKS_INFO)
+//! ## Inputs (heki + filesystem under the world-resolved store dir)
 //!
 //!   - heartbeat.heki        → fatigue_state, updated_at (idle check)
 //!   - mood.heki             → current_state

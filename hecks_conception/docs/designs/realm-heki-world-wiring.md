@@ -1,9 +1,12 @@
 # Realm + world-wired heki across all ~/Projects (the persistence arc, kicked off 2026-06-16)
 
-**Status:** decisions locked with Chris ; kernel keystone NOT yet cut. Pick up
-from here. Use `examples/pizzas/bluebook/` as the GOLDEN reference (Chris:
-“always use pizzas for reference from now on”). `plan.world` is the close
-wiring reference for `heki do; dir end`.
+**Status:** IMPLEMENTED 2026-06-19 (829e67b83) — `HECKS_INFO` is removed and the
+world (`dir :default` / realm) is the single store authority for writer and
+reader alike. What REMAINS is task #7, the live organ migration of Miette's own
+daemons onto `~/.heki` (see the task #7 section below) — DEFERRED, fresh-head.
+Use `examples/pizzas/bluebook/` as the GOLDEN reference (Chris: “always use
+pizzas for reference from now on”). `plan.world` is the close wiring reference
+for `heki do; dir end`.
 
 ## The target (locked)
 
