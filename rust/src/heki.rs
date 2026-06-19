@@ -600,7 +600,17 @@ pub fn repo_root() -> Option<std::path::PathBuf> {
 
 fn walk_up_for_repo_root() -> Option<std::path::PathBuf> {
     let exe = std::env::current_exe().ok()?.canonicalize().ok()?;
-    let mut cur: std::path::PathBuf = exe.parent()?.to_path_buf();
+    walk_up_from(exe.parent()?)
+}
+
+/// Walk up from `start` for the directory that CONTAINS a `hecks_conception/`
+/// dir (the repo / conception root), skipping any match inside a
+/// `.claude/worktrees/` subtree. Shared by the binary-based resolution
+/// (walk_up_for_repo_root, from current_exe) and the cwd-based resolution that
+/// lets a test/story configure its own store by running from its OWN conception
+/// (resolve_info_dir step 1) — the replacement for the removed HECKS_INFO redirect.
+fn walk_up_from(start: &std::path::Path) -> Option<std::path::PathBuf> {
+    let mut cur: std::path::PathBuf = start.to_path_buf();
     // Walk further than 6 to handle worktree-nested binaries : agent
     // worktrees live at .claude/worktrees/agent-XXX/rust/target/release/
     // which is 6 deep from the worktree root and 8 deep from the real
@@ -637,10 +647,11 @@ fn walk_up_for_repo_root() -> Option<std::path::PathBuf> {
 // The ONE resolver both the WRITER (main::find_world_heki_dir, the dispatch
 // store path) and the READER (resolve_info_dir, used by statusline / run_wake /
 // run_boot) consult, so readers and writers never split on where state lives.
-// `.world` is the single source of the store location. HECKS_INFO remains the
-// transitional master switch in both callers : env wins while set, world
-// resolution is the fallback when it is unset — so adding a :default/realm world
-// does not move live state until HECKS_INFO leaves the launching env.
+// `.world` is the SINGLE source of the store location — HECKS_INFO is GONE.
+// Env-var routing was the one thing that could split the writer from the reader
+// (set in one launching env, unset in another) ; with it removed the world
+// resolution is the only authority, so a :default/realm world simply IS where
+// state lives, for writer and reader alike.
 
 /// Expand a leading `~` / `~/` to `$HOME` ; non-tilde paths pass through.
 pub fn expand_tilde(p: &str) -> String {
@@ -717,8 +728,21 @@ pub fn resolve_default_dir(aggregates_path: &str) -> Option<String> {
         if opts_in { break; }
     }
     if !opts_in { return None; }
-    let chain = default_chain(aggregates_path)?;
-    let root = Path::new(&expand_tilde("~/.heki")).join(chain);
+    // KEYED BY THE CONCEPTION DIRECTORY — a different directory is a different
+    // store, which IS the isolation mechanism : a test runs from a tmpdir
+    // conception and gets its OWN store, with no env redirect (HECKS_INFO is
+    // gone). Under ~/Projects the key is the source-tree chain rooted at the
+    // canonical live ~/.heki ; ANYWHERE ELSE (a /tmp test conception) the store
+    // is co-located at <dir>/.heki — isolated, cleaned up with the tmpdir, and
+    // never touching the live ~/.heki.
+    let root = match default_chain(aggregates_path) {
+        Some(chain) => Path::new(&expand_tilde("~/.heki")).join(chain),
+        None => {
+            let a = Path::new(aggregates_path);
+            let base = if a.is_dir() { a } else { a.parent()? };
+            base.join(".heki")
+        }
+    };
     std::fs::create_dir_all(&root).ok()?;
     Some(root.to_string_lossy().into_owned())
 }
@@ -767,13 +791,14 @@ pub fn resolve_world_store_dir(aggregates_path: &str) -> Option<String> {
 /// Canonical info_dir resolver — single source of truth for every
 /// storehouse entry point (boot, statusline, loop, clock, manual CLI).
 /// All three of `run_boot::resolve_info_dir`, `run_statusline::resolve_info_dir`,
-/// and `main::find_world_heki_dir` delegate to this. Boot exports the
-/// resolved value as `HECKS_INFO` to its spawned daemons so all forks
-/// inherit a single resolved value.
+/// and `main::find_world_heki_dir` delegate to this. Each daemon resolves
+/// its OWN store from the world the same way boot does — no env is exported
+/// (HECKS_INFO is gone : env-var routing was the one thing that could split
+/// the writer from the reader).
 ///
 /// Resolution order :
 ///
-///   1. `HECKS_INFO` env var, if set and non-empty.
+///   1. The `.world` store dir (realm / :default), probed from the repo root.
 ///   2. `<repo>/../miette-state/information` sibling (post-i142
 ///      private-state-as-peer-repo layout). Canonicalized when present.
 ///   3. `<repo>/hecks_conception/information` (in-tree fallback for
@@ -788,18 +813,13 @@ pub fn resolve_world_store_dir(aggregates_path: &str) -> Option<String> {
 /// non-existent path. miette.world's `heki.dir` is now documentation
 /// only ; the runtime path no longer reads it.
 pub fn resolve_info_dir() -> std::path::PathBuf {
-    if let Ok(v) = std::env::var("HECKS_INFO") {
-        if !v.is_empty() {
-            return std::path::PathBuf::from(v);
-        }
-    }
-    // World resolution (when HECKS_INFO is unset) — readers resolve the
-    // conception's own store the SAME way the dispatch writer does, so a
-    // :default/realm world keeps readers and writers on one folder. The
-    // reader has no dispatch target, so it probes the conception's
-    // aggregates dir under the repo root. Presence-switched : returns None
-    // unless a world there opts into realm/:default, leaving the legacy
-    // sibling/in-tree resolution below untouched.
+    // The store location comes from the .world (`dir :default` / realm), NEVER an
+    // env var. HECKS_INFO is GONE — env-var routing was the single source of
+    // reader/writer store splits (i154/i728). Readers resolve the conception's
+    // store the SAME way the dispatch writer does : probe the world under the repo
+    // root. A bare bluebook with NO world persists to MEMORY, not a disk fallback
+    // (run::infer_data_dir returns None), so a non-persisting run never reaches
+    // here — which is why there is no live-store write left to redirect.
     if let Some(repo) = walk_up_for_repo_root() {
         let agg = repo.join("hecks_conception/aggregates");
         if let Some(d) = resolve_world_store_dir(&agg.to_string_lossy()) {
@@ -830,43 +850,6 @@ mod resolve_tests {
         let p = std::env::temp_dir().join(format!("heki_resolve_test_{}", nanos));
         fs::create_dir_all(&p).unwrap();
         p
-    }
-
-    /// HECKS_INFO env wins unconditionally — even when the path doesn't
-    /// exist. Used by tests + per-deployment overrides to point at any
-    /// info dir without depending on layout heuristics.
-    ///
-    /// Each test must own its env mutation discipline ; we serialize via
-    /// std::sync::Mutex so concurrent tests don't trample each other.
-    static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
-
-    #[test]
-    fn env_override_wins_even_for_nonexistent_path() {
-        let _guard = ENV_LOCK.lock().unwrap();
-        let prev = std::env::var("HECKS_INFO").ok();
-        std::env::set_var("HECKS_INFO", "/tmp/i154_env_fixture_does_not_exist");
-        let resolved = resolve_info_dir();
-        assert_eq!(resolved, std::path::PathBuf::from("/tmp/i154_env_fixture_does_not_exist"));
-        match prev {
-            Some(v) => std::env::set_var("HECKS_INFO", v),
-            None => std::env::remove_var("HECKS_INFO"),
-        }
-    }
-
-    #[test]
-    fn empty_env_falls_through_to_layout_heuristic() {
-        let _guard = ENV_LOCK.lock().unwrap();
-        let prev = std::env::var("HECKS_INFO").ok();
-        std::env::set_var("HECKS_INFO", "");
-        let resolved = resolve_info_dir();
-        // Empty env → falls through. Result depends on test-execution
-        // layout, so just assert the resolver returns something parseable
-        // (i.e. didn't accidentally use the empty string as the dir).
-        assert_ne!(resolved, std::path::PathBuf::from(""));
-        match prev {
-            Some(v) => std::env::set_var("HECKS_INFO", v),
-            None => std::env::remove_var("HECKS_INFO"),
-        }
     }
 
     #[test]

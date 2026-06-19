@@ -187,9 +187,9 @@ pub fn conception_root() -> String {
     ".".into()
 }
 
-/// Resolve the HECKS_INFO / information/ directory used by heki stores.
-/// Returns None only when the default path doesn't exist and HECKS_INFO
-/// is not set (i.e. we can't meaningfully store).
+/// Resolve the world-derived information/ directory used by heki stores.
+/// Returns None only when the default path doesn't exist and no world opts
+/// into a store (i.e. we can't meaningfully store).
 pub fn info_dir() -> Option<String> {
     let canonical = crate::heki::resolve_info_dir();
     let s = canonical.to_string_lossy().into_owned();

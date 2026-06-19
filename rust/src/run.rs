@@ -283,25 +283,16 @@ pub fn is_stdin_loop_capability(registry: &AdapterRegistry, rt: &Runtime) -> boo
     has_read && has_respond
 }
 
-/// Pick a data dir for heki persistence — prefer a sibling
-/// `information/` (Miette convention), otherwise fall back to
-/// `<parent>/data`.
-/// data_dir resolution for run_script. Delegates to the canonical
-/// heki::resolve_info_dir (i154) so HECKS_INFO + sibling layout pick
-/// up correctly ; falls back to bluebook-parent's information/ or
-/// data/ subdir when the canonical helper hits its literal default
-/// AND that path doesn't exist.
+/// Pick a data dir for `run_script` heki persistence — ONLY when a world
+/// beside the bluebook opts into heki (`dir :default` / realm). No world ->
+/// None -> the runtime boots in MEMORY (principle #1 : a bare bluebook just
+/// runs ; persistence is an opt-in override, never an implicit disk fallback).
+///
+/// This is the reason HECKS_INFO could be removed : a non-persisting run never
+/// writes disk, so there is no live-store write to redirect away. A script that
+/// WANTS to persist declares a companion world ; a test or a one-shot example
+/// declares none and stays entirely in memory.
 fn infer_data_dir(bluebook_path: &str) -> Option<String> {
-    let canonical = crate::heki::resolve_info_dir();
-    let canonical_str = canonical.to_string_lossy().into_owned();
-    if canonical.exists() || canonical_str != "hecks_conception/information" {
-        return Some(canonical_str);
-    }
-    let p = Path::new(bluebook_path);
-    let parent = p.parent()?;
-    let info = parent.join("information");
-    if info.is_dir() {
-        return Some(info.to_string_lossy().into());
-    }
-    Some(parent.join("data").to_string_lossy().into())
+    let parent = Path::new(bluebook_path).parent()?;
+    crate::heki::resolve_world_store_dir(&parent.to_string_lossy())
 }

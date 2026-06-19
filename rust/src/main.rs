@@ -3211,15 +3211,6 @@ fn run_terminal(project_dir: &str, being: &str) {
 /// reopening the boot/daemon split, because the canonical fallback
 /// is unchanged for callers without a sibling .world.
 fn find_world_heki_dir(aggregates_path: &str) -> Option<String> {
-    // HECKS_INFO master switch (transitional) : env wins while set, so adding a
-    // :default/realm world does NOT move live state until HECKS_INFO leaves the
-    // launching env. Mirrors resolve_info_dir's ordering so the dispatch WRITER
-    // and the state READER never split on where state lives — one reversible
-    // switch (the eventual code-level retirement of this branch is a separate
-    // commit after stability).
-    if let Ok(v) = std::env::var("HECKS_INFO") {
-        if !v.is_empty() { return Some(v); }
-    }
     // World resolution — the shared lib resolver (realm override, then :default
     // folder-derivation) that the reader consults too.
     if let Some(world_dir) = storehouse::heki::resolve_world_store_dir(aggregates_path) {

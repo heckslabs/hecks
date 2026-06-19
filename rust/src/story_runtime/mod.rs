@@ -136,23 +136,17 @@ pub fn storehouse_execute(story_ref: &str, info_dir: &str, router: fn(&[String])
                 return exit;
             }
         }
-        // Stamp the use case ran via the pure bluebook command.
-        // `UseCase.Run` must write into the plan domain's heki dir (the
-        // same dir we read from above), not the global HECKS_INFO.
-        // `router → run_script → infer_data_dir` re-resolves HECKS_INFO
-        // from scratch; pin it to `info_dir` for this dispatch only.
+        // Stamp the use case ran via the pure bluebook command. UseCase.Run
+        // dispatches through router -> run_script, which resolves the plan
+        // domain's store from its WORLD (plan.world's heki dir) by category —
+        // the SAME dir the steps above read. The world is the single source of
+        // the store location ; no HECKS_INFO redirect.
         let run_args: Vec<String> = vec![
             "UseCase.Run".to_string(),
             format!("id={}", uc_id),
             format!("step_count={}", total_steps),
         ];
-        let prev_hecks_info = std::env::var("HECKS_INFO").ok();
-        std::env::set_var("HECKS_INFO", info_dir);
         let exit = router(&run_args);
-        match &prev_hecks_info {
-            Some(v) => std::env::set_var("HECKS_INFO", v),
-            None    => std::env::remove_var("HECKS_INFO"),
-        }
         if exit != 0 {
             eprintln!("[execute:{}] UseCase.Run for '{}' failed (exit {}) — stopping", story_ref, uc_id, exit);
             return exit;

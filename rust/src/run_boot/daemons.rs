@@ -82,7 +82,7 @@ pub fn ensure_all(
             continue;
         }
 
-        let status = ensure_one(&pidfile, &command, info_dir, &env_pairs);
+        let status = ensure_one(&pidfile, &command, &env_pairs);
         out.push(DaemonStatus { name, status });
     }
     out
@@ -110,12 +110,10 @@ fn adapter_options_all(adapter: &IoAdapter, key: &str) -> Vec<String> {
         .collect()
 }
 
-/// Spawn one daemon via `storehouse daemon ensure`. Sets `HECKS_INFO`
-/// in the child process env (i154) so the inner `daemon ensure`
-/// subcommand and its spawn_detached'd grandchild both see the
-/// canonical info_dir boot already resolved. Without this, every
-/// daemon re-ran its own resolver and could diverge from boot's
-/// view (the i149/i153 incidents).
+/// Spawn one daemon via `storehouse daemon ensure`. The daemon resolves its
+/// own store from the WORLD (resolve_info_dir / resolve_world_store_dir) the
+/// SAME way boot does — there is no HECKS_INFO to propagate (removed : env-var
+/// routing was the single source of reader/writer store splits, i154/i728).
 ///
 /// `env_pairs` carries the `env: "KEY=VALUE"` declarations from the
 /// hecksagon's `adapter :daemon` row. They are applied to the outer
@@ -127,7 +125,6 @@ fn adapter_options_all(adapter: &IoAdapter, key: &str) -> Vec<String> {
 fn ensure_one(
     pidfile: &str,
     command_line: &str,
-    info_dir: &str,
     env_pairs: &[(String, String)],
 ) -> String {
     // command_line is "<cmd> [args...]" — split on whitespace.
@@ -146,7 +143,6 @@ fn ensure_one(
     let mut command = Command::new(&hecks_bin);
     command
         .args(&cmd_args)
-        .env("HECKS_INFO", info_dir)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
     for (k, v) in env_pairs {
