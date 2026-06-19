@@ -2139,6 +2139,36 @@ impl Runtime {
         }
     }
 
+    /// Resolve a hexagon adapter (by its declared name, e.g. "Stripe") to its
+    /// standalone handler program path and family, walking the loaded
+    /// hecksagons' adapter declarations. The standalone adapter HOST
+    /// (`storehouse host`) uses this to learn which program to exec for a
+    /// delivery whose `adapter` field names this adapter. Returns the FIRST
+    /// match (adapter names are unique across a conception). `handler` is
+    /// empty for in-process adapters (heki/memory) — those never shell out.
+    pub fn adapter_handler(&self, adapter_name: &str) -> Option<(String, String)> {
+        for hex in &self.hecksagons {
+            for a in &hex.adapters {
+                if a.name == adapter_name {
+                    return Some((a.handler.clone(), a.family.clone()));
+                }
+            }
+        }
+        None
+    }
+
+    /// The per-adapter `.world` config (key→value pairs) the host folds into
+    /// the handler child's environment. Empty when no `.world` binds this
+    /// adapter (the demo case — the handler then takes its built-in default
+    /// path). See `run_host` for the env-name mapping limitation.
+    pub fn adapter_world_config(&self, adapter_name: &str) -> Vec<(String, String)> {
+        self.world_adapter_bindings
+            .iter()
+            .find(|b| b.name == adapter_name)
+            .map(|b| b.values.clone())
+            .unwrap_or_default()
+    }
+
     /// Drain policy triggers recursively — each triggered command
     /// can emit events that trigger more policies. This is how
     /// EnterSleep cascades through 8 dream cycles to WakeUp.

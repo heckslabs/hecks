@@ -100,6 +100,8 @@ pub mod run_restructure;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod run_serve;
 #[cfg(not(target_arch = "wasm32"))]
+pub mod run_host;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod run_status;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod run_statusline;
