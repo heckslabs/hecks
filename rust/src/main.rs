@@ -416,6 +416,21 @@ fn main() {
         return;
     }
 
+    // `storehouse host <root> [--every <dur>] [--once]`
+    //
+    // The generic standalone effect-port HOST. Boots the runtime against
+    // <root>, then consumes the OutboundEvent transactional outbox out-of-
+    // process : claim each pending delivery, exec the named adapter's handler
+    // (payload on stdin, `.world` config in env), dispatch the verdict command
+    // back through the command port, and ack (MarkDelivered) — the SAME
+    // bluebook lifecycle the in-crate oracle drives by hand. Runs ALONGSIDE
+    // the in-runtime kernel-hook dispatchers (claude_tool / tts), which stay
+    // live as the current path. See run_host/mod.rs for the full protocol.
+    if command == "host" {
+        run_host_cli(&args);
+        return;
+    }
+
     // `storehouse run-loop <bluebook-tree> [--every <dur>] [--emit <Event:Type:Id>]
     //   [--dispatch <Aggregate.Command> [--with k=v ...]]`
     //
@@ -5139,6 +5154,36 @@ fn spawn_detached(_cmd: &str, _args: &[String]) -> std::io::Result<u32> {
         std::io::ErrorKind::Unsupported,
         "spawn_detached not available on this target (no process model)",
     ))
+}
+
+/// `storehouse host <root> [--every <dur>] [--once]` — boot the runtime
+/// against <root> exactly as `loop` does (combined domain + hecksagons + world
+/// adapter bindings), then hand off to the generic host driver. The boot is a
+/// closure so run_host::run owns the tick lifecycle while main owns the disk
+/// boot path. See run_host/mod.rs.
+fn run_host_cli(args: &[String]) {
+    let target = args.get(2).map(|s| s.as_str()).unwrap_or_else(|| {
+        eprintln!("Usage: storehouse host <bluebook-or-dir> [--every <duration>] [--once]");
+        std::process::exit(1);
+    }).to_string();
+
+    storehouse::run_host::run(args, || {
+        let data_dir = find_world_heki_dir(&target)
+            .unwrap_or_else(|| format!("{}/data", target.trim_end_matches('/')));
+        let (domain, hecksagons) = if std::path::Path::new(&target).is_dir() {
+            (load_combined_domain(&target), load_all_hecksagons(&target))
+        } else {
+            let source = fs::read_to_string(&target).unwrap_or_else(|e| {
+                eprintln!("Cannot read {}: {}", target, e);
+                std::process::exit(1);
+            });
+            (parser::parse(&source), Vec::new())
+        };
+        let mut rt = Runtime::boot_with_hecksagons(domain, Some(data_dir), hecksagons);
+        storehouse::world::attach::attach_world_servers(&mut rt, &target);
+        storehouse::world::attach::attach_world_adapter_bindings(&mut rt, &target);
+        rt
+    });
 }
 
 fn run_loop(args: &[String]) {
