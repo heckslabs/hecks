@@ -325,8 +325,14 @@ fn run_read(attrs: &HashMap<String, String>) -> ClaudeToolResult {
 // ── :write — write content to file_path, creating dirs as needed ──
 
 fn run_write(attrs: &HashMap<String, String>) -> ClaudeToolResult {
-    let path = match attrs.get("file_path") {
-        Some(p) => p.clone(),
+    // Use the sentinel-aware `attr()` helper, NOT a raw `attrs.get()` : an unset
+    // list-shaped file_path arrives as the rendered empty-list sentinel
+    // "[0 items]". Without this guard `std::fs::write` happily creates a junk
+    // file literally NAMED "[0 items]" (it kept reappearing on boot whenever a
+    // cascade fired FileTool.Write/Update with no path). read + edit already
+    // guard this ; write was the one creator that didn't. Fail loud instead.
+    let path = match attr(attrs, "file_path") {
+        Some(p) => p.to_string(),
         None => return err("write", "missing required attr: file_path"),
     };
     let content = attrs.get("content").cloned().unwrap_or_default();
@@ -466,6 +472,22 @@ mod tests {
         let r = dispatch("read", &attrs(&[("file_path", &tmp)]));
         assert!(r.ok && r.output == "hi there", "{:?}", r);
         let _ = std::fs::remove_file(&tmp);
+    }
+
+    #[test]
+    fn write_rejects_the_empty_list_sentinel_path() {
+        // An unset list-shaped file_path renders as the sentinel "[0 items]".
+        // write must REFUSE it (missing required attr) — never create a junk file
+        // named "[0 items]" in the cwd. Regression for the boot-time dropping a
+        // path-less FileTool.Write/Update cascade kept leaving behind.
+        for bad in ["[0 items]", ""] {
+            let r = dispatch("write", &attrs(&[("file_path", bad), ("content", "x")]));
+            assert!(!r.ok, "write must reject path {bad:?}, got: {:?}", r);
+            assert!(r.error.as_deref().unwrap_or("").contains("file_path"),
+                "error must name file_path, got: {:?}", r);
+            assert!(!std::path::Path::new(bad).exists(),
+                "write must NOT create a file named {bad:?}");
+        }
     }
 
     #[test]
