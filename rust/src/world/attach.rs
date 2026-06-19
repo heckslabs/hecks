@@ -54,15 +54,37 @@ pub fn attach_world_servers(rt: &mut Runtime, agg_dir: &str) {
 pub fn attach_world_adapter_bindings(rt: &mut Runtime, agg_dir: &str) {
     let root = std::path::Path::new(agg_dir);
     let mut stack = vec![root.to_path_buf()];
+    // Sibling repos + top-level buckets — mirror load_all_hecksagons so a
+    // `.world` in ../miette (e.g. voice.world's `voiced_by("ElevenLabs")`
+    // config) is found, not just agg_dir's own tree. Without this, an adapter
+    // bound from a sibling-repo domain gets NO .world config and the host hands
+    // its handler an empty env (the tts cutover's "no TTS_VOICE_ID" silent
+    // failure). Skipped silently when a sibling/bucket isn't checked out.
+    if let Some(repo_root) = crate::heki::repo_root() {
+        for sibling in &["miette", "miette_family"] {
+            if let Ok(c) = std::fs::canonicalize(repo_root.join("..").join(sibling)) {
+                if c.is_dir() { stack.push(c); }
+            }
+        }
+        for bucket in &["runtime", "discipline", "codegen", "cli",
+                        "integrations", "tools", "capabilities"] {
+            let b = repo_root.join(bucket);
+            if b.is_dir() { stack.push(b); }
+        }
+    }
     let mut worlds: Vec<std::path::PathBuf> = vec![];
+    let mut seen: std::collections::HashSet<std::path::PathBuf> = std::collections::HashSet::new();
     while let Some(dir) = stack.pop() {
         let Ok(entries) = fs::read_dir(&dir) else { continue };
         for entry in entries.flatten() {
             let p = entry.path();
+            let name = p.file_name().and_then(|n| n.to_str()).unwrap_or("");
+            if matches!(name, ".git" | "target" | "node_modules" | ".claude") { continue; }
             if p.is_dir() {
                 stack.push(p);
             } else if p.extension().map(|e| e == "world").unwrap_or(false) {
-                worlds.push(p);
+                let key = std::fs::canonicalize(&p).unwrap_or_else(|_| p.clone());
+                if seen.insert(key) { worlds.push(p); }
             }
         }
     }
@@ -70,8 +92,13 @@ pub fn attach_world_adapter_bindings(rt: &mut Runtime, agg_dir: &str) {
     for wp in &worlds {
         let Ok(src) = fs::read_to_string(wp) else { continue };
         let world = crate::world::parser::parse(&src);
-        if world.adapter_bindings.is_empty() { continue; }
+        // Load BOTH forms : the older `adapter "Name" do …` adapter_bindings AND
+        // the pizzas-form per-adapter CONFIGS (`Domain::Agg.verb("Adapter") do …`,
+        // keyed by lowercased adapter name). Do NOT skip when adapter_bindings is
+        // empty — a domain like Voice has only configs, and the host folds those
+        // into the handler env via the family's field definitions.
         rt.world_adapter_bindings.extend(world.adapter_bindings);
+        rt.world_configs.extend(world.configs);
     }
 }
 
