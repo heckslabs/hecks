@@ -26,7 +26,7 @@
 //!           verdict, e.g. payment) re-enters it — exit 0 → success_command,
 //!           non-zero → failure_command — threading the stdout pairs + the
 //!           source_id. A fire-and-forget delivery (both commands empty, e.g.
-//!           tts voiced_by) dispatches no verdict.
+//!           a voiced_by bind) dispatches no verdict.
 //!        d. ACK : a delivery that REACHED a verdict (a verdict command was
 //!           dispatched, success OR failure) is MarkDelivered — "delivered"
 //!           means HANDLED, not "approved". Only a spawn/exec error, or a
@@ -177,7 +177,7 @@ pub fn run_host_pass(rt: &mut Runtime) -> usize {
                     &d.failure_command
                 };
                 if verdict.is_empty() {
-                    // Fire-and-forget edge (e.g. tts voiced_by) : no verdict to
+                    // Fire-and-forget edge (e.g. a voiced_by bind) : no verdict to
                     // re-enter. Exit 0 is delivered ; a non-zero with no
                     // failure_command to dispatch is a failed attempt (retry).
                     if result.success {

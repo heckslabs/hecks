@@ -42,11 +42,11 @@
             idx += 1;
             // Strip trailing `# ...` comment outside string literals,
             // then trim. Without this, a line like
-            //     voice_id   "WwS1lF7yiubZWoroH5D5"   # Björk-tone
-            // emitted `voice_id: "WwS1lF7yiubZWoroH5D5" # ...` and
+            //     endpoint   "https://api.example.com"   # prod host
+            // emitted `endpoint: "https://api.example.com" # ...` and
             // strip_quotes (matches both ends) left the literal quotes
-            // intact, which broke downstream URL construction in the
-            // :tts dispatcher and any other consumer that expected a
+            // intact, which broke downstream URL construction in any
+            // adapter consumer that expected a
             // clean value. Inlined here (not pulled into its own helper)
             // so the specializer golden (codegen/hecksagon_parser_shape/
             // snippets/join_adapter_lines_body.rs.frag) stays a single

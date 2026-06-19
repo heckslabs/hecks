@@ -14,7 +14,7 @@ module Hecksagon
     # DSL builder for the Phase 1 surface of the adapter-family meta-layer
     # (`Hecks.adapter_family`, `Hecks.provider`, `Hecks.behavior_kind`).
     #
-    #   builder = FrameworkDeclarationBuilder.new("tts", framework_kind: "adapter_family")
+    #   builder = FrameworkDeclarationBuilder.new("sms", framework_kind: "adapter_family")
     #   builder.instance_eval(&block)
     #   hex = builder.build  # => Hecksagon::Structure::Hecksagon
     #

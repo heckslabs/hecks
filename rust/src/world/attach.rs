@@ -58,7 +58,7 @@ pub fn attach_world_adapter_bindings(rt: &mut Runtime, agg_dir: &str) {
     // `.world` in ../miette (e.g. voice.world's `voiced_by("ElevenLabs")`
     // config) is found, not just agg_dir's own tree. Without this, an adapter
     // bound from a sibling-repo domain gets NO .world config and the host hands
-    // its handler an empty env (the tts cutover's "no TTS_VOICE_ID" silent
+    // its handler an empty env (an out-of-process adapter's missing-config silent
     // failure). Skipped silently when a sibling/bucket isn't checked out.
     if let Some(repo_root) = crate::heki::repo_root() {
         for sibling in &["miette", "miette_family"] {

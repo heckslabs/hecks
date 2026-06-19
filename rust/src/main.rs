@@ -323,7 +323,7 @@ fn main() {
     // adapter, looks up its kind in the AdapterKindMapping table
     // (storehouse::projection::terraform::mappings), and emits one
     // `resource` block per adapter that maps to a known resource type.
-    // Adapters with no mapping (:memory, :tts, :llm, :shell, :exec,
+    // Adapters with no mapping (:memory, :llm, :shell, :exec,
     // :env, :fs, :stdin/out/err, :compute, :web_tool) are silently
     // skipped — they are runtime-side, not cloud-side.
     //
@@ -424,7 +424,7 @@ fn main() {
     // (payload on stdin, `.world` config in env), dispatch the verdict command
     // back through the command port, and ack (MarkDelivered) — the SAME
     // bluebook lifecycle the in-crate oracle drives by hand. Runs ALONGSIDE
-    // the in-runtime kernel-hook dispatchers (claude_tool / tts), which stay
+    // the in-runtime kernel-hook dispatchers (claude_tool), which stay
     // live as the current path. See run_host/mod.rs for the full protocol.
     if command == "host" {
         run_host_cli(&args);
@@ -1185,7 +1185,7 @@ fn run_behaviors(args: &[String]) {
     // which has been doing this for full-domain dispatch all along ;
     // the behaviors runner is the last untenanted loader. The 97
     // pre-sprint tools.behaviors tests use `dispatch_isolated`, which
-    // skips every other resolver (claude_tool / mcp / web_tool / tts /
+    // skips every other resolver (claude_tool / mcp / web_tool /
     // primitive_spawn) and only fires the new driven adapter resolver,
     // so wiring hecksagons here doesn't reach for shells / HTTP / MCP.
     let hecksagons = behaviors_aggregates_root(suite_path)
@@ -3272,8 +3272,8 @@ fn load_all_hecksagons(agg_dir: &str) -> Vec<storehouse::hecksagon_ir::Hecksagon
     // sibling-repo walk below can otherwise both pick up the same
     // file (e.g. `miette/body/voice/voice.hecksagon` is visited both
     // by an agg_dir at `miette/body/` and by the sibling fan-out into
-    // `miette/`), which silently doubled :tts dispatches and re-played
-    // every audio render twice.
+    // `miette/`), which silently doubled adapter dispatches and re-played
+    // every out-of-process effect twice.
     let mut seen: std::collections::HashSet<std::path::PathBuf> = std::collections::HashSet::new();
     fn walk(
         dir: &std::path::Path,
@@ -3543,7 +3543,7 @@ fn collect_sibling_fixtures(
 /// (find_world_heki_dir + load_combined_domain + load_all_hecksagons +
 /// Runtime::boot_with_hecksagons + register_llm_providers) so a warm
 /// dispatch is indistinguishable from a cold one except for latency —
-/// every adapter family (:llm / :claude_tool / :mcp / :exec / :tts) and
+/// every adapter family (:llm / :claude_tool / :mcp / :exec) and
 /// the LLM provider registry hang off rt.hecksagons exactly as in the
 /// one-shot path.
 ///

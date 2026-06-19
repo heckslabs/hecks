@@ -217,19 +217,6 @@ fn absorb_adapter(joined: &str, hex: &mut Hecksagon) {
                 hex.io_adapters.push(io);
             }
         }
-        // i-tts — sibling of `:llm` / `:compute`. Named form parses
-        // into a typed TtsAdapter ; a bare `adapter :tts, provider: :x`
-        // (no name:) falls back to io_adapter, same forwards-compat
-        // contract as the compute arm above.
-        "tts" => {
-            if let Some(ta) = parse_tts_adapter(rest) {
-                hex.tts_adapters.push(ta);
-            } else {
-                let mut io = IoAdapter { kind, options: parse_options(rest), on_events: vec![] };
-                for ev in extract_on_events(rest) { io.on_events.push(ev); }
-                hex.io_adapters.push(io);
-            }
-        }
         "memory" | "heki" => { hex.persistence = Some(kind); }
         // SQL persistence kinds — `adapter :sqlite, db: "app.db"` (and
         // the postgres/mysql siblings) route into persistence with the
@@ -313,30 +300,6 @@ fn parse_compute_adapter(rest: &str) -> Option<ComputeAdapter> {
     }
     if !got_name { return None; }
     Some(ca)
-}
-
-/// i-tts — sibling of parse_llm_adapter / parse_compute_adapter. Parse the named-adapter form `adapter :tts, name: :foo, provider: :elevenlabs, voice_id:, model:, speed:, stability:, similarity_boost:, style:, trigger_on:, cache_dir:, auto_play:` into a TtsAdapter. Returns None when `name:` is absent — the caller falls back to io_adapter routing for any bare `:tts` form (forwards-compat, mirrors parse_compute_adapter). `:tts` is fire-and-forget (`response_field :none`) so there is no response_into / attr pair.
-fn parse_tts_adapter(rest: &str) -> Option<TtsAdapter> {
-    let mut ta = TtsAdapter::default();
-    let mut got_name = false;
-    for (k, v) in parse_options(rest) {
-        match k.as_str() {
-            "name" => { ta.name = strip_symbol(&v); got_name = true; }
-            "provider" => ta.provider = Some(strip_symbol(&v)),
-            "voice_id" => ta.voice_id = Some(strip_quotes(&v)),
-            "model" => ta.model = Some(strip_quotes(&v)),
-            "speed" => ta.speed = Some(strip_quotes(&v)),
-            "stability" => ta.stability = Some(strip_quotes(&v)),
-            "similarity_boost" => ta.similarity_boost = Some(strip_quotes(&v)),
-            "style" => ta.style = Some(strip_quotes(&v)),
-            "trigger_on" => ta.trigger_on = Some(strip_quotes(&v)),
-            "cache_dir" => ta.cache_dir = Some(strip_quotes(&v)),
-            "auto_play" => ta.auto_play = Some(strip_quotes(&v)),
-            _ => {}
-        }
-    }
-    if !got_name { return None; }
-    Some(ta)
 }
 
 /// Map `name:, command:, args:, output_format:, timeout:, working_dir:,
@@ -453,11 +416,11 @@ fn join_adapter_lines(lines: &[&str]) -> (String, usize) {
             idx += 1;
             // Strip trailing `# ...` comment outside string literals,
             // then trim. Without this, a line like
-            //     voice_id   "WwS1lF7yiubZWoroH5D5"   # Björk-tone
-            // emitted `voice_id: "WwS1lF7yiubZWoroH5D5" # ...` and
+            //     endpoint   "https://api.example.com"   # prod host
+            // emitted `endpoint: "https://api.example.com" # ...` and
             // strip_quotes (matches both ends) left the literal quotes
-            // intact, which broke downstream URL construction in the
-            // :tts dispatcher and any other consumer that expected a
+            // intact, which broke downstream URL construction in any
+            // adapter consumer that expected a
             // clean value. Inlined here (not pulled into its own helper)
             // so the specializer golden (codegen/hecksagon_parser_shape/
             // snippets/join_adapter_lines_body.rs.frag) stays a single

@@ -1,5 +1,10 @@
 //! FrameworkRegistry — typed runtime registry for Phase-2 framework
 //!
+//! [antibody-exempt: rust/src/runtime/framework_registry.rs — kernel-floor
+//!  runtime registry (i557 Phase-2). Builds typed adapter-family / behavior-
+//!  kind registries from bluebook definitions and routes dispatch through
+//!  them ; a registry OF kernel hooks cannot itself be a bluebook.]
+//!
 //! i557 names the Phase-2 framework runtime: at boot, walk
 //! `framework/adapter_families/` + `framework/behavior_kinds/`, build
 //! typed registries from the bluebook definitions, and route dispatch
@@ -21,7 +26,7 @@
 //!   - `KernelHook` is the native function the runtime calls when a
 //!     family's behavior fires. The registry stores hooks by behavior
 //!     name so a dispatch knows which closure to run. Today the only
-//!     seeded hook is `invoke_claude_tool` ; sms / tts / web_tool /
+//!     seeded hook is `invoke_claude_tool` ; sms / web_tool /
 //!     future behaviors slot in here without runtime edits.
 //!   - `FrameworkRegistry` is the lookup table: family + behavior maps
 //!     keyed by name plus the hook map. `build_from_dir` walks a root
@@ -101,12 +106,12 @@ pub struct BehaviorKind {
 ///
 /// Generic enough to carry the existing `ClaudeToolResult` shape
 /// (tool/ok/output/exit_code) and future families' results (e.g.
-/// `:sms` sends, `:tts` audio renders, `:web_tool` HTTP responses).
+/// `:sms` sends, `:web_tool` HTTP responses).
 /// The dispatcher folds these fields into the follow-on cascade attrs.
 #[derive(Debug, Clone, Default)]
 pub struct KernelResult {
     /// Family-specific identifier of what ran ("bash", "edit",
-    /// "send_message", "render_text_to_audio", etc.). Maps to the
+    /// "send_message", "perform_web_fetch", etc.). Maps to the
     /// adapter's :tool / :operation field per family convention.
     pub kind: String,
     /// True if the hook succeeded.
@@ -224,7 +229,7 @@ impl FrameworkRegistry {
 ///
 /// Today : `invoke_claude_tool` (the i551/i556 claude_tool family)
 /// and `invoke_mcp_tool` (the i593 mcp family). Future families
-/// (web_tool, sms, tts, ...) register their hooks here as their
+/// (web_tool, sms, ...) register their hooks here as their
 /// kernel-side dispatchers land. The signature is the same for
 /// every hook — the family declares the surface, the kernel
 /// supplies the execution.

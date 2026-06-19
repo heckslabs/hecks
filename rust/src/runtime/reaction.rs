@@ -38,8 +38,6 @@ impl Runtime {
         self.resolve_mcp_adapters(result, command_name, attrs);
         self.resolve_web_tool_adapters(result, command_name, attrs);
         self.resolve_primitive_spawn(result, command_name, attrs, None);
-        #[cfg(not(target_arch = "wasm32"))]
-        self.resolve_tts_adapters(result, command_name, attrs);
         if let Some(ref event) = result.event {
             let event_clone = event.clone();
             driven_adapter_resolver::resolve_driven_adapters(self, &event_clone);
@@ -47,8 +45,8 @@ impl Runtime {
     }
 
     /// C3 cutover — the IMPURE hexagonal edge: adapters that talk to the
-    /// outside world (compute / llm / claude_tool / mcp / web / process-spawn
-    /// / tts). These fire EAGERLY even on the deferred path — they are ports
+    /// outside world (compute / llm / claude_tool / mcp / web / process-spawn).
+    /// These fire EAGERLY even on the deferred path — they are ports
     /// (a synchronous request/response at the boundary), not aggregate-to-
     /// aggregate domain reactions. Order matches react()'s adapter prefix.
     pub(super) fn react_ports(
@@ -63,8 +61,6 @@ impl Runtime {
         self.resolve_mcp_adapters(result, command_name, attrs);
         self.resolve_web_tool_adapters(result, command_name, attrs);
         self.resolve_primitive_spawn(result, command_name, attrs, None);
-        #[cfg(not(target_arch = "wasm32"))]
-        self.resolve_tts_adapters(result, command_name, attrs);
     }
 
     /// Phase 3 — deliver enqueued reactions. Each pending reaction runs
@@ -158,7 +154,7 @@ impl Runtime {
                     ) {
                         self.record_cascade_run(&r);
                         // Fire the impure adapter edge (compute / llm / claude_tool
-                        // / mcp / web / spawn / tts) for THIS delivered step, exactly
+                        // / mcp / web / spawn) for THIS delivered step, exactly
                         // as the top-level eager dispatch does after record_cascade_run
                         // (mod.rs dispatch -> react_ports). Without this, a PM- or
                         // policy-driven step that targets an :llm adapter (e.g. the
@@ -189,7 +185,7 @@ impl Runtime {
     /// `pump_outbox` delivers the IN-PROCESS CascadeRun outbox (sibling domain
     /// reactions), this drains the OUT-OF-PROCESS `OutboundEvent` outbox — the
     /// messaging-port analog — by DETACH-spawning the named adapter's handler
-    /// program. The handler does the impure async edge (the charge, the TTS
+    /// program. The handler does the impure async edge (the charge, the
     /// synth+play) in its OWN process, re-enters the domain through the door
     /// (`storehouse <root> Order.Authorize …`), and marks the delivery
     /// delivered. The core NEVER waits : spawn-and-return, exactly the

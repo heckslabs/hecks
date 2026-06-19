@@ -2,7 +2,7 @@
     /// `pump_outbox` delivers the IN-PROCESS CascadeRun outbox (sibling domain
     /// reactions), this drains the OUT-OF-PROCESS `OutboundEvent` outbox — the
     /// messaging-port analog — by DETACH-spawning the named adapter's handler
-    /// program. The handler does the impure async edge (the charge, the TTS
+    /// program. The handler does the impure async edge (the charge, the
     /// synth+play) in its OWN process, re-enters the domain through the door
     /// (`storehouse <root> Order.Authorize …`), and marks the delivery
     /// delivered. The core NEVER waits : spawn-and-return, exactly the

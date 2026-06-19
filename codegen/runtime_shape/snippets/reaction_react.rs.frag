@@ -16,8 +16,6 @@
         self.resolve_mcp_adapters(result, command_name, attrs);
         self.resolve_web_tool_adapters(result, command_name, attrs);
         self.resolve_primitive_spawn(result, command_name, attrs, None);
-        #[cfg(not(target_arch = "wasm32"))]
-        self.resolve_tts_adapters(result, command_name, attrs);
         if let Some(ref event) = result.event {
             let event_clone = event.clone();
             driven_adapter_resolver::resolve_driven_adapters(self, &event_clone);

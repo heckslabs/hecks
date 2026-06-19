@@ -81,12 +81,6 @@ pub struct Hecksagon {
     /// the returned string into `response_into_target` under
     /// `response_into_attr`.
     pub compute_adapters: Vec<ComputeAdapter>,
-    /// `adapter :tts, name:, provider:, voice_id:, model:, speed:,
-    /// stability:, similarity_boost:, style:, trigger_on:, cache_dir:,
-    /// auto_play:` entries. Fire-and-forget (`response_field :none`
-    /// per the tts adapter family) — the runtime renders audio via the
-    /// resolved provider and does NOT cascade a follow-on command.
-    pub tts_adapters: Vec<TtsAdapter>,
     /// `gate "Aggregate", :role do allow :Cmd end` entries.
     pub gates: Vec<Gate>,
     /// `subscribe "OtherDomain"` — reads a directed edge into the

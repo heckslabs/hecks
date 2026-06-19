@@ -135,11 +135,6 @@ pub mod claude_tool_dispatcher;
 // `storehouse mcp` subcommand family in main.rs.
 pub mod mcp_dispatcher;
 pub mod sms_dispatcher;
-// tts_dispatcher — host-only (it sets `process_group` on a spawned
-// `std::process::Command` and reads `std::os::unix`, neither of
-// which exist on wasm32). The Worker never speaks.
-#[cfg(not(target_arch = "wasm32"))]
-pub mod tts_dispatcher;
 // i569 — :web_tool adapter family kernel hook. Two behaviors :
 // perform_web_fetch (curl HTTP GET, URL-safety gated) and
 // perform_web_search (DuckDuckGo HTML-lite). Sibling to
@@ -191,7 +186,7 @@ pub mod framework_registry;
 // imperative kernel-floor leaves. Mirrors the Storehouse::Primitive
 // bluebook records ; seeded at boot with the current hand-coded
 // primitives (Process.Spawn / ClaudeTool.Invoke / WebTool.* / Compute /
-// Llm / Shell / Sms / Tts). The runtime consults it BEFORE running its
+// Llm / Shell / Sms). The runtime consults it BEFORE running its
 // hard-coded match arms so a macrophage check can confirm every
 // imperative leaf has a matching declaration.
 pub mod primitive_registry;
@@ -965,7 +960,7 @@ impl Runtime {
             for b in &hex.bindings {
                 // Effect port subscribing to THIS event. A VERDICT bind
                 // (charged_by) carries success/failure ; a FIRE-AND-FORGET bind
-                // (voiced_by / tts — speech is heard, not awaited) carries
+                // (voiced_by — speech is heard, not awaited) carries
                 // neither. BOTH record an OutboundEvent and BOTH are consumed by
                 // the host ; fire-and-forget simply dispatches no verdict on
                 // delivery. Persistence binds (persisted_by) carry no `on`, so
@@ -1567,89 +1562,6 @@ impl Runtime {
             // tool-side error to bubble through the kernel hook and
             // break the original dispatch's return.
             let _ = cascade_outcome;
-        }
-    }
-
-    /// i-tts - :tts adapter resolver. Parallel to
-    /// `resolve_claude_tool_adapters` but for the typed `TtsAdapter`
-    /// family (declared at
-    /// `aggregates/framework/adapter_families/tts.hecksagon`,
-    /// behavior_kind `render_text_to_audio`). Fire-and-forget per the
-    /// family contract (`response_field :none`): render text to audio
-    /// via the resolved provider, NO follow-on cascade. Match is on
-    /// the typed `tts_adapters` list by `effective_trigger() ==
-    /// target` (mirrors the LLM/compute resolvers' typed walk, not
-    /// the claude_tool io_adapters string-kind walk).
-    #[cfg(not(target_arch = "wasm32"))]
-    fn resolve_tts_adapters(
-        &mut self,
-        result: &CommandResult,
-        command_name: &str,
-        dispatch_attrs: &HashMap<String, Value>,
-    ) {
-        if self.hecksagons.is_empty() { return; }
-        let debug = std::env::var("HECKS_DEBUG_TTS").is_ok();
-        let bare_command = command_name.rsplit('.').next().unwrap_or(command_name);
-        let target = format!("{}.{}", result.aggregate_type, bare_command);
-
-        // Snapshot every typed `:tts` adapter whose effective trigger
-        // (trigger_on only - `:tts` chains into nothing) matches the
-        // dispatched Aggregate.Command target.
-        let matched: Vec<crate::hecksagon_ir::TtsAdapter> = self.hecksagons.iter()
-            .flat_map(|h| h.tts_adapters.iter())
-            .filter(|a| a.effective_trigger() == Some(target.as_str()))
-            .cloned()
-            .collect();
-        if debug {
-            eprintln!("[tts:debug] resolve cmd={} target={} matched={}",
-                command_name, target, matched.len());
-        }
-        if matched.is_empty() { return; }
-
-        // attrs = aggregate state plus dispatch attrs (dispatch wins).
-        // Same overlay rationale as resolve_claude_tool_adapters: the
-        // behavior_kind trigger_attribute (`text`) is an event-only
-        // payload that may never be persisted onto aggregate state.
-        let state_clone: Option<AggregateState> = self
-            .find(&result.aggregate_type, &result.aggregate_id)
-            .cloned();
-        let mut base_attrs: HashMap<String, String> = HashMap::new();
-        if let Some(s) = state_clone.as_ref() {
-            for (k, v) in &s.fields {
-                base_attrs.insert(k.clone(), v.to_string());
-            }
-        }
-        for (k, v) in dispatch_attrs {
-            base_attrs.insert(k.clone(), v.to_string());
-        }
-
-        for a in &matched {
-            // Fold the adapter instance fields into the attrs the
-            // provider reads (voice_id/model/speed/...); `text` is
-            // already present from base_attrs.
-            let mut attrs = base_attrs.clone();
-            if let Some(v) = &a.voice_id { attrs.insert("voice_id".to_string(), v.clone()); }
-            if let Some(v) = &a.model { attrs.insert("model".to_string(), v.clone()); }
-            if let Some(v) = &a.speed { attrs.insert("speed".to_string(), v.clone()); }
-            if let Some(v) = &a.stability { attrs.insert("stability".to_string(), v.clone()); }
-            if let Some(v) = &a.similarity_boost { attrs.insert("similarity_boost".to_string(), v.clone()); }
-            if let Some(v) = &a.style { attrs.insert("style".to_string(), v.clone()); }
-            if let Some(v) = &a.cache_dir { attrs.insert("cache_dir".to_string(), v.clone()); }
-            if let Some(v) = &a.auto_play { attrs.insert("auto_play".to_string(), v.clone()); }
-            let provider = a.provider.as_deref().unwrap_or("elevenlabs");
-
-            let tts_result = tts_dispatcher::dispatch(provider, &attrs);
-            let err_tail = match (&tts_result.ok, &tts_result.error) {
-                (false, Some(msg)) => format!(" error={:?}", msg),
-                _ => String::new(),
-            };
-            // Fire-and-forget: single audit line, no result_into, no
-            // dispatch_cascade (`:tts` is `response_field :none`).
-            println!(
-                "[{}] [tts:{}] ok={} audio_path={:?}{}",
-                storehouse_log::now_iso8601(),
-                provider, tts_result.ok, tts_result.audio_path, err_tail
-            );
         }
     }
 

@@ -55,7 +55,6 @@ pub mod claude_tool_dispatcher;
 // `storehouse mcp` subcommand family in main.rs.
 pub mod mcp_dispatcher;
 pub mod sms_dispatcher;
-pub mod tts_dispatcher;
 // i569 — :web_tool adapter family kernel hook. Two behaviors :
 // perform_web_fetch (curl HTTP GET, URL-safety gated) and
 // perform_web_search (DuckDuckGo HTML-lite). Sibling to
