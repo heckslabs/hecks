@@ -179,6 +179,28 @@ def imperative_by_nature?(path)
     base == "build.rs"
 end
 
+# Adapter handlers are DECLARED BY a bluebook : every `.adapter` names its
+# out-of-process program via `handler "..."`. A file that IS a declared handler
+# — or the source that compiles to one — is not a gap : the .adapter declaration
+# IS the justification, exactly like a corpus-claimed file. Exempt categorically,
+# no marker (Chris, 2026-06-19). Match by stem-basename so a handler declared as
+# ".../tts-handler" (the compiled binary) also covers its tts-handler.rs /
+# tts-handler.rb source siblings. Handler names are distinctive (*-handler), so
+# basename matching is precise enough without resolving abs-vs-relative paths.
+def declared_handler_basenames
+  @declared_handler_basenames ||= Dir.glob("**/*.adapter").flat_map do |af|
+    next [] unless File.file?(af) && File.readable?(af)
+    File.readlines(af).filter_map do |line|
+      next unless line =~ /\bhandler\s+["']([^"']+)["']/
+      File.basename(Regexp.last_match(1)).sub(/\.[^.]+\z/, "")
+    end
+  end.uniq
+end
+
+def declared_handler?(path)
+  declared_handler_basenames.include?(File.basename(path).sub(/\.[^.]+\z/, ""))
+end
+
 def filter_code_files(paths)
   paths.select do |p|
     ext = File.extname(p).delete_prefix(".").downcase
@@ -191,7 +213,7 @@ def filter_code_files(paths)
     # back to the marker pathway for files the IR doesn't yet see
     # (the residual exempt_registry entries each carry a named
     # retirement arc in the inbox).
-    is_code && !imperative_by_nature?(p) && !ir_claimed?(p)
+    is_code && !imperative_by_nature?(p) && !declared_handler?(p) && !ir_claimed?(p)
   end
 end
 
