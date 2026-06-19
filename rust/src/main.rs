@@ -3638,6 +3638,14 @@ fn boot_serve_runtime(
     };
     let hecksagons = load_all_hecksagons(agg_dir);
     let mut rt = Runtime::boot_with_hecksagons(combined, Some(data_dir), hecksagons);
+    // i750 out-of-process-adapter pump — thread the dispatch root onto the
+    // runtime so pump_outbound_events can hand each detach-spawned handler the
+    // `<root>` it re-enters through (`storehouse <root> OutboundEvent.MarkDelivered …`).
+    // Absolute so the detached child's undefined cwd never matters.
+    rt.aggregates_root = std::fs::canonicalize(agg_dir)
+        .ok()
+        .map(|p| p.to_string_lossy().into_owned())
+        .or_else(|| Some(agg_dir.to_string()));
     storehouse::world::attach::apply_per_domain_world_dirs(&mut rt, agg_dir);
     register_llm_providers(&mut rt, agg_dir);
     storehouse::world::attach::attach_world_servers(&mut rt, agg_dir);
@@ -4055,6 +4063,14 @@ fn dispatch_hecksagon(agg_dir: &str, command: &str, attrs: std::collections::Has
     };
     let hecksagons = load_all_hecksagons(agg_dir);
     let mut rt = Runtime::boot_with_hecksagons(combined, Some(data_dir), hecksagons);
+    // i750 out-of-process-adapter pump — thread the dispatch root onto the
+    // runtime so pump_outbound_events can hand each detach-spawned handler the
+    // `<root>` it re-enters through (`storehouse <root> OutboundEvent.MarkDelivered …`).
+    // Absolute so the detached child's undefined cwd never matters.
+    rt.aggregates_root = std::fs::canonicalize(agg_dir)
+        .ok()
+        .map(|p| p.to_string_lossy().into_owned())
+        .or_else(|| Some(agg_dir.to_string()));
     storehouse::world::attach::apply_per_domain_world_dirs(&mut rt, agg_dir);
     register_llm_providers(&mut rt, agg_dir);
     storehouse::world::attach::attach_world_servers(&mut rt, agg_dir);
@@ -4145,6 +4161,11 @@ fn dispatch_hecksagon(agg_dir: &str, command: &str, attrs: std::collections::Has
         let dispatch_result = rt.dispatch_deferred(command, rt_attrs);
         rt.pump_outbox();
         rt.pump();
+        // i750 — the SECOND drain arm : detach-spawn the OUT-OF-PROCESS adapter
+        // handlers for any OutboundEvent this dispatch recorded. A single
+        // `Voice.Speak` now makes her speak out-of-process — no separate
+        // `storehouse host --once`.
+        rt.pump_outbound_events();
         rt.policy_engine.reset_in_flight(); // fresh cycle guard for any follow-on dispatch this process
         match dispatch_result {
             Ok(result) => {

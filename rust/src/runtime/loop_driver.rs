@@ -264,6 +264,11 @@ impl LoopDriver {
                     // between ticks or policies would fire only on tick 1.
                     self.runtime.pump_outbox();
                     self.runtime.pump();
+                    // i750 — second drain arm : detach-spawn out-of-process
+                    // adapter handlers for any OutboundEvent this tick recorded
+                    // (and re-pump pending ones across ticks — free retry).
+                    #[cfg(not(target_arch = "wasm32"))]
+                    self.runtime.pump_outbound_events();
                     self.runtime.policy_engine.reset_in_flight();
                 }
             }
