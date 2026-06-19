@@ -33,5 +33,13 @@ Hecks.hecksagon "ProcessHealth" do
   # bin/process_health_heal.mjs resolve identically whether the loop or
   # a manual dispatch fired them — same convention as inbox_poll.
 
-  adapter :memory
+  # Persistence : :heki, not :memory. The sweep fan-out runs OUT-OF-PROCESS
+  # (RunSweepOnSwept -> Process.Spawn bin/process_health_sweep), so its
+  # MarkAlive | MarkHanged | MarkDead dispatches are SEPARATE cold processes
+  # from the process_macrophage loop. Memory-backing the sentinels means each
+  # mark lives in a throwaway process and vanishes on exit — the loop never
+  # sees them and process_health_heal.mjs (which reads process_sentinel.heki)
+  # finds nothing. Durable heki is the shared medium that makes the
+  # sweep -> mark -> heal flow actually function across the three processes.
+  adapter :heki
 end
