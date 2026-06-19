@@ -9,7 +9,7 @@
 //!   `resolve(phrase, conception)` — look up phrase in the conception tree
 //!   `walk_phrases(conception)`    — collect every Aggregate.Command pair
 //!   `conception_root()`           — resolve hecks_conception/ directory
-//!   `info_dir()`                  — resolve HECKS_INFO / information/ dir
+//!   `info_dir()`                  — resolve the store / information dir
 //!
 //! Example:
 //!   ```ignore

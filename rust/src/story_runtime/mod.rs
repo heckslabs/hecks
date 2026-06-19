@@ -90,7 +90,7 @@ pub fn story_args_to_tokens(args: &str) -> Vec<String> {
 ///
 /// Parameters:
 ///   `story_ref` — the story identifier (e.g. "f15").
-///   `info_dir`  — resolved HECKS_INFO path (caller owns resolution).
+///   `info_dir`  — resolved store dir (caller owns resolution).
 ///   `router`    — phrase-dispatch fn so the module stays decoupled from main.
 ///
 /// Returns 0 on success, non-zero on first failure.
