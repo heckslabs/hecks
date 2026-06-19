@@ -472,6 +472,14 @@ Hecks.fixtures "RuntimeShape" do
       snippet_path: "codegen/runtime_shape/snippets/reaction_pump_outbox.rs.frag",
       description: "Runtime::pump_outbox — drain the persistent CascadeRun outbox: deliver each Active run's steps as their own transactions AND fire react_ports per delivered step so PM/policy steps that target :llm/compute/tool ports (e.g. the Dream PM's Dream.ProduceImage -> :dream_image) actually fire their adapter when delivered via the outbox pump, not just mutate state."
 
+    fixture "PumpOutboundEvents",
+      name: "pump_outbound_events",
+      file: "reaction",
+      order: 4,
+      body_kind: "verbatim_method",
+      snippet_path: "codegen/runtime_shape/snippets/reaction_pump_outbound_events.rs.frag",
+      description: "Runtime::pump_outbound_events (i750) — the SECOND arm of the drain : drain the OUT-OF-PROCESS OutboundEvent outbox (the messaging-port analog of CascadeRun) by Claim-before-spawn + DETACH-spawning the named adapter's handler program with the re-entry env contract (HECKS_STOREHOUSE_BIN/HECKS_ROOT/HECKS_DELIVERY_ID/...). The handler does the impure edge in its own process, re-enters via the door, and marks delivered. Spawn-and-return : the core never waits. v1 = Claim-before-spawn + skip-claimed ; stale-claim reclaim + attempts-cap deferred (need a claimed-at timestamp on the bluebook)."
+
     # file: query — cluster 7. Context-qualified read side : the (context, name)
     # lookups that disambiguate same-name aggregates across bluebooks (i142).
     fixture "AllQualified",

@@ -51,6 +51,11 @@ mod persistence_resolution;
 // i728 file-split cluster 4 — the event/outbox driving methods
 // (enqueue_and_drain, fire_driving_cron_ticks) generated into this child module.
 mod event_driving;
+// i750 out-of-process-adapter pump — `.world`→handler-child-env folding,
+// relocated from `run_host::config` so the OutboundEvent drain
+// (`reaction::pump_outbound_events`) resolves a handler's env without the
+// soon-to-retire standalone host. `run_host::config` re-exports `map_config`.
+pub mod adapter_env;
 // i728 file-split cluster 4b — Phase-3 reaction delivery (react, react_ports,
 // pump) generated into this child module.
 mod reaction;
@@ -341,6 +346,14 @@ pub struct Runtime {
     /// in the actor unit tests ; the bus-level entry point keeps the
     /// sync-feel contract so callers don't fork.
     pub mailbox_registry: actor::Mailboxes,
+    /// i750 out-of-process-adapter pump — the conception / aggregates ROOT the
+    /// runtime was booted against (the `<root>` a re-entering handler shells
+    /// `storehouse <root> ...` against). Set by the CLI dispatch path
+    /// (`dispatch_hecksagon`) after boot ; `pump_outbound_events` passes it to
+    /// each detach-spawned handler as `HECKS_ROOT`. None for library/test
+    /// callers that boot without a root — those leave OutboundEvents pending
+    /// (no handler to spawn into a root-less runtime).
+    pub aggregates_root: Option<String>,
 }
 
 impl Runtime {
@@ -578,6 +591,7 @@ impl Runtime {
             world_configs: Vec::new(),
             mailbox_drained: 0,
             mailbox_registry: actor::Mailboxes::new(),
+            aggregates_root: None,
         }
     }
 
