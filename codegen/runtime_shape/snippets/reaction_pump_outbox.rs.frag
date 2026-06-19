@@ -77,7 +77,7 @@
                     ) {
                         self.record_cascade_run(&r);
                         // Fire the impure adapter edge (compute / llm / claude_tool
-                        // / mcp / web / spawn / tts) for THIS delivered step, exactly
+                        // / mcp / web / spawn) for THIS delivered step, exactly
                         // as the top-level eager dispatch does after record_cascade_run
                         // (mod.rs dispatch -> react_ports). Without this, a PM- or
                         // policy-driven step that targets an :llm adapter (e.g. the

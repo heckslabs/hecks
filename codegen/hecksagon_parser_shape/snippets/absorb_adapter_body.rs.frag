@@ -38,19 +38,6 @@
                 hex.io_adapters.push(io);
             }
         }
-        // i-tts — sibling of `:llm` / `:compute`. Named form parses
-        // into a typed TtsAdapter ; a bare `adapter :tts, provider: :x`
-        // (no name:) falls back to io_adapter, same forwards-compat
-        // contract as the compute arm above.
-        "tts" => {
-            if let Some(ta) = parse_tts_adapter(rest) {
-                hex.tts_adapters.push(ta);
-            } else {
-                let mut io = IoAdapter { kind, options: parse_options(rest), on_events: vec![] };
-                for ev in extract_on_events(rest) { io.on_events.push(ev); }
-                hex.io_adapters.push(io);
-            }
-        }
         "memory" | "heki" => { hex.persistence = Some(kind); }
         // SQL persistence kinds — `adapter :sqlite, db: "app.db"` (and
         // the postgres/mysql siblings) route into persistence with the

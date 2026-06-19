@@ -37,7 +37,7 @@
 //! ## protocol — sentinel-prefixed result line
 //!
 //! `Runtime::dispatch` is NOT stdout-clean : the `:claude_tool` /
-//! `:exec` / `:tts` adapter resolvers and `storehouse_log` emit
+//! `:exec` adapter resolvers and `storehouse_log` emit
 //! free-form `println!` lines mid-dispatch. A naive newline-delimited
 //! protocol would interleave those with the result JSON and corrupt
 //! the stream. We therefore prefix the ONE result line with the ASCII

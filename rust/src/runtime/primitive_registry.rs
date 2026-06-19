@@ -1,5 +1,10 @@
 //! PrimitiveRegistry — runtime index of imperative kernel-floor leaves.
 //!
+//! [antibody-exempt: rust/src/runtime/primitive_registry.rs — the runtime
+//!  index of imperative kernel-floor leaves (Process.Spawn / ClaudeTool /
+//!  WebTool / ...). The index that makes each kernel dispatcher a first-
+//!  class bluebook record is itself kernel-floor glue, not a bluebook.]
+//!
 //! Sprint-14 (storehouse-primitive-conception) promotes each
 //! `[antibody-exempt]` kernel-floor dispatcher from an opaque Rust
 //! function into a first-class bluebook record (`Storehouse::Primitive`).
@@ -172,13 +177,6 @@ impl PrimitiveRegistry {
             "to:String,body:String",
             "sms_dispatcher::send_message",
         ));
-        // TTS — text-to-audio kernel hook.
-        self.register(PrimitiveSpec::new(
-            "Tts.Render",
-            "tts",
-            "text:String,voice:String",
-            "tts_dispatcher::render_text_to_audio",
-        ));
     }
 
     /// Insert a spec into the registry, keyed by name. Overwrites an
@@ -233,7 +231,7 @@ mod tests {
         let kinds: Vec<&str> = reg.iter().map(|s| s.kind.as_str()).collect();
         for kind in [
             "process", "claude_tool", "mcp_tool", "web_tool",
-            "compute", "llm", "shell", "sms", "tts",
+            "compute", "llm", "shell", "sms",
         ] {
             assert!(kinds.contains(&kind), "missing kind={}", kind);
         }
