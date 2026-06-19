@@ -127,7 +127,62 @@ fn effect_binding_records_one_outbound_event_on_emit() {
 }
 
 #[test]
-fn reply_binding_records_no_outbound_event() {
+fn fire_and_forget_effect_binding_records_outbound_event_with_no_verdict() {
+    // A voiced_by (tts) bind is FIRE-AND-FORGET : no `do success/failure end`.
+    // It must STILL record an OutboundEvent (so the standalone host runs the
+    // handler) — with EMPTY verdict commands, so the host dispatches nothing on
+    // delivery. Regression guard for the record_effect_outbound fix that dropped
+    // the `b.success.is_empty()` skip.
+    const SPEAKER: &str = r#"Hecks.bluebook "Speaker" do
+      aggregate "Voice" do
+        identified_by :id
+        attribute :id,   VoiceId
+        attribute :text, Text
+        value_object "VoiceId" do
+          attribute :value, String
+        end
+        value_object "Text" do
+          attribute :value, String
+        end
+        command "Speak" do
+          role "System"
+          attribute :id,   VoiceId
+          attribute :text, Text
+          then_set :text, to: :text
+          emits "Spoke"
+        end
+      end
+    end
+    "#;
+    let domain = parser::parse(SPEAKER);
+    let hecksagons = vec![
+        hecksagon_parser::parse(
+            "Hecks.family \"tts\" do\n  verb \"voiced_by\"\n  signal :effect\n  field :voice_id\nend\n",
+        ),
+        hecksagon_parser::parse("Hecks.adapter \"ElevenLabs\" do\n  family \"tts\"\nend\n"),
+        hecksagon_parser::parse(
+            "Hecks.hecksagon \"Speaker\" do\n  Speaker::Voice.voiced_by(\"ElevenLabs\", on: \"Spoke\")\nend\n",
+        ),
+    ];
+    let mut rt = Runtime::boot_with_hecksagons(domain, None, hecksagons);
+
+    let mut attrs = HashMap::new();
+    attrs.insert("id".to_string(), s("voice-1"));
+    attrs.insert("text".to_string(), s("hello"));
+    rt.dispatch("Speak", attrs).expect("Speak dispatches");
+
+    let deliveries = rt.all("OutboundEvent");
+    assert_eq!(deliveries.len(), 1, "a fire-and-forget bind records one OutboundEvent");
+    let d = deliveries[0];
+    assert_eq!(d.get("adapter"), &s("ElevenLabs"), "named for the tts adapter");
+    assert_eq!(d.get("event"), &s("Spoke"), "the triggering event");
+    assert_eq!(d.get("status"), &s("pending"), "awaiting the host");
+    assert_eq!(d.get("success_command"), &s(""), "fire-and-forget : no verdict");
+    assert_eq!(d.get("failure_command"), &s(""), "fire-and-forget : no verdict");
+}
+
+#[test]
+    fn reply_binding_records_no_outbound_event() {
     // persisted_by is a reply port (DI, in-process) — no event-out, no delivery.
     // No manual OutboundEvent merge : boot_with_hecksagons loads the framework
     // outbox SUBSTRATE automatically because an effect binding is present.
