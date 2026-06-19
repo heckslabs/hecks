@@ -14,5 +14,5 @@
 # the host runs whichever the deployment selects.
 Hecks.adapter "ElevenLabs" do
   family "tts"
-  handler "adapters/tts/tts-handler.rb"
+  handler "adapters/tts/tts-handler"
 end
