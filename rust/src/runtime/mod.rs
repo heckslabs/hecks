@@ -393,15 +393,18 @@ impl Runtime {
     );
 
     /// Merge the framework outbox aggregate into `domain` when (a) some
-    /// attached hecksagon declares an EFFECT binding (a bind carrying `into`)
-    /// and (b) the domain doesn't already declare OutboundEvent. The outbox is
-    /// needed exactly when an effect port exists ; an effect-free domain stays
-    /// untouched, and a domain that already carries OutboundEvent (the
-    /// conception, or an example that copied it) wins — no double-load.
+    /// attached hecksagon declares an EFFECT binding (a bind carrying `on:` —
+    /// a verdict `charged_by(... ) do success/failure end` OR a fire-and-forget
+    /// `voiced_by(..., on:)` with no verdict) and (b) the domain doesn't already
+    /// declare OutboundEvent. The outbox is needed exactly when an effect port
+    /// exists ; an effect-free domain stays untouched, and a domain that already
+    /// carries OutboundEvent (the conception, or an example that copied it) wins
+    /// — no double-load. Discriminator is `on` (the triggering event), NOT a
+    /// verdict : persistence binds carry no `on`, fire-and-forget binds do.
     fn ensure_outbox_substrate(mut domain: Domain, hecksagons: &[Hecksagon]) -> Domain {
         let has_effect = hecksagons
             .iter()
-            .any(|h| h.bindings.iter().any(|b| !b.success.is_empty()));
+            .any(|h| h.bindings.iter().any(|b| !b.on.is_empty()));
         if !has_effect || domain.aggregates.iter().any(|a| a.name == "OutboundEvent") {
             return domain;
         }
@@ -939,8 +942,14 @@ impl Runtime {
         let mut records: Vec<HashMap<String, Value>> = Vec::new();
         for hex in &self.hecksagons {
             for b in &hex.bindings {
-                // Effect port subscribing to THIS event : has `on` + a verdict block.
-                if b.on != event.name || b.success.is_empty() {
+                // Effect port subscribing to THIS event. A VERDICT bind
+                // (charged_by) carries success/failure ; a FIRE-AND-FORGET bind
+                // (voiced_by / tts — speech is heard, not awaited) carries
+                // neither. BOTH record an OutboundEvent and BOTH are consumed by
+                // the host ; fire-and-forget simply dispatches no verdict on
+                // delivery. Persistence binds (persisted_by) carry no `on`, so
+                // they never match an event name here.
+                if b.on != event.name {
                     continue;
                 }
                 match adapter_family.get(&b.adapter) {
@@ -959,7 +968,11 @@ impl Runtime {
                         format!("{}::{}", context, cmd)
                     }
                 };
-                let success = qualify(&b.success);
+                // Guard BOTH verdicts : a fire-and-forget bind has empty
+                // success/failure, and qualify("") would wrongly yield
+                // "Context::". Empty stays empty so the host takes the
+                // fire-and-forget path (dispatch no verdict).
+                let success = if b.success.is_empty() { String::new() } else { qualify(&b.success) };
                 let failure = if b.failure.is_empty() { String::new() } else { qualify(&b.failure) };
                 let mut data_obj = serde_json::Map::new();
                 for (k, v) in &event.data {
