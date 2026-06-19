@@ -13,9 +13,13 @@
 #
 # ADAPTER-HOST CONTRACT (mirrors examples/adapter_host_demo/stripe-handler) :
 #   * STDIN  : the trigger event payload as JSON (carries `text` to render).
-#   * ENV    : the adapter instance config the host folds in from .world —
-#              VOICE_ID (required), MODEL, SPEED, STABILITY, SIMILARITY_BOOST,
-#              STYLE, CACHE_DIR, AUTO_PLAY, PROVIDER.
+#   * ENV    : the adapter instance config the host folds in from .world, under
+#              the canonical <FAMILY>_<FIELD> names the run_host config mapper
+#              emits — TTS_VOICE_ID (required), TTS_MODEL, TTS_SPEED,
+#              TTS_STABILITY, TTS_SIMILARITY_BOOST, TTS_STYLE, TTS_CACHE_DIR,
+#              TTS_AUTO_PLAY. There is no provider knob : THIS handler IS the
+#              elevenlabs handler (the provider is the adapter's identity, not
+#              config).
 #   * EXIT   : 0 always on successful SPAWN. `:tts` is fire-and-forget
 #              (response_field :none) — there is no success/failure verdict and
 #              no stdout verdict data. Pre-flight failures exit 0 too, silently :
@@ -39,9 +43,6 @@ def silent_exit(reason)
   exit 0
 end
 
-provider = (ENV["PROVIDER"] || "elevenlabs").strip
-silent_exit("provider #{provider.inspect} not implemented (only elevenlabs)") unless provider == "elevenlabs"
-
 # ── text : from the event payload on stdin ──
 raw = $stdin.read.to_s
 payload = raw.empty? ? {} : (JSON.parse(raw) rescue {})
@@ -51,13 +52,13 @@ silent_exit("no `text` in event payload") if text.empty?
 home = ENV["HOME"].to_s
 
 # ── provider config : voice_id required, the rest fall back to the WwS1 voice ──
-voice_id = ENV["VOICE_ID"].to_s
-silent_exit("no VOICE_ID (set it on the :tts adapter / .world)") if voice_id.empty?
-model   = (ENV["MODEL"]  || "eleven_turbo_v2_5")
-speed   = (ENV["SPEED"]  || "1.2")
-stability  = ENV["STABILITY"]
-similarity = ENV["SIMILARITY_BOOST"]
-style      = ENV["STYLE"]
+voice_id = ENV["TTS_VOICE_ID"].to_s
+silent_exit("no TTS_VOICE_ID (set voice_id on the :tts adapter / .world)") if voice_id.empty?
+model   = (ENV["TTS_MODEL"]  || "eleven_turbo_v2_5")
+speed   = (ENV["TTS_SPEED"]  || "1.2")
+stability  = ENV["TTS_STABILITY"]
+similarity = ENV["TTS_SIMILARITY_BOOST"]
+style      = ENV["TTS_STYLE"]
 
 # ── api key : silent fail when absent (no fallback voice) ──
 key_path = File.join(home, ".config", "miette", "elevenlabs.key")
@@ -65,7 +66,7 @@ api_key = (File.read(key_path).strip rescue "")
 silent_exit("cannot read #{key_path}") if api_key.empty?
 
 # ── cache dir : resolve ~/ and create on demand ──
-cache_raw = (ENV["CACHE_DIR"] || "~/.config/miette/audio")
+cache_raw = (ENV["TTS_CACHE_DIR"] || "~/.config/miette/audio")
 cache_dir = cache_raw.sub(/\A~/, home)
 require "fileutils"
 FileUtils.mkdir_p(cache_dir)
@@ -85,7 +86,7 @@ settings << ",\"style\":#{f(style, 0.0)}" if style
 body = { "text" => text, "model_id" => model }.to_json
 body = body.sub(/\}\z/, ",\"voice_settings\":{#{settings}}}")
 url = "https://api.elevenlabs.io/v1/text-to-speech/#{voice_id}"
-auto_play = %w[true 1 yes].include?((ENV["AUTO_PLAY"] || "true").downcase)
+auto_play = %w[true 1 yes].include?((ENV["TTS_AUTO_PLAY"] || "true").downcase)
 
 lock_dir = File.join(cache_dir, ".tts_play.lock")
 lock_pid = File.join(lock_dir, "pid")

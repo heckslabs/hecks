@@ -47,6 +47,7 @@
 //! whole tick — acceptable for v1, NOT parallelism. A future version moves
 //! exec onto a bounded thread pool with the per-adapter timeout from `.world`.
 
+mod config;
 mod exec;
 
 use crate::runtime::{Runtime, Value};
@@ -151,14 +152,17 @@ pub fn run_host_pass(rt: &mut Runtime) -> usize {
         }
         acted += 1;
 
-        // b. Resolve the adapter's handler + `.world` config, exec off-core.
-        let (handler, _family) = rt.adapter_handler(&d.adapter).unwrap_or_default();
-        let config = rt.adapter_world_config(&d.adapter);
+        // b. Resolve the adapter's handler + family, map its `.world` block
+        //    onto the canonical child env (field-source convention), exec
+        //    off-core.
+        let (handler, family) = rt.adapter_handler(&d.adapter).unwrap_or_default();
         if handler.is_empty() {
             mark_failed(rt, &d.delivery_id, &format!("no handler for adapter {}", d.adapter));
             continue;
         }
-        let outcome = exec::run_handler(&handler, &d.payload, &config);
+        let world = rt.adapter_world_config(&d.adapter);
+        let env = config::map_config(&family, &world, &rt.family_fields(&family));
+        let outcome = exec::run_handler(&handler, &d.payload, &env);
 
         match outcome {
             Err(e) => {
