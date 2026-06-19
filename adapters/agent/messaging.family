@@ -1,0 +1,14 @@
+# messaging — an impure-boundary PORT for inter-agent messaging, declared once.
+# Two-color rule : sync domain, async adapter, NEVER a lock.
+#
+# Signal is REPLY : the adapter sends a message to a running agent and RETURNS the
+# agent's reply to the synchronous domain. Unlike tts (fire-and-forget effect) the
+# round-trip rides one how-verb — `messaged_by` — and the reply re-enters as a value.
+# Because the adapter runs OUT-OF-PROCESS it may BLOCK on the agent's reply (the
+# domain already moved on at the bus boundary). The medium is storehouse itself
+# (i708 stigmergy) : the AgentInbox blackboard, not a direct channel.
+Hecks.family "messaging" do
+  verb   "messaged_by"
+  signal :reply
+  produces :reply
+end

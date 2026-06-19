@@ -1,0 +1,91 @@
+Hecks.bluebook "AgentInbox" do
+  vision "The durable blackboard that makes Tools::AgentTool.SendMessage REAL — inter-agent messaging through storehouse (i708 stigmergy), not the harness's missing SendMessage. The runtime never had an agent-resume API, so agent_tool.hecksagon's adapter was a canned 'agent resumed' stub. AgentMessage is the substrate that replaces the stub : a sender records a durable message addressed to an agent id ; the target agent reads it on its poll loop and Replies ; the sender's out-of-process adapter binary block-polls the reply query until it lands and returns it. The bus is the medium, the .heki record is the trace ; no orchestrator threads prompts between agents."
+  category "framework"
+
+  aggregate "AgentMessage" do
+    description "One message addressed to a running agent by id, durable on the blackboard. Lifecycle : sent (recorded, unread) -> read (the target agent picked it up off its Unread poll) -> replied (the target agent posted its answer). The sender's send-message adapter binary block-polls the `answered` query for this id ; the reply is durable aggregate state, the binary only gives it a synchronous face."
+    identified_by :id
+
+    attribute :agent_id, AgentId
+    attribute :body,     Body
+    attribute :mid,      Mid,    default: ""
+    attribute :reply,    Reply, default: ""
+    attribute :status,   Status, default: "sent" do
+      transition "MarkRead" => "read"
+      transition "Reply"    => "replied"
+    end
+
+    value_object "AgentId" do
+      # The target agent's id or name — the same handle the Agent tool
+      # mints when it spawns an agent. Addressing is by id, not by a
+      # direct channel : the sender never holds a reference to the agent.
+      attribute :value, String
+    end
+
+    value_object "Body" do
+      # The message text the sender wants the target agent to receive.
+      # Large bodies ride the event payload ; only this lands in state.
+      attribute :value, String
+    end
+
+    value_object "Mid" do
+      # A READABLE echo of the message's identity id, minted == the id by the
+      # sender. A query returns an aggregate's FIELDS but not its identity, so
+      # without this echo the target agent could read the message off Unread but
+      # not know which id to Reply to. The agent reads mid, then Reply(id=mid).
+      attribute :value, String
+    end
+
+    value_object "Reply" do
+      # The target agent's answer, written by Reply. Empty until replied ;
+      # the sender's block-poll returns this once status == replied.
+      attribute :value, String
+    end
+
+    value_object "Status" do
+      # sent | read | replied — String not Boolean per heki's String-only
+      # serializer. Drives the Unread / answered queries the poll loops read.
+      attribute :value, String
+    end
+
+    command "Send" do
+      role "Agent"
+      goal "Post a message to a running agent by id, durable on the blackboard"
+      attribute :agent_id, AgentId
+      attribute :body,     Body
+      attribute :mid,      Mid
+      then_set :agent_id, to: :agent_id
+      then_set :body,     to: :body
+      then_set :mid,      to: :mid
+      emits "AgentMessageSent"
+    end
+
+    command "MarkRead" do
+      role "Agent"
+      goal "The target agent marks the message read when it picks it up off its Unread poll"
+      reference_to AgentMessage
+      emits "AgentMessageRead"
+    end
+
+    command "Reply" do
+      role "Agent"
+      goal "The target agent records its answer ; the sender's block-poll returns it"
+      reference_to AgentMessage
+      attribute :reply, Reply
+      then_set :reply, to: :reply
+      emits "AgentMessageReplied"
+    end
+
+    # The target agent polls this on its loop : every message addressed to
+    # it that it hasn't read yet. It MarkReads each, acts, and Replies.
+    query "Unread" do |agent_id|
+      where(agent_id: agent_id, status: "sent")
+    end
+
+    # The sender's adapter binary block-polls this for the message id it
+    # Sent : empty until the target agent Replies, then carries the reply.
+    query "Answered" do |id|
+      where(id: id, status: "replied")
+    end
+  end
+end

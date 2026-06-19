@@ -1,0 +1,10 @@
+# Agent — a concrete messaging adapter. Declares its family (messaging) — the
+# inverted arrow. Named for its IDENTITY (the agent it reaches), not its transport :
+# that the handler routes through the AgentInbox blackboard + block-polls is HOW it
+# messages, never the adapter's name. Always async, never locks ; CAN block (it runs
+# out-of-process). The handler is the compiled send-message bin : mint a correlation
+# id, dispatch AgentMessage.Send, block-poll `state` for the reply, print it.
+Hecks.adapter "Agent" do
+  family "messaging"
+  handler "adapters/agent/send-message"
+end
