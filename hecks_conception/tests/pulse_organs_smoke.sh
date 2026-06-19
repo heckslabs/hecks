@@ -99,8 +99,11 @@ done
 mkdir -p "$TMP/information"
 cat > "$TMP/bluebooks/pulse_organs_smoke.world" <<EOF
 Hecks.world "PulseOrgansSmoke" do
+  # dir :default keys the store by THIS conception's directory. The tmpdir is
+  # not under ~/Projects, so :default co-locates the store at <tmpdir>/.heki —
+  # automatically isolated from the live ~/.heki, no HECKS_INFO, no literal path.
   heki do
-    dir "$TMP/information"
+    dir :default
   end
 end
 EOF
@@ -109,9 +112,9 @@ fail() { echo "FAIL — $1"; exit 1; }
 
 # Run the loop driver for ~10 ticks. --every 1s + 10.5s sleep gives
 # the PM ten BodyPulse self-loops to fan out into the organ stores.
-# HECKS_INFO is the canonical override for resolve_info_dir (i154 ;
-# *.world's heki.dir is documentation-only since that landing).
-HECKS_INFO="$TMP/information" "$HECKS" run-loop "$TMP/bluebooks" \
+# Persistence is configured by the *.world's `dir :default` above (keyed by
+# this tmpdir) — no HECKS_INFO ; the world is the single store authority.
+"$HECKS" run-loop "$TMP/bluebooks" \
   --every 1s \
   --emit BodyPulse:Pulse:pulse \
   >"$TMP/run-loop.log" 2>&1 &
@@ -129,18 +132,13 @@ count_records() {
 # find_world_heki_dir resolves *.world's `heki { dir ... }` to set the
 # data_dir ; our world points it at $TMP/information. The organ stores
 # land at $TMP/information/<aggregate>/<aggregate>.heki.
-INFO="$TMP/information"
+# The :default world co-locates the store at <tmpdir>/.heki, keyed by the
+# conception dir. Per-aggregate stores land at <store>/<aggregate>/<aggregate>.heki.
+INFO="$TMP/bluebooks/.heki"
 synapse_heki="$INFO/synapse/synapse.heki"
 signal_heki="$INFO/signal/signal.heki"
 focus_heki="$INFO/focus/focus.heki"
 remains_heki="$INFO/remains/remains.heki"
-
-# The runtime may also write flat (no nested dir) when the world's heki
-# block isn't picked up — fall back to flat paths if nested is empty.
-[ ! -f "$synapse_heki" ] && [ -f "$INFO/synapse.heki" ] && synapse_heki="$INFO/synapse.heki"
-[ ! -f "$signal_heki" ]  && [ -f "$INFO/signal.heki" ]  && signal_heki="$INFO/signal.heki"
-[ ! -f "$focus_heki" ]   && [ -f "$INFO/focus.heki" ]   && focus_heki="$INFO/focus.heki"
-[ ! -f "$remains_heki" ] && [ -f "$INFO/remains.heki" ] && remains_heki="$INFO/remains.heki"
 
 synapse_count=$(count_records "$synapse_heki")
 signal_count=$(count_records "$signal_heki")

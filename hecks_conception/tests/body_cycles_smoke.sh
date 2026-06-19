@@ -57,10 +57,19 @@ if [ -d "$MIETTE_BODY" ]; then
   find "$MIETTE_BODY" -name "*.bluebook" -exec ln -sf {} "$TMP/hecks_conception/aggregates/" \;
 fi
 
-INFO="$TMP/hecks_conception/information"
 AGG="$TMP/hecks_conception/aggregates"
 
-export HECKS_INFO="$INFO"
+# A *.world with `dir :default` keyed by THIS conception's directory. The tmpdir
+# is not under ~/Projects, so :default co-locates the store at <aggregates>/.heki
+# — automatically isolated from the live ~/.heki, no HECKS_INFO, no literal path.
+cat > "$TMP/hecks_conception/body_cycles_smoke.world" <<EOF
+Hecks.world "BodyCyclesSmoke" do
+  heki do
+    dir :default
+  end
+end
+EOF
+INFO="$AGG/.heki"
 
 fail() { echo "FAIL — $1"; "$HECKS" heki read "$STORE" 2>/dev/null | sed 's/^/    /'; exit 1; }
 

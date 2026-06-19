@@ -135,12 +135,12 @@ fn stamp_aggregate(rt: &mut Runtime, r: &Report) {
 /// When relative, we walk up from the script's directory looking for a
 /// directory that contains `<root>/` — that's the conception root.
 ///
-/// Reads `HECKS_INFO` from the environment as an override. Tests (e.g.
-/// `status_golden.sh`) seed a tmpdir and export `HECKS_INFO=<tmpdir>`
-/// so status.sh reads from the seeded dir rather than live state.
+/// Resolves the heki store dir from the WORLD (resolve_fs_root_with) — no
+/// HECKS_INFO env override (removed). The status report reads the SAME folder
+/// the dispatch writer resolves, off the conception's :default/realm world.
+/// The env_override seam below stays for in-process test injection (not env).
 fn resolve_fs_root(adapter: &IoAdapter, script_path: &str) -> String {
-    let override_dir = std::env::var("HECKS_INFO").ok();
-    resolve_fs_root_with(adapter, script_path, override_dir.as_deref())
+    resolve_fs_root_with(adapter, script_path, None)
 }
 
 /// Pure core of [`resolve_fs_root`], factored out so tests can inject the
@@ -155,7 +155,7 @@ pub(crate) fn resolve_fs_root_with(
     if let Some(v) = env_override {
         if !v.is_empty() { return v.to_string(); }
     }
-    // World resolution (when HECKS_INFO is unset) — fold onto the ONE
+    // World resolution (when no override is injected) — fold onto the ONE
     // canonical store resolver so the status report reads the SAME folder
     // the dispatch writer (find_world_heki_dir) and the state reader
     // (resolve_info_dir) resolve. Presence-switched : returns None unless
