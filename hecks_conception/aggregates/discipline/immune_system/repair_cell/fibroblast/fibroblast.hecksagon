@@ -27,10 +27,11 @@ Hecks.hecksagon "Fibroblast" do
   # mode the fibroblast disciplines against.
   #
   # cwd contract : the process-spawn primitive (exec_dispatcher leaf)
-  # inherits the runtime process cwd. The script resolves all state
-  # paths from $HECKS_INFO (always set by the runtime) and the
-  # aggregates root from its own location, so it works whether a loop
-  # member or a manual dispatch fired the sweep.
+  # inherits the runtime process cwd. The script reads the open queue
+  # through the Fibroblast.open_healings query against its own aggregates
+  # root (resolved from the script's location) — the world (dir :default)
+  # is the single store authority, so it works whether a loop member or a
+  # manual dispatch fired the sweep. No HECKS_INFO.
 
-  adapter :memory
+  adapter :heki
 end

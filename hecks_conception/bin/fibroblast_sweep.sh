@@ -25,18 +25,15 @@
 # Usage (normally invoked by the :exec dispatcher, not by hand):
 #   bash bin/fibroblast_sweep.sh
 #
-# Env / paths:
-#   HECKS_INFO       — state dir holding the .heki stores (set by runtime)
-#   storehouse       — the runtime CLI on PATH (dispatch + heki read)
-#   aggregates root  — derived from this script's own location
+# Env / paths : `storehouse` (CLI on PATH) + aggregates root (from this
+# script's location). The world (dir :default) is the store authority — the
+# open queue is read via the open_healings query, never HECKS_INFO.
 
 set -euo pipefail
 
 # ── Resolve paths ──────────────────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"          # the aggregates root (hecks_conception)
-INFO="${HECKS_INFO:-$ROOT/information}"
-FIBRO_HEKI="$INFO/fibroblast/fibroblast.heki"
 NOW="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
 log() { echo "[fibroblast_sweep] $*"; }
@@ -46,25 +43,25 @@ dispatch() {
   storehouse "$ROOT" "$@" >/dev/null 2>&1
 }
 
-if [ ! -f "$FIBRO_HEKI" ]; then
-  log "no fibroblast store at $FIBRO_HEKI — nothing to sweep"
-  echo "swept 0 open healings (no store)"
-  exit 0
-fi
-
 # ── Enumerate open healings ────────────────────────────────────────
-# Open := closed_at empty (array []) AND it is a REAL healing, not a
-# Sweep audit row. A Sweep row carries no signal_aggregate (the tick
-# sets only signal_id="sweep" + started_at), so we require a non-empty
-# signal_aggregate to qualify as a healing to act on.
-OPEN_IDS="$(storehouse heki read "$FIBRO_HEKI" \
-  | jq -r 'to_entries[]
-           | select((.value.closed_at | (. == null or . == [] or . == "")))
-           | select((.value.signal_aggregate // "") | (. != "" and . != []))
-           | select((.value.signal_id // "") | test("sweep") | not)
-           | .key')"
+# Read the open queue through the Fibroblast aggregate's OWN open_healings
+# query — the world (dir :default) is the store authority, no HECKS_INFO. The
+# query has no where-clause so it returns EVERY record ; we filter in jq :
+#   * normalize .state (runtime renders one record as object, many as array) ;
+#   * keep only OPEN rows (closed_at empty == "[0 items]") so a swept healing
+#     never re-enters the loop ;
+#   * drop the Sweep audit row, keep only real healings (signal_aggregate set).
+# Emit "<signal_id_raw>\t<signal_aggregate_raw>" per healing.
+ROWS="$(storehouse query "$ROOT" Fibroblast::Fibroblast.open_healings 2>/dev/null \
+  | jq -r '
+      (.state | if type == "array" then . else [.] end)
+      | .[]
+      | select((.closed_at // "[0 items]")        | test("\\[0 items\\]"))
+      | select((.signal_aggregate // "[0 items]") | test("\\[0 items\\]") | not)
+      | select((.signal_id // "")                 | test("sweep") | not)
+      | [.signal_id, .signal_aggregate] | @tsv')"
 
-if [ -z "$OPEN_IDS" ]; then
+if [ -z "$ROWS" ]; then
   log "no open healings"
   echo "swept 0 open healings"
   exit 0
@@ -74,13 +71,15 @@ closed=0
 declined=0
 
 # ── Heal each open record ──────────────────────────────────────────
-while IFS= read -r ID; do
-  [ -z "$ID" ] && continue
-  REC="$(storehouse heki read "$FIBRO_HEKI" | jq -c --arg id "$ID" '.[$id]')"
-  SIG_AGG="$(echo "$REC" | jq -r '.signal_aggregate // ""' | sed -n 's/.*name: \([^}]*\)}.*/\1/p' | tr -d ' ')"
-  SIG_ID="$(echo "$REC" | jq -r '.signal_id // ""' | sed -n 's/.*value: \([^}]*\)}.*/\1/p' | tr -d ' ')"
-  [ -z "$SIG_ID" ] && SIG_ID="$ID"
-  log "open healing id=$ID signal_aggregate=$SIG_AGG signal_id=$SIG_ID"
+# Each ROWS line is "<signal_id_raw>\t<signal_aggregate_raw>" straight from
+# the query — no per-id re-read. Parse the VO wrappers ({value: …}/{name: …})
+# the same way the query renders them.
+while IFS=$'\t' read -r SIG_ID_RAW SIG_AGG_RAW; do
+  [ -z "$SIG_ID_RAW" ] && continue
+  SIG_AGG="$(echo "$SIG_AGG_RAW" | sed -n 's/.*name: \([^}]*\)}.*/\1/p' | tr -d ' ')"
+  SIG_ID="$(echo "$SIG_ID_RAW"  | sed -n 's/.*value: \([^}]*\)}.*/\1/p' | tr -d ' ')"
+  [ -z "$SIG_ID" ] && SIG_ID="$SIG_ID_RAW"
+  log "open healing signal_aggregate=$SIG_AGG signal_id=$SIG_ID"
 
   if [ "$SIG_AGG" = "NavSitemapParity" ] && [[ "$SIG_ID" == nsp:* ]]; then
     # ── Mechanical strategy : nav_sitemap_close ──────────────────────
@@ -93,7 +92,7 @@ while IFS= read -r ID; do
     # of colons, target is always /-rooted).
     log "strategy=nav_sitemap_close (mechanical, verifiable)"
     dispatch "Fibroblast::Fibroblast.SelectStrategy" \
-      signal_id="{value: $SIG_ID}" strategy="{name: nav_sitemap_close}"
+      id="$SIG_ID" strategy="{name: nav_sitemap_close}"
 
     WORK="${SIG_ID#nsp:}"            # "<site_root>:<target_path>"
     SITE_ROOT="${WORK%:*}"           # everything before the last colon
@@ -104,9 +103,9 @@ while IFS= read -r ID; do
       reason="nav_sitemap_close aborted: cannot resolve sitemap from work order '$SIG_ID' (sitemap '$SITEMAP' missing) — apply nothing"
       log "$reason — declining"
       dispatch "Fibroblast::Fibroblast.Decline" \
-        signal_id="{value: $SIG_ID}" reason="{value: $reason}" declined_at="{value: $NOW}"
+        id="$SIG_ID" reason="{value: $reason}" declined_at="{value: $NOW}"
       dispatch "Fibroblast::Fibroblast.RecordOutcome" \
-        signal_id="{value: $SIG_ID}" outcome="{status: declined, reason: $reason}" recorded_at="{value: $NOW}"
+        id="$SIG_ID" outcome="{status: declined, reason: $reason}" recorded_at="{value: $NOW}"
       declined=$((declined+1))
       continue
     fi
@@ -132,9 +131,9 @@ while IFS= read -r ID; do
       reason="nav_sitemap_close: wrote entry $TARGET, drift verified cleared (uncommitted working-tree change for human review)"
       log "VERIFIED clean — closing. $reason"
       dispatch "Fibroblast::Fibroblast.Heal" \
-        signal_id="{value: $SIG_ID}" commit_sha="{value: v1-uncommitted}" healed_at="{value: $NOW}"
+        id="$SIG_ID" commit_sha="{value: v1-uncommitted}" healed_at="{value: $NOW}"
       dispatch "Fibroblast::Fibroblast.RecordOutcome" \
-        signal_id="{value: $SIG_ID}" outcome="{status: closed, reason: $reason}" recorded_at="{value: $NOW}"
+        id="$SIG_ID" outcome="{status: closed, reason: $reason}" recorded_at="{value: $NOW}"
       closed=$((closed+1))
     else
       # Revert : apply nothing if we cannot verify.
@@ -142,9 +141,9 @@ while IFS= read -r ID; do
       reason="nav_sitemap_close: $TARGET still absent after edit — reverted, surfacing to human"
       log "VERIFY FAILED — reverted. $reason"
       dispatch "Fibroblast::Fibroblast.Decline" \
-        signal_id="{value: $SIG_ID}" reason="{value: $reason}" declined_at="{value: $NOW}"
+        id="$SIG_ID" reason="{value: $reason}" declined_at="{value: $NOW}"
       dispatch "Fibroblast::Fibroblast.RecordOutcome" \
-        signal_id="{value: $SIG_ID}" outcome="{status: declined, reason: $reason}" recorded_at="{value: $NOW}"
+        id="$SIG_ID" outcome="{status: declined, reason: $reason}" recorded_at="{value: $NOW}"
       declined=$((declined+1))
     fi
   else
@@ -163,13 +162,13 @@ while IFS= read -r ID; do
     reason="$strat: $proposed"
     log "ambiguous signal_aggregate=$SIG_AGG — DECLINE (apply nothing). $reason"
     dispatch "Fibroblast::Fibroblast.SelectStrategy" \
-      signal_id="{value: $SIG_ID}" strategy="{name: $strat}"
+      id="$SIG_ID" strategy="{name: $strat}"
     dispatch "Fibroblast::Fibroblast.Decline" \
-      signal_id="{value: $SIG_ID}" reason="{value: $reason}" declined_at="{value: $NOW}"
+      id="$SIG_ID" reason="{value: $reason}" declined_at="{value: $NOW}"
     dispatch "Fibroblast::Fibroblast.RecordOutcome" \
-      signal_id="{value: $SIG_ID}" outcome="{status: declined, reason: $reason}" recorded_at="{value: $NOW}"
+      id="$SIG_ID" outcome="{status: declined, reason: $reason}" recorded_at="{value: $NOW}"
     declined=$((declined+1))
   fi
-done <<< "$OPEN_IDS"
+done <<< "$ROWS"
 
 echo "swept: closed=$closed declined=$declined"
