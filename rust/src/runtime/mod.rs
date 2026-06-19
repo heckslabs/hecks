@@ -2157,10 +2157,32 @@ impl Runtime {
         None
     }
 
+    /// The config FIELDS a family declares — `(name, source)` pairs, source
+    /// being `direct` | `env` | `secret` (empty defaults to direct). The
+    /// standalone host (`run_host::config::map_config`) consults these to map a
+    /// `.world` block onto the handler child's env per the field-source
+    /// convention. Walks the loaded hecksagons' families (sibling of
+    /// `adapter_handler`) ; returns empty when the family isn't found.
+    pub fn family_fields(&self, family: &str) -> Vec<(String, String)> {
+        for hex in &self.hecksagons {
+            for f in &hex.families {
+                if f.name == family {
+                    return f
+                        .fields
+                        .iter()
+                        .map(|fld| (fld.name.clone(), fld.source.clone()))
+                        .collect();
+                }
+            }
+        }
+        Vec::new()
+    }
+
     /// The per-adapter `.world` config (key→value pairs) the host folds into
-    /// the handler child's environment. Empty when no `.world` binds this
-    /// adapter (the demo case — the handler then takes its built-in default
-    /// path). See `run_host` for the env-name mapping limitation.
+    /// the handler child's environment, AFTER `run_host::config::map_config`
+    /// applies the family field-source convention. Empty when no `.world` binds
+    /// this adapter (the demo case — the handler then takes its built-in
+    /// default path).
     pub fn adapter_world_config(&self, adapter_name: &str) -> Vec<(String, String)> {
         self.world_adapter_bindings
             .iter()

@@ -21,26 +21,25 @@ pub struct HandlerOutcome {
     pub verdict_pairs: Vec<(String, String)>,
 }
 
-/// Exec the handler at `path`, payload on stdin, `config` folded into the env.
-/// Returns Err(message) on a spawn / I/O failure (the host treats that as a
-/// retryable transport error) ; Ok on a clean exit (success flag = exit==0).
+/// Exec the handler at `path`, payload on stdin, `env` folded into the child
+/// environment. Returns Err(message) on a spawn / I/O failure (the host treats
+/// that as a retryable transport error) ; Ok on a clean exit (success flag =
+/// exit==0).
 ///
-/// CONFIG→ENV LIMITATION (v1) : the `.world` key/value pairs are folded into
-/// the child env VERBATIM (key uppercased is NOT done — the value is set under
-/// the literal `.world` key). The family's FamilyField `source` semantics
-/// (direct vs env vs secret) and the mapping from a `.world` key (`endpoint`)
-/// to the handler's expected env-var NAME (`PIZZAS_PAYMENT_ENDPOINT`) are NOT
-/// yet wired. Today the demo has no `.world`, so `config` is empty and the
-/// handler takes its built-in demo-authorize path. Wiring the field-source +
-/// env-name mapping is the remaining plumbing (the 3rd "discovery" port).
+/// `env` arrives as proper (env_name, value) pairs — `run_host::config::map_config`
+/// has already applied the family field-source convention (canonical
+/// `<FAMILY>_<FIELD>` names ; env/secret fields inherited, not passed). env /
+/// secret fields the handler reads come in via the inherited parent env
+/// (`Command` inherits it by default). The defensive quote-strip below is a
+/// belt-and-suspenders backstop ; map_config already strips direct values.
 pub fn run_handler(
     path: &str,
     payload: &str,
-    config: &[(String, String)],
+    env: &[(String, String)],
 ) -> Result<HandlerOutcome, String> {
     let mut cmd = Command::new(path);
-    for (k, v) in config {
-        // Strip surrounding quotes the .world parser keeps on string literals.
+    for (k, v) in env {
+        // Defensive : strip any surrounding quotes still on a value.
         let val = v.trim_matches('"');
         cmd.env(k, val);
     }
