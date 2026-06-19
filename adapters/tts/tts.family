@@ -1,0 +1,28 @@
+# tts — an impure-boundary PORT for text-to-speech, declared once and used by any
+# domain that speaks (Voice). Two-color rule : sync domain, async adapter, NEVER a
+# lock — every async concern lives at the adapter edge, never in the synchronous core.
+#
+# Signal is EFFECT, FIRE-AND-FORGET : the aggregate EMITS a speak event, the adapter
+# renders + plays the audio OUT-OF-PROCESS, and NOTHING re-enters the domain
+# (speech is heard, not awaited). Unlike payment — an effect WITH a verdict that
+# round-trips as Authorize / Decline — tts has no success/failure re-entry : there
+# is no `produces`, and the bind carries no `do success/failure end` block. The
+# domain announces what to say and moves on.
+#
+# The how-verb is `voiced_by`, hung off the aggregate FQN with its triggering event
+# (`on:`). The config FIELDS the adapters carry are NAMED here ; their per-deployment
+# VALUES live in .world. The family never names its adapters (the inverted arrow
+# lives in .adapter). The API key is NOT a field — the handler reads it from
+# ~/.config/miette/elevenlabs.key, a file that never appears as a bluebook value.
+Hecks.family "tts" do
+  verb   "voiced_by"
+  signal :effect
+  field  :voice_id
+  field  :model
+  field  :speed
+  field  :stability
+  field  :similarity_boost
+  field  :style
+  field  :cache_dir
+  field  :auto_play
+end

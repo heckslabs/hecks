@@ -1,0 +1,18 @@
+# ElevenLabs — a concrete async TTS adapter. Declares its family (tts) — the
+# inverted arrow ; the family never names it. Named for its IDENTITY (the voice
+# provider), NOT its transport : that the handler shells curl + mpg123 is a detail
+# of HOW it speaks, never the adapter's name.
+#
+# The `handler` is the OUT-OF-PROCESS program the generic adapter-host runs when the
+# bound event fires : it reads the speak `text` on stdin + the voice config from env
+# (folded in from .world), POSTs to ElevenLabs, caches the complete mp3, and plays
+# it under a serial mkdir-lock — all in a detached child, so a slow render can never
+# block the synchronous domain core. This is the OUT-OF-PROCESS replacement for the
+# in-runtime rust/src/runtime/tts_dispatcher.rs kernel hook.
+#
+# Ruby + Rust handlers are behaviour-parity siblings (tts-handler.rb / tts-handler.rs) ;
+# the host runs whichever the deployment selects.
+Hecks.adapter "ElevenLabs" do
+  family "tts"
+  handler "adapters/tts/tts-handler.rb"
+end
