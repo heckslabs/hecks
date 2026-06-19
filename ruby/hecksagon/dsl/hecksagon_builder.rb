@@ -32,6 +32,14 @@ module Hecksagon
         # / driving_adapters.
         @driven_adapters = []
         @driving_adapters = []
+        # FQN port-verb binds (`Pizzas::Order.persisted_by("Heki")` /
+        # `charged_by(...) do success/failure end`) collected by
+        # FqnBindingProxy ; mirrors rust/src/hecksagon_ir.rs::Hecksagon.bindings.
+        @bindings = []
+        # Named family adapters (`adapter :tts, name: :x do ... end`) — captured
+        # OUTSIDE the canonical parity shape, mirroring hecksagon_parser.rs
+        # parse_tts_adapter (own bucket, not io_adapters, not dumped).
+        @tts_adapters = []
       end
 
       # Declare context map relationships between bounded contexts.
@@ -108,6 +116,8 @@ module Hecksagon
           _build_llm_adapter(name, opts, &block)
         when :compute
           _build_compute_adapter(name, opts, &block)
+        when :tts
+          _build_tts_adapter(name, opts, &block)
         when :memory, :heki, :sqlite, :postgres, :mysql
           # SQL persistence kinds carry connection options (db:/host:/
           # user:/name:) alongside the type. Only the type crosses the
@@ -196,6 +206,23 @@ module Hecksagon
         @compute_adapters << builder.build
       end
       private :_build_compute_adapter
+
+      # Internal — named family adapter (`:tts`) branch. Mirrors
+      # rust/src/hecksagon_parser.rs absorb_adapter "tts" => parse_tts_adapter :
+      # a NAMED `:tts` is captured as its own adapter, held OUTSIDE the canonical
+      # parity shape (io_adapters stays empty, matching the Rust dump which omits
+      # tts_adapters) ; a bare `:tts` with no name falls back to the io_adapter
+      # bucket (forwards-compat, same as the llm / compute branches). The family
+      # block's fields (provider, voice_id, model, ...) are Phase-2 runtime
+      # payload, not parity-relevant, so the block is captured but not evaluated.
+      def _build_tts_adapter(name, opts, &block)
+        if name.nil?
+          _build_io_adapter(:tts, opts, &block)
+          return
+        end
+        @tts_adapters << { name: name.to_sym }.merge(opts)
+      end
+      private :_build_tts_adapter
 
       # Internal — Sprint 14 quoted-name `adapter "X" do ... end` branch.
       # Collects driven-on / driving-on handlers via DrivenAdapterBuilder,
@@ -438,7 +465,8 @@ module Hecksagon
           llm_adapters: @llm_adapters,
           compute_adapters: @compute_adapters,
           driven_adapters: @driven_adapters,
-          driving_adapters: @driving_adapters
+          driving_adapters: @driving_adapters,
+          bindings: @bindings
         )
       end
 

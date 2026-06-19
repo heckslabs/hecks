@@ -22,6 +22,8 @@ module Hecksagon
     autoload :GateBuilder,        "hecksagon/dsl/gate_builder"
     autoload :WorldBuilder,       "hecksagon/dsl/world_builder"
     autoload :AnnotationSelector,  "hecksagon/dsl/annotation_selector"
+    autoload :FqnBindingProxy,       "hecksagon/dsl/fqn_binding_proxy"
+    autoload :BindingBlockCollector, "hecksagon/dsl/fqn_binding_proxy"
     autoload :ContextMapBuilder,    "hecksagon/dsl/context_map_builder"
     autoload :PortContractBuilder,  "hecksagon/dsl/port_contract_builder"
     autoload :ShellAdapterBuilder,  "hecksagon/dsl/shell_adapter_builder"

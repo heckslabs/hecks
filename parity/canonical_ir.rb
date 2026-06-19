@@ -544,7 +544,22 @@ module Hecks
           "compute_adapters" => Array(hex.respond_to?(:compute_adapters) ? hex.compute_adapters : [])
                                   .map { |ca| dump_compute_adapter(ca) },
           "gates"            => Array(hex.gates).map { |g| dump_gate(g) },
-        }
+        }.tap do |h|
+          # FQN port-verb binds (persisted_by / charged_by / imaged_by / ...).
+          # GATED on non-empty to mirror storehouse/src/main.rs ::
+          # dump_hecksagon_json, which adds the `bindings` key ONLY when binds
+          # exist — so the bind-less files stay byte-equal (key absent both halves).
+          binds = Array(hex.respond_to?(:bindings) ? hex.bindings : [])
+          unless binds.empty?
+            h["bindings"] = binds.map do |b|
+              {
+                "aggregate" => b[:aggregate].to_s, "verb"    => b[:verb].to_s,
+                "adapter"   => b[:adapter].to_s,   "on"      => b[:on].to_s,
+                "success"   => b[:success].to_s,   "failure" => b[:failure].to_s,
+              }
+            end
+          end
+        end
       end
 
       # i220 sub-gap 5 — compute adapter family parity dump.

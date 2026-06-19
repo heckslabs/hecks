@@ -14,15 +14,16 @@
 # main.rs :: dump_hecksagon_json), and diffs.
 #
 # Canonical shape is the subset both parsers model: name, persistence,
-# subscriptions, io_adapters, shell_adapters, gates. Ruby-only fields
-# (capabilities, concerns, annotations, context_map, ...) go in
-# hecksagon_known_drift.txt until the Rust IR grows them.
+# subscriptions, io_adapters, shell_adapters, gates, bindings. Ruby-only
+# fields (capabilities, concerns, annotations, context_map, ...) are simply
+# not emitted by either canonical dump, so they never drift.
+#
+# NO EXEMPTIONS : there is no known-drift allowlist. Every .hecksagon must
+# parse byte-equal ; a disagreement is fixed in the parser, never whitelisted.
 #
 # Status legend:
 #   ✓  parity
-#   ✗  unexpected drift — exit 1 (the pre-commit hook blocks)
-#   ⚠  expected drift (listed in hecksagon_known_drift.txt) — does not block
-#   ⚑  fixture in known_drift.txt that now PASSES — celebrate, then remove
+#   ✗  drift — exit 1 (the pre-commit hook blocks ; fix the parser)
 #
 # Run: ruby -Ilib parity/hecksagon_parity_test.rb
 #
@@ -52,21 +53,12 @@ HECKSAGON_FILES = (
   Dir[File.join(REPO_ROOT, "..", "miette_family", "**", "*.hecksagon")]
 ).sort.uniq
 
-KNOWN_DRIFT_FILE = File.expand_path("hecksagon_known_drift.txt", __dir__)
-
 abort "storehouse not built — run: (cd rust && cargo build --release)" unless File.executable?(STOREHOUSE)
 
-def load_known_drift
-  return {} unless File.exist?(KNOWN_DRIFT_FILE)
-  File.readlines(KNOWN_DRIFT_FILE).each_with_object({}) do |line, acc|
-    line = line.strip
-    next if line.empty? || line.start_with?("#")
-    path, comment = line.split("#", 2).map(&:strip)
-    acc[path] = comment.to_s
-  end
-end
-
-KNOWN_DRIFT = load_known_drift
+# NO EXEMPTIONS (2026-06-19). There is no known-drift allowlist : every
+# .hecksagon must parse byte-equal between the Ruby HecksagonBuilder and the
+# Rust parser. When they disagree, fix the parser — a drift can never be
+# whitelisted away.
 
 def ruby_dump(path)
   Hecks.last_hecksagon = nil if Hecks.respond_to?(:last_hecksagon=)
@@ -119,42 +111,23 @@ puts "=== .hecksagon parity (#{HECKSAGON_FILES.size} files) ==="
 abort "no .hecksagon files found" if HECKSAGON_FILES.empty?
 
 blocking = 0
-expected = 0
-unexpected_passes = []
 
 HECKSAGON_FILES.each do |p|
   rel = p.sub(REPO_ROOT + "/", "")
-  known = KNOWN_DRIFT.key?(rel)
   status, body = run_one(p)
   case status
   when :pass
-    if known
-      puts "⚑ #{rel} — listed in known_drift.txt but PASSES; remove that line"
-      unexpected_passes << rel
-    else
-      puts "✓ #{rel}"
-    end
+    puts "✓ #{rel}"
   when :fail, :error
-    if known
-      puts "⚠ #{rel}  (known: #{KNOWN_DRIFT[rel]})"
-      expected += 1
-    else
-      puts "✗ #{rel} — #{status == :error ? body : 'drift'}"
-      puts body if status == :fail
-      blocking += 1
-    end
+    puts "✗ #{rel} — #{status == :error ? body : 'drift'}"
+    puts body if status == :fail
+    blocking += 1
   end
 end
 
 total  = HECKSAGON_FILES.size
-passed = total - blocking - expected - unexpected_passes.size
+passed = total - blocking
 puts ""
 puts "#{passed}/#{total} match"
-puts "#{expected} known-drift (allowed)" if expected > 0
-unless unexpected_passes.empty?
-  puts ""
-  puts "⚑ #{unexpected_passes.size} fixture(s) in known_drift.txt now pass — please remove:"
-  unexpected_passes.each { |f| puts "    #{f}" }
-end
 
 exit(blocking == 0 ? 0 : 1)

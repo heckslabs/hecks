@@ -115,9 +115,9 @@ module Hecks
     # Phase 1 of the adapter-family meta-layer activation. Three sibling
     # entry points for the framework's pure-data declarations :
     #
-    #   Hecks.adapter_family "tts"            do ... end
-    #   Hecks.provider       "elevenlabs"     do ... end
-    #   Hecks.behavior_kind  "render_text_to_audio" do ... end
+    #   Hecks.adapter_family "sms"            do ... end
+    #   Hecks.provider       "twilio"         do ... end
+    #   Hecks.behavior_kind  "call_sms_api"   do ... end
     #
     # Each declares one row in the kernel's adapter-family registry —
     # what an adapter family IS, what concrete provider implements it,
@@ -157,9 +157,9 @@ module Hecks
     # Phase 1 of the adapter-family meta-layer activation. Three sibling
     # entry points for the framework's pure-data declarations :
     #
-    #   Hecks.adapter_family "tts"            do ... end
-    #   Hecks.provider       "elevenlabs"     do ... end
-    #   Hecks.behavior_kind  "render_text_to_audio" do ... end
+    #   Hecks.adapter_family "sms"            do ... end
+    #   Hecks.provider       "twilio"         do ... end
+    #   Hecks.behavior_kind  "call_sms_api"   do ... end
     #
     # Each declares one row in the kernel's adapter-family registry —
     # what an adapter family IS, what concrete provider implements it,
@@ -260,11 +260,14 @@ module Hecks
     # annotation selectors instead of raising NameError.
     def with_annotation_constants(builder)
       annotations = builder.instance_variable_get(:@annotations)
-      selector_class = Hecksagon::DSL::AnnotationSelector
+      bindings    = builder.instance_variable_get(:@bindings)
       saved = Object.method(:const_missing) rescue nil
       Object.define_singleton_method(:const_missing) do |name|
         if Thread.current[:_hecksagon_eval]
-          selector_class.new(annotations, name.to_s)
+          # Module proxy : `::` chains into FQN port-verb binds, dots delegate
+          # to the annotation grammar. (Was a bare AnnotationSelector, which
+          # could not be `::`-chained — the parity drift this retires.)
+          Hecksagon::DSL::FqnBindingProxy.head(name.to_s, annotations, bindings)
         elsif saved
           saved.call(name)
         else

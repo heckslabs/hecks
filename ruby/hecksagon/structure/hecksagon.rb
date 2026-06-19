@@ -27,7 +27,10 @@ module Hecksagon
                   # Sprint 14 — typed IR for the `adapter "X" do ; driven on ... ; end`
                   # form, mirroring rust/src/hecksagon_ir.rs. Empty for plain
                   # `Hecks.hecksagon do ... end` files that don't declare any.
-                  :driven_adapters, :driving_adapters
+                  :driven_adapters, :driving_adapters,
+                  # FQN port-verb binds (persisted_by / charged_by / imaged_by / ...),
+                  # mirroring rust/src/hecksagon_ir.rs::Hecksagon.bindings.
+                  :bindings
 
       # `framework_kind` carries the meta-layer kind for files declared with
       # `Hecks.adapter_family`, `Hecks.provider`, or `Hecks.behavior_kind` — one
@@ -42,7 +45,7 @@ module Hecksagon
                      driving_ports: [], driven_ports: [], port_contracts: [],
                      shell_adapters: [], io_adapters: [], llm_adapters: [],
                      compute_adapters: [], framework_kind: nil,
-                     driven_adapters: [], driving_adapters: [])
+                     driven_adapters: [], driving_adapters: [], bindings: [])
         @name = name
         @gates = gates
         @persistence = persistence
@@ -65,6 +68,7 @@ module Hecksagon
         @framework_kind = framework_kind
         @driven_adapters = driven_adapters
         @driving_adapters = driving_adapters
+        @bindings = bindings
       end
 
       # i220 sub-gap 5 — look up a declared compute adapter by name.
