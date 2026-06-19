@@ -850,6 +850,15 @@ fn main() {
         return;
     }
 
+    if command == "wire-all" {
+        if path.is_empty() {
+            eprintln!("Usage: storehouse wire-all <root> [--dry-run]");
+            std::process::exit(1);
+        }
+        cmd_wire_all(path, &args);
+        return;
+    }
+
     if path.is_empty() {
         eprintln!("Usage: storehouse {} <bluebook-file-or-dir>", command);
         std::process::exit(1);
@@ -3746,6 +3755,112 @@ fn parse_memory_flag(args: &[String]) -> std::collections::HashSet<String> {
 /// construction, never a hand-copy that can drift. The only judgment is the
 /// `--memory` classification (durable→Heki / ephemeral→Memory), read from the
 /// domain's vision. (Heki rollout, i750.)
+/// Project (hecksagon_body, optional_world_body) for a domain in the PIZZAS
+/// EXEMPLAR form. `aggs` are (context, name) pairs ; `memory` names the
+/// memory-backed simple-names. THE single source of the form, shared by
+/// `wire-persistence` (golden-pinned) and `wire-all`, so the two never drift.
+fn gen_persistence(
+    domain_name: &str,
+    aggs: &[(String, String)],
+    memory: &std::collections::HashSet<String>,
+) -> (String, Option<String>) {
+    let mut hex = format!("Hecks.hecksagon \"{}\" do\n", domain_name);
+    for (ctx, name) in aggs {
+        let adapter = if memory.contains(name) { "Memory" } else { "Heki" };
+        hex.push_str(&format!("  {}::{}.persisted_by(\"{}\")\n", ctx, name, adapter));
+    }
+    hex.push_str("end\n");
+    let any_heki = aggs.iter().any(|(_, n)| !memory.contains(n));
+    let world = if any_heki {
+        Some(format!(
+            "Hecks.world \"{}\" do\n  persisted_by(\"Heki\") do\n    dir :default\n  end\nend\n",
+            domain_name
+        ))
+    } else {
+        None
+    };
+    (hex, world)
+}
+
+/// True iff `content` is a PURE-PERSISTENCE hecksagon — every meaningful line is
+/// either a persistence bind (`.persisted_by(...)`, or the legacy terse
+/// `adapter :heki` / `adapter :memory`) or harmless scaffolding (the
+/// `Hecks.hecksagon "..." do` header, a bare `end`, a comment, a blank). Such a
+/// file is SAFE to regenerate into the exemplar form. ANY other line — a
+/// `charged_by` payment bind, a `driven` clock, an `adapter :claude_tool` /
+/// `:web_tool` / `:mcp` tool binding, a custom persistence adapter (`:sqlite`),
+/// a `Hexagon.Verify` — means the file carries hand-authored wiring that must be
+/// merged by hand, never clobbered.
+///
+/// This is the guard whose ABSENCE wiped tools.hecksagon's `:claude_tool` binds
+/// during the i750 rollout (the dispatch door went dark — Bash/Read emitted
+/// events but never executed). Broadened from the original
+/// `charged_by`/`driven` substring check to a complete per-line allowlist, so a
+/// new adapter family can never silently slip past it.
+fn hecksagon_is_pure_persistence(content: &str) -> bool {
+    content.lines().all(|line| {
+        let t = line.trim();
+        t.is_empty()
+            || t.starts_with('#')
+            || t.starts_with("Hecks.hecksagon")
+            || t == "end"
+            || t.contains(".persisted_by(")
+            || t.starts_with("adapter :heki")
+            || t.starts_with("adapter :memory")
+    })
+}
+
+/// World sibling of `hecksagon_is_pure_persistence` : true iff every meaningful
+/// line is the generated persistence world (the `Hecks.world` header, a bare
+/// `end`, `persisted_by(...) do`, `dir ...`, `realm ...`, comments, blanks).
+/// Anything else (an `endpoint`, `token`, `timeout_ms`, a `charged_by` block)
+/// is hand-authored config that must be merged by hand, never overwritten.
+fn world_is_pure_persistence(content: &str) -> bool {
+    content.lines().all(|line| {
+        let t = line.trim();
+        t.is_empty()
+            || t.starts_with('#')
+            || t.starts_with("Hecks.world")
+            || t == "end"
+            || t.starts_with("persisted_by(")
+            || t.starts_with("dir ")
+            || t.starts_with("realm ")
+    })
+}
+
+/// Write the generated hecksagon (+ world) next to `bb_path`. SKIPS (returns
+/// false) when an existing hecksagon is NOT pure-persistence — i.e. it carries
+/// hand-authored non-persistence binds (a tool `:claude_tool`/`:web_tool`/`:mcp`
+/// adapter, a `charged_by` payment, a `driven` clock, a custom adapter) that must
+/// be hand-merged, never clobbered (e.g. pizzas' payment, tools' claude_tool).
+fn write_persistence_files(bb_path: &std::path::Path, hex: &str, world: &Option<String>) -> bool {
+    let stem = bb_path.file_stem().and_then(|s| s.to_str()).unwrap_or("domain");
+    let dir = bb_path.parent().unwrap_or_else(|| std::path::Path::new("."));
+    let hex_path = dir.join(format!("{}.hecksagon", stem));
+    if hex_path.exists() {
+        let existing = std::fs::read_to_string(&hex_path).unwrap_or_default();
+        if !hecksagon_is_pure_persistence(&existing) {
+            eprintln!("SKIP {} : existing hecksagon has non-persistence binds (tool / payment / driver / custom adapter) — merge by hand", hex_path.display());
+            return false;
+        }
+    }
+    if std::fs::write(&hex_path, hex).is_err() {
+        return false;
+    }
+    if let Some(w) = world {
+        let world_path = dir.join(format!("{}.world", stem));
+        if world_path.exists() {
+            let existing = std::fs::read_to_string(&world_path).unwrap_or_default();
+            if !world_is_pure_persistence(&existing) {
+                eprintln!("SKIP {} : existing world has extra config — merge by hand", world_path.display());
+                return true;
+            }
+        }
+        let _ = std::fs::write(&world_path, w);
+    }
+    true
+}
+
 fn cmd_wire_persistence(bb_path: &str, args: &[String]) {
     let src = std::fs::read_to_string(bb_path).unwrap_or_else(|e| {
         eprintln!("cannot read {}: {}", bb_path, e);
@@ -3753,25 +3868,10 @@ fn cmd_wire_persistence(bb_path: &str, args: &[String]) {
     });
     let domain = parser::parse(&src);
     let memory = parse_memory_flag(args);
-
-    let mut hex = format!("Hecks.hecksagon \"{}\" do\n", domain.name);
-    for a in &domain.aggregates {
-        let ctx = a.context.clone().unwrap_or_else(|| domain.name.clone());
-        let adapter = if memory.contains(&a.name) { "Memory" } else { "Heki" };
-        hex.push_str(&format!("  {}::{}.persisted_by(\"{}\")\n", ctx, a.name, adapter));
-    }
-    hex.push_str("end\n");
-
-    let any_heki = domain.aggregates.iter().any(|a| !memory.contains(&a.name));
-    let world = if any_heki {
-        Some(format!(
-            "Hecks.world \"{}\" do\n  persisted_by(\"Heki\") do\n    dir :default\n  end\nend\n",
-            domain.name
-        ))
-    } else {
-        None
-    };
-
+    let aggs: Vec<(String, String)> = domain.aggregates.iter()
+        .map(|a| (a.context.clone().unwrap_or_else(|| domain.name.clone()), a.name.clone()))
+        .collect();
+    let (hex, world) = gen_persistence(&domain.name, &aggs, &memory);
     if args.iter().any(|a| a == "--stdout") {
         print!("{}", hex);
         if let Some(w) = &world {
@@ -3780,37 +3880,78 @@ fn cmd_wire_persistence(bb_path: &str, args: &[String]) {
         }
         return;
     }
+    if write_persistence_files(std::path::Path::new(bb_path), &hex, &world) {
+        println!("wrote wiring for {}", domain.name);
+    }
+}
 
-    let stem = std::path::Path::new(bb_path)
-        .file_stem().and_then(|s| s.to_str()).unwrap_or("domain");
-    let dir = std::path::Path::new(bb_path).parent()
-        .unwrap_or_else(|| std::path::Path::new("."));
-    let hex_path = dir.join(format!("{}.hecksagon", stem));
-    // Preserve a hecksagon that carries non-persistence binds (charged_by,
-    // driven_*) — those must be merged by hand, not clobbered (e.g. pizzas).
-    if hex_path.exists() {
-        let existing = std::fs::read_to_string(&hex_path).unwrap_or_default();
-        if existing.contains("charged_by") || existing.contains("driven") {
-            eprintln!("SKIP {} : existing hecksagon has non-persistence binds — merge by hand", hex_path.display());
-            return;
-        }
+/// Recursively collect `*.bluebook` files under `dir`, skipping the same
+/// non-domain directories `corpus_loader` skips.
+fn collect_bluebooks_walk(dir: &std::path::Path, out: &mut Vec<std::path::PathBuf>) {
+    let Ok(entries) = std::fs::read_dir(dir) else { return };
+    for entry in entries.flatten() {
+        let p = entry.path();
+        let name = p.file_name().and_then(|n| n.to_str()).unwrap_or("");
+        if matches!(name, ".git" | "target" | "information" | ".claude"
+            | "node_modules" | "generated" | "fixtures" | "snippets"
+            | "behaviors" | "behaviours") { continue; }
+        if p.is_dir() { collect_bluebooks_walk(&p, out); }
+        else if p.extension().map(|e| e == "bluebook").unwrap_or(false) { out.push(p); }
     }
-    std::fs::write(&hex_path, &hex).unwrap();
-    println!("wrote {}", hex_path.display());
-    if let Some(w) = world {
-        let world_path = dir.join(format!("{}.world", stem));
-        if world_path.exists() {
-            let existing = std::fs::read_to_string(&world_path).unwrap_or_default();
-            // A world that configures more than persistence (a payment block,
-            // etc.) is hand-merged, not overwritten.
-            if existing.contains("charged_by") || existing.contains("endpoint") {
-                eprintln!("SKIP {} : existing world has extra config — merge by hand", world_path.display());
-                return;
-            }
+}
+
+/// `storehouse wire-all <root> [--dry-run]` — the mechanical heki rollout. Boots
+/// the corpus ONCE to read every aggregate's CURRENT resolved backend, then
+/// regenerates each domain's companion .hecksagon + .world in the pizzas
+/// exemplar form, mirroring that backend per aggregate. Behaviour-preserving by
+/// construction (the `backends` diff stays identical) — heki stays heki, memory
+/// stays memory, only the FORM changes (terse adapter / silent default →
+/// explicit per-aggregate persisted_by). --dry-run reports the per-file split
+/// without writing. Ephemeral→memory RECLASSIFICATION is a separate deliberate
+/// pass, not this. (Heki rollout, i750.)
+fn cmd_wire_all(root: &str, args: &[String]) {
+    let dry = args.iter().any(|a| a == "--dry-run");
+    let data_dir = find_world_heki_dir(root)
+        .unwrap_or_else(|| format!("{}/data", root.trim_end_matches('/')));
+    let combined = load_combined_domain(root);
+    let hecksagons = load_all_hecksagons(root);
+    let mut rt = Runtime::boot_with_hecksagons(combined, Some(data_dir), hecksagons);
+    storehouse::world::attach::apply_per_domain_world_dirs(&mut rt, root);
+    storehouse::world::attach::attach_world_adapter_bindings(&mut rt, root);
+    let backend: std::collections::HashMap<String, String> = rt
+        .dump_backend_map()
+        .into_iter()
+        .map(|b| (b.repo_key, format!("{:?}", b.kind)))
+        .collect();
+
+    let mut files = Vec::new();
+    collect_bluebooks_walk(std::path::Path::new(root), &mut files);
+    files.sort();
+
+    let (mut wrote, mut heki_n, mut mem_n) = (0usize, 0usize, 0usize);
+    for f in &files {
+        let Ok(src) = std::fs::read_to_string(f) else { continue };
+        let domain = parser::parse(&src);
+        if domain.aggregates.is_empty() { continue; }
+        let aggs: Vec<(String, String)> = domain.aggregates.iter()
+            .map(|a| (a.context.clone().unwrap_or_else(|| domain.name.clone()), a.name.clone()))
+            .collect();
+        let memory: std::collections::HashSet<String> = aggs.iter()
+            .filter(|(c, n)| backend.get(&format!("{}::{}", c, n)).map(|k| k == "Memory").unwrap_or(false))
+            .map(|(_, n)| n.clone())
+            .collect();
+        heki_n += aggs.len() - memory.len();
+        mem_n += memory.len();
+        if dry {
+            println!("  {:<58} {:<22} {}H {}M", f.display(), domain.name, aggs.len() - memory.len(), memory.len());
+            continue;
         }
-        std::fs::write(&world_path, &w).unwrap();
-        println!("wrote {}", world_path.display());
+        let (hex, world) = gen_persistence(&domain.name, &aggs, &memory);
+        if write_persistence_files(f, &hex, &world) { wrote += 1; }
     }
+    println!("# wire-all{}: {} files, {} heki aggs, {} memory aggs{}",
+        if dry { " (dry-run)" } else { "" }, files.len(), heki_n, mem_n,
+        if dry { String::new() } else { format!(", wrote {}", wrote) });
 }
 
 fn cmd_backends(agg_dir: &str) {
