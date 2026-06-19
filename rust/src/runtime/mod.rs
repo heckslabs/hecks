@@ -307,6 +307,12 @@ pub struct Runtime {
     /// return). Empty when the runtime boots without a world walk —
     /// every adapter falls back to canned (memory-by-default).
     pub world_adapter_bindings: Vec<crate::world::ir::AdapterBinding>,
+    /// Per-adapter `.world` CONFIGS — the pizzas-exemplar
+    /// `Domain::Agg.verb("Adapter") do … end` form, keyed by the lowercased
+    /// adapter name (config_for). The host folds these into a handler's env.
+    /// Distinct from world_adapter_bindings (the older `adapter "Name" do …`
+    /// driven-adapter form).
+    pub world_configs: Vec<crate::world::ir::ExtensionConfig>,
     /// Sprint 14 (retire-sync-cascade-pipeline) — monotonic counter of
     /// events that traversed `enqueue_and_drain`. The dispatch-time
     /// Sync/Actor fork retired with the sync-cascade pipeline ; every
@@ -569,6 +575,7 @@ impl Runtime {
             world_servers: Vec::new(),
             world_servers_path: None,
             world_adapter_bindings: Vec::new(),
+            world_configs: Vec::new(),
             mailbox_drained: 0,
             mailbox_registry: actor::Mailboxes::new(),
         }
@@ -2197,6 +2204,14 @@ impl Runtime {
     /// this adapter (the demo case — the handler then takes its built-in
     /// default path).
     pub fn adapter_world_config(&self, adapter_name: &str) -> Vec<(String, String)> {
+        // The pizzas-form `Domain::Agg.verb("Adapter") do … end` lands in world
+        // CONFIGS keyed by the LOWERCASED adapter name (config_for : "Stripe" ->
+        // "stripe", "ElevenLabs" -> "elevenlabs"). Fall back to the older
+        // `adapter "Name" do …` adapter_bindings form (exact name).
+        let lname = adapter_name.to_lowercase();
+        if let Some(c) = self.world_configs.iter().find(|c| c.name == lname) {
+            return c.values.clone();
+        }
         self.world_adapter_bindings
             .iter()
             .find(|b| b.name == adapter_name)
