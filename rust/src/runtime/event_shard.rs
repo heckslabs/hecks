@@ -168,6 +168,71 @@ pub fn read_from(path: &Path, offset: u64) -> std::io::Result<(Vec<ShardRecord>,
     Ok((records, offset + consumed as u64))
 }
 
+// ── Process-private singleton shard (the live write path) ──────────────
+// One shard per process, opened once and appended to for the process's
+// life — the single-writer property that makes the append lossless at any
+// size. Mirrors storehouse_log::FILE_SINK : a process-global OnceLock so
+// record_event_append (called per dispatch, &mut self) writes without
+// threading a ShardWriter through the Runtime struct.
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Mutex, OnceLock};
+
+static PROCESS_SHARD: OnceLock<Option<Mutex<ShardWriter>>> = OnceLock::new();
+static SHARD_SEQ: AtomicU64 = AtomicU64::new(0);
+static SHARD_ID: OnceLock<String> = OnceLock::new();
+
+/// Stable per-process-BOOT shard id : pid + a boot nonce (nanos since epoch),
+/// so a restart that reuses a pid never writes into the prior boot's shard
+/// (shard-identity question q2). Computed once.
+pub fn process_shard_id() -> &'static str {
+    SHARD_ID.get_or_init(|| {
+        let pid = std::process::id();
+        let nonce = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0);
+        format!("p{}-{}", pid, nonce)
+    })
+}
+
+/// Append one event to THIS process's private shard (lazily opened under
+/// `shard_dir` as `<shard-id>.shard`). Sets the record's `shard` + a fresh
+/// per-process monotonic `seq` before writing. Returns the assigned seq, or
+/// None if the shard can't be opened/written (warned once, like the log
+/// sink — a failed Log write never crashes the dispatch). This is the live
+/// cutover write : the single-writer-per-process append that replaces the
+/// shared whole-file Event.heki write the gate stopped.
+pub fn append_to_process_shard(shard_dir: &Path, mut rec: ShardRecord) -> Option<u64> {
+    let sink = PROCESS_SHARD.get_or_init(|| {
+        let path = shard_dir.join(format!("{}.shard", process_shard_id()));
+        match ShardWriter::open(&path) {
+            Ok(w) => Some(Mutex::new(w)),
+            Err(e) => {
+                eprintln!("[event_shard] cannot open process shard ({}) — events not logged", e);
+                None
+            }
+        }
+    });
+    let writer = sink.as_ref()?;
+    let seq = SHARD_SEQ.fetch_add(1, Ordering::SeqCst) + 1;
+    rec.shard = process_shard_id().to_string();
+    rec.seq = seq;
+    // event_id is the merge's dedup key, so it MUST be globally unique across
+    // shards : (shard id, per-process seq) is exactly that. The caller need not
+    // (and cannot, pre-seq) set it.
+    rec.event_id = format!("{}-{}", rec.shard, seq);
+    match writer.lock() {
+        Ok(mut w) => {
+            if let Err(e) = w.append(&rec) {
+                eprintln!("[event_shard] shard append failed: {}", e);
+                return None;
+            }
+        }
+        Err(_) => return None,
+    }
+    Some(seq)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
