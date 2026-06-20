@@ -783,12 +783,9 @@ impl Runtime {
         // domain bookkeeping on emit (the async charge happens off-core in the
         // host) ; no-op when OutboundEvent isn't loaded or nothing subscribes.
         self.record_effect_outbound(&result);
-        // Event-sourcing Log — append one immutable Event per delta this
-        // command produced (transitions included). The durable, globally-
-        // sequenced source of truth ; the eager heki write above is its
-        // Snapshot cache (coexist-then-migrate). No-op when EventSourcing
-        // isn't loaded or the command changed nothing.
-        self.record_event_append(&result, command_name);
+        // (Event-sourcing append moved into dispatch_inner — the universal
+        // door — so cascade reactions, which bypass THIS wrapper via
+        // dispatch_cascade, are recorded in the Log too. See command_dispatch.)
         // Transactional outbox — record this command's domain reactions to
         // the persistent CascadeRun outbox. The reaction is delivered ONLY by
         // pump_outbox (its own transaction, on a later tick), never inline.
@@ -852,7 +849,15 @@ impl Runtime {
         if !self.repositories.contains_key(&es_key) {
             return;
         }
-        // Recursion guard — never event-source the EventSourcing aggregates.
+        // Infra guard — never event-source the runtime's own delivery
+        // bookkeeping (CascadeRun / OutboundEvent are the mechanism that
+        // carries cascades, not domain intent ; the bluebook makes them read
+        // models OF the Log, so sourcing them would be circular noise).
+        if matches!(event.aggregate_type.as_str(), "CascadeRun" | "OutboundEvent") {
+            return;
+        }
+        // Recursion guard — never event-source the EventSourcing aggregates
+        // themselves (Append must not append).
         if self.domain.aggregates.iter().any(|a| {
             a.name == event.aggregate_type
                 && a.context.as_deref() == Some("EventSourcing")
