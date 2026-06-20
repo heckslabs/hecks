@@ -1,0 +1,144 @@
+Hecks.bluebook "Driving", version: "2026.06.20.1" do
+  vision "The driving side of the hexagon — the inverse of an impure Family. A Family is an edge that LEAVES the domain : the domain composes a call and an Adapter runs it (persisted_by, charged_by). A Driver is the mirror : an external clock that reaches IN, dispatching a command — or an ordered sequence of commands — into the domain on a schedule. Where a Binding wires a port's outbound event to an adapter ('driven on' an event), a Driver wires a schedule to an inbound dispatch ('driving on' a clock) ; together they are the two halves of the boundary. A Driver is out-of-process BY CONSTRUCTION : it is a separate `storehouse loop` / `storehouse clock` / `storehouse drive` process that shares no state with the sync core and re-enters only through storehouse, the universal door, so a slow or dead clock stalls only its own task, never the domain. Its Schedule is one vocabulary covering every cadence the body already runs : an INTERVAL (heart every 1s, inbox every 900s), a CRON expression (the five-field form), or a wall-clock SEGMENT map (circadian's hour ranges, each firing its own command). A Driver may fire several commands in order per tick — breath inhales then exhales ; the no-promises sweep scans then verifies. The Procfile and .overmind.env are NOT hand-authored truth — they are the PROJECTION of every declared Driver, closing the hand-derived-Procfile gap (i262) exactly as a heki adapter's .world block is the projection of its Family's Fields. SURFACE : a Driver is declared in a hexagon as a `driving on <kind>` block hung off an adapter (event_sourcing.hecksagon : `adapter \"LogConsolidation\" do driving on interval \"5s\" do dispatch \"EventSourcing::Consolidation.Consolidate\" end end`) ; this aggregate is the META-MODEL the parser reads that surface into — the Driver IS to `driving on` what Family/Binding are to a `.family` / hexagon bind. REALIZED (2026-06-20) : `storehouse drive` is the live interval scheduler — the FIRST daemon to fire `driving on` handlers (cron/clock never fired in any live daemon ; only tests + the unused LoopDriver did). The EventSourcing LogConsolidation Driver is the first live Driver, folding the Event Log's per-process shards into the global Log every tick. `storehouse drive <root> --adapter <Name>` fires ONLY the named adapter's driving handlers, so one drive member targets ONE Driver without also firing grammar-parity fixtures (e.g. IntervalAdapter). This chapter conceives the category ; the projector that emits the Procfile from declared Drivers is a sibling card, not built here."
+  category "language"
+
+  aggregate "Driver", "One external clock reaching into a domain : the schedule that fires it, the aggregates root it dispatches against, and the ordered command(s) it dispatches per tick. Keyed by name — one Driver per cadenced concern (heart, breath, circadian, inbox, process_macrophage, consolidate). The inverse of an Adapter : an Adapter is named in a Family's outbound bind ; a Driver names its own inbound schedule. Its Schedule is a value-object (a Driver has exactly one) ; its Dispatches are ordered child entities (a Driver fires one or more commands per tick)." do
+    identified_by :name
+
+    attribute :name,          DriverName
+    attribute :root,          AggregatesRoot
+    attribute :schedule,      Schedule
+    attribute :lifespan,      Lifespan,   default: "persistent"
+    attribute :last_fired_at, Timestamp,  default: "—"
+    # Dispatches are OWNED ordered child entities (inside the boundary, local
+    # identity) — list_of, not has_many. has_many is the cross-root verb (another
+    # aggregate by global identity) ; Dispatch is internal, so the verb is list_of.
+    attribute :dispatches, list_of(Dispatch)
+
+    value_object "DriverName" do
+      # The cadenced concern's name — also the Procfile member name the
+      # projector emits ("heart", "circadian", "consolidate"). For a hexagon-
+      # declared Driver this is the enclosing adapter's name ("LogConsolidation").
+      attribute :value, String
+    end
+
+    value_object "AggregatesRoot" do
+      # The aggregates dir the loop/clock/drive process runs against — "aggregates"
+      # for framework cells, an absolute miette/body path for body cycles.
+      # Mirrors the `storehouse drive <root> ...` first argument. The VALUE is
+      # deployment wiring (it lives in .world when projected), not domain.
+      attribute :value, String
+    end
+
+    value_object "Lifespan" do
+      # How the supervisor treats the driver process. "persistent" — restart
+      # on failure, never exits (every cadence). "one_shot" — runs once, may
+      # exit (boot). Projects into overmind's OVERMIND_CAN_DIE the same way a
+      # mindstream member's lifespan.kind does.
+      attribute :value, String, enum: ["persistent", "one_shot"]
+    end
+
+    value_object "Timestamp" do
+      # ISO-8601 instant of the last fire — the freshness signal an
+      # organ-health check reads to tell a live driver from a flatlined one.
+      attribute :value, String
+    end
+
+    # ── Schedule : WHEN a Driver fires (one per Driver) ──
+    value_object "Schedule" do
+      # One vocabulary, three kinds. `kind` discriminates which fields carry
+      # meaning : interval -> every ; cron -> cron ; clock -> poll + the
+      # Dispatch.when hour-segments. poll applies only to clock (how often the
+      # wall-clock is re-checked for a segment crossing). `storehouse drive`
+      # realizes the INTERVAL kind today ; cron/clock remain parsed-but-test-only.
+      attribute :kind,  ScheduleKind
+      attribute :every, Duration,  default: "—"
+      attribute :cron,  CronExpr,  default: "—"
+      attribute :poll,  Duration,  default: "—"
+    end
+
+    value_object "ScheduleKind" do
+      # interval | cron | clock.
+      attribute :value, String, enum: ["interval", "cron", "clock"]
+    end
+
+    value_object "Duration" do
+      # A human duration the loop parses — "1s", "4.5s", "900s", "60s". Used for
+      # `every` (interval period) and `poll` (clock re-check period).
+      attribute :value, String
+    end
+
+    value_object "CronExpr" do
+      # A five-field cron expression ("*/5 * * * *"). cron is the general case ;
+      # interval is the common specialization kept first-class because most
+      # cadences are simple periods.
+      attribute :value, String
+    end
+
+    # ── Dispatch : WHAT a Driver fires, in order (one or more per Driver) ──
+    entity "Dispatch" do
+      description "One command a Driver fires per tick. Ordered, so breath inhales BEFORE it exhales and the no-promises sweep scans BEFORE it verifies. For a clock-kind schedule, `when` carries the wall-clock hour-range gating this dispatch (circadian's 5-6 -> MarkDawn) ; for interval/cron it is '—' and the command fires every tick. References only a command FQN (a plain string the runtime resolves through storehouse) — a bluebook never holds a reference to another bluebook."
+      identified_by :dispatch_id
+      attribute :dispatch_id, DispatchId
+      attribute :command,     CommandFqn
+      attribute :order,       Order,     default: 0
+      attribute :when,        HourRange, default: "—"
+    end
+
+    value_object "DispatchId" do
+      # Stable id "<driver_name>:<order>" so re-declare upserts the dispatch.
+      attribute :value, String
+    end
+
+    value_object "CommandFqn" do
+      # The fully-qualified command the tick dispatches — "Heart::Heart.Beat",
+      # "EventSourcing::Consolidation.Consolidate". Resolved through storehouse.
+      attribute :value, String
+    end
+
+    value_object "Order" do
+      # 0-based position in the per-tick sequence. Breath : Inhale=0, Exhale=1.
+      # No-promises : Scan=0, Verify=1. Single-command drivers use 0.
+      attribute :value, Integer
+    end
+
+    value_object "HourRange" do
+      # Wall-clock hour range gating a clock-kind dispatch ("5-6", "20-4"
+      # wrapping midnight). "—" for interval/cron dispatches.
+      attribute :value, String
+    end
+
+    command "Declare" do
+      role "Framework"
+      description "Bring a Driver into being — its name, schedule, aggregates root, and lifespan. Its dispatched commands are sibling Dispatch entities. Idempotent on name : re-declaring replaces the schedule + dispatches so the projector always emits current truth. This is the IR a parser builds when it reads a `driving on` block in a hexagon adapter."
+      attribute :name,     DriverName
+      attribute :root,     AggregatesRoot
+      attribute :schedule, Schedule
+      attribute :lifespan, Lifespan
+      emits "Driven"
+      then_set :name,     to: :name
+      then_set :root,     to: :root
+      then_set :schedule, to: :schedule
+      then_set :lifespan, to: :lifespan
+    end
+
+    command "AddDispatch" do
+      role "Framework"
+      description "Add (or replace) one ordered command this Driver fires per tick. Keyed by dispatch_id ('<name>:<order>') so re-adding upserts. `when` gates clock-kind dispatches to an hour-range ; interval/cron pass '—'."
+      attribute :dispatch_id, DispatchId
+      attribute :command,     CommandFqn
+      attribute :order,       Order
+      attribute :when,        HourRange
+      emits "DispatchAdded"
+      then_set :dispatches, append: { dispatch_id: :dispatch_id, command: :command, order: :order, when: :when }
+    end
+
+    command "Fire" do
+      role "System"
+      description "One tick of the clock. The live realization is `storehouse drive` (the interval scheduler) : per poll it enumerates the due `driving on interval` handlers, dispatches each Driver's Dispatch entities in order against its root through storehouse, and stamps last_fired_at. Fire only records the tick — the per-Dispatch fan-out is the runtime's job, mirroring ProcessMacrophage.Sweep and Inbox.Check (the dispatch IS the act)."
+      attribute :fired_at, Timestamp
+      then_set :last_fired_at, to: :fired_at
+      emits "Fired"
+    end
+  end
+end

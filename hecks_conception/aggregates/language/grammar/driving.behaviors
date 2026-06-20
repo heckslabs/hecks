@@ -1,0 +1,24 @@
+Hecks.behaviors "Driving" do
+  vision "Behavioral proof of the Driving grammar in pure memory — the Driver aggregate's three commands. Grounded in the live exemplar : the EventSourcing LogConsolidation Driver (driving on interval \"5s\" -> Consolidation.Consolidate), the first Driver to fire live via storehouse drive."
+
+  # ── Driver : Declare brings one into being (the IR a `driving on` block builds) ──
+  test "Declare brings a Driver into being with its root and lifespan" do
+    tests "Declare", on: "Driver"
+    input  name: "LogConsolidation", root: "aggregates", schedule: { kind: "interval", every: "5s" }, lifespan: "persistent"
+    expect name: "LogConsolidation", lifespan: "persistent"
+  end
+
+  # ── Driver : AddDispatch appends one ordered command per tick ──
+  test "AddDispatch appends an ordered command to the Driver" do
+    tests "AddDispatch", on: "Driver"
+    input  dispatch_id: "LogConsolidation:0", command: "EventSourcing::Consolidation.Consolidate", order: 0, when: "—"
+    expect dispatches_size: 1
+  end
+
+  # ── Driver : Fire records the tick (storehouse drive is the live realization) ──
+  test "Fire stamps the last-fired instant" do
+    tests "Fire", on: "Driver"
+    input  fired_at: "2026-06-20T22:00:00Z"
+    expect last_fired_at: "2026-06-20T22:00:00Z"
+  end
+end
