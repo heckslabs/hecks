@@ -1232,6 +1232,67 @@ impl Runtime {
     /// reconstructed from `result.aggregate_type` + `command_name`.
     /// Adapters with no effective trigger (both fields None) are inert
     /// — just parse-time descriptors — and are skipped silently.
+    /// Shape-derived OOP switch — the COMPLEMENT of `record_effect_outbound`'s
+    /// match. Returns true iff some hecksagon binding subscribes (`on:`) to
+    /// `event_name`, resolves adapter -> family -> verb to the NAMED `family`,
+    /// AND is VERDICT-BEARING (`!b.success.is_empty()`). When true, the
+    /// out-of-process effect path (effect binding -> OutboundEvent ->
+    /// drain_outbound_to_quiescence) owns this family's completion, so the
+    /// in-process resolver SUPPRESSES itself — the two never both fire and
+    /// double-produce the verdict.
+    ///
+    /// INVARIANT : fires iff `record_effect_outbound` would have recorded a
+    /// verdict-bearing OutboundEvent for the same dispatch. PURE SHAPE — it does
+    /// NOT condition on the handler binary existing (that runtime state lives only
+    /// in the drain's `actionable` filter, which leaves an unbuilt handler
+    /// PENDING ; folding it in here would leak runtime state into a shape-derived
+    /// switch and could strand a verdict). The fire-and-forget guard
+    /// (`!b.success.is_empty()`) ensures a verdict-less binding (tts) can never
+    /// suppress-then-strand the in-process path.
+    pub fn has_effect_binding_for(&self, event_name: &str, family: &str) -> bool {
+        if event_name.is_empty() {
+            return false;
+        }
+        // adapter -> family, family -> verb : the same typed attach checkpoint
+        // record_effect_outbound uses, so a broken bind matches nothing.
+        let mut adapter_family: HashMap<String, String> = HashMap::new();
+        let mut family_verb: HashMap<String, String> = HashMap::new();
+        for hex in &self.hecksagons {
+            for a in &hex.adapters {
+                adapter_family.insert(a.name.clone(), a.family.clone());
+            }
+            for f in &hex.families {
+                family_verb.insert(f.name.clone(), f.verb.clone());
+            }
+        }
+        for hex in &self.hecksagons {
+            for b in &hex.bindings {
+                if b.on != event_name {
+                    continue;
+                }
+                // Verdict-bearing only — a fire-and-forget bind (empty success)
+                // records an OutboundEvent but dispatches no verdict, so it must
+                // NOT suppress the in-process path (would strand the result).
+                if b.success.is_empty() {
+                    continue;
+                }
+                // adapter -> its family must be the NAMED family, and the bind's
+                // verb must be that family's verb (the typed attach).
+                let fam = match adapter_family.get(&b.adapter) {
+                    Some(f) => f,
+                    None => continue,
+                };
+                if fam != family {
+                    continue;
+                }
+                if family_verb.get(fam).map(String::as_str) == Some(b.verb.as_str()) {
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
     fn resolve_llm_adapters(&mut self, result: &CommandResult, command_name: &str) {
         let mut fired: std::collections::HashSet<String> = std::collections::HashSet::new();
         self.resolve_llm_adapters_with_excluded(result, command_name, &mut fired);
@@ -1251,14 +1312,18 @@ impl Runtime {
         command_name: &str,
         fired: &mut std::collections::HashSet<String>,
     ) {
-        // KEYSTONE GATE (slice 1) — when HECKS_REPLY_OOP_LLM is set, the
-        // OUT-OF-PROCESS llm effect path (effect binding -> OutboundEvent ->
-        // drain_outbound_to_quiescence) owns llm completion. Suppress the
-        // in-process LlmAdapter-struct path so the two never both fire and
-        // double-produce the verdict. Gate OFF (default) keeps this in-process
-        // path as the proven fallback. See docs/driven_port_keystone_api.md.
-        if std::env::var("HECKS_REPLY_OOP_LLM").is_ok() {
-            return;
+        // KEYSTONE SWITCH (slice 2) — shape-derived, NOT env-gated. When an
+        // effect binding subscribes (`on:`) to the EVENT this command emitted
+        // and resolves to the `llm` family with a verdict, the OUT-OF-PROCESS
+        // path (effect binding -> OutboundEvent -> drain_outbound_to_quiescence)
+        // owns llm completion. Suppress the in-process LlmAdapter-struct path
+        // so the two never both fire and double-produce the verdict. No binding
+        // (default) keeps this in-process path as the proven fallback. See
+        // docs/driven_port_keystone_api.md.
+        if let Some(ref event) = result.event {
+            if self.has_effect_binding_for(&event.name, "llm") {
+                return;
+            }
         }
         let debug_llm = std::env::var("HECKS_DEBUG_LLM").is_ok();
         if debug_llm {
@@ -2160,9 +2225,11 @@ impl Runtime {
     /// -> dispatch the verdict -> the verdict RE-ENTERS the core, which may emit
     /// more effects -> loop). Returns the number of deliveries drained.
     ///
-    /// This is the keystone the serve/dispatch boundary calls (gated by
-    /// HECKS_REPLY_OOP_LLM) so a synchronous caller gets the effect's result
-    /// back. The CORE never blocks : it has already returned by the time this
+    /// This is the keystone the serve/dispatch boundary calls UNCONDITIONALLY
+    /// (slice 2) so a synchronous caller gets the effect's result back ; it is a
+    /// safe no-op when no actionable OutboundEvent exists. The shape-derived
+    /// switch (`has_effect_binding_for`) decides OOP-vs-in-process per family.
+    /// The CORE never blocks : it has already returned by the time this
     /// runs ; the WAIT is a primary-adapter concern, not a driven-port one.
     ///
     /// Discipline (see docs/driven_port_keystone_api.md) :

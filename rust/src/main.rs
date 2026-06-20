@@ -4152,17 +4152,19 @@ fn dispatch_hecksagon(agg_dir: &str, command: &str, attrs: std::collections::Has
         let dispatch_result = rt.dispatch_deferred(command, rt_attrs);
         rt.pump_outbox();
         rt.pump();
-        // KEYSTONE (slice 1) — the PRIMARY-ADAPTER SYNCHRONOUS WAIT. When
-        // HECKS_REPLY_OOP_LLM is set, drain verdict-bearing OutboundEvent
-        // deliveries INLINE to quiescence (Claim -> exec handler blocking ->
-        // dispatch verdict -> re-enter core -> loop) BEFORE the detach pump,
-        // so a synchronous caller gets the effect's result back in the returned
-        // state. Fire-and-forget (tts) is left untouched for the detach pump
-        // below. Gate OFF: this is a no-op and the in-process llm path served.
+        // KEYSTONE (slice 2) — the PRIMARY-ADAPTER SYNCHRONOUS WAIT, now
+        // UNCONDITIONAL. Drain verdict-bearing OutboundEvent deliveries INLINE
+        // to quiescence (Claim -> exec handler blocking -> dispatch verdict ->
+        // re-enter core -> loop) BEFORE the detach pump, so a synchronous caller
+        // gets the effect's result back in the returned state. This is a SAFE
+        // NO-OP when no actionable (verdict-bearing, built-handler) OutboundEvent
+        // exists — a domain with no effect binding records none, and an unbuilt
+        // handler is left pending. The shape-derived switch (has_effect_binding_for)
+        // in the in-process resolvers decides OOP-vs-in-process per family ; this
+        // call simply settles whatever the shape recorded. Fire-and-forget (tts)
+        // is left untouched for the detach pump below.
         // See docs/driven_port_keystone_api.md.
-        if std::env::var("HECKS_REPLY_OOP_LLM").is_ok() {
-            rt.drain_outbound_to_quiescence();
-        }
+        rt.drain_outbound_to_quiescence();
         // i750 — the SECOND drain arm : detach-spawn the OUT-OF-PROCESS adapter
         // handlers for any OutboundEvent this dispatch recorded. A single
         // `Voice.Speak` now makes her speak out-of-process — no separate
