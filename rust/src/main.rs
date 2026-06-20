@@ -455,6 +455,22 @@ fn main() {
         return;
     }
 
+    // `storehouse drive <bluebook-or-dir> [--poll <dur>]`
+    //
+    // The single-owner interval scheduler (the driving side of the
+    // hexagon : `driving on interval "Ns"`). Boots the runtime once,
+    // loads every hecksagon under the target, then polls : on each tick
+    // the pure drive_scheduler decides which interval handlers are DUE
+    // and the daemon fires their dispatches through the cascade path.
+    // ONE drive process owns all interval firing, so a handler fires
+    // exactly once (no per-loop double-fire). cron/clock are the
+    // documented follow-on (this slice fires `interval` only). See
+    // inbox/interval-scheduler-spec.md.
+    if command == "drive" {
+        run_drive(&args);
+        return;
+    }
+
     // `storehouse daemon <ensure|status|stop> <pidfile> [command...]`
     //
     // Process-lifecycle primitive — the runtime gap that kept boot_miette
@@ -5363,6 +5379,95 @@ fn run_loop(args: &[String]) {
             idx = idx.wrapping_add(1);
         }
         std::thread::sleep(every);
+    }
+}
+
+/// `storehouse drive <bluebook-or-dir> [--poll <dur>]`
+///
+/// The single-owner interval scheduler — the live realization of the
+/// driving side of the hexagon (`driving on interval "Ns"`). Boots the
+/// runtime ONCE (mirroring run_loop), loads every hecksagon under the
+/// target, then polls at `--poll` (default 1s). On each tick the pure
+/// `drive_scheduler` (tick-counter model : interval N at poll P fires
+/// every ceil(N/P) ticks) decides which interval handlers are DUE, and
+/// the daemon fires their dispatches through the cascade path so emits
+/// reach the bus.
+///
+/// ONE drive process owns ALL interval firing, so a handler fires
+/// exactly once per period — the single-owner property that the live
+/// `storehouse loop` daemons can't provide (each loads every hecksagon
+/// under its root, so wiring driving-firing into them would N×-fire).
+///
+/// SCOPE : this slice fires the `interval` kind only. cron handlers fire
+/// in no live daemon today (test-only) ; making cron fire live needs real
+/// 5-field expression matching and is the documented follow-on. clock /
+/// http_post / file_watch likewise unhandled here. See
+/// inbox/interval-scheduler-spec.md.
+fn run_drive(args: &[String]) {
+    use storehouse::runtime::drive_scheduler::DriveScheduler;
+    use storehouse::runtime::driving_adapter_resolver as driving;
+
+    let target = args.get(2).map(|s| s.as_str()).unwrap_or_else(|| {
+        eprintln!("Usage: storehouse drive <bluebook-or-dir> [--poll <duration>]");
+        std::process::exit(1);
+    });
+    let poll = args.iter().position(|a| a == "--poll")
+        .and_then(|i| args.get(i + 1))
+        .and_then(|s| parse_loop_duration(s))
+        .unwrap_or_else(|| std::time::Duration::from_secs(1));
+
+    eprintln!(
+        "[storehouse drive] {} polling every {:?} — firing `driving on interval` handlers (Ctrl-C to stop)",
+        target, poll
+    );
+
+    // Boot the runtime ONCE with hecksagons + world wiring, exactly as
+    // run_loop does, so the driving adapters are attached and the cascade
+    // dispatch resolves world-bound adapters.
+    let data_dir = find_world_heki_dir(target)
+        .unwrap_or_else(|| format!("{}/data", target.trim_end_matches('/')));
+    let (domain, hecksagons) = if std::path::Path::new(target).is_dir() {
+        (load_combined_domain(target), load_all_hecksagons(target))
+    } else {
+        let source = fs::read_to_string(target).unwrap_or_else(|e| {
+            eprintln!("Cannot read {}: {}", target, e); std::process::exit(1);
+        });
+        (parser::parse(&source), Vec::new())
+    };
+    let mut rt = Runtime::boot_with_hecksagons(domain, Some(data_dir), hecksagons);
+    register_llm_providers(&mut rt, target);
+    storehouse::world::attach::attach_world_servers(&mut rt, target);
+    storehouse::world::attach::attach_world_adapter_bindings(&mut rt, target);
+
+    let mut scheduler = DriveScheduler::new(poll);
+    loop {
+        // Refresh repos so a sibling process's writes are visible before a
+        // due handler reads state (mirrors loop_driver::tick_once).
+        rt.refresh_repositories_from_heki();
+
+        // Snapshot the interval handlers present this tick (id, arg, dispatches).
+        let snapshot = driving::enumerate_driving_handlers(&rt, "interval");
+        // Parse each arg to a Duration for the scheduler ; skip unparseable.
+        let due_input: Vec<(String, std::time::Duration)> = snapshot.iter()
+            .filter_map(|(id, arg, _)| parse_loop_duration(arg).map(|d| (id.clone(), d)))
+            .collect();
+        let due_ids = scheduler.tick(&due_input);
+
+        // Fire each DUE handler's dispatches from the pre-cloned snapshot.
+        // One stderr line per fire (command + tick) so the daemon is
+        // observable like the `loop` daemons — and so the cadence is
+        // checkable (interval 1s at poll 500ms must fire on ticks 1,3,5
+        // — NOT every tick).
+        let tick = scheduler.current_tick();
+        for id in &due_ids {
+            if let Some((_, _, dispatches)) = snapshot.iter().find(|(sid, _, _)| sid == id) {
+                for (command, _) in dispatches {
+                    eprintln!("[storehouse drive] tick {} fired {} ({})", tick, command, id);
+                }
+                driving::fire_dispatches(&mut rt, dispatches);
+            }
+        }
+        std::thread::sleep(poll);
     }
 }
 
