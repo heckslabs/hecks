@@ -173,4 +173,61 @@ Hecks.bluebook "Pizzas" do
       then_set :line_count, to: :line_count
     end
   end
+
+  aggregate "Kitchen" do
+    # The DRIVING-SIDE exemplar : a singleton sweeper driven by an external
+    # clock. Where Order / Pizza / Cart are driven BY the customer (commands
+    # reach in from the UI), the Kitchen is driven BY a SCHEDULE — a Driver
+    # (the driving side of the hexagon) fires ExpireStale on a recurring
+    # interval, no human in the loop. The cadence is declared in
+    # pizzas.hecksagon (`driving on interval "600s"`), the inverse of the
+    # `charged_by` Family that LEAVES the domain : a Family is an outbound
+    # edge, a Driver is an inbound clock.
+    #
+    # ExpireStale is a SINGLETON SWEEP, not a per-Order command : it records
+    # the tick (last_swept_at) + emits StaleOrdersExpired, exactly as a
+    # liveness sweeper records last_sweep_at + emits Swept. A command acts on
+    # ONE aggregate, so the per-Order fan-out (cancel each pending order older
+    # than the threshold) is the runtime's job off the emitted event — the
+    # Kitchen command expresses no fan-out, mirroring the recurring-tick shape
+    # every Driver-fired sweep uses. One Kitchen per pizzeria.
+    description "The pizzeria's recurring-sweep singleton — the driving-side exemplar. A Driver (pizzas.hecksagon) fires ExpireStale on an interval ; ExpireStale records the tick + emits StaleOrdersExpired, and the runtime cancels each stale pending order off that event. One Kitchen per pizzeria."
+    identified_by :name
+
+    attribute :name,          KitchenName
+    attribute :last_swept_at, SweptAt,    default: "—"
+    attribute :stale_after_seconds, StaleWindow, default: 1800
+
+    value_object "KitchenName" do
+      # Singleton key — one Kitchen per pizzeria. Default "kitchen".
+      attribute :value, String
+    end
+
+    value_object "SweptAt" do
+      # ISO-8601 instant of the last expire-sweep tick — the freshness signal
+      # that tells a live sweeper from a flatlined one.
+      attribute :value, String
+    end
+
+    value_object "StaleWindow" do
+      # How long a pending order may sit before the sweep cancels it, in
+      # seconds. Default 1800 (30 min). The runtime reads this on the tick to
+      # decide which Pending orders are stale.
+      attribute :value, Integer
+    end
+
+    command "ExpireStale" do
+      role "System"
+      goal "One expire-stale sweep tick — record it ; the runtime cancels each stale order"
+      # Driven by the clock, not a customer. Records last_swept_at + emits
+      # StaleOrdersExpired ; the per-Order fan-out (Order.CancelOrder on each
+      # pending order older than stale_after_seconds) is the runtime's job off
+      # the event — a command acts on one aggregate, so the sweep records the
+      # tick and lets the cascade cancel the many. Mirrors the singleton-sweep
+      # shape of every Driver-fired liveness sweep.
+      attribute :last_swept_at, SweptAt
+      then_set :last_swept_at, to: :last_swept_at
+      emits "StaleOrdersExpired"
+    end
+  end
 end

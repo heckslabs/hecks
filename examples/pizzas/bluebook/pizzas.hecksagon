@@ -63,4 +63,35 @@ Hecks.hecksagon "Pizzas" do
     failure "Order.Decline"
   end
 
+  # ── DRIVING SIDE · the recurring sweep ──────────────────────────
+  # Everything above is the DRIVEN side : edges that LEAVE the domain (the
+  # domain composes a call, an adapter runs it — persisted_by, charged_by).
+  # This is the inverse : a DRIVER, an external clock that reaches IN. Where a
+  # Family binds a domain event OUT to an adapter (`on: "OrderPlaced"`), a
+  # Driver binds a SCHEDULE to an inbound dispatch (`driving on <schedule>`).
+  # Together they are the two halves of the boundary : the domain stays purely
+  # synchronous, knowing nothing of who pays the gateway OR who watches the
+  # clock.
+  #
+  # The clock fires Kitchen.ExpireStale on a cron cadence (every 10 minutes).
+  # ExpireStale is a SINGLETON SWEEP — it records the tick + emits
+  # StaleOrdersExpired, and the runtime cancels each stale pending Order off
+  # that event (a command acts on one aggregate ; the fan-out is the cascade's
+  # job). The Schedule is one vocabulary covering every cadence — a five-field
+  # CRON expression (here), a simple INTERVAL, or a wall-clock SEGMENT map.
+  # Per the Driving chapter, the Procfile is the PROJECTION of every declared
+  # Driver — this declaration is the truth a `storehouse loop` / `storehouse
+  # clock` process is generated from, never hand-authored.
+  #
+  # `driving on cron` is the proven, parity-verified surface : the runtime
+  # fires `kind == "cron"` driving handlers, and both the Ruby DSL and the
+  # Rust parser model it byte-equal. (The `interval` sugar is conceived in the
+  # Driving chapter but not yet wired in the Ruby DSL ; using it here would
+  # break hecksagon parity, so the cron form is canonical until that lands.)
+  adapter "Kitchen" do
+    driving on cron "*/10 * * * *" do |clock|
+      dispatch "Pizzas::Kitchen.ExpireStale"
+    end
+  end
+
 end

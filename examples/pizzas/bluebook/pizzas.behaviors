@@ -77,4 +77,15 @@ Hecks.behaviors "Pizzas" do
     expect line_count: "sample_linecount"
   end
 
+  # ── Kitchen aggregate (driving-side sweep exemplar) ─────────────
+  # ExpireStale is fired by a Driver (pizzas.hecksagon's `driving on cron`),
+  # not a customer — the singleton-sweep tick that records last_swept_at +
+  # emits StaleOrdersExpired for the runtime to cancel each stale order off.
+
+  test "ExpireStale runs" do
+    tests "ExpireStale", on: "Kitchen"
+    input  last_swept_at: "sample_sweptat"
+    expect last_swept_at: "sample_sweptat", emits: ["StaleOrdersExpired"]
+  end
+
 end

@@ -12,6 +12,7 @@ breath: ../rust/target/release/storehouse loop /Users/christopheryoung/Projects/
 circadian: ../rust/target/release/storehouse clock /Users/christopheryoung/Projects/miette/body/.. --segment 5-6:Circadian::Circadian.MarkDawn --segment 7-11:Circadian::Circadian.MarkMorning --segment 12-16:Circadian::Circadian.MarkAfternoon --segment 17-19:Circadian::Circadian.MarkDusk --segment 20-4:Circadian::Circadian.MarkNight --poll 60s
 ultradian: ../rust/target/release/storehouse loop /Users/christopheryoung/Projects/miette/body/.. Ultradian::Ultradian.EnterPeak,Ultradian::Ultradian.EnterTrough --every 5400s
 inbox: ../rust/target/release/storehouse loop aggregates Inbox::Inbox.Check --every 900s
+inbox_poller: bin/agent_poll.sh
 process_macrophage: ../rust/target/release/storehouse loop aggregates ProcessHealth::ProcessMacrophage.Sweep --every 30s
 conductor_sweep: ../rust/target/release/storehouse loop aggregates Conductor::Sweeper.Tick sweeper_id=fleet --every 60s
 # restart_prompt: bin/restart-prompt-daemon  # DISABLED — binary missing (i703); its non-CAN_DIE exit was tearing down all daemons. Restore once the daemon is rebuilt + mindstream member fixed.

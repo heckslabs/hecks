@@ -106,13 +106,21 @@ fn main() {
     if !ok { debug("Send dispatch failed"); std::process::exit(1); }
     debug(&format!("sent {} -> agent {}", cid, agent_id));
 
-    // 2. Block-poll state until the agent Replies (status == replied). ~5 min cap.
+    // 2. Block-poll the Answered query until the agent Replies. ~5 min cap.
+    //    Uses AgentInbox::AgentMessage.answered id=<cid> which filters
+    //    where(mid: cid, status: "replied") — the query returns a single
+    //    record object when matched, empty array when not yet replied.
+    let answered_arg = format!("id={}", cid);
     for _ in 0..600 {
-        let (_, out) = sh(&bin, &["state", &root, "AgentInbox::AgentMessage", &cid]);
-        if field(&out, "status").as_deref() == Some("replied") {
+        let (_, out) = sh(&bin, &[&root, "AgentInbox::AgentMessage.answered", &answered_arg]);
+        // Non-empty state object with a reply field means the agent replied.
+        // The query returns `"state":{}` for one match, `"state":[]` for none.
+        if out.contains("\"reply\":") && !out.contains("\"state\":[") {
             let reply = field(&out, "reply").unwrap_or_default();
-            println!("{}", reply);
-            return;
+            if !reply.is_empty() {
+                println!("{}", reply);
+                return;
+            }
         }
         std::thread::sleep(Duration::from_millis(500));
     }

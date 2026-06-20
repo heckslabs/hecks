@@ -1,41 +1,41 @@
 Hecks.hecksagon "AgentToolAdapter" do
   # ============================================================
-  # AGENT TOOL ADAPTER (sendmessage-on-bus, sprint 14)
+  # AGENT TOOL ADAPTER (sendmessage-on-bus, i708)
   # ============================================================
   #
-  # Sibling of shell_adapter.hecksagon. Subscribes to the bus event
-  # `Tools::AgentTool.AgentMessageSent` (emitted by
-  # Tools::AgentTool.SendMessage) and routes the message to the runtime's
-  # agent-resume API.
+  # Tools::AgentTool.SendMessage is wired to the REAL messaging substrate
+  # (agent_inbox.bluebook + adapters/agent/send-message bin). The flow :
   #
-  # ── Runtime resume API NOT YET PRESENT ──
+  #   1. Caller dispatches Tools::AgentTool.SendMessage (records the tool
+  #      invocation on the AgentTool aggregate, emits AgentMessageSent).
+  #   2. The actual message is delivered via the standalone send-message
+  #      binary (adapters/agent/send-message) which callers invoke directly
+  #      with --root <dir> <agent_id> <body>. The bin dispatches
+  #      AgentInbox::AgentMessage.Send, block-polls Answered(id=<cid>) for
+  #      the reply, and prints it on stdout.
+  #   3. The target agent runs bin/agent_poll.sh which polls Unread(
+  #      agent_id), MarkReads each, and Replies.
   #
-  # The storehouse runtime does not (as of sprint 14) expose a
-  # resume_agent / agent_resume call ; greps the codebase turn up
-  # nothing. Per the sendmessage-on-bus card's wiring discipline, the
-  # adapter is bound to a canned outcome until that API lands :
-  # it dispatches `Tools::Cascade.RecordResult` carrying
-  # `output: "agent resumed"`, `ok: true`, `exit_code: 0`, `tool: "agent_resume"`,
-  # and the originating invocation id so the cascade chain joins.
+  # ── `driven on` grammar not yet live in the runtime ──
   #
-  # Follow-up card filed : `agent-tool-runtime-resume-api` (sprint 15)
-  # — swap the canned dispatch for the real resume call once the
-  # runtime surface lands. The bluebook contract does not change ;
-  # only the substrate behind this adapter changes.
+  # The `driven on "Event"` subscription form (shell_adapter.hecksagon
+  # precedent) is DECLARED here but not auto-fired by the runtime as of
+  # i708 completion. The bus does not yet register `driven on` subscriptions
+  # and call the body on event emit. That wiring lives in rust/src (kernel-
+  # floor — the runtime must recognise the DrivenAdapter IR and register a
+  # subscription). When that lands, the canned dispatch below becomes the
+  # real AgentInbox::AgentMessage.Send relay and the standalone bin path
+  # can be retired.
   #
-  # ── Why driven-on, not adapter-family ──
-  #
-  # The :claude_tool / :web_tool families bind one COMMAND to a
-  # native kernel hook (bash / read / edit / web_fetch). Agent
-  # resume isn't a kernel hook — it's a runtime-internal API call.
-  # The `driven on` shape (sibling shell_adapter precedent) is the
-  # right fit : the adapter is a runtime listener that reacts to a
-  # bus event by issuing a follow-on dispatch, not a kernel-hook
-  # invocation. When the runtime resume API lands, this adapter's
-  # body grows the real call ; the bluebook contract stays put.
+  # For now : call the bin directly. The bluebook contract does not change
+  # when the grammar lands ; only the substrate behind this stub changes.
 
   adapter "AgentToolAdapter" do
     driven on "Tools::AgentTool.AgentMessageSent" do |event|
+      # TODO: when `driven on` grammar fires — replace this canned stub with:
+      #   dispatch "AgentInbox::AgentMessage.Send",
+      #            id: event.id, agent_id: event.to, body: event.message, mid: event.id
+      # The send-message binary provides the synchronous face in the meantime.
       dispatch "Tools::Cascade.RecordResult",
                id: event.id,
                tool: "agent_resume",

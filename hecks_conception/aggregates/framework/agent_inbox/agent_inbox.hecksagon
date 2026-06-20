@@ -1,0 +1,47 @@
+Hecks.hecksagon "AgentInbox" do
+  # ============================================================
+  # AGENT INBOX wiring — the receiver-as-Driver (i708 stigmergy)
+  # ============================================================
+  #
+  # The receiver half of inter-agent messaging, modeled as a DRIVER (the
+  # driving side of the hexagon, aggregates/language/grammar/driving.bluebook)
+  # rather than dropped as a bare script. A Driver is the inverse of a Family :
+  # a Family is an edge that LEAVES the domain (persisted_by, charged_by) ; a
+  # Driver is an external clock that reaches IN, dispatching a command on a
+  # schedule. The Procfile is the PROJECTION of every declared Driver.
+  #
+  # The Driver is realized as a long-running :daemon. `bin/agent_poll.sh` IS
+  # the clock : each tick it dispatches AgentInbox::InboxPoller.Poll (which
+  # records last_polled_at + emits Polled — the freshness signal) and sweeps
+  # AgentInbox::AgentMessage.AllUnread inline, MarkReading + Replying each
+  # message across EVERY agent. ONE sweep-all-inboxes poller, never one driver
+  # per agent : Drivers are STATIC (declared, projected to the Procfile) while
+  # agents are DYNAMIC (spawned at will) — the same reason ProcessMacrophage.Sweep
+  # walks the whole watchlist in one tick rather than a driver per process.
+  #
+  # The :daemon command-ref is also what makes bin/agent_poll.sh a DECLARED
+  # file : the antibody's IR-claim query (`storehouse is-dispatched`) scans
+  # :daemon / :shell adapter `command:` refs and finds this one, so the script
+  # needs NO [antibody-exempt] marker — the declaration IS the justification
+  # (same corpus-claim path that exempts boot.hecksagon's :daemon scripts).
+  #
+  # NOTE on the grammar : the driving.bluebook `driving on interval "2s"`
+  # surface is NOT used here. The runtime fires only `kind == "cron"` driving
+  # handlers (driving_adapter_resolver::fire_driving_cron_ticks), and driving
+  # handlers are outside the antibody's is-dispatched corpus-claim scan — so an
+  # `interval` handler would neither fire at runtime nor declare the script.
+  # The :daemon adapter + its Procfile/mindstream projection IS the honest,
+  # runtime-real Driver declaration ; it is the same shape boot.hecksagon uses
+  # for every body-cycle loop.
+
+  adapter :daemon, name: :inbox_poller,
+    command: "bin/agent_poll.sh"
+
+  # Persistence : :heki, not :memory. The poller daemon is a SEPARATE process
+  # from the sender's send-message adapter binary. Memory-backing the messages
+  # would put each in a throwaway process — the sender's block-poll on Answered
+  # would never see the reply. Durable heki is the shared medium that makes the
+  # Send -> Poll -> read -> Reply flow function across processes (same reasoning
+  # as process_health.hecksagon).
+  adapter :heki
+end

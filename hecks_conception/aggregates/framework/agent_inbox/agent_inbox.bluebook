@@ -84,8 +84,74 @@ Hecks.bluebook "AgentInbox" do
 
     # The sender's adapter binary block-polls this for the message id it
     # Sent : empty until the target agent Replies, then carries the reply.
+    # Filter by `mid` (the identity echo), NOT by `id` (the identity field) —
+    # queries project attributes, not the identity row-key. `mid` is set ==
+    # the id at Send so the sender can address this by correlation id.
     query "Answered" do |id|
-      where(id: id, status: "replied")
+      where(mid: id, status: "replied")
+    end
+
+    # The SWEEP read : every unread message across EVERY agent, no agent_id
+    # filter. Unread is the per-agent poll (one agent reads its own mail) ;
+    # AllUnread is the singleton-sweep read (one InboxPoller tick reads the
+    # whole blackboard at once). Mirrors ProcessMacrophage.Sweep walking the
+    # entire watchlist in one tick rather than one driver per supervised
+    # process : agents are spawned dynamically, so the poller is ONE
+    # sweep-all-inboxes Driver, never one driver per agent.
+    query "AllUnread" do
+      where(status: "sent")
     end
   end
+
+  aggregate "InboxPoller" do
+    description "The singleton sweeper that drives the inbox forward — the receiver half of i708 stigmergy modeled as a Driver. Direct analog of ProcessHealth::ProcessMacrophage : Drivers are STATIC (declared, projected into the Procfile) but agents are DYNAMIC (spawned at will), so there is exactly ONE poller that sweeps EVERY inbox per tick, not one driver per agent. Poll is the recurring tick : it records last_polled_at + emits Polled, mirroring ProcessMacrophage.Sweep recording the tick + emitting Swept. The per-message fan-out (read AllUnread, MarkRead + Reply each) is the runtime's job — the RunPollOnPolled policy spawns bin/agent_poll.sh, exactly as RunSweepOnSwept spawns bin/process_health_sweep. The bluebook only records the tick happened ; the impure sweep leaf lives out-of-process."
+    identified_by :name
+
+    attribute :name,           Name
+    attribute :last_polled_at, Timestamp, default: "—"
+    attribute :polls_run,      PollCount, default: 0
+
+    value_object "Name" do
+      # Singleton key — there is one InboxPoller per being. Default
+      # "inbox_poller". Mirrors ProcessMacrophage.Name : under i611 phase 1
+      # (`singleton: true`) this VO disappears.
+      attribute :value, String
+    end
+
+    value_object "Timestamp" do
+      # ISO-8601 wall-clock instant of the last poll tick — the freshness
+      # signal an organ-health check reads to tell a live poller from a
+      # flatlined one. Duplicated per the per-aggregate VO rule.
+      attribute :value, String
+    end
+
+    value_object "PollCount" do
+      # Tally of Poll ticks fired since session start. The caller passes the
+      # next count, mirroring ProcessMacrophage's externally-incremented
+      # tallies — the bluebook stays arithmetic-free.
+      attribute :value, Integer
+    end
+
+    command "Poll" do
+      role "System"
+      goal "One inbox-sweep tick — record it happened ; the runtime fans out across AllUnread"
+      description "One poll tick. The Driver (agent_inbox.hecksagon's `driving on interval` + the Procfile inbox_poller loop) fires this on its cadence ; Poll records last_polled_at + emits Polled. The per-message fan-out — read AllUnread, MarkRead + Reply each by its mid — is the runtime's job, done by bin/agent_poll.sh which the RunPollOnPolled policy spawns. Poll itself expresses no fan-out, mirroring ProcessMacrophage.Sweep (records the tick, the spawned script walks the records)."
+      attribute :last_polled_at, Timestamp
+      then_set :last_polled_at, to: :last_polled_at
+      emits "Polled"
+    end
+  end
+
+  # ── The Driver realization lives in the hecksagon, not a policy ──
+  #
+  # There is deliberately NO RunPollOnPolled Process.Spawn policy here. The
+  # receiver is realized as a long-running :daemon (agent_inbox.hecksagon's
+  # `adapter :daemon, name: :inbox_poller, command: "bin/agent_poll.sh"`,
+  # projected to the Procfile inbox_poller member) : bin/agent_poll.sh IS the
+  # Driver loop. Each tick it dispatches InboxPoller.Poll (which records
+  # last_polled_at + emits Polled as the freshness signal) and then sweeps
+  # AllUnread inline — MarkRead + Reply each. A Process.Spawn-on-Polled policy
+  # would make the daemon spawn copies of itself every tick ; one mechanism
+  # (the daemon sweeps inline) is correct. Polled stays a pure domain event a
+  # future reactor (metrics, health) can subscribe to.
 end

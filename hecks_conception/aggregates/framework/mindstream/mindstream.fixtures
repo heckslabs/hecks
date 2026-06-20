@@ -71,6 +71,18 @@ Hecks.fixtures "Mindstream" do
             command:    { line: "../rust/target/release/storehouse loop aggregates Inbox::Inbox.Check --every 900s" },
             lifespan:   { kind: "persistent", may_exit: false, restart_on_failure: true }
 
+    # inbox_poller — the AgentInbox receiver Driver (i708). bin/agent_poll.sh
+    # IS the loop : each tick it dispatches InboxPoller.Poll (records the tick +
+    # emits Polled) and sweeps AgentMessage.AllUnread inline, MarkReading +
+    # Replying every unread message across every agent. Declared in
+    # agent_inbox.hecksagon as `adapter :daemon, name: :inbox_poller,
+    # command: "bin/agent_poll.sh"` ; this member is its Procfile projection.
+    fixture "inbox_poller",
+            name:       "inbox_poller",
+            mindstream: "boot",
+            command:    { line: "bin/agent_poll.sh" },
+            lifespan:   { kind: "persistent", may_exit: false, restart_on_failure: true }
+
     # The slow loop. Speech proposes (durable :heki under the world-resolved
     # store dir) ; every 5s this member dispatches
     # MietteMind::Reconciler.Reconcile against the mietteai root. The

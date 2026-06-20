@@ -1,0 +1,55 @@
+Hecks.behaviors "AgentInbox" do
+  vision "Behavioral tests for AgentInbox — exercises the durable inter-agent messaging blackboard (AgentMessage lifecycle sent -> read -> replied + its poll queries) and the InboxPoller singleton sweeper that drives the receiver forward. Runs in memory ; the persistence binding (:heki) is a wiring concern."
+
+  # ── AgentMessage aggregate ──────────────────────────────────
+
+  test "Send runs" do
+    tests "Send", on: "AgentMessage"
+    input  agent_id: "sample_agentid", body: "sample_body", mid: "sample_mid"
+    expect agent_id: "sample_agentid", body: "sample_body", status: "sent", emits: ["AgentMessageSent"]
+  end
+
+  test "MarkRead runs" do
+    tests "MarkRead", on: "AgentMessage"
+    setup  "Send", agent_id: "sample_agentid", body: "sample_body", mid: "sample_mid"
+    expect status: "read", emits: ["AgentMessageRead"]
+  end
+
+  test "Reply runs" do
+    tests "Reply", on: "AgentMessage"
+    setup  "Send", agent_id: "sample_agentid", body: "sample_body", mid: "sample_mid"
+    input  reply: "sample_reply"
+    expect reply: "sample_reply", status: "replied", emits: ["AgentMessageReplied"]
+  end
+
+  test "Unread returns matching records" do
+    tests "Unread", on: "AgentMessage", kind: :query
+    setup  "Send", agent_id: "sample_agentid", body: "sample_body", mid: "sample_mid"
+    input  agent_id: "sample_agentid"
+    expect count: 1
+  end
+
+  test "AllUnread returns matching records" do
+    tests "AllUnread", on: "AgentMessage", kind: :query
+    setup  "Send", agent_id: "sample_agentid", body: "sample_body", mid: "sample_mid"
+    expect count: 1
+  end
+
+  test "Answered returns matching records" do
+    tests "Answered", on: "AgentMessage", kind: :query
+    setup  "Send", agent_id: "sample_agentid", body: "sample_body", mid: "sample_mid"
+    input  id: "sample_mid"
+    expect count: 0
+  end
+
+  # ── InboxPoller singleton sweeper ───────────────────────────
+  # The receiver-as-Driver tick : Poll records last_polled_at + emits Polled,
+  # mirroring ProcessMacrophage.Sweep recording the tick + emitting Swept.
+
+  test "Poll runs" do
+    tests "Poll", on: "InboxPoller"
+    input  last_polled_at: "sample_lastpolledat"
+    expect last_polled_at: "sample_lastpolledat", emits: ["Polled"]
+  end
+
+end
