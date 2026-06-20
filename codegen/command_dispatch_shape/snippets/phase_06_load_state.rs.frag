@@ -22,3 +22,10 @@
         Some(s) => (s, false),
         None => (AggregateState::new(&resolved_id), true),
     };
+
+    // Event-sourcing delta capture (i-event-sourcing) — snapshot state
+    // BEFORE the command's effects (defaults, mutations, transition). For a
+    // new aggregate this is empty, so every resolved field (including the
+    // applied defaults and the lifecycle transition) surfaces as a delta in
+    // the before/after diff computed just before save.
+    let before_fields = state.fields.clone();

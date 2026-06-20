@@ -39,6 +39,7 @@ fn result_for(agg: &str) -> CommandResult {
         aggregate_id: "1".to_string(),
         aggregate_type: agg.to_string(),
         event: None,
+        deltas: Vec::new(),
     }
 }
 

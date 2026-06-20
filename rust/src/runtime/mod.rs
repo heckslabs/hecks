@@ -759,6 +759,7 @@ impl Runtime {
                 aggregate_id: result.aggregate_id.clone(),
                 aggregate_type: result.aggregate_type.clone(),
                 event: result.event.clone(),
+                deltas: result.deltas.clone(),
             }),
         };
         self.middleware.run_after(&ctx);
@@ -782,6 +783,12 @@ impl Runtime {
         // domain bookkeeping on emit (the async charge happens off-core in the
         // host) ; no-op when OutboundEvent isn't loaded or nothing subscribes.
         self.record_effect_outbound(&result);
+        // Event-sourcing Log — append one immutable Event per delta this
+        // command produced (transitions included). The durable, globally-
+        // sequenced source of truth ; the eager heki write above is its
+        // Snapshot cache (coexist-then-migrate). No-op when EventSourcing
+        // isn't loaded or the command changed nothing.
+        self.record_event_append(&result, command_name);
         // Transactional outbox — record this command's domain reactions to
         // the persistent CascadeRun outbox. The reaction is delivered ONLY by
         // pump_outbox (its own transaction, on a later tick), never inline.
@@ -811,6 +818,99 @@ impl Runtime {
         detail_scope.finish("ok", result_state_json);
 
         Ok(result)
+    }
+
+    /// Event-sourcing Log writer (i-event-sourcing) — append one immutable
+    /// `EventSourcing::Event` to the durable Log per delta this command
+    /// produced. The out-of-domain sibling of `record_cascade_run` /
+    /// `record_effect_outbound` : it records a framework aggregate from
+    /// inside the dispatch path via `dispatch_cascade`. The `Event`
+    /// aggregate is `identified_by :event_id`, so persisting it yields a
+    /// durable, GLOBAL (not per-business-aggregate) append-only Log — the
+    /// source of truth. v1 (coexist-then-migrate) : the eager heki current-
+    /// state write stays as the Snapshot cache, so reads are unchanged.
+    ///
+    /// Sequence is the Log's own record count + 1. Append is the sole writer
+    /// and never deletes, so count == max sequence, and the persisted Log
+    /// self-seeds the sequence across restarts (count() hydrates from disk on
+    /// first access) — no runtime counter to keep in sync.
+    ///
+    /// Recursion guard : skips the EventSourcing domain's own aggregates so
+    /// Append never appends. (Belt-and-suspenders — `dispatch_cascade` does
+    /// not re-enter this hook ; only the eager dispatch wrapper calls it.)
+    fn record_event_append(&mut self, result: &CommandResult, command_name: &str) {
+        if result.deltas.is_empty() {
+            return;
+        }
+        let event = match &result.event {
+            Some(e) => e.clone(),
+            None => return,
+        };
+        // No-op when the Event Log aggregate isn't loaded (e.g. a single-
+        // bluebook example boot without the EventSourcing framework chapter).
+        let es_key = repo_key(Some("EventSourcing"), "Event");
+        if !self.repositories.contains_key(&es_key) {
+            return;
+        }
+        // Recursion guard — never event-source the EventSourcing aggregates.
+        if self.domain.aggregates.iter().any(|a| {
+            a.name == event.aggregate_type
+                && a.context.as_deref() == Some("EventSourcing")
+        }) {
+            return;
+        }
+        // command = verb + inputs (the caller's intent, recorded as fact ;
+        // never re-executed by a fold). inputs = the emitted event data JSON.
+        let verb = command_name.to_string();
+        let inputs = {
+            let mut obj = serde_json::Map::new();
+            for (k, v) in &event.data {
+                obj.insert(k.clone(), value_to_json(v));
+            }
+            serde_json::Value::Object(obj).to_string()
+        };
+        // lineage : one correlation id per originating dispatch ; causation
+        // is populated empty this phase (ids ENABLED, facet-queries DEFERRED).
+        let correlation_id =
+            format!("{}::{}::{}", event.aggregate_type, event.aggregate_id, event.name);
+        let recorded_at = storehouse_log::now_iso8601();
+        let agg_name = event.aggregate_type.clone();
+        let agg_id = event.aggregate_id.clone();
+        for (field, value) in result.deltas.clone() {
+            let seq = self
+                .repositories
+                .get(&es_key)
+                .map(|r| r.count())
+                .unwrap_or(0) as i64
+                + 1;
+            let mut attrs: HashMap<String, Value> = HashMap::new();
+            attrs.insert("event_id".to_string(), Value::Str(format!("evt-{}", seq)));
+            attrs.insert("aggregate_name".to_string(), Value::Str(agg_name.clone()));
+            attrs.insert("aggregate_id".to_string(), Value::Str(agg_id.clone()));
+            let mut cmd_m = HashMap::new();
+            cmd_m.insert("verb".to_string(), Value::Str(verb.clone()));
+            cmd_m.insert("inputs".to_string(), Value::Str(inputs.clone()));
+            attrs.insert("command".to_string(), Value::Map(cmd_m));
+            let mut delta_m = HashMap::new();
+            delta_m.insert("field".to_string(), Value::Str(field.clone()));
+            delta_m.insert("value".to_string(), Value::Str(value.to_string()));
+            attrs.insert("delta".to_string(), Value::Map(delta_m));
+            attrs.insert("causation_id".to_string(), Value::Str(String::new()));
+            attrs.insert(
+                "correlation_id".to_string(),
+                Value::Str(correlation_id.clone()),
+            );
+            attrs.insert("actor".to_string(), Value::Str("system".to_string()));
+            attrs.insert("sequence".to_string(), Value::Int(seq));
+            attrs.insert("recorded_at".to_string(), Value::Str(recorded_at.clone()));
+            let _ = command_dispatch::dispatch_cascade(
+                self,
+                "EventSourcing::Event.Append",
+                attrs,
+                &agg_name,
+                &agg_id,
+            );
+        }
     }
 
     /// Transactional outbox — when a dispatched command's event has domain
@@ -1211,6 +1311,9 @@ impl Runtime {
             aggregate_id: event.aggregate_id.clone(),
             aggregate_type: event.aggregate_type.clone(),
             event: Some(event),
+            // Synthetic events carry no command — no aggregate state changed,
+            // so there are no event-sourcing deltas to append.
+            deltas: Vec::new(),
         };
         self.drain_policies(&result);
     }

@@ -101,6 +101,9 @@ fn dispatch_bulk(
         aggregate_id: last_id,
         aggregate_type: aggregate_name,
         event: last_event,
+        // Bulk many-form (`list_of(VO)`) event-sourcing is deferred (v1) —
+        // per-row deltas would need a diff per saved row inside the loop.
+        deltas: Vec::new(),
     })
 }
 

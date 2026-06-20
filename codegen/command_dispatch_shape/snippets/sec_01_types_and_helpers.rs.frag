@@ -3,6 +3,12 @@ pub struct CommandResult {
     pub aggregate_id: String,
     pub aggregate_type: String,
     pub event: Option<Event>,
+    /// Event-sourcing deltas (i-event-sourcing) — the fields this command
+    /// actually changed, computed as a before/after diff of aggregate state
+    /// (so a lifecycle transition is just another changed field, no special-
+    /// casing). `record_event_append` appends one immutable Event to the Log
+    /// per delta. Empty for synthetic events and bulk-form dispatch (v1).
+    pub deltas: Vec<(String, Value)>,
 }
 
 /// Resolution of a dispatch address — i111-J.
