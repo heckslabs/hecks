@@ -916,22 +916,39 @@ impl Runtime {
             // assigns the authoritative global sequence ; we do NOT compute a
             // global sequence here (the old repo-count+1 is what clobbered).
             for (field, value) in result.deltas.clone() {
-                let rec = event_shard::ShardRecord {
-                    shard: String::new(),   // set by append_to_process_shard
-                    seq: 0,                 // set by append_to_process_shard
-                    ts: recorded_at.clone(),
-                    event_id: String::new(), // set by append_to_process_shard
-                    aggregate_name: agg_name.clone(),
-                    aggregate_id: agg_id.clone(),
-                    verb: verb.clone(),
-                    inputs: inputs.clone(),
-                    field: field.clone(),
-                    value: value.to_string(),
-                    causation_id: String::new(),
-                    correlation_id: correlation_id.clone(),
-                    actor: "system".to_string(),
+                // Reserve this record's shard identity BEFORE dispatch : Event
+                // is identified_by :event_id, so the command needs its
+                // globally-unique id up front. event_id = "{shard}-{seq}" is
+                // the merge's dedup key ; seq is the per-process sequence.
+                let (shard, seq) = match event_shard::reserve(&shard_dir) {
+                    Some(t) => t,
+                    None => return,
                 };
-                let _ = event_shard::append_to_process_shard(&shard_dir, rec);
+                let event_id = format!("{}-{}", shard, seq);
+                let mut command_vo = HashMap::new();
+                command_vo.insert("verb".to_string(), Value::Str(verb.clone()));
+                command_vo.insert("inputs".to_string(), Value::Str(inputs.clone()));
+                let mut delta_vo = HashMap::new();
+                delta_vo.insert("field".to_string(), Value::Str(field.clone()));
+                delta_vo.insert("value".to_string(), Value::Str(value.to_string()));
+                let mut sequence_vo = HashMap::new();
+                sequence_vo.insert("value".to_string(), Value::Int(seq as i64));
+                let mut attrs = HashMap::new();
+                attrs.insert("event_id".to_string(), Value::Str(event_id));
+                attrs.insert("aggregate_name".to_string(), Value::Str(agg_name.clone()));
+                attrs.insert("aggregate_id".to_string(), Value::Str(agg_id.clone()));
+                attrs.insert("command".to_string(), Value::Map(command_vo));
+                attrs.insert("delta".to_string(), Value::Map(delta_vo));
+                attrs.insert("causation_id".to_string(), Value::Str(String::new()));
+                attrs.insert("correlation_id".to_string(), Value::Str(correlation_id.clone()));
+                attrs.insert("actor".to_string(), Value::Str("system".to_string()));
+                attrs.insert("sequence".to_string(), Value::Map(sequence_vo));
+                attrs.insert("recorded_at".to_string(), Value::Str(recorded_at.clone()));
+                // Core dispatch (no pump) — EventSourcing::Event.Append's save
+                // routes through the AppendLog adapter to THIS process's shard.
+                // The recursion guard above skips the EventSourcing aggregates,
+                // so this inner Append never re-enters this hook.
+                let _ = command_dispatch::dispatch(self, "EventSourcing::Event.Append", attrs);
             }
         }
 

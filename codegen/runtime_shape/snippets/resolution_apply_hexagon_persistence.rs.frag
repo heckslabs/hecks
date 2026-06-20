@@ -64,6 +64,10 @@
             let repo = match adapter.as_str() {
                 "Memory" => LazyRepository::new_memory(&name, identified_by, context),
                 "Heki" => LazyRepository::new(&name, data_dir.clone(), identified_by, context),
+                // AppendLog — the bluebook-first Event Log. READS from the same
+                // data_dir as Heki (the merged event.heki) ; SAVE appends to a
+                // per-process shard. Same ctor signature as Heki.
+                "AppendLog" => LazyRepository::new_appendlog(&name, data_dir.clone(), identified_by, context),
                 // A persistence-family adapter the consult does not mint (e.g. a
                 // future Sqlite binding) leaves the default repo in place.
                 _ => continue,

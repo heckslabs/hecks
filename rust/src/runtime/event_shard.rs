@@ -195,42 +195,76 @@ pub fn process_shard_id() -> &'static str {
     })
 }
 
-/// Append one event to THIS process's private shard (lazily opened under
-/// `shard_dir` as `<shard-id>.shard`). Sets the record's `shard` + a fresh
-/// per-process monotonic `seq` before writing. Returns the assigned seq, or
-/// None if the shard can't be opened/written (warned once, like the log
-/// sink — a failed Log write never crashes the dispatch). This is the live
-/// cutover write : the single-writer-per-process append that replaces the
-/// shared whole-file Event.heki write the gate stopped.
-pub fn append_to_process_shard(shard_dir: &Path, mut rec: ShardRecord) -> Option<u64> {
-    let sink = PROCESS_SHARD.get_or_init(|| {
-        let path = shard_dir.join(format!("{}.shard", process_shard_id()));
-        match ShardWriter::open(&path) {
-            Ok(w) => Some(Mutex::new(w)),
-            Err(e) => {
-                eprintln!("[event_shard] cannot open process shard ({}) — events not logged", e);
-                None
+/// Lazily open (once per process) the private shard sink rooted at `shard_dir`
+/// as `<shard-id>.shard`. Returns the sink, or None if it could not be opened
+/// (warned once — a failed Log write never crashes the dispatch). The single
+/// place the open path lives ; shared by `reserve` + `append_to_process_shard`.
+fn open_sink(shard_dir: &Path) -> Option<&'static Mutex<ShardWriter>> {
+    PROCESS_SHARD
+        .get_or_init(|| {
+            let path = shard_dir.join(format!("{}.shard", process_shard_id()));
+            match ShardWriter::open(&path) {
+                Ok(w) => Some(Mutex::new(w)),
+                Err(e) => {
+                    eprintln!("[event_shard] cannot open process shard ({}) — events not logged", e);
+                    None
+                }
             }
-        }
-    });
-    let writer = sink.as_ref()?;
+        })
+        .as_ref()
+}
+
+/// Reserve the next (shard_id, seq) for THIS process WITHOUT writing — the
+/// AppendLog persistence adapter's first half of a split write. Event.Append is
+/// `identified_by :event_id`, so the runtime must mint the globally-unique id
+/// BEFORE dispatch (the command needs it to resolve identity + carry it through
+/// the invariant), then the adapter's `save` persists the built record. The id
+/// is `event_id = "{shard}-{seq}"` — (shard, per-process seq) is unique across
+/// shards, exactly the merge's dedup key. Inits the sink under `shard_dir` on
+/// first call ; None if it can't open.
+pub fn reserve(shard_dir: &Path) -> Option<(String, u64)> {
+    open_sink(shard_dir)?;
     let seq = SHARD_SEQ.fetch_add(1, Ordering::SeqCst) + 1;
-    rec.shard = process_shard_id().to_string();
-    rec.seq = seq;
-    // event_id is the merge's dedup key, so it MUST be globally unique across
-    // shards : (shard id, per-process seq) is exactly that. The caller need not
-    // (and cannot, pre-seq) set it.
-    rec.event_id = format!("{}-{}", rec.shard, seq);
-    match writer.lock() {
-        Ok(mut w) => {
-            if let Err(e) = w.append(&rec) {
+    Some((process_shard_id().to_string(), seq))
+}
+
+/// Append an ALREADY-stamped record (shard/seq/event_id set, e.g. from
+/// `reserve`) to this process's sink — no fetch_add, no re-stamp. Returns false
+/// if the sink isn't open or the write fails (warned, never panics). The sink
+/// must have been opened by a prior `reserve` / `append_to_process_shard`.
+pub fn append_record(rec: &ShardRecord) -> bool {
+    let sink = match PROCESS_SHARD.get() {
+        Some(Some(m)) => m,
+        _ => return false,
+    };
+    match sink.lock() {
+        Ok(mut w) => match w.append(rec) {
+            Ok(()) => true,
+            Err(e) => {
                 eprintln!("[event_shard] shard append failed: {}", e);
-                return None;
+                false
             }
-        }
-        Err(_) => return None,
+        },
+        Err(_) => false,
     }
-    Some(seq)
+}
+
+/// Append one event to THIS process's private shard. The convenience entry that
+/// combines `reserve` (mint shard/seq, stamp event_id) with `append_record`
+/// (write) ; the AppendLog adapter splits the two halves instead (reserve at
+/// dispatch, write at save). Returns the assigned seq, or None if the shard
+/// can't be opened/written.
+pub fn append_to_process_shard(shard_dir: &Path, mut rec: ShardRecord) -> Option<u64> {
+    let (shard, seq) = reserve(shard_dir)?;
+    rec.shard = shard.clone();
+    rec.seq = seq;
+    // event_id is the merge's dedup key, globally unique across shards.
+    rec.event_id = format!("{}-{}", shard, seq);
+    if append_record(&rec) {
+        Some(seq)
+    } else {
+        None
+    }
 }
 
 #[cfg(test)]

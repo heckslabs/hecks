@@ -83,6 +83,20 @@ enum Backend {
         context: Option<String>,
         cell: OnceCell<Repository>,
     },
+    /// The AppendLog adapter (`persisted_by("AppendLog")`) — the bluebook-
+    /// first Event Log. READS exactly like Heki : a Repository hydrated from
+    /// `data_dir`, the merge daemon's consolidated `event.heki`. SAVE is the
+    /// sole divergence — append-not-upsert : each save persists one immutable
+    /// record to THIS process's private shard (single-writer, lossless),
+    /// folded into the global log by the merge. Same fields as Heki so every
+    /// read arm shares Heki's behaviour ; only `save` overrides.
+    AppendLog {
+        aggregate_type: String,
+        data_dir: Option<String>,
+        identified_by: Option<String>,
+        context: Option<String>,
+        cell: OnceCell<Repository>,
+    },
     /// The SQL adapter (`adapter :sqlite, db:`). EAGER, unlike the lazy
     /// heki/memory cells : the `SqliteRepository` (open + CREATE TABLE +
     /// row-load) is built at boot by `Runtime::apply_sqlite_persistence`,
@@ -103,6 +117,7 @@ pub enum BackendKind {
     Heki,
     Memory,
     Sql,
+    AppendLog,
 }
 
 pub struct LazyRepository {
@@ -122,6 +137,27 @@ impl LazyRepository {
     ) -> Self {
         LazyRepository {
             backend: Backend::Heki {
+                aggregate_type: aggregate_type.to_string(),
+                data_dir,
+                identified_by,
+                context,
+                cell: OnceCell::new(),
+            },
+        }
+    }
+
+    /// Construct the AppendLog adapter (`persisted_by("AppendLog")`). Same
+    /// params + lazy cell as `new` (heki) — it READS from `data_dir` (the
+    /// merged event.heki) identically ; only `save` diverges to append-to-shard.
+    /// The shard dir is a `shards/` sibling of `data_dir`, resolved in `save`.
+    pub fn new_appendlog(
+        aggregate_type: &str,
+        data_dir: Option<String>,
+        identified_by: Option<String>,
+        context: Option<String>,
+    ) -> Self {
+        LazyRepository {
+            backend: Backend::AppendLog {
                 aggregate_type: aggregate_type.to_string(),
                 data_dir,
                 identified_by,
@@ -179,7 +215,8 @@ impl LazyRepository {
                     )
                 })
             }
-            Backend::Heki { aggregate_type, data_dir, identified_by, context, cell } => {
+            Backend::Heki { aggregate_type, data_dir, identified_by, context, cell }
+            | Backend::AppendLog { aggregate_type, data_dir, identified_by, context, cell } => {
                 cell.get_or_init(|| {
                     Repository::new_with_context(
                         aggregate_type,
@@ -198,7 +235,7 @@ impl LazyRepository {
     fn sql(&self) -> &SqliteRepository {
         match &self.backend {
             Backend::Sql { repo } => repo.as_ref(),
-            Backend::Heki { .. } | Backend::Memory { .. } => {
+            Backend::Heki { .. } | Backend::Memory { .. } | Backend::AppendLog { .. } => {
                 unreachable!("sql() on a non-SQL LazyRepository")
             }
         }
@@ -220,6 +257,7 @@ impl LazyRepository {
             Backend::Heki { .. } => BackendKind::Heki,
             Backend::Memory { .. } => BackendKind::Memory,
             Backend::Sql { .. } => BackendKind::Sql,
+            Backend::AppendLog { .. } => BackendKind::AppendLog,
         }
     }
 
@@ -227,7 +265,7 @@ impl LazyRepository {
     /// for memory (no disk) and sql (its own db path). Peeks without hydrating.
     pub fn heki_path(&self) -> Option<String> {
         match &self.backend {
-            Backend::Heki { data_dir, .. } => data_dir.clone(),
+            Backend::Heki { data_dir, .. } | Backend::AppendLog { data_dir, .. } => data_dir.clone(),
             _ => None,
         }
     }
@@ -237,7 +275,7 @@ impl LazyRepository {
     fn repo_mut(&mut self) -> &mut Repository {
         let _ = self.repo();
         match &mut self.backend {
-            Backend::Heki { cell, .. } | Backend::Memory { cell, .. } => {
+            Backend::Heki { cell, .. } | Backend::Memory { cell, .. } | Backend::AppendLog { cell, .. } => {
                 cell.get_mut().expect("cell initialised by repo() above")
             }
             Backend::Sql { .. } => unreachable!("repo_mut() on a SQL-backed LazyRepository"),
@@ -249,7 +287,7 @@ impl LazyRepository {
         let _ = self.sql();
         match &mut self.backend {
             Backend::Sql { repo } => repo.as_mut(),
-            Backend::Heki { .. } | Backend::Memory { .. } => {
+            Backend::Heki { .. } | Backend::Memory { .. } | Backend::AppendLog { .. } => {
                 unreachable!("sql_mut() on a non-SQL LazyRepository")
             }
         }
@@ -260,7 +298,7 @@ impl LazyRepository {
     /// story (un-hydrated cells drop for free).
     pub fn is_hydrated(&self) -> bool {
         match &self.backend {
-            Backend::Heki { cell, .. } | Backend::Memory { cell, .. } => cell.get().is_some(),
+            Backend::Heki { cell, .. } | Backend::Memory { cell, .. } | Backend::AppendLog { cell, .. } => cell.get().is_some(),
             // SQL is eager — built at boot, so always hydrated.
             Backend::Sql { .. } => true,
         }
@@ -295,7 +333,57 @@ impl LazyRepository {
     }
 
     pub fn save(&mut self, state: AggregateState, ctx: heki::WriteContext<'_>) {
+        // AppendLog : append-not-upsert. The Event Log's save persists one
+        // immutable shard record instead of overwriting a per-id row.
+        if let Backend::AppendLog { data_dir, .. } = &self.backend {
+            Self::append_log_save(&data_dir.clone(), &state);
+            return;
+        }
         if self.is_sql() { self.sql_mut().save(state, ctx) } else { self.repo_mut().save(state, ctx) }
+    }
+
+    /// AppendLog save — build one immutable shard record from the Event state
+    /// and append it to THIS process's private shard (a `shards/` sibling of
+    /// the merged event.heki). event_id + sequence were reserved at dispatch
+    /// (record_event_append) and ride in `state`, so `append_record` writes
+    /// the pre-stamped record. If the sink isn't open yet (a direct Append
+    /// with no prior reserve), fall back to append_to_process_shard, which
+    /// opens the sink + stamps a fresh id.
+    fn append_log_save(data_dir: &Option<String>, state: &AggregateState) {
+        use super::event_shard::{self, ShardRecord};
+        let dir = match data_dir {
+            Some(d) => d,
+            None => return, // memory-backed AppendLog has no disk shard target
+        };
+        let shard_dir = std::path::Path::new(dir).join("shards");
+        let s = |k: &str| state.get(k).as_str().unwrap_or_default().to_string();
+        let sub = |k: &str, f: &str| match state.get(k) {
+            Value::Map(m) => m.get(f).and_then(|v| v.as_str()).unwrap_or_default().to_string(),
+            _ => String::new(),
+        };
+        let seq = match state.get("sequence") {
+            Value::Map(m) => m.get("value").and_then(|v| v.as_int()).unwrap_or(0),
+            Value::Int(i) => *i,
+            _ => 0,
+        } as u64;
+        let rec = ShardRecord {
+            shard: event_shard::process_shard_id().to_string(),
+            seq,
+            ts: s("recorded_at"),
+            event_id: s("event_id"),
+            aggregate_name: s("aggregate_name"),
+            aggregate_id: s("aggregate_id"),
+            verb: sub("command", "verb"),
+            inputs: sub("command", "inputs"),
+            field: sub("delta", "field"),
+            value: sub("delta", "value"),
+            causation_id: s("causation_id"),
+            correlation_id: s("correlation_id"),
+            actor: s("actor"),
+        };
+        if !event_shard::append_record(&rec) {
+            let _ = event_shard::append_to_process_shard(&shard_dir, rec);
+        }
     }
 
     pub fn delete(&mut self, id: &str, ctx: heki::WriteContext<'_>) {
