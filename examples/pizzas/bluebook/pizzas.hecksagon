@@ -44,6 +44,15 @@ Hecks.hecksagon "Pizzas" do
   # not the heki default, selects the backend.
   Pizzas::Cart.persisted_by("Memory")
 
+  # ── REPLY PORT · persistence (Kitchen) ──────────────────────────────
+  # The Kitchen is the driving-side singleton : its ExpireStale tick records
+  # last_swept_at, so it MUST survive restarts (a sweeper that forgot when it
+  # last swept would re-sweep the world every boot). So it binds Heki like
+  # Pizza / Order — durable, disk-backed. Declared AFTER Cart to mirror the
+  # bluebook's aggregate declaration order (Pizza, Order, Cart, Kitchen), the
+  # same order `storehouse wire-persistence` emits and the golden test pins.
+  Pizzas::Kitchen.persisted_by("Heki")
+
   # ── EFFECT PORT · payment ───────────────────────────────────────────
   # The charge is a remote call — latency, retries, a flaky gateway — impure
   # AND async, so an adapter. `charged_by` belongs to the payment family,
