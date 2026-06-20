@@ -94,3 +94,81 @@ fn payment_handler_honors_family_produces_contract() {
     let (ok, _) = run_handler(&root, handler, true);
     assert!(!ok, "STRIPE_DECLINE=1 should exit non-zero (the failure branch)");
 }
+
+// ── llm family (slice 1) ────────────────────────────────────────────────
+//
+// The `llm` family declares `produces :response_text` ; its verdict-capturing
+// handler (adapters/llm/llm-handler) must emit `response_text=` on stdout and
+// exit 0 (the success branch). Plus an IDEMPOTENCY-REPLAY case : the handler is
+// deterministic (TestProvider SHA-256), so re-running it with the same payload
+// + fixtures yields byte-identical stdout — a replayed delivery never
+// double-produces a different verdict.
+
+/// Build the standalone llm-handler into `out`. Returns false (test skips) if
+/// rustc is unavailable.
+fn build_llm_handler(root: &PathBuf, out: &std::path::Path) -> bool {
+    let src = root.join("adapters/llm/llm-handler.rs");
+    let status = Command::new("rustc")
+        .args(["-O"]).arg(&src).arg("-o").arg(out).status();
+    matches!(status, Ok(s) if s.success()) && out.exists()
+}
+
+/// Run the llm-handler : prompt payload on stdin, optional LLM_FIXTURES env.
+fn run_llm_handler(bin: &std::path::Path, prompt: &str, fixtures: Option<&std::path::Path>) -> (bool, String) {
+    let mut cmd = Command::new(bin);
+    cmd.stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::null());
+    if let Some(f) = fixtures {
+        cmd.env("LLM_FIXTURES", f);
+    }
+    let mut child = cmd.spawn().expect("llm-handler not spawnable");
+    child.stdin.take().unwrap()
+        .write_all(format!("{{\"prompt\":\"{}\"}}", prompt).as_bytes()).unwrap();
+    let out = child.wait_with_output().expect("llm-handler did not finish");
+    (out.status.success(), String::from_utf8_lossy(&out.stdout).to_string())
+}
+
+#[test]
+fn llm_handler_honors_family_produces_contract_and_is_replay_idempotent() {
+    let root = repo_root();
+
+    // 1. The family's declared output contract.
+    let fam = dump(&root, "adapters/llm/llm.family");
+    let produces: Vec<String> = fam["families"][0]["produces"]
+        .as_array().expect("llm family has a produces array")
+        .iter().map(|v| v.as_str().unwrap().to_string()).collect();
+    assert!(
+        produces.contains(&"response_text".to_string()),
+        "llm family should declare `produces :response_text` ; got {:?}", produces,
+    );
+
+    // 2. The adapter's declared handler binary.
+    let adp = dump(&root, "adapters/llm/test-llm.adapter");
+    let handler = adp["adapters"][0]["handler"].as_str().expect("adapter declares a handler");
+    assert_eq!(handler, "adapters/llm/llm-handler", "TestLlm declares the llm-handler");
+
+    // Build the handler into a temp path (the repo doesn't ship the binary).
+    let bin = std::env::temp_dir().join(format!("llm_handler_conf_{}", std::process::id()));
+    if !build_llm_handler(&root, &bin) {
+        eprintln!("[skip] rustc unavailable — cannot build llm-handler");
+        return;
+    }
+
+    // 3. Success branch : exit 0, every `produces` field present as k=v.
+    let (ok, stdout) = run_llm_handler(&bin, "Imagine the sea", None);
+    assert!(ok, "llm-handler should exit 0 on the success branch");
+    for field in &produces {
+        assert!(
+            stdout.lines().any(|l| l.starts_with(&format!("{}=", field))),
+            "handler must emit `{}=` per produces ; stdout was:\n{}", field, stdout,
+        );
+    }
+
+    // 4. IDEMPOTENCY-REPLAY : deterministic verdict — re-running with the same
+    //    payload yields byte-identical stdout (a replay never double-produces a
+    //    different verdict).
+    let (ok2, stdout2) = run_llm_handler(&bin, "Imagine the sea", None);
+    assert!(ok2);
+    assert_eq!(stdout, stdout2, "llm-handler is deterministic — replay is byte-identical");
+
+    let _ = std::fs::remove_file(&bin);
+}

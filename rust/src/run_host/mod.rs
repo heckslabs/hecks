@@ -48,7 +48,10 @@
 //! exec onto a bounded thread pool with the per-adapter timeout from `.world`.
 
 mod config;
-mod exec;
+/// Public so the in-runtime primary-adapter wait
+/// (`Runtime::drain_outbound_to_quiescence`) can reuse `run_handler` — the
+/// blocking, verdict-capturing handler exec primitive — without duplicating it.
+pub mod exec;
 
 use crate::runtime::{Runtime, Value};
 use std::collections::HashMap;

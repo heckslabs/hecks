@@ -1251,6 +1251,15 @@ impl Runtime {
         command_name: &str,
         fired: &mut std::collections::HashSet<String>,
     ) {
+        // KEYSTONE GATE (slice 1) — when HECKS_REPLY_OOP_LLM is set, the
+        // OUT-OF-PROCESS llm effect path (effect binding -> OutboundEvent ->
+        // drain_outbound_to_quiescence) owns llm completion. Suppress the
+        // in-process LlmAdapter-struct path so the two never both fire and
+        // double-produce the verdict. Gate OFF (default) keeps this in-process
+        // path as the proven fallback. See docs/driven_port_keystone_api.md.
+        if std::env::var("HECKS_REPLY_OOP_LLM").is_ok() {
+            return;
+        }
         let debug_llm = std::env::var("HECKS_DEBUG_LLM").is_ok();
         if debug_llm {
             eprintln!("[llm:debug] resolve_llm_adapters cmd={} agg_type={} hecksagons={} providers={} fired={}",
@@ -2143,6 +2152,166 @@ impl Runtime {
             .find(|b| b.name == adapter_name)
             .map(|b| b.values.clone())
             .unwrap_or_default()
+    }
+
+    /// PRIMARY-ADAPTER SYNCHRONOUS WAIT (driving-side, Cockburn) — drain the
+    /// verdict-bearing OutboundEvent deliveries INLINE, to quiescence, reusing
+    /// run_host's primitive (Claim -> exec handler BLOCKING + verdict-capturing
+    /// -> dispatch the verdict -> the verdict RE-ENTERS the core, which may emit
+    /// more effects -> loop). Returns the number of deliveries drained.
+    ///
+    /// This is the keystone the serve/dispatch boundary calls (gated by
+    /// HECKS_REPLY_OOP_LLM) so a synchronous caller gets the effect's result
+    /// back. The CORE never blocks : it has already returned by the time this
+    /// runs ; the WAIT is a primary-adapter concern, not a driven-port one.
+    ///
+    /// Discipline (see docs/driven_port_keystone_api.md) :
+    ///   - Claims ONLY verdict-bearing deliveries (success_command non-empty).
+    ///     Fire-and-forget (tts) is LEFT for the detach pump
+    ///     (pump_outbound_events) — never claimed here, so a slow playback can't
+    ///     block the wait and a verdict k=v is never lost to the detach pump's
+    ///     Stdio::null().
+    ///   - Handler-less deliveries are LEFT PENDING (not claimed, not failed) —
+    ///     mirrors pump_outbound_events, NOT run_host_pass (whose mark_failed on
+    ///     handler-less would loop forever under this quiescence wrapper).
+    ///   - Claim's `given status == pending` is the at-least-once idempotency
+    ///     guard : a replay after MarkDelivered finds status != pending, Claim
+    ///     errors, the handler is not re-exec'd, the verdict lands exactly once.
+    ///   - Bounded by MAX_ITERS (total drain budget). An exec error within the
+    ///     budget -> MarkFailed (last_error) -> the delivery returns to pending
+    ///     for a bounded retry / dead-letter (compensate-forward).
+    pub fn drain_outbound_to_quiescence(&mut self) -> usize {
+        const MAX_ITERS: usize = 256;
+        if !self.domain.aggregates.iter().any(|a| a.name == "OutboundEvent") {
+            return 0;
+        }
+        let root = self.aggregates_root.clone().unwrap_or_default();
+
+        struct Pending {
+            delivery_id: String,
+            adapter: String,
+            payload: String,
+            success_command: String,
+            failure_command: String,
+        }
+        fn fld(s: &AggregateState, k: &str) -> String {
+            s.get(k).as_str().unwrap_or("").to_string()
+        }
+
+        let mut drained = 0usize;
+        let mut iters = 0usize;
+        loop {
+            iters += 1;
+            if iters > MAX_ITERS {
+                eprintln!("[drain_outbound_to_quiescence] budget reached — stopping");
+                break;
+            }
+            // Snapshot pending VERDICT-BEARING deliveries with a built handler.
+            let pending: Vec<Pending> = self
+                .all("OutboundEvent")
+                .into_iter()
+                .filter(|s| fld(s, "status") == "pending")
+                .filter(|s| !fld(s, "success_command").is_empty())
+                .map(|s| Pending {
+                    delivery_id: fld(s, "delivery_id"),
+                    adapter: fld(s, "adapter"),
+                    payload: fld(s, "payload"),
+                    success_command: fld(s, "success_command"),
+                    failure_command: fld(s, "failure_command"),
+                })
+                .collect();
+
+            // Keep only deliveries whose adapter has a built handler binary —
+            // a handler-less / unbuilt-binary delivery is LEFT PENDING for its
+            // in-runtime path (mirrors pump_outbound_events ; never mark_failed).
+            let actionable: Vec<Pending> = pending
+                .into_iter()
+                .filter(|d| {
+                    let (handler, _) = self.adapter_handler(&d.adapter).unwrap_or_default();
+                    if handler.is_empty() {
+                        return false;
+                    }
+                    let p = std::path::Path::new(&handler);
+                    let abs = if p.is_absolute() {
+                        handler.clone()
+                    } else if !root.is_empty() {
+                        std::path::Path::new(&root).join(&handler).to_string_lossy().into_owned()
+                    } else {
+                        handler.clone()
+                    };
+                    std::path::Path::new(&abs).exists()
+                })
+                .collect();
+
+            if actionable.is_empty() {
+                break; // quiescent
+            }
+
+            for d in actionable {
+                // Claim BEFORE exec — the at-least-once guard. A second drainer
+                // (or the daemon) Claiming the same delivery errors here : skip.
+                let mut claim = HashMap::new();
+                claim.insert("delivery_id".to_string(), Value::Str(d.delivery_id.clone()));
+                if self.dispatch("Claim", claim).is_err() {
+                    continue;
+                }
+                drained += 1;
+
+                // Resolve handler + fold the .world config onto the canonical env.
+                let (handler, family) = self.adapter_handler(&d.adapter).unwrap_or_default();
+                let handler_path = {
+                    let p = std::path::Path::new(&handler);
+                    if p.is_absolute() {
+                        handler.clone()
+                    } else if !root.is_empty() {
+                        std::path::Path::new(&root).join(&handler).to_string_lossy().into_owned()
+                    } else {
+                        handler.clone()
+                    }
+                };
+                let world = self.adapter_world_config(&d.adapter);
+                let env = adapter_env::map_config(
+                    &family, &world, &self.family_fields(&family),
+                );
+
+                // EXEC the handler BLOCKING, capturing the k=v verdict + exit
+                // branch — run_host's primitive, reused verbatim.
+                match crate::run_host::exec::run_handler(&handler_path, &d.payload, &env) {
+                    Err(e) => {
+                        // Spawn / I/O error — a retryable transport failure, not a
+                        // verdict. MarkFailed returns it to pending (dead-letter on
+                        // budget exhaustion). last_error captured.
+                        let mut mf = HashMap::new();
+                        mf.insert("delivery_id".to_string(), Value::Str(d.delivery_id.clone()));
+                        mf.insert("error".to_string(), Value::Str(e));
+                        let _ = self.dispatch("MarkFailed", mf);
+                    }
+                    Ok(outcome) => {
+                        let verdict = if outcome.success {
+                            &d.success_command
+                        } else {
+                            &d.failure_command
+                        };
+                        if !verdict.is_empty() {
+                            // Thread the handler's stdout k=v pairs into the verdict
+                            // command. THE VERDICT RE-ENTERS THE CORE — it may emit
+                            // more effects, drained on the next loop iteration
+                            // (drain-to-quiescence).
+                            let mut vattrs: HashMap<String, Value> = HashMap::new();
+                            for (k, v) in &outcome.verdict_pairs {
+                                vattrs.insert(k.clone(), Value::Str(v.clone()));
+                            }
+                            let _ = self.dispatch(verdict, vattrs);
+                        }
+                        // Reached a verdict == HANDLED -> MarkDelivered (terminal).
+                        let mut md = HashMap::new();
+                        md.insert("delivery_id".to_string(), Value::Str(d.delivery_id.clone()));
+                        let _ = self.dispatch("MarkDelivered", md);
+                    }
+                }
+            }
+        }
+        drained
     }
 
     /// Drain policy triggers recursively — each triggered command
