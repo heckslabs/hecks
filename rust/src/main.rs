@@ -5420,10 +5420,18 @@ fn run_drive(args: &[String]) {
         .and_then(|i| args.get(i + 1))
         .and_then(|s| parse_loop_duration(s))
         .unwrap_or_else(|| std::time::Duration::from_secs(1));
+    // Optional --adapter <Name> : fire ONLY this adapter's handlers (handler
+    // ids are "<Adapter>:<kind>:<arg>"). Without it EVERY interval handler in
+    // the corpus fires — including grammar-parity fixtures like IntervalAdapter.
+    // A go-live drive member targets ONE adapter (e.g. LogConsolidation).
+    let adapter_filter = args.iter().position(|a| a == "--adapter")
+        .and_then(|i| args.get(i + 1))
+        .cloned();
 
     eprintln!(
-        "[storehouse drive] {} polling every {:?} — firing `driving on interval` handlers (Ctrl-C to stop)",
-        target, poll
+        "[storehouse drive] {} polling every {:?}{} — firing `driving on interval` handlers (Ctrl-C to stop)",
+        target, poll,
+        adapter_filter.as_ref().map(|a| format!(" [adapter={}]", a)).unwrap_or_default()
     );
 
     // Boot the runtime ONCE with hecksagons + world wiring, exactly as
@@ -5450,8 +5458,15 @@ fn run_drive(args: &[String]) {
         // due handler reads state (mirrors loop_driver::tick_once).
         rt.refresh_repositories_from_heki();
 
-        // Snapshot the interval handlers present this tick (id, arg, dispatches).
-        let snapshot = driving::enumerate_driving_handlers(&rt, "interval");
+        // Snapshot the interval handlers present this tick (id, arg, dispatches),
+        // restricted to --adapter when given (id is "<Adapter>:interval:<arg>").
+        let snapshot: Vec<_> = driving::enumerate_driving_handlers(&rt, "interval")
+            .into_iter()
+            .filter(|(id, _, _)| match &adapter_filter {
+                Some(a) => id.starts_with(&format!("{}:", a)),
+                None => true,
+            })
+            .collect();
         // Parse each arg to a Duration for the scheduler ; skip unparseable.
         let due_input: Vec<(String, std::time::Duration)> = snapshot.iter()
             .filter_map(|(id, arg, _)| parse_loop_duration(arg).map(|d| (id.clone(), d)))

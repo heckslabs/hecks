@@ -167,5 +167,21 @@ Hecks.fixtures "Mindstream" do
             mindstream: "boot",
             command:    { line: "../rust/target/release/storehouse serve-socket /Users/christopheryoung/Projects/hecks/hecks_conception" },
             lifespan:   { kind: "persistent", may_exit: false, restart_on_failure: true }
+
+    # ── Event Log consolidation drive (2026-06-20, step 4) ──
+    #
+    # The projection of the EventSourcing `LogConsolidation` Driver
+    # (event_sourcing.hecksagon : `driving on interval "5s" ->
+    # Consolidation.Consolidate`). `storehouse drive` is the live interval
+    # scheduler ; `--adapter LogConsolidation` fires ONLY this Driver, not the
+    # IntervalAdapter grammar-parity fixture. Each tick the run_consolidate
+    # hook folds the hecks-realm per-process Event shards into the global
+    # ordered event.heki — replacing the retired run_merge daemon. Inert until
+    # HECKS_EVENT_SOURCING is set (no shards to fold, so it is a no-op loop).
+    fixture "consolidate",
+            name:       "consolidate",
+            mindstream: "boot",
+            command:    { line: "../rust/target/release/storehouse drive aggregates --adapter LogConsolidation --poll 5s" },
+            lifespan:   { kind: "persistent", may_exit: false, restart_on_failure: true }
   end
 end

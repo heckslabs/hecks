@@ -18,6 +18,11 @@ conductor_sweep: ../rust/target/release/storehouse loop aggregates Conductor::Sw
 # restart_prompt: bin/restart-prompt-daemon  # DISABLED — binary missing (i703); its non-CAN_DIE exit was tearing down all daemons. Restore once the daemon is rebuilt + mindstream member fixed.
 speech_stream: ../rust/target/release/storehouse loop /Users/christopheryoung/Projects/miette/body SpeechStream::SpeechStream.Advance --every 200ms
 serve_socket: ../rust/target/release/storehouse serve-socket /Users/christopheryoung/Projects/hecks/hecks_conception
+# consolidate: projection of the EventSourcing LogConsolidation Driver. `storehouse
+# drive --adapter LogConsolidation` fires ONLY that Driver (not the IntervalAdapter
+# parity fixture) ; each tick run_consolidate folds the hecks-realm Event shards
+# into the global event.heki, retiring run_merge. Inert until HECKS_EVENT_SOURCING set.
+consolidate: ../rust/target/release/storehouse drive aggregates --adapter LogConsolidation --poll 5s
 # voice: retired 2026-05-20 — the kernel TTS dispatcher (rust/src/runtime/tts_dispatcher.rs)
 # is now the substrate. The Stop hook in .claude/settings.json dispatches
 # Voice::Voice.Speak directly through the storehouse binary ; no shell
