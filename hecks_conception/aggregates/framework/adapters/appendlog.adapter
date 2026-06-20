@@ -1,0 +1,16 @@
+# AppendLog — a concrete async PERSISTENCE adapter : the bluebook-first Event
+# Log's write path. It DECLARES the family it implements (persistence) ; the
+# family never names it. Unlike Heki (whole-file upsert) its save is APPEND :
+# each save persists ONE immutable record to THIS process's private shard
+# (single-writer => lossless, no clobber under concurrency), which the merge
+# daemon folds into the global ordered event.heki. READS route exactly like
+# Heki, over that merged log.
+#
+# The bind `EventSourcing::Event.persisted_by("AppendLog")` resolves IFF this
+# adapter's declared family (persistence) carries the `persisted_by` verb — the
+# typed attach checkpoint, the same one Heki/Memory pass. The shard byte-IO +
+# merge fold are the adapter's irreducible kernel leaf (sibling of heki.rs) ;
+# everything above is declaration.
+Hecks.adapter "AppendLog" do
+  family "persistence"
+end

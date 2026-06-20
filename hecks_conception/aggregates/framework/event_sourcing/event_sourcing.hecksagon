@@ -1,0 +1,18 @@
+# The EventSourcing hexagon — the ports-and-adapters ring around the Event
+# aggregate's synchronous domain core.
+#
+# One bind : the Event aggregate's persistence port is fulfilled by the AppendLog
+# adapter (the bluebook-first Event Log). Append-not-upsert — each Event.Append
+# save persists ONE immutable record to this process's private shard, which the
+# merge daemon folds into the global ordered event.heki. The domain stays purely
+# synchronous (it composes Append, the single writer) ; the shard byte-IO + the
+# merge fold are the adapter's kernel leaf, never the domain's concern.
+#
+# This replaces the imperative record_event_append shard write : the runtime now
+# dispatches the bluebook command EventSourcing::Event.Append, and THIS binding
+# is what turns that save into a shard append. WHERE the store writes follows the
+# heki :default convention (rooted at the realm's data dir), so no .world block
+# is needed — the bind alone is the whole wiring.
+Hecks.hecksagon "EventSourcing" do
+  EventSourcing::Event.persisted_by("AppendLog")
+end
