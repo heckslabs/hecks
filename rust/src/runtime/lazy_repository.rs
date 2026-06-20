@@ -357,29 +357,25 @@ impl LazyRepository {
         };
         let shard_dir = std::path::Path::new(dir).join("shards");
         let s = |k: &str| state.get(k).as_str().unwrap_or_default().to_string();
-        let sub = |k: &str, f: &str| match state.get(k) {
-            Value::Map(m) => m.get(f).and_then(|v| v.as_str()).unwrap_or_default().to_string(),
-            _ => String::new(),
-        };
         let seq = match state.get("sequence") {
             Value::Map(m) => m.get("value").and_then(|v| v.as_int()).unwrap_or(0),
             Value::Int(i) => *i,
             _ => 0,
         } as u64;
+        // The event payload is the FULL Event AggregateState, serialized — the
+        // ONE source of the Event shape (no parallel field list to drift). The
+        // merge writes this verbatim to the global Log, so a reader sees the
+        // real nested Event (command{verb,inputs}, delta{field,value}, …).
+        let mut event = serde_json::Map::new();
+        for (k, v) in &state.fields {
+            event.insert(k.clone(), super::value_to_json(v));
+        }
         let rec = ShardRecord {
             shard: event_shard::process_shard_id().to_string(),
             seq,
             ts: s("recorded_at"),
             event_id: s("event_id"),
-            aggregate_name: s("aggregate_name"),
-            aggregate_id: s("aggregate_id"),
-            verb: sub("command", "verb"),
-            inputs: sub("command", "inputs"),
-            field: sub("delta", "field"),
-            value: sub("delta", "value"),
-            causation_id: s("causation_id"),
-            correlation_id: s("correlation_id"),
-            actor: s("actor"),
+            event,
         };
         if !event_shard::append_record(&rec) {
             let _ = event_shard::append_to_process_shard(&shard_dir, rec);
