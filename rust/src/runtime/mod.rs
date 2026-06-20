@@ -3141,7 +3141,7 @@ fn parse_payload_attrs(json: &str) -> HashMap<String, Value> {
     out
 }
 
-fn value_to_json(v: &Value) -> serde_json::Value {
+pub(crate) fn value_to_json(v: &Value) -> serde_json::Value {
     match v {
         Value::Str(s) => serde_json::json!(s),
         Value::Int(n) => serde_json::json!(n),

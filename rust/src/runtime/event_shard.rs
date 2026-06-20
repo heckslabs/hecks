@@ -27,26 +27,25 @@ use std::fs::OpenOptions;
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::Path;
 
-/// One immutable event, flattened for a single-line JSON encoding. Mirrors
-/// the EventSourcing::Event aggregate's fields (command verb/inputs + delta
-/// field/value + lineage), plus the shard-merge envelope (shard, seq, ts).
+/// One immutable event in a process shard : the merge ENVELOPE (the total-order
+/// key shard/seq/ts plus the dedup key event_id) and the EVENT itself, carried
+/// OPAQUELY as the serialized EventSourcing::Event aggregate (its fields as a
+/// JSON object). The shard line no longer hand-lists the Event's fields — the
+/// AppendLog adapter serializes the Event AggregateState into `event`, so the
+/// Event shape has ONE source (the bluebook), not a parallel struct that drifts.
+/// The merge orders by (ts, shard, seq) and writes `event` (the true nested
+/// shape — command{verb,inputs}, delta{field,value}, sequence{value}, …) to the
+/// global Log, so a reader of the global store sees the real Event, not a
+/// flattened copy.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ShardRecord {
-    // ── merge envelope : the total-order key is (ts, shard, seq) ──
+    // ── merge envelope : the total-order key is (ts, shard, seq) ; event_id dedups ──
     pub shard: String,
     pub seq: u64,
     pub ts: String,
-    // ── the event ──
     pub event_id: String,
-    pub aggregate_name: String,
-    pub aggregate_id: String,
-    pub verb: String,
-    pub inputs: String,
-    pub field: String,
-    pub value: String,
-    pub causation_id: String,
-    pub correlation_id: String,
-    pub actor: String,
+    // ── the event : the Event aggregate's fields, serialized (no duplication) ──
+    pub event: serde_json::Map<String, serde_json::Value>,
 }
 
 /// Serialize one record to its single-line JSON form (no trailing newline ;
@@ -61,15 +60,7 @@ pub fn serialize_line(rec: &ShardRecord) -> String {
     m.insert("seq".into(), Value::Number(rec.seq.into()));
     m.insert("ts".into(), Value::String(rec.ts.clone()));
     m.insert("event_id".into(), Value::String(rec.event_id.clone()));
-    m.insert("aggregate_name".into(), Value::String(rec.aggregate_name.clone()));
-    m.insert("aggregate_id".into(), Value::String(rec.aggregate_id.clone()));
-    m.insert("verb".into(), Value::String(rec.verb.clone()));
-    m.insert("inputs".into(), Value::String(rec.inputs.clone()));
-    m.insert("field".into(), Value::String(rec.field.clone()));
-    m.insert("value".into(), Value::String(rec.value.clone()));
-    m.insert("causation_id".into(), Value::String(rec.causation_id.clone()));
-    m.insert("correlation_id".into(), Value::String(rec.correlation_id.clone()));
-    m.insert("actor".into(), Value::String(rec.actor.clone()));
+    m.insert("event".into(), Value::Object(rec.event.clone()));
     Value::Object(m).to_string()
 }
 
@@ -88,20 +79,16 @@ pub fn parse_line(line: &str) -> Result<ShardRecord, String> {
     let seq = v.get("seq")
         .and_then(|x| x.as_u64())
         .ok_or_else(|| "shard parse: missing/!u64 field 'seq'".to_string())?;
+    let event = v.get("event")
+        .and_then(|x| x.as_object())
+        .cloned()
+        .ok_or_else(|| "shard parse: missing/!object field 'event'".to_string())?;
     Ok(ShardRecord {
         shard: s("shard")?,
         seq,
         ts: s("ts")?,
         event_id: s("event_id")?,
-        aggregate_name: s("aggregate_name")?,
-        aggregate_id: s("aggregate_id")?,
-        verb: s("verb")?,
-        inputs: s("inputs")?,
-        field: s("field")?,
-        value: s("value")?,
-        causation_id: s("causation_id")?,
-        correlation_id: s("correlation_id")?,
-        actor: s("actor")?,
+        event,
     })
 }
 
@@ -272,21 +259,24 @@ mod tests {
     use super::*;
 
     fn rec(seq: u64, value: &str) -> ShardRecord {
+        // The event payload is now opaque (the serialized Event aggregate).
+        // Tests carry a `value` field inside it to assert round-trip fidelity.
+        let mut event = serde_json::Map::new();
+        event.insert("event_id".into(), serde_json::Value::String(format!("evt-{}", seq)));
+        event.insert("aggregate_name".into(), serde_json::Value::String("Order".into()));
+        event.insert("value".into(), serde_json::Value::String(value.into()));
         ShardRecord {
             shard: "p-42".into(),
             seq,
             ts: "2026-06-20T16:00:00Z".into(),
             event_id: format!("evt-{}", seq),
-            aggregate_name: "Order".into(),
-            aggregate_id: "o-1".into(),
-            verb: "PlaceOrder".into(),
-            inputs: "{}".into(),
-            field: "status".into(),
-            value: value.into(),
-            causation_id: String::new(),
-            correlation_id: "corr-1".into(),
-            actor: "system".into(),
+            event,
         }
+    }
+
+    // Read the test payload back out of the opaque event object.
+    fn val(r: &ShardRecord) -> &str {
+        r.event.get("value").and_then(|v| v.as_str()).unwrap()
     }
 
     #[test]
@@ -304,7 +294,7 @@ mod tests {
         let r = rec(2, "line1\nline2\nline3");
         let line = serialize_line(&r);
         assert_eq!(line.matches('\n').count(), 0);
-        assert_eq!(parse_line(&line).unwrap().value, "line1\nline2\nline3");
+        assert_eq!(val(&parse_line(&line).unwrap()), "line1\nline2\nline3");
     }
 
     #[test]
@@ -315,7 +305,7 @@ mod tests {
         let r = rec(3, &big);
         let line = serialize_line(&r);
         assert!(line.len() > 8192);
-        assert_eq!(parse_line(&line).unwrap().value, big);
+        assert_eq!(val(&parse_line(&line).unwrap()), big);
     }
 
     #[test]
@@ -328,8 +318,8 @@ mod tests {
         w.append(&rec(2, "b")).unwrap();
         let (records, off) = read_from(&path, 0).unwrap();
         assert_eq!(records.len(), 2);
-        assert_eq!(records[0].value, "a");
-        assert_eq!(records[1].value, "b");
+        assert_eq!(val(&records[0]), "a");
+        assert_eq!(val(&records[1]), "b");
         assert!(off > 0);
         let _ = std::fs::remove_dir_all(&dir);
     }
@@ -347,7 +337,7 @@ mod tests {
         w.append(&rec(2, "b")).unwrap();
         w.append(&rec(3, "c")).unwrap();
         let (second, off2) = read_from(&path, off1).unwrap();
-        assert_eq!(second.iter().map(|r| r.value.as_str()).collect::<Vec<_>>(), vec!["b", "c"]);
+        assert_eq!(second.iter().map(|r| val(r)).collect::<Vec<_>>(), vec!["b", "c"]);
         assert!(off2 > off1);
         // Resuming from the tip yields nothing.
         let (none, off3) = read_from(&path, off2).unwrap();
@@ -369,7 +359,7 @@ mod tests {
         let (records, off) = read_from(&path, 0).unwrap();
         // Only the complete line is consumed ; the partial waits.
         assert_eq!(records.len(), 1);
-        assert_eq!(records[0].value, "a");
+        assert_eq!(val(&records[0]), "a");
         assert_eq!(off as usize, complete.len() + 1); // up to and incl the '\n'
         let _ = std::fs::remove_dir_all(&dir);
     }

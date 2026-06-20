@@ -116,21 +116,16 @@ pub fn write_batch_to_global(global_path: &str, batch: &[ShardRecord]) -> Result
             continue; // idempotent : already merged (crash-replay dedup)
         }
         let seq = store.len() as i64 + 1; // append-only -> len == max sequence
-        let mut r: crate::heki::Record = HashMap::new();
-        r.insert("id".into(), Value::String(rec.event_id.clone())); // dedup key
-        r.insert("event_id".into(), Value::String(rec.event_id.clone()));
-        r.insert("aggregate_name".into(), Value::String(rec.aggregate_name.clone()));
-        r.insert("aggregate_id".into(), Value::String(rec.aggregate_id.clone()));
-        r.insert("verb".into(), Value::String(rec.verb.clone()));
-        r.insert("inputs".into(), Value::String(rec.inputs.clone()));
-        r.insert("field".into(), Value::String(rec.field.clone()));
-        r.insert("value".into(), Value::String(rec.value.clone()));
-        r.insert("causation_id".into(), Value::String(rec.causation_id.clone()));
-        r.insert("correlation_id".into(), Value::String(rec.correlation_id.clone()));
-        r.insert("actor".into(), Value::String(rec.actor.clone()));
+        // The event payload IS the record : write the serialized Event
+        // verbatim (the true nested shape), then stamp the heki key (id), the
+        // origin shard, and the AUTHORITATIVE global sequence — overwriting the
+        // per-process sequence the writer carried (single-writer model).
+        let mut r: crate::heki::Record = rec.event.clone().into_iter().collect();
+        r.insert("id".into(), Value::String(rec.event_id.clone())); // heki dedup key
         r.insert("shard".into(), Value::String(rec.shard.clone()));
-        r.insert("sequence".into(), Value::Number(seq.into()));
-        r.insert("recorded_at".into(), Value::String(rec.ts.clone()));
+        let mut seqobj = serde_json::Map::new();
+        seqobj.insert("value".into(), Value::Number(seq.into()));
+        r.insert("sequence".into(), Value::Object(seqobj));
         store.insert(rec.event_id.clone(), r);
         written += 1;
     }
@@ -161,20 +156,17 @@ mod tests {
     use crate::runtime::event_shard::{ShardWriter, ShardRecord};
 
     fn rec(shard: &str, seq: u64, ts: &str) -> ShardRecord {
+        let mut event = serde_json::Map::new();
+        event.insert("event_id".into(), serde_json::Value::String(format!("{}-{}", shard, seq)));
+        event.insert("aggregate_name".into(), serde_json::Value::String("Order".into()));
+        event.insert("aggregate_id".into(), serde_json::Value::String(format!("o-{}", seq)));
+        event.insert("value".into(), serde_json::Value::String("pending".into()));
         ShardRecord {
             shard: shard.into(),
             seq,
             ts: ts.into(),
             event_id: format!("{}-{}", shard, seq),
-            aggregate_name: "Order".into(),
-            aggregate_id: format!("o-{}", seq),
-            verb: "PlaceOrder".into(),
-            inputs: "{}".into(),
-            field: "status".into(),
-            value: "pending".into(),
-            causation_id: String::new(),
-            correlation_id: "c".into(),
-            actor: "system".into(),
+            event,
         }
     }
 
