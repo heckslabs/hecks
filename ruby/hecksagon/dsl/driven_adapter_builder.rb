@@ -49,6 +49,7 @@ module Hecksagon
       # the DrivingHandler. Mirrors Rust's parse_driving_handler that
       # captures kind + arg from the source line verbatim.
       def cron(arg)       = { kind: "cron",       arg: arg.to_s }
+      def interval(arg)   = { kind: "interval",   arg: arg.to_s }
       def http_post(arg)  = { kind: "http_post",  arg: arg.to_s }
       def file_watch(arg) = { kind: "file_watch", arg: arg.to_s }
 

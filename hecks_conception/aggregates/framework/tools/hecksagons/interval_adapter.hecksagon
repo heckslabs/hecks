@@ -1,0 +1,30 @@
+Hecks.hecksagon "IntervalAdapter" do
+  # ============================================================
+  # INTERVAL ADAPTER (driving-on-grammar : interval kind)
+  # ============================================================
+  #
+  # Parity fixture for the `driving on interval "Ns"` surface — the
+  # sibling of cron_adapter.hecksagon. Where CronAdapter declares a cron
+  # trigger, this declares an INTERVAL trigger (a plain period). Its
+  # purpose is to keep the Ruby HecksagonBuilder and the Rust parser in
+  # lock-step on the `interval` kind : the Ruby DSL gained an `interval`
+  # marker method (driven_adapter_builder.rb) and the Rust parser is
+  # kind-agnostic (parse_driving_handler reads the first token after
+  # `driving on` verbatim), so both accept this file and emit identical
+  # canonical IR. Before the Ruby `interval` method existed this file
+  # would have raised NoMethodError in the Ruby parser — the exact
+  # "interval breaks hecksagon parity" the §3 convention named.
+  #
+  # NOTE : interval handlers do NOT fire in any live daemon yet — like
+  # cron, driving handlers only fire in the behaviors-test path and the
+  # (unused-in-prod) LoopDriver. Live interval scheduling is the dedicated
+  # `storehouse drive` daemon spec'd in inbox/interval-scheduler-spec.md.
+  # This fixture proves the GRAMMAR parity, not live firing.
+
+  adapter "IntervalAdapter" do
+    driving on interval "2s" do |signal|
+      dispatch "Tools::TaskTool.Get",
+               id: "interval-adapter-smoke"
+    end
+  end
+end

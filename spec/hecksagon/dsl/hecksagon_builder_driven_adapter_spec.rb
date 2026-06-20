@@ -89,6 +89,22 @@ RSpec.describe Hecksagon::DSL::HecksagonBuilder do
       expect(handler.arg).to eq("*/5 * * * *")
       expect(handler.dispatches.first.command).to eq("Tools::TaskTool.Get")
     end
+
+    it "captures the interval kind (driving on interval \"Ns\")" do
+      builder = described_class.new("Tools")
+      builder.adapter "IntervalAdapter" do
+        driving on interval "2s" do |signal|
+          dispatch "Tools::TaskTool.Get",
+                   id: "interval-adapter-smoke"
+        end
+      end
+      hecksagon = builder.build
+
+      handler = hecksagon.driving_adapters.first.handlers.first
+      expect(handler.kind).to eq("interval")
+      expect(handler.arg).to eq("2s")
+      expect(handler.dispatches.first.command).to eq("Tools::TaskTool.Get")
+    end
   end
 
   describe "tolerance for runtime-callback bodies (matches negative_callback_adapter fixture)" do
