@@ -10,4 +10,10 @@
     // bypassing the Runtime::dispatch wrapper) — is recorded. record_event_append
     // guards against recursion (its own Append) and infra (CascadeRun/OutboundEvent).
     rt.record_event_append(&result, command_name);
+    // Event Log consolidation : the Consolidate maintenance command folds this
+    // realm's per-process shards into the global ordered event.heki. Hooked
+    // HERE (not the Runtime::dispatch wrapper) so it fires on BOTH the manual
+    // dispatch path AND the driver's dispatch_cascade fire (storehouse drive).
+    // No-op for every other command. Replaces the hand-written run_merge daemon.
+    rt.run_consolidate_if(command_name);
     Ok(result)

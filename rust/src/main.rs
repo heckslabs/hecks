@@ -471,19 +471,10 @@ fn main() {
         return;
     }
 
-    // `storehouse merge <shard-dir> --global <event.heki> [--checkpoint <path>] [--poll <dur>]`
-    //
-    // The merge half of the out-of-process Event Log : the SINGLE owner
-    // that tails every per-process shard in <shard-dir> and folds them
-    // into the global ordered <event.heki>. Each pass reads each shard
-    // from its checkpoint offset, sorts the batch by (ts, shard, seq),
-    // writes it to the global log IDEMPOTENTLY by event_id, then saves
-    // the checkpoint — write-then-checkpoint so a crash in between replays
-    // harmlessly (dedup), never drops. See inbox/event-log-oop-precondition.md.
-    if command == "merge" {
-        run_merge(&args);
-        return;
-    }
+    // (The `storehouse merge` daemon was retired in step 2 of the bluebook-first
+    // Event Log : consolidation is now the EventSourcing `LogConsolidation`
+    // Driver — `driving on interval` firing Consolidation.Consolidate, executed
+    // by the runtime hook run_consolidate and scheduled by `storehouse drive`.)
 
     // `storehouse daemon <ensure|status|stop> <pidfile> [command...]`
     //
@@ -5480,90 +5471,6 @@ fn run_drive(args: &[String]) {
                 }
                 driving::fire_dispatches(&mut rt, dispatches);
             }
-        }
-        std::thread::sleep(poll);
-    }
-}
-
-/// `storehouse merge <shard-dir> --global <event.heki> [--checkpoint <path>] [--poll <dur>]`
-///
-/// The merge daemon — the SINGLE owner of the global Event Log. Tails
-/// every `*.shard` in <shard-dir>, folds them into <event.heki>. One pass
-/// per `--poll` (default 1s) : clone the checkpoint, merge_pass (reads each
-/// shard from its offset, sorts by (ts, shard, seq)), write the batch to
-/// the global log idempotently by event_id, then — only on a SUCCESSFUL
-/// write — adopt the advanced checkpoint and persist it. A write failure
-/// leaves the checkpoint untouched, so the batch is retried, never skipped ;
-/// a crash AFTER the write but BEFORE the save replays harmlessly (the
-/// idempotent global write dedups). Single-writer of the global store, so
-/// whole-file heki there is safe.
-fn run_merge(args: &[String]) {
-    use storehouse::runtime::event_merge as em;
-    use std::path::Path;
-
-    let shard_dir = args.get(2).map(|s| s.as_str()).unwrap_or_else(|| {
-        eprintln!("Usage: storehouse merge <shard-dir> --global <event.heki> [--checkpoint <path>] [--poll <duration>]");
-        std::process::exit(1);
-    });
-    let global = args.iter().position(|a| a == "--global")
-        .and_then(|i| args.get(i + 1))
-        .map(|s| s.to_string())
-        .unwrap_or_else(|| {
-            eprintln!("merge : missing --global <event.heki path>");
-            std::process::exit(1);
-        });
-    let checkpoint = args.iter().position(|a| a == "--checkpoint")
-        .and_then(|i| args.get(i + 1))
-        .map(|s| s.to_string())
-        .unwrap_or_else(|| format!("{}/.merge.checkpoint.json", shard_dir.trim_end_matches('/')));
-    let poll = args.iter().position(|a| a == "--poll")
-        .and_then(|i| args.get(i + 1))
-        .and_then(|s| parse_loop_duration(s))
-        .unwrap_or_else(|| std::time::Duration::from_secs(1));
-
-    eprintln!(
-        "[storehouse merge] {} -> {} (checkpoint {}, every {:?}) — folding shards into the global Event Log (Ctrl-C to stop)",
-        shard_dir, global, checkpoint, poll
-    );
-
-    let mut cp = em::load_checkpoint(Path::new(&checkpoint)).unwrap_or_else(|e| {
-        eprintln!("[storehouse merge] checkpoint load failed ({}) — starting fresh", e);
-        em::Checkpoint::new()
-    });
-    loop {
-        match em::discover_shards(Path::new(shard_dir)) {
-            Ok(shards) => {
-                // Clone the checkpoint : it is adopted ONLY after a durable
-                // global write, so a failed write never advances past
-                // unwritten events.
-                let mut next_cp = cp.clone();
-                match em::merge_pass(&shards, &mut next_cp) {
-                    Ok(batch) if !batch.is_empty() => {
-                        match em::write_batch_to_global(&global, &batch) {
-                            Ok(written) => {
-                                cp = next_cp;
-                                if let Err(e) = em::save_checkpoint(Path::new(&checkpoint), &cp) {
-                                    eprintln!("[storehouse merge] checkpoint save failed: {}", e);
-                                }
-                                if written > 0 {
-                                    eprintln!("[storehouse merge] merged {} new event(s) into {}", written, global);
-                                }
-                            }
-                            Err(e) => {
-                                // Checkpoint untouched -> this batch retries next pass.
-                                eprintln!("[storehouse merge] global write failed (will retry): {}", e);
-                            }
-                        }
-                    }
-                    Ok(_) => {
-                        // Empty batch : no complete records consumed, offsets
-                        // unchanged — adopting is a no-op.
-                        cp = next_cp;
-                    }
-                    Err(e) => eprintln!("[storehouse merge] merge pass error: {}", e),
-                }
-            }
-            Err(e) => eprintln!("[storehouse merge] shard discovery error: {}", e),
         }
         std::thread::sleep(poll);
     }
