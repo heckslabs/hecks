@@ -1,0 +1,136 @@
+Hecks.behaviors "EventSourcing" do
+  vision "Behavioral proof of the substrate in pure memory — no disk, no runtime. Three things are proven : (1) Append is the one writer and the Log surface (Replay / Since / ForAggregate / ByCorrelation) filters the Event set ; (2) every Event carries causation_id + correlation_id, so the Log is lineage-ready ; (3) Projection.Apply is an HONEST fold — chaining Apply calls DERIVES the view from the deltas (events_applied counts the deltas, view collects the derived rows), and Rebuild empties it for replay. Snapshot.Capture caches a fold at a watermark."
+
+  # ── Event : Append is the one writer ──────────────────────────────────
+
+  test "Append records an immutable event with its sequence" do
+    tests "Append", on: "Event"
+    input  event_id:       { value: "e1" },
+           aggregate_name: { value: "Order" },
+           aggregate_id:   { value: "o1" },
+           command:        { verb: "Order.PlaceOrder", inputs: "customer=ada qty=2" },
+           delta:          { field: "status", value: "pending" },
+           causation_id:   { value: "c0" },
+           correlation_id: { value: "flow-1" },
+           actor:          { value: "Customer" },
+           sequence:       { value: 1 },
+           recorded_at:    { value: "2026-06-19T00:00:00Z" }
+    expect sequence: { value: 1 }, emits: ["EventAppended"]
+  end
+
+  # LINEAGE-READY : every Event carries causation_id + correlation_id.
+  test "every Event carries causation_id and correlation_id (lineage-ready)" do
+    tests "Append", on: "Event"
+    input  event_id:       { value: "e2" },
+           aggregate_name: { value: "Order" },
+           aggregate_id:   { value: "o1" },
+           command:        { verb: "Order.Authorize", inputs: "ref=ch_1" },
+           delta:          { field: "status", value: "authorized" },
+           causation_id:   { value: "e1" },
+           correlation_id: { value: "flow-1" },
+           actor:          { value: "System" },
+           sequence:       { value: 2 },
+           recorded_at:    { value: "2026-06-19T00:00:01Z" }
+    expect causation_id: { value: "e1" }, correlation_id: { value: "flow-1" }
+  end
+
+  # ── Event : the Log surface filters the Event set ───────────────────────
+
+  test "Replay returns the appended events in the Log" do
+    tests "Replay", on: "Event", kind: :query
+    setup  "Append", event_id: { value: "e1" }, aggregate_name: { value: "Order" }, aggregate_id: { value: "o1" },
+           command: { verb: "Order.PlaceOrder", inputs: "" }, delta: { field: "status", value: "pending" },
+           causation_id: { value: "c0" }, correlation_id: { value: "flow-1" }, actor: { value: "Customer" },
+           sequence: { value: 1 }, recorded_at: { value: "t1" }
+    setup  "Append", event_id: { value: "e2" }, aggregate_name: { value: "Order" }, aggregate_id: { value: "o1" },
+           command: { verb: "Order.Authorize", inputs: "" }, delta: { field: "status", value: "authorized" },
+           causation_id: { value: "e1" }, correlation_id: { value: "flow-1" }, actor: { value: "System" },
+           sequence: { value: 2 }, recorded_at: { value: "t2" }
+    input  aggregate_name: { value: "Order" }
+    expect count: 2
+  end
+
+  test "ForAggregate returns only one aggregate's events" do
+    tests "ForAggregate", on: "Event", kind: :query
+    setup  "Append", event_id: { value: "e1" }, aggregate_name: { value: "Order" }, aggregate_id: { value: "o1" },
+           command: { verb: "Order.PlaceOrder", inputs: "" }, delta: { field: "status", value: "pending" },
+           causation_id: { value: "c0" }, correlation_id: { value: "flow-1" }, actor: { value: "Customer" },
+           sequence: { value: 1 }, recorded_at: { value: "t1" }
+    setup  "Append", event_id: { value: "e2" }, aggregate_name: { value: "Order" }, aggregate_id: { value: "o2" },
+           command: { verb: "Order.PlaceOrder", inputs: "" }, delta: { field: "status", value: "pending" },
+           causation_id: { value: "c0" }, correlation_id: { value: "flow-2" }, actor: { value: "Customer" },
+           sequence: { value: 2 }, recorded_at: { value: "t2" }
+    input  aggregate_id: { value: "o1" }
+    expect count: 1
+  end
+
+  test "ByCorrelation returns one originating flow" do
+    tests "ByCorrelation", on: "Event", kind: :query
+    setup  "Append", event_id: { value: "e1" }, aggregate_name: { value: "Order" }, aggregate_id: { value: "o1" },
+           command: { verb: "Order.PlaceOrder", inputs: "" }, delta: { field: "status", value: "pending" },
+           causation_id: { value: "c0" }, correlation_id: { value: "flow-1" }, actor: { value: "Customer" },
+           sequence: { value: 1 }, recorded_at: { value: "t1" }
+    setup  "Append", event_id: { value: "e2" }, aggregate_name: { value: "Order" }, aggregate_id: { value: "o2" },
+           command: { verb: "Order.PlaceOrder", inputs: "" }, delta: { field: "status", value: "pending" },
+           causation_id: { value: "c0" }, correlation_id: { value: "flow-2" }, actor: { value: "Customer" },
+           sequence: { value: 2 }, recorded_at: { value: "t2" }
+    input  correlation_id: { value: "flow-1" }
+    expect count: 1
+  end
+
+  # ORDER / SEQUENCE proof : the Log is keyed by a monotonic sequence, and
+  # AtSequence retrieves the event AT a position — so position N selects
+  # exactly one of the three ordered appends. (The strictly-after-watermark
+  # TAIL scan that Snapshot fall-forward uses is a RANGE query DEFERRED to
+  # the runtime phase — where() is equality-only in the corpus today.)
+  test "AtSequence selects the event at a sequence position (order proof)" do
+    tests "AtSequence", on: "Event", kind: :query
+    setup  "Append", event_id: { value: "e1" }, aggregate_name: { value: "Order" }, aggregate_id: { value: "o1" },
+           command: { verb: "Order.PlaceOrder", inputs: "" }, delta: { field: "status", value: "pending" },
+           causation_id: { value: "c0" }, correlation_id: { value: "flow-1" }, actor: { value: "Customer" },
+           sequence: { value: 1 }, recorded_at: { value: "t1" }
+    setup  "Append", event_id: { value: "e2" }, aggregate_name: { value: "Order" }, aggregate_id: { value: "o1" },
+           command: { verb: "Order.Authorize", inputs: "" }, delta: { field: "status", value: "authorized" },
+           causation_id: { value: "e1" }, correlation_id: { value: "flow-1" }, actor: { value: "System" },
+           sequence: { value: 2 }, recorded_at: { value: "t2" }
+    setup  "Append", event_id: { value: "e3" }, aggregate_name: { value: "Order" }, aggregate_id: { value: "o1" },
+           command: { verb: "Order.Ship", inputs: "" }, delta: { field: "status", value: "shipped" },
+           causation_id: { value: "e2" }, correlation_id: { value: "flow-1" }, actor: { value: "System" },
+           sequence: { value: 3 }, recorded_at: { value: "t3" }
+    input  seq: { value: 2 }
+    expect count: 1
+  end
+
+  # ── Projection : the HONEST fold derives the view from deltas ──────────────
+
+  test "Apply folds one delta into the view" do
+    tests "Apply", on: "Projection"
+    setup  "Rebuild", name: { value: "current_state:Order" }
+    input  name: { value: "current_state:Order" }, row_key: { value: "status" }, row_value: { value: "pending" }, sequence: { value: 1 }
+    expect events_applied: 1, view_size: 1, last_sequence: { value: 1 }, emits: ["DeltaApplied"]
+  end
+
+  test "Apply chained three times DERIVES the accumulated view (honest fold)" do
+    tests "Apply", on: "Projection"
+    setup  "Rebuild", name: { value: "orders_by_customer" }
+    setup  "Apply", name: { value: "orders_by_customer" }, row_key: { value: "o1" }, row_value: { value: "ada" }, sequence: { value: 1 }
+    setup  "Apply", name: { value: "orders_by_customer" }, row_key: { value: "o2" }, row_value: { value: "bo" },  sequence: { value: 2 }
+    input  name: { value: "orders_by_customer" }, row_key: { value: "o3" }, row_value: { value: "cy" }, sequence: { value: 3 }
+    expect events_applied: 3, view_size: 3, last_sequence: { value: 3 }
+  end
+
+  test "Rebuild empties the projection for a fresh replay" do
+    tests "Rebuild", on: "Projection"
+    setup  "Apply", name: { value: "current_state:Order" }, row_key: { value: "status" }, row_value: { value: "pending" }, sequence: { value: 1 }
+    input  name: { value: "current_state:Order" }
+    expect events_applied: 0, view_size: 0, emits: ["ProjectionRebuilt"]
+  end
+
+  # ── Snapshot : a cached fold at a watermark ────────────────────────────
+
+  test "Capture caches the folded state at a watermark" do
+    tests "Capture", on: "Snapshot"
+    input  projection_name: { value: "current_state:Order" }, watermark: { value: 2 }, state: []
+    expect watermark: { value: 2 }, emits: ["SnapshotCaptured"]
+  end
+end

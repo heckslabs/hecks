@@ -1,0 +1,309 @@
+Hecks.bluebook "EventSourcing", version: "2026.06.19.1" do
+  vision "The one substrate. A durable, append-only, ordered Log of immutable Events ; current-state and every read model are PROJECTIONS (folds) of that Log. Current-state is just the trivial per-aggregate projection. An Event is BOTH the command (intent + inputs) AND the resulting delta (the fact of what changed) ; the fold applies the DELTA only (deterministic — now/rand/compute are resolved once at write and recorded as fact), while lineage reads the command + the causation_id / correlation_id. This bluebook conceives Event (the immutable atom + the Log's append-and-replay surface), Projection (the honest incremental fold that DERIVES a view from the deltas it is fed), and Snapshot (a cached fold at a sequence point — today's heki current-state store, reinterpreted — with on-read fall-forward to replay). Lineage is ENABLED here (every Event carries causation_id + correlation_id) but its facet-queries are DEFERRED to a later phase. Subsumption is COEXIST-THEN-MIGRATE : OutboundEvent becomes a read model of undelivered events, CascadeRun an event-reactive consumer, dispatch_audit a pure audit projection, and IdentityService's IdentityString rename-chain a fold of rename Events whose head is the current name — none are rewritten in this phase, only flagged."
+  category "framework"
+
+  # ============================================================
+  # EVENT  —  the immutable atom AND the Log surface
+  # ============================================================
+  #
+  # BOUNDARY DECISION (flagged) : Event IS the aggregate ; "Log" is the
+  # SUBSTRATE CONCEPT — the totally-ordered set of all Event records — not
+  # a container that holds a nested list. This is deliberate :
+  #
+  #   * The Log operations (replay / at_sequence / for_aggregate /
+  #     by_correlation) are RECORD-FILTERING queries over the Event set,
+  #     so they are count-assertable and compose like any other query.
+  #   * The lineage-ready guarantee (every Event carries causation_id +
+  #     correlation_id) is a per-RECORD invariant, directly assertable
+  #     after Append, not buried inside one Log record's list elements.
+  #
+  # Append is THE ONE WRITER. There is no Event.Update / Event.Delete :
+  # the Log is append-only by construction (no mutating command exists).
+
+  aggregate "Event", "The immutable atom of the substrate. Carries BOTH the command (intent + inputs) and the resulting delta (the fact of what changed), plus the lineage ids (causation_id / correlation_id), the acting party, the monotonic sequence, and the recorded_at stamp. Identified by event_id. Append is the only writer ; the Log is append-only because no mutating command exists." do
+    identified_by :event_id
+
+    attribute :event_id,       EventId
+    attribute :aggregate_name, AggregateName
+    attribute :aggregate_id,   AggregateId
+    attribute :command,        Command
+    attribute :delta,          Delta
+    attribute :causation_id,   CausationId
+    attribute :correlation_id, CorrelationId
+    attribute :actor,          Actor
+    attribute :sequence,       Sequence
+    attribute :recorded_at,    RecordedAt
+
+    # ── Value objects ──────────────────────────────────────────────
+
+    value_object "EventId" do
+      # Stable, globally-unique id for this event record. The atom's key.
+      attribute :value, String
+    end
+
+    value_object "AggregateName" do
+      # WHICH aggregate kind this event belongs to, e.g. "Order".
+      # for_aggregate filters on (name, id) ; current-state is the trivial
+      # per-aggregate projection keyed by this pair.
+      attribute :value, String
+    end
+
+    value_object "AggregateId" do
+      # WHICH instance of that aggregate, e.g. an order id.
+      attribute :value, String
+    end
+
+    value_object "Command" do
+      # The INTENT side : the command FQN + its inputs, as the caller
+      # composed it, e.g. "Order.PlaceOrder customer=ada qty=2". Read by
+      # lineage (DEFERRED) ; NEVER re-executed by the fold.
+      attribute :verb,    String
+      attribute :inputs,  String
+    end
+
+    value_object "Delta" do
+      # The FACT side : the resolved change this event records. now / rand /
+      # compute are resolved ONCE at write and frozen here, so replaying the
+      # delta is deterministic. The fold applies THIS, never the command.
+      #   field — the state field that changed (or a list verb token).
+      #   value — the resolved new value / appended element.
+      attribute :field,   String
+      attribute :value,   String
+    end
+
+    value_object "CausationId" do
+      # The id of the event/command that DIRECTLY caused this one. Lineage-
+      # ready ; the facet-queries over it are DEFERRED.
+      attribute :value, String
+    end
+
+    value_object "CorrelationId" do
+      # The id shared by every event in the same originating flow. by_
+      # correlation filters on it ; lineage facet-queries DEFERRED.
+      attribute :value, String
+    end
+
+    value_object "Actor" do
+      # WHO acted — the role/agent/human that issued the command.
+      attribute :value, String
+    end
+
+    value_object "Sequence" do
+      # The Log's total order. Monotonic per Append. since(seq) and replay
+      # order on this. Provided by the writer (the runtime's sequencer).
+      attribute :value, Integer
+    end
+
+    value_object "RecordedAt" do
+      # Wall-clock stamp at write, recorded as fact (part of the delta
+      # determinism rule — time is resolved once, here).
+      attribute :value, String
+    end
+
+    # ── The CONSISTENCY RULE between command and delta (flagged) ──
+    #
+    # An Event with a command but NO delta means "nothing happened" —
+    # forbidden. The delta is AUTHORITATIVE : the fold applies the delta
+    # and never re-runs the command. We enforce the floor of that rule
+    # here : a delta must name a field.
+    invariant "delta must name a changed field — an event with no delta is not a fact" do
+      delta.field != ""
+    end
+
+    invariant "sequence is monotonic and positive" do
+      sequence.value > 0
+    end
+
+    # ── Append : THE ONE WRITER ────────────────────────────────────
+
+    command "Append" do
+      role "System"
+      goal "Append one immutable event to the Log — the single write path of the whole substrate"
+      description "Record an event as fact. Carries BOTH the command (intent + inputs) and the resolved delta, the lineage ids, the actor, the monotonic sequence, and recorded_at. The runtime's sequencer supplies a strictly-increasing sequence ; the delta is already resolved (now/rand/compute frozen) so the fold is deterministic. This is the only writer — there is no update or delete, which is what makes the Log append-only."
+      attribute :event_id,       EventId
+      attribute :aggregate_name, AggregateName
+      attribute :aggregate_id,   AggregateId
+      attribute :command,        Command
+      attribute :delta,          Delta
+      attribute :causation_id,   CausationId
+      attribute :correlation_id, CorrelationId
+      attribute :actor,          Actor
+      attribute :sequence,       Sequence
+      attribute :recorded_at,    RecordedAt
+      emits "EventAppended"
+    end
+
+    # ── The Log surface : RECORD-FILTERING queries over the Event set ─
+
+    query "Replay" do |aggregate_name|
+      # The Log for one aggregate kind, in sequence order — the universal
+      # fold input. The trivial per-aggregate projection replays this.
+      where(aggregate_name: aggregate_name)
+    end
+
+    query "AtSequence" do |seq|
+      # Point lookup : the event AT a sequence. The DSL's where() is
+      # equality-only this phase (no >/< predicate exists anywhere in the
+      # corpus), so the "tail strictly AFTER a watermark" that Snapshot's
+      # fall-forward needs is NOT expressible as a plain where() yet — it is
+      # a RANGE scan the runtime performs (Log is ordered by sequence ; read
+      # from watermark+1 to head). DEFERRED to the runtime/range-query phase.
+      # AtSequence is the honest equality slice the model can prove today,
+      # and the building block of that scan.
+      where(sequence: seq)
+    end
+
+    query "ForAggregate" do |aggregate_id|
+      # Every event for one aggregate instance — the input to the trivial
+      # per-aggregate (current-state) projection.
+      where(aggregate_id: aggregate_id)
+    end
+
+    query "ByCorrelation" do |correlation_id|
+      # Every event in one originating flow — the lineage-ready slice
+      # (facet-queries over it are DEFERRED).
+      where(correlation_id: correlation_id)
+    end
+  end
+
+  # ============================================================
+  # PROJECTION  —  the HONEST incremental fold
+  # ============================================================
+  #
+  # A Projection DERIVES a view by folding the deltas it is fed, one at a
+  # time, via Apply. Rebuild resets it to empty so the runtime can replay
+  # the Log into it from scratch. This is NOT the board_markdown/terraform
+  # "record-the-precomputed-result" pattern — here the fold actually
+  # accumulates : events_applied counts the deltas folded, and view
+  # collects the derived rows. The behaviors prove derivation by chaining
+  # Apply calls and asserting the accumulated result.
+  #
+  # Current-state is the TRIVIAL projection : name = the aggregate kind,
+  # the fold keeps only the latest delta per field. Read models are NAMED
+  # projections with their own fold. Both are the same machine.
+
+  aggregate "Projection", "A view derived by folding event deltas. Identified by name. Apply folds one delta (incrementing events_applied, appending the derived row) ; Rebuild empties it for a fresh replay. Current-state is the trivial per-aggregate projection ; read models are named projections — the same fold machine." do
+    identified_by :name
+
+    attribute :name,           ProjectionName
+    attribute :events_applied, AppliedCount, default: 0
+    attribute :last_sequence,  Sequence,     default: 0
+    attribute :view,           list_of(Row)
+
+    value_object "ProjectionName" do
+      # Natural key. "current_state:Order" for the trivial projection,
+      # or a read-model name like "orders_by_customer".
+      attribute :value, String
+    end
+
+    value_object "AppliedCount" do
+      # Monotonic count of deltas folded since the last Rebuild. PROVES
+      # the fold ran : 3 Applies -> events_applied == 3.
+      attribute :value, Integer
+    end
+
+    value_object "Sequence" do
+      # The sequence of the last event folded — the projection's watermark.
+      attribute :value, Integer
+    end
+
+    value_object "Row" do
+      # One derived row of the view. key/value is the folded delta : the
+      # field that changed and its resolved value. A read model shapes its
+      # own rows ; the trivial projection's rows ARE the current state.
+      attribute :key,   String
+      attribute :value, String
+    end
+
+    value_object "RowKey" do
+      # The field a folded delta changed — the derived row's key.
+      attribute :value, String
+    end
+
+    value_object "RowValue" do
+      # The resolved value a folded delta carried — the derived row's value.
+      attribute :value, String
+    end
+
+    command "Rebuild" do
+      role "System"
+      goal "Empty the projection so the Log can be replayed into it from scratch"
+      description "Reset the fold. The runtime calls Rebuild then replays the Log (Event.Replay) folding each delta via Apply — a projection is always reproducible from the Log alone. Clears the derived view and the counters."
+      attribute :name, ProjectionName
+      then_set :events_applied, to: 0
+      then_set :last_sequence,  to: 0
+      then_set :view,           to: []
+      emits "ProjectionRebuilt"
+    end
+
+    command "Apply" do
+      role "System"
+      goal "Fold one event delta into the view — the actual derivation step"
+      description "Apply a single event's delta to the projection : append the derived row (key=field, value=resolved value), advance the watermark to the event's sequence, and increment events_applied. The runtime drives this once per event during replay or live tailing. This is the honest fold : the view is DERIVED from the deltas, never recorded precomputed."
+      attribute :name,      ProjectionName
+      attribute :row_key,   RowKey
+      attribute :row_value, RowValue
+      attribute :sequence,  Sequence
+      then_set :view,           append: { key: :row_key, value: :row_value }
+      then_set :last_sequence,  to: :sequence
+      then_set :events_applied, increment: 1
+      emits "DeltaApplied"
+    end
+  end
+
+  # ============================================================
+  # SNAPSHOT  —  a cached fold at a sequence point
+  # ============================================================
+  #
+  # A Snapshot is a cached projection result AT a sequence (the watermark).
+  # It is today's heki current-state store, reinterpreted : not the source
+  # of truth (the Log is), just a cache. On read the runtime folds the tail
+  # FORWARD : it RANGE-SCANS the Log from watermark+1 to head (the Log is
+  # ordered by sequence) and Applies each delta, so the snapshot is caught
+  # up. So a snapshot is never WRONG, only STALE — invalidation is implicit
+  # (the gap between watermark and Log head). CADENCE (flagged) : capture by
+  # THRESHOLD (every N events) or ON-DEMAND, not by time.
+  #
+  # NOTE (this phase) : the strictly-after-watermark TAIL is a RANGE scan ;
+  # the DSL's where() is equality-only in the corpus today, so the tail read
+  # is DEFERRED to the runtime/range-query phase. Event.AtSequence is the
+  # honest equality slice the model proves now ; the fall-forward scan is its
+  # ordered generalisation.
+
+  aggregate "Snapshot", "A cached fold of a projection at a sequence watermark. Identified by projection_name. Capture records the folded state + watermark ; on read the runtime range-scans the Log from watermark+1 to head and folds those deltas forward, so a snapshot is never wrong, only stale. The strictly-after tail is a range query DEFERRED to the runtime phase (where() is equality-only today). Threshold/on-demand cadence, not time-based." do
+    identified_by :projection_name
+
+    attribute :projection_name, ProjectionName
+    attribute :watermark,       Watermark
+    attribute :state,           list_of(Row)
+
+    value_object "ProjectionName" do
+      # Which projection this snapshot caches. One snapshot per projection.
+      attribute :value, String
+    end
+
+    value_object "Watermark" do
+      # The sequence the snapshot is valid AS OF. The runtime range-scans
+      # the Log from watermark+1 to head and folds forward on read to catch up.
+      attribute :value, Integer
+    end
+
+    value_object "Row" do
+      # One row of the cached folded state. Same shape as a Projection Row.
+      attribute :key,   String
+      attribute :value, String
+    end
+
+    command "Capture" do
+      role "System"
+      goal "Cache a projection's folded state at a sequence watermark"
+      description "Record the projection's current folded state and the sequence it is valid as of. The runtime captures on a threshold (every N events) or on demand — never on a timer. On read it range-scans the Log from watermark+1 to head and folds those deltas forward, so this cache is always safe : stale at worst, never wrong."
+      attribute :projection_name, ProjectionName
+      attribute :watermark,       Watermark
+      attribute :state,           list_of(Row)
+      then_set :watermark, to: :watermark
+      then_set :state,     to: :state
+      emits "SnapshotCaptured"
+    end
+  end
+end
