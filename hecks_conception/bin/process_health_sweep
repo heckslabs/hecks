@@ -30,6 +30,25 @@
 # the loop dispatch and a manual run behave identically regardless of cwd.
 set -uo pipefail
 
+# Single-instance guard (spawn-storm fix, 2026-06-19) — a liveness sweep is
+# inherently a SINGLETON : running two at once is never wanted. RunSweepOnSwept
+# spawns this script on every ProcessMacrophage.Swept, and a sweep that runs past
+# the next 30s tick (slow under event-Log store contention) would otherwise stack
+# into a spawn storm (a dozen+ concurrent observed 2026-06-19). An atomic mkdir
+# lock (portable — macOS has no flock) lets ONE sweep run ; concurrent spawns
+# exit immediately. A crashed sweep's stale lock (>120s) is stolen so the cell
+# can never wedge itself shut.
+LOCK="${TMPDIR:-/tmp}/process_health_sweep.lock.d"
+if [ -d "$LOCK" ]; then
+  _lock_mtime="$(stat -f %m "$LOCK" 2>/dev/null || stat -c %Y "$LOCK" 2>/dev/null || echo 0)"
+  [ "$(( $(date +%s) - _lock_mtime ))" -gt 120 ] && rmdir "$LOCK" 2>/dev/null
+fi
+if ! mkdir "$LOCK" 2>/dev/null; then
+  echo "process_health_sweep: another sweep is already running — skipping this tick"
+  exit 0
+fi
+trap 'rmdir "$LOCK" 2>/dev/null' EXIT
+
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 CONCEPTION="$(cd "$SCRIPT_DIR/.." && pwd)"
 SH="${STOREHOUSE:-$CONCEPTION/../rust/target/release/storehouse}"
