@@ -180,6 +180,8 @@ pub mod drive_scheduler;
 // The append-only one-line-per-event shard backing the out-of-process
 // Event Log (shards-plus-merge topology). Format + writer + offset reader.
 pub mod event_shard;
+// The merge half : tail N single-writer shards into the global ordered Log.
+pub mod event_merge;
 pub mod compute_functions;
 // i557 — Phase-2 framework runtime. Walks
 // `hecks_conception/aggregates/framework/{adapter_families,behavior_kinds}/`
