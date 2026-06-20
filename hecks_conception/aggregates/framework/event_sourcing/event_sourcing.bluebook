@@ -306,4 +306,38 @@ Hecks.bluebook "EventSourcing", version: "2026.06.19.1" do
       emits "SnapshotCaptured"
     end
   end
+
+  # ============================================================
+  # CONSOLIDATION  —  the merge trigger (operational, NOT an Event)
+  # ============================================================
+  #
+  # The fold that turns the per-process Event shards into the global ordered
+  # Log is an ADAPTER operational concern, kept OUT of the Event domain so
+  # Append stays the one and only Event writer. It cannot be an Event command :
+  # Event's invariants (delta.field present, sequence > 0) describe an APPENDED
+  # fact, which a merge pass is not. So consolidation is its own tiny singleton
+  # aggregate — one record, keyed "log" — whose Consolidate command is the
+  # trigger. A driving-on-interval Driver (event_sourcing.hecksagon, fired by
+  # `storehouse drive`) dispatches it ; the runtime hook run_consolidate then
+  # performs one merge pass (kernel-floor persistence IO, event_merge.rs). This
+  # is what retires the hand-written run_merge daemon.
+
+  aggregate "Consolidation", "A singleton marker that the per-process Event shards were folded into the global ordered Log. The fold itself is kernel-floor persistence IO (event_merge.rs, sibling of heki.rs) ; this aggregate is the DOMAIN trigger for it — one record, keyed \"log\", touched by each Consolidate. Fired by a driving-on-interval Driver, replacing the run_merge daemon." do
+    identified_by :consolidation_id
+
+    # Singleton key : defaults to "log" so a no-arg Consolidate keys the one
+    # record. The driver dispatches Consolidate with no domain attrs, so the
+    # default is what identifies the singleton.
+    attribute :consolidation_id, ConsolidationId, default: "log"
+
+    value_object "ConsolidationId" do
+      attribute :value, String
+    end
+
+    command "Consolidate" do
+      role "System"
+      goal "Fold this realm's per-process Event shards into the global ordered Log"
+      description "Maintenance command — the AppendLog adapter's consolidation half. Carries no shard data : the runtime hook run_consolidate performs ONE merge pass (read each shard from its checkpoint offset, order by (ts, shard, seq), write new records to the global event.heki idempotently by event_id, advance the checkpoint). Dispatched by the driving-on-interval Driver, never by hand. Touches the singleton so the record's existence is the freshness signal."
+    end
+  end
 end

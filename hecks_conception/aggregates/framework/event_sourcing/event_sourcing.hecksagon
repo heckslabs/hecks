@@ -15,4 +15,21 @@
 # is needed — the bind alone is the whole wiring.
 Hecks.hecksagon "EventSourcing" do
   EventSourcing::Event.persisted_by("AppendLog")
+
+  # ── The consolidation DRIVER (the driving side of the hexagon) ──────────
+  # An external clock (`storehouse drive`) reaches IN every interval and
+  # dispatches Consolidation.Consolidate ; the runtime hook (run_consolidate)
+  # then folds this realm's per-process Event shards into the global ordered
+  # event.heki. This is what retires the hand-written `storehouse merge`
+  # daemon : consolidation is now a DECLARED Driver, fired by the same
+  # storehouse-drive that fires every other `driving on interval` handler.
+  # The Procfile drive member is the projection of this declaration (added at
+  # go-live, slice 3b) ; until then the Driver is declared but only fires when
+  # `storehouse drive` is run against this realm.
+  adapter "LogConsolidation" do
+    driving on interval "5s" do |clock|
+      dispatch "EventSourcing::Consolidation.Consolidate",
+               consolidation_id: "log"
+    end
+  end
 end

@@ -131,6 +131,16 @@ Hecks.behaviors "EventSourcing" do
   test "Capture caches the folded state at a watermark" do
     tests "Capture", on: "Snapshot"
     input  projection_name: { value: "current_state:Order" }, watermark: { value: 2 }, state: []
-    expect watermark: { value: 2 }, emits: ["SnapshotCaptured"]
+      expect watermark: { value: 2 }, emits: ["SnapshotCaptured"]
+    end
+
+    # ── Consolidation : the merge trigger (operational singleton) ────────
+    # The fold itself is kernel-floor IO (run_consolidate) that does NOT run in
+    # the pure-memory behaviors runtime ; this proves the DOMAIN trigger — the
+    # Consolidate command keys the singleton "log" record.
+    test "Consolidate touches the singleton consolidation marker" do
+      tests "Consolidate", on: "Consolidation"
+      input  consolidation_id: "log"
+      expect consolidation_id: "log"
+    end
   end
-end

@@ -952,6 +952,56 @@ impl Runtime {
             }
         }
 
+    /// Event Log consolidation trigger — fires the merge fold IFF the
+    /// dispatched command is the Consolidation maintenance command. Called from
+    /// dispatch_inner (so BOTH the manual path AND the driver's dispatch_cascade
+    /// reach it). A no-op for every other command. Replaces the run_merge
+    /// daemon : `storehouse drive` fires Consolidation.Consolidate on an
+    /// interval, and this runs one merge pass.
+    fn run_consolidate_if(&self, command_name: &str) {
+        if command_name == "EventSourcing::Consolidation.Consolidate" {
+            self.run_consolidate();
+        }
+    }
+
+    /// One merge pass : fold this realm's per-process Event shards into the
+    /// global ordered Log, writing WHERE the Event repository reads (so a
+    /// reader sees the consolidated log — the writer/reader never diverge).
+    /// Kernel-floor persistence IO : the shard byte-IO + the fold live in
+    /// event_shard / event_merge (siblings of heki.rs) ; this only wires the
+    /// realm's paths to them. The checkpoint advances only after a durable
+    /// global write, so a failed write retries next pass and a crash mid-pass
+    /// replays idempotently (dedup by event_id). No-op when the Event repo is
+    /// memory-backed (no shard dir).
+    fn run_consolidate(&self) {
+        let es_key = repo_key(Some("EventSourcing"), "Event");
+        let store_dir = match self.repositories.get(&es_key).and_then(|r| r.heki_path()) {
+            Some(d) => d,
+            None => return,
+        };
+        let shard_dir = std::path::Path::new(&store_dir).join("shards");
+        // The global log path = exactly where the Event Repository reads
+        // (heki::path_for with the EventSourcing context), so the merge writer
+        // and the aggregate reader never diverge.
+        let global = crate::heki::path_for(&store_dir, "Event", Some("EventSourcing"));
+        let checkpoint = shard_dir.join(".merge.checkpoint.json");
+        let shards = match event_merge::discover_shards(&shard_dir) {
+            Ok(s) => s,
+            Err(_) => return,
+        };
+        let mut cp = event_merge::load_checkpoint(&checkpoint)
+            .unwrap_or_else(|_| event_merge::Checkpoint::new());
+        if let Ok(batch) = event_merge::merge_pass(&shards, &mut cp) {
+            // Adopt the advanced checkpoint only after a durable global write
+            // (empty batch = nothing to write, offsets unchanged — safe to save).
+            let write_ok = batch.is_empty()
+                || event_merge::write_batch_to_global(&global, &batch).is_ok();
+            if write_ok {
+                let _ = event_merge::save_checkpoint(&checkpoint, &cp);
+            }
+        }
+    }
+
     /// Transactional outbox — when a dispatched command's event has domain
     /// reactions (policy triggers, driven-adapter dispatches, PM dispatches),
     /// write a persistent `CascadeRun.Begin` recording them as ordered Steps.
