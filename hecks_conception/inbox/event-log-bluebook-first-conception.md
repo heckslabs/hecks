@@ -9,9 +9,21 @@ PROJECTION is deep (a new persistence Backend variant + command→primitive rout
 declared as inert binds (that is the written-but-not-functioning anti-pattern).
 
 ## The honest line : floor vs. shadow
-IRREDUCIBLE KERNEL FLOOR (correctly Rust ; belongs in the primitive_registry,
-the antibody-exempt "index of imperative kernel-floor leaves" where Process.Spawn
-lives) :
+CORRECTION (2026-06-20, verified) : the shard byte-IO + merge fold are NOT
+primitives. The primitive_registry holds BUS-DISPATCHED EFFECT leaves
+(Process.Spawn, WebTool, Llm, Shell, Sms) ; its macrophage check
+(every_kernel_dispatcher_has_a_seed_entry) enforces a `<kind>_dispatcher.rs` file
+↔ seed entry. heki.rs — also kernel-floor byte-IO — is NOT in the registry ;
+persistence IO is resolved via persistence_resolution, a different kernel-floor
+category. So event_shard / event_merge are siblings of heki.rs (kernel-floor
+PERSISTENCE IO, correctly antibody-exempt), and registering them as primitives
+would MISCATEGORIZE them + violate the dispatcher↔seed shape. There is NO shallow
+"register as primitives" step. Their bluebook-first home is the AppendLog ADAPTER
+(persistence_resolution, like heki) — the deep step-2 work below. This is why the
+refactor has no quick increment : the value IS the deep adapter projection.
+
+IRREDUCIBLE KERNEL FLOOR (correctly Rust ; kernel-floor PERSISTENCE IO, the
+sibling-of-heki.rs category — NOT the primitive_registry) :
   - shard byte-IO : O_APPEND write, seek-to-offset, read-to-last-newline
     (event_shard.rs). A bluebook cannot express "seek to byte N." Like heki.rs.
   - merge fold : read shards, sort, dedup, write global (event_merge.rs core).
