@@ -174,6 +174,9 @@ pub mod actor;
 // http_post / file_watch parse but are runtime stubs pending listener
 // wiring). See module-level doc for v1 scope.
 pub mod driving_adapter_resolver;
+// The pure tick-counter core of `storehouse drive` (the single-owner
+// interval scheduler that fires `driving on interval` handlers live).
+pub mod drive_scheduler;
 pub mod compute_functions;
 // i557 — Phase-2 framework runtime. Walks
 // `hecks_conception/aggregates/framework/{adapter_families,behavior_kinds}/`
