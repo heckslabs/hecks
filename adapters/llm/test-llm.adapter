@@ -1,0 +1,20 @@
+# TestLlm — a concrete, DETERMINISTIC llm adapter. Declares its family (llm) —
+# the inverted arrow ; the family never names it. Named for its IDENTITY (a
+# fixture-backed test provider), NOT its transport.
+#
+# The `handler` is the OUT-OF-PROCESS program the inline primary-adapter wait
+# (Runtime::drain_outbound_to_quiescence) execs when the bound event fires : it
+# reads the event payload on stdin (carries `prompt`), computes SHA-256 of the
+# prompt, looks up the fixture file at $LLM_FIXTURES (or emits the deterministic
+# lenient-miss placeholder), and writes `response_text=<completion>` to stdout,
+# exit 0. The drainer (NOT the handler) dispatches the success verdict + marks
+# the delivery delivered — the payment/verdict-capturing protocol, not tts's
+# self-ack.
+#
+# TestProvider semantics mirror rust/src/runtime/llm_providers/test.rs so the
+# OOP path lands the IDENTICAL completion the in-process llm_dispatcher lands
+# (same SHA-256(prompt) -> same fixture).
+Hecks.adapter "TestLlm" do
+  family  "llm"
+  handler "adapters/llm/llm-handler"
+end

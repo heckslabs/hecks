@@ -1,0 +1,29 @@
+# llm — an impure-boundary PORT for language-model completion, declared once
+# and used by any aggregate that asks a model to write something. Two-color
+# rule : sync domain, async adapter, NEVER a lock — every async concern lives
+# at the adapter edge, never in the synchronous core.
+#
+# Signal is EFFECT, WITH A VERDICT (unlike tts's fire-and-forget) : the
+# aggregate EMITS an event carrying the prompt, the adapter completes the
+# prompt OUT-OF-PROCESS, and the completion RE-ENTERS the domain as a verdict
+# command (success "Agg.RecordCompletion"). This is the payment shape, not the
+# tts shape : the family declares `produces :response_text`, and the bind
+# carries a `do success/failure end` block whose success verdict receives the
+# `response_text` the handler emits.
+#
+# The how-verb is `completed_by`, hung off the aggregate FQN with its
+# triggering event (`on:`). The config FIELDS the adapters carry are NAMED
+# here ; their per-deployment VALUES live in .world (backend test|claude|
+# ollama, model, max_tokens, prompt_template). The family never names its
+# adapters (the inverted arrow lives in .adapter).
+#
+# slice-1 NOTE : `signal :effect` is KEPT — signal retirement is a later slice.
+Hecks.family "llm" do
+  verb   "completed_by"
+  signal :effect
+  field  :backend
+  field  :model
+  field  :max_tokens
+  field  :prompt_template
+  produces :response_text
+end
