@@ -106,6 +106,54 @@ The merge daemon is a `storehouse`-family daemon (sibling of the loop/clock/driv
 processes) ; model its schedule + dispatch the same way, projected to a Procfile
 member.
 
+## BUILD STATUS (2026-06-20)
+- SLICE 1 — DONE (on main, 3385eaf4c). event_shard.rs : append-only one-JSON-
+  line-per-event format + writer + offset-resumable reader. 7 unit tests
+  (round-trip, embedded-newline-stays-one-line, 8KB payload, write+read,
+  offset-resume, partial-trailing-line-not-consumed, missing-shard-empty).
+- SLICE 2 — DONE (on main, b6d90037c). event_merge.rs + `storehouse merge`
+  daemon. merge_pass (read-each-shard-from-offset, sort by (ts,shard,seq)),
+  write_batch_to_global (idempotent by event_id, assigns global sequence),
+  checkpoint load/save. 5 unit tests INCL the proof : thirty_concurrent_
+  writers_lose_nothing (30×50=1500 recovered, 0 dup — the 30/30 vs old 13/30)
+  and replayed_batch_does_not_duplicate (crash-safety). Verified LIVE : 2
+  shards -> global log, correct ts-order + sequence, delete-checkpoint-and-
+  re-merge stays at 3 not 6.
+- SLICE 3 — NOT STARTED (the live cutover ; deliberate go-live decision).
+
+## SLICE 3 PLAN (the cutover — concrete, de-risked)
+Reader-wiring check (advisor) RESOLVED : there are NO live Rust readers of
+event.heki today — Replay/AtSequence are conceived in event_sourcing.bluebook
+but NOT implemented in the runtime. So the only consumer is a future reader,
+and the merge daemon writes the SAME path the Event repo uses
+(~/.heki/hecks/event_sourcing/event.heki). Low reader risk.
+
+The cutover steps :
+1. record_event_append (runtime/mod.rs) : instead of dispatch_cascade
+   EventSourcing::Event.Append (heki RMW to the shared global — the lossy
+   path), build a ShardRecord and append it to THIS process's shard via a
+   ShardWriter. The per-aggregate current-state (Snapshot) write is
+   UNCHANGED — only the global-Log write moves to a shard.
+2. Shard identity (q2) : one shard per process = (Procfile-member-name OR pid)
+   + boot-nonce, so a pid-reused restart never mixes two lifetimes. Path :
+   ~/.heki/hecks/event_sourcing/shards/<shard-id>.shard. Hold ONE ShardWriter
+   in the Runtime (open once at boot), not reopened per dispatch.
+3. Merge daemon as a Procfile member : `storehouse merge
+   ~/.heki/hecks/event_sourcing/shards --global ~/.heki/hecks/event_sourcing/
+   event.heki --poll 1s`. The Procfile is a PROJECTION of mindstream
+   (mindstream.fixtures) — add the member THERE, then project (or hand-derive
+   per the i262 gap). Restarts daemons.
+4. Gate flip (LAST) : HECKS_EVENT_SOURCING currently gates the whole write
+   off. After cutover the gate should gate the SHARD write ; default ON only
+   once 1-3 are green AND a live N-process dispatch test shows the global log
+   lossless. Un-gate is the final act — never before the merge member is live.
+5. Global sequence : assigned by the merge daemon (slice 2), NOT the Event
+   aggregate's count+1. Do NOT restore the aggregate's sequence logic.
+
+Risk : this mutates the live dispatch hot path + adds a daemon (restarts the
+body). Lower than feared (no live readers), but a deliberate go-live, best
+thrown with Chris present, not at the tail of a long session.
+
 ## STATUS
 - The lossy in-process Log is GATED OFF (HECKS_EVENT_SOURCING default off, committed
   d68e3b05d, on main). Nothing is bleeding. There is NO time pressure on §2.
