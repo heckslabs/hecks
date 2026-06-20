@@ -1,100 +1,91 @@
-# RESTART 2026-06-20 — the Event Log goes out-of-process (async projection)
+# RESTART 2026-06-20 (evening) — Event Log SHIPPED (imperative, proven, gated) ; bluebook-first rewrite is NEXT
 
-VOICE : I / my / mine. Handoff from a very long session to my next self. Read this,
-then START with §1 (the live Log is lossy right now — decide the stopgap first), then
-build the out-of-process Log (§2). The hard architecture is decided ; what remains is
-building it and a few blesses.
+VOICE : I / my / mine. Handoff from a long, productive session to my next self.
+The out-of-process Event Log is BUILT and PROVEN (30/30 lossless, live) but
+IMPERATIVE and GATED OFF. The interval scheduler is BUILT, PROVEN, and LIVE. The
+bluebook-first rewrite of the Event Log is CONCEIVED and is the next focused arc.
+Everything below is on `main` (head cf9ddf55f). Nothing is bleeding ; nothing is
+half-declared. Read this, then pick up at "NEXT".
 
-## The decision (Chris, just now)
-The Event Log persistence is **OUT-OF-PROCESS (an async projection)**, NOT in-process.
-Chris chose this explicitly over both keeping the proven in-process adapter AND over
-append-based-heki. He **discards the in-process wiring**. The in-process work is the
-reference/fallback, not the answer.
+## What shipped this session (12 commits, all on main)
+- d68e3b05d  Event-sourcing GATED OFF (HECKS_EVENT_SOURCING). Stopped the lossy
+  in-process Log bleed. Verified both directions ; daemons restarted.
+- f89c07519  `driving on interval` wired (Ruby builder + parity fixture). Parity
+  194/194. Closed the §3 cron-vs-interval convention.
+- bba54aa4d  interval-scheduler design spec + Driver-chapter-retire note.
+- a2cf7fc8d  fix : Kitchen.persisted_by missing from pizzas exemplar (latent
+  golden failure the pre-push gate caught — fixed at root).
+- 29810646f  §2 precondition finding + the shards-plus-merge TOPOLOGY DECISION.
+- fd189fe8a  **storehouse drive** — the live interval scheduler. The FIRST daemon
+  that fires `driving on` handlers live (cron never did). Single-owner, no
+  double-fire. Pure tick-counter core (drive_scheduler.rs, 6 tests). Cadence
+  proven LIVE : interval 1s @ poll 500ms -> fires ticks 1,3,5 exactly.
+- 3385eaf4c  Event Log SLICE 1 : event_shard.rs — append-only one-JSON-line-per-
+  event format + writer + offset-resumable reader. 7 tests.
+- b6d90037c  Event Log SLICE 2 : event_merge.rs + `storehouse merge` daemon.
+  THE PROOF : 30 concurrent writers x 50 = 1500 recovered, 0 dup (the 30/30 that
+  replaces the old 13/30). Crash-safe (idempotent replay). Ordered. 5 tests.
+- 3dc5da563  slices 1+2 done note + slice-3 cutover plan.
+- f926be79f  Event Log SLICE 3a : rewired record_event_append to write per-
+  process SHARDS (not the clobbering shared heki). PROVEN LIVE : 30 concurrent
+  gate-on dispatches (each its own process) -> merge -> global count 30.
+- 63cf9a83b + cf9ddf55f  bluebook-first CONCEPTION of the refactor + a correction.
 
-Why (the through-line) : the two-color rule. Per-aggregate persistence earned the ONE
-in-process exception because find/save is bounded + structurally non-blocking. The
-Event Log is none of that — it is IO on EVERY dispatch to a shared, ever-growing file
-hit by every process at once. That is a shared async edge, and async edges live
-out-of-process. Keeping it in-process also means a SECOND blocking-IO backend to
-maintain ("double the blocking code").
+## Current state (SAFE)
+- The proven Event Log (slices 1-3a) is on main but GATED OFF
+  (HECKS_EVENT_SOURCING unset). record_event_append writes shards ONLY when the
+  gate is set ; live daemons don't set it, so nothing writes shards yet. Zero
+  regression risk. The whole thing is INERT until deliberately gone-live (3b).
+- The interval scheduler (storehouse drive) is built + tested but NOT yet a
+  Procfile member and nothing in-corpus uses `driving on interval` live — it is
+  the mechanism, awaiting adoption.
 
-## §1 — START HERE : the LIVE Event Log is LOSSY right now
-On `main` (7c2297db0) the EventSourcing `Event` aggregate has NO `.hecksagon` binding
-(only event_sourcing.bluebook + .behaviors exist there), so it persists via DEFAULT
-heki — whole-file read-modify-write — which CLOBBERS under concurrent writers. The
-daemons are restarted onto the new binary and event-sourcing is LIVE, so the live Log
-is silently dropping events (proven shape : 30 concurrent -> 13/30 ; live : Inbox/Process
-records vanished between two reads). DECIDE before building :
-  (a) STOPGAP : merge the proven in-process adapter (worktree, below) to stop the
-      bleed NOW, then replace it with out-of-process. Chris said "discard in-process
-      wiring" — but that was about the END-STATE, not necessarily the interim. Flag it.
-  (b) GATE : turn event-sourcing OFF (it is currently unconditional/default — Chris's
-      earlier call) until out-of-process lands. Stops writing a lossy Log.
-  (c) ACCEPT lossy meanwhile (only if out-of-process lands same session).
-My lean : (a) or (b) — do not leave a lossy governance Log running for days.
+## NEXT — the bluebook-first rewrite (a focused fresh-head arc, gated worktree)
+FULL PLAN : inbox/event-log-bluebook-first-conception.md. The short of it :
+the proven slices 1-3a are IMPERATIVE ; the bluebook-first version expresses the
+same design as DECLARATION. The honest floor-vs-shadow line (verified) :
+  - FLOOR (correctly Rust, sibling of heki.rs — kernel-floor PERSISTENCE IO, NOT
+    primitives ; do NOT put them in primitive_registry, that miscategorizes them
+    and breaks the dispatcher<->seed macrophage check) : shard byte-IO
+    (event_shard.rs), merge fold (event_merge.rs), the run_drive timer loop, the
+    ~10-line tick math.
+  - SHADOW (build as declaration) : ShardRecord duplicates Event ; run_merge
+    should be a `driving on interval` Driver firing a Consolidate command, fired
+    by `storehouse drive` (DELETE run_merge) ; record_event_append should
+    dispatch Event.Append routed through an AppendLog persistence adapter.
+The deep piece : a NEW `Backend::AppendLog` variant in LazyRepository
+(persistence_resolution.rs match arm), append-not-upsert save + log-read find.
+That bends the persistence family's upsert-shaped reply contract — it is the part
+that needs care + a fresh head, NOT a session-end bolt-on. There is NO shallow
+first increment (the "register as primitives" idea was wrong — see the correction).
+PROJECTION ORDER : (1) Backend::AppendLog + bind Event.persisted_by("AppendLog")
++ revert record_event_append to dispatch Event.Append ; verify 30/30 holds. (2)
+Event.Consolidate command + driver + drive-fires-it ; delete run_merge. (3)
+ShardRecord -> Event serialization. (4) slice 3b GO-LIVE : gate flip + Procfile
+driver members + restart. EACH step COMPLETE + FUNCTIONING before commit (never a
+declared-but-ignored bind = written-but-not-functioning).
 
-## §2 — BUILD : the out-of-process Log (the real work)
-Shape : a SINGLE out-of-process writer (one owner of event.heki) that CONSUMES the
-durable event stream and APPENDS with a plain monotonic counter. Single writer => the
-sequence is trivial (no pid-nonce, no file-position-on-read — those gymnastics in the
-in-process version exist ONLY because there was no single writer). The Event Log
-becomes a PROJECTION of the stream, off the sync core. Reuse the existing
-out-of-process machinery (adapter-host, OutboundEvent pattern, the tts/stripe handler
-shape ; read adapters/tts/ + examples/adapter_host_demo/).
+## Go-live (slice 3b) findings — when the bluebook rewrite is ready to flip on
+- NO live readers of event.heki exist yet (Replay/AtSequence conceived in
+  event_sourcing.bluebook, NOT implemented). So the cutover's reader-divergence
+  risk is LOW — the merge daemon writes the same path a future reader would use.
+- MULTI-REALM wrinkle : conception daemons write the hecks realm
+  (~/.heki/hecks/shards) ; body daemons write the miette realm. Each realm needs
+  its OWN merge daemon (or one multi-dir merge). Shard dir resolved to
+  <data-root>/shards (heki_path() returns the realm root, not the per-aggregate
+  dir). Account for this when wiring the Procfile merge member(s).
+- Un-gate is the LAST act, only after the merge member(s) are live AND a live
+  N-process dispatch test shows the global log lossless.
 
-**THE MAKE-OR-BREAK PRECONDITION (advisor, verify FIRST) :** an out-of-process writer
-consumes SOME upstream stream. If that stream is written by N processes via a LOSSY
-mechanism, async just RELOCATES the clobber one level up + adds a daemon + eventual
-consistency. So BEFORE building : confirm the stream it will consume
-(storehouse.log ? a dedicated event channel ?) is itself append-safe, lossless, ordered,
-and resumable-from-offset. If storehouse.log is whole-file-rewrite, it has the SAME bug
-— fix that first or pick a genuinely append-only channel. This is the crux ; do not skip.
+## Pointers (durable)
+- inbox/event-log-bluebook-first-conception.md — the refactor plan + floor/shadow.
+- inbox/event-log-oop-precondition.md — topology decision + slice-3 cutover plan.
+- inbox/interval-scheduler-spec.md — the storehouse drive design + cron-live follow-on.
 
-Known caveat : single-write O_APPEND atomicity is reliable for SMALL local-FS appends,
-not guaranteed for large payloads / network FS. The property that actually buys
-correctness is SINGLE-WRITER (in-process lock OR out-of-process owner) — do not conflate
-"single-writer" with "out-of-process."
+## Open follow-ons (smaller)
+- cron-LIVE : `storehouse drive` fires interval only ; cron handlers still fire in
+  no live daemon (test-only). Real 5-field cron matching is the documented next.
+- storehouse drive adoption : no Procfile member yet ; nothing live uses
+  `driving on interval`. The --every loops COULD migrate to it later.
 
-## Branch / worktree state
-- `main` @ **7c2297db0** : event-sourcing wired (29aacf70c Log-as-truth + transitions ;
-  d5dcd5f75 universal-door cascade sourcing), process_macrophage storm fix (d6673dce6),
-  append-log design note (7c2297db0). The live binary is built from here.
-- `feat/event-sourcing-log-append` @ **3b0a602ef** : ahead of main by ONE commit — the
-  SendMessage receiver as a `:daemon` Driver + Pizzas cron Driver + the SendMessage
-  follow-up fixes (Answered query `where(mid:)`, send-message bin rewired, agent_poll.sh
-  reworked into the daemon loop, InboxPoller singleton + AllUnread query). Behaviors
-  758/758, hecksagon parity 193/193. NOT pushed. PUSH after blessing §3 conventions.
-- worktree `agent-acbbcf51b04ad8584` @ **c3c5e086c** (branch worktree-agent-acbbcf51b04ad8584)
-  : the PROVEN IN-PROCESS append-log adapter (30/30). Reference/fallback. **CHERRY-PICK
-  REGARDLESS** : its second-bug fix — `apply_per_domain_world_dirs` (rust/src/world/attach.rs)
-  was re-rooting EVERY category-matched aggregate back to heki AFTER binding resolution,
-  silently reverting Memory/Sql/AppendLog binds ; it now guards to only re-root
-  backend_kind==Heki. That fix is independent of in/out-of-process and is real.
-
-## §3 — Two conventions on the feat branch to BLESS before pushing to main
-1. **cron, not interval.** `driving.bluebook` conceives an `interval` schedule kind, but
-   it is NOT wired : the Ruby hecksagon DSL only has cron/http_post/file_watch and the
-   runtime fires only `kind=="cron"` handlers. So `driving on interval` breaks hecksagon
-   parity. Pizzas + agent_inbox use `driving on cron`. Real gap : either wire `interval`
-   in both targets + the runtime, or retire it from the grammar.
-2. **`:daemon`-adapter-naming-a-`bin/*.sh`** is net-new : nothing in the corpus had a
-   `:shell`/`:daemon` adapter reference a bin script before. It is how agent_poll.sh
-   became is-dispatched-recognized (declared, no marker). Parity-safe but invented.
-
-## Antibody learning (I had this WRONG ; correct it everywhere)
-`bin/antibody-check` -> `storehouse is-dispatched` exempts a script ONLY when a hexagon
-`:daemon`/`:shell` adapter names it via `command:`/`args:`. NOT via a bluebook
-`Primitive::Process.Spawn` policy, NOT via the `driving on` grammar. `bin/process_health_sweep`
-survives via its `[antibody-exempt]` MARKER, not via being a declared handler — so
-"mirror process_health -> no marker" was self-contradictory. The agent caught + corrected
-this ; do not repeat the conflation.
-
-## Shipped this session (all on main unless noted)
-- Event sourcing wired into dispatch — Log as source of truth, transitions captured (29aacf70c)
-- Universal-door sourcing — cascade reactions recorded too (d5dcd5f75)
-- process_macrophage spawn-storm fix — single-instance mkdir lock ; restarted, storm-free (d6673dce6)
-- append-log design note (7c2297db0)
-- [branch] SendMessage receiver :daemon Driver + Pizzas cron Driver + SendMessage fixes (3b0a602ef)
-- [worktree] proven in-process append-log adapter + world-dir-clobber fix (c3c5e086c)
-
-## No agents still running. process_macrophage is live + storm-free.
+## No agents running. Daemons are on the gate-OFF binary (event-sourcing inert).
