@@ -13,6 +13,15 @@
             }
         }
     }
+    // Event-sourcing deltas — the fields whose value changed vs. the
+    // pre-command snapshot. A lifecycle transition is just another changed
+    // field here (status: pending -> authorized), so it needs no special-
+    // casing. Computed BEFORE save (which moves state). record_event_append
+    // appends one immutable Log Event per delta.
+    let deltas: Vec<(String, Value)> = state.fields.iter()
+        .filter(|(k, v)| before_fields.get(*k) != Some(*v))
+        .map(|(k, v)| (k.clone(), v.clone()))
+        .collect();
     let aggregate_id = state.id.clone();
     let was_deleted = state.deleted;
     let ctx = crate::heki::WriteContext::Dispatch {

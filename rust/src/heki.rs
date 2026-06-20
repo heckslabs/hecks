@@ -841,7 +841,6 @@ pub fn resolve_info_dir() -> std::path::PathBuf {
 
 #[cfg(test)]
 mod resolve_tests {
-    use super::*;
     use std::fs;
     use std::time::{SystemTime, UNIX_EPOCH};
 

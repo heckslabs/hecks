@@ -21,6 +21,12 @@ pub struct CommandResult {
     pub aggregate_id: String,
     pub aggregate_type: String,
     pub event: Option<Event>,
+    /// Event-sourcing deltas (i-event-sourcing) — the fields this command
+    /// actually changed, computed as a before/after diff of aggregate state
+    /// (so a lifecycle transition is just another changed field, no special-
+    /// casing). `record_event_append` appends one immutable Event to the Log
+    /// per delta. Empty for synthetic events and bulk-form dispatch (v1).
+    pub deltas: Vec<(String, Value)>,
 }
 
 /// Resolution of a dispatch address — i111-J.
@@ -247,6 +253,13 @@ fn dispatch_inner(
         None => (AggregateState::new(&resolved_id), true),
     };
 
+    // Event-sourcing delta capture (i-event-sourcing) — snapshot state
+    // BEFORE the command's effects (defaults, mutations, transition). For a
+    // new aggregate this is empty, so every resolved field (including the
+    // applied defaults and the lifecycle transition) surfaces as a delta in
+    // the before/after diff computed just before save.
+    let before_fields = state.fields.clone();
+
     if is_new {
         apply_defaults(rt, agg_idx, &mut state);
         apply_lifecycle_default(rt, agg_idx, &mut state);
@@ -305,6 +318,15 @@ fn dispatch_inner(
             }
         }
     }
+    // Event-sourcing deltas — the fields whose value changed vs. the
+    // pre-command snapshot. A lifecycle transition is just another changed
+    // field here (status: pending -> authorized), so it needs no special-
+    // casing. Computed BEFORE save (which moves state). record_event_append
+    // appends one immutable Log Event per delta.
+    let deltas: Vec<(String, Value)> = state.fields.iter()
+        .filter(|(k, v)| before_fields.get(*k) != Some(*v))
+        .map(|(k, v)| (k.clone(), v.clone()))
+        .collect();
     let aggregate_id = state.id.clone();
     let was_deleted = state.deleted;
     let ctx = crate::heki::WriteContext::Dispatch {
@@ -332,6 +354,7 @@ fn dispatch_inner(
         aggregate_id,
         aggregate_type: aggregate_name,
         event,
+        deltas,
     })
 }
 
@@ -1067,6 +1090,9 @@ fn dispatch_bulk(
         aggregate_id: last_id,
         aggregate_type: aggregate_name,
         event: last_event,
+        // Bulk many-form (`list_of(VO)`) event-sourcing is deferred (v1) —
+        // per-row deltas would need a diff per saved row inside the loop.
+        deltas: Vec::new(),
     })
 }
 

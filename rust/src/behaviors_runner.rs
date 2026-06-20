@@ -337,11 +337,17 @@ fn run_one(
             let actual: Vec<String> = rt.event_bus.events()
                 .iter()
                 .skip(pre_dispatch_event_count)
-                // CascadeRun lifecycle events (CascadeRunBegun / Completed) are
-                // outbox INFRASTRUCTURE, not part of the domain cascade the
-                // behaviors assert. Exclude them from the emit chain.
-                .filter(|e| e.aggregate_type != "CascadeRun")
-                .map(|e| e.name.clone())
+                // Infrastructure events the runtime emits as a side-effect of a
+                // dispatch are NOT domain reactions : CascadeRun lifecycle
+                // (CascadeRunBegun / Completed) and the event-sourcing Log's
+                // EventAppended (one per delta). Exclude them — EXCEPT the primary
+                // event (index 0, the dispatched command's own emit, published
+                // before the record_* side-effect hooks), so the EventSourcing
+                // Event aggregate's own Append test still asserts its EventAppended.
+                .enumerate()
+                .filter(|(i, e)| e.aggregate_type != "CascadeRun"
+                    && (*i == 0 || e.name != "EventAppended"))
+                .map(|(_, e)| e.name.clone())
                 .collect();
             if actual != expected_events {
                 return TestRun::fail(&test.description,
@@ -359,11 +365,17 @@ fn run_one(
             let actual: Vec<String> = rt.event_bus.events()
                 .iter()
                 .skip(pre_dispatch_event_count)
-                // CascadeRun lifecycle events (CascadeRunBegun / Completed) are
-                // outbox INFRASTRUCTURE, not part of the domain cascade the
-                // behaviors assert. Exclude them from the emit chain.
-                .filter(|e| e.aggregate_type != "CascadeRun")
-                .map(|e| e.name.clone())
+                // Infrastructure events the runtime emits as a side-effect of a
+                // dispatch are NOT domain reactions : CascadeRun lifecycle
+                // (CascadeRunBegun / Completed) and the event-sourcing Log's
+                // EventAppended (one per delta). Exclude them — EXCEPT the primary
+                // event (index 0, the dispatched command's own emit, published
+                // before the record_* side-effect hooks), so the EventSourcing
+                // Event aggregate's own Append test still asserts its EventAppended.
+                .enumerate()
+                .filter(|(i, e)| e.aggregate_type != "CascadeRun"
+                    && (*i == 0 || e.name != "EventAppended"))
+                .map(|(_, e)| e.name.clone())
                 .collect();
             if actual.len() < expected_events.len()
                 || actual[..expected_events.len()] != expected_events[..]
@@ -382,11 +394,17 @@ fn run_one(
             let actual: Vec<String> = rt.event_bus.events()
                 .iter()
                 .skip(pre_dispatch_event_count)
-                // CascadeRun lifecycle events (CascadeRunBegun / Completed) are
-                // outbox INFRASTRUCTURE, not part of the domain cascade the
-                // behaviors assert. Exclude them from the emit chain.
-                .filter(|e| e.aggregate_type != "CascadeRun")
-                .map(|e| e.name.clone())
+                // Infrastructure events the runtime emits as a side-effect of a
+                // dispatch are NOT domain reactions : CascadeRun lifecycle
+                // (CascadeRunBegun / Completed) and the event-sourcing Log's
+                // EventAppended (one per delta). Exclude them — EXCEPT the primary
+                // event (index 0, the dispatched command's own emit, published
+                // before the record_* side-effect hooks), so the EventSourcing
+                // Event aggregate's own Append test still asserts its EventAppended.
+                .enumerate()
+                .filter(|(i, e)| e.aggregate_type != "CascadeRun"
+                    && (*i == 0 || e.name != "EventAppended"))
+                .map(|(_, e)| e.name.clone())
                 .collect();
             // Greedy in-order match : walk expected, advance an actual
             // cursor past each match. Fail if any expected event isn't
