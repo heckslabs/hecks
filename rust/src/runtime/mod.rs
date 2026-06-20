@@ -836,6 +836,16 @@ impl Runtime {
     /// Append never appends. (Belt-and-suspenders — `dispatch_cascade` does
     /// not re-enter this hook ; only the eager dispatch wrapper calls it.)
     fn record_event_append(&mut self, result: &CommandResult, command_name: &str) {
+        // GATE (default OFF) — the in-process Log writer persists via DEFAULT
+        // heki (whole-file read-modify-write), which CLOBBERS under concurrent
+        // writers, so the live governance Log silently drops events. Per Chris
+        // (2026-06-20) the Event Log moves OUT-OF-PROCESS (an async projection,
+        // single-writer). Until that lands, event-sourcing is gated OFF so no
+        // lossy Log runs. Set HECKS_EVENT_SOURCING=1 to re-enable once the
+        // out-of-process writer owns event.heki. Sibling of HECKS_REPLY_OOP_LLM.
+        if std::env::var("HECKS_EVENT_SOURCING").is_err() {
+            return;
+        }
         if result.deltas.is_empty() {
             return;
         }
