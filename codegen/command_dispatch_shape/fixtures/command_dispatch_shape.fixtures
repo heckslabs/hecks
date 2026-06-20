@@ -47,17 +47,17 @@ Hecks.fixtures "CommandDispatchShape" do
       snippet_path: "codegen/command_dispatch_shape/snippets/phase_07_apply_new_defaults.rs.frag",
       description: "For new aggregates, seed default field values + lifecycle default state."
 
-    fixture "PipelineCore",
-      name: "pipeline_core",
-      order: 8,
-      snippet_path: "codegen/command_dispatch_shape/snippets/phase_08_pipeline_core.rs.frag",
-      description: "The classic four-step dispatch pipeline : check_givens -> check_lifecycle -> apply_mutations -> apply_lifecycle_transition."
-
     fixture "CopyCreateAttrs",
       name: "copy_create_attrs",
-      order: 9,
+      order: 8,
       snippet_path: "codegen/command_dispatch_shape/snippets/phase_09_copy_create_attrs.rs.frag",
-      description: "On create, copy command attrs whose names match the parent aggregate's attribute schema onto the new aggregate state."
+      description: "On create, copy command attrs whose names match the parent aggregate's attribute schema onto the new aggregate state. Runs BEFORE pipeline_core so invariants enforce on the created values, not the apply_defaults placeholders (a pure-data create with no then_set otherwise reached check_invariants with every VO attr still an empty list)."
+
+    fixture "PipelineCore",
+      name: "pipeline_core",
+      order: 9,
+      snippet_path: "codegen/command_dispatch_shape/snippets/phase_08_pipeline_core.rs.frag",
+      description: "The classic dispatch pipeline : check_givens -> check_lifecycle -> apply_mutations -> apply_lifecycle_transition -> check_invariants. Runs AFTER copy_create_attrs so then_set mutations override raw create-attrs on overlap and invariants see the resolved state."
 
     fixture "Persist",
       name: "persist",
