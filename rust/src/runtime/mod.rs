@@ -882,59 +882,58 @@ impl Runtime {
         }) {
             return;
         }
-        // command = verb + inputs (the caller's intent, recorded as fact ;
-        // never re-executed by a fold). inputs = the emitted event data JSON.
-        let verb = command_name.to_string();
-        let inputs = {
-            let mut obj = serde_json::Map::new();
-            for (k, v) in &event.data {
-                obj.insert(k.clone(), value_to_json(v));
+        // The shard dir : a `shards/` sibling of the Event repo's heki store
+            // dir, so the merge daemon's --global (event.heki) and the shards it
+            // folds live under one event_sourcing/ root. Memory-backed Event
+            // (no disk) has no shard target — skip.
+            let store_dir = match self.repositories.get(&es_key).and_then(|r| r.heki_path()) {
+                Some(d) => d,
+                None => return,
+            };
+            let shard_dir = std::path::Path::new(&store_dir).join("shards");
+
+            // command = verb + inputs (the caller's intent, recorded as fact ;
+            // never re-executed by a fold). inputs = the emitted event data JSON.
+            let verb = command_name.to_string();
+            let inputs = {
+                let mut obj = serde_json::Map::new();
+                for (k, v) in &event.data {
+                    obj.insert(k.clone(), value_to_json(v));
+                }
+                serde_json::Value::Object(obj).to_string()
+            };
+            // lineage : one correlation id per originating dispatch ; causation
+            // is populated empty this phase (ids ENABLED, facet-queries DEFERRED).
+            let correlation_id =
+                format!("{}::{}::{}", event.aggregate_type, event.aggregate_id, event.name);
+            let recorded_at = storehouse_log::now_iso8601();
+            let agg_name = event.aggregate_type.clone();
+            let agg_id = event.aggregate_id.clone();
+            // One Event per delta, appended to THIS process's private shard.
+            // shard + seq + event_id are assigned inside append_to_process_shard
+            // (single-writer per process => lossless at any size, no clobber).
+            // The merge daemon folds shards into the global event.heki and
+            // assigns the authoritative global sequence ; we do NOT compute a
+            // global sequence here (the old repo-count+1 is what clobbered).
+            for (field, value) in result.deltas.clone() {
+                let rec = event_shard::ShardRecord {
+                    shard: String::new(),   // set by append_to_process_shard
+                    seq: 0,                 // set by append_to_process_shard
+                    ts: recorded_at.clone(),
+                    event_id: String::new(), // set by append_to_process_shard
+                    aggregate_name: agg_name.clone(),
+                    aggregate_id: agg_id.clone(),
+                    verb: verb.clone(),
+                    inputs: inputs.clone(),
+                    field: field.clone(),
+                    value: value.to_string(),
+                    causation_id: String::new(),
+                    correlation_id: correlation_id.clone(),
+                    actor: "system".to_string(),
+                };
+                let _ = event_shard::append_to_process_shard(&shard_dir, rec);
             }
-            serde_json::Value::Object(obj).to_string()
-        };
-        // lineage : one correlation id per originating dispatch ; causation
-        // is populated empty this phase (ids ENABLED, facet-queries DEFERRED).
-        let correlation_id =
-            format!("{}::{}::{}", event.aggregate_type, event.aggregate_id, event.name);
-        let recorded_at = storehouse_log::now_iso8601();
-        let agg_name = event.aggregate_type.clone();
-        let agg_id = event.aggregate_id.clone();
-        for (field, value) in result.deltas.clone() {
-            let seq = self
-                .repositories
-                .get(&es_key)
-                .map(|r| r.count())
-                .unwrap_or(0) as i64
-                + 1;
-            let mut attrs: HashMap<String, Value> = HashMap::new();
-            attrs.insert("event_id".to_string(), Value::Str(format!("evt-{}", seq)));
-            attrs.insert("aggregate_name".to_string(), Value::Str(agg_name.clone()));
-            attrs.insert("aggregate_id".to_string(), Value::Str(agg_id.clone()));
-            let mut cmd_m = HashMap::new();
-            cmd_m.insert("verb".to_string(), Value::Str(verb.clone()));
-            cmd_m.insert("inputs".to_string(), Value::Str(inputs.clone()));
-            attrs.insert("command".to_string(), Value::Map(cmd_m));
-            let mut delta_m = HashMap::new();
-            delta_m.insert("field".to_string(), Value::Str(field.clone()));
-            delta_m.insert("value".to_string(), Value::Str(value.to_string()));
-            attrs.insert("delta".to_string(), Value::Map(delta_m));
-            attrs.insert("causation_id".to_string(), Value::Str(String::new()));
-            attrs.insert(
-                "correlation_id".to_string(),
-                Value::Str(correlation_id.clone()),
-            );
-            attrs.insert("actor".to_string(), Value::Str("system".to_string()));
-            attrs.insert("sequence".to_string(), Value::Int(seq));
-            attrs.insert("recorded_at".to_string(), Value::Str(recorded_at.clone()));
-            let _ = command_dispatch::dispatch_cascade(
-                self,
-                "EventSourcing::Event.Append",
-                attrs,
-                &agg_name,
-                &agg_id,
-            );
         }
-    }
 
     /// Transactional outbox — when a dispatched command's event has domain
     /// reactions (policy triggers, driven-adapter dispatches, PM dispatches),
