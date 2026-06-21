@@ -83,19 +83,25 @@ enum Backend {
         context: Option<String>,
         cell: OnceCell<Repository>,
     },
-    /// The AppendLog adapter (`persisted_by("AppendLog")`) — the bluebook-
-    /// first Event Log. READS exactly like Heki : a Repository hydrated from
-    /// `data_dir`, the merge daemon's consolidated `event.heki`. SAVE is the
-    /// sole divergence — append-not-upsert : each save persists one immutable
-    /// record to THIS process's private shard (single-writer, lossless),
-    /// folded into the global log by the merge. Same fields as Heki so every
-    /// read arm shares Heki's behaviour ; only `save` overrides.
+    /// The AppendLog adapter (`persisted_by("AppendLog")`) — the bluebook-first
+    /// Event Log, which OWNS its append-only substrate end-to-end (heki is for
+    /// snapshots, the LOG is append-only — Chris, 2026-06-21). SAVE appends one
+    /// immutable record to THIS process's private shard (single-writer,
+    /// lossless), folded into the global Log by the merge. READ seeds the
+    /// Repository from the append-only JSONL global Log (`event.log`,
+    /// event_log.rs) — NOT a heki store — with `data_dir = None` so the generic
+    /// heki `load_persisted` is a no-op ; heki never sees the Log file.
     AppendLog {
         aggregate_type: String,
         data_dir: Option<String>,
         identified_by: Option<String>,
         context: Option<String>,
         cell: OnceCell<Repository>,
+        /// Last-seen mtime of the append-only `event.log`. The reader re-seeds
+        /// (invalidates `cell`) only when the Log has GROWN since — so a refresh
+        /// is a cheap stat until the merge actually appends. Cell so `repo()`
+        /// (&self) can stamp it on first materialization.
+        log_mtime: std::cell::Cell<Option<std::time::SystemTime>>,
     },
     /// The SQL adapter (`adapter :sqlite, db:`). EAGER, unlike the lazy
     /// heki/memory cells : the `SqliteRepository` (open + CREATE TABLE +
@@ -163,6 +169,7 @@ impl LazyRepository {
                 identified_by,
                 context,
                 cell: OnceCell::new(),
+                log_mtime: std::cell::Cell::new(None),
             },
         }
     }
@@ -215,17 +222,39 @@ impl LazyRepository {
                     )
                 })
             }
-            Backend::Heki { aggregate_type, data_dir, identified_by, context, cell }
-            | Backend::AppendLog { aggregate_type, data_dir, identified_by, context, cell } => {
-                cell.get_or_init(|| {
-                    Repository::new_with_context(
-                        aggregate_type,
-                        data_dir.clone(),
-                        identified_by.clone(),
-                        context.clone(),
-                    )
-                })
-            }
+            Backend::Heki { aggregate_type, data_dir, identified_by, context, cell } => {
+                    cell.get_or_init(|| {
+                        Repository::new_with_context(
+                            aggregate_type,
+                            data_dir.clone(),
+                            identified_by.clone(),
+                            context.clone(),
+                        )
+                    })
+                }
+            Backend::AppendLog { aggregate_type, data_dir, identified_by, context, cell, log_mtime } => {
+                    cell.get_or_init(|| {
+                        // AppendLog OWNS its substrate : seed the Repository from the
+                        // append-only JSONL global Log (event_log), NOT the generic
+                        // heki load. data_dir = None so the Repository's heki
+                        // load_persisted is a no-op ; we seed it from the Log
+                        // ourselves, so heki never sees the Log file.
+                        let mut r = Repository::new_with_context(
+                            aggregate_type,
+                            None,
+                            identified_by.clone(),
+                            context.clone(),
+                        );
+                        if let Some(dir) = data_dir {
+                            let path = super::event_log::global_path(dir, context.as_deref());
+                            log_mtime.set(super::event_log::mtime(&path));
+                            for st in super::event_log::load_states(&path) {
+                                r.seed_record(st);
+                            }
+                        }
+                        r
+                    })
+                }
             Backend::Sql { .. } => unreachable!("repo() on a SQL-backed LazyRepository"),
         }
     }
@@ -391,6 +420,20 @@ impl LazyRepository {
     /// connection, so there's no stale in-memory snapshot to refresh
     /// against (the heki cross-process freshness concern doesn't apply).
     pub fn refresh_from_heki(&mut self) {
+        // AppendLog owns the append-only Log : re-seed (invalidate the cell so the
+        // next read re-materializes from event.log) ONLY when the Log has grown
+        // since we last read it. A cheap stat until the merge actually appends.
+        if let Backend::AppendLog { cell, data_dir, context, log_mtime, .. } = &mut self.backend {
+            if let Some(dir) = data_dir {
+                let path = super::event_log::global_path(dir, context.as_deref());
+                let cur = super::event_log::mtime(&path);
+                if cur != log_mtime.get() {
+                    let _ = cell.take();
+                    log_mtime.set(cur);
+                }
+            }
+            return;
+        }
         if !self.is_sql() { self.repo_mut().refresh_from_heki() }
     }
 

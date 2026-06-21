@@ -912,6 +912,19 @@ fn main() {
         return;
     }
 
+    // `storehouse migrate-event-log <root>` — one-time conversion of the global
+    // Event Log from compressed whole-file heki (event.heki) to the append-only
+    // JSONL substrate (event.log). Run once per realm before the append-only
+    // writer goes live ; the old heki is kept as .premigration (reversible).
+    if command == "migrate-event-log" {
+        if path.is_empty() {
+            eprintln!("Usage: storehouse migrate-event-log <root>");
+            std::process::exit(1);
+        }
+        cmd_migrate_event_log(path);
+        return;
+    }
+
     if command == "wire-persistence" {
         if path.is_empty() {
             eprintln!("Usage: storehouse wire-persistence <bluebook> [--memory Agg1,Agg2] [--stdout]");
@@ -4184,6 +4197,41 @@ fn cmd_verify_projection(agg_dir: &str) {
         println!("  => state IS a projection of the Log : every logged field reconstructs to the store.");
     } else {
         println!("  => DRIFT : the Log does not reconstruct the store for the fields above.");
+    }
+}
+
+/// `storehouse migrate-event-log <root>` — boots the runtime and converts the
+/// global Event Log from heki to append-only JSONL (one-time, reversible).
+fn cmd_migrate_event_log(agg_dir: &str) {
+    let data_dir = find_world_heki_dir(agg_dir)
+        .unwrap_or_else(|| format!("{}/data", agg_dir.trim_end_matches('/')));
+    let combined = if std::path::Path::new(agg_dir).is_file() {
+        parser::parse(&fs::read_to_string(agg_dir).unwrap_or_default())
+    } else {
+        load_combined_domain(agg_dir)
+    };
+    let hecksagons = load_all_hecksagons(agg_dir);
+    let mut rt = Runtime::boot_with_hecksagons(combined, Some(data_dir), hecksagons);
+    storehouse::world::attach::apply_per_domain_world_dirs(&mut rt, agg_dir);
+    storehouse::world::attach::attach_world_adapter_bindings(&mut rt, agg_dir);
+    match rt.migrate_event_log_to_jsonl() {
+        Ok((before, after)) => {
+            println!(
+                "migrate-event-log : {} -> {} records (event.heki -> event.log)",
+                before, after
+            );
+            if before != after {
+                eprintln!(
+                    "WARNING: count mismatch ({} != {}) — old heki preserved as .premigration",
+                    before, after
+                );
+                std::process::exit(1);
+            }
+        }
+        Err(e) => {
+            eprintln!("migrate-event-log: {}", e);
+            std::process::exit(1);
+        }
     }
 }
 
