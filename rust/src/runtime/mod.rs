@@ -180,6 +180,7 @@ pub mod drive_scheduler;
 // The append-only one-line-per-event shard backing the out-of-process
 // Event Log (shards-plus-merge topology). Format + writer + offset reader.
 pub mod event_shard;
+pub mod projection_fold;
 // The merge half : tail N single-writer shards into the global ordered Log.
 pub mod event_merge;
 pub mod compute_functions;

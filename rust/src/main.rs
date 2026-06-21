@@ -877,6 +877,19 @@ fn main() {
         return;
     }
 
+    // `storehouse verify-projection <root>` — proves state-as-projection : fold
+    // the Event Log back into per-instance state and assert it reconstructs the
+    // live store. Green => the Log is the source of truth (state is derivable),
+    // not just a parallel record.
+    if command == "verify-projection" {
+        if path.is_empty() {
+            eprintln!("Usage: storehouse verify-projection <root>");
+            std::process::exit(1);
+        }
+        cmd_verify_projection(path);
+        return;
+    }
+
     if command == "wire-persistence" {
         if path.is_empty() {
             eprintln!("Usage: storehouse wire-persistence <bluebook> [--memory Agg1,Agg2] [--stdout]");
@@ -3987,6 +4000,86 @@ fn cmd_wire_all(root: &str, args: &[String]) {
     println!("# wire-all{}: {} files, {} heki aggs, {} memory aggs{}",
         if dry { " (dry-run)" } else { "" }, files.len(), heki_n, mem_n,
         if dry { String::new() } else { format!(", wrote {}", wrote) });
+}
+
+/// `storehouse verify-projection <root>` — the state-as-projection proof. Boots
+/// the runtime, reads the Event Log (every Event record — AppendLog reads the
+/// merged event.heki), folds it per aggregate instance, and compares each
+/// reconstructed field to the live store. Green => current state is DERIVABLE
+/// from the Log, so the Log is the source of truth, not a parallel record.
+fn cmd_verify_projection(agg_dir: &str) {
+    use storehouse::runtime::projection_fold::fold_event_log;
+    let data_dir = find_world_heki_dir(agg_dir)
+        .unwrap_or_else(|| format!("{}/data", agg_dir.trim_end_matches('/')));
+    let combined = if std::path::Path::new(agg_dir).is_file() {
+        parser::parse(&fs::read_to_string(agg_dir).unwrap_or_default())
+    } else {
+        load_combined_domain(agg_dir)
+    };
+    let hecksagons = load_all_hecksagons(agg_dir);
+    let mut rt = Runtime::boot_with_hecksagons(combined, Some(data_dir), hecksagons);
+    storehouse::world::attach::apply_per_domain_world_dirs(&mut rt, agg_dir);
+    storehouse::world::attach::attach_world_adapter_bindings(&mut rt, agg_dir);
+
+    // The Log : every Event record. AppendLog reads the consolidated event.heki.
+    let events = rt.all("Event");
+    if events.is_empty() {
+        println!("verify-projection : the Event Log is empty (gate off, or not yet consolidated) — nothing to verify.");
+        return;
+    }
+    let folded = fold_event_log(&events);
+
+    let (mut verified, mut mismatched, mut orphan, mut uncomparable) = (0usize, 0usize, 0usize, 0usize);
+    let (mut total_fields, mut bad_fields) = (0usize, 0usize);
+    let mut examples: Vec<String> = Vec::new();
+
+    for ((agg_name, agg_id), recon) in &folded {
+        // An instance with no/!string id (e.g. aggregate_id was an empty list,
+        // rendered "[0 items]") cannot be folded per-instance — all such events
+        // collapse into one bogus bucket. Not comparable ; count and skip.
+        if agg_id.is_empty() || agg_id == "[0 items]" || agg_name == "[0 items]" {
+            uncomparable += 1;
+            continue;
+        }
+        match rt.find(agg_name, agg_id) {
+            None => {
+                orphan += 1; // Log has events but the live store has no such record.
+            }
+            Some(store) => {
+                let mut ok = true;
+                for (field, folded_val) in recon {
+                    total_fields += 1;
+                    let store_val = store.get(field).to_string();
+                    if &store_val != folded_val {
+                        ok = false;
+                        bad_fields += 1;
+                        if examples.len() < 10 {
+                            examples.push(format!(
+                                "{}::{} .{} : log={:?} store={:?}",
+                                agg_name, agg_id, field, folded_val, store_val
+                            ));
+                        }
+                    }
+                }
+                if ok { verified += 1 } else { mismatched += 1 }
+            }
+        }
+    }
+
+    println!("# verify-projection — fold(Log) vs store");
+    println!("  instances in Log               : {}", folded.len());
+    println!("  fully reconstructed            : {}", verified);
+    println!("  field mismatches               : {} instance(s), {}/{} field(s)", mismatched, bad_fields, total_fields);
+    println!("  orphan (Log events, no store)  : {}", orphan);
+    println!("  uncomparable (no instance id)  : {}", uncomparable);
+    for e in &examples {
+        println!("    ! {}", e);
+    }
+    if mismatched == 0 && bad_fields == 0 {
+        println!("  => state IS a projection of the Log : every logged field reconstructs to the store.");
+    } else {
+        println!("  => DRIFT : the Log does not reconstruct the store for the fields above.");
+    }
 }
 
 fn cmd_backends(agg_dir: &str) {
