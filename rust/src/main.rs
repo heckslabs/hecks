@@ -890,6 +890,28 @@ fn main() {
         return;
     }
 
+    // `storehouse log <root> [Aggregate] [--follow] [--interval <secs>]` — the
+    // human view of the Event Log : one line per event, rendering the delta as
+    // `field: old -> new` by folding the stream (the Projection concept). The
+    // selection-by-aggregate is Event.Replay's logic ; --follow tails the
+    // unconsolidated shards live (real-time, sub-consolidation latency).
+    if command == "log" {
+        if path.is_empty() {
+            eprintln!("Usage: storehouse log <root> [Aggregate] [--follow] [--interval <secs>]");
+            std::process::exit(1);
+        }
+        let aggregate = args.iter().skip(3).find(|a| !a.starts_with("--")).cloned();
+        let follow = args.iter().any(|a| a == "--follow");
+        let interval = args
+            .iter()
+            .position(|a| a == "--interval")
+            .and_then(|i| args.get(i + 1))
+            .and_then(|s| s.parse::<u64>().ok())
+            .unwrap_or(1);
+        cmd_log(path, aggregate.as_deref(), follow, interval);
+        return;
+    }
+
     if command == "wire-persistence" {
         if path.is_empty() {
             eprintln!("Usage: storehouse wire-persistence <bluebook> [--memory Agg1,Agg2] [--stdout]");
@@ -4162,6 +4184,144 @@ fn cmd_verify_projection(agg_dir: &str) {
         println!("  => state IS a projection of the Log : every logged field reconstructs to the store.");
     } else {
         println!("  => DRIFT : the Log does not reconstruct the store for the fields above.");
+    }
+}
+
+/// `storehouse log <root> [Aggregate] [--follow]` — the human view of the Event
+/// Log. One line per event, rendering the delta as `field: old -> new` by folding
+/// the stream (the Projection concept). Selection-by-aggregate is Event.Replay's
+/// logic ; --follow polls the unconsolidated shard tail so new events stream live.
+fn cmd_log(agg_dir: &str, aggregate: Option<&str>, follow: bool, interval_secs: u64) {
+    use std::collections::{HashMap, HashSet};
+    let data_dir = find_world_heki_dir(agg_dir)
+        .unwrap_or_else(|| format!("{}/data", agg_dir.trim_end_matches('/')));
+    let combined = if std::path::Path::new(agg_dir).is_file() {
+        parser::parse(&fs::read_to_string(agg_dir).unwrap_or_default())
+    } else {
+        load_combined_domain(agg_dir)
+    };
+    let hecksagons = load_all_hecksagons(agg_dir);
+    let mut rt = Runtime::boot_with_hecksagons(combined, Some(data_dir), hecksagons);
+    storehouse::world::attach::apply_per_domain_world_dirs(&mut rt, agg_dir);
+    storehouse::world::attach::attach_world_adapter_bindings(&mut rt, agg_dir);
+
+    // Running projection state for the old -> new transition, and the event_ids
+    // already shown (so --follow only prints newcomers).
+    let mut prev: HashMap<(String, String, String), String> = HashMap::new();
+    let mut seen: HashSet<String> = HashSet::new();
+
+    // Initial dump : the COMPLETE log = consolidated event.heki + the unconsolidated
+    // shard tail (the same read verify-projection uses).
+    {
+        let consolidated = rt.all("Event");
+        let tail = rt.unconsolidated_log_tail();
+        let mut all: Vec<(&storehouse::runtime::AggregateState, bool)> =
+            consolidated.into_iter().map(|e| (e, false)).collect();
+        all.extend(tail.iter().map(|e| (e, true)));
+        render_log_events(&all, aggregate, &mut prev, &mut seen);
+    }
+
+    if !follow {
+        return;
+    }
+
+    // Follow : poll the unconsolidated shard tail (always read fresh from the
+    // shards). New events land in a shard before consolidation, so a poll interval
+    // under the consolidation cadence (~5s) never misses an event in the window it
+    // lives in the tail. Ctrl-C stops.
+    eprintln!(
+        "[storehouse log] --follow (interval {}s) — Ctrl-C to stop",
+        interval_secs
+    );
+    loop {
+        std::thread::sleep(std::time::Duration::from_secs(interval_secs.max(1)));
+        let tail = rt.unconsolidated_log_tail();
+        let refs: Vec<(&storehouse::runtime::AggregateState, bool)> =
+            tail.iter().map(|e| (e, true)).collect();
+        render_log_events(&refs, aggregate, &mut prev, &mut seen);
+    }
+}
+
+/// The global sequence of one Event record (Map{value} after merge, or a bare Int).
+fn seq_of(ev: &storehouse::runtime::AggregateState) -> i64 {
+    use storehouse::runtime::Value;
+    match ev.get("sequence") {
+        Value::Map(m) => m.get("value").and_then(|v| v.as_int()).unwrap_or(0),
+        Value::Int(i) => *i,
+        _ => 0,
+    }
+}
+
+/// Render each not-yet-seen Event as `[seq] recorded_at  Agg::id  Verb  field: old -> new`,
+/// folding `prev` so the transition is shown. Filters to `aggregate` when given.
+/// Reaches INTO the delta map directly — never Value's Display (which collapses a
+/// map to "{N fields}"). Ordered by (recorded_at, sequence), the projection_fold order.
+fn render_log_events(
+    events: &[(&storehouse::runtime::AggregateState, bool)],
+    aggregate: Option<&str>,
+    prev: &mut std::collections::HashMap<(String, String, String), String>,
+    seen: &mut std::collections::HashSet<String>,
+) {
+    use storehouse::runtime::Value;
+    use storehouse::runtime::projection_fold::is_infra_mechanism;
+    let mut sortable: Vec<(&storehouse::runtime::AggregateState, bool)> = events
+        .iter()
+        .copied()
+        .filter(|(e, _)| {
+            let name = e.get("aggregate_name").as_str().unwrap_or("");
+            // Mechanism (Cascade / Process / ProcessSentinel …) is not domain intent
+            // — same exclusion the projection gauge applies. Historical infra events
+            // predate the write-skip ; keep them out of the human log view.
+            !is_infra_mechanism(name)
+                && aggregate.map_or(true, |a| name == a)
+        })
+        .collect();
+    sortable.sort_by(|(a, _), (b, _)| {
+        let ra = a.get("recorded_at").as_str().unwrap_or("");
+        let rb = b.get("recorded_at").as_str().unwrap_or("");
+        ra.cmp(rb).then(seq_of(a).cmp(&seq_of(b)))
+    });
+    for (ev, pending) in sortable {
+        let eid = ev.get("event_id").as_str().unwrap_or("").to_string();
+        if eid.is_empty() || seen.contains(&eid) {
+            continue;
+        }
+        let (field, value) = match ev.get("delta") {
+            Value::Map(m) => (
+                m.get("field").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                m.get("value").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+            ),
+            _ => (String::new(), String::new()),
+        };
+        seen.insert(eid);
+        if field.is_empty() {
+            continue; // an event with no delta field — nothing changed to show
+        }
+        let agg = ev.get("aggregate_name").as_str().unwrap_or("?").to_string();
+        let id = ev.get("aggregate_id").as_str().unwrap_or("?").to_string();
+        let at = ev.get("recorded_at").as_str().unwrap_or("").to_string();
+        let verb_full = match ev.get("command") {
+            Value::Map(m) => m.get("verb").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+            _ => String::new(),
+        };
+        // The agg::id is already shown, so the verb only needs its command name
+        // (the segment after the last '.' of the FQN Domain::Aggregate.Command).
+        let verb = verb_full.rsplit('.').next().unwrap_or(&verb_full).to_string();
+        let key = (agg.clone(), id.clone(), field.clone());
+        let transition = match prev.get(&key) {
+            Some(old) if old != &value => format!("{}: {} -> {}", field, old, value),
+            _ => format!("{} = {}", field, value), // first sighting (or re-set to same)
+        };
+        // Consolidated events carry the authoritative global sequence ; tail events
+        // (pending consolidation) only have a per-process seq, so show a placeholder
+        // rather than a misleading small number.
+        let seq_disp = if pending {
+            "····".to_string()
+        } else {
+            seq_of(ev).to_string()
+        };
+        println!("[{}] {}  {}::{}  {}  {}", seq_disp, at, agg, id, verb, transition);
+        prev.insert(key, value);
     }
 }
 
