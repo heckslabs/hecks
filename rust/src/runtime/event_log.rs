@@ -81,8 +81,14 @@ pub fn append_records(
     if let Some(parent) = Path::new(global).parent() {
         std::fs::create_dir_all(parent)?;
     }
+    // The log byte-length BEFORE this append — the base for the new lines' byte
+    // offsets and the index's self-heal check (event_log_index).
+    let l0 = std::fs::metadata(global).map(|m| m.len()).unwrap_or(0);
     let mut next = read_next_seq(global);
     let mut buf = String::new();
+    // (start_offset, aggregate_name) for each new line, for the offset index.
+    let mut entries: Vec<(u64, String)> = Vec::new();
+    let mut offset = l0;
     for rec in batch {
         // The line IS the Event record : the shard's opaque `event` map, stamped
         // with the heki-style id (event_id), the origin shard, and the global seq.
@@ -92,7 +98,15 @@ pub fn append_records(
         let mut seqobj = serde_json::Map::new();
         seqobj.insert("value".into(), serde_json::Value::Number(next.into()));
         r.insert("sequence".into(), serde_json::Value::Object(seqobj));
-        buf.push_str(&serde_json::Value::Object(r).to_string());
+        let name = r
+            .get(super::event_log_index::INDEXED_FIELD)
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
+        let line = serde_json::Value::Object(r).to_string();
+        entries.push((offset, name));
+        offset += line.len() as u64 + 1;
+        buf.push_str(&line);
         buf.push('\n');
         next += 1;
     }
@@ -102,6 +116,9 @@ pub fn append_records(
         .open(global)?;
     f.write_all(buf.as_bytes())?;
     write_next_seq(global, next);
+    // Maintain the offset index AFTER the log bytes are durable ; record_appends
+    // writes its commit marker last and self-heals if it was out of sync.
+    super::event_log_index::record_appends(global, l0, &entries, l0 + buf.len() as u64);
     Ok(batch.len())
 }
 

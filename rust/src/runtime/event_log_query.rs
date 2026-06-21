@@ -81,6 +81,18 @@ pub fn load_filtered(
     if pushed.is_empty() {
         return None;
     }
+    // Phase 3 fast path : if a clause pins aggregate_name AND the offset index
+    // is provably complete, SEEK to that name's events instead of streaming the
+    // whole Log. complete_offsets_for returns None when the index can't be
+    // trusted (incomplete after a crash, missing) — then we stream (always safe).
+    if let Some((_, name)) = pushed
+        .iter()
+        .find(|(f, _)| f == super::event_log_index::INDEXED_FIELD)
+    {
+        if let Some(offsets) = super::event_log_index::complete_offsets_for(global, name) {
+            return Some(read_by_offsets(global, &offsets, &pushed));
+        }
+    }
     let file = match std::fs::File::open(global) {
         Ok(f) => f,
         Err(_) => return Some(Vec::new()),
@@ -108,6 +120,42 @@ pub fn load_filtered(
         }
     }
     Some(out)
+}
+
+/// The index fast path's reader : seek to each offset, read that one line, and
+/// hydrate the matches. Applies the SAME `line_matches` predicate as the stream
+/// scan, so results are identical — just far fewer reads for a selective name.
+fn read_by_offsets(
+    global: &str,
+    offsets: &[u64],
+    pushed: &[(String, String)],
+) -> Vec<AggregateState> {
+    use std::io::{Seek, SeekFrom};
+    let file = match std::fs::File::open(global) {
+        Ok(f) => f,
+        Err(_) => return Vec::new(),
+    };
+    let mut reader = std::io::BufReader::new(file);
+    let mut out = Vec::new();
+    for &off in offsets {
+        if reader.seek(SeekFrom::Start(off)).is_err() {
+            continue;
+        }
+        let mut line = String::new();
+        if reader.read_line(&mut line).is_err() {
+            continue;
+        }
+        let v: serde_json::Value = match serde_json::from_str(line.trim()) {
+            Ok(v) => v,
+            Err(_) => continue,
+        };
+        if let Some(obj) = v.as_object() {
+            if line_matches(obj, pushed) {
+                out.push(super::event_log::state_from_obj(obj));
+            }
+        }
+    }
+    out
 }
 
 #[cfg(test)]
@@ -176,5 +224,50 @@ mod tests {
             &attrs,
         );
         assert!(matches!(out, Some(ref v) if v.is_empty()));
+    }
+
+    // The Phase-3 index fast path and the Phase-2 stream fallback must return
+    // IDENTICAL results. Build the Log through the real append_records (which
+    // maintains the index + commit marker), query once via the index, then drop
+    // the marker to force the stream path — same ids both ways.
+    #[test]
+    fn index_fast_path_matches_stream_path() {
+        use super::super::event_shard::ShardRecord;
+        let dir = std::env::temp_dir().join(format!("elq_idx_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let global = dir.join("event.log").to_string_lossy().into_owned();
+        let mk = |id: &str, name: &str| {
+            let mut event = serde_json::Map::new();
+            event.insert("event_id".into(), serde_json::Value::String(id.into()));
+            event.insert("aggregate_name".into(), serde_json::Value::String(name.into()));
+            ShardRecord { shard: "s".into(), seq: 0, ts: "t".into(), event_id: id.into(), event }
+        };
+        super::super::event_log::append_records(
+            &global,
+            &[mk("e1", "Order"), mk("e2", "Pizza"), mk("e3", "Order")],
+        )
+        .unwrap();
+        let attrs = HashMap::new();
+        let wheres = [clause("aggregate_name", WhereOp::Eq, "Order")];
+
+        let mut via_idx: Vec<String> = load_filtered(&global, &wheres, &attrs)
+            .unwrap()
+            .iter()
+            .map(|s| s.id.clone())
+            .collect();
+        via_idx.sort();
+        assert_eq!(via_idx, vec!["e1".to_string(), "e3".to_string()]);
+
+        // Drop the commit marker — the reader must fall back to the stream scan
+        // and produce the same ids.
+        let _ = std::fs::remove_file(format!("{}.idx.len", global));
+        let mut via_stream: Vec<String> = load_filtered(&global, &wheres, &attrs)
+            .unwrap()
+            .iter()
+            .map(|s| s.id.clone())
+            .collect();
+        via_stream.sort();
+        assert_eq!(via_stream, via_idx);
     }
 }

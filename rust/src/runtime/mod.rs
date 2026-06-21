@@ -191,6 +191,10 @@ pub mod event_log;
 // Phase 2 of the where() overhaul — filtered streaming scan of the Event
 // Log : hydrate only matching lines (O(matches)) instead of the whole Log.
 pub mod event_log_query;
+// Phase 3 of the where() overhaul — the offset index for the Event Log, so
+// Replay SEEKS to an aggregate's events instead of streaming. Safe by
+// construction (commit-marker + full-scan fallback ; no false negatives).
+pub mod event_log_index;
 // Phase 1 of the where() overhaul — injection-safe SQL WHERE pushdown
 // builder + executor. Host-only (rusqlite) ; the wasm build uses the
 // heki/memory backend and never reaches it.
