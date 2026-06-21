@@ -1359,12 +1359,20 @@ pub(crate) fn parse_for_each_clause(tail: &str) -> Option<ForEachSpec> {
         }
         _ => return None,
     };
-    // i221-C — accept the dispatch-FQN `Context::Aggregate.query` form
-    // (double-colon context) in the aggregate slot, splitting it so the
-    // sweep targets the (context, name) repo key like every other lookup.
-    if let Some((ctx, agg)) = source_aggregate.clone().split_once("::") {
-        source_context = Some(ctx.to_string());
-        source_aggregate = agg.to_string();
+    // i221-C + realm-qualified : accept the dispatch-FQN
+    // `[Realm::Context::]Bluebook::Aggregate.query` form (VARIABLE depth) in
+    // the aggregate slot. The aggregate is the LAST :: segment, the bluebook
+    // context the second-to-last ; the realm / context-folder prefix is
+    // matched at resolve time, not here. (The old split_once took the FIRST
+    // ::, which mis-parsed a canonical 4-seg ref into a non-existent
+    // aggregate — has_query went false and the sweep fell through to the
+    // UNFILTERED enumerate-all path, decrementing unrelated records.)
+    if source_aggregate.contains("::") {
+        let full = source_aggregate.clone();
+        let segs: Vec<&str> = full.split("::").collect();
+        let n = segs.len();
+        source_aggregate = segs[n - 1].to_string();
+        source_context = Some(segs[n - 2].to_string());
     }
     // i221-C — optional `where: { input: from_event(:x) }` sub-hash binds
     // the swept query's inputs from the event. Absent = parameterless.
