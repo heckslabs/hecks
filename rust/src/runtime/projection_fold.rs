@@ -37,8 +37,20 @@ pub type ReconstructedState = HashMap<String, String>;
 pub fn fold_event_log(
     events: &[&AggregateState],
 ) -> HashMap<(String, String), ReconstructedState> {
-    // (agg_name, agg_id) -> [(sequence, field, value)]
-    let mut grouped: HashMap<(String, String), Vec<(i64, String, String)>> = HashMap::new();
+    // (agg_name, agg_id) -> [(recorded_at, sequence, field, value)]
+    // Order key is recorded_at (wall-clock), NOT sequence : the COMPLETE log
+    // mixes consolidated events (authoritative GLOBAL sequence, assigned at
+    // merge) with the unconsolidated shard tail (per-process sequence, not yet
+    // globally ordered). Those two sequence scales are not comparable, so
+    // folding by sequence would sort a fresh tail event (small per-process seq)
+    // BEFORE old consolidated events (large global seq) and the stale value
+    // would win. recorded_at is present on EVERY event (record_event_append
+    // stamps it once per dispatch) and is the same ts-primary order the merge
+    // itself imposes, so it orders both populations correctly. sequence is the
+    // tiebreak within one source (and the sole key when recorded_at is absent,
+    // e.g. the pure-fold unit tests).
+    let mut grouped: HashMap<(String, String), Vec<(String, i64, String, String)>> =
+        HashMap::new();
     for ev in events {
         let agg_name = ev.get("aggregate_name").as_str().unwrap_or("").to_string();
         let agg_id = ev.get("aggregate_id").as_str().unwrap_or("").to_string();
@@ -54,19 +66,20 @@ pub fn fold_event_log(
             Value::Int(i) => *i,
             _ => 0,
         };
+        let recorded_at = ev.get("recorded_at").as_str().unwrap_or("").to_string();
         if agg_name.is_empty() || field.is_empty() {
             continue;
         }
         grouped
             .entry((agg_name, agg_id))
             .or_default()
-            .push((seq, field, value));
+            .push((recorded_at, seq, field, value));
     }
     let mut out = HashMap::new();
     for (key, mut rows) in grouped {
-        rows.sort_by_key(|(seq, _, _)| *seq);
+        rows.sort_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
         let mut state = ReconstructedState::new();
-        for (_, field, value) in rows {
+        for (_, _, field, value) in rows {
             state.insert(field, value); // last write per field wins
         }
         out.insert(key, state);
@@ -140,5 +153,32 @@ mod tests {
         no_delta.set("aggregate_id", Value::Str("s1".into()));
         let refs = vec![&no_delta];
         assert!(fold_event_log(&refs).is_empty());
+    }
+
+    fn ev_at(name: &str, id: &str, seq: i64, at: &str, field: &str, value: &str) -> AggregateState {
+        let mut s = ev(name, id, seq, field, value);
+        s.set("recorded_at", Value::Str(at.to_string()));
+        s
+    }
+
+    #[test]
+    fn recorded_at_orders_across_mixed_sequence_scales() {
+        // The COMPLETE-log case : a CONSOLIDATED event carries a large AUTHORITATIVE
+        // global sequence (assigned at merge) but an EARLIER wall-clock ; a fresh
+        // shard TAIL event carries a small PER-PROCESS sequence but a LATER
+        // wall-clock. Folding by sequence would let the stale consolidated value
+        // (seq 9001) win over the fresh tail (seq 2) — the exact bug the
+        // recorded_at order prevents. Last write = latest recorded_at.
+        let consolidated = ev_at("InboxPoller", "p1", 9001, "2026-06-21T01:00:00Z", "last_polled_at", "2026-06-21T01:00:00Z");
+        let tail = ev_at("InboxPoller", "p1", 2, "2026-06-21T01:00:02Z", "last_polled_at", "2026-06-21T01:00:02Z");
+        // Order in the vec mimics consolidated-then-tail.
+        let refs = vec![&consolidated, &tail];
+        let folded = fold_event_log(&refs);
+        let poller = folded.get(&("InboxPoller".to_string(), "p1".to_string())).unwrap();
+        assert_eq!(
+            poller.get("last_polled_at").unwrap(),
+            "2026-06-21T01:00:02Z",
+            "the later recorded_at (the tail) must win despite its smaller per-process sequence"
+        );
     }
 }

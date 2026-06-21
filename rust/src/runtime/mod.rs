@@ -1008,6 +1008,51 @@ impl Runtime {
         }
     }
 
+    /// The unconsolidated Log tail : the Event records that live in the shards
+    /// but have NOT yet been folded into the global event.heki. The COMPLETE
+    /// Log is the consolidated event.heki PLUS this tail — `verify-projection`
+    /// needs both to reconstruct a LIVE aggregate, because a continuously-
+    /// dispatching aggregate (e.g. the 2s InboxPoller) always has its freshest
+    /// event sitting in a shard, ~consolidation-cadence ahead of event.heki.
+    ///
+    /// READ-ONLY : unlike run_consolidate, this neither writes the global Log
+    /// nor saves the advanced checkpoint — it loads a private checkpoint copy,
+    /// runs one merge_pass to collect the post-checkpoint records, and discards
+    /// the mutated copy. So a verifier observes the tail without perturbing the
+    /// live consolidate driver. The returned states carry the Event's fields in
+    /// the same nested shape (delta{field,value}, sequence{value}, recorded_at)
+    /// the consolidated reader produces, so the fold treats both uniformly.
+    pub fn unconsolidated_log_tail(&self) -> Vec<AggregateState> {
+        let es_key = repo_key(Some("EventSourcing"), "Event");
+        let store_dir = match self.repositories.get(&es_key).and_then(|r| r.heki_path()) {
+            Some(d) => d,
+            None => return Vec::new(),
+        };
+        let shard_dir = std::path::Path::new(&store_dir).join("shards");
+        let checkpoint = shard_dir.join(".merge.checkpoint.json");
+        let shards = match event_merge::discover_shards(&shard_dir) {
+            Ok(s) => s,
+            Err(_) => return Vec::new(),
+        };
+        let mut cp = event_merge::load_checkpoint(&checkpoint)
+            .unwrap_or_else(|_| event_merge::Checkpoint::new());
+        let batch = match event_merge::merge_pass(&shards, &mut cp) {
+            Ok(b) => b,
+            Err(_) => return Vec::new(),
+        };
+        // Discard cp : read-only, no save_checkpoint / write_batch_to_global.
+        batch
+            .iter()
+            .map(|rec| {
+                let mut st = AggregateState::new("");
+                for (k, v) in &rec.event {
+                    st.set(k, json_to_value_recursive(v));
+                }
+                st
+            })
+            .collect()
+    }
+
     /// Transactional outbox — when a dispatched command's event has domain
     /// reactions (policy triggers, driven-adapter dispatches, PM dispatches),
     /// write a persistent `CascadeRun.Begin` recording them as ordered Steps.
@@ -3161,6 +3206,31 @@ pub(crate) fn value_to_json(v: &Value) -> serde_json::Value {
             serde_json::Value::Object(o)
         }
         Value::Null => serde_json::Value::Null,
+    }
+}
+
+/// Inverse of value_to_json : decode a serde_json value back into a runtime
+/// `Value`, RECURSIVELY (nested objects -> Value::Map, arrays -> Value::List).
+/// Used by unconsolidated_log_tail to rebuild each shard Event's nested shape
+/// (delta{field,value}, sequence{value}) so the fold reads tail records exactly
+/// as it reads consolidated ones. A whole-number JSON number decodes to Int ;
+/// any other number (float) falls back to its string form, matching the heki
+/// reader's own from_json.
+fn json_to_value_recursive(v: &serde_json::Value) -> Value {
+    match v {
+        serde_json::Value::String(s) => Value::Str(s.clone()),
+        serde_json::Value::Bool(b) => Value::Bool(*b),
+        serde_json::Value::Number(n) => match n.as_i64() {
+            Some(i) => Value::Int(i),
+            None => Value::Str(n.to_string()),
+        },
+        serde_json::Value::Null => Value::Null,
+        serde_json::Value::Array(a) => {
+            Value::List(a.iter().map(json_to_value_recursive).collect())
+        }
+        serde_json::Value::Object(m) => {
+            Value::Map(m.iter().map(|(k, v)| (k.clone(), json_to_value_recursive(v))).collect())
+        }
     }
 }
 
