@@ -164,19 +164,56 @@ fn pushed_nonnumeric_range_narrows_at_sql() {
 }
 
 #[test]
-fn numeric_range_target_is_left_to_oracle() {
-    // A numeric target must NOT push as lexical text : CAST(priority AS TEXT) >
-    // '5' would drop priority 10 (text "10" < "5"), a false negative. So
-    // build_pushdown yields nothing pushable, query() returns the full store,
-    // and the oracle does the (numeric) filtering downstream.
+fn numeric_range_narrows_at_sql() {
+    // A numeric target on the INTEGER `priority` column pushes as
+    // CAST(priority AS INTEGER) OP ? : the raw SQL candidate set already equals
+    // the oracle set, proving the connection did the numeric filtering (not a
+    // lexical CAST-text, which would drop priority 10 for `> 5`).
     let repo = seeded("numeric_range");
     let attrs = HashMap::new();
     let wheres = vec![clause("priority", WhereOp::Gt, "5")];
     let candidates = repo.query(&wheres, &attrs);
-    assert_eq!(candidates.len(), repo.all().len(), "numeric range must defer to oracle");
-    // Parity still holds : oracle on the full set == {2,4} (priority 10, 9).
-    let refs: Vec<&AggregateState> = candidates.iter().collect();
-    assert_eq!(oracle_filter(&refs, &wheres, &attrs), vec!["2".to_string(), "4".to_string()]);
+    assert_eq!(raw_ids(&candidates), vec!["2".to_string(), "4".to_string()], "priority > 5 : 10 and 9");
+    assert!(candidates.len() < repo.all().len(), "numeric range must narrow at SQL");
+}
+
+#[test]
+fn numeric_range_null_priority_matches_oracle() {
+    // A row with NO priority (SQL NULL ; the oracle reads a missing field as
+    // ""). compare_strings("", <numeric>) is LEXICAL — "" < any digit — so the
+    // oracle KEEPS the null row for Lt/Lte and DROPS it for Gt/Gte. The
+    // pushdown's NULL handling must match exactly, for every ordered op.
+    let path = db_path("null_priority");
+    let _ = std::fs::remove_file(&path);
+    let cols = vec![
+        ("status".to_string(), "VARCHAR(255)".to_string()),
+        ("priority".to_string(), "INTEGER".to_string()),
+    ];
+    let mut repo = SqliteRepository::new("Ticket", &path, None, cols).expect("open db");
+    let mut a = AggregateState::new("1");
+    a.set("status", Value::Str("x".into()));
+    a.set("priority", Value::Int(3));
+    repo.save(a, heki::WriteContext::OutOfBand { reason: "test" });
+    let mut b = AggregateState::new("2");
+    b.set("status", Value::Str("x".into()));
+    b.set("priority", Value::Int(8));
+    repo.save(b, heki::WriteContext::OutOfBand { reason: "test" });
+    let mut c = AggregateState::new("3"); // NO priority -> NULL
+    c.set("status", Value::Str("x".into()));
+    repo.save(c, heki::WriteContext::OutOfBand { reason: "test" });
+    let attrs = HashMap::new();
+    for op in [WhereOp::Gt, WhereOp::Gte, WhereOp::Lt, WhereOp::Lte] {
+        assert_parity(&repo, &[clause("priority", op, "5")], &attrs);
+    }
+    // Concretely : Lt 5 keeps the null row (3) ; Gt 5 drops it.
+    let lt_w = vec![clause("priority", WhereOp::Lt, "5")];
+    let lt = repo.query(&lt_w, &attrs);
+    let lt_refs: Vec<&AggregateState> = lt.iter().collect();
+    assert!(oracle_filter(&lt_refs, &lt_w, &attrs).contains(&"3".to_string()), "Lt keeps NULL row");
+    let gt_w = vec![clause("priority", WhereOp::Gt, "5")];
+    let gt = repo.query(&gt_w, &attrs);
+    let gt_refs: Vec<&AggregateState> = gt.iter().collect();
+    assert!(!oracle_filter(&gt_refs, &gt_w, &attrs).contains(&"3".to_string()), "Gt drops NULL row");
 }
 
 #[test]

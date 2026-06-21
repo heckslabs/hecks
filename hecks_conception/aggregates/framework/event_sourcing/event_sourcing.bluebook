@@ -152,8 +152,9 @@ Hecks.bluebook "EventSourcing", version: "2026.06.19.1" do
           # SEEK now backs the numeric tail : the offset index carries the
           # sequence column, binary-searched to the contiguous byte slice
           # (Event.SinceSequence ; Snapshot.ReadForward folds it forward). The
-          # numeric SQL-backend range is the remaining lift. AtSequence is the
-          # equality slice and the building block of that scan.
+          # SQL backend pushes numeric ranges on INTEGER columns too (CAST AS
+          # INTEGER, NULL-exact). AtSequence is the equality slice and the
+          # building block of that scan.
           #
           # NOTE : keys on the bare `sequence` VO. The oracle UNWRAPS a
           # single-value VO ({"value": N}) to its inner value before comparing,
@@ -319,12 +320,13 @@ Hecks.bluebook "EventSourcing", version: "2026.06.19.1" do
   # sequence-range SEEK now backs it : the offset index carries the sequence
   # column, binary-searched to the contiguous slice, and Snapshot.ReadForward
   # folds that tail forward onto the cache (O(tail), not O(whole-log)). The
-  # numeric SQL-backend range is the remaining lift ; Eq pushdown + indexes +
-  # non-numeric SQL ranges already landed in the where() overhaul. Event.
+  # SQL backend pushes numeric ranges on INTEGER columns too (CAST AS INTEGER,
+  # NULL-exact) ; Eq + indexes + non-numeric + numeric SQL ranges all landed in
+  # the where() overhaul. Event.
   # AtSequence is the equality slice ; the fall-forward scan is its ordered
   # generalisation.
 
-  aggregate "Snapshot", "A cached fold of a projection at a sequence watermark. Identified by projection_name. Capture records the folded state + watermark ; on read (ReadForward) the runtime SEEKS the Log tail from watermark+1 to head via the Event-Log sequence-range index and folds those deltas forward, so a snapshot is never wrong, only stale, and the read is O(tail) not O(whole-log). The numeric SQL-backend range stays the remaining lift. Threshold/on-demand cadence, not time-based." do
+  aggregate "Snapshot", "A cached fold of a projection at a sequence watermark. Identified by projection_name. Capture records the folded state + watermark ; on read (ReadForward) the runtime SEEKS the Log tail from watermark+1 to head via the Event-Log sequence-range index and folds those deltas forward, so a snapshot is never wrong, only stale, and the read is O(tail) not O(whole-log). The SQL backend also pushes numeric ranges on INTEGER columns (CAST AS INTEGER). Threshold/on-demand cadence, not time-based." do
     identified_by :projection_name
 
     attribute :projection_name, ProjectionName

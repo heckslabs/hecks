@@ -14,25 +14,27 @@
 //! the caller is ever interpolated into the SQL text.
 //!
 //! Pushed ops : `Eq` (non-empty resolved target), `In` (non-empty members), and
-//! the ordered ops `Gt / Gte / Lt / Lte` WHEN the resolved target is NON-NUMERIC.
-//! Eq / In are pure string-equality, which `CAST(col AS TEXT) = ?` mirrors EXACTLY
+//! the ordered ops `Gt / Gte / Lt / Lte`. Eq / In are pure string-equality, which `CAST(col AS TEXT) = ?` mirrors EXACTLY
 //! against the oracle's `field.to_string() == target` — sidestepping SQLite's
 //! type-affinity coercions (a bare `col = '5'` would match INTEGER 5 to TEXT
 //! "05"; the CAST does not).
 //!
-//! Ordered ops are parity-safe ONLY for a non-numeric target : the oracle's
-//! `compare_strings` takes its numeric branch IFF BOTH sides parse as i64, so a
-//! non-numeric target forces a LEXICAL comparison for every row — exactly what
-//! `CAST(col AS TEXT) OP ?` does, reusing the Phase-3 text index. This covers the
-//! canonical range query (ISO timestamps / dates / name prefixes : `created_at >
-//! "2026-01-01"`). A NUMERIC target could hit the oracle's numeric branch ("10" >
-//! "5"), which lexical SQL gets wrong and `CAST(col AS INTEGER)` can't replicate
-//! faithfully (overflow clamps ; a NULL cell flips Lt) — so numeric-target ranges
-//! are left to the oracle until a typed numeric-column pushdown (retain the
-//! column's SQL type + a `(col IS NULL OR CAST(col AS INTEGER) OP ?)` superset +
-//! a numeric index) lands. `Ne / Contains / NoneInState` carry negation, list, or
-//! cross-aggregate semantics SQL can't replicate, so they are left to the oracle
-//! (a no-pushdown clause simply doesn't narrow).
+//! Ordered ops push in two parity-safe shapes, chosen by target type :
+//!   * NON-NUMERIC target -> `CAST(col AS TEXT) OP ?`. The oracle's
+//!     `compare_strings` takes its numeric branch IFF BOTH sides parse as i64, so
+//!     a non-numeric target forces a LEXICAL comparison for every row — exactly
+//!     what the text cast does, reusing the text index. The canonical range query
+//!     (ISO timestamps / dates / name prefixes : `created_at > "2026-01-01"`).
+//!   * NUMERIC target on an INTEGER column -> `CAST(col AS INTEGER) OP ?`, a BOUND
+//!     integer. Every cell of an INTEGER column is an i64, so the oracle compares
+//!     numerically and the integer cast matches EXACTLY. NULL is exact too : a
+//!     missing/NULL cell reads as "" in the oracle (compare_strings("", N) is
+//!     lexical, "" < any digit), so Gt/Gte DROP nulls (`CAST(NULL) OP ?` is NULL,
+//!     excluded) and Lt/Lte KEEP them (`col IS NULL OR ...`). A numeric target on a
+//!     NON-INTEGER column stays with the oracle (per-row it may be numeric or
+//!     lexical). ensure_indexes builds a matching `CAST(col AS INTEGER)` index.
+//! `Ne / Contains / NoneInState` carry negation, list, or cross-aggregate semantics
+//! SQL can't replicate, so they are left to the oracle (no narrowing).
 //!
 //! Tests : `sql_query_tests` (builder/executor units) and
 //! `query_parity_tests` (the SQL ↔ where_matches oracle over a real repo).
@@ -70,6 +72,7 @@ pub fn build_pushdown(
     wheres: &[WhereClause],
     attrs: &HashMap<String, String>,
     valid_cols: &[String],
+    numeric_cols: &[String],
 ) -> Option<(String, Vec<SqlValue>)> {
     let mut clauses: Vec<String> = Vec::new();
     let mut params: Vec<SqlValue> = Vec::new();
@@ -116,19 +119,7 @@ pub fn build_pushdown(
             }
             WhereOp::Gt | WhereOp::Gte | WhereOp::Lt | WhereOp::Lte => {
                 let target = resolve(&w.value, attrs);
-                // Range pushdown is parity-safe ONLY for a NON-NUMERIC target.
-                // The oracle's `compare_strings` takes its numeric branch IFF
-                // BOTH sides parse as i64 ; a target that is not an i64 forces
-                // the oracle to compare LEXICALLY for EVERY row, which is
-                // EXACTLY what `CAST(col AS TEXT) OP ?` does (and it reuses the
-                // Phase-3 text index). A NUMERIC target could hit the oracle's
-                // numeric branch ("10" > "5"), which lexical SQL would get wrong,
-                // and `CAST(col AS INTEGER)` can't faithfully replicate
-                // i64::parse (overflow clamps, NULL flips Lt) — so a numeric
-                // target is left to the oracle (no narrowing) until the typed
-                // numeric-column pushdown lands. Empty target is skipped for the
-                // same NULL reason as Eq.
-                if target.is_empty() || target.parse::<i64>().is_ok() {
+                if target.is_empty() {
                     continue;
                 }
                 let sql_op = match w.op {
@@ -138,8 +129,37 @@ pub fn build_pushdown(
                     WhereOp::Lte => "<=",
                     _ => unreachable!("outer match guarantees an ordered op"),
                 };
-                params.push(SqlValue::Text(target));
-                clauses.push(format!("CAST({} AS TEXT) {} ?{}", w.field, sql_op, params.len()));
+                if let Ok(n) = target.parse::<i64>() {
+                    // NUMERIC target. Pushable IFF the column is INTEGER-typed :
+                    // then every cell is an i64, the oracle's compare_strings
+                    // takes its numeric branch, and `CAST(col AS INTEGER) OP ?`
+                    // (a BOUND integer) matches it EXACTLY. A numeric target on a
+                    // non-INTEGER column is left to the oracle — per row it might
+                    // be numeric or lexical, and SQL can't tell.
+                    if !numeric_cols.iter().any(|c| c == &w.field) {
+                        continue;
+                    }
+                    params.push(SqlValue::Integer(n));
+                    let cmp = format!("CAST({} AS INTEGER) {} ?{}", w.field, sql_op, params.len());
+                    // NULL handling, EXACT vs the oracle : a missing cell reads as
+                    // "" there, and compare_strings("", <numeric>) is LEXICAL
+                    // ("" < any digit). So Lt/Lte KEEP nulls — the SQL `IS NULL OR`
+                    // keeps them too — and Gt/Gte DROP them : CAST(NULL)=NULL,
+                    // `NULL OP ?` is NULL -> excluded, matching the oracle.
+                    match w.op {
+                        WhereOp::Lt | WhereOp::Lte => {
+                            clauses.push(format!("({} IS NULL OR {})", w.field, cmp));
+                        }
+                        _ => clauses.push(cmp),
+                    }
+                } else {
+                    // NON-NUMERIC target : the oracle is LEXICAL for every row
+                    // (its numeric branch needs both sides to parse i64), which
+                    // `CAST(col AS TEXT) OP ?` mirrors exactly, reusing the text
+                    // index. The canonical date / timestamp / prefix range.
+                    params.push(SqlValue::Text(target));
+                    clauses.push(format!("CAST({} AS TEXT) {} ?{}", w.field, sql_op, params.len()));
+                }
             }
             // Ne / Contains / NoneInState / Resolved carry list, cross-aggregate,
             // or negation semantics SQL can't replicate parity-faithfully — left
