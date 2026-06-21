@@ -1,4 +1,4 @@
-Hecks.bluebook "GovernedDoor", version: "2026.06.16.1" do
+Hecks.bluebook "GovernedDoor", version: "2026.06.21.1" do
   vision "The GovernedDoor rule of the immune system — the macrophage sibling that makes governance structural instead of vigilant. A native harness tool (Bash, Edit, Write, Read, Grep, Glob, MultiEdit, NotebookEdit, WebFetch, WebSearch) emits NO bus event, so an act made through it is ungoverned — invisible to the dispatch log, outside the Transparency vow. Each such tool has a storehouse-door equivalent (Tools::ShellTool.Bash, Tools::FileTool.Edit/Update/Read, Tools::SearchTool.Grep/Glob, Tools::WebTool.WebFetch/WebSearch). This aggregate is the registry of that mapping and the audit trail of blocks. Its enforcement SURFACE is the PreToolUse hook ~/.claude/hooks/governed-door (wired in ~/.claude/settings.json), which hard-blocks a native IO tool (exit 2) and redirects the caller to the door. An out-of-band admin escape (launch with HECKS_GOVERNANCE_OFF=1) disables blocking for upgrades; the hook fails OPEN if the registry is unreachable, so a broken governance machine never bricks the session. Control-plane tools (Agent, Task*, advisor, AskUserQuestion, ToolSearch) and mcp__storehouse__* are NOT governed here — they orchestrate, they do not act on the world."
   category "discipline"
 
@@ -7,6 +7,7 @@ Hecks.bluebook "GovernedDoor", version: "2026.06.16.1" do
 
     attribute :tool,            ToolName
     attribute :door_equivalent, DoorPhrase
+    attribute :door_args,       DoorArgs,     default: ""
     attribute :severity,        Severity,     default: "block"
     attribute :blocked_count,   BlockedCount, default: 0
     attribute :last_blocked_at, Timestamp
@@ -20,6 +21,17 @@ Hecks.bluebook "GovernedDoor", version: "2026.06.16.1" do
     value_object "DoorPhrase" do
       # The fully-qualified storehouse-door command the caller must use
       # instead (e.g. "Tools::ShellTool.Bash").
+      attribute :value, String
+    end
+
+    value_object "DoorArgs" do
+      # The arg-shape hint for the door command — the key names the caller
+      # must pass in the dispatch's `args` object (e.g. "file_path=<absolute
+      # path>" for Read, "shell_command=<command>" for Bash). The variable
+      # half of the redirect message : the hook renders the invariant
+      # door-calling scaffolding (ToolSearch-load, aggregates_dir, summary)
+      # around this per-tool hint, so a denied caller gets the WHOLE recipe,
+      # not just the door name. Empty until Register supplies it.
       attribute :value, String
     end
 
@@ -40,11 +52,13 @@ Hecks.bluebook "GovernedDoor", version: "2026.06.16.1" do
 
     command "Register" do
       role "Miette"
-      description "Register a native tool as governed, with the storehouse-door command that replaces it. The creation command — the rule does not exist until Register fires."
+      description "Register a native tool as governed, with the storehouse-door command that replaces it AND the arg-shape hint a denied caller needs. The creation command — the rule does not exist until Register fires."
       attribute :tool,            ToolName
       attribute :door_equivalent, DoorPhrase
+      attribute :door_args,       DoorArgs
       then_set :tool,            to: :tool
       then_set :door_equivalent, to: :door_equivalent
+      then_set :door_args,       to: :door_args
       then_set :severity,        to: "block"
       emits "GovernedToolRegistered"
     end

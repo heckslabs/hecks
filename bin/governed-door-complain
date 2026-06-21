@@ -5,32 +5,57 @@
 # stderr (surfaced to the model) and best-effort records the block to the
 # GovernedDoor audit trail. This is the layer that works even where the
 # harness ignores PreToolUse hard-blocks: nothing hidden, every ungoverned
-# act made loud. Deny-list mirrors bin/governed-door-hook.
+# act made loud.
+#
+# The door mapping AND the arg-shape come from the GovernedDoor registry
+# (Discipline::GovernedDoor.lookup_door) — the SAME source the PreToolUse hook
+# reads, never a local table. One source of truth, so the two surfaces can
+# never drift. Fail-OPEN: any error reaching the registry -> exit 0, because a
+# broken governance machine must never brick the session.
 import json, sys, subprocess, datetime, os
+
+BIN = '/Users/christopheryoung/Projects/hecks/rust/target/release/storehouse'
+ROOT = '/Users/christopheryoung/Projects/hecks/hecks_conception'
+
 try:
     d = json.load(sys.stdin)
 except Exception:
     sys.exit(0)
 t = d.get('tool_name', '')
-door = {
-    'Bash': 'Tools::ShellTool.Bash', 'Edit': 'Tools::FileTool.Edit',
-    'Write': 'Tools::FileTool.Update', 'Read': 'Tools::FileTool.Read',
-    'MultiEdit': 'Tools::FileTool.Edit', 'NotebookEdit': 'Tools::FileTool.Edit',
-    'Grep': 'Tools::SearchTool.Grep', 'Glob': 'Tools::SearchTool.Glob',
-    'WebFetch': 'Tools::WebTool.WebFetch', 'WebSearch': 'Tools::WebTool.WebSearch',
-}
-if t not in door:
+if not t or not os.path.exists(BIN):
     sys.exit(0)
-bin_ = '/Users/christopheryoung/Projects/hecks/rust/target/release/storehouse'
-root = '/Users/christopheryoung/Projects/hecks/hecks_conception'
+
+# Look the tool up in the registry — the SAME query the PreToolUse hook runs.
+try:
+    out = subprocess.run(
+        [BIN, 'query', ROOT, 'Discipline::GovernedDoor.lookup_door', 'tool=' + t],
+        capture_output=True, text=True, timeout=5).stdout
+    state = json.loads(out).get('state', {}) or {}
+except Exception:
+    sys.exit(0)  # fail-open
+
+door = state.get('door_equivalent', '')
+if not door:
+    sys.exit(0)  # control-plane / mcp__storehouse__* / unknown tool — not governed
+args = state.get('door_args', '')
+
 ts = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
-if os.path.exists(bin_):
-    try:
-        subprocess.Popen([bin_, root, 'Discipline::GovernedDoor.RecordBlock', 'tool=' + t, 'last_blocked_at=' + ts],
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL, start_new_session=True)
-    except Exception:
-        pass
-sys.stderr.write('GOVERNANCE (macrophage): you used native ' + t + ' — ungoverned, no bus event. '
-    'Route through the storehouse door next time: mcp__storehouse__storehouse__dispatch ' + door[t] + '. '
+try:
+    subprocess.Popen(
+        [BIN, ROOT, 'Discipline::GovernedDoor.RecordBlock', 'tool=' + t, 'last_blocked_at=' + ts],
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL,
+        start_new_session=True)
+except Exception:
+    pass
+
+sys.stderr.write(
+    'GOVERNANCE (macrophage): you used native ' + t + ' — ungoverned, no bus event.\n'
+    'Route through the storehouse door next time. The door tool is DEFERRED, so two steps:\n'
+    '  1. Load it:  ToolSearch  query="select:mcp__storehouse__storehouse__dispatch"\n'
+    '  2. Call mcp__storehouse__storehouse__dispatch with:\n'
+    '       aggregates_dir = ' + ROOT + '\n'
+    '       command        = ' + door + '\n'
+    '       args           = { ' + args + ' }\n'
+    '       summary        = <one terse line of what this does>\n'
     'Recorded to the GovernedDoor audit trail.')
 sys.exit(2)
