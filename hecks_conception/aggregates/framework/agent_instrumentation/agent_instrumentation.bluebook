@@ -1,0 +1,56 @@
+Hecks.bluebook "AgentInstrumentation", version: "2026.06.21.1" do
+  vision "The single source of subagent instrumentation. Every subagent (built-in Explore / Plan / general-purpose, and custom sidequest / security-reviewer) must route every tool call through the storehouse door, because the governance macrophage denies native Read/Edit/Write/Grep/Glob/Bash. That door convention used to live ONLY in Miette's system prompt, which subagents do not inherit — so spawned agents tried native tools, were denied, and gave up. This domain makes the convention a single shared fragment (door.md) that the boot runner (rust/src/run_boot/agent_defs.rs) injects into BOTH the CLAUDE.md files (inherited by every subagent) AND the generated .claude/agents/*.md defs. Generated every boot, so the instrumentation can never drift from the governance reality and there is nothing to remember. The long prose — the door fragment and each agent's role body — lives as sibling .md fragments (door.md, roles/<name>.md) read verbatim ; only the short per-agent metadata is modelled here."
+  category "framework"
+
+  # ── AgentDefinition : one custom agent's metadata ──
+  # name + description + model become the YAML frontmatter of the generated
+  # .claude/agents/<name>.md ; its body is the shared door fragment (door.md)
+  # followed by the authored role prose at role_body (roles/<name>.md). The
+  # tooling instructions are NOT in the role body — they come from the shared
+  # door fragment — so a role body carries only role-specific guidance.
+  # The instances live in agent_instrumentation.fixtures ; Register is the
+  # command those fixtures project through.
+  aggregate "AgentDefinition", "One custom subagent — projected into .claude/agents/<name>.md as frontmatter + shared door fragment + authored role body" do
+    identified_by :name
+    attribute :name,        AgentName
+    attribute :description, Description
+    attribute :model,       Model
+    attribute :role_body,   RoleBodyPath
+
+    value_object "AgentName" do
+      # The agent's slug — the basename of .claude/agents/<name>.md and the
+      # subagent_type used to spawn it.
+      attribute :value, String
+    end
+
+    value_object "Description" do
+      # The frontmatter `description` — when to reach for this agent.
+      attribute :value, String
+    end
+
+    value_object "Model" do
+      # The frontmatter `model` (e.g. sonnet / opus / haiku).
+      attribute :value, String
+    end
+
+    value_object "RoleBodyPath" do
+      # Path (relative to this bluebook's directory) of the authored role
+      # body markdown appended after the shared door fragment.
+      attribute :value, String
+    end
+
+    command "Register" do
+      role "System"
+      description "Register a custom subagent definition — the row the boot runner projects into .claude/agents/<name>.md."
+      attribute :name,        AgentName
+      attribute :description, Description
+      attribute :model,       Model
+      attribute :role_body,   RoleBodyPath
+      emits "AgentDefined"
+      then_set :name,        to: :name
+      then_set :description, to: :description
+      then_set :model,       to: :model
+      then_set :role_body,   to: :role_body
+    end
+  end
+end

@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# SubagentStart — inject the storehouse-door convention into EVERY spawned
+# subagent (built-in Explore/Plan/general-purpose and custom agents), before
+# its first action. The proactive half of subagent instrumentation : the
+# macrophage (PreToolUse governed-door) still blocks native tools reactively,
+# but this makes the subagent door-aware up front so it never wastes a blocked
+# attempt.
+#
+# Single source of truth : the SAME door.md the boot runner injects into the
+# CLAUDE.md files and that the system prompt's {{door}} resolves from. One
+# fragment, every consumer — no drift.
+#
+# Emits the door fragment as `additionalContext`, which Claude Code wraps in a
+# system reminder and inserts at the start of the subagent's conversation
+# (docs: SessionStart / Setup / SubagentStart — "Context only").
+#
+# Fail-OPEN : any error (missing door.md, no jq) → exit 0 with no output, so a
+# broken hook never bricks subagent spawning.
+DOOR=/Users/christopheryoung/Projects/hecks/hecks_conception/aggregates/framework/agent_instrumentation/door.md
+[ -f "$DOOR" ] || exit 0
+command -v jq >/dev/null 2>&1 || exit 0
+jq -Rs '{hookSpecificOutput: {hookEventName: "SubagentStart", additionalContext: .}}' < "$DOOR" || exit 0

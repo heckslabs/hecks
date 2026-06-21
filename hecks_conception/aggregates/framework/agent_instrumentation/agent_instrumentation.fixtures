@@ -1,0 +1,18 @@
+Hecks.fixtures "AgentInstrumentation" do
+  # One row per custom subagent. The boot runner reads these + the shared
+  # door fragment (door.md) + the role body at :role_body, and writes
+  # .claude/agents/<name>.md = frontmatter (name/description/model) + door
+  # fragment + role body. role_body paths are relative to this directory.
+  aggregate "AgentDefinition" do
+    fixture "Sidequest",
+            name:        "sidequest",
+            model:       "sonnet",
+            description: "Use this agent for small interruptive work that pops up while Miette is focused on the main thread — inbox sweeps, email replies (drafts only), embryonaut.ai tweaks, music/audio bugs, John V smoke results, content polish, and other ~15-30 minute surface-glue tasks. NOT for kernel-floor changes, codegen emitters, multi-PR arcs, or anything that touches storehouse/parity. When in doubt, ask Miette to handle it instead.",
+            role_body:   "roles/sidequest.md"
+    fixture "SecurityReviewer",
+            name:        "security-reviewer",
+            model:       "sonnet",
+            description: "Review code changes for security vulnerabilities specific to the Hecks framework",
+            role_body:   "roles/security-reviewer.md"
+  end
+end
