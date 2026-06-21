@@ -835,8 +835,19 @@ folder_address_segments(segs)
 /// dirs, then split : first remaining segment = Realm, the rest = Context
 /// (joined by `/`). `(None, None)` when nothing meaningful remains.
 pub fn folder_address_segments(mut segs: Vec<String>) -> (Option<String>, Option<String>) {
-    if segs.last().map_or(false, |s| s.ends_with(".bluebook")) {
-        segs.pop();
+    // Drop the *.bluebook filename ; then, if the bluebook sits in its OWN
+    // same-named folder (agent_inbox/agent_inbox.bluebook), drop that folder too
+    // — it is the bluebook's container, not a distinct Context level. Collapses
+    // the folder==bluebook stutter (Realm::…::AgentInbox::AgentInbox →
+    // Realm::…::AgentInbox) ; the same rule default_chain uses for storage.
+    if let Some(file) = segs.last().cloned() {
+        if file.ends_with(".bluebook") {
+            segs.pop();
+            let stem = file.trim_end_matches(".bluebook");
+            if segs.last().map(|s| s.as_str()) == Some(stem) {
+                segs.pop();
+            }
+        }
     }
     segs.retain(|s| s != "hecks_conception" && s != "aggregates" && s != "bluebook");
     if segs.is_empty() { return (None, None); }
@@ -1143,11 +1154,21 @@ fn folder_address_realm_plus_context() {
 }
 
 #[test]
-fn folder_address_deep_keeps_the_bluebooks_own_folder() {
-    // The bluebook's own folder stays in the Context (the plan's fibroblast example).
+fn folder_address_drops_the_bluebooks_own_folder() {
+    // fibroblast/fibroblast.bluebook — the bluebook's own same-named folder is
+    // dropped (collapses the folder==bluebook stutter) ; the rest is Context.
     assert_eq!(
         folder_address_segments(segs(&["hecks", "hecks_conception", "aggregates", "discipline", "immune_system", "repair_cell", "fibroblast", "fibroblast.bluebook"])),
-        (Some("hecks".to_string()), Some("discipline/immune_system/repair_cell/fibroblast".to_string()))
+        (Some("hecks".to_string()), Some("discipline/immune_system/repair_cell".to_string()))
+    );
+}
+
+#[test]
+fn folder_address_keeps_folder_when_not_named_after_bluebook() {
+    // grammar/sentence.bluebook — folder "grammar" ≠ "sentence", so it stays.
+    assert_eq!(
+        folder_address_segments(segs(&["hecks", "hecks_conception", "aggregates", "language", "grammar", "sentence.bluebook"])),
+        (Some("hecks".to_string()), Some("language/grammar".to_string()))
     );
 }
 
