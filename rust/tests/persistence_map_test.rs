@@ -18,6 +18,7 @@ fn agg(name: &str, ctx: &str) -> Aggregate {
         description: None,
         context: Some(ctx.into()),
         category: None,
+        realm_path: None,
         identified_by: None,
         attributes: vec![],
         factories: vec![],

@@ -7,6 +7,7 @@ fn parse_aggregate(lines: &[&str]) -> (Aggregate, Vec<Policy>, usize) {
         name, description: desc,
         context: None, // populated by parse() after parse_aggregate returns
         category: None, // i560 v2 — stamped from domain.category by invoke()
+        realm_path: None, // stamped by load_combined_domain from the file path (string parse can't know it)
         attributes: vec![],
         factories: vec![], // births — first-class Factory nodes (2026-06-12)
         commands: vec![], queries: vec![], value_objects: vec![],

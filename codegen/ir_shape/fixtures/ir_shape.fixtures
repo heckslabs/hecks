@@ -242,6 +242,7 @@ Hecks.fixtures "IrShape" do
     # i254 — views per role. Ordered Vec ; declaration order survives
     # JSON round-trip so portal renderers can iterate views deterministically.
     fixture "Aggregate_views",         type_name: "Aggregate", order: 15, name: "views",         field_type: "Vec<View>",         doc_snippet: "codegen/ir_shape/snippets/docs/aggregate_views.rs.frag"
+    fixture "Aggregate_realm_path",    type_name: "Aggregate", order: 16, name: "realm_path",    field_type: "Option<String>",  doc_snippet: "codegen/ir_shape/snippets/docs/aggregate_realm_path.rs.frag"
 
     # Attribute — 5 fields.
     fixture "Attribute_name",      type_name: "Attribute", order: 1, name: "name",      field_type: "String",         doc_snippet: ""
