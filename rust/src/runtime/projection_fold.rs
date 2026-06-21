@@ -74,6 +74,26 @@ pub fn fold_event_log(
     out
 }
 
+/// The runtime's own machinery — aggregates that are MECHANISM, not domain
+/// intent : delivery bookkeeping (CascadeRun / OutboundEvent / Cascade),
+/// process-spawn side-effects (Process), and liveness supervision
+/// (ProcessSentinel / ProcessMacrophage). One list, two callers : the write
+/// path (`record_event_append`) never SOURCES them and the proof
+/// (`verify-projection`) never MEASURES them, so the gauge and the Log agree
+/// by construction. Their ids are process-ephemeral, so fold(Log) cannot
+/// reconstruct the live store — they are read models OF the Log, not intent.
+pub fn is_infra_mechanism(aggregate_type: &str) -> bool {
+    matches!(
+        aggregate_type,
+        "CascadeRun"
+            | "OutboundEvent"
+            | "Cascade"
+            | "Process"
+            | "ProcessSentinel"
+            | "ProcessMacrophage"
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

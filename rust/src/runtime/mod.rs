@@ -868,11 +868,16 @@ impl Runtime {
         if !self.repositories.contains_key(&es_key) {
             return;
         }
-        // Infra guard — never event-source the runtime's own delivery
-        // bookkeeping (CascadeRun / OutboundEvent are the mechanism that
-        // carries cascades, not domain intent ; the bluebook makes them read
-        // models OF the Log, so sourcing them would be circular noise).
-        if matches!(event.aggregate_type.as_str(), "CascadeRun" | "OutboundEvent") {
+        // Infra guard — never event-source the runtime's own machinery.
+        // These are MECHANISM, not domain intent : the runtime's delivery
+        // bookkeeping (CascadeRun / OutboundEvent / Cascade carry cascades),
+        // its process-spawn side-effects (Process), and its liveness
+        // supervision (ProcessSentinel / ProcessMacrophage sweep + heal).
+        // The bluebook makes them read models OF the Log, so sourcing them
+        // would be circular noise — and their ids are process-ephemeral, so
+        // fold(Log) can never reconstruct the live store (the verify-projection
+        // drift that motivated this list, 2026-06-21).
+        if projection_fold::is_infra_mechanism(event.aggregate_type.as_str()) {
             return;
         }
         // Recursion guard — never event-source the EventSourcing aggregates
@@ -974,7 +979,7 @@ impl Runtime {
     /// global write, so a failed write retries next pass and a crash mid-pass
     /// replays idempotently (dedup by event_id). No-op when the Event repo is
     /// memory-backed (no shard dir).
-    fn run_consolidate(&self) {
+        fn run_consolidate(&self) {
         let es_key = repo_key(Some("EventSourcing"), "Event");
         let store_dir = match self.repositories.get(&es_key).and_then(|r| r.heki_path()) {
             Some(d) => d,
