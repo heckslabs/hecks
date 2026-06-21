@@ -13,22 +13,21 @@ Hecks.hecksagon "AgentToolAdapter" do
   #      with --root <dir> <agent_id> <body>. The bin dispatches
   #      AgentInbox::AgentMessage.Send, block-polls Answered(id=<cid>) for
   #      the reply, and prints it on stdout.
-  #   3. The target agent runs bin/agent_poll.sh which polls Unread(
-  #      agent_id), MarkReads each, and Replies.
+  #   3. The receiver is the warm InboxPollClock Driver (storehouse drive,
+  #      agent_inbox.hecksagon) : it fires InboxPoller.Poll every 2s and the
+  #      InboxAutoReply driven adapter replies each unread message in-process.
   #
-  # ── `driven on` grammar not yet live in the runtime ──
+  # ── `driven on` grammar IS live ; this stub's relay is a follow-on ──
   #
-  # The `driven on "Event"` subscription form (shell_adapter.hecksagon
-  # precedent) is DECLARED here but not auto-fired by the runtime as of
-  # i708 completion. The bus does not yet register `driven on` subscriptions
-  # and call the body on event emit. That wiring lives in rust/src (kernel-
-  # floor — the runtime must recognise the DrivenAdapter IR and register a
-  # subscription). When that lands, the canned dispatch below becomes the
-  # real AgentInbox::AgentMessage.Send relay and the standalone bin path
-  # can be retired.
-  #
-  # For now : call the bin directly. The bluebook contract does not change
-  # when the grammar lands ; only the substrate behind this stub changes.
+  # The `driven on "Event"` subscription form fires live now — the runtime
+  # recognises the DrivenAdapter IR and calls the body on event emit
+  # (InboxAutoReply + the conductor LivenessSweep are live proofs). So the
+  # canned dispatch below CAN become the real AgentInbox::AgentMessage.Send
+  # relay, retiring the standalone send-message bin path. That swap is a
+  # tracked follow-on (a behaviour change needing its own verification), not
+  # done here ; the send-message binary remains the synchronous face meanwhile.
+  # The bluebook contract does not change when the relay lands ; only the
+  # substrate behind this stub does.
 
   adapter "AgentToolAdapter" do
     driven on "Tools::AgentTool.AgentMessageSent" do |event|

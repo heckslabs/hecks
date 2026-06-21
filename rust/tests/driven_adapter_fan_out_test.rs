@@ -92,3 +92,27 @@ fn driven_adapter_sweep_with_no_match_marks_nothing() {
     rt.dispatch("Ring", attrs(&[("id", s("bell1")), ("want", s("tepid"))])).unwrap();
     assert_eq!(rt.all("Compostable").len(), 0, "no match -> zero dispatches");
 }
+
+/// THE DRIVE-PATH REGRESSION. A Driver dispatch (the `storehouse drive` path)
+/// whose emitted event has a `driven on` reaction must fire that reaction
+/// IN-PROCESS. Before the fire_dispatches drain fix, `drive` fired commands via
+/// dispatch_cascade WITHOUT pumping, and the driven-adapter resolver runs ONLY
+/// from pump() — so Bell.Rung's ReapByKind fan-out was a silent no-op under
+/// drive (invisible because the only live drive member, LogConsolidation, has no
+/// reaction). This exercises fire_dispatches directly (NOT the auto-pumping
+/// rt.dispatch wrapper), so it fails if the drain is ever removed.
+#[test]
+fn drive_fire_dispatches_pumps_the_driven_cascade() {
+    let mut rt = booted();
+    storehouse::runtime::driving_adapter_resolver::fire_dispatches(
+        &mut rt,
+        &[("Ring".to_string(), vec![
+            ("id".to_string(), "bell1".to_string()),
+            ("want".to_string(), "warm".to_string()),
+        ])],
+    );
+    let ids: std::collections::HashSet<String> = rt.all("Compostable").iter()
+        .filter_map(|r| r.fields.get("id").map(|v| v.to_string())).collect();
+    assert_eq!(ids.len(), 2, "drive must pump the driven cascade: warm a,c swept, got {:?}", ids);
+    assert!(ids.contains("a") && ids.contains("c"), "expected a,c got {:?}", ids);
+}

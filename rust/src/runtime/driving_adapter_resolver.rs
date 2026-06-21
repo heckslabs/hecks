@@ -149,14 +149,34 @@ pub fn enumerate_driving_handlers(rt: &Runtime, kind: &str) -> Vec<EnumeratedHan
 /// `driven on` chains fire. Called by the drive daemon for each DUE handler.
 pub fn fire_dispatches(rt: &mut Runtime, dispatches: &[(String, Vec<(String, String)>)]) {
     for (command, attrs) in dispatches {
-        let attr_map = build_attr_map(attrs);
-        let _ = command_dispatch::dispatch_cascade(
-            rt,
-            command,
-            attr_map,
-            "DrivingInterval",
-            "interval-tick",
-        );
+        // {now} resolution on the Driver dispatch attrs (mirrors loop_driver's
+        // resolve_now_attrs) — a Driver firing `last_polled_at: "{now}"` must
+        // resolve to the live instant, not the literal token.
+        let attr_map: HashMap<String, Value> = build_attr_map(attrs)
+            .into_iter()
+            .map(|(k, v)| match v {
+                Value::Str(s) => (
+                    k,
+                    Value::Str(crate::runtime::storehouse_log::interpolate_now_tokens(&s)),
+                ),
+                other => (k, other),
+            })
+            .collect();
+        // A Driver command is a ROOT dispatch (the clock triggered it, no upstream
+        // event), so deferred-dispatch + the FULL DRAIN — mirroring loop_driver's
+        // proven tick tail. THIS IS THE FIX : dispatch_cascade alone does NOT pump,
+        // and the driven-adapter resolver runs ONLY from pump(), so a `driven on
+        // <Driver event>` fan-out (e.g. InboxPoller.Polled -> reply each unread)
+        // would never fire under `storehouse drive` without this. The only prior
+        // live drive member (LogConsolidation) had no reaction, so the gap was
+        // invisible. Draining after EACH dispatch keeps the ordered Driver
+        // commands (e.g. breath inhale then exhale) each settled before the next.
+        let _ = rt.dispatch_deferred(command, attr_map);
+        rt.pump_outbox();
+        rt.pump();
+        #[cfg(not(target_arch = "wasm32"))]
+        rt.pump_outbound_events();
+        rt.policy_engine.reset_in_flight();
     }
 }
 

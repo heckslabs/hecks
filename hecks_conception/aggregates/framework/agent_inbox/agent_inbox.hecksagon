@@ -3,45 +3,59 @@ Hecks.hecksagon "AgentInbox" do
   # AGENT INBOX wiring — the receiver-as-Driver (i708 stigmergy)
   # ============================================================
   #
-  # The receiver half of inter-agent messaging, modeled as a DRIVER (the
-  # driving side of the hexagon, aggregates/language/grammar/driving.bluebook)
-  # rather than dropped as a bare script. A Driver is the inverse of a Family :
-  # a Family is an edge that LEAVES the domain (persisted_by, charged_by) ; a
-  # Driver is an external clock that reaches IN, dispatching a command on a
-  # schedule. The Procfile is the PROJECTION of every declared Driver.
+  # The receiver half of inter-agent messaging, modeled as a DRIVER (the driving
+  # side of the hexagon, aggregates/language/grammar/driving.bluebook) : an
+  # external clock that reaches IN on a cadence. A Driver is the inverse of a
+  # Family — a Family LEAVES the domain (persisted_by, charged_by) ; a Driver
+  # reaches IN. The Procfile is the PROJECTION of the declared Driver.
   #
-  # The Driver is realized as a long-running :daemon. `bin/agent_poll.sh` IS
-  # the clock : each tick it dispatches AgentInbox::InboxPoller.Poll (which
-  # records last_polled_at + emits Polled — the freshness signal) and sweeps
-  # AgentInbox::AgentMessage.AllUnread inline, MarkReading + Replying each
-  # message across EVERY agent. ONE sweep-all-inboxes poller, never one driver
-  # per agent : Drivers are STATIC (declared, projected to the Procfile) while
-  # agents are DYNAMIC (spawned at will) — the same reason ProcessMacrophage.Sweep
-  # walks the whole watchlist in one tick rather than a driver per process.
+  # Two adapters realize the WARM receiver, replacing the old bin/agent_poll.sh
+  # bash loop (which cold-spawned `storehouse` ~30×/min = ~30 Event shards/min) :
   #
-  # The :daemon command-ref is also what makes bin/agent_poll.sh a DECLARED
-  # file : the antibody's IR-claim query (`storehouse is-dispatched`) scans
-  # :daemon / :shell adapter `command:` refs and finds this one, so the script
-  # needs NO [antibody-exempt] marker — the declaration IS the justification
-  # (same corpus-claim path that exempts boot.hecksagon's :daemon scripts).
+  #   InboxPollClock — the CLOCK. `storehouse drive --adapter InboxPollClock`
+  #   fires InboxPoller.Poll on its interval ; Poll records last_polled_at +
+  #   emits Polled (the freshness signal). ONE sweep-all-inboxes clock, never one
+  #   per agent : Drivers are STATIC (declared, projected to the Procfile) while
+  #   agents are DYNAMIC — the same reason ProcessMacrophage.Sweep walks the whole
+  #   watchlist in one tick.
   #
-  # NOTE on the grammar : the driving.bluebook `driving on interval "2s"`
-  # surface is NOT used here. The runtime fires only `kind == "cron"` driving
-  # handlers (driving_adapter_resolver::fire_driving_cron_ticks), and driving
-  # handlers are outside the antibody's is-dispatched corpus-claim scan — so an
-  # `interval` handler would neither fire at runtime nor declare the script.
-  # The :daemon adapter + its Procfile/mindstream projection IS the honest,
-  # runtime-real Driver declaration ; it is the same shape boot.hecksagon uses
-  # for every body-cycle loop.
+  #   InboxAutoReply — the FAN-OUT. `driven on Polled`, it sweeps every unread
+  #   message (for_each AllUnread) and Replies each in one cascade : the runtime's
+  #   per-record fan-out, the same shape as the conductor's LivenessSweep firing
+  #   Worker.MarkDead for_each Worker.Stale. The reply is the interim ECHO
+  #   ("[agent <id>] received: <body>", record fields interpolated) ; real
+  #   intelligent replies are the job of the :llm reply-port adapter — the old
+  #   HECKS_AGENT_REPLY_HOOK shell extension point (never set in prod) is dropped.
+  #   ONE for_each, collapsing sent -> replied directly : enumeration is a snapshot
+  #   (every query is swept before any dispatch executes), so a separate MarkRead
+  #   pass would sweep pre-mutation state ; the `read` state was observational only
+  #   and no consumer queries it (the sender block-polls Answered = status replied).
+  #
+  # The whole sweep runs in ONE warm `storehouse drive` process — Poll, Polled,
+  # and the per-message Reply cascade all in-process, no per-tick cold spawn.
 
-  adapter :daemon, name: :inbox_poller,
-    command: "bin/agent_poll.sh"
+  adapter "InboxPollClock" do
+    driving on interval "2s" do |clock|
+      dispatch "AgentInbox::InboxPoller.Poll",
+               name: "inbox_poller",
+               last_polled_at: "{now}"
+    end
+  end
 
-  # Persistence : :heki, not :memory. The poller daemon is a SEPARATE process
-  # from the sender's send-message adapter binary. Memory-backing the messages
-  # would put each in a throwaway process — the sender's block-poll on Answered
-  # would never see the reply. Durable heki is the shared medium that makes the
-  # Send -> Poll -> read -> Reply flow function across processes (same reasoning
-  # as process_health.hecksagon).
+  adapter "InboxAutoReply" do
+    driven on "AgentInbox::InboxPoller.Polled" do |event|
+      dispatch "AgentInbox::AgentMessage.Reply",
+               for_each: { from: "AgentInbox::AgentMessage.AllUnread", where: {} },
+               id: "{mid}",
+               reply: "[agent {agent_id}] received: {body}"
+    end
+  end
+
+  # Persistence : :heki, not :memory. The drive process is SEPARATE from the
+  # sender's send-message adapter binary. Memory-backing the messages would put
+  # each in a throwaway process — the sender's block-poll on Answered would never
+  # see the reply. Durable heki is the shared medium that makes the
+  # Send -> Poll -> Reply flow function across processes (same reasoning as
+  # process_health.hecksagon).
   adapter :heki
 end

@@ -71,16 +71,16 @@ Hecks.fixtures "Mindstream" do
             command:    { line: "../rust/target/release/storehouse loop aggregates Inbox::Inbox.Check --every 900s" },
             lifespan:   { kind: "persistent", may_exit: false, restart_on_failure: true }
 
-    # inbox_poller — the AgentInbox receiver Driver (i708). bin/agent_poll.sh
-    # IS the loop : each tick it dispatches InboxPoller.Poll (records the tick +
-    # emits Polled) and sweeps AgentMessage.AllUnread inline, MarkReading +
-    # Replying every unread message across every agent. Declared in
-    # agent_inbox.hecksagon as `adapter :daemon, name: :inbox_poller,
-    # command: "bin/agent_poll.sh"` ; this member is its Procfile projection.
+    # inbox_poller — the AgentInbox receiver Driver (i708), WARM. InboxPollClock
+    # (`driving on interval "2s"`) fires InboxPoller.Poll ; the InboxAutoReply
+    # driven adapter replies each unread message in one in-process cascade.
+    # Declared in agent_inbox.hecksagon ; this member is its Procfile projection.
+    # Replaced the bin/agent_poll.sh bash loop (which cold-spawned storehouse
+    # ~30×/min) — one warm `storehouse drive` process now runs the whole sweep.
     fixture "inbox_poller",
             name:       "inbox_poller",
             mindstream: "boot",
-            command:    { line: "bin/agent_poll.sh" },
+            command:    { line: "../rust/target/release/storehouse drive aggregates --adapter InboxPollClock --poll 2s" },
             lifespan:   { kind: "persistent", may_exit: false, restart_on_failure: true }
 
     # The slow loop. Speech proposes (durable :heki under the world-resolved
