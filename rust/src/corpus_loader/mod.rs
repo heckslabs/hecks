@@ -215,7 +215,22 @@ pub fn load_combined_domain(agg_dir: &str) -> crate::ir::Domain {
 
     for (_, path) in found {
         if let Ok(source) = fs::read_to_string(&path) {
-            merge(crate::parser::parse(&source), &mut combined);
+            let mut parsed = crate::parser::parse(&source);
+            // Stamp the folder address (Realm + Context) on every aggregate from
+            // this bluebook — the parser can't, it only sees a string. This is the
+            // data the FQN resolver matches Realm::Context::… against.
+            let (realm, context) = crate::heki::folder_address(&path.to_string_lossy());
+            let realm_path = match (realm, context) {
+                (Some(r), Some(c)) => Some(format!("{}/{}", r, c)),
+                (Some(r), None) => Some(r),
+                _ => None,
+            };
+            if realm_path.is_some() {
+                for agg in &mut parsed.aggregates {
+                    agg.realm_path = realm_path.clone();
+                }
+            }
+            merge(parsed, &mut combined);
         }
     }
     combined
