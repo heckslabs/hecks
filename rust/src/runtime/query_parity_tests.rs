@@ -196,20 +196,21 @@ fn numeric_eq_does_not_match_via_affinity() {
 }
 
 #[test]
-fn where_matches_resolves_dotted_nested_field() {
-    // The Event Log stores `sequence` as a nested {"value": N} map. A bare
-    // `sequence` predicate compares the map's Display ("{N fields}") to a
-    // number and never matches ; the dotted `sequence.value` path resolves to
-    // the integer and compares numerically (the AtSequence/seek prerequisite).
+fn where_matches_resolves_nested_vo_bare_and_dotted() {
+    // `sequence` is stored as a single-value VO {"value": N}. Both the BARE
+    // field (VO-unwrap) and the DOTTED `sequence.value` path resolve to the
+    // inner integer and compare numerically. The bare form is what
+    // Event.AtSequence uses ; the dotted form backs the seek.
     let mut s = AggregateState::new("e1");
     let mut seqmap = HashMap::new();
     seqmap.insert("value".to_string(), Value::Int(7));
     s.set("sequence", Value::Map(seqmap));
     let attrs = HashMap::new();
-    assert!(
-        !super::where_matches(&s, &clause("sequence", WhereOp::Eq, "7"), &attrs),
-        "bare nested `sequence` must not match the int (Display is a {{N fields}} string, not 7)"
-    );
+    // Bare-VO unwrap : compares by the inner value, not the map Display.
+    assert!(super::where_matches(&s, &clause("sequence", WhereOp::Eq, "7"), &attrs), "bare VO unwraps to 7");
+    assert!(super::where_matches(&s, &clause("sequence", WhereOp::Gt, "5"), &attrs), "7 > 5 via unwrap");
+    assert!(!super::where_matches(&s, &clause("sequence", WhereOp::Eq, "8"), &attrs), "7 != 8");
+    // Dotted path resolves the same integer.
     assert!(super::where_matches(&s, &clause("sequence.value", WhereOp::Gt, "5"), &attrs), "7 > 5");
     assert!(super::where_matches(&s, &clause("sequence.value", WhereOp::Eq, "7"), &attrs), "7 == 7");
     assert!(!super::where_matches(&s, &clause("sequence.value", WhereOp::Lt, "7"), &attrs), "7 < 7 false");

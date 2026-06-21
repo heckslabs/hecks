@@ -3609,7 +3609,17 @@ fn resolve_state_field(state: &AggregateState, field: &str) -> String {
             _ => return String::new(),
         }
     }
-    cur.to_string()
+    // Single-value VO unwrap : a VO with exactly one `value` field IS its
+    // value, so a bare-VO field (e.g. `sequence` -> {"value": N}) compares by
+    // the inner value, not the map's Display ("{1 fields}"). This mirrors how
+    // the in-memory behaviors runtime treats a VO, closing the storehouse-side
+    // gap that left Event.AtSequence (bare `sequence` Eq) silently unmatched.
+    match cur {
+        Value::Map(m) if m.len() == 1 => {
+            m.get("value").map(|v| v.to_string()).unwrap_or_else(|| cur.to_string())
+        }
+        _ => cur.to_string(),
+    }
 }
 
 /// Resolve a where-clause value : `:foo` reads `attrs["foo"]` (kwarg-ref) ;

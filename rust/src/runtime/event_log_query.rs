@@ -110,6 +110,11 @@ fn line_matches(
 ) -> bool {
     pushed.iter().all(|(field, target)| {
         let actual = match resolve_json_field(obj, field) {
+            // Single-value VO unwrap — parity with the oracle's resolve_state_field :
+            // a {"value": N} VO compares by its inner value, not the object Display.
+            Some(serde_json::Value::Object(m)) if m.len() == 1 && m.contains_key("value") => {
+                super::json_to_value_recursive(&m["value"]).to_string()
+            }
             Some(jv) => super::json_to_value_recursive(jv).to_string(),
             None => String::new(),
         };

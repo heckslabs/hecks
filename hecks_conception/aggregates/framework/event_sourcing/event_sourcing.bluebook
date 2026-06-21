@@ -155,12 +155,12 @@ Hecks.bluebook "EventSourcing", version: "2026.06.19.1" do
           # numeric SQL-backend range is the remaining lift. AtSequence is the
           # equality slice and the building block of that scan.
           #
-          # NOTE : keys on the bare `sequence` VO. In-memory behaviors store it
-          # as a string and match by Eq ; the live storehouse stores it nested
-          # ({"value": N}), where bare-VO Eq does not yet resolve to the int (a
-          # pre-existing behaviors-vs-storehouse VO-representation gap, tracked
-          # separately). The sequence-range SEEK that Snapshot fall-forward needs
-          # runs through SinceSequence, which drives the nested value directly.
+          # NOTE : keys on the bare `sequence` VO. The oracle UNWRAPS a
+          # single-value VO ({"value": N}) to its inner value before comparing,
+          # so this resolves to the integer in BOTH runtimes — the in-memory
+          # behaviors (VO-as-string) and the live storehouse (VO-as-map) now
+          # agree. The sequence-range SEEK that Snapshot fall-forward needs runs
+          # through SinceSequence, which drives the nested value directly.
       where(sequence: seq)
     end
 
