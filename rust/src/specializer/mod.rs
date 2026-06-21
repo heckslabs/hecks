@@ -40,6 +40,7 @@ pub mod ir;
 pub mod lifecycle_validator;
 pub mod parse_blocks;
 pub mod parser;
+pub mod procfile;
 pub mod parser_helpers;
 pub mod repository;
 pub mod ruby_command_class;
