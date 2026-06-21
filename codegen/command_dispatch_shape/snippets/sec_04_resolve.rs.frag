@@ -247,11 +247,13 @@ fn resolve_fully_qualified(rt: &Runtime, command_name: &str) -> Result<Resolutio
     };
 
     let domain_lc = domain.to_lowercase();
+    let (realm, context) = crate::heki::fqn_realm_context(command_name);
 
     // First pass — aggregate-rooted command (target == aggregate name).
     for (ai, agg) in rt.domain.aggregates.iter().enumerate() {
         if agg.name != target { continue; }
         if !domain_matches(rt, ai, &domain, &domain_lc) { continue; }
+        if !crate::heki::realm_context_matches(agg.realm_path.as_deref(), realm.as_deref(), context.as_deref()) { continue; }
         for (ci, c) in agg.commands.iter().enumerate() {
             if c.name == cmd {
                 return Ok(Resolution::Aggregate(ai, ci));
@@ -269,6 +271,7 @@ fn resolve_fully_qualified(rt: &Runtime, command_name: &str) -> Result<Resolutio
     for (ai, agg) in rt.domain.aggregates.iter().enumerate() {
         if agg.name != target { continue; }
         if !domain_matches(rt, ai, &domain, &domain_lc) { continue; }
+        if !crate::heki::realm_context_matches(agg.realm_path.as_deref(), realm.as_deref(), context.as_deref()) { continue; }
         for (ei, ent) in agg.entities.iter().enumerate() {
             for (ci, c) in ent.commands.iter().enumerate() {
                 if c.name == cmd {
@@ -305,4 +308,3 @@ fn domain_matches(rt: &Runtime, agg_idx: usize, domain: &str, domain_lc: &str) -
     }
     false
 }
-

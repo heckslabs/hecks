@@ -630,11 +630,13 @@ fn resolve_fully_qualified(rt: &Runtime, command_name: &str) -> Result<Resolutio
     };
 
     let domain_lc = domain.to_lowercase();
+    let (realm, context) = crate::heki::fqn_realm_context(command_name);
 
     // First pass — aggregate-rooted command (target == aggregate name).
     for (ai, agg) in rt.domain.aggregates.iter().enumerate() {
         if agg.name != target { continue; }
         if !domain_matches(rt, ai, &domain, &domain_lc) { continue; }
+        if !crate::heki::realm_context_matches(agg.realm_path.as_deref(), realm.as_deref(), context.as_deref()) { continue; }
         for (ci, c) in agg.commands.iter().enumerate() {
             if c.name == cmd {
                 return Ok(Resolution::Aggregate(ai, ci));
@@ -652,6 +654,7 @@ fn resolve_fully_qualified(rt: &Runtime, command_name: &str) -> Result<Resolutio
     for (ai, agg) in rt.domain.aggregates.iter().enumerate() {
         if agg.name != target { continue; }
         if !domain_matches(rt, ai, &domain, &domain_lc) { continue; }
+        if !crate::heki::realm_context_matches(agg.realm_path.as_deref(), realm.as_deref(), context.as_deref()) { continue; }
         for (ei, ent) in agg.entities.iter().enumerate() {
             for (ci, c) in ent.commands.iter().enumerate() {
                 if c.name == cmd {
@@ -688,7 +691,6 @@ fn domain_matches(rt: &Runtime, agg_idx: usize, domain: &str, domain_lc: &str) -
     }
     false
 }
-
 /// Resolution-aware self-ref finder (i111-J). For an entity command,
 /// the self-ref still points at the parent aggregate's record because
 /// the entity is reached through the root. The reference's actual
@@ -1247,7 +1249,7 @@ fn save_one_row(
 
 #[cfg(test)]
 mod fqn_tests {
-use super::parse_fqn;
+    use super::parse_fqn;
 
 // parse_fqn reads a realm-qualified, VARIABLE-DEPTH address by its ENDS :
 // last :: segment = Aggregate, second-to-last = Domain, everything before
@@ -1293,4 +1295,5 @@ fn malformed_addresses_are_rejected() {
     assert!(parse_fqn("Dangling::.Cmd").is_err());  // empty trailing segment
     assert!(parse_fqn("::Agg.Cmd").is_err());       // empty leading segment
 }
+
 }
