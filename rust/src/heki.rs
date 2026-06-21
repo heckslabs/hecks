@@ -835,14 +835,67 @@ folder_address_segments(segs)
 /// dirs, then split : first remaining segment = Realm, the rest = Context
 /// (joined by `/`). `(None, None)` when nothing meaningful remains.
 pub fn folder_address_segments(mut segs: Vec<String>) -> (Option<String>, Option<String>) {
-if segs.last().map_or(false, |s| s.ends_with(".bluebook")) {
-    segs.pop();
+    if segs.last().map_or(false, |s| s.ends_with(".bluebook")) {
+        segs.pop();
+    }
+    segs.retain(|s| s != "hecks_conception" && s != "aggregates" && s != "bluebook");
+    if segs.is_empty() { return (None, None); }
+    let realm = segs.remove(0);
+    let context = if segs.is_empty() { None } else { Some(segs.join("/")) };
+    (Some(realm), context)
 }
-segs.retain(|s| s != "hecks_conception" && s != "aggregates" && s != "bluebook");
-if segs.is_empty() { return (None, None); }
-let realm = segs.remove(0);
-let context = if segs.is_empty() { None } else { Some(segs.join("/")) };
-(Some(realm), context)
+
+/// The INVERSE of folder_address : extract the Realm + Context of a
+/// realm-qualified dispatch address `Realm[::Context…]::Bluebook::Aggregate.verb`.
+/// Realm = the first `::` segment (when ≥ 3) ; Context = the middle segments
+/// between the realm and the bluebook (the second-to-last), joined by `/`
+/// (when ≥ 4). `(None, None)` for the legacy 2-segment `Bluebook::Aggregate`
+/// form — nothing to enforce. Each segment is snake_cased so the PascalCase
+/// address matches the snake_case folder path stamped on the aggregate. Shared
+/// by the command resolver (command_dispatch) and the query path (main.rs).
+pub fn fqn_realm_context(command_name: &str) -> (Option<String>, Option<String>) {
+    let head = match command_name.rsplit_once('.') {
+        Some((h, _)) => h,
+        None => command_name,
+    };
+    let segs: Vec<&str> = head.split("::").collect();
+    let n = segs.len();
+    if n < 3 {
+        return (None, None);
+    }
+    let realm = Some(crate::parser_helpers::to_snake_case(segs[0]));
+    let context = if n >= 4 {
+        Some(segs[1..n - 2].iter().map(|s| crate::parser_helpers::to_snake_case(s)).collect::<Vec<_>>().join("/"))
+    } else {
+        None
+    };
+    (realm, context)
+}
+
+/// Enforce a dispatch address's Realm + Context against the aggregate's stamped
+/// folder address (`realm_path` = "realm/context"). LENIENT by design : it only
+/// bites when BOTH sides carry the data — a legacy address with no realm, or an
+/// aggregate with no stamped path (string-parsed / outside ~/Projects), passes
+/// untouched. When the address gives a realm it must match ; when it also gives
+/// a context that must match too. A realm-only (3-segment) address matches any
+/// context under that realm — the transitional under-specified form ; the
+/// canonical address carries the full context.
+pub fn realm_context_matches(
+    realm_path: Option<&str>,
+    fqn_realm: Option<&str>,
+    fqn_context: Option<&str>,
+) -> bool {
+    let Some(fqn_realm) = fqn_realm else { return true; };
+    let Some(rp) = realm_path else { return true; };
+    let (agg_realm, agg_context) = match rp.split_once('/') {
+        Some((r, c)) => (r, Some(c)),
+        None => (rp, None),
+    };
+    if fqn_realm != agg_realm { return false; }
+    if let Some(fqn_ctx) = fqn_context {
+        return agg_context == Some(fqn_ctx);
+    }
+    true
 }
 
 /// The ONE world-store resolver : realm override first, then `:default`
@@ -1047,7 +1100,7 @@ mod world_resolution_tests {
 //! World-aware store resolution — realm override + :default folder chain.
 //! Hermetic : no env mutation, absolute dirs only, so these never race on
 //! `$HOME` or a shared temp dir.
-use super::{expand_tilde, folder_address_segments, resolve_realm_dir, strip_chain_segments};
+use super::{expand_tilde, folder_address_segments, fqn_realm_context, resolve_realm_dir, strip_chain_segments};
 use std::fs;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -1120,6 +1173,26 @@ fn folder_address_no_context_directly_under_realm() {
 fn folder_address_empty_is_none() {
     assert_eq!(folder_address_segments(segs(&["aggregates", "bluebook"])), (None, None));
     assert_eq!(folder_address_segments(segs(&[])), (None, None));
+}
+
+// ---- fqn_realm_context : the address → (Realm, Context), inverse of folder_address ----
+
+#[test]
+fn fqn_realm_context_extracts_and_snake_cases() {
+    // 2-seg legacy — nothing to enforce.
+    assert_eq!(fqn_realm_context("AgentInbox::AgentMessage.AllUnread"), (None, None));
+    // 3-seg — realm only.
+    assert_eq!(fqn_realm_context("Hecks::AgentInbox::AgentMessage.all_unread"),
+        (Some("hecks".to_string()), None));
+    // 4-seg — realm + one context folder.
+    assert_eq!(fqn_realm_context("Hecks::Framework::AgentInbox::AgentMessage.all_unread"),
+        (Some("hecks".to_string()), Some("framework".to_string())));
+    // 5-seg — realm + nested context.
+    assert_eq!(fqn_realm_context("Miette::Body::Organs::Heart::Heart.Beat"),
+        (Some("miette".to_string()), Some("body/organs".to_string())));
+    // PascalCase address segment ↔ snake_case folder.
+    assert_eq!(fqn_realm_context("Hecks::ImmuneSystem::Macrophage::Macrophage.Run"),
+        (Some("hecks".to_string()), Some("immune_system".to_string())));
 }
 
 fn tempdir(tag: &str) -> std::path::PathBuf {

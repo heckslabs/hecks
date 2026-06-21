@@ -4554,12 +4554,16 @@ fn dispatch_hecksagon(agg_dir: &str, command: &str, attrs: std::collections::Has
         let segments: Vec<&str> = head.split("::").collect();
         if segments.len() >= 2 {
             // Variable-depth address : the aggregate is the LAST :: segment
-            // (Realm[::Subrealm…]::Domain::Aggregate). resolve_query_qualified
-            // targets the repo by context+aggregate ; the realm/subrealm
-            // prefix is accepted (enforced once the realm-path is stamped).
+            // (Realm[::Context…]::Bluebook::Aggregate). The realm + context
+            // are enforced against each aggregate's stamped realm_path — the
+            // SAME check the command resolver applies, via the shared heki
+            // helper, so queries and commands disambiguate identically.
             let agg = segments[segments.len() - 1];
+            let (q_realm, q_context) = storehouse::heki::fqn_realm_context(command);
             let q_match = rt.domain.aggregates.iter()
-                .filter(|a| a.name == agg)
+                .filter(|a| a.name == agg
+                    && storehouse::heki::realm_context_matches(
+                        a.realm_path.as_deref(), q_realm.as_deref(), q_context.as_deref()))
                 .find_map(|a| a.queries.iter()
                     .find(|q| storehouse::util::snake_case(&q.name) == tail || q.name == tail)
                     .map(|q| (a.context.clone(), a.name.clone(), q.name.clone())));

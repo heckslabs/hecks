@@ -239,7 +239,7 @@ fn save_one_row(
 
 #[cfg(test)]
 mod fqn_tests {
-use super::parse_fqn;
+    use super::parse_fqn;
 
 // parse_fqn reads a realm-qualified, VARIABLE-DEPTH address by its ENDS :
 // last :: segment = Aggregate, second-to-last = Domain, everything before
@@ -285,4 +285,5 @@ fn malformed_addresses_are_rejected() {
     assert!(parse_fqn("Dangling::.Cmd").is_err());  // empty trailing segment
     assert!(parse_fqn("::Agg.Cmd").is_err());       // empty leading segment
 }
+
 }
