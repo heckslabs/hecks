@@ -55,9 +55,13 @@ pub struct SqliteConfig {
     pub db_path: String,
     pub identified_by: Option<String>,
     /// `(attribute_name, sql_type)` pairs for the typed columns,
-    /// derived from the bluebook IR by the runtime boot loop.
-    pub columns: Vec<(String, String)>,
-}
+        /// derived from the bluebook IR by the runtime boot loop.
+        pub columns: Vec<(String, String)>,
+        /// Column names the aggregate's declared where()/order_by reference —
+        /// the expression-index targets (where() Phase 3). Derived from the IR
+        /// queries ; `ensure_indexes` filters to columns that actually exist.
+        pub indexed_columns: Vec<String>,
+    }
 
 /// Which storage substrate a repository wraps. Chosen at construction
 /// from the hecksagon's `persistence` declaration — heki/memory is the

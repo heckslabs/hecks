@@ -63,16 +63,33 @@
                 if let Some(lc) = &agg.lifecycle {
                     columns.push((lc.field.clone(), "TEXT".to_string()));
                 }
-                let key = repo_key(agg.context.as_deref(), &agg.name);
-                Some((
-                    key,
-                    lazy_repository::SqliteConfig {
-                        aggregate_type: agg.name.clone(),
-                        db_path: db_path.clone(),
-                        identified_by: agg.identified_by.clone(),
-                        columns,
-                    },
-                ))
+                // where() Phase 3 : the columns the aggregate's declared
+                    // queries filter / sort on become expression-index targets,
+                    // so the Phase-1 pushdown runs index-backed.
+                    let mut indexed_columns: Vec<String> = Vec::new();
+                    for q in &agg.queries {
+                        for w in &q.wheres {
+                            if !indexed_columns.contains(&w.field) {
+                                indexed_columns.push(w.field.clone());
+                            }
+                        }
+                        if let Some(ob) = &q.order_by {
+                            if !indexed_columns.contains(&ob.field) {
+                                indexed_columns.push(ob.field.clone());
+                            }
+                        }
+                    }
+                    let key = repo_key(agg.context.as_deref(), &agg.name);
+                    Some((
+                        key,
+                        lazy_repository::SqliteConfig {
+                            aggregate_type: agg.name.clone(),
+                            db_path: db_path.clone(),
+                            identified_by: agg.identified_by.clone(),
+                            columns,
+                            indexed_columns,
+                        },
+                    ))
             })
             .collect();
         for (key, config) in patches {
@@ -85,9 +102,12 @@
                 config.columns.clone(),
             ) {
                 Ok(repo) => {
-                    self.repositories
-                        .insert(key, LazyRepository::new_sqlite(repo));
-                }
+                        // where() Phase 3 : index the declared query columns so
+                        // the pushdown is index-backed (idempotent across boots).
+                        repo.ensure_indexes(&config.indexed_columns);
+                        self.repositories
+                            .insert(key, LazyRepository::new_sqlite(repo));
+                    }
                 Err(e) => {
                     // Never panic the bus ; never silently fall back to heki.
                     // Refuse THIS aggregate LOUDLY : drop its repository so no

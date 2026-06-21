@@ -115,6 +115,7 @@ pub mod sqlite_repository {
             wheres: &[crate::ir::WhereClause],
             attrs: &HashMap<String, String>,
         ) -> Vec<AggregateState> { unreachable!() }
+        pub fn ensure_indexes(&self, columns: &[String]) { unreachable!() }
     }
 }
 // i-lazy — boot-map lazy hydration. Wraps Repository in a OnceCell so
@@ -195,6 +196,11 @@ pub mod event_log_query;
 // heki/memory backend and never reaches it.
 #[cfg(not(target_arch = "wasm32"))]
 pub mod sql_query;
+// The where()-pushdown READ surface on the SQL backend — query() + the
+// Phase-3 expression indexes — split from sqlite_repository (CRUD substrate)
+// by concern. Host-only (rusqlite).
+#[cfg(not(target_arch = "wasm32"))]
+pub mod sqlite_query;
 // The SQL-pushdown ↔ where_matches parity oracle : asserts the
 // connection-executed prefilter never diverges from the in-memory
 // canonical matcher (contract-not-regex ; the two paths can't silently
