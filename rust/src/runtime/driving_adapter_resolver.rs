@@ -16,15 +16,19 @@
 //! end
 //! ```
 //!
-//! v1 scope :
-//!   - `cron`       — implemented end-to-end. Every call to
-//!                    `fire_driving_cron_ticks` dispatches every
-//!                    cron handler's follow-on commands. v1 does NOT
-//!                    evaluate the cron expression ; every tick fires
-//!                    every handler. Expression-aware scheduling is a
-//!                    follow-up card (parse the 5-field cron grammar,
-//!                    keep last-fire-at per handler, fire only when the
-//!                    schedule says due).
+//! scope :
+//!   - `cron`       — implemented end-to-end. The LIVE `storehouse drive`
+//!                    daemon evaluates the 5-field cron expression and fires
+//!                    a handler only WHEN DUE (see `runtime::cron_schedule`
+//!                    for the pure matcher, and `run_drive` for the minute
+//!                    dedup that stops a sub-minute poll double-firing).
+//!                    `fire_driving_cron_ticks` below is the SCHEDULE-BLIND
+//!                    legacy path : it dispatches every cron handler's
+//!                    follow-on commands unconditionally on every call, used
+//!                    only by the unused LoopDriver and the behaviors-test
+//!                    `:driving_tick` discriminator (a deterministic test
+//!                    fires the cascade directly, without a wall clock).
+//!                    Live scheduling lives in `run_drive`, NOT here.
 //!   - `http_post`  — parses but is a runtime no-op. Stubbed pending
 //!                    the `storehouse serve` HTTP listener wiring.
 //!   - `file_watch` — parses but is a runtime no-op. Stubbed pending

@@ -50,7 +50,10 @@ Hecks.bluebook "Driving", version: "2026.06.20.1" do
       # meaning : interval -> every ; cron -> cron ; clock -> poll + the
       # Dispatch.when hour-segments. poll applies only to clock (how often the
       # wall-clock is re-checked for a segment crossing). `storehouse drive`
-      # realizes the INTERVAL kind today ; cron/clock remain parsed-but-test-only.
+      # realizes the INTERVAL and CRON kinds today : interval via a pure
+      # tick-counter, cron via a pure 5-field expression matcher that fires
+      # a handler only WHEN DUE (deduped to once per wall-clock minute).
+      # clock remains parsed-but-test-only.
       attribute :kind,  ScheduleKind
       attribute :every, Duration,  default: "—"
       attribute :cron,  CronExpr,  default: "—"
