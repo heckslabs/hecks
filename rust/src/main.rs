@@ -596,6 +596,38 @@ fn main() {
         ));
     }
 
+    // `storehouse fqns <agg-dir>` — the Phase-4 migration generator. For
+    // every command in the loaded corpus, prints the legacy 2-seg address
+    // and the CANONICAL realm-qualified FQN it maps to :
+    //   AgentInbox::AgentMessage.Send -> Hecks::Framework::AgentInbox::AgentMessage.Send
+    // Computed (not stored) from each aggregate's stamped realm_path +
+    // context (bluebook) + name, so it is consistent-by-construction with
+    // what the resolver enforces. Drives the mechanical ref rewrite ; never
+    // a regex over templates.
+    if command == "fqns" {
+        let agg_dir = args.iter().skip(2).find(|a| !a.starts_with("--"))
+            .cloned().unwrap_or_else(|| ".".to_string());
+        let domain = load_combined_domain(&agg_dir);
+        let pascal = |snake: &str| -> String {
+            snake.split('_').map(|w| {
+                let mut ch = w.chars();
+                ch.next().map(|f| f.to_uppercase().collect::<String>() + ch.as_str())
+                    .unwrap_or_default()
+            }).collect::<String>()
+        };
+        for agg in &domain.aggregates {
+            let Some(rp) = agg.realm_path.as_deref() else { continue; };
+            let prefix = rp.split('/').map(pascal).collect::<Vec<_>>().join("::");
+            let bluebook = agg.context.clone().unwrap_or_default();
+            let canonical = format!("{}::{}::{}", prefix, bluebook, agg.name);
+            let legacy = format!("{}::{}", bluebook, agg.name);
+            for c in &agg.commands {
+                println!("{}.{}\t->\t{}.{}", legacy, c.name, canonical, c.name);
+            }
+        }
+        std::process::exit(0);
+    }
+
     // Retired `storehouse actors` CLI — hard switch, no deprecated
     // alias. Without this explicit reject arm the args fall through to
     // the generic single-file parse path which would emit a confusing
