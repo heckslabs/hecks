@@ -46,6 +46,7 @@ pub mod heki_r2;
 pub mod heki_query;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod dispatch_query;
+pub mod command_attrs;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod dump;
 #[cfg(not(target_arch = "wasm32"))]
