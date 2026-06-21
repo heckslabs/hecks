@@ -187,6 +187,9 @@ pub mod drive_scheduler;
 pub mod event_shard;
 pub mod projection_fold;
 pub mod event_log;
+// Phase 2 of the where() overhaul — filtered streaming scan of the Event
+// Log : hydrate only matching lines (O(matches)) instead of the whole Log.
+pub mod event_log_query;
 // Phase 1 of the where() overhaul — injection-safe SQL WHERE pushdown
 // builder + executor. Host-only (rusqlite) ; the wasm build uses the
 // heki/memory backend and never reaches it.

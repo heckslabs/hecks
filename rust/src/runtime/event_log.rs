@@ -105,6 +105,30 @@ pub fn append_records(
     Ok(batch.len())
 }
 
+/// Hydrate one parsed JSONL object into an `AggregateState` (id = event_id ;
+/// the heki dedup `id` key is dropped, the `event_id` field carries it). The
+/// single per-line conversion shared by the full `load_states` read and the
+/// filtered `event_log_query` scan — so a filtered candidate is byte-for-byte
+/// the state a full hydrate would have produced (the parity contract).
+pub(super) fn state_from_obj(
+    obj: &serde_json::Map<String, serde_json::Value>,
+) -> AggregateState {
+    let id = obj
+        .get("id")
+        .or_else(|| obj.get("event_id"))
+        .and_then(|x| x.as_str())
+        .unwrap_or("")
+        .to_string();
+    let mut st = AggregateState::new(&id);
+    for (k, val) in obj {
+        if k == "id" {
+            continue; // the heki dedup key ; the event_id field carries it
+        }
+        st.set(k, super::json_to_value_recursive(val));
+    }
+    st
+}
+
 /// Load every Event record from the JSONL log into `AggregateState` (id =
 /// event_id). Missing file -> empty. A malformed line is skipped (best-effort
 /// read view ; a torn line is a single-writer impossibility, so this only guards
@@ -124,23 +148,10 @@ pub fn load_states(global: &str) -> Vec<AggregateState> {
             Err(_) => continue,
         };
         let obj = match v.as_object() {
-            Some(o) => o,
-            None => continue,
-        };
-        let id = obj
-            .get("id")
-            .or_else(|| obj.get("event_id"))
-            .and_then(|x| x.as_str())
-            .unwrap_or("")
-            .to_string();
-        let mut st = AggregateState::new(&id);
-        for (k, val) in obj {
-            if k == "id" {
-                continue; // the heki dedup key ; the event_id field carries it
-            }
-            st.set(k, super::json_to_value_recursive(val));
-        }
-        out.push(st);
+                Some(o) => o,
+                None => continue,
+            };
+            out.push(state_from_obj(obj));
     }
     out
 }
