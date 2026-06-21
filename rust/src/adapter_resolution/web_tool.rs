@@ -43,6 +43,18 @@ impl Runtime {
         dispatch_attrs: &HashMap<String, Value>,
     ) {
         if self.hecksagons.is_empty() { return; }
+        // KEYSTONE SWITCH (slice 2) — shape-derived OOP suppress. When an
+        // effect binding subscribes (`on:`) to the EVENT this command emitted
+        // and resolves to the `web_tool` family with a verdict, the
+        // out-of-process path (effect binding -> OutboundEvent ->
+        // drain_outbound_to_quiescence) owns the fetch/search ; suppress this
+        // in-process io-adapter path so the two never both fire. No binding
+        // (default) keeps this in-process path as the proven fallback.
+        if let Some(ref event) = result.event {
+            if self.has_effect_binding_for(&event.name, "web_tool") {
+                return;
+            }
+        }
         let debug = std::env::var("HECKS_DEBUG_WEB_TOOL").is_ok();
         let bare_command = command_name.rsplit('.').next().unwrap_or(command_name);
         let target = format!("{}.{}", result.aggregate_type, bare_command);
