@@ -41,6 +41,7 @@
 //! one line. Until then, it's the wrapper for those two phases.
 
 pub mod classify;
+pub mod agent_defs;
 mod daemons;
 mod discover;
 mod system_prompt;
@@ -105,6 +106,15 @@ pub fn run(
     //   bluebook fixtures are the single source ; the flat template
     //   is retired). Returns the byte count for vitals.
     let prompt_bytes = system_prompt::render(&conception_dir, &being);
+
+    // Phase 4b — RegenerateAgentDefs
+    //   Project the AgentInstrumentation source (door.md + AgentDefinition
+    //   fixtures + roles/<name>.md) into the subagent instrumentation :
+    //   the shared door block in both CLAUDE.md files (inherited by every
+    //   subagent) + each .claude/agents/<name>.md def. Runs every boot so
+    //   the door convention can never drift from governance. Shares the
+    //   door fragment the system-prompt {{door}} placeholder resolves from.
+    let _agent_defs = agent_defs::render();
 
     // Phase 5 — RecordBootJournal : DEFERRED
     //   aggregates/boot.bluebook declares Identity, Hydration, etc. ;

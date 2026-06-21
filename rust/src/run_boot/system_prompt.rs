@@ -48,6 +48,10 @@ pub fn render(conception_dir: &Path, being: &str) -> usize {
     vars.insert("standards", primary_standards(conception_dir));
     vars.insert("grammar", grammar_block());
     vars.insert("pizzas", pizzas_block());
+    // {{door}} resolves from the SAME shared fragment the agent_defs runner
+    // injects into CLAUDE.md + every .claude/agents/*.md, so Miette's prompt
+    // and the subagents can never drift on the storehouse-door convention.
+    vars.insert("door", super::agent_defs::door_fragment());
 
     let fixtures_path = match content_fixtures_path_for_being(being) {
         Some(p) => p,

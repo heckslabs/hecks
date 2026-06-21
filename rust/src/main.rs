@@ -695,6 +695,17 @@ fn main() {
     // the generic single-file parse path which would emit a confusing
     // "Cannot read <verb>" message ; the explicit arm makes the rename
     // visible to humans and CI alike.
+    // `storehouse gen-agent-defs` — regenerate the subagent instrumentation
+    // (the door block in both CLAUDE.md files + every .claude/agents/*.md)
+    // from the AgentInstrumentation source, on demand. The same render the
+    // boot pipeline runs as Phase 4b ; exposed here so it can be triggered
+    // without a full boot (and verified in isolation).
+    if command == "gen-agent-defs" {
+        let n = storehouse::run_boot::agent_defs::render();
+        eprintln!("gen-agent-defs : {} agent def(s) written + CLAUDE.md door blocks refreshed", n);
+        std::process::exit(0);
+    }
+
     if command == "actors" {
         eprintln!("Unknown command: actors — renamed to `mailboxes` (try `storehouse mailboxes list`)");
         std::process::exit(1);
