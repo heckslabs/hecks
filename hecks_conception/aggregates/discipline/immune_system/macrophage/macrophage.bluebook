@@ -2461,8 +2461,8 @@ Hecks.bluebook "Macrophage", version: "2026.05.14.1" do
     value_object "WatchedSurface" do
       # The fully-qualified verb name of a correspondence surface the
       # macrophage observes. Examples :
-      #   "Tools::EmailTool.CreateDraft"
-      #   "Tools::EmailTool.SendDraft"
+      #   "Hecks::Framework::Tools::EmailTool.CreateDraft"
+      #   "Hecks::Framework::Tools::EmailTool.SendDraft"
       #   "mcp__claude_ai_Gmail__create_draft"
       #   "mcp__claude_ai_Gmail__send_message"
       # The seed list ships pre-registered via WatchSurface at boot.
@@ -2550,7 +2550,7 @@ Hecks.bluebook "Macrophage", version: "2026.05.14.1" do
     value_object "CommandFqn" do
       # The bluebook-declared command FQN of the watched-surface
       # dispatch that triggered the check (e.g.
-      # "Tools::EmailTool.CreateDraft"). Recorded verbatim so the
+      # "Hecks::Framework::Tools::EmailTool.CreateDraft"). Recorded verbatim so the
       # complaint can quote the exact surface that fired.
       attribute :value, String
     end
@@ -2961,8 +2961,8 @@ Hecks.bluebook "Macrophage", version: "2026.05.14.1" do
 
     value_object "EventName" do
       # The fully-qualified name of a bus event dispatched from
-      # the adapter body — e.g. "Tools::ShellTool.BashCompleted"
-      # or "Tools::ShellTool.BashFailed". Stored on each
+      # the adapter body — e.g. "Hecks::Framework::Tools::ShellTool.BashCompleted"
+      # or "Hecks::Framework::Tools::ShellTool.BashFailed". Stored on each
       # PairingViolation entity so the missing-or-present pair
       # is self-documenting in the audit trail.
       attribute :value, String

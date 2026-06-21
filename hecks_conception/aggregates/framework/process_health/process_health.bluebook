@@ -391,14 +391,14 @@ Hecks.bluebook "ProcessHealth", version: "2026.05.20.2" do
   # bindings' `exec:` values.
   policy "RunSweepOnSwept" do
     on "ProcessMacrophage.Swept"
-    trigger "Primitive::Process.Spawn"
+    trigger "Hecks::Framework::Primitive::Process.Spawn"
     with "cmd", "bin/process_health_sweep"
     with "result_into", "Cascade.RecordResult"
   end
 
   policy "RunHealOnHealRequested" do
     on "ProcessMacrophage.HealRequested"
-    trigger "Primitive::Process.Spawn"
+    trigger "Hecks::Framework::Primitive::Process.Spawn"
     with "cmd", "node bin/process_health_heal.mjs"
     with "result_into", "Cascade.RecordResult"
   end

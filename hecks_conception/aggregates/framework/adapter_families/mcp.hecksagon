@@ -38,7 +38,7 @@ Hecks.adapter_family "mcp" do
   #     command:     "SessionStart.Initialise",
   #     server:      :storehouse,
   #     tool:        "storehouse__dispatch",
-  #     args:        { aggregates_dir: "...", command: "Session::Session.Begin", ... },
+  #     args:        { aggregates_dir: "...", command: "Hecks::Framework::Session::Session.Begin", ... },
   #     result_into: "Cascade.RecordResult"
   #
   # When the bus dispatches SessionStart.Initialise, the kernel

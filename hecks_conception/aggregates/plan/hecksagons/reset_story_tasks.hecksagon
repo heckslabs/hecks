@@ -6,8 +6,8 @@ Hecks.hecksagon "Plan" do
   # IncrementOnTaskReopened policy (which now fires on adapter-dispatched commands too).
   # {id} = the reset story ref (event) ; record-first the matched Task's id for Reopen.
   adapter "ReopenTasksOnStoryReset" do
-    driven on "Plan::Story.StoryReset" do |event|
-      dispatch "Plan::Task.Reopen", for_each: { from: "Plan::Task.ForStory", where: { story: "{id}" } }, id: "{id}"
+    driven on "Hecks::Plan::Story.StoryReset" do |event|
+      dispatch "Hecks::Plan::Task.Reopen", for_each: { from: "Hecks::Plan::Task.ForStory", where: { story: "{id}" } }, id: "{id}"
     end
   end
 end

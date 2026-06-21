@@ -16,7 +16,7 @@ Hecks.hecksagon "WorktreeRemovedCheck" do
   # (hex-invocation-principle / hex-runtime-port-eval-hook).
   adapter "WorktreeRemovedCheck" do
     driven on "Story.WorktreeUnlocked" do |event|
-      dispatch "Plan::Story.RecordWorktreeRemovedCheckResult",
+      dispatch "Hecks::Plan::Story.RecordWorktreeRemovedCheckResult",
                story: event.story,
                ok: true
     end

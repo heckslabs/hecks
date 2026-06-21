@@ -208,7 +208,7 @@ Hecks.bluebook "Fibroblast", version: "2026.05.16.1" do
   # an ambiguous signal, corrupting the decline-gracefully trace).
   policy "RunSweepOnSweepRan" do
     on "SweepRan"
-    trigger "Primitive::Process.Spawn"
+    trigger "Hecks::Framework::Primitive::Process.Spawn"
     with "cmd", "bash bin/fibroblast_sweep.sh"
     with "result_into", "Cascade.RecordResult"
   end

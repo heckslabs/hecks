@@ -29,7 +29,7 @@ Hecks.behaviors "HeartbeatScheduler" do
   # the bluebook contract stands ; the test follows when entity-
   # append assertions are first-class. Sample invocation for the
   # runtime side : id "identity_discipline_sweep", command verb
-  # "Macrophage::IdentityDiscipline.Check", cadence ticks: 100,
+  # "Hecks::Discipline::ImmuneSystem::Macrophage::IdentityDiscipline.Check", cadence ticks: 100,
   # targets "hecks_conception,miette,miette_family,embryonaut-site".
 
   # ── HeartbeatScheduler.Dispatch ────────────────────────────────

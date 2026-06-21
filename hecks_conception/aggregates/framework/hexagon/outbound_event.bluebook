@@ -96,8 +96,8 @@ Hecks.bluebook "OutboundEvent", version: "2026.06.16.1" do
     value_object "CommandRef" do
       # A fully-qualified verdict command from the binding's `do success /
       # failure end` block — success_command = the `success` verdict (e.g.
-      # "Pizzas::Order.Authorize"), failure_command = the `failure` verdict
-      # (e.g. "Pizzas::Order.Decline"). The host dispatches exactly one of
+      # "Hecks::Catalog::Pizzas::Order.Authorize"), failure_command = the `failure` verdict
+      # (e.g. "Hecks::Catalog::Pizzas::Order.Decline"). The host dispatches exactly one of
       # the two back through the command port.
       attribute :value, String
     end

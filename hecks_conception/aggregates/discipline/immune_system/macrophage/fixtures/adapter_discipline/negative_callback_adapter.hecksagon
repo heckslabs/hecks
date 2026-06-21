@@ -8,7 +8,7 @@ Hecks.hecksagon "CallbackAdapter" do
   #
   # Forbidden calls demonstrated below :
   #   rt.find("Tools::ShellTool", event.invocation_id)
-  #   rt.resolve_query("Tools::ShellTool.find_by_invocation_id", ...)
+  #   rt.resolve_query("Hecks::Framework::Tools::ShellTool.find_by_invocation_id", ...)
   #
   # When InvocationPrinciple.Check runs against this file :
   #   expected → emits FileScanned
@@ -20,14 +20,14 @@ Hecks.hecksagon "CallbackAdapter" do
   # callback-only nature of this violation.
 
   adapter "CallbackAdapter" do
-    driven on "Tools::ShellTool.BashRan" do |event|
+    driven on "Hecks::Framework::Tools::ShellTool.BashRan" do |event|
       shell_tool = rt.find("Tools::ShellTool", event.invocation_id)
-      previous_state = rt.resolve_query("Tools::ShellTool.find_by_invocation_id", id: event.invocation_id)
-      dispatch "Tools::ShellTool.BashCompleted",
+      previous_state = rt.resolve_query("Hecks::Framework::Tools::ShellTool.find_by_invocation_id", id: event.invocation_id)
+      dispatch "Hecks::Framework::Tools::ShellTool.BashCompleted",
                invocation_id: event.invocation_id,
                output: shell_tool.stdout,
                previous: previous_state.exit_code
-      dispatch "Tools::ShellTool.BashFailed",
+      dispatch "Hecks::Framework::Tools::ShellTool.BashFailed",
                invocation_id: event.invocation_id,
                error: shell_tool.stderr
     end

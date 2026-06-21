@@ -16,8 +16,8 @@ Hecks.hecksagon "VolunteerPull" do
   # set, state tasked, contracts ratified, deps resolved). worker rides through
   # Start as a pass-through input into the StoryStarted event.
   adapter "StartOnClaimAcquired" do
-    driven on "Conductor::Claim.ClaimAcquired" do |event|
-      dispatch "Plan::Story.Start", story: "{story}", worker: "{worker}"
+    driven on "Hecks::Conductor::Conductor::Claim.ClaimAcquired" do |event|
+      dispatch "Hecks::Plan::Story.Start", story: "{story}", worker: "{worker}"
     end
   end
 
@@ -31,8 +31,8 @@ Hecks.hecksagon "VolunteerPull" do
   # the lease records WHICH worker holds it, so a later WorkerDied matches it via
   # Lease.HeldByWorker (where worker == the dead worker_id).
   adapter "GrantOnStoryStarted" do
-    driven on "Plan::Story.StoryStarted" do |event|
-      dispatch "Conductor::Lease.Grant", worktree_path: "worktrees/{story}", story: "{story}", worker: "{worker}", expires_at: "{now+3600}"
+    driven on "Hecks::Plan::Story.StoryStarted" do |event|
+      dispatch "Hecks::Conductor::Conductor::Lease.Grant", worktree_path: "worktrees/{story}", story: "{story}", worker: "{worker}", expires_at: "{now+3600}"
     end
   end
 

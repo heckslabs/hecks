@@ -4,8 +4,8 @@ Hecks.hecksagon "Plan" do
   # policy) so the heavy real checks (cargo test, git) run LIVE and do not
   # execute inside the fast in-memory behaviors suite.
   adapter "AutoCheckOnReady" do
-    driven on "Plan::Story.StoryReadyRequested" do |event|
-      dispatch "Plan::Story.RunCheck"
+    driven on "Hecks::Plan::Story.StoryReadyRequested" do |event|
+      dispatch "Hecks::Plan::Story.RunCheck"
     end
   end
 end

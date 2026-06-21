@@ -615,16 +615,78 @@ fn main() {
                     .unwrap_or_default()
             }).collect::<String>()
         };
+        let rewrite = args.iter().any(|a| a == "--rewrite");
+        // Prefix contract : legacy "Bluebook::Aggregate" -> canonical
+        // "Realm::Context::Bluebook::Aggregate". One entry per aggregate ;
+        // covers every verb (command/query/event) since they share the
+        // prefix. A legacy seen with TWO distinct canonicals is realm-
+        // AMBIGUOUS (same Bluebook::Aggregate in two realms) — dropped, never
+        // guessed.
+        let mut map: std::collections::HashMap<String, Option<String>> =
+            std::collections::HashMap::new();
         for agg in &domain.aggregates {
             let Some(rp) = agg.realm_path.as_deref() else { continue; };
-            let prefix = rp.split('/').map(pascal).collect::<Vec<_>>().join("::");
+            let realm_ctx = rp.split('/').map(&pascal).collect::<Vec<_>>().join("::");
             let bluebook = agg.context.clone().unwrap_or_default();
-            let canonical = format!("{}::{}::{}", prefix, bluebook, agg.name);
+            if bluebook.is_empty() { continue; }
             let legacy = format!("{}::{}", bluebook, agg.name);
-            for c in &agg.commands {
-                println!("{}.{}\t->\t{}.{}", legacy, c.name, canonical, c.name);
+            let canonical = format!("{}::{}::{}", realm_ctx, bluebook, agg.name);
+            map.entry(legacy)
+                .and_modify(|e| { if e.as_deref() != Some(canonical.as_str()) { *e = None; } })
+                .or_insert(Some(canonical));
+        }
+        let mut prefixes: Vec<(String, String)> = map.into_iter()
+            .filter_map(|(l, c)| c.map(|c| (l, c)))
+            .collect();
+        // Longest legacy first so no prefix is a substring of another.
+        prefixes.sort_by(|a, b| b.0.len().cmp(&a.0.len()));
+
+        if !rewrite {
+            for (legacy, canonical) in &prefixes {
+                println!("{}\t->\t{}", legacy, canonical);
+            }
+            std::process::exit(0);
+        }
+
+        // --rewrite : apply the prefix contract to every quoted 2-seg ref in
+        // the corpus (.bluebook / .hecksagon / .behaviors), quote-anchored so
+        // already-canonical refs are untouched (idempotent). Bare 1-seg refs
+        // (realm-ambiguous) are left for a resolver-driven pass.
+        fn collect_files(dir: &std::path::Path, out: &mut Vec<std::path::PathBuf>) {
+            let Ok(entries) = std::fs::read_dir(dir) else { return; };
+            for e in entries.flatten() {
+                let p = e.path();
+                if p.is_dir() {
+                    let name = p.file_name().and_then(|n| n.to_str()).unwrap_or("");
+                    if matches!(name, ".git" | "target" | "node_modules" | ".claude") { continue; }
+                    collect_files(&p, out);
+                } else if matches!(p.extension().and_then(|x| x.to_str()),
+                    Some("bluebook") | Some("hecksagon") | Some("behaviors")) {
+                    out.push(p);
+                }
             }
         }
+        let mut files = Vec::new();
+        collect_files(std::path::Path::new(&agg_dir), &mut files);
+        let (mut files_changed, mut refs_rewritten) = (0usize, 0usize);
+        for path in files {
+            let Ok(orig) = std::fs::read_to_string(&path) else { continue; };
+            let mut content = orig.clone();
+            let mut n = 0usize;
+            for (legacy, canonical) in &prefixes {
+                let from = format!("\"{}.", legacy);
+                if !content.contains(&from) { continue; }
+                n += content.matches(&from).count();
+                content = content.replace(&from, &format!("\"{}.", canonical));
+            }
+            if content != orig {
+                std::fs::write(&path, &content).ok();
+                files_changed += 1;
+                refs_rewritten += n;
+            }
+        }
+        eprintln!("fqns --rewrite : {} 2-seg refs rewritten in {} files ({} unambiguous prefixes)",
+            refs_rewritten, files_changed, prefixes.len());
         std::process::exit(0);
     }
 

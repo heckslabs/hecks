@@ -1013,7 +1013,7 @@ Hecks.bluebook "Tools", version: "2026.05.14.1" do
   # retired :exec resolver, now ordinary bluebook.
   policy "RunSidequestOnDispatch" do
     on "Sidequest.SidequestDispatched"
-    trigger "Primitive::Process.Spawn"
+    trigger "Hecks::Framework::Primitive::Process.Spawn"
     with "cmd", "node bin/sidequest_run.mjs"
     with "result_into", "Cascade.RecordResult"
   end

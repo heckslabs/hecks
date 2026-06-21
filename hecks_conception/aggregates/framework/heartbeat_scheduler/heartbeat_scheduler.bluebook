@@ -96,7 +96,7 @@ Hecks.bluebook "HeartbeatScheduler", version: "2026.05.14.1" do
     value_object "ScheduledCommand" do
       # The FQN of the command to dispatch when the schedule fires.
       # Form : "Domain::Aggregate.Command" (e.g.
-      # "Macrophage::IdentityDiscipline.Check"). The scheduler
+      # "Hecks::Discipline::ImmuneSystem::Macrophage::IdentityDiscipline.Check"). The scheduler
       # quotes this verbatim — does not validate that the command
       # exists at registration time ; runtime resolution catches a
       # typo when Dispatch fires.

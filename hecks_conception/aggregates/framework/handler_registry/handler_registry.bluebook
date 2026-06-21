@@ -109,7 +109,7 @@ Hecks.bluebook "HandlerRegistry", version: "2026.05.14.1" do
       #   :rust       — "{\"function_name\":\"execute_bash\"}"
       #   :mcp        — "{\"server\":\"gmail\",\"tool_name\":\"...\",\"args\":\"...\"}"
       #   :shell      — "{\"command_template\":\"echo {phase}\"}"
-      #   :dispatch   — "{\"command\":\"Tools::ShellTool.Bash\"}"
+      #   :dispatch   — "{\"command\":\"Hecks::Framework::Tools::ShellTool.Bash\"}"
       #   :claude_tool— "{\"tool_name\":\"Bash\"}"
       #   :web_tool   — "{\"tool\":\"web_fetch\"}"
       # The runtime parses this string at resolve time and routes
@@ -119,8 +119,8 @@ Hecks.bluebook "HandlerRegistry", version: "2026.05.14.1" do
 
     value_object "CommandRef" do
       # FQN of the command this handler handles. Form :
-      # "Domain::Aggregate.Command", e.g. "Tools::ShellTool.Bash"
-      # or "IdentifierService::IdentifierService.MintDefault".
+      # "Domain::Aggregate.Command", e.g. "Hecks::Framework::Tools::ShellTool.Bash"
+      # or "Hecks::Framework::IdentifierService::IdentifierService.MintDefault".
       attribute :value, String
     end
 

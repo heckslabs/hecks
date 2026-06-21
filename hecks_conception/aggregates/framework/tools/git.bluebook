@@ -113,35 +113,35 @@ Hecks.bluebook "Git", version: "2026.05.29.1" do
 
   policy "RunStatusOnStatusChecked" do
     on "Git.StatusChecked"
-    trigger "Primitive::Process.Spawn"
+    trigger "Hecks::Framework::Primitive::Process.Spawn"
     with "cmd", "bin/git_status"
     with "result_into", "Cascade.RecordResult"
   end
 
   policy "RunLogOnLogRead" do
     on "Git.LogRead"
-    trigger "Primitive::Process.Spawn"
+    trigger "Hecks::Framework::Primitive::Process.Spawn"
     with "cmd", "bin/git_log"
     with "result_into", "Cascade.RecordResult"
   end
 
   policy "RunDiffOnDiffRead" do
     on "Git.DiffRead"
-    trigger "Primitive::Process.Spawn"
+    trigger "Hecks::Framework::Primitive::Process.Spawn"
     with "cmd", "bin/git_diff"
     with "result_into", "Cascade.RecordResult"
   end
 
   policy "RunCurrentBranchOnCurrentBranchRead" do
     on "Git.CurrentBranchRead"
-    trigger "Primitive::Process.Spawn"
+    trigger "Hecks::Framework::Primitive::Process.Spawn"
     with "cmd", "bin/git_current_branch"
     with "result_into", "Cascade.RecordResult"
   end
 
   policy "RunWorktreeListOnWorktreeListRead" do
     on "Git.WorktreeListRead"
-    trigger "Primitive::Process.Spawn"
+    trigger "Hecks::Framework::Primitive::Process.Spawn"
     with "cmd", "bin/git_worktree_list"
     with "result_into", "Cascade.RecordResult"
   end

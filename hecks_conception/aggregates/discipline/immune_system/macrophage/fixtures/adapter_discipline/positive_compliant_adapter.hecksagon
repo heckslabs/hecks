@@ -14,11 +14,11 @@ Hecks.hecksagon "CompliantAdapter" do
   #   IdempotentByConstruction → no `idempotent` / `dedup_by` / etc.
 
   adapter "CompliantAdapter" do
-    driven on "Tools::ShellTool.BashRan" do |event|
-      dispatch "Tools::ShellTool.BashCompleted",
+    driven on "Hecks::Framework::Tools::ShellTool.BashRan" do |event|
+      dispatch "Hecks::Framework::Tools::ShellTool.BashCompleted",
                invocation_id: event.invocation_id,
                output: event.stdout
-      dispatch "Tools::ShellTool.BashFailed",
+      dispatch "Hecks::Framework::Tools::ShellTool.BashFailed",
                invocation_id: event.invocation_id,
                error: event.stderr
     end

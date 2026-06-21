@@ -698,7 +698,7 @@ Hecks.bluebook "Plan", version: "2026.06.12.1" do
 
     value_object "CommandPhrase" do
       # A fully-qualified bluebook command phrase this Step dispatches —
-      # e.g. "Plan::Story.Forward". Fed into storehouse_resolve at
+      # e.g. "Hecks::Plan::Story.Forward". Fed into storehouse_resolve at
       # execution time.
       attribute :value, String
     end
@@ -1344,14 +1344,14 @@ Hecks.bluebook "Plan", version: "2026.06.12.1" do
 
   policy "RunWorktreeCheckOnChecksRequested" do
     on "Story.StoryChecksRequested"
-    trigger "Primitive::Process.Spawn"
+    trigger "Hecks::Framework::Primitive::Process.Spawn"
     with "cmd", "bin/check-worktree"
     with "result_into", "Story.RecordWorktreeCheckResult"
   end
 
   policy "RunMergedCheckOnChecksRequested" do
     on "Story.StoryChecksRequested"
-    trigger "Primitive::Process.Spawn"
+    trigger "Hecks::Framework::Primitive::Process.Spawn"
     with "cmd", "bin/check-merged"
     with "result_into", "Story.RecordMergedCheckResult"
   end
@@ -1367,14 +1367,14 @@ Hecks.bluebook "Plan", version: "2026.06.12.1" do
 
   policy "RunTestsCheckOnChecksRequested" do
     on "Story.StoryChecksRequested"
-    trigger "Primitive::Process.Spawn"
+    trigger "Hecks::Framework::Primitive::Process.Spawn"
     with "cmd", "bin/check-tests"
     with "result_into", "Story.RecordTestsCheckResult"
   end
 
   policy "RunVerbResolvesCheckOnChecksRequested" do
     on "Story.StoryChecksRequested"
-    trigger "Primitive::Process.Spawn"
+    trigger "Hecks::Framework::Primitive::Process.Spawn"
     with "cmd", "bin/check-verb-resolves"
     with "result_into", "Story.RecordVerbResolvesCheckResult"
   end
@@ -1394,32 +1394,32 @@ Hecks.bluebook "Plan", version: "2026.06.12.1" do
   # only a real check re-arms them : a flag cannot be hand-set into ready.
   policy "ReadyOnVerbResolvesCheck" do
     on "Story.VerbResolvesCheckRecorded"
-    trigger "Plan::Story.MarkReady"
+    trigger "Hecks::Plan::Story.MarkReady"
   end
 
   policy "ReadyOnMergedCheck" do
     on "Story.MergedCheckRecorded"
-    trigger "Plan::Story.MarkReady"
+    trigger "Hecks::Plan::Story.MarkReady"
   end
 
   policy "ReadyOnWorktreeCheck" do
     on "Story.WorktreeCheckRecorded"
-    trigger "Plan::Story.MarkReady"
+    trigger "Hecks::Plan::Story.MarkReady"
   end
 
   policy "ReadyOnTestsCheck" do
     on "Story.TestsCheckRecorded"
-    trigger "Plan::Story.MarkReady"
+    trigger "Hecks::Plan::Story.MarkReady"
   end
 
   policy "ReadyOnPrMergeableCheck" do
     on "Story.PrMergeableCheckRecorded"
-    trigger "Plan::Story.MarkReady"
+    trigger "Hecks::Plan::Story.MarkReady"
   end
 
   policy "ReadyOnMainUpToDateCheck" do
     on "Story.MainUpToDateCheckRecorded"
-    trigger "Plan::Story.MarkReady"
+    trigger "Hecks::Plan::Story.MarkReady"
   end
 
   # ===== Task aggregate (task-completion-state, sprint 14) =====
@@ -1794,7 +1794,7 @@ Hecks.bluebook "Plan", version: "2026.06.12.1" do
 
     value_object "Phrase" do
       # A fully-qualified bluebook command phrase this Step dispatches —
-      # e.g. "Plan::Story.Forward". Fed into storehouse_resolve at
+      # e.g. "Hecks::Plan::Story.Forward". Fed into storehouse_resolve at
       # execution time. Byte-identical to Storehouse::Story.Phrase so
       # story_sorted_steps/story_args_to_tokens helpers work across both.
       attribute :value, String

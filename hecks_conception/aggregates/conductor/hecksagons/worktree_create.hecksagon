@@ -4,7 +4,7 @@ Hecks.hecksagon "Conductor" do
   # The runtime spawns git in-process via the `run` leaf (no bin script,
   # no canned RecordResult).
   adapter "WorktreeCreate" do
-    driven on "Conductor::Lease.LeaseGranted" do |event|
+    driven on "Hecks::Conductor::Conductor::Lease.LeaseGranted" do |event|
       run "git worktree add --detach {worktree_path}"
     end
   end

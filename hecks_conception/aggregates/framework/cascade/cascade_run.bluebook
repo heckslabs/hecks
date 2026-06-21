@@ -60,7 +60,7 @@ Hecks.bluebook "CascadeRun", version: "2026.05.25.1" do
     value_object "Step" do
       # One ordered step in the pipeline.
       #   ref        — stable key, e.g. "step-1" or the command name.
-      #   command    — the command to dispatch, e.g. "Tools::ShellTool.Bash".
+      #   command    — the command to dispatch, e.g. "Hecks::Framework::Tools::ShellTool.Bash".
       #   order      — integer sequencing; lower runs first.
       #   status     — pending | running | completed | failed.
       #   attempt    — how many times this step has been attempted.

@@ -8,8 +8,8 @@ Hecks.hecksagon "Plan" do
   # conclusion (CI green ; empty rollup is vacuously green). Inner double-quotes
   # are \" -escaped so the .hecksagon stays valid Ruby (the parser un-escapes).
   adapter "PrMergeableLiveCheck" do
-    driven on "Plan::Story.StoryChecksRequested" do |event|
-      run "gh pr view sq/{id} --json state,mergeable,statusCheckRollup --jq 'if .state==\"OPEN\" and .mergeable==\"MERGEABLE\" and ([.statusCheckRollup[]|select(.conclusion!=\"SUCCESS\" and .conclusion!=null)]|length==0) then empty else halt_error(1) end'", result_into: "Plan::Story.RecordPrMergeableCheckResult"
+    driven on "Hecks::Plan::Story.StoryChecksRequested" do |event|
+      run "gh pr view sq/{id} --json state,mergeable,statusCheckRollup --jq 'if .state==\"OPEN\" and .mergeable==\"MERGEABLE\" and ([.statusCheckRollup[]|select(.conclusion!=\"SUCCESS\" and .conclusion!=null)]|length==0) then empty else halt_error(1) end'", result_into: "Hecks::Plan::Story.RecordPrMergeableCheckResult"
     end
   end
 end

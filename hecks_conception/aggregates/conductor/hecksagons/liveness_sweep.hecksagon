@@ -18,8 +18,8 @@ Hecks.hecksagon "Conductor" do
   # its story becomes re-claimable. Nothing new is built downstream ; the sweep
   # only has to declare the Stale -> MarkDead hop and the cascade does the rest.
   adapter "LivenessSweep" do
-    driven on "Conductor::Sweeper.Ticked" do |event|
-      dispatch "Conductor::Worker.MarkDead", for_each: { from: "Conductor::Worker.Stale", where: { now: "{now}" } }, id: "{worker_id}"
+    driven on "Hecks::Conductor::Conductor::Sweeper.Ticked" do |event|
+      dispatch "Hecks::Conductor::Conductor::Worker.MarkDead", for_each: { from: "Hecks::Conductor::Conductor::Worker.Stale", where: { now: "{now}" } }, id: "{worker_id}"
     end
   end
 end

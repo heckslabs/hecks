@@ -11,7 +11,7 @@ Hecks.behaviors "Driving" do
   # ── Driver : AddDispatch appends one ordered command per tick ──
   test "AddDispatch appends an ordered command to the Driver" do
     tests "AddDispatch", on: "Driver"
-    input  dispatch_id: "LogConsolidation:0", command: "EventSourcing::Consolidation.Consolidate", order: 0, when: "—"
+    input  dispatch_id: "LogConsolidation:0", command: "Hecks::Framework::EventSourcing::Consolidation.Consolidate", order: 0, when: "—"
     expect dispatches_size: 1
   end
 

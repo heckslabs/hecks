@@ -5,14 +5,14 @@ Hecks.hecksagon "Plan" do
   # synchronously — Sprint emits, the Story flag follows. {id} is the activated/closed
   # sprint number ; {ref} is each matched Story.
   adapter "SeedSprintActiveOnActivation" do
-    driven on "Plan::Sprint.SprintActivated" do |event|
-      dispatch "Plan::Story.MarkSprintActive", for_each: { from: "Plan::Story.BySprint", where: { sprint: "{id}" } }, story: "{ref}"
+    driven on "Hecks::Plan::Sprint.SprintActivated" do |event|
+      dispatch "Hecks::Plan::Story.MarkSprintActive", for_each: { from: "Hecks::Plan::Story.BySprint", where: { sprint: "{id}" } }, story: "{ref}"
     end
   end
 
   adapter "ClearSprintActiveOnClosure" do
-    driven on "Plan::Sprint.SprintApproved" do |event|
-      dispatch "Plan::Story.ClearSprintActive", for_each: { from: "Plan::Story.BySprint", where: { sprint: "{id}" } }, story: "{ref}"
+    driven on "Hecks::Plan::Sprint.SprintApproved" do |event|
+      dispatch "Hecks::Plan::Story.ClearSprintActive", for_each: { from: "Hecks::Plan::Story.BySprint", where: { sprint: "{id}" } }, story: "{ref}"
     end
   end
 end

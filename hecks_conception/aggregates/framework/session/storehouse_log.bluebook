@@ -34,7 +34,7 @@ Hecks.bluebook "SessionLog", version: "2026.05.21.1" do
 
     value_object "Command" do
       # The fully-qualified verb dispatched — Domain::Aggregate.Command
-      # (e.g. "Voice::Voice.Speak", "Tools::ShellTool.Bash").
+      # (e.g. "Voice::Voice.Speak", "Hecks::Framework::Tools::ShellTool.Bash").
       attribute :value, String
     end
 

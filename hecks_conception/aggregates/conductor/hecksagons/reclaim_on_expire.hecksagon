@@ -3,8 +3,8 @@ Hecks.hecksagon "Conductor" do
   # On LeaseExpired, dispatch Reclaim. No args — the lease identity flows
   # through the cascade hint (event aggregate_id). No FK, no event.<ref>.
   adapter "ReclaimOnExpire" do
-    driven on "Conductor::Lease.LeaseExpired" do |event|
-      dispatch "Conductor::Lease.Reclaim"
+    driven on "Hecks::Conductor::Conductor::Lease.LeaseExpired" do |event|
+      dispatch "Hecks::Conductor::Conductor::Lease.Reclaim"
     end
   end
 end

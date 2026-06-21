@@ -120,28 +120,28 @@ Hecks.bluebook "Cargo", version: "2026.05.29.1" do
 
   policy "RunBuildOnBuildCompleted" do
     on "Cargo.BuildCompleted"
-    trigger "Primitive::Process.Spawn"
+    trigger "Hecks::Framework::Primitive::Process.Spawn"
     with "cmd", "bin/cargo_build"
     with "result_into", "Cascade.RecordResult"
   end
 
   policy "RunTestOnTestsRun" do
     on "Cargo.TestsRun"
-    trigger "Primitive::Process.Spawn"
+    trigger "Hecks::Framework::Primitive::Process.Spawn"
     with "cmd", "bin/cargo_test"
     with "result_into", "Cascade.RecordResult"
   end
 
   policy "RunCheckOnCheckCompleted" do
     on "Cargo.CheckCompleted"
-    trigger "Primitive::Process.Spawn"
+    trigger "Hecks::Framework::Primitive::Process.Spawn"
     with "cmd", "bin/cargo_check"
     with "result_into", "Cascade.RecordResult"
   end
 
   policy "RunClippyOnClippyCompleted" do
     on "Cargo.ClippyCompleted"
-    trigger "Primitive::Process.Spawn"
+    trigger "Hecks::Framework::Primitive::Process.Spawn"
     with "cmd", "bin/cargo_clippy"
     with "result_into", "Cascade.RecordResult"
   end

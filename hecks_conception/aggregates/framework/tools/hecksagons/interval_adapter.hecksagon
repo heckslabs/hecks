@@ -23,7 +23,7 @@ Hecks.hecksagon "IntervalAdapter" do
 
   adapter "IntervalAdapter" do
     driving on interval "2s" do |signal|
-      dispatch "Tools::TaskTool.Get",
+      dispatch "Hecks::Framework::Tools::TaskTool.Get",
                id: "interval-adapter-smoke"
     end
   end

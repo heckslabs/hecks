@@ -20,7 +20,7 @@ Hecks.bluebook "GovernedDoor", version: "2026.06.21.1" do
 
     value_object "DoorPhrase" do
       # The fully-qualified storehouse-door command the caller must use
-      # instead (e.g. "Tools::ShellTool.Bash").
+      # instead (e.g. "Hecks::Framework::Tools::ShellTool.Bash").
       attribute :value, String
     end
 

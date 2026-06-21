@@ -16,9 +16,9 @@ Hecks.hecksagon "Conductor" do
   #     ({story} resolves record-first ; reference_to(Claim) via the id= fallback).
   # Driven adapters only fire on REAL command events, never on synthetic ones.
   adapter "ReclaimOnWorkerDied" do
-    driven on "Conductor::Worker.WorkerDied" do |event|
-      dispatch "Conductor::Lease.Reclaim", for_each: { from: "Conductor::Lease.HeldByWorker", where: { worker: "{id}" } }, id: "{worktree_path}"
-      dispatch "Conductor::Claim.Expire", for_each: { from: "Conductor::Claim.HeldByWorker", where: { worker: "{id}" } }, id: "{story}"
+    driven on "Hecks::Conductor::Conductor::Worker.WorkerDied" do |event|
+      dispatch "Hecks::Conductor::Conductor::Lease.Reclaim", for_each: { from: "Hecks::Conductor::Conductor::Lease.HeldByWorker", where: { worker: "{id}" } }, id: "{worktree_path}"
+      dispatch "Hecks::Conductor::Conductor::Claim.Expire", for_each: { from: "Hecks::Conductor::Conductor::Claim.HeldByWorker", where: { worker: "{id}" } }, id: "{story}"
     end
   end
 end

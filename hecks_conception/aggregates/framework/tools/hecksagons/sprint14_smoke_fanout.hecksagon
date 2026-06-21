@@ -16,8 +16,8 @@ Hecks.hecksagon "Sprint14SmokeFanout" do
   # Two records, one event — proof of fan-out at the runtime level.
 
   adapter "Sprint14SmokeFanout" do
-    driven on "Tools::ShellTool.BashRan" do |event|
-      dispatch "Tools::TaskTool.Get",
+    driven on "Hecks::Framework::Tools::ShellTool.BashRan" do |event|
+      dispatch "Hecks::Framework::Tools::TaskTool.Get",
                id: "sprint14-fanout-smoke"
     end
   end

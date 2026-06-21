@@ -3,26 +3,26 @@ Hecks.behaviors "GovernedDoor" do
 
   test "Register seeds a governed tool with its door equivalent" do
     tests "Register", on: "GovernedDoor"
-    input  tool: "Bash", door_equivalent: "Tools::ShellTool.Bash"
-    expect tool: "Bash", door_equivalent: "Tools::ShellTool.Bash", severity: "block"
+    input  tool: "Bash", door_equivalent: "Hecks::Framework::Tools::ShellTool.Bash"
+    expect tool: "Bash", door_equivalent: "Hecks::Framework::Tools::ShellTool.Bash", severity: "block"
   end
 
   test "Register emits GovernedToolRegistered" do
     tests "Register", on: "GovernedDoor"
-    input  tool: "Edit", door_equivalent: "Tools::FileTool.Edit"
+    input  tool: "Edit", door_equivalent: "Hecks::Framework::Tools::FileTool.Edit"
     expect_event "GovernedToolRegistered"
   end
 
   test "RecordBlock stamps the last blocked time" do
     tests "RecordBlock", on: "GovernedDoor"
-    setup  "Register", tool: "Read", door_equivalent: "Tools::FileTool.Read"
+    setup  "Register", tool: "Read", door_equivalent: "Hecks::Framework::Tools::FileTool.Read"
     input  tool: "Read", last_blocked_at: "2026-05-26T05:00:00Z"
     expect last_blocked_at: "2026-05-26T05:00:00Z"
   end
 
   test "RecordBlock emits NativeToolBlocked" do
     tests "RecordBlock", on: "GovernedDoor"
-    setup  "Register", tool: "Grep", door_equivalent: "Tools::SearchTool.Grep"
+    setup  "Register", tool: "Grep", door_equivalent: "Hecks::Framework::Tools::SearchTool.Grep"
     input  tool: "Grep", last_blocked_at: "2026-05-26T05:01:00Z"
     expect_event "NativeToolBlocked"
   end
@@ -34,7 +34,7 @@ Hecks.behaviors "GovernedDoor" do
 
   test "LookupDoor returns the registered door for the queried tool" do
     tests "LookupDoor", on: "GovernedDoor", kind: :query
-    setup  "Register", tool: "Bash", door_equivalent: "Tools::ShellTool.Bash"
+    setup  "Register", tool: "Bash", door_equivalent: "Hecks::Framework::Tools::ShellTool.Bash"
     input  tool: "Bash"
     expect count: 1
   end

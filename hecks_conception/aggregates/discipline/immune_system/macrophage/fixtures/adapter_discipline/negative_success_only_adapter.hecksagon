@@ -16,11 +16,11 @@ Hecks.hecksagon "SuccessOnlyAdapter" do
   # nature of this violation.
 
   adapter "SuccessOnlyAdapter" do
-    driven on "Tools::ShellTool.BashRan" do |event|
-      dispatch "Tools::ShellTool.BashCompleted",
+    driven on "Hecks::Framework::Tools::ShellTool.BashRan" do |event|
+      dispatch "Hecks::Framework::Tools::ShellTool.BashCompleted",
                invocation_id: event.invocation_id,
                output: event.stdout
-      # MISSING : dispatch "Tools::ShellTool.BashFailed", ...
+      # MISSING : dispatch "Hecks::Framework::Tools::ShellTool.BashFailed", ...
     end
   end
 end

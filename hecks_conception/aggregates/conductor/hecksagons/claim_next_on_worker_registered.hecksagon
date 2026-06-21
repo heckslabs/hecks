@@ -12,8 +12,8 @@ Hecks.hecksagon "Conductor" do
   # into volunteer_pull's SEAM 2a/2b (Start -> Grant). Driven adapters only fire
   # on REAL command events, never on synthetic ones.
   adapter "ClaimNextOnWorkerRegistered" do
-    driven on "Conductor::Worker.WorkerRegistered" do |event|
-      dispatch "Conductor::Claim.Acquire", for_each: { from: "Plan::Story.NextClaimable", where: {} }, story: "{ref}", worker: "{worker_id}", claimed_at: "{now}"
+    driven on "Hecks::Conductor::Conductor::Worker.WorkerRegistered" do |event|
+      dispatch "Hecks::Conductor::Conductor::Claim.Acquire", for_each: { from: "Hecks::Plan::Story.NextClaimable", where: {} }, story: "{ref}", worker: "{worker_id}", claimed_at: "{now}"
     end
   end
 end

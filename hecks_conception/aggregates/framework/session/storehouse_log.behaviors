@@ -4,7 +4,7 @@ Hecks.behaviors "SessionLog" do
   test "Record captures a synchronous dispatch" do
     tests "Record", on: "StorehouseEntry"
     input  invocation_id:        { value: "inv_abc123" },
-           command:              { value: "Tools::ShellTool.Bash" },
+           command:              { value: "Hecks::Framework::Tools::ShellTool.Bash" },
            summary:              { value: "list inbox cards" },
            args_json:            { value: "{\"shell_command\":\"ls inbox\"}" },
            outcome:              { value: "ok" },
@@ -17,7 +17,7 @@ Hecks.behaviors "SessionLog" do
            source_tag:           { value: "operator" },
            metadata_json:        { value: "{\"aggregates_dir\":\"hecks_conception\",\"role\":\"Daemon\"}" },
            events:               []
-    expect command:    { value: "Tools::ShellTool.Bash" },
+    expect command:    { value: "Hecks::Framework::Tools::ShellTool.Bash" },
            outcome:    { value: "ok" },
            elapsed_ms: { value: 5283 },
            kind:       { value: "sync" },

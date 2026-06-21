@@ -3,7 +3,7 @@ Hecks.hecksagon "Conductor" do
   # reclaimed. Path is the Lease identity ({worktree_path}) — no FK. Spawned
   # in-process via the `run` leaf ; no bin script, no canned.
   adapter "WorktreeRemove" do
-    driven on "Conductor::Lease.LeaseReclaimed" do |event|
+    driven on "Hecks::Conductor::Conductor::Lease.LeaseReclaimed" do |event|
       run "git worktree remove --force {id}"
     end
   end

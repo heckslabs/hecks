@@ -213,7 +213,7 @@ Hecks.bluebook "Inbox", version: "2026.05.17.1" do
   # whether the loop or a manual dispatch fired it).
   policy "RunPollOnInboxChecked" do
     on "Inbox.InboxChecked"
-    trigger "Primitive::Process.Spawn"
+    trigger "Hecks::Framework::Primitive::Process.Spawn"
     with "cmd", "node bin/inbox_poll.mjs"
     with "result_into", "Cascade.RecordResult"
   end

@@ -97,6 +97,6 @@ Hecks.bluebook "ForwarderPoc", version: "2026.05.22.1" do
   # OldHome (and, in the real corpus, on several macrophage siblings).
   policy "ForwardRecordImperativeEdit" do
     on "OldRecordImperativeEditRequested"
-    trigger "ForwarderPoc::NewHome.RecordImperativeEdit"
+    trigger "Hecks::Discipline::ImmuneSystem::ForwarderPoc::NewHome.RecordImperativeEdit"
   end
 end

@@ -5,8 +5,8 @@ Hecks.hecksagon "Plan" do
   # Sprint stores no competing list. {story} is the added story ref ; {id} is the sprint
   # number.
   adapter "AssignStoryOnSprintAdd" do
-    driven on "Plan::Sprint.StoryAddedToSprint" do |event|
-      dispatch "Plan::Story.AssignToSprint", id: "{story}", sprint_ref: "{id}"
+    driven on "Hecks::Plan::Sprint.StoryAddedToSprint" do |event|
+      dispatch "Hecks::Plan::Story.AssignToSprint", id: "{story}", sprint_ref: "{id}"
     end
   end
 end

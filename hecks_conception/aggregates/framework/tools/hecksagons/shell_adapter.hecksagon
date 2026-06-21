@@ -19,8 +19,8 @@ Hecks.hecksagon "ShellAdapter" do
   # both land.
 
   adapter "ShellAdapter" do
-    driven on "Tools::ShellTool.BashRan" do |event|
-      dispatch "Tools::TaskTool.Get",
+    driven on "Hecks::Framework::Tools::ShellTool.BashRan" do |event|
+      dispatch "Hecks::Framework::Tools::TaskTool.Get",
                id: "shell-adapter-smoke"
     end
   end

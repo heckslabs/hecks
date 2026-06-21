@@ -30,9 +30,9 @@ Hecks.hecksagon "AgentToolAdapter" do
   # substrate behind this stub does.
 
   adapter "AgentToolAdapter" do
-    driven on "Tools::AgentTool.AgentMessageSent" do |event|
+    driven on "Hecks::Framework::Tools::AgentTool.AgentMessageSent" do |event|
       # TODO: when `driven on` grammar fires — replace this canned stub with:
-      #   dispatch "AgentInbox::AgentMessage.Send",
+      #   dispatch "Hecks::Framework::AgentInbox::AgentMessage.Send",
       #            id: event.id, agent_id: event.to, body: event.message, mid: event.id
       # The send-message binary provides the synchronous face in the meantime.
       dispatch "Tools::Cascade.RecordResult",

@@ -8,8 +8,8 @@ Hecks.hecksagon "Plan" do
   # "both rev-lists empty" (no unpushed AND no unpulled). A divergent or stale
   # local main produces a non-empty diff → exit 1 → main_up_to_date = false.
   adapter "MainUpToDateLiveCheck" do
-    driven on "Plan::Story.StoryChecksRequested" do |event|
-      run "git diff --quiet main origin/main", result_into: "Plan::Story.RecordMainUpToDateCheckResult"
+    driven on "Hecks::Plan::Story.StoryChecksRequested" do |event|
+      run "git diff --quiet main origin/main", result_into: "Hecks::Plan::Story.RecordMainUpToDateCheckResult"
     end
   end
 end

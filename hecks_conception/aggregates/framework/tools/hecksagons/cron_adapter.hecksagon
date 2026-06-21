@@ -14,7 +14,7 @@ Hecks.hecksagon "CronAdapter" do
 
   adapter "CronAdapter" do
     driving on cron "*/5 * * * *" do |signal|
-      dispatch "Tools::TaskTool.Get",
+      dispatch "Hecks::Framework::Tools::TaskTool.Get",
                id: "cron-adapter-smoke"
     end
   end

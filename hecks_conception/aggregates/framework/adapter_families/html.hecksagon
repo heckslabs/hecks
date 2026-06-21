@@ -4,7 +4,7 @@ Hecks.adapter_family "html" do
   # records as HTML. Two transports, same render :
   #   - SERVED  : bind an HTTP route (get: / post:) ; the response IS the HTML
   #               (the diagram / web view). A consumer declares
-  #                 adapter :html, query: "Pizzas::Order.all", get: "/orders"
+  #                 adapter :html, query: "Hecks::Catalog::Pizzas::Order.all", get: "/orders"
   #   - CHAINED : fire on trigger_on, dispatch the HTML into result_into
   #               (symmetric with :markdown).
   # Sibling of :markdown — same report port, distinct adapter, no format

@@ -6,14 +6,14 @@ Hecks.hecksagon "Plan" do
   # query is aggregate-local (contains where op) ; no aggregate reads a sibling. {id} =
   # the resolving story ref ; record-first the matched dependent story's ref.
   adapter "ResolveDepsOnStoryApproved" do
-    driven on "Plan::Story.StoryApproved" do |event|
-      dispatch "Plan::Story.DecUnresolvedDeps", for_each: { from: "Plan::Story.DependentsOf", where: { dep: "{id}" } }, id: "{ref}"
+    driven on "Hecks::Plan::Story.StoryApproved" do |event|
+      dispatch "Hecks::Plan::Story.DecUnresolvedDeps", for_each: { from: "Hecks::Plan::Story.DependentsOf", where: { dep: "{id}" } }, id: "{ref}"
     end
   end
 
   adapter "ResolveDepsOnStoryCancelled" do
-    driven on "Plan::Story.StoryCancelled" do |event|
-      dispatch "Plan::Story.DecUnresolvedDeps", for_each: { from: "Plan::Story.DependentsOf", where: { dep: "{id}" } }, id: "{ref}"
+    driven on "Hecks::Plan::Story.StoryCancelled" do |event|
+      dispatch "Hecks::Plan::Story.DecUnresolvedDeps", for_each: { from: "Hecks::Plan::Story.DependentsOf", where: { dep: "{id}" } }, id: "{ref}"
     end
   end
 end

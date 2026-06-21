@@ -4,7 +4,7 @@ Hecks.adapter_family "markdown" do
   # markdown, and chains the string to :result_into as a follow-on dispatch.
   # A consumer declares
   #   adapter :markdown, name: :turn_pulse,
-  #           query: "Plan::Story.board",
+  #           query: "Hecks::Plan::Story.board",
   #           trigger_on: "AiTurn.TurnFinished",
   #           result_into: "AiSession.Inject"
   # No layout logic on the adapter ; the kernel renders the records generically

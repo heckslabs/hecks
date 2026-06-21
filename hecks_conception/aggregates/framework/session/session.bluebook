@@ -123,7 +123,7 @@ Hecks.bluebook "Session", version: "2026.05.13.1" do
   # whichever cwd the SessionStart hook or a manual dispatch fires from.
   policy "RunRecallOnContextRebuilt" do
     on "Session.ContextRebuilt"
-    trigger "Primitive::Process.Spawn"
+    trigger "Hecks::Framework::Primitive::Process.Spawn"
     with "cmd", "/Users/christopheryoung/Projects/hecks/bin/session-recall"
     with "result_into", "Cascade.RecordResult"
   end
