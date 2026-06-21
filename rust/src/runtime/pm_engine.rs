@@ -420,6 +420,7 @@ mod tests {
             aggregate_type: "Order".into(),
             aggregate_id: order_id.into(),
             data,
+            realm_path: None,
         }
     }
 

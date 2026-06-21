@@ -43,7 +43,7 @@ Hecks.hecksagon "AgentInbox" do
   end
 
   adapter "InboxAutoReply" do
-    driven on "AgentInbox::InboxPoller.Polled" do |event|
+    driven on "Hecks::Framework::AgentInbox::InboxPoller.Polled" do |event|
       dispatch "Hecks::Framework::AgentInbox::AgentMessage.Reply",
                for_each: { from: "Hecks::Framework::AgentInbox::AgentMessage.AllUnread", where: {} },
                id: "{mid}",

@@ -366,7 +366,14 @@ fn event_ref_matches(event_ref: &str, event: &Event) -> bool {
     if evt_name != event.name { return false; }
     // `ctx_agg` is either `Context::Aggregate` or just `Aggregate`.
     let agg_only = ctx_agg.rsplit("::").next().unwrap_or(ctx_agg);
-    agg_only == event.aggregate_type
+    if agg_only != event.aggregate_type { return false; }
+    // Realm/context enforcement — symmetric with the command resolver (slice 3),
+    // the SAME shared heki helper. A realm-qualified event ref must match the
+    // EMITTER's stamped realm_path, carried on the event itself. Lenient : a
+    // 2-seg ref or an unstamped emitter passes. So two same-named aggregates in
+    // different realms no longer cross-fire each other's events.
+    let (realm, context) = crate::heki::fqn_realm_context(event_ref);
+    crate::heki::realm_context_matches(event.realm_path.as_deref(), realm.as_deref(), context.as_deref())
 }
 
 /// Convert the parser's source-token attrs (string values still carry
@@ -511,6 +518,32 @@ mod tests {
         let merged = merge_wrapped_and_declared(&wrapped, &declared);
         assert_eq!(merged.get("output"), Some(&Value::Str("real-ack".to_string())));
         assert_eq!(merged.get("exit_code"), Some(&Value::Int(0)));
+    }
+
+    // Event routing is realm-aware (symmetric with the command resolver) :
+    // a `driven on` ref must match the EMITTER's stamped realm_path, carried
+    // on the event. Legacy 2-seg refs stay lenient ; cross-realm no longer fires.
+    #[test]
+    fn event_ref_matches_enforces_realm_and_context() {
+        use crate::runtime::event_bus::Event;
+        use std::collections::HashMap;
+        let evt = Event {
+            name: "Polled".into(),
+            aggregate_type: "InboxPoller".into(),
+            aggregate_id: "x".into(),
+            data: HashMap::new(),
+            realm_path: Some("hecks/framework".into()),
+        };
+        // Canonical ref matching the emitter's realm + context → fires.
+        assert!(event_ref_matches("Hecks::Framework::AgentInbox::InboxPoller.Polled", &evt));
+        // Legacy 2-seg ref → lenient, still fires.
+        assert!(event_ref_matches("InboxPoller.Polled", &evt));
+        // Wrong realm → rejected.
+        assert!(!event_ref_matches("Miette::Body::AgentInbox::InboxPoller.Polled", &evt));
+        // Wrong context → rejected.
+        assert!(!event_ref_matches("Hecks::Wrongctx::AgentInbox::InboxPoller.Polled", &evt));
+        // Wrong event name → rejected.
+        assert!(!event_ref_matches("Hecks::Framework::AgentInbox::InboxPoller.Other", &evt));
     }
 }
 
