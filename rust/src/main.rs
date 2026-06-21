@@ -4710,6 +4710,16 @@ fn dispatch_hecksagon(agg_dir: &str, command: &str, attrs: std::collections::Has
                     std::process::exit(1);
                 }
             }
+        // Reject an undeclared attr key at the door — else it is silently
+        // dropped before the adapter runs (the search-tool finickiness).
+        // Shared with the warm serve path via storehouse::command_attrs.
+        if let Some((bad, allowed)) =
+            storehouse::command_attrs::unknown_command_attr(&rt.domain, command, &attrs)
+        {
+            eprintln!("dispatch error: {}",
+                storehouse::command_attrs::unknown_attr_message(command, &bad, &allowed));
+            std::process::exit(1);
+        }
         let rt_attrs: std::collections::HashMap<String, storehouse::runtime::Value> = attrs.iter()
             .map(|(k, v)| (k.clone(), match v {
                 serde_json::Value::String(s) => storehouse::runtime::Value::Str(s.clone()),

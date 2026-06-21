@@ -113,6 +113,22 @@ pub(crate) fn handle_request(
         let result = rt.resolve_query_qualified(ctx.as_deref(), &agg, &bare_verb, &str_attrs);
         format!("{}{}", RESULT_SENTINEL, result)
     } else {
+        // Reject an undeclared attr key at the door, BEFORE rt.dispatch
+        // silently drops it (the adapter layer only ever sees declared
+        // attrs). Same guard the one-shot dispatch_hecksagon applies —
+        // shared via command_attrs — but a resident server NEVER exits, so
+        // it returns an error sentinel instead of process::exit.
+        let attr_map: HashMap<String, String> = attrs_pairs.iter()
+            .map(|(k, v)| (k.clone(), v.clone())).collect();
+        if let Some((bad, allowed)) =
+            crate::command_attrs::unknown_command_attr(&rt.domain, &command, &attr_map)
+        {
+            return format!("{}{}", ERROR_SENTINEL, serde_json::json!({
+                "ok": false,
+                "error": crate::command_attrs::unknown_attr_message(&command, &bad, &allowed),
+                "command": command,
+            }));
+        }
         let rt_attrs: HashMap<String, Value> = attrs_pairs.iter()
             .map(|(k, v)| (k.clone(), Value::Str(v.clone())))
             .collect();
