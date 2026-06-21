@@ -148,12 +148,32 @@ Hecks.bluebook "EventSourcing", version: "2026.06.19.1" do
           # Range pushdown PARTLY landed : a NON-NUMERIC target pushes to the SQL
           # backend as CAST(col AS TEXT) OP ? (lexical, index-backed), exact
           # against the oracle. But SEQUENCE is numeric, and a numeric target
-          # can't push lexically ("10" vs "5") — so the sequence tail stays a
-          # runtime range scan (Log ordered by sequence ; read watermark+1 to
-          # head) until numeric range pushdown + an Event-Log sequence-range SEEK
-          # land. AtSequence is the equality slice and the building block of that
-          # scan.
+          # can't push lexically ("10" vs "5"). The Event-Log sequence-range
+          # SEEK now backs the numeric tail : the offset index carries the
+          # sequence column, binary-searched to the contiguous byte slice
+          # (Event.SinceSequence ; Snapshot.ReadForward folds it forward). The
+          # numeric SQL-backend range is the remaining lift. AtSequence is the
+          # equality slice and the building block of that scan.
+          #
+          # NOTE : keys on the bare `sequence` VO. In-memory behaviors store it
+          # as a string and match by Eq ; the live storehouse stores it nested
+          # ({"value": N}), where bare-VO Eq does not yet resolve to the int (a
+          # pre-existing behaviors-vs-storehouse VO-representation gap, tracked
+          # separately). The sequence-range SEEK that Snapshot fall-forward needs
+          # runs through SinceSequence, which drives the nested value directly.
       where(sequence: seq)
+    end
+
+    query "SinceSequence" do |sequence|
+      # The watermark TAIL : every event STRICTLY AFTER a sequence, in order
+      # — the input Snapshot's fall-forward folds (read watermark+1..head).
+      # Backed by the Event-Log sequence-range SEEK : the offset index carries
+      # the sequence column, so this binary-searches to the contiguous byte
+      # slice instead of streaming the whole Log — O(tail), not O(whole-log).
+      # Keys on sequence.value (the nested int), like AtSequence : the runtime
+      # INJECTS the `sequence.value > sequence` range clause (the where() DSL
+      # can't address a dotted key portably) and drives the seek through it.
+      description "Every event strictly after a sequence — the Snapshot fall-forward tail, backed by the sequence-range seek"
     end
 
     query "ForAggregate" do |aggregate_id|
@@ -295,13 +315,16 @@ Hecks.bluebook "EventSourcing", version: "2026.06.19.1" do
   # carry ordered predicates (Gt/Gte/Lt/Lte) in the matcher, so the tail is
   # now EXPRESSIBLE. Range pushdown PARTLY landed : a NON-NUMERIC target pushes
   # to SQL as CAST(col AS TEXT) OP ? (lexical, index-backed). But the watermark
-  # tail keys on SEQUENCE (numeric), which can't push lexically — so it stays a
-  # runtime sequence range scan until numeric range pushdown + an Event-Log
-  # sequence-range SEEK land (the remaining lift ; Eq pushdown + indexes +
-  # non-numeric ranges already landed in the where() overhaul). Event.AtSequence
-  # is the equality slice ; the fall-forward scan is its ordered generalisation.
+  # tail keys on SEQUENCE (numeric), which can't push lexically. The Event-Log
+  # sequence-range SEEK now backs it : the offset index carries the sequence
+  # column, binary-searched to the contiguous slice, and Snapshot.ReadForward
+  # folds that tail forward onto the cache (O(tail), not O(whole-log)). The
+  # numeric SQL-backend range is the remaining lift ; Eq pushdown + indexes +
+  # non-numeric SQL ranges already landed in the where() overhaul. Event.
+  # AtSequence is the equality slice ; the fall-forward scan is its ordered
+  # generalisation.
 
-  aggregate "Snapshot", "A cached fold of a projection at a sequence watermark. Identified by projection_name. Capture records the folded state + watermark ; on read the runtime range-scans the Log from watermark+1 to head and folds those deltas forward, so a snapshot is never wrong, only stale. The strictly-after tail is a sequence range scan (where() carries ordered predicates ; range pushdown to the backend is the remaining lift). Threshold/on-demand cadence, not time-based." do
+  aggregate "Snapshot", "A cached fold of a projection at a sequence watermark. Identified by projection_name. Capture records the folded state + watermark ; on read (ReadForward) the runtime SEEKS the Log tail from watermark+1 to head via the Event-Log sequence-range index and folds those deltas forward, so a snapshot is never wrong, only stale, and the read is O(tail) not O(whole-log). The numeric SQL-backend range stays the remaining lift. Threshold/on-demand cadence, not time-based." do
     identified_by :projection_name
 
     attribute :projection_name, ProjectionName
@@ -335,6 +358,20 @@ Hecks.bluebook "EventSourcing", version: "2026.06.19.1" do
       then_set :watermark, to: :watermark
       then_set :state,     to: :state
       emits "SnapshotCaptured"
+    end
+
+    query "ReadForward" do |projection_name|
+      # The projection read AS OF NOW : the cached snapshot rows PLUS the fold
+      # of the watermark TAIL — every Event with sequence.value > watermark,
+      # fetched via the Event-Log sequence-range SEEK (binary-search the offset
+      # index, read the contiguous slice), folded forward onto the cache
+      # (last-write-wins). A named query the runtime special-cases (like
+      # CausationTrace) : it never returns stale state because the tail is
+      # always re-folded on read, and it is O(tail), not O(whole-log). No
+      # snapshot captured yet -> watermark 0 -> a full replay. Serves the
+      # trivial current-state projection (Row key "agg::id::field") ;
+      # custom-projection reducers are a later lift.
+      where(projection_name: projection_name)
     end
   end
 

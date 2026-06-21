@@ -86,8 +86,10 @@ pub fn append_records(
     let l0 = std::fs::metadata(global).map(|m| m.len()).unwrap_or(0);
     let mut next = read_next_seq(global);
     let mut buf = String::new();
-    // (start_offset, aggregate_name) for each new line, for the offset index.
-    let mut entries: Vec<(u64, String)> = Vec::new();
+    // (start_offset, aggregate_name, sequence) for each new line, for the
+    // offset index : name backs the Eq-by-name seek, sequence backs the
+    // sequence-range seek (both keys live in one index).
+    let mut entries: Vec<(u64, String, u64)> = Vec::new();
     let mut offset = l0;
     for rec in batch {
         // The line IS the Event record : the shard's opaque `event` map, stamped
@@ -104,7 +106,7 @@ pub fn append_records(
             .unwrap_or("")
             .to_string();
         let line = serde_json::Value::Object(r).to_string();
-        entries.push((offset, name));
+        entries.push((offset, name, next));
         offset += line.len() as u64 + 1;
         buf.push_str(&line);
         buf.push('\n');
