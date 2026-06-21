@@ -804,6 +804,47 @@ pub fn strip_chain_segments(mut segs: Vec<String>) -> Option<String> {
     Some(segs.join("/"))
 }
 
+/// The (Realm, Context) of a bluebook — the first two address segments of
+/// `Realm::Context::Bluebook::Aggregate.command`. REALM is the top project
+/// folder under ~/Projects (`hecks`, `miette`). CONTEXT is the FOLDER chain
+/// down to the bluebook's own directory (NOT the `category` keyword — the
+/// physical folder, since category is semantic and will eventually be plural).
+/// Container dirs (`hecks_conception` / `aggregates` / `bluebook`) are stripped
+/// and the `.bluebook` filename dropped. Context is None when the bluebook sits
+/// directly under the realm (then the address is `Realm::Bluebook::Aggregate`).
+/// None realm when the path is not under ~/Projects (a foreign / isolated root).
+pub fn folder_address(file_path: &str) -> (Option<String>, Option<String>) {
+use std::path::{Component, Path};
+let abs = std::fs::canonicalize(file_path)
+    .unwrap_or_else(|_| Path::new(file_path).to_path_buf());
+let projects_raw = expand_tilde("~/Projects");
+let projects = std::fs::canonicalize(&projects_raw)
+    .unwrap_or_else(|_| Path::new(&projects_raw).to_path_buf());
+let Ok(rel) = abs.strip_prefix(&projects) else { return (None, None); };
+let segs: Vec<String> = rel.components()
+    .filter_map(|c| match c {
+        Component::Normal(s) => s.to_str().map(|x| x.to_string()),
+        _ => None,
+    })
+    .collect();
+folder_address_segments(segs)
+}
+
+/// Pure segment transform for `folder_address` — drop a trailing `*.bluebook`
+/// filename, strip the `hecks_conception` / `aggregates` / `bluebook` container
+/// dirs, then split : first remaining segment = Realm, the rest = Context
+/// (joined by `/`). `(None, None)` when nothing meaningful remains.
+pub fn folder_address_segments(mut segs: Vec<String>) -> (Option<String>, Option<String>) {
+if segs.last().map_or(false, |s| s.ends_with(".bluebook")) {
+    segs.pop();
+}
+segs.retain(|s| s != "hecks_conception" && s != "aggregates" && s != "bluebook");
+if segs.is_empty() { return (None, None); }
+let realm = segs.remove(0);
+let context = if segs.is_empty() { None } else { Some(segs.join("/")) };
+(Some(realm), context)
+}
+
 /// The ONE world-store resolver : realm override first, then `:default`
 /// folder-derivation. `None` when no nearby world opts into either — caller
 /// falls back to its legacy path. Shared by the writer (find_world_heki_dir)
@@ -1006,7 +1047,7 @@ mod world_resolution_tests {
 //! World-aware store resolution — realm override + :default folder chain.
 //! Hermetic : no env mutation, absolute dirs only, so these never race on
 //! `$HOME` or a shared temp dir.
-use super::{expand_tilde, resolve_realm_dir, strip_chain_segments};
+use super::{expand_tilde, folder_address_segments, resolve_realm_dir, strip_chain_segments};
 use std::fs;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -1034,6 +1075,51 @@ fn default_chain_strips_aggregates_and_drops_bluebook_filename() {
 fn default_chain_too_shallow_is_none() {
     assert_eq!(strip_chain_segments(segs(&["hecks"])), None);
     assert_eq!(strip_chain_segments(segs(&["aggregates", "bluebook"])), None);
+}
+
+// ---- folder_address : (Realm, Context) of the FQN ----
+
+#[test]
+fn folder_address_realm_plus_context() {
+    // …/hecks/hecks_conception/aggregates/language/grammar/sentence.bluebook
+    // → realm "hecks", context "language/grammar" (containers stripped, file dropped).
+    assert_eq!(
+        folder_address_segments(segs(&["hecks", "hecks_conception", "aggregates", "language", "grammar", "sentence.bluebook"])),
+        (Some("hecks".to_string()), Some("language/grammar".to_string()))
+    );
+}
+
+#[test]
+fn folder_address_deep_keeps_the_bluebooks_own_folder() {
+    // The bluebook's own folder stays in the Context (the plan's fibroblast example).
+    assert_eq!(
+        folder_address_segments(segs(&["hecks", "hecks_conception", "aggregates", "discipline", "immune_system", "repair_cell", "fibroblast", "fibroblast.bluebook"])),
+        (Some("hecks".to_string()), Some("discipline/immune_system/repair_cell/fibroblast".to_string()))
+    );
+}
+
+#[test]
+fn folder_address_miette_is_its_own_realm() {
+    // Miette's body is a sibling realm — the multi-root corpus the resolver disambiguates.
+    assert_eq!(
+        folder_address_segments(segs(&["miette", "body", "cycles", "heartbeat.bluebook"])),
+        (Some("miette".to_string()), Some("body/cycles".to_string()))
+    );
+}
+
+#[test]
+fn folder_address_no_context_directly_under_realm() {
+    // Bluebook directly under the realm → Realm::Bluebook::Aggregate (context None).
+    assert_eq!(
+        folder_address_segments(segs(&["hecks", "hecks_conception", "aggregates", "pizzas.bluebook"])),
+        (Some("hecks".to_string()), None)
+    );
+}
+
+#[test]
+fn folder_address_empty_is_none() {
+    assert_eq!(folder_address_segments(segs(&["aggregates", "bluebook"])), (None, None));
+    assert_eq!(folder_address_segments(segs(&[])), (None, None));
 }
 
 fn tempdir(tag: &str) -> std::path::PathBuf {
