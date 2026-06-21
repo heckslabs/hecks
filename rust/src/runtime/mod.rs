@@ -110,6 +110,11 @@ pub mod sqlite_repository {
         pub fn seed_record(&mut self, state: AggregateState) { unreachable!() }
         pub fn next_id_value(&self) -> u64 { unreachable!() }
         pub fn set_next_id(&mut self, value: u64) { unreachable!() }
+        pub fn query(
+            &self,
+            wheres: &[crate::ir::WhereClause],
+            attrs: &HashMap<String, String>,
+        ) -> Vec<AggregateState> { unreachable!() }
     }
 }
 // i-lazy — boot-map lazy hydration. Wraps Repository in a OnceCell so
@@ -182,6 +187,19 @@ pub mod drive_scheduler;
 pub mod event_shard;
 pub mod projection_fold;
 pub mod event_log;
+// Phase 1 of the where() overhaul — injection-safe SQL WHERE pushdown
+// builder + executor. Host-only (rusqlite) ; the wasm build uses the
+// heki/memory backend and never reaches it.
+#[cfg(not(target_arch = "wasm32"))]
+pub mod sql_query;
+// The SQL-pushdown ↔ where_matches parity oracle : asserts the
+// connection-executed prefilter never diverges from the in-memory
+// canonical matcher (contract-not-regex ; the two paths can't silently
+// drift). Host-only — exercises a real SqliteRepository.
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod sql_query_tests;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod query_parity_tests;
 // The merge half : tail N single-writer shards into the global ordered Log.
 pub mod event_merge;
 pub mod compute_functions;

@@ -111,12 +111,23 @@ impl Runtime {
             });
         }
 
-        // Generic query: walk repo.all(), apply wheres / order_by / limit.
-        // Reach for `all_qualified` so the (context, name) repo key is
-        // hit directly, bypassing the name-only HashMap-iter-order
-        // pick that drives the dream_content_smoke flake.
-        let state = self.all_qualified(resolved_context.as_deref(), &agg_name);
-        let mut filtered: Vec<&AggregateState> = state.into_iter()
+        // Generic query: get the candidate set, then apply wheres / order_by /
+        // limit. SQL backends prefilter at the connection (injection-safe bound
+        // params, index-ready) when the context is resolved ; `where_matches`
+        // below re-applies EVERY clause, so the prefilter can only narrow, never
+        // change, the result — parity by construction. Non-SQL backends return
+        // None here and keep the in-memory all() fast path (no clone), reached
+        // via `all_qualified` so the (context, name) repo key is hit directly,
+        // bypassing the name-only HashMap-iter-order pick that drove the
+        // dream_content_smoke flake.
+        let sql_candidates: Option<Vec<AggregateState>> = resolved_context.as_deref()
+            .and_then(|ctx| self.repositories.get(&repo_key(Some(ctx), &agg_name)))
+            .and_then(|repo| repo.query(&query_ir.wheres, attrs));
+        let candidate_refs: Vec<&AggregateState> = match sql_candidates {
+            Some(ref owned) => owned.iter().collect(),
+            None => self.all_qualified(resolved_context.as_deref(), &agg_name),
+        };
+        let mut filtered: Vec<&AggregateState> = candidate_refs.into_iter()
             .filter(|s| query_ir.wheres.iter().all(|w| match w.op {
                 crate::ir::WhereOp::NoneInState => {
                     // Cross-aggregate anti-join, point lookup. `field` is
