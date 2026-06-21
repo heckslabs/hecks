@@ -108,43 +108,22 @@ pub fn load_checkpoint(path: &Path) -> std::io::Result<Checkpoint> {
     Ok(cp)
 }
 
-/// Append a merged batch to the global Event log, IDEMPOTENTLY by event_id.
-/// The merge daemon is the SOLE writer of the global store, so whole-file heki
-/// is safe here (the clobber only ever bit concurrent writers). Idempotency is
-/// the crash-safety property : a record whose event_id is already in the global
-/// store is skipped, so a batch REPLAYED after a crash (global write durable
-/// but checkpoint not yet saved) produces NO duplicate. The global `sequence`
-/// is assigned HERE — store.len()+1, the authoritative monotonic order — not by
-/// the Event aggregate (single-writer model ; slice 3 must not re-add count+1).
-/// Returns the count of newly-written (non-duplicate) records.
+/// Append a merged batch to the global Event Log. The global Log is an
+/// APPEND-ONLY JSONL file (event_log.rs), NOT a whole-file heki store : heki
+/// is for snapshots, the LOG is append-only (Chris, 2026-06-21 ; the shards
+/// already abandoned heki for the same reason). So each merge appends the new
+/// batch — O(batch) — instead of decompress-insert-recompress the whole log
+/// (O(whole-log)) every 5s, and the file is directly `tail -f`-able.
+///
+/// The merge is the SOLE writer, so a plain O_APPEND is lossless. The global
+/// `sequence` is the persisted monotonic counter event_log owns (no whole-file
+/// read to compute store.len()). Dedup rides the per-shard CHECKPOINT (consumed
+/// bytes are never re-read — see merge_pass), with the fold's idempotence to
+/// duplicate deltas as the crash-replay backstop ; write_batch_to_global is a
+/// pure append. Returns the count appended.
 pub fn write_batch_to_global(global_path: &str, batch: &[ShardRecord]) -> Result<usize, String> {
-    use serde_json::Value;
-    let mut store = crate::heki::read(global_path)?;
-    let mut written = 0usize;
-    for rec in batch {
-        if store.contains_key(&rec.event_id) {
-            continue; // idempotent : already merged (crash-replay dedup)
-        }
-        let seq = store.len() as i64 + 1; // append-only -> len == max sequence
-        // The event payload IS the record : write the serialized Event
-        // verbatim (the true nested shape), then stamp the heki key (id), the
-        // origin shard, and the AUTHORITATIVE global sequence — overwriting the
-        // per-process sequence the writer carried (single-writer model).
-        let mut r: crate::heki::Record = rec.event.clone().into_iter().collect();
-        r.insert("id".into(), Value::String(rec.event_id.clone())); // heki dedup key
-        r.insert("shard".into(), Value::String(rec.shard.clone()));
-        let mut seqobj = serde_json::Map::new();
-        seqobj.insert("value".into(), Value::Number(seq.into()));
-        r.insert("sequence".into(), Value::Object(seqobj));
-        store.insert(rec.event_id.clone(), r);
-        written += 1;
-    }
-    crate::heki::write(
-        global_path,
-        &store,
-        crate::heki::WriteContext::OutOfBand { reason: "event-log-merge" },
-    )?;
-    Ok(written)
+    super::event_log::append_records(global_path, batch)
+        .map_err(|e| format!("event-log append {}: {}", global_path, e))
 }
 
 /// Persist a checkpoint map as JSON. Written by the sole merge daemon, so a
@@ -305,17 +284,21 @@ mod tests {
         w.append(&rec("a", 1, "t1")).unwrap();
         w.append(&rec("a", 2, "t2")).unwrap();
         let mut cp = Checkpoint::new();
-        let batch = merge_pass(&discover_shards(&dir).unwrap(), &mut cp).unwrap();
-        let global = dir.join("event.heki");
+        let global = dir.join("event.log");
         let gp = global.to_str().unwrap();
 
+        // First pass : merge_pass returns the 2 records ; the append lands them.
+        let batch = merge_pass(&discover_shards(&dir).unwrap(), &mut cp).unwrap();
         let n1 = write_batch_to_global(gp, &batch).unwrap();
-        assert_eq!(n1, 2, "first write lands both events");
-        // SIMULATE CRASH : checkpoint was NOT saved, so the same batch replays.
-        let n2 = write_batch_to_global(gp, &batch).unwrap();
-        assert_eq!(n2, 0, "replayed batch writes nothing new (idempotent by event_id)");
-        let store = crate::heki::read(gp).unwrap();
-        assert_eq!(store.len(), 2, "global log holds each event exactly once");
+        assert_eq!(n1, 2, "first pass appends both events");
+        // Idempotence MOVED : the global Log is now append-only JSONL (not a
+        // dedup'd heki map), so write_batch_to_global is a pure append. Crash-
+        // safety rides the CHECKPOINT — once it has advanced, a second merge_pass
+        // returns NOTHING, so each event lands in the global Log exactly once.
+        let batch2 = merge_pass(&discover_shards(&dir).unwrap(), &mut cp).unwrap();
+        assert!(batch2.is_empty(), "checkpoint prevents re-reading consumed shard bytes");
+        let states = crate::runtime::event_log::load_states(gp);
+        assert_eq!(states.len(), 2, "global Log holds each event exactly once");
         let _ = std::fs::remove_dir_all(&dir);
     }
 
