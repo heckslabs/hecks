@@ -65,7 +65,7 @@ impl Runtime {
         // flake : Mind::Musing + Musing::Musing + Musings::Musing all
         // present, only Musings::Musing has the seeded records, but
         // self.all("Musing") returned an empty repo half the time).
-        let (resolved_context, agg_name, _agg_refs, query_ir) = self.domain.aggregates.iter()
+        let (resolved_context, agg_name, _agg_refs, mut query_ir) = self.domain.aggregates.iter()
             .filter(|a| context.map_or(true, |ctx| {
                 a.context.as_ref().map_or(false, |c| c == ctx)
             }))
@@ -80,6 +80,20 @@ impl Runtime {
                 order_by: None,
                 limit: None,
             }));
+
+    // SinceSequence addresses the NESTED `sequence` field ({"value": N}) the
+    // where() DSL can't express portably (Ruby symbol syntax forbids `a.b:`),
+    // so the runtime INJECTS the dotted range clause here and reuses the normal
+    // seek + oracle path below. `:sequence` is a kwarg-ref resolved from attrs.
+    // (AtSequence keeps its bluebook `where(sequence: seq)` so the in-memory
+    // behaviors corpus, which stores the VO as a string, still matches it.)
+    if query_name == "SinceSequence" {
+        query_ir.wheres = vec![crate::ir::WhereClause {
+            field: "sequence.value".to_string(),
+            op: crate::ir::WhereOp::Gt,
+            value: ":sequence".to_string(),
+        }];
+    }
 
         // MatchInput: search loaded commands by phrase
         if query_name == "MatchInput" {
@@ -150,6 +164,72 @@ impl Runtime {
             return serde_json::json!({
                 "aggregate": agg_name, "query": query_name,
                 "state": serde_json::json!(records),
+            });
+        }
+
+        // Snapshot.ReadForward : fold the watermark TAIL forward onto the cached
+        // snapshot. Load the Snapshot (cached rows + watermark), SEEK every Event
+        // with sequence.value > watermark (the Event-Log sequence-range fast path,
+        // via repo.query -> load_filtered), and apply those deltas forward
+        // (last-write-wins). No snapshot yet -> watermark 0 -> a full replay. Serves
+        // the trivial current-state projection (key "agg::id::field") ; a snapshot
+        // is never wrong, only stale. A named query the engine special-cases.
+        if query_name == "ReadForward" {
+            let pname = attrs.get("projection_name").cloned().unwrap_or_default();
+            let (mut rows, watermark): (std::collections::HashMap<String, String>, i64) =
+                match self.find("Snapshot", &pname) {
+                    Some(snap) => {
+                        let wm = match snap.get("watermark") {
+                            Value::Map(m) => m.get("value").and_then(|v| v.as_int()).unwrap_or(0),
+                            Value::Int(i) => *i,
+                            other => other.to_string().parse().unwrap_or(0),
+                        };
+                        let mut r = std::collections::HashMap::new();
+                        if let Value::List(items) = snap.get("state") {
+                            for it in items {
+                                if let Value::Map(m) = it {
+                                    let k = m.get("key").map(|v| v.to_string()).unwrap_or_default();
+                                    let v = m.get("value").map(|v| v.to_string()).unwrap_or_default();
+                                    if !k.is_empty() {
+                                        r.insert(k, v);
+                                    }
+                                }
+                            }
+                        }
+                        (r, wm)
+                    }
+                    None => (std::collections::HashMap::new(), 0),
+                };
+            // SEEK the tail : sequence.value > watermark (range fast path), then the
+            // oracle re-filters — the same prefilter+oracle the generic path uses.
+            let tail_wheres = vec![crate::ir::WhereClause {
+                field: "sequence.value".to_string(),
+                op: crate::ir::WhereOp::Gt,
+                value: watermark.to_string(),
+            }];
+            let no_attrs = std::collections::HashMap::new();
+            let owned = self
+                .repositories
+                .get(&repo_key(Some("EventSourcing"), "Event"))
+                .and_then(|repo| repo.query(&tail_wheres, &no_attrs));
+            let tail_refs: Vec<&AggregateState> = match owned {
+                Some(ref o) => o.iter().collect(),
+                None => self.all_qualified(Some("EventSourcing"), "Event"),
+            };
+            let tail: Vec<&AggregateState> = tail_refs
+                .into_iter()
+                .filter(|s| where_matches(s, &tail_wheres[0], &no_attrs))
+                .collect();
+            rows = super::projection_fold::fold_forward_onto(rows, &tail);
+            let mut keys: Vec<&String> = rows.keys().collect();
+            keys.sort();
+            let out: Vec<serde_json::Value> = keys
+                .iter()
+                .map(|k| serde_json::json!({ "key": k, "value": rows.get(*k).unwrap() }))
+                .collect();
+            return serde_json::json!({
+                "aggregate": agg_name, "query": query_name,
+                "state": serde_json::json!(out),
             });
         }
 

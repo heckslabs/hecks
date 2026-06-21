@@ -196,6 +196,28 @@ fn numeric_eq_does_not_match_via_affinity() {
 }
 
 #[test]
+fn where_matches_resolves_dotted_nested_field() {
+    // The Event Log stores `sequence` as a nested {"value": N} map. A bare
+    // `sequence` predicate compares the map's Display ("{N fields}") to a
+    // number and never matches ; the dotted `sequence.value` path resolves to
+    // the integer and compares numerically (the AtSequence/seek prerequisite).
+    let mut s = AggregateState::new("e1");
+    let mut seqmap = HashMap::new();
+    seqmap.insert("value".to_string(), Value::Int(7));
+    s.set("sequence", Value::Map(seqmap));
+    let attrs = HashMap::new();
+    assert!(
+        !super::where_matches(&s, &clause("sequence", WhereOp::Eq, "7"), &attrs),
+        "bare nested `sequence` must not match the int (Display is a {{N fields}} string, not 7)"
+    );
+    assert!(super::where_matches(&s, &clause("sequence.value", WhereOp::Gt, "5"), &attrs), "7 > 5");
+    assert!(super::where_matches(&s, &clause("sequence.value", WhereOp::Eq, "7"), &attrs), "7 == 7");
+    assert!(!super::where_matches(&s, &clause("sequence.value", WhereOp::Lt, "7"), &attrs), "7 < 7 false");
+    // Missing dotted leaf resolves to "" (no panic, no match).
+    assert!(!super::where_matches(&s, &clause("sequence.nope", WhereOp::Eq, "7"), &attrs), "missing leaf");
+}
+
+#[test]
 fn injection_value_is_bound_not_executed() {
     let repo = seeded("injection");
     let attrs = HashMap::new();

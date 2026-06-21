@@ -87,6 +87,26 @@ pub fn fold_event_log(
     out
 }
 
+/// Snapshot fall-forward : apply the watermark TAIL forward onto cached rows.
+/// `rows` is a snapshot's cached projection (key `"<agg>::<id>::<field>"` ->
+/// value) ; `tail` is every Event with sequence > the watermark (the
+/// sequence-range seek's output). Folds the tail via `fold_event_log`
+/// (sequence-ordered, last-write-wins) and overlays it onto `rows` — the tail is
+/// newer, so it overrides. This is the trivial current-state projection : a
+/// snapshot is never wrong, only stale, because the tail is always re-folded on
+/// read. Custom-projection reducers are a later lift.
+pub fn fold_forward_onto(
+    mut rows: HashMap<String, String>,
+    tail: &[&AggregateState],
+) -> HashMap<String, String> {
+    for ((agg, id), state) in fold_event_log(tail) {
+        for (field, value) in state {
+            rows.insert(format!("{}::{}::{}", agg, id, field), value);
+        }
+    }
+    rows
+}
+
 /// The runtime's own machinery — aggregates that are MECHANISM, not domain
 /// intent : delivery bookkeeping (CascadeRun / OutboundEvent / Cascade),
 /// process-spawn side-effects (Process), and liveness supervision
@@ -144,6 +164,31 @@ mod tests {
         let order = folded.get(&("Order".to_string(), "o1".to_string())).unwrap();
         assert_eq!(order.get("total").unwrap(), "5");
         assert_eq!(folded.len(), 2, "two distinct instances");
+    }
+
+    #[test]
+    fn fold_forward_overlays_tail_onto_cached_rows() {
+        // Cached rows at the watermark.
+        let mut cached = HashMap::new();
+        cached.insert("Order::o1::total".to_string(), "5".to_string());
+        cached.insert("Order::o1::status".to_string(), "pending".to_string());
+        // Tail (sequence > watermark) : total changes, a new instance appears.
+        let e1 = ev("Order", "o1", 10, "total", "9");
+        let e2 = ev("Pizza", "p1", 11, "name", "margherita");
+        let out = fold_forward_onto(cached, &[&e1, &e2]);
+        assert_eq!(out.get("Order::o1::total").unwrap(), "9", "tail overrides cached");
+        assert_eq!(out.get("Order::o1::status").unwrap(), "pending", "untouched cached survives");
+        assert_eq!(out.get("Pizza::p1::name").unwrap(), "margherita", "tail adds new instance");
+    }
+
+    #[test]
+    fn fold_forward_from_empty_is_a_full_fold() {
+        // No prior snapshot (watermark 0) -> empty cached -> the tail IS the state.
+        let e1 = ev("Order", "o1", 1, "total", "3");
+        let e2 = ev("Order", "o1", 2, "total", "7");
+        let out = fold_forward_onto(HashMap::new(), &[&e1, &e2]);
+        assert_eq!(out.get("Order::o1::total").unwrap(), "7", "last write wins from empty");
+        assert_eq!(out.len(), 1);
     }
 
     #[test]

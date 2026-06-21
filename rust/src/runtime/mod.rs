@@ -3549,7 +3549,7 @@ fn where_matches(
     attrs: &std::collections::HashMap<String, String>,
 ) -> bool {
     let target = resolve_where_value(&clause.value, attrs);
-    let actual = state.fields.get(&clause.field).map(|v| v.to_string()).unwrap_or_default();
+    let actual = resolve_state_field(state, &clause.field);
     match clause.op {
         crate::ir::WhereOp::Eq  => actual == target,
         crate::ir::WhereOp::Ne  => actual != target,
@@ -3582,6 +3582,34 @@ fn compare_strings(a: &str, b: &str) -> std::cmp::Ordering {
         return an.cmp(&bn);
     }
     a.cmp(b)
+}
+
+/// Resolve a clause field to its string value, walking a DOTTED path
+/// (`sequence.value`) through nested `Value::Map`s. A bare field reads the
+/// top-level value as before (a `Value::Map` Displays as `"{N fields}"`, so a
+/// bare `sequence` still never matches a number — which is exactly why an
+/// Event-Log sequence predicate must use `sequence.value`). Missing field or a
+/// non-map mid-path yields "" (the oracle's `unwrap_or_default` parity).
+fn resolve_state_field(state: &AggregateState, field: &str) -> String {
+    let mut parts = field.split('.');
+    let head = match parts.next() {
+        Some(h) => h,
+        None => return String::new(),
+    };
+    let mut cur = match state.fields.get(head) {
+        Some(v) => v,
+        None => return String::new(),
+    };
+    for key in parts {
+        match cur {
+            Value::Map(m) => match m.get(key) {
+                Some(v) => cur = v,
+                None => return String::new(),
+            },
+            _ => return String::new(),
+        }
+    }
+    cur.to_string()
 }
 
 /// Resolve a where-clause value : `:foo` reads `attrs["foo"]` (kwarg-ref) ;
