@@ -698,6 +698,30 @@ pub fn resolve_realm_dir(aggregates_path: &str) -> Option<String> {
     None
 }
 
+/// The OS-standard per-user data root — ask the OS, NEVER a custom override
+/// (HECKS_DATA_DIR does not exist). macOS: ~/Library/Application Support/Hecks ;
+/// Linux: $XDG_DATA_HOME or ~/.local/share/Hecks ; Windows: %APPDATA%\Hecks.
+/// REPLACES the legacy ~/.heki base — the realm folders (hecks/, miette/, …)
+/// live under it. Reads only the OS's STANDARD data-dir env vars
+/// ($XDG_DATA_HOME / $APPDATA / $HOME) — which IS asking the OS, not a
+/// Hecks-specific override.
+pub fn data_root() -> std::path::PathBuf {
+    use std::path::PathBuf;
+    let base: PathBuf = if cfg!(target_os = "macos") {
+        std::env::var("HOME").ok()
+            .map(|h| PathBuf::from(h).join("Library/Application Support"))
+            .unwrap_or_else(|| PathBuf::from(expand_tilde("~/.local/share")))
+    } else if cfg!(target_os = "windows") {
+        std::env::var("APPDATA").ok().map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from(expand_tilde("~/AppData/Roaming")))
+    } else {
+        std::env::var("XDG_DATA_HOME").ok().map(PathBuf::from)
+            .or_else(|| std::env::var("HOME").ok().map(|h| PathBuf::from(h).join(".local/share")))
+            .unwrap_or_else(|| PathBuf::from(expand_tilde("~/.local/share")))
+    };
+    base.join("Hecks")
+}
+
 /// Folder-derivation resolution (presence-switch on `dir :default`). When a
 /// nearby `.world` declares `heki do; dir :default end`, the store mirrors the
 /// bluebook location : rooted at ~/.heki, the project-relative folder chain
@@ -736,7 +760,7 @@ pub fn resolve_default_dir(aggregates_path: &str) -> Option<String> {
     // is co-located at <dir>/.heki — isolated, cleaned up with the tmpdir, and
     // never touching the live ~/.heki.
     let root = match default_chain(aggregates_path) {
-        Some(chain) => Path::new(&expand_tilde("~/.heki")).join(chain),
+        Some(chain) => data_root().join(chain),
         None => {
             let a = Path::new(aggregates_path);
             let base = if a.is_dir() { a } else { a.parent()? };
