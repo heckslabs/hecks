@@ -25,7 +25,7 @@ impl SqliteRepository {
         wheres: &[crate::ir::WhereClause],
         attrs: &HashMap<String, String>,
     ) -> Vec<AggregateState> {
-        match super::sql_query::build_pushdown(wheres, attrs, &self.columns) {
+        match super::sql_query::build_pushdown(wheres, attrs, &self.columns, &self.numeric_columns) {
             Some((where_sql, params)) => super::sql_query::run_filtered(
                 &self.conn, &self.table, &self.columns, &where_sql, &params,
             )
@@ -54,6 +54,18 @@ impl SqliteRepository {
                 c = col,
             );
             let _ = self.conn.execute(&ddl, []);
+            // Numeric range pushdown (Gt/Gte/Lt/Lte on an INTEGER column) filters
+            // as `CAST(col AS INTEGER) OP ?` ; an INTEGER-cast expression index
+            // serves that — the text index does not. Created only for INTEGER
+            // columns, the only ones the numeric pushdown targets.
+            if self.numeric_columns.iter().any(|c| c == col) {
+                let int_ddl = format!(
+                    "CREATE INDEX IF NOT EXISTS idx_{t}_{c}_int ON {t} (CAST({c} AS INTEGER))",
+                    t = self.table,
+                    c = col,
+                );
+                let _ = self.conn.execute(&int_ddl, []);
+            }
         }
     }
 }

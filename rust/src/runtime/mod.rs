@@ -3615,6 +3615,11 @@ fn resolve_state_field(state: &AggregateState, field: &str) -> String {
     // the in-memory behaviors runtime treats a VO, closing the storehouse-side
     // gap that left Event.AtSequence (bare `sequence` Eq) silently unmatched.
     match cur {
+        // A present-but-NULL field reads as "" — the SAME as a missing field, so
+        // a SQL-hydrated NULL (Value::Null, Display "null") and an in-memory
+        // absent field compare identically (the parity contract ; otherwise a
+        // NULL column would sort as the literal "null").
+        Value::Null => String::new(),
         Value::Map(m) if m.len() == 1 => {
             m.get("value").map(|v| v.to_string()).unwrap_or_else(|| cur.to_string())
         }

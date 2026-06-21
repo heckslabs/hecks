@@ -42,6 +42,12 @@ pub struct SqliteRepository {
     /// Scalar column names in declared order (attribute names). The
     /// `id`, `created_at`, `updated_at` columns are handled separately.
     pub(super) columns: Vec<String>,
+    /// Subset of `columns` whose SQL type is INTEGER — the columns a numeric
+    /// range predicate may push as `CAST(col AS INTEGER) OP ?` (exact vs the
+    /// oracle, since their values are i64). REAL / text columns are excluded : the
+    /// oracle compares them lexically (a float string doesn't parse i64), which
+    /// CAST-as-integer would not match.
+    pub(super) numeric_columns: Vec<String>,
     pub(super) store: HashMap<String, AggregateState>,
     next_id: u64,
     identified_by: Option<String>,
@@ -73,11 +79,16 @@ impl SqliteRepository {
         let conn = Connection::open(db_path)?;
         let table = crate::util::snake_case(aggregate_type);
         let col_names: Vec<String> = columns.iter().map(|(n, _)| n.clone()).collect();
+        let numeric_columns: Vec<String> = columns.iter()
+            .filter(|(_, ty)| ty.to_uppercase().starts_with("INTEGER"))
+            .map(|(n, _)| n.clone())
+            .collect();
         Self::create_table(&conn, &table, &columns)?;
         let mut repo = SqliteRepository {
             conn,
             table,
             columns: col_names,
+            numeric_columns,
             store: HashMap::new(),
             next_id: 1,
             identified_by,
