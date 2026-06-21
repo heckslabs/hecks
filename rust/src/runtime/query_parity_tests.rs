@@ -122,8 +122,15 @@ fn parity_across_every_op() {
         vec![clause("priority", WhereOp::Gte, "9")],
         vec![clause("priority", WhereOp::Lt, "5")],
         vec![clause("priority", WhereOp::Lte, "2")],
+        // non-numeric-target ranges : PUSHED as lexical CAST(col AS TEXT) OP ?
+        vec![clause("status", WhereOp::Gt, "pending")],
+        vec![clause("status", WhereOp::Gte, "pending")],
+        vec![clause("status", WhereOp::Lt, "shipped")],
+        vec![clause("status", WhereOp::Lte, "pending")],
         // mixed : one pushed (Eq) + one oracle-only (Gt)
         vec![clause("status", WhereOp::Eq, "pending"), clause("priority", WhereOp::Gt, "1")],
+        // mixed : non-numeric range pushed + numeric range oracle-only
+        vec![clause("status", WhereOp::Gt, "pending"), clause("priority", WhereOp::Lt, "5")],
     ];
     for wheres in &cases {
         assert_parity(&repo, wheres, &attrs);
@@ -140,6 +147,36 @@ fn pushed_eq_actually_narrows_at_sql() {
     let candidates = repo.query(&wheres, &attrs);
     assert_eq!(raw_ids(&candidates), vec!["1".to_string(), "3".to_string()]);
     assert!(candidates.len() < repo.all().len(), "pushdown must narrow");
+}
+
+#[test]
+fn pushed_nonnumeric_range_narrows_at_sql() {
+    // A non-numeric-target range pushes as CAST(col AS TEXT) OP ? (lexical),
+    // so the raw SQL candidate set already equals the oracle set — proving the
+    // connection did the range filtering, not an all() passthrough.
+    let repo = seeded("range_narrow");
+    let attrs = HashMap::new();
+    let wheres = vec![clause("status", WhereOp::Gt, "pending")];
+    let candidates = repo.query(&wheres, &attrs);
+    // statuses > "pending" lexically : "shipped"(4) and the EVIL "x..."(5).
+    assert_eq!(raw_ids(&candidates), vec!["4".to_string(), "5".to_string()]);
+    assert!(candidates.len() < repo.all().len(), "range pushdown must narrow");
+}
+
+#[test]
+fn numeric_range_target_is_left_to_oracle() {
+    // A numeric target must NOT push as lexical text : CAST(priority AS TEXT) >
+    // '5' would drop priority 10 (text "10" < "5"), a false negative. So
+    // build_pushdown yields nothing pushable, query() returns the full store,
+    // and the oracle does the (numeric) filtering downstream.
+    let repo = seeded("numeric_range");
+    let attrs = HashMap::new();
+    let wheres = vec![clause("priority", WhereOp::Gt, "5")];
+    let candidates = repo.query(&wheres, &attrs);
+    assert_eq!(candidates.len(), repo.all().len(), "numeric range must defer to oracle");
+    // Parity still holds : oracle on the full set == {2,4} (priority 10, 9).
+    let refs: Vec<&AggregateState> = candidates.iter().collect();
+    assert_eq!(oracle_filter(&refs, &wheres, &attrs), vec!["2".to_string(), "4".to_string()]);
 }
 
 #[test]
