@@ -5,13 +5,12 @@ Hecks.hecksagon "CronAdapter" do
   #
   # Sibling of shell_adapter.hecksagon. Where ShellAdapter
   # subscribes to a BUS EVENT (driven on), CronAdapter subscribes to
-  # an EXTERNAL TRIGGER (driving on cron). The runtime's
-  # `fire_driving_cron_ticks` fires the declared dispatch on every
-  # `storehouse loop` tick ; the behaviors-test path fires it on
-  # `kind: :driving_tick` so the cascade is deterministic.
-  #
-  # v1 fires every tick. Expression-aware scheduling (parse 5-field
-  # cron, only fire when due) is a follow-up card.
+  # an EXTERNAL TRIGGER (driving on cron). The live `storehouse drive`
+  # daemon EVALUATES this 5-field expression and fires the declared
+  # dispatch only WHEN DUE (minute 0,5,10,... of every hour for
+  # "*/5 * * * *"), deduped to at most once per minute. The
+  # behaviors-test path still fires it on `kind: :driving_tick` so the
+  # cascade stays deterministic without a wall clock.
 
   adapter "CronAdapter" do
     driving on cron "*/5 * * * *" do |signal|

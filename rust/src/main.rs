@@ -5789,14 +5789,16 @@ fn run_loop(args: &[String]) {
 /// `storehouse loop` daemons can't provide (each loads every hecksagon
 /// under its root, so wiring driving-firing into them would N×-fire).
 ///
-/// SCOPE : this slice fires the `interval` kind only. cron handlers fire
-/// in no live daemon today (test-only) ; making cron fire live needs real
-/// 5-field expression matching and is the documented follow-on. clock /
-/// http_post / file_watch likewise unhandled here. See
+/// SCOPE : this daemon fires the `interval` AND `cron` kinds. interval uses
+/// the pure tick-counter (`drive_scheduler`) ; cron uses the pure 5-field
+/// expression matcher (`cron_schedule::is_due`) with a per-handler minute
+/// dedup so a sub-minute poll fires a due expression at most once per minute.
+/// clock / http_post / file_watch remain unhandled here. See
 /// inbox/interval-scheduler-spec.md.
 fn run_drive(args: &[String]) {
     use storehouse::runtime::drive_scheduler::DriveScheduler;
     use storehouse::runtime::driving_adapter_resolver as driving;
+    use storehouse::runtime::cron_schedule;
 
     let target = args.get(2).map(|s| s.as_str()).unwrap_or_else(|| {
         eprintln!("Usage: storehouse drive <bluebook-or-dir> [--poll <duration>]");
@@ -5815,7 +5817,7 @@ fn run_drive(args: &[String]) {
         .cloned();
 
     eprintln!(
-        "[storehouse drive] {} polling every {:?}{} — firing `driving on interval` handlers (Ctrl-C to stop)",
+        "[storehouse drive] {} polling every {:?}{} — firing `driving on interval` + `driving on cron` (when due) handlers (Ctrl-C to stop)",
         target, poll,
         adapter_filter.as_ref().map(|a| format!(" [adapter={}]", a)).unwrap_or_default()
     );
@@ -5839,6 +5841,14 @@ fn run_drive(args: &[String]) {
     storehouse::world::attach::attach_world_adapter_bindings(&mut rt, target);
 
     let mut scheduler = DriveScheduler::new(poll);
+    // Minute-dedup for the CRON kind. cron resolution is MINUTES but the poll
+    // is SECONDS, so within one wall-clock minute the same expression stays
+    // `is_due` across many ticks. Keyed by handler id -> the last epoch-minute
+    // it fired in, a handler fires at most once per minute even at a sub-minute
+    // poll. On restart the map is empty, so a handler due in the current minute
+    // fires once early — the same idempotent-sweep contract the interval kind
+    // documents.
+    let mut cron_last_minute: std::collections::HashMap<String, u64> = std::collections::HashMap::new();
     loop {
         // Refresh repos so a sibling process's writes are visible before a
         // due handler reads state (mirrors loop_driver::tick_once).
@@ -5873,6 +5883,30 @@ fn run_drive(args: &[String]) {
                 driving::fire_dispatches(&mut rt, dispatches);
             }
         }
+
+        // CRON kind — fire each `driving on cron` handler only WHEN DUE
+        // (its 5-field expression matches the current minute) AND not
+        // already fired this minute (the minute-dedup above). Respects the
+        // same --adapter filter as the interval path.
+        let now_secs = storehouse::clock::now_duration().as_secs();
+        let cron_handlers: Vec<_> = driving::enumerate_driving_handlers(&rt, "cron")
+            .into_iter()
+            .filter(|(id, _, _)| match &adapter_filter {
+                Some(a) => id.starts_with(&format!("{}:", a)),
+                None => true,
+            })
+            .collect();
+        for (id, expr, dispatches) in &cron_handlers {
+            let last = cron_last_minute.get(id).copied();
+            if let Some(bucket) = cron_schedule::should_fire(expr, now_secs, last) {
+                cron_last_minute.insert(id.clone(), bucket);
+                for (command, _) in dispatches {
+                    eprintln!("[storehouse drive] cron due {} fired {} ({})", expr, command, id);
+                }
+                driving::fire_dispatches(&mut rt, dispatches);
+            }
+        }
+
         std::thread::sleep(poll);
     }
 }

@@ -183,6 +183,10 @@ pub mod driving_adapter_resolver;
 // The pure tick-counter core of `storehouse drive` (the single-owner
 // interval scheduler that fires `driving on interval` handlers live).
 pub mod drive_scheduler;
+// The pure 5-field cron-expression matcher — sibling of drive_scheduler for
+// the CRON kind. `storehouse drive` asks `is_due(expr, now)` to fire
+// `driving on cron` handlers only on a matching minute.
+pub mod cron_schedule;
 // The append-only one-line-per-event shard backing the out-of-process
 // Event Log (shards-plus-merge topology). Format + writer + offset reader.
 pub mod event_shard;
