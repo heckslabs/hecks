@@ -394,6 +394,13 @@ pub struct Runtime {
     /// callers that boot without a root — those leave OutboundEvents pending
     /// (no handler to spawn into a root-less runtime).
     pub aggregates_root: Option<String>,
+    /// Phase-4 causation — the last Log event_id recorded for each domain
+    /// aggregate, keyed `"<type>::<id>"`. `record_event_append` updates it after
+    /// it appends ; `cause_for_cascade` reads it so a cascaded command's events
+    /// can stamp `causation_id` = the triggering event, making CausationTrace
+    /// bite on live data. In-process, per-realm, transient (rebuilt as events
+    /// record) — it carries no persistence and is empty for root dispatches.
+    pub last_event_id_by_agg: HashMap<String, String>,
 }
 
 impl Runtime {
@@ -632,6 +639,7 @@ impl Runtime {
             mailbox_drained: 0,
             mailbox_registry: actor::Mailboxes::new(),
             aggregates_root: None,
+            last_event_id_by_agg: HashMap::new(),
         }
     }
 
@@ -880,7 +888,7 @@ impl Runtime {
     /// Recursion guard : skips the EventSourcing domain's own aggregates so
     /// Append never appends. (Belt-and-suspenders — `dispatch_cascade` does
     /// not re-enter this hook ; only the eager dispatch wrapper calls it.)
-    fn record_event_append(&mut self, result: &CommandResult, command_name: &str) {
+    fn record_event_append(&mut self, result: &CommandResult, command_name: &str, causation_id: &str) {
         // GATE (default OFF) — the in-process Log writer persists via DEFAULT
         // heki (whole-file read-modify-write), which CLOBBERS under concurrent
         // writers, so the live governance Log silently drops events. Per Chris
@@ -957,6 +965,7 @@ impl Runtime {
             // The merge daemon folds shards into the global event.heki and
             // assigns the authoritative global sequence ; we do NOT compute a
             // global sequence here (the old repo-count+1 is what clobbered).
+            let mut last_event_id = String::new();
             for (field, value) in result.deltas.clone() {
                 // Reserve this record's shard identity BEFORE dispatch : Event
                 // is identified_by :event_id, so the command needs its
@@ -976,12 +985,13 @@ impl Runtime {
                 let mut sequence_vo = HashMap::new();
                 sequence_vo.insert("value".to_string(), Value::Int(seq as i64));
                 let mut attrs = HashMap::new();
+                last_event_id = event_id.clone();
                 attrs.insert("event_id".to_string(), Value::Str(event_id));
                 attrs.insert("aggregate_name".to_string(), Value::Str(agg_name.clone()));
                 attrs.insert("aggregate_id".to_string(), Value::Str(agg_id.clone()));
                 attrs.insert("command".to_string(), Value::Map(command_vo));
                 attrs.insert("delta".to_string(), Value::Map(delta_vo));
-                attrs.insert("causation_id".to_string(), Value::Str(String::new()));
+                attrs.insert("causation_id".to_string(), Value::Str(causation_id.to_string()));
                 attrs.insert("correlation_id".to_string(), Value::Str(correlation_id.clone()));
                 attrs.insert("actor".to_string(), Value::Str("system".to_string()));
                 attrs.insert("sequence".to_string(), Value::Map(sequence_vo));
@@ -992,7 +1002,33 @@ impl Runtime {
                 // so this inner Append never re-enters this hook.
                 let _ = command_dispatch::dispatch(self, "EventSourcing::Event.Append", attrs);
             }
+            // Phase-4 causation : remember this command's last recorded event
+            // so a cascade off this aggregate can stamp it as its cause.
+            if !last_event_id.is_empty() {
+                self.note_last_event(&agg_name, &agg_id, &last_event_id);
+            }
         }
+
+    /// Phase-4 causation — note the Log event_id just recorded for a domain
+    /// aggregate, so a later cascade off it can stamp `causation_id`. Keyed
+    /// "<type>::<id>" ; the latest write wins (a command's last delta-event is
+    /// the representative cause). In-process, transient.
+    fn note_last_event(&mut self, agg_type: &str, agg_id: &str, event_id: &str) {
+        self.last_event_id_by_agg
+            .insert(format!("{}::{}", agg_type, agg_id), event_id.to_string());
+    }
+
+    /// Phase-4 causation — the triggering event_id for a cascaded dispatch. A
+    /// cascade carries its upstream (type, id) as a hint ; the cause is the
+    /// last Log event recorded for that aggregate (the event whose processing
+    /// fired this cascade). Empty for a root dispatch (no hint) or an upstream
+    /// that recorded no events — both leave causation_id empty, where
+    /// CausationTrace stops.
+    pub(crate) fn cause_for_cascade(&self, hint: &Option<(String, String)>) -> String {
+        hint.as_ref()
+            .and_then(|(t, i)| self.last_event_id_by_agg.get(&format!("{}::{}", t, i)).cloned())
+            .unwrap_or_default()
+    }
 
     /// Event Log consolidation trigger — fires the merge fold IFF the
     /// dispatched command is the Consolidation maintenance command. Called from

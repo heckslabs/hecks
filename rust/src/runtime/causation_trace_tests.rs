@@ -1,9 +1,12 @@
 //! causation_trace_tests — the Phase-4 lineage traversal kernel
 //!
-//! Asserts CausationTrace walks causation_id from a leaf event up to its root
-//! cause, in order, over a seeded Event repo. (The live Log carries no chains
-//! yet — causation_id is recorded lineage-ready but Append does not set it — so
-//! this exercises the traversal on a constructed chain.)
+//! Asserts (1) CausationTrace walks causation_id from a leaf event up to its
+//! root cause, in order, over a seeded Event repo, and (2) the Phase-4 stamp
+//! data path : record_event_append notes the last event per aggregate
+//! (note_last_event) and a cascade resolves its cause to it (cause_for_cascade),
+//! so causation_id is no longer empty on live cascades. The full gated
+//! record → cascade → merge integration runs in the live runtime
+//! (HECKS_EVENT_SOURCING=1) ; here the deterministic data path is unit-tested.
 
 use super::*;
 
@@ -100,4 +103,35 @@ fn cycle_is_guarded() {
 fn unknown_root_yields_empty_trace() {
     let rt = boot_with(&[("e1", "")]);
     assert!(trace_ids(&rt, "nope").is_empty());
+}
+
+#[test]
+fn cause_for_cascade_resolves_to_last_event_of_upstream() {
+    // The Phase-4 stamp path : record_event_append notes the last event_id per
+    // aggregate ; a cascade off that aggregate resolves its cause to it.
+    let mut rt = boot_with(&[]);
+    rt.note_last_event("Order", "o1", "shard-7");
+    assert_eq!(
+        rt.cause_for_cascade(&Some(("Order".to_string(), "o1".to_string()))),
+        "shard-7"
+    );
+    // Latest write wins — a command's last delta-event is the representative cause.
+    rt.note_last_event("Order", "o1", "shard-9");
+    assert_eq!(
+        rt.cause_for_cascade(&Some(("Order".to_string(), "o1".to_string()))),
+        "shard-9"
+    );
+}
+
+#[test]
+fn cause_for_cascade_is_empty_for_root_and_unknown() {
+    let mut rt = boot_with(&[]);
+    rt.note_last_event("Order", "o1", "shard-7");
+    // Root dispatch (no hint) → empty cause → CausationTrace stops.
+    assert_eq!(rt.cause_for_cascade(&None), "");
+    // Cascade off an aggregate that recorded no events → empty.
+    assert_eq!(
+        rt.cause_for_cascade(&Some(("Pizza".to_string(), "p1".to_string()))),
+        ""
+    );
 }

@@ -144,11 +144,15 @@ Hecks.bluebook "EventSourcing", version: "2026.06.19.1" do
     query "AtSequence" do |seq|
       # Point lookup : the event AT a sequence. where() carries ordered
           # predicates (Gt/Gte/Lt/Lte) in the matcher, so the "tail strictly
-          # AFTER a watermark" that Snapshot's fall-forward needs IS expressible ;
-          # the runtime still performs it as a sequence range scan (Log ordered
-          # by sequence ; read from watermark+1 to head) rather than a backend-
-          # pushed range query. AtSequence is the equality slice and the building
-          # block of that scan.
+          # AFTER a watermark" that Snapshot's fall-forward needs IS expressible.
+          # Range pushdown PARTLY landed : a NON-NUMERIC target pushes to the SQL
+          # backend as CAST(col AS TEXT) OP ? (lexical, index-backed), exact
+          # against the oracle. But SEQUENCE is numeric, and a numeric target
+          # can't push lexically ("10" vs "5") — so the sequence tail stays a
+          # runtime range scan (Log ordered by sequence ; read watermark+1 to
+          # head) until numeric range pushdown + an Event-Log sequence-range SEEK
+          # land. AtSequence is the equality slice and the building block of that
+          # scan.
       where(sequence: seq)
     end
 
@@ -180,6 +184,11 @@ Hecks.bluebook "EventSourcing", version: "2026.06.19.1" do
           # missing event) — like MatchInput, it is a named query the engine
           # special-cases, not a record-filter. This is the lineage the Event's
           # causation_id was always 'lineage-ready' FOR ; no longer deferred.
+          # And Append now STAMPS causation_id : a cascaded command's events
+          # carry the triggering event's id (the last Log event of the upstream
+          # aggregate that fired the cascade), so this walk BITES on the live
+          # Log, not only on constructed chains. Root dispatches leave it empty,
+          # where the walk stops.
           description "Walk the causation chain from this event up to its root cause"
         end
       end
@@ -284,11 +293,13 @@ Hecks.bluebook "EventSourcing", version: "2026.06.19.1" do
   #
   # NOTE : the strictly-after-watermark TAIL is a RANGE scan. where() DOES
   # carry ordered predicates (Gt/Gte/Lt/Lte) in the matcher, so the tail is
-  # now EXPRESSIBLE ; the runtime still performs it as a sequence range scan
-  # rather than a backend-pushed range query (range pushdown is the remaining
-  # lift — Eq pushdown + indexes landed in the where() overhaul). Event.
-  # AtSequence is the equality slice ; the fall-forward scan is its ordered
-  # generalisation.
+  # now EXPRESSIBLE. Range pushdown PARTLY landed : a NON-NUMERIC target pushes
+  # to SQL as CAST(col AS TEXT) OP ? (lexical, index-backed). But the watermark
+  # tail keys on SEQUENCE (numeric), which can't push lexically — so it stays a
+  # runtime sequence range scan until numeric range pushdown + an Event-Log
+  # sequence-range SEEK land (the remaining lift ; Eq pushdown + indexes +
+  # non-numeric ranges already landed in the where() overhaul). Event.AtSequence
+  # is the equality slice ; the fall-forward scan is its ordered generalisation.
 
   aggregate "Snapshot", "A cached fold of a projection at a sequence watermark. Identified by projection_name. Capture records the folded state + watermark ; on read the runtime range-scans the Log from watermark+1 to head and folds those deltas forward, so a snapshot is never wrong, only stale. The strictly-after tail is a sequence range scan (where() carries ordered predicates ; range pushdown to the backend is the remaining lift). Threshold/on-demand cadence, not time-based." do
     identified_by :projection_name
