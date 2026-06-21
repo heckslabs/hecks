@@ -116,19 +116,29 @@ Hecks.fixtures "Mindstream" do
             command:    { line: "../rust/target/release/storehouse loop aggregates ProcessHealth::ProcessMacrophage.Sweep --every 30s" },
             lifespan:   { kind: "persistent", may_exit: false, restart_on_failure: true }
 
-    # ── RestartPrompt daemon (2026-05-19) ──
+    # ── RestartPrompt daemon — REMOVED (2026-06-21, i703) ──
     #
-    # Bus-event-driven — not periodic. Subscribes via `storehouse follow`
-    # for RestartPromptComposed events ; on each match queries singleton
-    # state and writes hecks_conception/inbox/restarts_inbox/latest.md.
-    # Only writes when a Compose fires ; otherwise idle. Shape B
-    # (standalone bin script) because `storehouse follow` as a named
-    # mindstream command form is not yet a first-class Procfile pattern.
-    # The declarative shape lives in restart_prompt.bluebook.
-    fixture "restart_prompt",
-            name:       "restart_prompt",
+    # The restart_prompt member is gone : bin/restart-prompt-daemon no
+    # longer exists, so on `overmind start` it exited 127, and because it
+    # was not in OVERMIND_CAN_DIE that non-clean exit tore down ALL
+    # daemons. i703 specifies the proper fix as removing the member from
+    # these fixtures (the Procfile is derived from them, i262), which the
+    # :overmind generator now does mechanically — so it is dropped here
+    # rather than carried as a commented-out Procfile line. Re-add this
+    # fixture once the daemon binary is rebuilt. Declarative shape still
+    # lives in restart_prompt.bluebook.
+
+    # ── Conductor fleet sweeper (2026-06) ──
+    #
+    # The fleet sweeper tick. Every 60s, dispatches Conductor::Sweeper.Tick
+    # for the `fleet` sweeper — the liveness/expiry/volunteer sweeps over the
+    # conductor's worker fleet (conductor.hecksagon). storehouse loop drives
+    # the cadence ; overmind supervises + auto-restarts on crash. Persistent
+    # like the other loop members.
+    fixture "conductor_sweep",
+            name:       "conductor_sweep",
             mindstream: "boot",
-            command:    { line: "bin/restart-prompt-daemon" },
+            command:    { line: "../rust/target/release/storehouse loop aggregates Conductor::Sweeper.Tick sweeper_id=fleet --every 60s" },
             lifespan:   { kind: "persistent", may_exit: false, restart_on_failure: true }
 
     # ── SpeechStream watcher (2026-05-20) ──
