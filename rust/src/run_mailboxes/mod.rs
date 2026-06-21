@@ -162,6 +162,7 @@ fn mk_env(agg_type: &str, agg_id: &str, evt: &str, event_id: &str) -> Envelope {
         aggregate_type: agg_type.to_string(),
         aggregate_id: agg_id.to_string(),
         data: HashMap::new(),
+        realm_path: None,
     };
     Envelope::new(event, event_id)
 }

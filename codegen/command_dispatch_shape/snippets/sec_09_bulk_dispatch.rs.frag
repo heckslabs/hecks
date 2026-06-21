@@ -86,6 +86,7 @@ fn dispatch_bulk(
             aggregate_type: aggregate_name.clone(),
             aggregate_id: row_id.clone(),
             data: row_attrs,
+            realm_path: rt.domain.aggregates[agg_idx].realm_path.clone(),
         };
         // Sprint 14 (retire-sync-cascade-pipeline) — many-form
         // (`list_of(VO)`) inputs publish one event per row through the

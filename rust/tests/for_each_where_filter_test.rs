@@ -77,6 +77,7 @@ fn seed_and_birth() -> Runtime {
         aggregate_type: "Sweeper".into(),
         aggregate_id: "1".into(),
         data: HashMap::new(),
+        realm_path: None,
     });
     rt
 }
@@ -90,6 +91,7 @@ fn parameterised_sweep_marks_only_matching_records() {
         aggregate_type: "Sweeper".into(),
         aggregate_id: "1".into(),
         data: attrs(&[("want", s("warm"))]),
+        realm_path: None,
     });
     let ids: std::collections::HashSet<String> = rt.all("Compostable").iter()
         .filter_map(|s| s.fields.get("id").map(|v| v.to_string())).collect();
@@ -107,6 +109,7 @@ fn parameterised_sweep_with_nonmatching_filter_marks_nothing() {
         aggregate_type: "Sweeper".into(),
         aggregate_id: "1".into(),
         data: attrs(&[("want", s("tepid"))]),
+        realm_path: None,
     });
     assert_eq!(rt.all("Compostable").len(), 0,
         "no synapse matches want=tepid -> zero dispatches");

@@ -29,6 +29,12 @@ pub struct Event {
     pub aggregate_type: String,
     pub aggregate_id: String,
     pub data: HashMap<String, Value>,
+    /// The EMITTER's stamped folder address (realm/context) — carried so a
+    /// `driven on` binding can enforce realm + context the same way the command
+    /// resolver does (slice 3), making event routing realm-aware. `None` when the
+    /// emitter has no stamped path (string-parsed / outside ~/Projects), which
+    /// keeps the match lenient.
+    pub realm_path: Option<String>,
 }
 
 type Listener = Box<dyn Fn(&Event)>;

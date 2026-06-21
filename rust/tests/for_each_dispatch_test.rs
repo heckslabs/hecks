@@ -87,6 +87,7 @@ fn for_each_dispatch_fires_once_per_record_with_iter_field() {
         aggregate_type: "Sweeper".into(),
         aggregate_id: "1".into(),
         data: HashMap::new(),
+        realm_path: None,
     });
 
     // Trigger the sweep — the PM should run for_each over Synapse.all
@@ -96,6 +97,7 @@ fn for_each_dispatch_fires_once_per_record_with_iter_field() {
         aggregate_type: "Sweeper".into(),
         aggregate_id: "1".into(),
         data: HashMap::new(),
+        realm_path: None,
     });
 
     let composted = rt.all("Compostable");
@@ -124,12 +126,14 @@ fn for_each_over_empty_source_dispatches_nothing() {
         aggregate_type: "Sweeper".into(),
         aggregate_id: "1".into(),
         data: HashMap::new(),
+        realm_path: None,
     });
     rt.publish_synthetic_event(Event {
         name: "Beat".into(),
         aggregate_type: "Sweeper".into(),
         aggregate_id: "1".into(),
         data: HashMap::new(),
+        realm_path: None,
     });
 
     assert_eq!(rt.all("Compostable").len(), 0,

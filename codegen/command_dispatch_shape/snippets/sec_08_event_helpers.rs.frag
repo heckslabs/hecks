@@ -15,6 +15,7 @@ fn build_event_res(
         aggregate_type: agg.name.clone(),
         aggregate_id: aggregate_id.to_string(),
         data: attrs.clone(),
+        realm_path: agg.realm_path.clone(),
     })
 }
 
