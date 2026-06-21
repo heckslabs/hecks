@@ -1288,11 +1288,22 @@ impl Runtime {
         let mut retry = HashMap::new();
         retry.insert("max_attempts".to_string(), Value::Int(0));
         retry.insert("backoff".to_string(), Value::Str("none".to_string()));
+        // Phase-4 causation : the triggering event's Log event_id is the cause
+        // of every step in this run. note_last_event recorded it under the
+        // trigger aggregate's key when record_event_append ran for the trigger
+        // (just before this). Persist it on the run so the pump stamps it
+        // DURABLY — even when a DIFFERENT process drains the outbox, where the
+        // in-memory map is empty.
+        let causation = self.last_event_id_by_agg
+            .get(&format!("{}::{}", event.aggregate_type, event.aggregate_id))
+            .cloned()
+            .unwrap_or_default();
         let mut attrs = HashMap::new();
         attrs.insert("run_id".to_string(), Value::Str(run_id));
         attrs.insert("trigger_event".to_string(), Value::Str(event.name.clone()));
         attrs.insert("steps".to_string(), Value::List(steps));
         attrs.insert("retry_policy".to_string(), Value::Map(retry));
+        attrs.insert("causation".to_string(), Value::Str(causation));
         let agg_type = event.aggregate_type.clone();
         let agg_id = event.aggregate_id.clone();
         let _ = command_dispatch::dispatch_cascade(

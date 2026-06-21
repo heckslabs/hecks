@@ -23,7 +23,7 @@
                 eprintln!("[pump_outbox] cascade guard reached — stopping");
                 break;
             }
-            let runs: Vec<(String, Vec<(String, String)>)> = self
+            let runs: Vec<(String, String, Vec<(String, String)>)> = self
                 .all_qualified(Some("CascadeRun"), "CascadeRun")
                 .into_iter()
                 .filter(|r| {
@@ -46,8 +46,17 @@
                         }
                     }
                     steps.sort_by_key(|(o, _, _)| *o);
+                    // Phase-4 causation : the run's triggering event id (a
+                    // {value} VO or plain string). Empty when the trigger
+                    // recorded no Log event.
+                    let causation = match r.fields.get("causation") {
+                        Some(Value::Map(m)) => m.get("value").map(|v| v.to_string()).unwrap_or_default(),
+                        Some(v) => v.to_string(),
+                        None => String::new(),
+                    };
                     (
                         r.id.clone(),
+                        causation,
                         steps.into_iter().map(|(_, c, p)| (c, p)).collect(),
                     )
                 })
@@ -55,7 +64,7 @@
             if runs.is_empty() {
                 break;
             }
-            for (run_id, steps) in runs {
+            for (run_id, causation, steps) in runs {
                 // Decode the upstream the run_id carries (type::id::event) so each
                 // step dispatches against the ORIGINAL triggering aggregate as
                 // upstream — exactly the eager path — letting reference_to(target)
@@ -68,6 +77,15 @@
                         continue;
                     }
                     let step_attrs = parse_payload_attrs(&payload);
+                    // Phase-4 causation : prime the causation map from the run's
+                    // persisted cause before dispatching, so this step's events
+                    // stamp causation_id = the triggering event — even in a
+                    // process that did not trigger the run (its in-memory map is
+                    // empty). Re-primed per step so an intervening same-instance
+                    // step can't shift the cause off the original trigger.
+                    if !causation.is_empty() {
+                        self.note_last_event(&up_type, &up_id, &causation);
+                    }
                     // Deliver the step as its own transaction, and RE-RECORD its
                     // own domain reactions so multi-hop cascades flatten across
                     // iterations (level N -> level N+1).

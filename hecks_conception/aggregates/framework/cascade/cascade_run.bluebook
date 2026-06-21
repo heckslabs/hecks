@@ -40,6 +40,7 @@ Hecks.bluebook "CascadeRun", version: "2026.05.25.1" do
     attribute :retry_policy,  RetryPolicy
     attribute :status,        Status, default: "running"
     attribute :failure_reason, FailureReason
+    attribute :causation,     Causation, default: ""
 
     # ── Value objects ──────────────────────────────────────────────
 
@@ -104,6 +105,16 @@ Hecks.bluebook "CascadeRun", version: "2026.05.25.1" do
       attribute :value, String
     end
 
+    value_object "Causation" do
+      # The Log event_id of the TRIGGERING event — the cause of every step in this
+      # run. The pump primes the runtime's causation map from this before each
+      # step dispatch, so a cascaded command's events stamp causation_id = this,
+      # DURABLY across the process that drains the outbox (which may not be the
+      # process that triggered the run). Empty when event sourcing was off at
+      # trigger time, or the trigger recorded no event.
+      attribute :value, String
+    end
+
     # ── Commands ──────────────────────────────────────────────────
 
     command "Begin" do
@@ -113,10 +124,12 @@ Hecks.bluebook "CascadeRun", version: "2026.05.25.1" do
       attribute :trigger_event, TriggerEvent
       attribute :steps,         list_of(Step)
       attribute :retry_policy,  RetryPolicy
+      attribute :causation,     Causation
       then_set :run_id,        to: :run_id
       then_set :trigger_event, to: :trigger_event
       then_set :steps,         to: :steps
       then_set :retry_policy,  to: :retry_policy
+      then_set :causation,     to: :causation
       then_set :status,        to: "running"
       emits "CascadeRunBegun"
     end
