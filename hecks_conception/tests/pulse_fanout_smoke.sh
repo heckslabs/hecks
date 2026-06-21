@@ -92,14 +92,16 @@ EOF
 
 fail() { echo "FAIL — $1"; exit 1; }
 
-# One Tick. Everything downstream rides on this.
-# i577 v2 follow-up : use FQN form Body::Tick.MindstreamTick — the
-# canonical dispatch entry point gates on `::`. Tick lives in
-# /Users/christopheryoung/Projects/miette/body/cycles/tick.bluebook
-# which declares category "body".
+# One BodyPulse — the body's pacing signal. Since 2026-06-21 the run-loop
+# is the SOLE BodyPulse driver (the EmitPulseOnTick Ticked->BodyPulse shim
+# was removed ; it formed a feedback loop that ran the tick 3x). The organs
+# fan out from BodyPulse, so the test injects ONE in-domain : Pulse.Emit
+# emits BodyPulse + bumps pulse.count, exactly what the run-loop's emit does.
+# (Previously this dispatched Body::Tick.MindstreamTick and rode the removed
+# EmitPulseOnTick hop to reach BodyPulse — a stale path now.)
 (cd "$TMP" && HECKS_AGG="$TMP/aggregates" \
-  "$HECKS" "$TMP/aggregates" Body::Tick.MindstreamTick >/dev/null 2>&1) \
-  || fail "Body::Tick.MindstreamTick dispatch failed"
+  "$HECKS" "$TMP/aggregates" Body::Pulse.Emit name=pulse >/dev/null 2>&1) \
+  || fail "Body::Pulse.Emit dispatch failed"
 
 # Helpers — read one field from a singleton heki store, empty on miss.
 # `heki latest-field` exits 3 on missing field or missing file; swallow

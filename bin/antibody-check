@@ -171,10 +171,18 @@ end
 #   build.rs       — Cargo's required build hook, a build-system consequence
 # NOT exempt (still need a named marker so the gap stays visible) : dev/glue
 # shell scripts, examples (which can often BE a bluebook), config-as-data yaml.
-def imperative_by_nature?(path)
+# A DOWNSTREAM artifact follows its floor bluebook : a test shadows the bluebook
+# it covers (rewritten WHEN the floor is rewritten, never an independent gap), and
+# generated code is the bluebook's projection. Test paths/suffixes (incl. _smoke)
+# + build.rs. Mirrors the runtime classifier's is_test_artifact (storehouse
+# macrophage / classify_file), so the pre-commit gate and the PostToolUse
+# macrophage share ONE notion of downstream — neither flags a test, neither needs
+# a marker. (Generated code is downstream too, but already rides the IR/corpus
+# claim via ir_claimed? on the imperative path.)
+def downstream_artifact?(path)
   base = File.basename(path)
   path =~ %r{(^|/)(tests?|spec|benches?)/}i ||
-    base =~ /(_test|_spec|_bench(?:mark)?)\.[a-z]+\z/i ||
+    base =~ /(_test|_spec|_smoke|_bench(?:mark)?)\.[a-z]+\z/i ||
     base =~ /\Atest_/i ||
     base == "build.rs"
 end
@@ -213,7 +221,7 @@ def filter_code_files(paths)
     # back to the marker pathway for files the IR doesn't yet see
     # (the residual exempt_registry entries each carry a named
     # retirement arc in the inbox).
-    is_code && !imperative_by_nature?(p) && !declared_handler?(p) && !ir_claimed?(p)
+    is_code && !downstream_artifact?(p) && !declared_handler?(p) && !ir_claimed?(p)
   end
 end
 

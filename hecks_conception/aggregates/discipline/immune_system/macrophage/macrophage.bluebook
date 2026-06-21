@@ -56,6 +56,7 @@ Hecks.bluebook "Macrophage", version: "2026.05.14.1" do
     attribute :imperative_edits,            EditCount
     attribute :exempted_edits,              EditCount
     attribute :support_edits,               EditCount
+    attribute :downstream_edits,             EditCount
     attribute :other_edits,                 EditCount
 
     # Latest-complaint surface — quick read for statusline.
@@ -193,6 +194,13 @@ Hecks.bluebook "Macrophage", version: "2026.05.14.1" do
       description "A support file was written (.md | .heki | .json | .toml | .yaml | .txt). Surface glue, no complaint."
       attribute :file_path, FilePath
       emits "SupportEdited"
+    end
+
+    command "RecordDownstreamEdit" do
+      role "Hook"
+      description "A DOWNSTREAM artifact was written : a test (tests?/ | spec/ | benches?/ dir, or a _test | _spec | _smoke | _bench suffix) or a file generated/projected from a floor bluebook. Downstream artifacts FOLLOW their floor (.bluebook) — a test shadows the bluebook it covers, generated code is the bluebook's projection — so they are NOT imperative gaps and draw NO complaint. Tracked separately from support_edits so the dashboard distinguishes 'tests + generated' from 'docs + config'. The marker-free rule : rewrite a floor, the downstream follows, and the macrophage stays quiet."
+      attribute :file_path, FilePath
+      emits "DownstreamEdited"
     end
 
     command "RecordOtherEdit" do

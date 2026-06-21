@@ -1,6 +1,14 @@
 Hecks.behaviors "Macrophage" do
   vision "Behavioral tests for the per-rule macrophage family. Placeholder coverage for the BidirectionalAssociation (i612), IdentityDiscipline (i611), and CorrespondenceDiscipline (i624) aggregates ; expand to the other rule aggregates as their companion-block tests land. Each test exercises one command's state contract : input attributes recorded onto the aggregate, lifecycle counters incremented, ComplaintIssued / ViolationRecorded emitted."
 
+  # ── Macrophage aggregate : edit recording ─────────────────────
+
+  test "Macrophage RecordDownstreamEdit records a test/generated edit, no complaint" do
+    tests "RecordDownstreamEdit", on: "Macrophage"
+    input  file_path: "rust/tests/driven_adapter_fan_out_test.rs"
+    expect ok: "true"
+  end
+
   # ── BidirectionalAssociation aggregate (i612) ──────────────────
 
   test "StartSession sets session_started_at on BidirectionalAssociation" do
