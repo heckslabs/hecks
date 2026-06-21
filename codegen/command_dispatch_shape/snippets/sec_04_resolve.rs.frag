@@ -198,43 +198,39 @@ fn resolve(rt: &Runtime, command_name: &str) -> Result<Resolution, RuntimeError>
     }
 }
 
-/// Parse the canonical fully-qualified form `Domain::Aggregate.Command`
-/// (or `.query_name`) into component parts. Returns Err with a
-/// helpful message naming the canonical shape when the input doesn't
-/// conform.
+/// Parse a realm-qualified, VARIABLE-DEPTH address into component parts.
 ///
-/// Returned tuple: (domain, aggregate, command_or_query)
+/// The folder tree IS the namespace : `Realm[::Subrealm…]::Domain::Aggregate.command`
+/// (or `.query_name`). Parsed by ENDS, not count — the last `::` segment is the
+/// Aggregate, the second-to-last is the Domain, and everything before them
+/// (Realm + 0+ subrealms) is the namespace path. Minimum 2 segments.
 ///
-/// i560 v2 (2026-05-12) — the v1 attempt targeted 3 segments
-/// (`Domain::Aggregate::Aggregate.Command`) and produced redundant
-/// duplication like `Tools::Tools::Tools.Bash`. v2 collapses to 2
-/// segments + dot : `Tools::Tools.Bash`, `Discipline::Macrophage.Run`.
+/// Returned tuple: (domain, aggregate, command_or_query) — the two address ENDS
+/// that resolution keys on. The Realm/subrealm prefix is ACCEPTED here ; during
+/// the migration bridge it is not yet enforced in resolution (that arrives with
+/// the realm-path stamped on each Aggregate). So both the new
+/// `Realm::Domain::Aggregate` form and the legacy prefix-free `Domain::Aggregate`
+/// (i560 v2) resolve identically — the latter is just the zero-prefix case.
 pub fn parse_fqn(command_name: &str) -> Result<(String, String, String), String> {
+    let err = || format!(
+        "calling format is Realm::Domain::Aggregate.command (queries: .query_name lowercase) — got '{}' (need at least Domain::Aggregate before the '.')",
+        command_name
+    );
     let (head, tail) = match command_name.rsplit_once('.') {
         Some(pair) => pair,
-        None => {
-            return Err(format!(
-                "calling format is Domain::Aggregate.Command (queries: .query_name lowercase) — got '{}'",
-                command_name
-            ));
-        }
+        None => return Err(err()),
     };
     if tail.is_empty() || head.is_empty() {
-        return Err(format!(
-            "calling format is Domain::Aggregate.Command (queries: .query_name lowercase) — got '{}'",
-            command_name
-        ));
+        return Err(err());
     }
     let segments: Vec<&str> = head.split("::").collect();
-    if segments.len() != 2 {
-        return Err(format!(
-            "calling format is Domain::Aggregate.Command (queries: .query_name lowercase) — got '{}' (expected 2 '::'-separated segments before the '.')",
-            command_name
-        ));
+    if segments.len() < 2 || segments.iter().any(|s| s.is_empty()) {
+        return Err(err());
     }
+    let n = segments.len();
     Ok((
-        segments[0].to_string(),
-        segments[1].to_string(),
+        segments[n - 2].to_string(), // Domain  — second-to-last segment
+        segments[n - 1].to_string(), // Aggregate — the leaf (last segment)
         tail.to_string(),
     ))
 }

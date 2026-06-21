@@ -4552,8 +4552,12 @@ fn dispatch_hecksagon(agg_dir: &str, command: &str, attrs: std::collections::Has
     // repo by context+aggregate).
     if let Some((head, tail)) = command.rsplit_once('.') {
         let segments: Vec<&str> = head.split("::").collect();
-        if segments.len() == 2 {
-            let agg = segments[1];
+        if segments.len() >= 2 {
+            // Variable-depth address : the aggregate is the LAST :: segment
+            // (Realm[::Subrealm…]::Domain::Aggregate). resolve_query_qualified
+            // targets the repo by context+aggregate ; the realm/subrealm
+            // prefix is accepted (enforced once the realm-path is stamped).
+            let agg = segments[segments.len() - 1];
             let q_match = rt.domain.aggregates.iter()
                 .filter(|a| a.name == agg)
                 .find_map(|a| a.queries.iter()
@@ -7091,9 +7095,13 @@ fn storehouse_resolve(phrase: &str, conception: &str) -> Option<StorehousePhrase
     if segments.len() == 2 {
         // Aggregate.Command — match against two-segment form
         phrases.into_iter().find(|p| p.phrase == normalized)
-    } else if segments.len() == 3 {
-        // Domain.Aggregate.Command — match against three-segment form
-        phrases.into_iter().find(|p| p.domain_phrase == normalized)
+    } else if segments.len() >= 3 {
+        // Domain.Aggregate.Command, possibly realm-prefixed
+        // (Realm.[Subrealm.]Domain.Aggregate.Command) — match the stored
+        // 3-segment domain_phrase against the TRAILING Domain.Aggregate.Command.
+        let n = segments.len();
+        let trailing = segments[n - 3..].join(".");
+        phrases.into_iter().find(|p| p.domain_phrase == trailing)
     } else {
         None
     }

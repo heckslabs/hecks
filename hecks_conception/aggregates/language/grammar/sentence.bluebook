@@ -1,5 +1,5 @@
 Hecks.bluebook "Sentence", version: "2026.05.12.1" do
-  vision "One thing a being can say that maps to a command — a single executable utterance"
+  vision "One thing a being can say that maps to a command — a single executable utterance, addressed Realm[::Subrealm…]::Domain::Aggregate.command (the folder tree IS the namespace IS the storage key)"
   category "language"
 
   # ============================================================
@@ -16,6 +16,8 @@ Hecks.bluebook "Sentence", version: "2026.05.12.1" do
   aggregate "Sentence", "One thing a being can say that maps to a command" do
     identified_by :phrase
     attribute :phrase, Phrase
+    attribute :realm, RealmName
+    attribute :subrealms, list_of(SubrealmName)
     attribute :domain, DomainName
     attribute :command, CommandName
     attribute :aggregate, AggregateName
@@ -31,8 +33,24 @@ Hecks.bluebook "Sentence", version: "2026.05.12.1" do
       attribute :value, String
     end
 
+    value_object "RealmName" do
+      # The outermost namespace segment — the project / top folder
+      # (Hecks, Miette, MietteAi). First segment of the realm-qualified
+      # address Realm[::Subrealm…]::Domain::Aggregate.command, derived from
+      # the top of the folder tree.
+      attribute :value, String
+    end
+
+    value_object "SubrealmName" do
+      # One intermediate folder between the Realm and the Domain — a nested
+      # realm. Zero or more, ordered outermost-first ; the variable middle
+      # of the address. Realms nest recursively, like folders / packages.
+      attribute :value, String
+    end
+
     value_object "DomainName" do
-      # The bluebook domain the sentence originates from.
+      # The bluebook domain the sentence originates from (the bounded
+      # context) — the second-to-last address segment.
       attribute :value, String
     end
 
@@ -71,6 +89,8 @@ Hecks.bluebook "Sentence", version: "2026.05.12.1" do
       role "System"
       description "Register a single valid sentence from a bluebook command"
       attribute :phrase, Phrase
+      attribute :realm, RealmName
+      attribute :subrealms, list_of(SubrealmName)
       attribute :domain, DomainName
       attribute :command, CommandName
       attribute :aggregate, AggregateName
@@ -78,6 +98,8 @@ Hecks.bluebook "Sentence", version: "2026.05.12.1" do
       attribute :parameters, list_of(ParameterName)
       emits "SentenceDefined"
       then_set :phrase, to: :phrase
+      then_set :realm, to: :realm
+      then_set :subrealms, to: :subrealms
       then_set :domain, to: :domain
       then_set :command, to: :command
       then_set :aggregate, to: :aggregate

@@ -268,14 +268,20 @@ impl Drop for DispatchScope {
 /// Anything that doesn't split cleanly falls back to the whole string in
 /// the command slot so the header never lies about a malformed FQN.
 pub fn parse_fqn(fqn: &str) -> (String, String, String) {
-    let (domain, rest) = match fqn.split_once("::") {
-        Some((d, r)) => (d.to_string(), r),
-        None => (String::new(), fqn),
+    // Variable-depth Realm[::Subrealm…]::Domain::Aggregate.command — for display
+    // we show the Domain (second-to-last :: segment) + Aggregate (last) + command.
+    let (head, cmd) = match fqn.rsplit_once('.') {
+        Some((h, c)) => (h, c.to_string()),
+        None => (fqn, String::new()),
     };
-    match rest.rsplit_once('.') {
-        Some((agg, cmd)) => (domain, agg.to_string(), cmd.to_string()),
-        None => (domain, String::new(), rest.to_string()),
-    }
+    let segs: Vec<&str> = head.split("::").collect();
+    let aggregate = segs.last().copied().unwrap_or("").to_string();
+    let domain = if segs.len() >= 2 {
+        segs[segs.len() - 2].to_string()
+    } else {
+        String::new()
+    };
+    (domain, aggregate, cmd)
 }
 
 /// Build the scannable bracketed header line for a dispatched FQN —
