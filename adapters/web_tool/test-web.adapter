@@ -1,0 +1,20 @@
+# TestWeb — a concrete, DETERMINISTIC web_tool adapter. Declares its family
+# (web_tool) — the inverted arrow ; the family never names it. Named for its
+# IDENTITY (a fixture-backed test provider), NOT its transport. Mirrors
+# adapters/llm/test-llm.adapter.
+#
+# The `handler` is the OUT-OF-PROCESS program the inline primary-adapter wait
+# (Runtime::drain_outbound_to_quiescence) execs when the bound event fires : it
+# reads the event payload on stdin (carries `url` for fetch / `query` for search
+# + `tool`), looks up a DETERMINISTIC fixture keyed by the request (NO real
+# network), and writes `output=<body>` to stdout, exit 0. The drainer (NOT the
+# handler) dispatches the success verdict + marks the delivery delivered — the
+# payment/verdict-capturing protocol, not tts's self-ack.
+#
+# Fixture lookup mirrors the llm-handler's TSV shape : $WEB_TOOL_FIXTURES points
+# at a `key<TAB>output` file where key is `<tool>:<url-or-query>`. A miss yields
+# the deterministic lenient placeholder `[test-web:unknown <tool>=<arg>]`.
+Hecks.adapter "TestWeb" do
+  family  "web_tool"
+  handler "adapters/web_tool/web-tool-handler"
+end

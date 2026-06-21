@@ -1,0 +1,36 @@
+# web_tool — an impure-boundary PORT for web fetch / search, declared in the
+# verb/produces (effect-with-verdict) form, mirroring adapters/llm/llm.family.
+#
+# slice-2 NOTE : this is an ADDITIVE, REVERSIBLE second declaration of the
+# `web_tool` family name. The ORIGINAL
+# hecks_conception/aggregates/framework/adapter_families/web_tool.hecksagon is an
+# `Hecks.adapter_family` (io-adapter form : trigger_field / behaviors, NO verb /
+# produces) feeding the in-process web_tool_dispatcher.rs fallback. The two are
+# DISTINCT constructs that happen to share a name : the adapter_family form only
+# stamps framework_kind + the io-adapter shape (it pushes NOTHING to hex.families)
+# ; THIS `Hecks.family` form pushes a Family{verb,produces} into hex.families.
+# They live in separate files / separate Hecksagons, so family_verb["web_tool"]
+# resolves to `fetched_by` from this declaration alone — no collision. Unifying
+# to one family form is a LATER cleanup, when the in-process path is deleted.
+#
+# Signal is EFFECT, WITH A VERDICT (like llm, unlike tts) : the aggregate EMITS an
+# event carrying the url / query, the adapter performs the web call
+# OUT-OF-PROCESS, and the result RE-ENTERS the domain as a verdict command
+# (success "Agg.RecordResult"). The family declares `produces :output`, and the
+# bind carries a `do success/failure end` block whose success verdict receives the
+# `output` the handler emits.
+#
+# The how-verb is `fetched_by`, hung off the aggregate FQN with its triggering
+# event (`on:`). The config FIELDS the adapters carry are NAMED here ; their
+# per-deployment VALUES live in .world. The family never names its adapters (the
+# inverted arrow lives in .adapter).
+#
+# slice-2 NOTE : `signal :effect` is KEPT — signal retirement is a later slice.
+Hecks.family "web_tool" do
+  verb   "fetched_by"
+  signal :effect
+  field  :tool
+  field  :user_agent
+  field  :fixtures
+  produces :output
+end
