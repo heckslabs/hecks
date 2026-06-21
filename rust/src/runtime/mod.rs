@@ -213,6 +213,10 @@ pub mod sqlite_query;
 mod sql_query_tests;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod query_parity_tests;
+// Phase 4 of the where() overhaul — the CausationTrace lineage traversal
+// (resolve_query_qualified's recursive branch), tested over a seeded chain.
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod causation_trace_tests;
 // The merge half : tail N single-writer shards into the global ordered Log.
 pub mod event_merge;
 pub mod compute_functions;

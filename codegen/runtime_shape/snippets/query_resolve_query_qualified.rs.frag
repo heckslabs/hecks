@@ -68,6 +68,48 @@
             });
         }
 
+        // CausationTrace: the recursive lineage walk a single where() cannot
+        // express. From a root event_id, follow causation_id up the chain to the
+        // root cause, accumulating each event in order. find() resolves each
+        // event by id (Event is identified_by event_id) ; causation_id reads as
+        // either a plain string or a {value} VO. A seen-set guards cycles ; the
+        // walk stops at an empty causation_id or a missing event. Like
+        // MatchInput, a named query the engine special-cases — not a
+        // record-filter.
+        if query_name == "CausationTrace" {
+            let mut records: Vec<serde_json::Value> = Vec::new();
+            let mut seen = std::collections::HashSet::new();
+            let mut current = attrs.get("event_id").cloned().unwrap_or_default();
+            while !current.is_empty() && seen.insert(current.clone()) {
+                let ev = match self.find(&agg_name, &current) {
+                    Some(e) => e,
+                    None => break,
+                };
+                let cause = match ev.fields.get("causation_id") {
+                    Some(Value::Str(s)) => s.clone(),
+                    Some(Value::Map(m)) => {
+                        m.get("value").map(|v| v.to_string()).unwrap_or_default()
+                    }
+                    _ => String::new(),
+                };
+                let mut map = serde_json::Map::new();
+                for (k, v) in &ev.fields {
+                    map.insert(k.clone(), match v {
+                        Value::Str(s) => serde_json::json!(s),
+                        Value::Int(n) => serde_json::json!(n),
+                        Value::Bool(b) => serde_json::json!(b),
+                        _ => serde_json::json!(v.to_string()),
+                    });
+                }
+                records.push(serde_json::Value::Object(map));
+                current = cause;
+            }
+            return serde_json::json!({
+                "aggregate": agg_name, "query": query_name,
+                "state": serde_json::json!(records),
+            });
+        }
+
         // Generic query: get the candidate set, then apply wheres / order_by /
         // limit. The backend may PREFILTER when the context is resolved — SQL at
         // the connection (injection-safe bound params, index-ready), the Event

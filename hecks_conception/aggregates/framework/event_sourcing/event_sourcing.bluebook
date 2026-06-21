@@ -142,14 +142,13 @@ Hecks.bluebook "EventSourcing", version: "2026.06.19.1" do
     end
 
     query "AtSequence" do |seq|
-      # Point lookup : the event AT a sequence. The DSL's where() is
-      # equality-only this phase (no >/< predicate exists anywhere in the
-      # corpus), so the "tail strictly AFTER a watermark" that Snapshot's
-      # fall-forward needs is NOT expressible as a plain where() yet — it is
-      # a RANGE scan the runtime performs (Log is ordered by sequence ; read
-      # from watermark+1 to head). DEFERRED to the runtime/range-query phase.
-      # AtSequence is the honest equality slice the model can prove today,
-      # and the building block of that scan.
+      # Point lookup : the event AT a sequence. where() carries ordered
+          # predicates (Gt/Gte/Lt/Lte) in the matcher, so the "tail strictly
+          # AFTER a watermark" that Snapshot's fall-forward needs IS expressible ;
+          # the runtime still performs it as a sequence range scan (Log ordered
+          # by sequence ; read from watermark+1 to head) rather than a backend-
+          # pushed range query. AtSequence is the equality slice and the building
+          # block of that scan.
       where(sequence: seq)
     end
 
@@ -160,11 +159,30 @@ Hecks.bluebook "EventSourcing", version: "2026.06.19.1" do
     end
 
     query "ByCorrelation" do |correlation_id|
-      # Every event in one originating flow — the lineage-ready slice
-      # (facet-queries over it are DEFERRED).
-      where(correlation_id: correlation_id)
-    end
-  end
+          # Every event in one originating flow — the lineage-ready slice.
+          where(correlation_id: correlation_id)
+        end
+
+        # ── Lineage facet-queries ──────────────────────────────────────
+
+        query "ByActor" do |actor|
+          # Every event a given party issued — a plain equality slice over the
+          # actor field. Expressible as an ordinary where() (the lineage facet
+          # that needs no traversal).
+          where(actor: actor)
+        end
+
+        query "CausationTrace" do |event_id|
+          # The recursive lineage walk a single where() CANNOT express : from a
+          # root event, follow causation_id up the chain to the root cause,
+          # accumulating each event in order. The runtime resolves this as a
+          # traversal (cycle-guarded ; stops at an empty causation_id or a
+          # missing event) — like MatchInput, it is a named query the engine
+          # special-cases, not a record-filter. This is the lineage the Event's
+          # causation_id was always 'lineage-ready' FOR ; no longer deferred.
+          description "Walk the causation chain from this event up to its root cause"
+        end
+      end
 
   # ============================================================
   # PROJECTION  —  the HONEST incremental fold
@@ -264,13 +282,15 @@ Hecks.bluebook "EventSourcing", version: "2026.06.19.1" do
   # (the gap between watermark and Log head). CADENCE (flagged) : capture by
   # THRESHOLD (every N events) or ON-DEMAND, not by time.
   #
-  # NOTE (this phase) : the strictly-after-watermark TAIL is a RANGE scan ;
-  # the DSL's where() is equality-only in the corpus today, so the tail read
-  # is DEFERRED to the runtime/range-query phase. Event.AtSequence is the
-  # honest equality slice the model proves now ; the fall-forward scan is its
-  # ordered generalisation.
+  # NOTE : the strictly-after-watermark TAIL is a RANGE scan. where() DOES
+  # carry ordered predicates (Gt/Gte/Lt/Lte) in the matcher, so the tail is
+  # now EXPRESSIBLE ; the runtime still performs it as a sequence range scan
+  # rather than a backend-pushed range query (range pushdown is the remaining
+  # lift — Eq pushdown + indexes landed in the where() overhaul). Event.
+  # AtSequence is the equality slice ; the fall-forward scan is its ordered
+  # generalisation.
 
-  aggregate "Snapshot", "A cached fold of a projection at a sequence watermark. Identified by projection_name. Capture records the folded state + watermark ; on read the runtime range-scans the Log from watermark+1 to head and folds those deltas forward, so a snapshot is never wrong, only stale. The strictly-after tail is a range query DEFERRED to the runtime phase (where() is equality-only today). Threshold/on-demand cadence, not time-based." do
+  aggregate "Snapshot", "A cached fold of a projection at a sequence watermark. Identified by projection_name. Capture records the folded state + watermark ; on read the runtime range-scans the Log from watermark+1 to head and folds those deltas forward, so a snapshot is never wrong, only stale. The strictly-after tail is a sequence range scan (where() carries ordered predicates ; range pushdown to the backend is the remaining lift). Threshold/on-demand cadence, not time-based." do
     identified_by :projection_name
 
     attribute :projection_name, ProjectionName
