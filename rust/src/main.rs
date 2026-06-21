@@ -4007,8 +4007,82 @@ fn cmd_wire_all(root: &str, args: &[String]) {
 /// merged event.heki), folds it per aggregate instance, and compares each
 /// reconstructed field to the live store. Green => current state is DERIVABLE
 /// from the Log, so the Log is the source of truth, not a parallel record.
-fn cmd_verify_projection(agg_dir: &str) {
+/// One projection measurement : fold the COMPLETE Log (consolidated event.heki
+/// + the read-only unconsolidated shard tail) and compare each reconstructed
+/// field to the live store. Returns the stable counts plus the set of drifting
+/// (agg, id, field) -> (log, store) pairs. Called more than once by
+/// cmd_verify_projection so a transient liveness race can be told from a
+/// persistent derivability failure. None == the Log is empty (nothing to do).
+struct ProjectionMeasurement {
+    domain_instances: usize,
+    infra: usize,
+    orphan: usize,
+    uncomparable: usize,
+    total_fields: usize,
+    drift: std::collections::HashMap<(String, String, String), (String, String)>,
+}
+
+fn measure_projection(rt: &Runtime) -> Option<ProjectionMeasurement> {
     use storehouse::runtime::projection_fold::{fold_event_log, is_infra_mechanism};
+    // The COMPLETE Log = consolidated event.heki + the unconsolidated shard tail.
+    // AppendLog reads event.heki ; the tail is the freshest events still in shards,
+    // ~one consolidation-cadence ahead. A LIVE aggregate (e.g. the 2s InboxPoller)
+    // always has its newest event in the tail, so without it the gauge reports a
+    // phantom lag-drift. The tail read is READ-ONLY (no global write, no checkpoint
+    // save).
+    let consolidated = rt.all("Event");
+    let tail = rt.unconsolidated_log_tail();
+    if consolidated.is_empty() && tail.is_empty() {
+        return None;
+    }
+    let mut events: Vec<&storehouse::runtime::AggregateState> = consolidated;
+    events.extend(tail.iter());
+    let folded = fold_event_log(&events);
+
+    let mut m = ProjectionMeasurement {
+        domain_instances: 0,
+        infra: 0,
+        orphan: 0,
+        uncomparable: 0,
+        total_fields: 0,
+        drift: std::collections::HashMap::new(),
+    };
+    for ((agg_name, agg_id), recon) in &folded {
+        // Infra mechanism (Cascade / Process / ProcessSentinel …) is never part
+        // of the projection : its ids are process-ephemeral, so the same predicate
+        // that stops the WRITE path also excludes it from the GAUGE.
+        if is_infra_mechanism(agg_name) {
+            m.infra += 1;
+            continue;
+        }
+        // An instance with no/!string id (e.g. aggregate_id was an empty list,
+        // rendered "[0 items]") cannot be folded per-instance — all such events
+        // collapse into one bogus bucket. Not comparable ; count and skip.
+        if agg_id.is_empty() || agg_id == "[0 items]" || agg_name == "[0 items]" {
+            m.uncomparable += 1;
+            continue;
+        }
+        m.domain_instances += 1;
+        match rt.find(agg_name, agg_id) {
+            None => m.orphan += 1, // Log has events but the live store has no record.
+            Some(store) => {
+                for (field, folded_val) in recon {
+                    m.total_fields += 1;
+                    let store_val = store.get(field).to_string();
+                    if &store_val != folded_val {
+                        m.drift.insert(
+                            (agg_name.clone(), agg_id.clone(), field.clone()),
+                            (folded_val.clone(), store_val),
+                        );
+                    }
+                }
+            }
+        }
+    }
+    Some(m)
+}
+
+fn cmd_verify_projection(agg_dir: &str) {
     let data_dir = find_world_heki_dir(agg_dir)
         .unwrap_or_else(|| format!("{}/data", agg_dir.trim_end_matches('/')));
     let combined = if std::path::Path::new(agg_dir).is_file() {
@@ -4021,71 +4095,70 @@ fn cmd_verify_projection(agg_dir: &str) {
     storehouse::world::attach::apply_per_domain_world_dirs(&mut rt, agg_dir);
     storehouse::world::attach::attach_world_adapter_bindings(&mut rt, agg_dir);
 
-    // The Log : every Event record. AppendLog reads the consolidated event.heki.
-    let events = rt.all("Event");
-    if events.is_empty() {
-        println!("verify-projection : the Event Log is empty (gate off, or not yet consolidated) — nothing to verify.");
-        return;
-    }
-    let folded = fold_event_log(&events);
-
-    let (mut verified, mut mismatched, mut orphan, mut uncomparable) = (0usize, 0usize, 0usize, 0usize);
-    let (mut total_fields, mut bad_fields) = (0usize, 0usize);
-    let mut infra = 0usize;
-    let mut examples: Vec<String> = Vec::new();
-
-    for ((agg_name, agg_id), recon) in &folded {
-        // Infra mechanism (Cascade / Process / ProcessSentinel …) is never part
-        // of the projection : its ids are process-ephemeral, so the same
-        // predicate that stops the WRITE path also excludes it from the GAUGE.
-        // Counted separately, never judged against the store.
-        if is_infra_mechanism(agg_name) {
-            infra += 1;
-            continue;
+    let m = match measure_projection(&rt) {
+        Some(m) => m,
+        None => {
+            println!("verify-projection : the Event Log is empty (gate off, or not yet consolidated) — nothing to verify.");
+            return;
         }
-        // An instance with no/!string id (e.g. aggregate_id was an empty list,
-        // rendered "[0 items]") cannot be folded per-instance — all such events
-        // collapse into one bogus bucket. Not comparable ; count and skip.
-        if agg_id.is_empty() || agg_id == "[0 items]" || agg_name == "[0 items]" {
-            uncomparable += 1;
-            continue;
+    };
+
+    // Separate a TRANSIENT race from PERSISTENT drift. A real derivability
+    // failure (an unlogged write, a fold bug) recurs every measurement ; a
+    // liveness race — the store moving between the tail read and the store read
+    // of a continuously-dispatching aggregate — clears on re-measure. So drift
+    // is only REAL if it survives every pass : persistent = the intersection of
+    // the mismatch sets. (You cannot atomically snapshot two cross-process
+    // stores, so a single snapshot cannot tell the two apart — re-measurement
+    // can.) Keep the latest pass's values for an accurate report.
+    let mut persistent = m.drift.clone();
+    for _ in 0..2 {
+        if persistent.is_empty() {
+            break;
         }
-        match rt.find(agg_name, agg_id) {
-            None => {
-                orphan += 1; // Log has events but the live store has no such record.
-            }
-            Some(store) => {
-                let mut ok = true;
-                for (field, folded_val) in recon {
-                    total_fields += 1;
-                    let store_val = store.get(field).to_string();
-                    if &store_val != folded_val {
-                        ok = false;
-                        bad_fields += 1;
-                        if examples.len() < 10 {
-                            examples.push(format!(
-                                "{}::{} .{} : log={:?} store={:?}",
-                                agg_name, agg_id, field, folded_val, store_val
-                            ));
-                        }
-                    }
+        if let Some(mr) = measure_projection(&rt) {
+            persistent.retain(|k, _| mr.drift.contains_key(k));
+            for (k, v) in mr.drift {
+                if persistent.contains_key(&k) {
+                    persistent.insert(k, v);
                 }
-                if ok { verified += 1 } else { mismatched += 1 }
             }
         }
     }
+    let transient = m.drift.len().saturating_sub(persistent.len());
+    let verified = m.domain_instances.saturating_sub(
+        // instances with at least one persistent-drift field
+        {
+            let mut bad: std::collections::HashSet<(&String, &String)> =
+                std::collections::HashSet::new();
+            for (a, i, _) in persistent.keys() {
+                bad.insert((a, i));
+            }
+            bad.len()
+        } + m.orphan,
+    );
 
     println!("# verify-projection — fold(Log) vs store");
-    println!("  instances in Log (domain)      : {}", folded.len() - infra);
-    println!("  infra mechanism (not measured) : {}", infra);
+    println!("  instances in Log (domain)      : {}", m.domain_instances);
+    println!("  infra mechanism (not measured) : {}", m.infra);
     println!("  fully reconstructed            : {}", verified);
-    println!("  field mismatches               : {} instance(s), {}/{} field(s)", mismatched, bad_fields, total_fields);
-    println!("  orphan (Log events, no store)  : {}", orphan);
-    println!("  uncomparable (no instance id)  : {}", uncomparable);
-    for e in &examples {
-        println!("    ! {}", e);
+    println!(
+        "  persistent drift               : {} field(s) / {} checked",
+        persistent.len(),
+        m.total_fields
+    );
+    println!("  transient (race, self-healed)  : {} field(s)", transient);
+    println!("  orphan (Log events, no store)  : {}", m.orphan);
+    println!("  uncomparable (no instance id)  : {}", m.uncomparable);
+    let mut examples: Vec<_> = persistent.iter().collect();
+    examples.sort_by(|a, b| a.0.cmp(b.0));
+    for ((agg_name, agg_id, field), (log_val, store_val)) in examples.iter().take(10) {
+        println!(
+            "    ! {}::{} .{} : log={:?} store={:?}",
+            agg_name, agg_id, field, log_val, store_val
+        );
     }
-    if mismatched == 0 && bad_fields == 0 {
+    if persistent.is_empty() {
         println!("  => state IS a projection of the Log : every logged field reconstructs to the store.");
     } else {
         println!("  => DRIFT : the Log does not reconstruct the store for the fields above.");
