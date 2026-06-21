@@ -4940,6 +4940,7 @@ fn run_macrophage(_args: &[String]) {
         FileKind::Imperative => if exempted { "RecordExemptedEdit" } else { "RecordImperativeEdit" },
         FileKind::Support    => "RecordSupportEdit",
         FileKind::Other      => "RecordOtherEdit",
+        FileKind::Downstream => "RecordDownstreamEdit",
     };
 
     // Resolve aggregates dir relative to the binary's project layout.
@@ -5428,9 +5429,34 @@ fn dispatch_lookup(file_path: &str) -> Option<storehouse::dispatch_query::Dispat
     storehouse::dispatch_query::is_dispatched_by_corpus(file_path, corpus_root)
 }
 
-enum FileKind { Bluebook, Imperative, Support, Other }
+enum FileKind { Bluebook, Imperative, Support, Other, Downstream }
+
+/// A DOWNSTREAM artifact follows its floor bluebook : a test shadows the
+/// bluebook it covers (so it is rewritten WHEN the floor is, never a gap), and
+/// generated code is the bluebook's projection. Path-only predicate, mirroring
+/// bin/antibody-check's downstream_artifact? (+ the _smoke suffix). Generated
+/// files are downstream too, but already ride the IR/corpus-claim exemption on
+/// the imperative path, so this only needs to catch tests.
+fn is_test_artifact(path: &str) -> bool {
+    let lower = path.to_lowercase();
+    let in_test_dir = lower
+        .split('/')
+        .any(|seg| matches!(seg, "test" | "tests" | "spec" | "specs" | "bench" | "benches"));
+    let base = lower.rsplit('/').next().unwrap_or(&lower);
+    let stem = base.rsplit_once('.').map(|(s, _)| s).unwrap_or(base);
+    let suffix = stem.ends_with("_test")
+        || stem.ends_with("_spec")
+        || stem.ends_with("_smoke")
+        || stem.ends_with("_bench")
+        || stem.ends_with("_benchmark");
+    in_test_dir || suffix || base.starts_with("test_") || base == "build.rs"
+}
 
 fn classify_file(path: &str) -> FileKind {
+    // Downstream (tests) before extension : a test .rs is NOT an imperative gap.
+    if is_test_artifact(path) {
+        return FileKind::Downstream;
+    }
     let ext = path.rsplit('.').next().unwrap_or("").to_lowercase();
     match ext.as_str() {
         "bluebook" | "hecksagon" | "fixtures" | "behaviors" | "world" => FileKind::Bluebook,
