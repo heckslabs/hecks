@@ -183,6 +183,27 @@ impl SqliteRepository {
         self.store.values().collect()
     }
 
+    /// Injection-safe pushdown query (where() Phase 1). Builds a parameterized
+    /// prefilter for the PUSHABLE clauses (sql_query) and runs it against the
+    /// live connection, returning OWNED candidate states. The runtime's
+    /// `where_matches` oracle re-applies EVERY clause on top, so this is a SAFE
+    /// PREFILTER — it never drops a row the oracle would keep. Falls back to the
+    /// full in-memory store when nothing is pushable or the query errors (never
+    /// a silent empty result).
+    pub fn query(
+        &self,
+        wheres: &[crate::ir::WhereClause],
+        attrs: &HashMap<String, String>,
+    ) -> Vec<AggregateState> {
+        match super::sql_query::build_pushdown(wheres, attrs, &self.columns) {
+            Some((where_sql, params)) => super::sql_query::run_filtered(
+                &self.conn, &self.table, &self.columns, &where_sql, &params,
+            )
+            .unwrap_or_else(|| self.store.values().cloned().collect()),
+            None => self.store.values().cloned().collect(),
+        }
+    }
+
     pub fn count(&self) -> usize {
         self.store.len()
     }

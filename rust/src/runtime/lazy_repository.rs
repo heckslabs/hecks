@@ -347,6 +347,21 @@ impl LazyRepository {
         if self.is_sql() { self.sql().count() } else { self.repo().count() }
     }
 
+    /// The where() pushdown seam. SQL routes to the connection-executed,
+    /// injection-safe parameterized prefilter (returning OWNED candidate
+    /// states) ; every other backend has no pushdown yet, so it returns
+    /// `None` and the caller keeps the in-memory `all()` + `where_matches`
+    /// oracle path (no clone regression). The oracle re-applies every
+    /// clause regardless, so a `Some` prefilter can only narrow — parity
+    /// holds by construction.
+    pub fn query(
+        &self,
+        wheres: &[crate::ir::WhereClause],
+        attrs: &HashMap<String, String>,
+    ) -> Option<Vec<AggregateState>> {
+        if self.is_sql() { Some(self.sql().query(wheres, attrs)) } else { None }
+    }
+
     pub fn next_id_value(&self) -> u64 {
         if self.is_sql() { self.sql().next_id_value() } else { self.repo().next_id_value() }
     }
