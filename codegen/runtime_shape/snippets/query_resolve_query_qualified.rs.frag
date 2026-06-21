@@ -69,18 +69,20 @@
         }
 
         // Generic query: get the candidate set, then apply wheres / order_by /
-        // limit. SQL backends prefilter at the connection (injection-safe bound
-        // params, index-ready) when the context is resolved ; `where_matches`
-        // below re-applies EVERY clause, so the prefilter can only narrow, never
-        // change, the result — parity by construction. Non-SQL backends return
-        // None here and keep the in-memory all() fast path (no clone), reached
+        // limit. The backend may PREFILTER when the context is resolved — SQL at
+        // the connection (injection-safe bound params, index-ready), the Event
+        // Log via a filtered streaming scan (hydrate only matching lines). Either
+        // way `where_matches` below re-applies EVERY clause, so a prefilter can
+        // only narrow, never change, the result — parity by construction. A
+        // backend with no pushdown (heki/memory, or no pushable clause) returns
+        // None here and keeps the in-memory all() fast path (no clone), reached
         // via `all_qualified` so the (context, name) repo key is hit directly,
         // bypassing the name-only HashMap-iter-order pick that drove the
         // dream_content_smoke flake.
-        let sql_candidates: Option<Vec<AggregateState>> = resolved_context.as_deref()
+        let backend_candidates: Option<Vec<AggregateState>> = resolved_context.as_deref()
             .and_then(|ctx| self.repositories.get(&repo_key(Some(ctx), &agg_name)))
             .and_then(|repo| repo.query(&query_ir.wheres, attrs));
-        let candidate_refs: Vec<&AggregateState> = match sql_candidates {
+        let candidate_refs: Vec<&AggregateState> = match backend_candidates {
             Some(ref owned) => owned.iter().collect(),
             None => self.all_qualified(resolved_context.as_deref(), &agg_name),
         };

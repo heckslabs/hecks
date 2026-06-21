@@ -348,18 +348,29 @@ impl LazyRepository {
     }
 
     /// The where() pushdown seam. SQL routes to the connection-executed,
-    /// injection-safe parameterized prefilter (returning OWNED candidate
-    /// states) ; every other backend has no pushdown yet, so it returns
-    /// `None` and the caller keeps the in-memory `all()` + `where_matches`
-    /// oracle path (no clone regression). The oracle re-applies every
-    /// clause regardless, so a `Some` prefilter can only narrow — parity
-    /// holds by construction.
+    /// injection-safe parameterized prefilter ; AppendLog routes to the
+    /// filtered streaming scan of the Event Log (hydrate only matching
+    /// lines, not the whole growing Log). Both return OWNED candidate
+    /// states. Heki/Memory have no pushdown, so they return `None` and the
+    /// caller keeps the in-memory `all()` + `where_matches` oracle path (no
+    /// clone regression) ; AppendLog also returns `None` when no clause is
+    /// pushable, falling back to the cell-backed `all()`. The oracle
+    /// re-applies every clause regardless, so a `Some` prefilter can only
+    /// narrow — parity holds by construction.
     pub fn query(
         &self,
         wheres: &[crate::ir::WhereClause],
         attrs: &HashMap<String, String>,
     ) -> Option<Vec<AggregateState>> {
-        if self.is_sql() { Some(self.sql().query(wheres, attrs)) } else { None }
+        match &self.backend {
+            Backend::Sql { .. } => Some(self.sql().query(wheres, attrs)),
+            Backend::AppendLog { data_dir, context, .. } => {
+                let dir = data_dir.as_ref()?;
+                let path = super::event_log::global_path(dir, context.as_deref());
+                super::event_log_query::load_filtered(&path, wheres, attrs)
+            }
+            _ => None,
+        }
     }
 
     pub fn next_id_value(&self) -> u64 {
