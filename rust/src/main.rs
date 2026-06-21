@@ -4008,7 +4008,7 @@ fn cmd_wire_all(root: &str, args: &[String]) {
 /// reconstructed field to the live store. Green => current state is DERIVABLE
 /// from the Log, so the Log is the source of truth, not a parallel record.
 fn cmd_verify_projection(agg_dir: &str) {
-    use storehouse::runtime::projection_fold::fold_event_log;
+    use storehouse::runtime::projection_fold::{fold_event_log, is_infra_mechanism};
     let data_dir = find_world_heki_dir(agg_dir)
         .unwrap_or_else(|| format!("{}/data", agg_dir.trim_end_matches('/')));
     let combined = if std::path::Path::new(agg_dir).is_file() {
@@ -4031,9 +4031,18 @@ fn cmd_verify_projection(agg_dir: &str) {
 
     let (mut verified, mut mismatched, mut orphan, mut uncomparable) = (0usize, 0usize, 0usize, 0usize);
     let (mut total_fields, mut bad_fields) = (0usize, 0usize);
+    let mut infra = 0usize;
     let mut examples: Vec<String> = Vec::new();
 
     for ((agg_name, agg_id), recon) in &folded {
+        // Infra mechanism (Cascade / Process / ProcessSentinel …) is never part
+        // of the projection : its ids are process-ephemeral, so the same
+        // predicate that stops the WRITE path also excludes it from the GAUGE.
+        // Counted separately, never judged against the store.
+        if is_infra_mechanism(agg_name) {
+            infra += 1;
+            continue;
+        }
         // An instance with no/!string id (e.g. aggregate_id was an empty list,
         // rendered "[0 items]") cannot be folded per-instance — all such events
         // collapse into one bogus bucket. Not comparable ; count and skip.
@@ -4067,7 +4076,8 @@ fn cmd_verify_projection(agg_dir: &str) {
     }
 
     println!("# verify-projection — fold(Log) vs store");
-    println!("  instances in Log               : {}", folded.len());
+    println!("  instances in Log (domain)      : {}", folded.len() - infra);
+    println!("  infra mechanism (not measured) : {}", infra);
     println!("  fully reconstructed            : {}", verified);
     println!("  field mismatches               : {} instance(s), {}/{} field(s)", mismatched, bad_fields, total_fields);
     println!("  orphan (Log events, no store)  : {}", orphan);
