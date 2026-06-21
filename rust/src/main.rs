@@ -2011,6 +2011,7 @@ fn run_specialize(args: &[String]) {
         eprintln!("       storehouse specialize cf_function_proxy --app <app> --worker-url-env <env> --auth-secret-env <env> [--auth-mode inject|enforce] [--allow-methods <json>] [--output <path>]");
         eprintln!("       storehouse specialize embedded_bluebooks --app <app> --root <path> --primary <basename> [--extensions <csv>] --output <path>");
         eprintln!("       storehouse specialize wrangler_toml --config <cloudflare.bluebook> --output <wrangler.toml>");
+        eprintln!("       storehouse specialize procfile --fixtures <mindstream.fixtures> --output-dir <dir>");
         std::process::exit(2);
     }
 
@@ -2033,6 +2034,10 @@ fn run_specialize(args: &[String]) {
     }
     if target == "wrangler_toml" {
         run_specialize_wrangler_toml(args);
+        return;
+    }
+    if target == "procfile" {
+        run_specialize_procfile(args);
         return;
     }
 
@@ -2373,6 +2378,71 @@ fn run_specialize_wrangler_toml(args: &[String]) {
         std::process::exit(1);
     }
     eprintln!("wrote {} bytes to {}", toml.len(), out_path.display());
+}
+
+/// `storehouse specialize procfile --fixtures <mindstream.fixtures>
+///   --output-dir <dir>`
+///
+/// The i262/i276 `:overmind` generator. Reads a Mindstream's
+/// `mindstream.fixtures` (the boot Mindstream + its MindstreamMembers) and
+/// writes `Procfile` + `.overmind.env` into `--output-dir`, so both
+/// artifacts are DERIVED from the bluebook rather than hand-synced. Each
+/// member's command line is emitted verbatim ; one_shot members flow into
+/// OVERMIND_CAN_DIE. Required flags : `--fixtures`, `--output-dir`.
+///
+/// Re-runs against the same fixtures produce byte-identical output.
+fn run_specialize_procfile(args: &[String]) {
+    fn flag(args: &[String], name: &str) -> Option<String> {
+        args.iter()
+            .position(|a| a == name)
+            .and_then(|i| args.get(i + 1).cloned())
+    }
+    let fixtures = match flag(args, "--fixtures") {
+        Some(v) if !v.is_empty() => v,
+        _ => {
+            eprintln!("specialize procfile : missing --fixtures <mindstream.fixtures>");
+            std::process::exit(2);
+        }
+    };
+    let output_dir = match flag(args, "--output-dir").or_else(|| flag(args, "-o")) {
+        Some(v) if !v.is_empty() => v,
+        _ => {
+            eprintln!("specialize procfile : missing --output-dir <dir>");
+            std::process::exit(2);
+        }
+    };
+
+    let source = match std::fs::read_to_string(&fixtures) {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("cannot read {}: {}", fixtures, e);
+            std::process::exit(1);
+        }
+    };
+    let members = storehouse::specializer::procfile::read_members(&source);
+    if members.is_empty() {
+        eprintln!(
+            "specialize procfile : no MindstreamMember fixtures in {}",
+            fixtures
+        );
+        std::process::exit(1);
+    }
+    let procfile = storehouse::specializer::procfile::emit_procfile(&members);
+    let env = storehouse::specializer::procfile::emit_overmind_env(&members);
+
+    let dir = std::path::PathBuf::from(&output_dir);
+    if let Err(e) = std::fs::create_dir_all(&dir) {
+        eprintln!("cannot create {}: {}", dir.display(), e);
+        std::process::exit(1);
+    }
+    for (name, body) in [("Procfile", &procfile), (".overmind.env", &env)] {
+        let path = dir.join(name);
+        if let Err(e) = std::fs::write(&path, body) {
+            eprintln!("cannot write {}: {}", path.display(), e);
+            std::process::exit(1);
+        }
+        eprintln!("wrote {} bytes to {}", body.len(), path.display());
+    }
 }
 
 /// Locate the repository root for the `specialize` subcommand.
