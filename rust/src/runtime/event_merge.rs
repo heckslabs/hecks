@@ -20,6 +20,16 @@
 //! the case the old whole-file Event repo dropped to 13/30 — is a direct
 //! unit test. The `storehouse merge` daemon wrapper + the record_event_append
 //! rewiring + the gate flip are the following slices.
+//!
+//! [antibody-exempt: rust/src/runtime/event_merge.rs — kernel-floor persistence
+//!  IO. The pure, runtime-free shard-merge + reclaim core (file IO + sort +
+//!  checkpoint + GC of dead, fully-folded shards), sibling of heki.rs /
+//!  event_shard.rs. The CONCEPT is conceived in the EventSourcing bluebook
+//!  (Consolidation.Consolidate — fold then reclaim) ; this is its hand-written
+//!  runtime realization. A shard is a persistence ARTIFACT below the aggregate
+//!  (like a .heki file), so modeling it as a domain aggregate would be the
+//!  PersistenceIsAggregateOnly anti-pattern — the substrate the language bottoms
+//!  out on, not the language. Same kernel-floor contract as projection_fold.rs.]
 
 use super::event_shard::{read_from, ShardRecord};
 use std::collections::HashMap;
@@ -148,6 +158,60 @@ pub fn save_checkpoint(path: &Path, cp: &Checkpoint) -> std::io::Result<()> {
         m.insert(k.clone(), serde_json::Value::Number((*off).into()));
     }
     std::fs::write(path, serde_json::Value::Object(m).to_string())
+}
+
+/// Parse the owning pid from a shard id of the form `p{pid}-{nonce}`
+/// (event_shard::process_shard_id). None for any id that does not match —
+/// such a shard is never reclaimed (conservative).
+pub fn owner_pid(shard_id: &str) -> Option<u32> {
+    shard_id.strip_prefix('p')?.split('-').next()?.parse().ok()
+}
+
+/// Reclaim per-process shard files the merge has already fully folded into the
+/// global Log AND whose owning process is dead. Returns the count deleted and
+/// prunes each reclaimed shard's checkpoint entry (so the checkpoint does not
+/// grow without bound — it tracked one entry per process that ever wrote).
+/// The caller persists the pruned checkpoint.
+///
+/// Two guards, both REQUIRED, make this lossless and crash-safe :
+///   1. FULLY FOLDED : checkpoint offset >= on-disk size, so every byte is
+///      already in event.heki. A shard with an unconsumed tail (offset < size)
+///      is left for the next merge to fold first, THEN reclaim.
+///   2. OWNER DEAD : a LIVE process holds its shard's file handle open
+///      (event_shard PROCESS_SHARD) ; unlinking it would send that process's
+///      future appends to a ghost inode, silently lost. So liveness is checked
+///      via the injected `is_alive` predicate. pid-reuse only makes this MORE
+///      conservative (a reused pid reads as alive -> skip). The predicate is
+///      injected (not a syscall here) so this core stays pure and unit-testable
+///      — the caller supplies the real process-table lookup, and MUST pass a
+///      predicate that errs toward `alive` when liveness cannot be determined.
+pub fn reclaim_consumed_shards(
+    shards: &[Shard],
+    checkpoint: &mut Checkpoint,
+    is_alive: &dyn Fn(u32) -> bool,
+) -> usize {
+    let mut reclaimed = 0usize;
+    for shard in shards {
+        let off = checkpoint.get(&shard.id).copied().unwrap_or(0);
+        let size = match std::fs::metadata(&shard.path) {
+            Ok(m) => m.len(),
+            Err(_) => continue, // gone already, or unstattable : skip
+        };
+        if off < size {
+            continue; // unconsumed tail : the next merge folds it first
+        }
+        // Unparseable id, or a live owner : never reclaim.
+        match owner_pid(&shard.id) {
+            Some(pid) if !is_alive(pid) => {
+                if std::fs::remove_file(&shard.path).is_ok() {
+                    checkpoint.remove(&shard.id);
+                    reclaimed += 1;
+                }
+            }
+            _ => {}
+        }
+    }
+    reclaimed
 }
 
 #[cfg(test)]
@@ -289,5 +353,47 @@ mod tests {
         ids.dedup();
         assert_eq!(ids.len() as u64, WRITERS * PER, "no duplicates, no corruption");
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn reclaim_deletes_only_dead_and_fully_folded_shards() {
+        // The two guards in one table. Three shards in the p{pid}-{nonce} form
+        // so owner_pid parses :
+        //   p111 : dead owner, fully folded   -> RECLAIM
+        //   p222 : dead owner, unconsumed tail -> keep (merge folds it first)
+        //   p333 : ALIVE owner, fully folded   -> keep (open handle ; ghost-inode)
+        let dir = tmp("reclaim");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let mut a = ShardWriter::open(&dir.join("p111-1.shard")).unwrap();
+        let mut b = ShardWriter::open(&dir.join("p222-2.shard")).unwrap();
+        let mut c = ShardWriter::open(&dir.join("p333-3.shard")).unwrap();
+        a.append(&rec("p111-1", 1, "t1")).unwrap();
+        b.append(&rec("p222-2", 1, "t1")).unwrap();
+        c.append(&rec("p333-3", 1, "t1")).unwrap();
+        let shards = discover_shards(&dir).unwrap();
+        // Fold everything to EOF, then write MORE to b so its offset < size.
+        let mut cp = Checkpoint::new();
+        let _ = merge_pass(&shards, &mut cp).unwrap();
+        b.append(&rec("p222-2", 2, "t2")).unwrap();
+
+        let is_alive = |pid: u32| pid == 333; // only p333 lives
+        let n = reclaim_consumed_shards(&shards, &mut cp, &is_alive);
+
+        assert_eq!(n, 1, "only the dead, fully-folded shard is reclaimed");
+        assert!(!dir.join("p111-1.shard").exists(), "dead + folded -> deleted");
+        assert!(dir.join("p222-2.shard").exists(), "unconsumed tail -> kept");
+        assert!(dir.join("p333-3.shard").exists(), "alive owner -> kept");
+        assert!(cp.get("p111-1").is_none(), "reclaimed shard's checkpoint entry pruned");
+        assert!(cp.get("p222-2").is_some(), "kept shard's checkpoint entry remains");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn owner_pid_parses_shard_id_form() {
+        assert_eq!(owner_pid("p12345-1781999116413003000"), Some(12345));
+        assert_eq!(owner_pid("p7-0"), Some(7));
+        assert_eq!(owner_pid("nonsense"), None); // never reclaimed
+        assert_eq!(owner_pid("p-1"), None);
     }
 }

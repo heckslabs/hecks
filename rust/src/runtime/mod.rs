@@ -1004,6 +1004,24 @@ impl Runtime {
                 || event_merge::write_batch_to_global(&global, &batch).is_ok();
             if write_ok {
                 let _ = event_merge::save_checkpoint(&checkpoint, &cp);
+                // Reclaim the per-process shards this merge has now FULLY
+                // folded whose owning process is DEAD — the GC half of
+                // consolidation (every dispatch process leaves an orphan
+                // shard ; without this ~/.heki/.../shards grows without
+                // bound). Only when the live-process set is TRUSTWORTHY :
+                // live_pids() returns None on a failed/empty ps and we
+                // reclaim nothing, never risking a live process's open
+                // shard. Persist the pruned checkpoint when anything went.
+                if let Some(live) = live_pids() {
+                    let n = event_merge::reclaim_consumed_shards(
+                        &shards,
+                        &mut cp,
+                        &|pid| live.contains(&pid),
+                    );
+                    if n > 0 {
+                        let _ = event_merge::save_checkpoint(&checkpoint, &cp);
+                    }
+                }
             }
         }
     }
@@ -3231,6 +3249,31 @@ fn json_to_value_recursive(v: &serde_json::Value) -> Value {
         serde_json::Value::Object(m) => {
             Value::Map(m.iter().map(|(k, v)| (k.clone(), json_to_value_recursive(v))).collect())
         }
+    }
+}
+
+/// The set of live process ids, via one `ps -A -o pid=` probe. Returns None
+/// when liveness cannot be TRUSTED (ps failed, or returned an implausibly
+/// empty set), so the caller reclaims NOTHING this pass rather than risk
+/// deleting a live process's open shard (whose unlinked inode would swallow
+/// its future appends). Dependency-free — no libc — : one cheap subprocess per
+/// consolidation tick, far cheaper than a kill(2) per shard.
+fn live_pids() -> Option<std::collections::HashSet<u32>> {
+    let out = std::process::Command::new("ps")
+        .args(["-A", "-o", "pid="])
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let set: std::collections::HashSet<u32> = String::from_utf8_lossy(&out.stdout)
+        .lines()
+        .filter_map(|l| l.trim().parse::<u32>().ok())
+        .collect();
+    if set.is_empty() {
+        None // implausible : treat as failure, reclaim nothing
+    } else {
+        Some(set)
     }
 }
 
