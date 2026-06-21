@@ -13,16 +13,26 @@
 //! as a raw string), and EVERY value is a BOUND rusqlite param — nothing from
 //! the caller is ever interpolated into the SQL text.
 //!
-//! Pushed ops (this phase) : `Eq` (non-empty resolved target) and `In`
-//! (non-empty members). Both are pure string-equality, which `CAST(col AS
-//! TEXT) = ?` mirrors EXACTLY against the oracle's `field.to_string() ==
-//! target` — sidestepping SQLite's type-affinity coercions (a bare `col = '5'`
-//! would match INTEGER 5 to TEXT "05"; the CAST does not). `Ne / Gt / Gte /
-//! Lt / Lte / Contains / NoneInState` carry numeric-vs-lexical, list, or
-//! cross-aggregate semantics SQL can't replicate yet, so they are left to the
-//! oracle (a no-pushdown clause simply doesn't narrow). Ordered-op pushdown is
-//! a Phase-3 concern (alongside CREATE INDEX), where type-aware comparison and
-//! index use are designed together.
+//! Pushed ops : `Eq` (non-empty resolved target), `In` (non-empty members), and
+//! the ordered ops `Gt / Gte / Lt / Lte` WHEN the resolved target is NON-NUMERIC.
+//! Eq / In are pure string-equality, which `CAST(col AS TEXT) = ?` mirrors EXACTLY
+//! against the oracle's `field.to_string() == target` — sidestepping SQLite's
+//! type-affinity coercions (a bare `col = '5'` would match INTEGER 5 to TEXT
+//! "05"; the CAST does not).
+//!
+//! Ordered ops are parity-safe ONLY for a non-numeric target : the oracle's
+//! `compare_strings` takes its numeric branch IFF BOTH sides parse as i64, so a
+//! non-numeric target forces a LEXICAL comparison for every row — exactly what
+//! `CAST(col AS TEXT) OP ?` does, reusing the Phase-3 text index. This covers the
+//! canonical range query (ISO timestamps / dates / name prefixes : `created_at >
+//! "2026-01-01"`). A NUMERIC target could hit the oracle's numeric branch ("10" >
+//! "5"), which lexical SQL gets wrong and `CAST(col AS INTEGER)` can't replicate
+//! faithfully (overflow clamps ; a NULL cell flips Lt) — so numeric-target ranges
+//! are left to the oracle until a typed numeric-column pushdown (retain the
+//! column's SQL type + a `(col IS NULL OR CAST(col AS INTEGER) OP ?)` superset +
+//! a numeric index) lands. `Ne / Contains / NoneInState` carry negation, list, or
+//! cross-aggregate semantics SQL can't replicate, so they are left to the oracle
+//! (a no-pushdown clause simply doesn't narrow).
 //!
 //! Tests : `sql_query_tests` (builder/executor units) and
 //! `query_parity_tests` (the SQL ↔ where_matches oracle over a real repo).
@@ -104,7 +114,36 @@ pub fn build_pushdown(
                     placeholders.join(", ")
                 ));
             }
-            // Left to the oracle this phase — see module doc.
+            WhereOp::Gt | WhereOp::Gte | WhereOp::Lt | WhereOp::Lte => {
+                let target = resolve(&w.value, attrs);
+                // Range pushdown is parity-safe ONLY for a NON-NUMERIC target.
+                // The oracle's `compare_strings` takes its numeric branch IFF
+                // BOTH sides parse as i64 ; a target that is not an i64 forces
+                // the oracle to compare LEXICALLY for EVERY row, which is
+                // EXACTLY what `CAST(col AS TEXT) OP ?` does (and it reuses the
+                // Phase-3 text index). A NUMERIC target could hit the oracle's
+                // numeric branch ("10" > "5"), which lexical SQL would get wrong,
+                // and `CAST(col AS INTEGER)` can't faithfully replicate
+                // i64::parse (overflow clamps, NULL flips Lt) — so a numeric
+                // target is left to the oracle (no narrowing) until the typed
+                // numeric-column pushdown lands. Empty target is skipped for the
+                // same NULL reason as Eq.
+                if target.is_empty() || target.parse::<i64>().is_ok() {
+                    continue;
+                }
+                let sql_op = match w.op {
+                    WhereOp::Gt => ">",
+                    WhereOp::Gte => ">=",
+                    WhereOp::Lt => "<",
+                    WhereOp::Lte => "<=",
+                    _ => unreachable!("outer match guarantees an ordered op"),
+                };
+                params.push(SqlValue::Text(target));
+                clauses.push(format!("CAST({} AS TEXT) {} ?{}", w.field, sql_op, params.len()));
+            }
+            // Ne / Contains / NoneInState / Resolved carry list, cross-aggregate,
+            // or negation semantics SQL can't replicate parity-faithfully — left
+            // to the oracle (a no-pushdown clause simply doesn't narrow).
             _ => {}
         }
     }

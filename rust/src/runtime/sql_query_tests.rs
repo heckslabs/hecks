@@ -78,14 +78,53 @@ fn unknown_column_is_dropped_not_emitted() {
 }
 
 #[test]
-fn ordered_and_ne_ops_are_left_to_oracle() {
+fn ne_and_contains_are_always_left_to_oracle() {
     let attrs = HashMap::new();
-    for op in [WhereOp::Ne, WhereOp::Gt, WhereOp::Gte, WhereOp::Lt, WhereOp::Lte, WhereOp::Contains] {
+    for op in [WhereOp::Ne, WhereOp::Contains] {
         assert!(
-            build_pushdown(&[clause("priority", op, "5")], &attrs, &cols()).is_none(),
-            "op should not push this phase"
+            build_pushdown(&[clause("status", op, "pending")], &attrs, &cols()).is_none(),
+            "Ne / Contains never push"
         );
     }
+}
+
+#[test]
+fn numeric_target_ordered_ops_are_left_to_oracle() {
+    // A numeric target could hit the oracle's numeric branch ("10" > "5"),
+    // which lexical CAST AS TEXT gets wrong — so ordered ops with an i64
+    // target defer to the oracle (no narrowing).
+    let attrs = HashMap::new();
+    for op in [WhereOp::Gt, WhereOp::Gte, WhereOp::Lt, WhereOp::Lte] {
+        assert!(
+            build_pushdown(&[clause("priority", op, "5")], &attrs, &cols()).is_none(),
+            "numeric-target ordered op must defer to oracle"
+        );
+    }
+}
+
+#[test]
+fn nonnumeric_target_ordered_ops_push_as_cast_text() {
+    // A non-numeric target forces the oracle's lexical branch, which
+    // CAST(col AS TEXT) OP ? mirrors exactly — so the ordered op pushes.
+    let attrs = HashMap::new();
+    let ops = [
+        (WhereOp::Gt, ">"),
+        (WhereOp::Gte, ">="),
+        (WhereOp::Lt, "<"),
+        (WhereOp::Lte, "<="),
+    ];
+    for (op, sym) in ops {
+        let (sql, params) =
+            build_pushdown(&[clause("status", op, "pending")], &attrs, &cols()).unwrap();
+        assert_eq!(sql, format!("CAST(status AS TEXT) {} ?1", sym));
+        assert_eq!(params, vec![SqlValue::Text("pending".into())]);
+    }
+}
+
+#[test]
+fn empty_ordered_target_is_left_to_oracle() {
+    let attrs = HashMap::new();
+    assert!(build_pushdown(&[clause("status", WhereOp::Gt, "")], &attrs, &cols()).is_none());
 }
 
 #[test]
