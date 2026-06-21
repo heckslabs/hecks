@@ -121,20 +121,89 @@ fn file_sink_init() -> Option<Mutex<std::fs::File>> {
     }
 }
 
+// ── Rotation : bound the diagnostic log's growth ───────────────────
+// storehouse.log is a best-effort diagnostic firehose that EVERY process (the
+// dispatch door + every daemon) appends to as ONE shared file, so it grows
+// without bound (it reached 1 GB+). Rotation caps it : when the live file
+// exceeds HECKS_LOG_MAX_BYTES, the writer that notices renames it
+// (storehouse.log -> .1 -> .2 … up to HECKS_LOG_KEEP, oldest dropped) and
+// reopens a fresh file. MULTI-WRITER convergence : a sibling that still holds
+// the now-renamed fd notices its fd is larger than the live path and reopens,
+// so all writers re-converge on the fresh file (size-based, no inode —
+// portable). Checked every ROTATE_CHECK_EVERY writes (amortized : no stat per
+// line). Best-effort : a torn line in the rename window is fine for a
+// diagnostic log. Config via env, deployment-level like heki's dir.
+const ROTATE_CHECK_EVERY: u64 = 256;
+
+fn rotate_max_bytes() -> u64 {
+    std::env::var("HECKS_LOG_MAX_BYTES")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(64 * 1024 * 1024) // 64 MiB
+}
+
+fn rotate_keep() -> u32 {
+    std::env::var("HECKS_LOG_KEEP")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(3)
+}
+
+static WRITES_SINCE_BOOT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// Rotate (or reopen) the sink when the shared log file outgrew the cap or was
+/// rotated by a sibling. Called under the sink Mutex, every ROTATE_CHECK_EVERY
+/// writes. Size-based : if the live path exceeds the cap WE rotate ; else if
+/// the held fd is larger than the live path, a sibling already rotated and we
+/// reopen the live path.
+fn maybe_rotate(f: &mut std::fs::File, path: &std::path::Path, max_bytes: u64, keep: u32) {
+    let live_len = std::fs::metadata(path).map(|m| m.len()).unwrap_or(0);
+    let our_len = f.metadata().map(|m| m.len()).unwrap_or(0);
+    if live_len > max_bytes {
+        let keep = keep.max(1);
+        let p = path.to_string_lossy();
+        let _ = std::fs::remove_file(format!("{}.{}", p, keep));
+        for i in (1..keep).rev() {
+            let _ = std::fs::rename(format!("{}.{}", p, i), format!("{}.{}", p, i + 1));
+        }
+        let _ = std::fs::rename(path, format!("{}.1", p));
+        if let Ok(nf) = OpenOptions::new().create(true).append(true).open(path) {
+            *f = nf;
+        }
+    } else if our_len > live_len {
+        // A sibling rotated the file out from under us — reopen the live path.
+        if let Ok(nf) = OpenOptions::new().create(true).append(true).open(path) {
+            *f = nf;
+        }
+    }
+}
+
+/// Append one line to the file sink, rotating first when due. The single place
+/// the rotate-check + write live ; `emit` (stdout + file) and `emit_file`
+/// (file only) both funnel through here.
+fn sink_write(line: &str) {
+    if let Some(sink) = FILE_SINK.get_or_init(file_sink_init) {
+        if let Ok(mut f) = sink.lock() {
+            if WRITES_SINCE_BOOT.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+                % ROTATE_CHECK_EVERY
+                == 0
+            {
+                maybe_rotate(&mut f, &log_file_path(), rotate_max_bytes(), rotate_keep());
+            }
+            // Errors here are swallowed deliberately — stdout already carried
+            // the breadcrumb, and a per-write warning would spam stderr.
+            let _ = writeln!(f, "{}", line);
+        }
+    }
+}
+
 /// Emit one line to both stdout and the append-mode file sink. All five
 /// public surfaces funnel through here so the dual-sink contract lives
 /// in exactly one place. `println!` goes first so a panicking file
 /// write never costs the operator the stdout breadcrumb.
 fn emit(line: String) {
     println!("{}", line);
-    if let Some(sink) = FILE_SINK.get_or_init(file_sink_init) {
-        if let Ok(mut f) = sink.lock() {
-            // Errors here are swallowed deliberately — we already
-            // succeeded on stdout, and reporting the same warning per
-            // write would spam stderr.
-            let _ = writeln!(f, "{}", line);
-        }
-    }
+    sink_write(&line);
 }
 
 /// Emit a legacy per-event breadcrumb to stdout ONLY — never to the file
@@ -157,11 +226,7 @@ fn emit_stdout(line: String) {
 /// the `{"ok":...}` result line own stdout for the MCP wrapper + golden
 /// tests). The file is plain (no ANSI) ; the watcher applies colour.
 pub fn emit_file(line: &str) {
-    if let Some(sink) = FILE_SINK.get_or_init(file_sink_init) {
-        if let Ok(mut f) = sink.lock() {
-            let _ = writeln!(f, "{}", line);
-        }
-    }
+    sink_write(line);
 }
 
 /// Surface 1 — dispatch entry. Printed when a top-level command enters
@@ -418,5 +483,37 @@ mod tests {
         // Non-now tokens + plain text pass through untouched.
         assert_eq!(interpolate_now_tokens("{id} stays"), "{id} stays");
         std::env::remove_var("HECKS_NOW");
+    }
+
+    #[test]
+    fn maybe_rotate_shifts_oversized_log_then_reopens_fresh() {
+        use std::io::Write;
+        let dir = std::env::temp_dir().join(format!("sh_log_rot_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("storehouse.log");
+
+        // Oversized live file (500B) ; hold an append fd to it. cap=100 -> WE rotate.
+        std::fs::write(&path, vec![b'x'; 500]).unwrap();
+        let mut f = OpenOptions::new().create(true).append(true).open(&path).unwrap();
+        maybe_rotate(&mut f, &path, 100, 2);
+        assert!(path.with_extension("log.1").exists(), ".1 must hold the rotated content");
+        assert_eq!(std::fs::metadata(&path).unwrap().len(), 0, "live log reopened fresh");
+        assert_eq!(std::fs::metadata(path.with_extension("log.1")).unwrap().len(), 500);
+        // The reopened fd writes to the FRESH file, not the rotated-away one.
+        writeln!(f, "after").unwrap();
+        assert!(std::fs::metadata(&path).unwrap().len() > 0, "writes land in the fresh file");
+
+        // Sibling-rotated case : our fd points at a big file while the live
+        // path is small -> our_len > live_len -> reopen the live path.
+        let stale = dir.join("stale.log");
+        std::fs::write(&stale, vec![b'y'; 9000]).unwrap();
+        let mut g = OpenOptions::new().append(true).open(&stale).unwrap();
+        maybe_rotate(&mut g, &path, 100_000, 2); // high cap : no self-rotate
+        let before = std::fs::metadata(&path).unwrap().len();
+        writeln!(g, "z").unwrap();
+        assert!(std::fs::metadata(&path).unwrap().len() > before, "stale fd reopened onto live path");
+        assert_eq!(std::fs::metadata(&stale).unwrap().len(), 9000, "stale file untouched after reopen");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
