@@ -236,3 +236,53 @@ fn save_one_row(
     repo.save(state, ctx);
     Ok(row_id)
 }
+
+#[cfg(test)]
+mod fqn_tests {
+use super::parse_fqn;
+
+// parse_fqn reads a realm-qualified, VARIABLE-DEPTH address by its ENDS :
+// last :: segment = Aggregate, second-to-last = Domain, everything before
+// (Realm + 0+ subrealms) is the accepted-but-unenforced namespace prefix.
+// Returns (domain, aggregate, verb).
+
+#[test]
+fn legacy_two_segment_is_the_zero_prefix_case() {
+    assert_eq!(
+        parse_fqn("AgentInbox::AgentMessage.AllUnread").unwrap(),
+        ("AgentInbox".to_string(), "AgentMessage".to_string(), "AllUnread".to_string())
+    );
+}
+
+#[test]
+fn realm_qualified_three_segment_resolves_by_ends() {
+    assert_eq!(
+        parse_fqn("Hecks::AgentInbox::AgentMessage.all_unread").unwrap(),
+        ("AgentInbox".to_string(), "AgentMessage".to_string(), "all_unread".to_string())
+    );
+}
+
+#[test]
+fn subrealm_four_segment_still_takes_the_two_ends() {
+    assert_eq!(
+        parse_fqn("Hecks::Framework::AgentInbox::AgentMessage.all_unread").unwrap(),
+        ("AgentInbox".to_string(), "AgentMessage".to_string(), "all_unread".to_string())
+    );
+}
+
+#[test]
+fn deep_n_segment_uncapped() {
+    assert_eq!(
+        parse_fqn("A::B::C::D::E::Agg.Cmd").unwrap(),
+        ("E".to_string(), "Agg".to_string(), "Cmd".to_string())
+    );
+}
+
+#[test]
+fn malformed_addresses_are_rejected() {
+    assert!(parse_fqn("NoColons.Cmd").is_err());   // < 2 :: segments
+    assert!(parse_fqn("Just::Two").is_err());       // no '.' verb
+    assert!(parse_fqn("Dangling::.Cmd").is_err());  // empty trailing segment
+    assert!(parse_fqn("::Agg.Cmd").is_err());       // empty leading segment
+}
+}
