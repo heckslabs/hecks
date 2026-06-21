@@ -322,7 +322,7 @@ Hecks.bluebook "EventSourcing", version: "2026.06.19.1" do
   # performs one merge pass (kernel-floor persistence IO, event_merge.rs). This
   # is what retires the hand-written run_merge daemon.
 
-  aggregate "Consolidation", "A singleton marker that the per-process Event shards were folded into the global ordered Log. The fold itself is kernel-floor persistence IO (event_merge.rs, sibling of heki.rs) ; this aggregate is the DOMAIN trigger for it — one record, keyed \"log\", touched by each Consolidate. Fired by a driving-on-interval Driver, replacing the run_merge daemon." do
+  aggregate "Consolidation", "A singleton marker that the per-process Event shards were folded into the global ordered Log AND the fully-folded shards of dead processes reclaimed. The fold and the reclaim are both kernel-floor persistence IO (event_merge.rs, sibling of heki.rs) ; this aggregate is the DOMAIN trigger for them — one record, keyed \"log\", touched by each Consolidate. Reclamation matters because every dispatch process single-writes its own shard then exits, so without GC the shard directory grows without bound ; a shard is reclaimed only once the merge has folded it whole AND its owning process is dead (a live owner holds the file open, so unlinking it would lose its future appends). Fired by a driving-on-interval Driver, replacing the run_merge daemon." do
     identified_by :consolidation_id
 
     # Singleton key : defaults to "log" so a no-arg Consolidate keys the one
@@ -337,7 +337,7 @@ Hecks.bluebook "EventSourcing", version: "2026.06.19.1" do
     command "Consolidate" do
       role "System"
       goal "Fold this realm's per-process Event shards into the global ordered Log"
-      description "Maintenance command — the AppendLog adapter's consolidation half. Carries no shard data : the runtime hook run_consolidate performs ONE merge pass (read each shard from its checkpoint offset, order by (ts, shard, seq), write new records to the global event.heki idempotently by event_id, advance the checkpoint). Dispatched by the driving-on-interval Driver, never by hand. Touches the singleton so the record's existence is the freshness signal."
+      description "Maintenance command — the AppendLog adapter's consolidation half. Carries no shard data : the runtime hook run_consolidate performs ONE merge pass (read each shard from its checkpoint offset, order by (ts, shard, seq), write new records to the global event.heki idempotently by event_id, advance the checkpoint), then RECLAIMS every shard the merge has now folded whole whose owning process is dead (deleting the file and pruning its checkpoint entry, guarded by a trustworthy live-process probe so a live owner's open shard is never unlinked). Dispatched by the driving-on-interval Driver, never by hand. Touches the singleton so the record's existence is the freshness signal."
     end
   end
 end
