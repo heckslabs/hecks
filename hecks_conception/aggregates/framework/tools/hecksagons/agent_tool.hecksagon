@@ -35,7 +35,7 @@ Hecks.hecksagon "AgentToolAdapter" do
       #   dispatch "Hecks::Framework::AgentInbox::AgentMessage.Send",
       #            id: event.id, agent_id: event.to, body: event.message, mid: event.id
       # The send-message binary provides the synchronous face in the meantime.
-      dispatch "Tools::Cascade.RecordResult",
+      dispatch "Hecks::Framework::Cascade::Cascade.RecordResult",
                id: event.id,
                tool: "agent_resume",
                output: "agent resumed",
