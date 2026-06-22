@@ -7320,7 +7320,7 @@ fn storehouse_walk_phrases(conception: &str) -> Vec<StorehousePhrase> {
     // config-driven additional corpus roots (HECKS_ADDITIONAL_CORPUS_ROOTS) —
     // names no being ; closes the lexicon-can't-see-the-being-repo gap so
     // `route` resolves a being's commands from its own (separate) repo.
-    for extra in storehouse::corpus_loader::additional_corpus_roots(hecks_root.as_deref()) {
+    for extra in storehouse::corpus_loader::additional_corpus_roots() {
         storehouse_collect_recursive(&extra, &mut out);
     }
     out

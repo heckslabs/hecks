@@ -18,7 +18,7 @@
 //!   ```
 
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 /// Additional bluebook corpus roots beyond the conception root + framework
 /// buckets, discovered from CONFIGURATION so the framework names no specific
@@ -29,12 +29,12 @@ use std::path::{Path, PathBuf};
 ///
 /// Source: env `HECKS_ADDITIONAL_CORPUS_ROOTS` = colon-separated absolute paths.
 ///
-/// `repo_root` is Some only when the dispatch is inside the framework repo ; it
-/// powers a TRANSITIONAL `../miette` fallback (the ONLY place a being is named
-/// in the kernel) that keeps the legacy sibling layout working until the env is
-/// wired into every deployment surface (.overmind.env + the MCP server env,
-/// Phase 2). Deleting that fallback block makes the kernel fully being-agnostic.
-pub fn additional_corpus_roots(repo_root: Option<&Path>) -> Vec<PathBuf> {
+/// Source is CONFIGURATION ONLY — the kernel names no being and assumes no
+/// co-located layout, so the coming repo splits (storehouse, then each being,
+/// become their own private repos) are a config change, not a code change.
+/// Unset or empty env yields an empty result : a deployment that wants extra
+/// roots declares them in HECKS_ADDITIONAL_CORPUS_ROOTS.
+pub fn additional_corpus_roots() -> Vec<PathBuf> {
     if let Ok(raw) = std::env::var("HECKS_ADDITIONAL_CORPUS_ROOTS") {
         let roots: Vec<PathBuf> = raw
             .split(':')
@@ -45,13 +45,6 @@ pub fn additional_corpus_roots(repo_root: Option<&Path>) -> Vec<PathBuf> {
             .collect();
         if !roots.is_empty() {
             return roots;
-        }
-    }
-    // TRANSITIONAL — remove in Phase 2 once HECKS_ADDITIONAL_CORPUS_ROOTS is set
-    // in every deployment surface. The one place a being is named in the kernel.
-    if let Some(repo) = repo_root {
-        if let Some(m) = std::fs::canonicalize(repo.join("../miette")).ok().filter(|p| p.is_dir()) {
-            return vec![m];
         }
     }
     Vec::new()
@@ -167,27 +160,16 @@ pub fn load_combined_domain(agg_dir: &str) -> crate::ir::Domain {
         if cap_dir.exists() && cap_dir != std::path::Path::new(agg_dir) {
             collect_bluebooks(&cap_dir, 1, &mut found);
         }
-        // i117 Round 4 — Miette's body lives in the sibling miette/
-        // repo (chrisyoung/miette) post-split. Walk ../miette as an
-        // additional bluebook root at depth 1 so all of Miette's
-        // self/mind/body/library/surface aggregates participate in
-        // the same dispatch domain even though they live outside
-        // hecks_conception. The pre-push behaviors gate already
-        // scans this root ; the runtime now does too. Skipped
-        // silently when the sibling repo isn't checked out (e.g. CI
-        // running on hecks alone).
-        //
-        // Use heki::repo_root() (walks up from the executable) rather
-        // than `parent.parent()` because `agg_dir` can be a relative
-        // path (e.g. "hecks_conception/aggregates") whose parent.parent()
-        // is empty/relative — `..` from there points to cwd's parent,
-        // not the repo's parent. From a worktree under
-        // `.claude/worktrees/agent-XXX/` that breaks reach to the real
-        // `~/Projects/miette/`. The executable lives in the main
-        // checkout's `storehouse/target/release/`, so walk-up from
-        // current_exe finds the canonical hecks/ root. (i117 Round 4
-        // follow-on : Chris's "no inbox row, just fix it" call after
-        // the Wave 2 agent's worktree-path-resolution false-failure.)
+        // within_repo (computed below) uses heki::repo_root() — which
+        // walks up from the executable — rather than `parent.parent()`
+        // because `agg_dir` can be a relative path (e.g.
+        // "hecks_conception/aggregates") whose parent.parent() is
+        // empty/relative : `..` from there points to cwd's parent, not
+        // the repo's parent. From a worktree under
+        // `.claude/worktrees/agent-XXX/` that would break the reach to
+        // the canonical checkout. The executable lives in the main
+        // checkout's `rust/target/release/`, so walk-up from current_exe
+        // finds the canonical hecks/ root.
         // Isolation gate (production) — the global roots below (the
         // config-driven additional corpus roots and the repo's framework buckets) join
         // the dispatch domain ONLY when agg_dir is itself inside the hecks
@@ -208,7 +190,7 @@ pub fn load_combined_domain(agg_dir: &str) -> crate::ir::Domain {
         // domain only when dispatching against the framework's own
         // conception (so a foreign domain isn't dragged into Miette's).
         if within_repo {
-            for root in additional_corpus_roots(crate::heki::repo_root().as_deref()) {
+            for root in additional_corpus_roots() {
                 if root.as_path() != std::path::Path::new(agg_dir) {
                     collect_bluebooks(&root, 1, &mut found);
                 }
