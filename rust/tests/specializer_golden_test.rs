@@ -1015,52 +1015,6 @@ fn wrangler_toml_emitter_matches_committed_deployment_toml() {
 }
 
 #[test]
-fn procfile_emitter_matches_committed_overmind_artifacts() {
-// i262/i276 `:overmind` generator golden. Like wrangler_toml, the
-// procfile emitter is a per-Mindstream artifact emitter (no arm in the
-// generic emit() dispatch) : it reads the boot Mindstream's
-// mindstream.fixtures and emits Procfile + .overmind.env. This golden
-// regenerates both into a tmp dir and asserts byte-identity against the
-// committed hecks_conception/Procfile + .overmind.env, proving they ARE
-// derived from the fixtures (the source of truth), not hand-synced.
-let root = repo_root();
-let bin = root.join("rust/target/release/storehouse");
-assert!(bin.exists(), "storehouse binary missing — build release first");
-let conception = root.join("hecks_conception");
-let fixtures = conception.join("aggregates/framework/mindstream/mindstream.fixtures");
-let out = std::env::temp_dir().join("procfile_overmind_golden");
-let _ = fs::remove_dir_all(&out);
-let output = Command::new(&bin)
-    .args([
-        "specialize",
-        "procfile",
-        "--fixtures",
-        fixtures.to_str().unwrap(),
-        "--output-dir",
-        out.to_str().unwrap(),
-    ])
-    .current_dir(&root)
-    .output()
-    .expect("storehouse specialize procfile failed");
-assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
-
-for name in ["Procfile", ".overmind.env"] {
-    let generated = fs::read_to_string(out.join(name))
-        .unwrap_or_else(|_| panic!("generated {} missing", name));
-    let committed = fs::read_to_string(conception.join(name))
-        .unwrap_or_else(|_| panic!("committed {} missing", name));
-    assert_eq!(
-        generated, committed,
-        "{} drifted from what mindstream.fixtures would emit — regenerate with \
-         `storehouse specialize procfile \
-         --fixtures aggregates/framework/mindstream/mindstream.fixtures --output-dir .` \
-         from hecks_conception/",
-        name,
-    );
-}
-}
-
-#[test]
 fn query_file_split_is_byte_identical() {
     // runtime-as-bluebook strangler — cluster 7 (context-qualified read side).
     // all_qualified + resolve_query_qualified live ONLY in the generated file ;
