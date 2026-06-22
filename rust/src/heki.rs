@@ -1023,13 +1023,17 @@ pub fn resolve_info_dir() -> std::path::PathBuf {
     // root. A bare bluebook with NO world persists to MEMORY, not a disk fallback
     // (run::infer_data_dir returns None), so a non-persisting run never reaches
     // here — which is why there is no live-store write left to redirect.
-    if let Some(repo) = walk_up_for_repo_root() {
+    // repo_root() (config-driven via HECKS_CONCEPTION_DIR, falling back to the
+    // exe-walk) only LOCATES the conception ; the store location itself still
+    // comes from the .world under it, never an env var (i154 — HECKS_INFO stays
+    // gone). Env-located conception, world-derived store.
+    if let Some(repo) = repo_root() {
         let agg = repo.join("hecks_conception/aggregates");
         if let Some(d) = resolve_world_store_dir(&agg.to_string_lossy()) {
             return std::path::PathBuf::from(d);
         }
     }
-    if let Some(repo) = walk_up_for_repo_root() {
+    if let Some(repo) = repo_root() {
         let sibling = repo.join("../miette-state/information");
         if sibling.is_dir() {
             return std::fs::canonicalize(&sibling).unwrap_or(sibling);
