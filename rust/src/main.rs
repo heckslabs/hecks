@@ -616,6 +616,80 @@ fn main() {
             }).collect::<String>()
         };
         let rewrite = args.iter().any(|a| a == "--rewrite");
+
+        // `--resolve-bare` : the resolver-driven pass for BARE 1-seg refs
+        // ("Aggregate.verb", no `::`) the prefix sweep below skips. Verb-
+        // disambiguated, refuse-by-default (storehouse::fqns_resolve).
+        // Dry-run prints the classification ; `--rewrite` applies only the
+        // unambiguously RESOLVED ones (quote-anchored, idempotent), leaving
+        // ambiguous / verb-not-found / unknown for review.
+        if args.iter().any(|a| a == "--resolve-bare") {
+            fn collect_files(dir: &std::path::Path, out: &mut Vec<std::path::PathBuf>) {
+                let Ok(entries) = std::fs::read_dir(dir) else { return; };
+                for e in entries.flatten() {
+                    let p = e.path();
+                    if p.is_dir() {
+                        let name = p.file_name().and_then(|n| n.to_str()).unwrap_or("");
+                        if matches!(name, ".git" | "target" | "node_modules" | ".claude") { continue; }
+                        collect_files(&p, out);
+                    } else if matches!(p.extension().and_then(|x| x.to_str()),
+                        Some("bluebook") | Some("hecksagon") | Some("behaviors")) {
+                        out.push(p);
+                    }
+                }
+            }
+            let mut files = Vec::new();
+            collect_files(std::path::Path::new(&agg_dir), &mut files);
+            use storehouse::fqns_resolve::{resolve_bare, extract_bare_refs, BareResolution};
+            let mut resolved: std::collections::BTreeMap<String, String> = Default::default();
+            let mut ambiguous: std::collections::BTreeMap<String, Vec<String>> = Default::default();
+            let mut verb_not_found: std::collections::BTreeSet<String> = Default::default();
+            let mut unknown: std::collections::BTreeSet<String> = Default::default();
+            for path in &files {
+                let Ok(content) = std::fs::read_to_string(path) else { continue; };
+                for (agg, verb) in extract_bare_refs(&content) {
+                    let key = format!("{}.{}", agg, verb);
+                    match resolve_bare(&domain, &agg, &verb) {
+                        BareResolution::Resolved(c) => { resolved.insert(key, c); }
+                        BareResolution::Ambiguous(cs) => { ambiguous.insert(key, cs); }
+                        BareResolution::VerbNotFound => { verb_not_found.insert(key); }
+                        BareResolution::UnknownAggregate => { unknown.insert(key); }
+                    }
+                }
+            }
+            if !rewrite {
+                println!("RESOLVED ({}) — unambiguous, will rewrite with --rewrite :", resolved.len());
+                for (k, c) in &resolved { println!("  {}\t->\t{}", k, c); }
+                println!("\nAMBIGUOUS ({}) — >1 canonical declares the verb ; needs manual / local-context resolution :", ambiguous.len());
+                for (k, cs) in &ambiguous { println!("  {}\t?\t{}", k, cs.join(" | ")); }
+                println!("\nVERB-NOT-FOUND ({}) — name exists but no aggregate declares the verb (stale / example) :", verb_not_found.len());
+                for k in &verb_not_found { println!("  {}", k); }
+                println!("\nUNKNOWN-AGGREGATE ({}) — no such aggregate (junk / comment example) :", unknown.len());
+                for k in &unknown { println!("  {}", k); }
+                std::process::exit(0);
+            }
+            let (mut files_changed, mut refs_rewritten) = (0usize, 0usize);
+            for path in &files {
+                let Ok(orig) = std::fs::read_to_string(path) else { continue; };
+                let mut content = orig.clone();
+                let mut n = 0usize;
+                for (key, canonical) in &resolved {
+                    let from = format!("\"{}\"", key);
+                    if !content.contains(&from) { continue; }
+                    n += content.matches(&from).count();
+                    content = content.replace(&from, &format!("\"{}\"", canonical));
+                }
+                if content != orig {
+                    std::fs::write(path, &content).ok();
+                    files_changed += 1;
+                    refs_rewritten += n;
+                }
+            }
+            eprintln!("fqns --resolve-bare --rewrite : {} bare refs rewritten in {} files ({} resolved, {} ambiguous left, {} verb-not-found, {} unknown)",
+                refs_rewritten, files_changed, resolved.len(), ambiguous.len(), verb_not_found.len(), unknown.len());
+            std::process::exit(0);
+        }
+
         // Prefix contract : legacy "Bluebook::Aggregate" -> canonical
         // "Realm::Context::Bluebook::Aggregate". One entry per aggregate ;
         // covers every verb (command/query/event) since they share the
