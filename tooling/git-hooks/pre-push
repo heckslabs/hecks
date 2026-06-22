@@ -4,7 +4,8 @@
 # Tracked hook source. Install with: tooling/install-hooks
 #
 # Heavyweight gate that runs every .behaviors file across the
-# conception + miette body + miette_family before allowing a push.
+# framework conception before allowing a push. Being corpora (miette,
+# miette_family) are separate repos and gate themselves.
 # Bounded (~30-60s) and local — the last line of defence before code
 # crosses the network.
 #
@@ -77,7 +78,7 @@ if [ ! -x "$STOREHOUSE" ]; then
 fi
 
 # Search roots — conception aggregates + adapters, framework
-# directories under the repo root, plus miette body + miette_family.
+# directories under the repo root. Being corpora gate themselves (below).
 # Scoped to active code surface (NOT the whole conception) so the
 # synthetic nursery corpus doesn't pollute the gate. Nursery bluebooks
 # are templates/archetypes — their .behaviors fail by design until
@@ -102,8 +103,10 @@ ROOTS=""
 [ -d "$REPO/bluebook" ]                         && ROOTS="$ROOTS $REPO/bluebook"
 [ -d "$REPO/codegen" ]                          && ROOTS="$ROOTS $REPO/codegen"
 [ -d "$REPO/integrations" ]                     && ROOTS="$ROOTS $REPO/integrations"
-[ -d "$MAIN_REPO/../miette" ]                   && ROOTS="$ROOTS $MAIN_REPO/../miette"
-[ -d "$MAIN_REPO/../miette_family" ]            && ROOTS="$ROOTS $MAIN_REPO/../miette_family"
+# Being corpora (miette, miette_family) are their OWN git repos post-split
+# and gate their OWN .behaviors from their OWN pre-push hook. This hecks
+# gate no longer reaches across the repo boundary (Phase 2 decoupling) ;
+# the kernel names no being, and neither does its gate.
 
 if [ -z "$ROOTS" ]; then
     echo "pre-push: no behaviors roots found — skipping."
