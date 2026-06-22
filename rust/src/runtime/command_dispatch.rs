@@ -411,6 +411,31 @@ pub fn canonical_for_log(rt: &Runtime, command_name: &str) -> String {
     command_name.to_string()
 }
 
+/// Decide whether a multi-hit resolution is AMBIGUOUS — the pure core of the
+/// FQN flip, extracted so it is unit-testable without a Runtime. A dispatch
+/// that OMITTED its realm (`realm_omitted`) and resolves to >1 DISTINCT
+/// non-empty realm_path is ambiguous : returns the sorted candidate FQNs the
+/// caller must disambiguate between. Returns None when the dispatch carried a
+/// realm, when fewer than two distinct realms remain, or when the matching
+/// aggregates carry no stamped realm_path (legacy / string-parsed) — those
+/// keep first-match-wins, exactly as before the flip.
+fn ambiguity_candidates(hit_realms: &[String], realm_omitted: bool, command_name: &str) -> Option<Vec<String>> {
+    if !realm_omitted {
+        return None;
+    }
+    let mut candidates: Vec<String> = hit_realms.iter()
+        .filter(|rp| !rp.is_empty())
+        .map(|rp| format!("{}::{}", rp.replace('/', "::"), command_name))
+        .collect();
+    candidates.sort();
+    candidates.dedup();
+    if candidates.len() > 1 {
+        Some(candidates)
+    } else {
+        None
+    }
+}
+
 /// Resolve a command address to a Resolution (aggregate or entity-owned).
 ///
 /// ## Canonical form — i560 v2 FQN migration (2026-05-12)
@@ -688,19 +713,11 @@ fn resolve_fully_qualified(rt: &Runtime, command_name: &str) -> Result<Resolutio
         return Ok(hits.remove(0));
     }
     if hits.len() > 1 {
-        if realm.is_none() {
-            let mut candidates: Vec<String> = hit_realms.iter()
-                .filter(|rp| !rp.is_empty())
-                .map(|rp| format!("{}::{}", rp.replace('/', "::"), command_name))
-                .collect();
-            candidates.sort();
-            candidates.dedup();
-            if candidates.len() > 1 {
-                return Err(RuntimeError::AmbiguousCommand {
-                    name: command_name.to_string(),
-                    candidates,
-                });
-            }
+        if let Some(candidates) = ambiguity_candidates(&hit_realms, realm.is_none(), command_name) {
+            return Err(RuntimeError::AmbiguousCommand {
+                name: command_name.to_string(),
+                candidates,
+            });
         }
         return Ok(hits.remove(0));
     }
@@ -1357,6 +1374,44 @@ fn malformed_addresses_are_rejected() {
     assert!(parse_fqn("Just::Two").is_err());       // no '.' verb
     assert!(parse_fqn("Dangling::.Cmd").is_err());  // empty trailing segment
     assert!(parse_fqn("::Agg.Cmd").is_err());       // empty leading segment
+}
+
+// ---- the FLIP : ambiguity_candidates (the realm-strict guard) ----
+
+#[test]
+fn ambiguity_two_distinct_realms_realm_omitted_is_ambiguous() {
+    // The flip's core : a realm-OMITTED 2-seg dispatch hitting the same
+    // Domain::Aggregate.command across two realms reports BOTH candidates
+    // instead of silently first-match-winning.
+    let realms = vec!["hecks/framework".to_string(), "miette/body".to_string()];
+    let got = super::ambiguity_candidates(&realms, true, "Tools::Widget.Make");
+    assert_eq!(got, Some(vec![
+        "hecks::framework::Tools::Widget.Make".to_string(),
+        "miette::body::Tools::Widget.Make".to_string(),
+    ]));
+}
+
+#[test]
+fn ambiguity_realm_qualified_dispatch_is_never_ambiguous() {
+    // When the caller named the realm, realm_context_matches already
+    // narrowed — keep first-match-wins.
+    let realms = vec!["hecks/framework".to_string(), "miette/body".to_string()];
+    assert_eq!(super::ambiguity_candidates(&realms, false, "X::Y.Z"), None);
+}
+
+#[test]
+fn ambiguity_same_realm_twice_is_not_ambiguous() {
+    // Two hits in the SAME realm dedup to one candidate — not ambiguous.
+    let realms = vec!["hecks/framework".to_string(), "hecks/framework".to_string()];
+    assert_eq!(super::ambiguity_candidates(&realms, true, "X::Y.Z"), None);
+}
+
+#[test]
+fn ambiguity_unstamped_realms_keep_first_match() {
+    // Legacy / string-parsed aggregates carry an empty realm_path —
+    // filtered out, so they fall through to first-match-wins.
+    let realms = vec![String::new(), String::new()];
+    assert_eq!(super::ambiguity_candidates(&realms, true, "X::Y.Z"), None);
 }
 
 }
