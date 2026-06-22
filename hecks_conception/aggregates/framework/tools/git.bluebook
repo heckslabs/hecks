@@ -115,34 +115,34 @@ Hecks.bluebook "Git", version: "2026.05.29.1" do
     on "Git.StatusChecked"
     trigger "Hecks::Framework::Primitive::Process.Spawn"
     with "cmd", "bin/git_status"
-    with "result_into", "Cascade.RecordResult"
+    with "result_into", "Hecks::Framework::Cascade::Cascade.RecordResult"
   end
 
   policy "RunLogOnLogRead" do
     on "Git.LogRead"
     trigger "Hecks::Framework::Primitive::Process.Spawn"
     with "cmd", "bin/git_log"
-    with "result_into", "Cascade.RecordResult"
+    with "result_into", "Hecks::Framework::Cascade::Cascade.RecordResult"
   end
 
   policy "RunDiffOnDiffRead" do
     on "Git.DiffRead"
     trigger "Hecks::Framework::Primitive::Process.Spawn"
     with "cmd", "bin/git_diff"
-    with "result_into", "Cascade.RecordResult"
+    with "result_into", "Hecks::Framework::Cascade::Cascade.RecordResult"
   end
 
   policy "RunCurrentBranchOnCurrentBranchRead" do
     on "Git.CurrentBranchRead"
     trigger "Hecks::Framework::Primitive::Process.Spawn"
     with "cmd", "bin/git_current_branch"
-    with "result_into", "Cascade.RecordResult"
+    with "result_into", "Hecks::Framework::Cascade::Cascade.RecordResult"
   end
 
   policy "RunWorktreeListOnWorktreeListRead" do
     on "Git.WorktreeListRead"
     trigger "Hecks::Framework::Primitive::Process.Spawn"
     with "cmd", "bin/git_worktree_list"
-    with "result_into", "Cascade.RecordResult"
+    with "result_into", "Hecks::Framework::Cascade::Cascade.RecordResult"
   end
 end

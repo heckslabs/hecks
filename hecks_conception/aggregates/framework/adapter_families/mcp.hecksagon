@@ -39,7 +39,7 @@ Hecks.adapter_family "mcp" do
   #     server:      :storehouse,
   #     tool:        "storehouse__dispatch",
   #     args:        { aggregates_dir: "...", command: "Hecks::Framework::Session::Session.Begin", ... },
-  #     result_into: "Cascade.RecordResult"
+  #     result_into: "Hecks::Framework::Cascade::Cascade.RecordResult"
   #
   # When the bus dispatches SessionStart.Initialise, the kernel
   # resolves the matching :mcp binding, fires the invoke_mcp_tool
@@ -78,7 +78,7 @@ Hecks.adapter_family "mcp" do
           :server,       # symbol — which MCP server to call (:storehouse for v1)
           :tool,         # string — the MCP tool name (e.g. "storehouse__dispatch", "storehouse__query")
           :args,         # hash — JSON-shaped arguments passed verbatim to the MCP tool's `arguments` field
-          :result_into   # "Cascade.RecordResult" (or per-binding variant) — follow-on dispatch carrying the result
+          :result_into   # "Hecks::Framework::Cascade::Cascade.RecordResult" (or per-binding variant) — follow-on dispatch carrying the result
 
   trigger_field :command
   response_field :result_into

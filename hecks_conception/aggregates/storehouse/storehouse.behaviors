@@ -5,7 +5,7 @@ Hecks.behaviors "Storehouse" do
 
   test "Conceive mints a Primitive in active status" do
     tests "Conceive", on: "Primitive"
-    input  name:           { value: "Process.Spawn" },
+    input  name:           { value: "Hecks::Framework::Primitive::Process.Spawn" },
            kind:           { value: "process" },
            signature:      { value: "id:String,cmd:String,result_into:String" },
            implementation: { value: "exec_dispatcher::dispatch" }
@@ -14,7 +14,7 @@ Hecks.behaviors "Storehouse" do
 
   test "Conceive emits PrimitiveConceived" do
     tests "Conceive", on: "Primitive"
-    input  name:           { value: "Process.Spawn" },
+    input  name:           { value: "Hecks::Framework::Primitive::Process.Spawn" },
            kind:           { value: "process" },
            signature:      { value: "id:String,cmd:String,result_into:String" },
            implementation: { value: "exec_dispatcher::dispatch" }

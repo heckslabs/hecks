@@ -33,7 +33,7 @@ Hecks.behaviors "FineTune" do
   # the cascade routed to Summer.Model.EvaluateModel — whose
   # reference_to(Model) self-ref is unresolved → silent dispatch
   # error → ModelEvaluated never fires. Fix : qualify the trigger
-  # to "Evaluation.EvaluateModel" so the 2-part resolver in
+  # to "Hecks::World::Training::Evaluation::Evaluation.EvaluateModel" so the 2-part resolver in
   # command_dispatch::resolve filters by aggregate name and lands
   # on Evaluation.EvaluateModel directly. Missing-attr was a red
   # herring — Rust's apply_mutations resolves null safely and

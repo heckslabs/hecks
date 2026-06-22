@@ -138,41 +138,41 @@ Hecks.bluebook "Filesystem", version: "2026.05.29.1" do
     on "Filesystem.FileMoved"
     trigger "Hecks::Framework::Primitive::Process.Spawn"
     with "cmd", "bin/filesystem_file_move"
-    with "result_into", "Cascade.RecordResult"
+    with "result_into", "Hecks::Framework::Cascade::Cascade.RecordResult"
   end
 
   policy "RunFileRemoveOnFileRemoved" do
     on "Filesystem.FileRemoved"
     trigger "Hecks::Framework::Primitive::Process.Spawn"
     with "cmd", "bin/filesystem_file_remove"
-    with "result_into", "Cascade.RecordResult"
+    with "result_into", "Hecks::Framework::Cascade::Cascade.RecordResult"
   end
 
   policy "RunFileReadRangeOnFileRangeRead" do
     on "Filesystem.FileRangeRead"
     trigger "Hecks::Framework::Primitive::Process.Spawn"
     with "cmd", "bin/filesystem_file_read_range"
-    with "result_into", "Cascade.RecordResult"
+    with "result_into", "Hecks::Framework::Cascade::Cascade.RecordResult"
   end
 
   policy "RunDirectoryCreateOnDirectoryCreated" do
     on "Filesystem.DirectoryCreated"
     trigger "Hecks::Framework::Primitive::Process.Spawn"
     with "cmd", "bin/filesystem_directory_create"
-    with "result_into", "Cascade.RecordResult"
+    with "result_into", "Hecks::Framework::Cascade::Cascade.RecordResult"
   end
 
   policy "RunDirectoryRemoveOnDirectoryRemoved" do
     on "Filesystem.DirectoryRemoved"
     trigger "Hecks::Framework::Primitive::Process.Spawn"
     with "cmd", "bin/filesystem_directory_remove"
-    with "result_into", "Cascade.RecordResult"
+    with "result_into", "Hecks::Framework::Cascade::Cascade.RecordResult"
   end
 
   policy "RunDirectoryListOnDirectoryListed" do
     on "Filesystem.DirectoryListed"
     trigger "Hecks::Framework::Primitive::Process.Spawn"
     with "cmd", "bin/filesystem_directory_list"
-    with "result_into", "Cascade.RecordResult"
+    with "result_into", "Hecks::Framework::Cascade::Cascade.RecordResult"
   end
 end

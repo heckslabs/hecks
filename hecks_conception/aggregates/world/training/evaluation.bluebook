@@ -44,6 +44,6 @@ Hecks.bluebook "Evaluation", version: "2026.04.28.1" do
 
   policy "EvaluateOnComplete" do
     on "FineTuneCompleted"
-    trigger "Evaluation.EvaluateModel"
+    trigger "Hecks::World::Training::Evaluation::Evaluation.EvaluateModel"
   end
 end

@@ -125,7 +125,7 @@ Hecks.bluebook "Session", version: "2026.05.13.1" do
     on "Session.ContextRebuilt"
     trigger "Hecks::Framework::Primitive::Process.Spawn"
     with "cmd", "/Users/christopheryoung/Projects/hecks/bin/session-recall"
-    with "result_into", "Cascade.RecordResult"
+    with "result_into", "Hecks::Framework::Cascade::Cascade.RecordResult"
   end
 
   # ── Reactor wiring ──

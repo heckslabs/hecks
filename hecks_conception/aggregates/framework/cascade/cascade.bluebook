@@ -16,7 +16,7 @@ Hecks.bluebook "Cascade", version: "2026.05.14.1" do
   # ── How it fits ──
   #
   # The :claude_tool / :web_tool / :mcp adapter families chain their
-  # captured output through `result_into: "Cascade.RecordResult"` so
+  # captured output through `result_into: "Hecks::Framework::Cascade::Cascade.RecordResult"` so
   # the outcome becomes a first-class event the runtime can react to.
   # The runtime resolves `Cascade.RecordResult` by bare aggregate +
   # command name (short form) — not by FQN — so existing

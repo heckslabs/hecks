@@ -8,7 +8,7 @@ Hecks.behaviors "EventSourcing" do
     input  event_id:       { value: "e1" },
            aggregate_name: { value: "Order" },
            aggregate_id:   { value: "o1" },
-           command:        { verb: "Order.PlaceOrder", inputs: "customer=ada qty=2" },
+           command:        { verb: "Hecks::Catalog::Pizzas::Order.PlaceOrder", inputs: "customer=ada qty=2" },
            delta:          { field: "status", value: "pending" },
            causation_id:   { value: "c0" },
            correlation_id: { value: "flow-1" },
@@ -39,7 +39,7 @@ Hecks.behaviors "EventSourcing" do
   test "Replay returns the appended events in the Log" do
     tests "Replay", on: "Event", kind: :query
     setup  "Append", event_id: { value: "e1" }, aggregate_name: { value: "Order" }, aggregate_id: { value: "o1" },
-           command: { verb: "Order.PlaceOrder", inputs: "" }, delta: { field: "status", value: "pending" },
+           command: { verb: "Hecks::Catalog::Pizzas::Order.PlaceOrder", inputs: "" }, delta: { field: "status", value: "pending" },
            causation_id: { value: "c0" }, correlation_id: { value: "flow-1" }, actor: { value: "Customer" },
            sequence: { value: 1 }, recorded_at: { value: "t1" }
     setup  "Append", event_id: { value: "e2" }, aggregate_name: { value: "Order" }, aggregate_id: { value: "o1" },
@@ -53,11 +53,11 @@ Hecks.behaviors "EventSourcing" do
   test "ForAggregate returns only one aggregate's events" do
     tests "ForAggregate", on: "Event", kind: :query
     setup  "Append", event_id: { value: "e1" }, aggregate_name: { value: "Order" }, aggregate_id: { value: "o1" },
-           command: { verb: "Order.PlaceOrder", inputs: "" }, delta: { field: "status", value: "pending" },
+           command: { verb: "Hecks::Catalog::Pizzas::Order.PlaceOrder", inputs: "" }, delta: { field: "status", value: "pending" },
            causation_id: { value: "c0" }, correlation_id: { value: "flow-1" }, actor: { value: "Customer" },
            sequence: { value: 1 }, recorded_at: { value: "t1" }
     setup  "Append", event_id: { value: "e2" }, aggregate_name: { value: "Order" }, aggregate_id: { value: "o2" },
-           command: { verb: "Order.PlaceOrder", inputs: "" }, delta: { field: "status", value: "pending" },
+           command: { verb: "Hecks::Catalog::Pizzas::Order.PlaceOrder", inputs: "" }, delta: { field: "status", value: "pending" },
            causation_id: { value: "c0" }, correlation_id: { value: "flow-2" }, actor: { value: "Customer" },
            sequence: { value: 2 }, recorded_at: { value: "t2" }
     input  aggregate_id: { value: "o1" }
@@ -67,11 +67,11 @@ Hecks.behaviors "EventSourcing" do
   test "ByCorrelation returns one originating flow" do
     tests "ByCorrelation", on: "Event", kind: :query
     setup  "Append", event_id: { value: "e1" }, aggregate_name: { value: "Order" }, aggregate_id: { value: "o1" },
-           command: { verb: "Order.PlaceOrder", inputs: "" }, delta: { field: "status", value: "pending" },
+           command: { verb: "Hecks::Catalog::Pizzas::Order.PlaceOrder", inputs: "" }, delta: { field: "status", value: "pending" },
            causation_id: { value: "c0" }, correlation_id: { value: "flow-1" }, actor: { value: "Customer" },
            sequence: { value: 1 }, recorded_at: { value: "t1" }
     setup  "Append", event_id: { value: "e2" }, aggregate_name: { value: "Order" }, aggregate_id: { value: "o2" },
-           command: { verb: "Order.PlaceOrder", inputs: "" }, delta: { field: "status", value: "pending" },
+           command: { verb: "Hecks::Catalog::Pizzas::Order.PlaceOrder", inputs: "" }, delta: { field: "status", value: "pending" },
            causation_id: { value: "c0" }, correlation_id: { value: "flow-2" }, actor: { value: "Customer" },
            sequence: { value: 2 }, recorded_at: { value: "t2" }
     input  correlation_id: { value: "flow-1" }
@@ -86,7 +86,7 @@ Hecks.behaviors "EventSourcing" do
   test "AtSequence selects the event at a sequence position (order proof)" do
     tests "AtSequence", on: "Event", kind: :query
     setup  "Append", event_id: { value: "e1" }, aggregate_name: { value: "Order" }, aggregate_id: { value: "o1" },
-           command: { verb: "Order.PlaceOrder", inputs: "" }, delta: { field: "status", value: "pending" },
+           command: { verb: "Hecks::Catalog::Pizzas::Order.PlaceOrder", inputs: "" }, delta: { field: "status", value: "pending" },
            causation_id: { value: "c0" }, correlation_id: { value: "flow-1" }, actor: { value: "Customer" },
            sequence: { value: 1 }, recorded_at: { value: "t1" }
     setup  "Append", event_id: { value: "e2" }, aggregate_name: { value: "Order" }, aggregate_id: { value: "o1" },

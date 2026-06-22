@@ -20,7 +20,7 @@ Hecks.bluebook "Storehouse", version: "2026.05.31.1" do
   # ── Shape ──
   #
   # name        : the dotted FQN the runtime dispatches against
-  #               (e.g. "Process.Spawn", "ClaudeTool.Invoke").
+  #               (e.g. "Hecks::Framework::Primitive::Process.Spawn", "ClaudeTool.Invoke").
   # kind        : the dispatcher family — one of "process", "claude_tool",
   #               "mcp_tool", "web_tool", "compute", "llm", "shell",
   #               "sms", "tts".
@@ -65,7 +65,7 @@ Hecks.bluebook "Storehouse", version: "2026.05.31.1" do
 
     value_object "Name" do
       # Dotted FQN the runtime dispatches against — Aggregate.Command
-      # form (e.g. "Process.Spawn", "ClaudeTool.Invoke",
+      # form (e.g. "Hecks::Framework::Primitive::Process.Spawn", "ClaudeTool.Invoke",
       # "WebTool.Fetch"). Stable identifier ; the registry keys by
       # this string.
       attribute :value, String

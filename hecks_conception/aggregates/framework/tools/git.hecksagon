@@ -13,9 +13,9 @@ Hecks.hecksagon "Git" do
 
   adapter :memory
 
-  adapter :git_tool, command: "Git.Status",        tool: :git_status,         result_into: "Cascade.RecordResult"
-  adapter :git_tool, command: "Git.Log",           tool: :git_log,            result_into: "Cascade.RecordResult"
-  adapter :git_tool, command: "Git.Diff",          tool: :git_diff,           result_into: "Cascade.RecordResult"
-  adapter :git_tool, command: "Git.CurrentBranch", tool: :git_current_branch, result_into: "Cascade.RecordResult"
-  adapter :git_tool, command: "Git.WorktreeList",  tool: :git_worktree_list,  result_into: "Cascade.RecordResult"
+  adapter :git_tool, command: "Hecks::Framework::Tools::Git::Git.Status",        tool: :git_status,         result_into: "Hecks::Framework::Cascade::Cascade.RecordResult"
+  adapter :git_tool, command: "Hecks::Framework::Tools::Git::Git.Log",           tool: :git_log,            result_into: "Hecks::Framework::Cascade::Cascade.RecordResult"
+  adapter :git_tool, command: "Hecks::Framework::Tools::Git::Git.Diff",          tool: :git_diff,           result_into: "Hecks::Framework::Cascade::Cascade.RecordResult"
+  adapter :git_tool, command: "Hecks::Framework::Tools::Git::Git.CurrentBranch", tool: :git_current_branch, result_into: "Hecks::Framework::Cascade::Cascade.RecordResult"
+  adapter :git_tool, command: "Hecks::Framework::Tools::Git::Git.WorktreeList",  tool: :git_worktree_list,  result_into: "Hecks::Framework::Cascade::Cascade.RecordResult"
 end

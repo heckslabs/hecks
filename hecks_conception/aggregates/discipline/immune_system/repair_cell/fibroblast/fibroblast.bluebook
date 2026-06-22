@@ -210,6 +210,6 @@ Hecks.bluebook "Fibroblast", version: "2026.05.16.1" do
     on "SweepRan"
     trigger "Hecks::Framework::Primitive::Process.Spawn"
     with "cmd", "bash bin/fibroblast_sweep.sh"
-    with "result_into", "Cascade.RecordResult"
+    with "result_into", "Hecks::Framework::Cascade::Cascade.RecordResult"
   end
 end

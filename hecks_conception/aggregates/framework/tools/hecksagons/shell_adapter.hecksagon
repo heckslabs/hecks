@@ -10,7 +10,7 @@ Hecks.hecksagon "ShellAdapter" do
   # extension if Chris wants it.
   #
   # Coexists with the existing `adapter :claude_tool, command:
-  # "ShellTool.Bash", ...` binding in sibling tools.hecksagon.
+  # "Hecks::Framework::Tools::ShellTool.Bash", ...` binding in sibling tools.hecksagon.
   #
   # The bus must learn to recognise this declarative `driven on`
   # form and register the subscription against the EventBus at

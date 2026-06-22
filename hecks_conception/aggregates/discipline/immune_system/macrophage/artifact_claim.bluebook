@@ -262,13 +262,13 @@ Hecks.bluebook "ArtifactClaim", version: "2026.06.16.1" do
     on "NoPromisesSweep.ScanRequested"
     trigger "Hecks::Framework::Primitive::Process.Spawn"
     with "cmd", "node bin/artifact_claim_scan.mjs"
-    with "result_into", "Cascade.RecordResult"
+    with "result_into", "Hecks::Framework::Cascade::Cascade.RecordResult"
   end
 
   policy "RunVerifyOnVerifyRequested" do
     on "NoPromisesSweep.VerifyRequested"
     trigger "Hecks::Framework::Primitive::Process.Spawn"
     with "cmd", "node bin/artifact_claim_verify.mjs"
-    with "result_into", "Cascade.RecordResult"
+    with "result_into", "Hecks::Framework::Cascade::Cascade.RecordResult"
   end
 end

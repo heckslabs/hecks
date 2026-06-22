@@ -25,7 +25,7 @@ Hecks.behaviors "ToolCache" do
 
   test "RecordCall emits CallRecorded" do
     tests "RecordCall", on: "ToolStats"
-    input  tool_name:   { value: "FileTool.Edit" },
+    input  tool_name:   { value: "Hecks::Framework::Tools::FileTool.Edit" },
            seen_at:     { value: "2026-05-20T12:00:02Z" },
            description: { value: "" }
     expect emits: ["CallRecorded"]

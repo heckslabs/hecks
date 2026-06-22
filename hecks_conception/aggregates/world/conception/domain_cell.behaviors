@@ -20,19 +20,19 @@ Hecks.behaviors "DomainCell" do
 
   test "Mature runs" do
     tests "Mature", on: "DomainCell"
-    setup  "DomainCell.Conceive", domain_name: "sample"
+    setup  "Hecks::World::Conception::DomainCell::DomainCell.Conceive", domain_name: "sample"
     expect phase: "growing"
   end
 
   test "Mature cascades through policy chain" do
     tests "Mature", on: "DomainCell", kind: :cascade
-    setup  "DomainCell.Conceive", domain_name: "sample"
+    setup  "Hecks::World::Conception::DomainCell::DomainCell.Conceive", domain_name: "sample"
     expect emits: ["DomainMatured", "CheckpointPassed"]
   end
 
   test "PassCheckpoint sets checkpoint_name" do
     tests "PassCheckpoint", on: "DomainCell"
-    setup  "DomainCell.Conceive", domain_name: "sample"
+    setup  "Hecks::World::Conception::DomainCell::DomainCell.Conceive", domain_name: "sample"
     setup  "Mature"
     input  checkpoint_name: "sample"
     expect checkpoints_passed_size: 1, phase: "validated"
@@ -40,7 +40,7 @@ Hecks.behaviors "DomainCell" do
 
   test "TriggerApoptosis runs" do
     tests "TriggerApoptosis", on: "DomainCell"
-    setup  "DomainCell.Conceive", domain_name: "sample"
+    setup  "Hecks::World::Conception::DomainCell::DomainCell.Conceive", domain_name: "sample"
     expect alive: false, phase: "dead"
   end
 end

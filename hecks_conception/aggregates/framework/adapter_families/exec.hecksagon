@@ -52,9 +52,9 @@ Hecks.adapter_family "exec" do
           perform_exec. No providers — the exec is the provider."
 
   fields  :name,         # symbolic adapter name in the consumer's hecksagon
-          :command,      # "Inbox.Check" — the dispatched aggregate.command this adapter binds to
+          :command,      # "Hecks::Framework::Inbox::Inbox.Check" — the dispatched aggregate.command this adapter binds to
           :exec,         # "node bin/inbox_poll.mjs" — the local program run on dispatch (cwd = aggregates root parent)
-          :result_into   # "Cascade.RecordResult" — follow-on dispatch carrying the outcome
+          :result_into   # "Hecks::Framework::Cascade::Cascade.RecordResult" — follow-on dispatch carrying the outcome
 
   trigger_field :command
   response_field :result_into

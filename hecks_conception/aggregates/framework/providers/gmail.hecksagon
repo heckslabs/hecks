@@ -106,22 +106,22 @@ Hecks.provider "gmail" do
 
   tool :search_threads,
        mcp_name: "mcp__claude_ai_Gmail__search_threads",
-       backs:    "EmailTool.SearchThreads",
+       backs:    "Hecks::Framework::Tools::EmailTool.SearchThreads",
        args:     { query: :q }
 
   tool :get_thread,
        mcp_name: "mcp__claude_ai_Gmail__get_thread",
-       backs:    "EmailTool.GetThread",
+       backs:    "Hecks::Framework::Tools::EmailTool.GetThread",
        args:     { thread_id: :thread_id }
 
   tool :create_draft,
        mcp_name: "mcp__claude_ai_Gmail__create_draft",
-       backs:    "EmailTool.CreateDraft",
+       backs:    "Hecks::Framework::Tools::EmailTool.CreateDraft",
        args:     { to: :to, subject: :subject, body: :body_markdown }
 
   tool :list_drafts,
        mcp_name: "mcp__claude_ai_Gmail__list_drafts",
-       backs:    "EmailTool.ListDrafts",
+       backs:    "Hecks::Framework::Tools::EmailTool.ListDrafts",
        args:     {}
 
   # ── Label-management family (deferred per i608/i656) ─────────────

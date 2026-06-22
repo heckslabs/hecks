@@ -17,7 +17,7 @@ Hecks.bluebook "Primitive", version: "2026.05.22.1" do
   # ── How it fits ──
   #
   # Before : `adapter :exec, command: "Agg.Cmd", exec: "...", result_into:
-  #   "Cascade.RecordResult"` in a hecksagon, resolved by a bespoke
+  #   "Hecks::Framework::Cascade::Cascade.RecordResult"` in a hecksagon, resolved by a bespoke
   #   resolve_exec_adapters arm in runtime/mod.rs.
   #
   # After (for migrated bindings — fibroblast today) : an ordinary
@@ -120,7 +120,7 @@ Hecks.bluebook "Primitive", version: "2026.05.22.1" do
     value_object "ResultInto" do
       # The cascade landing target — the FQN-or-short-form command the
       # primitive hook chains the captured outcome into (typically
-      # "Cascade.RecordResult"). Carried on the Spawn command only ;
+      # "Hecks::Framework::Cascade::Cascade.RecordResult"). Carried on the Spawn command only ;
       # not persisted onto Process state (it is routing, not data).
       attribute :value, String
     end

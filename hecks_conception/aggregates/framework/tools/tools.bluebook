@@ -1015,7 +1015,7 @@ Hecks.bluebook "Tools", version: "2026.05.14.1" do
     on "Sidequest.SidequestDispatched"
     trigger "Hecks::Framework::Primitive::Process.Spawn"
     with "cmd", "node bin/sidequest_run.mjs"
-    with "result_into", "Cascade.RecordResult"
+    with "result_into", "Hecks::Framework::Cascade::Cascade.RecordResult"
   end
 
   # ──── Aggregate: WakeupTool ────

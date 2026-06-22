@@ -11,7 +11,7 @@ Hecks.behaviors "Hexagon" do
   # ── Hexagon — optional startup validation : adapter targets resolve ──
   test "Verify runs the startup wiring check" do
     tests "Verify", on: "Hexagon"
-    setup  "Hexagon.Conceive", domain: "Pizzas"
+    setup  "Hecks::Language::Grammar::Hexagon::Hexagon.Conceive", domain: "Pizzas"
     expect emits: ["Verified"]
   end
 

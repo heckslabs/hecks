@@ -1346,14 +1346,14 @@ Hecks.bluebook "Plan", version: "2026.06.12.1" do
     on "Story.StoryChecksRequested"
     trigger "Hecks::Framework::Primitive::Process.Spawn"
     with "cmd", "bin/check-worktree"
-    with "result_into", "Story.RecordWorktreeCheckResult"
+    with "result_into", "Hecks::Plan::Story.RecordWorktreeCheckResult"
   end
 
   policy "RunMergedCheckOnChecksRequested" do
     on "Story.StoryChecksRequested"
     trigger "Hecks::Framework::Primitive::Process.Spawn"
     with "cmd", "bin/check-merged"
-    with "result_into", "Story.RecordMergedCheckResult"
+    with "result_into", "Hecks::Plan::Story.RecordMergedCheckResult"
   end
 
   # ci-fence-main-up-to-date (sprint 20): main_up_to_date is now a REAL inline
@@ -1369,14 +1369,14 @@ Hecks.bluebook "Plan", version: "2026.06.12.1" do
     on "Story.StoryChecksRequested"
     trigger "Hecks::Framework::Primitive::Process.Spawn"
     with "cmd", "bin/check-tests"
-    with "result_into", "Story.RecordTestsCheckResult"
+    with "result_into", "Hecks::Plan::Story.RecordTestsCheckResult"
   end
 
   policy "RunVerbResolvesCheckOnChecksRequested" do
     on "Story.StoryChecksRequested"
     trigger "Hecks::Framework::Primitive::Process.Spawn"
     with "cmd", "bin/check-verb-resolves"
-    with "result_into", "Story.RecordVerbResolvesCheckResult"
+    with "result_into", "Hecks::Plan::Story.RecordVerbResolvesCheckResult"
   end
 
   # pr_mergeable is now a REAL inline gh probe — plan/hecksagons/pr_mergeable_check.hecksagon
@@ -1550,22 +1550,22 @@ Hecks.bluebook "Plan", version: "2026.06.12.1" do
   # counter command.
   policy "BumpOnTaskAdded" do
     on "Task.TaskAdded"
-    trigger "Story.BumpPendingTaskCount"
+    trigger "Hecks::Plan::Story.BumpPendingTaskCount"
   end
 
   policy "DropOnTaskCompleted" do
     on "Task.TaskCompleted"
-    trigger "Story.DropPendingTaskCount"
+    trigger "Hecks::Plan::Story.DropPendingTaskCount"
   end
 
   policy "DropOnTaskCancelled" do
     on "Task.TaskCancelled"
-    trigger "Story.DropPendingTaskCount"
+    trigger "Hecks::Plan::Story.DropPendingTaskCount"
   end
 
   policy "BumpOnTaskReopened" do
     on "Task.TaskReopened"
-    trigger "Story.BumpPendingTaskCount"
+    trigger "Hecks::Plan::Story.BumpPendingTaskCount"
   end
 
   # ===== from board/board.bluebook =====

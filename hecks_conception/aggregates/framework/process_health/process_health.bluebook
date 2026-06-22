@@ -393,13 +393,13 @@ Hecks.bluebook "ProcessHealth", version: "2026.05.20.2" do
     on "ProcessMacrophage.Swept"
     trigger "Hecks::Framework::Primitive::Process.Spawn"
     with "cmd", "bin/process_health_sweep"
-    with "result_into", "Cascade.RecordResult"
+    with "result_into", "Hecks::Framework::Cascade::Cascade.RecordResult"
   end
 
   policy "RunHealOnHealRequested" do
     on "ProcessMacrophage.HealRequested"
     trigger "Hecks::Framework::Primitive::Process.Spawn"
     with "cmd", "node bin/process_health_heal.mjs"
-    with "result_into", "Cascade.RecordResult"
+    with "result_into", "Hecks::Framework::Cascade::Cascade.RecordResult"
   end
 end

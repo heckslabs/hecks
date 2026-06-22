@@ -111,7 +111,7 @@ Hecks.behaviors "HecksagonIr" do
            model:                { value: "" },
            max_tokens:           { value: "" },
            triggers:             [],
-           response_into_target: { value: "Dream.RecordImage" },
+           response_into_target: { value: "Miette::Body::BodyDream::Dream.RecordImage" },
            response_into_attr:   { value: "text" },
            backend:              { value: "claude" }
     expect name:                 { value: "dream_pm" },
@@ -150,7 +150,7 @@ Hecks.behaviors "HecksagonIr" do
     input  name:                 { value: "tick_diff" },
            function_name:        { value: "compute_tick_diff" },
            triggers:             [],
-           response_into_target: { value: "HeartbeatScheduler.Dispatch" },
+           response_into_target: { value: "Hecks::Framework::HeartbeatScheduler::HeartbeatScheduler.Dispatch" },
            response_into_attr:   { value: "dispatched_tick" }
     expect emits: ["Conceived"]
   end

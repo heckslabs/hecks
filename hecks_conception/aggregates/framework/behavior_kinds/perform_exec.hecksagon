@@ -8,7 +8,7 @@ Hecks.behavior_kind "perform_exec" do
   #
   #   1. The bus dispatches the bound command (e.g. Inbox.Check).
   #   2. The kernel resolves the matching :exec adapter
-  #      (one with command: "Inbox.Check").
+  #      (one with command: "Hecks::Framework::Inbox::Inbox.Check").
   #   3. The kernel reads the adapter's :exec field
   #      ("node bin/inbox_poll.mjs") and runs it to completion with
   #      cwd = the parent of the dispatched aggregates root, the same

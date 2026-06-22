@@ -796,7 +796,7 @@ Hecks.behaviors "Plan" do
   test "Project.ActivateSprint refuses a different sprint while one is active" do
     tests "ActivateSprint", on: "Project"
     setup  "Register",       name: "beta"
-    setup  "Project.ActivateSprint", project: "beta", sprint_ref: "1"
+    setup  "Hecks::Plan::Project.ActivateSprint", project: "beta", sprint_ref: "1"
     input  project: "beta", sprint_ref: "2"
     expect refused: "one active sprint per project"
   end
@@ -804,7 +804,7 @@ Hecks.behaviors "Plan" do
   test "Project.ActivateSprint is idempotent on the same sprint" do
     tests "ActivateSprint", on: "Project"
     setup  "Register",       name: "gamma"
-    setup  "Project.ActivateSprint", project: "gamma", sprint_ref: "1"
+    setup  "Hecks::Plan::Project.ActivateSprint", project: "gamma", sprint_ref: "1"
     input  project: "gamma", sprint_ref: "1"
     expect active_sprint: "1"
   end
@@ -812,7 +812,7 @@ Hecks.behaviors "Plan" do
   test "Project.DeactivateSprint clears the active sprint" do
     tests "DeactivateSprint", on: "Project"
     setup  "Register",               name: "delta"
-    setup  "Project.ActivateSprint", project: "delta", sprint_ref: "1"
+    setup  "Hecks::Plan::Project.ActivateSprint", project: "delta", sprint_ref: "1"
     input  project: "delta"
     expect active_sprint: ""
   end

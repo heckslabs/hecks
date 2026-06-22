@@ -10,7 +10,7 @@ Hecks.behaviors "Boot" do
 
   test "BootWithClaude cascades through policy chain" do
     tests "BootWithClaude", on: "Session", kind: :cascade
-    setup  "BrainProbe.Probe"
+    setup  "Hecks::Catalog::Boot::BrainProbe.Probe"
     expect emits: ["SessionStartedWithClaude", "BrainProbed"]
   end
 
@@ -22,7 +22,7 @@ Hecks.behaviors "Boot" do
 
   test "BootWithSummer cascades through policy chain" do
     tests "BootWithSummer", on: "Session", kind: :cascade
-    setup  "BrainProbe.Probe"
+    setup  "Hecks::Catalog::Boot::BrainProbe.Probe"
     input  ollama_model: "sample", ollama_port: 1
     expect emits: ["SessionStartedWithSummer", "BrainProbed"]
   end
@@ -71,13 +71,13 @@ Hecks.behaviors "Boot" do
 
   test "RecommendClaude runs" do
     tests "RecommendClaude", on: "BrainProbe"
-    setup  "BrainProbe.Probe"
+    setup  "Hecks::Catalog::Boot::BrainProbe.Probe"
     expect recommended_engine: "claude"
   end
 
   test "RecommendClaude cascades through policy chain" do
     tests "RecommendClaude", on: "BrainProbe", kind: :cascade
-    setup  "BrainProbe.Probe"
+    setup  "Hecks::Catalog::Boot::BrainProbe.Probe"
     setup  "BootWithClaude"
     # Cross-aggregate cascade: ClaudeRecommended → WireOrgans → GoLive
     # hops BrainProbe → Session. The Session record from the BootWithClaude
@@ -89,13 +89,13 @@ Hecks.behaviors "Boot" do
 
   test "RecommendSummer runs" do
     tests "RecommendSummer", on: "BrainProbe"
-    setup  "BrainProbe.Probe"
+    setup  "Hecks::Catalog::Boot::BrainProbe.Probe"
     expect recommended_engine: "summer"
   end
 
   test "RecommendSummer cascades through policy chain" do
     tests "RecommendSummer", on: "BrainProbe", kind: :cascade
-    setup  "BrainProbe.Probe"
+    setup  "Hecks::Catalog::Boot::BrainProbe.Probe"
     setup  "BootWithClaude"
     # Cross-aggregate cascade — see RecommendClaude note above.
     expect emits_subset: ["SummerRecommended"]
@@ -103,13 +103,13 @@ Hecks.behaviors "Boot" do
 
   test "RecommendNothing runs" do
     tests "RecommendNothing", on: "BrainProbe"
-    setup  "BrainProbe.Probe"
+    setup  "Hecks::Catalog::Boot::BrainProbe.Probe"
     expect recommended_engine: "none"
   end
 
   test "RecommendNothing cascades through policy chain" do
     tests "RecommendNothing", on: "BrainProbe", kind: :cascade
-    setup  "BrainProbe.Probe"
+    setup  "Hecks::Catalog::Boot::BrainProbe.Probe"
     setup  "BootWithClaude"
     expect emits: ["NoBrainAvailable", "BootFailed"]
   end

@@ -26,7 +26,7 @@ Hecks.hecksagon "Tools" do
   #
   # ── Cascade target ──
   #
-  # `result_into: "Cascade.RecordResult"` — after the kernel hook runs,
+  # `result_into: "Hecks::Framework::Cascade::Cascade.RecordResult"` — after the kernel hook runs,
   # the captured outcome cascades into a Cascade record, joinable
   # against the originating invocation by id. Previously the cascade
   # target was the same Tools aggregate ; the category split moves the
@@ -36,17 +36,17 @@ Hecks.hecksagon "Tools" do
   adapter :memory
 
   # ── ShellTool ──
-  adapter :claude_tool, command: "ShellTool.Bash",   tool: :bash,  result_into: "Cascade.RecordResult"
+  adapter :claude_tool, command: "Hecks::Framework::Tools::ShellTool.Bash",   tool: :bash,  result_into: "Hecks::Framework::Cascade::Cascade.RecordResult"
 
   # ── FileTool ──
-  adapter :claude_tool, command: "FileTool.Read",    tool: :read,  result_into: "Cascade.RecordResult"
-  adapter :claude_tool, command: "FileTool.Edit",    tool: :edit,  result_into: "Cascade.RecordResult"
-  adapter :claude_tool, command: "FileTool.Update",  tool: :write, result_into: "Cascade.RecordResult"
-  adapter :claude_tool, command: "FileTool.Write",   tool: :write, result_into: "Cascade.RecordResult"
+  adapter :claude_tool, command: "Hecks::Framework::Tools::FileTool.Read",    tool: :read,  result_into: "Hecks::Framework::Cascade::Cascade.RecordResult"
+  adapter :claude_tool, command: "Hecks::Framework::Tools::FileTool.Edit",    tool: :edit,  result_into: "Hecks::Framework::Cascade::Cascade.RecordResult"
+  adapter :claude_tool, command: "Hecks::Framework::Tools::FileTool.Update",  tool: :write, result_into: "Hecks::Framework::Cascade::Cascade.RecordResult"
+  adapter :claude_tool, command: "Hecks::Framework::Tools::FileTool.Write",   tool: :write, result_into: "Hecks::Framework::Cascade::Cascade.RecordResult"
 
   # ── SearchTool ──
-  adapter :claude_tool, command: "SearchTool.Grep",  tool: :grep,  result_into: "Cascade.RecordResult"
-  adapter :claude_tool, command: "SearchTool.Glob",  tool: :glob,  result_into: "Cascade.RecordResult"
+  adapter :claude_tool, command: "Hecks::Framework::Tools::SearchTool.Grep",  tool: :grep,  result_into: "Hecks::Framework::Cascade::Cascade.RecordResult"
+  adapter :claude_tool, command: "Hecks::Framework::Tools::SearchTool.Glob",  tool: :glob,  result_into: "Hecks::Framework::Cascade::Cascade.RecordResult"
 
   # ── WebTool : :web_tool adapter family (i569) ──
   #
@@ -61,8 +61,8 @@ Hecks.hecksagon "Tools" do
   # Runtime status : i594 has landed — the runtime auto-dispatches these
   # :web_tool bindings after a matching command via
   # `Runtime::resolve_web_tool_adapters`, chaining into Cascade.RecordResult.
-  adapter :web_tool, command: "WebTool.WebFetch",  tool: :web_fetch,  result_into: "Cascade.RecordResult"
-  adapter :web_tool, command: "WebTool.WebSearch", tool: :web_search, result_into: "Cascade.RecordResult"
+  adapter :web_tool, command: "Hecks::Framework::Tools::WebTool.WebFetch",  tool: :web_fetch,  result_into: "Hecks::Framework::Cascade::Cascade.RecordResult"
+  adapter :web_tool, command: "Hecks::Framework::Tools::WebTool.WebSearch", tool: :web_search, result_into: "Hecks::Framework::Cascade::Cascade.RecordResult"
 
   # ── EmailTool : :mcp adapter family (i608, i656) ──
   #
@@ -130,32 +130,32 @@ Hecks.hecksagon "Tools" do
   # command's attrs before tools/call is sent (see mcp_dispatcher's
   # `substitute()` ; it walks the parsed JSON value recursively).
   adapter :mcp,
-    command: "EmailTool.SearchThreads",
+    command: "Hecks::Framework::Tools::EmailTool.SearchThreads",
     server:  :gmail,
     tool:    "mcp__claude_ai_Gmail__search_threads",
     args:    "{\"q\":\"{query}\"}",
-    result_into: "Cascade.RecordResult"
+    result_into: "Hecks::Framework::Cascade::Cascade.RecordResult"
 
   adapter :mcp,
-    command: "EmailTool.GetThread",
+    command: "Hecks::Framework::Tools::EmailTool.GetThread",
     server:  :gmail,
     tool:    "mcp__claude_ai_Gmail__get_thread",
     args:    "{\"thread_id\":\"{thread_id}\"}",
-    result_into: "Cascade.RecordResult"
+    result_into: "Hecks::Framework::Cascade::Cascade.RecordResult"
 
   adapter :mcp,
-    command: "EmailTool.CreateDraft",
+    command: "Hecks::Framework::Tools::EmailTool.CreateDraft",
     server:  :gmail,
     tool:    "mcp__claude_ai_Gmail__create_draft",
     args:    "{\"to\":\"{to}\",\"subject\":\"{subject}\",\"body_markdown\":\"{body}\"}",
-    result_into: "Cascade.RecordResult"
+    result_into: "Hecks::Framework::Cascade::Cascade.RecordResult"
 
   adapter :mcp,
-    command: "EmailTool.ListDrafts",
+    command: "Hecks::Framework::Tools::EmailTool.ListDrafts",
     server:  :gmail,
     tool:    "mcp__claude_ai_Gmail__list_drafts",
     args:    "{}",
-    result_into: "Cascade.RecordResult"
+    result_into: "Hecks::Framework::Cascade::Cascade.RecordResult"
 
   # ── EmailTool.GetAttachment : :web_tool family (NOT :mcp) ──
   #
@@ -186,7 +186,7 @@ Hecks.hecksagon "Tools" do
   # The runtime arm (i594) has landed ; this binding auto-fires via
   # `Runtime::resolve_web_tool_adapters`.
   adapter :web_tool,
-    command: "EmailTool.GetAttachment",
+    command: "Hecks::Framework::Tools::EmailTool.GetAttachment",
     tool:    "gmail_attachment",
-    result_into: "Cascade.RecordResult"
+    result_into: "Hecks::Framework::Cascade::Cascade.RecordResult"
 end

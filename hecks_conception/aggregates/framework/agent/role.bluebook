@@ -36,7 +36,7 @@ Hecks.bluebook "Role", version: "2026.05.12.1" do
   #
   # Permissions are stored as a single newline-joined string of dotted
   # phrases (one per line). The first chapter accepts only exact
-  # phrases — "Inbox.Add", "Dispatch.Route", "Mindstream.Define". A
+  # phrases — "Hecks::Library::Stores::Inbox::Inbox.Add", "Hecks::Storehouse::Dispatch::Dispatch.Route", "Hecks::Framework::Mindstream::Mindstream.Define". A
   # later chapter introduces wildcards ("Inbox.*") and negation
   # ("!Inbox.Drop") ; the storage shape stays the same.
   #

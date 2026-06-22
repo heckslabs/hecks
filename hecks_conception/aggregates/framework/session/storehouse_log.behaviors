@@ -41,7 +41,7 @@ Hecks.behaviors "SessionLog" do
            metadata_json:        { value: "{\"aggregates_dir\":\"hecks_conception\"}" },
            events:               [
              { kind: "dispatch", verb: "Heartbeat::Heart.Beat", ok: true },
-             { kind: "event",    verb: "Heart.Beat",            ok: true }
+             { kind: "event",    verb: "Miette::Body::Organs::Heart::Heart.Beat",            ok: true }
            ]
     expect source_tag:  { value: "process-manager" },
            event_count: { value: 2 }

@@ -15,30 +15,30 @@ Hecks.behaviors "NoneInStateGate" do
 
   test "ReleaseClaim releases a held claim" do
     tests "ReleaseClaim", on: "Claim"
-    setup "Claim.AcquireClaim", slot: "s1"
+    setup "Hecks::Catalog::NoneInStateGate::Claim.AcquireClaim", slot: "s1"
     input slot: "s1"
     expect state: "released"
   end
 
   test "Claimable excludes a slot with a held claim and includes one with none (none_in_state)" do
     tests "Claimable", on: "Slot", kind: :query
-    setup "Slot.OpenSlot", ref: "free"
-    setup "Slot.OpenSlot", ref: "taken"
-    setup "Claim.AcquireClaim", slot: "taken"
+    setup "Hecks::Catalog::NoneInStateGate::Slot.OpenSlot", ref: "free"
+    setup "Hecks::Catalog::NoneInStateGate::Slot.OpenSlot", ref: "taken"
+    setup "Hecks::Catalog::NoneInStateGate::Claim.AcquireClaim", slot: "taken"
     expect count: 1
   end
 
   test "Claimable includes a slot whose claim exists but is released (non-blocking state)" do
     tests "Claimable", on: "Slot", kind: :query
-    setup "Slot.OpenSlot", ref: "s1"
-    setup "Claim.AcquireClaim", slot: "s1"
-    setup "Claim.ReleaseClaim", slot: "s1"
+    setup "Hecks::Catalog::NoneInStateGate::Slot.OpenSlot", ref: "s1"
+    setup "Hecks::Catalog::NoneInStateGate::Claim.AcquireClaim", slot: "s1"
+    setup "Hecks::Catalog::NoneInStateGate::Claim.ReleaseClaim", slot: "s1"
     expect count: 1
   end
 
   test "Claimable includes a slot with no claim record at all" do
     tests "Claimable", on: "Slot", kind: :query
-    setup "Slot.OpenSlot", ref: "lonely"
+    setup "Hecks::Catalog::NoneInStateGate::Slot.OpenSlot", ref: "lonely"
     expect count: 1
   end
 end

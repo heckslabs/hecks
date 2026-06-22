@@ -6,7 +6,7 @@ Hecks.adapter_family "markdown" do
   #   adapter :markdown, name: :turn_pulse,
   #           query: "Hecks::Plan::Story.board",
   #           trigger_on: "AiTurn.TurnFinished",
-  #           result_into: "AiSession.Inject"
+  #           result_into: "Hecks::Framework::AiSession::AiSession.Inject"
   # No layout logic on the adapter ; the kernel renders the records generically
   # as markdown. Sibling of :html — same report port, distinct adapter, no
   # format selector. Presentation is not domain : the bluebook declares only
