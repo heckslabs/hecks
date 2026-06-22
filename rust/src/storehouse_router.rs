@@ -107,7 +107,7 @@ pub fn walk_phrases(conception: &str) -> Vec<StorehousePhrase> {
     }
     // config-driven additional corpus roots (HECKS_ADDITIONAL_CORPUS_ROOTS) —
     // names no being ; mirrors storehouse_walk_phrases in main.rs.
-    for extra in crate::corpus_loader::additional_corpus_roots(hecks_root.as_deref()) {
+    for extra in crate::corpus_loader::additional_corpus_roots() {
         collect_recursive(&extra, &mut out);
     }
     out

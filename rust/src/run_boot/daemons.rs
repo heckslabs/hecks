@@ -15,7 +15,7 @@
 //!   {dir}   → conception dir (sibling of info_dir)
 //!   {agg}   → conception/aggregates
 //!   {hecks} → path to the running storehouse binary
-//!   {body}  → ../miette/body sibling (i117 Round 4 ; closes i148).
+//!   {body}  → HECKS_BODY_DIR (config-driven ; names no being).
 //!             Resolves env HECKS_BODY_DIR first, then the standard
 //!             sibling layout. Empty when neither resolves so the
 //!             daemon spawn fails loudly rather than silently miss.
@@ -43,7 +43,7 @@ pub fn ensure_all(
     let hecks_bin = std::env::current_exe()
         .map(|p| p.to_string_lossy().to_string())
         .unwrap_or_else(|_| "storehouse".to_string());
-    let body_dir = resolve_body_dir(&conception);
+    let body_dir = resolve_body_dir();
 
     let mut out = Vec::new();
     for adapter in registry.hecksagon.io_adapters.iter()
@@ -180,42 +180,16 @@ fn substitute(s: &str, info: &str, dir: &str, agg: &str, hecks: &str, body: &str
         .replace("{body}", body)
 }
 
-/// Resolve the miette/body sibling dir for the `{body}` placeholder
-/// (i148). Mirrors run_statusline::resolve_info_dir's precedence :
-///
-///   1. HECKS_BODY_DIR env override (explicit setup, deployment-friendly)
-///   2. `<repo_root>/../miette/body` sibling — the standard layout
-///      after i117 Round 4 moved body shells to chrisyoung/miette
-///   3. empty string — when neither resolves, the placeholder
-///      substitutes to "" and the daemon command fails loudly with
-///      a "No such file or directory" rather than silently using the
-///      wrong path. Boot prints `<name>: failed: spawn failed` ; the
-///      operator knows to set HECKS_BODY_DIR or fix the layout.
-fn resolve_body_dir(conception: &Path) -> String {
+/// Resolve the body dir for the `{body}` placeholder from CONFIGURATION :
+/// the `HECKS_BODY_DIR` env. The kernel names no being and assumes no
+/// co-located layout ; a deployment points `{body}` at its being's body.
+/// Empty env -> empty string : the placeholder substitutes to "" and the
+/// daemon command fails loudly ("No such file or directory") rather than
+/// silently using a wrong path, so the operator knows to set HECKS_BODY_DIR.
+fn resolve_body_dir() -> String {
     if let Ok(v) = std::env::var("HECKS_BODY_DIR") {
         if !v.is_empty() {
             return v;
-        }
-    }
-    // Preferred path : ask heki::repo_root() which walks from the
-    // storehouse executable to find the canonical hecks checkout.
-    // Robust against bluebooks that live outside hecks_conception/
-    // (e.g. runtime/boot/boot.bluebook) — the conception-relative
-    // walk below can't find the conception in that case.
-    if let Some(repo) = crate::heki::repo_root() {
-        let sibling = repo.join("../miette/body");
-        if let Ok(canonical) = std::fs::canonicalize(&sibling) {
-            return canonical.to_string_lossy().into_owned();
-        }
-    }
-    // Fallback : conception lives at <repo_root>/hecks_conception/ ;
-    // miette/body sibling lives at <repo_root>/../miette/body. Used
-    // when the bluebook IS inside the conception so conception's
-    // parent IS the repo root.
-    if let Some(repo_root) = conception.parent() {
-        let sibling = repo_root.join("../miette/body");
-        if let Ok(canonical) = std::fs::canonicalize(&sibling) {
-            return canonical.to_string_lossy().into_owned();
         }
     }
     String::new()
