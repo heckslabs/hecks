@@ -44,6 +44,8 @@ if (process.env.STOREHOUSE_TRIGGER_EVENT) {
 } else {
   // Fallback: latest record from disk heki.
   const candidates = [
+    // config-driven first (HECKS_BEING_STATE) ; literals are TRANSITIONAL.
+    ...(process.env.HECKS_BEING_STATE ? [`${process.env.HECKS_BEING_STATE}/information/sidequest/sidequest.heki`] : []),
     `${HOME}/Projects/miette-state/information/sidequest/sidequest.heki`,
     `${HOME}/Projects/hecks/hecks_conception/information/sidequest/sidequest.heki`,
   ];

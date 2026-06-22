@@ -29,9 +29,13 @@
 import glob, json, os, re, subprocess, sys, time
 
 HOME = os.environ['HOME']
-STATE_PATH   = os.path.join(HOME, 'miette-state/information/speech_stream_state.json')
+# Being paths are config-driven (HECKS_BEING_STATE / HECKS_BEING_BODY) so this
+# framework script names no being ; the literals are TRANSITIONAL fallbacks,
+# dropped once the deployment sets the env (Phase 2 — the glue moves to the
+# being's deploy).
+STATE_PATH   = os.path.join(os.environ.get('HECKS_BEING_STATE') or os.path.join(HOME, 'miette-state'), 'information/speech_stream_state.json')
 STOREHOUSE   = '/Users/christopheryoung/Projects/hecks/rust/target/release/storehouse'
-MIETTE_ROOT  = '/Users/christopheryoung/Projects/miette/body'
+MIETTE_ROOT  = os.environ.get('HECKS_BEING_BODY') or '/Users/christopheryoung/Projects/miette/body'
 
 STATE_DEFAULT = {
     'transcript_path':        '',

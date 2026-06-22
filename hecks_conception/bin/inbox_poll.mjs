@@ -28,8 +28,11 @@ import fs from "node:fs";
 import path from "node:path";
 
 const HOME = process.env.HOME;
-const TOKEN_PATH = HOME + "/.config/miette/google-oauth-token.json";
-const STATE_PATH = HOME + "/miette-state/information/inbox_poll_state.json";
+// Being paths config-driven (HECKS_BEING_CONFIG / HECKS_BEING_STATE) so this
+// framework script names no being ; the literals are TRANSITIONAL fallbacks,
+// dropped once the deployment sets the env (Phase 2 — glue moves to the deploy).
+const TOKEN_PATH = (process.env.HECKS_BEING_CONFIG || (HOME + "/.config/miette")) + "/google-oauth-token.json";
+const STATE_PATH = (process.env.HECKS_BEING_STATE || (HOME + "/miette-state")) + "/information/inbox_poll_state.json";
 const REGISTRY  = path.join(path.dirname(new URL(import.meta.url).pathname), "inbox_correspondents.json");
 const API = "https://gmail.googleapis.com/gmail/v1/users/me";
 
