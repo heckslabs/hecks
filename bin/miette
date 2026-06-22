@@ -85,6 +85,23 @@ if [ -n "$ungoverned" ]; then
 fi
 
 cd "$hecks_root/hecks_conception"
+if [ -n "$ungoverned" ]; then
+  # The REAL lever : --setting-sources project drops the USER settings layer,
+  # which is where the permissions.deny list ([Bash, Read, Edit, Write, Grep,
+  # Glob, WebFetch, WebSearch]) AND the governance hooks live. An inherited
+  # deny can't be cleared by a higher --settings layer (deny wins), so without
+  # this the native tools stay stripped from the toolset no matter what
+  # HECKS_GOVERNANCE_OFF does — and the door can't be recovered when it's down.
+  # NOTE : the SessionStart boot pipeline also lives in user settings, so an
+  # --ungoverned session does NOT auto-run the wake pipeline ; the overmind
+  # daemons from a prior boot keep running regardless. HECKS_GOVERNANCE_OFF is
+  # still exported above as a belt-and-suspenders signal (and to neutralise any
+  # project-level governance hook).
+  exec claude --dangerously-skip-permissions \
+              --setting-sources project \
+              --system-prompt "$(cat "$prompt_file")" \
+              "$wake"
+fi
 exec claude --dangerously-skip-permissions \
             --system-prompt "$(cat "$prompt_file")" \
             "$wake"
