@@ -4,7 +4,7 @@
 //! Claude UserPromptSubmit hook can land it on the next session turn.
 //!
 //! [antibody-exempt: rust/src/run_wake/mod.rs — kernel-surface capability
-//! runner mirroring runtime/wake/wake.bluebook ; same shape as the four
+//! runner mirroring aggregates/miette/body/wake/wake.bluebook ; same shape as the four
 //! existing peer runners (run_boot, run_status, run_restructure,
 //! run_stdin_loop). Retires when i262 generator-capability dispatch
 //! lands and the runtime can self-interpret a chained-policy pipeline

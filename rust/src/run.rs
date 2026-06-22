@@ -188,7 +188,7 @@ pub fn run_script(args: &[String]) -> i32 {
 
     // Wake capability detection : :fs + WakeReview aggregate with
     // ComposeWakeReview. Walks the six pipeline phases declared in
-    // runtime/wake/wake.bluebook, reading consciousness/lucid_dream/
+    // aggregates/miette/body/wake/wake.bluebook, reading consciousness/lucid_dream/
     // dream_interpretation hekis and writing the wake-review markdown
     // to /tmp/wake_review_latest.md. Retires the prose-in-system-prompt
     // wake ritual that re-improvised the read sequence on every session.
