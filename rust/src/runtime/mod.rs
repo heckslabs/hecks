@@ -1924,7 +1924,7 @@ impl Runtime {
                     }
                 }
                 match (cmd, tool) {
-                    (Some(c), Some(t)) if c == target => Some((c, t, result_into)),
+                    (Some(c), Some(t)) if binding_command_tail(&c) == target.as_str() => Some((c, t, result_into)),
                     _ => None,
                 }
             })
@@ -2282,7 +2282,7 @@ impl Runtime {
                     }
                 }
                 match (cmd, server, tool) {
-                    (Some(c), Some(s), Some(t)) if c == target => {
+                    (Some(c), Some(s), Some(t)) if binding_command_tail(&c) == target.as_str() => {
                         Some((c, s, t, args, result_into))
                     }
                     _ => None,
@@ -3768,6 +3768,18 @@ pub(crate) fn strip_quotes_or_colon(raw: &str) -> String {
         return rest.to_string();
     }
     t.to_string()
+}
+
+/// Reduce a hecksagon binding's `command:` ref to its `Aggregate.Command`
+/// tail for matching against a dispatched target. A binding may name its
+/// command bare (`"ShellTool.Bash"`) or fully qualified
+/// (`"Hecks::Framework::Tools::ShellTool.Bash"`) — both must match the same
+/// dispatch, which is always built as `aggregate_type.bare_command` (2-seg).
+/// Strip any realm prefix (everything up to the last `::`) before comparing ;
+/// without this, an FQN-canonicalized binding silently stops matching and the
+/// adapter never fires (the bug that bricked the storehouse door, 2026-06-22).
+pub(crate) fn binding_command_tail(c: &str) -> &str {
+    c.rsplit("::").next().unwrap_or(c)
 }
 
 /// i221-B — convert a serde_json::Map into a HashMap<String, Value>
