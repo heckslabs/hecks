@@ -7312,10 +7312,16 @@ fn storehouse_walk_phrases(conception: &str) -> Vec<StorehousePhrase> {
     storehouse_collect_recursive(&root.join("aggregates"), &mut out);
     storehouse_collect_recursive(&root.join("storehouse"), &mut out);
     // top-level repo buckets (i118 R3 W2) :
-    if let Some(hroot) = hecks_root {
+    if let Some(hroot) = &hecks_root {
         for bucket in &["runtime", "codegen", "cli", "integrations", "tools", "discipline"] {
             storehouse_collect_recursive(&hroot.join(bucket), &mut out);
         }
+    }
+    // config-driven additional corpus roots (HECKS_ADDITIONAL_CORPUS_ROOTS) —
+    // names no being ; closes the lexicon-can't-see-the-being-repo gap so
+    // `route` resolves a being's commands from its own (separate) repo.
+    for extra in storehouse::corpus_loader::additional_corpus_roots(hecks_root.as_deref()) {
+        storehouse_collect_recursive(&extra, &mut out);
     }
     out
 }

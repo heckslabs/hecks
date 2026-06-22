@@ -100,10 +100,15 @@ pub fn walk_phrases(conception: &str) -> Vec<StorehousePhrase> {
     let mut out = Vec::new();
     collect_recursive(&root.join("aggregates"), &mut out);
     collect_recursive(&root.join("storehouse"), &mut out);
-    if let Some(hroot) = hecks_root {
+    if let Some(hroot) = &hecks_root {
         for bucket in &["runtime", "codegen", "cli", "integrations", "tools", "discipline"] {
             collect_recursive(&hroot.join(bucket), &mut out);
         }
+    }
+    // config-driven additional corpus roots (HECKS_ADDITIONAL_CORPUS_ROOTS) —
+    // names no being ; mirrors storehouse_walk_phrases in main.rs.
+    for extra in crate::corpus_loader::additional_corpus_roots(hecks_root.as_deref()) {
+        collect_recursive(&extra, &mut out);
     }
     out
 }

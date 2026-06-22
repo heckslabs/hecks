@@ -5,7 +5,8 @@
 //! bluebook layout without fighting the shrink gate.  The contract is
 //! the bluebook tree shape itself : organ-wins dedupe (i108/i143),
 //! recursive discovery (i126), capability-sibling walk, repo-global
-//! bucket walk (i118 Wave 1), and ../miette inclusion (i117 Round 4).
+//! bucket walk (i118 Wave 1), and config-driven additional corpus roots
+//! (`additional_corpus_roots`, env HECKS_ADDITIONAL_CORPUS_ROOTS).
 //!
 //! The single public entry point is `load_combined_domain` — same
 //! signature, same behaviour as before the extraction.
@@ -17,6 +18,44 @@
 //!   ```
 
 use std::fs;
+use std::path::{Path, PathBuf};
+
+/// Additional bluebook corpus roots beyond the conception root + framework
+/// buckets, discovered from CONFIGURATION so the framework names no specific
+/// being and assumes no co-located layout. This is the forward-compatible
+/// surface for the coming repo splits (storehouse, then each being, become
+/// their own private repos): a deployment declares its roots ; the engine
+/// knows none of them by name.
+///
+/// Source: env `HECKS_ADDITIONAL_CORPUS_ROOTS` = colon-separated absolute paths.
+///
+/// `repo_root` is Some only when the dispatch is inside the framework repo ; it
+/// powers a TRANSITIONAL `../miette` fallback (the ONLY place a being is named
+/// in the kernel) that keeps the legacy sibling layout working until the env is
+/// wired into every deployment surface (.overmind.env + the MCP server env,
+/// Phase 2). Deleting that fallback block makes the kernel fully being-agnostic.
+pub fn additional_corpus_roots(repo_root: Option<&Path>) -> Vec<PathBuf> {
+    if let Ok(raw) = std::env::var("HECKS_ADDITIONAL_CORPUS_ROOTS") {
+        let roots: Vec<PathBuf> = raw
+            .split(':')
+            .filter(|p| !p.is_empty())
+            .map(PathBuf::from)
+            .filter(|p| p.is_dir())
+            .filter_map(|p| std::fs::canonicalize(&p).ok())
+            .collect();
+        if !roots.is_empty() {
+            return roots;
+        }
+    }
+    // TRANSITIONAL — remove in Phase 2 once HECKS_ADDITIONAL_CORPUS_ROOTS is set
+    // in every deployment surface. The one place a being is named in the kernel.
+    if let Some(repo) = repo_root {
+        if let Some(m) = std::fs::canonicalize(repo.join("../miette")).ok().filter(|p| p.is_dir()) {
+            return vec![m];
+        }
+    }
+    Vec::new()
+}
 
 /// Load every `.bluebook` under `<agg_dir>/` (organs) and under sibling
 /// `<agg_dir>/../capabilities/*/` (capability bluebooks) into a single
@@ -149,8 +188,8 @@ pub fn load_combined_domain(agg_dir: &str) -> crate::ir::Domain {
         // current_exe finds the canonical hecks/ root. (i117 Round 4
         // follow-on : Chris's "no inbox row, just fix it" call after
         // the Wave 2 agent's worktree-path-resolution false-failure.)
-        // Isolation gate (production) — the global roots below (Miette's
-        // conception via ../miette and the repo's framework buckets) join
+        // Isolation gate (production) — the global roots below (the
+        // config-driven additional corpus roots and the repo's framework buckets) join
         // the dispatch domain ONLY when agg_dir is itself inside the hecks
         // repo, i.e. Miette dispatching against her own conception. A
         // standalone domain (a user's project, an isolated root) loads in
@@ -163,14 +202,15 @@ pub fn load_combined_domain(agg_dir: &str) -> crate::ir::Domain {
                 .and_then(|r| std::fs::canonicalize(&r).ok()))
             .map(|(a, r)| a.starts_with(&r))
             .unwrap_or(false);
-        let canonical_miette = crate::heki::repo_root()
-            .map(|r| r.join("../miette"))
-            .filter(|p| p.is_dir())
-            .and_then(|p| std::fs::canonicalize(&p).ok());
+        // Additional corpus roots are CONFIG-DRIVEN now
+        // (HECKS_ADDITIONAL_CORPUS_ROOTS) — the kernel names no being. The
+        // within_repo gate still applies: extra roots join the dispatch
+        // domain only when dispatching against the framework's own
+        // conception (so a foreign domain isn't dragged into Miette's).
         if within_repo {
-            if let Some(canonical) = canonical_miette {
-                if canonical != std::path::Path::new(agg_dir) {
-                    collect_bluebooks(&canonical, 1, &mut found);
+            for root in additional_corpus_roots(crate::heki::repo_root().as_deref()) {
+                if root.as_path() != std::path::Path::new(agg_dir) {
+                    collect_bluebooks(&root, 1, &mut found);
                 }
             }
         }
