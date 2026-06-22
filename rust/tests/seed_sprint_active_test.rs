@@ -17,7 +17,7 @@ fn attrs(p: &[(&str, Value)]) -> HashMap<String, Value> {
 }
 
 const SEED_HECKSAGON: &str = include_str!(
-    "../../hecks_conception/aggregates/plan/hecksagons/seed_sprint_active.hecksagon"
+    "fixtures/conception/plan/seed_sprint_active.hecksagon"
 );
 
 fn aggregates_dir() -> String {

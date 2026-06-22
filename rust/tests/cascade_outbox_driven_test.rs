@@ -20,7 +20,7 @@ fn attrs(p: &[(&str, Value)]) -> HashMap<String, Value> {
     p.iter().map(|(k, v)| (k.to_string(), v.clone())).collect()
 }
 const RESET_HEX: &str = include_str!(
-    "../../hecks_conception/aggregates/plan/hecksagons/reset_story_tasks.hecksagon"
+    "fixtures/conception/plan/reset_story_tasks.hecksagon"
 );
 fn aggregates_dir() -> String {
     format!("{}/aggregates", storehouse::storehouse_router::conception_root())

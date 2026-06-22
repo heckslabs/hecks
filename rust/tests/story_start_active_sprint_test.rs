@@ -14,7 +14,7 @@ fn attrs(p: &[(&str, Value)]) -> HashMap<String, Value> {
     p.iter().map(|(k, v)| (k.to_string(), v.clone())).collect()
 }
 const SEED_HECKSAGON: &str = include_str!(
-    "../../hecks_conception/aggregates/plan/hecksagons/seed_sprint_active.hecksagon"
+    "fixtures/conception/plan/seed_sprint_active.hecksagon"
 );
 fn aggregates_dir() -> String {
     format!("{}/aggregates", storehouse::storehouse_router::conception_root())
