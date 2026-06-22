@@ -489,6 +489,27 @@ mod path_tests {
     }
 
     #[test]
+    fn walk_up_from_requires_aggregates_not_a_bare_hecks_conception() {
+        // Regression (2026-06-22) : a stray information-only `hecks_conception/`
+        // (no aggregates/) must NOT be mistaken for the repo root. An inner
+        // ancestor carries a BARE hecks_conception/ ; an OUTER ancestor carries
+        // the real hecks_conception/aggregates/. walk_up_from must skip the
+        // stray and return the outer root (the old code stopped at the stray,
+        // poisoning repo_root -> within_repo=false -> dead corpus-merge).
+        let base = tempdir();
+        let real_root = base.join("real");
+        fs::create_dir_all(real_root.join("hecks_conception").join("aggregates")).unwrap();
+        let stray = real_root.join("rust");
+        fs::create_dir_all(stray.join("hecks_conception").join("information")).unwrap();
+        let start = stray.join("target").join("release");
+        fs::create_dir_all(&start).unwrap();
+
+        assert_eq!(walk_up_from(&start), Some(real_root));
+
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    #[test]
     fn path_for_with_context_emits_nested() {
         let p = path_for("/tmp/info", "Mood", Some("Body"));
         assert_eq!(p, "/tmp/info/body/mood.heki");
@@ -603,8 +624,10 @@ fn walk_up_for_repo_root() -> Option<std::path::PathBuf> {
     walk_up_from(exe.parent()?)
 }
 
-/// Walk up from `start` for the directory that CONTAINS a `hecks_conception/`
-/// dir (the repo / conception root), skipping any match inside a
+/// Walk up from `start` for the directory that contains a POPULATED
+/// `hecks_conception/aggregates/` (the repo / conception root) - the
+/// aggregates/ subdir distinguishes a real corpus root from a stray
+/// information-only `hecks_conception/` dir - skipping any match inside a
 /// `.claude/worktrees/` subtree. Shared by the binary-based resolution
 /// (walk_up_for_repo_root, from current_exe) and the cwd-based resolution that
 /// lets a test/story configure its own store by running from its OWN conception
@@ -616,7 +639,14 @@ fn walk_up_from(start: &std::path::Path) -> Option<std::path::PathBuf> {
     // which is 6 deep from the worktree root and 8 deep from the real
     // hecks repo root.
     for _ in 0..10 {
-        if cur.join("hecks_conception").is_dir() {
+        // Require hecks_conception/aggregates/, not merely hecks_conception/ :
+        // a stray information-only `hecks_conception/` dir (e.g. an accidental
+        // `rust/hecks_conception/` written when a dispatch ran with a RELATIVE
+        // agg_dir from the wrong cwd) carries no aggregates/ and must NOT be
+        // mistaken for the repo root. That false match poisoned repo_root ->
+        // within_repo=false -> the env corpus-merge AND framework buckets
+        // silently stopped loading for every dispatch (root-caused 2026-06-22).
+        if cur.join("hecks_conception").join("aggregates").is_dir() {
             // When running inside a Claude agent worktree, the worktree
             // has its own hecks_conception/ copy but is NOT the canonical
             // repo root — the sibling ../miette/ and ../miette_family/
