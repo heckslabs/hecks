@@ -25,7 +25,7 @@ fn attrs(p: &[(&str, Value)]) -> HashMap<String, Value> {
     p.iter().map(|(k, v)| (k.to_string(), v.clone())).collect()
 }
 fn aggregates_dir() -> String {
-    format!("{}/../hecks_conception/aggregates", env!("CARGO_MANIFEST_DIR"))
+    format!("{}/aggregates", storehouse::storehouse_router::conception_root())
 }
 fn field(rt: &Runtime, ctx: &str, agg: &str, id: &str, f: &str) -> Option<String> {
     rt.all_qualified(Some(ctx), agg)

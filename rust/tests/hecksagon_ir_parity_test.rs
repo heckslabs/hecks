@@ -37,7 +37,7 @@ fn repo_root() -> PathBuf {
         .to_path_buf()
 }
 
-const GRAMMAR_REL: &str = "hecks_conception/aggregates/language/grammar/hexagon.bluebook";
+const GRAMMAR_REL: &str = "aggregates/language/grammar/hexagon.bluebook";
 const SHAPE_REL: &str = "codegen/hecksagon_ir_shape/fixtures/hecksagon_ir_shape.fixtures";
 
 // (grammar aggregate name, IR struct name). Field -> FamilyField is the
@@ -78,7 +78,8 @@ fn relationship_field(agg: &str, kind: &ReferenceKind, target: &str) -> String {
 #[test]
 fn grammar_matches_hecksagon_ir_fixtures() {
     let root = repo_root();
-    let src = fs::read_to_string(root.join(GRAMMAR_REL)).expect("hexagon.bluebook missing");
+    let conception = PathBuf::from(storehouse::storehouse_router::conception_root());
+    let src = fs::read_to_string(conception.join(GRAMMAR_REL)).expect("hexagon.bluebook missing");
     let domain = parser::parse(&src);
     let fixtures = util::load_fixtures(&root.join(SHAPE_REL)).expect("fixtures load failed");
 

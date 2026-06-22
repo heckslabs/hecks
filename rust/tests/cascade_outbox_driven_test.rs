@@ -23,7 +23,7 @@ const RESET_HEX: &str = include_str!(
     "../../hecks_conception/aggregates/plan/hecksagons/reset_story_tasks.hecksagon"
 );
 fn aggregates_dir() -> String {
-    format!("{}/../hecks_conception/aggregates", env!("CARGO_MANIFEST_DIR"))
+    format!("{}/aggregates", storehouse::storehouse_router::conception_root())
 }
 fn field(rt: &Runtime, ctx: &str, agg: &str, id: &str, f: &str) -> Option<String> {
     rt.all_qualified(Some(ctx), agg)

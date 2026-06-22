@@ -19,7 +19,7 @@ use storehouse::hecksagon_parser;
 use storehouse::runtime::{BackendKind, LazyRepository, Runtime};
 
 fn aggregates_dir() -> String {
-    format!("{}/../hecks_conception/aggregates", env!("CARGO_MANIFEST_DIR"))
+    format!("{}/aggregates", storehouse::storehouse_router::conception_root())
 }
 
 // An explicit `adapter :memory` for the Inbox context. Now that
