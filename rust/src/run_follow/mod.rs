@@ -18,7 +18,7 @@
 //!   storehouse follow --exclude Heart,SpeechStream
 //!   storehouse follow ShellTool       # substring filter on the line
 
-use crate::runtime::dispatch_detail::{colour_for, parse_fqn, BRIGHT_RED, CYAN, DIM, GREEN, MAGENTA, RESET, YELLOW};
+use crate::runtime::dispatch_detail::{colour_for, BRIGHT_RED, CYAN, DIM, GREEN, MAGENTA, RESET, YELLOW};
 use crate::runtime::storehouse_log;
 use serde_json::Value;
 use std::fs::File;
@@ -215,10 +215,16 @@ fn terse(v: &Value, command: &str, source: &str) -> String {
     }
 }
 
-/// `[Domain Aggregate Command]` — command word bright-cyan, the rest dim.
+/// `[Realm Subrealm… Domain Aggregate Command]` — EVERY namespace segment of
+/// the canonical FQN, so the log is realm-explicit (the command field carries
+/// the full Realm::…::Domain::Aggregate.verb since i-fqn). Command word
+/// bright-cyan, the rest dim. Splits the verb off the last `.`, then every
+/// `::` segment of the head is its own word ; a legacy 2-seg ref simply shows
+/// fewer words.
 fn dac_label(command: &str) -> String {
-    let (d, a, c) = parse_fqn(command);
-    let words: Vec<String> = [d, a, c].into_iter().filter(|w| !w.is_empty()).collect();
+    let (head, tail) = command.rsplit_once('.').unwrap_or(("", command));
+    let mut words: Vec<String> = head.split("::").filter(|w| !w.is_empty()).map(|w| w.to_string()).collect();
+    if !tail.is_empty() { words.push(tail.to_string()); }
     let mut inner = String::new();
     for (i, w) in words.iter().enumerate() {
         if i > 0 { inner.push(' '); }
@@ -237,6 +243,16 @@ mod tests {
     use super::*;
     fn opts() -> Opts { Opts { needle: None, quiet: false, json: false, pretty: false, exclude: Vec::new() } }
     fn strip(s: String) -> String { crate::runtime::dispatch_detail::strip_ansi(&s) }
+
+    #[test]
+    fn dac_label_shows_every_realm_segment() {
+        // The canonical FQN's realm + subrealms + domain + aggregate +
+        // command each become their own bracketed word — realm-explicit
+        // (i-fqn). A legacy 2-seg ref simply shows fewer words.
+        let l = r#"{"ts":"T","command":"Hecks::Framework::Tools::FileTool.Edit","kind":"done","outcome":"ok","elapsed_ms":0,"event_count":5,"source":"operator"}"#;
+        let out = strip(render(l, &opts()).unwrap());
+        assert!(out.contains("[Hecks Framework Tools FileTool Edit]"), "{out}");
+    }
 
     #[test]
     fn renders_event_terse() {
