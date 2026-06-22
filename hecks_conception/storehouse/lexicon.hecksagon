@@ -12,7 +12,7 @@ Hecks.hecksagon "Lexicon" do
   # and writes the lexicon.heki the contract describes.
   #
   # Index layout (lexicon.heki) :
-  #   id              — the phrase, e.g. "Hecks::Miette::Body::Wake::WakeReview.ComposeWakeReview"
+  #   id              — the phrase, e.g. "Miette::Body::Wake::WakeReview.ComposeWakeReview"
   #   bluebook_path   — absolute path to the owning .bluebook
   #   aggregate       — aggregate name segment of the phrase
   #   command         — command name segment
