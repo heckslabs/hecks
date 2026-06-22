@@ -63,17 +63,19 @@ fn veterinary_clinic_domain_is_valid() {
 }
 
 #[test]
-fn mind_domain_is_valid() {
-    // Replaces the deleted `nursery/hecks/life` self-hosting fixture
-    // with the catalog/mind chapter — large, lifecycle-heavy domain
-    // that exercises the validator across all check categories.
-    let domain = parse_file("../hecks_conception/catalog/mind.bluebook");
+fn large_domain_is_valid() {
+    // A large, lifecycle-heavy domain that exercises the validator across
+    // all check categories. Was catalog/mind.bluebook until that legacy
+    // monolith was retired (every aggregate had refined homes under
+    // miette/mind, miette/body, aggregates/world); now points at
+    // catalog/appeal — the largest remaining multi-aggregate domain.
+    let domain = parse_file("../hecks_conception/catalog/appeal.bluebook");
     let errors = validator::validate(&domain);
     // See pizzas_domain_is_valid for the i102 migration-debt rationale.
     let migration_pending: Vec<&String> = errors.iter()
         .filter(|e| !e.contains("uses primitive type"))
         .collect();
-    assert!(migration_pending.is_empty(), "mind non-debt errors: {:?}", migration_pending);
+    assert!(migration_pending.is_empty(), "large-domain non-debt errors: {:?}", migration_pending);
 }
 
 #[test]
