@@ -250,15 +250,46 @@ fn resolve_fully_qualified(rt: &Runtime, command_name: &str) -> Result<Resolutio
     let (realm, context) = crate::heki::fqn_realm_context(command_name);
 
     // First pass — aggregate-rooted command (target == aggregate name).
+    // The FLIP (i-fqn): collect EVERY realm-matching candidate rather than
+    // taking the first. A realm-OMITTED (2-seg) dispatch that resolves to >1
+    // aggregate across distinct realms is reported AmbiguousCommand instead of
+    // silently picking the first — the Tools::Cascade wrong-realm failure mode.
+    // This is a no-op while the merged corpus has zero cross-realm collisions ;
+    // it only bites when a genuine homonym appears. A realm-QUALIFIED dispatch
+    // (realm.is_some()) keeps the first-match behaviour — its realm already
+    // disambiguated via realm_context_matches.
+    let mut hits: Vec<Resolution> = Vec::new();
+    let mut hit_realms: Vec<String> = Vec::new();
     for (ai, agg) in rt.domain.aggregates.iter().enumerate() {
         if agg.name != target { continue; }
         if !domain_matches(rt, ai, &domain, &domain_lc) { continue; }
         if !crate::heki::realm_context_matches(agg.realm_path.as_deref(), realm.as_deref(), context.as_deref()) { continue; }
         for (ci, c) in agg.commands.iter().enumerate() {
             if c.name == cmd {
-                return Ok(Resolution::Aggregate(ai, ci));
+                hits.push(Resolution::Aggregate(ai, ci));
+                hit_realms.push(agg.realm_path.clone().unwrap_or_default());
             }
         }
+    }
+    if hits.len() == 1 {
+        return Ok(hits.remove(0));
+    }
+    if hits.len() > 1 {
+        if realm.is_none() {
+            let mut candidates: Vec<String> = hit_realms.iter()
+                .filter(|rp| !rp.is_empty())
+                .map(|rp| format!("{}::{}", rp.replace('/', "::"), command_name))
+                .collect();
+            candidates.sort();
+            candidates.dedup();
+            if candidates.len() > 1 {
+                return Err(RuntimeError::AmbiguousCommand {
+                    name: command_name.to_string(),
+                    candidates,
+                });
+            }
+        }
+        return Ok(hits.remove(0));
     }
 
     // Second pass — entity-owned command. The canonical form uses the
