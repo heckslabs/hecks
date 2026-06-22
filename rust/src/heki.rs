@@ -510,6 +510,27 @@ mod path_tests {
     }
 
     #[test]
+    fn repo_root_from_conception_dir_returns_the_parent() {
+        // Config-driven repo_root (decouple): HECKS_CONCEPTION_DIR -> its parent.
+        let base = tempdir();
+        let repo = base.join("a_repo");
+        let conception = repo.join("hecks_conception");
+        fs::create_dir_all(conception.join("aggregates")).unwrap();
+        assert_eq!(
+            repo_root_from_conception_dir(Some(conception.to_string_lossy().into_owned())),
+            Some(repo.clone())
+        );
+        // Unset / empty / non-existent all fall through (None -> exe-walk).
+        assert_eq!(repo_root_from_conception_dir(None), None);
+        assert_eq!(repo_root_from_conception_dir(Some(String::new())), None);
+        assert_eq!(
+            repo_root_from_conception_dir(Some(base.join("nope").to_string_lossy().into_owned())),
+            None
+        );
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    #[test]
     fn path_for_with_context_emits_nested() {
         let p = path_for("/tmp/info", "Mood", Some("Body"));
         assert_eq!(p, "/tmp/info/body/mood.heki");
@@ -616,7 +637,30 @@ mod path_tests {
 /// executable (which lives in the main checkout's
 /// `storehouse/target/release/`) finds the canonical repo root.
 pub fn repo_root() -> Option<std::path::PathBuf> {
+    // Config-driven first (decouple Phase 1): HECKS_CONCEPTION_DIR names the
+    // conception dir, whose PARENT is the repo root. This lets the engine
+    // resolve the conception WITHOUT sitting beside it — the prerequisite for
+    // storehouse living in its own repo. Additive + no-op while the env is
+    // unset, so in-monorepo behaviour is unchanged ; the executable-walk
+    // (walk_up_for_repo_root) is the transitional fallback.
+    if let Some(root) = repo_root_from_conception_dir(std::env::var("HECKS_CONCEPTION_DIR").ok()) {
+        return Some(root);
+    }
     walk_up_for_repo_root()
+}
+
+/// The repo root derived from a HECKS_CONCEPTION_DIR value — the conception
+/// dir's PARENT. None when unset / empty / not a directory. Pure (the env
+/// value is injected) so it is unit-testable without mutating the process
+/// environment (which would race across parallel tests).
+fn repo_root_from_conception_dir(env_val: Option<String>) -> Option<std::path::PathBuf> {
+    let p = env_val.filter(|s| !s.is_empty())?;
+    let conception = std::path::PathBuf::from(p);
+    if conception.is_dir() {
+        conception.parent().map(|x| x.to_path_buf())
+    } else {
+        None
+    }
 }
 
 fn walk_up_for_repo_root() -> Option<std::path::PathBuf> {
