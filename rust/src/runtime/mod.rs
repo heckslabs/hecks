@@ -456,10 +456,16 @@ impl Runtime {
 
     /// The embedded framework outbox bluebook — the OutboundEvent event-out
     /// port, compiled in as runtime standard-library substrate so any booted
-    /// domain with an effect binding gets it without copying. Single source
-    /// of truth : the conception's canonical framework bluebook.
+    /// domain with an effect binding gets it without copying. This is ENGINE
+    /// stdlib (the messaging-port analog of CascadeRun), so the canonical copy
+    /// is CRATE-OWNED (`rust/resources/outbound_event.bluebook`) — storehouse
+    /// carries its own outbox contract and no longer reaches into a sibling
+    /// `hecks_conception/` to build (decouple Phase 1). The conception keeps a
+    /// copy (referenced by event_sourcing.bluebook, and an override wins per
+    /// `ensure_outbox_substrate`); a monorepo parity check guards them against
+    /// drift.
     const OUTBOX_SUBSTRATE: &'static str = include_str!(
-        "../../../hecks_conception/aggregates/framework/hexagon/outbound_event.bluebook"
+        "../../resources/outbound_event.bluebook"
     );
 
     /// Merge the framework outbox aggregate into `domain` when (a) some
