@@ -284,19 +284,22 @@ pub fn parse_fqn(fqn: &str) -> (String, String, String) {
     (domain, aggregate, cmd)
 }
 
-/// Build the scannable bracketed header line for a dispatched FQN —
-/// `[Domain Aggregate Command]`, space-separated, with the three parts
-/// coloured distinctly (domain DIM, aggregate plain, command CYAN). A
-/// domain-less FQN renders only the parts it has, never an empty slot.
+/// Build the scannable bracketed header line for a dispatched FQN — EVERY
+/// `::` namespace segment of the canonical address becomes its own word
+/// (realm + subrealms + domain + aggregate + command), so the header is
+/// realm-explicit and matches run_follow's dac_label. The command word is
+/// bright-cyan, the rest dim. A bare / command-less FQN renders only the
+/// parts it has, never an empty slot.
 pub fn header_line(fqn: &str) -> String {
-    let (domain, aggregate, command) = parse_fqn(fqn);
-    let mut parts: Vec<String> = Vec::new();
-    if !domain.is_empty() {
-        parts.push(format!("{}{}{}", DIM, domain, RESET));
-    }
-    if !aggregate.is_empty() {
-        parts.push(aggregate);
-    }
+    let (head, command) = match fqn.rsplit_once('.') {
+        Some((h, c)) => (h, c.to_string()),
+        None => (fqn, String::new()),
+    };
+    let mut parts: Vec<String> = head
+        .split("::")
+        .filter(|w| !w.is_empty())
+        .map(|w| format!("{}{}{}", DIM, w, RESET))
+        .collect();
     if !command.is_empty() {
         parts.push(format!("{}{}{}", CYAN, command, RESET));
     }
@@ -367,6 +370,14 @@ mod tests {
     fn header_line_domainless_has_no_empty_slot() {
         let plain = strip_ansi(&header_line("Heart.Beat"));
         assert_eq!(plain, "[Heart Beat]");
+    }
+
+    #[test]
+    fn header_line_shows_every_realm_segment() {
+        // A deep canonical FQN brackets ALL :: segments — realm + subrealms +
+        // domain + aggregate + command — not just Domain::Aggregate.command.
+        let plain = strip_ansi(&header_line("Hecks::Framework::Tools::FileTool.Edit"));
+        assert_eq!(plain, "[Hecks Framework Tools FileTool Edit]");
     }
 
     #[test]
