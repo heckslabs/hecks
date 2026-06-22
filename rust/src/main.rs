@@ -3457,8 +3457,8 @@ fn find_world_sqlite_path(agg_dir: &str) -> Option<String> {
 /// stays wired ; for the claude backend, model/url are ignored by the
 /// adapter and we pass empty strings.
 ///
-/// This is the runtime side of the contract `wake_review.hecksagon`
-/// and `interpretation.hecksagon` and `rem_dream.hecksagon` already
+/// This is the runtime side of the contract `interpretation.hecksagon`
+/// and `rem_dream.hecksagon` already
 /// declare in bluebook : `adapter :llm, backend: :claude`. Without
 /// this scan, dispatch only honored ollama-from-world ; with it, the
 /// hecksagon's declaration is the source of truth and Compose/Narrate
