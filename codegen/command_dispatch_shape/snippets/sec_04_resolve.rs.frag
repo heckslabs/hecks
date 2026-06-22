@@ -1,3 +1,33 @@
+/// The canonical FQN form of a dispatch address, for the LOG surfaces.
+/// Resolves `command_name` to its aggregate and rebuilds the full
+/// `Realm::…::Domain::Aggregate.verb` from the aggregate's stamped
+/// `realm_path`, so a `storehouse follow` line shows WHERE the dispatch
+/// actually landed — not the terse 2-seg the caller typed. A future
+/// mis-resolution becomes visible in the log instead of hiding behind the
+/// short form. Falls back to the raw name for legacy dotted forms,
+/// unstamped aggregates (string-parsed / outside ~/Projects), or anything
+/// that doesn't resolve — the log never invents an address it can't build.
+pub fn canonical_for_log(rt: &Runtime, command_name: &str) -> String {
+    let Some((_head, tail)) = command_name.rsplit_once('.') else {
+        return command_name.to_string();
+    };
+    let (domain, target, _cmd) = match parse_fqn(command_name) {
+        Ok(parts) => parts,
+        Err(_) => return command_name.to_string(),
+    };
+    let domain_lc = domain.to_lowercase();
+    let (realm, context) = crate::heki::fqn_realm_context(command_name);
+    for (ai, agg) in rt.domain.aggregates.iter().enumerate() {
+        if agg.name != target { continue; }
+        if !domain_matches(rt, ai, &domain, &domain_lc) { continue; }
+        if !crate::heki::realm_context_matches(agg.realm_path.as_deref(), realm.as_deref(), context.as_deref()) { continue; }
+        if let Some(prefix) = crate::fqns_resolve::canonical_prefix(agg) {
+            return format!("{}.{}", prefix, tail);
+        }
+    }
+    command_name.to_string()
+}
+
 /// Resolve a command address to a Resolution (aggregate or entity-owned).
 ///
 /// ## Canonical form — i560 v2 FQN migration (2026-05-12)
