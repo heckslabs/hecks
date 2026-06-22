@@ -31,13 +31,13 @@ fn attrs(p: &[(&str, Value)]) -> HashMap<String, Value> {
 }
 
 const CLAIM_NEXT_HECKSAGON: &str = include_str!(
-    "../../hecks_conception/aggregates/conductor/hecksagons/claim_next_on_worker_registered.hecksagon"
+    "fixtures/conception/conductor/claim_next_on_worker_registered.hecksagon"
 );
 const VOLUNTEER_HECKSAGON: &str = include_str!(
-    "../../hecks_conception/aggregates/conductor/hecksagons/volunteer_pull.hecksagon"
+    "fixtures/conception/conductor/volunteer_pull.hecksagon"
 );
 const CLAIM_RELEASED_HECKSAGON: &str = include_str!(
-    "../../hecks_conception/aggregates/conductor/hecksagons/claim_next_on_claim_released.hecksagon"
+    "fixtures/conception/conductor/claim_next_on_claim_released.hecksagon"
 );
 
 fn aggregates_dir() -> String {

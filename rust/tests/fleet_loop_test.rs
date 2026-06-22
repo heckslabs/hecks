@@ -48,11 +48,11 @@ fn field(rt: &Runtime, ctx: &str, agg: &str, id: &str, f: &str) -> Option<String
 
 // The DOMAIN-cascade adapters — the impure git pair is intentionally omitted.
 const CLAIM_NEXT_HEX: &str = include_str!(
-    "../../hecks_conception/aggregates/conductor/hecksagons/claim_next_on_worker_registered.hecksagon");
+    "fixtures/conception/conductor/claim_next_on_worker_registered.hecksagon");
 const VOLUNTEER_PULL_HEX: &str = include_str!(
-    "../../hecks_conception/aggregates/conductor/hecksagons/volunteer_pull.hecksagon");
+    "fixtures/conception/conductor/volunteer_pull.hecksagon");
 const WORKTREE_SYNC_HEX: &str = include_str!(
-    "../../hecks_conception/aggregates/conductor/hecksagons/story_worktree_sync.hecksagon");
+    "fixtures/conception/conductor/story_worktree_sync.hecksagon");
 
 const FUTURE: &str = "2999-12-31T00:00:00Z"; // worker stays alive for the whole test
 

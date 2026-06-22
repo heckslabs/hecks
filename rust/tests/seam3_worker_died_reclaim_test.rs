@@ -29,10 +29,10 @@ fn attrs(p: &[(&str, Value)]) -> HashMap<String, Value> {
 }
 
 const RECLAIM_HECKSAGON: &str = include_str!(
-    "../../hecks_conception/aggregates/conductor/hecksagons/worker_died_reclaim.hecksagon"
+    "fixtures/conception/conductor/worker_died_reclaim.hecksagon"
 );
 const VOLUNTEER_HECKSAGON: &str = include_str!(
-    "../../hecks_conception/aggregates/conductor/hecksagons/volunteer_pull.hecksagon"
+    "fixtures/conception/conductor/volunteer_pull.hecksagon"
 );
 
 fn conductor_dir() -> String {

@@ -34,9 +34,9 @@ fn field(rt: &Runtime, ctx: &str, agg: &str, id: &str, f: &str) -> Option<String
         .and_then(|r| r.fields.get(f).map(|v| v.to_string()))
 }
 const EXPIRY_HEX: &str = include_str!(
-    "../../hecks_conception/aggregates/conductor/hecksagons/expiry_sweep.hecksagon");
+    "fixtures/conception/conductor/expiry_sweep.hecksagon");
 const RECLAIM_ON_EXPIRE_HEX: &str = include_str!(
-    "../../hecks_conception/aggregates/conductor/hecksagons/reclaim_on_expire.hecksagon");
+    "fixtures/conception/conductor/reclaim_on_expire.hecksagon");
 
 const PAST: &str = "2000-01-01T00:00:00Z";   // always < now
 const FUTURE: &str = "2999-12-31T00:00:00Z"; // always > now

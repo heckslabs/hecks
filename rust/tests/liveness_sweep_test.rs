@@ -29,9 +29,9 @@ fn field(rt: &Runtime, ctx: &str, agg: &str, id: &str, f: &str) -> Option<String
         .and_then(|r| r.fields.get(f).map(|v| v.to_string()))
 }
 const LIVENESS_HEX: &str = include_str!(
-    "../../hecks_conception/aggregates/conductor/hecksagons/liveness_sweep.hecksagon");
+    "fixtures/conception/conductor/liveness_sweep.hecksagon");
 const RECLAIM_HEX: &str = include_str!(
-    "../../hecks_conception/aggregates/conductor/hecksagons/worker_died_reclaim.hecksagon");
+    "fixtures/conception/conductor/worker_died_reclaim.hecksagon");
 
 const PAST: &str = "2000-01-01T00:00:00Z";   // always < now
 const FUTURE: &str = "2999-12-31T00:00:00Z"; // always > now

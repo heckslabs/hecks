@@ -23,7 +23,7 @@ fn field(rt: &Runtime, ctx: &str, agg: &str, id: &str, f: &str) -> Option<String
         .and_then(|r| r.fields.get(f).map(|v| v.to_string()))
 }
 const SYNC_HEX: &str = include_str!(
-    "../../hecks_conception/aggregates/conductor/hecksagons/story_worktree_sync.hecksagon"
+    "fixtures/conception/conductor/story_worktree_sync.hecksagon"
 );
 
 #[test]

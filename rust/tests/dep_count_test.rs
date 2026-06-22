@@ -13,7 +13,7 @@ fn attrs(p: &[(&str, Value)]) -> HashMap<String, Value> {
     p.iter().map(|(k, v)| (k.to_string(), v.clone())).collect()
 }
 const RESOLVE_DEPS_HEX: &str = include_str!(
-    "../../hecks_conception/aggregates/plan/hecksagons/resolve_deps.hecksagon"
+    "fixtures/conception/plan/resolve_deps.hecksagon"
 );
 fn aggregates_dir() -> String {
     format!("{}/aggregates", storehouse::storehouse_router::conception_root())
