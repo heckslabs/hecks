@@ -32,6 +32,10 @@
 
 set -e
 
+# Ungoverned dev/recovery session (miette --ungoverned) — honor the
+# out-of-band HECKS_GOVERNANCE_OFF escape ; record nothing.
+[ -n "$HECKS_GOVERNANCE_OFF" ] && exit 0
+
 INPUT=$(cat)
 [ -z "$INPUT" ] && exit 0
 

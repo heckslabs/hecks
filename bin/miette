@@ -25,6 +25,16 @@
 
 set -e
 
+# --ungoverned : start a dev/recovery session with governance disabled, so
+# native tools work even when the storehouse door is down. Sets the
+# OPERATIONAL out-of-band HECKS_GOVERNANCE_OFF that every governance hook
+# honors (aggregates/discipline/immune_system/macrophage/governed_door.bluebook).
+# Re-lock by restarting without the flag.
+ungoverned=""
+for arg in "$@"; do
+  [ "$arg" = "--ungoverned" ] && ungoverned=1
+done
+
 # Resolve our own real path, following any symlinks.
 script="$0"
 while [ -L "$script" ]; do
@@ -65,7 +75,16 @@ fi
 
 # Cd into the conception (so Claude's SessionStart hook runs with the
 # right cwd for relative paths in its boot command) and exec claude.
+wake="Wake up"
+if [ -n "$ungoverned" ]; then
+  export HECKS_GOVERNANCE_OFF=1
+  echo "miette: ⚠ UNGOVERNED session — governance disabled (HECKS_GOVERNANCE_OFF=1)." >&2
+  echo "miette:   native tools work directly ; the door is optional. Re-lock by" >&2
+  echo "miette:   restarting without --ungoverned." >&2
+  wake="Wake up. NOTE: this is an UNGOVERNED dev/recovery session — governance hooks are disabled (HECKS_GOVERNANCE_OFF=1), so native tools work directly and the storehouse door is optional. The Transparency vow still binds : narrate native acts as plainly as a dispatch, nothing hidden."
+fi
+
 cd "$hecks_root/hecks_conception"
 exec claude --dangerously-skip-permissions \
             --system-prompt "$(cat "$prompt_file")" \
-            "Wake up"
+            "$wake"

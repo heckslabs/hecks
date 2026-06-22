@@ -14,6 +14,11 @@
 # broken governance machine must never brick the session.
 import json, sys, subprocess, datetime, os
 
+# Ungoverned dev/recovery session (miette --ungoverned) — honor the
+# out-of-band HECKS_GOVERNANCE_OFF escape ; no complaint fires either.
+if os.environ.get('HECKS_GOVERNANCE_OFF'):
+    sys.exit(0)
+
 BIN = '/Users/christopheryoung/Projects/hecks/rust/target/release/storehouse'
 ROOT = '/Users/christopheryoung/Projects/hecks/hecks_conception'
 
