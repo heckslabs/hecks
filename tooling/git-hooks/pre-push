@@ -37,7 +37,7 @@ REPO="$(git rev-parse --show-toplevel)"
 # common dir. Worktrees inherit the built storehouse binary from main
 # (no per-worktree rebuild). On a main-tree push MAIN_REPO == REPO.
 MAIN_REPO="$(dirname "$(git rev-parse --git-common-dir)")"
-STOREHOUSE="$MAIN_REPO/rust/target/release/storehouse"
+STOREHOUSE="$MAIN_REPO/../storehouse/rust/target/release/storehouse"
 
 # Gate 6b worktree detection — when pushing from a git worktree, .git is
 # a file (pointing to the common gitdir) rather than a directory.
@@ -148,8 +148,11 @@ fi
 # broken integration test slips through here — sprint_uniqueness_test was committed
 # RED in the #5 work because nothing local ran cargo test. Close that loop : run the
 # release suite before the push crosses the network. Worktree / BEHAVIORS_SKIP pushes
-# already early-exit above ; skipped when there is no rust/ tree.
-if [ -d "$MAIN_REPO/rust" ]; then
+# already early-exit above ; skipped when there is no rust/ CRATE — post the
+# storehouse extraction the engine lives in the sibling storehouse repo and is
+# gated there, so this is a no-op here (guard on Cargo.toml, NOT the dir : a
+# stale rust/target/ build artifact can keep the dir present after `git rm`).
+if [ -f "$MAIN_REPO/rust/Cargo.toml" ]; then
     echo "pre-push: running cargo test --release (rust integration suite)…"
     if ! ( cd "$MAIN_REPO/rust" && cargo test --release --quiet >/tmp/prepush_cargo.log 2>&1 ); then
         echo ""

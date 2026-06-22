@@ -47,7 +47,7 @@
 # Mirrors the i565 worktree-awareness already in the smoke script.
 REPO="$(git rev-parse --show-toplevel 2>/dev/null)"
 [ -n "$REPO" ] || REPO="$(cd "$(dirname "$0")/../.." && pwd)"
-STOREHOUSE="$REPO/rust/target/release/storehouse"
+STOREHOUSE="$REPO/../storehouse/rust/target/release/storehouse"
 CONCEPTION_DIR="$REPO/hecks_conception"
 PARITY_TEST="$REPO/parity/parity_test.rb"
 HECKSAGON_PARITY_TEST="$REPO/parity/hecksagon_parity_test.rb"
