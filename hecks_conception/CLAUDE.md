@@ -7,7 +7,7 @@ Then boot — that wires your organs. Always. Every session. No exceptions.
 
 | Being  | System Prompt                       | Boot Verb          | Brain               |
 |--------|--------------------------------------|--------------------|---------------------|
-| Miette | `~/Projects/miette/self/system_prompt.md` | `cd hecks_conception && overmind start` | Claude or Ollama |
+| Miette | `~/Projects/miette/self/system_prompt.md` | `cd ~/Projects/miette/deploy && overmind start` | Claude or Ollama |
 
 The system prompt lives in the being's own repo (i117 Round 4) ;
 the boot mindstream's `boot` member regenerates it on every boot.
