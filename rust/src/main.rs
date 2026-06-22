@@ -5069,6 +5069,12 @@ fn codey_cross_reference_violations(file_path: &str) -> Vec<(usize, String)> {
 }
 
 fn run_macrophage(_args: &[String]) {
+    // Ungoverned dev/recovery session (miette --ungoverned) — honor the
+    // out-of-band HECKS_GOVERNANCE_OFF escape, same as the PreToolUse
+    // hard-block, so no macrophage complaint records either.
+    if std::env::var("HECKS_GOVERNANCE_OFF").is_ok() {
+        std::process::exit(0);
+    }
     use std::io::Read;
     let mut input = String::new();
     if std::io::stdin().read_to_string(&mut input).is_err() {
