@@ -28,6 +28,31 @@ pub fn canonical_for_log(rt: &Runtime, command_name: &str) -> String {
     command_name.to_string()
 }
 
+/// Decide whether a multi-hit resolution is AMBIGUOUS — the pure core of the
+/// FQN flip, extracted so it is unit-testable without a Runtime. A dispatch
+/// that OMITTED its realm (`realm_omitted`) and resolves to >1 DISTINCT
+/// non-empty realm_path is ambiguous : returns the sorted candidate FQNs the
+/// caller must disambiguate between. Returns None when the dispatch carried a
+/// realm, when fewer than two distinct realms remain, or when the matching
+/// aggregates carry no stamped realm_path (legacy / string-parsed) — those
+/// keep first-match-wins, exactly as before the flip.
+fn ambiguity_candidates(hit_realms: &[String], realm_omitted: bool, command_name: &str) -> Option<Vec<String>> {
+    if !realm_omitted {
+        return None;
+    }
+    let mut candidates: Vec<String> = hit_realms.iter()
+        .filter(|rp| !rp.is_empty())
+        .map(|rp| format!("{}::{}", rp.replace('/', "::"), command_name))
+        .collect();
+    candidates.sort();
+    candidates.dedup();
+    if candidates.len() > 1 {
+        Some(candidates)
+    } else {
+        None
+    }
+}
+
 /// Resolve a command address to a Resolution (aggregate or entity-owned).
 ///
 /// ## Canonical form — i560 v2 FQN migration (2026-05-12)
@@ -305,19 +330,11 @@ fn resolve_fully_qualified(rt: &Runtime, command_name: &str) -> Result<Resolutio
         return Ok(hits.remove(0));
     }
     if hits.len() > 1 {
-        if realm.is_none() {
-            let mut candidates: Vec<String> = hit_realms.iter()
-                .filter(|rp| !rp.is_empty())
-                .map(|rp| format!("{}::{}", rp.replace('/', "::"), command_name))
-                .collect();
-            candidates.sort();
-            candidates.dedup();
-            if candidates.len() > 1 {
-                return Err(RuntimeError::AmbiguousCommand {
-                    name: command_name.to_string(),
-                    candidates,
-                });
-            }
+        if let Some(candidates) = ambiguity_candidates(&hit_realms, realm.is_none(), command_name) {
+            return Err(RuntimeError::AmbiguousCommand {
+                name: command_name.to_string(),
+                candidates,
+            });
         }
         return Ok(hits.remove(0));
     }
