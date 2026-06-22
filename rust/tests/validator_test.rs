@@ -14,7 +14,13 @@ use storehouse::parser;
 use storehouse::validator;
 
 fn parse_file(rel_path: &str) -> storehouse::ir::Domain {
-    let path = format!("{}/{}", env!("CARGO_MANIFEST_DIR"), rel_path);
+    // Absolute paths (e.g. from conception_root()) are used as-is; relative
+    // paths are resolved against CARGO_MANIFEST_DIR for sibling-repo fixtures.
+    let path = if std::path::Path::new(rel_path).is_absolute() {
+        rel_path.to_string()
+    } else {
+        format!("{}/{}", env!("CARGO_MANIFEST_DIR"), rel_path)
+    };
     let source = std::fs::read_to_string(&path)
         .unwrap_or_else(|e| panic!("Cannot read {}: {}", path, e));
     parser::parse(&source)
@@ -22,7 +28,7 @@ fn parse_file(rel_path: &str) -> storehouse::ir::Domain {
 
 #[test]
 fn pizzas_domain_is_valid() {
-    let domain = parse_file("../hecks_conception/catalog/pizzas.bluebook");
+    let domain = parse_file(&format!("{}/catalog/pizzas.bluebook", storehouse::storehouse_router::conception_root()));
     let errors = validator::validate(&domain);
     // "uses primitive type" errors are filtered : the no_primitive_envy
     // rule is intentionally strict, but the existing bluebooks (pizzas,
@@ -69,7 +75,7 @@ fn large_domain_is_valid() {
     // monolith was retired (every aggregate had refined homes under
     // miette/mind, miette/body, aggregates/world); now points at
     // catalog/appeal — the largest remaining multi-aggregate domain.
-    let domain = parse_file("../hecks_conception/catalog/appeal.bluebook");
+    let domain = parse_file(&format!("{}/catalog/appeal.bluebook", storehouse::storehouse_router::conception_root()));
     let errors = validator::validate(&domain);
     // See pizzas_domain_is_valid for the i102 migration-debt rationale.
     let migration_pending: Vec<&String> = errors.iter()

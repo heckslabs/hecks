@@ -22,7 +22,7 @@ const ACTIVATE_HECKSAGON: &str = include_str!(
 );
 
 fn aggregates_dir() -> String {
-    format!("{}/../hecks_conception/aggregates", env!("CARGO_MANIFEST_DIR"))
+    format!("{}/aggregates", storehouse::storehouse_router::conception_root())
 }
 
 fn field(rt: &Runtime, agg: &str, id: &str, f: &str) -> Option<String> {

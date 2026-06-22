@@ -15,7 +15,7 @@ use storehouse::hecksagon_parser;
 use storehouse::runtime::{repo_key, Runtime, RuntimeError, Value};
 
 fn aggregates_dir() -> String {
-    format!("{}/../hecks_conception/aggregates", env!("CARGO_MANIFEST_DIR"))
+    format!("{}/aggregates", storehouse::storehouse_router::conception_root())
 }
 
 // A :sqlite adapter wired ONLY for the "Git" bluebook ; its hecksagon name

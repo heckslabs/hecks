@@ -91,8 +91,8 @@ fn second_futamura_drift_card_is_present() {
     // silently rot away. When the ignore on the test above is lifted,
     // this guard can be deleted (or kept as historical context — it's
     // cheap and explicit).
-    let root = repo_root();
-    let card = root.join("hecks_conception/inbox/i650-futamura-drift.md");
+    let card = std::path::PathBuf::from(storehouse::storehouse_router::conception_root())
+        .join("inbox/i650-futamura-drift.md");
     assert!(
         card.exists(),
         "i650-futamura-drift.md missing — the drift this test marks must \

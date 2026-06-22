@@ -36,7 +36,7 @@ const VOLUNTEER_HECKSAGON: &str = include_str!(
 );
 
 fn conductor_dir() -> String {
-    format!("{}/../hecks_conception/aggregates/conductor", env!("CARGO_MANIFEST_DIR"))
+    format!("{}/aggregates/conductor", storehouse::storehouse_router::conception_root())
 }
 
 fn field(rt: &Runtime, agg: &str, id: &str, f: &str) -> Option<String> {
@@ -57,7 +57,7 @@ fn boot(hexes: &[&str]) -> Runtime {
 // grant lands only once a REAL Story.Start succeeds. conductor_dir() alone can no
 // longer reach a granted lease through the cascade.
 fn full_dir() -> String {
-    format!("{}/../hecks_conception/aggregates", env!("CARGO_MANIFEST_DIR"))
+    format!("{}/aggregates", storehouse::storehouse_router::conception_root())
 }
 fn boot_full(hexes: &[&str]) -> Runtime {
     let domain = load_combined_domain(&full_dir());

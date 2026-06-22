@@ -14,7 +14,7 @@ fn attrs(p: &[(&str, Value)]) -> HashMap<String, Value> {
     p.iter().map(|(k, v)| (k.to_string(), v.clone())).collect()
 }
 fn aggregates_dir() -> String {
-    format!("{}/../hecks_conception/aggregates", env!("CARGO_MANIFEST_DIR"))
+    format!("{}/aggregates", storehouse::storehouse_router::conception_root())
 }
 
 fn capture_tasked(rt: &mut Runtime, story: &str, sprint: &str, on_board: bool) {
