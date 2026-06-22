@@ -732,18 +732,25 @@ impl Runtime {
         // too). Cascades go through command_dispatch::dispatch_cascade,
         // not Runtime::dispatch, so exactly one scope is open per
         // top-level dispatch and the timeline forms one clean tree.
-        let args_json = dispatch_detail_args_json(&attrs);
-        let mut detail_scope =
-            dispatch_detail::DispatchScope::begin(&invocation_id, command_name, args_json);
+        // The log surfaces show the canonical FQN of WHERE the dispatch
+            // landed — the full Realm::…::Domain::Aggregate.verb rebuilt from
+            // the resolved aggregate's stamped realm_path — not the terse
+            // 2-seg the caller typed. `storehouse follow` is realm-explicit,
+            // and a mis-resolve is visible instead of hiding behind the short
+            // form. Falls back to the raw name when it can't resolve.
+            let log_name = command_dispatch::canonical_for_log(self, command_name);
+            let args_json = dispatch_detail_args_json(&attrs);
+            let mut detail_scope =
+                dispatch_detail::DispatchScope::begin(&invocation_id, &log_name, args_json);
 
-        storehouse_log::dispatch_entry(command_name, &invocation_id, None);
+            storehouse_log::dispatch_entry(&log_name, &invocation_id, None);
 
         // i622 verbose — per-attribute trace. One line per attr the
         // caller passed. Gated to the Verbose level inside the logger.
         for (k, v) in &attrs {
             storehouse_log::attribute_trace(
-                command_name, &invocation_id, k, &v.to_string()
-            );
+                    &log_name, &invocation_id, k, &v.to_string()
+                );
         }
 
         // Middleware: before
