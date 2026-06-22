@@ -228,38 +228,39 @@ def render_query(sc, tool_name):
 # ----- main ---------------------------------------------------------
 
 def main():
+    # Advisory-only hook : never block, never traceback, whatever the
+    # PostToolUse payload shape Claude Code hands us. ANY exception
+    # anywhere -> silent exit 0. (A malformed payload must never surface
+    # as a hook error in Chris's terminal.)
     try:
         payload = json.load(sys.stdin)
-    except Exception:
-        return 0
-
-    tool_name = payload.get("tool_name") or ""
-    tool_response = payload.get("tool_response") or {}
-    sc = tool_response.get("structuredContent")
-    if not isinstance(sc, dict):
-        return 0
-
-    try:
+        if not isinstance(payload, dict):
+            return 0
+        tool_name = payload.get("tool_name") or ""
+        tool_response = payload.get("tool_response")
+        if not isinstance(tool_response, dict):
+            return 0
+        sc = tool_response.get("structuredContent")
+        if not isinstance(sc, dict):
+            return 0
         if tool_name.endswith("storehouse__dispatch"):
             text = render_dispatch(sc)
         elif tool_name.endswith("storehouse__query") or tool_name.endswith("storehouse__state"):
             text = render_query(sc, tool_name)
         else:
             return 0
-    except Exception as exc:
-        text = "[dispatch-detail-hook : render error : " + str(exc) + "]"
-
-    text = (text or "").strip()
-    if not text:
-        return 0
-
-    out = {
-        "hookSpecificOutput": {
-            "hookEventName": "PostToolUse",
-            "additionalContext": text,
+        text = (text or "").strip()
+        if not text:
+            return 0
+        out = {
+            "hookSpecificOutput": {
+                "hookEventName": "PostToolUse",
+                "additionalContext": text,
+            }
         }
-    }
-    print(json.dumps(out))
+        print(json.dumps(out))
+    except Exception:
+        return 0
     return 0
 
 

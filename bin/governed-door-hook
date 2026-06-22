@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+# Macrophage — GovernedDoor PreToolUse HARD-BLOCK.
+# Bluebook of record :
+#   hecks_conception/aggregates/discipline/immune_system/macrophage/governed_door.bluebook
+#
+# A native IO tool (Bash/Edit/Write/Read/Grep/Glob/MultiEdit/NotebookEdit/
+# WebFetch/WebSearch) emits NO bus event -> the act is ungoverned, invisible to
+# the dispatch log, outside the Transparency vow. This PreToolUse hook looks up
+# the door equivalent via Discipline::GovernedDoor.lookup_door and, when one
+# exists, emits the redirect on stderr AND hard-blocks (exit 2). Control-plane
+# tools (Agent/Task/advisor/AskUserQuestion/ToolSearch) and mcp__storehouse__*
+# return no door -> allowed (exit 0). They orchestrate; they do not act.
+#
+# Admin escape (OPERATIONAL, out-of-band): launch claude with
+#   HECKS_GOVERNANCE_OFF=1
+# to disable all blocking -- for an Anthropic upgrade that needs native tools.
+# Re-lock by restarting without it. There is no in-band allowlist; the governed
+# agent cannot disable its own governance mid-session.
+#
+# Fail-OPEN: any error reaching the registry -> allow. A broken governance
+# machine must never brick the session, and the door itself is never blocked.
+[ -n "$HECKS_GOVERNANCE_OFF" ] && exit 0
+tool=$(jq -r '.tool_name // empty' 2>/dev/null || true)
+[ -z "$tool" ] && exit 0
+SH=/Users/christopheryoung/Projects/hecks/rust/target/release/storehouse
+ROOT=/Users/christopheryoung/Projects/hecks/hecks_conception
+result=$("$SH" query "$ROOT" Discipline::GovernedDoor.lookup_door tool="$tool" 2>/dev/null || true)
+door=$(echo "$result" | jq -r '.. | .door_equivalent? // empty' 2>/dev/null | head -1 || true)
+args=$(echo "$result" | jq -r '.. | .door_args? // empty' 2>/dev/null | head -1 || true)
+if [ -n "$door" ]; then
+  "$SH" "$ROOT" Discipline::GovernedDoor.RecordBlock governed_door="$tool" last_blocked_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)" >/dev/null 2>&1 || true
+  {
+    echo "GOVERNANCE (macrophage): native $tool makes no bus event — it is ungoverned."
+    echo "Route through the storehouse door. The door tool is DEFERRED, so two steps:"
+    echo "  1. Load it:  ToolSearch  query=\"select:mcp__storehouse__storehouse__dispatch\""
+    echo "  2. Call mcp__storehouse__storehouse__dispatch with:"
+    echo "       aggregates_dir = $ROOT"
+    echo "       command        = $door"
+    echo "       args           = { $args }"
+    echo "       summary        = <one terse line of what this does>"
+    echo "Every act a bus event."
+  } >&2
+  exit 2
+fi
+exit 0
