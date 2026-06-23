@@ -833,6 +833,24 @@ fn run_specialize(args: &[String]) {
         }
     };
 
+    // `storehouse specialize all` regenerates EVERY byte-identity Rust target
+    // to its tracked path from the generators on disk — the one-command "edit
+    // the generator, never the .rs" reflex, backed by the single
+    // specializer::regen::targets() registry. Run from a stable binary, then
+    // rebuild ; the specializer golden suite gates each target's byte-identity.
+    if target == "all" {
+        match storehouse::specializer::regen::emit_all_to_disk(&repo_root) {
+            Ok(n) => {
+                eprintln!("regenerated {} targets", n);
+                return;
+            }
+            Err(e) => {
+                eprintln!("specialize all failed: {}", e);
+                std::process::exit(1);
+            }
+        }
+    }
+
     let rust = match storehouse::specializer::emit(target, &repo_root) {
         Ok(s) => s,
         Err(e) => {

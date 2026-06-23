@@ -19,6 +19,7 @@ use std::error::Error;
 use std::path::Path;
 
 pub mod adapter_llm;
+pub mod regen;
 pub mod assemble;
 pub mod behaviors_fixtures;
 pub mod behaviors_parser;
