@@ -16,10 +16,12 @@ use std::path::PathBuf;
 
 fn fixture_path() -> PathBuf {
     // Cargo runs tests from the storehouse crate root.
-    let mut p = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    p.pop();
-    p.push("parity/behaviors/loads_parse_smoke.behaviors");
-    p
+    // parity/ stayed in the hecks tree ; resolve via the sibling hecks root.
+    let hecks = std::env::var("HECKS_CONCEPTION_DIR")
+        .ok()
+        .and_then(|c| std::path::Path::new(&c).parent().map(|p| p.to_path_buf()))
+        .unwrap_or_else(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../hecks"));
+    hecks.join("parity/behaviors/loads_parse_smoke.behaviors")
 }
 
 #[test]

@@ -14,10 +14,14 @@ use storehouse::run::{self, ExitKind};
 use std::path::PathBuf;
 
 fn hello_path() -> PathBuf {
-    let mut p = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    p.pop(); // rust/ → repo root
-    p.push("examples/executable/hello.bluebook");
-    p
+    // examples/ stayed in the hecks tree ; the engine lives outside it post-
+    // extraction, so resolve via the sibling hecks root (HECKS_CONCEPTION_DIR's
+    // parent, or ../../hecks beside the engine).
+    let hecks = std::env::var("HECKS_CONCEPTION_DIR")
+        .ok()
+        .and_then(|c| std::path::Path::new(&c).parent().map(|p| p.to_path_buf()))
+        .unwrap_or_else(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../hecks"));
+    hecks.join("examples/executable/hello.bluebook")
 }
 
 #[test]

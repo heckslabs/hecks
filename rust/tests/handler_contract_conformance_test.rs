@@ -19,14 +19,22 @@ use std::path::PathBuf;
 use std::process::{Command, Stdio};
 
 fn repo_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .expect("rust has a parent")
-        .to_path_buf()
+    // adapters/ stayed in the hecks tree ; the engine lives outside it post-
+    // extraction, so resolve via the sibling hecks root (HECKS_CONCEPTION_DIR's
+    // parent, or ../../hecks beside the engine).
+    std::env::var("HECKS_CONCEPTION_DIR")
+        .ok()
+        .and_then(|c| std::path::Path::new(&c).parent().map(|p| p.to_path_buf()))
+        .unwrap_or_else(|| {
+            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("../../hecks")
+        })
 }
 
 fn dump(root: &PathBuf, rel: &str) -> serde_json::Value {
-    let sh = root.join("rust/target/release/storehouse");
+    // The engine binary lives under the storehouse tree ; cargo hands us its
+    // path directly. `root` (sibling hecks) is the cwd for the rel fixtures.
+    let sh = PathBuf::from(env!("CARGO_BIN_EXE_storehouse"));
     assert!(sh.exists(), "storehouse binary missing — build release first");
     let out = Command::new(&sh)
         .args(["dump-hecksagon", rel])

@@ -988,8 +988,15 @@ fn wrangler_toml_emitter_matches_committed_deployment_toml() {
     let root = repo_root();
     let bin = root.join("rust/target/release/storehouse");
     assert!(bin.exists(), "storehouse binary missing — build release first");
-    let config = root.join("deployments/daily_musing_cf/cloudflare.bluebook");
-    let committed = root.join("deployments/daily_musing_cf/worker/wrangler.toml");
+    // deployments/ stayed in the hecks tree (the binary above stays under
+    // the engine `root`) ; resolve the deployment fixtures via the sibling
+    // hecks root.
+    let hecks = std::env::var("HECKS_CONCEPTION_DIR")
+        .ok()
+        .and_then(|c| std::path::Path::new(&c).parent().map(|p| p.to_path_buf()))
+        .unwrap_or_else(|| root.join("../hecks"));
+    let config = hecks.join("deployments/daily_musing_cf/cloudflare.bluebook");
+    let committed = hecks.join("deployments/daily_musing_cf/worker/wrangler.toml");
     let out = std::env::temp_dir().join("wrangler_toml_golden.toml");
     let output = Command::new(&bin)
         .args([

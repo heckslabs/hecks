@@ -8,7 +8,12 @@
 use std::process::Command;
 
 fn rel(p: &str) -> String {
-    format!("{}/../examples/pizzas/bluebook/{}", env!("CARGO_MANIFEST_DIR"), p)
+    // examples/ stayed in the hecks tree ; resolve via the sibling hecks root.
+    let hecks = std::env::var("HECKS_CONCEPTION_DIR")
+        .ok()
+        .and_then(|c| std::path::Path::new(&c).parent().map(|x| x.to_path_buf()))
+        .unwrap_or_else(|| std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../hecks"));
+    hecks.join("examples/pizzas/bluebook").join(p).to_string_lossy().into_owned()
 }
 
 #[test]

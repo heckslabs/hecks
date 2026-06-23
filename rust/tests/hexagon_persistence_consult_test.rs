@@ -21,11 +21,12 @@ const MEMORY_ADAPTER: &str = "Hecks.adapter \"Memory\" do\n  family \"persistenc
 const HEKI_ADAPTER: &str = "Hecks.adapter \"Heki\" do\n  family \"persistence\"\nend\n";
 
 fn pizzas_bluebook() -> String {
-    let path = format!(
-        "{}/../examples/pizzas/bluebook/pizzas.bluebook",
-        env!("CARGO_MANIFEST_DIR")
-    );
-    fs::read_to_string(&path).expect("pizzas.bluebook readable")
+    // examples/ stayed in the hecks tree ; resolve via the sibling hecks root.
+    let hecks = std::env::var("HECKS_CONCEPTION_DIR")
+        .ok()
+        .and_then(|c| std::path::Path::new(&c).parent().map(|p| p.to_path_buf()))
+        .unwrap_or_else(|| std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../hecks"));
+    fs::read_to_string(hecks.join("examples/pizzas/bluebook/pizzas.bluebook")).expect("pizzas.bluebook readable")
 }
 
 // Boot the real Pizzas domain with the persistence family + the named adapter +

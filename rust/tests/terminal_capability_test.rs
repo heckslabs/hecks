@@ -14,12 +14,21 @@
 use storehouse::{hecksagon_parser, parser, run};
 use std::fs;
 
-const BLUEBOOK: &str = "../cli/terminal/terminal.bluebook";
-const HECKSAGON: &str = "../cli/terminal/terminal.hecksagon";
+// cli/ stayed in the hecks tree ; the engine lives outside it post-extraction,
+// so resolve via the sibling hecks root (HECKS_CONCEPTION_DIR's parent).
+const BLUEBOOK: &str = "cli/terminal/terminal.bluebook";
+const HECKSAGON: &str = "cli/terminal/terminal.hecksagon";
+
+fn hecks_root() -> std::path::PathBuf {
+    std::env::var("HECKS_CONCEPTION_DIR")
+        .ok()
+        .and_then(|c| std::path::Path::new(&c).parent().map(|p| p.to_path_buf()))
+        .unwrap_or_else(|| std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../hecks"))
+}
 
 #[test]
 fn terminal_bluebook_parses_with_session_aggregate() {
-    let src = fs::read_to_string(BLUEBOOK).expect("missing terminal.bluebook");
+    let src = fs::read_to_string(hecks_root().join(BLUEBOOK)).expect("missing terminal.bluebook");
     let domain = parser::parse(&src);
     assert_eq!(domain.name, "Terminal");
     assert_eq!(domain.entrypoint.as_deref(), Some("StartSession"));
@@ -33,7 +42,7 @@ fn terminal_bluebook_parses_with_session_aggregate() {
 
 #[test]
 fn terminal_hecksagon_parses_with_stdio_adapters() {
-    let src = fs::read_to_string(HECKSAGON).expect("missing terminal.hecksagon");
+    let src = fs::read_to_string(hecks_root().join(HECKSAGON)).expect("missing terminal.hecksagon");
     let hex = hecksagon_parser::parse(&src);
     assert_eq!(hex.name, "Terminal");
     // i728 — terminal.hecksagon declares no persistence adapter ; unwired now
@@ -46,7 +55,8 @@ fn terminal_hecksagon_parses_with_stdio_adapters() {
 
 #[test]
 fn run_script_loader_finds_companion_hecksagon() {
-    let (domain, hex) = run::load_script(BLUEBOOK).expect("loader rejected bluebook");
+    let path = hecks_root().join(BLUEBOOK);
+    let (domain, hex) = run::load_script(path.to_str().unwrap()).expect("loader rejected bluebook");
     assert_eq!(domain.name, "Terminal");
     assert_eq!(hex.name, "Terminal");
 }

@@ -61,7 +61,12 @@ fn s(v: &str) -> Value {
 /// Absolute path to the real bash handler — `cargo test` cwd is the crate
 /// (`rust/`), so a relative path would not resolve.
 fn handler_path() -> String {
-    concat!(env!("CARGO_MANIFEST_DIR"), "/../examples/adapter_host_demo/stripe-handler").to_string()
+    // examples/ stayed in the hecks tree ; resolve via the sibling hecks root.
+    let hecks = std::env::var("HECKS_CONCEPTION_DIR")
+        .ok()
+        .and_then(|c| std::path::Path::new(&c).parent().map(|p| p.to_path_buf()))
+        .unwrap_or_else(|| std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../hecks"));
+    hecks.join("examples/adapter_host_demo/stripe-handler").to_string_lossy().into_owned()
 }
 
 fn boot_shop_with_stripe() -> Runtime {
