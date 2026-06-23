@@ -571,6 +571,19 @@ pub struct Policy {
     /// For this slice only `ValueSpec::Literal` is produced ; the
     /// state-aware specs (FromState/templating) are deferred.
     pub with: Vec<(String, ValueSpec)>,
+    /// deciderate Layer 0b — data guard. The policy fires ONLY when every
+    /// clause matches the triggering event's data (reuses the query
+    /// WhereClause grammar). Empty = unconditional (the historical default).
+    pub wheres: Vec<WhereClause>,
+    /// deciderate Layer 0b — fan-out the primary trigger. When Some, the
+    /// runtime reads the named query at react time and fires trigger_command
+    /// once per returned record (reuses the i221-A ForEachSpec). None = once.
+    pub for_each: Option<ForEachSpec>,
+    /// deciderate Layer 0b — additional reactions beyond trigger_command.
+    /// Each DispatchSpec carries its own command, with-spec, and optional
+    /// for_each sweep, so one policy fires N commands off one event. Empty =
+    /// single-reaction (the historical default).
+    pub extra_dispatches: Vec<DispatchSpec>,
 }
 
 impl Policy {

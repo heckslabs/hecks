@@ -346,6 +346,10 @@ Hecks.fixtures "IrShape" do
     fixture "Policy_trigger_command", type_name: "Policy", order: 3, name: "trigger_command", field_type: "String",         doc_snippet: ""
     fixture "Policy_target_domain",   type_name: "Policy", order: 4, name: "target_domain",   field_type: "Option<String>", doc_snippet: ""
     fixture "Policy_with",            type_name: "Policy", order: 5, name: "with",            field_type: "Vec<(String, ValueSpec)>", doc_snippet: "codegen/ir_shape/snippets/docs/policy_with.rs.frag"
+    # deciderate Layer 0b — grow the plain Policy : data guard + fan-out + extra reactions.
+    fixture "Policy_wheres",           type_name: "Policy", order: 6, name: "wheres",           field_type: "Vec<WhereClause>",    doc_snippet: "codegen/ir_shape/snippets/docs/policy_wheres.rs.frag"
+    fixture "Policy_for_each",         type_name: "Policy", order: 7, name: "for_each",         field_type: "Option<ForEachSpec>", doc_snippet: "codegen/ir_shape/snippets/docs/policy_for_each.rs.frag"
+    fixture "Policy_extra_dispatches", type_name: "Policy", order: 8, name: "extra_dispatches", field_type: "Vec<DispatchSpec>",    doc_snippet: "codegen/ir_shape/snippets/docs/policy_extra_dispatches.rs.frag"
 
     # Lifecycle — 3 fields.
     fixture "Lifecycle_field",       type_name: "Lifecycle", order: 1, name: "field",       field_type: "String",          doc_snippet: ""
