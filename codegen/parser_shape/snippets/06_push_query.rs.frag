@@ -10,6 +10,9 @@ fn push_query(line: &str, agg: &mut Aggregate, depth: &mut usize) {
         wheres: vec![],
         order_by: None,
         limit: None,
+        reduction: None,
+        group_by: None,
+        scope_to: None,
     });
     if ends_with_do_block(line) { *depth += 1; }
 }

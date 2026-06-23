@@ -348,6 +348,9 @@ pub fn parse_query(lines: &[&str]) -> (Query, usize) {
         wheres: vec![],
         order_by: None,
         limit: None,
+        reduction: None,
+        group_by: None,
+        scope_to: None,
     };
 
     // Capture `do |arg, ...|` block params as implicit String attributes.
@@ -397,6 +400,24 @@ pub fn parse_query(lines: &[&str]) -> (Query, usize) {
                 if let Some(ob) = parse_order_by_line(line) { q.order_by = Some(ob); }
             } else if line.starts_with("limit") {
                 if let Some(ls) = parse_limit_line(line) { q.limit = Some(ls); }
+            } else if line == "count" || line.starts_with("count ") || line.starts_with("count\t") {
+                // deciderate Layer 0a — scalar reductions. `count` needs no
+                // field ; sum/max/min/median fold the named numeric field.
+                q.reduction = Some(Reduction::Count);
+            } else if line.starts_with("sum") {
+                if let Some(f) = extract_symbol(line) { q.reduction = Some(Reduction::Sum(f)); }
+            } else if line.starts_with("median") {
+                if let Some(f) = extract_symbol(line) { q.reduction = Some(Reduction::Median(f)); }
+            } else if line.starts_with("max") {
+                if let Some(f) = extract_symbol(line) { q.reduction = Some(Reduction::Max(f)); }
+            } else if line.starts_with("min") {
+                if let Some(f) = extract_symbol(line) { q.reduction = Some(Reduction::Min(f)); }
+            } else if line.starts_with("group_by") {
+                // partition the matched set by this field's value
+                if let Some(f) = extract_symbol(line) { q.group_by = Some(f); }
+            } else if line.starts_with("scope_to") {
+                // read-authZ row-scope : inject where(field == :actor) at run time
+                if let Some(f) = extract_symbol(line) { q.scope_to = Some(f); }
             } else if ends_with_do_block(line) {
                 depth += 1;
             }
@@ -661,6 +682,9 @@ pub fn parse_entity(lines: &[&str]) -> (Entity, usize) {
                     wheres: vec![],
                     order_by: None,
                     limit: None,
+                    reduction: None,
+                    group_by: None,
+                    scope_to: None,
                 });
             } else if line.starts_with("lifecycle") {
                 let (lc, consumed) = parse_lifecycle(&lines[i..]);

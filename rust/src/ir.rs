@@ -433,6 +433,23 @@ pub struct Query {
     /// kwargs at dispatch time. Same literal-or-kwarg pattern as
     /// where-clause values. (i101)
     pub limit: Option<LimitSpec>,
+    /// Optional scalar reduction. `count` / `sum :field` / `max :field` /
+    /// `min :field` / `median :field` collapse the post-filter/order/limit
+    /// record set to ONE scalar over a field (count needs no field). Applied
+    /// after limit ; when group_by is also present the reduction is computed
+    /// per partition. (deciderate Layer 0a — the aggregation half of the
+    /// query DSL grown up.)
+    pub reduction: Option<Reduction>,
+    /// Optional grouping. `group_by :field` partitions the matched records by
+    /// the field's value ; with a reduction it yields {field_value: scalar},
+    /// alone it yields {field_value: count}. (deciderate Layer 0a)
+    pub group_by: Option<String>,
+    /// Optional read-authZ row-scope. `scope_to :field` injects a
+    /// `where(field == :actor)` clause resolved from the reserved `actor`
+    /// dispatch kwarg the edge/ACL supplies — gating which rows a caller sees
+    /// by ownership. Field-level scoping is the separate View (i254).
+    /// (deciderate Layer 0a)
+    pub scope_to: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -649,6 +666,22 @@ pub enum Direction {
 #[derive(Debug, Clone)]
 pub struct LimitSpec {
     pub value: String,
+}
+
+/// A scalar reduction over a query's matched record set — the aggregation
+/// half of the query DSL grown up (deciderate Layer 0a). `Count` needs no
+/// field ; `Sum`/`Max`/`Min`/`Median` fold the named numeric field. Applied
+/// after where/order_by/limit ; when the Query also carries `group_by`, the
+/// reduction is computed per partition instead of over the whole set. The
+/// winning *record* (argmax) stays expressible as `order_by + limit 1` ;
+/// `Max` here is the scalar maximum VALUE of the field.
+#[derive(Debug, Clone)]
+pub enum Reduction {
+    Count,
+    Sum(String),
+    Max(String),
+    Min(String),
+    Median(String),
 }
 
 /// One declared view (i254). Mirrors

@@ -36,6 +36,9 @@
                 wheres: vec![],
                 order_by: None,
                 limit: None,
+                reduction: None,
+                group_by: None,
+                scope_to: None,
             }));
 
     // SinceSequence addresses the NESTED `sequence` field ({"value": N}) the
@@ -50,6 +53,20 @@
             op: crate::ir::WhereOp::Gt,
             value: ":sequence".to_string(),
         }];
+    }
+
+    // scope_to (deciderate Layer 0a) — read-authZ row-scope. Inject a
+    // where(<field> == :actor) clause resolved from the reserved `actor`
+    // dispatch kwarg, exactly as SinceSequence injects its range clause.
+    // The edge/ACL supplies actor=<id> ; absent it, :actor resolves to ""
+    // and only unowned rows match. Appends to whatever wheres exist so it
+    // composes with the query's own filters.
+    if let Some(scope_field) = query_ir.scope_to.clone() {
+        query_ir.wheres.push(crate::ir::WhereClause {
+            field: scope_field,
+            op: crate::ir::WhereOp::Eq,
+            value: ":actor".to_string(),
+        });
     }
 
         // MatchInput: search loaded commands by phrase
@@ -246,6 +263,83 @@
             if let Some(n) = cap {
                 filtered.truncate(n);
             }
+        }
+
+        // Reductions + group_by (deciderate Layer 0a). When the query
+        // declares a reduction or group_by, fold the matched / ordered /
+        // limited set to a scalar (or per-group tally) INSTEAD of returning
+        // records. A numeric read handles plain Int, a parseable Str, and
+        // the single-value VO shape {value: N} — mirroring resolve_state_field.
+        fn red_numeric(s: &AggregateState, field: &str) -> Option<f64> {
+            fn from_value(v: &Value) -> Option<f64> {
+                match v {
+                    Value::Int(n) => Some(*n as f64),
+                    Value::Str(s) => s.parse::<f64>().ok(),
+                    Value::Map(m) => m.get("value").and_then(from_value),
+                    _ => None,
+                }
+            }
+            s.fields.get(field).and_then(from_value)
+        }
+        fn red_fmt(x: f64) -> serde_json::Value {
+            // Integral results print as integers (count/sum/median of whole
+            // numbers) ; fractional medians keep their decimal.
+            if x.fract() == 0.0 { serde_json::json!(x as i64) } else { serde_json::json!(x) }
+        }
+        fn red_scalar(set: &[&AggregateState], red: &crate::ir::Reduction) -> serde_json::Value {
+            use crate::ir::Reduction::*;
+            match red {
+                Count => serde_json::json!(set.len()),
+                Sum(f) => red_fmt(set.iter().filter_map(|r| red_numeric(r, f)).sum()),
+                Max(f) => set.iter().filter_map(|r| red_numeric(r, f))
+                    .fold(None, |a: Option<f64>, x| Some(a.map_or(x, |v| v.max(x))))
+                    .map(red_fmt).unwrap_or(serde_json::Value::Null),
+                Min(f) => set.iter().filter_map(|r| red_numeric(r, f))
+                    .fold(None, |a: Option<f64>, x| Some(a.map_or(x, |v| v.min(x))))
+                    .map(red_fmt).unwrap_or(serde_json::Value::Null),
+                Median(f) => {
+                    let mut xs: Vec<f64> = set.iter().filter_map(|r| red_numeric(r, f)).collect();
+                    xs.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+                    if xs.is_empty() { serde_json::Value::Null }
+                    else if xs.len() % 2 == 1 { red_fmt(xs[xs.len() / 2]) }
+                    else { red_fmt((xs[xs.len() / 2 - 1] + xs[xs.len() / 2]) / 2.0) }
+                }
+            }
+        }
+        fn red_label(red: &crate::ir::Reduction) -> &'static str {
+            use crate::ir::Reduction::*;
+            match red { Count => "count", Sum(_) => "sum", Max(_) => "max", Min(_) => "min", Median(_) => "median" }
+        }
+
+        if let Some(ref gb) = query_ir.group_by {
+            // Partition by the field's value (BTreeMap = deterministic key
+            // order) ; with a reduction fold each group, else count it.
+            let mut groups: std::collections::BTreeMap<String, Vec<&AggregateState>> =
+                std::collections::BTreeMap::new();
+            for s in &filtered {
+                let k = resolve_state_field(s, gb);
+                groups.entry(k).or_default().push(s);
+            }
+            let mut out = serde_json::Map::new();
+            for (k, members) in &groups {
+                let v = match &query_ir.reduction {
+                    Some(red) => red_scalar(members, red),
+                    None => serde_json::json!(members.len()),
+                };
+                out.insert(k.clone(), v);
+            }
+            return serde_json::json!({
+                "aggregate": agg_name, "query": query_name,
+                "state": { "groups": serde_json::Value::Object(out) },
+            });
+        }
+        if let Some(ref red) = query_ir.reduction {
+            let mut obj = serde_json::Map::new();
+            obj.insert(red_label(red).to_string(), red_scalar(&filtered, red));
+            return serde_json::json!({
+                "aggregate": agg_name, "query": query_name,
+                "state": serde_json::Value::Object(obj),
+            });
         }
 
         let records: Vec<serde_json::Value> = filtered.iter().map(|s| {

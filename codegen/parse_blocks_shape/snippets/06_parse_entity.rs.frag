@@ -63,6 +63,9 @@ pub fn parse_entity(lines: &[&str]) -> (Entity, usize) {
                     wheres: vec![],
                     order_by: None,
                     limit: None,
+                    reduction: None,
+                    group_by: None,
+                    scope_to: None,
                 });
             } else if line.starts_with("lifecycle") {
                 let (lc, consumed) = parse_lifecycle(&lines[i..]);

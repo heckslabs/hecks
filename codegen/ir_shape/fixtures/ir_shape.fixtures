@@ -106,6 +106,9 @@ Hecks.fixtures "IrShape" do
     # attribute, then append the listed extras". Different portals
     # (customer / driver / admin) read the same aggregate through
     # different views without per-portal field-list drift.
+    # deciderate Layer 0a — Reduction enum (order 37, declared before View so
+    # the stable sort emits it right after LimitSpec, matching the query family).
+    fixture "Reduction", name: "Reduction", order: 37, body_kind: "enum", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "codegen/ir_shape/snippets/docs/reduction.rs.frag", description: "Scalar reduction over a query's matched set — count / sum / max / min / median"
     fixture "View", name: "View", order: 37, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "codegen/ir_shape/snippets/docs/view_type.rs.frag", description: "Named view — ordered field projection of an aggregate, scoped by role"
 
     # Display impl on Domain — pretty-printed aggregate / command tree.
@@ -290,6 +293,10 @@ Hecks.fixtures "IrShape" do
     fixture "Query_wheres",      type_name: "Query", order: 4, name: "wheres",      field_type: "Vec<WhereClause>",  doc_snippet: "codegen/ir_shape/snippets/docs/query_wheres.rs.frag"
     fixture "Query_order_by",    type_name: "Query", order: 5, name: "order_by",    field_type: "Option<OrderBy>",   doc_snippet: "codegen/ir_shape/snippets/docs/query_order_by.rs.frag"
     fixture "Query_limit",       type_name: "Query", order: 6, name: "limit",       field_type: "Option<LimitSpec>", doc_snippet: "codegen/ir_shape/snippets/docs/query_limit.rs.frag"
+    # deciderate Layer 0a — reduction / group_by / scope_to extend Query.
+    fixture "Query_reduction",   type_name: "Query", order: 7, name: "reduction",   field_type: "Option<Reduction>", doc_snippet: "codegen/ir_shape/snippets/docs/query_reduction.rs.frag"
+    fixture "Query_group_by",    type_name: "Query", order: 8, name: "group_by",    field_type: "Option<String>",    doc_snippet: "codegen/ir_shape/snippets/docs/query_group_by.rs.frag"
+    fixture "Query_scope_to",    type_name: "Query", order: 9, name: "scope_to",    field_type: "Option<String>",    doc_snippet: "codegen/ir_shape/snippets/docs/query_scope_to.rs.frag"
 
     # Given — 2 fields.
     fixture "Given_expression", type_name: "Given", order: 1, name: "expression", field_type: "String",         doc_snippet: ""
@@ -424,5 +431,13 @@ Hecks.fixtures "IrShape" do
     # Direction — 2 variants (i101).
     fixture "Direction_Asc",  type_name: "Direction", order: 1, name: "Asc",  doc_snippet: ""
     fixture "Direction_Desc", type_name: "Direction", order: 2, name: "Desc", doc_snippet: ""
+
+    # Reduction — 5 variants (deciderate Layer 0a). Count is fieldless ; the
+    # others carry the folded field name as a tuple payload in the variant name.
+    fixture "Reduction_Count",  type_name: "Reduction", order: 1, name: "Count",          doc_snippet: ""
+    fixture "Reduction_Sum",    type_name: "Reduction", order: 2, name: "Sum(String)",    doc_snippet: ""
+    fixture "Reduction_Max",    type_name: "Reduction", order: 3, name: "Max(String)",    doc_snippet: ""
+    fixture "Reduction_Min",    type_name: "Reduction", order: 4, name: "Min(String)",    doc_snippet: ""
+    fixture "Reduction_Median", type_name: "Reduction", order: 5, name: "Median(String)", doc_snippet: ""
   end
 end
