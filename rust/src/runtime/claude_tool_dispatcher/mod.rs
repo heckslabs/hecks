@@ -335,7 +335,19 @@ fn run_write(attrs: &HashMap<String, String>) -> ClaudeToolResult {
         Some(p) => p.to_string(),
         None => return err("write", "missing required attr: file_path"),
     };
-    let content = attrs.get("content").cloned().unwrap_or_default();
+    // A legit FileTool.Write/Update ALWAYS carries `content` (its whole
+    // payload). A content-LESS :write is malformed and DESTRUCTIVE : it only
+    // arises when a spurious cascade re-fires the write binding off accumulated
+    // FileTool state, which persists `file_path` but NOT `content` (an
+    // event-only field). The path is then a STALE real file and the body is
+    // empty, so `fs::write` would TRUNCATE whatever was last read. Refuse loud,
+    // exactly like the missing-file_path guard above, so a phantom write can
+    // never empty a file. An INTENTIONAL empty write passes `content: ""` (the
+    // key is PRESENT -> Some("")), so this only rejects the absent-content case.
+    let content = match attrs.get("content") {
+        Some(c) => c.clone(),
+        None => return err("write", "refusing content-less write (would truncate); pass content (use \"\" to empty intentionally)"),
+    };
     if let Some(parent) = Path::new(&path).parent() {
         if !parent.as_os_str().is_empty() {
             if let Err(e) = std::fs::create_dir_all(parent) {
@@ -488,6 +500,31 @@ mod tests {
             assert!(!std::path::Path::new(bad).exists(),
                 "write must NOT create a file named {bad:?}");
         }
+    }
+
+    #[test]
+    fn write_refuses_contentless_write_and_preserves_the_file() {
+        // The data-loss vector : a spurious cascade re-fires the :write
+        // binding off accumulated FileTool state, which carries a stale
+        // file_path but NO content (content is event-only, never persisted).
+        // run_write must REFUSE (content absent) and leave the file intact,
+        // instead of fs::write(path, "") truncating it. Regression for the
+        // FileTool.Read-with-offset truncation that emptied a 330-line file.
+        let tmp = format!("/tmp/claude_tool_noclobber_{}.txt", std::process::id());
+        std::fs::write(&tmp, "precious\ndata\n").unwrap();
+        // No `content` key at all -> must refuse, must NOT touch the file.
+        let r = dispatch("write", &attrs(&[("file_path", &tmp)]));
+        assert!(!r.ok, "content-less write must be refused, got: {:?}", r);
+        assert!(r.error.as_deref().unwrap_or("").contains("content"),
+            "error must name content, got: {:?}", r);
+        assert_eq!(std::fs::read_to_string(&tmp).unwrap(), "precious\ndata\n",
+            "the file must be untouched by a refused write");
+        // An INTENTIONAL empty write (content present, "") still works.
+        let w = dispatch("write", &attrs(&[("file_path", &tmp), ("content", "")]));
+        assert!(w.ok, "explicit empty-content write must succeed, got: {:?}", w);
+        assert_eq!(std::fs::read_to_string(&tmp).unwrap(), "",
+            "explicit empty write truncates intentionally");
+        let _ = std::fs::remove_file(&tmp);
     }
 
     #[test]
