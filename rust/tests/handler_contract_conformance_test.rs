@@ -136,6 +136,7 @@ fn run_llm_handler(bin: &std::path::Path, prompt: &str, fixtures: Option<&std::p
 }
 
 #[test]
+#[ignore = "llm-handler source removed by engine extraction (a37f3d8); adapters/llm/ lives in the engine's own repo now. This conformance test compiles that handler, so it can't run here. Was silently skipping (hollow-green); ignored-loud until the handler returns or this test moves to the handler's repo."]
 fn llm_handler_honors_family_produces_contract_and_is_replay_idempotent() {
     let root = repo_root();
 
@@ -218,6 +219,7 @@ fn run_web_tool_handler(
 }
 
 #[test]
+#[ignore = "web-tool-handler source removed by engine extraction (a37f3d8); adapters/web_tool/ lives in the engine's own repo now. This conformance test compiles that handler, so it can't run here. Was silently skipping (hollow-green); ignored-loud until the handler returns or this test moves to the handler's repo."]
 fn web_tool_handler_honors_family_produces_contract_and_maps_exit_branches() {
     let root = repo_root();
 
