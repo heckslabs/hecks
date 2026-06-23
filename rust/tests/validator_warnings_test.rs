@@ -162,3 +162,56 @@ fn no_warnings_on_small_connected_domain() {
     assert!(multi_domain_split_warning(&domain).is_none());
     assert!(mixed_concerns_warning(&domain).is_none());
 }
+
+fn ref_attr(name: &str, ty: &str) -> storehouse::ir::Attribute {
+    storehouse::ir::Attribute {
+        name: name.into(), attr_type: ty.into(), default: None, list: false, required: false,
+    }
+}
+
+#[test]
+fn mixed_concerns_counts_stored_ref_vo_attributes_as_edges() {
+    // The "refs must be stored VOs" lesson : cross-aggregate coupling rides a
+    // stored `<Target>Ref` VO attribute, NOT a reference_to (only a stored VO
+    // rides emitted events + answers where-queries). The cohesion graph must
+    // count those edges, else a domain that follows the lesson trips a FALSE
+    // disconnected-clusters warning. Submission couples to Decision
+    // (DecisionRef) and Player (PlayerRef) via STORED attrs only — no
+    // reference_to — and Player has no ref at all. With *Ref edges counted, the
+    // whole domain is ONE component and mixed_concerns stays quiet.
+    let mut submission = agg("Submission", vec![]);
+    submission.attributes = vec![ref_attr("decision", "DecisionRef"), ref_attr("player", "PlayerRef")];
+    let aggregates = vec![
+        agg("Decision", vec![]),
+        agg("Option", vec![reference_to("Decision")]),
+        agg("Bracket", vec![reference_to("Decision")]),
+        agg("Player", vec![]),
+        submission,
+    ];
+    let domain = empty_domain("Deciderate", aggregates);
+    assert!(
+        mixed_concerns_warning(&domain).is_none(),
+        "stored *Ref VO attrs must connect the graph (no false cluster warning); got: {:?}",
+        mixed_concerns_warning(&domain)
+    );
+}
+
+#[test]
+fn mixed_concerns_ignores_ref_suffix_that_is_not_an_aggregate() {
+    // A `WinnerRef` / `PaymentRef` whose stem is NOT a sibling aggregate must
+    // NOT manufacture an edge — only real aggregate coupling counts. Two
+    // genuinely disconnected clusters (+ a singleton) stay disconnected.
+    let mut a = agg("A", vec![reference_to("B")]);
+    a.attributes = vec![ref_attr("winner", "WinnerRef")]; // stem "Winner" is not an aggregate
+    let aggregates = vec![
+        a,
+        agg("B", vec![]),
+        agg("X", vec![reference_to("Y")]),
+        agg("Y", vec![]),
+        agg("Z", vec![]),
+    ];
+    let domain = empty_domain("Split", aggregates);
+    let msg = mixed_concerns_warning(&domain)
+        .expect("WinnerRef stem is not an aggregate, so clusters stay split");
+    assert!(msg.contains("disconnected"), "got: {}", msg);
+}

@@ -44,6 +44,28 @@
         }
     }
 
+    // Edges from STORED *Ref value-object attributes (deciderate / i58). The
+    // "refs must be stored VOs" lesson means real cross-aggregate coupling
+    // often rides a stored `<Target>Ref` VO attribute (e.g. `bracket,
+    // BracketRef`) INSTEAD of a `reference_to` — only a stored VO rides emitted
+    // events and answers where-queries, so a domain that follows the lesson
+    // would otherwise look islanded to the reference-graph above and trip a
+    // FALSE "disconnected clusters" warning. Count a `<Stem>Ref`-typed
+    // aggregate attribute as an edge to the sibling aggregate named <Stem>
+    // when one exists. A `WinnerRef` / `PaymentRef` whose stem is NOT an
+    // aggregate adds no edge (the name_set guard).
+    for agg in &domain.aggregates {
+        let owner = agg.name.as_str();
+        for attr in &agg.attributes {
+            if let Some(stem) = attr.attr_type.strip_suffix("Ref") {
+                if name_set.contains(stem) && owner != stem {
+                    adj.get_mut(owner).map(|s| s.insert(stem));
+                    adj.get_mut(stem).map(|s| s.insert(owner));
+                }
+            }
+        }
+    }
+
     // Build event->aggregate and command->aggregate maps for policy edges
     let mut event_to_agg: HashMap<&str, &str> = HashMap::new();
     let mut cmd_to_agg: HashMap<&str, &str> = HashMap::new();
