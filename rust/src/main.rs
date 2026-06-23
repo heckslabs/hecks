@@ -2642,22 +2642,37 @@ fn run_specialize_procfile(args: &[String]) {
 /// the projects root that holds sibling miette/. Going through
 /// heki::repo_root() finds the canonical checkout regardless.
 fn specialize_repo_root() -> Result<std::path::PathBuf, Box<dyn std::error::Error>> {
-    // Prefer cwd when it's a Hecks tree (worktree-aware) — heki::repo_root
-    // intentionally skips `.claude/worktrees/*` to find sibling checkouts
-    // (miette/, miette_family/), but `specialize` must operate on the
-    // worktree's OWN codegen so the worktree's tracked .rs / shape snippet
-    // pair stays in lockstep. When the cwd is the canonical main checkout
-    // the answers match ; when off-tree we fall through to heki and then
-    // the legacy error.
+    // The specializer reads codegen/ shape fixtures + their .rs.frag
+    // snippets, so the root it needs is the one that CONTAINS codegen/ — the
+    // ENGINE tree. Post-extraction codegen/ lives beside the engine
+    // (storehouse/codegen), NOT in the conception repo, so anchor on the
+    // engine (cwd, then the binary), never heki::repo_root() (which finds
+    // the conception checkout, where codegen/ no longer exists). Every
+    // specializer read is codegen-relative (SHAPE_REL + fixture
+    // snippet_paths) and the few `../miette/…` snippets resolve the same
+    // from any ~/Projects/<repo> root, so this rebase is byte-identical.
+    //
+    // cwd-first keeps a worktree operating on its OWN codegen (the tracked
+    // .rs / shape-snippet pair stays in lockstep) ; the exe-walk handles the
+    // installed-binary case (storehouse/rust/target/release/storehouse →
+    // storehouse/), and is worktree-correct too (a worktree's binary walks
+    // to its own root).
     let cwd = env::current_dir()?;
-    if cwd.join("hecks_conception").is_dir() {
+    if cwd.join("codegen").is_dir() {
         return Ok(cwd);
     }
-    if let Some(root) = storehouse::heki::repo_root() {
-        return Ok(root);
+    if let Ok(exe) = env::current_exe() {
+        let start = exe.canonicalize().unwrap_or(exe);
+        let mut cur: &std::path::Path = &start;
+        while let Some(parent) = cur.parent() {
+            if parent.join("codegen").is_dir() {
+                return Ok(parent.to_path_buf());
+            }
+            cur = parent;
+        }
     }
     Err(format!(
-        "expected to run `specialize` from the repo root (cwd={}, no hecks_conception/ sibling)",
+        "expected to run `specialize` from the engine root (cwd={}, no codegen/ beside cwd or the binary)",
         cwd.display()
     )
     .into())
