@@ -8,7 +8,7 @@
 //!   let triggers = engine.react(&event);
 
 use super::Event;
-use crate::ir::ValueSpec;
+use crate::ir::{ValueSpec, WhereClause, ForEachSpec, DispatchSpec};
 use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, Clone)]
@@ -34,6 +34,14 @@ pub struct PolicyBinding {
     /// over event data) before `inject_refs`. For this slice only
     /// `ValueSpec::Literal` is produced ; state-aware specs deferred.
     pub with: Vec<(String, ValueSpec)>,
+    /// deciderate Layer 0b — data guard ; the policy fires only when EVERY
+    /// clause matches the triggering event's data (evaluated in `react`).
+    pub wheres: Vec<WhereClause>,
+    /// deciderate Layer 0b — fan-out the primary trigger over a query ;
+    /// the caller sweeps it (react has no &Runtime).
+    pub for_each: Option<ForEachSpec>,
+    /// deciderate Layer 0b — extra reactions beyond the primary trigger.
+    pub extra_dispatches: Vec<DispatchSpec>,
 }
 
 pub struct PolicyEngine {
@@ -51,6 +59,12 @@ pub struct PolicyTrigger {
     /// `drain_policies` before `inject_refs` — the policy's explicit
     /// args win over an event field of the same name.
     pub with_data: HashMap<String, super::Value>,
+    /// deciderate Layer 0b — carried from the binding so the caller (which
+    /// has &Runtime) can sweep the query and fan out the primary trigger.
+    pub for_each: Option<ForEachSpec>,
+    /// deciderate Layer 0b — extra reactions the caller fires after the
+    /// primary trigger (each with its own with-spec + optional sweep).
+    pub extra_dispatches: Vec<DispatchSpec>,
 }
 
 impl PolicyEngine {
@@ -68,6 +82,9 @@ impl PolicyEngine {
         on_event: &str,
         trigger_command: &str,
         with: Vec<(String, ValueSpec)>,
+        wheres: Vec<WhereClause>,
+        for_each: Option<ForEachSpec>,
+        extra_dispatches: Vec<DispatchSpec>,
     ) {
         let idx = self.bindings.len();
         // gap #1b — split `Aggregate.Event` into (qualifier, event).
@@ -84,6 +101,9 @@ impl PolicyEngine {
             qualifier,
             trigger_command: trigger_command.to_string(),
             with,
+            wheres,
+            for_each,
+            extra_dispatches,
         });
         self.by_event
             .entry(event_name)
@@ -110,6 +130,21 @@ impl PolicyEngine {
                     continue;
                 }
             }
+            // deciderate Layer 0b — data guard. Build a transient state from
+            // the event data ; require every clause to match (reuses the
+            // canonical where_matches — no duplicate matcher).
+            if !binding.wheres.is_empty() {
+                let mut guard_state = super::AggregateState::new("");
+                guard_state.fields = event.data.clone();
+                let no_attrs: HashMap<String, String> = HashMap::new();
+                if !binding
+                    .wheres
+                    .iter()
+                    .all(|w| super::where_matches(&guard_state, w, &no_attrs))
+                {
+                    continue;
+                }
+            }
             if self.in_flight.contains(&binding.name) {
                 continue;
             }
@@ -130,6 +165,8 @@ impl PolicyEngine {
                 command_name: binding.trigger_command.clone(),
                 event_data: event.data.clone(),
                 with_data,
+                for_each: binding.for_each.clone(),
+                extra_dispatches: binding.extra_dispatches.clone(),
             });
         }
         triggers

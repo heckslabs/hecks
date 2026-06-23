@@ -591,6 +591,9 @@ impl Runtime {
                 &policy.on_event,
                 &policy.trigger_command,
                 policy.with.clone(),
+                policy.wheres.clone(),
+                policy.for_each.clone(),
+                policy.extra_dispatches.clone(),
             );
         }
 
@@ -2963,82 +2966,110 @@ impl Runtime {
             for trigger in triggers {
                 let policy_name = trigger.policy_name.clone();
                 let cmd = trigger.command_name.clone();
-                let mut data = trigger.event_data.clone();
-                // Gap #1 — merge the policy's `with` literals over the
-                // event data (the policy's explicit args win). This is
-                // how a policy firing `Primitive::Process.Spawn` carries
-                // the literal `cmd` + `result_into` the retired :exec
-                // resolver used to inline.
-                for (k, v) in &trigger.with_data {
-                    data.insert(k.clone(), v.clone());
+
+                // deciderate Layer 0b — fan out the primary trigger when the
+                // policy declares `for_each: { from: "Agg.query" }` : sweep the
+                // query and fire `cmd` once per record, merging the record's
+                // fields into the dispatch data. No for_each = a single pass.
+                let primary_records: Vec<HashMap<String, Value>> = match &trigger.for_each {
+                    Some(spec) => {
+                        let mut q_attrs: HashMap<String, String> = HashMap::new();
+                        for (k, vspec) in &spec.query_inputs {
+                            if let Some(v) = self.evaluate_value_spec(vspec, event, "", "", None) {
+                                q_attrs.insert(k.clone(), v.to_string());
+                            }
+                        }
+                        self.sweep_records(spec, &q_attrs)
+                    }
+                    None => vec![HashMap::new()],
+                };
+                let primary_sweep = trigger.for_each.is_some();
+                for primary_record in &primary_records {
+                    // event data, then the policy's `with` literals (which win),
+                    // then the swept record's fields (the fan-out binding).
+                    let mut data = trigger.event_data.clone();
+                    for (k, v) in &trigger.with_data {
+                        data.insert(k.clone(), v.clone());
+                    }
+                    if primary_sweep {
+                        for (k, v) in primary_record {
+                            data.insert(k.clone(), v.clone());
+                        }
+                    }
+                    storehouse_log::policy_reaction(
+                        &policy_name,
+                        &event.aggregate_type,
+                        &event.name,
+                        &event.aggregate_id,
+                        &cmd,
+                    );
+                    self.fire_policy_cascade(&cmd, data, event);
                 }
 
-                // i622 — policy reaction log. Printed at every level
-                // (including quiet) because policy chains are the
-                // operational signal operators most often want to see.
-                storehouse_log::policy_reaction(
-                    &policy_name,
-                    &event.aggregate_type,
-                    &event.name,
-                    &event.aggregate_id,
-                    &cmd,
-                );
-
-                // Inject every reference the triggered command needs:
-                //   1. self-ref or upstream-ref → use upstream event's aggregate_id
-                //   2. other refs → use any record currently in that repo (singleton)
-                // This makes static cascade prediction work across aggregate
-                // boundaries: a policy chain can hop A→B→C even when neither
-                // B nor C's input attrs were in the original test command.
-                self.inject_refs(&cmd, &event.aggregate_type, &event.aggregate_id, &mut data);
-
-                // i111-K — pass the upstream type+id as a cascade hint.
-                // When the triggered command's aggregate matches
-                // upstream_type AND a record exists at upstream_id, the
-                // cascade preserves the id rather than counter-minting
-                // a fresh one. This closes the i111-C surprise where
-                // multi-step pipeline roots had to declare
-                // `identified_by` just to keep gated cascades landing
-                // on the same row. Cross-type cascades (A → B) and
-                // cases without an existing record fall through to
-                // standard resolution unchanged.
-                // Clone the dispatch data BEFORE the move so the
-                // process-spawn primitive hook below can read `cmd` /
-                // `result_into` / `id` off the just-dispatched command's
-                // attrs (the adapters-as-bluebook policy path).
-                let cascade_attrs = data.clone();
-                let inner = command_dispatch::dispatch_cascade(
-                    self, &cmd, data,
-                    &event.aggregate_type, &event.aggregate_id,
-                );
-                // i622 — cascade step log. Policy-driven cascade.
-                storehouse_log::cascade_step(
-                    &cmd, &event.aggregate_id, inner.is_ok(),
-                );
-                if let Ok(inner_result) = inner {
-                    self.drain_policies(&inner_result);
-                    // i220 sub-gap 5 — :compute hook on policy
-                    // cascades. Same ordering as the PM arm above :
-                    // compute first (populates fields), then LLM
-                    // (reads them in the prompt template).
-                    self.resolve_compute_adapters(&inner_result, &cmd);
-                    // i220-1 — same cascade-LLM hook as the PM-dispatch
-                    // arm above. Policy-driven cascades (react_to /
-                    // policy.bluebook) need the named-adapter pipeline
-                    // too. Without this, any policy chain landing on
-                    // `Dream.RecordImage` (or any other adapter target)
-                    // would silently skip Claude.
-                    self.resolve_llm_adapters(&inner_result, &cmd);
-                    // Process-spawn primitive on policy cascades. This
-                    // is the path the re-expressed `:exec` adapter takes :
-                    // a policy fires `Primitive::Process.Spawn`, this
-                    // hook runs the literal cmd and cascades into
-                    // result_into. Without it, the policy-driven spawn
-                    // would dispatch the Process record but never run.
-                    self.resolve_primitive_spawn(&inner_result, &cmd, &cascade_attrs, Some(event));
+                // deciderate Layer 0b — extra reactions : each `dispatch "Cmd",
+                // with: {..}, for_each: {..}` fires after the primary trigger,
+                // reusing the same sweep + with-spec machinery as PM dispatches.
+                for dispatched in &trigger.extra_dispatches {
+                    let iter_records: Vec<HashMap<String, Value>> = match &dispatched.for_each {
+                        Some(spec) => {
+                            let mut q_attrs: HashMap<String, String> = HashMap::new();
+                            for (k, vspec) in &spec.query_inputs {
+                                if let Some(v) = self.evaluate_value_spec(vspec, event, "", "", None) {
+                                    q_attrs.insert(k.clone(), v.to_string());
+                                }
+                            }
+                            self.sweep_records(spec, &q_attrs)
+                        }
+                        None => vec![HashMap::new()],
+                    };
+                    let is_sweep = dispatched.for_each.is_some();
+                    for record in &iter_records {
+                        let iter_arg = if is_sweep { Some(record) } else { None };
+                        let mut data: HashMap<String, Value> = HashMap::new();
+                        for (key, spec) in &dispatched.with_spec {
+                            if let Some(v) = self.evaluate_value_spec(spec, event, "", "", iter_arg) {
+                                data.insert(key.clone(), v);
+                            }
+                        }
+                        self.fire_policy_cascade(&dispatched.command_name, data, event);
+                    }
                 }
+
                 self.policy_engine.complete(&policy_name);
             }
+        }
+    }
+
+    /// deciderate Layer 0b — fire one policy cascade : inject the refs the
+    /// triggered command needs, dispatch it, then run the compute / llm /
+    /// process-spawn reaction hooks. The shared per-dispatch tail used by a
+    /// policy's primary trigger, its for_each sweep, and every extra dispatch.
+    fn fire_policy_cascade(
+        &mut self,
+        command_name: &str,
+        mut data: HashMap<String, Value>,
+        event: &Event,
+    ) {
+        self.inject_refs(
+            command_name,
+            &event.aggregate_type,
+            &event.aggregate_id,
+            &mut data,
+        );
+        let cascade_attrs = data.clone();
+        let inner = command_dispatch::dispatch_cascade(
+            self,
+            command_name,
+            data,
+            &event.aggregate_type,
+            &event.aggregate_id,
+        );
+        storehouse_log::cascade_step(command_name, &event.aggregate_id, inner.is_ok());
+        if let Ok(inner_result) = inner {
+            self.drain_policies(&inner_result);
+            self.resolve_compute_adapters(&inner_result, command_name);
+            self.resolve_llm_adapters(&inner_result, command_name);
+            self.resolve_primitive_spawn(&inner_result, command_name, &cascade_attrs, Some(event));
         }
     }
 
