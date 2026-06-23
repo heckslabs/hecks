@@ -1043,7 +1043,37 @@ pub fn resolve_info_dir() -> std::path::PathBuf {
             return fallback;
         }
     }
-    std::path::PathBuf::from("hecks_conception/information")
+    // repo_root() is None : HECKS_CONCEPTION_DIR is unset AND no conception
+    // was discoverable by walking up from the binary. Post-extraction (the
+    // engine binary lives OUTSIDE the hecks tree) this is a real
+    // misconfiguration, not a dev convenience. NEVER return the bare
+    // relative `hecks_conception/information` : resolved against a cwd of
+    // `.../hecks_conception` it silently DOUBLES into
+    // `.../hecks_conception/hecks_conception/information`, splitting the
+    // store — the i149/i153 reader/writer split i154 killed, reintroduced by
+    // the move. Surface it loudly and return a double-PROOF cwd-anchored
+    // path so a blind process can never split the store.
+    eprintln!(
+        "[storehouse] WARNING: cannot resolve the conception root \
+         (HECKS_CONCEPTION_DIR unset, no discoverable hecks_conception/aggregates) \
+         — set HECKS_CONCEPTION_DIR to the absolute hecks_conception directory. \
+         Falling back to a cwd-anchored information/ store."
+    );
+    let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+    cwd_anchored_info_dir(&cwd)
+}
+
+/// Anchor an `information/` store on `cwd` WITHOUT doubling : when `cwd`
+/// already ends in `hecks_conception`, return `<cwd>/information` rather
+/// than `<cwd>/hecks_conception/information`. The last-resort store path
+/// when the conception root can't be resolved — kept double-proof so a
+/// blind process run from `.../hecks_conception` cannot split the store.
+fn cwd_anchored_info_dir(cwd: &std::path::Path) -> std::path::PathBuf {
+    if cwd.file_name().and_then(|n| n.to_str()) == Some("hecks_conception") {
+        cwd.join("information")
+    } else {
+        cwd.join("hecks_conception/information")
+    }
 }
 
 #[cfg(test)]
@@ -1059,13 +1089,27 @@ mod resolve_tests {
     }
 
     #[test]
-    fn final_fallback_is_a_real_pathbuf() {
-        // Verify the literal fallback string parses. (We can't easily
-        // simulate "no repo root + no env" without isolating current_exe ;
-        // this test pins the literal so a refactor doesn't silently lose
-        // the safety net.)
-        let p = std::path::PathBuf::from("hecks_conception/information");
-        assert!(!p.to_string_lossy().is_empty());
+    fn cwd_anchor_doubles_when_cwd_is_not_conception() {
+        // A cwd that is NOT `.../hecks_conception` gets the conception
+        // segment appended : `<cwd>/hecks_conception/information`.
+        let cwd = std::path::Path::new("/Users/me/Projects/hecks");
+        assert_eq!(
+            super::cwd_anchored_info_dir(cwd),
+            std::path::PathBuf::from("/Users/me/Projects/hecks/hecks_conception/information")
+        );
+    }
+
+    #[test]
+    fn cwd_anchor_is_double_proof_when_cwd_is_conception() {
+        // The footgun this kills : cwd already ENDS in hecks_conception, so
+        // appending another segment would write the doubled
+        // `.../hecks_conception/hecks_conception/information`. The helper
+        // anchors `information/` directly instead.
+        let cwd = std::path::Path::new("/Users/me/Projects/hecks/hecks_conception");
+        assert_eq!(
+            super::cwd_anchored_info_dir(cwd),
+            std::path::PathBuf::from("/Users/me/Projects/hecks/hecks_conception/information")
+        );
         let _ = tempdir(); // sanity — temp helper still works
     }
 }

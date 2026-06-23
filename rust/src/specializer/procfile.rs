@@ -15,7 +15,11 @@
 //!   * `.overmind.env`  — `OVERMIND_CAN_DIE` is the comma-separated list of
 //!                       every member whose `lifespan: { kind: "one_shot" }`,
 //!                       followed by the framework env the boot pipeline
-//!                       needs (`HECKS_DAEMON=1`, `HECKS_EVENT_SOURCING=1`).
+//!                       needs (`HECKS_DAEMON=1`, `HECKS_EVENT_SOURCING=1`),
+//!                       plus `HECKS_CONCEPTION_DIR` (the absolute conception
+//!                       path, extracted from the member command lines) so the
+//!                       fleet can locate the conception now that the engine
+//!                       binary lives outside the hecks tree.
 //!
 //! The fixtures are the source of truth ; these files are the artifact.
 //! Re-runs against the same fixtures produce byte-identical output. Driven
@@ -170,7 +174,35 @@ pub fn emit_overmind_env(members: &[MemberFields]) -> String {
     out.push_str(&format!("OVERMIND_CAN_DIE={}\n", can_die.join(",")));
     out.push_str("HECKS_DAEMON=1\n");
     out.push_str("HECKS_EVENT_SOURCING=1\n");
+    // Post-extraction the engine binary lives OUTSIDE the hecks tree, so it
+    // can no longer locate the conception by walking up from itself :
+    // HECKS_CONCEPTION_DIR is the only remaining locator, and the daemon
+    // fleet must carry it or every conception-blind dispatch falls back to a
+    // cwd-relative `hecks_conception/information` (doubled state). Derived
+    // from the member command lines — the SAME fixture source the Procfile
+    // is byte-built from — so .overmind.env stays source-derived, never
+    // runtime-resolved. Omitted for a non-conception deployment.
+    if let Some(conception) = extract_conception_dir(members) {
+        out.push_str(&format!("HECKS_CONCEPTION_DIR={}\n", conception));
+    }
     out
+}
+
+/// The absolute `hecks_conception` directory, read off whichever member
+/// command references it (every conception-rooted loop/serve/drive line
+/// does). Returns the path up to and including the `hecks_conception`
+/// segment, dropping any `/aggregates…` tail. `None` when no member is
+/// conception-rooted.
+fn extract_conception_dir(members: &[MemberFields]) -> Option<String> {
+    const MARKER: &str = "hecks_conception";
+    for m in members {
+        for token in m.command.split_whitespace() {
+            if let Some(pos) = token.find(MARKER) {
+                return Some(token[..pos + MARKER.len()].to_string());
+            }
+        }
+    }
+    None
 }
 
 fn procfile_header() -> String {
@@ -190,7 +222,8 @@ fn env_header() -> String {
      # Regenerate : storehouse specialize procfile \
      --fixtures aggregates/framework/mindstream/mindstream.fixtures --output-dir .\n\
      # OVERMIND_CAN_DIE lists every MindstreamMember whose lifespan.kind == \"one_shot\" ;\n\
-     # the framework env (HECKS_DAEMON, HECKS_EVENT_SOURCING) is what the boot pipeline needs.\n\n"
+     # the framework env (HECKS_DAEMON, HECKS_EVENT_SOURCING) is what the boot pipeline needs ;\n\
+         # HECKS_CONCEPTION_DIR locates the conception (the engine now lives outside the tree).\n\n"
         .to_string()
 }
 
@@ -253,6 +286,33 @@ end
         assert!(env.contains("OVERMIND_CAN_DIE=boot\n"));
         assert!(env.contains("HECKS_DAEMON=1\n"));
         assert!(env.contains("HECKS_EVENT_SOURCING=1\n"));
+        // SAMPLE has no conception-rooted command line, so the locator LINE is
+        // omitted (the header comment still mentions the var — match the `=`).
+        assert!(!env.contains("HECKS_CONCEPTION_DIR="));
+    }
+
+    #[test]
+    fn env_emits_conception_dir_from_command_lines() {
+        let members = vec![MemberFields {
+            name: "serve_socket".into(),
+            command: "storehouse serve-socket /Users/me/Projects/hecks/hecks_conception".into(),
+            lifespan_kind: "persistent".into(),
+        }];
+        let env = emit_overmind_env(&members);
+        assert!(env.contains("HECKS_CONCEPTION_DIR=/Users/me/Projects/hecks/hecks_conception\n"));
+    }
+
+    #[test]
+    fn extract_conception_drops_aggregates_tail() {
+        let members = vec![MemberFields {
+            name: "inbox".into(),
+            command: "storehouse loop /Users/me/Projects/hecks/hecks_conception/aggregates Inbox::Inbox.Check --every 900s".into(),
+            lifespan_kind: "persistent".into(),
+        }];
+        assert_eq!(
+            extract_conception_dir(&members).as_deref(),
+            Some("/Users/me/Projects/hecks/hecks_conception")
+        );
     }
 
     #[test]
