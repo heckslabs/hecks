@@ -1,19 +1,19 @@
-//! The Deciderate Bracket saga, in-process (one Runtime, memory) — the
-//! guarded-fan-out tournament saga with REAL Deciderate aggregates.
+//! The Deciderate Bracket saga, in-process (one Runtime, memory) — proves the
+//! grown policy DSL composes into the tournament saga with NO new primitive:
+//! a Bracket aggregate + a where-GUARDED policy. Each GameResolved decrements
+//! the Bracket's games_remaining ; when it reaches 0 the guard fires and the
+//! round advances. This is the deciderate vertical slice's payoff — 0a + 0b
+//! grammar driving a real tournament saga end-to-end.
 //!
-//! #[ignore]d — BLOCKED by a runtime coercion gap discovered building it, NOT
-//! by the grown policy DSL (guard + for_each are proven green in
-//! policy_grown_test). ROOT CAUSE : an Integer-VO dispatch INPUT is stored as
-//! a raw string, not coerced to an integer. `OpenRound games_remaining=2`
-//! lands as Str("2") ; the later `then_set :games_remaining, decrement: 1` is
-//! numeric, so it reads the string as 0 and yields -1 instead of 1. The guard
-//! `where games_remaining: 0` therefore never sees exactly 0 (it skips from
-//! Str("2") to Int(-1)) and the round never advances.
-//!
-//! FIX (next) : coerce a dispatch input to its attribute's declared VO inner
-//! type (Integer here) at dispatch time, so numeric mutations operate on a
-//! number. Then DELETE this #[ignore] — the assertions below already encode
-//! the correct saga behaviour and will pass.
+//! Two runtime fixes (made while building it, both committed alongside) were
+//! required and are exercised here :
+//!   1. numeric mutations (increment/decrement) now read the current value
+//!      through Int / numeric-Str / single-value-VO-map via current_numeric,
+//!      so a counter set from a dispatch input (Str("2")) decrements to 1, not
+//!      -1 (it used to match only Value::Int and read everything else as 0) ;
+//!   2. an emitted event now carries the command's CHANGED state fields
+//!      (deltas), not just its inputs, so a policy can GUARD on the resulting
+//!      state (`where games_remaining: 0` after the decrement).
 
 use storehouse::parser;
 use storehouse::runtime::{Runtime, Value};
@@ -104,18 +104,17 @@ const SRC: &str = r#"Hecks.bluebook "Deciderate" do
 end"#;
 
 #[test]
-#[ignore = "blocked by runtime Integer-VO-input coercion gap (decrement reads Str(\"2\") as 0); see module header"]
 fn round_advances_only_when_the_last_game_resolves() {
     let mut rt = Runtime::boot_with_hecksagons(parser::parse(SRC), None, vec![]);
     rt.dispatch("OpenRound", a(&[("bracket_id", "bk1"), ("games_remaining", "2")])).unwrap();
     rt.dispatch("Open", a(&[("game_id", "gm1"), ("bracket", "bk1")])).unwrap();
     rt.dispatch("Open", a(&[("game_id", "gm2"), ("bracket", "bk1")])).unwrap();
 
-    // First resolution : games_remaining 2 -> 1, guard (== 0) does NOT fire.
+    // First resolution : games_remaining 2 -> 1 ; guard (== 0) does NOT fire.
     rt.dispatch("Resolve", a(&[("game", "gm1"), ("winner_ref", "oA")])).unwrap();
     assert_eq!(round_of(&rt, "bk1"), "1", "round must NOT advance until the last game resolves");
 
-    // Last resolution : games_remaining 1 -> 0, guard fires -> round 1 -> 2.
+    // Last resolution : games_remaining 1 -> 0 ; guard fires -> round 1 -> 2.
     rt.dispatch("Resolve", a(&[("game", "gm2"), ("winner_ref", "oB")])).unwrap();
     assert_eq!(round_of(&rt, "bk1"), "2", "the last game's resolution must advance the round (the guarded saga)");
 }

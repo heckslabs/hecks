@@ -52,19 +52,19 @@ impl AggregateState {
     }
 
     pub fn increment(&mut self, field: &str, amount: i64) {
-        let current = match self.fields.get(field) {
-            Some(Value::Int(n)) => *n,
-            _ => 0,
-        };
+        // Reads through Int / numeric-Str / single-value VO map (see decrement).
+        let current = current_numeric(self.fields.get(field)) as i64;
         self.fields
             .insert(field.to_string(), Value::Int(current + amount));
     }
 
     pub fn decrement(&mut self, field: &str, amount: i64) {
-        let current = match self.fields.get(field) {
-            Some(Value::Int(n)) => *n,
-            _ => 0,
-        };
+        // current_numeric reads the field whether it is stored as Int, a numeric
+        // Str (an un-coerced dispatch input), or a single-value VO map — so a
+        // numeric mutation never silently treats "2" as 0 (the deciderate saga
+        // bug : OpenRound stored games_remaining as Str("2"), and the old
+        // Int-only match read it as 0, yielding -1 instead of 1).
+        let current = current_numeric(self.fields.get(field)) as i64;
         self.fields
             .insert(field.to_string(), Value::Int(current - amount));
     }
@@ -119,6 +119,10 @@ fn current_numeric(v: Option<&Value>) -> f64 {
     match v {
         Some(Value::Int(n)) => *n as f64,
         Some(Value::Str(s)) => s.parse::<f64>().unwrap_or(0.0),
+        // A single-value VO (e.g. GamesRemaining { value: N }) IS its inner
+        // number, so a numeric mutation reads through the wrapper — same
+        // unwrap resolve_state_field uses for comparisons.
+        Some(Value::Map(m)) => m.get("value").map(|inner| current_numeric(Some(inner))).unwrap_or(0.0),
         _ => 0.0,
     }
 }

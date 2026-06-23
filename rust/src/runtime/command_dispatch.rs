@@ -333,6 +333,14 @@ fn dispatch_inner(
         .filter(|(k, v)| before_fields.get(*k) != Some(*v))
         .map(|(k, v)| (k.clone(), v.clone()))
         .collect();
+    // deciderate Layer 0b — the CHANGED state fields (deltas) ride the emitted
+    // event too, so a policy can GUARD on the RESULTING state, not just the
+    // command inputs (e.g. `where games_remaining: 0` after a decrement mutation
+    // — the Bracket saga's round-complete condition). Command inputs and the
+    // belongs_to FKs already in event_data win on collision (or_insert only).
+    for (k, v) in &deltas {
+        event_data.entry(k.clone()).or_insert_with(|| v.clone());
+    }
     let aggregate_id = state.id.clone();
     let was_deleted = state.deleted;
     let ctx = crate::heki::WriteContext::Dispatch {

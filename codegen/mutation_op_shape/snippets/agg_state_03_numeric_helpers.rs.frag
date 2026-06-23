@@ -2,6 +2,10 @@ fn current_numeric(v: Option<&Value>) -> f64 {
     match v {
         Some(Value::Int(n)) => *n as f64,
         Some(Value::Str(s)) => s.parse::<f64>().unwrap_or(0.0),
+        // A single-value VO (e.g. GamesRemaining { value: N }) IS its inner
+        // number, so a numeric mutation reads through the wrapper — same
+        // unwrap resolve_state_field uses for comparisons.
+        Some(Value::Map(m)) => m.get("value").map(|inner| current_numeric(Some(inner))).unwrap_or(0.0),
         _ => 0.0,
     }
 }
