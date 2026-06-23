@@ -20,9 +20,9 @@ use storehouse::runtime::adapter_registry::AdapterRegistry;
 use std::path::Path;
 
 const RESTRUCTURE_BLUEBOOK: &str =
-    include_str!("../../discipline/restructure/restructure.bluebook");
+    include_str!("fixtures/restructure/restructure.bluebook");
 const RESTRUCTURE_HECKSAGON: &str =
-    include_str!("../../discipline/restructure/restructure.hecksagon");
+    include_str!("fixtures/restructure/restructure.hecksagon");
 
 fn make_runtime() -> (Runtime, AdapterRegistry) {
     let domain = storehouse::parser::parse(RESTRUCTURE_BLUEBOOK);

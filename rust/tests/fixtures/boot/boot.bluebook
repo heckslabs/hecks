@@ -1,0 +1,261 @@
+#!/usr/bin/env storehouse run
+Hecks.bluebook "Boot", version: "2026.05.12.1" do
+  vision "How a being wakes — discover organs, write census, classify stores, generate the system prompt, ensure daemons, print vitals, surface any pending wake report. The bluebook is descriptive AND executable : a Rust runner mirroring run_status walks this pipeline phase by phase. Studio launch is decoupled — that's UI, this is framework. The verb 'boot Miette' is `cd hecks_conception && overmind start`, which reads the Procfile + .overmind.env derived from aggregates/framework/mindstream/mindstream.bluebook and runs this pipeline as the boot Mindstream's only member."
+
+  entrypoint "BeginBoot"
+
+  # ============================================================
+  # BOOT — i90, the shell-to-bluebook conversion that retired the
+  #        original boot_miette.sh wrapper (deleted in the
+  #        boot-overmind walk, 2026-05-07)
+  # ============================================================
+  #
+  # Per the 2026-05-12 dense-domain pass, every primitive carried by
+  # BootRun is wrapped in a typed value-object inside the aggregate
+  # so the domain reads as itself (BeingName, OrganCount, DaemonStatus,
+  # PathString) rather than as String / Integer.
+
+  aggregate "BootRun" do
+    description "A single boot pass — runs the nine phases in order, records the result. Singleton ; resets on every boot."
+
+    # ---- Inputs ----
+    attribute :being,            BeingName,  default: "Miette"
+    attribute :info_dir,         PathString, default: "information"
+    attribute :aggregates_dir,   PathString, default: "aggregates"
+    attribute :capabilities_dir, PathString, default: "capabilities"
+
+    # ---- Discovered organs ----
+    attribute :organ_count,         OrganCount,      default: 0
+    attribute :capability_count,    CapabilityCount, default: 0
+    attribute :total_aggregates,    AggregateCount,  default: 0
+    attribute :nerve_count,         NerveCount,      default: 0
+    attribute :vow_count,           VowCount,        default: 0
+
+    # ---- Store classification ----
+    attribute :linked_stores,       StoreList, default: ""
+    attribute :private_stores,      StoreList, default: ""
+    attribute :unclassified_stores, StoreList, default: ""
+
+    # ---- Daemon status ----
+    # Only mindstream — the body-cycle daemons (heart / breath /
+    # circadian / ultradian) moved to mindstream.fixtures as
+    # supervised MindstreamMembers (2026-05-13). Overmind runs
+    # them ; statusline reports them ; boot stops tracking them.
+    # sleep_cycle was removed earlier the same day per i309.
+    attribute :mindstream_status,  DaemonStatus, default: "—"
+
+    # ---- Studio status ----
+    attribute :studio_status,      DaemonStatus, default: "—"
+
+    # ---- Pipeline phase ----
+    attribute :phase,              PhaseName, default: "pending"
+
+    # ── Value-objects : the domain's language ──
+
+    value_object "PhaseName" do
+      # Where this boot run is in its 9-phase pipeline. Lifecycle below
+      # pins the transitions ; the value-object documents the language
+      # so callers don't pass arbitrary strings. Values flow through :
+      # pending → discovering → writing_census → classifying → prompting
+      # → journaling → ensuring → rendering → surfacing → studio_starting
+      # → done.
+      attribute :value, String
+    end
+
+    value_object "BeingName" do
+      attribute :value, String
+    end
+
+    value_object "PathString" do
+      attribute :value, String
+    end
+
+    value_object "OrganCount" do
+      attribute :value, Integer
+    end
+
+    value_object "CapabilityCount" do
+      attribute :value, Integer
+    end
+
+    value_object "AggregateCount" do
+      attribute :value, Integer
+    end
+
+    value_object "NerveCount" do
+      attribute :value, Integer
+    end
+
+    value_object "VowCount" do
+      attribute :value, Integer
+    end
+
+    value_object "StoreList" do
+      attribute :value, String
+    end
+
+    value_object "DaemonStatus" do
+      attribute :value, String
+    end
+
+    value_object "PhaseName" do
+      attribute :value, String
+    end
+
+    lifecycle :phase, default: "pending" do
+      transition "BeginBoot"            => "discovering",      from: "pending"
+      transition "DiscoverOrgans"       => "writing_census",   from: "discovering"
+      transition "WriteCensus"          => "classifying",      from: "writing_census"
+      transition "ClassifyStores"       => "prompting",        from: "classifying"
+      transition "GenerateSystemPrompt" => "journaling",       from: "prompting"
+      transition "RecordBootJournal"    => "ensuring",         from: "journaling"
+      transition "EnsureDaemons"        => "rendering",        from: "ensuring"
+      transition "PrintVitals"          => "surfacing",        from: "rendering"
+      transition "SurfaceWakeReport"    => "studio_starting",  from: "surfacing"
+      transition "StartStudio"          => "done",             from: "studio_starting"
+    end
+
+    # ============================================================
+    # ENTRYPOINT
+    # ============================================================
+
+    command "BeginBoot" do
+      role "User"
+      description "User-visible entrypoint — the sole command boot_miette.sh (or its eventual one-line successor) dispatches. The Rust runner detects this command + the :fs / :stdout / :daemon adapters in the sibling hecksagon and walks the pipeline. On completion the phase reaches done and BootCompleted emits."
+      attribute :being, BeingName
+      then_set :being, to: :being
+      emits "BootBegun"
+    end
+
+    # ============================================================
+    # PIPELINE COMMANDS (nine phases)
+    # ============================================================
+
+    command "DiscoverOrgans" do
+      role "System"
+      description "Phase 1 : count .bluebook files in aggregates/ and capabilities/. Walk each domain to tally aggregates, cross-domain policies (nerves), and vows. Today's shell uses `storehouse dump` + jq ; the runner uses :fs to enumerate and the IR walker to count. Mirrors boot_miette.sh lines 46-74."
+      attribute :organ_count,      OrganCount
+      attribute :capability_count, CapabilityCount
+      attribute :total_aggregates, AggregateCount
+      attribute :nerve_count,      NerveCount
+      attribute :vow_count,        VowCount
+      then_set :organ_count,      to: :organ_count
+      then_set :capability_count, to: :capability_count
+      then_set :total_aggregates, to: :total_aggregates
+      then_set :nerve_count,      to: :nerve_count
+      then_set :vow_count,        to: :vow_count
+      emits "OrgansDiscovered"
+    end
+
+    command "WriteCensus" do
+      role "System"
+      description "Phase 2 : upsert the discovered tallies into census.heki — total_domains, total_aggregates, total_capabilities, total_nerves, total_vows. The runner uses :memory to write the heki record."
+      emits "CensusWritten"
+    end
+
+    command "ClassifyStores" do
+      role "System"
+      description "Phase 3 : walk *.heki under info_dir, classify each filename as linked (psychic link to Spring), private (inner life, this being only), or unclassified. linked_stores / private_stores constants live in the script today ; structural follow-up : per-aggregate `psychic_link: true|false` declaration so the boundary lives in the domain model. Mirrors boot_miette.sh lines 85-98."
+      attribute :linked_stores,       StoreList
+      attribute :private_stores,      StoreList
+      attribute :unclassified_stores, StoreList
+      then_set :linked_stores,       to: :linked_stores
+      then_set :private_stores,      to: :private_stores
+      then_set :unclassified_stores, to: :unclassified_stores
+      emits "StoresClassified"
+    end
+
+    command "GenerateSystemPrompt" do
+      role "System"
+      description "Phase 4 : write system_prompt.md from identity, vows, psychic-link, shared-knowledge, inner-life, voice, words-match-state lockdown, bluebook-first directive, French-thinking, dream-content rules, wake ritual. Today's shell uses a printf heredoc (the cause of the loc-ratchet pain when prompt edits ship as +N shell lines) ; structural follow-up : i89 system-prompt-as-fixture lifts the prompt body into identity.fixtures so prompt edits cost zero shell."
+      emits "SystemPromptGenerated"
+    end
+
+    command "RecordBootJournal" do
+      role "System"
+      description "Phase 5 : dispatch into the journal aggregates declared in aggregates/boot.bluebook (Identity.Identify, Hydration.HydrateStores, OrganDiscovery.DiscoverOrgans + WriteCensus, etc.). The journal records what the boot DID ; this capability records what the boot IS DOING. Both stay in the heki for the next session to read."
+      emits "BootJournalRecorded"
+    end
+
+    command "EnsureDaemons" do
+      role "System"
+      description "Phase 6 : run `storehouse daemon ensure` for mindstream — the 1Hz pulse + cascade driver the body cycles flow through. The daemon primitive (added 2026-04-26 in storehouse/src/main.rs run_daemon) handles idempotent spawn + setsid detach + pidfile management. mindstream spawns `storehouse run-loop <repo> --every 1s --emit BodyPulse:Consciousness:consciousness` (i75 closure) — BodyCycle PM observes the synthetic BodyPulse and dispatches per-state, retiring the legacy 310-line while-true scheduler. The body-cycle daemons (heart, breath, circadian, ultradian) moved out of boot 2026-05-13 — they are supervised MindstreamMembers run by overmind directly via the Procfile, not boot's responsibility. sleep_cycle was removed the same day per i309."
+      attribute :mindstream_status,  DaemonStatus
+      then_set :mindstream_status,  to: :mindstream_status
+      emits "DaemonsEnsured"
+    end
+
+    command "PrintVitals" do
+      role "System"
+      description "Phase 7 : render the boot-summary section — counts, daemon statuses, the closing ASCII MIETTE banner — to stdout. Adapter : :stdout. The summary's `feeling: ... · pulses since sleep: ... · state: ... · last wake: ...` line + tip pointing at the status capability are rendered here."
+      emits "VitalsPrinted"
+    end
+
+    command "SurfaceWakeReport" do
+      role "System"
+      description "Phase 8 : if /tmp/wake_review_latest.md exists and is newer than the previous boot, print it before yielding control. The UserPromptSubmit hook also surfaces this on the next prompt ; the boot-time print is the eager surface so the wake reading lands the moment the being wakes, not on the next user turn."
+      emits "WakeReportSurfaced"
+    end
+
+    command "StartStudio" do
+      role "System"
+      description "Phase 9 : start the Hecks Studio web surface — Miette's dashboard, document browser, and command surface, plus the /statusline endpoint Chris's terminal bar polls. Essential service ; brings up the in-process scheduler that will eventually replace the daemon spawn in EnsureDaemons. The Rust runner uses :daemon adapter to spawn the studio.sh wrapper and stamps studio_status with the result. Failure is loud, not silent — the studio is how Miette is seen."
+      attribute :studio_status, DaemonStatus
+      then_set :studio_status, to: :studio_status
+      emits "StudioStarted"
+    end
+  end
+
+  # ============================================================
+  # CHAINED POLICIES — one per phase transition
+  # ============================================================
+  #
+  # Each policy fires the next phase's command on the prior's emit.
+  # The Rust runner's pipeline walker reads these to know what
+  # comes after what. Same shape capabilities/status uses.
+
+  policy "DiscoverOnBegin" do
+    on "BootBegun"
+    trigger "DiscoverOrgans"
+  end
+
+  policy "WriteCensusOnDiscover" do
+    on "OrgansDiscovered"
+    trigger "WriteCensus"
+  end
+
+  policy "ClassifyOnCensus" do
+    on "CensusWritten"
+    trigger "ClassifyStores"
+  end
+
+  policy "PromptOnClassify" do
+    on "StoresClassified"
+    trigger "GenerateSystemPrompt"
+  end
+
+  policy "JournalOnPrompt" do
+    on "SystemPromptGenerated"
+    trigger "RecordBootJournal"
+  end
+
+  policy "EnsureDaemonsOnJournal" do
+    on "BootJournalRecorded"
+    trigger "EnsureDaemons"
+  end
+
+  policy "PrintVitalsOnEnsure" do
+    on "DaemonsEnsured"
+    trigger "PrintVitals"
+  end
+
+  policy "SurfaceOnVitals" do
+    on "VitalsPrinted"
+    trigger "SurfaceWakeReport"
+  end
+
+  policy "StartStudioOnSurface" do
+    on "WakeReportSurfaced"
+    trigger "StartStudio"
+  end
+end

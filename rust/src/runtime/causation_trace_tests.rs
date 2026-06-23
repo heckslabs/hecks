@@ -152,10 +152,14 @@ fn cause_for_cascade_is_empty_for_root_and_unknown() {
 #[test]
 fn cascade_stamps_causation_end_to_end() {
     use std::collections::HashMap;
-    let fw = format!(
-        "{}/../hecks_conception/aggregates/framework",
-        env!("CARGO_MANIFEST_DIR")
-    );
+    // Post-extraction the engine no longer sits beside hecks_conception, so
+    // resolve the live framework chapters via HECKS_CONCEPTION_DIR (the gate
+    // sets it), falling back to the standard sibling checkout (storehouse
+    // beside hecks) for a bare local run.
+    let conception = std::env::var("HECKS_CONCEPTION_DIR").unwrap_or_else(|_| {
+        format!("{}/../../hecks/hecks_conception", env!("CARGO_MANIFEST_DIR"))
+    });
+    let fw = format!("{}/aggregates/framework", conception);
     let dir = std::env::temp_dir().join(format!("caus_e2e_{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();

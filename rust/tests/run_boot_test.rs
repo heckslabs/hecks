@@ -18,12 +18,14 @@ use storehouse::run_boot;
 use storehouse::runtime::Runtime;
 use storehouse::runtime::adapter_registry::AdapterRegistry;
 
-const BOOT_BLUEBOOK: &str = include_str!(
-    "../../runtime/boot/boot.bluebook"
-);
-const BOOT_HECKSAGON: &str = include_str!(
-    "../../runtime/boot/boot.hecksagon"
-);
+// Vendored snapshots of a real boot bluebook + hecksagon shape (copied from
+// hecks/runtime/boot/). The test exercises CAPABILITY DETECTION, not the live
+// deployment pipeline, so a self-contained fixture is correct — and it lets the
+// engine's gate compile standalone now that storehouse lives outside the hecks
+// tree (the include_str! used to reach ../../runtime/boot/, which no longer
+// exists beside the engine).
+const BOOT_BLUEBOOK: &str = include_str!("fixtures/boot/boot.bluebook");
+const BOOT_HECKSAGON: &str = include_str!("fixtures/boot/boot.hecksagon");
 
 #[test]
 fn detects_boot_capability_from_real_bluebook_and_hecksagon() {
