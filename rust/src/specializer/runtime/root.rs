@@ -46,7 +46,7 @@
 //!
 //! Usage :
 //!
-//! ```ignore
+//! ```text
 //!   let rust = runtime::root::emit(repo_root)?;
 //!   print!("{}", rust);
 //! ```

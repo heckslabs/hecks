@@ -13,7 +13,7 @@
 //!   `query_route(phrase, _args)` — resolve + run the query, 0 on a match
 //!
 //! Example:
-//!   ```ignore
+//!   ```text
 //!   use storehouse::storehouse_query;
 //!   assert!(storehouse_query::is_query_phrase("Plan::Story.by_sprint"));
 //!   let exit = storehouse_query::query_route("Plan::Story.by_sprint", &["sprint=1".into()]);

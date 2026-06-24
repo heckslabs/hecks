@@ -36,7 +36,7 @@
 //!
 //! Usage :
 //!
-//! ```ignore
+//! ```text
 //!   let rust = behaviors_runner::emit(repo_root)?;
 //!   print!("{}", rust);
 //! ```

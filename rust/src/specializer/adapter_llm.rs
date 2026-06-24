@@ -39,7 +39,7 @@
 //!
 //! Usage :
 //!
-//! ```ignore
+//! ```text
 //!   let rust = adapter_llm::emit(repo_root)?;
 //!   print!("{}", rust);
 //! ```

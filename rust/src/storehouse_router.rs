@@ -12,7 +12,7 @@
 //!   `info_dir()`                  — resolve the store / information dir
 //!
 //! Example:
-//!   ```ignore
+//!   ```text
 //!   use storehouse::storehouse_router;
 //!   let exit = storehouse_router::route(&["Story.Execute".to_string(), "id=f1".to_string()]);
 //!   ```

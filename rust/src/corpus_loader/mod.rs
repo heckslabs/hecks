@@ -12,7 +12,7 @@
 //! signature, same behaviour as before the extraction.
 //!
 //! Example:
-//!   ```ignore
+//!   ```text
 //!   use storehouse::corpus_loader::load_combined_domain;
 //!   let domain = load_combined_domain("hecks_conception/aggregates");
 //!   ```

@@ -11,7 +11,7 @@
 //!   `story_args_to_tokens`   — unpack a step's JSON args bag into k=v tokens
 //!
 //! Example:
-//!   ```ignore
+//!   ```text
 //!   use storehouse::story_runtime::{story_sorted_steps, story_args_to_tokens};
 //!   let steps = story_sorted_steps(&record);
 //!   for step in &steps {
