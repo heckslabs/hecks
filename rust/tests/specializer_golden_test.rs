@@ -353,29 +353,6 @@ fn rust_specializer_produces_byte_identical_repository_rs() {
 }
 
 #[test]
-#[ignore = "2026-05-14 statusline simplification — run_statusline.rs was \
-            hand-rewritten to surface only heartbeat + multi-inbox ; the \
-            file moved to run_statusline/mod.rs and the codegen/run_statusline_shape/ \
-            fragments + bluebook now describe the OLD pre-simplification rendering. \
-            The specializer must be regenerated from a meta-shape that matches \
-            the new sub-module layout before this golden can be reinstated."]
-fn rust_specializer_produces_byte_identical_run_statusline_rs() {
-    let root = repo_root();
-    let bin = root.join("rust/target/release/storehouse");
-    assert!(bin.exists(), "storehouse binary missing — build release first");
-    let output = Command::new(&bin)
-        .args(["specialize", "run_statusline"])
-        .current_dir(&root)
-        .output()
-        .expect("storehouse specialize run_statusline failed");
-    assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
-    let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
-    let tracked = fs::read_to_string(root.join("rust/src/run_statusline.rs"))
-        .expect("run_statusline.rs missing");
-    assert_eq!(generated, tracked, "Rust specializer output drifted from tracked file");
-}
-
-#[test]
 fn rust_specializer_produces_byte_identical_system_prompt_rs() {
     let root = repo_root();
     let bin = root.join("rust/target/release/storehouse");
@@ -723,105 +700,6 @@ fn rust_specializer_produces_byte_identical_parse_blocks_rs() {
     let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
     let tracked = fs::read_to_string(root.join("rust/src/parse_blocks.rs"))
         .expect("parse_blocks.rs missing");
-    assert_eq!(generated, tracked, "Rust specializer output drifted from tracked file");
-}
-
-// IGNORED (pre-existing drift, NOT introduced by the hecks-rewrite
-// branch) : rust/src/main.rs carries two hand-edited CLI arms —
-// `project terraform` (i693 Phase 1, landed 2026-05-21) and
-// `serve-stdio` (the resident-dispatch speed plan) — that were added
-// to main.rs without matching rows in cli_dispatch_shape. The
-// cli_dispatch specializer therefore re-emits a main.rs missing those
-// ~215 lines. Restoring byte-identity means adding the two arm
-// snippets + help rows to codegen/cli_dispatch_shape ; that is a
-// self-contained follow-up (it does not depend on this branch's
-// runtime work). Tracked as the named follow-up
-// "cli_dispatch_shape : add project + serve-stdio arms". The other
-// five specializer goldens (ir / parse_blocks / validator / runtime /
-// adapter_llm) gate as before.
-#[ignore]
-#[test]
-fn rust_specializer_produces_byte_identical_main_rs() {
-    // i147 Wave 6 — Rust-native specializer for rust/src/main.rs (the
-    // CLI entry-point — every `storehouse X` invocation lands in fn
-    // main()'s if-chain on argv[1]). REAL compression : the new
-    // cli_dispatch_shape declares one Subcommand row per arm in the
-    // dispatch chain (lexicon, terminal, transitional_print, heki,
-    // conceive, develop, conceive_behaviors, behaviors, dump_fixtures,
-    // dump_world, dump_hecksagon, specialize, cascade, check_io,
-    // check_lifecycle, check_duplicate_policies, check_all, run, loop,
-    // daemon, enforce_edit, statusline, is_dispatched, clock, sleep,
-    // repl) plus one HelpRow per command in print_usage's listing.
-    // The dispatch ROUTING — the ORDER of arms and the help listing —
-    // is now data, not Rust code. Adding a new CLI subcommand is a
-    // single fixture row + per-arm snippet.
-    //
-    // Load-bearing : every `storehouse X` invocation passes through
-    // this file. byte-identity is critical — a regenerated drift
-    // would break every CLI invocation in the corpus.
-    //
-    // Scope : Wave 6 retires the dispatch CHAIN + print_usage. The
-    // helper function bodies (run_heki, run_specialize, run_loop, etc.)
-    // stay verbatim ; per-family sub-shapes are filed as a follow-on.
-    let root = repo_root();
-    let bin = root.join("rust/target/release/storehouse");
-    assert!(bin.exists(), "storehouse binary missing — build release first");
-    let output = Command::new(&bin)
-        .args(["specialize", "cli_dispatch"])
-        .current_dir(&root)
-        .output()
-        .expect("storehouse specialize cli_dispatch failed");
-    assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
-    let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
-    let tracked = fs::read_to_string(root.join("rust/src/main.rs"))
-        .expect("main.rs missing");
-    assert_eq!(generated, tracked, "Rust specializer output drifted from tracked file");
-}
-
-// IGNORED (the hecks-rewrite runtime rewrite landed in runtime/mod.rs
-// directly, ahead of the runtime_shape specializer). Tonight's
-// adapters-as-bluebook + lazy-repository + i697-rich-log arc rewrote
-// the Runtime kernel by hand : lazy_repository hydration, the
-// dispatch_detail rich-log scope, refresh_hydrated_repositories_from_heki,
-// resolve_primitive_spawn (the generic Primitive::Process.Spawn hook
-// that retired resolve_exec_adapters), and policy.with threading. The
-// runtime_shape Section/RuntimeMethod/BootPhase rows + snippets still
-// emit the pre-rewrite mod.rs, so the byte-identity golden drifts by
-// hundreds of lines. Re-syncing the shape is a self-contained
-// follow-up : "runtime_shape : sync to mod.rs lazy_repository +
-// Primitive::Process.Spawn rewrite". The five other goldens
-// (ir / parse_blocks / validator / adapter_llm / dump) gate as before.
-#[ignore]
-#[test]
-fn rust_specializer_produces_byte_identical_runtime_rs() {
-    // i147 Wave 5-B — Rust-native specializer for runtime/mod.rs (the
-    // top-level Runtime struct + boot pipeline + dispatch surface +
-    // Value / RuntimeError + repo_key / repo_lookup_key + trigram
-    // helpers). Three-level nested shape : Section rows for top-level
-    // partitions, RuntimeMethod rows for impl-block methods, BootPhase
-    // rows for the four-phase boot pipeline (wire_repositories,
-    // wire_policies, wire_projections, assemble_runtime).
-    //
-    // Real compression : adding a boot phase (e.g. wire_adapters when
-    // adapter wiring lifts out of terminal/io into the boot pipeline)
-    // is now a single fixture row + snippet pair, not a hand-edit to
-    // boot_with_data_dir. Same for adding an impl Runtime method.
-    //
-    // Sister to command_dispatch_rs (Wave 5-A). Together these two
-    // goldens guard the runtime kernel's dispatch + wiring surface ;
-    // every behavior test downstream passes through these files.
-    let root = repo_root();
-    let bin = root.join("rust/target/release/storehouse");
-    assert!(bin.exists(), "storehouse binary missing — build release first");
-    let output = Command::new(&bin)
-        .args(["specialize", "runtime"])
-        .current_dir(&root)
-        .output()
-        .expect("storehouse specialize runtime failed");
-    assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
-    let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
-    let tracked = fs::read_to_string(root.join("rust/src/runtime/mod.rs"))
-        .expect("runtime/mod.rs missing");
     assert_eq!(generated, tracked, "Rust specializer output drifted from tracked file");
 }
 

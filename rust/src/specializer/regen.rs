@@ -12,12 +12,13 @@
 //!   1. Per-deployment emitters (wasm_worker / cf_function_proxy /
 //!      embedded_bluebooks / wrangler_toml / procfile) — flag-driven output,
 //!      not a single tracked file.
-//!   2. Targets whose generator is currently STALE and whose golden is
-//!      therefore `#[ignore]`d, leaving the .rs hand-maintained until the
-//!      generator is repaired : `cli_dispatch` (main.rs), `run_statusline`,
-//!      and `runtime` (runtime/mod.rs). Regenerating these would CLOBBER the
-//!      hand-maintained file with non-compiling output, so `all` skips them.
-//!      Re-add each here the moment its golden comes off `#[ignore]`.
+//!   2. The `runtime` whole-file target : runtime/mod.rs is hand-rewritten
+//!      and maintained per-SECTION (the runtime_shape section goldens gate the
+//!      parts that ARE generated). The whole-file golden was retired 2026-06-24
+//!      — regenerating the whole file would CLOBBER the hand-maintained kernel,
+//!      so `all` skips it. cli_dispatch and run_statusline were retired entirely
+//!      the same day : their shapes lost the race with hand-editing, so main.rs
+//!      / run_statusline are now honestly hand-maintained.
 
 use super::emit;
 use std::error::Error;
@@ -25,9 +26,9 @@ use std::path::Path;
 
 /// Every byte-identity Rust specializer target with a CURRENT generator
 /// (passing golden) paired with its tracked output path (repo-root-relative).
-/// Adding a generated target = one row here. The three `#[ignore]`d targets
-/// (cli_dispatch / run_statusline / runtime) are intentionally absent — see
-/// the module header.
+/// Adding a generated target = one row here. The `runtime` whole-file target
+/// is intentionally absent (runtime/mod.rs is section-maintained — see the
+/// module header).
 pub fn targets() -> &'static [(&'static str, &'static str)] {
     &[
         ("adapter_llm",              "rust/src/runtime/adapter_llm.rs"),
