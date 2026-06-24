@@ -1,6 +1,6 @@
 # i650 — Futamura self-application drift : the specializer is not self-hosted
 
-**status** : drift (red)
+**status** : RESOLVED (2026-06-24) — `specializer_mod` self-hosts `mod.rs` ; the 2nd Futamura proof is GREEN (storehouse 4b16260). The repair followed "the smallest possible repair" below : `codegen/specializer_mod_shape/` (Submodule + EmitArm rows) + `specializer_mod.rs`, with `mod.rs` carrying its own pub-mod + emit-arm (the fixed point). The self-application test is off `#[ignore]` and green. Original drift report retained below for the trail.
 **area** : specializer / autophagy / futamura
 **discovered** : 2026-05-20
 **predecessor** : i51 (Futamura projections), PC-4 (memory note `project_futamura_fixed_point.md`)
