@@ -531,6 +531,40 @@ mod path_tests {
     }
 
     #[test]
+    fn config_conception_path_honors_xdg_then_home() {
+        // XDG_CONFIG_HOME wins when set and non-empty.
+        assert_eq!(
+            config_conception_path_from(Some("/cfg".into()), Some("/home/u".into())),
+            Some(std::path::PathBuf::from("/cfg/storehouse/conception"))
+        );
+        // Empty XDG falls back to ~/.config.
+        assert_eq!(
+            config_conception_path_from(Some(String::new()), Some("/home/u".into())),
+            Some(std::path::PathBuf::from("/home/u/.config/storehouse/conception"))
+        );
+        // No XDG and no HOME -> None (no config dir to locate).
+        assert_eq!(config_conception_path_from(None, None), None);
+    }
+
+    #[test]
+    fn read_conception_config_trims_and_rejects_blank() {
+        let dir = tempdir();
+        let file = dir.join("conception");
+        // Surrounding whitespace / trailing newline is trimmed.
+        fs::write(&file, "  /Users/x/Projects/hecks/hecks_conception\n").unwrap();
+        assert_eq!(
+            read_conception_config(&file),
+            Some("/Users/x/Projects/hecks/hecks_conception".to_string())
+        );
+        // Whitespace-only content -> None.
+        fs::write(&file, "   \n").unwrap();
+        assert_eq!(read_conception_config(&file), None);
+        // Absent file -> None.
+        assert_eq!(read_conception_config(&dir.join("missing")), None);
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
     fn path_for_with_context_emits_nested() {
         let p = path_for("/tmp/info", "Mood", Some("Body"));
         assert_eq!(p, "/tmp/info/body/mood.heki");
@@ -649,21 +683,17 @@ pub fn repo_root() -> Option<std::path::PathBuf> {
     if let Some(root) = walk_up_for_repo_root() {
         return Some(root);
     }
-    // Canonical-deployment fallback (mirrors storehouse_conception_root's
-    // former HOME step). Post-extraction the engine binary lives OUTSIDE the
+    // Per-user config-file fallback : a PERSISTENT default for
+    // HECKS_CONCEPTION_DIR. Post-extraction the engine binary lives OUTSIDE the
     // hecks tree, so the exe-walk finds nothing ; with HECKS_CONCEPTION_DIR
-    // unset (a bare interactive shell — e.g. `storehouse follow`) repo_root
-    // was None, which split readers onto a cwd-anchored store. Resolve the
-    // canonical checkout STRUCTURALLY instead (i728 : a known machine path,
-    // identical for every process tree, never an env var). Guarded by
-    // is_dir() so a host without the checkout (CI) still returns None.
-    if let Ok(home) = std::env::var("HOME") {
-        let canonical = std::path::PathBuf::from(home).join("Projects/hecks");
-        if canonical.join("hecks_conception/aggregates").is_dir() {
-            return Some(canonical);
-        }
-    }
-    None
+    // unset (a bare interactive shell — e.g. `storehouse follow`) repo_root was
+    // None, which split readers onto a cwd-anchored store. A GENERIC engine
+    // carries NO baked-in user path, so the canonical conception is NAMED in
+    // ${XDG_CONFIG_HOME:-~/.config}/storehouse/conception — one file every
+    // process tree reads identically (i728 : structural, not env-var).
+    // repo_root_from_conception_dir guards with is_dir(), so an absent config
+    // or a stale path falls through to None (CI without the file stays None).
+    repo_root_from_conception_dir(config_conception_dir())
 }
 
 /// The repo root derived from a HECKS_CONCEPTION_DIR value — the conception
@@ -677,6 +707,51 @@ fn repo_root_from_conception_dir(env_val: Option<String>) -> Option<std::path::P
         conception.parent().map(|x| x.to_path_buf())
     } else {
         None
+    }
+}
+
+/// The conception dir named in the per-user config file
+/// `${XDG_CONFIG_HOME:-~/.config}/storehouse/conception` (a single line : the
+/// absolute path to a `hecks_conception` directory). The generic engine's
+/// structural default — it carries NO user-specific path, reading the
+/// deployment's conception location from config, the same value every process
+/// tree reads (i728). None when the file is absent or blank.
+fn config_conception_dir() -> Option<String> {
+    read_conception_config(&config_conception_path()?)
+}
+
+/// Path to the storehouse conception config file, honoring XDG_CONFIG_HOME and
+/// falling back to ~/.config — mirrors the `~/.config/<name>/` convention the
+/// socket layer already uses (run_serve/socket.rs).
+fn config_conception_path() -> Option<std::path::PathBuf> {
+    config_conception_path_from(
+        std::env::var("XDG_CONFIG_HOME").ok(),
+        std::env::var("HOME").ok(),
+    )
+}
+
+/// Pure path computation (env injected) so it is unit-testable without mutating
+/// the process environment (which would race across parallel tests).
+fn config_conception_path_from(
+    xdg: Option<String>,
+    home: Option<String>,
+) -> Option<std::path::PathBuf> {
+    let base = match xdg {
+        Some(x) if !x.is_empty() => std::path::PathBuf::from(x),
+        _ => std::path::PathBuf::from(home?).join(".config"),
+    };
+    Some(base.join("storehouse").join("conception"))
+}
+
+/// Read + trim a conception config file. None when missing or blank — pure over
+/// the path so a temp file exercises it without env mutation.
+fn read_conception_config(path: &std::path::Path) -> Option<String> {
+    let raw = std::fs::read_to_string(path).ok()?;
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed.to_string())
     }
 }
 

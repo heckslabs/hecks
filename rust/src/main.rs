@@ -100,9 +100,10 @@ fn main() {
     //     "parse this file" usage still wins)
     //   * not a recognised subcommand (`storehouse`, `lexicon`, ...)
     //     — those are handled by the regular if-chain below
-    // Conception dir comes from HECKS_CONCEPTION_DIR or the canonical
-    // ~/Projects/hecks/hecks_conception fallback (see
-    // storehouse_conception_root). Explicit positional invocations
+    // Conception dir comes from HECKS_CONCEPTION_DIR, the in-tree exe-walk, or
+    // the per-user config file (${XDG_CONFIG_HOME:-~/.config}/storehouse/
+    // conception) — see storehouse_conception_root / heki::repo_root. Explicit
+    // positional invocations
     // (`storehouse /path/to/conception Tools.Bash ...`) still work
     // because they fall through to the directory-or-bluebook dispatch
     // path further down. Backward-compatible.
@@ -7439,11 +7440,12 @@ fn looks_like_aggregate_command(s: &str) -> bool {
 ///   2. `repo_root()/hecks_conception/` when the canonicalised binary
 ///      lives inside the hecks checkout (the historical case).
 ///   3. `.` when nothing above resolves (preserves the prior return
-///      shape so existing callers don't observe a panic). The canonical
-///      `~/Projects/hecks` HOME fallback that used to live here now lives
-///      in `heki::repo_root()`, so step 2 (which delegates to it) already
-///      covers a symlinked binary on PATH invoked from an unrelated cwd —
-///      resolved structurally, no env var (i728).
+///      shape so existing callers don't observe a panic). The structural
+///      fallback that once lived here as a hardcoded `~/Projects/hecks`
+///      path now lives in `heki::repo_root()` as a per-user config file
+///      (`${XDG_CONFIG_HOME:-~/.config}/storehouse/conception`), so step 2
+///      (which delegates to repo_root) covers it — no baked-in path, no
+///      env var (i728).
 fn storehouse_conception_root() -> String {
     if let Ok(p) = env::var("HECKS_CONCEPTION_DIR") {
         if !p.is_empty() {
