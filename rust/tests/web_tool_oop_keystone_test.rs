@@ -118,10 +118,15 @@ fn s(v: &str) -> Value {
 }
 
 fn repo_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .expect("rust has a parent")
-        .to_path_buf()
+    // adapters/ stayed in the hecks tree ; the engine lives outside it post-
+    // extraction, so resolve via the sibling hecks root (HECKS_CONCEPTION_DIR's
+    // parent, or ../../hecks beside the engine).
+    std::env::var("HECKS_CONCEPTION_DIR")
+        .ok()
+        .and_then(|c| std::path::Path::new(&c).parent().map(|p| p.to_path_buf()))
+        .unwrap_or_else(|| {
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../hecks")
+        })
 }
 
 /// Compile the standalone web-tool-handler once into `out`. Skips the test
@@ -211,7 +216,6 @@ fn start_attrs() -> HashMap<String, Value> {
 }
 
 #[test]
-#[ignore = "web-tool-handler source removed by engine extraction (a37f3d8); adapters/web_tool/ lives in the engine's own repo now. This keystone compiles that handler, so it can't run here. Was silently skipping (hollow-green); ignored-loud until the handler returns or this test moves to the handler's repo."]
 fn shape_switch_with_binding_suppresses_in_process_and_drain_settles_fixture_output() {
     let _env = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let tmp = std::env::temp_dir().join(format!("web_tool_keystone_{}", std::process::id()));
@@ -287,7 +291,6 @@ fn shape_switch_with_binding_suppresses_in_process_and_drain_settles_fixture_out
 
 /// 3x determinism : the OOP drain lands the SAME fixture output every run.
 #[test]
-#[ignore = "web-tool-handler source removed by engine extraction (a37f3d8); adapters/web_tool/ lives in the engine's own repo now. This keystone compiles that handler, so it can't run here. Was silently skipping (hollow-green); ignored-loud until the handler returns or this test moves to the handler's repo."]
 fn shape_switch_oop_drain_is_deterministic_across_runs() {
     let _env = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let tmp = std::env::temp_dir().join(format!("web_tool_keystone_det_{}", std::process::id()));

@@ -1,0 +1,97 @@
+Hecks.bluebook "VinDiction", version: "2026.05.18.1" do
+  vision "Vehicle is one decoded VIN. A BAVSound customer enters a VIN on the storefront (i5) ; it decodes (i3) to make/model/chassis/body/year AND — the load-bearing part — the factory audio system implied by the BMW build/option (SA) codes (base vs HiFi vs Harman Kardon vs B&W). NHTSA vPIC alone is insufficient for BMW ; the decode is performed UPSTREAM (BMWVinDecoder / the i3 pipeline). This aggregate records the decode result and owns it as the stable key the i4 catalog match runs against — it does not own the decode algorithm."
+  category "service"
+
+  aggregate "Vehicle", "A customer's vehicle, decoded from a VIN — the i3 output contract. Identified by VIN. Carries the dimensions the BAVSound catalog match (i4) filters on: make, model, chassis, body, year, and the factory audio system." do
+    identified_by Vin
+
+    value_object "Vin" do
+      attribute :value, String
+      rule "must be 11-17 alphanumeric" do
+        requires { value.match?(/\A[A-HJ-NPR-Z0-9]{11,17}\z/i) }
+      end
+    end
+
+    value_object "Make" do
+      attribute :value, String
+      rule "must not be blank" do
+        requires { !value.strip.empty? }
+      end
+    end
+
+    value_object "Model" do
+      attribute :value, String
+      rule "must not be blank" do
+        requires { !value.strip.empty? }
+      end
+    end
+
+    value_object "Chassis" do
+      # BMW chassis code (E63, F10, G30 ...). Blank for non-BMW makes.
+      attribute :value, String
+    end
+
+    value_object "Body" do
+      # Coupe / Sedan / Convertible / SAV ... Blank when undetermined.
+      attribute :value, String
+    end
+
+    value_object "Year" do
+      attribute :value, String
+      rule "must be a 4-digit year" do
+        requires { value.match?(/\A\d{4}\z/) }
+      end
+    end
+
+    value_object "AudioSystem" do
+      # The factory audio system the option codes resolve to
+      # (\"Base Audio\", \"Harman Kardon - S688A\", \"Hi-Fi\" ...). THE
+      # decisive fitment dimension. Blank until i3 resolves the codes.
+      attribute :value, String
+    end
+
+    value_object "OptionCodes" do
+      # Raw BMW SA / build codes from the decode, space/comma separated.
+      # Kept for audit + re-resolution ; blank for non-BMW.
+      attribute :value, String
+    end
+
+    attribute Vin
+    attribute Make,        as: :make
+    attribute Model,       as: :model
+    attribute Chassis,     as: :chassis
+    attribute Body,        as: :body
+    attribute Year,        as: :year
+    attribute AudioSystem, as: :audio_system
+    attribute OptionCodes, as: :option_codes
+
+    command "Decode" do
+      role "Public"
+      description "Record a VIN decoded by the upstream i3 pipeline (BMWVinDecoder / vPIC). The decode itself — especially resolving BMW option codes to the factory audio system — happens outside this domain ; Decode persists the result so the i4 match has a stable, replayable key. Re-decoding the same VIN updates it (e.g. when the option-code resolution improves)."
+      attribute Vin
+      attribute Make,        as: :make
+      attribute Model,       as: :model
+      attribute Chassis,     as: :chassis
+      attribute Body,        as: :body
+      attribute Year,        as: :year
+      attribute AudioSystem, as: :audio_system
+      attribute OptionCodes, as: :option_codes
+      emits "VehicleDecoded"
+      then_set :vin,          to: :vin
+      then_set :make,         to: :make
+      then_set :model,        to: :model
+      then_set :chassis,      to: :chassis
+      then_set :body,         to: :body
+      then_set :year,         to: :year
+      then_set :audio_system, to: :audio_system
+      then_set :option_codes, to: :option_codes
+    end
+
+    query "by_vin" do
+      description "Fetch a previously decoded vehicle by VIN — the cache the storefront widget (i5) hits before re-decoding."
+      attribute Vin
+      where(vin: :vin)
+      limit 1
+    end
+  end
+end

@@ -11,24 +11,17 @@ use storehouse::parser;
 use storehouse::fixtures_parser;
 use storehouse::runtime::{Runtime, AggregateState, Value, repo_lookup_key};
 
-const V: &str = "/Users/christopheryoung/Projects/vindiction";
-
-// IGNORED in automated runs : this is the i9 observable repro that
-// reads bluebooks + fixtures from a HARDCODED local sibling repo
-// (`/Users/christopheryoung/Projects/vindiction`) that is not checked
-// out in CI. It panics with NotFound on any machine without that path.
-// It was previously masked because Parity CI died at the miette
-// sibling checkout before `cargo test` ran ; now that the miette
-// checkout is optional, the cargo step runs and this local-only repro
-// would fail. Kept as a manual repro (`cargo test -- --ignored`) on a
-// machine that has the vindiction repo. Follow-up : parameterise the
-// path via env or vendor a fixture so it can gate in CI.
-#[ignore]
+// The i9 observable repro : boot the VinDiction domain the way the wasm
+// worker does and assert by_make_model returns rows. Self-contained since
+// 2026-06-24 — product/vehicle bluebooks + a minimal fixtures slice are
+// vendored under tests/fixtures/vindiction/, so it gates in CI without a
+// sibling checkout (was #[ignore]d on a hardcoded local path).
 #[test]
 fn vindiction_by_make_model_returns_products() {
-    let prod = std::fs::read_to_string(format!("{V}/aggregates/product/product.bluebook")).unwrap();
-    let veh  = std::fs::read_to_string(format!("{V}/aggregates/vehicle/vehicle.bluebook")).unwrap();
-    let fixsrc = std::fs::read_to_string(format!("{V}/vindiction.fixtures")).unwrap();
+    let base = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/vindiction");
+    let prod = std::fs::read_to_string(base.join("product.bluebook")).unwrap();
+    let veh  = std::fs::read_to_string(base.join("vehicle.bluebook")).unwrap();
+    let fixsrc = std::fs::read_to_string(base.join("vindiction.fixtures")).unwrap();
 
     let mut domain = parser::parse(&prod);
     let vehd = parser::parse(&veh);
