@@ -70,7 +70,7 @@ Hecks.bluebook "Deciderate" do
     attribute :bubble, BubbleRef
     attribute :player, PlayerRef
     attribute :status, VoteStatus, default: "live" do
-      transition "Void" => "void"
+      transition "Settle" => "spent"
     end
     value_object "VoteId" do
       attribute :value, String
@@ -90,12 +90,15 @@ Hecks.bluebook "Deciderate" do
       attribute :player, PlayerRef
       emits "VoteCast"
     end
-    command "Void" do
+    command "Settle" do
       reference_to Vote
-      emits "VoteVoided"
+      emits "VoteSettled"
     end
     query "ForBubble" do |bubble|
       where bubble: :bubble, status: "live"
+    end
+    query "InflatesByPlayer" do
+      group_by :player
     end
   end
   policy "DecayAllBubbles" do
@@ -112,9 +115,9 @@ Hecks.bluebook "Deciderate" do
     on "VoteCast"
     trigger "Bubble.Inflate"
   end
-  policy "VoidVotesOnPop" do
+  policy "SettleVotesOnPop" do
     on "BubblePopped"
     for_each: { from: "Vote.ForBubble", where: { bubble: from_event(:id) } }
-    trigger "Vote.Void"
+    trigger "Vote.Settle"
   end
 end
