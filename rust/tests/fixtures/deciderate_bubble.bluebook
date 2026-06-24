@@ -1,0 +1,78 @@
+Hecks.bluebook "Deciderate" do
+  core
+  aggregate "Bubble" do
+    identified_by :id
+    attribute :id, BubbleId
+    attribute :decision, DecisionRef
+    attribute :option, OptionRef
+    attribute :size, Size, default: 0
+    attribute :status, BubbleStatus, default: "floating" do
+      transition "Pop" => "popped"
+    end
+    value_object "BubbleId" do
+      attribute :value, String
+    end
+    value_object "DecisionRef" do
+      attribute :value, String
+    end
+    value_object "OptionRef" do
+      attribute :value, String
+    end
+    value_object "Size" do
+      attribute :value, Integer
+      invariant "never negative" do
+        value >= 0
+      end
+    end
+    value_object "BubbleStatus" do
+      attribute :value, String
+    end
+    command "Launch" do
+      attribute :id, BubbleId
+      attribute :decision, DecisionRef
+      attribute :option, OptionRef
+      attribute :size, Size
+      then_set :size, to: :size
+    end
+    command "Decay" do
+      reference_to Bubble
+      given("has mass to lose") { size > 0 }
+      then_set :size, decrement: 1
+      emits "BubbleDecayed"
+    end
+    command "Pop" do
+      reference_to Bubble
+      emits "BubblePopped"
+    end
+    query "Floating" do
+      where status: "floating"
+    end
+  end
+  aggregate "BubbleClock" do
+    identified_by :clock_id
+    attribute :clock_id, ClockId
+    attribute :last_ticked_at, TickedAt, default: "-"
+    value_object "ClockId" do
+      attribute :value, String
+    end
+    value_object "TickedAt" do
+      attribute :value, String
+    end
+    command "Tick" do
+      attribute :clock_id, ClockId
+      attribute :last_ticked_at, TickedAt
+      then_set :last_ticked_at, to: :last_ticked_at
+      emits "Ticked"
+    end
+  end
+  policy "DecayAllBubbles" do
+    on "Ticked"
+    for_each: { from: "Bubble.Floating" }
+    trigger "Bubble.Decay"
+  end
+  policy "PopStarvedBubble" do
+    on "BubbleDecayed"
+    where size: 0
+    trigger "Bubble.Pop"
+  end
+end
