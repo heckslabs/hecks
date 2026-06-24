@@ -23,7 +23,7 @@ require "open3"
 require "hecks"
 require_relative "canonical_ir"
 
-STOREHOUSE = File.expand_path("../rust/target/release/storehouse", __dir__)
+STOREHOUSE = ENV.fetch("STOREHOUSE_BIN") { File.expand_path("../../storehouse/rust/target/release/storehouse", __dir__) }
 SYNTHETIC  = Dir[File.expand_path("bluebooks/*.bluebook", __dir__)].sort
 REAL       = Dir[File.expand_path("../hecks_conception/aggregates/**/*.bluebook", __dir__)].sort
 # i118 Round 3 — capabilities lifted from hecks_conception/capabilities/

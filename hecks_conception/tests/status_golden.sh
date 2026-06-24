@@ -34,6 +34,7 @@ esac
 hecks="${STOREHOUSE:-}"
 if [ -z "$hecks" ]; then
   for cand in \
+    "$MAIN_REPO/../storehouse/rust/target/release/storehouse" \
     "$repo_root/rust/target/release/storehouse" \
     "$repo_root/rust/target/debug/storehouse" \
     "$MAIN_REPO/rust/target/release/storehouse" \

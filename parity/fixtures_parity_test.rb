@@ -15,7 +15,7 @@
 require "open3"
 require "json"
 
-STOREHOUSE = File.expand_path("../rust/target/release/storehouse", __dir__)
+STOREHOUSE = ENV.fetch("STOREHOUSE_BIN") { File.expand_path("../../storehouse/rust/target/release/storehouse", __dir__) }
 abort "storehouse not built" unless File.executable?(STOREHOUSE)
 
 require "hecks"
