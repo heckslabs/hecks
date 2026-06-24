@@ -1,13 +1,15 @@
-//! Deciderate CROSS-CONTEXT growth, in-process (one Runtime, memory). Proves a
-//! policy in the Deciderate context can drive a command in a SEPARATE bounded
-//! context : accepting an Invite (Deciderate) fires GrowCommunityOnAccept,
-//! whose trigger is the context-qualified FQN `Community::Community.AddMember`,
-//! and the Community aggregate (its OWN bluebook, context "Community") grows by
-//! one member. The two contexts are merged into one booted runtime exactly as
-//! load_combined_domain merges the corpus ; the resolver picks AddMember by its
-//! context qualifier.
+//! Deciderate CROSS-DOMAIN growth, in-process (one Runtime, memory). Proves a
+//! domain can drive a command in a SEPARATE bounded context WITHOUT naming it :
+//! Invite emits InviteAccepted (its event-out PORT), the HEXAGON
+//! (deciderate.hecksagon) wires that event to Community's AddMember command-in
+//! PORT via a `driven on` binding, and the Community aggregate (its OWN bluebook,
+//! context "Community") grows by one member. Cross-domain communication is the
+//! hexagon's job — no policy in the bluebook names another context, no adapter
+//! family ; aggregates are ports and the hexagon routes the command through
+//! storehouse. The two contexts are merged into one booted runtime exactly as
+//! load_combined_domain merges the corpus.
 
-use storehouse::parser;
+use storehouse::{parser, hecksagon_parser};
 use storehouse::runtime::{Runtime, Value};
 use std::collections::HashMap;
 
@@ -21,15 +23,19 @@ fn field(rt: &Runtime, agg: &str, id: &str, f: &str) -> String {
 
 const DECIDERATE: &str = include_str!("fixtures/deciderate_invite.bluebook");
 const COMMUNITY: &str = include_str!("fixtures/deciderate_community.bluebook");
+const HECKSAGON: &str = include_str!("fixtures/deciderate_community.hecksagon");
 
 #[test]
 fn accepting_an_invite_grows_the_community_across_contexts() {
     // Merge the two contexts into one domain, mirroring load_combined_domain.
+    // Boot WITH the hecksagon : the cross-domain edge is the hexagon's `driven
+    // on` binding, NOT a bluebook policy — the bluebook never names Community.
     let mut domain = parser::parse(DECIDERATE);
     let community = parser::parse(COMMUNITY);
     domain.aggregates.extend(community.aggregates);
     domain.policies.extend(community.policies);
-    let mut rt = Runtime::boot_with_hecksagons(domain, None, vec![]);
+    let hex = hecksagon_parser::parse(HECKSAGON);
+    let mut rt = Runtime::boot_with_hecksagons(domain, None, vec![hex]);
 
     rt.dispatch("Found", a(&[("id", "comm1")])).unwrap();
     assert_eq!(field(&rt, "Community", "comm1", "member_count"), "0", "fresh community");

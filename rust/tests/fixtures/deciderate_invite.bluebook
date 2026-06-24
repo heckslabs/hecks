@@ -32,8 +32,4 @@ Hecks.bluebook "Deciderate" do
       emits "InviteAccepted"
     end
   end
-  policy "GrowCommunityOnAccept" do
-    on "InviteAccepted"
-    trigger "Community::Community.AddMember"
-  end
 end
