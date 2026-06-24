@@ -9,7 +9,6 @@
 #   2b. Validator gate — `storehouse validate` on every staged .bluebook
 #       (catches duplicate command names, unknown policy targets,
 #        structural shape bugs)
-#   3. Conceiver parity test — block if either conceiver drifts
 #   4. Miette enforce (storehouse governance) — advisory, never blocks
 #   4b. Companion-file ratchet — bluebook moves bring .behaviors +
 #       .fixtures with them ; new aggregates and commands need test
@@ -21,9 +20,12 @@
 #   6b. Behaviors corpus — `storehouse test` over each root
 #       (parallel to Gate 6 during the i500 migration window)
 #   7. LoC ratchet — non-bluebook LoC may not increase vs origin/main
-#   8. cargo check --tests — all integration test targets compile
-#   9. Specializer byte-identity — codegen output equals rust/src/<name>.rs
-#      for all 30 tracked shapes
+#
+# The Rust-cargo gates once here — conceiver parity (3), cargo check
+# --tests (8), specializer byte-identity (9) — moved to the storehouse
+# repo's own CI when the engine was extracted (a37f3d8bc). They are NOT
+# re-added as skip-guarded no-ops : a gate that always skips reads as
+# "still guarding" when it isn't.
 #
 # Exit 0 = commit allowed. Exit 1 = commit blocked.
 # Set PARITY_SKIP=1 to bypass gate 1 (an antibody failure).
@@ -33,8 +35,6 @@
 # Set TESTS_SKIP=1 to bypass gate 6 (also an antibody failure).
 # Set BEHAVIORS_SKIP=1 to bypass gate 6b (also an antibody failure).
 # Set RATCHET_SKIP=1 to bypass gate 7 (also an antibody failure).
-# Set CARGO_CHECK_SKIP=1 to bypass gate 8 (also an antibody failure).
-# Set SPECIALIZER_SKIP=1 to bypass gate 9 (also an antibody failure).
 
 # i637 — worktree-aware repo anchor. The hook script lives in the
 # shared core.hooksPath (always the main repo's .git/hooks), so a
@@ -155,22 +155,6 @@ if [ -z "$VALIDATE_SKIP" ] && [ -x "$STOREHOUSE" ]; then
         echo ""
         echo "  Re-run individually : storehouse validate <path>"
         echo "  Bypass (use only for emergencies) : VALIDATE_SKIP=1 git commit ..."
-        exit 1
-    fi
-fi
-
-# ── Gate 3: conceiver parity test ─────────────────────────────────
-# Bluebook conceiver and behaviors conceiver must keep the same
-# shape: same files, same Conceiver trait, same surface.
-if [ -d "/rust" ]; then
-    if ! (cd "/rust" \
-            && cargo test --release --test conceiver_parity_test \
-                 >/tmp/conceiver_parity.out 2>&1); then
-        echo "COMMIT BLOCKED: conceiver parity test failed (drift between conceivers)."
-        echo ""
-        tail -30 /tmp/conceiver_parity.out
-        echo ""
-        echo "Re-run: (cd rust && cargo test --release --test conceiver_parity_test)"
         exit 1
     fi
 fi
@@ -402,65 +386,6 @@ if [ -z "$RATCHET_SKIP" ] && [ -x "$REPO/bin/loc-ratchet" ]; then
         echo "  Authorise with a branch commit whose message carries"
         echo "    [loc-ratchet-override: <concrete reason>]"
         echo "  Bypass (use only for emergencies) : RATCHET_SKIP=1 git commit ..."
-        exit 1
-    fi
-fi
-
-# ── Gate 8: cargo check --tests — all integration tests compile ───
-# The smoke gate (Gate 6) runs only the smoke_test binary ; other
-# integration tests aren't built locally. Result : a Rust struct
-# can grow a field and one of 30+ test files can lag behind for
-# months without anything noticing — until a CI parity job tries
-# the full cargo test build and fails. validator_rules_test.rs +
-# validator_warnings_test.rs each carried this gap on origin/main
-# until 2026-05-11.
-#
-# This gate builds every test target without running them. ~10-30s
-# warm cache, ~60s cold. Catches missing struct fields, type
-# mismatches, renamed exports — anything the compiler sees but the
-# smoke binary doesn't reach.
-#
-# Set CARGO_CHECK_SKIP=1 to bypass (an antibody failure for
-# emergencies).
-if [ -z "$CARGO_CHECK_SKIP" ] && [ -f "$REPO/rust/Cargo.toml" ]; then
-    if ! ( cd "$REPO/rust" && cargo check --tests --quiet ) >/tmp/cargo_check_tests.out 2>&1; then
-        cat /tmp/cargo_check_tests.out
-        echo ""
-        echo "COMMIT BLOCKED: cargo check --tests failed."
-        echo "  Re-run : cd rust && cargo check --tests"
-        echo "  Bypass (use only for emergencies) : CARGO_CHECK_SKIP=1 git commit ..."
-        exit 1
-    fi
-fi
-
-# ── Gate 9: specializer byte-identity — codegen output matches tracked files ──
-# The Rust specializer turns codegen fragments (`codegen/<shape>/snippets/*.rs.frag`)
-# + shape contracts into `rust/src/<name>.rs`. Any drift between what the
-# specializer produces and what's committed at `rust/src/<name>.rs` means
-# the kernel surface is editable in two places — fragment OR final file —
-# which silently breaks future regenerations. The gate enforces single-source
-# of truth : the specializer's output IS the file.
-#
-# All 30 byte-identity tests must pass. Test runs in ~0.2s on a warm release
-# cache (the `cargo build --release` from prior storehouse work). On a cold
-# cache the gate compiles release artifacts first, which can be slow ; in
-# practice everyone working on Hecks has a warm release target/ from running
-# `storehouse` daily.
-#
-# Set SPECIALIZER_SKIP=1 to bypass (an antibody failure for emergencies).
-if [ -z "$SPECIALIZER_SKIP" ] && [ -f "$REPO/rust/tests/specializer_golden_test.rs" ]; then
-    if ! ( cd "$REPO/rust" && cargo test --release --test specializer_golden_test --quiet ) >/tmp/specializer_goldens.out 2>&1; then
-        cat /tmp/specializer_goldens.out
-        echo ""
-        echo "COMMIT BLOCKED: specializer byte-identity goldens drifted."
-        echo "  One or more rust/src/<name>.rs files no longer match what the"
-        echo "  specializer would emit from codegen/<shape>/snippets/*.rs.frag."
-        echo ""
-        echo "  Fix : sync the codegen fragment(s) so the specializer's output"
-        echo "  equals the production file. Never edit rust/src/<name>.rs by hand."
-        echo ""
-        echo "  Re-run : cd rust && cargo test --release --test specializer_golden_test"
-        echo "  Bypass (use only for emergencies) : SPECIALIZER_SKIP=1 git commit ..."
         exit 1
     fi
 fi
