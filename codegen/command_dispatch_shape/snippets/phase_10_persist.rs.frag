@@ -23,12 +23,17 @@
         .map(|(k, v)| (k.clone(), v.clone()))
         .collect();
     // deciderate Layer 0b — the CHANGED state fields (deltas) ride the emitted
-    // event too, so a policy can GUARD on the RESULTING state, not just the
-    // command inputs (e.g. `where games_remaining: 0` after a decrement mutation
-    // — the Bracket saga's round-complete condition). Command inputs and the
-    // belongs_to FKs already in event_data win on collision (or_insert only).
+    // event so a policy can GUARD on the RESULTING state, not just the command
+    // inputs (e.g. `where games_remaining: 0` after a decrement — the Bracket
+    // saga's round-complete condition). The delta WINS over a same-named
+    // command input : the event must carry what the command RESULTED IN, not
+    // what was requested. This is essential when a for_each SWEEP passes the
+    // swept record's PRE-mutation field (e.g. Bubble.Decay receives the floating
+    // bubble's old `size`) and then mutates it — the guard (`where size: 0`)
+    // must see the post-decrement value, not the stale swept input. Untouched
+    // input fields (never in deltas) are left as-is.
     for (k, v) in &deltas {
-        event_data.entry(k.clone()).or_insert_with(|| v.clone());
+        event_data.insert(k.clone(), v.clone());
     }
     let aggregate_id = state.id.clone();
     let was_deleted = state.deleted;
