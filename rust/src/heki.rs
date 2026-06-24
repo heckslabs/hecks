@@ -836,6 +836,12 @@ pub fn expand_tilde(p: &str) -> String {
 /// `realm "..."` makes its `heki.dir` authoritative, tilde-expanded, with the
 /// snake-cased realm as the namespace dir. `<root>/<context>/<aggregate>.heki`
 /// nests under it. `None` when no nearby world declares a realm.
+// world::parser is wasm-gated (no .world parsing in the Worker) ; the wasm32
+// sibling returns None so the heki-dir resolution chain is a structural no-op.
+#[cfg(target_arch = "wasm32")]
+pub fn resolve_realm_dir(_aggregates_path: &str) -> Option<String> { None }
+
+#[cfg(not(target_arch = "wasm32"))]
 pub fn resolve_realm_dir(aggregates_path: &str) -> Option<String> {
     use std::path::{Path, PathBuf};
     let agg = Path::new(aggregates_path);
@@ -894,6 +900,10 @@ pub fn data_root() -> std::path::PathBuf {
 /// with `aggregates`/`bluebook` containers stripped and the trailing domain
 /// folder dropped (the aggregate `context` re-adds it). `None` unless a nearby
 /// world opts in.
+#[cfg(target_arch = "wasm32")]
+pub fn resolve_default_dir(_aggregates_path: &str) -> Option<String> { None }
+
+#[cfg(not(target_arch = "wasm32"))]
 pub fn resolve_default_dir(aggregates_path: &str) -> Option<String> {
     use std::path::{Path, PathBuf};
     let agg = Path::new(aggregates_path);

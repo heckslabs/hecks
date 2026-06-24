@@ -248,6 +248,7 @@ pub mod dispatch_detail;
 
 pub use aggregate_state::AggregateState;
 pub use command_dispatch::CommandResult;
+#[cfg(not(target_arch = "wasm32"))]
 pub(crate) use command_dispatch::apply_lifecycle_default;
 pub use event_bus::{Event, EventBus};
 pub use middleware::{CommandContext, MiddlewareStack, Phase};
@@ -374,6 +375,7 @@ pub struct Runtime {
     /// `mailbox_registry` (`wire-mailbox-registry-into-event-bus`) so
     /// per-aggregate causal ordering + per-actor failure isolation are
     /// real properties of the runtime, not just a counter.
+    #[cfg(not(target_arch = "wasm32"))]
     pub mailbox_drained: usize,
     /// Sprint 14 (`wire-mailbox-registry-into-event-bus`) — the actor
     /// model's per-`(aggregate_type, aggregate_id)` mailbox set.
@@ -389,6 +391,7 @@ pub struct Runtime {
     /// blocked) is proven by `Mailboxes::drain_all_in_parallel`
     /// in the actor unit tests ; the bus-level entry point keeps the
     /// sync-feel contract so callers don't fork.
+    #[cfg(not(target_arch = "wasm32"))]
     pub mailbox_registry: actor::Mailboxes,
     /// i750 out-of-process-adapter pump — the conception / aggregates ROOT the
     /// runtime was booted against (the `<root>` a re-entering handler shells
@@ -649,7 +652,9 @@ impl Runtime {
             world_servers_path: None,
             world_adapter_bindings: Vec::new(),
             world_configs: Vec::new(),
+            #[cfg(not(target_arch = "wasm32"))]
             mailbox_drained: 0,
+            #[cfg(not(target_arch = "wasm32"))]
             mailbox_registry: actor::Mailboxes::new(),
             aggregates_root: None,
             last_event_id_by_agg: HashMap::new(),
@@ -2423,6 +2428,9 @@ impl Runtime {
             // `mcp_dispatch_requested` event on the storehouse follow stream
             // and continues — the harness-side subscriber owns the transport.
             // See `adapter_resolution::mcp::resolve_world_server`.
+            // world-server MCP resolution is host-only (adapter_resolution
+            // is wasm-gated). The Worker never resolves *.world servers.
+            #[cfg(not(target_arch = "wasm32"))]
             if crate::adapter_resolution::mcp::resolve_world_server(
                 self, server, tool, &args_substituted,
                 result_into.as_deref(), &invocation_id, &target,
@@ -2729,6 +2737,9 @@ impl Runtime {
     ///   - Bounded by MAX_ITERS (total drain budget). An exec error within the
     ///     budget -> MarkFailed (last_error) -> the delivery returns to pending
     ///     for a bounded retry / dead-letter (compensate-forward).
+    // Host-only — execs out-of-process handler binaries via run_host (wasm-gated).
+    // The CF Worker has no process host ; the wasm32 sibling below is a no-op.
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn drain_outbound_to_quiescence(&mut self) -> usize {
         const MAX_ITERS: usize = 256;
         if !self.domain.aggregates.iter().any(|a| a.name == "OutboundEvent") {
@@ -2862,6 +2873,12 @@ impl Runtime {
         }
         drained
     }
+
+    /// On wasm32 the Worker has no out-of-process handler host (no process
+    /// spawning in a CF Worker), so the out-of-process drain is a structural
+    /// no-op. Two-color stub : same signature, host runs the real drain.
+    #[cfg(target_arch = "wasm32")]
+    pub fn drain_outbound_to_quiescence(&mut self) -> usize { 0 }
 
     /// Drain policy triggers recursively — each triggered command
     /// can emit events that trigger more policies. This is how

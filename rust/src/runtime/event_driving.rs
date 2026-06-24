@@ -17,6 +17,10 @@
 use super::*;
 
 impl Runtime {
+    // Host-only — the actor-mailbox path uses `mailbox_registry` /
+    // `mailbox_drained`, both wasm-gated (tokio has no wasm32 target and the
+    // Worker dispatches synchronously, never through a mailbox).
+    #[cfg(not(target_arch = "wasm32"))]
     /// Sprint 14 (`wire-mailbox-registry-into-event-bus`) — publish an
     /// event through the per-aggregate mailbox. After
     /// `retire-sync-cascade-pipeline`, dispatch publishes inline rather

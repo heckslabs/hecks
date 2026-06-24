@@ -49,6 +49,9 @@ use std::collections::HashMap;
 /// SQL-backend construction params. Carried (not opened) until first
 /// access — the same defer-the-disk-read discipline the heki backend
 /// uses, so a single-shot dispatch only opens the one db it touches.
+// SQL-backend params are host-only — the sole constructor
+// (apply_sqlite_persistence) is wasm-gated, so the Worker never selects Sql.
+#[cfg(not(target_arch = "wasm32"))]
 #[derive(Clone)]
 pub struct SqliteConfig {
     pub aggregate_type: String,

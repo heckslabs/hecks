@@ -13,6 +13,7 @@
         self.resolve_llm_adapters(result, command_name);
         self.resolve_claude_tool_adapters(result, command_name, attrs);
         self.resolve_mcp_adapters(result, command_name, attrs);
+        #[cfg(not(target_arch = "wasm32"))]
         self.resolve_web_tool_adapters(result, command_name, attrs);
         self.resolve_primitive_spawn(result, command_name, attrs, None);
     }
