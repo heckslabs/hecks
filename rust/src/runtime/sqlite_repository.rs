@@ -215,3 +215,27 @@ impl SqliteRepository {
         if value > self.next_id { self.next_id = value; }
     }
 }
+
+/// SqliteRepository as the persistence PORT. Thin forwards to the inherent
+/// surface — inherent methods win method resolution, so `self.find(..)` calls
+/// the concrete impl and never recurses. This is the seam that lets the kernel
+/// hold sqlite as `Box<dyn PersistenceAdapter>` and name no concrete engine.
+impl crate::runtime::PersistenceAdapter for SqliteRepository {
+    fn find(&self, id: &str) -> Option<&AggregateState> { self.find(id) }
+    fn find_mut(&mut self, id: &str) -> Option<&mut AggregateState> { self.find_mut(id) }
+    fn all(&self) -> Vec<&AggregateState> { self.all() }
+    fn count(&self) -> usize { self.count() }
+    fn next_id_value(&self) -> u64 { self.next_id_value() }
+    fn id_for_command(&mut self, attrs: &HashMap<String, Value>) -> String { self.id_for_command(attrs) }
+    fn save(&mut self, state: AggregateState, ctx: heki::WriteContext<'_>) { self.save(state, ctx) }
+    fn delete(&mut self, id: &str, ctx: heki::WriteContext<'_>) { self.delete(id, ctx) }
+    fn query(
+        &self,
+        wheres: &[crate::ir::WhereClause],
+        attrs: &HashMap<String, String>,
+    ) -> Option<Vec<AggregateState>> {
+        Some(self.query(wheres, attrs))
+    }
+    fn seed_record(&mut self, state: AggregateState) { self.seed_record(state) }
+    fn set_next_id(&mut self, value: u64) { self.set_next_id(value) }
+}

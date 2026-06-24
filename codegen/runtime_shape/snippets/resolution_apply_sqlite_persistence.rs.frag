@@ -106,7 +106,7 @@
                         // the pushdown is index-backed (idempotent across boots).
                         repo.ensure_indexes(&config.indexed_columns);
                         self.repositories
-                            .insert(key, LazyRepository::new_sqlite(repo));
+                            .insert(key, LazyRepository::new_adapter(Box::new(repo)));
                     }
                 Err(e) => {
                     // Never panic the bus ; never silently fall back to heki.

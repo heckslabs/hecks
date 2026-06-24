@@ -91,5 +91,5 @@ fn backend_kind_distinguishes_explicit_memory() {
     let repo = LazyRepository::new_memory("Order", Some("id".into()), None);
     assert_eq!(repo.backend_kind(), BackendKind::Memory);
     assert_eq!(repo.heki_path(), None);
-    assert!(!repo.is_sql());
+    assert!(!repo.is_adapter());
 }

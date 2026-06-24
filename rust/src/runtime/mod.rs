@@ -78,7 +78,7 @@ pub mod sqlite_mapping;
 pub mod sqlite_repository;
 // wasm32 : a never-constructed stub so `lazy_repository`'s
 // heki/sqlite multiplexer compiles unchanged. The Worker only ever
-// builds the heki/memory backend (is_sql() is const-false on wasm),
+// builds the heki/memory backend (is_adapter() is const-false on wasm),
 // so every method here is `unreachable!`. Keeps the substrate switch
 // in one place rather than cfg-splitting every forwarding method.
 #[cfg(target_arch = "wasm32")]
@@ -123,6 +123,9 @@ pub mod sqlite_repository {
 // load_persisted runs on first access. Kills the ~4.2s eager-hydration
 // tax on a single-shot dispatch (which touches exactly one repo).
 mod lazy_repository;
+// The persistence PORT (hexagon) — wired backends implement this trait and the
+// kernel holds them as `Box<dyn PersistenceAdapter>`, naming no concrete engine.
+pub mod persistence_adapter;
 pub mod seed_loader;
 pub mod llm_dispatcher;
 pub mod llm_providers;
@@ -257,6 +260,7 @@ pub use pm_engine::{PMBinding, PMEngine, PMInstanceState, PMTrigger};
 pub use projection::Projection;
 pub use repository::Repository;
 pub use lazy_repository::{BackendKind, LazyRepository};
+pub use persistence_adapter::PersistenceAdapter;
 
 /// One row of the backend-map projection (i728) — which backend each repository
 /// resolved to, without hydrating it. `Runtime::dump_backend_map` builds the Vec ;

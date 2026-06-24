@@ -39,7 +39,7 @@ fn sqlite_scopes_to_its_declaring_context_only() {
         .get(&repo_key(Some("Git"), "Git"))
         .expect("Git::Git repository present in the combined domain");
     assert!(
-        git_repo.is_sql(),
+        git_repo.is_adapter(),
         "Git context must be SQL-backed by its own :sqlite hecksagon",
     );
 
@@ -50,7 +50,7 @@ fn sqlite_scopes_to_its_declaring_context_only() {
         .get(&repo_key(Some("Governance"), "Policy"))
         .expect("Governance::Policy repository present in the combined domain");
     assert!(
-        !policy_repo.is_sql(),
+        !policy_repo.is_adapter(),
         "Governance must NOT be SQL-backed — :sqlite was scoped to Git (i735)",
     );
 }

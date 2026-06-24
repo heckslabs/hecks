@@ -39,7 +39,7 @@
 
 
 use super::repository::Repository;
-use super::sqlite_repository::SqliteRepository;
+use super::persistence_adapter::PersistenceAdapter;
 use super::AggregateState;
 use super::Value;
 use crate::heki;
@@ -110,15 +110,16 @@ enum Backend {
         /// (&self) can stamp it on first materialization.
         log_mtime: std::cell::Cell<Option<std::time::SystemTime>>,
     },
-    /// The SQL adapter (`adapter :sqlite, db:`). EAGER, unlike the lazy
-    /// heki/memory cells : the `SqliteRepository` (open + CREATE TABLE +
-    /// row-load) is built at boot by `Runtime::apply_sqlite_persistence`,
-    /// because construction is FALLIBLE (i735 defect 2) and the infallible
-    /// forwarded read surface (`find`/`save`) cannot host a deferred
-    /// `Result`. A failed table-create never reaches here — that aggregate
-    /// is refused at boot, not silently swapped to heki.
-    Sql {
-        repo: Box<SqliteRepository>,
+    /// A WIRED adapter (`persisted_by("Sqlite")`, future R2 / postgres) — a
+    /// heavy / often native-only backend living in its OWN crate, held behind
+    /// the `PersistenceAdapter` port so the kernel names no concrete engine.
+    /// EAGER, unlike the lazy heki/memory cells : built at boot by
+    /// `apply_wired_adapters` because construction is FALLIBLE (i735 defect 2)
+    /// and the infallible forwarded read surface (`find`/`save`) cannot host a
+    /// deferred `Result`. A failed build refuses the aggregate at boot, never
+    /// silently swaps to heki.
+    Adapter {
+        adapter: Box<dyn PersistenceAdapter>,
     },
 }
 
@@ -206,11 +207,9 @@ impl LazyRepository {
     /// row-load) is built by the caller (`apply_sqlite_persistence`) so a
     /// fallible table-create is decided at boot, not deferred behind a
     /// OnceCell the infallible read surface can't fail through.
-    pub fn new_sqlite(repo: SqliteRepository) -> Self {
+    pub fn new_adapter(adapter: Box<dyn PersistenceAdapter>) -> Self {
         LazyRepository {
-            backend: Backend::Sql {
-                repo: Box::new(repo),
-            },
+            backend: Backend::Adapter { adapter },
         }
     }
 
@@ -262,17 +261,18 @@ impl LazyRepository {
                         r
                     })
                 }
-            Backend::Sql { .. } => unreachable!("repo() on a SQL-backed LazyRepository"),
+            Backend::Adapter { .. } => unreachable!("repo() on a SQL-backed LazyRepository"),
         }
     }
 
-    /// Hydrate-on-first-access for the SQL backend. Same `&self`
-    /// OnceCell contract as `repo()`.
-    fn sql(&self) -> &SqliteRepository {
+    /// The wired adapter behind this repository (`Backend::Adapter`). The
+    /// kernel reaches a wired backend ONLY through the `&dyn PersistenceAdapter`
+    /// port — it never names a concrete engine.
+    fn adapter(&self) -> &dyn PersistenceAdapter {
         match &self.backend {
-            Backend::Sql { repo } => repo.as_ref(),
+            Backend::Adapter { adapter } => adapter.as_ref(),
             Backend::Heki { .. } | Backend::Memory { .. } | Backend::AppendLog { .. } => {
-                unreachable!("sql() on a non-SQL LazyRepository")
+                unreachable!("adapter() on a non-adapter LazyRepository")
             }
         }
     }
@@ -281,8 +281,8 @@ impl LazyRepository {
     /// :sqlite`). Read methods branch on it to route to the right cell ;
     /// `apply_sqlite_persistence`'s per-context scoping test asserts on it
     /// (i735) to prove only the declaring domain's repos became SQL.
-    pub fn is_sql(&self) -> bool {
-        matches!(self.backend, Backend::Sql { .. })
+    pub fn is_adapter(&self) -> bool {
+        matches!(self.backend, Backend::Adapter { .. })
     }
 
     /// The backend variant this repository resolved to, WITHOUT hydrating the
@@ -292,7 +292,7 @@ impl LazyRepository {
         match &self.backend {
             Backend::Heki { .. } => BackendKind::Heki,
             Backend::Memory { .. } => BackendKind::Memory,
-            Backend::Sql { .. } => BackendKind::Sql,
+            Backend::Adapter { .. } => BackendKind::Sql,
             Backend::AppendLog { .. } => BackendKind::AppendLog,
         }
     }
@@ -314,17 +314,17 @@ impl LazyRepository {
             Backend::Heki { cell, .. } | Backend::Memory { cell, .. } | Backend::AppendLog { cell, .. } => {
                 cell.get_mut().expect("cell initialised by repo() above")
             }
-            Backend::Sql { .. } => unreachable!("repo_mut() on a SQL-backed LazyRepository"),
+            Backend::Adapter { .. } => unreachable!("repo_mut() on a SQL-backed LazyRepository"),
         }
     }
 
-    /// Mutable hydrate-on-first-access (SQL). Mirror of `repo_mut`.
-    fn sql_mut(&mut self) -> &mut SqliteRepository {
-        let _ = self.sql();
+    /// Mutable access to the wired adapter. Mirror of `adapter`. Eager, so
+    /// no OnceCell pre-hydration is needed (unlike `repo_mut`).
+    fn adapter_mut(&mut self) -> &mut dyn PersistenceAdapter {
         match &mut self.backend {
-            Backend::Sql { repo } => repo.as_mut(),
+            Backend::Adapter { adapter } => adapter.as_mut(),
             Backend::Heki { .. } | Backend::Memory { .. } | Backend::AppendLog { .. } => {
-                unreachable!("sql_mut() on a non-SQL LazyRepository")
+                unreachable!("adapter_mut() on a non-adapter LazyRepository")
             }
         }
     }
@@ -336,22 +336,22 @@ impl LazyRepository {
         match &self.backend {
             Backend::Heki { cell, .. } | Backend::Memory { cell, .. } | Backend::AppendLog { cell, .. } => cell.get().is_some(),
             // SQL is eager — built at boot, so always hydrated.
-            Backend::Sql { .. } => true,
+            Backend::Adapter { .. } => true,
         }
     }
 
     // ----- forwarded repository surface (read : &self) -----
 
     pub fn find(&self, id: &str) -> Option<&AggregateState> {
-        if self.is_sql() { self.sql().find(id) } else { self.repo().find(id) }
+        if self.is_adapter() { self.adapter().find(id) } else { self.repo().find(id) }
     }
 
     pub fn all(&self) -> Vec<&AggregateState> {
-        if self.is_sql() { self.sql().all() } else { self.repo().all() }
+        if self.is_adapter() { self.adapter().all() } else { self.repo().all() }
     }
 
     pub fn count(&self) -> usize {
-        if self.is_sql() { self.sql().count() } else { self.repo().count() }
+        if self.is_adapter() { self.adapter().count() } else { self.repo().count() }
     }
 
     /// The where() pushdown seam. SQL routes to the connection-executed,
@@ -370,7 +370,7 @@ impl LazyRepository {
         attrs: &HashMap<String, String>,
     ) -> Option<Vec<AggregateState>> {
         match &self.backend {
-            Backend::Sql { .. } => Some(self.sql().query(wheres, attrs)),
+            Backend::Adapter { .. } => self.adapter().query(wheres, attrs),
             Backend::AppendLog { data_dir, context, .. } => {
                 let dir = data_dir.as_ref()?;
                 let path = super::event_log::global_path(dir, context.as_deref());
@@ -381,17 +381,17 @@ impl LazyRepository {
     }
 
     pub fn next_id_value(&self) -> u64 {
-        if self.is_sql() { self.sql().next_id_value() } else { self.repo().next_id_value() }
+        if self.is_adapter() { self.adapter().next_id_value() } else { self.repo().next_id_value() }
     }
 
     // ----- forwarded repository surface (mutate : &mut self) -----
 
     pub fn find_mut(&mut self, id: &str) -> Option<&mut AggregateState> {
-        if self.is_sql() { self.sql_mut().find_mut(id) } else { self.repo_mut().find_mut(id) }
+        if self.is_adapter() { self.adapter_mut().find_mut(id) } else { self.repo_mut().find_mut(id) }
     }
 
     pub fn id_for_command(&mut self, attrs: &HashMap<String, Value>) -> String {
-        if self.is_sql() { self.sql_mut().id_for_command(attrs) } else { self.repo_mut().id_for_command(attrs) }
+        if self.is_adapter() { self.adapter_mut().id_for_command(attrs) } else { self.repo_mut().id_for_command(attrs) }
     }
 
     pub fn save(&mut self, state: AggregateState, ctx: heki::WriteContext<'_>) {
@@ -401,7 +401,7 @@ impl LazyRepository {
             Self::append_log_save(&data_dir.clone(), &state);
             return;
         }
-        if self.is_sql() { self.sql_mut().save(state, ctx) } else { self.repo_mut().save(state, ctx) }
+        if self.is_adapter() { self.adapter_mut().save(state, ctx) } else { self.repo_mut().save(state, ctx) }
     }
 
     /// AppendLog save — build one immutable shard record from the Event state
@@ -445,7 +445,7 @@ impl LazyRepository {
     }
 
     pub fn delete(&mut self, id: &str, ctx: heki::WriteContext<'_>) {
-        if self.is_sql() { self.sql_mut().delete(id, ctx) } else { self.repo_mut().delete(id, ctx) }
+        if self.is_adapter() { self.adapter_mut().delete(id, ctx) } else { self.repo_mut().delete(id, ctx) }
     }
 
     /// Re-read from disk when a sibling process advanced the store.
@@ -467,15 +467,15 @@ impl LazyRepository {
             }
             return;
         }
-        if !self.is_sql() { self.repo_mut().refresh_from_heki() }
+        if !self.is_adapter() { self.repo_mut().refresh_from_heki() }
     }
 
     pub fn seed_record(&mut self, state: AggregateState) {
-        if self.is_sql() { self.sql_mut().seed_record(state) } else { self.repo_mut().seed_record(state) }
+        if self.is_adapter() { self.adapter_mut().seed_record(state) } else { self.repo_mut().seed_record(state) }
     }
 
     pub fn set_next_id(&mut self, value: u64) {
-        if self.is_sql() { self.sql_mut().set_next_id(value) } else { self.repo_mut().set_next_id(value) }
+        if self.is_adapter() { self.adapter_mut().set_next_id(value) } else { self.repo_mut().set_next_id(value) }
     }
 }
 
