@@ -93,9 +93,26 @@ fn collect(root: &Path, dir: &Path, extensions: &[&str], out: &mut Vec<(String, 
                 Ok(c) => c,
                 Err(_) => continue,
             };
+            // Skip DEPLOY-config bluebooks (`category "deploy"`) : a worker
+            // must not embed its own Cloudflare/wrangler config as a runtime
+            // domain. A domain declares `core` or a domain category ; a
+            // deploy config declares `category "deploy"` and lives beside the
+            // domain only as the wrangler.toml source (cloudflare.bluebook).
+            if is_deploy_config(&contents) {
+                continue;
+            }
             out.push((rel, contents));
         }
     }
+}
+
+/// True when a bluebook declares `category "deploy"` — deploy config that
+/// derives a wrangler.toml, NOT a runtime domain to embed into the Worker.
+fn is_deploy_config(contents: &str) -> bool {
+    contents.lines().any(|l| {
+        let t = l.trim();
+        t.starts_with("category") && t.contains("\"deploy\"")
+    })
 }
 
 /// Build the embedded.rs source from collected (path, contents)
@@ -157,6 +174,18 @@ mod tests {
 
     fn bin_buddy_root() -> PathBuf {
         PathBuf::from("/Users/christopheryoung/Projects/bin-buddy")
+    }
+
+    #[test]
+    fn deploy_category_bluebooks_are_not_embedded() {
+        // A worker must never embed its own deploy config (cloudflare.bluebook,
+        // `category "deploy"`) as a runtime domain — only domain bluebooks.
+        assert!(super::is_deploy_config("Hecks.bluebook \"X\" do\n  category \"deploy\"\nend\n"),
+            "a category-deploy bluebook is deploy config");
+        assert!(!super::is_deploy_config("Hecks.bluebook \"X\" do\n  core\nend\n"),
+            "a core domain bluebook is NOT deploy config");
+        assert!(!super::is_deploy_config("Hecks.bluebook \"X\" do\n  category \"framework\"\nend\n"),
+            "a framework bluebook is NOT deploy config");
     }
 
     #[test]
