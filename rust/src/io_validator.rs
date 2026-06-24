@@ -225,6 +225,7 @@ pub fn runtime_smoke(domain: Domain) -> Vec<Finding> {
                 crate::runtime::RuntimeError::MissingAttribute(_) |
                 crate::runtime::RuntimeError::AggregateNotFound(_) |
                 crate::runtime::RuntimeError::GivenFailed { .. } |
+                crate::runtime::RuntimeError::Unauthorized { .. } |
                 crate::runtime::RuntimeError::LifecycleViolation { .. } => { /* not IO */ }
                 other => findings.push(Finding::err(
                     format!("{}.{}", p.agg, p.cmd),

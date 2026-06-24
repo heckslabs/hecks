@@ -680,11 +680,77 @@ impl Runtime {
         rt
     }
 
+    /// The capability a command's `role` requires (deciderate Inc4b ACL).
+    /// Resolves the command by its bare name (the tail after the last `.`)
+    /// and returns its declared role. None when no command matches or none
+    /// declares a role — either way the gate treats it as ungated.
+    fn acl_required_capability(&self, command_name: &str) -> Option<String> {
+        let bare = command_name.rsplit('.').next().unwrap_or(command_name);
+        for agg in &self.domain.aggregates {
+            for cmd in &agg.commands {
+                if cmd.name == bare {
+                    return cmd.role.clone().filter(|r| !r.is_empty());
+                }
+            }
+            for ent in &agg.entities {
+                for cmd in &ent.commands {
+                    if cmd.name == bare {
+                        return cmd.role.clone().filter(|r| !r.is_empty());
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    /// Capability ACL gate (deciderate Inc4b) for the ENTRY dispatch. The
+    /// authenticated edge asserts the caller's capability set via the
+    /// reserved `actor_caps` attr (comma-separated). A command's `role` IS
+    /// the capability it requires. ALLOWED iff : no `actor_caps` supplied
+    /// (ungated — CLI / tests / internal), OR the command declares no role,
+    /// OR the required capability is in `actor_caps`, OR `actor_caps`
+    /// contains the `Admin` wildcard. act-as is just an Admin edge asserting
+    /// the impersonated caps. Cascades never reach here, so System commands
+    /// are reachable only internally.
+    fn acl_check(
+        &self,
+        command_name: &str,
+        attrs: &HashMap<String, Value>,
+    ) -> Result<(), RuntimeError> {
+        let caps_raw = match attrs.get("actor_caps") {
+            Some(v) => v.to_string(),
+            None => return Ok(()),
+        };
+        let required = match self.acl_required_capability(command_name) {
+            Some(r) => r,
+            None => return Ok(()),
+        };
+        let caps: Vec<&str> = caps_raw
+            .split(',')
+            .map(|s| s.trim())
+            .filter(|s| !s.is_empty())
+            .collect();
+        if caps.iter().any(|c| *c == "Admin" || *c == required) {
+            return Ok(());
+        }
+        Err(RuntimeError::Unauthorized {
+            command: command_name.to_string(),
+            required,
+            held: caps.join(","),
+        })
+    }
+
     pub fn dispatch(
         &mut self,
         command_name: &str,
-        attrs: HashMap<String, Value>,
+        mut attrs: HashMap<String, Value>,
     ) -> Result<CommandResult, RuntimeError> {
+        // deciderate Inc4b — capability ACL gates the ENTRY dispatch (not
+        // cascades, which use dispatch_cascade). `actor_caps` is reserved
+        // meta : check it, then strip it so it never lands on the command
+        // or rides the emitted event.
+        self.acl_check(command_name, &attrs)?;
+        attrs.remove("actor_caps");
         // Structural cutover : `dispatch` IS the async outbox path. The core
         // mutation touches ONE aggregate ; cross-aggregate reactions go to the
         // outbox and are delivered by the pump as SEPARATE transactions, then
@@ -3603,6 +3669,18 @@ pub enum RuntimeError {
         name: String,
         candidates: Vec<String>,
     },
+    /// deciderate Inc4b — capability ACL. The ENTRY dispatch supplied an
+    /// `actor_caps` set (the authenticated edge's assertion) that lacks the
+    /// capability the command's `role` requires, and not the `Admin`
+    /// wildcard. The command never applies (0 events). `required` is the
+    /// command's role-capability ; `held` is the asserted set. Cascades
+    /// bypass this gate (they never reach Runtime::dispatch), so System
+    /// commands are reachable only internally.
+    Unauthorized {
+        command: String,
+        required: String,
+        held: String,
+    },
 }
 
 impl std::fmt::Display for RuntimeError {
@@ -3622,6 +3700,10 @@ impl std::fmt::Display for RuntimeError {
             RuntimeError::AmbiguousCommand { name, candidates } => {
                 write!(f, "ambiguous bare-name dispatch: '{}' is declared on aggregates {:?} — qualify with `Aggregate.{}`",
                     name, candidates, name)
+            }
+            RuntimeError::Unauthorized { command, required, held } => {
+                write!(f, "GOVERNANCE (acl): '{}' requires capability '{}' ; actor holds [{}]",
+                    command, required, held)
             }
         }
     }
