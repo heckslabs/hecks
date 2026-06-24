@@ -39,13 +39,6 @@ fn repo_root() -> PathBuf {
 }
 
 #[test]
-#[ignore = "2026-05-20 — 2nd Futamura projection self-application is RED. \
-            No specializer target emits a file under rust/src/specializer/. \
-            See hecks_conception/inbox/i650-futamura-drift.md for the \
-            structural gap (42 specializer source files, 0 emit arms in \
-            mod.rs) and the smallest repair (author codegen/specializer_mod_shape/ \
-            modeled on cli_dispatch_shape). Lift this ignore when the repair \
-            lands ; the test passing IS the 2nd Futamura proof."]
 fn rust_specializer_regenerates_its_own_mod_rs_byte_identically() {
     // Canonical 2nd Futamura test : applying the specializer to itself.
     //

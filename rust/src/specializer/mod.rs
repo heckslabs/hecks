@@ -48,6 +48,7 @@ pub mod ruby_command_class;
 pub mod run_boot;
 pub mod run_statusline;
 pub mod runtime;
+pub mod specializer_mod;
 pub mod util;
 pub mod validator;
 pub mod validator_checks;
@@ -93,12 +94,13 @@ pub fn emit(target: &str, repo_root: &Path) -> Result<String, Box<dyn Error>> {
         "repository" => repository::emit(repo_root),
         "runtime" => runtime::root::emit(repo_root),
         "run_statusline" => run_statusline::emit(repo_root),
+        "specializer_mod" => specializer_mod::emit(repo_root),
         "system_prompt" => run_boot::system_prompt::emit(repo_root),
         "validator" => validator::emit(repo_root),
         "validator_corpus" => validator_corpus::emit(repo_root),
         "validator_warnings" => validator_warnings::emit(repo_root),
         other => Err(format!(
-            "unknown specializer target: {}. Known: adapter_llm, aggregate_state, assemble, behaviors_fixtures, behaviors_parser, behaviors_runner, cli_dispatch, command_dispatch, conceiver_generator, conception_kernel_sample, discover, dispatch_query, dump, fixtures_parser, hecksagon_ir, hecksagon_parser, heki_query, html_domain, interpreter, ir, lifecycle_validator, parse_blocks, parser, parser_helpers, repository, runtime, run_statusline, system_prompt, validator, validator_corpus, validator_warnings",
+            "unknown specializer target: {}. Known: adapter_llm, aggregate_state, assemble, behaviors_fixtures, behaviors_parser, behaviors_runner, cli_dispatch, command_dispatch, conceiver_generator, conception_kernel_sample, discover, dispatch_query, dump, fixtures_parser, hecksagon_ir, hecksagon_parser, heki_query, html_domain, interpreter, ir, lifecycle_validator, parse_blocks, parser, parser_helpers, repository, runtime, run_statusline, specializer_mod, system_prompt, validator, validator_corpus, validator_warnings",
                 other
             )
             .into()),

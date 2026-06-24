@@ -58,6 +58,7 @@ pub fn targets() -> &'static [(&'static str, &'static str)] {
         ("query",                    "rust/src/runtime/query.rs"),
         ("reaction",                 "rust/src/runtime/reaction.rs"),
         ("repository",               "rust/src/runtime/repository.rs"),
+        ("specializer_mod",          "rust/src/specializer/mod.rs"),
         ("system_prompt",            "rust/src/run_boot/system_prompt.rs"),
         ("validator",                "rust/src/validator.rs"),
         ("validator_corpus",         "rust/src/validator_corpus.rs"),
