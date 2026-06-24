@@ -1,0 +1,120 @@
+Hecks.bluebook "Deciderate" do
+  core
+  aggregate "Bubble" do
+    identified_by :id
+    attribute :id, BubbleId
+    attribute :decision, DecisionRef
+    attribute :size, Size, default: 0
+    attribute :status, BubbleStatus, default: "floating" do
+      transition "Pop" => "popped"
+    end
+    value_object "BubbleId" do
+      attribute :value, String
+    end
+    value_object "DecisionRef" do
+      attribute :value, String
+    end
+    value_object "Size" do
+      attribute :value, Integer
+      invariant "never negative" do
+        value >= 0
+      end
+    end
+    value_object "BubbleStatus" do
+      attribute :value, String
+    end
+    command "Launch" do
+      attribute :id, BubbleId
+      attribute :decision, DecisionRef
+      attribute :size, Size
+      then_set :size, to: :size
+    end
+    command "Inflate" do
+      reference_to Bubble
+      then_set :size, increment: 1
+    end
+    command "Decay" do
+      reference_to Bubble
+      given("has mass") { size > 0 }
+      then_set :size, decrement: 1
+      emits "BubbleDecayed"
+    end
+    command "Pop" do
+      reference_to Bubble
+      emits "BubblePopped"
+    end
+    query "Floating" do
+      where status: "floating"
+    end
+  end
+  aggregate "BubbleClock" do
+    identified_by :clock_id
+    attribute :clock_id, ClockId
+    attribute :last_ticked_at, TickedAt, default: "-"
+    value_object "ClockId" do
+      attribute :value, String
+    end
+    value_object "TickedAt" do
+      attribute :value, String
+    end
+    command "Tick" do
+      attribute :clock_id, ClockId
+      attribute :last_ticked_at, TickedAt
+      then_set :last_ticked_at, to: :last_ticked_at
+      emits "Ticked"
+    end
+  end
+  aggregate "Vote" do
+    identified_by :id
+    attribute :id, VoteId
+    attribute :bubble, BubbleRef
+    attribute :player, PlayerRef
+    attribute :status, VoteStatus, default: "live" do
+      transition "Void" => "void"
+    end
+    value_object "VoteId" do
+      attribute :value, String
+    end
+    value_object "BubbleRef" do
+      attribute :value, String
+    end
+    value_object "PlayerRef" do
+      attribute :value, String
+    end
+    value_object "VoteStatus" do
+      attribute :value, String
+    end
+    command "Cast" do
+      attribute :id, VoteId
+      attribute :bubble, BubbleRef
+      attribute :player, PlayerRef
+      emits "VoteCast"
+    end
+    command "Void" do
+      reference_to Vote
+      emits "VoteVoided"
+    end
+    query "ForBubble" do |bubble|
+      where bubble: :bubble, status: "live"
+    end
+  end
+  policy "DecayAllBubbles" do
+    on "Ticked"
+    for_each: { from: "Bubble.Floating" }
+    trigger "Bubble.Decay"
+  end
+  policy "PopStarvedBubble" do
+    on "BubbleDecayed"
+    where size: 0
+    trigger "Bubble.Pop"
+  end
+  policy "InflateOnVote" do
+    on "VoteCast"
+    trigger "Bubble.Inflate"
+  end
+  policy "VoidVotesOnPop" do
+    on "BubblePopped"
+    for_each: { from: "Vote.ForBubble", where: { bubble: from_event(:id) } }
+    trigger "Vote.Void"
+  end
+end
