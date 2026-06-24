@@ -239,3 +239,54 @@ impl crate::runtime::PersistenceAdapter for SqliteRepository {
     fn seed_record(&mut self, state: AggregateState) { self.seed_record(state) }
     fn set_next_id(&mut self, value: u64) { self.set_next_id(value) }
 }
+
+/// Build a SqliteRepository as a boxed `PersistenceAdapter` from the generic
+/// `PersistenceSpec`. The sqlite-specific column TYPING lives HERE — it is
+/// sqlite's business, not the kernel's : one column per scalar attribute via
+/// `sqlite_mapping::sql_type` (excluding the auto-managed id/created_at/
+/// updated_at), a TEXT column for the lifecycle state field, and expression
+/// indexes for the columns the declared queries filter / sort on. EAGER +
+/// FALLIBLE (i735 defect 2) : open + CREATE TABLE + row-load happen now, so a
+/// failed build refuses the aggregate at boot rather than deferring a Result
+/// the infallible read surface can't fail through.
+pub fn sqlite_factory(
+    spec: &crate::runtime::PersistenceSpec,
+) -> Result<Box<dyn crate::runtime::PersistenceAdapter>, String> {
+    let agg = &spec.aggregate;
+    let db_path = spec
+        .option("db")
+        .ok_or_else(|| format!("sqlite adapter for `{}` is missing its `db:` option", agg.name))?;
+    let mut columns: Vec<(String, String)> = agg
+        .attributes
+        .iter()
+        .filter(|a| !a.list && !matches!(a.name.as_str(), "id" | "created_at" | "updated_at"))
+        .map(|a| (a.name.clone(), super::sqlite_mapping::sql_type(&a.attr_type).to_string()))
+        .collect();
+    if let Some(lc) = &agg.lifecycle {
+        columns.push((lc.field.clone(), "TEXT".to_string()));
+    }
+    let mut indexed_columns: Vec<String> = Vec::new();
+    for q in &agg.queries {
+        for w in &q.wheres {
+            if !indexed_columns.contains(&w.field) {
+                indexed_columns.push(w.field.clone());
+            }
+        }
+        if let Some(ob) = &q.order_by {
+            if !indexed_columns.contains(&ob.field) {
+                indexed_columns.push(ob.field.clone());
+            }
+        }
+    }
+    let repo = SqliteRepository::new(&agg.name, db_path, agg.identified_by.clone(), columns)
+        .map_err(|e| format!("open/CREATE TABLE failed for db `{db_path}`: {e}"))?;
+    repo.ensure_indexes(&indexed_columns);
+    Ok(Box::new(repo))
+}
+
+/// Register the sqlite backend under the `sqlite` hexagon token. Idempotent.
+/// TEMPORARY home (Phase 2a) : the crate split moves this into the
+/// storehouse-sqlite crate, called by the cli composition root before boot.
+pub fn register() {
+    crate::runtime::register_persistence_adapter("sqlite", sqlite_factory);
+}

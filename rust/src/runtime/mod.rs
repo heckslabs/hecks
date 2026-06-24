@@ -260,7 +260,10 @@ pub use pm_engine::{PMBinding, PMEngine, PMInstanceState, PMTrigger};
 pub use projection::Projection;
 pub use repository::Repository;
 pub use lazy_repository::{BackendKind, LazyRepository};
-pub use persistence_adapter::PersistenceAdapter;
+pub use persistence_adapter::{
+    persistence_adapter_factory, register_persistence_adapter, AdapterFactory, PersistenceAdapter,
+    PersistenceSpec,
+};
 
 /// One row of the backend-map projection (i728) — which backend each repository
 /// resolved to, without hydrating it. `Runtime::dump_backend_map` builds the Vec ;
@@ -444,8 +447,14 @@ impl Runtime {
         // hecksagon in scope to read the override from.
         // sqlite override is host-only ; on wasm32 the Worker always
         // runs the in-memory repository (the rusqlite dep is gated out).
+        // Register the built-in sqlite adapter, then resolve every wired
+        // persistence binding against the registry. TEMPORARY (Phase 2a) :
+        // the crate split moves registration to the cli composition root so
+        // the lib carries no sqlite at all.
         #[cfg(not(target_arch = "wasm32"))]
-        rt.apply_sqlite_persistence();
+        sqlite_repository::register();
+        #[cfg(not(target_arch = "wasm32"))]
+        rt.apply_wired_adapters();
         // i728 keystone — make `adapter :memory` actually select Backend::Memory.
         // Until this ran, :memory was inert : a declared-:memory aggregate fell
         // through to the implicit heki default, indistinguishable from unwired.

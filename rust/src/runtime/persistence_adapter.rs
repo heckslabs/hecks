@@ -73,3 +73,61 @@ pub trait PersistenceAdapter: Send {
     /// Force the next-id counter (used by hydration to resume the sequence).
     fn set_next_id(&mut self, value: u64);
 }
+
+// ─── adapter registry (the composition-root seam) ───────────────────────────
+//
+// The runtime resolves WIRED persistence bindings by name against a process-
+// global registry. Concrete adapters (sqlite, future R2 / postgres) live in
+// their OWN crates and register themselves at the composition root (the cli)
+// BEFORE boot. The runtime crate names no engine — it only knows this trait
+// and the registry token a hexagon's `persisted_by` binding refers to.
+
+use crate::ir::Aggregate;
+use std::sync::{Mutex, OnceLock};
+
+/// What an adapter factory needs to build one aggregate's backend : the
+/// aggregate's IR (so the adapter derives its OWN schema — the sqlite column
+/// typing is sqlite's business, not the kernel's) and the per-deployment
+/// options from the hexagon binding (e.g. `{"db": "/path/app.db"}`).
+pub struct PersistenceSpec {
+    pub aggregate: Aggregate,
+    pub options: HashMap<String, String>,
+}
+
+impl PersistenceSpec {
+    /// Convenience accessor for one option (e.g. `spec.option("db")`).
+    pub fn option(&self, key: &str) -> Option<&str> {
+        self.options.get(key).map(|s| s.as_str())
+    }
+}
+
+/// A registered adapter constructor. FALLIBLE — a failed build refuses the
+/// aggregate at boot (i735), never silently falls back to heki.
+pub type AdapterFactory = fn(&PersistenceSpec) -> Result<Box<dyn PersistenceAdapter>, String>;
+
+static REGISTRY: OnceLock<Mutex<HashMap<String, AdapterFactory>>> = OnceLock::new();
+
+fn registry() -> &'static Mutex<HashMap<String, AdapterFactory>> {
+    REGISTRY.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+/// Register a persistence adapter under the hexagon token it answers to (the
+/// `persisted_by` / `adapter :<token>` name, e.g. `"sqlite"`). The composition
+/// root calls this once at startup, before boot.
+pub fn register_persistence_adapter(token: &str, factory: AdapterFactory) {
+    registry()
+        .lock()
+        .expect("persistence adapter registry poisoned")
+        .insert(token.to_string(), factory);
+}
+
+/// Resolve a registered factory by hexagon token. `None` when no adapter for
+/// that token was registered — the aggregate keeps the in-process heki/memory
+/// backend `boot` built.
+pub fn persistence_adapter_factory(token: &str) -> Option<AdapterFactory> {
+    registry()
+        .lock()
+        .expect("persistence adapter registry poisoned")
+        .get(token)
+        .copied()
+}

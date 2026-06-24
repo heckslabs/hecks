@@ -46,26 +46,6 @@ use crate::heki;
 use std::cell::OnceCell;
 use std::collections::HashMap;
 
-/// SQL-backend construction params. Carried (not opened) until first
-/// access — the same defer-the-disk-read discipline the heki backend
-/// uses, so a single-shot dispatch only opens the one db it touches.
-// SQL-backend params are host-only — the sole constructor
-// (apply_sqlite_persistence) is wasm-gated, so the Worker never selects Sql.
-#[cfg(not(target_arch = "wasm32"))]
-#[derive(Clone)]
-pub struct SqliteConfig {
-    pub aggregate_type: String,
-    pub db_path: String,
-    pub identified_by: Option<String>,
-    /// `(attribute_name, sql_type)` pairs for the typed columns,
-        /// derived from the bluebook IR by the runtime boot loop.
-        pub columns: Vec<(String, String)>,
-        /// Column names the aggregate's declared where()/order_by reference —
-        /// the expression-index targets (where() Phase 3). Derived from the IR
-        /// queries ; `ensure_indexes` filters to columns that actually exist.
-        pub indexed_columns: Vec<String>,
-    }
-
 /// Which storage substrate a repository wraps. Chosen at construction
 /// from the hecksagon's `persistence` declaration — heki/memory is the
 /// default ; `adapter :sqlite, db:` selects Sql. Heki/memory defer their
