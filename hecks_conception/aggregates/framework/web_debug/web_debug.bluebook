@@ -1,0 +1,56 @@
+Hecks.bluebook "WebDebug" do
+  vision "Visual debugging — a running UI streams frames back to the runtime so an agent (or a human) can SEE the live page without driving a browser by hand. The browser POSTs a base64 JPEG frame ; Screenshot.Capture records it and the screenshot_buffer adapter writes the bytes to a CIRCULAR on-disk buffer (capacity 100) at /tmp/ha_screenshots/, pruning the oldest — so /tmp/ha_screenshots/latest.jpg is always the newest frame. Ported from the Ruby :web_debug capability (ruby/hecks/capabilities/web_debug.rb + screenshot_buffer.rb) : the WebSocket transport becomes a `storehouse serve` POST that dispatches Screenshot.Capture, and the ScreenshotBuffer Ruby class becomes a screenshot_buffer ADAPTER bound in web_debug.hecksagon. The frame bytes are event-only — they ride FrameCaptured to the adapter, never the heki, so persistence stays tiny."
+  category "framework"
+
+  aggregate "Screenshot" do
+    description "One captured frame of a running UI. State records only WHAT was captured + WHEN + WHERE it landed (frame_id, captured_at, path) ; the base64 JPEG bytes are an event-only payload that rides FrameCaptured to the screenshot_buffer adapter. The buffer is circular (capacity 100) : the adapter writes frame_NNNN.jpg + refreshes latest.jpg + prunes the oldest, so the heki never grows with image bytes."
+    identified_by :frame_id
+    attribute :frame_id, FrameId
+    attribute :captured_at, CapturedAt
+    attribute :path, FramePath, default: "—"
+
+    value_object "FrameId" do
+      # Monotonic frame id minted by the caller (the serve endpoint) ; the
+      # buffer file is frame_<frame_id>.jpg.
+      attribute :value, String
+    end
+    value_object "CapturedAt" do
+      # ISO-8601 instant the browser captured the frame.
+      attribute :value, String
+    end
+    value_object "FramePath" do
+      # Where the buffer adapter wrote the JPEG (basename under the buffer dir).
+      attribute :value, String
+    end
+    value_object "FrameData" do
+      # The base64-encoded JPEG bytes. EVENT-ONLY : carried on FrameCaptured to
+      # the screenshot_buffer adapter, never persisted to aggregate state, so a
+      # frame's bytes never bloat the heki.
+      attribute :value, String
+    end
+
+    command "Capture" do
+      role "System"
+      goal "Receive a UI frame from the browser and record it in the circular buffer"
+      # Dispatched by the serve POST endpoint when the page streams a frame.
+      # Records the frame metadata + emits FrameCaptured carrying the bytes ;
+      # the screenshot_buffer adapter (web_debug.hecksagon) writes + prunes.
+      attribute :frame_id, FrameId
+      attribute :captured_at, CapturedAt
+      attribute :frame_data, FrameData
+      then_set :captured_at, to: :captured_at
+      emits "FrameCaptured"
+    end
+
+    # The newest frame — what an agent reads to see the live page.
+    query "Latest" do
+      order_by :captured_at, :desc
+      limit 1
+    end
+
+    # How many frames are buffered.
+    query "Count" do
+      count
+    end
+  end
+end
