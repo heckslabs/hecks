@@ -1,0 +1,39 @@
+Hecks.bluebook "Deciderate" do
+  core
+  aggregate "Invite" do
+    identified_by :id
+    attribute :id, InviteId
+    attribute :community, CommunityRef
+    attribute :player, PlayerRef
+    attribute :status, InviteStatus, default: "pending" do
+      transition "Accept" => "accepted"
+    end
+    value_object "InviteId" do
+      attribute :value, String
+    end
+    value_object "CommunityRef" do
+      attribute :value, String
+    end
+    value_object "PlayerRef" do
+      attribute :value, String
+    end
+    value_object "InviteStatus" do
+      attribute :value, String
+    end
+    command "Create" do
+      attribute :id, InviteId
+      attribute :community, CommunityRef
+      attribute :player, PlayerRef
+    end
+    command "Accept" do
+      reference_to Invite
+      attribute :community, CommunityRef
+      attribute :player, PlayerRef
+      emits "InviteAccepted"
+    end
+  end
+  policy "GrowCommunityOnAccept" do
+    on "InviteAccepted"
+    trigger "Community::Community.AddMember"
+  end
+end
