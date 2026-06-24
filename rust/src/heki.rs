@@ -646,7 +646,24 @@ pub fn repo_root() -> Option<std::path::PathBuf> {
     if let Some(root) = repo_root_from_conception_dir(std::env::var("HECKS_CONCEPTION_DIR").ok()) {
         return Some(root);
     }
-    walk_up_for_repo_root()
+    if let Some(root) = walk_up_for_repo_root() {
+        return Some(root);
+    }
+    // Canonical-deployment fallback (mirrors storehouse_conception_root's
+    // former HOME step). Post-extraction the engine binary lives OUTSIDE the
+    // hecks tree, so the exe-walk finds nothing ; with HECKS_CONCEPTION_DIR
+    // unset (a bare interactive shell — e.g. `storehouse follow`) repo_root
+    // was None, which split readers onto a cwd-anchored store. Resolve the
+    // canonical checkout STRUCTURALLY instead (i728 : a known machine path,
+    // identical for every process tree, never an env var). Guarded by
+    // is_dir() so a host without the checkout (CI) still returns None.
+    if let Ok(home) = std::env::var("HOME") {
+        let canonical = std::path::PathBuf::from(home).join("Projects/hecks");
+        if canonical.join("hecks_conception/aggregates").is_dir() {
+            return Some(canonical);
+        }
+    }
+    None
 }
 
 /// The repo root derived from a HECKS_CONCEPTION_DIR value — the conception

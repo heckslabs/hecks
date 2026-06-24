@@ -7438,13 +7438,12 @@ fn looks_like_aggregate_command(s: &str) -> bool {
 ///      into its own conception path without changing argv.
 ///   2. `repo_root()/hecks_conception/` when the canonicalised binary
 ///      lives inside the hecks checkout (the historical case).
-///   3. `~/Projects/hecks/hecks_conception/` as a hard fallback so a
-///      symlinked binary on PATH (`~/bin/storehouse` →
-///      `~/Projects/hecks/rust/target/release/storehouse`) keeps
-///      dispatching even when invoked from `cd /tmp` or any other
-///      unrelated cwd. The `~` is expanded via the `$HOME` env var.
-///   4. `.` when nothing above resolves (preserves the prior return
-///      shape so existing callers don't observe a panic).
+///   3. `.` when nothing above resolves (preserves the prior return
+///      shape so existing callers don't observe a panic). The canonical
+///      `~/Projects/hecks` HOME fallback that used to live here now lives
+///      in `heki::repo_root()`, so step 2 (which delegates to it) already
+///      covers a symlinked binary on PATH invoked from an unrelated cwd —
+///      resolved structurally, no env var (i728).
 fn storehouse_conception_root() -> String {
     if let Ok(p) = env::var("HECKS_CONCEPTION_DIR") {
         if !p.is_empty() {
@@ -7457,12 +7456,6 @@ fn storehouse_conception_root() -> String {
             return conception.to_string_lossy().into_owned();
         }
         return root.to_string_lossy().into_owned();
-    }
-    if let Ok(home) = env::var("HOME") {
-        let fallback = format!("{}/Projects/hecks/hecks_conception", home);
-        if std::path::Path::new(&fallback).is_dir() {
-            return fallback;
-        }
     }
     ".".into()
 }
