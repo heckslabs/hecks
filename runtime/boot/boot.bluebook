@@ -111,7 +111,8 @@ Hecks.bluebook "Boot", version: "2026.05.12.1" do
       transition "RecordBootJournal"    => "ensuring",         from: "journaling"
       transition "EnsureDaemons"        => "rendering",        from: "ensuring"
       transition "PrintVitals"          => "surfacing",        from: "rendering"
-      transition "SurfaceWakeReport"    => "studio_starting",  from: "surfacing"
+      transition "SurfaceWakeReport"    => "completing",       from: "surfacing"
+      transition "CompleteBoot"         => "studio_starting",  from: "completing"
       transition "StartStudio"          => "done",             from: "studio_starting"
     end
 
@@ -204,6 +205,12 @@ Hecks.bluebook "Boot", version: "2026.05.12.1" do
       then_set :studio_status, to: :studio_status
       emits "StudioStarted"
     end
+
+    command "CompleteBoot" do
+      role "System"
+      description "The boot is functionally complete — organs discovered, census written, system prompt generated, daemons ensured, vitals printed, wake report surfaced. Emits BootCompleted, the genesis event every domain's ESTABLISHMENT policies react to to seed their standing prod state (deny-by-default governance, the governed-door redirects, …) — reactive policy on the boot event, NOT test fixtures. Decoupled from the studio BY DESIGN : completion does not depend on the web surface starting ; StartStudio is a POST-completion effect that fires on BootCompleted. Fulfils the BootCompleted event BeginBoot's contract always promised."
+      emits "BootCompleted"
+    end
   end
 
   # ============================================================
@@ -254,8 +261,17 @@ Hecks.bluebook "Boot", version: "2026.05.12.1" do
     trigger "SurfaceWakeReport"
   end
 
-  policy "StartStudioOnSurface" do
+  # Boot completes when the wake report is surfaced — the functional end.
+  # CompleteBoot emits BootCompleted (genesis for every domain's
+  # establishment policies) ; the studio then starts OFF BootCompleted, a
+  # post-completion effect that no longer gates the boot.
+  policy "CompleteBootOnSurface" do
     on "WakeReportSurfaced"
+    trigger "CompleteBoot"
+  end
+
+  policy "StartStudioOnComplete" do
+    on "BootCompleted"
     trigger "StartStudio"
   end
 end

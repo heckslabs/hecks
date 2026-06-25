@@ -69,7 +69,7 @@ Hecks.bluebook "Governance", version: "2026.05.19.1" do
 
     command "Permit" do
       role "Framework"
-      description "Add a tool-name pattern to the allow-list with the reason it is exempt from bus-routing. The allow-list is append-only ; everything not permitted is denied by the stance."
+      description "Add a tool-name pattern to the allow-list with the reason it is exempt from bus-routing. Everything not permitted is denied by the stance. NOTE : append is not yet idempotent — a per-pattern dedup needs an append-unique MutationOp the runtime does not have ; until then the boot-time establishment re-appends on each re-boot. Tracked as a kernel gap."
       reference_to(Policy)
       attribute :pattern, Pattern
       attribute :reason,  Reason
@@ -116,7 +116,10 @@ Hecks.bluebook "Governance", version: "2026.05.19.1" do
 
     lifecycle :status, default: "proposed" do
       transition "Propose"  => "proposed"
-      transition "Activate" => "active",    from: ["proposed", "suspended"]
+      # Activate accepts "active" as a from-state too, so re-activating an
+      # already-active policy is an idempotent no-op — the boot-time
+      # establishment chain can re-run every boot without erroring.
+      transition "Activate" => "active",    from: ["proposed", "suspended", "active"]
       transition "Suspend"  => "suspended", from: "active"
     end
   end
@@ -291,4 +294,124 @@ Hecks.bluebook "Governance", version: "2026.05.19.1" do
       where tool: :tool
     end
   end
+
+# == ESTABLISHMENT policies — standing prod state, seeded at boot ==
+#
+# This is the domain's STANDING TRUTH, declared as reactive policy and
+# established when the boot pipeline completes (BootRun emits BootCompleted,
+# its terminal event), NOT as test fixtures. The dispatch IS the act : on
+# boot-complete these policies fire and upsert the deny-by-default Policy +
+# the governed-door redirect registry. Idempotent — keyed by identity, so a
+# re-boot re-affirms the same standing state rather than duplicating it.
+# `.fixtures` is now TEST-ONLY ; prod config reaches prod as policy.
+#
+# The Policy lifecycle (Propose -> Permit -> Activate) is ORDERED, so it is an
+# event-CHAIN : each step fires on the prior step's event (Policy.Proposed,
+# Policy.Permitted — qualified so a sibling domain's bare "Proposed" can't
+# trigger it). The 10 governed-door redirects are order-independent, so they
+# all fire directly on the boot-complete event.
+
+# ── deny-by-default Policy, established as an ordered chain ──
+policy "ProposeBarrierPolicyOnBoot" do
+  on "BootCompleted"
+  trigger "Hecks::Framework::Governance::Policy.Propose"
+  with "name", "miette-harness"
+  with "stance", "deny_by_default"
+  with "enforcement", "hard_block"
+end
+
+policy "PermitDoorChannelOnProposed" do
+  on "Policy.Proposed"
+  trigger "Hecks::Framework::Governance::Policy.Permit"
+  with "name", "miette-harness"
+  with "pattern", "mcp__storehouse__*"
+  with "reason", "the governed channel itself — storehouse__dispatch emits the bus event"
+end
+
+policy "ActivateBarrierPolicyOnPermitted" do
+  on "Policy.Permitted"
+  trigger "Hecks::Framework::Governance::Policy.Activate"
+  with "name", "miette-harness"
+end
+
+# ── the 10 governed-door redirects, established in parallel on boot ──
+policy "EstablishBashDoor" do
+  on "BootCompleted"
+  trigger "Hecks::Framework::Governance::GovernedDoor.Register"
+  with "tool", "Bash"
+  with "door_equivalent", "Tools::ShellTool.Bash"
+  with "door_args", "shell_command=<command>"
+end
+
+policy "EstablishEditDoor" do
+  on "BootCompleted"
+  trigger "Hecks::Framework::Governance::GovernedDoor.Register"
+  with "tool", "Edit"
+  with "door_equivalent", "Tools::FileTool.Edit"
+  with "door_args", "file_path=<absolute path>, old_string=<exact text>, new_string=<replacement>"
+end
+
+policy "EstablishWriteDoor" do
+  on "BootCompleted"
+  trigger "Hecks::Framework::Governance::GovernedDoor.Register"
+  with "tool", "Write"
+  with "door_equivalent", "Tools::FileTool.Update"
+  with "door_args", "file_path=<absolute path>, content=<full file text>"
+end
+
+policy "EstablishReadDoor" do
+  on "BootCompleted"
+  trigger "Hecks::Framework::Governance::GovernedDoor.Register"
+  with "tool", "Read"
+  with "door_equivalent", "Tools::FileTool.Read"
+  with "door_args", "file_path=<absolute path>"
+end
+
+policy "EstablishMultiEditDoor" do
+  on "BootCompleted"
+  trigger "Hecks::Framework::Governance::GovernedDoor.Register"
+  with "tool", "MultiEdit"
+  with "door_equivalent", "Tools::FileTool.Edit"
+  with "door_args", "file_path=<absolute path>, old_string=<exact text>, new_string=<replacement>"
+end
+
+policy "EstablishNotebookEditDoor" do
+  on "BootCompleted"
+  trigger "Hecks::Framework::Governance::GovernedDoor.Register"
+  with "tool", "NotebookEdit"
+  with "door_equivalent", "Tools::FileTool.Edit"
+  with "door_args", "file_path=<absolute path>, old_string=<exact text>, new_string=<replacement>"
+end
+
+policy "EstablishGrepDoor" do
+  on "BootCompleted"
+  trigger "Hecks::Framework::Governance::GovernedDoor.Register"
+  with "tool", "Grep"
+  with "door_equivalent", "Tools::SearchTool.Grep"
+  with "door_args", "pattern=<regex>, search_path=<dir>"
+end
+
+policy "EstablishGlobDoor" do
+  on "BootCompleted"
+  trigger "Hecks::Framework::Governance::GovernedDoor.Register"
+  with "tool", "Glob"
+  with "door_equivalent", "Tools::SearchTool.Glob"
+  with "door_args", "glob_pattern=<glob>, search_path=<dir>"
+end
+
+policy "EstablishWebFetchDoor" do
+  on "BootCompleted"
+  trigger "Hecks::Framework::Governance::GovernedDoor.Register"
+  with "tool", "WebFetch"
+  with "door_equivalent", "Tools::WebTool.WebFetch"
+  with "door_args", "url=<url>, prompt=<what to extract>"
+end
+
+policy "EstablishWebSearchDoor" do
+  on "BootCompleted"
+  trigger "Hecks::Framework::Governance::GovernedDoor.Register"
+  with "tool", "WebSearch"
+  with "door_equivalent", "Tools::WebTool.WebSearch"
+  with "door_args", "query=<search query>"
+end
 end
