@@ -1,0 +1,28 @@
+# Sqlite — a concrete PERSISTENCE adapter : a typed-column SQL backend (one
+# column per scalar attribute, derived from the bluebook IR — never a JSON
+# blob), one table per aggregate. The sibling of Heki / Memory on the SAME
+# persistence family — same `persisted_by` verb, same reply signal, distinct
+# backing (a SQLite db file). It DECLARES the family it implements (the inverted
+# arrow) ; the family never names it.
+#
+# The bind `SomeDomain::Agg.persisted_by("Sqlite")` (or the legacy hexagon form
+# `adapter :sqlite, db:`) resolves IFF Sqlite's declared family (persistence)
+# carries the `persisted_by` verb — the same typed attach checkpoint Heki and
+# Memory pass. EAGER + per-context scoped (i735) : the table is built at boot,
+# and a failed build refuses THAT aggregate loudly rather than silently falling
+# back to heki. The per-deployment db path lives in .world (`db:`).
+#
+# WHAT MAKES SQLITE DIFFERENT FROM HEKI / MEMORY : it is NOT compiled into the
+# runtime. Heki and Memory are the zero-dependency in-process substrate the
+# kernel always carries ; Sqlite owns a heavy native dependency (rusqlite → C
+# SQLite, no wasm32 target), so it lives in its OWN crate (`storehouse-sqlite`)
+# and registers itself against the `sqlite` token at the COMPOSITION ROOT (the
+# storehouse cli) BEFORE boot. The runtime lib names no engine ; it resolves
+# wired bindings against the adapter registry the composition root populated.
+# This is what lets any project — bin-buddy is the first — depend on the adapter
+# crate, call `storehouse_sqlite::register()`, and bind `adapter :sqlite` in its
+# own hexagons, while the wasm Worker build (which never links the adapter crate)
+# carries no SQL at all.
+Hecks.adapter "Sqlite" do
+  family "persistence"
+end
