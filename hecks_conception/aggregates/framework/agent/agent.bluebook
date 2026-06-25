@@ -125,6 +125,14 @@ Hecks.bluebook "Agent", version: "2026.05.12.1" do
       attribute :value, String
     end
 
+    # Status — the Agent's lifecycle state. "active" on Birth ;
+    # "retired" after Retire. The RBAC authorization read-model skips
+    # retired agents when it indexes auth_identity_id -> role_name, so a
+    # retired Agent resolves to no role (fail closed).
+    value_object "Status" do
+      attribute :value, String, enum: ["active", "retired"]
+    end
+
     attribute :name,             Name
     attribute :description,      Description
     attribute :kind,             Kind
@@ -138,6 +146,13 @@ Hecks.bluebook "Agent", version: "2026.05.12.1" do
     # Unbind events update this attribute ; the audit trail keeps the
     # full grant history.
     attribute :role_name,        RoleName
+
+    # status : lifecycle state. Defaults to "active" on Birth ; Retire
+    # transitions it to "retired". The authorization read-model skips
+    # retired agents. Mirrors the Pizzas Order.status form.
+    attribute :status, Status, default: "active" do
+      transition "Retire" => "retired"
+    end
 
     # ── Commands ───────────────────────────────────────────────
     #
@@ -172,6 +187,11 @@ Hecks.bluebook "Agent", version: "2026.05.12.1" do
       description "Bind this Agent to a Role. The Role aggregate must exist (its name is the natural key). Re-running Bind with a different role replaces the binding ; the prior role is released and the audit trail captures both events."
       reference_to(Agent)
       attribute :role_name, RoleName
+      # Persist the binding : Bind is NOT a create, so without then_set the
+      # role_name would emit Bound but never land in state — and the RBAC
+      # read-model (which reads Agent.role_name) would see every agent as
+      # unbound. then_set makes the binding queryable, mirroring governance.
+      then_set :role_name, to: :role_name
       emits "Bound"
     end
 
@@ -180,6 +200,11 @@ Hecks.bluebook "Agent", version: "2026.05.12.1" do
       description "Connect this Agent to its AuthIdentity (i264). Only human-kind Agents are expected to call this ; other kinds dispatch without authentication. Once linked, every Dispatched event the Agent originates carries the AuthIdentity through the cascade."
       reference_to(Agent)
       attribute :auth_identity_id, AuthIdentityId
+      # Persist the link : LinkAuthIdentity is NOT a create, so without
+      # then_set the auth_identity_id would never land in state — and the
+      # RBAC read-model (which keys Agent by auth_identity_id) could never
+      # resolve the caller. then_set makes the identity queryable.
+      then_set :auth_identity_id, to: :auth_identity_id
       emits "AuthIdentityLinked"
     end
 

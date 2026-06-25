@@ -102,6 +102,14 @@ Hecks.bluebook "Role", version: "2026.05.12.1" do
       attribute :value, String
     end
 
+    # Status — the Role's lifecycle state. "active" on Define ; "retired"
+    # after Retire. The RBAC authorization read-model excludes retired
+    # roles when it flattens ancestor chains, so an Agent bound to a
+    # retired Role resolves to no permissions (fail closed).
+    value_object "Status" do
+      attribute :value, String, enum: ["active", "retired"]
+    end
+
     attribute :name,        Name
     attribute :description, Description
 
@@ -114,6 +122,14 @@ Hecks.bluebook "Role", version: "2026.05.12.1" do
     # chapter accepts only exact phrases. Wildcards and negation are
     # filed as follow-up gaps.
     attribute :permissions, Permissions
+
+    # status : lifecycle state driving RBAC exclusion. Defaults to
+    # "active" on Define ; Retire transitions it to "retired". The
+    # authorization read-model skips retired roles. Mirrors the Pizzas
+    # Order.status transition-in-attribute form.
+    attribute :status, Status, default: "active" do
+      transition "Retire" => "retired"
+    end
 
     # ── Commands ───────────────────────────────────────────────
     #

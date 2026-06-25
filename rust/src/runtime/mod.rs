@@ -23,6 +23,7 @@
 //!  arc, no bluebook can describe its own driver.]
 
 mod aggregate_state;
+pub mod acl_readmodel;
 pub(crate) mod command_dispatch;
 mod event_bus;
 pub mod loop_driver;
@@ -344,6 +345,10 @@ pub struct Runtime {
     /// bite on live data. In-process, per-realm, transient (rebuilt as events
     /// record) — it carries no persistence and is empty for root dispatches.
     pub last_event_id_by_agg: HashMap<String, String>,
+    /// Layer-2 authorization (RBAC) read-model. Boot-hydrated; refreshed when a
+    /// Role/Agent lifecycle command applies. Read SYNCHRONOUSLY by acl_check ;
+    /// never bus-queried (no async, no reentrancy).
+    pub acl_read_model: acl_readmodel::AclReadModel,
 }
 
 impl Runtime {
@@ -393,6 +398,10 @@ impl Runtime {
         // names. Runs LAST so a binding (the new surface) wins over a legacy
         // persistence block ; additive for every aggregate with no binding.
         rt.apply_hexagon_persistence();
+        // Re-hydrate the RBAC read-model AFTER persistence overrides, so it
+        // reads Role/Agent from the final (possibly sqlite) repositories.
+        let m = acl_readmodel::AclReadModel::hydrate(&rt);
+        rt.acl_read_model = m;
         rt
     }
 
@@ -555,7 +564,7 @@ impl Runtime {
             .map(|agg| projection::auto_projection(&agg.name))
             .collect();
 
-        Runtime {
+        let mut rt = Runtime {
             domain,
             repositories,
             refused_persistence: HashMap::new(),
@@ -597,7 +606,14 @@ impl Runtime {
             mailbox_registry: actor::Mailboxes::new(),
             aggregates_root: None,
             last_event_id_by_agg: HashMap::new(),
-        }
+            acl_read_model: acl_readmodel::AclReadModel::empty(),
+        };
+        // Hydrate the RBAC read-model from Role/Agent state (covers the bare
+        // boot path). boot_with_hecksagons re-hydrates after persistence
+        // overrides so it reads the final repositories.
+        let m = acl_readmodel::AclReadModel::hydrate(&rt);
+        rt.acl_read_model = m;
+        rt
     }
 
     /// i557 part 1 — boot with hecksagons AND a framework directory so
@@ -624,11 +640,12 @@ impl Runtime {
         rt
     }
 
-    /// The capability a command's `role` requires (deciderate Inc4b ACL).
-    /// Resolves the command by its bare name (the tail after the last `.`)
-    /// and returns its declared role. None when no command matches or none
-    /// declares a role — either way the gate treats it as ungated.
-    fn acl_required_capability(&self, command_name: &str) -> Option<String> {
+    /// The role a command's inline `role` requires (RBAC). Resolves the
+    /// command by its bare name (the tail after the last `.`) and returns
+    /// its declared role. None when no command matches or none declares a
+    /// role — either way the command is ungated. The inline `role` on the
+    /// command is the SOURCE OF TRUTH for who may dispatch it.
+    fn acl_required_role(&self, command_name: &str) -> Option<String> {
         let bare = command_name.rsplit('.').next().unwrap_or(command_name);
         for agg in &self.domain.aggregates {
             for cmd in &agg.commands {
@@ -647,41 +664,89 @@ impl Runtime {
         None
     }
 
-    /// Capability ACL gate (deciderate Inc4b) for the ENTRY dispatch. The
-    /// authenticated edge asserts the caller's capability set via the
-    /// reserved `actor_caps` attr (comma-separated). A command's `role` IS
-    /// the capability it requires. ALLOWED iff : no `actor_caps` supplied
-    /// (ungated — CLI / tests / internal), OR the command declares no role,
-    /// OR the required capability is in `actor_caps`, OR `actor_caps`
-    /// contains the `Admin` wildcard. act-as is just an Admin edge asserting
-    /// the impersonated caps. Cascades never reach here, so System commands
-    /// are reachable only internally.
+    /// Authorization gate (RBAC) for the ENTRY dispatch. Synchronous: reads
+    /// ONLY the in-memory acl_read_model + the IR, never the bus.
+    ///
+    /// The caller is a Principal — NOT always an agent. A `System` origin
+    /// (driver/clock, cascade, adapter verdict, fixture, boot) is admitted
+    /// by origin. An `agent` origin resolves auth_id -> role and grants iff
+    /// the command's required role is the caller's role or one of its
+    /// (non-retired) ancestors. An agent-claimed call with no resolvable
+    /// role FAILS CLOSED. Cascades never reach here (they use
+    /// dispatch_cascade), so System commands stay reachable only internally.
     fn acl_check(
         &self,
         command_name: &str,
         attrs: &HashMap<String, Value>,
     ) -> Result<(), RuntimeError> {
-        let caps_raw = match attrs.get("actor_caps") {
-            Some(v) => v.to_string(),
-            None => return Ok(()),
+        let auth_identity_id = match acl_readmodel::principal_from_attrs(attrs) {
+            acl_readmodel::Principal::System => return Ok(()),
+            acl_readmodel::Principal::Agent { auth_identity_id } => auth_identity_id,
         };
-        let required = match self.acl_required_capability(command_name) {
+        let required = match self.acl_required_role(command_name) {
             Some(r) => r,
             None => return Ok(()),
         };
-        let caps: Vec<&str> = caps_raw
-            .split(',')
-            .map(|s| s.trim())
-            .filter(|s| !s.is_empty())
-            .collect();
-        if caps.iter().any(|c| *c == "Admin" || *c == required) {
-            return Ok(());
+        let held = match self.acl_read_model.role_for_auth(&auth_identity_id) {
+            Some(r) => r.to_string(),
+            None => {
+                return Err(RuntimeError::Unauthorized {
+                    command: command_name.to_string(),
+                    required,
+                    held: String::new(),
+                });
+            }
+        };
+        if self.acl_read_model.role_satisfies(&held, &required) {
+            Ok(())
+        } else {
+            Err(RuntimeError::Unauthorized {
+                command: command_name.to_string(),
+                required,
+                held,
+            })
         }
-        Err(RuntimeError::Unauthorized {
-            command: command_name.to_string(),
-            required,
-            held: caps.join(","),
-        })
+    }
+
+    /// Record an authorization denial as a `Governance::Violation` via the
+    /// UNGATED internal path (`dispatch_impl`, never `Runtime::dispatch`),
+    /// so the gate can never recurse. Best-effort: if the Governance domain
+    /// is not loaded (a minimal runtime), the denial still stands — we just
+    /// don't get an audit row.
+    fn record_violation_internal(&mut self, command: &str, reason: &str) {
+        let d = crate::clock::now_duration();
+        let id = format!("viol_{:x}", (d.subsec_nanos() as u64) ^ d.as_secs());
+        let mut attrs: HashMap<String, Value> = HashMap::new();
+        attrs.insert("id".to_string(), Value::Str(id));
+        attrs.insert("tool_name".to_string(), Value::Str(command.to_string()));
+        attrs.insert("reason".to_string(), Value::Str(reason.to_string()));
+        attrs.insert("occurred_at".to_string(), Value::Str(crate::clock::now_iso()));
+        let _ = self.dispatch_impl("Governance::Violation.Record", attrs);
+    }
+
+    /// RBAC gate for an ENTRY door. `dispatch` calls this; the cold one-shot
+    /// CLI path (which uses dispatch_deferred + a bespoke pump/drain
+    /// sequence) calls it explicitly before dispatching. Records a denial as
+    /// a governed Violation via the ungated internal path, returns
+    /// Err(Unauthorized) when blocked, and strips the reserved principal
+    /// attrs on success so they never reach the command or its event.
+    pub fn authorize_entry(
+        &mut self,
+        command_name: &str,
+        attrs: &mut HashMap<String, Value>,
+    ) -> Result<(), RuntimeError> {
+        if let Err(e) = self.acl_check(command_name, attrs) {
+            if let RuntimeError::Unauthorized { command, required, held } = &e {
+                let reason =
+                    format!("rbac: requires role '{}', caller holds '{}'", required, held);
+                let command = command.clone();
+                self.record_violation_internal(&command, &reason);
+            }
+            return Err(e);
+        }
+        attrs.remove(acl_readmodel::KIND_KEY);
+        attrs.remove(acl_readmodel::AUTH_KEY);
+        Ok(())
     }
 
     pub fn dispatch(
@@ -689,12 +754,11 @@ impl Runtime {
         command_name: &str,
         mut attrs: HashMap<String, Value>,
     ) -> Result<CommandResult, RuntimeError> {
-        // deciderate Inc4b — capability ACL gates the ENTRY dispatch (not
-        // cascades, which use dispatch_cascade). `actor_caps` is reserved
-        // meta : check it, then strip it so it never lands on the command
-        // or rides the emitted event.
-        self.acl_check(command_name, &attrs)?;
-        attrs.remove("actor_caps");
+        // RBAC authorization gates the ENTRY dispatch (not cascades, which
+        // use dispatch_cascade). Records a denial as a governed Violation
+        // and strips the reserved principal attrs on success. The cold
+        // one-shot CLI path (dispatch_deferred) calls authorize_entry too.
+        self.authorize_entry(command_name, &mut attrs)?;
         // Structural cutover : `dispatch` IS the async outbox path. The core
         // mutation touches ONE aggregate ; cross-aggregate reactions go to the
         // outbox and are delivered by the pump as SEPARATE transactions, then
@@ -708,6 +772,14 @@ impl Runtime {
         self.pump_outbox();
         self.pump();
         self.policy_engine.reset_in_flight();
+        // Refresh the RBAC read-model when a Role/Agent lifecycle command
+        // applied — keyed off the RESOLVED aggregate type, so it fires for
+        // bare- and qualified-name dispatch alike (a bare "Bind" carries no
+        // FQN prefix). A Define/Bind/Retire is reflected on the next gate.
+        if r.aggregate_type == "Role" || r.aggregate_type == "Agent" {
+            let m = acl_readmodel::AclReadModel::hydrate(self);
+            self.acl_read_model = m;
+        }
         Ok(r)
     }
 
@@ -3658,7 +3730,7 @@ impl std::fmt::Display for RuntimeError {
                     name, candidates, name)
             }
             RuntimeError::Unauthorized { command, required, held } => {
-                write!(f, "GOVERNANCE (acl): '{}' requires capability '{}' ; actor holds [{}]",
+                write!(f, "GOVERNANCE (rbac): '{}' requires role '{}' ; caller holds role '{}'",
                     command, required, held)
             }
         }

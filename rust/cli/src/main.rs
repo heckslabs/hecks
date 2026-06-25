@@ -4854,12 +4854,21 @@ fn dispatch_hecksagon(agg_dir: &str, command: &str, attrs: std::collections::Has
                 storehouse::command_attrs::unknown_attr_message(command, &bad, &allowed));
             std::process::exit(1);
         }
-        let rt_attrs: std::collections::HashMap<String, storehouse::runtime::Value> = attrs.iter()
+        let mut rt_attrs: std::collections::HashMap<String, storehouse::runtime::Value> = attrs.iter()
             .map(|(k, v)| (k.clone(), match v {
                 serde_json::Value::String(s) => storehouse::runtime::Value::Str(s.clone()),
                 _ => storehouse::runtime::Value::Str(v.to_string()),
             }))
             .collect();
+        // RBAC gate for the cold one-shot CLI door. Stamp the caller
+        // principal from the environment, then authorize before the
+        // (ungated) dispatch_deferred core path. A denial exits 2 with the
+        // governance message, mirroring the warm serve door.
+        storehouse::runtime::acl_readmodel::stamp_principal_from_env(&mut rt_attrs);
+        if let Err(e) = rt.authorize_entry(command, &mut rt_attrs) {
+            eprintln!("{}", e);
+            std::process::exit(2);
+        }
         // C3 CUTOVER (live) — the body's one-shot CLI dispatch is ASYNC.
         // dispatch_deferred runs the command's core mutation (one aggregate)
         // + the impure ports (tools / AI fire in-band), records the cross-
