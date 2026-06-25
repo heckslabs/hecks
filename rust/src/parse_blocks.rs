@@ -1077,6 +1077,27 @@ pub fn parse_mutation(line: &str) -> Option<Mutation> {
         let after_field = &line[sym_start + field.len()..];
         let comma = after_field.find(',')?;
         let raw = after_field[comma + 1..].trim();
+        // A bare `<word>:` in the value position is an UNKNOWN mutation op — the
+        // known ops are all matched by the `line.contains("<op>:")` branches
+        // above, so reaching the positional fallback with a keyword token means
+        // a typo (e.g. `upsert:`). Reject it loudly with a hint rather than
+        // silently storing the keyword as a Set literal — mirrors the rule-body
+        // parser's panic-with-hint rejection, and matches the Ruby DSL's
+        // `unknown keyword:` ArgumentError (parity : both runtimes reject it).
+        let rb = raw.as_bytes();
+        if rb.first().map_or(false, |b| b.is_ascii_lowercase() || *b == b'_') {
+            let end = rb.iter()
+                .take_while(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || **b == b'_')
+                .count();
+            if raw[end..].starts_with(':') {
+                panic!(
+                    "unknown mutation op `{}:` in then_set for `:{}` — valid ops are \
+                     to, append, append_unique, remove, increment, decrement, \
+                     multiply, clamp, decay, from",
+                    &raw[..end], field
+                );
+            }
+        }
         let value = if raw.starts_with('"') {
             // Quoted string — strip surrounding quotes.
             let end = raw[1..].find('"').map(|i| i + 1)?;

@@ -170,3 +170,29 @@ end
     assert_eq!(domain.aggregates.len(), 1);
     assert!(domain.policies.is_empty());
 }
+
+// An unrecognised `then_set` op keyword (here a typo'd `upsert:`) must be
+// REJECTED loudly at parse, not silently stored as a Set literal. Mirrors
+// the Ruby DSL's `unknown keyword:` ArgumentError (both runtimes reject it).
+#[test]
+#[should_panic(expected = "unknown mutation op `upsert:`")]
+fn unknown_mutation_op_is_rejected_at_parse() {
+    let _ = parser::parse(
+        r#"Hecks.bluebook "T" do
+core
+aggregate "A" do
+attribute :xs, list_of(X)
+value_object "X" do
+  attribute :v, String
+end
+command "C" do
+  role "R"
+  reference_to A
+  attribute :v, String
+  then_set :xs, upsert: { v: :v }
+end
+end
+end
+"#,
+    );
+}
