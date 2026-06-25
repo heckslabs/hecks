@@ -47,8 +47,8 @@
 //!       let rows = run_filtered(&conn, &table, &cols, &where_sql, &params);
 //!   }
 
-use super::AggregateState;
-use crate::ir::{WhereClause, WhereOp};
+use storehouse::runtime::AggregateState;
+use storehouse::ir::{WhereClause, WhereOp};
 use rusqlite::types::Value as SqlValue;
 use std::collections::HashMap;
 
@@ -202,7 +202,7 @@ pub fn run_filtered(
             let id: String = row.get(0)?;
             let mut state = AggregateState::new(&id);
             for (i, name) in cols.iter().enumerate() {
-                state.set(name, super::sqlite_mapping::value_from_sql(row, i + 1));
+                state.set(name, crate::sqlite_mapping::value_from_sql(row, i + 1));
             }
             Ok(state)
         })

@@ -8,14 +8,6 @@ description = "Bluebook compiler — reads domain declarations, emits any target
 flate2 = "1"
 serde_json = "1"
 
-# rusqlite — the SQLite-backed repository (rust/src/runtime/sqlite_*.rs).
-# Host-only : `bundled` compiles C SQLite, which has no
-# wasm32-unknown-unknown target, so the dep is gated to non-wasm.
-# Inside the Cloudflare Worker the runtime uses the in-memory
-# repository (and, later, the R2 heki adapter) ; sqlite_repository.rs
-# + sqlite_mapping.rs are correspondingly cfg-gated out in lib.rs /
-# runtime/mod.rs.
-#
 # tokio — async substrate for the actor model (sprint-14
 # tokio-mailbox-substrate). Replaces the std::thread-per-mailbox
 # substrate PR #702 landed ; mailbox abstraction unchanged. Full
@@ -24,7 +16,6 @@ serde_json = "1"
 # cfg-gated out on wasm32 (see runtime/mod.rs) so the wasm build does
 # not pull tokio.
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-rusqlite = { version = "0.39.0", features = ["bundled"] }
 tokio = { version = "1", features = ["full"] }
 
 # wasm32-only : the Cloudflare Worker R2 binding. Used by
@@ -40,3 +31,6 @@ worker = "0.8.3"
 # heki::uuid_v4() gets crypto-grade entropy inside the CF Worker
 # instead of falling back to time-seeded bytes.
 getrandom = { version = "0.2", features = ["js"] }
+
+[workspace]
+members = ["sqlite", "cli"]

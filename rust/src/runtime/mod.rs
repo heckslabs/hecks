@@ -62,62 +62,6 @@ mod reaction;
 // i728 file-split cluster 7 — context-qualified read side (all_qualified,
 // resolve_query_qualified) generated into this child module.
 mod query;
-// SQLite persistence backend — the SQL mirror of the heki Repository,
-// activated by `adapter :sqlite, db:` in a hecksagon. Typed columns
-// from the bluebook IR, one table per aggregate. LazyRepository
-// multiplexes heki vs sqlite behind one forwarding surface.
-// `sqlite_mapping` holds the IR→SQL type map + Value↔cell translation
-// (extracted to keep each file single-concern + under the LoC cap).
-// sqlite_mapping / sqlite_repository — host-only (they import
-// `rusqlite`, which compiles C SQLite and has no wasm32 target).
-// Gated out of the Cloudflare Worker build alongside the rusqlite
-// dep in Cargo.toml ; the Worker uses the in-memory Repository.
-#[cfg(not(target_arch = "wasm32"))]
-pub mod sqlite_mapping;
-#[cfg(not(target_arch = "wasm32"))]
-pub mod sqlite_repository;
-// wasm32 : a never-constructed stub so `lazy_repository`'s
-// heki/sqlite multiplexer compiles unchanged. The Worker only ever
-// builds the heki/memory backend (is_adapter() is const-false on wasm),
-// so every method here is `unreachable!`. Keeps the substrate switch
-// in one place rather than cfg-splitting every forwarding method.
-#[cfg(target_arch = "wasm32")]
-pub mod sqlite_repository {
-    //! wasm32 stub — see the comment at the cfg gate in runtime/mod.rs.
-    use super::{AggregateState, Value};
-    use crate::heki;
-    use std::collections::HashMap;
-
-    pub struct SqliteRepository;
-
-    #[allow(unused_variables, clippy::new_ret_no_self)]
-    impl SqliteRepository {
-        pub fn new(
-            aggregate_type: &str,
-            db_path: &str,
-            identified_by: Option<String>,
-            columns: Vec<(String, String)>,
-        ) -> Self {
-            unreachable!("SqliteRepository is host-only — wasm uses the heki/memory backend")
-        }
-        pub fn id_for_command(&mut self, attrs: &HashMap<String, Value>) -> String { unreachable!() }
-        pub fn save(&mut self, state: AggregateState, ctx: heki::WriteContext<'_>) { unreachable!() }
-        pub fn delete(&mut self, id: &str, ctx: heki::WriteContext<'_>) { unreachable!() }
-        pub fn find(&self, id: &str) -> Option<&AggregateState> { unreachable!() }
-        pub fn find_mut(&mut self, id: &str) -> Option<&mut AggregateState> { unreachable!() }
-        pub fn all(&self) -> Vec<&AggregateState> { unreachable!() }
-        pub fn count(&self) -> usize { unreachable!() }
-        pub fn seed_record(&mut self, state: AggregateState) { unreachable!() }
-        pub fn next_id_value(&self) -> u64 { unreachable!() }
-        pub fn set_next_id(&mut self, value: u64) { unreachable!() }
-        pub fn query(
-            &self,
-            wheres: &[crate::ir::WhereClause],
-            attrs: &HashMap<String, String>,
-        ) -> Vec<AggregateState> { unreachable!() }
-        pub fn ensure_indexes(&self, columns: &[String]) { unreachable!() }
-    }
-}
 // i-lazy — boot-map lazy hydration. Wraps Repository in a OnceCell so
 // boot constructs all 458 repos WITHOUT touching disk ; each repo's
 // load_persisted runs on first access. Kills the ~4.2s eager-hydration
@@ -202,24 +146,9 @@ pub mod event_log_query;
 // Replay SEEKS to an aggregate's events instead of streaming. Safe by
 // construction (commit-marker + full-scan fallback ; no false negatives).
 pub mod event_log_index;
-// Phase 1 of the where() overhaul — injection-safe SQL WHERE pushdown
-// builder + executor. Host-only (rusqlite) ; the wasm build uses the
-// heki/memory backend and never reaches it.
-#[cfg(not(target_arch = "wasm32"))]
-pub mod sql_query;
-// The where()-pushdown READ surface on the SQL backend — query() + the
-// Phase-3 expression indexes — split from sqlite_repository (CRUD substrate)
-// by concern. Host-only (rusqlite).
-#[cfg(not(target_arch = "wasm32"))]
-pub mod sqlite_query;
-// The SQL-pushdown ↔ where_matches parity oracle : asserts the
-// connection-executed prefilter never diverges from the in-memory
-// canonical matcher (contract-not-regex ; the two paths can't silently
-// drift). Host-only — exercises a real SqliteRepository.
-#[cfg(all(test, not(target_arch = "wasm32")))]
-mod sql_query_tests;
-#[cfg(all(test, not(target_arch = "wasm32")))]
-mod query_parity_tests;
+// SQL pushdown (sql_query / sqlite_query) + its parity tests live in the
+// storehouse-sqlite crate now — the persistence adapter owns its query surface
+// and its rusqlite dependency. The lib names no engine.
 // Phase 4 of the where() overhaul — the CausationTrace lineage traversal
 // (resolve_query_qualified's recursive branch), tested over a seeded chain.
 #[cfg(all(test, not(target_arch = "wasm32")))]
@@ -447,12 +376,9 @@ impl Runtime {
         // hecksagon in scope to read the override from.
         // sqlite override is host-only ; on wasm32 the Worker always
         // runs the in-memory repository (the rusqlite dep is gated out).
-        // Register the built-in sqlite adapter, then resolve every wired
-        // persistence binding against the registry. TEMPORARY (Phase 2a) :
-        // the crate split moves registration to the cli composition root so
-        // the lib carries no sqlite at all.
-        #[cfg(not(target_arch = "wasm32"))]
-        sqlite_repository::register();
+        // Resolve every wired persistence binding against the adapter
+        // registry. The composition root (storehouse-cli) registers concrete
+        // adapters (sqlite, ...) BEFORE boot ; the lib names no engine.
         #[cfg(not(target_arch = "wasm32"))]
         rt.apply_wired_adapters();
         // i728 keystone — make `adapter :memory` actually select Backend::Memory.
@@ -3781,7 +3707,10 @@ pub fn repo_lookup_key(repositories: &HashMap<String, LazyRepository>, name: &st
 /// (`":author"`) against the dispatch attrs ; literal values match
 /// the record's field as a string. Returns true when the record
 /// matches the clause, false otherwise.
-fn where_matches(
+// pub : the SQL-pushdown <-> oracle parity test (storehouse-sqlite crate) asserts
+// the adapter's prefilter agrees with this in-memory oracle, so it must be reachable
+// cross-crate as `storehouse::runtime::where_matches`.
+pub fn where_matches(
     state: &AggregateState,
     clause: &crate::ir::WhereClause,
     attrs: &std::collections::HashMap<String, String>,

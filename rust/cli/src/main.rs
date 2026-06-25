@@ -72,6 +72,11 @@ use std::env;
 use std::fs;
 
 fn main() {
+    // Composition root : wire concrete persistence adapters into the runtime
+    // BEFORE any boot. The lib names no engine — this is the ONE place sqlite
+    // (and future R2 / postgres) get registered against their hexagon tokens.
+    storehouse_sqlite::register();
+
     let args: Vec<String> = env::args().collect();
 
     // Detect being name from argv[0]: "miette" -> "Miette", "summer" -> "Summer"

@@ -12,7 +12,7 @@
 //!   sql_type("String")  => "VARCHAR(255)"
 //!   sql_type("Title")   => "TEXT"   (value-object / unknown → else)
 
-use super::Value;
+use storehouse::runtime::Value;
 
 /// Map a bluebook IR attribute type to its SQL column type. Verbatim
 /// mirror of Ruby's `sql_type` : String→VARCHAR(255), Integer→INTEGER,

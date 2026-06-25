@@ -16,10 +16,10 @@
 //!
 //! Plus an injection assertion : a malicious value is bound, never executed.
 
-use super::sqlite_repository::SqliteRepository;
+use crate::sqlite_repository::SqliteRepository;
 use super::{AggregateState, Value};
-use crate::heki;
-use crate::ir::{WhereClause, WhereOp};
+use storehouse::heki;
+use storehouse::ir::{WhereClause, WhereOp};
 use std::collections::HashMap;
 
 fn clause(field: &str, op: WhereOp, value: &str) -> WhereClause {
@@ -77,7 +77,7 @@ fn oracle_filter(
     sorted(
         states
             .iter()
-            .filter(|s| wheres.iter().all(|w| super::where_matches(s, w, attrs)))
+            .filter(|s| wheres.iter().all(|w| storehouse::runtime::where_matches(s, w, attrs)))
             .map(|s| s.id.clone())
             .collect(),
     )
@@ -244,15 +244,15 @@ fn where_matches_resolves_nested_vo_bare_and_dotted() {
     s.set("sequence", Value::Map(seqmap));
     let attrs = HashMap::new();
     // Bare-VO unwrap : compares by the inner value, not the map Display.
-    assert!(super::where_matches(&s, &clause("sequence", WhereOp::Eq, "7"), &attrs), "bare VO unwraps to 7");
-    assert!(super::where_matches(&s, &clause("sequence", WhereOp::Gt, "5"), &attrs), "7 > 5 via unwrap");
-    assert!(!super::where_matches(&s, &clause("sequence", WhereOp::Eq, "8"), &attrs), "7 != 8");
+    assert!(storehouse::runtime::where_matches(&s, &clause("sequence", WhereOp::Eq, "7"), &attrs), "bare VO unwraps to 7");
+    assert!(storehouse::runtime::where_matches(&s, &clause("sequence", WhereOp::Gt, "5"), &attrs), "7 > 5 via unwrap");
+    assert!(!storehouse::runtime::where_matches(&s, &clause("sequence", WhereOp::Eq, "8"), &attrs), "7 != 8");
     // Dotted path resolves the same integer.
-    assert!(super::where_matches(&s, &clause("sequence.value", WhereOp::Gt, "5"), &attrs), "7 > 5");
-    assert!(super::where_matches(&s, &clause("sequence.value", WhereOp::Eq, "7"), &attrs), "7 == 7");
-    assert!(!super::where_matches(&s, &clause("sequence.value", WhereOp::Lt, "7"), &attrs), "7 < 7 false");
+    assert!(storehouse::runtime::where_matches(&s, &clause("sequence.value", WhereOp::Gt, "5"), &attrs), "7 > 5");
+    assert!(storehouse::runtime::where_matches(&s, &clause("sequence.value", WhereOp::Eq, "7"), &attrs), "7 == 7");
+    assert!(!storehouse::runtime::where_matches(&s, &clause("sequence.value", WhereOp::Lt, "7"), &attrs), "7 < 7 false");
     // Missing dotted leaf resolves to "" (no panic, no match).
-    assert!(!super::where_matches(&s, &clause("sequence.nope", WhereOp::Eq, "7"), &attrs), "missing leaf");
+    assert!(!storehouse::runtime::where_matches(&s, &clause("sequence.nope", WhereOp::Eq, "7"), &attrs), "missing leaf");
 }
 
 #[test]

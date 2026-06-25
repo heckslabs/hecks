@@ -735,10 +735,26 @@ version = "0.1.0"
 dependencies = [
  "flate2",
  "getrandom",
- "rusqlite",
  "serde_json",
  "tokio",
  "worker",
+]
+
+[[package]]
+name = "storehouse-cli"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+ "storehouse",
+ "storehouse-sqlite",
+]
+
+[[package]]
+name = "storehouse-sqlite"
+version = "0.1.0"
+dependencies = [
+ "rusqlite",
+ "storehouse",
 ]
 
 [[package]]

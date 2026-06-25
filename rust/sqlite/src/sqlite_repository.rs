@@ -27,10 +27,10 @@
 //!   let cols = vec![("title".into(), "VARCHAR(255)".into())];
 //!   let repo = SqliteRepository::new("BlogEntry", "/tmp/app.db", None, cols)?; // fallible
 
-use super::sqlite_mapping::{value_from_sql, value_to_sql};
-use super::AggregateState;
-use super::Value;
-use crate::heki;
+use crate::sqlite_mapping::{value_from_sql, value_to_sql};
+use storehouse::runtime::AggregateState;
+use storehouse::runtime::Value;
+use storehouse::heki;
 use rusqlite::Connection;
 use std::collections::HashMap;
 
@@ -77,7 +77,7 @@ impl SqliteRepository {
             let _ = std::fs::create_dir_all(parent);
         }
         let conn = Connection::open(db_path)?;
-        let table = crate::util::snake_case(aggregate_type);
+        let table = storehouse::util::snake_case(aggregate_type);
         let col_names: Vec<String> = columns.iter().map(|(n, _)| n.clone()).collect();
         let numeric_columns: Vec<String> = columns.iter()
             .filter(|(_, ty)| ty.to_uppercase().starts_with("INTEGER"))
@@ -220,7 +220,7 @@ impl SqliteRepository {
 /// surface — inherent methods win method resolution, so `self.find(..)` calls
 /// the concrete impl and never recurses. This is the seam that lets the kernel
 /// hold sqlite as `Box<dyn PersistenceAdapter>` and name no concrete engine.
-impl crate::runtime::PersistenceAdapter for SqliteRepository {
+impl storehouse::runtime::PersistenceAdapter for SqliteRepository {
     fn find(&self, id: &str) -> Option<&AggregateState> { self.find(id) }
     fn find_mut(&mut self, id: &str) -> Option<&mut AggregateState> { self.find_mut(id) }
     fn all(&self) -> Vec<&AggregateState> { self.all() }
@@ -231,7 +231,7 @@ impl crate::runtime::PersistenceAdapter for SqliteRepository {
     fn delete(&mut self, id: &str, ctx: heki::WriteContext<'_>) { self.delete(id, ctx) }
     fn query(
         &self,
-        wheres: &[crate::ir::WhereClause],
+        wheres: &[storehouse::ir::WhereClause],
         attrs: &HashMap<String, String>,
     ) -> Option<Vec<AggregateState>> {
         Some(self.query(wheres, attrs))
@@ -250,8 +250,8 @@ impl crate::runtime::PersistenceAdapter for SqliteRepository {
 /// failed build refuses the aggregate at boot rather than deferring a Result
 /// the infallible read surface can't fail through.
 pub fn sqlite_factory(
-    spec: &crate::runtime::PersistenceSpec,
-) -> Result<Box<dyn crate::runtime::PersistenceAdapter>, String> {
+    spec: &storehouse::runtime::PersistenceSpec,
+) -> Result<Box<dyn storehouse::runtime::PersistenceAdapter>, String> {
     let agg = &spec.aggregate;
     let db_path = spec
         .option("db")
@@ -260,7 +260,7 @@ pub fn sqlite_factory(
         .attributes
         .iter()
         .filter(|a| !a.list && !matches!(a.name.as_str(), "id" | "created_at" | "updated_at"))
-        .map(|a| (a.name.clone(), super::sqlite_mapping::sql_type(&a.attr_type).to_string()))
+        .map(|a| (a.name.clone(), crate::sqlite_mapping::sql_type(&a.attr_type).to_string()))
         .collect();
     if let Some(lc) = &agg.lifecycle {
         columns.push((lc.field.clone(), "TEXT".to_string()));
@@ -288,5 +288,5 @@ pub fn sqlite_factory(
 /// TEMPORARY home (Phase 2a) : the crate split moves this into the
 /// storehouse-sqlite crate, called by the cli composition root before boot.
 pub fn register() {
-    crate::runtime::register_persistence_adapter("sqlite", sqlite_factory);
+    storehouse::runtime::register_persistence_adapter("sqlite", sqlite_factory);
 }

@@ -26,6 +26,7 @@ const GIT_SQLITE_HEX: &str =
 
 #[test]
 fn sqlite_scopes_to_its_declaring_context_only() {
+    storehouse_sqlite::register();
     let domain = load_combined_domain(&aggregates_dir());
     let rt = Runtime::boot_with_hecksagons(
         domain,
@@ -73,6 +74,7 @@ const RESERVED_COL_SQLITE_HEX: &str =
 
 #[test]
 fn a_sql_incompatible_column_refuses_the_aggregate_without_panicking() {
+    storehouse_sqlite::register();
     // `order` is a SQL reserved word ; the unquoted column makes CREATE
     // TABLE fail. The whole point of defect 2 : boot must NOT panic.
     let domain = storehouse::parser::parse(RESERVED_COL_BLUEBOOK);

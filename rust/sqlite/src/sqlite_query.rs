@@ -8,8 +8,8 @@
 //! Host-only : depends on rusqlite. The wasm SqliteRepository stub carries its
 //! own (unreachable) query / ensure_indexes.
 
-use super::sqlite_repository::SqliteRepository;
-use super::AggregateState;
+use crate::sqlite_repository::SqliteRepository;
+use storehouse::runtime::AggregateState;
 use std::collections::HashMap;
 
 impl SqliteRepository {
@@ -22,11 +22,11 @@ impl SqliteRepository {
     /// a silent empty result).
     pub fn query(
         &self,
-        wheres: &[crate::ir::WhereClause],
+        wheres: &[storehouse::ir::WhereClause],
         attrs: &HashMap<String, String>,
     ) -> Vec<AggregateState> {
-        match super::sql_query::build_pushdown(wheres, attrs, &self.columns, &self.numeric_columns) {
-            Some((where_sql, params)) => super::sql_query::run_filtered(
+        match crate::sql_query::build_pushdown(wheres, attrs, &self.columns, &self.numeric_columns) {
+            Some((where_sql, params)) => crate::sql_query::run_filtered(
                 &self.conn, &self.table, &self.columns, &where_sql, &params,
             )
             .unwrap_or_else(|| self.store.values().cloned().collect()),

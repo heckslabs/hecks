@@ -2,8 +2,8 @@
 //! save/find, cold-reopen durability, and the Ruby-parity SQL type map.
 
 use storehouse::heki::WriteContext;
-use storehouse::runtime::sqlite_mapping::sql_type;
-use storehouse::runtime::sqlite_repository::SqliteRepository;
+use storehouse_sqlite::sql_type;
+use storehouse_sqlite::SqliteRepository;
 use storehouse::runtime::{AggregateState, Value};
 use std::collections::HashMap;
 

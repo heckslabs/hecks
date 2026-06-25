@@ -5,8 +5,8 @@
 //! end-to-end SQL ↔ where_matches parity (over a real SqliteRepository) lives
 //! in `query_parity_tests`.
 
-use super::sql_query::build_pushdown;
-use crate::ir::{WhereClause, WhereOp};
+use crate::sql_query::build_pushdown;
+use storehouse::ir::{WhereClause, WhereOp};
 use rusqlite::types::Value as SqlValue;
 use std::collections::HashMap;
 
