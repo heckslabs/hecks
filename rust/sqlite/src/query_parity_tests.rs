@@ -17,7 +17,7 @@
 //! Plus an injection assertion : a malicious value is bound, never executed.
 
 use crate::sqlite_repository::SqliteRepository;
-use super::{AggregateState, Value};
+use storehouse::runtime::{AggregateState, Value};
 use storehouse::heki;
 use storehouse::ir::{WhereClause, WhereOp};
 use std::collections::HashMap;

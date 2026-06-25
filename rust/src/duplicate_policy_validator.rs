@@ -4,7 +4,7 @@
 //! Source:    codegen/duplicate_policy_validator_shape/
 //! Regenerate: storehouse specialize duplicate_policy --output storehouse/src/duplicate_policy_validator.rs
 //! Contract:  storehouse/src/specializer/duplicate_policy_validator.rs (Rust-native)
-//! Tests:     storehouse/tests/duplicate_policy_validator_test.rs
+//! Tests:     storehouse/cli/tests/duplicate_policy_validator_test.rs
 //!
 //! Catches bluebooks that declare two or more policies wired to the
 //! same `(on_event, trigger_command)` pair. Today this silently
