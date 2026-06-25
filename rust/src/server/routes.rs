@@ -1,3 +1,8 @@
+// [antibody-exempt: rust/src/server/routes.rs — storehouse engine single-domain
+//  HTTP dispatch routes. Kernel Rust transport that executes bluebook commands
+//  and queries (the /dispatch + /query endpoints + the effect drain) ; it
+//  cannot be bluebook vocabulary (it IS the runtime). Permanent engine-surface
+//  exemption — Chris chose the registry/permanent path, 2026-06-25.]
 //! Single-domain routes — backward-compatible JSON API
 //!
 //! Routes for a single domain runtime: dispatch commands,
@@ -103,6 +108,12 @@ pub fn dispatch(body: &str, rt: &RefCell<Runtime>) -> (&'static str, String) {
     let pre_count = rt.event_bus.events().len();
     match rt.dispatch(&cmd, attrs) {
         Ok(r) => {
+            // Fire any declared effect ports this command emitted (the
+            // screenshot_buffer DiskBuffer handler, payment, …) out-of-
+            // process to quiescence, so the dev `serve` actually RUNS
+            // effects and the cascade below carries their re-entrant
+            // verdicts. No-op when there are no pending OutboundEvents.
+            rt.drain_outbound_to_quiescence();
             let evt = r.event.as_ref()
                 .map(|e| format!(r#","event":"{}""#, e.name))
                 .unwrap_or_default();

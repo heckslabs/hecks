@@ -2802,14 +2802,7 @@ impl Runtime {
                     if handler.is_empty() {
                         return false;
                     }
-                    let p = std::path::Path::new(&handler);
-                    let abs = if p.is_absolute() {
-                        handler.clone()
-                    } else if !root.is_empty() {
-                        std::path::Path::new(&root).join(&handler).to_string_lossy().into_owned()
-                    } else {
-                        handler.clone()
-                    };
+                    let abs = resolve_handler_path(&root, &handler);
                     std::path::Path::new(&abs).exists()
                 })
                 .collect();
@@ -2830,16 +2823,7 @@ impl Runtime {
 
                 // Resolve handler + fold the .world config onto the canonical env.
                 let (handler, family) = self.adapter_handler(&d.adapter).unwrap_or_default();
-                let handler_path = {
-                    let p = std::path::Path::new(&handler);
-                    if p.is_absolute() {
-                        handler.clone()
-                    } else if !root.is_empty() {
-                        std::path::Path::new(&root).join(&handler).to_string_lossy().into_owned()
-                    } else {
-                        handler.clone()
-                    }
-                };
+                let handler_path = resolve_handler_path(&root, &handler);
                 let world = self.adapter_world_config(&d.adapter);
                 let env = adapter_env::map_config(
                     &family, &world, &self.family_fields(&family),
@@ -3944,6 +3928,40 @@ pub(crate) fn binding_command_tail(c: &str) -> &str {
 /// from `resolve_query` which serializes through serde_json ; this
 /// brings them back into the runtime's Value enum so `from_iter
 /// (:field)` reads land in the right shape.
+/// Resolve an adapter's (possibly relative) handler path to a usable one,
+/// trying in order : an ABSOLUTE path as-is ; relative to the aggregates_root
+/// (`root`) ; relative to the canonical repo root (where framework `tools/` /
+/// `examples/` handlers live) ; relative to CWD. Returns the FIRST that exists,
+/// else the root-joined form (so a genuinely-missing handler still yields a
+/// stable path the caller's `.exists()` check rejects). The effect drain calls
+/// this so a repo-relative handler (e.g. the screenshot DiskBuffer at
+/// `tools/web_debug/disk-buffer-handler`) resolves even when the served
+/// aggregates_root is some other directory.
+#[cfg(not(target_arch = "wasm32"))]
+fn resolve_handler_path(root: &str, handler: &str) -> String {
+    if std::path::Path::new(handler).is_absolute() {
+        return handler.to_string();
+    }
+    let mut candidates: Vec<std::path::PathBuf> = Vec::new();
+    if !root.is_empty() {
+        candidates.push(std::path::Path::new(root).join(handler));
+    }
+    if let Some(repo) = crate::heki::repo_root() {
+        candidates.push(repo.join(handler));
+    }
+    candidates.push(std::path::PathBuf::from(handler)); // CWD-relative
+    for c in &candidates {
+        if c.exists() {
+            return c.to_string_lossy().into_owned();
+        }
+    }
+    candidates
+        .into_iter()
+        .next()
+        .map(|c| c.to_string_lossy().into_owned())
+        .unwrap_or_else(|| handler.to_string())
+}
+
 fn json_obj_to_value_map(map: serde_json::Map<String, serde_json::Value>) -> HashMap<String, Value> {
     let mut out = HashMap::new();
     for (k, v) in map {

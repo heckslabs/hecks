@@ -1,3 +1,8 @@
+// [antibody-exempt: rust/src/server/multi.rs — storehouse engine HTTP serve
+//  transport. Kernel Rust : the multi-domain server that BOOTS and EXECUTES
+//  bluebooks over HTTP ; it cannot itself be bluebook vocabulary (it IS the
+//  runtime that runs them). Permanent engine-surface exemption — Chris chose
+//  the registry/permanent path, 2026-06-25.]
 //! Multi-domain server — serves N bluebook domains under one API
 //!
 //! Scans a directory for *.bluebook files, boots a Runtime for each,
@@ -28,20 +33,24 @@ use std::path::Path;
 
 /// Boot all bluebooks in a directory and serve them
 pub fn serve_directory(dir: &str, port: u16) {
-    let runtimes = load_all_domains(dir);
+    // Load every hecksagon (incl. .family / .adapter) under the served tree
+    // AND under the running repo FIRST — the domain runtimes boot WITH them
+    // attached (boot_served_runtime), so ensure_outbox_substrate merges the
+    // OutboundEvent outbox and the effect drain resolves each adapter's
+    // handler. Loading them AFTER the runtimes (as before) left every served
+    // runtime hecksagon-less, so declared effect ports never fired. They also
+    // register their :web routes (living_diagram, etc.).
+    let mut hecksagons = load_all_hecksagons(dir);
+    if let Some(repo_root) = repo_root_of_binary() {
+        hecksagons.extend(load_all_hecksagons(repo_root.to_str().unwrap_or(".")));
+    }
+
+    let runtimes = load_all_domains(dir, &hecksagons);
     if runtimes.is_empty() {
         eprintln!("No .bluebook files found in {}", dir);
         std::process::exit(1);
     }
 
-    // Load every hecksagon under the served tree AND under the
-    // running repo (so framework-side hecksagons like
-    // runtime/living_diagram/living_diagram.hecksagon register their
-    // :web routes too, even when the served dir is bin-buddy).
-    let mut hecksagons = load_all_hecksagons(dir);
-    if let Some(repo_root) = repo_root_of_binary() {
-        hecksagons.extend(load_all_hecksagons(repo_root.to_str().unwrap_or(".")));
-    }
     let repo_root = repo_root_of_binary().unwrap_or_else(|| std::path::PathBuf::from("."));
     let served_dir = std::fs::canonicalize(dir).unwrap_or_else(|_| std::path::PathBuf::from(dir));
     let registry = WebRegistry::scan(&hecksagons, &repo_root, &served_dir);
@@ -88,11 +97,31 @@ fn walk_hecksagons(root: &Path, map: &mut HashMap<String, Hecksagon>) {
                 continue;
             }
             walk_hecksagons(&path, map);
-        } else if path.extension().map(|e| e == "hecksagon").unwrap_or(false) {
+        } else if path.extension().map(|e| e == "hecksagon" || e == "family" || e == "adapter").unwrap_or(false) {
+            // .family / .adapter are framework vocabulary parsed through the
+            // SAME hecksagon parser — serve needs them so a domain runtime
+            // can resolve an effect bind's adapter handler (mirrors the cli's
+            // load_all_hecksagons). Without them DiskBuffer & friends never
+            // resolve and declared effect ports silently no-op under serve.
             if let Ok(source) = std::fs::read_to_string(&path) {
                 let hex = hecksagon_parser::parse(&source);
-                if !hex.name.is_empty() {
-                    map.insert(hex.name.clone(), hex);
+                // A .hecksagon carries a top-level name ; a .adapter / .family
+                // parses to an EMPTY top-level name but a populated adapters /
+                // families vec. Key those by the first adapter / family name so
+                // they aren't dropped — the runtime needs them attached to
+                // resolve an effect bind's adapter -> family -> verb chain
+                // (record_effect_outbound). Distinct names never collide.
+                let key = if !hex.name.is_empty() {
+                    hex.name.clone()
+                } else if let Some(a) = hex.adapters.first() {
+                    a.name.clone()
+                } else if let Some(f) = hex.families.first() {
+                    f.name.clone()
+                } else {
+                    String::new()
+                };
+                if !key.is_empty() {
+                    map.insert(key, hex);
                 }
             }
         }
@@ -127,12 +156,16 @@ fn repo_root_of_binary() -> Option<std::path::PathBuf> {
 /// each top-level *.bluebook becomes its own domain (catalog-style,
 /// for trees like hecks_conception/catalog where each file is a
 /// self-contained domain).
-fn load_all_domains(dir: &str) -> HashMap<String, RefCell<Runtime>> {
+fn load_all_domains(
+    dir: &str,
+    hecksagons: &HashMap<String, Hecksagon>,
+) -> HashMap<String, RefCell<Runtime>> {
     let mut map = HashMap::new();
     let data_dir = format!("{}/data", dir.trim_end_matches('/'));
 
     let dir_path = std::fs::canonicalize(dir)
         .unwrap_or_else(|_| std::path::PathBuf::from(dir));
+    let served_root = dir_path.to_string_lossy().into_owned();
     let dir_basename = dir_path
         .file_name()
         .and_then(|n| n.to_str())
@@ -144,14 +177,45 @@ fn load_all_domains(dir: &str) -> HashMap<String, RefCell<Runtime>> {
         let merged = merge_tree(&dir_path, &primary_path);
         if !merged.name.is_empty() {
             let name = merged.name.clone();
-            let rt = Runtime::boot_with_data_dir(merged, Some(data_dir.clone()));
+            let rt = boot_served_runtime(merged, &data_dir, &served_root, hecksagons);
             map.insert(name, RefCell::new(rt));
         }
     } else {
         // LEGACY mode — each .bluebook is its own domain.
-        walk_bluebooks(&dir_path, &data_dir, &mut map);
+        walk_bluebooks(&dir_path, &data_dir, &served_root, hecksagons, &mut map);
     }
     map
+}
+
+/// Boot a served domain runtime the way the CLI dispatch path does
+/// (`dispatch_hecksagon`) : `boot_with_hecksagons` so the attached hecksagons
+/// let `ensure_outbox_substrate` merge the OutboundEvent outbox and the effect
+/// drain resolve each adapter's handler ; set the `aggregates_root` a
+/// re-entering handler shells against ; fold the per-deployment `.world`
+/// config onto the adapters so a drained handler gets its env. Before this a
+/// served runtime booted hecksagon-less (`boot_with_data_dir`), so it had no
+/// outbox and no adapters and every declared effect port silently no-op'd.
+fn boot_served_runtime(
+    domain: crate::ir::Domain,
+    data_dir: &str,
+    served_root: &str,
+    hecksagons: &HashMap<String, Hecksagon>,
+) -> Runtime {
+    let hex: Vec<Hecksagon> = hecksagons.values().cloned().collect();
+    let mut rt = Runtime::boot_with_hecksagons(domain, Some(data_dir.to_string()), hex);
+    rt.aggregates_root = std::fs::canonicalize(served_root)
+        .ok()
+        .map(|p| p.to_string_lossy().into_owned())
+        .or_else(|| Some(served_root.to_string()));
+    // World attach is host-only (it walks .world files off disk) ; a wasm
+    // worker never runs serve_directory, and crate::world::attach is itself
+    // cfg-gated out of the wasm build, so gate the calls to match.
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        crate::world::attach::attach_world_servers(&mut rt, served_root);
+        crate::world::attach::attach_world_adapter_bindings(&mut rt, served_root);
+    }
+    rt
 }
 
 /// Recursively read every *.bluebook under `dir` (other than the
@@ -207,6 +271,8 @@ fn collect_bluebooks(
 fn walk_bluebooks(
     root: &std::path::Path,
     data_dir: &str,
+    served_root: &str,
+    hecksagons: &HashMap<String, Hecksagon>,
     map: &mut HashMap<String, RefCell<Runtime>>,
 ) {
     let entries = match std::fs::read_dir(root) {
@@ -222,13 +288,13 @@ fn walk_bluebooks(
             if name_os == "data" || name_os == "node_modules" || name_os == "target" {
                 continue;
             }
-            walk_bluebooks(&path, data_dir, map);
+            walk_bluebooks(&path, data_dir, served_root, hecksagons, map);
         } else if path.extension().map(|e| e == "bluebook").unwrap_or(false) {
             if let Ok(source) = std::fs::read_to_string(&path) {
                 let domain = parser::parse(&source);
                 if domain.name.is_empty() { continue; }
                 let name = domain.name.clone();
-                let rt = Runtime::boot_with_data_dir(domain, Some(data_dir.to_string()));
+                let rt = boot_served_runtime(domain, data_dir, served_root, hecksagons);
                 map.insert(name, RefCell::new(rt));
             }
         }
