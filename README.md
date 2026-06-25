@@ -45,8 +45,9 @@ Two implementations, one spec. The same Bluebook runs under the Rust runtime (**
 ```bash
 git clone https://github.com/chrisyoung/hecks.git
 cd hecks/rust
-cargo build --release
+cargo build --release -p storehouse-cli
 # binary at target/release/storehouse — put it on your PATH
+# (the workspace's `cli` member is the binary; bare `--release` builds only the lib)
 ```
 
 Validate a domain — every error includes a fix suggestion, and a valid bluebook is a runnable domain :

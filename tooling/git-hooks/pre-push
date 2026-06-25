@@ -37,7 +37,7 @@ REPO="$(git rev-parse --show-toplevel)"
 # common dir. Worktrees inherit the built storehouse binary from main
 # (no per-worktree rebuild). On a main-tree push MAIN_REPO == REPO.
 MAIN_REPO="$(dirname "$(git rev-parse --git-common-dir)")"
-STOREHOUSE="$MAIN_REPO/../storehouse/rust/target/release/storehouse"
+STOREHOUSE="$MAIN_REPO/rust/target/release/storehouse"
 
 # Gate 6b worktree detection — when pushing from a git worktree, .git is
 # a file (pointing to the common gitdir) rather than a directory.
