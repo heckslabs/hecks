@@ -13,7 +13,7 @@
 #
 require "open3"
 
-STOREHOUSE   = ENV.fetch("STOREHOUSE_BIN") { File.expand_path("../../storehouse/rust/target/release/storehouse", __dir__) }
+STOREHOUSE   = ENV.fetch("STOREHOUSE_BIN") { File.expand_path("../rust/target/release/storehouse", __dir__) }
 RUBY_RUNNER  = File.expand_path("../bin/hecks-behaviors", __dir__)
 KNOWN_DRIFT  = File.expand_path("behaviors_known_drift.txt", __dir__)
 

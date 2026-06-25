@@ -52,7 +52,7 @@ BODY_DIR="${HECKS_BODY_DIR:-}"
 [ -z "$BODY_DIR" ] && BODY_DIR="$CONCEPT_DIR"
 
 HECKS="${HECKS_BIN:-$REPO_ROOT/rust/target/release/storehouse}"
-[ -x "$HECKS" ] || HECKS="$MAIN_REPO/../storehouse/rust/target/release/storehouse"
+[ -x "$HECKS" ] || HECKS="$MAIN_REPO/rust/target/release/storehouse"
 [ -x "$HECKS" ] || HECKS="$REPO_ROOT/rust/target/debug/storehouse"
 [ -x "$HECKS" ] || HECKS="$MAIN_REPO/rust/target/release/storehouse"
 [ -x "$HECKS" ] || HECKS="$MAIN_REPO/rust/target/debug/storehouse"

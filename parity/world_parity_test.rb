@@ -18,7 +18,7 @@ require "open3"
 require "hecks"
 require_relative "canonical_ir"
 
-STOREHOUSE = ENV.fetch("STOREHOUSE_BIN") { File.expand_path("../../storehouse/rust/target/release/storehouse", __dir__) }
+STOREHOUSE = ENV.fetch("STOREHOUSE_BIN") { File.expand_path("../rust/target/release/storehouse", __dir__) }
 REPO_ROOT  = File.expand_path("..", __dir__)
 
 # Cover every `.world` shipped in-tree except node_modules / vendor / git

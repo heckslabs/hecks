@@ -35,8 +35,8 @@ esac
 
 if [ -n "${HECKS_BIN:-}" ]; then
   HECKS="$HECKS_BIN"
-elif [ -x "$MAIN_REPO/../storehouse/rust/target/release/storehouse" ]; then
-  HECKS="$MAIN_REPO/../storehouse/rust/target/release/storehouse"
+elif [ -x "$MAIN_REPO/rust/target/release/storehouse" ]; then
+  HECKS="$MAIN_REPO/rust/target/release/storehouse"
 elif [ -x "$REPO_ROOT/rust/target/release/storehouse" ]; then
   HECKS="$REPO_ROOT/rust/target/release/storehouse"
 elif [ -x "$REPO_ROOT/rust/target/debug/storehouse" ]; then

@@ -70,8 +70,8 @@ elif [ -x "$REPO_ROOT/rust/target/release/storehouse" ]; then
   HECKS="$REPO_ROOT/rust/target/release/storehouse"
 elif [ -x "$MAIN_REPO/rust/target/release/storehouse" ]; then
   HECKS="$MAIN_REPO/rust/target/release/storehouse"
-elif [ -x "$MAIN_REPO/../storehouse/rust/target/release/storehouse" ]; then
-  HECKS="$MAIN_REPO/../storehouse/rust/target/release/storehouse"
+elif [ -x "$MAIN_REPO/rust/target/release/storehouse" ]; then
+  HECKS="$MAIN_REPO/rust/target/release/storehouse"
 else
   echo "FAIL — can't find storehouse binary"
   exit 2
