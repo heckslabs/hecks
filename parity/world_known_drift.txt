@@ -18,3 +18,14 @@
 # constant Pizzas) — the SAME `::` const-resolution limit as pizzas.hecksagon.
 # Ruby is being retired ; retires with the hecksagon parser lift.
 examples/pizzas/bluebook/pizzas.world  # ports-and-adapters world shape (persisted_by("Heki") / Pizzas::Order.charged_by("Stripe")) — Rust resolves it ; legacy Ruby WorldBuilder errors on the FQN-verb form. Retires with the hecksagon parser lift.
+
+# ── 2026-06-25 — web_debug.world : same ports-and-adapters world shape ──
+# web_debug.world MIRRORS web_debug.hecksagon's bind selectors exactly as
+# pizzas.world mirrors pizzas.hecksagon : persisted_by("Heki") do dir :default
+# end (top-level persistence) + WebDebug::Screenshot.buffered_by("DiskBuffer")
+# do dir … capacity … end (the per-edge screenshot-buffer config dotted off the
+# aggregate binding). The Rust world_parser resolves it ; the legacy Ruby
+# WorldBuilder errors on the FQN-verb dotted form (uninitialized constant
+# WebDebug) — the SAME `::` const-resolution limit as pizzas. Retires with the
+# hecksagon parser lift.
+hecks_conception/aggregates/framework/web_debug/web_debug.world  # ports-and-adapters world shape (persisted_by("Heki") / WebDebug::Screenshot.buffered_by("DiskBuffer")) — Rust resolves it ; legacy Ruby WorldBuilder errors on the FQN-verb form. Retires with the hecksagon parser lift.

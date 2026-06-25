@@ -42,6 +42,19 @@ Hecks.bluebook "WebDebug" do
       emits "FrameCaptured"
     end
 
+    command "RecordStored" do
+      role "System"
+      goal "Record where the buffer adapter wrote the frame — the success verdict"
+      # Cascade-internal : the screenshot_buffer (DiskBuffer) adapter
+      # dispatches this when the async frame write succeeds (the `do success`
+      # branch in web_debug.hecksagon). Never called by hand. Records the
+      # written basename so Latest can report WHERE the frame landed.
+      reference_to Screenshot
+      attribute :path, FramePath
+      then_set :path, to: :path
+      emits "FrameStored"
+    end
+
     # The newest frame — what an agent reads to see the live page.
     query "Latest" do
       order_by :captured_at, :desc

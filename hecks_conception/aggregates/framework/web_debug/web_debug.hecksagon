@@ -1,0 +1,30 @@
+# The WebDebug hexagon — the ports-and-adapters ring around the synchronous
+# Screenshot domain. Everything INSIDE the boundary (web_debug.bluebook) is one
+# synchronous domain ; the frame WRITE (disk IO + prune) LEAVES it, so it is an
+# async adapter, out-of-process in the generic adapter-host — the kernel carries
+# no adapter. Mirrors pizzas.hecksagon : one bind decomposes as
+# aggregate . how-verb ( adapter ).
+Hecks.hecksagon "WebDebug" do
+
+  # ── REPLY PORT · persistence ───────────────────────────────────
+  # Screenshot STATE is tiny — frame_id, captured_at, path only ; the JPEG bytes
+  # never persist (FrameData is event-only), so the heki never grows with image
+  # bytes. The metadata rides Heki like Pizza / Order.
+  WebDebug::Screenshot.persisted_by("Heki")
+
+  # ── EFFECT PORT · screenshot_buffer ───────────────────────────
+  # The frame write is a remote-ish call — disk IO + prune — impure AND async, so
+  # an adapter. `buffered_by` belongs to the screenshot_buffer family, whose
+  # signal is EFFECT : Screenshot emits FrameCaptured (the inbound edge, `on:`)
+  # carrying the base64 bytes ; the DiskBuffer adapter (out-of-process, in
+  # `storehouse host`) base64-decodes + writes frame_<id>.jpg + latest.jpg under
+  # the buffer dir, prunes to capacity, then routes its verdict back through the
+  # hexagon as the bind's `do success` block — Screenshot.RecordStored with the
+  # written `path`. A dropped frame is no loss, so there is no failure branch :
+  # a non-zero handler exit just records no path (the buffer file is the truth).
+  # Mirrors Pizzas::Order.charged_by("Stripe", on: "OrderPlaced").
+  WebDebug::Screenshot.buffered_by("DiskBuffer", on: "FrameCaptured") do
+    success "Screenshot.RecordStored"
+  end
+
+end

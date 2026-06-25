@@ -1,0 +1,23 @@
+Hecks.world "WebDebug" do
+  # The per-deployment VALUES the bound adapters need — and ONLY values. MIRRORS
+  # web_debug.hecksagon's shape : the SAME family-verb selectors, carrying values
+  # instead of wiring.
+
+  # Persistence — bluebook-wide, top-level (not dotted off one aggregate).
+  # `persisted_by("Heki")` + `dir :default` : the store location rooted at
+  # ~/.heki, mirroring where this bluebook lives. :default resolves by
+  # convention — never a silent fallback.
+  persisted_by("Heki") do
+    dir :default
+  end
+
+  # Screenshot buffer — dotted off the SAME Screenshot.buffered_by("DiskBuffer")
+  # binding the hecksagon declares. WHERE the frames land and how many to keep ;
+  # the adapter-host folds these into the handler's child env. /tmp/ha_screenshots
+  # is the conventional buffer dir (latest.jpg = newest) ; capacity 100 is the
+  # circular-buffer depth the handler prunes to.
+  WebDebug::Screenshot.buffered_by("DiskBuffer") do
+    dir      "/tmp/ha_screenshots"
+    capacity 100
+  end
+end

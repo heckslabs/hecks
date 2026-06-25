@@ -1,0 +1,43 @@
+Hecks.behaviors "WebDebug" do
+  vision "Behavioral tests for the WebDebug bluebook — the Screenshot domain that backs visual debugging. Coverage is the SYNCHRONOUS DOMAIN logic only : Capture records the frame metadata + emits FrameCaptured (the base64 bytes ride the event to the out-of-process screenshot_buffer adapter, which these tests never touch — the kernel carries no adapter), and the RecordStored verdict records the written path + emits FrameStored. The adapter write + circular-buffer prune are proven end-to-end through `serve` (the disk-buffer handler writing /tmp/ha_screenshots/latest.jpg), not here — a behaviors test asserts domain shape, never the effect edge."
+
+  # ── Capture : receive a browser frame, emit FrameCaptured ────────
+  # The base64 frame_data is EVENT-ONLY (it rides FrameCaptured to the
+  # adapter, never persists), so the test asserts the recorded metadata
+  # (captured_at) + the emitted event, not the bytes.
+
+  test "Capture records captured_at" do
+    tests "Capture", on: "Screenshot"
+    input  frame_id:    { value: "1" },
+           captured_at: { value: "2026-06-25T06:40:00Z" },
+           frame_data:  { value: "aGVsbG8td29ybGQ=" }
+    expect captured_at: { value: "2026-06-25T06:40:00Z" }
+  end
+
+  test "Capture emits FrameCaptured" do
+    tests "Capture", on: "Screenshot"
+    input  frame_id:    { value: "2" },
+           captured_at: { value: "2026-06-25T06:41:00Z" },
+           frame_data:  { value: "Y29uZmlybQ==" }
+    expect emits: ["FrameCaptured"]
+  end
+
+  # ── RecordStored : the success verdict — record where the adapter wrote
+  # the frame + emit FrameStored. Cascade-internal (the DiskBuffer adapter
+  # dispatches it on a successful write) ; setup captures the frame first so
+  # the reference_to Screenshot resolves on its frame_id.
+
+  test "RecordStored records the written path" do
+    tests "RecordStored", on: "Screenshot"
+    setup  "Capture", frame_id: { value: "3" }, captured_at: { value: "2026-06-25T06:42:00Z" }, frame_data: { value: "eA==" }
+    input  frame_id: { value: "3" }, path: { value: "frame_3.jpg" }
+    expect path: { value: "frame_3.jpg" }
+  end
+
+  test "RecordStored emits FrameStored" do
+    tests "RecordStored", on: "Screenshot"
+    setup  "Capture", frame_id: { value: "4" }, captured_at: { value: "2026-06-25T06:43:00Z" }, frame_data: { value: "eA==" }
+    input  frame_id: { value: "4" }, path: { value: "frame_4.jpg" }
+    expect emits: ["FrameStored"]
+  end
+end

@@ -1,0 +1,23 @@
+# DiskBuffer — a concrete screenshot_buffer adapter : the circular on-disk frame
+# writer. Declares the family it implements (the inverted arrow) ; the family
+# never names it. Named for its IDENTITY (an on-disk circular buffer), NOT its
+# transport — that it base64-decodes and writes JPEG bytes is a detail of HOW it
+# buffers, configured in .world (dir + capacity).
+#
+# OUT-OF-PROCESS by construction : the effect runs in the generic adapter-host
+# (`storehouse host`), never in the kernel — the kernel carries no adapters or
+# families. The host resolves this adapter to its `handler` program, execs it
+# with the FrameCaptured payload on stdin (frame_id, captured_at, frame_data),
+# folds the .world block into the child env (BUFFER_DIR, BUFFER_CAPACITY), and
+# maps the handler's exit code to the bind's verdict : exit 0 -> success_command
+# (Screenshot.RecordStored), threading the stdout `path=...` line in. Because it
+# is a SEPARATE PROCESS, a slow or wedged write can NEVER block the synchronous
+# domain core — the whole point of an effect port.
+#
+# The bind `WebDebug::Screenshot.buffered_by("DiskBuffer", on: "FrameCaptured")`
+# resolves IFF DiskBuffer's declared family (screenshot_buffer) carries the
+# `buffered_by` verb — the typed attach checkpoint.
+Hecks.adapter "DiskBuffer" do
+  family  "screenshot_buffer"
+  handler "tools/web_debug/disk-buffer-handler"
+end
