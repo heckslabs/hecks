@@ -1025,6 +1025,19 @@ pub fn folder_address_segments(mut segs: Vec<String>) -> (Option<String>, Option
             }
         }
     }
+    // A git worktree lives at `<repo>/.claude/worktrees/<name>/…` — those
+    // three injected segments must NOT leak into the Realm/Context, or a
+    // worktree's aggregates stamp a different realm_path than the main
+    // checkout and realm-qualified dispatch (Realm::Context::Bluebook::
+    // Aggregate.Cmd) silently fails to resolve from within a worktree. Drop
+    // `.claude`, `worktrees`, and the worktree-name segment so a worktree
+    // path normalizes to its main-checkout equivalent.
+    if let Some(i) = segs.iter().position(|s| s == ".claude") {
+        if segs.get(i + 1).map(|s| s.as_str()) == Some("worktrees") {
+            let end = (i + 3).min(segs.len());
+            segs.drain(i..end);
+        }
+    }
     segs.retain(|s| s != "hecks_conception" && s != "aggregates" && s != "bluebook");
     if segs.is_empty() { return (None, None); }
     let realm = segs.remove(0);
@@ -1374,6 +1387,18 @@ fn folder_address_realm_plus_context() {
     assert_eq!(
         folder_address_segments(segs(&["hecks", "hecks_conception", "aggregates", "language", "grammar", "sentence.bluebook"])),
         (Some("hecks".to_string()), Some("language/grammar".to_string()))
+    );
+}
+
+#[test]
+fn folder_address_strips_worktree_path_segments() {
+    // A git worktree path …/hecks/.claude/worktrees/<name>/hecks_conception/…
+    // must normalize to the SAME (realm, context) as the main checkout, or
+    // realm-qualified dispatch fails from inside a worktree (the .claude/
+    // worktrees/<name> segments would otherwise leak into Context).
+    assert_eq!(
+        folder_address_segments(segs(&["hecks", ".claude", "worktrees", "governance-barrier-rehome", "hecks_conception", "aggregates", "world", "conception", "corpus.bluebook"])),
+        (Some("hecks".to_string()), Some("world/conception".to_string()))
     );
 }
 
