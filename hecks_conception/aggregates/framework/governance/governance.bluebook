@@ -109,6 +109,11 @@ Hecks.bluebook "Governance", version: "2026.05.19.1" do
       emits "SuggestionAssessed"
     end
 
+    query "ByName" do
+      description "Read one policy by name. The PreToolUse barrier consults its enforcement (advisory|hard_block) to decide fail-open vs fail-closed when the redirect registry is unreachable : hard_block fails closed, advisory fails open. An explicit, governed field — not a silent hook default."
+      where name: :name
+    end
+
     lifecycle :status, default: "proposed" do
       transition "Propose"  => "proposed"
       transition "Activate" => "active",    from: ["proposed", "suspended"]
@@ -152,6 +157,15 @@ Hecks.bluebook "Governance", version: "2026.05.19.1" do
       then_set :tool_name,   to: :tool_name
       then_set :reason,      to: :reason
       then_set :occurred_at, to: :occurred_at
+    end
+
+    query "ListAll" do
+      description "Every recorded denial — the audit trail of ungoverned native-tool attempts the barrier blocked. Replaces GovernedDoor's per-tool blocked_count tally : each block is now one immutable Violation row, and a tool's count is the rows whose tool_name matches."
+    end
+
+    query "ByTool" do
+      description "Every denial recorded for one native tool by name — the per-tool audit (the old blocked_count, now derived by counting rows)."
+      where tool_name: :tool_name
     end
   end
 
@@ -215,6 +229,66 @@ Hecks.bluebook "Governance", version: "2026.05.19.1" do
       transition "Register"  => "registered"
       transition "MarkLive"  => "live",  from: ["registered", "stale"]
       transition "MarkStale" => "stale", from: ["registered", "live"]
+    end
+  end
+
+  aggregate "GovernedDoor", "One governed native harness tool and its storehouse-door equivalent — the redirect map the PreToolUse barrier enforces. A native IO tool (Bash, Edit, Write, Read, Grep, Glob, MultiEdit, NotebookEdit, WebFetch, WebSearch) emits NO bus event, so an act made through it is ungoverned — invisible to the dispatch log, outside the Transparency vow. This aggregate is the static registry of native-tool -> door mappings the barrier looks up per dispatch to redirect a denied caller. The DENIAL itself is recorded as a Governance::Violation, not here : this is the map, the audit lives in Violation. Rehomed from the macrophage (i-barrier-rehome) — the redirect is synchronous pre-act prevention (the skin), upstream of the async immune cells that only respond after a breach." do
+    identified_by :tool
+
+    attribute :tool,            ToolName
+    attribute :door_equivalent, DoorPhrase
+    attribute :door_args,       DoorArgs, default: ""
+    attribute :severity,        Severity, default: "block"
+
+    value_object "ToolName" do
+      # The native harness tool name as it arrives in the PreToolUse payload's
+      # tool_name field (e.g. "Bash", "Edit", "Read").
+      attribute :value, String
+    end
+
+    value_object "DoorPhrase" do
+      # The storehouse-door command the caller must use instead
+      # (e.g. "Tools::ShellTool.Bash"). A human-facing redirect string the
+      # barrier shows a person ; the door resolves it leniently.
+      attribute :value, String
+    end
+
+    value_object "DoorArgs" do
+      # The arg-shape hint for the door command — the key names the caller must
+      # pass in the dispatch's `args` object (e.g. "shell_command=<command>" for
+      # Bash). The variable half of the redirect message ; the barrier renders
+      # the invariant door-calling scaffolding around this per-tool hint, so a
+      # denied caller gets the whole recipe, not just the door name.
+      attribute :value, String
+    end
+
+    value_object "Severity" do
+      # "block" (hard-stop via PreToolUse exit 2) or "warn" (surface without
+      # stopping). Whether a block fails open or closed on a governance outage
+      # is the owning Policy's enforcement field, not this per-tool severity.
+      attribute :value, String, enum: ["block", "warn"]
+    end
+
+    command "Register" do
+      role "Framework"
+      description "Register a native tool as governed, with the storehouse-door command that replaces it and the arg-shape hint a denied caller needs. The creation command — the redirect does not exist until Register fires."
+      attribute :tool,            ToolName
+      attribute :door_equivalent, DoorPhrase
+      attribute :door_args,       DoorArgs
+      emits "GovernedToolRegistered"
+      then_set :tool,            to: :tool
+      then_set :door_equivalent, to: :door_equivalent
+      then_set :door_args,       to: :door_args
+      then_set :severity,        to: "block"
+    end
+
+    query "ListAll" do
+      description "Every governed native tool and its door equivalent — the redirect map the PreToolUse barrier enforces."
+    end
+
+    query "LookupDoor" do
+      description "Look up the storehouse-door equivalent for one native tool by name. Returns the GovernedDoor record (with door_equivalent + door_args) when registered, or empty when the tool is not governed (control-plane tools, mcp__storehouse__*, etc.). The PreToolUse barrier calls this per dispatch to render the redirect message."
+      where tool: :tool
     end
   end
 end

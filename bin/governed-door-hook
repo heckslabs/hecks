@@ -1,36 +1,48 @@
 #!/usr/bin/env bash
-# Macrophage — GovernedDoor PreToolUse HARD-BLOCK.
+# Governance — the BARRIER (the skin). PreToolUse HARD-BLOCK of ungoverned
+# native tools. The synchronous, pre-act first line of defense ; upstream of
+# the asynchronous immune cells (macrophage/fibroblast) that only respond
+# AFTER a breach.
 # Bluebook of record :
-#   hecks_conception/aggregates/discipline/immune_system/macrophage/governed_door.bluebook
+#   hecks_conception/aggregates/framework/governance/governance.bluebook
 #
 # A native IO tool (Bash/Edit/Write/Read/Grep/Glob/MultiEdit/NotebookEdit/
 # WebFetch/WebSearch) emits NO bus event -> the act is ungoverned, invisible to
 # the dispatch log, outside the Transparency vow. This PreToolUse hook looks up
-# the door equivalent via Discipline::GovernedDoor.lookup_door and, when one
-# exists, emits the redirect on stderr AND hard-blocks (exit 2). Control-plane
-# tools (Agent/Task/advisor/AskUserQuestion/ToolSearch) and mcp__storehouse__*
-# return no door -> allowed (exit 0). They orchestrate; they do not act.
+# the door equivalent via Governance::GovernedDoor.lookup_door and, when one
+# exists, RECORDS the denial as Governance::Violation AND hard-blocks (exit 2).
+# Control-plane tools (Agent/Task/advisor/AskUserQuestion/ToolSearch) and
+# mcp__storehouse__* return no door -> allowed (exit 0). They orchestrate; they
+# do not act on the world.
+#
+# FAIL MODE is GOVERNED, not a hook default (Fork 2) : when the redirect
+# registry is UNREACHABLE (the lookup query errors), the hook reads the active
+# Policy's enforcement via Governance::Policy.by_name. hard_block -> fail CLOSED
+# (block) ; advisory, or an unreadable Policy (a total outage where the binary
+# or store is gone), -> fail OPEN (allow). So a wedged governance machine never
+# bricks the session unless an explicit, READABLE hard_block policy says it
+# should — and even then the escape below recovers it.
 #
 # Admin escape (OPERATIONAL, out-of-band): launch claude with
 #   HECKS_GOVERNANCE_OFF=1
-# to disable all blocking -- for an Anthropic upgrade that needs native tools.
+# to disable all blocking — for an upgrade that needs native tools, or recovery.
 # Re-lock by restarting without it. There is no in-band allowlist; the governed
 # agent cannot disable its own governance mid-session.
-#
-# Fail-OPEN: any error reaching the registry -> allow. A broken governance
-# machine must never brick the session, and the door itself is never blocked.
 [ -n "$HECKS_GOVERNANCE_OFF" ] && exit 0
 tool=$(jq -r '.tool_name // empty' 2>/dev/null || true)
 [ -z "$tool" ] && exit 0
 SH=/Users/christopheryoung/Projects/hecks/rust/target/release/storehouse
 ROOT=/Users/christopheryoung/Projects/hecks/hecks_conception
-result=$("$SH" query "$ROOT" Discipline::GovernedDoor.lookup_door tool="$tool" 2>/dev/null || true)
+POLICY=miette-harness
+result=$("$SH" query "$ROOT" Governance::GovernedDoor.lookup_door tool="$tool" 2>/dev/null)
+qexit=$?
 door=$(echo "$result" | jq -r '.. | .door_equivalent? // empty' 2>/dev/null | head -1 || true)
 args=$(echo "$result" | jq -r '.. | .door_args? // empty' 2>/dev/null | head -1 || true)
 if [ -n "$door" ]; then
-  "$SH" "$ROOT" Discipline::GovernedDoor.RecordBlock governed_door="$tool" last_blocked_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)" >/dev/null 2>&1 || true
+  ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+  "$SH" "$ROOT" Governance::Violation.Record id="$tool-$ts" tool_name="$tool" reason="native $tool makes no bus event" occurred_at="$ts" >/dev/null 2>&1 || true
   {
-    echo "GOVERNANCE (macrophage): native $tool makes no bus event — it is ungoverned."
+    echo "GOVERNANCE (barrier): native $tool makes no bus event — it is ungoverned."
     echo "Route through the storehouse door. The door tool is DEFERRED, so two steps:"
     echo "  1. Load it:  ToolSearch  query=\"select:mcp__storehouse__storehouse__dispatch\""
     echo "  2. Call mcp__storehouse__storehouse__dispatch with:"
@@ -41,5 +53,18 @@ if [ -n "$door" ]; then
     echo "Every act a bus event."
   } >&2
   exit 2
+fi
+# No door. Either the tool is ungoverned (query OK, empty state) -> allow, or
+# the registry was UNREACHABLE (query errored) -> consult the policy fail-mode.
+if [ "$qexit" -ne 0 ]; then
+  enf=$("$SH" query "$ROOT" Governance::Policy.by_name name="$POLICY" 2>/dev/null \
+        | jq -r '.state.enforcement // empty' 2>/dev/null | head -1 || true)
+  if [ "$enf" = "hard_block" ]; then
+    {
+      echo "GOVERNANCE (barrier): redirect registry unreachable and policy '$POLICY' is hard_block — failing CLOSED."
+      echo "Native $tool is denied until governance recovers. To recover, restart with HECKS_GOVERNANCE_OFF=1."
+    } >&2
+    exit 2
+  fi
 fi
 exit 0

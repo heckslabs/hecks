@@ -1,0 +1,77 @@
+Hecks.behaviors "Governance" do
+  vision "Behavioral tests for the governance barrier — the synchronous skin that prevents ungoverned native acts before they happen. Policy holds deny-by-default + the append-only allow-list ; GovernedDoor is the native-tool -> storehouse-door redirect map the PreToolUse barrier enforces ; Violation is the single denial record (the audit). Channel-level prevention, upstream of the async immune cells."
+
+  # ── Policy : deny-by-default + allow-list ────────────────────
+  test "Propose declares a policy in the proposed phase" do
+    tests "Propose", on: "Policy"
+    input  name: "miette-session", stance: "deny_by_default", enforcement: "hard_block"
+    expect name: "miette-session", status: "proposed"
+  end
+
+  test "Propose emits Proposed" do
+    tests "Propose", on: "Policy"
+    input  name: "miette-session", stance: "deny_by_default", enforcement: "hard_block"
+    expect_event "Proposed"
+  end
+
+  test "Permit appends a tool pattern to the allow-list" do
+    tests "Permit", on: "Policy"
+    setup  "Propose", name: "miette-session", stance: "deny_by_default", enforcement: "hard_block"
+    input  name: "miette-session", pattern: "mcp__storehouse__*", reason: "the governed channel itself"
+    expect_event "Permitted"
+  end
+
+  test "Activate moves the policy to active" do
+    tests "Activate", on: "Policy"
+    setup  "Propose", name: "miette-session", stance: "deny_by_default", enforcement: "hard_block"
+    input  name: "miette-session"
+    expect status: "active"
+  end
+
+  test "ByName reads the policy enforcement" do
+    tests "ByName", on: "Policy", kind: :query
+    setup  "Propose", name: "miette-harness", stance: "deny_by_default", enforcement: "hard_block"
+    input  name: "miette-harness"
+    expect count: 1
+  end
+
+  # ── Violation : the single denial record (folds in RecordBlock) ───
+  test "Record logs a denied native tool attempt" do
+    tests "Record", on: "Violation"
+    input  id: "v-1", tool_name: "Bash", reason: "native Bash makes no bus event", occurred_at: "2026-06-25T05:00:00Z"
+    expect tool_name: "Bash", reason: "native Bash makes no bus event"
+  end
+
+  test "Record emits Recorded" do
+    tests "Record", on: "Violation"
+    input  id: "v-2", tool_name: "Read", reason: "native Read makes no bus event", occurred_at: "2026-06-25T05:01:00Z"
+    expect_event "Recorded"
+  end
+
+  test "ByTool lists the denials recorded for one tool" do
+    tests "ByTool", on: "Violation", kind: :query
+    setup  "Record", id: "v-9", tool_name: "Bash", reason: "native Bash makes no bus event", occurred_at: "2026-06-25T05:02:00Z"
+    input  tool_name: "Bash"
+    expect count: 1
+  end
+
+  # ── GovernedDoor : the native-tool -> door redirect map ───────
+  test "Register seeds a governed tool with its door + arg hint" do
+    tests "Register", on: "GovernedDoor"
+    input  tool: "Bash", door_equivalent: "Tools::ShellTool.Bash", door_args: "shell_command=<command>"
+    expect tool: "Bash", door_equivalent: "Tools::ShellTool.Bash", door_args: "shell_command=<command>", severity: "block"
+  end
+
+  test "Register emits GovernedToolRegistered" do
+    tests "Register", on: "GovernedDoor"
+    input  tool: "Edit", door_equivalent: "Tools::FileTool.Edit", door_args: "file_path=<absolute path>"
+    expect_event "GovernedToolRegistered"
+  end
+
+  test "LookupDoor returns the registered door for the queried tool" do
+    tests "LookupDoor", on: "GovernedDoor", kind: :query
+    setup  "Register", tool: "Bash", door_equivalent: "Tools::ShellTool.Bash", door_args: "shell_command=<command>"
+    input  tool: "Bash"
+    expect count: 1
+  end
+end

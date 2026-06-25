@@ -6,13 +6,14 @@ Hecks.bluebook "AgentDiscipline", version: "2026.05.31.1" do
   # AgentDiscipline — one aggregate, two violation kinds
   # ============================================================
   #
-  # Conceived sprint-14 (agent-discipline-bypass card). Sits alongside
-  # GovernedDoor as a sibling macrophage rule : GovernedDoor catches
-  # native-tool bypasses on the IO surface ; AgentDiscipline catches
-  # the agent-orchestration bypasses one layer up.
+  # Conceived sprint-14 (agent-discipline-bypass card). A macrophage
+  # rule that catches agent-orchestration bypasses one layer up. (The
+  # native-tool IO-surface barrier — GovernedDoor — has since moved UP to
+  # framework/governance/ : it PREVENTS the act synchronously ; this cell
+  # DETECTS the orchestration bypass after the fact.)
   #
-  # Modeled on GovernedDoor (governed_door.bluebook) : one aggregate
-  # holding the violation-kind registry + audit counters. The hook
+  # Modeled on the same shape governance's GovernedDoor uses : one
+  # aggregate holding the violation-kind registry + audit counters. The hook
   # surface lives in bin/agent-discipline-check ; the bluebook is the
   # record of what gets caught and the running counters.
   #

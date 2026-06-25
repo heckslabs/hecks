@@ -43,6 +43,17 @@ Hecks.bluebook "ImmuneSystem", version: "2026.05.22.1" do
   #                             equivalent-bluebook sidequest. Sister
   #                             to the bluebook-first Macrophage family.
   #
+  # == Upstream of the cells : GOVERNANCE (the barrier / the skin) ==
+  #
+  # The cells above are POST-HOC : they detect, repair, and signal AFTER
+  # an act. The synchronous, PRE-act first line of defense — the
+  # native-tool -> storehouse-door redirect that BLOCKS an ungoverned act
+  # before it happens — is NOT a cell. It lives in framework/governance/
+  # (Policy, GovernedDoor, Violation) and runs at the PreToolUse entrance,
+  # upstream of this whole system. GovernedDoor was once co-located here
+  # as a macrophage sibling ; it moved UP to governance because a barrier
+  # that PREVENTS entry is the skin, not an immune response to a breach.
+  #
   # Discipline n'est pas punition : it is the mechanical reminder
   # of a structural truth.
 end
