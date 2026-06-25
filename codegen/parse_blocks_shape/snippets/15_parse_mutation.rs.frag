@@ -1,6 +1,10 @@
 pub fn parse_mutation(line: &str) -> Option<Mutation> {
     let field = extract_symbol(line)?;
-    let (op, value) = if line.contains("append:") {
+    let (op, value) = if line.contains("append_unique:") {
+        // append iff no value-equal element is already present — idempotent
+        // list growth (a re-fired establishment policy re-appends as a no-op).
+        (MutationOp::AppendUnique, extract_after(line, "append_unique:")?)
+    } else if line.contains("append:") {
         (MutationOp::Append, extract_after(line, "append:")?)
     } else if line.contains("remove:") {
         (MutationOp::Remove, extract_after(line, "remove:")?)

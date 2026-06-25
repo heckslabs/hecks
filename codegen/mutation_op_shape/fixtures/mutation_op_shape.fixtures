@@ -81,6 +81,12 @@ Hecks.fixtures "MutationOpShape" do
       order: 9,
       dispatch_kind: "clamp_bounds",
       doc_snippet: "codegen/mutation_op_shape/snippets/op_clamp_doc.rs.frag"
+
+    fixture "AppendUnique",
+      op_name: "AppendUnique",
+      order: 11,
+      dispatch_kind: "resolve_call",
+      state_method: "append_unique"
   end
 
   aggregate "MutatorMethod" do
@@ -148,7 +154,13 @@ Hecks.fixtures "MutationOpShape" do
       name: "toggle",
       order: 10,
       snippet_path: "codegen/mutation_op_shape/snippets/method_toggle.rs.frag",
-      description: "MutationOp::Toggle target — match Bool, insert Bool(!current)"
+          description: "MutationOp::Toggle target — match Bool, insert Bool(!current)"
+
+    fixture "AppendUnique",
+          name: "append_unique",
+          order: 12,
+          snippet_path: "codegen/mutation_op_shape/snippets/method_append_unique.rs.frag",
+          description: "MutationOp::AppendUnique target — entry-or-empty-list, push value iff not already present (value-equality dedup)"
   end
 
   aggregate "Section" do

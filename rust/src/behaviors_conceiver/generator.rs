@@ -1,5 +1,12 @@
 //! Generator for behavioral test suites
 //!
+//! [antibody-exempt: rust/src/behaviors_conceiver/generator.rs — hand-maintained
+//!  recursive-heuristic conceiver (NOT a specializer target ; the genuine gap the
+//!  BehaviorsConception grammar bluebook documents). Its exhaustive
+//!  `match m.operation` must gain an arm for every MutationOp variant ;
+//!  AppendUnique was added as an append-producer (treated like Append). Retires
+//!  when the behaviors conceiver is itself conceived as a bluebook.]
+//!
 //! Walks a source domain's IR and emits one starter test per command
 //! plus one per query. Smart enough that the auto-generated suite
 //! mostly *passes* against the in-memory runner — the user iterates
@@ -635,7 +642,7 @@ impl ProducedState {
                 MutationOp::Set => {
                     self.set_facts.insert((m.field.clone(), val));
                 }
-                MutationOp::Append => {
+                MutationOp::Append | MutationOp::AppendUnique => {
                     *self.append_counts.entry(m.field.clone()).or_insert(0) += 1;
                 }
                 MutationOp::Increment => {

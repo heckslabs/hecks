@@ -234,6 +234,7 @@ Hecks.fixtures "DumpShape" do
     fixture "MutOp_Clamp",     serializer: "dump_mutation_op", variant: "MutationOp::Clamp",     emits: "clamp",     order: 7
     fixture "MutOp_Decay",     serializer: "dump_mutation_op", variant: "MutationOp::Decay",     emits: "decay",     order: 8
     fixture "MutOp_Delete",    serializer: "dump_mutation_op", variant: "MutationOp::Delete",    emits: "delete",    order: 9
+    fixture "MutOp_AppendUnique", serializer: "dump_mutation_op", variant: "MutationOp::AppendUnique", emits: "append_unique", order: 11
 
     # dump_where_op — 6 variants (i101).
     fixture "WhereOp_Eq",  serializer: "dump_where_op", variant: "WhereOp::Eq",  emits: "eq",  order: 1

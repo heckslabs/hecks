@@ -1,5 +1,11 @@
 //! conception_kernel::produced_state — the facts a setup chain has produced.
 //!
+//! [antibody-exempt: rust/src/conception_kernel/produced_state.rs — hand-maintained
+//!  conception kernel (NOT a specializer target). Its exhaustive `match m.operation`
+//!  must gain an arm for every MutationOp variant ; AppendUnique was added as an
+//!  append-producer (treated like Append). Retires when the conception kernel is
+//!  itself conceived as a bluebook.]
+//!
 //! Threaded through the planner's recursion so a later precondition already
 //! covered by an earlier step is skipped, and so an Append loop subtracts
 //! existing instances (a MinSizeList chain doesn't double-seed). `satisfies`
@@ -39,7 +45,7 @@ impl ProducedState {
                     self.set_facts
                         .insert((m.field.clone(), m.value.trim_matches('"').to_string()));
                 }
-                MutationOp::Append => {
+                MutationOp::Append | MutationOp::AppendUnique => {
                     *self.append_counts.entry(m.field.clone()).or_insert(0) += 1;
                 }
                 // Increment raises the field; Multiply/Decay/Clamp touch it with

@@ -1,5 +1,11 @@
 //! conception_kernel::producers — finding and appending setup producers.
 //!
+//! [antibody-exempt: rust/src/conception_kernel/producers.rs — hand-maintained
+//!  conception kernel (NOT a specializer target). Its producer-seek `matches!`
+//!  must recognise every list-append MutationOp ; AppendUnique was added beside
+//!  Append so a MinSizeList precondition finds an append_unique producer. Retires
+//!  when the conception kernel is itself conceived as a bluebook.]
+//!
 //! The seek/append/default half of the engine, driven entirely by the kind's
 //! GENERAL primitives (`ProducerSeek`, `DefaultRule`) — no `match kind`. Split
 //! from `planner.rs` by concern: the planner owns the recursion, this owns
@@ -50,7 +56,7 @@ pub fn find_producer<'a>(
         ProducerSeek::AppendOnce | ProducerSeek::AppendN => agg.commands.iter().find(|c| {
             c.mutations
                 .iter()
-                .any(|m| matches!(m.operation, MutationOp::Append) && m.field == pre.field)
+                .any(|m| matches!(m.operation, MutationOp::Append | MutationOp::AppendUnique) && m.field == pre.field)
         }),
         ProducerSeek::SetIntAtLeast => find_int(agg, pre, true),
         ProducerSeek::SetIntAtMost => find_int(agg, pre, false),

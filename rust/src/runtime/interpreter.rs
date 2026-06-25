@@ -147,6 +147,10 @@ pub fn apply_mutations(
                 let val = resolve_mutation_value(&mutation.value, attrs, state);
                 state.remove(&mutation.field, val);
             }
+            MutationOp::AppendUnique => {
+                let val = resolve_mutation_value(&mutation.value, attrs, state);
+                state.append_unique(&mutation.field, val);
+            }
         }
     }
 }

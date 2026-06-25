@@ -69,12 +69,12 @@ Hecks.bluebook "Governance", version: "2026.05.19.1" do
 
     command "Permit" do
       role "Framework"
-      description "Add a tool-name pattern to the allow-list with the reason it is exempt from bus-routing. Everything not permitted is denied by the stance. NOTE : append is not yet idempotent — a per-pattern dedup needs an append-unique MutationOp the runtime does not have ; until then the boot-time establishment re-appends on each re-boot. Tracked as a kernel gap."
+      description "Add a tool-name pattern to the allow-list with the reason it is exempt from bus-routing. Everything not permitted is denied by the stance. Idempotent : `append_unique` adds the {pattern, reason} record only when no value-equal element is already present, so the boot-time establishment policy can re-fire `Permit` on every reboot and the allow-list never bloats — a re-appended identical record is a no-op (a `list_of(VO)` dedupes by full value, since a value object has no identity)."
       reference_to(Policy)
       attribute :pattern, Pattern
       attribute :reason,  Reason
       emits "Permitted"
-      then_set :permitted, append: { pattern: :pattern, reason: :reason }
+      then_set :permitted, append_unique: { pattern: :pattern, reason: :reason }
     end
 
     command "Forbid" do

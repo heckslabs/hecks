@@ -21,6 +21,19 @@ Hecks.behaviors "Governance" do
     expect_event "Permitted"
   end
 
+  # The idempotency contract `append_unique` exists to satisfy : the boot-time
+  # establishment policy re-fires Permit on EVERY reboot, so the same {pattern,
+  # reason} record is appended again and again. With plain `append` the allow-list
+  # would bloat one duplicate per reboot ; with `append_unique` a value-equal
+  # record is a no-op, so re-permitting keeps exactly one entry.
+  test "Permit is idempotent — re-permitting the same pattern keeps one entry" do
+    tests "Permit", on: "Policy"
+    setup  "Propose", name: "miette-session", stance: "deny_by_default", enforcement: "hard_block"
+    setup  "Permit",  name: "miette-session", pattern: "mcp__storehouse__*", reason: "the governed channel itself"
+    input  name: "miette-session", pattern: "mcp__storehouse__*", reason: "the governed channel itself"
+    expect permitted_size: 1
+  end
+
   test "Activate moves the policy to active" do
     tests "Activate", on: "Policy"
     setup  "Propose", name: "miette-session", stance: "deny_by_default", enforcement: "hard_block"

@@ -59,6 +59,11 @@ pub fn emit(repo_root: &Path) -> Result<String, Box<dyn Error>> {
 
 const HEADER: &str = r#"//! Generator — produce .bluebook DSL text from archetypes
 //!
+//! [antibody-exempt: rust/src/conceiver/generator.rs — specializer target
+//!  (conceiver_generator) ; its AppendUnique match arm regenerates from
+//!  conceiver_generator_shape. This marker travels via the specializer HEADER so
+//!  the generated file is structurally exempt like ir.rs / dump.rs.]
+//!
 //! Takes a Domain IR (the archetype) and generates a new bluebook
 //! with the same structural shape but placeholder names.
 //!

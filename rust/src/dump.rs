@@ -233,16 +233,17 @@ fn normalize_value(s: &str) -> String {
 
 fn dump_mutation_op(op: &MutationOp) -> &'static str {
     match op {
-        MutationOp::Set       => "set",
-        MutationOp::Append    => "append",
-        MutationOp::Increment => "increment",
-        MutationOp::Decrement => "decrement",
-        MutationOp::Toggle    => "toggle",
-        MutationOp::Multiply  => "multiply",
-        MutationOp::Clamp     => "clamp",
-        MutationOp::Decay     => "decay",
-        MutationOp::Delete    => "delete",
-        MutationOp::Remove    => "remove",
+        MutationOp::Set          => "set",
+        MutationOp::Append       => "append",
+        MutationOp::Increment    => "increment",
+        MutationOp::Decrement    => "decrement",
+        MutationOp::Toggle       => "toggle",
+        MutationOp::Multiply     => "multiply",
+        MutationOp::Clamp        => "clamp",
+        MutationOp::Decay        => "decay",
+        MutationOp::Delete       => "delete",
+        MutationOp::Remove       => "remove",
+        MutationOp::AppendUnique => "append_unique",
     }
 }
 

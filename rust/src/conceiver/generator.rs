@@ -1,5 +1,10 @@
 //! Generator — produce .bluebook DSL text from archetypes
 //!
+//! [antibody-exempt: rust/src/conceiver/generator.rs — specializer target
+//!  (conceiver_generator) ; its AppendUnique match arm regenerates from
+//!  conceiver_generator_shape. This marker travels via the specializer HEADER so
+//!  the generated file is structurally exempt like ir.rs / dump.rs.]
+//!
 //! Takes a Domain IR (the archetype) and generates a new bluebook
 //! with the same structural shape but placeholder names.
 //!
@@ -154,6 +159,7 @@ fn emit_command(out: &mut Vec<String>, cmd: &crate::ir::Command) {
         let op = match m.operation {
             MutationOp::Set => format!("then_set :{}, to: {}", m.field, m.value),
             MutationOp::Append => format!("then_set :{}, append: {}", m.field, m.value),
+            MutationOp::AppendUnique => format!("then_set :{}, append_unique: {}", m.field, m.value),
             MutationOp::Remove => format!("then_set :{}, remove: {}", m.field, m.value),
             MutationOp::Increment => format!("then_set :{}, increment: {}", m.field, m.value),
             MutationOp::Decrement => format!("then_set :{}, decrement: {}", m.field, m.value),

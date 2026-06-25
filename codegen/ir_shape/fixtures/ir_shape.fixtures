@@ -62,8 +62,8 @@ Hecks.fixtures "IrShape" do
     # Mutation — field + op + value tuple.
     fixture "Mutation", name: "Mutation", order: 22, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Mutation — field, op, value"
 
-    # MutationOp — enum with 9 variants, four of which carry doc comments.
-    fixture "MutationOp", name: "MutationOp", order: 23, body_kind: "enum", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Mutation primitive — Set / Append / Increment / Decrement / Toggle / Delete / Multiply / Clamp / Decay"
+    # MutationOp — enum with 10 variants, six of which carry doc comments.
+    fixture "MutationOp", name: "MutationOp", order: 23, body_kind: "enum", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Mutation primitive — Set / Append / AppendUnique / Increment / Decrement / Toggle / Delete / Multiply / Clamp / Decay / Remove"
 
     # ValueObject — immutable value with attributes.
     fixture "ValueObject", name: "ValueObject", order: 24, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Value object — immutable, replaced wholesale"
@@ -409,7 +409,8 @@ Hecks.fixtures "IrShape" do
     fixture "ValueSpec_FromPm",    type_name: "ValueSpec", order: 3, name: "FromPm",    body: "{ name: String, default: Option<String> }",   doc_snippet: ""
     fixture "ValueSpec_FromIter",  type_name: "ValueSpec", order: 4, name: "FromIter",  body: "{ field: String }",                           doc_snippet: ""
 
-    # MutationOp — 9 variants ; Delete / Multiply / Clamp / Decay carry doc.
+    # MutationOp — 10 variants ; Remove / Delete / Multiply / Clamp / Decay /
+    # AppendUnique carry doc.
     fixture "MutationOp_Set",       type_name: "MutationOp", order: 1, name: "Set",       doc_snippet: ""
     fixture "MutationOp_Append",    type_name: "MutationOp", order: 2, name: "Append",    doc_snippet: ""
     fixture "MutationOp_Remove",    type_name: "MutationOp", order: 10, name: "Remove",    doc_snippet: "codegen/ir_shape/snippets/docs/mutation_op_remove.rs.frag"
@@ -420,6 +421,7 @@ Hecks.fixtures "IrShape" do
     fixture "MutationOp_Multiply",  type_name: "MutationOp", order: 7, name: "Multiply",  doc_snippet: "codegen/ir_shape/snippets/docs/mutation_op_multiply.rs.frag"
     fixture "MutationOp_Clamp",     type_name: "MutationOp", order: 8, name: "Clamp",     doc_snippet: "codegen/ir_shape/snippets/docs/mutation_op_clamp.rs.frag"
     fixture "MutationOp_Decay",     type_name: "MutationOp", order: 9, name: "Decay",     doc_snippet: "codegen/ir_shape/snippets/docs/mutation_op_decay.rs.frag"
+    fixture "MutationOp_AppendUnique", type_name: "MutationOp", order: 11, name: "AppendUnique", doc_snippet: "codegen/ir_shape/snippets/docs/mutation_op_append_unique.rs.frag"
 
     # WhereOp — 6 variants (i101).
     fixture "WhereOp_Eq",  type_name: "WhereOp", order: 1, name: "Eq",  doc_snippet: ""
