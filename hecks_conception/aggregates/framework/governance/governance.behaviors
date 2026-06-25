@@ -34,6 +34,21 @@ Hecks.behaviors "Governance" do
     expect permitted_size: 1
   end
 
+  # The establishment chain is an ORDERED event-chain : Propose emits Proposed,
+  # which triggers Permit (emits Permitted), which triggers Activate (emits
+  # Activated). This is the recursive heart of "standing config reaches prod as
+  # policy" — a boot-time Propose cascades the deny-by-default Policy all the way
+  # to active with no further dispatch. cross_cascade loads the combined domain so
+  # the Policy.Proposed / Policy.Permitted reactive policies fire end-to-end.
+  # (The FIRST link, BootCompleted -> Propose, crosses from the runtime/boot tree
+  # into aggregates/ and so cannot co-load in one behaviors combined domain ; that
+  # link + the run_boot wiring is tracked in inbox/boot-establishment-not-wired-FINDING.md.)
+  test "Propose cascades through the establishment chain to active" do
+    tests "Propose", on: "Policy", kind: :cross_cascade
+    input  name: "miette-harness", stance: "deny_by_default", enforcement: "hard_block"
+    expect emits_subset: ["Proposed", "Permitted", "Activated"]
+  end
+
   test "Activate moves the policy to active" do
     tests "Activate", on: "Policy"
     setup  "Propose", name: "miette-session", stance: "deny_by_default", enforcement: "hard_block"
