@@ -1,0 +1,131 @@
+Hecks.bluebook "CfFunctionProxyShape", version: "2026.05.11.1" do
+  vision "Shape of an emitted Cloudflare-Pages Function that proxies portal API calls to the bin-buddy WASM Worker. One catch-all .js file at functions/api/[[route]].js takes any GET / POST under /api/*, forwards the method + body + path to the worker URL with the bearer secret, and returns the worker's response unchanged. The third member of the :codegen adapter family declared in i528's command_bus.hecksagon — sibling to ruby_command_class (Ruby callers) and wasm_worker (the bus itself). Step 9 of the storehouse arc."
+  category "autophagy"
+
+  # ============================================================
+  # CF_FUNCTION_PROXY SHAPE — i528 step 9
+  # ============================================================
+  #
+  # When a portal (static HTML+JS under <app>/public/) wants to
+  # invoke a phrase, it fetches /api/route (or /api/lexicon,
+  # /api/query, /api/health). Cloudflare Pages serves the static
+  # assets and routes those paths to a Pages Function — a JS
+  # module under <app>/functions/api/. The Function reads the
+  # worker URL + bearer secret from CF Pages env, forwards the
+  # incoming request to the deployed Worker, and returns the
+  # Worker's response.
+  #
+  # The proxy is a deployment-time bridge between two layers that
+  # live in different runtimes :
+  #
+  #   Portal (browser, static assets)
+  #     │ fetch('/api/route', {...})
+  #     ▼
+  #   Pages Function (V8 isolate, this proxy)
+  #     │ fetch(workerUrl + '/route', {...})  + Bearer header
+  #     ▼
+  #   Worker (WASM, the CommandBus from i528 step 8)
+  #
+  # Single catch-all : Cloudflare Pages routes any path under
+  # `functions/api/[[route]].js` to this one module, with the
+  # rest-of-path available as `params.route` (an array). One
+  # emitter, one file, four routes covered.
+  #
+  # Inputs carried as one row :
+  #
+  #   CfFunctionProxy (one row per app) :
+  #     app                — kebab-case project folder ; informs
+  #                          the file header.
+  #     worker_url_env     — env-var name the Function reads the
+  #                          worker URL from (e.g.
+  #                          "BIN_BUDDY_WORKER_URL"). Set via
+  #                          `wrangler pages secret put <name>`.
+  #     auth_secret_env    — env-var name the Function reads the
+  #                          bearer secret from (e.g.
+  #                          "BIN_BUDDY_API_KEY") — same env name
+  #                          the Worker reads on the other side.
+  #     method_policy      — JSON-array string of HTTP methods to
+  #                          forward (e.g. `["GET","POST"]`). Other
+  #                          methods get 405. Default matches the
+  #                          four CommandBus routes : GET + POST.
+  #
+  # The Rust emitter (rust/src/specializer/cf_function_proxy.rs)
+  # reads this row and renders one JS file ; the caller writes it
+  # to <app>/functions/api/[[route]].js. The existing standalone
+  # functions/api/health.js retires once this lands (its inline
+  # antibody-exempt marker points at the same i102 arc).
+
+  aggregate "CfFunctionProxy", "Emitted Pages-Function catch-all proxy for one app's API surface" do
+    identified_by :app
+
+    value_object "App" do
+      # First segment of every phrase the proxied worker accepts ;
+      # kebab-case project folder name. Used in the .js file's
+      # header comment.
+      attribute :value, String
+      invariant "must be non-empty" do
+        !value.empty?
+      end
+    end
+
+    value_object "WorkerUrlEnv" do
+      # Env-var name that holds the deployed worker URL (e.g.
+      # "BIN_BUDDY_WORKER_URL", set via `wrangler pages secret
+      # put`). The Function reads `env[<this>]` at runtime ; the
+      # URL itself never appears in source.
+      attribute :value, String
+      invariant "uppercase ASCII + underscores" do
+        value.match?(/\A[A-Z][A-Z0-9_]*\z/)
+      end
+    end
+
+    value_object "AuthSecretEnv" do
+      # Env-var name that holds the bearer secret. Same env name
+      # the Worker reads on the other side ; the Function passes
+      # it forward in the Authorization header.
+      attribute :value, String
+      invariant "uppercase ASCII + underscores" do
+        value.match?(/\A[A-Z][A-Z0-9_]*\z/)
+      end
+    end
+
+    value_object "MethodPolicy" do
+      # JSON-array string of methods to forward. Default matches
+      # the CommandBus surface ; an app that adds DELETE / PATCH
+      # to its bus surface widens this.
+      attribute :value, String
+      invariant "must be a non-empty JSON array of HTTP method names" do
+        # Cheap shape check ; the emitter does the real parse.
+        value.start_with?("[") && value.end_with?("]") && value.length >= 2
+      end
+    end
+
+    value_object "ProxyJs" do
+      # The rendered Pages-Function JS source. ES-module export of
+      # onRequest(context) ; the caller writes it to
+      # <app>/functions/api/[[route]].js.
+      attribute :value, String
+    end
+
+    attribute :app,             App
+    attribute :worker_url_env,  WorkerUrlEnv
+    attribute :auth_secret_env, AuthSecretEnv
+    attribute :method_policy,   MethodPolicy
+
+    # ── Commands ───────────────────────────────────────────────
+
+    command "EmitProxy" do
+      role "System"
+      description "Render the catch-all Pages Function as a JS source string. The handler accepts methods from method_policy, builds the upstream URL by joining the worker URL env value with `/` + the captured route path, forwards method + headers (minus host) + body to the Worker with `Authorization: Bearer ${env[auth_secret_env]}`, and returns the Worker's Response unchanged. Disallowed methods return 405. Misconfiguration (missing env vars at runtime) returns 500 with a JSON error body."
+      attribute :app,             App
+      attribute :worker_url_env,  WorkerUrlEnv
+      attribute :auth_secret_env, AuthSecretEnv
+      attribute :method_policy,   MethodPolicy
+      emits "ProxyEmitted"
+      then_set :app,             to: :app
+      then_set :worker_url_env,  to: :worker_url_env
+      then_set :auth_secret_env, to: :auth_secret_env
+      then_set :method_policy,   to: :method_policy
+    end
+  end
+end

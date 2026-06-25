@@ -1,0 +1,100 @@
+Hecks.bluebook "HtmlDomainShape", version: "2026.05.01.1" do
+  vision "The shape of rust/src/server/html_domain.rs as a bluebook — the dashboard's per-domain detail page : title bar, vision blurb, usage section, creation cards (one form per aggregate), divider, records table, plus the legacy module-card system (module_navbar, module_card, command_section, wizard_button, inline_form) kept around for re-introduction. Decomposes into ordered Section rows emitted as verbatim_section snippets under a HEADER const that carries the doc comment + use lines. body_kind decision : verbatim_section (reuse). Considered an html_section / html_form_template / string_table family covering rust/src/server/html_*.rs (workflow, fixtures, kpi, usage, shared, sidebar, scripts, narration, icons, help, rules, wizard, policy_chain), but the siblings vary in input IR (Lifecycle / Aggregate / Fixture / Runtime / nothing), helper signatures, and emitted DOM — the only shared trait is `-> String`, which isn't a body_kind. Solo retirement keeps the shape tabular ; promote to a family when two siblings actually share a template, not before. Filed as i147 follow-up html_section_shape if the pattern emerges."
+  category "autophagy"
+
+  # ============================================================
+  # HTML DOMAIN SHAPE — i147 Wave 9-A target
+  # ============================================================
+  #
+  # rust/src/server/html_domain.rs is the per-domain detail
+  # page emitter — every `GET /domains/<name>` lands here.
+  # Title bar + vision blurb + usage section + creation
+  # cards (one unified form per aggregate, entity + value-
+  # object fields together) + divider + records table.
+  # Plus a stash of legacy helpers (module_navbar, module_card,
+  # command_section, wizard_button, inline_form) and a
+  # dead-code Glass command palette kept verbatim for the
+  # day they re-enter the live page.
+  #
+  # Wave 9-A retires the AUTHORED Rust file — the runtime
+  # stays at rust/src/server/html_domain.rs but is regenerated
+  # byte-for-byte from this shape's fixtures + snippets.
+  #
+  # Layer mapping :
+  #   L0 = this file + fixtures/html_domain_shape.fixtures
+  #        + snippets/*.rs.frag
+  #   L1 = canonical_ir representation of this file
+  #   L7 = rust/src/server/html_domain.rs (generated)
+  #
+  # One aggregate :
+  #
+  #   Section — one row per ordered top-level partition in
+  #             html_domain.rs. body_kind picks the emitter ;
+  #             today only verbatim_section is used :
+  #
+  #               verbatim_section — read snippet_path raw,
+  #                                  preserves trailing blank
+  #                                  line as the section
+  #                                  separator. Mirrors
+  #                                  assemble_shape's pattern.
+  #
+  #             The HEADER const inside the specializer
+  #             carries the doc comment + use lines (lines
+  #             1-17 of the source). Four Section rows
+  #             cover the rest :
+  #
+  #               1. page             (generate_domain_page +
+  #                                    creation_cards +
+  #                                    aggregate_form)
+  #               2. helpers          (field_input +
+  #                                    command_palette ; the
+  #                                    Glass palette is
+  #                                    #[allow(dead_code)] but
+  #                                    survives verbatim for
+  #                                    future re-introduction)
+  #               3. records_table    (records_table)
+  #               4. legacy_modules   (module_navbar +
+  #                                    module_card +
+  #                                    command_section +
+  #                                    wizard_button +
+  #                                    inline_form — the
+  #                                    earlier per-aggregate
+  #                                    accordion UI, kept for
+  #                                    feature parity)
+  #
+  # Family decision (recorded in `vision` above) : SOLO. The
+  # html_*.rs siblings (workflow, fixtures, kpi, usage, shared,
+  # sidebar, scripts, narration, icons, help, rules, wizard,
+  # policy_chain) all build HTML strings, but their inputs and
+  # internal templates diverge — workflow takes Lifecycle,
+  # fixtures takes &[Fixture], kpi takes Runtime, shared
+  # exports `esc/display_name/wrap_page/sidebar_links` —
+  # there's no two-consumer template that justifies inventing
+  # `html_section` / `html_form_template` / `string_table` body
+  # kinds today. The post-W6 plan flagged the family option
+  # but explicitly defers it ("Defer until #1-2 prove out a
+  # string-template body_kind"). Solo retirement preserves the
+  # uniform Section row vocabulary ; family follow-up is a
+  # natural next wave when two siblings share a real template.
+  #
+  # REAL compression today : modest — four section rows + a
+  # HEADER const replace 481 hand-edited LoC with four stable
+  # .rs.frag files. Adding a new top-level helper is a snippet
+  # edit ; reordering the page / helpers / records / legacy
+  # grouping is a fixture-row reorder. Real compression
+  # arrives when the html siblings cluster into a template
+  # body_kind shared across a family — that's the W9+
+  # follow-up payoff.
+
+  aggregate "Section", "One ordered top-level partition in html_domain.rs" do
+    attribute :name,         String
+    # order: ascending integer ; specializer sorts before concatenating.
+    attribute :order,        Integer
+    # body_kind: verbatim_section (today's only kind).
+    attribute :body_kind,    String
+    # snippet_path: required for verbatim_section ; path is repo-rooted.
+    attribute :snippet_path, String, default: ""
+    # description: prose for humans reading the bluebook ; not emitted.
+    attribute :description,  String, default: ""
+  end
+end

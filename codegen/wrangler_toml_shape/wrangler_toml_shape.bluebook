@@ -1,0 +1,145 @@
+Hecks.bluebook "WranglerTomlShape", version: "2026.05.23.1" do
+  vision "Shape of an emitted wrangler.toml — the Cloudflare Worker deploy artifact DERIVED from a deployment's cloudflare.bluebook WorkerConfig fixture. The fifth member of the :codegen deploy-artifact family, sibling to wasm_worker (the Worker crate), embedded_bluebooks (the compiled-in bluebook tree), and cf_function_proxy (the Pages Function in front of it). Closes the hand-sync gap the cloudflare.bluebook header filed : the bluebook is the source of truth, the toml is the artifact (the way the Procfile derives from mindstream)."
+  category "deploy"
+
+  # ============================================================
+  # WRANGLER_TOML SHAPE
+  # ============================================================
+  #
+  # `deployments/<app>/cloudflare.bluebook` declares one
+  # `WorkerConfig` fixture (name, compatibility_date, account_id,
+  # main_entrypoint, build_command, r2_binding, r2_bucket,
+  # observability). The wrangler.toml beside the worker crate was
+  # hand-kept in sync with it — that was the gap.
+  #
+  # This shape makes the toml a generated artifact :
+  #
+  #   storehouse specialize wrangler_toml \
+  #     --config deployments/<app>/cloudflare.bluebook \
+  #     --output deployments/<app>/worker/wrangler.toml
+  #
+  # The Rust emitter (rust/src/specializer/wrangler_toml.rs) reads the
+  # WorkerConfig fixture out of the bluebook via the shared
+  # parse_blocks::parse_fixture_block_body reader, projects it onto a
+  # WorkerConfigFields struct, and renders the toml :
+  #
+  #   - the three top-level keys : name / main / compatibility_date
+  #   - an optional [[r2_buckets]] block (only when BOTH r2_binding and
+  #     r2_bucket are non-empty — memory-first deploys omit it)
+  #   - the [build] command
+  #   - [observability] enabled (iff the fixture's observability field
+  #     reads "enabled")
+  #
+  # Re-runs against the same bluebook produce byte-identical bytes.
+  # Unlike the tracked rust/src/*.rs goldens, this emitter reads a
+  # deployment fixture (not a tracked Rust file), so it has no arm in
+  # the generic specializer::emit() byte-identity dispatch — it is a
+  # per-deployment emitter like wasm_worker / embedded_bluebooks /
+  # cf_function_proxy. Its golden (rust/tests/specializer_golden_test.rs)
+  # diffs the emitted bytes against the committed
+  # deployments/daily_musing_cf/worker/wrangler.toml.
+
+  aggregate "WranglerToml", "Emitted Cloudflare wrangler.toml for one app" do
+    identified_by :name
+
+    value_object "Name" do
+      # Worker name — wrangler.toml's `name = "..."`. Maps from the
+      # WorkerConfig fixture's `name` attribute.
+      attribute :value, String
+      invariant "must be non-empty" do
+        !value.empty?
+      end
+    end
+
+    value_object "Main" do
+      # Entrypoint module — wrangler.toml's `main = "..."`. Maps from
+      # the WorkerConfig fixture's `main_entrypoint` attribute (e.g.
+      # "build/worker/shim.mjs").
+      attribute :value, String
+      invariant "must be non-empty" do
+        !value.empty?
+      end
+    end
+
+    value_object "CompatibilityDate" do
+      # Workers runtime API version the deploy pins to —
+      # wrangler.toml's `compatibility_date = "..."`. Maps from the
+      # WorkerConfig fixture's `compatibility_date` attribute.
+      attribute :value, String
+      invariant "must be non-empty" do
+        !value.empty?
+      end
+    end
+
+    value_object "BuildCommand" do
+      # The [build] command line. Maps from the WorkerConfig fixture's
+      # `build_command` attribute (the workers-rs build flow).
+      attribute :value, String
+      invariant "must be non-empty" do
+        !value.empty?
+      end
+    end
+
+    value_object "R2Binding" do
+      # The [[r2_buckets]] `binding` name lib.rs reads at runtime
+      # (env.bucket("...")). Maps from the WorkerConfig fixture's
+      # `r2_binding`. Empty for memory-first deploys — the emitter
+      # then omits the whole [[r2_buckets]] block.
+      attribute :value, String
+    end
+
+    value_object "R2Bucket" do
+      # The [[r2_buckets]] `bucket_name` those bytes live in. Maps
+      # from the WorkerConfig fixture's `r2_bucket`. Empty for
+      # memory-first deploys (see R2Binding).
+      attribute :value, String
+    end
+
+    value_object "Observability" do
+      # "enabled" emits the [observability] block ; anything else
+      # omits it. Maps from the WorkerConfig fixture's `observability`.
+      attribute :value, String
+    end
+
+    value_object "WranglerTomlSource" do
+      # The rendered wrangler.toml text. The caller (storehouse
+      # specialize wrangler_toml) writes it to
+      # deployments/<app>/worker/wrangler.toml.
+      attribute :value, String
+    end
+
+    attribute :name,               Name
+    attribute :main,               Main
+    attribute :compatibility_date, CompatibilityDate
+    attribute :build_command,      BuildCommand
+    attribute :r2_binding,         R2Binding
+    attribute :r2_bucket,          R2Bucket
+    attribute :observability,      Observability
+
+    # ── Commands ───────────────────────────────────────────────
+
+    command "EmitWranglerToml" do
+      role "System"
+      description "Render a wrangler.toml from a WorkerConfig fixture's values : a generated-from header, the three top-level keys (name / main / compatibility_date), an optional [[r2_buckets]] block (only when both r2_binding and r2_bucket are present), the [build] command, and [observability] (enabled iff observability == \"enabled\"). Re-runs against the same fixture produce byte-identical output."
+      attribute :name,               Name
+      attribute :main,               Main
+      attribute :compatibility_date, CompatibilityDate
+      attribute :build_command,      BuildCommand
+      attribute :r2_binding,         R2Binding
+      attribute :r2_bucket,          R2Bucket
+      attribute :observability,      Observability
+      emits "WranglerTomlEmitted"
+      then_set :name,               to: :name
+      then_set :main,               to: :main
+      then_set :compatibility_date, to: :compatibility_date
+      then_set :build_command,      to: :build_command
+      then_set :r2_binding,         to: :r2_binding
+      then_set :r2_bucket,          to: :r2_bucket
+      then_set :observability,      to: :observability
+    end
+
+    query "WranglerTomls" do
+      description "Every emitted wrangler.toml"
+    end
+  end
+end

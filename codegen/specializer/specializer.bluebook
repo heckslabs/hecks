@@ -1,0 +1,202 @@
+Hecks.bluebook "Specializer", version: "2026.05.12.2" do
+  vision "The Futamura specializer — value-object shape for the L1-L6 interpreter IR layers + the projections that lower between them. First-Futamura target: given any bluebook, produce Rust byte-equivalent to hand-written source."
+  category "autophagy"
+
+  # ============================================================
+  # SPECIALIZER — i51 Phase A commit 2 (value objects for L1-L6)
+  # ============================================================
+  #
+  # This is §9 commit 1 in docs/plans/i51_futamura_projections.md:
+  # "value-objects for L1-L6 IR" — the declarative scaffold the later
+  # projection logic will consume. No logic here yet; just the shape
+  # of each IR layer and the projections that connect them.
+  #
+  # Per §3 of the plan, the storehouse interpreter already has these
+  # internal stages. Naming them as shape-only aggregates lets us
+  # partial-evaluate one layer at a time rather than all at once.
+  #
+  #   L0 bluebook      — source DSL (the five .bluebook / .hecksagon /
+  #                      .fixtures / .behaviors / .world files)
+  #   L1 canonical_ir  — normalized JSON IR (already shipped as dump.rs
+  #                      + spec/parity/canonical_ir.rb)
+  #   L2 flow_ir       — command graph per aggregate: commands → events
+  #                      → policies → triggers
+  #   L3 dispatch_ir   — command bus lowered: middleware, guards,
+  #                      mutations, emissions, persistence
+  #   L4 tick_ir       — body-cycle shape: which commands fire on
+  #                      mindstream/heart/consciousness ticks
+  #   L5 memory_ir     — heki I/O lowered: paths, append/upsert,
+  #                      serialization contracts
+  #   L6 rust_ir       — Rust-specific: module structure, ownership,
+  #                      lifetimes, Serde derives, trait dispatch
+  #   L7 rust_source   — emitted .rs files, rustfmt'd, cargo-built
+  #   L8 rust_binary   — the artifact. Terminus.
+  #
+  # For validator.rs (Phase A target) the useful projections are
+  # L0 → L1 → L6 → L7. Most modules will skip L2-L5 — they only apply
+  # where runtime dispatch is involved. The layer taxonomy is general
+  # so Phase B can extend it module by module without reshaping the
+  # specializer.
+  #
+  # ============================================================
+  # Single-aggregate shape per Chris's "no bluebooks without commands"
+  # principle (2026-05-12). The four catalog row-types — IRLayer,
+  # Projection, SpecializerTarget, SpecializerSubclass — collapse to
+  # value_objects on the Specializer root ; the row catalogs live in
+  # the sibling fixtures file. Specialize is the semantic command —
+  # given a target name, run the specializer wired to that target and
+  # write Rust to the output path.
+
+  aggregate "Specializer", "The Futamura specializer — IRLayer + Projection + SpecializerTarget + SpecializerSubclass catalog rows live in the sibling fixtures file ; Specialize dispatches one target" do
+    identified_by :target
+
+    # ---- Target ------------------------------------------------------
+    #
+    # The target name — e.g. "validator", "dump", "ir",
+    # "duplicate_policy". Matches a SpecializerTarget row's name and a
+    # registered subclass in lib/hecks_specializer/.
+
+    value_object "Target" do
+      attribute :value, String
+      invariant "must be non-empty" do
+        !value.empty?
+      end
+    end
+
+    # ---- Output ------------------------------------------------------
+    #
+    # The output path — relative to repo root. The specializer writes
+    # the emitted Rust bytes here. Byte-identity is gated by a sibling
+    # golden test, not by this command.
+
+    value_object "Output" do
+      attribute :value, String
+      invariant "must end in .rs" do
+        value.end_with?(".rs")
+      end
+    end
+
+    # ---- Status ------------------------------------------------------
+    #
+    # Lifecycle of one Specialize dispatch — queued → running → succeeded
+    # / failed. State machine is enforced by the runtime ; this VO only
+    # records the field shape.
+
+    value_object "Status" do
+      attribute :value, String
+    end
+
+    # ---- IRLayer -----------------------------------------------------
+    #
+    # One row per layer L0..L8 in the interpreter factoring. `number`
+    # is the numeric index so projections can reference "the layer
+    # below me" uniformly. `reads_from` / `returns` describe the pure-
+    # function contract — each layer is a function of the one above.
+
+    value_object "IRLayer" do
+      description "One layer in the L0..L8 interpreter factoring"
+      attribute :name,        String
+      # number: L0..L8 — 0..8
+      attribute :number,      Integer
+      attribute :description, String
+      # reads_from: the layer this one is a pure function of (or 'source'
+      # for L0, which reads raw file text)
+      attribute :reads_from,  String
+      # returns: short description of the data shape this layer produces
+      attribute :returns,     String
+      # ship_status: shipped | partial | not_started — tracks which
+      # layers already exist in storehouse vs which are Phase B+ work
+      attribute :ship_status, String
+    end
+
+    # ---- Projection --------------------------------------------------
+    #
+    # One row per L_n → L_(n+1) lowering. transform_kind describes the
+    # algorithmic shape the specializer uses (parse / normalize / graph
+    # / lower / emit). from_layer / to_layer name the source + target
+    # layers by their IRLayer.name so the projection chain composes.
+
+    value_object "Projection" do
+      description "One L_n → L_(n+1) lowering step — the specializer's unit of work"
+      attribute :name,           String
+      attribute :from_layer,     String
+      attribute :to_layer,       String
+      # transform_kind: parse | normalize | graph | lower | emit | compile
+      attribute :transform_kind, String
+      attribute :description,    String
+      # impl_module: the Rust module (or Ruby file) that holds the logic
+      # for this projection once it's written. Points at hand-written
+      # source during Phase A; points at generated source at Phase B end.
+      attribute :impl_module,    String
+      # ship_status: shipped | partial | not_started | phase_a | phase_b
+      attribute :ship_status,    String
+    end
+
+    # ---- SpecializerTarget -------------------------------------------
+    #
+    # One row per module the specializer is being applied to. Phase A
+    # has a single row (validator). Phase B will add rows for every
+    # module listed in plan §7. Gives us a queryable manifest of the
+    # autophagy arc's progress.
+
+    value_object "SpecializerTarget" do
+      description "One module being specialized — source bluebook, output Rust path, current phase"
+      attribute :name,            String
+      # source_bluebook: relative path to the L0 shape bluebook
+      attribute :source_bluebook, String
+      # output_rs: relative path the emitted .rs lands at
+      attribute :output_rs,       String
+      # phase: a | b | c — which Futamura phase this target ships in
+      attribute :phase,           String
+      # ship_status: not_started | in_progress | byte_identical | retired
+      attribute :ship_status,     String
+      attribute :description,     String
+    end
+
+    # ---- SpecializerSubclass -----------------------------------------
+    #
+    # Phase C PC-1 — bluebook-ifies the per-target Ruby subclass modules
+    # in lib/hecks_specializer/*.rb. Each subclass is a 15-LoC shell.
+    # A new row here = a new Ruby module. The meta-specializer
+    # (bin/meta-specialize, PC-1) reads these rows and emits the Ruby.
+
+    value_object "SpecializerSubclass" do
+      description "One Ruby subclass module under lib/hecks_specializer/"
+      # target_name: the CLI / register key (e.g. "duplicate_policy")
+      attribute :target_name,    String
+      # class_name: the Ruby class name (e.g. "DuplicatePolicy")
+      attribute :class_name,     String
+      # base_class: parent Ruby class. "DiagnosticValidator" for the
+      # post-i59 diagnostic retirements ; subclasses directly extending
+      # Target (validator, validator_warnings, dump) leave this empty
+      # — those still carry their own emit() and stay hand-written
+      # under PC-1's scope.
+      attribute :base_class,     String
+      # shape_path: relative path to the target's fixtures file
+      attribute :shape_path,     String
+      # target_rs_path: relative path to the emitted .rs file
+      attribute :target_rs_path, String
+      # module_doc: short doc comment at top of the Ruby file
+      attribute :module_doc,     String
+      # output_rb: relative path to the generated Ruby file
+      attribute :output_rb,      String
+    end
+
+    attribute :target, Target
+    attribute :output, Output
+    attribute :status, Status, default: "queued"
+
+    # ── Commands ───────────────────────────────────────────────
+
+    command "Specialize" do
+      role "Autophagy"
+      description "Look up the SpecializerTarget row by `target` name, resolve the registered specializer subclass (validator / dump / ir / etc.), invoke its emit() against its bluebook + fixtures, and write the resulting Rust bytes to `output`. Byte-identity against the previously-shipped hand-written source is asserted by the sibling specializer_golden_test ; this command is the runtime entry-point that the test exercises."
+      attribute :target, Target
+      attribute :output, Output
+      emits "Specialized"
+      then_set :target, to: :target
+      then_set :output, to: :output
+      then_set :status, to: "succeeded"
+    end
+  end
+end

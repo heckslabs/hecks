@@ -1,0 +1,82 @@
+Hecks.fixtures "SpecializerModShape" do
+  # i650 Futamura repair — specializer/mod.rs as data : the pub-mod list
+  # (Submodule rows) and the emit() dispatch table (EmitArm rows). The header,
+  # the catch-all, and emit_section ride verbatim snippets. The specializer is
+  # now a fixed point of itself : specializer_mod appears in its own table.
+  aggregate "Submodule" do
+    fixture "adapter_llm", name: "adapter_llm", order: 1
+    fixture "regen", name: "regen", order: 2
+    fixture "assemble", name: "assemble", order: 3
+    fixture "behaviors_fixtures", name: "behaviors_fixtures", order: 4
+    fixture "behaviors_parser", name: "behaviors_parser", order: 5
+    fixture "behaviors_parser_dispatch", name: "behaviors_parser_dispatch", order: 6
+    fixture "behaviors_runner", name: "behaviors_runner", order: 7
+    fixture "cf_function_proxy", name: "cf_function_proxy", order: 8
+    fixture "conceiver", name: "conceiver", order: 9
+    fixture "conception_kernel", name: "conception_kernel", order: 10
+    fixture "dispatch_query", name: "dispatch_query", order: 11
+    fixture "dump", name: "dump", order: 12
+    fixture "embedded_bluebooks", name: "embedded_bluebooks", order: 13
+    fixture "fixtures_parser", name: "fixtures_parser", order: 14
+    fixture "hecksagon_ir", name: "hecksagon_ir", order: 15
+    fixture "hecksagon_parser", name: "hecksagon_parser", order: 16
+    fixture "heki_query", name: "heki_query", order: 17
+    fixture "html_domain", name: "html_domain", order: 18
+    fixture "ir", name: "ir", order: 19
+    fixture "lifecycle_validator", name: "lifecycle_validator", order: 20
+    fixture "parse_blocks", name: "parse_blocks", order: 21
+    fixture "parser", name: "parser", order: 22
+    fixture "procfile", name: "procfile", order: 23
+    fixture "parser_helpers", name: "parser_helpers", order: 24
+    fixture "repository", name: "repository", order: 25
+    fixture "ruby_command_class", name: "ruby_command_class", order: 26
+    fixture "run_boot", name: "run_boot", order: 27
+    fixture "runtime", name: "runtime", order: 28
+    fixture "specializer_mod", name: "specializer_mod", order: 29
+    fixture "util", name: "util", order: 30
+    fixture "validator", name: "validator", order: 31
+    fixture "validator_checks", name: "validator_checks", order: 32
+    fixture "validator_checks_graph", name: "validator_checks_graph", order: 33
+    fixture "validator_corpus", name: "validator_corpus", order: 34
+    fixture "validator_morphology", name: "validator_morphology", order: 35
+    fixture "validator_warnings", name: "validator_warnings", order: 36
+    fixture "wasm_worker", name: "wasm_worker", order: 37
+    fixture "wrangler_toml", name: "wrangler_toml", order: 38
+  end
+  aggregate "EmitArm" do
+    fixture "adapter_llm", target_name: "adapter_llm", aliases: "driven_adapter", module_path: "adapter_llm", order: 1
+    fixture "aggregate_state", target_name: "aggregate_state", module_path: "runtime::aggregate_state", order: 2
+    fixture "assemble", target_name: "assemble", module_path: "assemble", order: 3
+    fixture "behaviors_fixtures", target_name: "behaviors_fixtures", module_path: "behaviors_fixtures", order: 4
+    fixture "behaviors_parser", target_name: "behaviors_parser", module_path: "behaviors_parser", order: 5
+    fixture "behaviors_runner", target_name: "behaviors_runner", module_path: "behaviors_runner", order: 6
+    fixture "command_dispatch", target_name: "command_dispatch", module_path: "runtime::command_dispatch", order: 7
+    fixture "conceiver_generator", target_name: "conceiver_generator", module_path: "conceiver::generator", order: 8
+    fixture "conception_kernel_sample", target_name: "conception_kernel_sample", module_path: "conception_kernel::sample", order: 9
+    fixture "discover", target_name: "discover", module_path: "run_boot::discover", order: 10
+    fixture "dispatch_query", target_name: "dispatch_query", module_path: "dispatch_query", order: 11
+    fixture "dump", target_name: "dump", module_path: "dump", order: 12
+    fixture "fixtures_parser", target_name: "fixtures_parser", module_path: "fixtures_parser", order: 13
+    fixture "hecksagon_ir", target_name: "hecksagon_ir", module_path: "hecksagon_ir", order: 14
+    fixture "hecksagon_parser", target_name: "hecksagon_parser", module_path: "hecksagon_parser", order: 15
+    fixture "heki_query", target_name: "heki_query", module_path: "heki_query", order: 16
+    fixture "html_domain", target_name: "html_domain", module_path: "html_domain", order: 17
+    fixture "interpreter", target_name: "interpreter", module_path: "runtime::interpreter", order: 18
+    fixture "ir", target_name: "ir", module_path: "ir", order: 19
+    fixture "lifecycle_validator", target_name: "lifecycle_validator", module_path: "lifecycle_validator", order: 20
+    fixture "parse_blocks", target_name: "parse_blocks", module_path: "parse_blocks", order: 21
+    fixture "parser", target_name: "parser", module_path: "parser", order: 22
+    fixture "event_driving", target_name: "event_driving", module_path: "runtime::event_driving", order: 23
+    fixture "persistence_resolution", target_name: "persistence_resolution", module_path: "runtime::persistence_resolution", order: 24
+    fixture "query", target_name: "query", module_path: "runtime::query", order: 25
+    fixture "reaction", target_name: "reaction", module_path: "runtime::reaction", order: 26
+    fixture "parser_helpers", target_name: "parser_helpers", module_path: "parser_helpers", order: 27
+    fixture "repository", target_name: "repository", module_path: "repository", order: 28
+    fixture "runtime", target_name: "runtime", module_path: "runtime::root", order: 29
+    fixture "specializer_mod", target_name: "specializer_mod", module_path: "specializer_mod", order: 30
+    fixture "system_prompt", target_name: "system_prompt", module_path: "run_boot::system_prompt", order: 31
+    fixture "validator", target_name: "validator", module_path: "validator", order: 32
+    fixture "validator_corpus", target_name: "validator_corpus", module_path: "validator_corpus", order: 33
+    fixture "validator_warnings", target_name: "validator_warnings", module_path: "validator_warnings", order: 34
+  end
+end

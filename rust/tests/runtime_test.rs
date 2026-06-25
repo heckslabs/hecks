@@ -1,0 +1,1413 @@
+//! Runtime integration tests
+//!
+//! Tests the full dispatch pipeline: create, mutate, givens, events, policies.
+//! Each test boots a domain from a Bluebook string and exercises the runtime.
+
+use storehouse::parser;
+use storehouse::runtime::{Runtime, Value};
+use std::collections::HashMap;
+
+fn boot(source: &str) -> Runtime {
+    let domain = parser::parse(source);
+    Runtime::boot(domain)
+}
+
+fn attrs(pairs: &[(&str, Value)]) -> HashMap<String, Value> {
+    pairs.iter().map(|(k, v)| (k.to_string(), v.clone())).collect()
+}
+
+fn s(val: &str) -> Value { Value::Str(val.to_string()) }
+
+// --- Create and find ---
+
+#[test]
+fn create_and_find() {
+    let mut rt = boot(r#"Hecks.bluebook "T" do
+  aggregate "Pizza" do
+    description "A pizza"
+    attribute :name
+    command "CreatePizza" do
+      role "Chef"
+      attribute :name
+    end
+  end
+end"#);
+
+    let result = rt.dispatch("CreatePizza", attrs(&[("name", s("Margherita"))])).unwrap();
+    assert_eq!(result.aggregate_type, "Pizza");
+    assert_eq!(result.aggregate_id, "1");
+
+    let state = rt.find("Pizza", "1").unwrap();
+    assert_eq!(state.get("name"), &s("Margherita"));
+}
+
+#[test]
+fn create_without_self_ref_mints_counter() {
+    // No self-reference and no identified_by: each Create dispatch mints
+    // a fresh counter id. Two dispatches produce two distinct records.
+    // Use identified_by :field to get find-or-create by natural key.
+    let mut rt = boot(r#"Hecks.bluebook "T" do
+  aggregate "Pizza" do
+    description "A pizza"
+    command "CreatePizza" do
+      role "Chef"
+    end
+  end
+end"#);
+
+    let r1 = rt.dispatch("CreatePizza", HashMap::new()).unwrap();
+    let r2 = rt.dispatch("CreatePizza", HashMap::new()).unwrap();
+    assert_eq!(r1.aggregate_id, "1");
+    assert_eq!(r2.aggregate_id, "2");
+}
+
+// --- Mutations ---
+
+#[test]
+fn mutation_append() {
+    let mut rt = boot(r#"Hecks.bluebook "T" do
+  aggregate "Pizza" do
+    description "A pizza"
+    attribute :toppings, Topping
+    value_object "Topping" do
+      attribute :name
+    end
+    command "CreatePizza" do
+      role "Chef"
+    end
+    command "AddTopping" do
+      role "Chef"
+      reference_to Pizza
+      attribute :name
+      then_set :toppings, append: { name: :name }
+    end
+  end
+end"#);
+
+    rt.dispatch("CreatePizza", HashMap::new()).unwrap();
+    rt.dispatch("AddTopping", attrs(&[("name", s("Cheese")), ("pizza", s("1"))])).unwrap();
+    rt.dispatch("AddTopping", attrs(&[("name", s("Basil")), ("pizza", s("1"))])).unwrap();
+
+    let state = rt.find("Pizza", "1").unwrap();
+    let toppings = state.get("toppings").as_list().unwrap();
+    assert_eq!(toppings.len(), 2);
+}
+
+#[test]
+fn mutation_set_on_existing() {
+    let mut rt = boot(r#"Hecks.bluebook "T" do
+  aggregate "Order" do
+    description "An order"
+    attribute :status, default: "open"
+    command "PlaceOrder" do
+      role "Customer"
+    end
+    command "CancelOrder" do
+      role "Customer"
+      reference_to Order
+      then_set :status, to: "cancelled"
+    end
+  end
+end"#);
+
+    rt.dispatch("PlaceOrder", HashMap::new()).unwrap();
+    rt.dispatch("CancelOrder", attrs(&[("order", s("1"))])).unwrap();
+
+    let state = rt.find("Order", "1").unwrap();
+    assert_eq!(state.get("status"), &s("cancelled"));
+}
+
+// --- i106 dsl-mutation-primitives : multiply / clamp / decay ---
+
+fn assert_field_close(state: &storehouse::runtime::AggregateState, field: &str, expected: f64) {
+    let got = match state.get(field) {
+        Value::Str(s) => s.parse::<f64>().unwrap_or(0.0),
+        Value::Int(n) => *n as f64,
+        other => panic!("field {} not numeric: {:?}", field, other),
+    };
+    assert!((got - expected).abs() < 1e-9, "field {}: expected {}, got {}", field, expected, got);
+}
+
+#[test]
+fn mutation_multiply_scales_field() {
+    let mut rt = boot(r#"Hecks.bluebook "T" do
+  aggregate "Synapse" do
+    description "A synapse"
+    attribute :strength, Float, default: 0.5
+    command "CreateSynapse" do
+      role "Daemon"
+    end
+    command "Decay" do
+      role "Daemon"
+      reference_to Synapse
+      then_set :strength, multiply: 0.5
+    end
+  end
+end"#);
+
+    rt.dispatch("CreateSynapse", HashMap::new()).unwrap();
+    rt.dispatch("Decay", attrs(&[("synapse", s("1"))])).unwrap();
+    let state = rt.find("Synapse", "1").unwrap();
+    assert_field_close(&state, "strength", 0.25);
+
+    rt.dispatch("Decay", attrs(&[("synapse", s("1"))])).unwrap();
+    let state = rt.find("Synapse", "1").unwrap();
+    assert_field_close(&state, "strength", 0.125);
+}
+
+#[test]
+fn mutation_decay_reduces_field_by_rate() {
+    // Decay rate 0.05 → new = current * (1 - 0.05) = current * 0.95.
+    let mut rt = boot(r#"Hecks.bluebook "T" do
+  aggregate "Synapse" do
+    description "A synapse"
+    attribute :strength, Float, default: 1.0
+    command "CreateSynapse" do
+      role "Daemon"
+    end
+    command "Decay" do
+      role "Daemon"
+      reference_to Synapse
+      then_set :strength, decay: 0.05
+    end
+  end
+end"#);
+
+    rt.dispatch("CreateSynapse", HashMap::new()).unwrap();
+    rt.dispatch("Decay", attrs(&[("synapse", s("1"))])).unwrap();
+    let state = rt.find("Synapse", "1").unwrap();
+    assert_field_close(&state, "strength", 0.95);
+
+    rt.dispatch("Decay", attrs(&[("synapse", s("1"))])).unwrap();
+    let state = rt.find("Synapse", "1").unwrap();
+    assert_field_close(&state, "strength", 0.95 * 0.95);
+}
+
+#[test]
+fn mutation_clamp_bounds_field() {
+    let mut rt = boot(r#"Hecks.bluebook "T" do
+  aggregate "Focus" do
+    description "Singleton focus"
+    attribute :weight, Float, default: 1.5
+    command "CreateFocus" do
+      role "Daemon"
+    end
+    command "Bound" do
+      role "Daemon"
+      reference_to Focus
+      then_set :weight, clamp: [0.0, 1.0]
+    end
+  end
+end"#);
+
+    rt.dispatch("CreateFocus", HashMap::new()).unwrap();
+    rt.dispatch("Bound", attrs(&[("focus", s("1"))])).unwrap();
+    let state = rt.find("Focus", "1").unwrap();
+    assert_field_close(&state, "weight", 1.0);
+}
+
+#[test]
+fn mutation_clamp_lifts_below_min() {
+    let mut rt = boot(r#"Hecks.bluebook "T" do
+  aggregate "Synapse" do
+    description "A synapse"
+    attribute :strength, Float, default: -0.2
+    command "CreateSynapse" do
+      role "Daemon"
+    end
+    command "Bound" do
+      role "Daemon"
+      reference_to Synapse
+      then_set :strength, clamp: [0.0, 1.0]
+    end
+  end
+end"#);
+
+    rt.dispatch("CreateSynapse", HashMap::new()).unwrap();
+    rt.dispatch("Bound", attrs(&[("synapse", s("1"))])).unwrap();
+    let state = rt.find("Synapse", "1").unwrap();
+    assert_field_close(&state, "strength", 0.0);
+}
+
+#[test]
+fn mutation_decay_then_clamp_composes() {
+    // pulse_organs.bluebook pattern : decay first, then clamp into
+    // [0, 1]. Two mutations on the same field run in declaration order.
+    let mut rt = boot(r#"Hecks.bluebook "T" do
+  aggregate "Synapse" do
+    description "A synapse"
+    attribute :strength, Float, default: 0.5
+    command "CreateSynapse" do
+      role "Daemon"
+    end
+    command "Pulse" do
+      role "Daemon"
+      reference_to Synapse
+      then_set :strength, decay: 0.02
+      then_set :strength, clamp: [0.0, 1.0]
+    end
+  end
+end"#);
+
+    rt.dispatch("CreateSynapse", HashMap::new()).unwrap();
+    rt.dispatch("Pulse", attrs(&[("synapse", s("1"))])).unwrap();
+    let state = rt.find("Synapse", "1").unwrap();
+    // 0.5 * 0.98 = 0.49, in-range, clamp is a no-op.
+    assert_field_close(&state, "strength", 0.49);
+}
+
+// --- Given enforcement ---
+
+#[test]
+fn given_blocks_when_false() {
+    let mut rt = boot(r#"Hecks.bluebook "T" do
+  aggregate "Pizza" do
+    description "A pizza"
+    attribute :toppings, Topping
+    value_object "Topping" do
+      attribute :name
+    end
+    command "CreatePizza" do
+      role "Chef"
+    end
+    command "AddTopping" do
+      role "Chef"
+      reference_to Pizza
+      attribute :name
+      given("max 2 toppings") { toppings.size < 2 }
+      then_set :toppings, append: { name: :name }
+    end
+  end
+end"#);
+
+    rt.dispatch("CreatePizza", HashMap::new()).unwrap();
+    rt.dispatch("AddTopping", attrs(&[("name", s("A")), ("pizza", s("1"))])).unwrap();
+    rt.dispatch("AddTopping", attrs(&[("name", s("B")), ("pizza", s("1"))])).unwrap();
+
+    let err = rt.dispatch("AddTopping", attrs(&[("name", s("C")), ("pizza", s("1"))]));
+    assert!(err.is_err());
+    let msg = format!("{}", err.unwrap_err());
+    assert!(msg.contains("max 2 toppings"));
+}
+
+#[test]
+fn given_passes_when_true() {
+    let mut rt = boot(r#"Hecks.bluebook "T" do
+  aggregate "Pizza" do
+    description "A pizza"
+    attribute :toppings, Topping
+    value_object "Topping" do
+      attribute :name
+    end
+    command "CreatePizza" do
+      role "Chef"
+    end
+    command "AddTopping" do
+      role "Chef"
+      reference_to Pizza
+      attribute :name
+      given("max 2 toppings") { toppings.size < 2 }
+      then_set :toppings, append: { name: :name }
+    end
+  end
+end"#);
+
+    rt.dispatch("CreatePizza", HashMap::new()).unwrap();
+    let result = rt.dispatch("AddTopping", attrs(&[("name", s("A")), ("pizza", s("1"))]));
+    assert!(result.is_ok());
+}
+
+// --- rand_below stochastic gate ---
+//
+// HECKS_RAND_SEED is a process-wide env var, so the rand_below tests
+// can't run in parallel with each other (each one would race on the
+// var). Combine into one serial test that exercises both the firing
+// path (seed=0 → predicate true) and the blocking path (seed=7 →
+// predicate false), saving and restoring any pre-existing env value
+// so it stays clean for adjacent tests.
+
+#[test]
+fn rand_below_predicate_with_seed_env_var() {
+    let prior = std::env::var("HECKS_RAND_SEED").ok();
+
+    // seed=0 → rand_below(300) returns 0 → predicate `== 0` fires
+    std::env::set_var("HECKS_RAND_SEED", "0");
+    let mut rt = boot(r#"Hecks.bluebook "T" do
+  aggregate "Mint" do
+    description "A mint attempt"
+    command "AttemptMint" do
+      role "Daemon"
+      given { rand_below(300) == 0 }
+    end
+  end
+end"#);
+    let ok_result = rt.dispatch("AttemptMint", HashMap::new());
+    assert!(ok_result.is_ok(), "rand_below(300)==0 should pass when HECKS_RAND_SEED=0");
+
+    // seed=7 → rand_below(300) returns 7 → predicate `== 0` blocks
+    std::env::set_var("HECKS_RAND_SEED", "7");
+    let mut rt2 = boot(r#"Hecks.bluebook "T" do
+  aggregate "Mint" do
+    description "A mint attempt"
+    command "AttemptMint" do
+      role "Daemon"
+      given { rand_below(300) == 0 }
+    end
+  end
+end"#);
+    let err_result = rt2.dispatch("AttemptMint", HashMap::new());
+    assert!(err_result.is_err(), "rand_below(300)==0 should fail when HECKS_RAND_SEED=7 (returns 7)");
+
+    match prior {
+        Some(v) => std::env::set_var("HECKS_RAND_SEED", v),
+        None => std::env::remove_var("HECKS_RAND_SEED"),
+    }
+}
+
+// --- tick.modulo periodic cadence gate (i229) ---
+//
+// `<expr>.modulo(N) == 0` is the every-Nth-tick gate. The receiver
+// resolves through the same attr/state lookup chain as any expression,
+// so the gate works against command attributes, aggregate state fields,
+// or literal integers. This test covers the canonical attribute-bound
+// shape (Memory.Consolidate's tick attr % 60 == 0 cadence).
+
+#[test]
+fn modulo_predicate_passes_when_divisible() {
+    let mut rt = boot(r#"Hecks.bluebook "T" do
+  aggregate "Memory" do
+    description "Memory consolidator"
+    command "Consolidate" do
+      role "System"
+      attribute :tick, Integer
+      given { tick.modulo(60) == 0 }
+    end
+  end
+end"#);
+    // tick=120 → 120 % 60 == 0 → predicate fires
+    let ok = rt.dispatch("Consolidate", attrs(&[("tick", Value::Int(120))]));
+    assert!(ok.is_ok(), "tick=120 modulo 60 should be 0 (predicate passes)");
+}
+
+#[test]
+fn modulo_predicate_blocks_when_indivisible() {
+    let mut rt = boot(r#"Hecks.bluebook "T" do
+  aggregate "Memory" do
+    description "Memory consolidator"
+    command "Consolidate" do
+      role "System"
+      attribute :tick, Integer
+      given { tick.modulo(60) == 0 }
+    end
+  end
+end"#);
+    // tick=37 → 37 % 60 == 37 ≠ 0 → predicate blocks
+    let err = rt.dispatch("Consolidate", attrs(&[("tick", Value::Int(37))]));
+    assert!(err.is_err(), "tick=37 modulo 60 should be 37 (predicate blocks)");
+}
+
+#[test]
+fn modulo_predicate_against_state_field() {
+    // Receiver resolves against the aggregate's own state field — same
+    // path that lets `given { cycle.modulo(60) == 0 }` gate a Tick
+    // aggregate's commands without needing an explicit attribute.
+    let mut rt = boot(r#"Hecks.bluebook "T" do
+  aggregate "Counter" do
+    description "Periodic counter"
+    identified_by :name
+    attribute :name, String
+    attribute :cycle, Integer, default: "0"
+    command "Tick" do
+      role "Daemon"
+      attribute :cycle, Integer
+      then_set :cycle, to: :cycle
+    end
+    command "Sweep" do
+      role "Daemon"
+      given { cycle.modulo(10) == 0 }
+    end
+  end
+end"#);
+    // Seed cycle=20 via Tick, then Sweep — 20 % 10 == 0 → passes
+    rt.dispatch("Tick", attrs(&[("name", s("counter")), ("cycle", Value::Int(20))])).unwrap();
+    let ok = rt.dispatch("Sweep", attrs(&[("name", s("counter"))]));
+    assert!(ok.is_ok(), "cycle=20 modulo 10 should be 0 (predicate passes)");
+}
+
+// --- Default values ---
+
+#[test]
+fn default_values_applied() {
+    let mut rt = boot(r#"Hecks.bluebook "T" do
+  aggregate "Order" do
+    description "An order"
+    attribute :status, default: "pending"
+    attribute :customer
+    command "CreateOrder" do
+      role "Customer"
+      attribute :customer
+    end
+  end
+end"#);
+
+    rt.dispatch("CreateOrder", attrs(&[("customer", s("Alice"))])).unwrap();
+    let state = rt.find("Order", "1").unwrap();
+    assert_eq!(state.get("status"), &s("pending"));
+    assert_eq!(state.get("customer"), &s("Alice"));
+}
+
+// --- Events ---
+
+#[test]
+fn events_recorded_in_order() {
+    let mut rt = boot(r#"Hecks.bluebook "T" do
+  aggregate "Pizza" do
+    description "A pizza"
+    command "CreatePizza" do
+      role "Chef"
+    end
+  end
+  aggregate "Order" do
+    description "An order"
+    command "PlaceOrder" do
+      role "Customer"
+    end
+  end
+end"#);
+
+    rt.dispatch("CreatePizza", HashMap::new()).unwrap();
+    rt.dispatch("PlaceOrder", HashMap::new()).unwrap();
+
+    let events = rt.event_bus.events();
+    assert_eq!(events.len(), 2);
+    assert_eq!(events[0].name, "PizzaCreated");
+    assert_eq!(events[1].name, "OrderPlaced");
+}
+
+#[test]
+fn event_naming_conventions() {
+    let mut rt = boot(r#"Hecks.bluebook "T" do
+  aggregate "Item" do
+    description "An item"
+    command "CreateItem" do
+      role "User"
+    end
+    command "UpdateItem" do
+      role "User"
+      reference_to Item
+    end
+    command "DeleteItem" do
+      role "User"
+      reference_to Item
+    end
+  end
+end"#);
+
+    rt.dispatch("CreateItem", HashMap::new()).unwrap();
+    rt.dispatch("UpdateItem", attrs(&[("item", s("1"))])).unwrap();
+    rt.dispatch("DeleteItem", attrs(&[("item", s("1"))])).unwrap();
+
+    let names: Vec<&str> = rt.event_bus.events().iter().map(|e| e.name.as_str()).collect();
+    assert_eq!(names, vec!["ItemCreated", "ItemUpdated", "ItemDeleted"]);
+}
+
+#[test]
+fn explicit_emits_name() {
+    let mut rt = boot(r#"Hecks.bluebook "T" do
+  aggregate "Payment" do
+    description "A payment"
+    command "ChargeCard" do
+      role "System"
+      emits "PaymentProcessed"
+    end
+  end
+end"#);
+
+    let result = rt.dispatch("ChargeCard", HashMap::new()).unwrap();
+    assert_eq!(result.event.unwrap().name, "PaymentProcessed");
+}
+
+// --- Policies ---
+
+#[test]
+fn policy_triggers_command() {
+    let mut rt = boot(r#"Hecks.bluebook "T" do
+  aggregate "Order" do
+    description "An order"
+    command "PlaceOrder" do
+      role "Customer"
+      attribute :customer
+      emits "OrderPlaced"
+    end
+  end
+  aggregate "Notification" do
+    description "A notification"
+    command "SendConfirmation" do
+      role "System"
+      attribute :customer
+    end
+  end
+  policy "ConfirmOrder" do
+    on "OrderPlaced"
+    trigger "SendConfirmation"
+  end
+end"#);
+
+    rt.dispatch("PlaceOrder", attrs(&[("customer", s("Bob"))])).unwrap();
+
+    let events = rt.event_bus.events();
+    let names: Vec<&str> = events.iter().map(|e| e.name.as_str()).collect();
+    assert_eq!(names, vec!["OrderPlaced", "SendConfirmationCompleted"]);
+}
+
+#[test]
+fn multiple_policies_same_event() {
+    let mut rt = boot(r#"Hecks.bluebook "T" do
+  aggregate "Order" do
+    description "An order"
+    command "PlaceOrder" do
+      role "Customer"
+      emits "OrderPlaced"
+    end
+  end
+  aggregate "Notification" do
+    description "A notification"
+    command "SendConfirmation" do
+      role "System"
+    end
+  end
+  aggregate "Inventory" do
+    description "Stock"
+    command "ReserveStock" do
+      role "System"
+    end
+  end
+  policy "ConfirmOrder" do
+    on "OrderPlaced"
+    trigger "SendConfirmation"
+  end
+  policy "ReserveOnOrder" do
+    on "OrderPlaced"
+    trigger "ReserveStock"
+  end
+end"#);
+
+    rt.dispatch("PlaceOrder", HashMap::new()).unwrap();
+
+    let names: Vec<&str> = rt.event_bus.events().iter().map(|e| e.name.as_str()).collect();
+    assert!(names.contains(&"OrderPlaced"));
+    assert!(names.contains(&"SendConfirmationCompleted"));
+    assert!(names.contains(&"ReserveStockCompleted"));
+}
+
+#[test]
+fn cascade_preserves_id_on_same_type_hop_without_identified_by() {
+    // i111-K — when a cascade triggers a command on the SAME aggregate
+    // type as the upstream event, the runtime preserves the dispatched
+    // id. Without this, `id_for_command` counter-mints a fresh id per
+    // step (id="1" creates the record, the gated cascade hits id="2"
+    // with `flag == false` because the new record never had Measure
+    // run on it). Pipeline roots like CorpusPruning previously had to
+    // declare `identified_by` to make their gated cascades work — this
+    // test asserts that requirement is gone.
+    let mut rt = boot(r#"Hecks.bluebook "T" do
+  aggregate "Pipeline" do
+    description "A two-step pipeline with a gating flag"
+    attribute :measured, Boolean, default: false
+    attribute :ran_split, Boolean, default: false
+    command "MeasureDomain" do
+      role "Worker"
+      emits "DomainMeasured"
+      then_set :measured, to: true
+    end
+    command "SplitMonster" do
+      role "Worker"
+      given { measured == true }
+      emits "MonsterSplit"
+      then_set :ran_split, to: true
+    end
+  end
+  policy "SplitAfterMeasure" do
+    on "DomainMeasured"
+    trigger "SplitMonster"
+  end
+end"#);
+
+    rt.dispatch("MeasureDomain", HashMap::new()).unwrap();
+
+    // The cascade should land on the SAME Pipeline record, so both
+    // measured and ran_split end up true on a single row. Before the
+    // fix, MeasureDomain creates record id="1" (measured=true), then
+    // the SplitMonster cascade counter-mints id="2", whose `measured`
+    // is the default `false`, so the given clause fails silently and
+    // no MonsterSplit event fires.
+    let names: Vec<&str> = rt.event_bus.events().iter().map(|e| e.name.as_str()).collect();
+    assert!(names.contains(&"DomainMeasured"),
+        "expected DomainMeasured in events, got {:?}", names);
+    assert!(names.contains(&"MonsterSplit"),
+        "expected MonsterSplit in events (cascade should preserve id, given gate should pass), got {:?}", names);
+
+    // Single record carries both transitions.
+    let records = rt.all("Pipeline");
+    assert_eq!(records.len(), 1, "expected 1 Pipeline record, got {}", records.len());
+    assert_eq!(records[0].get("measured"), &Value::Bool(true));
+    assert_eq!(records[0].get("ran_split"), &Value::Bool(true));
+}
+
+#[test]
+fn cascade_preserves_id_with_identified_by_still_works() {
+    // Sanity check : the existing `identified_by` path keeps working
+    // exactly as before. The runtime change adds a new arm for the
+    // no-identified_by case ; declaring `identified_by` continues to
+    // route cascades through the natural-key resolution.
+    let mut rt = boot(r#"Hecks.bluebook "T" do
+  aggregate "Pipeline" do
+    description "A two-step pipeline with identified_by"
+    identified_by :name
+    attribute :name, String
+    attribute :measured, Boolean, default: false
+    attribute :ran_split, Boolean, default: false
+    command "MeasureDomain" do
+      role "Worker"
+      attribute :name
+      emits "DomainMeasured"
+      then_set :measured, to: true
+    end
+    command "SplitMonster" do
+      role "Worker"
+      given { measured == true }
+      emits "MonsterSplit"
+      then_set :ran_split, to: true
+    end
+  end
+  policy "SplitAfterMeasure" do
+    on "DomainMeasured"
+    trigger "SplitMonster"
+  end
+end"#);
+
+    rt.dispatch("MeasureDomain", attrs(&[("name", s("alpha"))])).unwrap();
+
+    let names: Vec<&str> = rt.event_bus.events().iter().map(|e| e.name.as_str()).collect();
+    assert!(names.contains(&"MonsterSplit"),
+        "expected MonsterSplit cascade with identified_by, got {:?}", names);
+
+    let records = rt.all("Pipeline");
+    assert_eq!(records.len(), 1);
+    assert_eq!(records[0].get("name"), &Value::Str("alpha".into()));
+    assert_eq!(records[0].get("ran_split"), &Value::Bool(true));
+}
+
+#[test]
+fn cascade_cross_type_hop_still_mints_fresh_for_target() {
+    // Cross-type cascade `A → B` keeps existing behavior : B doesn't
+    // inherit A's id (different aggregates, different repos). The
+    // same-type fix only kicks in when upstream and downstream
+    // aggregate types match.
+    let mut rt = boot(r#"Hecks.bluebook "T" do
+  aggregate "Order" do
+    description "An order"
+    command "PlaceOrder" do
+      role "Customer"
+      emits "OrderPlaced"
+    end
+  end
+  aggregate "Notification" do
+    description "A notification"
+    command "SendConfirmation" do
+      role "System"
+    end
+  end
+  policy "ConfirmOrder" do
+    on "OrderPlaced"
+    trigger "SendConfirmation"
+  end
+end"#);
+
+    rt.dispatch("PlaceOrder", HashMap::new()).unwrap();
+
+    // Each type has its own counter ; both hit "1" because each repo
+    // counter-mints independently.
+    assert_eq!(rt.all("Order").len(), 1);
+    assert_eq!(rt.all("Notification").len(), 1);
+}
+
+// --- Error cases ---
+
+#[test]
+fn unknown_command() {
+    let mut rt = boot(r#"Hecks.bluebook "T" do
+  aggregate "Pizza" do
+    description "A pizza"
+    command "CreatePizza" do
+      role "Chef"
+    end
+  end
+end"#);
+
+    let err = rt.dispatch("BogusCommand", HashMap::new());
+    assert!(err.is_err());
+    assert!(format!("{}", err.unwrap_err()).contains("unknown command"));
+}
+
+#[test]
+fn missing_id_upserts_rather_than_erroring() {
+    // Pure upsert (Relationship grammar, 2026-06-18) : create-vs-update is a
+    // persistence contract keyed on identity presence, so a command targeting
+    // an identity that does not yet exist CREATES it (absent -> insert) rather
+    // than raising AggregateNotFound. The old error-on-missing guard retired
+    // with the name heuristic. (An unknown aggregate TYPE — no repository at
+    // all — still errors as UnknownAggregate ; that is a different path.)
+    let mut rt = boot(r#"Hecks.bluebook "T" do
+  aggregate "Order" do
+    description "An order"
+    command "CancelOrder" do
+      role "Customer"
+      reference_to Order
+    end
+  end
+end"#);
+
+    let res = rt.dispatch("CancelOrder", attrs(&[("order", s("999"))]));
+    assert!(res.is_ok(), "upsert creates on a missing id, got: {:?}", res);
+}
+
+// --- Life domain self-hosting ---
+// The "life" self-hosting domain (nursery/hecks/life.bluebook) was
+// removed; its boot+lifecycle behavior is now covered by the
+// behaviors_runner test corpus running against every bluebook.
+
+// --- Lifecycle transitions ---
+
+#[test]
+fn lifecycle_allows_valid_transition() {
+    let mut rt = boot(r#"Hecks.bluebook "T" do
+  aggregate "Order" do
+    description "An order"
+    attribute :status, default: "pending"
+    command "CreateOrder" do
+      role "Customer"
+    end
+    command "ShipOrder" do
+      role "Warehouse"
+      reference_to Order
+      emits "OrderShipped"
+    end
+    command "DeliverOrder" do
+      role "Driver"
+      reference_to Order
+      emits "OrderDelivered"
+    end
+    lifecycle :status, default: "pending" do
+      transition "ShipOrder" => "shipped", from: "pending"
+      transition "DeliverOrder" => "delivered", from: "shipped"
+    end
+  end
+end"#);
+
+    rt.dispatch("CreateOrder", HashMap::new()).unwrap();
+    rt.dispatch("ShipOrder", attrs(&[("order", s("1"))])).unwrap();
+
+    let state = rt.find("Order", "1").unwrap();
+    assert_eq!(state.get("status"), &s("shipped"));
+
+    rt.dispatch("DeliverOrder", attrs(&[("order", s("1"))])).unwrap();
+    let state = rt.find("Order", "1").unwrap();
+    assert_eq!(state.get("status"), &s("delivered"));
+}
+
+#[test]
+fn lifecycle_blocks_invalid_transition() {
+    let mut rt = boot(r#"Hecks.bluebook "T" do
+  aggregate "Order" do
+    description "An order"
+    attribute :status, default: "pending"
+    command "CreateOrder" do
+      role "Customer"
+    end
+    command "DeliverOrder" do
+      role "Driver"
+      reference_to Order
+    end
+    lifecycle :status, default: "pending" do
+      transition "DeliverOrder" => "delivered", from: "shipped"
+    end
+  end
+end"#);
+
+    rt.dispatch("CreateOrder", HashMap::new()).unwrap();
+    // Can't deliver from "pending" — must be "shipped"
+    let err = rt.dispatch("DeliverOrder", attrs(&[("order", s("1"))]));
+    assert!(err.is_err());
+    assert!(format!("{}", err.unwrap_err()).contains("lifecycle violation"));
+}
+
+#[test]
+fn lifecycle_no_constraint_allows_any() {
+    let mut rt = boot(r#"Hecks.bluebook "T" do
+  aggregate "Order" do
+    description "An order"
+    attribute :status, default: "pending"
+    command "CreateOrder" do
+      role "Customer"
+    end
+    command "CancelOrder" do
+      role "Customer"
+      reference_to Order
+    end
+    lifecycle :status, default: "pending" do
+      transition "CancelOrder" => "cancelled"
+    end
+  end
+end"#);
+
+    rt.dispatch("CreateOrder", HashMap::new()).unwrap();
+    // No from: constraint — can cancel from any state
+    rt.dispatch("CancelOrder", attrs(&[("order", s("1"))])).unwrap();
+    let state = rt.find("Order", "1").unwrap();
+    assert_eq!(state.get("status"), &s("cancelled"));
+}
+
+// --- Seed loader ---
+
+#[test]
+fn seed_loader_dispatches() {
+    // Each seed line dispatches one command. Without identified_by,
+    // each dispatch mints a new counter id — two dispatches produce
+    // two distinct Pizza records.
+    let mut rt = boot(r#"Hecks.bluebook "T" do
+  aggregate "Pizza" do
+    description "A pizza"
+    attribute :name
+    command "CreatePizza" do
+      role "Chef"
+      attribute :name
+    end
+  end
+end"#);
+
+    let count = storehouse::runtime::seed_loader::load_from_string(&mut rt,
+        "dispatch CreatePizza name=Margherita\ndispatch CreatePizza name=Pepperoni\n# comment\n\n"
+    ).unwrap();
+
+    assert_eq!(count, 2);
+    assert_eq!(rt.all("Pizza").len(), 2);
+}
+
+// --- Veterinary full lifecycle ---
+// The original `nursery/veterinary` fixture was renamed to
+// `nursery/veterinary_clinic` with a different command shape. The
+// cross-policy cascade behavior this test exercised is now covered
+// by the behaviors_runner suite, which asserts the exact emit list
+// for every command on every bluebook in the corpus.
+
+// --- Auto-projections ---
+
+#[test]
+fn auto_projections_created_at_boot() {
+    let rt = boot(r#"Hecks.bluebook "T" do
+  aggregate "Pizza" do
+    description "A pizza"
+    command "CreatePizza" do
+      role "Chef"
+    end
+  end
+  aggregate "Order" do
+    description "An order"
+    command "PlaceOrder" do
+      role "Customer"
+    end
+  end
+end"#);
+
+    assert_eq!(rt.projections.len(), 2);
+    assert_eq!(rt.projections[0].name, "PizzaList");
+    assert_eq!(rt.projections[1].name, "OrderList");
+}
+
+#[test]
+fn auto_projection_tracks_aggregates() {
+    // Without identified_by, each CreatePizza dispatch mints a new
+    // counter id. Two dispatches produce two distinct records and the
+    // projection sees two rows.
+    let mut rt = boot(r#"Hecks.bluebook "T" do
+  aggregate "Pizza" do
+    description "A pizza"
+    attribute :name
+    command "CreatePizza" do
+      role "Chef"
+      attribute :name
+    end
+  end
+end"#);
+
+    rt.dispatch("CreatePizza", attrs(&[("name", s("Margherita"))])).unwrap();
+    rt.dispatch("CreatePizza", attrs(&[("name", s("Pepperoni"))])).unwrap();
+
+    assert_eq!(rt.projections[0].count(), 2);
+    let rows = rt.projections[0].query_all();
+    assert_eq!(rows.len(), 2);
+}
+
+// --- Parser: pizzas as a representative real-domain parse ---
+
+#[test]
+fn parse_pizzas() {
+    let source = std::fs::read_to_string(
+        format!("{}/catalog/pizzas.bluebook", storehouse::storehouse_router::conception_root())
+    ).unwrap();
+    let domain = storehouse::parser::parse(&source);
+    assert_eq!(domain.name, "Pizzas");
+    assert_eq!(domain.aggregates.len(), 2);
+    // Pizza aggregate has CreatePizza, AddTopping, RemoveTopping.
+    assert!(domain.aggregates[0].commands.len() >= 2);
+}
+
+// --- i113 / i116 : Many-form bulk dispatch ---
+//
+// `RegisterExemption` registers one row per dispatch. `RegisterExemptions`
+// (Many sibling) takes `list_of(ExemptionSpec)` and registers N rows in
+// one dispatch. The runtime detects the bulk shape — single attr,
+// list_of(VO) whose VO carries the aggregate's `identified_by` field —
+// and iterates : one save + one event per spec. Antibody is the proving
+// ground ; the shape extends to every Register* command with a natural
+// multi-row form.
+
+fn registry_source() -> &'static str {
+    r#"Hecks.bluebook "T" do
+  aggregate "ExemptRegistry" do
+    identified_by :path
+    attribute :path, String
+    attribute :reason, String
+    value_object "ExemptionSpec" do
+      attribute :path, String
+      attribute :reason, String
+    end
+    command "RegisterExemption" do
+      role "Chris"
+      attribute :path, String
+      attribute :reason, String
+      then_set :path, to: :path
+      then_set :reason, to: :reason
+      emits "ExemptionRegistered"
+    end
+    command "RegisterExemptions" do
+      role "Chris"
+      attribute :specs, list_of(ExemptionSpec)
+      emits "ExemptionRegistered"
+    end
+  end
+end"#
+}
+
+fn map_value(pairs: &[(&str, &str)]) -> Value {
+    let mut m = HashMap::new();
+    for (k, v) in pairs {
+        m.insert(k.to_string(), Value::Str(v.to_string()));
+    }
+    Value::Map(m)
+}
+
+#[test]
+fn bulk_register_saves_one_record_per_spec() {
+    // Three specs in, three records out — same upsert / save path as
+    // the single-form RegisterExemption.
+    let mut rt = boot(registry_source());
+    let specs = Value::List(vec![
+        map_value(&[("path", "lib/foo.rs"),  ("reason", "kernel-surface")]),
+        map_value(&[("path", "lib/bar.rs"),  ("reason", "transitional")]),
+        map_value(&[("path", "tests/baz.rs"),("reason", "test-only")]),
+    ]);
+    let result = rt.dispatch("RegisterExemptions", attrs(&[("specs", specs)])).unwrap();
+    assert_eq!(result.aggregate_type, "ExemptRegistry");
+
+    assert_eq!(rt.all("ExemptRegistry").len(), 3);
+    assert_eq!(rt.find("ExemptRegistry", "lib/foo.rs").unwrap().get("reason"),
+        &Value::Str("kernel-surface".into()));
+    assert_eq!(rt.find("ExemptRegistry", "lib/bar.rs").unwrap().get("reason"),
+        &Value::Str("transitional".into()));
+    assert_eq!(rt.find("ExemptRegistry", "tests/baz.rs").unwrap().get("reason"),
+        &Value::Str("test-only".into()));
+}
+
+#[test]
+fn bulk_register_is_idempotent_on_overlapping_specs() {
+    // Re-dispatching with overlapping specs upserts — same record id
+    // (the natural-key path), updated reason. Final row count holds
+    // the union of inputs.
+    let mut rt = boot(registry_source());
+    let first = Value::List(vec![
+        map_value(&[("path", "a.rs"), ("reason", "first")]),
+        map_value(&[("path", "b.rs"), ("reason", "first")]),
+    ]);
+    rt.dispatch("RegisterExemptions", attrs(&[("specs", first)])).unwrap();
+
+    let second = Value::List(vec![
+        map_value(&[("path", "b.rs"), ("reason", "updated")]),  // overlap
+        map_value(&[("path", "c.rs"), ("reason", "fresh")]),    // new
+    ]);
+    rt.dispatch("RegisterExemptions", attrs(&[("specs", second)])).unwrap();
+
+    assert_eq!(rt.all("ExemptRegistry").len(), 3);
+    assert_eq!(rt.find("ExemptRegistry", "a.rs").unwrap().get("reason"),
+        &Value::Str("first".into()));
+    assert_eq!(rt.find("ExemptRegistry", "b.rs").unwrap().get("reason"),
+        &Value::Str("updated".into()));
+    assert_eq!(rt.find("ExemptRegistry", "c.rs").unwrap().get("reason"),
+        &Value::Str("fresh".into()));
+}
+
+#[test]
+fn bulk_register_accepts_json_string_for_cli_path() {
+    // CLI passes attrs as Str — the runtime parses a JSON array of
+    // objects into specs. This keeps `storehouse agg/ Antibody.RegisterExemptions
+    // specs='[{...},{...}]'` working without a separate codepath.
+    let mut rt = boot(registry_source());
+    let json = r#"[{"path":"x.rs","reason":"r1"},{"path":"y.rs","reason":"r2"}]"#;
+    rt.dispatch("RegisterExemptions",
+        attrs(&[("specs", Value::Str(json.into()))])).unwrap();
+
+    assert_eq!(rt.all("ExemptRegistry").len(), 2);
+    assert_eq!(rt.find("ExemptRegistry", "x.rs").unwrap().get("reason"),
+        &Value::Str("r1".into()));
+    assert_eq!(rt.find("ExemptRegistry", "y.rs").unwrap().get("reason"),
+        &Value::Str("r2".into()));
+}
+
+#[test]
+fn single_register_still_works_alongside_bulk() {
+    // The bulk shape detection is opt-in by IR : commands without the
+    // bulk shape still run the regular single-row pipeline. Both
+    // forms compose against the same store.
+    let mut rt = boot(registry_source());
+    rt.dispatch("RegisterExemption",
+        attrs(&[("path", s("solo.rs")), ("reason", s("alone"))])).unwrap();
+    let bulk = Value::List(vec![
+        map_value(&[("path", "pair_1.rs"), ("reason", "bulk")]),
+        map_value(&[("path", "pair_2.rs"), ("reason", "bulk")]),
+    ]);
+    rt.dispatch("RegisterExemptions", attrs(&[("specs", bulk)])).unwrap();
+
+    assert_eq!(rt.all("ExemptRegistry").len(), 3);
+    assert_eq!(rt.find("ExemptRegistry", "solo.rs").unwrap().get("reason"),
+        &Value::Str("alone".into()));
+}
+
+#[test]
+fn bulk_register_thirty_eight_specs_in_one_dispatch() {
+    // The i112 catalog seed used to be 38 separate shell-loop
+    // dispatches. The Many-form retires that : one dispatch, 38 rows,
+    // no shell loop.
+    let mut rt = boot(registry_source());
+    let mut items = Vec::new();
+    for i in 0..38 {
+        items.push(map_value(&[
+            ("path", &*format!("path_{}.rs", i)),
+            ("reason", "seed"),
+        ]));
+    }
+    let specs = Value::List(items);
+    rt.dispatch("RegisterExemptions", attrs(&[("specs", specs)])).unwrap();
+    assert_eq!(rt.all("ExemptRegistry").len(), 38);
+}
+
+// ============================================================
+// i111-J — entity blocks honored in dispatch
+// ============================================================
+//
+// Before i111-J, an `entity "Foo" do … end` block could only declare
+// attributes ; commands inside it were silently dropped by the
+// parser, and the runtime resolver only walked aggregates' command
+// lists. Authors collapsing aggregates into entities had to flatten
+// behaviors `on:` clauses to the parent root because the entity's
+// commands had nowhere to live. These tests exercise the closed gap.
+
+fn ledger_source() -> &'static str {
+    r#"Hecks.bluebook "Banking" do
+  aggregate "Account" do
+    attribute :owner, String
+    attribute :balance, Integer, default: 0
+    attribute :ledger_count, Integer, default: 0
+
+    entity "LedgerEntry" do
+      attribute :amount, Integer
+      attribute :memo, String
+
+      command "AddEntry" do
+        role "Bookkeeper"
+        reference_to Account
+        attribute :amount, Integer
+        attribute :memo, String
+        then_set :ledger_count, increment: 1
+        then_set :balance, increment: :amount
+        emits "EntryAdded"
+      end
+    end
+
+    command "OpenAccount" do
+      role "Customer"
+      attribute :owner, String
+      emits "AccountOpened"
+    end
+  end
+end"#
+}
+
+#[test]
+fn entity_command_dispatches_via_three_part_address() {
+    // `Aggregate.Entity.Command` resolves to the entity-owned command
+    // and dispatches through the parent aggregate's record.
+    let mut rt = boot(ledger_source());
+    rt.dispatch("OpenAccount", attrs(&[("owner", s("Alice"))])).unwrap();
+
+    let result = rt.dispatch(
+        "Account.LedgerEntry.AddEntry",
+        attrs(&[
+            ("account", s("1")),
+            ("amount", Value::Int(50)),
+            ("memo", s("opening deposit")),
+        ]),
+    ).unwrap();
+
+    assert_eq!(result.aggregate_type, "Account");
+    assert_eq!(result.event.as_ref().map(|e| e.name.as_str()), Some("EntryAdded"));
+
+    let state = rt.find("Account", "1").unwrap();
+    assert_eq!(state.get("ledger_count"), &Value::Int(1));
+    assert_eq!(state.get("balance"), &Value::Int(50));
+}
+
+#[test]
+fn entity_command_dispatches_via_two_part_address_when_unique() {
+    // `Aggregate.Command` falls through to a unique entity-owned
+    // command when no aggregate-level command by that name exists.
+    let mut rt = boot(ledger_source());
+    rt.dispatch("OpenAccount", attrs(&[("owner", s("Bob"))])).unwrap();
+
+    let result = rt.dispatch(
+        "Account.AddEntry",
+        attrs(&[
+            ("account", s("1")),
+            ("amount", Value::Int(25)),
+            ("memo", s("starter")),
+        ]),
+    ).unwrap();
+
+    assert_eq!(result.aggregate_type, "Account");
+    let state = rt.find("Account", "1").unwrap();
+    assert_eq!(state.get("ledger_count"), &Value::Int(1));
+    assert_eq!(state.get("balance"), &Value::Int(25));
+}
+
+#[test]
+fn bare_entity_command_dispatch_walks_entities() {
+    // Bare-name dispatch still works for entity commands — first
+    // checks every aggregate's commands list, then walks entities.
+    let mut rt = boot(ledger_source());
+    rt.dispatch("OpenAccount", attrs(&[("owner", s("Carol"))])).unwrap();
+
+    rt.dispatch(
+        "AddEntry",
+        attrs(&[
+            ("account", s("1")),
+            ("amount", Value::Int(7)),
+            ("memo", s("bare-form")),
+        ]),
+    ).unwrap();
+
+    let state = rt.find("Account", "1").unwrap();
+    assert_eq!(state.get("balance"), &Value::Int(7));
+}
+
+#[test]
+fn unknown_entity_command_returns_unknown() {
+    // A bogus entity-qualified address still surfaces UnknownCommand
+    // — the resolver tries Context.Aggregate.Command,
+    // Aggregate.Entity.Command, then errors.
+    let mut rt = boot(ledger_source());
+    rt.dispatch("OpenAccount", attrs(&[("owner", s("Dave"))])).unwrap();
+
+    let err = rt.dispatch(
+        "Account.LedgerEntry.NotARealCommand",
+        attrs(&[("account", s("1"))]),
+    );
+    assert!(err.is_err(), "expected UnknownCommand for bogus 3-part address");
+}
+
+#[test]
+fn entity_command_emits_event_under_parent_aggregate_type() {
+    // The event's aggregate_type is the parent aggregate's name —
+    // the addressable record from outside the bounded context.
+    // Other domains subscribe to `Account` events, not
+    // `Account.LedgerEntry`.
+    let mut rt = boot(ledger_source());
+    rt.dispatch("OpenAccount", attrs(&[("owner", s("Eve"))])).unwrap();
+
+    let result = rt.dispatch(
+        "Account.LedgerEntry.AddEntry",
+        attrs(&[
+            ("account", s("1")),
+            ("amount", Value::Int(100)),
+            ("memo", s("payday")),
+        ]),
+    ).unwrap();
+
+    let event = result.event.unwrap();
+    assert_eq!(event.aggregate_type, "Account");
+    assert_eq!(event.aggregate_id, "1");
+    assert_eq!(event.name, "EntryAdded");
+}
+
+// --- Universal `id` self-ref dispatch (i519 sidequest) -----------------
+//
+// `reference_to(SomeAgg)` historically demanded the kwarg
+// `to_snake_case(SomeAgg) = <value>` at dispatch time. The convention is
+// invisible to callers — these tests pin the new `id=<value>` fallback
+// while proving the legacy snake-cased form still works byte-identically.
+
+fn universal_id_source() -> &'static str {
+    r#"Hecks.bluebook "T" do
+  aggregate "ExemptRegistry" do
+    description "A registry"
+    attribute :path
+    attribute :reason
+    command "Register" do
+      role "Operator"
+      attribute :path
+    end
+    command "Annotate" do
+      role "Operator"
+      reference_to ExemptRegistry
+      attribute :reason
+      then_set :reason, from: :reason
+    end
+  end
+end"#
+}
+
+#[test]
+fn universal_id_dispatches_via_id_kwarg() {
+    // Callers can pass `id=<value>` instead of the snake_cased
+    // aggregate-name convention — the documented universal form.
+    let mut rt = boot(universal_id_source());
+    rt.dispatch("Register", attrs(&[("path", s("/etc"))])).unwrap();
+
+    let result = rt.dispatch(
+        "Annotate",
+        attrs(&[("id", s("1")), ("reason", s("kernel-floor"))]),
+    ).unwrap();
+
+    assert_eq!(result.aggregate_id, "1");
+    let state = rt.find("ExemptRegistry", "1").unwrap();
+    assert_eq!(state.get("reason"), &s("kernel-floor"));
+}
+
+#[test]
+fn universal_id_legacy_snake_case_form_still_works() {
+    // The historical `<snake_case_agg>=<value>` form must keep working ;
+    // byte-identical with pre-i519 behavior.
+    let mut rt = boot(universal_id_source());
+    rt.dispatch("Register", attrs(&[("path", s("/etc"))])).unwrap();
+
+    let result = rt.dispatch(
+        "Annotate",
+        attrs(&[("exempt_registry", s("1")), ("reason", s("legacy"))]),
+    ).unwrap();
+
+    assert_eq!(result.aggregate_id, "1");
+    let state = rt.find("ExemptRegistry", "1").unwrap();
+    assert_eq!(state.get("reason"), &s("legacy"));
+}
+
+#[test]
+fn universal_id_both_forms_produce_identical_state() {
+    // Snake-cased lookup takes precedence over `id` fallback : two runs
+    // of the same dispatch — one via each form — land on the same row
+    // with the same end state.
+    let mut rt_a = boot(universal_id_source());
+    rt_a.dispatch("Register", attrs(&[("path", s("/etc"))])).unwrap();
+    rt_a.dispatch(
+        "Annotate",
+        attrs(&[("id", s("1")), ("reason", s("settled"))]),
+    ).unwrap();
+    let state_a = rt_a.find("ExemptRegistry", "1").unwrap().clone();
+
+    let mut rt_b = boot(universal_id_source());
+    rt_b.dispatch("Register", attrs(&[("path", s("/etc"))])).unwrap();
+    rt_b.dispatch(
+        "Annotate",
+        attrs(&[("exempt_registry", s("1")), ("reason", s("settled"))]),
+    ).unwrap();
+    let state_b = rt_b.find("ExemptRegistry", "1").unwrap().clone();
+
+    assert_eq!(state_a.get("reason"), state_b.get("reason"));
+    assert_eq!(state_a.id, state_b.id);
+}
+
+#[test]
+fn fqn_dispatch_honors_aggregate_qualifier() {
+    // i630 regression. Two aggregates in the loaded domain both declare
+    // a `Check` command — the real-world collision is framework
+    // Inbox.Check vs the macrophage's BidirectionalAssociation.Check.
+    // Before the fix, `storehouse loop` / `clock` / `run-loop`
+    // truncated the Domain::Aggregate.Command FQN down to the bare
+    // `Check`, and bare-name resolution (first-match-wins) landed on
+    // the WRONG aggregate — `Inbox::Inbox.Check` fired the macrophage's
+    // CheckRun, so the inbox loop never reached Inbox.Check. The fix
+    // passes the full FQN through ; command_dispatch::resolve must
+    // honor the aggregate qualifier and land on the named aggregate.
+    let mut rt = boot(r#"Hecks.bluebook "Coll" do
+  aggregate "Inbox" do
+    description "An inbox"
+    attribute :seen, Float, default: 0.5
+    command "CreateInbox" do
+      role "Poller"
+    end
+    command "Check" do
+      role "Poller"
+      reference_to Inbox
+      then_set :seen, multiply: 0.5
+    end
+  end
+
+  aggregate "BidirectionalAssociation" do
+    description "A macrophage rule sibling that also declares Check"
+    attribute :seen, Float, default: 0.5
+    command "CreateAssoc" do
+      role "Macrophage"
+    end
+    command "Check" do
+      role "Macrophage"
+      reference_to BidirectionalAssociation
+      then_set :seen, multiply: 0.5
+    end
+  end
+end"#);
+
+    rt.dispatch("Coll::Inbox.CreateInbox", HashMap::new()).unwrap();
+    rt.dispatch("Coll::BidirectionalAssociation.CreateAssoc", HashMap::new())
+        .unwrap();
+
+    // FQN naming the Inbox aggregate must resolve to Inbox — not the
+    // first/any aggregate that happens to declare a bare `Check`.
+    let r_inbox = rt
+        .dispatch("Coll::Inbox.Check", attrs(&[("inbox", s("1"))]))
+        .unwrap();
+    assert_eq!(
+        r_inbox.aggregate_type, "Inbox",
+        "FQN Coll::Inbox.Check must resolve to the Inbox aggregate, not a sibling declaring Check"
+    );
+
+    // The sibling FQN must resolve to its own aggregate — proving the
+    // qualifier disambiguates in both directions, not just first-match.
+    let r_assoc = rt
+        .dispatch(
+            "Coll::BidirectionalAssociation.Check",
+            attrs(&[("bidirectional_association", s("1"))]),
+        )
+        .unwrap();
+    assert_eq!(
+        r_assoc.aggregate_type, "BidirectionalAssociation",
+        "FQN Coll::BidirectionalAssociation.Check must resolve to that aggregate"
+    );
+}

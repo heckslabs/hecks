@@ -1,0 +1,155 @@
+Hecks.bluebook "WasmWorkerShape", version: "2026.05.11.1" do
+  vision "Shape of an emitted Cloudflare-Worker WASM crate — one Cargo workspace member per app whose lib.rs renders the fetch handler the CommandBus bluebook describes (POST /route, GET /lexicon, GET /query, GET /health) and whose Cargo.toml depends on the renamed `storehouse` crate via path. The second member of the :codegen adapter family declared in i528's command_bus.hecksagon ; the Rust-emission realization of the host :cf_worker world-block choice. Different from the ruby_command_class shape — that emits call-site idiom for in-process Ruby callers ; this emits the deployment surface that holds the bus itself."
+  category "autophagy"
+
+  # ============================================================
+  # WASM_WORKER SHAPE — i528 step 8
+  # ============================================================
+  #
+  # When a project's world file declares `command_bus { host
+  # :cf_worker }` the runtime needs a Cloudflare-Worker WASM crate
+  # to deploy that decision to. The crate's shape is fixed :
+  #
+  #   <app>/worker/
+  #     Cargo.toml            — workspace member, crate-type cdylib,
+  #                             path-dep on hecks/rust as `storehouse`,
+  #                             worker + serde + console_error_panic_hook
+  #     src/lib.rs            — #[event(fetch)] entry point with
+  #                             the four routes the CommandBus
+  #                             bluebook declares (Route, ListPhrases,
+  #                             Query, HealthCheck)
+  #     src/embedded.rs       — the project's bluebooks compiled in
+  #                             as &[(&str, &str)] tuples ; emitted
+  #                             by a sibling shape later in i528
+  #
+  # This shape covers Cargo.toml + lib.rs ; embedded.rs is the
+  # sibling embedded_bluebooks_shape (filed for the next iteration —
+  # today bin-buddy generates it via a Python script we are about
+  # to retire).
+  #
+  # The shape carries the per-deployment inputs as one row :
+  #
+  #   WasmWorker (one row per app being compiled) :
+  #     app                — kebab-case project folder, e.g.
+  #                          "bin-buddy". First segment of every
+  #                          phrase the bus accepts.
+  #     host               — must be "cf_worker" today ; the enum
+  #                          mirrors CommandBus.Host. Other values
+  #                          (aws_lambda, axum_local) get their own
+  #                          shapes later.
+  #     auth_scheme        — "bearer" / "jwt" / "oauth" / "none" ;
+  #                          mirrors CommandBus.AuthScheme. Determines
+  #                          the auth check rendered into lib.rs.
+  #     auth_secret_env    — env-var name the world file's auth block
+  #                          declares (e.g. "BIN_BUDDY_API_KEY") ; lib.rs
+  #                          renders `ctx.env.secret("<this>")`.
+  #     storehouse_path    — relative path from the app's
+  #                          <app>/worker/ folder up to the hecks/rust
+  #                          checkout that the path-dep targets. Today
+  #                          bin-buddy uses "../../hecks/rust" ;
+  #                          customers may use a different layout once
+  #                          storehouse publishes as a crate.
+  #
+  # The Rust emitter (rust/src/specializer/wasm_worker.rs) reads
+  # this row from the app's world file and renders the two strings.
+  # The caller (storehouse compile-worker --app <app>) writes them
+  # to <app>/worker/Cargo.toml and <app>/worker/src/lib.rs.
+
+  aggregate "WasmWorker", "Emitted Cloudflare-Worker WASM crate for one app" do
+    identified_by :app
+
+    value_object "App" do
+      # First segment of every phrase this worker's bus accepts.
+      # kebab-case ; the project folder name.
+      attribute :value, String
+      invariant "must be non-empty" do
+        !value.empty?
+      end
+    end
+
+    value_object "Host" do
+      # Mirrors CommandBus.Host. This shape only covers :cf_worker
+      # for now ; sibling shapes will cover :aws_lambda + :axum_local.
+      attribute :value, String
+      invariant "must be 'cf_worker'" do
+        value == "cf_worker"
+      end
+    end
+
+    value_object "AuthScheme" do
+      # Mirrors CommandBus.AuthScheme. Determines how POST /route
+      # validates incoming requests.
+      attribute :value, String
+      invariant "must be one of 'bearer', 'jwt', 'oauth', 'none'" do
+        %w[bearer jwt oauth none].include?(value)
+      end
+    end
+
+    value_object "AuthSecretEnv" do
+      # The env-var name the world file's auth block declares.
+      # Rendered into lib.rs as `ctx.env.secret("<this>")`. Allowed
+      # to be empty when auth_scheme is "none".
+      attribute :value, String
+      invariant "uppercase ASCII + underscores when non-empty" do
+        value.empty? || value.match?(/\A[A-Z][A-Z0-9_]*\z/)
+      end
+    end
+
+    value_object "StorehousePath" do
+      # Relative path from <app>/worker/ to the hecks/rust checkout
+      # that carries the storehouse library. Cargo path-dep target.
+      attribute :value, String
+      invariant "must be non-empty" do
+        !value.empty?
+      end
+    end
+
+    value_object "LibRs" do
+      # The rendered fetch-handler source. Holds the four routes
+      # from CommandBus.bluebook (Route, ListPhrases, Query,
+      # HealthCheck), the auth-scheme guard, and the panic hook
+      # wiring. Emitted as one Rust source string ; the caller
+      # writes it to <app>/worker/src/lib.rs.
+      attribute :value, String
+    end
+
+    value_object "CargoToml" do
+      # The rendered Cargo.toml for the worker crate. Carries the
+      # path-dep on storehouse, the cdylib crate-type, the release
+      # profile tuned for the CF Worker 1MB compressed limit.
+      attribute :value, String
+    end
+
+    attribute :app,             App
+    attribute :host,            Host
+    attribute :auth_scheme,     AuthScheme
+    attribute :auth_secret_env, AuthSecretEnv
+    attribute :storehouse_path, StorehousePath
+
+    # ── Commands ───────────────────────────────────────────────
+
+    command "EmitLibRs" do
+      role "System"
+      description "Render the worker's lib.rs as a Rust source string. The handler uses the four routes the CommandBus bluebook declares — POST /route, GET /lexicon, GET /query, GET /health — and applies the auth-scheme guard on the mutating route. Auth secret reads through ctx.env.secret(auth_secret_env). On auth_scheme :none the guard is omitted. Today the dispatch body is stubbed (echo + linear bluebook lookup) pending the R2 heki adapter ; the route shape is final."
+      attribute :app,             App
+      attribute :host,            Host
+      attribute :auth_scheme,     AuthScheme
+      attribute :auth_secret_env, AuthSecretEnv
+      emits "LibRsEmitted"
+      then_set :app,             to: :app
+      then_set :host,            to: :host
+      then_set :auth_scheme,     to: :auth_scheme
+      then_set :auth_secret_env, to: :auth_secret_env
+    end
+
+    command "EmitCargoToml" do
+      role "System"
+      description "Render the worker's Cargo.toml as a string. Workspace member named <app>-worker, crate-type cdylib, path-dep on storehouse (renamed from hecks-life in i528), release profile tuned for the CF Worker 1MB compressed limit (opt-level 's', strip, lto, codegen-units 1)."
+      attribute :app,             App
+      attribute :storehouse_path, StorehousePath
+      emits "CargoTomlEmitted"
+      then_set :app,             to: :app
+      then_set :storehouse_path, to: :storehouse_path
+    end
+  end
+end

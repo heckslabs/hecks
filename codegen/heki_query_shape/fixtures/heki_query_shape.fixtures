@@ -1,0 +1,14 @@
+Hecks.fixtures "HekiQueryShape" do
+  # One row per ordered code section in heki_query.rs. Specializer
+  # concatenates HEADER + IMPORTS (in the .rs source) + each snippet's
+  # raw body in `order` ascending. read_snippet_raw is used (not
+  # read_snippet_body) so the // ---- dividers at section starts are
+  # preserved verbatim.
+
+  aggregate "Section" do
+    fixture "FiltersSection",    name: "filters",    order: 1, body_kind: "verbatim_section", snippet_path: "codegen/heki_query_shape/snippets/01_filters.rs.frag",    description: "FilterOp enum + Filter struct/impl + filter_records pure function"
+    fixture "OrderingSection",   name: "ordering",   order: 2, body_kind: "verbatim_section", snippet_path: "codegen/heki_query_shape/snippets/02_ordering.rs.frag",   description: "OrderDir + OrderSpec struct/impl + OrderKey enum/impls + order_records / order_records_multi"
+    fixture "ProjectionSection", name: "projection", order: 3, body_kind: "verbatim_section", snippet_path: "codegen/heki_query_shape/snippets/03_projection.rs.frag", description: "field_to_string projection helper"
+    fixture "TestsSection",      name: "tests",      order: 4, body_kind: "verbatim_section", snippet_path: "codegen/heki_query_shape/snippets/04_tests.rs.frag",      description: "cfg(test) module — Filter / OrderSpec / order_records unit tests"
+  end
+end

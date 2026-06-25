@@ -1,0 +1,72 @@
+Hecks.fixtures "ParseBlocksShape" do
+  # One row per ordered code section in parse_blocks.rs. Specializer
+  # concatenates HEADER (doc + use lines, baked as a const in the
+  # specializer module) + each snippet's raw body in `order` ascending.
+  # read_snippet_raw is used (not read_snippet_body) so the trailing
+  # blank line at each snippet's end is preserved verbatim — that's
+  # how the section separators land in the emitted file.
+
+  aggregate "Section" do
+    fixture "ParseSectionSection",       name: "parse_section",            order: 1,  body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/01_parse_section.rs.frag",            description: "pub fn parse_section — section block reader for capability bluebook templates"
+    fixture "ParseSectionRowSection",    name: "parse_section_row",        order: 2,  body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/02_parse_section_row.rs.frag",        description: "pub fn parse_section_row — single row line reader"
+    fixture "ParseCommandSection",       name: "parse_command",            order: 3,  body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/03_parse_command.rs.frag",            description: "pub fn parse_command + parse_factory — command/factory block readers (attributes, role, given, then_set, then_toggle, then_delete ; factory adds produces:)"
+    fixture "ParseInlineCommandSection", name: "parse_inline_command",     order: 4,  body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/04_parse_inline_command.rs.frag",     description: "fn parse_inline_command — semicolon-delimited inline command body"
+    fixture "ParseQuerySection",         name: "parse_query",              order: 5,  body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/04a_parse_query.rs.frag",            description: "pub fn parse_query + parse_where_line + parse_order_by_line + parse_limit_line — i101 first-class query IR block reader"
+    fixture "ParseValueObjectSection",   name: "parse_value_object",       order: 6,  body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/05_parse_value_object.rs.frag",       description: "pub fn parse_value_object — value_object block reader"
+    fixture "ParseEntitySection",        name: "parse_entity",             order: 7,  body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/06_parse_entity.rs.frag",             description: "pub fn parse_entity — non-root entity block (commands, queries, lifecycle, identified_by)"
+    fixture "ParsePolicySection",        name: "parse_policy",             order: 8,  body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/07_parse_policy.rs.frag",             description: "pub fn parse_policy — policy block reader (on/trigger/across)"
+    fixture "ParseLifecycleSection",     name: "parse_lifecycle",          order: 9,  body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/08_parse_lifecycle.rs.frag",          description: "pub fn parse_lifecycle — lifecycle block reader (transition + from/to states, list/single from forms)"
+    fixture "ParseAttributeSection",     name: "parse_attribute",          order: 10, body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/09_parse_attribute.rs.frag",          description: "pub fn parse_attribute — attribute line reader (name, type, list_of, default)"
+    fixture "IsKwargSection",            name: "is_kwarg",                 order: 11, body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/10_is_kwarg.rs.frag",                 description: "fn is_kwarg — predicate distinguishing key:value from positional types"
+    fixture "ParseFixtureSection",       name: "parse_fixture",            order: 12, body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/11_parse_fixture.rs.frag",            description: "pub fn parse_fixture — single-line fixture key:value reader"
+    fixture "ParseFixtureBlockBodySection", name: "parse_fixture_block_body", order: 13, body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/12_parse_fixture_block_body.rs.frag", description: "pub fn parse_fixture_block_body — block-form fixture body reader"
+    fixture "SplitTopLevelCommasSection", name: "split_top_level_commas",  order: 14, body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/13_split_top_level_commas.rs.frag",    description: "fn split_top_level_commas — comma splitter that respects strings/brackets/parens/braces"
+    fixture "EscapedAtSection",          name: "escaped_at",               order: 15, body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/14_escaped_at.rs.frag",               description: "fn escaped_at — true if the byte before index i is a backslash"
+    fixture "ParseMutationSection",      name: "parse_mutation",           order: 16, body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/15_parse_mutation.rs.frag",          description: "pub fn parse_mutation — then_set / then_toggle / then_delete mutation reader (set/append/increment/decrement/multiply/clamp/decay/from)"
+    fixture "ParseProcessManagerSection", name: "parse_process_manager",   order: 17, body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/16_parse_process_manager.rs.frag",  description: "pub fn parse_process_manager — process_manager block reader (correlates_by, starts_on, ends_on, states, on/transition handlers ; action body skipped via on-indent matching)"
+    fixture "ParsePmHandlerSection",     name: "parse_pm_handler",         order: 18, body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/17_parse_pm_handler.rs.frag",      description: "fn parse_pm_handler — single on-line handler reader (transition: { from: :to } in either symbol-rocket or hash-rocket form)"
+
+    # Phase 2.b/2.c (pm-dispatch-enrichment + pm-attribute-writes) :
+    # parse_process_manager's body walker now captures `dispatch "Cmd",
+    # with: { ... }` and `set :attr, value_spec` lines into structured
+    # DispatchSpec / ValueSpec values on each handler. The eight new
+    # helpers are emitted in the same verbatim_section style.
+    fixture "IsDispatchStartSection",       name: "is_dispatch_start",        order: 19, body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/18_is_dispatch_start.rs.frag",       description: "fn is_dispatch_start — predicate guarding the on-block dispatch capture"
+    fixture "IsSetStartSection",            name: "is_set_start",             order: 20, body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/19_is_set_start.rs.frag",            description: "fn is_set_start — predicate guarding the on-block set capture"
+    fixture "ParseSetStatementSection",     name: "parse_set_statement",      order: 21, body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/20_parse_set_statement.rs.frag",     description: "fn parse_set_statement — `set :attr, value_spec` line reader"
+    fixture "IsBalancedSection",            name: "is_balanced",              order: 22, body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/21_is_balanced.rs.frag",            description: "fn is_balanced — paren / brace balance check for multi-line glue"
+    fixture "ParseDispatchStatementSection", name: "parse_dispatch_statement", order: 23, body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/22_parse_dispatch_statement.rs.frag", description: "fn parse_dispatch_statement — `dispatch \"Cmd\", with: { ... }` reader"
+    fixture "MatchCloseBraceSection",       name: "match_close_brace",        order: 24, body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/23_match_close_brace.rs.frag",       description: "fn match_close_brace — depth-counting brace matcher"
+    fixture "ParseWithHashSection",         name: "parse_with_hash",          order: 25, body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/24_parse_with_hash.rs.frag",         description: "fn parse_with_hash — with-hash body reader to ordered (key, ValueSpec) pairs"
+    fixture "ParseValueSpecSection",        name: "parse_value_spec",         order: 26, body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/25_parse_value_spec.rs.frag",        description: "fn parse_value_spec — Literal / FromEvent / FromPm dispatch reader"
+    fixture "ParseSentinelArgsSection",     name: "parse_sentinel_args",      order: 27, body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/26_parse_sentinel_args.rs.frag",     description: "fn parse_sentinel_args — (name, default) parser for from_event / from_pm sentinels"
+
+    # i76 cadence primitive : parse_cadence + parse_cadence_dispatch_line
+    # + the cadence-local split_top_level_cadence helper.
+    fixture "ParseCadenceSection",              name: "parse_cadence",              order: 28, body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/27_parse_cadence.rs.frag",              description: "pub fn parse_cadence — cadence block reader (i76)"
+    fixture "ParseCadenceDispatchLineSection",  name: "parse_cadence_dispatch_line", order: 29, body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/28_parse_cadence_dispatch_line.rs.frag", description: "pub fn parse_cadence_dispatch_line — single dispatch line within a cadence block"
+    fixture "SplitTopLevelCadenceSection",      name: "split_top_level_cadence",     order: 30, body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/29_split_top_level_cadence.rs.frag",      description: "fn split_top_level_cadence — kwarg-aware comma splitter for cadence dispatch lines"
+
+    # i259 — rule-block consumer. Aggregate / value_object / entity
+    # parsers delegate `rule "..." do ... end` consumption here so a
+    # multi-statement `requires { ... }` body inside the rule can't
+    # decrement the surrounding block's depth. Also enforces single-
+    # expression `requires` bodies with a structured RuleBodyError
+    # panic when authors write multi-statement Ruby (an if/else/end,
+    # case/end, or `;`-separated statements) inside the body.
+    fixture "ConsumeRuleBlockSection",          name: "consume_rule_block",          order: 31, body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/31_consume_rule_block.rs.frag",          description: "pub fn consume_rule_block + helpers — i259 rule-block consumer with single-expression `requires { ... }` body validation"
+
+    # i254 — `view "name" do show :a, :b ; show_all ; plus :extras end`
+    # block parser. Aggregate-scope keyword recognized by parse_aggregate.
+    fixture "ParseViewSection",                 name: "parse_view",                  order: 32, body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/31_parse_view.rs.frag",                  description: "pub fn parse_view + absorb_view_fields — i254 named view block reader (show / show_all / plus)"
+
+    # Phase 2.b/2.c unit tests live alongside the parser they exercise ;
+    # block stays at the file's tail so cargo test pulls them with the
+    # rest of parse_blocks.
+    fixture "DispatchTestsSection",             name: "dispatch_tests",              order: 33, body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/30_dispatch_tests.rs.frag",              description: "#[cfg(test)] mod dispatch_tests — Phase 2.b/2.c parser unit tests"
+    # f4 — parse_invariant : aggregate-level `invariant "name" do holds_when
+    # { <pred> } end` block reader. Emitted last (order 34) so it needs no
+    # renumber cascade ; mirrors the given block-extraction grammar.
+    fixture "ParseInvariantSection",            name: "parse_invariant",            order: 34, body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/32_parse_invariant.rs.frag",            description: "pub fn parse_invariant — aggregate-level invariant block reader (holds_when predicate)"
+  end
+end

@@ -1,0 +1,7 @@
+Hecks.hecksagon "Deciderate" do
+  adapter "CommunityGrowth" do
+    driven on "Deciderate::Invite.InviteAccepted" do |event|
+      dispatch "Community::Community.AddMember", community: "{community}", player: "{player}"
+    end
+  end
+end

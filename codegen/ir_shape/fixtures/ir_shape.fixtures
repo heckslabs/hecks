@@ -1,0 +1,447 @@
+Hecks.fixtures "IrShape" do
+  # Single-line fixtures per i57 parser limitation.
+
+  # ── Type — 20 top-level items in ir.rs (18 structs + 1 enum + 1 impl) ──
+  aggregate "Type" do
+    # Domain — root of the parsed bluebook tree, holds aggregates / policies / fixtures / sections / process_managers.
+    fixture "Domain", name: "Domain", order: 1, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Root IR node — holds the parsed bluebook tree"
+
+    # i76 cadence + i218 block_grammar — Cadence / CadenceDispatch /
+    # BlockGrammar / BlockGrammarEntry / BlockParser. impl BlockParser
+    # supplies from_name + name() ; impl BlockGrammar supplies the
+    # canonical_bluebook() bootstrap. The free `fn entry()` helper sits
+    # between the two impls and the next struct ; it lands as a
+    # verbatim_section row.
+    fixture "Cadence",            name: "Cadence",            order: 2, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "codegen/ir_shape/snippets/docs/cadence_type.rs.frag",            description: "One declared cadence — interval + ordered dispatches"
+    fixture "CadenceDispatch",    name: "CadenceDispatch",    order: 3, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "codegen/ir_shape/snippets/docs/cadence_dispatch_type.rs.frag",   description: "One scheduled dispatch within a cadence"
+    fixture "BlockGrammar",       name: "BlockGrammar",       order: 4, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "codegen/ir_shape/snippets/docs/block_grammar_type.rs.frag",       description: "One declared block grammar — keyword routing for the parser"
+    fixture "BlockGrammarEntry",  name: "BlockGrammarEntry",  order: 5, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "codegen/ir_shape/snippets/docs/block_grammar_entry_type.rs.frag", description: "One keyword -> parser binding"
+    fixture "BlockParser",        name: "BlockParser",        order: 6, body_kind: "enum",   derives: "Debug, Clone, Copy, PartialEq, Eq", impl_target: "", body_snippet: "", doc_snippet: "codegen/ir_shape/snippets/docs/block_parser_type.rs.frag", description: "Enum-keyed dispatch for block_grammar"
+    fixture "ImplBlockParser",    name: "ImplBlockParser",    order: 7, body_kind: "impl",   derives: "", impl_target: "BlockParser",  body_snippet: "codegen/ir_shape/snippets/impls/block_parser.rs.frag",  doc_snippet: "", description: "from_name + name() round-trip"
+    fixture "ImplBlockGrammar",   name: "ImplBlockGrammar",   order: 8, body_kind: "impl",   derives: "", impl_target: "BlockGrammar", body_snippet: "codegen/ir_shape/snippets/impls/block_grammar.rs.frag", doc_snippet: "", description: "canonical_bluebook bootstrap"
+    fixture "FnEntry",            name: "FnEntry",            order: 9, body_kind: "verbatim_section", derives: "", impl_target: "", body_snippet: "codegen/ir_shape/snippets/impls/fn_entry.rs.frag", doc_snippet: "", description: "Free fn entry() helper for canonical_bluebook"
+
+    # ProcessManager — Phase 3 dream-study addition. Static shape of an
+    # event-driven state machine ; runtime instantiation is Ruby-side.
+    fixture "ProcessManager", name: "ProcessManager", order: 10, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "codegen/ir_shape/snippets/docs/process_manager_type.rs.frag", description: "One declared process manager — name, correlates_by, starts/ends, states, handlers"
+
+    # ProcessManagerHandler — one on-event handler inside a PM, with from→to transition.
+    fixture "ProcessManagerHandler", name: "ProcessManagerHandler", order: 11, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "codegen/ir_shape/snippets/docs/process_manager_handler_type.rs.frag", description: "PM on-event handler — event_type + from_state + to_state"
+
+    # i221 :llm adapter Phase 2 + Phase 2.b/2.c PM enrichment —
+    # DispatchSpec + ValueSpec carry per-call attribute flow into
+    # PM-driven dispatches. i221-A adds ForEachSpec as a sibling
+    # struct ; DispatchSpec gains a `for_each: Option<ForEachSpec>`
+    # field, ValueSpec gains a `FromIter` variant.
+    fixture "DispatchSpec",  name: "DispatchSpec",  order: 12, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "codegen/ir_shape/snippets/docs/dispatch_spec_type.rs.frag", description: "One declarative dispatch with structured with-spec"
+    fixture "ForEachSpec",   name: "ForEachSpec",   order: 13, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "codegen/ir_shape/snippets/docs/for_each_spec_type.rs.frag", description: "i221-A — sweep source on a DispatchSpec ; qualified Aggregate.query halves"
+    fixture "ValueSpec",     name: "ValueSpec",     order: 14, body_kind: "enum",   derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "codegen/ir_shape/snippets/docs/value_spec_type.rs.frag",    description: "How a single with-attribute resolves at dispatch time"
+
+    # Section — named section in a capability dashboard ; struct-level doc above the derive.
+    fixture "Section", name: "Section", order: 15, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "codegen/ir_shape/snippets/docs/section_type.rs.frag", description: "One named section in a capability dashboard"
+
+    # SectionRow — one (label, field) row inside a Section ; struct-level doc above the derive.
+    fixture "SectionRow", name: "SectionRow", order: 16, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "codegen/ir_shape/snippets/docs/section_row_type.rs.frag", description: "One row inside a section — label + field reference"
+
+    # Aggregate — the dominant IR node, several fields with extensive doc.
+    fixture "Aggregate", name: "Aggregate", order: 17, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Aggregate root — name, attributes, commands, lifecycle"
+
+    # Attribute — name + Rust type (string) + default + list flag.
+    fixture "Attribute", name: "Attribute", order: 18, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Single attribute on an aggregate / value object / entity"
+
+    # Command — verb on an aggregate or entity, with givens and mutations.
+    fixture "Command", name: "Command", order: 19, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Command verb — attributes, references, givens, mutations"
+
+    # Query — read-side capability declaration ; i101 added attributes,
+    # wheres, order_by, and limit so the DSL block is no longer opaque.
+    fixture "Query", name: "Query", order: 20, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Query — read-side capability"
+
+    # Given — precondition expression on a command.
+    fixture "Given", name: "Given", order: 21, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Given — precondition expression on a command"
+
+    # Mutation — field + op + value tuple.
+    fixture "Mutation", name: "Mutation", order: 22, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Mutation — field, op, value"
+
+    # MutationOp — enum with 9 variants, four of which carry doc comments.
+    fixture "MutationOp", name: "MutationOp", order: 23, body_kind: "enum", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Mutation primitive — Set / Append / Increment / Decrement / Toggle / Delete / Multiply / Clamp / Decay"
+
+    # ValueObject — immutable value with attributes.
+    fixture "ValueObject", name: "ValueObject", order: 24, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Value object — immutable, replaced wholesale"
+
+    # Entity — non-root entity with optional commands / queries / lifecycle / identified_by.
+    fixture "Entity", name: "Entity", order: 25, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Non-root entity owned by an aggregate"
+
+    # Reference — name + target + optional cross-domain identifier.
+    fixture "Reference", name: "Reference", order: 26, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Reference to another aggregate / entity"
+
+    # Policy — event → command trigger.
+    fixture "Policy", name: "Policy", order: 27, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Policy — on event, trigger command"
+
+    # impl Policy — event_qualifier / event_name accessors for the
+    # aggregate-qualified `on "Aggregate.Event"` subscription form
+    # (adapters-as-bluebook gap #1b).
+    fixture "ImplPolicy", name: "ImplPolicy", order: 28, body_kind: "impl", derives: "", impl_target: "Policy", body_snippet: "codegen/ir_shape/snippets/impls/policy.rs.frag", doc_snippet: "", description: "event_qualifier + event_name accessors"
+
+    # Lifecycle — state field + default + transitions list.
+    fixture "Lifecycle", name: "Lifecycle", order: 29, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Lifecycle — state field, default state, transitions"
+
+    # Transition — command + to_state + optional from_state guard.
+    fixture "Transition", name: "Transition", order: 30, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Lifecycle transition — command takes the aggregate from from_state to to_state"
+
+    # Fixture — seeded data record bound to an aggregate.
+    fixture "Fixture", name: "Fixture", order: 31, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Seeded data record"
+
+    # i101 — first-class query IR. WhereClause / WhereOp / OrderBy /
+    # Direction / LimitSpec extend Query with structured filter / sort /
+    # cap fields so the runtime executor can walk repo.all() without
+    # delegating to an opaque Ruby block.
+    fixture "WhereClause", name: "WhereClause", order: 32, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Where clause — field op value tuple, ANDed with siblings"
+    fixture "WhereOp",     name: "WhereOp",     order: 33, body_kind: "enum",   derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "codegen/ir_shape/snippets/docs/where_op.rs.frag", description: "Filter operator — Eq / Ne / Gt / Gte / Lt / Lte"
+    fixture "OrderBy",     name: "OrderBy",     order: 34, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Order by clause — field + direction"
+    fixture "Direction",   name: "Direction",   order: 35, body_kind: "enum",   derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "codegen/ir_shape/snippets/docs/direction.rs.frag", description: "Sort direction — Asc / Desc"
+    fixture "LimitSpec",   name: "LimitSpec",   order: 36, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Limit spec — record cap (literal or kwarg-ref)"
+
+    # i254 — views per role. View carries a name + an ordered list of
+    # field projections ; `show_all` flag means "include every aggregate
+    # attribute, then append the listed extras". Different portals
+    # (customer / driver / admin) read the same aggregate through
+    # different views without per-portal field-list drift.
+    # deciderate Layer 0a — Reduction enum (order 37, declared before View so
+    # the stable sort emits it right after LimitSpec, matching the query family).
+    fixture "Reduction", name: "Reduction", order: 37, body_kind: "enum", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "codegen/ir_shape/snippets/docs/reduction.rs.frag", description: "Scalar reduction over a query's matched set — count / sum / max / min / median"
+    fixture "View", name: "View", order: 37, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "codegen/ir_shape/snippets/docs/view_type.rs.frag", description: "Named view — ordered field projection of an aggregate, scoped by role"
+
+    # Display impl on Domain — pretty-printed aggregate / command tree.
+    fixture "DisplayDomain", name: "DisplayDomain", order: 38, body_kind: "impl", derives: "", impl_target: "fmt::Display for Domain", body_snippet: "codegen/ir_shape/snippets/impls/display_for_domain.rs.frag", doc_snippet: "", description: "Display impl — pretty-prints Domain as a tree"
+
+    # f4 — Invariant struct. Emitted last (order 39) so adding it needs no
+    # renumber cascade. An aggregate-level rule : name + holds_when
+    # predicate expression, checked on the resulting state after every
+    # command. Mirrors the Given struct's 2-field shape.
+    fixture "Invariant", name: "Invariant", order: 39, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "codegen/ir_shape/snippets/docs/invariant_type.rs.frag", description: "Invariant — aggregate-level rule name + holds_when predicate"
+
+    # Cardinality — multiplicity bounds for a Reference (orders 40–43 form the
+    # "relationship DSL" group). Defaults : Cardinality::single() for
+    # reference_to / has_one / belongs_to ; Cardinality::many() for has_many.
+    fixture "Cardinality",       name: "Cardinality",       order: 40, body_kind: "struct", derives: "Debug, Clone, PartialEq, Eq", impl_target: "",              body_snippet: "",                                                          doc_snippet: "codegen/ir_shape/snippets/docs/cardinality_type.rs.frag",    description: "Multiplicity bounds for a Reference — min + optional max"
+
+    # ReferenceKind — which DSL keyword authored the Reference. The IR carries
+    # this so projections + validators can honor the original intent rather
+    # than collapsing all forms onto a single multiplicity shape.
+    fixture "ReferenceKind",     name: "ReferenceKind",     order: 41, body_kind: "enum",   derives: "Debug, Clone, PartialEq, Eq", impl_target: "",              body_snippet: "",                                                          doc_snippet: "codegen/ir_shape/snippets/docs/reference_kind_type.rs.frag", description: "Which DSL keyword produced a Reference — belongs_to / has_one / has_many / reference_to"
+
+    # impl ReferenceKind — stable string round-trip mirrors BlockParser's pattern.
+    fixture "ImplReferenceKind", name: "ImplReferenceKind", order: 42, body_kind: "impl",   derives: "",                            impl_target: "ReferenceKind", body_snippet: "codegen/ir_shape/snippets/impls/reference_kind.rs.frag",      doc_snippet: "",                                                          description: "as_str canonical keyword for ReferenceKind"
+
+    # impl Reference — ergonomic constructors (single / belongs_to / has_one /
+    # many / many_with_max) so call sites don't repeat the cardinality+kind
+    # boilerplate. The bare struct literal is still valid for tests + tooling.
+    fixture "ImplReference",     name: "ImplReference",     order: 43, body_kind: "impl",   derives: "",                            impl_target: "Reference",     body_snippet: "codegen/ir_shape/snippets/impls/reference.rs.frag",           doc_snippet: "",                                                          description: "Reference constructors keyed by DSL keyword"
+
+    # Factory — first-class birth node (2026-06-12 locked design,
+    # docs/designs/first-class-factories.md). Sibling to Command in the
+    # IR : Factory MINTS a new instance of `produces`, Command transitions
+    # an existing one. Supersedes the #729 `creates` bool + the is_create
+    # name-heuristic.
+    fixture "Factory", name: "Factory", order: 44, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Factory — a birth ; mints a new instance of `produces` (Self by default)"
+
+  end
+
+  # ── Field — pub fields of every struct row, sorted by `order` ──────────
+  aggregate "Field" do
+    # Domain — 8 fields ; entrypoint and sections carry per-field docs.
+    fixture "Domain_name",       type_name: "Domain", order: 1, name: "name",       field_type: "String",          doc_snippet: ""
+    fixture "Domain_category",   type_name: "Domain", order: 2, name: "category",   field_type: "Option<String>",  doc_snippet: ""
+    fixture "Domain_vision",     type_name: "Domain", order: 3, name: "vision",     field_type: "Option<String>",  doc_snippet: ""
+    fixture "Domain_aggregates", type_name: "Domain", order: 4, name: "aggregates", field_type: "Vec<Aggregate>",  doc_snippet: ""
+    fixture "Domain_policies",   type_name: "Domain", order: 5, name: "policies",   field_type: "Vec<Policy>",     doc_snippet: ""
+    fixture "Domain_fixtures",   type_name: "Domain", order: 6, name: "fixtures",   field_type: "Vec<Fixture>",    doc_snippet: ""
+    fixture "Domain_entrypoint", type_name: "Domain", order: 7, name: "entrypoint", field_type: "Option<String>",  doc_snippet: "codegen/ir_shape/snippets/docs/domain_entrypoint.rs.frag"
+    fixture "Domain_sections",   type_name: "Domain", order: 8, name: "sections",   field_type: "Vec<Section>",    doc_snippet: "codegen/ir_shape/snippets/docs/domain_sections.rs.frag"
+    fixture "Domain_process_managers", type_name: "Domain", order: 9, name: "process_managers", field_type: "Vec<ProcessManager>", doc_snippet: "codegen/ir_shape/snippets/docs/domain_process_managers.rs.frag"
+    # i76 cadence + i218 block_grammar — declarative scheduled
+    # dispatch + parser keyword routing.
+    fixture "Domain_cadences",       type_name: "Domain", order: 10, name: "cadences",       field_type: "Vec<Cadence>",      doc_snippet: "codegen/ir_shape/snippets/docs/domain_cadences.rs.frag"
+    fixture "Domain_block_grammars", type_name: "Domain", order: 11, name: "block_grammars", field_type: "Vec<BlockGrammar>", doc_snippet: "codegen/ir_shape/snippets/docs/domain_block_grammars.rs.frag"
+
+    # Cadence — 3 fields (i76).
+    fixture "Cadence_name",       type_name: "Cadence", order: 1, name: "name",       field_type: "String",                doc_snippet: ""
+    fixture "Cadence_interval",   type_name: "Cadence", order: 2, name: "interval",   field_type: "String",                doc_snippet: ""
+    fixture "Cadence_dispatches", type_name: "Cadence", order: 3, name: "dispatches", field_type: "Vec<CadenceDispatch>",  doc_snippet: ""
+
+    # CadenceDispatch — 2 fields (i76).
+    fixture "CadenceDispatch_command_name", type_name: "CadenceDispatch", order: 1, name: "command_name", field_type: "String",                  doc_snippet: ""
+    fixture "CadenceDispatch_attrs",        type_name: "CadenceDispatch", order: 2, name: "attrs",        field_type: "Vec<(String, String)>",   doc_snippet: ""
+
+    # BlockGrammar — 2 fields (i218).
+    fixture "BlockGrammar_name",   type_name: "BlockGrammar", order: 1, name: "name",   field_type: "String",                  doc_snippet: ""
+    fixture "BlockGrammar_blocks", type_name: "BlockGrammar", order: 2, name: "blocks", field_type: "Vec<BlockGrammarEntry>",  doc_snippet: ""
+
+    # BlockGrammarEntry — 2 fields (i218).
+    fixture "BlockGrammarEntry_keyword", type_name: "BlockGrammarEntry", order: 1, name: "keyword", field_type: "String",      doc_snippet: ""
+    fixture "BlockGrammarEntry_parser",  type_name: "BlockGrammarEntry", order: 2, name: "parser",  field_type: "BlockParser", doc_snippet: ""
+
+    # ProcessManager — 6 fields ; Phase 3 dream-study addition.
+    fixture "ProcessManager_name",          type_name: "ProcessManager", order: 1, name: "name",          field_type: "String",                     doc_snippet: ""
+    fixture "ProcessManager_correlates_by", type_name: "ProcessManager", order: 2, name: "correlates_by", field_type: "String",                     doc_snippet: ""
+    fixture "ProcessManager_starts_on",     type_name: "ProcessManager", order: 3, name: "starts_on",     field_type: "String",                     doc_snippet: ""
+    fixture "ProcessManager_ends_on",       type_name: "ProcessManager", order: 4, name: "ends_on",       field_type: "Option<String>",             doc_snippet: ""
+    fixture "ProcessManager_states",        type_name: "ProcessManager", order: 5, name: "states",        field_type: "Vec<String>",                doc_snippet: ""
+    fixture "ProcessManager_handlers",      type_name: "ProcessManager", order: 6, name: "handlers",      field_type: "Vec<ProcessManagerHandler>", doc_snippet: ""
+
+    # ProcessManagerHandler — 5 fields ; from→to as named fields, not a 1-key map.
+    # Phase 2.b/2.c (pm-dispatch-enrichment + pm-attribute-writes) added
+    # `dispatches` and `set_specs` alongside the original 3 fields. The
+    # type-level doc snippet covers them both.
+    fixture "ProcessManagerHandler_event_type", type_name: "ProcessManagerHandler", order: 1, name: "event_type", field_type: "String", doc_snippet: ""
+    fixture "ProcessManagerHandler_from_state", type_name: "ProcessManagerHandler", order: 2, name: "from_state", field_type: "String", doc_snippet: ""
+    fixture "ProcessManagerHandler_to_state",   type_name: "ProcessManagerHandler", order: 3, name: "to_state",   field_type: "String", doc_snippet: ""
+    fixture "ProcessManagerHandler_dispatches", type_name: "ProcessManagerHandler", order: 4, name: "dispatches", field_type: "Vec<DispatchSpec>",         doc_snippet: ""
+    fixture "ProcessManagerHandler_set_specs",  type_name: "ProcessManagerHandler", order: 5, name: "set_specs",  field_type: "Vec<(String, ValueSpec)>", doc_snippet: ""
+
+    # DispatchSpec — 2 fields (i221 / Phase 2.b).
+    fixture "DispatchSpec_command_name", type_name: "DispatchSpec", order: 1, name: "command_name", field_type: "String",                     doc_snippet: ""
+    fixture "DispatchSpec_with_spec",    type_name: "DispatchSpec", order: 2, name: "with_spec",    field_type: "Vec<(String, ValueSpec)>",   doc_snippet: ""
+    fixture "DispatchSpec_for_each",     type_name: "DispatchSpec", order: 3, name: "for_each",     field_type: "Option<ForEachSpec>",        doc_snippet: ""
+
+    # ForEachSpec — 3 fields (i221-A) ; sweep source halves split from
+    # the qualified `for_each: { from: "Aggregate.query_name" }` literal.
+    # +source_context+ is +None+ for the 2-part back-compat form and +Some+
+    # for the 3-part `Context.Aggregate.query` disambiguator (i142
+    # qualified resolution applied to query lookups).
+    fixture "ForEachSpec_source_context",   type_name: "ForEachSpec", order: 1, name: "source_context",   field_type: "Option<String>", doc_snippet: ""
+    fixture "ForEachSpec_source_aggregate", type_name: "ForEachSpec", order: 2, name: "source_aggregate", field_type: "String",         doc_snippet: ""
+    fixture "ForEachSpec_query_name",       type_name: "ForEachSpec", order: 3, name: "query_name",       field_type: "String",         doc_snippet: ""
+    fixture "ForEachSpec_query_inputs",     type_name: "ForEachSpec", order: 4, name: "query_inputs",     field_type: "Vec<(String, ValueSpec)>", doc_snippet: "codegen/ir_shape/snippets/docs/for_each_query_inputs.rs.frag"
+
+    # Section — 2 fields.
+    fixture "Section_title", type_name: "Section", order: 1, name: "title", field_type: "String",           doc_snippet: ""
+    fixture "Section_rows",  type_name: "Section", order: 2, name: "rows",  field_type: "Vec<SectionRow>",  doc_snippet: ""
+
+    # SectionRow — 2 fields.
+    fixture "SectionRow_label", type_name: "SectionRow", order: 1, name: "label", field_type: "String", doc_snippet: ""
+    fixture "SectionRow_field", type_name: "SectionRow", order: 2, name: "field", field_type: "String", doc_snippet: ""
+
+    # Aggregate — 12 fields ; context, category, identified_by, entities carry doc.
+    fixture "Aggregate_name",          type_name: "Aggregate", order: 1,  name: "name",          field_type: "String",          doc_snippet: ""
+    fixture "Aggregate_description",   type_name: "Aggregate", order: 2,  name: "description",   field_type: "Option<String>",  doc_snippet: ""
+    fixture "Aggregate_context",       type_name: "Aggregate", order: 3,  name: "context",       field_type: "Option<String>",  doc_snippet: "codegen/ir_shape/snippets/docs/aggregate_context.rs.frag"
+    fixture "Aggregate_category",      type_name: "Aggregate", order: 4,  name: "category",      field_type: "Option<String>",  doc_snippet: "codegen/ir_shape/snippets/docs/aggregate_category.rs.frag"
+    fixture "Aggregate_identified_by", type_name: "Aggregate", order: 5,  name: "identified_by", field_type: "Option<String>",  doc_snippet: "codegen/ir_shape/snippets/docs/aggregate_identified_by.rs.frag"
+    fixture "Aggregate_attributes",    type_name: "Aggregate", order: 6,  name: "attributes",    field_type: "Vec<Attribute>",  doc_snippet: ""
+    # factories — births, BEFORE commands (transitions) per the 2026-06-12
+    # first-class-factories design : a Factory mints a new instance, a
+    # Command operates on an existing one. docs/designs/first-class-factories.md
+    fixture "Aggregate_factories",     type_name: "Aggregate", order: 7,  name: "factories",     field_type: "Vec<Factory>",    doc_snippet: ""
+    fixture "Aggregate_commands",      type_name: "Aggregate", order: 8,  name: "commands",      field_type: "Vec<Command>",    doc_snippet: ""
+    fixture "Aggregate_queries",       type_name: "Aggregate", order: 9,  name: "queries",       field_type: "Vec<Query>",      doc_snippet: ""
+    fixture "Aggregate_value_objects", type_name: "Aggregate", order: 10, name: "value_objects", field_type: "Vec<ValueObject>", doc_snippet: ""
+    fixture "Aggregate_entities",      type_name: "Aggregate", order: 11, name: "entities",      field_type: "Vec<Entity>",     doc_snippet: "codegen/ir_shape/snippets/docs/aggregate_entities.rs.frag"
+    fixture "Aggregate_references",    type_name: "Aggregate", order: 12, name: "references",    field_type: "Vec<Reference>",  doc_snippet: ""
+    fixture "Aggregate_lifecycle",     type_name: "Aggregate", order: 13, name: "lifecycle",     field_type: "Option<Lifecycle>", doc_snippet: ""
+    # f4 — aggregate-level invariants, checked on the resulting state after
+    # every command. Sits between lifecycle and views, mirroring ir.rs.
+    fixture "Aggregate_invariants",    type_name: "Aggregate", order: 14, name: "invariants",    field_type: "Vec<Invariant>",   doc_snippet: "codegen/ir_shape/snippets/docs/aggregate_invariants.rs.frag"
+    # i254 — views per role. Ordered Vec ; declaration order survives
+    # JSON round-trip so portal renderers can iterate views deterministically.
+    fixture "Aggregate_views",         type_name: "Aggregate", order: 15, name: "views",         field_type: "Vec<View>",         doc_snippet: "codegen/ir_shape/snippets/docs/aggregate_views.rs.frag"
+    fixture "Aggregate_realm_path",    type_name: "Aggregate", order: 16, name: "realm_path",    field_type: "Option<String>",  doc_snippet: "codegen/ir_shape/snippets/docs/aggregate_realm_path.rs.frag"
+
+    # Attribute — 5 fields.
+    fixture "Attribute_name",      type_name: "Attribute", order: 1, name: "name",      field_type: "String",         doc_snippet: ""
+    fixture "Attribute_attr_type", type_name: "Attribute", order: 2, name: "attr_type", field_type: "String",         doc_snippet: ""
+    fixture "Attribute_default",   type_name: "Attribute", order: 3, name: "default",   field_type: "Option<String>", doc_snippet: ""
+    fixture "Attribute_list",      type_name: "Attribute", order: 4, name: "list",      field_type: "bool",           doc_snippet: ""
+    fixture "Attribute_required",  type_name: "Attribute", order: 5, name: "required",  field_type: "bool",           doc_snippet: ""
+
+    # Command — 9 fields. i250 — `emits_identified_by` carries the
+    # event-identity attribute when `emits "X", identified_by: :y` is
+    # used. `None` for the back-compat unqualified form. The transient
+    # `creates` bool (#729) is RETIRED — births are first-class Factory
+    # nodes now (docs/designs/first-class-factories.md).
+    fixture "Command_name",        type_name: "Command", order: 1, name: "name",        field_type: "String",          doc_snippet: ""
+    fixture "Command_description", type_name: "Command", order: 2, name: "description", field_type: "Option<String>",  doc_snippet: ""
+    fixture "Command_role",        type_name: "Command", order: 3, name: "role",        field_type: "Option<String>",  doc_snippet: ""
+    fixture "Command_attributes",  type_name: "Command", order: 4, name: "attributes",  field_type: "Vec<Attribute>",  doc_snippet: ""
+    fixture "Command_references",  type_name: "Command", order: 5, name: "references",  field_type: "Vec<Reference>",  doc_snippet: ""
+    fixture "Command_emits",       type_name: "Command", order: 6, name: "emits",       field_type: "Option<String>",  doc_snippet: ""
+    fixture "Command_emits_identified_by", type_name: "Command", order: 7, name: "emits_identified_by", field_type: "Option<String>", doc_snippet: ""
+    fixture "Command_givens",      type_name: "Command", order: 8, name: "givens",      field_type: "Vec<Given>",      doc_snippet: ""
+    fixture "Command_mutations",   type_name: "Command", order: 9, name: "mutations",   field_type: "Vec<Mutation>",   doc_snippet: ""
+
+    # Factory — 10 fields. A BIRTH : mints a new instance of `produces`
+    # (Self by default ; another aggregate for the cross-aggregate case —
+    # Backlog drafts Story). Field set mirrors Command minus `creates`
+    # plus `produces`, so dispatch synthesis is lossless and the parser
+    # mirror is mechanical. `references` is transitional until the
+    # reference_to retirement (phase 5) sweeps creator self-refs.
+    fixture "Factory_name",        type_name: "Factory", order: 1, name: "name",        field_type: "String",          doc_snippet: ""
+    fixture "Factory_description", type_name: "Factory", order: 2, name: "description", field_type: "Option<String>",  doc_snippet: ""
+    fixture "Factory_role",        type_name: "Factory", order: 3, name: "role",        field_type: "Option<String>",  doc_snippet: ""
+    fixture "Factory_produces",    type_name: "Factory", order: 4, name: "produces",    field_type: "Option<String>",  doc_snippet: ""
+    fixture "Factory_attributes",  type_name: "Factory", order: 5, name: "attributes",  field_type: "Vec<Attribute>",  doc_snippet: ""
+    fixture "Factory_references",  type_name: "Factory", order: 6, name: "references",  field_type: "Vec<Reference>",  doc_snippet: ""
+    fixture "Factory_emits",       type_name: "Factory", order: 7, name: "emits",       field_type: "Option<String>",  doc_snippet: ""
+    fixture "Factory_emits_identified_by", type_name: "Factory", order: 8, name: "emits_identified_by", field_type: "Option<String>", doc_snippet: ""
+    fixture "Factory_givens",      type_name: "Factory", order: 9, name: "givens",      field_type: "Vec<Given>",      doc_snippet: ""
+    fixture "Factory_mutations",   type_name: "Factory", order: 10, name: "mutations",  field_type: "Vec<Mutation>",   doc_snippet: ""
+
+    # Query — 6 fields ; i101 added attributes, wheres, order_by, limit.
+    fixture "Query_name",        type_name: "Query", order: 1, name: "name",        field_type: "String",            doc_snippet: ""
+    fixture "Query_description", type_name: "Query", order: 2, name: "description", field_type: "Option<String>",    doc_snippet: ""
+    fixture "Query_attributes",  type_name: "Query", order: 3, name: "attributes",  field_type: "Vec<Attribute>",    doc_snippet: "codegen/ir_shape/snippets/docs/query_attributes.rs.frag"
+    fixture "Query_wheres",      type_name: "Query", order: 4, name: "wheres",      field_type: "Vec<WhereClause>",  doc_snippet: "codegen/ir_shape/snippets/docs/query_wheres.rs.frag"
+    fixture "Query_order_by",    type_name: "Query", order: 5, name: "order_by",    field_type: "Option<OrderBy>",   doc_snippet: "codegen/ir_shape/snippets/docs/query_order_by.rs.frag"
+    fixture "Query_limit",       type_name: "Query", order: 6, name: "limit",       field_type: "Option<LimitSpec>", doc_snippet: "codegen/ir_shape/snippets/docs/query_limit.rs.frag"
+    # deciderate Layer 0a — reduction / group_by / scope_to extend Query.
+    fixture "Query_reduction",   type_name: "Query", order: 7, name: "reduction",   field_type: "Option<Reduction>", doc_snippet: "codegen/ir_shape/snippets/docs/query_reduction.rs.frag"
+    fixture "Query_group_by",    type_name: "Query", order: 8, name: "group_by",    field_type: "Option<String>",    doc_snippet: "codegen/ir_shape/snippets/docs/query_group_by.rs.frag"
+    fixture "Query_scope_to",    type_name: "Query", order: 9, name: "scope_to",    field_type: "Option<String>",    doc_snippet: "codegen/ir_shape/snippets/docs/query_scope_to.rs.frag"
+
+    # Given — 2 fields.
+    fixture "Given_expression", type_name: "Given", order: 1, name: "expression", field_type: "String",         doc_snippet: ""
+    fixture "Given_message",    type_name: "Given", order: 2, name: "message",    field_type: "Option<String>", doc_snippet: ""
+
+    # Invariant — 2 fields (f4).
+    fixture "Invariant_name",       type_name: "Invariant", order: 1, name: "name",       field_type: "String", doc_snippet: ""
+    fixture "Invariant_expression", type_name: "Invariant", order: 2, name: "expression", field_type: "String", doc_snippet: ""
+
+    # Mutation — 3 fields.
+    fixture "Mutation_field",     type_name: "Mutation", order: 1, name: "field",     field_type: "String",      doc_snippet: ""
+    fixture "Mutation_operation", type_name: "Mutation", order: 2, name: "operation", field_type: "MutationOp",  doc_snippet: ""
+    fixture "Mutation_value",     type_name: "Mutation", order: 3, name: "value",     field_type: "String",      doc_snippet: ""
+
+    # ValueObject — 3 fields.
+    fixture "ValueObject_name",        type_name: "ValueObject", order: 1, name: "name",        field_type: "String",          doc_snippet: ""
+    fixture "ValueObject_description", type_name: "ValueObject", order: 2, name: "description", field_type: "Option<String>",  doc_snippet: ""
+    fixture "ValueObject_attributes",  type_name: "ValueObject", order: 3, name: "attributes",  field_type: "Vec<Attribute>",  doc_snippet: ""
+
+    # Entity — 7 fields ; commands / queries / lifecycle / identified_by carry doc.
+    fixture "Entity_name",          type_name: "Entity", order: 1, name: "name",          field_type: "String",            doc_snippet: ""
+    fixture "Entity_description",   type_name: "Entity", order: 2, name: "description",   field_type: "Option<String>",    doc_snippet: ""
+    fixture "Entity_attributes",    type_name: "Entity", order: 3, name: "attributes",    field_type: "Vec<Attribute>",    doc_snippet: ""
+    fixture "Entity_commands",      type_name: "Entity", order: 4, name: "commands",      field_type: "Vec<Command>",      doc_snippet: "codegen/ir_shape/snippets/docs/entity_commands.rs.frag"
+    fixture "Entity_queries",       type_name: "Entity", order: 5, name: "queries",       field_type: "Vec<Query>",        doc_snippet: "codegen/ir_shape/snippets/docs/entity_queries.rs.frag"
+    fixture "Entity_lifecycle",     type_name: "Entity", order: 6, name: "lifecycle",     field_type: "Option<Lifecycle>", doc_snippet: "codegen/ir_shape/snippets/docs/entity_lifecycle.rs.frag"
+    fixture "Entity_identified_by", type_name: "Entity", order: 7, name: "identified_by", field_type: "Option<String>",    doc_snippet: "codegen/ir_shape/snippets/docs/entity_identified_by.rs.frag"
+
+    # Reference — 5 fields. The first 3 are the historical shape (name, target,
+    # domain) ; cardinality + kind were added to carry the Sprint 7 relationship
+    # DSL (has_many / has_one / belongs_to / reference_to) into the IR. The order
+    # matches dump_reference's serde shape.
+    fixture "Reference_name",        type_name: "Reference", order: 1, name: "name",        field_type: "String",         doc_snippet: ""
+    fixture "Reference_target",      type_name: "Reference", order: 2, name: "target",      field_type: "String",         doc_snippet: ""
+    fixture "Reference_domain",      type_name: "Reference", order: 3, name: "domain",      field_type: "Option<String>", doc_snippet: ""
+    fixture "Reference_cardinality", type_name: "Reference", order: 4, name: "cardinality", field_type: "Cardinality",    doc_snippet: "codegen/ir_shape/snippets/docs/reference_cardinality.rs.frag"
+    fixture "Reference_kind",        type_name: "Reference", order: 5, name: "kind",        field_type: "ReferenceKind", doc_snippet: "codegen/ir_shape/snippets/docs/reference_kind.rs.frag"
+
+    # Cardinality — 2 fields. usize for min, Option<usize> for max (None means
+    # unbounded). Mirrors Ruby Reference#cardinality { min:, max: } shape.
+    fixture "Cardinality_min", type_name: "Cardinality", order: 1, name: "min", field_type: "usize",         doc_snippet: ""
+    fixture "Cardinality_max", type_name: "Cardinality", order: 2, name: "max", field_type: "Option<usize>", doc_snippet: ""
+
+    # Policy — 5 fields (the 5th, `with`, carries literal policy args).
+    fixture "Policy_name",            type_name: "Policy", order: 1, name: "name",            field_type: "String",         doc_snippet: ""
+    fixture "Policy_on_event",        type_name: "Policy", order: 2, name: "on_event",        field_type: "String",         doc_snippet: ""
+    fixture "Policy_trigger_command", type_name: "Policy", order: 3, name: "trigger_command", field_type: "String",         doc_snippet: ""
+    fixture "Policy_target_domain",   type_name: "Policy", order: 4, name: "target_domain",   field_type: "Option<String>", doc_snippet: ""
+    fixture "Policy_with",            type_name: "Policy", order: 5, name: "with",            field_type: "Vec<(String, ValueSpec)>", doc_snippet: "codegen/ir_shape/snippets/docs/policy_with.rs.frag"
+    # deciderate Layer 0b — grow the plain Policy : data guard + fan-out + extra reactions.
+    fixture "Policy_wheres",           type_name: "Policy", order: 6, name: "wheres",           field_type: "Vec<WhereClause>",    doc_snippet: "codegen/ir_shape/snippets/docs/policy_wheres.rs.frag"
+    fixture "Policy_for_each",         type_name: "Policy", order: 7, name: "for_each",         field_type: "Option<ForEachSpec>", doc_snippet: "codegen/ir_shape/snippets/docs/policy_for_each.rs.frag"
+    fixture "Policy_extra_dispatches", type_name: "Policy", order: 8, name: "extra_dispatches", field_type: "Vec<DispatchSpec>",    doc_snippet: "codegen/ir_shape/snippets/docs/policy_extra_dispatches.rs.frag"
+
+    # Lifecycle — 3 fields.
+    fixture "Lifecycle_field",       type_name: "Lifecycle", order: 1, name: "field",       field_type: "String",          doc_snippet: ""
+    fixture "Lifecycle_default",     type_name: "Lifecycle", order: 2, name: "default",     field_type: "String",          doc_snippet: ""
+    fixture "Lifecycle_transitions", type_name: "Lifecycle", order: 3, name: "transitions", field_type: "Vec<Transition>", doc_snippet: ""
+
+    # Transition — 3 fields.
+    fixture "Transition_command",    type_name: "Transition", order: 1, name: "command",    field_type: "String",         doc_snippet: ""
+    fixture "Transition_to_state",   type_name: "Transition", order: 2, name: "to_state",   field_type: "String",         doc_snippet: ""
+    fixture "Transition_from_state", type_name: "Transition", order: 3, name: "from_state", field_type: "Option<String>", doc_snippet: ""
+
+    # Fixture — 3 fields ; name carries a doc.
+    fixture "Fixture_name",           type_name: "Fixture", order: 1, name: "name",           field_type: "Option<String>",       doc_snippet: "codegen/ir_shape/snippets/docs/fixture_name.rs.frag"
+    fixture "Fixture_aggregate_name", type_name: "Fixture", order: 2, name: "aggregate_name", field_type: "String",               doc_snippet: ""
+    fixture "Fixture_attributes",     type_name: "Fixture", order: 3, name: "attributes",     field_type: "Vec<(String, String)>", doc_snippet: ""
+
+    # WhereClause — 3 fields (i101).
+    fixture "WhereClause_field", type_name: "WhereClause", order: 1, name: "field", field_type: "String",   doc_snippet: ""
+    fixture "WhereClause_op",    type_name: "WhereClause", order: 2, name: "op",    field_type: "WhereOp",  doc_snippet: ""
+    fixture "WhereClause_value", type_name: "WhereClause", order: 3, name: "value", field_type: "String",   doc_snippet: ""
+
+    # OrderBy — 2 fields (i101).
+    fixture "OrderBy_field",     type_name: "OrderBy", order: 1, name: "field",     field_type: "String",    doc_snippet: ""
+    fixture "OrderBy_direction", type_name: "OrderBy", order: 2, name: "direction", field_type: "Direction", doc_snippet: ""
+
+    # LimitSpec — 1 field (i101).
+    fixture "LimitSpec_value", type_name: "LimitSpec", order: 1, name: "value", field_type: "String", doc_snippet: ""
+
+    # View — 3 fields (i254). `show_all` true expands to every
+    # aggregate attribute at projection time, then appends `fields`.
+    # `show_all` false projects only the explicit `fields` list.
+    fixture "View_name",     type_name: "View", order: 1, name: "name",     field_type: "String",      doc_snippet: ""
+    fixture "View_show_all", type_name: "View", order: 2, name: "show_all", field_type: "bool",        doc_snippet: ""
+    fixture "View_fields",   type_name: "View", order: 3, name: "fields",   field_type: "Vec<String>", doc_snippet: ""
+  end
+
+  # ── Variant — variants of every enum row, sorted by `order` ────────────
+  aggregate "Variant" do
+    # BlockParser — 6 bare variants (i218).
+    fixture "BlockParser_Aggregate",       type_name: "BlockParser", order: 1, name: "Aggregate",      body: "", doc_snippet: ""
+    fixture "BlockParser_Policy",          type_name: "BlockParser", order: 2, name: "Policy",         body: "", doc_snippet: ""
+    fixture "BlockParser_ProcessManager",  type_name: "BlockParser", order: 3, name: "ProcessManager", body: "", doc_snippet: ""
+    fixture "BlockParser_Cadence",         type_name: "BlockParser", order: 4, name: "Cadence",        body: "", doc_snippet: ""
+    fixture "BlockParser_Section",         type_name: "BlockParser", order: 5, name: "Section",        body: "", doc_snippet: ""
+    fixture "BlockParser_Fixture",         type_name: "BlockParser", order: 6, name: "Fixture",        body: "", doc_snippet: ""
+
+    # ReferenceKind — 4 bare variants. The order matches as_str's canonical
+    # keyword shape (belongs_to / has_one / has_many / reference_to).
+    fixture "ReferenceKind_BelongsTo",          type_name: "ReferenceKind", order: 1, name: "BelongsTo",          body: "", doc_snippet: ""
+    fixture "ReferenceKind_HasOne",             type_name: "ReferenceKind", order: 2, name: "HasOne",             body: "", doc_snippet: ""
+    fixture "ReferenceKind_HasMany",            type_name: "ReferenceKind", order: 3, name: "HasMany",            body: "", doc_snippet: ""
+    fixture "ReferenceKind_LegacyReferenceTo",  type_name: "ReferenceKind", order: 4, name: "LegacyReferenceTo",  body: "", doc_snippet: "codegen/ir_shape/snippets/docs/reference_kind_legacy.rs.frag"
+
+    # ValueSpec — 3 struct-variants (i221 / Phase 2.b).
+    fixture "ValueSpec_Literal",   type_name: "ValueSpec", order: 1, name: "Literal",   body: "{ value: String }",                           doc_snippet: ""
+    fixture "ValueSpec_FromEvent", type_name: "ValueSpec", order: 2, name: "FromEvent", body: "{ name: String, default: Option<String> }",   doc_snippet: ""
+    fixture "ValueSpec_FromPm",    type_name: "ValueSpec", order: 3, name: "FromPm",    body: "{ name: String, default: Option<String> }",   doc_snippet: ""
+    fixture "ValueSpec_FromIter",  type_name: "ValueSpec", order: 4, name: "FromIter",  body: "{ field: String }",                           doc_snippet: ""
+
+    # MutationOp — 9 variants ; Delete / Multiply / Clamp / Decay carry doc.
+    fixture "MutationOp_Set",       type_name: "MutationOp", order: 1, name: "Set",       doc_snippet: ""
+    fixture "MutationOp_Append",    type_name: "MutationOp", order: 2, name: "Append",    doc_snippet: ""
+    fixture "MutationOp_Remove",    type_name: "MutationOp", order: 10, name: "Remove",    doc_snippet: "codegen/ir_shape/snippets/docs/mutation_op_remove.rs.frag"
+    fixture "MutationOp_Increment", type_name: "MutationOp", order: 3, name: "Increment", doc_snippet: ""
+    fixture "MutationOp_Decrement", type_name: "MutationOp", order: 4, name: "Decrement", doc_snippet: ""
+    fixture "MutationOp_Toggle",    type_name: "MutationOp", order: 5, name: "Toggle",    doc_snippet: ""
+    fixture "MutationOp_Delete",    type_name: "MutationOp", order: 6, name: "Delete",    doc_snippet: "codegen/ir_shape/snippets/docs/mutation_op_delete.rs.frag"
+    fixture "MutationOp_Multiply",  type_name: "MutationOp", order: 7, name: "Multiply",  doc_snippet: "codegen/ir_shape/snippets/docs/mutation_op_multiply.rs.frag"
+    fixture "MutationOp_Clamp",     type_name: "MutationOp", order: 8, name: "Clamp",     doc_snippet: "codegen/ir_shape/snippets/docs/mutation_op_clamp.rs.frag"
+    fixture "MutationOp_Decay",     type_name: "MutationOp", order: 9, name: "Decay",     doc_snippet: "codegen/ir_shape/snippets/docs/mutation_op_decay.rs.frag"
+
+    # WhereOp — 6 variants (i101).
+    fixture "WhereOp_Eq",  type_name: "WhereOp", order: 1, name: "Eq",  doc_snippet: ""
+    fixture "WhereOp_Ne",  type_name: "WhereOp", order: 2, name: "Ne",  doc_snippet: ""
+    fixture "WhereOp_Gt",  type_name: "WhereOp", order: 3, name: "Gt",  doc_snippet: ""
+    fixture "WhereOp_Gte", type_name: "WhereOp", order: 4, name: "Gte", doc_snippet: ""
+    fixture "WhereOp_Lt",  type_name: "WhereOp", order: 5, name: "Lt",  doc_snippet: ""
+    fixture "WhereOp_Lte", type_name: "WhereOp", order: 6, name: "Lte", doc_snippet: ""
+    fixture "WhereOp_In",  type_name: "WhereOp", order: 7, name: "In",  doc_snippet: ""
+    fixture "WhereOp_NoneInState", type_name: "WhereOp", order: 9, name: "NoneInState", doc_snippet: ""
+    fixture "WhereOp_Contains", type_name: "WhereOp", order: 10, name: "Contains", doc_snippet: ""
+
+    # Direction — 2 variants (i101).
+    fixture "Direction_Asc",  type_name: "Direction", order: 1, name: "Asc",  doc_snippet: ""
+    fixture "Direction_Desc", type_name: "Direction", order: 2, name: "Desc", doc_snippet: ""
+
+    # Reduction — 5 variants (deciderate Layer 0a). Count is fieldless ; the
+    # others carry the folded field name as a tuple payload in the variant name.
+    fixture "Reduction_Count",  type_name: "Reduction", order: 1, name: "Count",          doc_snippet: ""
+    fixture "Reduction_Sum",    type_name: "Reduction", order: 2, name: "Sum(String)",    doc_snippet: ""
+    fixture "Reduction_Max",    type_name: "Reduction", order: 3, name: "Max(String)",    doc_snippet: ""
+    fixture "Reduction_Min",    type_name: "Reduction", order: 4, name: "Min(String)",    doc_snippet: ""
+    fixture "Reduction_Median", type_name: "Reduction", order: 5, name: "Median(String)", doc_snippet: ""
+  end
+end

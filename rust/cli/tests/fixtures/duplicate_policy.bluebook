@@ -1,0 +1,27 @@
+Hecks.bluebook "DuplicateFixture" do
+  vision "two policies wired to the same (event, trigger) pair — the validator must catch this"
+
+  aggregate "Heart" do
+    attribute :beats, Integer
+
+    command "Beat" do
+      emits "HeartBeat"
+    end
+
+    command "Tick" do
+      reference_to(Heart)
+      emits "Ticked"
+    end
+  end
+
+  # Both policies fire Tick on HeartBeat — cascade bug.
+  policy "TickOnBeat" do
+    on "HeartBeat"
+    trigger "Tick"
+  end
+
+  policy "TickOnBeatAgain" do
+    on "HeartBeat"
+    trigger "Tick"
+  end
+end

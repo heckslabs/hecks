@@ -1,0 +1,26 @@
+Hecks.bluebook "Community" do
+  core
+  aggregate "Community" do
+    identified_by :id
+    attribute :id, CommunityId
+    attribute :member_count, MemberCount, default: 0
+    value_object "CommunityId" do
+      attribute :value, String
+    end
+    value_object "MemberCount" do
+      attribute :value, Integer
+    end
+    value_object "PlayerRef" do
+      attribute :value, String
+    end
+    command "Found" do
+      attribute :id, CommunityId
+    end
+    command "AddMember" do
+      reference_to Community
+      attribute :player, PlayerRef
+      then_set :member_count, increment: 1
+      emits "MemberAdded"
+    end
+  end
+end

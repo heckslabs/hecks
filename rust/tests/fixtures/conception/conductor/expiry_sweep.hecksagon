@@ -1,0 +1,24 @@
+Hecks.hecksagon "ExpirySweep" do
+  # The lease-TTL twin of LivenessSweep — UNBLOCKED by the {now} clock primitive.
+  #
+  # A Sweeper.Tick emits Ticked ; this adapter fans Conductor::Lease.Expire out
+  # over Conductor::Lease.PastTtl (active leases whose expires_at has elapsed,
+  # fed :now via the {now} clock primitive in the where-fan-out query input),
+  # and the EXISTING ReclaimOnExpire cascade reclaims each expired lease's
+  # worktree path — returning it to the pool EVEN WHEN THE OWNING WORKER IS
+  # STILL ALIVE. That is the gap this closes : LivenessSweep reclaims when a
+  # worker dies ; this reclaims when a lease outlives its TTL regardless of
+  # worker liveness, so a heartbeating worker holding a worktree far too long
+  # no longer leaks it forever.
+  #
+  # Was honestly-blocked documentation until the clock landed (the old canned
+  # Tools::Cascade.RecordResult tick was a no-op that only LOOKED like a sweep).
+  # Mirror of liveness_sweep.hecksagon exactly : Lease.Expire over Lease.PastTtl
+  # keyed by the lease identity (worktree_path), the way LivenessSweep fires
+  # Worker.MarkDead over Worker.Stale keyed by worker_id.
+  adapter "ExpirySweep" do
+    driven on "Hecks::Conductor::Conductor::Sweeper.Ticked" do |event|
+      dispatch "Hecks::Conductor::Conductor::Lease.Expire", for_each: { from: "Hecks::Conductor::Conductor::Lease.PastTtl", where: { now: "{now}" } }, id: "{worktree_path}"
+    end
+  end
+end

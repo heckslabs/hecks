@@ -1,0 +1,9 @@
+Hecks.behaviors "RubyCommandClassShape" do
+  vision "Shape-layer happy-path for the Ruby command class emitter — confirms one (app, domain, aggregate, command, phrase) tuple plumbs through the Emit command. The actual Ruby-emission logic is exercised by rust/tests/ruby_command_class_test.rs against bin-buddy's notifications.bluebook ; this file proves the bluebook-layer contract."
+
+  test "Emit accepts a four-segment phrase and emits RubyEmitted" do
+    tests "Emit", on: "RubyCommandClass"
+    input  phrase: "bin-buddy::notifications::Notifications::SendEmail"
+    expect phrase: "bin-buddy::notifications::Notifications::SendEmail"
+  end
+end
