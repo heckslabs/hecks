@@ -788,6 +788,7 @@ impl Runtime {
     ) -> Result<(), RuntimeError> {
         match handler {
             "rbac-authorize" => self.acl_check(command_name, attrs),
+            "authenticate" => self.authenticate_check(command_name, attrs),
             other => Err(RuntimeError::Unauthorized {
                 command: command_name.to_string(),
                 required: format!(
@@ -796,6 +797,57 @@ impl Runtime {
                 ),
                 held: String::new(),
             }),
+        }
+    }
+
+    /// The `authenticate` gate verdict : admit a dispatch iff its principal is a
+    /// known, ACTIVE (verified, non-retired) AuthIdentity. A System origin is
+    /// admitted by origin (daemons, cascades, boot) ; an agent principal whose
+    /// auth id resolves to no active AuthIdentity FAILS CLOSED. Reads
+    /// AuthIdentity state in-memory (never an async query). The gate is
+    /// DECLARATION-GATED (not self-seeded), so it costs nothing and enforces
+    /// nothing until authn is turned on by declaring a Gate with check
+    /// "authenticate" — and the operator must Establish + verify identities
+    /// before declaring it, or agent dispatches fail closed.
+    fn authenticate_check(
+        &self,
+        command_name: &str,
+        attrs: &HashMap<String, Value>,
+    ) -> Result<(), RuntimeError> {
+        let auth_id = match acl_readmodel::principal_from_attrs(attrs) {
+            acl_readmodel::Principal::System => return Ok(()),
+            acl_readmodel::Principal::Agent { auth_identity_id } => auth_identity_id,
+        };
+        let active = self.all("AuthIdentity").into_iter().any(|st| {
+            Self::value_field(st.get("status")) == "active"
+                && Self::value_field(st.get("id")) == auth_id
+        });
+        if active {
+            Ok(())
+        } else {
+            Err(RuntimeError::Unauthorized {
+                command: command_name.to_string(),
+                required: "an active AuthIdentity (authenticate gate)".to_string(),
+                held: if auth_id.is_empty() {
+                    "<no identity>".to_string()
+                } else {
+                    auth_id
+                },
+            })
+        }
+    }
+
+    /// Read a single-value aggregate field as a plain String — the coercion the
+    /// RBAC read-model does over Role/Agent state (raw Str, a Map with a `value`
+    /// key, or Null -> empty). Shared by the Gate-projection and authenticate
+    /// gate reads ; lives here so this exempt kernel file owns it and
+    /// acl_readmodel stays untouched.
+    fn value_field(v: &Value) -> String {
+        match v {
+            Value::Str(s) => s.clone(),
+            Value::Map(m) => m.get("value").map(Self::value_field).unwrap_or_default(),
+            Value::Null => String::new(),
+            other => format!("{}", other),
         }
     }
 
@@ -811,36 +863,24 @@ impl Runtime {
     /// FINDING.md). Called at boot after the RBAC read-model is hydrated, and
     /// re-run when a Gate lifecycle event applies.
     fn hydrate_middleware(&mut self) {
-        // Read a single-value aggregate field as a plain String — the same
-        // coercion the RBAC read-model does over Role/Agent state (raw Str, a
-        // Map with a `value` key, or Null -> empty). Local so this exempt kernel
-        // file owns it and acl_readmodel stays untouched.
-        fn fld(v: &Value) -> String {
-            match v {
-                Value::Str(s) => s.clone(),
-                Value::Map(m) => m.get("value").map(fld).unwrap_or_default(),
-                Value::Null => String::new(),
-                other => format!("{}", other),
-            }
-        }
         let mut entries: Vec<middleware::MiddlewareEntry> = Vec::new();
         for st in self.all("Gate") {
-            if fld(st.get("status")) == "retired" {
+            if Self::value_field(st.get("status")) == "retired" {
                 continue;
             }
-            let name = fld(st.get("name"));
+            let name = Self::value_field(st.get("name"));
             if name.is_empty() {
                 continue;
             }
             let pattern = {
-                let p = fld(st.get("pattern"));
+                let p = Self::value_field(st.get("pattern"));
                 if p.is_empty() { "*".to_string() } else { p }
             };
-            let order = fld(st.get("order")).parse::<i64>().unwrap_or(100);
+            let order = Self::value_field(st.get("order")).parse::<i64>().unwrap_or(100);
             entries.push(middleware::MiddlewareEntry {
                 name,
-                phase: middleware::Phase::parse(&fld(st.get("phase"))),
-                handler: fld(st.get("check")),
+                phase: middleware::Phase::parse(&Self::value_field(st.get("phase"))),
+                handler: Self::value_field(st.get("check")),
                 pattern,
                 order,
             });
