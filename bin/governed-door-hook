@@ -4,8 +4,8 @@
 # the asynchronous immune cells (macrophage/fibroblast) that only respond
 # AFTER a breach.
 # Bluebook of record :
-#   hecks_conception/aggregates/discipline/immune_system/macrophage/governed_door.bluebook (the map projection)
-#   hecks_conception/aggregates/framework/governance/governance.bluebook (Policy + Violation audit)
+#   hecks_conception/aggregates/discipline/immune_system/macrophage/governed_door.bluebook (the map projection + denial audit)
+#   hecks_conception/aggregates/framework/governance/governance.bluebook (Policy fail-mode)
 #
 # A native IO tool (Bash/Edit/Write/Read/Grep/Glob/MultiEdit/NotebookEdit/
 # WebFetch/WebSearch) emits NO bus event -> the act is ungoverned, invisible to
@@ -13,7 +13,7 @@
 # the door equivalent via Macrophage::GovernedDoor.lookup_door (the macrophage
 # sibling that PROJECTS the native->door map from the door commands'
 # redirects_native declarations) and, when one exists, RECORDS the denial as
-# Governance::Violation AND hard-blocks (exit 2).
+# a Macrophage::GovernedDoor record AND hard-blocks (exit 2).
 # Control-plane tools (Agent/Task/advisor/AskUserQuestion/ToolSearch) and
 # mcp__storehouse__* return no door -> allowed (exit 0). They orchestrate; they
 # do not act on the world.
@@ -43,7 +43,7 @@ door=$(echo "$result" | jq -r '.. | .door_equivalent? // empty' 2>/dev/null | he
 args=$(echo "$result" | jq -r '.. | .door_args? // empty' 2>/dev/null | head -1 || true)
 if [ -n "$door" ]; then
   ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-  "$SH" "$ROOT" Governance::Violation.Record id="$tool-$ts" tool_name="$tool" reason="native $tool makes no bus event" occurred_at="$ts" >/dev/null 2>&1 || true
+  "$SH" "$ROOT" Macrophage::GovernedDoor.Record id="$tool-$ts" tool_name="$tool" door="$door" reason="native $tool makes no bus event" occurred_at="$ts" >/dev/null 2>&1 || true
   {
     echo "GOVERNANCE (barrier): native $tool makes no bus event — it is ungoverned."
     echo "Route through the storehouse door. The door tool is DEFERRED, so two steps:"
