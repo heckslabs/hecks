@@ -263,6 +263,9 @@ module Hecks
           # aggregates use for primary keys ; reused on the emit side
           # to dedupe two reports of the same event.
           "emits_identified_by"  => (cmd.respond_to?(:emits_identified_by) ? cmd.emits_identified_by : nil),
+          # The native harness tool this command is the governed door for —
+          # `redirects_native "Bash"`. Mirrors the Rust Command IR field.
+          "redirects_native"     => (cmd.respond_to?(:redirects_native) ? cmd.redirects_native : nil),
           "attributes"           => (cmd.attributes || []).map { |a| dump_attribute(a) },
           "references"           => (cmd.references || []).map { |r| dump_reference(r) },
           "givens"               => (cmd.respond_to?(:givens) && cmd.givens || []).map { |g| dump_given(g) },

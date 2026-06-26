@@ -47,6 +47,7 @@ module Hecks
       attr_reader :name, :attributes, :references, :handler, :guard_name, :read_models,
                   :external_systems, :actors, :call_body, :sets,
                   :preconditions, :postconditions, :emits, :emits_identified_by,
+                  :redirects_native,
                   :description, :goal,
                   :givens, :mutations
 
@@ -68,7 +69,7 @@ module Hecks
       def initialize(name:, attributes: [], references: [], handler: nil, guard_name: nil,
                      read_models: [], external_systems: [], actors: [],
                      call_body: nil, sets: {}, preconditions: [], postconditions: [], emits: nil,
-                     emits_identified_by: nil,
+                     emits_identified_by: nil, redirects_native: nil,
                      description: nil, method_name: nil, goal: nil,
                      givens: [], mutations: [])
         @name = Names.command_name(name)
@@ -85,6 +86,7 @@ module Hecks
         @postconditions = postconditions
         @emits = emits
         @emits_identified_by = emits_identified_by
+        @redirects_native = redirects_native
         @description = description
         @method_name = method_name
         @goal = goal

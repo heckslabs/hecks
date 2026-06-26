@@ -65,6 +65,7 @@ module Hecks
         @postconditions = []
         @emits = nil
         @emits_identified_by = nil
+        @redirects_native = nil
         @method_name = nil
         @goal = nil
         @givens = []
@@ -220,6 +221,13 @@ module Hecks
       def emits(*names, identified_by: nil)
         @emits = names.length == 1 ? names.first : names
         @emits_identified_by = identified_by&.to_s
+      end
+
+      # Declare that this command is the governed door for a native harness
+      # tool — `redirects_native "Bash"`. The macrophage projects the
+      # native-tool -> door map from every command carrying this.
+      def redirects_native(tool)
+        @redirects_native = tool
       end
 
       # Reference a guard policy by name that must pass before execution.
@@ -381,6 +389,7 @@ module Hecks
           call_body: @call_body, sets: @sets,
           preconditions: @preconditions, postconditions: @postconditions,
           emits: @emits, emits_identified_by: @emits_identified_by,
+          redirects_native: @redirects_native,
           description: @description,
           method_name: @method_name, goal: @goal,
           givens: @givens, mutations: @mutations

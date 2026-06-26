@@ -32,7 +32,7 @@ fn agg(name: &str, refs: Vec<Reference>) -> Aggregate {
             emits: None,
             emits_identified_by: None,
             givens: vec![],
-            mutations: vec![],
+            mutations: vec![], redirects_native: None,
         }],
         queries: vec![],
         value_objects: vec![], entities: vec![], context: None, category: None, realm_path: None,

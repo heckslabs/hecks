@@ -174,6 +174,7 @@ fn dump_command(cmd: &Command) -> Value {
         "role": cmd.role,
         "emits": cmd.emits,
         "emits_identified_by": cmd.emits_identified_by,
+        "redirects_native": cmd.redirects_native,
         "attributes": cmd.attributes.iter().map(dump_attribute).collect::<Vec<_>>(),
         "references": cmd.references.iter().map(dump_reference).collect::<Vec<_>>(),
         "givens": cmd.givens.iter().map(dump_given).collect::<Vec<_>>(),

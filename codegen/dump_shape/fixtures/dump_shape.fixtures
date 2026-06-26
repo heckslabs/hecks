@@ -143,6 +143,7 @@ Hecks.fixtures "DumpShape" do
     fixture "Cmd_role",                 serializer: "dump_command", order: 3, key: "role",                 source: "role",                 mapping_kind: "direct",       helper_fn: ""
     fixture "Cmd_emits",                serializer: "dump_command", order: 4, key: "emits",                source: "emits",                mapping_kind: "direct",       helper_fn: ""
     fixture "Cmd_emits_identified_by",  serializer: "dump_command", order: 5, key: "emits_identified_by",  source: "emits_identified_by",  mapping_kind: "direct",       helper_fn: ""
+    fixture "Cmd_redirects_native",     serializer: "dump_command", order: 6, key: "redirects_native",     source: "redirects_native",     mapping_kind: "direct",       helper_fn: ""
     fixture "Cmd_attributes",           serializer: "dump_command", order: 6, key: "attributes",           source: "attributes",           mapping_kind: "recurse_list", helper_fn: "dump_attribute"
     fixture "Cmd_references",           serializer: "dump_command", order: 7, key: "references",           source: "references",           mapping_kind: "recurse_list", helper_fn: "dump_reference"
     fixture "Cmd_givens",               serializer: "dump_command", order: 8, key: "givens",               source: "givens",               mapping_kind: "recurse_list", helper_fn: "dump_given"

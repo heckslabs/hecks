@@ -489,6 +489,9 @@ impl Runtime {
                     emits_identified_by: f.emits_identified_by,
                     givens: f.givens,
                     mutations: f.mutations,
+                    // A factory is never a governed door ; it mints an
+                    // aggregate, it does not replace a native tool.
+                    redirects_native: None,
                 });
             }
         }
