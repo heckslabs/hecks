@@ -1,0 +1,14 @@
+# SessionVerifier — a concrete async AUTHENTICATION adapter. Declares its family
+# (authentication) — the inverted arrow. Named for its IDENTITY (it verifies a
+# session credential), NOT its transport : that it speaks OAuth, checks a signature,
+# or calls a provider is a detail of HOW it verifies, configured in .world — never
+# the adapter's name. Always async, never locks.
+#
+# The bind `AuthIdentity::AuthIdentity.verified_by("SessionVerifier", on: "Established")`
+# resolves IFF SessionVerifier's family (authentication) carries `verified_by`. On
+# the verdict it dispatches AuthIdentity.MarkVerified (success) or .Reject (failure)
+# — the success/failure branches of the effect. Endpoint, token, and timeout live in
+# .world.
+Hecks.adapter "SessionVerifier" do
+  family "authentication"
+end

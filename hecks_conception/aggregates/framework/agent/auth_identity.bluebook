@@ -1,0 +1,157 @@
+Hecks.bluebook "AuthIdentity", version: "2026.06.26.1" do
+  vision "The authentication primitive (i264, finally landing). An AuthIdentity is a credential-bearing identity a human Agent binds to — the verifiable WHO behind a session, the thing Agent.auth_identity_id has pointed at as a bare string since 2026-05-07. It adapts the session token already in the body : the id IS the value the runtime reads from HECKS_SESSION_AUTH_ID, so authentication stops being 'trust the env var' and becomes 'verify the env var resolves to a known, verified identity'. The CREDENTIAL is the secret's NAME (the env-var the verifier reads), NEVER the secret value — the same discipline payment.family's `secret` field holds. VERIFICATION IS AN IMPURE EDGE, and it runs ONCE per session at Establish, not per dispatch : Establish leaves the identity `pending` and emits Established ; the authentication Family (verified_by) does the external check out-of-process ; its verdict re-enters as MarkVerified (-> active) or Reject (-> rejected), the exact charged_by effect shape Pizzas::Order uses for payment. This is authn 'via adapters' done without the two-color violation : the network round-trip is a once-per-session effect, NOT a per-dispatch blocking call. The per-dispatch `authenticate` Gate (language/grammar/gating.bluebook ; a before-gate, order 10, ahead of rbac-authorize's 20) is the IN-PROCESS half : it reads AuthIdentity.Active (a boot-hydrated read-model, like the AclReadModel) and admits a dispatch iff its principal resolves to an active (verified, non-retired) identity — fail closed otherwise. Session-establish = impure Family (verify the credential) ; per-dispatch = sync Gate (is the principal an active identity). Once this lands, Agent.auth_identity_id upgrades from String to reference_to AuthIdentity in the same migration (NOT done here — documented below)."
+  category "framework"
+
+  # ============================================================
+  # AUTH IDENTITY — the verifiable WHO behind a session
+  # ============================================================
+  #
+  # Conceived 2026-06-26 (i264, long-queued). Chris : authn depth =
+  # "token/credential verification", and "keep it simple and adapt
+  # tokens". So the credential ADAPTS the existing session token rather
+  # than inventing new machinery : the id is HECKS_SESSION_AUTH_ID, the
+  # credential names the env-var the verifier reads the secret from.
+  #
+  # ── Lifecycle : pending -> active | rejected -> retired ──
+  #
+  # absent -> pending (Establish) : minted, credential recorded, NOT yet
+  #   trusted. Emits Established — the trigger the authentication Family
+  #   subscribes to (verified_by, on: "Established").
+  # pending -> active   (MarkVerified) : the verifier adapter's APPROVED
+  #   verdict re-enters. The identity is now trusted ; the authenticate
+  #   Gate admits its principal.
+  # pending -> rejected (Reject) : the verifier adapter's DENIED verdict.
+  #   The principal is never admitted (fail closed).
+  # active  -> retired  (Retire) : session ended / credential rotated. The
+  #   authenticate Gate's read-model excludes it (fail closed), exactly as
+  #   the RBAC read-model excludes a retired Agent.
+  #
+  # MarkVerified / Reject are SYSTEM commands — the Family adapter
+  # dispatches them, never a human (the charged_by Authorize/Decline
+  # shape). The verdict data (verification_ref) is the Family's
+  # `produces`.
+  #
+  # ── Companion files ──────────────────────────────────────────
+  #
+  # framework/families/authentication.family — the verified_by effect edge.
+  # framework/adapters/session_verifier.adapter — a verifier implementing it.
+  # framework/agent/agent.bluebook — Agent.auth_identity_id binds here
+  #   (String today ; reference_to AuthIdentity after the migration below).
+  # language/grammar/gating.bluebook — the `authenticate` before-Gate that
+  #   reads AuthIdentity.Active in-process per dispatch.
+  #
+  # ── MIGRATION (documented, NOT executed here) ────────────────────
+  #
+  # agent.bluebook carries `attribute :auth_identity_id, AuthIdentityId`
+  # (a String VO) with a comment promising this upgrade. Once the
+  # authenticate Gate is wired in the runtime, a single migration replaces
+  # that String with `reference_to AuthIdentity` and repoints the RBAC
+  # read-model to resolve the principal THROUGH AuthIdentity (active-only).
+  # Deferred deliberately : it touches the live RBAC gate + every Agent
+  # record, so it rides the same fresh-head/gated lane as the parser work.
+
+  aggregate "AuthIdentity", "A credential-bearing identity behind a session — the verifiable WHO an Agent binds to. id adapts HECKS_SESSION_AUTH_ID ; credential names the secret (never holds it) ; status tracks the once-per-session verification (pending -> active|rejected -> retired). The impure verification is the authentication Family at Establish ; the per-dispatch authenticate Gate reads Active in-process." do
+    identified_by :id
+
+    attribute :id,               Id
+    attribute :label,            Label
+    attribute :credential,       Credential
+    attribute :verification_ref, VerificationRef, default: "—"
+    attribute :status,           Status,          default: "pending" do
+      transition "MarkVerified" => "active"
+      transition "Reject"       => "rejected"
+      transition "Retire"       => "retired"
+    end
+
+    value_object "Id" do
+      # The session principal's identifier — the value the runtime reads
+      # from HECKS_SESSION_AUTH_ID and stamps as the dispatch principal.
+      # Adapting the existing token : authentication is now 'does this id
+      # resolve to an active AuthIdentity', not 'is the env var non-empty'.
+      attribute :value, String
+    end
+
+    value_object "Label" do
+      # One-line prose : who this identity is ("Chris's laptop session",
+      # "miette-daemon"). Human-facing audit, never load-bearing.
+      attribute :value, String
+    end
+
+    value_object "Credential" do
+      # The ENV-VAR NAME the verifier reads the secret from — NEVER the
+      # secret value. Same discipline as payment.family's `secret` field :
+      # a bluebook holds the name of a secret, the deployment holds the
+      # value. Empty for identities verified by presence alone (a daemon).
+      attribute :secret_name, String
+    end
+
+    value_object "VerificationRef" do
+      # The verifier adapter's receipt for a completed check — the
+      # authentication Family's `produces`, set by MarkVerified. Mirrors
+      # Pizzas::Order.payment_ref. "—" until verified.
+      attribute :value, String
+    end
+
+    value_object "Status" do
+      # pending : minted, not yet verified. active : verifier approved —
+      # the authenticate Gate admits this principal. rejected : verifier
+      # denied — never admitted. retired : session ended / credential
+      # rotated — excluded from the Gate's read-model (fail closed).
+      attribute :value, String, enum: ["pending", "active", "rejected", "retired"]
+    end
+
+    command "Establish" do
+      role "Framework"
+      description "Mint a pending AuthIdentity for a session — record its id (the session token) and the credential NAME the verifier will read. Leaves status pending and emits Established, the trigger the authentication Family (verified_by) subscribes to. The identity is NOT yet trusted ; the authenticate Gate admits it only after MarkVerified."
+      attribute :id,         Id
+      attribute :label,      Label
+      attribute :credential, Credential
+      then_set :id,         to: :id
+      then_set :label,      to: :label
+      then_set :credential, to: :credential
+      then_set :status,     to: "pending"
+      emits "Established"
+    end
+
+    command "MarkVerified" do
+      role "System"
+      description "Record the verifier adapter's APPROVED verdict — the success branch of the authentication Family's effect (the charged_by Authorize shape). pending -> active. Sets verification_ref (the Family's produces). Dispatched by the adapter, never by hand."
+      reference_to(AuthIdentity)
+      attribute :verification_ref, VerificationRef
+      then_set :verification_ref, to: :verification_ref
+      emits "Verified"
+    end
+
+    command "Reject" do
+      role "System"
+      description "Record the verifier adapter's DENIED verdict — the failure branch (the charged_by Decline shape). pending -> rejected. The principal is never admitted by the authenticate Gate. Dispatched by the adapter, never by hand."
+      reference_to(AuthIdentity)
+      attribute :reason, Label
+      emits "Rejected"
+    end
+
+    command "Retire" do
+      role "Framework"
+      description "Retire an identity — session ended or credential rotated. active -> retired. The authenticate Gate's read-model excludes retired identities, so the principal fails closed on the next dispatch (mirrors a retired Agent in the RBAC read-model)."
+      reference_to(AuthIdentity)
+      emits "Retired"
+    end
+
+    query "Active" do
+      description "Every verified, non-retired identity — the read-model the per-dispatch authenticate Gate consults IN-PROCESS (boot-hydrated, refreshed on an AuthIdentity lifecycle event, like the AclReadModel). A dispatch's principal is admitted iff its id appears here ; absent -> fail closed."
+      where status: "active"
+    end
+
+    query "ById" do
+      description "Resolve one identity by its id (the session token). The Establish/verify path and audit read it."
+      where id: :id
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "Establish"    => "pending"
+      transition "MarkVerified" => "active",   from: "pending"
+      transition "Reject"       => "rejected", from: "pending"
+      transition "Retire"       => "retired",  from: "active"
+    end
+  end
+end
