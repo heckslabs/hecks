@@ -1,0 +1,152 @@
+Hecks.bluebook "Macrophage", version: "2026.06.26.1" do
+  # ============================================================
+  # GOVERNED DOOR — one macrophage, one rule
+  # ============================================================
+  #
+  # The per-rule macrophage sibling for the governed-door barrier — the
+  # structural channel rule. Added to the Macrophage domain in its OWN file
+  # (the domain spans many files, like Conductor / Inbox / Corpus), so it is
+  # addressed Macrophage::GovernedDoor — one more sibling beside FixturesRuntime,
+  # BluebookFirst, Warnings. It inherits the Macrophage hexagon's `adapter :heki`,
+  # so no separate hecksagon is needed.
+  #
+  # WHY THIS RULE EXISTS : a native harness tool (Bash, Edit, Write, Read, Grep,
+  # Glob, MultiEdit, NotebookEdit, WebFetch, WebSearch) emits NO bus event, so an
+  # act made through it is ungoverned — invisible to the dispatch log, outside
+  # the Transparency vow. Each such tool has a storehouse-door equivalent
+  # (Tools::ShellTool.Bash, Tools::FileTool.Edit / Update / Read,
+  # Tools::SearchTool.Grep / Glob, Tools::WebTool.WebFetch / WebSearch). The
+  # PreToolUse hook hard-blocks the native tool and redirects the caller to the
+  # door. Control-plane tools (Agent, Task*, AskUserQuestion, ToolSearch) and
+  # mcp__storehouse__* are NOT governed here — they orchestrate, they do not act
+  # on the world.
+  #
+  # THE MAP IS NOT DATA HERE. A native tool's door equivalent is PROJECTED from
+  # the IR : each door command declares `redirects_native "X"`, and the LookupDoor
+  # query scans the command IR for the door whose redirects_native contains the
+  # queried tool, deriving door_args from that command's own attributes. No
+  # Register command, no seeded rows, no .fixtures — the Pizzas way : structure
+  # from the model, config never seeded at boot. This SUPERSEDES the old
+  # framework/governance fixtures-seeded registry : the mapping now lives as
+  # structure on the door commands, read straight from the IR.
+  #
+  # What this aggregate DOES hold is real state : the denial AUDIT TRAIL. When
+  # the hook blocks a native tool it records a Denial (entity) and stamps the
+  # latest-denial surface — exactly as FixturesRuntime records a
+  # FixturesViolation. The map is structure ; the denials are history.
+
+  aggregate "GovernedDoor", "Per-rule macrophage for the governed-door barrier — projects the native->door map from the command IR (redirects_native) via LookupDoor, and records the denial audit trail when the PreToolUse hook blocks a native tool. The bluebook of record for what the governed-door hook enforces." do
+    identified_by :name
+
+    attribute :name, Name
+
+    # Session metadata
+    attribute :session_started_at, Timestamp
+
+    # Denial tallies — scoped to this rule's signal, this session.
+    # tools_checked counts every native tool the hook inspected ;
+    # denials counts the governed subset that was blocked.
+    attribute :tools_checked, DenialCount
+    attribute :denials,       DenialCount
+
+    # Latest-denial surface — quick read for the statusline.
+    attribute :last_denied_tool, ToolName
+    attribute :last_denied_at,   Timestamp
+    attribute :last_door,        DoorPhrase
+
+    # ── Value-objects : this rule's language ──
+
+    value_object "Name" do
+      # Singleton key for this macrophage.
+      attribute :value, String
+    end
+
+    value_object "Timestamp" do
+      # ISO-8601 timestamp string. Used for session_started_at, denied_at, and
+      # any per-event when fields.
+      attribute :value, String
+    end
+
+    value_object "ToolName" do
+      # The native harness tool name as it arrives in the PreToolUse payload's
+      # tool_name field (e.g. "Bash", "Edit", "Read").
+      attribute :value, String
+    end
+
+    value_object "DoorPhrase" do
+      # The fully-qualified storehouse-door command the caller must use instead
+      # (e.g. "Tools::ShellTool.Bash"). PROJECTED by LookupDoor from the door
+      # command's FQN ; recorded on a denial as the redirect that was offered.
+      attribute :value, String
+    end
+
+    value_object "DenialCount" do
+      # Count of events of a particular kind (tools_checked / denials) recorded
+      # by this macrophage in the current session.
+      attribute :value, Integer
+    end
+
+    value_object "DenialText" do
+      # The body of a denial complaint — the stderr text the hook emits. Includes
+      # the rule name so attribution is clear : "The GovernedDoor macrophage
+      # expected ...".
+      attribute :value, String
+    end
+
+    # ── Entity — denial audit trail ──
+
+    entity "Denial" do
+      description "One historical denial event for the governed-door rule. Records which native tool was blocked, the door it was redirected to, the complaint text, and when. The last_denied_* scalars on the root mirror the most recent entry ; this collection holds the full audit trail — like FixturesRuntime's FixturesViolation."
+      attribute :denied_at,   Timestamp
+      attribute :tool_name,   ToolName
+      attribute :door,        DoorPhrase
+      attribute :denial_text, DenialText
+    end
+
+    # ── Session lifecycle ──
+
+    command "StartSession" do
+      role "System"
+      description "Reset per-session counters at boot. The macrophage keeps a per-session tally so the discipline scoreboard reflects what was denied today, not lifetime totals. The Denial entity collection is NOT reset — it is audit trail."
+      attribute :session_started_at, Timestamp
+      then_set :session_started_at, to: :session_started_at
+      emits "SessionStarted"
+    end
+
+    # ── Denial recording ──
+
+    command "Deny" do
+      role "Hook"
+      description "The PreToolUse hook blocked a native tool that has a storehouse-door equivalent. Stamps the latest-denial surface (tool, door, time) for fast statusline reads and emits NativeToolDenied ; the denials counter and the Denial entity audit trail are maintained by the runtime off the event. The hook chains into Complain to surface the redirect on the next turn — this command records the fact, Complain records the reaction."
+      attribute :tool_name,  ToolName
+      attribute :door,       DoorPhrase
+      attribute :denied_at,  Timestamp
+      then_set :last_denied_tool, to: :tool_name
+      then_set :last_door,        to: :door
+      then_set :last_denied_at,   to: :denied_at
+      emits "NativeToolDenied"
+    end
+
+    # ── Complaint surface ──
+
+    command "Complain" do
+      role "Hook"
+      description "The GovernedDoor macrophage blocked a native tool call that should have routed through the storehouse door. Records the redirect complaint text and timestamp on the root for fast statusline reads, and appends a Denial entity for the audit trail. The hook ALSO prints to stderr so Claude Code surfaces the redirect as a system reminder on the next turn — the feedback loop that closes the discipline mechanism. Complaint text should begin 'The GovernedDoor macrophage expected ...' so the rule's name is visible at a glance."
+      attribute :tool_name,    ToolName
+      attribute :door,         DoorPhrase
+      attribute :denial_text,  DenialText
+      attribute :denied_at,    Timestamp
+      then_set :last_denied_tool, to: :tool_name
+      then_set :last_door,        to: :door
+      then_set :last_denied_at,   to: :denied_at
+      emits "DenialComplaintIssued"
+    end
+
+    # ── The projected map ──
+
+    query "LookupDoor" do
+      description "Look up the storehouse-door equivalent for one native tool by name. PROJECTS the map from the command IR : scans every command for the door whose `redirects_native` list contains the queried tool and returns its fully-qualified door command plus door_args derived from that command's own attributes — there is no stored map, no Register, no fixtures. Returns the door + args when the tool is governed, or empty when it is not (control-plane tools, mcp__storehouse__*). The PreToolUse hook calls this per dispatch to render the redirect message. A computed meta-query the runtime special-cases — like MatchInput / CausationTrace — because a record-filter `where` cannot iterate the IR's own command structure."
+      where tool: :tool
+    end
+  end
+end

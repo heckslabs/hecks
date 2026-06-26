@@ -107,6 +107,7 @@ Hecks.bluebook "Tools", version: "2026.05.14.1" do
       attribute :id, Id
       attribute :shell_command, ShellCommand
       attribute :description, Description
+      redirects_native "Bash"
       emits "BashRan"
       then_set :shell_command, to: :shell_command
       then_set :description,   to: :description
@@ -225,6 +226,7 @@ Hecks.bluebook "Tools", version: "2026.05.14.1" do
       attribute :description, Description
       attribute :offset, Offset
       attribute :limit,  Limit
+      redirects_native "Read"
       emits "FileRead"
       then_set :file_path,   to: :file_path
       then_set :description, to: :description
@@ -240,6 +242,7 @@ Hecks.bluebook "Tools", version: "2026.05.14.1" do
       attribute :new_string, NewString
       attribute :replace_all, ReplaceAll
       attribute :description, Description
+      redirects_native "Edit", "MultiEdit", "NotebookEdit"
       emits "EditApplied"
       then_set :file_path,   to: :file_path
       then_set :description, to: :description
@@ -253,6 +256,7 @@ Hecks.bluebook "Tools", version: "2026.05.14.1" do
       attribute :file_path, FilePath
       attribute :content, Content
       attribute :description, Description
+      redirects_native "Write"
       emits "FileUpdated"
       then_set :file_path,   to: :file_path
       then_set :description, to: :description
@@ -348,6 +352,7 @@ Hecks.bluebook "Tools", version: "2026.05.14.1" do
       attribute :pattern, Pattern
       attribute :search_path, SearchPath
       attribute :description, Description
+      redirects_native "Grep"
       emits "GrepRan"
       then_set :pattern,     to: :pattern
       then_set :search_path, to: :search_path
@@ -362,6 +367,7 @@ Hecks.bluebook "Tools", version: "2026.05.14.1" do
       attribute :glob_pattern, GlobPattern
       attribute :search_path, SearchPath
       attribute :description, Description
+      redirects_native "Glob"
       emits "GlobMatched"
       then_set :glob_pattern, to: :glob_pattern
       then_set :search_path,  to: :search_path
@@ -416,6 +422,7 @@ Hecks.bluebook "Tools", version: "2026.05.14.1" do
       attribute :url, Url
       attribute :prompt, FetchPrompt
       attribute :description, Description
+      redirects_native "WebFetch"
       emits "WebFetched"
       then_set :url,         to: :url
       then_set :description, to: :description
@@ -428,6 +435,7 @@ Hecks.bluebook "Tools", version: "2026.05.14.1" do
       attribute :id, Id
       attribute :query, SearchQuery
       attribute :description, Description
+      redirects_native "WebSearch"
       emits "WebSearched"
       then_set :query,       to: :query
       then_set :description, to: :description

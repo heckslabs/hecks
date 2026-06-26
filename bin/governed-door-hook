@@ -4,13 +4,16 @@
 # the asynchronous immune cells (macrophage/fibroblast) that only respond
 # AFTER a breach.
 # Bluebook of record :
-#   hecks_conception/aggregates/framework/governance/governance.bluebook
+#   hecks_conception/aggregates/discipline/immune_system/macrophage/governed_door.bluebook (the map projection)
+#   hecks_conception/aggregates/framework/governance/governance.bluebook (Policy + Violation audit)
 #
 # A native IO tool (Bash/Edit/Write/Read/Grep/Glob/MultiEdit/NotebookEdit/
 # WebFetch/WebSearch) emits NO bus event -> the act is ungoverned, invisible to
 # the dispatch log, outside the Transparency vow. This PreToolUse hook looks up
-# the door equivalent via Governance::GovernedDoor.lookup_door and, when one
-# exists, RECORDS the denial as Governance::Violation AND hard-blocks (exit 2).
+# the door equivalent via Macrophage::GovernedDoor.lookup_door (the macrophage
+# sibling that PROJECTS the native->door map from the door commands'
+# redirects_native declarations) and, when one exists, RECORDS the denial as
+# Governance::Violation AND hard-blocks (exit 2).
 # Control-plane tools (Agent/Task/advisor/AskUserQuestion/ToolSearch) and
 # mcp__storehouse__* return no door -> allowed (exit 0). They orchestrate; they
 # do not act on the world.
@@ -34,7 +37,7 @@ tool=$(jq -r '.tool_name // empty' 2>/dev/null || true)
 SH=/Users/christopheryoung/Projects/hecks/rust/target/release/storehouse
 ROOT=/Users/christopheryoung/Projects/hecks/hecks_conception
 POLICY=miette-harness
-result=$("$SH" query "$ROOT" Governance::GovernedDoor.lookup_door tool="$tool" 2>/dev/null)
+result=$("$SH" query "$ROOT" Macrophage::GovernedDoor.lookup_door tool="$tool" 2>/dev/null)
 qexit=$?
 door=$(echo "$result" | jq -r '.. | .door_equivalent? // empty' 2>/dev/null | head -1 || true)
 args=$(echo "$result" | jq -r '.. | .door_args? // empty' 2>/dev/null | head -1 || true)
