@@ -1,130 +1,8 @@
-Hecks.bluebook "Governance", version: "2026.05.19.1" do
-  vision "Governance is the claim that every act is accountable. An act is accountable only if it emitted an event the runtime could log ; an act that emits no bus event cannot be governed. The rule follows : every tool invocation flows through storehouse__dispatch (Domain::Aggregate.Command), which emits a bus event ; native harness tool calls, which emit nothing, are denied by default. This domain holds the Policy (default-deny + the allow-list), the Violation recorded when a denied act is attempted, and the EnforcementAdapter — the harness-side surface that makes the policy real where the harness cannot itself dispatch through storehouse (a PreToolUse hook ; a filed harness-gap, not a permanent home). The policy's stance and enforcement are non-overridable : fixed at Propose, mutated by no command, so a user suggestion never relaxes the stance ; an aligned suggestion is adopted, a misaligned one leaves the policy standing. Keeping every act governed is not subordinate to user instruction."
+Hecks.bluebook "Governance", version: "2026.06.26.1" do
+  vision "Governance is the claim that every act is accountable : an act that emits no bus event cannot be governed, so a denied or vetoed act is RECORDED — the denial itself becomes a governed, logged fact. This domain holds that audit (Violation). What once lived here has moved to where it belongs : the deny-by-default channel barrier is now the Macrophage::GovernedDoor rule (the native->door map projected from the command IR + the per-record denial audit), and authorization-at-the-door is the inbound Gate concept (language/grammar/gating — 'a Deny aborts the dispatch and records a Governance::Violation'). The deny-by-default Policy + the harness EnforcementAdapter that formerly lived here are retired : their never-wired boot-establishment chain (BootCompleted had no producer — the boot-establishment-not-wired finding) carried no runtime weight, and authorization is being conceived afresh as the Gate. Violation remains as the shared veto-audit sink the Gate records to."
   category "framework"
 
-  aggregate "Policy", "The governance rule for one harness session-class : deny every tool act by default, permit only named patterns. Permitted means natively callable because it IS the governed channel (storehouse__dispatch) or is conversational infra with no filesystem effect." do
-    identified_by :name
-
-    attribute :name,        Name
-    attribute :stance,      Stance
-    attribute :enforcement, Enforcement
-    attribute :status,      Status, default: "proposed"
-    attribute :authority,   Authority, default: "non_overridable"
-    attribute :permitted,   list_of(PermittedTool)
-
-    value_object "Name" do
-      attribute :value, String
-    end
-
-    value_object "Stance" do
-      attribute :kind, String, enum: ["deny_by_default", "allow_by_default"]
-    end
-
-    value_object "Enforcement" do
-      attribute :kind, String, enum: ["advisory", "hard_block"]
-    end
-
-    value_object "Status" do
-      attribute :value, String, enum: ["proposed", "active", "suspended"]
-    end
-
-    value_object "PermittedTool" do
-      attribute :pattern, String
-      attribute :reason,  String
-    end
-
-    value_object "Pattern" do
-      attribute :value, String
-    end
-
-    value_object "Reason" do
-      attribute :value, String
-    end
-
-    value_object "Authority" do
-      attribute :value, String, enum: ["non_overridable", "advisory"]
-    end
-
-    value_object "Suggestion" do
-      attribute :source, String
-      attribute :text,   String
-    end
-
-    value_object "Verdict" do
-      attribute :kind, String, enum: ["aligned", "misaligned"]
-    end
-
-    command "Propose" do
-      role "Framework"
-      description "Declare a governance policy in the proposed phase. Stance and enforcement are fixed at proposal ; the allow-list starts empty and is filled by Permit."
-      attribute :name,        Name
-      attribute :stance,      Stance
-      attribute :enforcement, Enforcement
-      emits "Proposed"
-      then_set :name,        to: :name
-      then_set :stance,      to: :stance
-      then_set :enforcement, to: :enforcement
-      then_set :status,      to: "proposed"
-    end
-
-    command "Permit" do
-      role "Framework"
-      description "Add a tool-name pattern to the allow-list with the reason it is exempt from bus-routing. Everything not permitted is denied by the stance. Idempotent : `append_unique` adds the {pattern, reason} record only when no value-equal element is already present, so the boot-time establishment policy can re-fire `Permit` on every reboot and the allow-list never bloats — a re-appended identical record is a no-op (a `list_of(VO)` dedupes by full value, since a value object has no identity)."
-      reference_to(Policy)
-      attribute :pattern, Pattern
-      attribute :reason,  Reason
-      emits "Permitted"
-      then_set :permitted, append_unique: { pattern: :pattern, reason: :reason }
-    end
-
-    command "Forbid" do
-      role "Framework"
-      description "Record that a pattern is no longer trusted. The allow-list is append-only and event-sourced : Forbid is a logged audit signal, not an in-place delete — the policy history is the source of truth."
-      reference_to(Policy)
-      attribute :pattern, Pattern
-      emits "Forbade"
-    end
-
-    command "Activate" do
-      role "Framework"
-      description "Move the policy to active — the enforcement adapter is authoritative and denied acts are recorded."
-      reference_to(Policy)
-      emits "Activated"
-    end
-
-    command "Suspend" do
-      role "Framework"
-      description "Move the policy to suspended — enforcement stands down for recovery or migration. Suspension is itself a governed, logged act."
-      reference_to(Policy)
-      attribute :reason, Reason
-      emits "Suspended"
-    end
-
-    command "AssessSuggestion" do
-      role "Framework"
-      description "Record the weighing of an external suggestion (including the user's own) against the active policy. An aligned suggestion is adopted ; a misaligned one leaves the policy standing — stance and enforcement are non-overridable, fixed at Propose, mutated by no command. This command does not gate the override ; the structural immutability of stance and enforcement does. It makes the weighing itself a governed, event-sourced fact."
-      reference_to(Policy)
-      attribute :suggestion, Suggestion
-      attribute :verdict,    Verdict
-      emits "SuggestionAssessed"
-    end
-
-    query "ByName" do
-      description "Read one policy by name. The PreToolUse barrier consults its enforcement (advisory|hard_block) to decide fail-open vs fail-closed when the redirect registry is unreachable : hard_block fails closed, advisory fails open. An explicit, governed field — not a silent hook default."
-      where name: :name
-    end
-
-    lifecycle :status, default: "proposed" do
-      transition "Propose"  => "proposed"
-      # Activate accepts "active" as a from-state too, so re-activating an
-      # already-active policy is an idempotent no-op — the boot-time
-      # establishment chain can re-run every boot without erroring.
-      transition "Activate" => "active",    from: ["proposed", "suspended", "active"]
-      transition "Suspend"  => "suspended", from: "active"
-    end
-  end
-
-  aggregate "Violation", "A tool act denied because it would not have emitted a bus event. Recording it is the point : the denial itself becomes a governed, logged fact." do
+  aggregate "Violation", "A tool act denied or vetoed because it would not have emitted a bus event — one immutable record per attempt. Recording it is the point : the denial itself becomes a governed, logged fact. The shared veto-audit sink the inbound Gate records to." do
     identified_by :id
 
     attribute :id,          Id
@@ -150,7 +28,7 @@ Hecks.bluebook "Governance", version: "2026.05.19.1" do
 
     command "Record" do
       role "Framework"
-      description "Record that a denied native tool call was attempted. Emitted by the enforcement adapter, or dispatched manually for adapters that cannot reach the bus inline."
+      description "Record that a denied or vetoed dispatch was attempted. Dispatched by a Gate's veto (or any adapter that reaches the bus). One immutable record per attempt."
       attribute :id,          Id
       attribute :tool_name,   ToolName
       attribute :reason,      Reason
@@ -163,115 +41,12 @@ Hecks.bluebook "Governance", version: "2026.05.19.1" do
     end
 
     query "ListAll" do
-      description "Every recorded denial — the audit trail of ungoverned native-tool attempts the barrier blocked. Replaces GovernedDoor's per-tool blocked_count tally : each block is now one immutable Violation row, and a tool's count is the rows whose tool_name matches."
+      description "Every recorded denial/veto — the full audit trail. A tool's count is the rows whose tool_name matches (a read over records, never stored derived state)."
     end
 
     query "ByTool" do
-      description "Every denial recorded for one native tool by name — the per-tool audit (the old blocked_count, now derived by counting rows)."
+      description "Every denial recorded for one native tool by name — the per-tool audit."
       where tool_name: :tool_name
     end
   end
-
-  aggregate "EnforcementAdapter", "The harness surface that makes a Policy real where the harness cannot itself dispatch through storehouse. For Claude Code this is a PreToolUse hook in settings.json — Nirmanakaya glue for a genuine harness-gap, declared here so the gap is a domain fact, not a hidden script." do
-    identified_by :name
-
-    attribute :name,   Name
-    attribute :kind,   Kind
-    attribute :target, Target
-    attribute :status, Status, default: "registered"
-
-    value_object "Name" do
-      attribute :value, String
-    end
-
-    value_object "Kind" do
-      attribute :kind, String, enum: ["harness_pre_tool_hook"]
-    end
-
-    value_object "Target" do
-      attribute :path, String
-    end
-
-    value_object "Status" do
-      attribute :value, String, enum: ["registered", "live", "stale"]
-    end
-
-    value_object "DriftReason" do
-      attribute :value, String
-    end
-
-    command "Register" do
-      role "Framework"
-      description "Declare an enforcement adapter for a policy. Registered means written but not yet trusted by the harness (Claude Code requires hook review before execution)."
-      attribute :name,   Name
-      attribute :kind,   Kind
-      attribute :target, Target
-      emits "Registered"
-      then_set :name,   to: :name
-      then_set :kind,   to: :kind
-      then_set :target, to: :target
-      then_set :status, to: "registered"
-    end
-
-    command "MarkLive" do
-      role "Framework"
-      description "The harness has reviewed and is executing the adapter ; the policy is now enforced in-session. Words match state : call only once the harness actually runs it."
-      reference_to(EnforcementAdapter)
-      emits "MarkedLive"
-    end
-
-    command "MarkStale" do
-      role "Framework"
-      description "The adapter drifted from the policy (renamed tools, changed allow-list). It must be regenerated before MarkLive again."
-      reference_to(EnforcementAdapter)
-      attribute :reason, DriftReason
-      emits "MarkedStale"
-    end
-
-    lifecycle :status, default: "registered" do
-      transition "Register"  => "registered"
-      transition "MarkLive"  => "live",  from: ["registered", "stale"]
-      transition "MarkStale" => "stale", from: ["registered", "live"]
-    end
-  end
-
-
-# == ESTABLISHMENT policies — standing prod state, seeded at boot ==
-#
-# This is the domain's STANDING TRUTH, declared as reactive policy and
-# established when the boot pipeline completes (BootRun emits BootCompleted,
-# its terminal event), NOT as test fixtures. The dispatch IS the act : on
-# boot-complete these policies fire and upsert the deny-by-default Policy +
-# the governed-door redirect registry. Idempotent — keyed by identity, so a
-# re-boot re-affirms the same standing state rather than duplicating it.
-# `.fixtures` is now TEST-ONLY ; prod config reaches prod as policy.
-#
-# The Policy lifecycle (Propose -> Permit -> Activate) is ORDERED, so it is an
-# event-CHAIN : each step fires on the prior step's event (Policy.Proposed,
-# Policy.Permitted — qualified so a sibling domain's bare "Proposed" can't
-# trigger it). The 10 governed-door redirects are order-independent, so they
-# all fire directly on the boot-complete event.
-
-# ── deny-by-default Policy, established as an ordered chain ──
-policy "ProposeBarrierPolicyOnBoot" do
-  on "BootCompleted"
-  trigger "Hecks::Framework::Governance::Policy.Propose"
-  with "name", "miette-harness"
-  with "stance", "deny_by_default"
-  with "enforcement", "hard_block"
-end
-
-policy "PermitDoorChannelOnProposed" do
-  on "Policy.Proposed"
-  trigger "Hecks::Framework::Governance::Policy.Permit"
-  with "name", "miette-harness"
-  with "pattern", "mcp__storehouse__*"
-  with "reason", "the governed channel itself — storehouse__dispatch emits the bus event"
-end
-
-policy "ActivateBarrierPolicyOnPermitted" do
-  on "Policy.Permitted"
-  trigger "Hecks::Framework::Governance::Policy.Activate"
-  with "name", "miette-harness"
-end
 end
