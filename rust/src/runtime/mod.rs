@@ -184,7 +184,7 @@ pub use command_dispatch::CommandResult;
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) use command_dispatch::apply_lifecycle_default;
 pub use event_bus::{Event, EventBus};
-pub use middleware::{CommandContext, MiddlewareStack, Phase};
+pub use middleware::{MiddlewareEntry, MiddlewareStack, Phase};
 pub use policy_engine::{PolicyEngine, PolicyTrigger};
 pub use pm_engine::{PMBinding, PMEngine, PMInstanceState, PMTrigger};
 pub use projection::Projection;
@@ -402,6 +402,9 @@ impl Runtime {
         // reads Role/Agent from the final (possibly sqlite) repositories.
         let m = acl_readmodel::AclReadModel::hydrate(&rt);
         rt.acl_read_model = m;
+        // Hydrate the middleware stack (runtime projection of the Gate
+        // grammar) after the RBAC read-model the rbac-authorize gate reads.
+        rt.hydrate_middleware();
         rt
     }
 
@@ -616,6 +619,8 @@ impl Runtime {
         // overrides so it reads the final repositories.
         let m = acl_readmodel::AclReadModel::hydrate(&rt);
         rt.acl_read_model = m;
+        // Hydrate the middleware stack (runtime projection of the Gate grammar).
+        rt.hydrate_middleware();
         rt
     }
 
@@ -738,18 +743,79 @@ impl Runtime {
         command_name: &str,
         attrs: &mut HashMap<String, Value>,
     ) -> Result<(), RuntimeError> {
-        if let Err(e) = self.acl_check(command_name, attrs) {
-            if let RuntimeError::Unauthorized { command, required, held } = &e {
-                let reason =
-                    format!("rbac: requires role '{}', caller holds '{}'", required, held);
-                let command = command.clone();
-                self.record_violation_internal(&command, &reason);
+        // Run the registered before-middleware gates in order. The Gate grammar
+        // (aggregates/language/grammar/gating.bluebook) is the declared truth —
+        // which gate, what order, over which dispatches — and the MiddlewareStack
+        // is its runtime projection. Each handler key resolves to an in-process
+        // verdict function (`run_gate`), mirroring Storehouse::Primitive.
+        // implementation. A Deny aborts and records a governed Violation. Collect
+        // the matching (name, handler) first so the &self borrow on the stack is
+        // released before the &mut self call to record_violation_internal.
+        let gates: Vec<(String, String)> = self
+            .middleware
+            .before_matching(command_name)
+            .map(|e| (e.name.clone(), e.handler.clone()))
+            .collect();
+        for (gate_name, handler) in gates {
+            if let Err(e) = self.run_gate(&handler, command_name, attrs) {
+                let reason = match &e {
+                    RuntimeError::Unauthorized { required, held, .. } => format!(
+                        "middleware '{}': requires role '{}', caller holds '{}'",
+                        gate_name, required, held
+                    ),
+                    other => format!("middleware '{}': {:?}", gate_name, other),
+                };
+                self.record_violation_internal(command_name, &reason);
+                return Err(e);
             }
-            return Err(e);
         }
         attrs.remove(acl_readmodel::KIND_KEY);
         attrs.remove(acl_readmodel::AUTH_KEY);
         Ok(())
+    }
+
+    /// Resolve a middleware `handler` lookup key to a before-gate verdict.
+    /// `Ok(())` admits the dispatch ; `Err` denies it. An unresolvable handler
+    /// FAILS CLOSED (the Gate contract : an attached-but-unresolvable gate must
+    /// deny, never silently pass). `handler` is the Storehouse::Primitive
+    /// precedent — the bluebook declares the attachment, the runtime owns the
+    /// verdict the key names.
+    fn run_gate(
+        &self,
+        handler: &str,
+        command_name: &str,
+        attrs: &HashMap<String, Value>,
+    ) -> Result<(), RuntimeError> {
+        match handler {
+            "rbac-authorize" => self.acl_check(command_name, attrs),
+            other => Err(RuntimeError::Unauthorized {
+                command: command_name.to_string(),
+                required: format!(
+                    "a resolvable middleware handler (got unresolvable '{}')",
+                    other
+                ),
+                held: String::new(),
+            }),
+        }
+    }
+
+    /// Hydrate the middleware stack — the runtime projection of the Gate grammar
+    /// (aggregates/language/grammar/gating.bluebook). Self-seeds the STANDING
+    /// gates : today the rbac-authorize before-gate, the transitional projection
+    /// of the Gate the `gating on dispatch` parser surface will declare once it
+    /// lands (sibling kernel card). Self-seeding keeps the door gated regardless
+    /// of boot-time establishment, which does not fire at a real boot today
+    /// (inbox/boot-establishment-not-wired-FINDING.md). Called at boot, after
+    /// the RBAC read-model the rbac-authorize gate reads is hydrated.
+    fn hydrate_middleware(&mut self) {
+        let entries = vec![middleware::MiddlewareEntry {
+            name: "rbac-authorize".to_string(),
+            phase: middleware::Phase::Before,
+            handler: "rbac-authorize".to_string(),
+            pattern: "*".to_string(),
+            order: 20,
+        }];
+        self.middleware = middleware::MiddlewareStack::from_entries(entries);
     }
 
     pub fn dispatch(
@@ -847,14 +913,9 @@ impl Runtime {
                 );
         }
 
-        // Middleware: before
-        let ctx = CommandContext {
-            command_name: command_name.to_string(),
-            attrs: attrs.clone(),
-            result: None,
-        };
-        self.middleware.run_before(&ctx);
-
+        // Snapshot the command attrs before they move into the dispatch — the
+        // deferred react paths (react_ports / outbox) read them after the move.
+        let ctx_attrs = attrs.clone();
         // Core dispatch. On error, feed the scope the error message so
         // its Drop emits a bright-red error block, THEN propagate.
         let result = match command_dispatch::dispatch(self, command_name, attrs) {
@@ -909,19 +970,6 @@ impl Runtime {
             }
         }
 
-        // Middleware: after
-        let ctx = CommandContext {
-            command_name: command_name.to_string(),
-            attrs: ctx.attrs,
-            result: Some(CommandResult {
-                aggregate_id: result.aggregate_id.clone(),
-                aggregate_type: result.aggregate_type.clone(),
-                event: result.event.clone(),
-                deltas: result.deltas.clone(),
-            }),
-        };
-        self.middleware.run_after(&ctx);
-
         // Update projections
         if let Some(ref event) = result.event {
             for proj in &mut self.projections {
@@ -951,7 +999,7 @@ impl Runtime {
             // Deferred ASYNC path — domain reactions recorded to the persistent
             // outbox (delivered later by pump_outbox, each its own transaction).
             // The impure PORTS fire eagerly here so tools / AI still run in-band.
-            self.react_ports(&result, command_name, &ctx.attrs);
+            self.react_ports(&result, command_name, &ctx_attrs);
         } else {
             // No persistent outbox (CascadeRun not loaded) or nothing to react
             // to — fall back to the in-memory deferred path: enqueue for pump(),
@@ -959,7 +1007,7 @@ impl Runtime {
             self.outbox.push_back(PendingReaction {
                 result: result.clone(),
                 command_name: command_name.to_string(),
-                attrs: ctx.attrs.clone(),
+                attrs: ctx_attrs.clone(),
             });
         }
 
