@@ -256,7 +256,6 @@ Hecks.bluebook "Tools", version: "2026.05.14.1" do
       attribute :file_path, FilePath
       attribute :content, Content
       attribute :description, Description
-      redirects_native "Write"
       emits "FileUpdated"
       then_set :file_path,   to: :file_path
       then_set :description, to: :description
@@ -278,6 +277,7 @@ Hecks.bluebook "Tools", version: "2026.05.14.1" do
       attribute :file_path, FilePath
       attribute :content, Content
       attribute :description, Description
+      redirects_native "Write"
       emits "FileWritten"
       then_set :file_path,   to: :file_path
       then_set :description, to: :description
