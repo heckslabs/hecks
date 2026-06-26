@@ -99,6 +99,50 @@
             });
         }
 
+        // LookupDoor (Macrophage::GovernedDoor): project the native->door map
+        // from the command IR. Scan every command for the door whose
+        // `redirects_native` list contains the queried tool, and return its
+        // fully-qualified door command plus door_args derived from that
+        // command's own attribute names. There is no stored map, no Register,
+        // no fixtures — the map IS the `redirects_native` declarations on the
+        // door commands. Scoped to the Macrophage context so it never shadows
+        // a like-named query in another domain (the Governance::* LookupDoor
+        // during the Stage-5 transition). Like MatchInput, a meta-query the
+        // engine special-cases because a record-filter `where` cannot iterate
+        // the IR's own command structure.
+        if query_name == "LookupDoor" && resolved_context.as_deref() == Some("Macrophage") {
+            let tool = attrs.get("tool").cloned().unwrap_or_default();
+            for agg in &self.domain.aggregates {
+                for cmd in &agg.commands {
+                    if cmd.redirects_native.iter().any(|t| t == &tool) {
+                        let ctx = agg.context.clone().unwrap_or_default();
+                        let door = if ctx.is_empty() {
+                            format!("{}.{}", agg.name, cmd.name)
+                        } else {
+                            format!("{}::{}.{}", ctx, agg.name, cmd.name)
+                        };
+                        let door_args = cmd.attributes.iter()
+                            .map(|a| format!("{}=<{}>", a.name, a.name))
+                            .collect::<Vec<_>>()
+                            .join(", ");
+                        return serde_json::json!({
+                            "aggregate": agg_name, "query": query_name,
+                            "state": {
+                                "match": "found",
+                                "tool": tool,
+                                "door_equivalent": door,
+                                "door_args": door_args,
+                            }
+                        });
+                    }
+                }
+            }
+            return serde_json::json!({
+                "aggregate": agg_name, "query": query_name,
+                "state": { "match": "none", "tool": tool }
+            });
+        }
+
         // CausationTrace: the recursive lineage walk a single where() cannot
         // express. From a root event_id, follow causation_id up the chain to the
         // root cause, accumulating each event in order. find() resolves each

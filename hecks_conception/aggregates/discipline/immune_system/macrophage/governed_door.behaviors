@@ -1,0 +1,39 @@
+Hecks.behaviors "Macrophage" do
+  vision "Behavioral tests for the GovernedDoor macrophage sibling — the governed-door barrier rule. The native->door MAP is PROJECTED from the command IR (LookupDoor scans redirects_native), so it is verified by a live CLI smoke, not here (the behaviors harness runs its own in-memory query engine and cannot iterate the IR's command structure). These tests cover the recordable COMMANDS : StartSession resets the per-session tally, Deny stamps the latest-denial surface when the PreToolUse hook blocks a native tool, and Complain records the redirect complaint — the audit-trail shape mirrors FixturesRuntime."
+
+  test "StartSession stamps the session start" do
+    tests "StartSession", on: "GovernedDoor"
+    input  session_started_at: "2026-06-26T03:45:00Z"
+    expect session_started_at: "2026-06-26T03:45:00Z"
+  end
+
+  test "StartSession emits SessionStarted" do
+    tests "StartSession", on: "GovernedDoor"
+    input  session_started_at: "2026-06-26T03:45:00Z"
+    expect_event "SessionStarted"
+  end
+
+  test "Deny stamps the latest-denial surface" do
+    tests "Deny", on: "GovernedDoor"
+    input  tool_name: "Bash", door: "Tools::ShellTool.Bash", denied_at: "2026-06-26T04:00:00Z"
+    expect last_denied_tool: "Bash", last_door: "Tools::ShellTool.Bash", last_denied_at: "2026-06-26T04:00:00Z"
+  end
+
+  test "Deny emits NativeToolDenied" do
+    tests "Deny", on: "GovernedDoor"
+    input  tool_name: "Edit", door: "Tools::FileTool.Edit", denied_at: "2026-06-26T04:01:00Z"
+    expect_event "NativeToolDenied"
+  end
+
+  test "Complain stamps the latest-denial surface" do
+    tests "Complain", on: "GovernedDoor"
+    input  tool_name: "Read", door: "Tools::FileTool.Read", denial_text: "The GovernedDoor macrophage expected Read to route through the storehouse door", denied_at: "2026-06-26T04:02:00Z"
+    expect last_denied_tool: "Read", last_door: "Tools::FileTool.Read", last_denied_at: "2026-06-26T04:02:00Z"
+  end
+
+  test "Complain emits DenialComplaintIssued" do
+    tests "Complain", on: "GovernedDoor"
+    input  tool_name: "Grep", door: "Tools::SearchTool.Grep", denial_text: "The GovernedDoor macrophage expected Grep to route through the storehouse door", denied_at: "2026-06-26T04:03:00Z"
+    expect_event "DenialComplaintIssued"
+  end
+end
