@@ -800,21 +800,64 @@ impl Runtime {
     }
 
     /// Hydrate the middleware stack — the runtime projection of the Gate grammar
-    /// (aggregates/language/grammar/gating.bluebook). Self-seeds the STANDING
-    /// gates : today the rbac-authorize before-gate, the transitional projection
-    /// of the Gate the `gating on dispatch` parser surface will declare once it
-    /// lands (sibling kernel card). Self-seeding keeps the door gated regardless
-    /// of boot-time establishment, which does not fire at a real boot today
-    /// (inbox/boot-establishment-not-wired-FINDING.md). Called at boot, after
-    /// the RBAC read-model the rbac-authorize gate reads is hydrated.
+    /// (aggregates/language/grammar/gating.bluebook), the way the Procfile is the
+    /// projection of declared Drivers. Reads every declared, active Gating::Gate
+    /// record (via `all`, the same path the RBAC read-model reads Role/Agent) and
+    /// turns each into a MiddlewareEntry. If NO Gate is declared yet — the
+    /// `gating on dispatch` parser surface that mints them is a sibling kernel
+    /// card — it FALLS BACK to self-seeding the standing rbac-authorize before-
+    /// gate, so the door stays gated regardless of boot-time establishment
+    /// (unwired at a real boot today, inbox/boot-establishment-not-wired-
+    /// FINDING.md). Called at boot after the RBAC read-model is hydrated, and
+    /// re-run when a Gate lifecycle event applies.
     fn hydrate_middleware(&mut self) {
-        let entries = vec![middleware::MiddlewareEntry {
-            name: "rbac-authorize".to_string(),
-            phase: middleware::Phase::Before,
-            handler: "rbac-authorize".to_string(),
-            pattern: "*".to_string(),
-            order: 20,
-        }];
+        // Read a single-value aggregate field as a plain String — the same
+        // coercion the RBAC read-model does over Role/Agent state (raw Str, a
+        // Map with a `value` key, or Null -> empty). Local so this exempt kernel
+        // file owns it and acl_readmodel stays untouched.
+        fn fld(v: &Value) -> String {
+            match v {
+                Value::Str(s) => s.clone(),
+                Value::Map(m) => m.get("value").map(fld).unwrap_or_default(),
+                Value::Null => String::new(),
+                other => format!("{}", other),
+            }
+        }
+        let mut entries: Vec<middleware::MiddlewareEntry> = Vec::new();
+        for st in self.all("Gate") {
+            if fld(st.get("status")) == "retired" {
+                continue;
+            }
+            let name = fld(st.get("name"));
+            if name.is_empty() {
+                continue;
+            }
+            let pattern = {
+                let p = fld(st.get("pattern"));
+                if p.is_empty() { "*".to_string() } else { p }
+            };
+            let order = fld(st.get("order")).parse::<i64>().unwrap_or(100);
+            entries.push(middleware::MiddlewareEntry {
+                name,
+                phase: middleware::Phase::parse(&fld(st.get("phase"))),
+                handler: fld(st.get("check")),
+                pattern,
+                order,
+            });
+        }
+        // The rbac-authorize gate is STANDING : self-seed it unless a Gate of
+        // that name is explicitly declared (so declaring OTHER gates never drops
+        // authz). Once the parser surface declares rbac-authorize as a Gate, the
+        // declared one wins and this self-seed is skipped.
+        if !entries.iter().any(|e| e.name == "rbac-authorize") {
+            entries.push(middleware::MiddlewareEntry {
+                name: "rbac-authorize".to_string(),
+                phase: middleware::Phase::Before,
+                handler: "rbac-authorize".to_string(),
+                pattern: "*".to_string(),
+                order: 20,
+            });
+        }
         self.middleware = middleware::MiddlewareStack::from_entries(entries);
     }
 
@@ -848,6 +891,12 @@ impl Runtime {
         if r.aggregate_type == "Role" || r.aggregate_type == "Agent" {
             let m = acl_readmodel::AclReadModel::hydrate(self);
             self.acl_read_model = m;
+        }
+        // Re-hydrate the middleware stack when a Gate lifecycle command
+        // applied — a Declare/Retire is reflected on the next dispatch's
+        // gates, so the door is driven by the live Gate registry.
+        if r.aggregate_type == "Gate" {
+            self.hydrate_middleware();
         }
         Ok(r)
     }
