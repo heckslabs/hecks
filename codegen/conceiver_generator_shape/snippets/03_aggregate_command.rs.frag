@@ -56,8 +56,10 @@ fn emit_command(out: &mut Vec<String>, cmd: &crate::ir::Command) {
     if let Some(ref emits) = cmd.emits {
         out.push(format!("      emits \"{}\"", emits));
     }
-    if let Some(ref rn) = cmd.redirects_native {
-        out.push(format!("      redirects_native \"{}\"", rn));
+    if !cmd.redirects_native.is_empty() {
+        let quoted: Vec<String> = cmd.redirects_native.iter()
+            .map(|t| format!("\"{}\"", t)).collect();
+        out.push(format!("      redirects_native {}", quoted.join(", ")));
     }
     for g in &cmd.givens {
         let msg = g.message.as_ref().map(|m| format!(" \"{}\"", m)).unwrap_or_default();

@@ -268,7 +268,7 @@ Hecks.fixtures "IrShape" do
     fixture "Command_emits_identified_by", type_name: "Command", order: 7, name: "emits_identified_by", field_type: "Option<String>", doc_snippet: ""
     fixture "Command_givens",      type_name: "Command", order: 8, name: "givens",      field_type: "Vec<Given>",      doc_snippet: ""
     fixture "Command_mutations",   type_name: "Command", order: 9, name: "mutations",   field_type: "Vec<Mutation>",   doc_snippet: ""
-    fixture "Command_redirects_native", type_name: "Command", order: 10, name: "redirects_native", field_type: "Option<String>", doc_snippet: "codegen/ir_shape/snippets/docs/command_redirects_native.rs.frag"
+    fixture "Command_redirects_native", type_name: "Command", order: 10, name: "redirects_native", field_type: "Vec<String>", doc_snippet: "codegen/ir_shape/snippets/docs/command_redirects_native.rs.frag"
 
     # Factory — 10 fields. A BIRTH : mints a new instance of `produces`
     # (Self by default ; another aggregate for the cross-aggregate case —

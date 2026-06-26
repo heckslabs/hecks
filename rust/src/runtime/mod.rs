@@ -491,7 +491,7 @@ impl Runtime {
                     mutations: f.mutations,
                     // A factory is never a governed door ; it mints an
                     // aggregate, it does not replace a native tool.
-                    redirects_native: None,
+                    redirects_native: vec![],
                 });
             }
         }

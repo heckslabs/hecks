@@ -8,7 +8,7 @@ pub fn parse_command(lines: &[&str]) -> (Command, usize) {
     let mut cmd = Command {
         name, description: None, role: None, attributes: vec![],
         references: vec![], emits: None, emits_identified_by: None,
-        givens: vec![], mutations: vec![], redirects_native: None,
+        givens: vec![], mutations: vec![], redirects_native: vec![],
     };
 
     if first.contains("{") && first.contains("}") {
@@ -71,13 +71,14 @@ pub fn parse_command(lines: &[&str]) -> (Command, usize) {
                 // side to dedupe two reports of the same event.
                 cmd.emits_identified_by = extract_kwarg_symbol(line, "identified_by");
             } else if line.starts_with("redirects_native") {
-                // This command is the governed door for a native harness
-                // tool — `redirects_native "Bash"`. The macrophage's
-                // governed-channel rule PROJECTS the native-tool -> door map
-                // from every command carrying this ; door_args derives from
-                // the command's attributes. Mirrors `emits` : a command-level
-                // string declaration lifted straight into the IR.
-                cmd.redirects_native = extract_string(line);
+                // This command is the governed door for one or more native
+                // harness tools — `redirects_native "Edit", "MultiEdit"`. The
+                // macrophage's governed-channel rule PROJECTS the native-tool
+                // -> door map from every command carrying this ; door_args
+                // derives from the command's attributes. A LIST : the quoted
+                // tool names are the odd-indexed split-on-quote pieces.
+                cmd.redirects_native = line.split('"').skip(1).step_by(2)
+                    .map(|s| s.to_string()).collect();
             } else if line.starts_with("reference_to") {
                 if let Some(target) = extract_word_after(line, "reference_to") {
                     // i526 : honour `, as: :name` and `, role: :name`

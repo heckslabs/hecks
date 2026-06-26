@@ -69,7 +69,7 @@ module Hecks
       def initialize(name:, attributes: [], references: [], handler: nil, guard_name: nil,
                      read_models: [], external_systems: [], actors: [],
                      call_body: nil, sets: {}, preconditions: [], postconditions: [], emits: nil,
-                     emits_identified_by: nil, redirects_native: nil,
+                     emits_identified_by: nil, redirects_native: [],
                      description: nil, method_name: nil, goal: nil,
                      givens: [], mutations: [])
         @name = Names.command_name(name)
