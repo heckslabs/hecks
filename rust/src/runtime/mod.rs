@@ -1472,7 +1472,7 @@ impl Runtime {
                 // Reclaim the per-process shards this merge has now FULLY
                 // folded whose owning process is DEAD — the GC half of
                 // consolidation (every dispatch process leaves an orphan
-                // shard ; without this ~/.heki/.../shards grows without
+                // shard ; without this the data root's .../shards grows without
                 // bound). Only when the live-process set is TRUSTWORTHY :
                 // live_pids() returns None on a failed/empty ps and we
                 // reclaim nothing, never risking a live process's open

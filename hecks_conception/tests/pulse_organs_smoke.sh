@@ -103,7 +103,7 @@ cat > "$TMP/bluebooks/pulse_organs_smoke.world" <<EOF
 Hecks.world "PulseOrgansSmoke" do
   # dir :default keys the store by THIS conception's directory. The tmpdir is
   # not under ~/Projects, so :default co-locates the store at <tmpdir>/.heki —
-  # automatically isolated from the live ~/.heki, no HECKS_INFO, no literal path.
+  # automatically isolated from the live OS data root, no HECKS_INFO, no literal path.
   heki do
     dir :default
   end

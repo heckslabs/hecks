@@ -83,7 +83,7 @@ fi
 # *.world pins the heki dir. `dir :default` keys the store by the dispatched
 # conception dir ; the world must live INSIDE the dispatched aggregates dir so
 # the runtime co-locates the store at <aggregates>/.heki. The tmpdir is not
-# under ~/Projects, so :default isolates from the live ~/.heki — no HECKS_INFO.
+# under ~/Projects, so :default isolates from the live OS data root — no HECKS_INFO.
 cat > "$TMP/aggregates/pulse_fanout_smoke.world" <<'EOF'
 Hecks.world "PulseFanoutSmoke" do
 heki do

@@ -4,8 +4,9 @@ Hecks.world "WebDebug" do
   # instead of wiring.
 
   # Persistence — bluebook-wide, top-level (not dotted off one aggregate).
-  # `persisted_by("Heki")` + `dir :default` : the store location rooted at
-  # ~/.heki, mirroring where this bluebook lives. :default resolves by
+  # `persisted_by("Heki")` + `dir :default` : the store location rooted at the
+  # OS data root (~/Library/Application Support/Hecks on macOS), mirroring where
+  # this bluebook lives. :default resolves by
   # convention — never a silent fallback.
   persisted_by("Heki") do
     dir :default

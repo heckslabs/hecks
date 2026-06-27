@@ -873,7 +873,7 @@ pub fn resolve_realm_dir(aggregates_path: &str) -> Option<String> {
 /// The OS-standard per-user data root — ask the OS, NEVER a custom override
 /// (HECKS_DATA_DIR does not exist). macOS: ~/Library/Application Support/Hecks ;
 /// Linux: $XDG_DATA_HOME or ~/.local/share/Hecks ; Windows: %APPDATA%\Hecks.
-/// REPLACES the legacy ~/.heki base — the realm folders (hecks/, miette/, …)
+/// REPLACES the legacy per-user heki base — the realm folders (hecks/, miette/, …)
 /// live under it. Reads only the OS's STANDARD data-dir env vars
 /// ($XDG_DATA_HOME / $APPDATA / $HOME) — which IS asking the OS, not a
 /// Hecks-specific override.
@@ -923,7 +923,7 @@ pub fn realm_store_dir(realm_path: Option<&str>, global: Option<&str>) -> Option
 
 /// Folder-derivation resolution (presence-switch on `dir :default`). When a
 /// nearby `.world` declares `heki do; dir :default end`, the store mirrors the
-/// bluebook location : rooted at ~/.heki, the project-relative folder chain
+/// bluebook location : rooted at the OS data root (data_root()), the project-relative folder chain
 /// with `aggregates`/`bluebook` containers stripped and the trailing domain
 /// folder dropped (the aggregate `context` re-adds it). `None` unless a nearby
 /// world opts in.
@@ -959,9 +959,9 @@ pub fn resolve_default_dir(aggregates_path: &str) -> Option<String> {
     // store, which IS the isolation mechanism : a test runs from a tmpdir
     // conception and gets its OWN store, with no env redirect (HECKS_INFO is
     // gone). Under ~/Projects the key is the source-tree chain rooted at the
-    // canonical live ~/.heki ; ANYWHERE ELSE (a /tmp test conception) the store
-    // is co-located at <dir>/.heki — isolated, cleaned up with the tmpdir, and
-    // never touching the live ~/.heki.
+    // canonical live OS data root ; ANYWHERE ELSE (a /tmp test conception) the
+    // store is co-located at <dir>/.heki — isolated, cleaned up with the
+    // tmpdir, and never touching the live OS data root.
     let root = match default_chain(aggregates_path) {
         Some(chain) => data_root().join(chain),
         None => {
@@ -1502,7 +1502,7 @@ fn tempdir(tag: &str) -> std::path::PathBuf {
 #[test]
 fn expand_tilde_expands_home_prefix() {
     let home = std::env::var("HOME").expect("HOME set in test env");
-    assert_eq!(expand_tilde("~/.heki"), format!("{}/.heki", home.trim_end_matches('/')));
+    assert_eq!(expand_tilde("~/data"), format!("{}/data", home.trim_end_matches('/')));
     assert_eq!(expand_tilde("~"), home);
 }
 
@@ -1534,7 +1534,7 @@ fn realm_less_world_declines_so_legacy_path_is_untouched() {
     let root = tempdir("absent");
     let agg = root.join("agg");
     fs::create_dir_all(&agg).unwrap();
-    let world = "Hecks.world \"Demo\" do\n  heki do\n    dir \"~/.heki\"\n  end\nend\n";
+    let world = "Hecks.world \"Demo\" do\n  heki do\n    dir \"/tmp/legacy-store\"\n  end\nend\n";
     fs::write(agg.join("demo.world"), world).unwrap();
     assert!(resolve_realm_dir(agg.to_str().unwrap()).is_none());
 }

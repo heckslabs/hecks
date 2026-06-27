@@ -59,7 +59,7 @@ find "$conception/aggregates" -name "*.bluebook" -exec ln -sf {} "$tmp/aggregate
 # *.world pins the heki dir. `dir :default` keys the store by the dispatched
 # conception dir ; living inside the dispatched aggregates dir, the runtime
 # co-locates the seed store at <aggregates>/.heki (tmpdir is outside ~/Projects,
-# so it isolates from the live ~/.heki). No HECKS_INFO ; the world is authority.
+# so it isolates from the live OS data root). No HECKS_INFO ; the world is authority.
 cat > "$tmp/aggregates/status_golden.world" <<'EOF'
 Hecks.world "StatusGolden" do
   heki do

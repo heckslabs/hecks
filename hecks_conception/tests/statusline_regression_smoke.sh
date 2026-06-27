@@ -73,9 +73,9 @@ find "$CONCEPT_DIR/aggregates" -name "*.bluebook" -exec ln -sf {} "$WORK/aggrega
 # *.world pins the heki dir for the BUS SEED only. `dir :default` keys the store
 # by the dispatched conception dir ; living inside $WORK/aggregates (a tmpdir,
 # outside ~/Projects) it co-locates the seed at $WORK/aggregates/.heki, isolated
-# from the live ~/.heki — no HECKS_INFO. NOTE the render reads a DIFFERENT store :
+# from the live OS data root — no HECKS_INFO. NOTE the render reads a DIFFERENT store :
 # `storehouse statusline` resolves its store via resolve_info_dir(), which walks
-# up to the REAL repo's hecks_conception/aggregates world (the live ~/.heki),
+# up to the REAL repo's hecks_conception/aggregates world (the live OS data root),
 # ignoring both this seed dir and FAKE_HOME (FAKE_HOME only drives the inbox
 # walk). The seed is therefore not visible to the render ; the assertions below
 # are STRUCTURAL (non-empty line, retired signals absent, empty-channel clean).

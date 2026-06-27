@@ -52,7 +52,7 @@ cd hecks_conception/information
 
 The store location is set by the `.world` file (`dir :default`), not an env var.
 `dir :default` keys the store by the conception directory : a conception under
-`~/Projects` persists to `~/.heki/<chain>` ; anywhere else (a /tmp test conception)
+`~/Projects` persists to the OS data root (`~/Library/Application Support/Hecks` on macOS) under `<chain>` ; anywhere else (a /tmp test conception)
 co-locates the store at `<dir>/.heki`. There is no `HECKS_INFO` — the world is the
 single store authority.
 

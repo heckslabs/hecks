@@ -64,7 +64,7 @@ cat > "$TMP/aggregates/interpret_dream_smoke.world" <<'EOF'
 Hecks.world "InterpretDreamSmoke" do
   # dir :default keys the store by THIS conception's directory. The dispatch
   # dir ($TMP/aggregates) is not under ~/Projects, so :default co-locates the
-  # store at $TMP/aggregates/.heki — isolated from the live ~/.heki, no HECKS_INFO.
+  # store at $TMP/aggregates/.heki — isolated from the live OS data root, no HECKS_INFO.
   heki do
     dir :default
   end
