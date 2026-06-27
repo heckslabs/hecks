@@ -19,7 +19,7 @@ fn as_agent(auth: &str, extra: &[(&str, &str)]) -> HashMap<String, Value> {
     m
 }
 
-const GATING: &str = include_str!("../../hecks_conception/aggregates/language/grammar/gating.bluebook");
+const GATING: &str = include_str!("../../hecks_conception/aggregates/storehouse/storehouse.bluebook");
 const AUTHZ: &str = include_str!("../../hecks_conception/aggregates/framework/authorization/authorization.bluebook");
 const AUTHID: &str = include_str!("../../hecks_conception/aggregates/framework/agent/auth_identity.bluebook");
 const DEMO: &str = include_str!("fixtures/authz_demo.bluebook");

@@ -29,7 +29,7 @@ fn as_agent(auth: &str, extra: &[(&str, &str)]) -> HashMap<String, Value> {
 }
 
 const GATING: &str =
-    include_str!("../../hecks_conception/aggregates/language/grammar/gating.bluebook");
+    include_str!("../../hecks_conception/aggregates/storehouse/storehouse.bluebook");
 const AUTH: &str =
     include_str!("../../hecks_conception/aggregates/framework/agent/auth_identity.bluebook");
 

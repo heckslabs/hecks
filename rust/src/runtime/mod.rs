@@ -619,7 +619,7 @@ impl Runtime {
         // overrides so it reads the final repositories.
         let m = acl_readmodel::AclReadModel::hydrate(&rt);
         rt.acl_read_model = m;
-        // Hydrate the middleware stack (runtime projection of the Gate grammar).
+        // Hydrate the middleware stack (runtime projection of the Gate registry).
         rt.hydrate_middleware();
         rt
     }
@@ -754,8 +754,8 @@ impl Runtime {
             attrs.remove(acl_readmodel::AUTH_KEY);
             return Ok(());
         }
-        // Run the registered before-middleware gates in order. The Gate grammar
-        // (aggregates/language/grammar/gating.bluebook) is the declared truth —
+        // Run the registered before-middleware gates in order. The Gate registry
+        // (aggregates/storehouse/storehouse.bluebook) is the declared truth —
         // which gate, what order, over which dispatches — and the MiddlewareStack
         // is its runtime projection. Each handler key resolves to an in-process
         // verdict function (`run_gate`), mirroring Storehouse::Primitive.
@@ -999,9 +999,9 @@ impl Runtime {
         }
     }
 
-    /// Hydrate the middleware stack — the runtime projection of the Gate grammar
-    /// (aggregates/language/grammar/gating.bluebook), the way the Procfile is the
-    /// projection of declared Drivers. Reads every declared, active Gating::Gate
+    /// Hydrate the middleware stack — the runtime projection of the Gate registry
+    /// (aggregates/storehouse/storehouse.bluebook), the way the Procfile is the
+    /// projection of declared Drivers. Reads every declared, active Storehouse::Gate
     /// record (via `all`, the same path the RBAC read-model reads Role/Agent) and
     /// turns each into a MiddlewareEntry. If NO Gate is declared yet — the
     /// `gating on dispatch` parser surface that mints them is a sibling kernel
