@@ -3753,6 +3753,32 @@ impl Runtime {
         self.resolve_query_qualified(None, "", query_name, attrs)
     }
 
+    /// Gated read entry — the query-side mirror of `dispatch`. Runs the SAME
+    /// before-gates as a command (authenticate / authorize PDP / service),
+    /// keyed on the query name as the action, then calls `resolve_query` (the
+    /// UNGATED core). Reads are authorized symmetrically with writes :
+    /// `query`(gated) / `resolve_query`(ungated) parallels `dispatch` /
+    /// `dispatch_impl`. The ungated core stays the inner path a service-gate's
+    /// own check-query uses, so a gate never re-gates itself (no regress).
+    /// `scope_to` row-scoping still narrows WHICH rows ; the gate decides
+    /// WHETHER the read runs at all. The principal rides the reserved
+    /// actor_kind/actor_auth_id keys, exactly as for a command.
+    pub fn query(
+        &mut self,
+        query_name: &str,
+        attrs: std::collections::HashMap<String, String>,
+    ) -> Result<serde_json::Value, RuntimeError> {
+        let mut gate_attrs: HashMap<String, Value> = HashMap::new();
+        if let Some(k) = attrs.get(acl_readmodel::KIND_KEY) {
+            gate_attrs.insert(acl_readmodel::KIND_KEY.to_string(), Value::Str(k.clone()));
+        }
+        if let Some(id) = attrs.get(acl_readmodel::AUTH_KEY) {
+            gate_attrs.insert(acl_readmodel::AUTH_KEY.to_string(), Value::Str(id.clone()));
+        }
+        self.authorize_entry(query_name, &mut gate_attrs)?;
+        Ok(self.resolve_query(query_name, &attrs))
+    }
+
     /// Run interactively — the terminal adapter drives the runtime.
     #[cfg(not(target_arch = "wasm32"))]
     pub fn run_interactive(&mut self) {

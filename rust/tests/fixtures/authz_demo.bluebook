@@ -15,5 +15,9 @@ Hecks.bluebook "AuthzDemo" do
       then_set :name, to: :name
       emits "Opened"
     end
+
+    query "List" do
+      description "List vaults — a role-LESS read, so the authorize PDP gate (via Runtime::query) is the sole decider for the query path."
+    end
   end
 end

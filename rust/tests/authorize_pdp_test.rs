@@ -112,3 +112,40 @@ fn wildcard_principal_permits_any_agent() {
     permit(&mut rt, "any-open", "*", "Open", "*", "-");
     open_as(&mut rt, "bob").expect("wildcard principal should allow any agent");
 }
+
+// ── Read-path gating : queries are authorized symmetrically with commands ──
+fn as_agent_str(auth: &str) -> HashMap<String, String> {
+    let mut m: HashMap<String, String> = HashMap::new();
+    m.insert("actor_kind".to_string(), "agent".to_string());
+    m.insert("actor_auth_id".to_string(), auth.to_string());
+    m
+}
+
+#[test]
+fn query_deny_by_default() {
+    let mut rt = booted();
+    turn_on_pdp(&mut rt);
+    // No permit for the List read -> the gated query entry denies (deny-by-default).
+    match rt.query("List", as_agent_str("alice")).unwrap_err() {
+        RuntimeError::Unauthorized { required, .. } => {
+            assert!(required.contains("authorization permit"), "expected query deny-by-default, got: {}", required)
+        }
+        e => panic!("expected Unauthorized, got {:?}", e),
+    }
+}
+
+#[test]
+fn query_permit_allows() {
+    let mut rt = booted();
+    turn_on_pdp(&mut rt);
+    permit(&mut rt, "alice-list", "alice", "List", "*", "-");
+    rt.query("List", as_agent_str("alice")).expect("permit should allow the read");
+}
+
+#[test]
+fn query_system_admitted() {
+    let mut rt = booted();
+    turn_on_pdp(&mut rt);
+    // System (no actor_kind) -> admitted by origin even with deny-by-default on.
+    rt.query("List", HashMap::new()).expect("system read admitted by origin");
+}
