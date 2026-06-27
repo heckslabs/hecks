@@ -12,6 +12,7 @@ Four cell families, one defense (`immune_system.bluebook` is the vision-only umb
 
 ## DETECT — `macrophage/`
 - `macrophage.bluebook` — the live bluebook-first watcher (PostToolUse hook dispatch target) plus the i595 per-rule sibling family: BluebookFirst, FixturesRuntime, AntibodyExemption, Warnings, LinearReference, LineCount, TestSpeed, CardLock, BidirectionalAssociation, IdentityDiscipline, CorrespondenceDiscipline. Complains every time imperative habits return when the work wants to be a bluebook.
+- `governed_door.bluebook` — the **channel barrier** (`Macrophage::GovernedDoor`), the *pre-act* sibling : a PreToolUse hard-block of ungoverned native tools. Projects the native→door map from each door command's `redirects_native` declaration (the `LookupDoor` meta-query, read straight from the IR — no fixtures, no seeded registry) and records each blocked act as a per-record denial. Where the rest of the family complains *after* an act, this one blocks *before* it — the skin, expressed as a macrophage rule. Its denials and the inbound Gate's vetoes both land in the `Governance::Violation` audit.
 
 ## REPAIR — `repair_cell/`
 - `fibroblast/fibroblast.bluebook` — one healing attempt ; closes the narrow, unambiguous gaps the other cells surface ; declines gracefully when ambiguous.
