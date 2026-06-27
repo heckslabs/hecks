@@ -789,6 +789,11 @@ impl Runtime {
         match handler {
             "rbac-authorize" => self.acl_check(command_name, attrs),
             "authenticate" => self.authenticate_check(command_name, attrs),
+            // A check that names a storehouse query (it has a `.`) IS the gate :
+            // "it can all be storehouse service". rbac-authorize / authenticate
+            // are the two conventional shortcuts for the read-model-backed gates ;
+            // every OTHER gate is a plain bluebook query, run through the one door.
+            fqn if fqn.contains('.') => self.service_gate(fqn, command_name, attrs),
             other => Err(RuntimeError::Unauthorized {
                 command: command_name.to_string(),
                 required: format!(
@@ -797,6 +802,50 @@ impl Runtime {
                 ),
                 held: String::new(),
             }),
+        }
+    }
+
+    /// A storehouse-service gate — the realization of "a gate is a storehouse
+    /// service, not a DSL". The `check` names a QUERY (Domain::Aggregate.
+    /// snake_case) ; the runtime runs it READ-ONLY with the caller's principal
+    /// (`actor`) and the dispatched `command` as params, and ALLOWS iff the
+    /// query returns at least one row — the query expresses the PERMITTED set,
+    /// empty means not-permitted means deny. A System origin is admitted by
+    /// origin (daemons, cascades, boot), like the built-in gates. No new
+    /// grammar : any bluebook query is a gate, declared via Gate.Declare,
+    /// resolved through the universal door — convention over configuration.
+    fn service_gate(
+        &self,
+        query_fqn: &str,
+        command_name: &str,
+        attrs: &HashMap<String, Value>,
+    ) -> Result<(), RuntimeError> {
+        let actor = match acl_readmodel::principal_from_attrs(attrs) {
+            acl_readmodel::Principal::System => return Ok(()),
+            acl_readmodel::Principal::Agent { auth_identity_id } => auth_identity_id,
+        };
+        let mut params: HashMap<String, String> = HashMap::new();
+        params.insert("actor".to_string(), actor);
+        params.insert("command".to_string(), command_name.to_string());
+        // The check may be written Aggregate.Query (legible) ; resolve_query
+        // matches on the bare query name, so pass the tail after the last `.`.
+        let query = query_fqn.rsplit('.').next().unwrap_or(query_fqn);
+        // resolve_query returns { aggregate, query, state: [rows] } — the rows
+        // are under `state`. ALLOW iff that holds at least one row.
+        let result = self.resolve_query(query, &params);
+        let permitted = match result.get("state") {
+            Some(serde_json::Value::Array(rows)) => !rows.is_empty(),
+            Some(serde_json::Value::Object(map)) => !map.is_empty(),
+            _ => false,
+        };
+        if permitted {
+            Ok(())
+        } else {
+            Err(RuntimeError::Unauthorized {
+                command: command_name.to_string(),
+                required: format!("storehouse-service gate '{}' to permit", query_fqn),
+                held: String::new(),
+            })
         }
     }
 

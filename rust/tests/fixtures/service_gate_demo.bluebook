@@ -1,0 +1,29 @@
+Hecks.bluebook "SessionGateDemo" do
+  vision "Test fixture : a SessionAllowlist whose `Permits` query is used AS a storehouse-service gate. The principal at the door is a SESSION IDENTITY (not a role — roles are the separate RBAC axis) ; this is a real authz pattern : an allow-list of identities permitted to dispatch at all. A Gate declared with check \"SessionAllowlist.Permits\" turns this ordinary bluebook query into a dispatch gate — no DSL, no Rust verdict, just a query resolved through the universal door. The gate passes the caller's identity as the reserved `actor` kwarg ; Permits returns the row for that session (empty when not admitted) ; the gate allows iff the query returns a row."
+  category "framework"
+
+  aggregate "SessionAllowlist", "The set of session identities permitted to dispatch at the door. Admit adds one ; Permits is the query a storehouse-service Gate runs to decide allow/deny for the calling session." do
+    identified_by :session
+
+    attribute :session, Session
+
+    value_object "Session" do
+      # A session identity — the same shape as AuthIdentity.id / the reserved
+      # `actor` principal the door stamps. NOT a role.
+      attribute :value, String
+    end
+
+    command "Admit" do
+      role "System"
+      description "Add a session identity to the allow-list. Dispatched as System during setup."
+      attribute :session, Session
+      then_set :session, to: :session
+      emits "Admitted"
+    end
+
+    query "Permits" do
+      description "The allow-list row for the queried session — the storehouse-service gate admits iff this returns a row. The gate passes the caller's session identity as the reserved `actor` kwarg."
+      where session: :actor
+    end
+  end
+end
