@@ -1,5 +1,5 @@
 Hecks.bluebook "AuthIdentity", version: "2026.06.26.1" do
-  vision "The authentication primitive (i264, finally landing). An AuthIdentity is a credential-bearing identity a human Agent binds to — the verifiable WHO behind a session, the thing Agent.auth_identity_id has pointed at as a bare string since 2026-05-07. It adapts the session token already in the body : the id IS the value the runtime reads from HECKS_SESSION_AUTH_ID, so authentication stops being 'trust the env var' and becomes 'verify the env var resolves to a known, verified identity'. The CREDENTIAL is the secret's NAME (the env-var the verifier reads), NEVER the secret value — the same discipline payment.family's `secret` field holds. VERIFICATION IS AN IMPURE EDGE, and it runs ONCE per session at Establish, not per dispatch : Establish leaves the identity `pending` and emits Established ; the authentication Family (verified_by) does the external check out-of-process ; its verdict re-enters as MarkVerified (-> active) or Reject (-> rejected), the exact charged_by effect shape Pizzas::Order uses for payment. This is authn 'via adapters' done without the two-color violation : the network round-trip is a once-per-session effect, NOT a per-dispatch blocking call. The per-dispatch `authenticate` Gate (language/grammar/gating.bluebook ; a before-gate, order 10, ahead of rbac-authorize's 20) is the IN-PROCESS half : it reads AuthIdentity.Active (a boot-hydrated read-model, like the AclReadModel) and admits a dispatch iff its principal resolves to an active (verified, non-retired) identity — fail closed otherwise. Session-establish = impure Family (verify the credential) ; per-dispatch = sync Gate (is the principal an active identity). Once this lands, Agent.auth_identity_id upgrades from String to reference_to AuthIdentity in the same migration (NOT done here — documented below)."
+  vision "The authentication primitive (i264, finally landing). An AuthIdentity is a credential-bearing identity a human Agent binds to — the verifiable WHO behind a session, the thing Agent.auth_identity_id has pointed at as a bare string since 2026-05-07. It adapts the session token already in the body : the id IS the value the runtime reads from HECKS_SESSION_AUTH_ID, so authentication stops being 'trust the env var' and becomes 'verify the env var resolves to a known, verified identity'. The CREDENTIAL is the secret's NAME (the env-var the verifier reads), NEVER the secret value — the same discipline payment.family's `secret` field holds. VERIFICATION IS AN IMPURE EDGE, and it runs ONCE per session at Establish, not per dispatch : Establish leaves the identity `pending` and emits Established ; the authentication Family (verified_by) does the external check out-of-process ; its verdict re-enters as MarkVerified (-> active) or Reject (-> rejected), the exact charged_by effect shape Pizzas::Order uses for payment. This is authn 'via adapters' done without the two-color violation : the network round-trip is a once-per-session effect, NOT a per-dispatch blocking call. The per-dispatch `authenticate` Gate (language/grammar/gating.bluebook ; a before-gate, order 10, ahead of rbac-authorize's 20) is the IN-PROCESS half : it reads AuthIdentity.Active (a boot-hydrated read-model, like the AclReadModel) and admits a dispatch iff its principal resolves to an active (verified, non-retired) identity — fail closed otherwise. Session-establish = impure Family (verify the credential) ; per-dispatch = sync Gate (is the principal an active identity). Agent is NOT linked to AuthIdentity by a stored attribute : the authenticate Gate (active-identity, order 10) and the rbac Gate (role, order 20) key off the SAME principal independently, so identity revocation cascades into authorization by gate COMPOSITION — a retired AuthIdentity fails authenticate before rbac runs. No belongs_to, no typed reference. Auth is a detail at the gate layer, not a domain relationship."
   category "framework"
 
   # ============================================================
@@ -35,20 +35,24 @@ Hecks.bluebook "AuthIdentity", version: "2026.06.26.1" do
   #
   # framework/families/authentication.family — the verified_by effect edge.
   # framework/adapters/session_verifier.adapter — a verifier implementing it.
-  # framework/agent/agent.bluebook — Agent.auth_identity_id binds here
-  #   (String today ; reference_to AuthIdentity after the migration below).
+  # framework/agent/agent.bluebook — Agent.auth_identity_id is a plain String
+  #   authz-lookup key ; Agent is NOT linked to AuthIdentity by attribute — the
+  #   principal joins them at the gate layer (see below).
   # language/grammar/gating.bluebook — the `authenticate` before-Gate that
   #   reads AuthIdentity.Active in-process per dispatch.
   #
-  # ── MIGRATION (documented, NOT executed here) ────────────────────
+  # ── NO LINK ATTRIBUTE — gate composition, not a relationship (2026-06-27) ─
   #
-  # agent.bluebook carries `attribute :auth_identity_id, AuthIdentityId`
-  # (a String VO) with a comment promising this upgrade. Once the
-  # authenticate Gate is wired in the runtime, a single migration replaces
-  # that String with `reference_to AuthIdentity` and repoints the RBAC
-  # read-model to resolve the principal THROUGH AuthIdentity (active-only).
-  # Deferred deliberately : it touches the live RBAC gate + every Agent
-  # record, so it rides the same fresh-head/gated lane as the parser work.
+  # Agent is NOT linked to AuthIdentity by a stored attribute, and an earlier
+  # `reference_to AuthIdentity` migration was CANCELLED. The two are joined
+  # IMPLICITLY by the principal : the authenticate Gate checks the principal is
+  # an active AuthIdentity (order 10) ; the rbac Gate maps the SAME principal
+  # -> Agent.auth_identity_id -> role (order 20). They key off the same auth_id
+  # independently, so identity revocation ALREADY cascades into authorization
+  # by GATE COMPOSITION — a retired AuthIdentity fails the authenticate Gate
+  # before rbac ever runs. No belongs_to, no typed reference, no touch to the
+  # live RBAC read-model. Auth is a detail that lives at the gate layer, not a
+  # relationship in the domain model.
 
   aggregate "AuthIdentity", "A credential-bearing identity behind a session — the verifiable WHO an Agent binds to. id adapts HECKS_SESSION_AUTH_ID ; credential names the secret (never holds it) ; status tracks the once-per-session verification (pending -> active|rejected -> retired). The impure verification is the authentication Family at Establish ; the per-dispatch authenticate Gate reads Active in-process." do
     identified_by :id
