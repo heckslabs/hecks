@@ -10,6 +10,11 @@
 //!     get: "/path/with/:params",
 //!     serializer: :name             ← named runtime serializer (JSON)
 //!
+//! `template_path` is a RELATIVE path resolved at RENDER time, not scan
+//! time : `served_dir.join(raw)` first (so a served domain ships its own
+//! template), then `repo_root.join(raw)` as a fallback (so the framework's
+//! LivingDiagram template under the hecks install still resolves).
+//!
 //! The dev server (`server::multi`) consults this registry on each
 //! request before falling through to its hardcoded routes. When a
 //! request matches, params bind from the path segments and the
@@ -35,7 +40,6 @@
 
 use crate::hecksagon_ir::{Hecksagon, IoAdapter};
 use std::collections::HashMap;
-use std::path::PathBuf;
 
 /// One registered :web adapter — the resolved declaration from a
 /// hecksagon, ready for route matching.
@@ -53,10 +57,14 @@ pub struct WebRoute {
     /// computed once. Empty leading element (from the leading slash)
     /// is preserved so segment-count matching is straightforward.
     pub segments: Vec<String>,
-    /// Path to a static template file the server reads + substitutes
-    /// `{{param}}` against the matched path params. None when
+    /// RAW relative template path as authored in the hecksagon, e.g.
+    /// `"x.html"` or `"runtime/living_diagram/diagram.html.template"`.
+    /// Resolution is DEFERRED to render time : a served domain's template
+    /// lives under `served_dir`, a framework template under `repo_root`,
+    /// and we cannot tell which at scan time. `render` tries
+    /// `served_dir.join(raw)` first, then `repo_root.join(raw)`. None when
     /// `serializer` is set.
-    pub template_path: Option<PathBuf>,
+    pub template_path: Option<String>,
     /// Named runtime serializer — for now only `graph_projection` is
     /// recognised. The server emits the corresponding JSON shape.
     pub serializer: Option<String>,
@@ -78,8 +86,15 @@ pub struct WebRegistry {
     routes: Vec<WebRoute>,
     /// The directory passed to `serve <dir>` — used by serializers
     /// like `user_flows` that read sibling files (inbox cards) from
-    /// the served tree.
+    /// the served tree, AND as the FIRST place a route's relative
+    /// `template_path` is resolved against at render time.
     pub served_dir: std::path::PathBuf,
+    /// The hecks install root (`repo_root_of_binary()`). FALLBACK for
+    /// resolving a route's relative `template_path` when the served tree
+    /// doesn't carry it — this is how the framework's LivingDiagram
+    /// template (`runtime/living_diagram/diagram.html.template`) still
+    /// resolves while a served domain ships its own template.
+    pub repo_root: std::path::PathBuf,
 }
 
 impl WebRegistry {
@@ -97,12 +112,16 @@ impl WebRegistry {
         for (hex_name, hex) in hecksagons {
             for adapter in &hex.io_adapters {
                 if adapter.kind != "web" { continue; }
-                if let Some(route) = build_route(adapter, hex_name, repo_root) {
+                if let Some(route) = build_route(adapter, hex_name) {
                     routes.push(route);
                 }
             }
         }
-        WebRegistry { routes, served_dir: served_dir.to_path_buf() }
+        WebRegistry {
+            routes,
+            served_dir: served_dir.to_path_buf(),
+            repo_root: repo_root.to_path_buf(),
+        }
     }
 
     /// Try to resolve a request to a registered route. On match,
@@ -149,12 +168,12 @@ impl WebRegistry {
 /// Translate one IoAdapter (kind=="web") into a WebRoute. Returns
 /// None when the declaration is malformed (missing route + missing
 /// template/serializer pair).
-fn build_route(adapter: &IoAdapter, source: &str, repo_root: &std::path::Path)
+fn build_route(adapter: &IoAdapter, source: &str)
     -> Option<WebRoute>
 {
     let mut method = "GET".to_string();
     let mut pattern = String::new();
-    let mut template_path: Option<PathBuf> = None;
+    let mut template_path: Option<String> = None;
     let mut serializer: Option<String> = None;
     let mut content_type: Option<String> = None;
     let mut defaults: HashMap<String, String> = HashMap::new();
@@ -170,7 +189,7 @@ fn build_route(adapter: &IoAdapter, source: &str, repo_root: &std::path::Path)
             "post"         => { method = "POST".into();  pattern = v; }
             "put"          => { method = "PUT".into();   pattern = v; }
             "delete"       => { method = "DELETE".into(); pattern = v; }
-            "template_path" => template_path = Some(repo_root.join(&v)),
+            "template_path" => template_path = Some(v),
             "serializer"    => serializer = Some(v),
             "content_type"  => content_type = Some(v),
             "name" => {} // Adapter name — purely diagnostic, ignored here.
@@ -240,6 +259,7 @@ pub fn render(
     params: &HashMap<String, String>,
     runtimes: &std::collections::HashMap<String, std::cell::RefCell<crate::runtime::Runtime>>,
     served_dir: &std::path::Path,
+    repo_root: &std::path::Path,
 ) -> Option<(String, String)> {
     // Merge declared defaults under matched URL params : URL wins
     // when both name the same key, but a route with no path-params
@@ -247,8 +267,14 @@ pub fn render(
     let mut merged: HashMap<String, String> = route.defaults.clone();
     for (k, v) in params { merged.insert(k.clone(), v.clone()); }
 
-    if let Some(ref template_path) = route.template_path {
-        let text = std::fs::read_to_string(template_path).ok()?;
+    if let Some(ref raw) = route.template_path {
+        // Resolve the authored RELATIVE template path. A served
+        // domain ships its template under `served_dir` ; the framework
+        // (LivingDiagram) ships its under `repo_root`. Try served_dir
+        // first, fall back to repo_root — so both cases serve.
+        let served = served_dir.join(raw);
+        let resolved = if served.exists() { served } else { repo_root.join(raw) };
+        let text = std::fs::read_to_string(&resolved).ok()?;
         let mut out = text;
         for (k, v) in &merged {
             out = out.replace(&format!("{{{{{}}}}}", k), v);

@@ -321,7 +321,9 @@ fn handle_multi(
     let mut served = false;
     for (route, params) in registry.resolve_all(&method, &path) {
         if let Some((content_type, body)) =
-            crate::server::web_adapter::render(route, &params, runtimes, &registry.served_dir)
+            crate::server::web_adapter::render(
+                route, &params, runtimes, &registry.served_dir, &registry.repo_root,
+            )
         {
             write_response_typed(&mut stream, "200 OK", &content_type, &body);
             served = true;
