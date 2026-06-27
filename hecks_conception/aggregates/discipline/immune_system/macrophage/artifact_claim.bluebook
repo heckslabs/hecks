@@ -7,9 +7,9 @@ Hecks.bluebook "ArtifactClaim", version: "2026.06.16.1" do
   # ============================================================
   #
   # Sibling of AgentDiscipline in the macrophage immune_system.
-  # (GovernedDoor — the native-tool -> door redirect map — has since
-  # moved UP to framework/governance/ : the barrier/skin is synchronous
-  # pre-act prevention, upstream of these post-hoc cells.) Where a CLOSED
+  # (GovernedDoor — the native-tool -> door redirect map, projected from the
+  # IR — is the pre-act sibling : synchronous PreToolUse prevention, where
+  # these cells are post-hoc.) Where a CLOSED
   # registry seeded by fixtures holds a fixed set (governed tools /
   # violation kinds),
   # ArtifactClaim holds an OPEN, discovered set : every path token
@@ -27,8 +27,8 @@ Hecks.bluebook "ArtifactClaim", version: "2026.06.16.1" do
   # claim, never a 'broken!' event re-emitted per scan. Roll-up counts
   # (how many broken) are QUERIES, not stored counters — there is no
   # per-scan increment to drift (the trap a stored counter falls into —
-  # governance now records each block as one immutable Governance::Violation
-  # row and counts rows by query, never incrementing a stored tally).
+  # GovernedDoor now records each blocked act as one immutable per-record
+  # denial and counts rows by query, never incrementing a stored tally).
   #
   # ── Lifecycle : satisfied / broken / unverified / retracted ──
   #
