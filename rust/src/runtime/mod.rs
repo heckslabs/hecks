@@ -743,6 +743,17 @@ impl Runtime {
         command_name: &str,
         attrs: &mut HashMap<String, Value>,
     ) -> Result<(), RuntimeError> {
+        // Deploy-floor recovery — NOT an in-gate backdoor. The out-of-band
+        // HECKS_GOVERNANCE_OFF escape (the same env the PreToolUse governed-
+        // door hook honors) stands the dispatch gates down so a bad auth lock
+        // is recoverable. It requires deploy/shell access (the physical floor),
+        // never a credential, so a stolen session can't ride it. Covers the
+        // gated query path too, since `query` routes through here.
+        if std::env::var("HECKS_GOVERNANCE_OFF").is_ok() {
+            attrs.remove(acl_readmodel::KIND_KEY);
+            attrs.remove(acl_readmodel::AUTH_KEY);
+            return Ok(());
+        }
         // Run the registered before-middleware gates in order. The Gate grammar
         // (aggregates/language/grammar/gating.bluebook) is the declared truth —
         // which gate, what order, over which dispatches — and the MiddlewareStack
