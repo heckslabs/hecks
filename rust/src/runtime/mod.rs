@@ -789,6 +789,7 @@ impl Runtime {
         match handler {
             "rbac-authorize" => self.acl_check(command_name, attrs),
             "authenticate" => self.authenticate_check(command_name, attrs),
+            "authorize" => self.authorize_check(command_name, attrs),
             // A check that names a storehouse query (it has a `.`) IS the gate :
             // "it can all be storehouse service". rbac-authorize / authenticate
             // are the two conventional shortcuts for the read-model-backed gates ;
@@ -877,6 +878,93 @@ impl Runtime {
             Err(RuntimeError::Unauthorized {
                 command: command_name.to_string(),
                 required: "an active AuthIdentity (authenticate gate)".to_string(),
+                held: if auth_id.is_empty() {
+                    "<no identity>".to_string()
+                } else {
+                    auth_id
+                },
+            })
+        }
+    }
+
+    /// The `authorize` gate verdict — the externalized PDP (Authorization
+    /// context) evaluated IN-PROCESS over the live Policy rule set (read like
+    /// the other gates ; no per-dispatch network hop). Cedar-shaped, deny-by-
+    /// default, forbid-overrides-permit : map the dispatch to (principal,
+    /// action, resource) and ALLOW iff an active, unexpired PERMIT matches and
+    /// NO matching FORBID does. System origin admitted by origin. Declaration-
+    /// gated (not self-seeded) — enforces nothing until a Gate with check
+    /// "authorize" is declared, so turning on deny-by-default is explicit.
+    /// FRONTIER : a PERMIT applies only when unconditional (condition "-") ; a
+    /// conditional FORBID is treated as unconditional-deny (fail-closed) until
+    /// the `when` grammar lands.
+    fn authorize_check(
+        &self,
+        command_name: &str,
+        attrs: &HashMap<String, Value>,
+    ) -> Result<(), RuntimeError> {
+        let auth_id = match acl_readmodel::principal_from_attrs(attrs) {
+            acl_readmodel::Principal::System => return Ok(()),
+            acl_readmodel::Principal::Agent { auth_identity_id } => auth_identity_id,
+        };
+        let role = self
+            .acl_read_model
+            .role_for_auth(&auth_id)
+            .unwrap_or("")
+            .to_string();
+        let resource = command_name
+            .rsplit_once('.')
+            .map(|(r, _)| r)
+            .unwrap_or(command_name);
+        let now = crate::clock::now_iso();
+        let mut permitted = false;
+        for st in self.all("Policy") {
+            if Self::value_field(st.get("status")) != "active" {
+                continue;
+            }
+            let exp = Self::value_field(st.get("expires_at"));
+            if exp != "-" && !exp.is_empty() && exp <= now {
+                continue; // expired
+            }
+            let p = Self::value_field(st.get("principal"));
+            let a = Self::value_field(st.get("action"));
+            let r = Self::value_field(st.get("resource"));
+            let p_match = p == "*" || p == auth_id || (!role.is_empty() && p == role);
+            let a_match = middleware::pattern_matches(&a, command_name);
+            let r_match = middleware::pattern_matches(&r, resource);
+            if !(p_match && a_match && r_match) {
+                continue;
+            }
+            match Self::value_field(st.get("effect")).as_str() {
+                "forbid" => {
+                    // forbid overrides permit, regardless of order
+                    return Err(RuntimeError::Unauthorized {
+                        command: command_name.to_string(),
+                        required: format!(
+                            "not forbidden by authorization policy '{}'",
+                            Self::value_field(st.get("id"))
+                        ),
+                        held: if auth_id.is_empty() {
+                            "<no identity>".to_string()
+                        } else {
+                            auth_id.clone()
+                        },
+                    });
+                }
+                "permit" => {
+                    if Self::value_field(st.get("condition")) == "-" {
+                        permitted = true;
+                    }
+                }
+                _ => {}
+            }
+        }
+        if permitted {
+            Ok(())
+        } else {
+            Err(RuntimeError::Unauthorized {
+                command: command_name.to_string(),
+                required: "an authorization permit (deny-by-default)".to_string(),
                 held: if auth_id.is_empty() {
                     "<no identity>".to_string()
                 } else {

@@ -1,0 +1,108 @@
+Hecks.bluebook "Authorization", version: "2026.06.27.1" do
+  vision "The Policy Decision Point — authorization DECOUPLED from every domain into one bounded context, so policy changes in ONE place with no domain redeploy and the system is multi-team / multi-tenant out of the gate. Cedar-shaped : a Policy is a RULE — effect (permit|forbid), principal, action, resource, an optional `when` condition, and an optional expiry. Domains carry NO authz (no `role` on commands) ; the gate (the dispatch PEP) consults THIS context's rule set — hydrated into a boot read-model and evaluated IN-PROCESS (the OPA-bundle / Zanzibar-cache model : decoupled authoring, local evaluation, no per-dispatch network hop) — the NIST Policy-Engine(decision)/PEP(enforcement) split. Multi-team/tenant = namespaced resources + `when`-scoped conditions (e.g. permit(role=editor, action=Edit, resource=Doc) when resource.team == principal.team). Evaluation is deny-by-default with forbid-override : ALLOW iff an active, unexpired PERMIT matches and NO matching FORBID does. Identity stays OIDC/JWT (sub->principal) ; expiry IS the JWT exp / grant TTL. FRONTIER : the `when` predicate exceeds today's where-filter grammar, so the first cut matches effect+principal+action+resource (condition '-' = unconditional) and `when` lands with the kernel-interpreter the extraction/conception chapters wait on — the rule SHAPE is conceived now so policy is authored against it from day one."
+  category "framework"
+
+  aggregate "Policy", "One Cedar-shaped authorization rule owned by the PDP : effect (permit|forbid), principal, action, resource, an optional `when` condition, an optional expiry. The gate hydrates the active set and evaluates allow/deny in-process (deny-by-default, forbid-override). Domains reference none of this ; policy lives and changes here alone." do
+    identified_by :id
+
+    attribute :id,         Id
+    attribute :effect,     Effect
+    attribute :principal,  Principal
+    attribute :action,     Action
+    attribute :resource,   Resource
+    attribute :condition,  Condition,  default: "-"
+    attribute :expires_at, ExpiresAt,  default: "-"
+    attribute :status,     Status,     default: "active"
+
+    value_object "Id" do
+      # Stable natural key for the rule (e.g. "editor-edit-doc"). The PDP keys by this ; Permit/Forbid upsert on it.
+      attribute :value, String
+    end
+    value_object "Effect" do
+      attribute :value, String, enum: ["permit", "forbid"]
+    end
+    value_object "Principal" do
+      # WHO : a role name ("editor"), a specific principal id (an OIDC sub), or "*" (any). Roles keep RBAC ; sub keeps direct grants.
+      attribute :value, String
+    end
+    value_object "Action" do
+      # WHAT : a command/query phrase ("Pizzas::Order.PlaceOrder"), a prefix ("Pizzas::Order.*"), or "*".
+      attribute :value, String
+    end
+    value_object "Resource" do
+      # ON WHAT : an aggregate/resource pattern ("Pizzas::Order"), a namespace ("Pizzas::*"), or "*". Namespacing carries multi-tenant scope.
+      attribute :value, String
+    end
+    value_object "Condition" do
+      # The `when` predicate (ABAC), e.g. "resource.team == principal.team". "-" = unconditional. FRONTIER : evaluated once the kernel-interpreter lands ; the first runtime cut treats non-"-" conditions conservatively (see the gate).
+      attribute :value, String
+    end
+    value_object "ExpiresAt" do
+      # ISO-8601 instant the rule expires (the JWT exp / grant TTL). "-" = no expiry. The gate excludes expired rules (clock::now).
+      attribute :value, String
+    end
+    value_object "Status" do
+      attribute :value, String, enum: ["active", "retired"]
+    end
+
+    command "Permit" do
+      role "Framework"
+      description "Author (upsert by id) a PERMIT rule. Deny-by-default means nothing is allowed until a permit matches. Multi-team : each team authors its own permits in this one context, no domain touched."
+      attribute :id,         Id
+      attribute :principal,  Principal
+      attribute :action,     Action
+      attribute :resource,   Resource
+      attribute :condition,  Condition
+      attribute :expires_at, ExpiresAt
+      then_set :id,         to: :id
+      then_set :effect,     to: "permit"
+      then_set :principal,  to: :principal
+      then_set :action,     to: :action
+      then_set :resource,   to: :resource
+      then_set :condition,  to: :condition
+      then_set :expires_at, to: :expires_at
+      then_set :status,     to: "active"
+      emits "Permitted"
+    end
+
+    command "Forbid" do
+      role "Framework"
+      description "Author (upsert by id) a FORBID rule. Forbid OVERRIDES permit : a matching forbid denies even if a permit also matches — the standard Cedar/least-privilege precedence."
+      attribute :id,         Id
+      attribute :principal,  Principal
+      attribute :action,     Action
+      attribute :resource,   Resource
+      attribute :condition,  Condition
+      attribute :expires_at, ExpiresAt
+      then_set :id,         to: :id
+      then_set :effect,     to: "forbid"
+      then_set :principal,  to: :principal
+      then_set :action,     to: :action
+      then_set :resource,   to: :resource
+      then_set :condition,  to: :condition
+      then_set :expires_at, to: :expires_at
+      then_set :status,     to: "active"
+      emits "Forbidden"
+    end
+
+    command "Retire" do
+      role "Framework"
+      description "Retire a rule — soft-delete. The active set (and so the gate) drops it on the next boot / re-hydrate. Time-bounded revocation : a rule also drops automatically once expires_at passes."
+      reference_to(Policy)
+      given("rule must currently be active") { status == "active" }
+      then_set :status, to: "retired"
+      emits "Retired"
+    end
+
+    query "Active" do
+      description "Every active rule — the set the gate hydrates into its in-process PDP read-model at boot (refreshed on a Policy lifecycle event). The runtime does the matching (effect/principal/action/resource, forbid-override, expiry) ; the where-grammar can't express that, so this query is the BUNDLE, not the decision."
+      where status: "active"
+    end
+
+    lifecycle :status, default: "active" do
+      transition "Permit" => "active",  from: ["active"]
+      transition "Forbid" => "active",  from: ["active"]
+      transition "Retire" => "retired", from: "active"
+    end
+  end
+end
