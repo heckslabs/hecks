@@ -60,6 +60,7 @@ pub mod stdio;
 // stdio transport keeps its historic name `run` for the existing
 // main.rs call site (`storehouse::run_serve::run`).
 pub use socket::sock_path_for_root;
+pub use socket::owner_sock_path_for_root;
 pub use stdio::run;
 
 /// ASCII Record Separator — marks the single authoritative result line

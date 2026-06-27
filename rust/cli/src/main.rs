@@ -477,6 +477,19 @@ fn main() {
         return;
     }
 
+    // `storehouse boot-guard <root> -- <cmd> [args...]`
+    //
+    // Lock-free single-live-writer guard (owner-by-address, the actor pattern).
+    // Wraps a boot supervisor (`overmind start`) ABOVE all its daemons, holding
+    // a per-root OWNER socket for the boot's life. A second boot of the SAME
+    // store connect-probes the socket, finds a live owner, and refuses — no
+    // mutex, no flock : a bound unix socket is an address the OS frees on exit,
+    // so a crashed owner's token goes stale and the next boot claims it.
+    if command == "boot-guard" {
+        run_boot_guard(&args);
+        return;
+    }
+
     // (The `storehouse merge` daemon was retired in step 2 of the bluebook-first
     // Event Log : consolidation is now the EventSourcing `LogConsolidation`
     // Driver — `driving on interval` firing Consolidation.Consolidate, executed
@@ -5971,6 +5984,79 @@ fn run_host_cli(args: &[String]) {
         storehouse::world::attach::attach_world_adapter_bindings(&mut rt, &target);
         rt
     });
+}
+
+/// `storehouse boot-guard <root> -- <cmd> [args...]` — the lock-free
+/// single-live-writer guard. Binds the per-root OWNER socket
+/// (run_serve::owner_sock_path_for_root) and holds it while the wrapped command
+/// runs, sitting ABOVE the supervisor so it owns the boot even though the
+/// daemons write the store directly. A second boot of the same root finds a
+/// live owner on a connect-probe and refuses. Owner-by-address, not a lock :
+/// the OS closes the socket on exit, so a crashed owner's token goes stale
+/// (connect refused) and the next boot claims it. `overmind start` runs in the
+/// foreground, so .status() blocks for the whole boot and ownership is held
+/// for exactly that long.
+fn run_boot_guard(args: &[String]) {
+    use std::os::unix::net::{UnixListener, UnixStream};
+    let root = match args.get(2) {
+        Some(r) if r != "--" => r.clone(),
+        _ => {
+            eprintln!("usage: storehouse boot-guard <root> -- <cmd> [args...]");
+            std::process::exit(2);
+        }
+    };
+    let sep = match args.iter().position(|a| a == "--") {
+        Some(i) => i,
+        None => {
+            eprintln!("boot-guard: missing `--` before the command");
+            std::process::exit(2);
+        }
+    };
+    let cmd = &args[sep + 1..];
+    if cmd.is_empty() {
+        eprintln!("boot-guard: no command after `--`");
+        std::process::exit(2);
+    }
+    let sock = storehouse::run_serve::owner_sock_path_for_root(&root);
+    // Probe : a live owner answers a connect. If so, refuse — one writer per store.
+    if UnixStream::connect(&sock).is_ok() {
+        eprintln!(
+            "boot-guard: another instance already owns the store for `{}`",
+            root
+        );
+        eprintln!(
+            "           (a live owner answered at {}). Refusing to start a second writer.",
+            sock.display()
+        );
+        std::process::exit(1);
+    }
+    // Free or stale : clear any stale socket file, then claim ownership by binding.
+    if let Some(dir) = sock.parent() {
+        let _ = std::fs::create_dir_all(dir);
+    }
+    let _ = std::fs::remove_file(&sock);
+    let listener = match UnixListener::bind(&sock) {
+        Ok(l) => l,
+        Err(e) => {
+            eprintln!(
+                "boot-guard: cannot bind owner socket {}: {}",
+                sock.display(),
+                e
+            );
+            std::process::exit(1);
+        }
+    };
+    // Keep the token answering probes (accept + drop) for our whole lifetime.
+    std::thread::spawn(move || {
+        for s in listener.incoming() {
+            drop(s);
+        }
+    });
+    // Run the wrapped supervisor in the foreground, holding ownership for its
+    // whole life ; ownership releases when this process exits.
+    let status = std::process::Command::new(&cmd[0]).args(&cmd[1..]).status();
+    let _ = std::fs::remove_file(&sock);
+    std::process::exit(status.ok().and_then(|s| s.code()).unwrap_or(1));
 }
 
 fn run_loop(args: &[String]) {
