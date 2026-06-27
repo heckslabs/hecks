@@ -77,16 +77,18 @@ Hecks.bluebook "Gating", version: "2026.06.26.1" do
     end
 
     value_object "Check" do
-      # What the gate runs to decide allow/deny. Two storehouse-native forms :
-      # (1) a built-in verdict key — "rbac-authorize" (role over the
-      #     AclReadModel) or "authenticate" (active AuthIdentity) — in-process
-      #     verdicts over boot-hydrated read-models the query grammar can't
-      #     yet express ; or
-      # (2) a bluebook QUERY named Aggregate.Query — the runtime runs it
-      #     read-only with the caller's principal as the reserved `actor`
-      #     kwarg and ALLOWS iff it returns a row.
-      # An unresolvable check fails closed (deny). No DSL : a gate is a
-      # storehouse service either way.
+      # What the gate runs to decide allow/deny. Built-in verdict keys :
+          # — "authorize" : the CANONICAL authz — the externalized Cedar-shaped
+          #   Authorization PDP (deny-by-default, forbid-override, expiry), policy
+          #   owned in ONE bounded context, multi-team, NO per-command role. This
+          #   SUPERSEDES "rbac-authorize" per the decoupling decision (2026-06-27).
+          # — "authenticate" : the caller is an active AuthIdentity.
+          # — "rbac-authorize" : LEGACY — role over the AclReadModel, coupled to a
+          #   per-command `role`. Kept for back-compat ; new gates use "authorize".
+          # OR any bluebook QUERY named Aggregate.Query — the runtime runs it
+          # read-only with the caller's principal as the reserved `actor` kwarg
+          # and ALLOWS iff it returns a row. An unresolvable check fails closed
+          # (deny). No DSL : a gate is a storehouse service either way.
       attribute :value, String
     end
 
