@@ -84,6 +84,25 @@ pub fn sock_path_for_root(root: &str) -> PathBuf {
     sockets_dir().join(format!("{:016x}-{}.sock", hash, basename))
 }
 
+/// Per-root OWNER token socket — the lock-free single-live-writer guard.
+/// `storehouse boot-guard <root> -- <cmd>` binds this for the lifetime of an
+/// instance's boot ; a second boot of the SAME root connect-probes it, finds a
+/// live owner answering, and refuses. Distinct from the serve socket (which
+/// carries dispatch traffic) — this one signals OWNERSHIP merely by being bound,
+/// an actor's address rather than a lock. Keyed on the canonical root (any
+/// working directory ; a worktree's different root gets its own token, so dev
+/// instances never contend). The OS closes it on process exit, so a crashed
+/// owner's token goes stale (connect refused) and the next boot claims it — no
+/// mutex, no manual release.
+pub fn owner_sock_path_for_root(root: &str) -> PathBuf {
+    let base = sock_path_for_root(root);
+    let owner = base
+        .file_name()
+        .map(|s| s.to_string_lossy().replace(".sock", ".owner.sock"))
+        .unwrap_or_else(|| "root.owner.sock".to_string());
+    base.with_file_name(owner)
+}
+
 /// Run the resident serve loop against an already-booted runtime over a
 /// unix domain socket bound at `sock_path` (default :
 /// `sock_path_for_root(<the booted root>)`). Single accept-and-process
