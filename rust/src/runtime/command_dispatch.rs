@@ -548,7 +548,17 @@ fn resolve(rt: &Runtime, command_name: &str, caller_scope: Option<&str>) -> Resu
                     }
                 }
             }
-            if let Some(r) = first_global { return Ok(r); }
+            if let Some(r) = first_global {
+                // Foreign-short diagnostic (opt-in) : a CASCADE short ref that
+                // resolved via the GLOBAL fallback — no local match in the
+                // caller's bluebook — is a FOREIGN ref that will break when the
+                // global fallback is dropped (tighten). Surfacing these turns the
+                // remaining flip work into evidence instead of speculation.
+                if caller_scope.is_some() && std::env::var("HECKS_WARN_FOREIGN_SHORT").is_ok() {
+                    eprintln!("[fqn:foreign-short] '{}' resolved via global fallback (caller scope {:?}, no local match) — qualify to FQN before tighten", command_name, caller_scope);
+                }
+                return Ok(r);
+            }
             // Second pass (i111-J) — entity-owned command, accepted
             // only when unambiguous (single owning entity within the
             // aggregate). Multiple owners on the same aggregate is a

@@ -99,6 +99,19 @@ model replaces it with CALLER-SCOPED resolution.
 - DONE ee7fb4076 — step 3 : `storehouse fqns --foreign-only` + corpus flip. 40
   foreign 2-seg refs -> FQN ; local refs stay bare. Tool is in cli/src/main.rs.
 
+## EVIDENCE (2026-06-28) — foreign-short diagnostic
+`HECKS_WARN_FOREIGN_SHORT=1` warns whenever a CASCADE short ref resolves via the
+global fallback (no local match) — i.e. exactly the foreign refs that break on
+tighten. Run across the whole behaviors corpus + the live InboxPoller cascade :
+**0 foreign-short refs**. Combined with `fqns --resolve-bare` showing **0 ambiguous**
+bare refs, the foreign-BARE flip is a near-no-op and tighten's ref-breakage risk is
+LOW in tested paths. The diagnostic is committed as an opt-in detector
+(command_dispatch.rs) — re-run it during a full runtime exercise (drivers + every
+driven adapter) before tighten to cover paths the behaviors corpus doesn't.
+
+NOTE : the STRUCTURAL blockers below remain regardless of ref count — they are
+about WHERE caller-scope comes from, not how many refs break.
+
 ## REMAINING (in order ; each gated)
 - **step 2 (declaring-scope stamp)** — caller_scope today = cascade_hint upstream
   (the EVENT SOURCE). For a cross-domain driven adapter (`driven on A.Event ->
