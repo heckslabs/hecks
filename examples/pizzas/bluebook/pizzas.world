@@ -7,10 +7,11 @@ Hecks.world "Pizzas" do
 
   # Persistence — bluebook-wide, so it sits at the TOP LEVEL (not dotted off one
   # aggregate). `persisted_by("Heki")` is the persistence family's verb + the Heki
-  # adapter ; `dir :default` is the store location : rooted at ~/.heki, MIRRORING
-  # where this bluebook lives (the source-tree chain, with aggregates/bluebook
-  # stripped) — e.g. ~/Projects/hecks/examples/pizzas/bluebook/ -> ~/.heki/hecks/
-  # examples/pizzas/{pizza,order}.heki, each aggregate its own folder. No env var,
+  # adapter ; `dir :default` is the store location : rooted at the OS app-support
+  # data root (~/Library/Application Support/Hecks), MIRRORING where this bluebook
+  # lives (the source-tree chain, with aggregates/bluebook stripped) — e.g.
+  # ~/Projects/hecks/examples/pizzas/bluebook/ -> ~/Library/Application Support/
+  # Hecks/hecks/examples/pizzas/{pizza,order}.heki, each aggregate its own folder. No env var,
   # no hard-coded path. `realm "X"` pins a different namespace. :default is a
   # DECLARED value that resolves by convention — never a silent fallback.
   persisted_by("Heki") do
