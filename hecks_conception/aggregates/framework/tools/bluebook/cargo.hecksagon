@@ -1,3 +1,12 @@
 Hecks.hecksagon "Cargo" do
   Cargo::Cargo.persisted_by("Heki")
+
+  # Impure edges, hecksagon-first : each Cargo command runs its cargo script and
+  # cascades the output into RecordResult. Re-homed from the RunXOnY Process.Spawn
+  # policies — the impure edge lives here, not in the bluebook. `:exec` is sugar
+  # over the one Process.Spawn primitive.
+  adapter :exec, name: "cargo_build",  command: "Cargo.Build",  exec: "bin/cargo_build",  result_into: "Cascade::Cascade.RecordResult"
+  adapter :exec, name: "cargo_test",   command: "Cargo.Test",   exec: "bin/cargo_test",   result_into: "Cascade::Cascade.RecordResult"
+  adapter :exec, name: "cargo_check",  command: "Cargo.Check",  exec: "bin/cargo_check",  result_into: "Cascade::Cascade.RecordResult"
+  adapter :exec, name: "cargo_clippy", command: "Cargo.Clippy", exec: "bin/cargo_clippy", result_into: "Cascade::Cascade.RecordResult"
 end

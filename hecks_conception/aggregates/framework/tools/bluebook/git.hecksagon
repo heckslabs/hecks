@@ -1,23 +1,18 @@
 Hecks.hecksagon "Git" do
-  # Git tool adapter bindings — bind each Git.X command to the
-  # :git_tool adapter family declared at
-  # framework/adapter_families/git_tool.hecksagon.
-  #
-  # Same pattern as the :web_tool bindings in tools.hecksagon :
-  # `command` names the dispatch target, `tool` selects the
-  # behavior (git_status / git_log / ...), and `result_into`
-  # chains the kernel-hook output back into Cascade.RecordResult.
-  #
-  # Sprint 7 done-is-done gates consume Git.CurrentBranch and
-  # Git.WorktreeList to self-verify (worktree clean, merged to main).
+  # Impure edges, hecksagon-first : each Git.X command runs its git script and
+  # cascades the output into RecordResult. Re-homed from the dead :git_tool
+  # family (no runtime resolver — it was dangling) AND the RunXOnYRead
+  # Process.Spawn policies. `:exec` is the live, hecksagon-first binding : sugar
+  # over the one Process.Spawn primitive. Sprint 7 done-is-done gates consume
+  # Git.CurrentBranch + Git.WorktreeList to self-verify.
 
   adapter :memory
 
-  adapter :git_tool, command: "Hecks::Framework::Tools::Git::Git.Status",        tool: :git_status,         result_into: "Hecks::Framework::Cascade::Cascade.RecordResult"
-  adapter :git_tool, command: "Hecks::Framework::Tools::Git::Git.Log",           tool: :git_log,            result_into: "Hecks::Framework::Cascade::Cascade.RecordResult"
-  adapter :git_tool, command: "Hecks::Framework::Tools::Git::Git.Diff",          tool: :git_diff,           result_into: "Hecks::Framework::Cascade::Cascade.RecordResult"
-  adapter :git_tool, command: "Hecks::Framework::Tools::Git::Git.CurrentBranch", tool: :git_current_branch, result_into: "Hecks::Framework::Cascade::Cascade.RecordResult"
-  adapter :git_tool, command: "Hecks::Framework::Tools::Git::Git.WorktreeList",  tool: :git_worktree_list,  result_into: "Hecks::Framework::Cascade::Cascade.RecordResult"
+  adapter :exec, name: "git_status",         command: "Git.Status",        exec: "bin/git_status",         result_into: "Cascade::Cascade.RecordResult"
+  adapter :exec, name: "git_log",            command: "Git.Log",           exec: "bin/git_log",            result_into: "Cascade::Cascade.RecordResult"
+  adapter :exec, name: "git_diff",           command: "Git.Diff",          exec: "bin/git_diff",           result_into: "Cascade::Cascade.RecordResult"
+  adapter :exec, name: "git_current_branch", command: "Git.CurrentBranch", exec: "bin/git_current_branch", result_into: "Cascade::Cascade.RecordResult"
+  adapter :exec, name: "git_worktree_list",  command: "Git.WorktreeList",  exec: "bin/git_worktree_list",  result_into: "Cascade::Cascade.RecordResult"
 
   Git::Git.persisted_by("Memory")
 end

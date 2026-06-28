@@ -212,4 +212,10 @@ Hecks.hecksagon "Tools" do
   Tools::WakeupTool.persisted_by("Memory")
   Tools::WebTool.persisted_by("Memory")
   Tools::WorktreeTool.persisted_by("Memory")
+
+  # Impure edge, hecksagon-first : on Sidequest.Dispatch, spawn the sub-agent via
+  # node bin/sidequest_run.mjs (i707/i708). Re-homed from the
+  # RunSidequestOnDispatch Process.Spawn policy — the impure edge lives here, not
+  # in the bluebook. `:exec` is sugar over the one Process.Spawn primitive.
+  adapter :exec, name: "sidequest_run", command: "Sidequest.Dispatch", exec: "node bin/sidequest_run.mjs", result_into: "Cascade::Cascade.RecordResult"
 end

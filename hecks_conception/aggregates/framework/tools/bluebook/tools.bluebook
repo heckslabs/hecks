@@ -1006,26 +1006,6 @@ Hecks.bluebook "Tools", version: "2026.05.14.1" do
     end
   end
 
-  # ── RunSidequestOnDispatch (i707) — the bus actually spawns the agent ──
-  #
-  # Mirrors ProcessHealth's RunHealOnHealRequested byte-for-byte in shape :
-  # a dispatched sidequest fires the generic process-spawn primitive with a
-  # literal runner + the cascade landing pad. bin/sidequest_run.mjs reads
-  # the latest Sidequest record from the heki (the prompt persists to state
-  # on Dispatch above), runs `claude -p <prompt>` headless — the walled
-  # sub-agent reaches storehouse the same way every tool does — and the
-  # transcript lands through Cascade.RecordResult. Idempotent : the runner
-  # claims each id once (a marker), so the policy can never re-spawn an old
-  # dispatch in a loop. This is the execution arm that makes
-  # "sidequest through the bus" real (i707/i708), the analogue of the
-  # retired :exec resolver, now ordinary bluebook.
-  policy "RunSidequestOnDispatch" do
-    on "Sidequest.SidequestDispatched"
-    trigger "Hecks::Framework::Primitive::Process.Spawn"
-    with "cmd", "node bin/sidequest_run.mjs"
-    with "result_into", "Hecks::Framework::Cascade::Cascade.RecordResult"
-  end
-
   # ──── Aggregate: WakeupTool ────
   #
   # WakeupTool schedules a future self-dispatch — "wake me up in
