@@ -345,7 +345,7 @@ impl Runtime {
         // immutable borrow ; patch under the mutable borrow — the two-phase
         // discipline apply_memory_persistence uses. The bind's aggregate IS the
         // FQN, which equals `repo_key(context, name)`.
-        let patches: Vec<(String, String, Option<String>, Option<String>, String)> = self
+        let patches: Vec<(String, String, Option<String>, Option<String>, String, Option<String>)> = self
             .domain
             .aggregates
             .iter()
@@ -358,18 +358,25 @@ impl Runtime {
                         agg.identified_by.clone(),
                         agg.context.clone(),
                         adapter.clone(),
+                        agg.realm_path.clone(),
                     )
                 })
             })
             .collect();
-        for (key, name, identified_by, context, adapter) in patches {
+        for (key, name, identified_by, context, adapter, realm_path) in patches {
+            // Realm-anchor the Heki / AppendLog store on the aggregate's OWN
+            // realm, not the host runtime's global data_dir — the same
+            // resolution boot_with_data_dir uses, so a cross-corpus aggregate
+            // (e.g. a miette bluebook loaded by the hecks runtime) stays on
+            // its own chain instead of the host's.
+            let agg_dir = crate::heki::realm_store_dir(realm_path.as_deref(), data_dir.as_deref());
             let repo = match adapter.as_str() {
                 "Memory" => LazyRepository::new_memory(&name, identified_by, context),
-                "Heki" => LazyRepository::new(&name, data_dir.clone(), identified_by, context),
+                "Heki" => LazyRepository::new(&name, agg_dir, identified_by, context),
                 // AppendLog — the bluebook-first Event Log. READS from the same
                 // data_dir as Heki (the merged event.heki) ; SAVE appends to a
                 // per-process shard. Same ctor signature as Heki.
-                "AppendLog" => LazyRepository::new_appendlog(&name, data_dir.clone(), identified_by, context),
+                "AppendLog" => LazyRepository::new_appendlog(&name, agg_dir, identified_by, context),
                 // A persistence-family adapter the consult does not mint (e.g. a
                 // future Sqlite binding) leaves the default repo in place.
                 _ => continue,

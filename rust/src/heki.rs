@@ -894,6 +894,33 @@ pub fn data_root() -> std::path::PathBuf {
     base.join("Hecks")
 }
 
+/// The store directory for an aggregate, anchored on its OWN realm rather than
+/// the dispatching runtime's global `data_dir`. When the aggregate carries a
+/// `realm_path` (`realm/context`, stamped from its bluebook's folder address)
+/// AND the global store lives under the canonical `data_root()`, the store is
+/// rooted at `data_root()/<realm>` — so a `miette` aggregate loaded as an
+/// additional corpus root by the `hecks` runtime still writes the `miette`
+/// chain, not the host's. REALM ONLY : `new_with_context` re-appends the
+/// `context`, so passing `realm/context` here would double-nest it.
+///
+/// Falls back to the global `data_dir` unchanged when : the aggregate is
+/// pathless (`realm_path` None — string-parsed, foreign roots) ; or the global
+/// store is NOT under `data_root()` (an explicit / test dir like `/tmp/.heki`),
+/// where realm-anchoring would wrongly escape the isolated store. So this is the
+/// multi-root PRODUCTION fix, never a test redirect.
+pub fn realm_store_dir(realm_path: Option<&str>, global: Option<&str>) -> Option<String> {
+    let global = global?;
+    let Some(rp) = realm_path else {
+        return Some(global.to_string());
+    };
+    let root = data_root();
+    if !std::path::Path::new(global).starts_with(&root) {
+        return Some(global.to_string());
+    }
+    let realm = rp.split('/').next().unwrap_or(rp);
+    Some(root.join(realm).to_string_lossy().into_owned())
+}
+
 /// Folder-derivation resolution (presence-switch on `dir :default`). When a
 /// nearby `.world` declares `heki do; dir :default end`, the store mirrors the
 /// bluebook location : rooted at ~/.heki, the project-relative folder chain
@@ -1348,7 +1375,7 @@ mod world_resolution_tests {
 //! World-aware store resolution — realm override + :default folder chain.
 //! Hermetic : no env mutation, absolute dirs only, so these never race on
 //! `$HOME` or a shared temp dir.
-use super::{expand_tilde, folder_address_segments, fqn_realm_context, resolve_realm_dir, strip_chain_segments};
+use super::{data_root, expand_tilde, folder_address_segments, fqn_realm_context, realm_store_dir, resolve_realm_dir, strip_chain_segments};
 use std::fs;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -1510,5 +1537,39 @@ fn realm_less_world_declines_so_legacy_path_is_untouched() {
     let world = "Hecks.world \"Demo\" do\n  heki do\n    dir \"~/.heki\"\n  end\nend\n";
     fs::write(agg.join("demo.world"), world).unwrap();
     assert!(resolve_realm_dir(agg.to_str().unwrap()).is_none());
+}
+
+#[test]
+fn realm_store_dir_anchors_on_aggregate_realm_under_data_root() {
+    let root = data_root();
+    // A miette aggregate loaded while the host runtime's global store is the
+    // hecks chain still resolves to the miette chain — the multi-root fix.
+    let global = root.join("hecks");
+    assert_eq!(
+        realm_store_dir(Some("miette/transparency"), global.to_str()),
+        Some(root.join("miette").to_string_lossy().into_owned())
+    );
+    // A hecks aggregate on the hecks global is unchanged (realm == host).
+    assert_eq!(
+        realm_store_dir(Some("hecks"), global.to_str()),
+        Some(root.join("hecks").to_string_lossy().into_owned())
+    );
+}
+
+#[test]
+fn realm_store_dir_preserves_explicit_test_dir() {
+    // A /tmp store (NOT under data_root) is an isolated / test dir — realm
+    // anchoring must NOT escape it, even for a realm-bearing aggregate.
+    assert_eq!(
+        realm_store_dir(Some("miette/body"), Some("/tmp/iso/.heki")),
+        Some("/tmp/iso/.heki".to_string())
+    );
+    // Pathless aggregate (no realm) — global unchanged.
+    assert_eq!(
+        realm_store_dir(None, Some("/tmp/iso/.heki")),
+        Some("/tmp/iso/.heki".to_string())
+    );
+    // No global — None.
+    assert_eq!(realm_store_dir(Some("miette"), None), None);
 }
 }

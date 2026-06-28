@@ -533,7 +533,10 @@ impl Runtime {
                 // one repo ; daemons warm each on first touch.
                 LazyRepository::new(
                     &agg.name,
-                    data_dir.clone(),
+                    crate::heki::realm_store_dir(
+                        agg.realm_path.as_deref(),
+                        data_dir.as_deref(),
+                    ),
                     agg.identified_by.clone(),
                     agg.context.clone(),
                 ),
