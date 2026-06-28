@@ -112,6 +112,30 @@ driven adapter) before tighten to cover paths the behaviors corpus doesn't.
 NOTE : the STRUCTURAL blockers below remain regardless of ref count — they are
 about WHERE caller-scope comes from, not how many refs break.
 
+## TIGHTEN PROGRESS (2026-06-28)
+- DONE 5420a5ee9 — **dotted-path tighten** : a CASCADE bare ref (`Aggregate.Command`,
+  caller_scope known) matching ONLY a foreign stamped aggregate now ERRORS. Top-level
+  (no scope) + unstamped keep first-match. 105/105 + validator. The bare-ref cascade
+  homonym hole is CLOSED.
+- DONE 8cafcd853 — **`::` 2-seg tighten** : same rule in resolve_fully_qualified. First
+  attempt broke 11 behaviors ; the diagnostic (re-added on the `::` path) pinpointed the
+  cause — ALL 11 were the RUNTIME's OWN framework-infra dispatches (CascadeRun.Begin,
+  CascadeRun.Complete, OutboundEvent.Record) fired from every domain's cascade as 2-seg
+  short refs, foreign to whatever domain triggered them. NOT domain-authored cross-domain
+  refs. So the DECLARING-SCOPE STAMP IS UNNECESSARY : the event-source scope
+  (cascade_hint) is CORRECT for all domain cascades ; only the cross-cutting infra
+  dispatches needed qualifying. Fixed by qualifying those three to their full FQN
+  (runtime/mod.rs + runtime/reaction.rs). 105/105 + validator. The diagnostic was
+  superseded by the hard enforcement (HECKS_WARN_FOREIGN_SHORT no longer exists).
+
+## STATE : the cascade homonym hole is CLOSED.
+Every CASCADE short ref is now local-or-FQN ; a cascade short ref matching only a foreign
+bluebook ERRORS. Top-level dispatch (no caller_scope — human CLI/MCP) keeps first-match by
+design. The model (local-short / foreign-FQN) is realized in the corpus AND enforced in
+the kernel. The three structural blockers I'd feared are resolved : declaring-scope (not
+needed), behaviors-runner scope (behaviors use None-scope top-level + correct event-source
+cascade scope), top-level policy (first-match by design).
+
 ## REMAINING (in order ; each gated)
 - **step 2 (declaring-scope stamp)** — caller_scope today = cascade_hint upstream
   (the EVENT SOURCE). For a cross-domain driven adapter (`driven on A.Event ->
