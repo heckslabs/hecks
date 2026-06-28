@@ -1,8 +1,8 @@
 //! Middleware — the attachable dispatch stack (runtime projection of Gates)
 //!
 //! [antibody-exempt: rust/src/runtime/middleware.rs — kernel-floor runtime ;
-//!  the dispatch middleware stack, the runtime projection of the Gate grammar
-//!  (aggregates/language/grammar/gating.bluebook). Sibling of mod.rs, itself
+//!  the dispatch middleware stack, the runtime projection of the Gate registry
+//!  (aggregates/storehouse/storehouse.bluebook). Sibling of mod.rs, itself
 //!  exempt. The bluebook is the declared truth ; this is its imperative leaf.]
 //!
 //! A `MiddlewareEntry` is one declared interceptor : a phase (before|after),
@@ -10,8 +10,8 @@
 //! function, a `pattern` selecting which dispatches it wraps, and an `order`.
 //! The runtime hydrates this stack at boot from the standing gates (today the
 //! self-seeded rbac-authorize gate ; once the `gating on dispatch` parser
-//! surface lands, from `Gating::Gate.Active`). This is the runtime side of the
-//! Gate grammar chapter (aggregates/language/grammar/gating.bluebook) — the
+//! surface lands, from `Storehouse::Gate.Active`). This is the runtime side of the
+//! Gate registry (aggregates/storehouse/storehouse.bluebook) — the
 //! MiddlewareStack is to Gates what the Procfile is to Drivers.
 //!
 //! A `before` handler is VETOING : the runtime resolves it to a verdict and a
@@ -43,7 +43,7 @@ impl Phase {
 }
 
 /// One declared interceptor attached to the dispatch path — the runtime
-/// projection of a `Gating::Gate` record.
+/// projection of a `Storehouse::Gate` record.
 #[derive(Debug, Clone)]
 pub struct MiddlewareEntry {
     pub name: String,

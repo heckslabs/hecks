@@ -1,7 +1,7 @@
 //! Terraform projection tests — pin the HCL contract via goldens.
 //!
 //! Bluebook contract :
-//!   hecks_conception/aggregates/framework/projection/terraform.bluebook
+//!   hecks_conception/aggregates/framework/projection/bluebook/terraform.bluebook
 //!
 //! Fixture set lives at rust/tests/fixtures/terraform_projection/ —
 //! one `.hecksagon` + `.world` + `.tf.golden` triple per scenario.

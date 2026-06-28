@@ -1,6 +1,6 @@
 //! Gate registry -> MiddlewareStack hydration (in-process, one Runtime, memory).
-//! Proves the door is driven by the Gate grammar : the runtime hydrates its
-//! synchronous middleware stack from declared Gating::Gate records (the way the
+//! Proves the door is driven by the Gate registry : the runtime hydrates its
+//! synchronous middleware stack from declared Storehouse::Gate records (the way the
 //! Procfile is the projection of declared Drivers), and the standing
 //! rbac-authorize gate is always present — self-seeded unless explicitly
 //! redeclared, so declaring OTHER gates never drops authz.
@@ -23,9 +23,9 @@ fn a(p: &[(&str, &str)]) -> HashMap<String, Value> {
 }
 
 const GATING: &str =
-    include_str!("../../hecks_conception/aggregates/language/grammar/bluebook/gating.bluebook");
+    include_str!("../../hecks_conception/aggregates/storehouse/bluebook/storehouse.bluebook");
 
-/// Boot a Runtime over the real Gating grammar bluebook, so `all("Gate")`
+/// Boot a Runtime over the real Storehouse bluebook, so `all("Gate")`
 /// resolves and Gate.Declare / Gate.Retire dispatch.
 fn booted() -> Runtime {
     let domain = parser::parse(GATING);
@@ -91,7 +91,10 @@ fn retiring_a_declared_gate_drops_it_but_keeps_rbac() {
         vec!["scoped-authz".to_string(), "rbac-authorize".to_string()] // order 5 before 20
     );
 
-    rt.dispatch("Retire", a(&[("name", "scoped-authz")])).expect("Gate.Retire");
+    // Qualified : Retire is shared with Storehouse::Primitive in the same
+    // bluebook now, so a bare "Retire" would resolve first-match-wins to
+    // Primitive. The door always dispatches a full FQN ; the test does too.
+    rt.dispatch("Gate.Retire", a(&[("name", "scoped-authz")])).expect("Gate.Retire");
     // scoped-authz retired -> excluded ; the standing rbac gate remains.
     assert_eq!(rt.middleware.count(), 1);
     assert_eq!(before_names(&rt, "Foo.Bar"), vec!["rbac-authorize".to_string()]);

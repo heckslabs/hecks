@@ -1,5 +1,5 @@
 Hecks.behaviors "Storehouse" do
-  vision "Behavioral tests for Storehouse::Primitive — the META aggregate that registers runtime imperative leaves as first-class bluebook citizens. Covers Conceive (mint a declaration), Amend (re-describe), and Retire (soft-delete). Each test exercises one command's state contract : attributes recorded on the aggregate, the lifecycle token settled, the PrimitiveConceived / Amended / Retired event emitted."
+  vision "Behavioral tests for the two registries in Storehouse, the runtime's self-knowledge domain. Storehouse::Primitive — the META aggregate that registers runtime imperative leaves as first-class bluebook citizens : Conceive (mint a declaration), Amend (re-describe), Retire (soft-delete). Storehouse::Gate — the inbound-wrapper registry the runtime hydrates its synchronous before/after MiddlewareStack from : Declare brings a Gate into being (idempotent on name), Retire soft-detaches it, Active is the boot-time hydration read. Each test exercises one command's state contract : the attributes recorded, the lifecycle token settled, the event emitted."
 
   # ── Storehouse::Primitive — Conceive ───────────────────────────
 
@@ -82,5 +82,65 @@ Hecks.behaviors "Storehouse" do
            implementation: { value: "sms_dispatcher::send_message" }
     input  name: { value: "Sms.Send" }
     expect emits: ["PrimitiveRetired"]
+  end
+
+  # ════════════════════════════════════════════════════════════
+  # Storehouse::Gate — the inbound-wrapper registry (folded in 2026-06-27)
+  # ════════════════════════════════════════════════════════════
+  # ── Declare : bring a Gate into being through the storehouse door ──────
+  test "Declare brings a before-gate into being in the active state" do
+    tests "Declare", on: "Gate"
+    input  name: "Authorize", phase: "before", check: "rbac-authorize", pattern: "*", order: 20
+    expect name: "Authorize", phase: "before", check: "rbac-authorize", status: "active"
+  end
+
+  test "Declare emits Declared" do
+    tests "Declare", on: "Gate"
+    input  name: "Authorize", phase: "before", check: "rbac-authorize", pattern: "*", order: 20
+    expect_event "Declared"
+  end
+
+  # ── Active : the boot-time hydration read (projection target) ────────
+  test "Active lists a declared gate" do
+    tests "Active", on: "Gate", kind: :query
+    setup  "Declare", name: "Authorize", phase: "before", check: "rbac-authorize", pattern: "*", order: 20
+    expect count: 1
+  end
+
+  # Declare upserts on identity : re-declaring (as the parser re-emits the
+  # same `gating on dispatch` block every boot) re-affirms the same gate
+  # rather than duplicating it. Two Declares of the same name leave exactly
+  # one active record. Mirrors Driver's re-declare-on-name idempotency.
+  test "Declare is idempotent — re-declaring the same name keeps one record" do
+    tests "Active", on: "Gate", kind: :query
+    setup  "Declare", name: "Authorize", phase: "before", check: "rbac-authorize", pattern: "*", order: 20
+    setup  "Declare", name: "Authorize", phase: "before", check: "rbac-authorize", pattern: "*", order: 20
+    expect count: 1
+  end
+
+  # ── Retire : soft-detach ──────────────────────────────────────
+  test "Retire detaches the gate" do
+    tests "Retire", on: "Gate"
+    setup  "Declare", name: "Authorize", phase: "before", check: "rbac-authorize", pattern: "*", order: 20
+    input  name: "Authorize"
+    expect status: "retired"
+  end
+
+  test "Retire emits Retired" do
+    tests "Retire", on: "Gate"
+    setup  "Declare", name: "Authorize", phase: "before", check: "rbac-authorize", pattern: "*", order: 20
+    input  name: "Authorize"
+    expect_event "Retired"
+  end
+
+  # A retired gate is dropped from the hydration read, so the next boot (or
+  # in-session re-hydrate) drops it from the runtime stack.
+  test "Active excludes a retired gate" do
+    tests "Active", on: "Gate", kind: :query
+    setup  "Declare", name: "Authorize", phase: "before", check: "rbac-authorize", pattern: "*", order: 20
+    # Qualified : Retire is shared with Storehouse::Primitive (same bluebook),
+    # so a bare setup would resolve first-match-wins to Primitive. Address it.
+    setup  "Gate.Retire",  name: "Authorize"
+    expect count: 0
   end
 end

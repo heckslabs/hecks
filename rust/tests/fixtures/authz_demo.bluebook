@@ -1,0 +1,23 @@
+Hecks.bluebook "AuthzDemo" do
+  vision "Test fixture for the externalized PDP gate. Vault.Open declares NO role, so the standing rbac gate passes it through and the `authorize` PDP gate (Cedar rules in the Authorization context) is the sole decider — letting the test isolate deny-by-default / permit / forbid-override / expiry over a clean command."
+  category "framework"
+
+  aggregate "Vault", "A resource gated purely by the externalized PDP. Open carries no role on purpose." do
+    identified_by :name
+    attribute :name, VName
+    value_object "VName" do
+      attribute :value, String
+    end
+    command "Open" do
+      # NO role — the standing rbac gate is a no-op here ; the authorize PDP gate decides.
+      description "Open the vault. Authorized only by the Authorization PDP (Cedar rules), not a per-command role."
+      attribute :name, VName
+      then_set :name, to: :name
+      emits "Opened"
+    end
+
+    query "List" do
+      description "List vaults — a role-LESS read, so the authorize PDP gate (via Runtime::query) is the sole decider for the query path."
+    end
+  end
+end

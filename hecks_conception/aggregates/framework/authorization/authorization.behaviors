@@ -1,0 +1,51 @@
+Hecks.behaviors "Authorization" do
+  vision "Behavioral proof of the PDP's rule lifecycle — the decoupled, Cedar-shaped policy context. Permit/Forbid author rules (upsert by id) ; Retire soft-deletes ; Active is the bundle the gate hydrates. The VERDICT logic (forbid-override, expiry, wildcard + `when` matching) is the gate's in-process evaluation, proven in the Rust gate tests ; these behaviors pin the rule STORE — that policy is authored, queryable, and retireable in ONE context with no domain touched."
+
+  # ── Permit ─────────────────────────────────────────────────────
+  test "Permit authors an active permit rule" do
+    tests "Permit", on: "Policy"
+    input  id: "editor-edit-doc", principal: "editor", action: "Doc.Edit", resource: "Doc", condition: "-", expires_at: "-"
+    expect id: "editor-edit-doc", effect: "permit", principal: "editor", action: "Doc.Edit", status: "active"
+  end
+
+  test "Permit emits Permitted" do
+    tests "Permit", on: "Policy"
+    input  id: "p1", principal: "editor", action: "Doc.Edit", resource: "Doc", condition: "-", expires_at: "-"
+    expect_event "Permitted"
+  end
+
+  # ── Forbid (override precedence is the gate's job ; here we pin the rule) ──
+  test "Forbid authors an active forbid rule" do
+    tests "Forbid", on: "Policy"
+    input  id: "no-intern-delete", principal: "intern", action: "Doc.Delete", resource: "Doc", condition: "-", expires_at: "-"
+    expect id: "no-intern-delete", effect: "forbid", status: "active"
+  end
+
+  test "Forbid emits Forbidden" do
+    tests "Forbid", on: "Policy"
+    input  id: "f1", principal: "intern", action: "Doc.Delete", resource: "Doc", condition: "-", expires_at: "-"
+    expect_event "Forbidden"
+  end
+
+  # ── Active : the bundle the gate hydrates ───────────────────────────
+  test "Active lists an authored rule" do
+    tests "Active", on: "Policy", kind: :query
+    setup  "Permit", id: "p2", principal: "editor", action: "Doc.Edit", resource: "Doc", condition: "-", expires_at: "-"
+    expect count: 1
+  end
+
+  # ── Retire : soft-delete — drops from the gate's bundle ─────────────────
+  test "Retire retires a rule" do
+    tests "Retire", on: "Policy"
+    setup  "Permit", id: "p3", principal: "editor", action: "Doc.Edit", resource: "Doc", condition: "-", expires_at: "-"
+    input  id: "p3"
+    expect status: "retired"
+  end
+
+  test "Active excludes a retired rule" do
+    tests "Active", on: "Policy", kind: :query
+    setup  "Permit", id: "p4", principal: "editor", action: "Doc.Edit", resource: "Doc", condition: "-", expires_at: "-"
+    setup  "Retire", id: "p4"
+    expect count: 0
+  end
+end

@@ -621,7 +621,7 @@ impl Runtime {
         // overrides so it reads the final repositories.
         let m = acl_readmodel::AclReadModel::hydrate(&rt);
         rt.acl_read_model = m;
-        // Hydrate the middleware stack (runtime projection of the Gate grammar).
+        // Hydrate the middleware stack (runtime projection of the Gate registry).
         rt.hydrate_middleware();
         rt
     }
@@ -745,8 +745,19 @@ impl Runtime {
         command_name: &str,
         attrs: &mut HashMap<String, Value>,
     ) -> Result<(), RuntimeError> {
-        // Run the registered before-middleware gates in order. The Gate grammar
-        // (aggregates/language/grammar/gating.bluebook) is the declared truth —
+        // Deploy-floor recovery — NOT an in-gate backdoor. The out-of-band
+        // HECKS_GOVERNANCE_OFF escape (the same env the PreToolUse governed-
+        // door hook honors) stands the dispatch gates down so a bad auth lock
+        // is recoverable. It requires deploy/shell access (the physical floor),
+        // never a credential, so a stolen session can't ride it. Covers the
+        // gated query path too, since `query` routes through here.
+        if std::env::var("HECKS_GOVERNANCE_OFF").is_ok() {
+            attrs.remove(acl_readmodel::KIND_KEY);
+            attrs.remove(acl_readmodel::AUTH_KEY);
+            return Ok(());
+        }
+        // Run the registered before-middleware gates in order. The Gate registry
+        // (aggregates/storehouse/storehouse.bluebook) is the declared truth —
         // which gate, what order, over which dispatches — and the MiddlewareStack
         // is its runtime projection. Each handler key resolves to an in-process
         // verdict function (`run_gate`), mirroring Storehouse::Primitive.
@@ -791,6 +802,7 @@ impl Runtime {
         match handler {
             "rbac-authorize" => self.acl_check(command_name, attrs),
             "authenticate" => self.authenticate_check(command_name, attrs),
+            "authorize" => self.authorize_check(command_name, attrs),
             // A check that names a storehouse query (it has a `.`) IS the gate :
             // "it can all be storehouse service". rbac-authorize / authenticate
             // are the two conventional shortcuts for the read-model-backed gates ;
@@ -888,6 +900,93 @@ impl Runtime {
         }
     }
 
+    /// The `authorize` gate verdict — the externalized PDP (Authorization
+    /// context) evaluated IN-PROCESS over the live Policy rule set (read like
+    /// the other gates ; no per-dispatch network hop). Cedar-shaped, deny-by-
+    /// default, forbid-overrides-permit : map the dispatch to (principal,
+    /// action, resource) and ALLOW iff an active, unexpired PERMIT matches and
+    /// NO matching FORBID does. System origin admitted by origin. Declaration-
+    /// gated (not self-seeded) — enforces nothing until a Gate with check
+    /// "authorize" is declared, so turning on deny-by-default is explicit.
+    /// FRONTIER : a PERMIT applies only when unconditional (condition "-") ; a
+    /// conditional FORBID is treated as unconditional-deny (fail-closed) until
+    /// the `when` grammar lands.
+    fn authorize_check(
+        &self,
+        command_name: &str,
+        attrs: &HashMap<String, Value>,
+    ) -> Result<(), RuntimeError> {
+        let auth_id = match acl_readmodel::principal_from_attrs(attrs) {
+            acl_readmodel::Principal::System => return Ok(()),
+            acl_readmodel::Principal::Agent { auth_identity_id } => auth_identity_id,
+        };
+        let role = self
+            .acl_read_model
+            .role_for_auth(&auth_id)
+            .unwrap_or("")
+            .to_string();
+        let resource = command_name
+            .rsplit_once('.')
+            .map(|(r, _)| r)
+            .unwrap_or(command_name);
+        let now = crate::clock::now_iso();
+        let mut permitted = false;
+        for st in self.all("Policy") {
+            if Self::value_field(st.get("status")) != "active" {
+                continue;
+            }
+            let exp = Self::value_field(st.get("expires_at"));
+            if exp != "-" && !exp.is_empty() && exp <= now {
+                continue; // expired
+            }
+            let p = Self::value_field(st.get("principal"));
+            let a = Self::value_field(st.get("action"));
+            let r = Self::value_field(st.get("resource"));
+            let p_match = p == "*" || p == auth_id || (!role.is_empty() && p == role);
+            let a_match = middleware::pattern_matches(&a, command_name);
+            let r_match = middleware::pattern_matches(&r, resource);
+            if !(p_match && a_match && r_match) {
+                continue;
+            }
+            match Self::value_field(st.get("effect")).as_str() {
+                "forbid" => {
+                    // forbid overrides permit, regardless of order
+                    return Err(RuntimeError::Unauthorized {
+                        command: command_name.to_string(),
+                        required: format!(
+                            "not forbidden by authorization policy '{}'",
+                            Self::value_field(st.get("id"))
+                        ),
+                        held: if auth_id.is_empty() {
+                            "<no identity>".to_string()
+                        } else {
+                            auth_id.clone()
+                        },
+                    });
+                }
+                "permit" => {
+                    if Self::value_field(st.get("condition")) == "-" {
+                        permitted = true;
+                    }
+                }
+                _ => {}
+            }
+        }
+        if permitted {
+            Ok(())
+        } else {
+            Err(RuntimeError::Unauthorized {
+                command: command_name.to_string(),
+                required: "an authorization permit (deny-by-default)".to_string(),
+                held: if auth_id.is_empty() {
+                    "<no identity>".to_string()
+                } else {
+                    auth_id
+                },
+            })
+        }
+    }
+
     /// Read a single-value aggregate field as a plain String — the coercion the
     /// RBAC read-model does over Role/Agent state (raw Str, a Map with a `value`
     /// key, or Null -> empty). Shared by the Gate-projection and authenticate
@@ -902,9 +1001,9 @@ impl Runtime {
         }
     }
 
-    /// Hydrate the middleware stack — the runtime projection of the Gate grammar
-    /// (aggregates/language/grammar/gating.bluebook), the way the Procfile is the
-    /// projection of declared Drivers. Reads every declared, active Gating::Gate
+    /// Hydrate the middleware stack — the runtime projection of the Gate registry
+    /// (aggregates/storehouse/storehouse.bluebook), the way the Procfile is the
+    /// projection of declared Drivers. Reads every declared, active Storehouse::Gate
     /// record (via `all`, the same path the RBAC read-model reads Role/Agent) and
     /// turns each into a MiddlewareEntry. If NO Gate is declared yet — the
     /// `gating on dispatch` parser surface that mints them is a sibling kernel
@@ -3665,6 +3764,32 @@ impl Runtime {
     /// can be disambiguated.
     pub fn resolve_query(&self, query_name: &str, attrs: &std::collections::HashMap<String, String>) -> serde_json::Value {
         self.resolve_query_qualified(None, "", query_name, attrs)
+    }
+
+    /// Gated read entry — the query-side mirror of `dispatch`. Runs the SAME
+    /// before-gates as a command (authenticate / authorize PDP / service),
+    /// keyed on the query name as the action, then calls `resolve_query` (the
+    /// UNGATED core). Reads are authorized symmetrically with writes :
+    /// `query`(gated) / `resolve_query`(ungated) parallels `dispatch` /
+    /// `dispatch_impl`. The ungated core stays the inner path a service-gate's
+    /// own check-query uses, so a gate never re-gates itself (no regress).
+    /// `scope_to` row-scoping still narrows WHICH rows ; the gate decides
+    /// WHETHER the read runs at all. The principal rides the reserved
+    /// actor_kind/actor_auth_id keys, exactly as for a command.
+    pub fn query(
+        &mut self,
+        query_name: &str,
+        attrs: std::collections::HashMap<String, String>,
+    ) -> Result<serde_json::Value, RuntimeError> {
+        let mut gate_attrs: HashMap<String, Value> = HashMap::new();
+        if let Some(k) = attrs.get(acl_readmodel::KIND_KEY) {
+            gate_attrs.insert(acl_readmodel::KIND_KEY.to_string(), Value::Str(k.clone()));
+        }
+        if let Some(id) = attrs.get(acl_readmodel::AUTH_KEY) {
+            gate_attrs.insert(acl_readmodel::AUTH_KEY.to_string(), Value::Str(id.clone()));
+        }
+        self.authorize_entry(query_name, &mut gate_attrs)?;
+        Ok(self.resolve_query(query_name, &attrs))
     }
 
     /// Run interactively — the terminal adapter drives the runtime.
