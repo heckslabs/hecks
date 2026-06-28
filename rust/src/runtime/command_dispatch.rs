@@ -769,6 +769,17 @@ fn resolve_fully_qualified(rt: &Runtime, command_name: &str, caller_scope: Optio
         }
     }
     if hits.len() == 1 {
+        // TIGHTEN (i-fqn) : a scoped (cascade) realm-OMITTED short ref whose single
+        // hit is a FOREIGN stamped bluebook must use the full FQN. Top-level (no
+        // scope), full-FQN (realm given), and unstamped hits keep first-match.
+        if caller_scope.is_some() && realm.is_none() {
+            let rp = hit_realms[0].as_str();
+            if !rp.is_empty() && Some(rp) != caller_scope {
+                return Err(RuntimeError::UnknownCommand(format!(
+                    "{} — short ref resolves only to a FOREIGN bluebook (caller scope {:?}); a cross-bluebook cascade must use the full Realm::Context::Bluebook::Aggregate FQN",
+                    command_name, caller_scope)));
+            }
+        }
         return Ok(hits.remove(0));
     }
     if hits.len() > 1 {
@@ -782,6 +793,13 @@ fn resolve_fully_qualified(rt: &Runtime, command_name: &str, caller_scope: Optio
                 .collect();
             if local.len() == 1 {
                 return Ok(hits.remove(local[0]));
+            }
+            // TIGHTEN : a scoped realm-omitted cascade ref with NO unique local
+            // hit spans only foreign bluebooks — error rather than first-match.
+            if realm.is_none() {
+                return Err(RuntimeError::UnknownCommand(format!(
+                    "{} — short ref has no unique local match in caller scope {:?} and spans multiple bluebooks; use the full FQN",
+                    command_name, caller_scope)));
             }
         }
         if let Some(candidates) = ambiguity_candidates(&hit_realms, realm.is_none(), command_name) {
@@ -1544,6 +1562,18 @@ fn cascade_short_ref_matching_only_foreign_errors() {
     // a cross-bluebook cascade must use the full FQN, not a first-matched short.
     let r = super::resolve(&rt, "Widget.Make", Some("hecks/elsewhere"));
     assert!(r.is_err(), "expected foreign-only cascade short ref to error, got {:?}", r);
+}
+
+#[test]
+fn cascade_two_seg_foreign_only_errors_but_local_resolves() {
+    let rt = crate::runtime::Runtime::boot(two_widget_domain());
+    // 2-seg short ref from a scope where NO Widget lives → spans only foreign
+    // bluebooks → tighten errors.
+    let r = super::resolve(&rt, "Framework::Widget.Make", Some("hecks/elsewhere"));
+    assert!(r.is_err(), "expected foreign-only 2-seg cascade ref to error, got {:?}", r);
+    // … but the SAME ref from a local scope still resolves (local-first intact).
+    let r2 = super::resolve(&rt, "Framework::Widget.Make", Some("miette/framework")).unwrap();
+    assert_eq!(rt.domain.aggregates[r2.agg_idx()].realm_path.as_deref(), Some("miette/framework"));
 }
 
 }

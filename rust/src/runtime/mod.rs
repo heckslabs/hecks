@@ -1700,7 +1700,7 @@ impl Runtime {
         let agg_id = event.aggregate_id.clone();
         let _ = command_dispatch::dispatch_cascade(
             self,
-            "CascadeRun::CascadeRun.Begin",
+            "Hecks::Framework::Cascade::CascadeRun::CascadeRun.Begin",
             attrs,
             &agg_type,
             &agg_id,
@@ -1800,7 +1800,7 @@ impl Runtime {
         for attrs in records {
             let _ = command_dispatch::dispatch_cascade(
                 self,
-                "OutboundEvent::OutboundEvent.Record",
+                "Hecks::Framework::Hexagon::OutboundEvent::OutboundEvent.Record",
                 attrs,
                 &event.aggregate_type,
                 &event.aggregate_id,

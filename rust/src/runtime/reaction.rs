@@ -269,7 +269,7 @@ impl Runtime {
                 ca.insert("run_id".to_string(), Value::Str(run_id.clone()));
                 let _ = command_dispatch::dispatch_cascade(
                     self,
-                    "CascadeRun::CascadeRun.Complete",
+                    "Hecks::Framework::Cascade::CascadeRun::CascadeRun.Complete",
                     ca,
                     "CascadeRun",
                     &run_id,
