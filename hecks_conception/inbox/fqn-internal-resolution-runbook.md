@@ -128,6 +128,24 @@ about WHERE caller-scope comes from, not how many refs break.
   (runtime/mod.rs + runtime/reaction.rs). 105/105 + validator. The diagnostic was
   superseded by the hard enforcement (HECKS_WARN_FOREIGN_SHORT no longer exists).
 
+## PHASE 4 (events) ASSESSMENT (2026-06-28) — event side ALREADY SAFE
+- DRIVEN subscriptions (the main event-reaction path) are ALREADY full FQN and
+  realm-enforced : event_ref_matches (driven_adapter_resolver) calls
+  realm_context_matches, so a FQN `driven on` matches only the right realm's event.
+  The few SHORT driven-on refs are LOCAL (InboxPoller.Polled, Story.WorktreeUnlocked) ;
+  `"Event"` is a comment.
+- POLICY subscriptions (`on "Aggregate.Event"`) : the short ones are LOCAL (Story/Task
+  live in plan.bluebook), EXCEPT ai_session's `on "AiTurn.TurnFinished"` — foreign
+  (AiTurn is framework/ai_turn) but to a UNIQUE aggregate (no homonym), and UNTESTED.
+- Event-name collisions exist in the raw (SessionStarted x26, ComplaintIssued x20,
+  Swept x2 …) but NONE is subscribed to by a foreign short ref that over-matches — so
+  there is NO LIVE event collision today.
+- RESIDUAL future-proofing (low value, no current bite, NOT done) : (a) make the
+  PolicyEngine on_event matcher realm-aware (it registers `policy.on_event` as a string ;
+  unconfirmed whether it parses `::`) ; (b) once it does, flip ai_session's
+  `on "AiTurn.TurnFinished"` -> FQN. Flipping it BEFORE the matcher is FQN-aware risks
+  silently breaking a cross-bluebook policy (untested), so it was deliberately NOT done.
+
 ## STATE : the cascade homonym hole is CLOSED.
 Every CASCADE short ref is now local-or-FQN ; a cascade short ref matching only a foreign
 bluebook ERRORS. Top-level dispatch (no caller_scope — human CLI/MCP) keeps first-match by
