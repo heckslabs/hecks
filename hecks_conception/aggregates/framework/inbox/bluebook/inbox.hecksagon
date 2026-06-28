@@ -1,3 +1,13 @@
 Hecks.hecksagon "Inbox" do
   Inbox::Inbox.persisted_by("Heki")
+
+  # Impure edge, hecksagon-first : on Check, poll Gmail via node bin/inbox_poll.mjs
+  # and cascade the outcome into RecordResult. Re-homed from the
+  # RunPollOnInboxChecked Process.Spawn policy — the impure edge lives here, not
+  # in the bluebook. `:exec` is sugar over the one Process.Spawn primitive.
+  adapter :exec,
+          name:        "inbox_poll",
+          command:     "Inbox.Check",
+          exec:        "node bin/inbox_poll.mjs",
+          result_into: "Cascade::Cascade.RecordResult"
 end
