@@ -2249,68 +2249,16 @@ fn run_specialize(args: &[String]) {
         return;
     }
 
-    let output_path: Option<String> = args
-        .iter()
-        .position(|a| a == "--output" || a == "-o")
-        .and_then(|i| args.get(i + 1).cloned());
-
-    // `--section <name>` emits a single named section of a multi-section
-    // target (only `runtime` today). The scoped sub-target behind the
-    // per-concern byte-identity goldens of the runtime-as-bluebook
-    // strangler (inbox/runtime-as-bluebook.md).
-    let section: Option<String> = args
-        .iter()
-        .position(|a| a == "--section")
-        .and_then(|i| args.get(i + 1).cloned());
-
-    let repo_root = match specialize_repo_root() {
-        Ok(p) => p,
-        Err(e) => {
-            eprintln!("cannot locate repo root: {}", e);
-            std::process::exit(1);
-        }
-    };
-
-    // `storehouse specialize all` regenerates EVERY byte-identity Rust
-    // target to its tracked path from the generators on disk — the
-    // one-command "edit the generator, never the .rs" reflex, backed by the
-    // single specializer::regen::targets() registry. Run from a stable
-    // binary, then rebuild ; the golden suite gates each target's bytes.
-    if target == "all" {
-        match storehouse::specializer::regen::emit_all_to_disk(&repo_root) {
-            Ok(n) => {
-                eprintln!("regenerated {} targets", n);
-                return;
-            }
-            Err(e) => {
-                eprintln!("specialize all failed: {}", e);
-                std::process::exit(1);
-            }
-        }
-    }
-
-    let emit_result = match &section {
-        Some(name) => storehouse::specializer::emit_section(target, &repo_root, name),
-        None => storehouse::specializer::emit(target, &repo_root),
-    };
-    let rust = match emit_result {
-        Ok(s) => s,
-        Err(e) => {
-            eprintln!("specialize {} failed: {}", target, e);
-            std::process::exit(1);
-        }
-    };
-
-    match output_path {
-        Some(p) => {
-            if let Err(e) = std::fs::write(&p, &rust) {
-                eprintln!("cannot write {}: {}", p, e);
-                std::process::exit(1);
-            }
-            eprintln!("wrote {} bytes to {}", rust.len(), p);
-        }
-        None => print!("{}", rust),
-    }
+    // Self-projection targets (parser / validator / ir / runtime / …) were
+    // retired 2026-06-27 — the framework's own Rust is hand-written now, so
+    // there is no generic emit/regen dispatch. Only the per-deployment +
+    // Ruby-target emitters above remain.
+    eprintln!(
+        "unknown specialize target: {}. Known: wasm_worker, cf_function_proxy, \
+         embedded_bluebooks, wrangler_toml, procfile",
+        target
+    );
+    std::process::exit(2);
 }
 
 /// `storehouse specialize wasm_worker --app <app> --host <host>
@@ -2669,60 +2617,6 @@ fn run_specialize_procfile(args: &[String]) {
         }
         eprintln!("wrote {} bytes to {}", body.len(), path.display());
     }
-}
-
-/// Locate the repository root for the `specialize` subcommand.
-///
-/// Prefers `heki::repo_root()` (executable-anchored, worktree-aware —
-/// skips `.claude/worktrees/agent-XXX/` matches and finds the real
-/// hecks checkout). Falls back to `env::current_dir()` when the
-/// executable-walk returns None — invocation convention from a
-/// non-test terminal is `storehouse specialize …` run from the repo
-/// root (same as `bin/specialize` on the Ruby side).
-///
-/// The test harness in rust/tests/specializer_golden_test.rs sets
-/// cwd to its CARGO_MANIFEST_DIR/.. which equals the worktree root
-/// when tests run inside an agent worktree. The cwd-fallback would
-/// pick the worktree's hecks_conception/ copy and downstream
-/// specializers (e.g. system_prompt's shape at ../miette/...) would
-/// fail because the worktree's parent is .claude/worktrees/, not
-/// the projects root that holds sibling miette/. Going through
-/// heki::repo_root() finds the canonical checkout regardless.
-fn specialize_repo_root() -> Result<std::path::PathBuf, Box<dyn std::error::Error>> {
-    // The specializer reads codegen/ shape fixtures + their .rs.frag
-    // snippets, so the root it needs is the one that CONTAINS codegen/ — the
-    // ENGINE tree. Post-extraction codegen/ lives beside the engine
-    // (storehouse/codegen), NOT in the conception repo, so anchor on the
-    // engine (cwd, then the binary), never heki::repo_root() (which finds
-    // the conception checkout, where codegen/ no longer exists). Every
-    // specializer read is codegen-relative (SHAPE_REL + fixture
-    // snippet_paths) and the few `../miette/…` snippets resolve the same
-    // from any ~/Projects/<repo> root, so this rebase is byte-identical.
-    //
-    // cwd-first keeps a worktree operating on its OWN codegen (the tracked
-    // .rs / shape-snippet pair stays in lockstep) ; the exe-walk handles the
-    // installed-binary case (storehouse/rust/target/release/storehouse →
-    // storehouse/), and is worktree-correct too (a worktree's binary walks
-    // to its own root).
-    let cwd = env::current_dir()?;
-    if cwd.join("codegen").is_dir() {
-        return Ok(cwd);
-    }
-    if let Ok(exe) = env::current_exe() {
-        let start = exe.canonicalize().unwrap_or(exe);
-        let mut cur: &std::path::Path = &start;
-        while let Some(parent) = cur.parent() {
-            if parent.join("codegen").is_dir() {
-                return Ok(parent.to_path_buf());
-            }
-            cur = parent;
-        }
-    }
-    Err(format!(
-        "expected to run `specialize` from the engine root (cwd={}, no codegen/ beside cwd or the binary)",
-        cwd.display()
-    )
-    .into())
 }
 
 /// Find the source bluebook for a behaviors file.
