@@ -1,4 +1,34 @@
 Hecks.hecksagon "ProcessHealth" do
   ProcessHealth::ProcessSentinel.persisted_by("Heki")
   ProcessHealth::ProcessMacrophage.persisted_by("Heki")
+
+  # ── Impure edges, hecksagon-first (2026-06-28) ───────────────────
+  # The runaway reaper : when ProcessMacrophage.Sweep completes, run
+  # bin/process_health_reap (kills orphaned Tools::ShellTool.Bash dispatch
+  # children that spin past runaway_after_seconds — the gap the liveness sweep
+  # is blind to). `:exec` is the HECKSAGON-FIRST impure edge ; it is sugar over
+  # the one Process.Spawn primitive (no bluebook policy, no bespoke executor).
+  # Restores the pre-bacc0692f surface that was wrongly migrated to a policy.
+  adapter :exec,
+          name:        "process_health_reap",
+          command:     "ProcessMacrophage.Sweep",
+          exec:        "bin/process_health_reap",
+          result_into: "Hecks::Framework::Cascade::Cascade.RecordResult"
+
+  # The liveness probe : on Sweep, walk the watchlist via overmind status and
+  # MarkAlive | MarkHanged | MarkDead each ProcessSentinel. (Re-homed from the
+  # RunSweepOnSwept bluebook policy — hecksagon-first.)
+  adapter :exec,
+          name:        "process_health_sweep",
+          command:     "ProcessMacrophage.Sweep",
+          exec:        "bin/process_health_sweep",
+          result_into: "Hecks::Framework::Cascade::Cascade.RecordResult"
+
+  # The healer : on Heal, restart dead sentinels via overmind (or restart the
+  # supervisor itself). (Re-homed from the RunHealOnHealRequested policy.)
+  adapter :exec,
+          name:        "process_health_heal",
+          command:     "ProcessMacrophage.Heal",
+          exec:        "node bin/process_health_heal.mjs",
+          result_into: "Hecks::Framework::Cascade::Cascade.RecordResult"
 end

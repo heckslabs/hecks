@@ -192,6 +192,17 @@ Hecks.bluebook "ProcessHealth", version: "2026.05.20.2" do
     # the macrophage holds the request, the cascade holds the outcome.
     attribute :last_heal_attempted_at,  Timestamp,      default: "—"
 
+    # Runaway-reaper facet (2026-06-28) — the watchdog for the gap the
+    # liveness sweep CANNOT see. MarkDead catches a process that STOPS ; a
+    # tool-dispatch child pegged at 100% CPU is alive (fresh heartbeat, pgrep
+    # finds it), so it slips the net — an orphaned `find *.bluebook` dispatch
+    # once spun a core for 8.5h, invisible here. runaway_after_seconds is the
+    # max wall-clock a `storehouse … Tools::ShellTool.Bash` child may run before
+    # the process_health_reap `:exec` adapter (process_health.hecksagon) kills it ; the reaper
+    # script reads this as its contract. Default 1800s (30 min) — a true runaway
+    # spins for hours, a legit long dispatch rarely exceeds 30 min.
+    attribute :runaway_after_seconds,   RunawayWindow,  default: 1800
+
     # ── Value-objects : the language of supervision ──
 
     value_object "Name" do
@@ -252,6 +263,14 @@ Hecks.bluebook "ProcessHealth", version: "2026.05.20.2" do
       # HealRequested event so the eventual reactor can decide
       # whether to restart, alert, or noop.
       attribute :value, String
+    end
+
+    value_object "RunawayWindow" do
+      # Max wall-clock seconds a tool-dispatch child may run before the
+      # reaper kills it. Default 1800 (30 min). Read by bin/process_health_reap
+      # (env RUNAWAY_AFTER_SECONDS) ; the bluebook holds the contract, the
+      # script enforces it — same split as sweep_cadence_seconds + the sweeper.
+      attribute :value, Integer
     end
 
     # ── Session lifecycle ──
@@ -348,8 +367,8 @@ Hecks.bluebook "ProcessHealth", version: "2026.05.20.2" do
 
   policy "ProposeHealOnDeath" do
     # When a sentinel transitions to dead, dispatch Heal so the
-    # immune cell records the proposal AND the process-spawn primitive
-    # (RunHealOnHealRequested below) fires bin/process_health_heal.mjs
+    # immune cell records the proposal AND the process_health_heal `:exec`
+    # adapter (process_health.hecksagon) fires bin/process_health_heal.mjs
     # to actually run `overmind restart <process_name>`. The script
     # dispatches MarkAlive on the sentinel after a successful
     # restart, which closes the policy loop — a sentinel that
@@ -359,47 +378,4 @@ Hecks.bluebook "ProcessHealth", version: "2026.05.20.2" do
     trigger "Heal"
   end
 
-  # ── The sweep + heal side-effects, as ordinary bluebook (adapters-as-bluebook) ──
-  #
-  # Sweep and Heal are pure commands : Sweep stamps the tick row and
-  # emits Swept ; Heal records the dispatch and emits HealRequested.
-  # The side-effects — running the real sweeper / healer scripts — are
-  # no longer bespoke `:exec` hecksagon adapters resolved by a
-  # hand-written Rust arm (resolve_exec_adapters, retired). They are
-  # these policies : each fires the generic process-spawn primitive
-  # `Primitive::Process.Spawn` with the literal program string + the
-  # cascade landing pad, exactly what the :exec resolver inlined.
-  #
-  #   policy → Primitive::Process.Spawn → Cascade.RecordResult
-  #
-  # CRITICAL — aggregate-qualified `on` (gap #1b). Swept is emitted by
-  # BOTH ProcessMacrophage.Sweep AND the discipline-layer
-  # rust_to_bluebook_macrophage, and the bare `MarkHangedOnMissingHeartbeat`
-  # policy above also consumes `on "Swept"`. A bare `on "Swept"` here
-  # would mis-fire the process-health sweeper on the discipline
-  # macrophage's tick. `on "ProcessMacrophage.Swept"` fires ONLY for
-  # Swept emitted by ProcessMacrophage — the precise Aggregate.Command
-  # match the retired :exec resolver gave us, now declarative.
-  # MarkHangedOnMissingHeartbeat stays bare and unchanged : it still
-  # fires for every Swept exactly as before (backward-compatible).
-  #
-  # cwd contract is unchanged from the :exec arm — the spawn leaf
-  # inherits the runtime process cwd (the overmind process_macrophage
-  # member runs from hecks_conception/, so the relative bin/ paths
-  # resolve identically whether the loop or a manual dispatch fired
-  # them). The cmd strings are byte-identical to the retired :exec
-  # bindings' `exec:` values.
-  policy "RunSweepOnSwept" do
-    on "ProcessMacrophage.Swept"
-    trigger "Hecks::Framework::Primitive::Process.Spawn"
-    with "cmd", "bin/process_health_sweep"
-    with "result_into", "Hecks::Framework::Cascade::Cascade.RecordResult"
-  end
-
-  policy "RunHealOnHealRequested" do
-    on "ProcessMacrophage.HealRequested"
-    trigger "Hecks::Framework::Primitive::Process.Spawn"
-    with "cmd", "node bin/process_health_heal.mjs"
-    with "result_into", "Hecks::Framework::Cascade::Cascade.RecordResult"
-  end
 end

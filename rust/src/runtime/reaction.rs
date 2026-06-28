@@ -36,6 +36,7 @@ impl Runtime {
         #[cfg(not(target_arch = "wasm32"))]
         self.resolve_web_tool_adapters(result, command_name, attrs);
         self.resolve_primitive_spawn(result, command_name, attrs, None);
+        self.resolve_exec_adapters(result, command_name, attrs);
         if let Some(ref event) = result.event {
             let event_clone = event.clone();
             driven_adapter_resolver::resolve_driven_adapters(self, &event_clone);
@@ -60,6 +61,78 @@ impl Runtime {
         #[cfg(not(target_arch = "wasm32"))]
         self.resolve_web_tool_adapters(result, command_name, attrs);
         self.resolve_primitive_spawn(result, command_name, attrs, None);
+        self.resolve_exec_adapters(result, command_name, attrs);
+    }
+
+    /// `:exec` adapter resolver — the HECKSAGON-FIRST impure edge that runs a
+    /// program when a command completes. Sibling of the other react_ports
+    /// resolvers, but routes through the SINGLE `Process.Spawn` primitive
+    /// (`resolve_primitive_spawn`) rather than a bespoke per-family executor :
+    /// `adapter :exec, command:, exec:, result_into:` is SUGAR over Process.Spawn.
+    /// The hecksagon DECLARES the impure edge ; the one spawn primitive RUNS it.
+    /// Matches every `:exec` IoAdapter whose `command:` option equals the just-
+    /// dispatched `Aggregate.Command`, firing the spawn with cmd=exec,
+    /// result_into, and the originating invocation id as the cascade join key.
+    /// Restores the pre-bacc0692f hecksagon surface WITHOUT the retired
+    /// `resolve_exec_adapters` bespoke executor (the spawn is the one primitive).
+    fn resolve_exec_adapters(
+        &mut self,
+        result: &CommandResult,
+        command_name: &str,
+        _dispatch_attrs: &HashMap<String, Value>,
+    ) {
+        if self.hecksagons.is_empty() {
+            return;
+        }
+        let bare_command = command_name.rsplit('.').next().unwrap_or(command_name);
+        let target = format!("{}.{}", result.aggregate_type, bare_command);
+        let matched: Vec<(String, Option<String>)> = self
+            .hecksagons
+            .iter()
+            .flat_map(|h| h.io_adapters.iter())
+            .filter(|a| a.kind == "exec")
+            .filter_map(|a| {
+                let mut cmd: Option<String> = None;
+                let mut exec: Option<String> = None;
+                let mut result_into: Option<String> = None;
+                for (k, v) in &a.options {
+                    match k.as_str() {
+                        "command" => cmd = Some(strip_quotes_or_colon(v)),
+                        "exec" => exec = Some(strip_quotes_or_colon(v)),
+                        "result_into" => result_into = Some(strip_quotes_or_colon(v)),
+                        _ => {}
+                    }
+                }
+                match (cmd, exec) {
+                    (Some(c), Some(e)) if c == target => Some((e, result_into)),
+                    _ => None,
+                }
+            })
+            .collect();
+        if matched.is_empty() {
+            return;
+        }
+        let invocation_id = self
+            .find(&result.aggregate_type, &result.aggregate_id)
+            .and_then(|s| s.fields.get("id").map(|v| v.to_string()))
+            .unwrap_or_else(|| result.aggregate_id.clone());
+        for (exec, result_into) in &matched {
+            let mut attrs: HashMap<String, Value> = HashMap::new();
+            attrs.insert("cmd".to_string(), Value::Str(exec.clone()));
+            if let Some(ri) = result_into {
+                if !ri.is_empty() {
+                    attrs.insert("result_into".to_string(), Value::Str(ri.clone()));
+                }
+            }
+            attrs.insert("id".to_string(), Value::Str(invocation_id.clone()));
+            let synth = CommandResult {
+                aggregate_id: invocation_id.clone(),
+                aggregate_type: "Process".to_string(),
+                event: None,
+                deltas: Vec::new(),
+            };
+            self.resolve_primitive_spawn(&synth, "Process.Spawn", &attrs, None);
+        }
     }
 
     /// Phase 3 — deliver enqueued reactions. Each pending reaction runs

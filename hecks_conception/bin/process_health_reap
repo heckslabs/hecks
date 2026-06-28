@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+# process_health_reap — the ProcessMacrophage runaway-reaper executor.
+#
+# Contract (process_health.bluebook) : the liveness Sweep catches processes
+# that STOP (MarkDead). It cannot catch a process that SPINS — an orphaned
+# `storehouse ... Tools::ShellTool.Bash` tool-dispatch child pegged at ~100%
+# CPU is gloriously alive (fresh heartbeat, pgrep finds it), so it slips the
+# liveness net. This is the executor for that gap : it kills tool-dispatch
+# children whose wall-clock age exceeds runaway_after_seconds. Wired as the
+# RunReapOnSwept policy (on ProcessMacrophage.Swept -> Primitive::Process.Spawn
+# this script), the exact sibling of RunSweepOnSwept -> bin/process_health_sweep.
+# Born 2026-06-28 after an orphaned `find *.bluebook` dispatch pinned a core
+# for 8.5h, invisible to the liveness sweep.
+#
+# Signal : wall-clock age, NOT CPU% — a tool dispatch (find/grep/git/build)
+# that has run longer than the window is wrong whether it spins or stalls, and
+# age is the macOS-portable discriminator (etimes is Linux-only ; etime is
+# parsed below). Only `Tools::ShellTool.Bash` children are candidates — the
+# long-lived daemons (storehouse loop/clock/drive/serve-socket/run) are SUPPOSED
+# to run forever and are never matched. The reaper itself runs via Process.Spawn,
+# not ShellTool.Bash, so it can never reap itself.
+set -uo pipefail
+
+# Window : seconds of wall-clock a tool-dispatch child may run before it is a
+# runaway. Mirrors ProcessMacrophage.runaway_after_seconds (the bluebook
+# contract) ; overridable per-deployment via the env var.
+THRESHOLD="${RUNAWAY_AFTER_SECONDS:-1800}"
+
+# Single-instance lock (mirrors process_health_sweep) — a reap pass is a
+# SINGLETON ; an atomic mkdir lock (portable ; macOS has no flock) lets one run.
+# A crashed pass's stale lock (>120s) is stolen so the cell can't wedge shut.
+LOCK="${TMPDIR:-/tmp}/process_health_reap.lock"
+if ! mkdir "$LOCK" 2>/dev/null; then
+  age=$(( $(date +%s) - $(stat -f %m "$LOCK" 2>/dev/null || echo 0) ))
+  if [ "$age" -gt 120 ]; then rmdir "$LOCK" 2>/dev/null || true; mkdir "$LOCK" 2>/dev/null || exit 0; else exit 0; fi
+fi
+trap 'rmdir "$LOCK" 2>/dev/null || true' EXIT
+
+# Parse a macOS `ps -o etime` value ([[dd-]hh:]mm:ss) into seconds.
+etime_to_secs() {
+  local t="$1" d=0 h=0 m=0 s=0
+  case "$t" in *-*) d="${t%%-*}"; t="${t#*-}" ;; esac
+  local IFS=:; set -- $t
+  if [ $# -eq 3 ]; then h=$1; m=$2; s=$3
+  elif [ $# -eq 2 ]; then m=$1; s=$2
+  else s=$1; fi
+  echo $(( 10#${d:-0}*86400 + 10#${h:-0}*3600 + 10#${m:-0}*60 + 10#${s:-0} ))
+}
+
+reaped=0
+scanned=0
+while IFS= read -r line; do
+  [ -z "$line" ] && continue
+  pid=$(printf '%s' "$line" | awk '{print $1}')
+  etime=$(printf '%s' "$line" | awk '{print $2}')
+  case "$line" in
+    *"Tools::ShellTool.Bash"*) : ;;   # a tool-dispatch child — a candidate
+    *) continue ;;
+  esac
+  scanned=$((scanned+1))
+  secs=$(etime_to_secs "$etime")
+  if [ "${secs:-0}" -gt "$THRESHOLD" ]; then
+    kill -TERM "$pid" 2>/dev/null || true
+    sleep 2
+    if kill -0 "$pid" 2>/dev/null; then kill -KILL "$pid" 2>/dev/null || true; fi
+    reaped=$((reaped+1))
+    printf 'reaped runaway pid=%s age=%ss cmd=%s\n' "$pid" "$secs" "$(printf '%s' "$line" | cut -c1-90)" >&2
+  fi
+done <<EOF
+$(ps -axo pid=,etime=,command= | grep 'release/storehouse' | grep -v ' grep ')
+EOF
+
+printf '{"reaped":%s,"scanned":%s,"threshold_seconds":%s}\n' "$reaped" "$scanned" "$THRESHOLD"

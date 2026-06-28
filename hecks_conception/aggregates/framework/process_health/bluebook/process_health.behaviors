@@ -108,6 +108,16 @@ Hecks.behaviors "ProcessHealth" do
     expect emits: ["SessionStarted"]
   end
 
+  # ProcessMacrophage carries the runaway-reaper window as persistent
+  # config (default 1800s) — like sweep_cadence_seconds, it survives the
+  # per-session tally reset. bin/process_health_reap reads it as its contract.
+  test "ProcessMacrophage carries the runaway-reaper window default" do
+    tests "StartSession", on: "ProcessMacrophage"
+    input  name:               { value: "process_macrophage" },
+           session_started_at: { value: "2026-06-28T00:00:00Z" }
+    expect runaway_after_seconds: 1800
+  end
+
   # ── ProcessMacrophage.Watch / Unwatch ──────────────────────────
 
   test "Watch emits ProcessWatched" do
