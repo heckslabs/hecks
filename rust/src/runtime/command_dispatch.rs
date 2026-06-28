@@ -535,6 +535,7 @@ fn resolve(rt: &Runtime, command_name: &str, caller_scope: Option<&str>) -> Resu
             // match (additive fallback — identical to the old behaviour when
             // caller_scope is None or no local candidate exists).
             let mut first_global: Option<Resolution> = None;
+            let mut first_global_foreign = false;
             for (ai, agg) in rt.domain.aggregates.iter().enumerate() {
                 if agg.name != *agg_name { continue; }
                 for (ci, cmd) in agg.commands.iter().enumerate() {
@@ -544,18 +545,28 @@ fn resolve(rt: &Runtime, command_name: &str, caller_scope: Option<&str>) -> Resu
                         }
                         if first_global.is_none() {
                             first_global = Some(Resolution::Aggregate(ai, ci));
+                            // Foreign = the caller is scoped (a cascade) AND this
+                            // target is STAMPED in a different bluebook. Unstamped
+                            // (string-parsed / outside ~/Projects) stays lenient.
+                            first_global_foreign =
+                                caller_scope.is_some() && agg.realm_path.is_some();
                         }
                     }
                 }
             }
             if let Some(r) = first_global {
-                // Foreign-short diagnostic (opt-in) : a CASCADE short ref that
-                // resolved via the GLOBAL fallback — no local match in the
-                // caller's bluebook — is a FOREIGN ref that will break when the
-                // global fallback is dropped (tighten). Surfacing these turns the
-                // remaining flip work into evidence instead of speculation.
-                if caller_scope.is_some() && std::env::var("HECKS_WARN_FOREIGN_SHORT").is_ok() {
-                    eprintln!("[fqn:foreign-short] '{}' resolved via global fallback (caller scope {:?}, no local match) — qualify to FQN before tighten", command_name, caller_scope);
+                // TIGHTEN (i-fqn local-short) : a CASCADE short ref that matched
+                // ONLY a foreign, stamped aggregate is an error — a cascade must
+                // address a foreign bluebook by its full FQN, never a short ref
+                // that silently first-matches across the corpus. Top-level (no
+                // caller_scope) and unstamped targets keep first-match. Evidence
+                // (HECKS_WARN_FOREIGN_SHORT across the corpus) : 0 such refs today,
+                // so this is a no-op now and a structural guard against future
+                // homonym mis-resolution.
+                if first_global_foreign {
+                    return Err(RuntimeError::UnknownCommand(format!(
+                        "{} — short ref resolves only to a FOREIGN bluebook (caller scope {:?}); a cross-bluebook cascade must use the full Realm::Context::Bluebook::Aggregate FQN",
+                        command_name, caller_scope)));
                 }
                 return Ok(r);
             }
@@ -1523,6 +1534,16 @@ fn no_caller_scope_falls_back_to_first_match() {
     // ADDITIVE : no caller scope → today's global first-match (hecks declared first).
     let r = super::resolve(&rt, "Widget.Make", None).unwrap();
     assert_eq!(rt.domain.aggregates[r.agg_idx()].realm_path.as_deref(), Some("hecks/framework"));
+}
+
+#[test]
+fn cascade_short_ref_matching_only_foreign_errors() {
+    let rt = crate::runtime::Runtime::boot(two_widget_domain());
+    // TIGHTEN : a CASCADE (scoped) short ref whose only matches live in OTHER
+    // bluebooks (both Widgets are stamped, neither in this scope) is an error —
+    // a cross-bluebook cascade must use the full FQN, not a first-matched short.
+    let r = super::resolve(&rt, "Widget.Make", Some("hecks/elsewhere"));
+    assert!(r.is_err(), "expected foreign-only cascade short ref to error, got {:?}", r);
 }
 
 }
