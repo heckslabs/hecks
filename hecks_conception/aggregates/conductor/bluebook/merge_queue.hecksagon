@@ -1,0 +1,3 @@
+Hecks.hecksagon "Conductor" do
+  Conductor::MergeQueue.persisted_by("Heki")
+end

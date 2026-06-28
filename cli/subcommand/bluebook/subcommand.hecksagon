@@ -1,0 +1,3 @@
+Hecks.hecksagon "SubcommandRegistry" do
+  SubcommandRegistry::Subcommand.persisted_by("Heki")
+end

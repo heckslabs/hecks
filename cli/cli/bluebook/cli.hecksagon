@@ -56,4 +56,6 @@ Hecks.hecksagon "Cli" do
   adapter :stdout
   adapter :stderr
   adapter :runtime_dispatch
+
+  Cli::Invocation.persisted_by("Heki")
 end

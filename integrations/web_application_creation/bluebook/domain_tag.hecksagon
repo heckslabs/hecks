@@ -1,0 +1,3 @@
+Hecks.hecksagon "DomainTag" do
+  DomainTag::DomainTag.persisted_by("Heki")
+end

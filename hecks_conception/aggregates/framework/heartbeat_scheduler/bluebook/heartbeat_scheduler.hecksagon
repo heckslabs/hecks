@@ -1,0 +1,3 @@
+Hecks.hecksagon "HeartbeatScheduler" do
+  HeartbeatScheduler::HeartbeatScheduler.persisted_by("Heki")
+end

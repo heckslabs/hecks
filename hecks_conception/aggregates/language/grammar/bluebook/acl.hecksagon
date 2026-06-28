@@ -1,0 +1,3 @@
+Hecks.hecksagon "Acl" do
+  Acl::Acl.persisted_by("Heki")
+end

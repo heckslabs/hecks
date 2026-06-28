@@ -1,0 +1,3 @@
+Hecks.hecksagon "StoreClassification" do
+  StoreClassification::StoreClassification.persisted_by("Heki")
+end

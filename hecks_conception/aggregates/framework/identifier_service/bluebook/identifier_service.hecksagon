@@ -1,0 +1,4 @@
+Hecks.hecksagon "IdentifierService" do
+  IdentifierService::IdentifierService.persisted_by("Heki")
+  IdentifierService::IdentityPetition.persisted_by("Heki")
+end

@@ -1,0 +1,4 @@
+Hecks.hecksagon "Pizzas" do
+  Pizzas::Pizza.persisted_by("Heki")
+  Pizzas::Order.persisted_by("Heki")
+end

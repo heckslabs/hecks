@@ -1,0 +1,5 @@
+Hecks.hecksagon "StatusBar" do
+  StatusBar::Mode.persisted_by("Heki")
+  StatusBar::AttentiveLayout.persisted_by("Heki")
+  StatusBar::SleepLayout.persisted_by("Heki")
+end

@@ -1,0 +1,3 @@
+Hecks.hecksagon "Argv" do
+  Argv::Argv.persisted_by("Heki")
+end

@@ -26,4 +26,6 @@ Hecks.hecksagon "SeedLoader" do
 
   adapter :fs, root: "."
   adapter :runtime_dispatch
+
+  SeedLoader::SeedLoader.persisted_by("Heki")
 end

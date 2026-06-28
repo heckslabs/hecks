@@ -1,0 +1,3 @@
+Hecks.hecksagon "LoopDriver" do
+  LoopDriver::LoopDriver.persisted_by("Heki")
+end

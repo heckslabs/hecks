@@ -58,4 +58,7 @@ Hecks.hecksagon "AgentInbox" do
   # Send -> Poll -> Reply flow function across processes (same reasoning as
   # process_health.hecksagon).
   adapter :heki
+
+  AgentInbox::AgentMessage.persisted_by("Heki")
+  AgentInbox::InboxPoller.persisted_by("Heki")
 end

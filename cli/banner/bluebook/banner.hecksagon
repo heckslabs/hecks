@@ -20,4 +20,6 @@ Hecks.hecksagon "Banner" do
   # tall enough to trigger the harness's output-fold.
 
   adapter :stdout
+
+  Banner::Banner.persisted_by("Heki")
 end

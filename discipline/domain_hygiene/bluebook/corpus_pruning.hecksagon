@@ -1,0 +1,3 @@
+Hecks.hecksagon "CorpusPruning" do
+  CorpusPruning::CorpusPruning.persisted_by("Heki")
+end

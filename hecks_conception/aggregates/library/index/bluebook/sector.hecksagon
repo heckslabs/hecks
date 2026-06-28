@@ -1,0 +1,3 @@
+Hecks.hecksagon "Sector" do
+  Sector::Sector.persisted_by("Heki")
+end

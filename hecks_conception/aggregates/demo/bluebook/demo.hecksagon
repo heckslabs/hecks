@@ -1,0 +1,3 @@
+Hecks.hecksagon "Demo" do
+  Demo::Demo.persisted_by("Heki")
+end

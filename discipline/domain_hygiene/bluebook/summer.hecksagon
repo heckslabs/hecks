@@ -1,0 +1,6 @@
+Hecks.hecksagon "Summer" do
+  Summer::Model.persisted_by("Heki")
+  Summer::Draft.persisted_by("Heki")
+  Summer::Critique.persisted_by("Heki")
+  Summer::Daemon.persisted_by("Heki")
+end

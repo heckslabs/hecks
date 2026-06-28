@@ -1,0 +1,6 @@
+Hecks.hecksagon "CloudTraining" do
+  CloudTraining::TrainingJob.persisted_by("Heki")
+  CloudTraining::DataUpload.persisted_by("Heki")
+  CloudTraining::AdapterDownload.persisted_by("Heki")
+  CloudTraining::CostTracker.persisted_by("Heki")
+end

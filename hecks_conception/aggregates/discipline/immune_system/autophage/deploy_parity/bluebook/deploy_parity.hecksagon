@@ -1,0 +1,3 @@
+Hecks.hecksagon "DeployParity" do
+  DeployParity::DeployParity.persisted_by("Heki")
+end

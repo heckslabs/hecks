@@ -1,0 +1,3 @@
+Hecks.hecksagon "Shard" do
+  Shard::Shard.persisted_by("Heki")
+end

@@ -1,0 +1,3 @@
+Hecks.hecksagon "Becoming" do
+  Becoming::Harvest.persisted_by("Heki")
+end

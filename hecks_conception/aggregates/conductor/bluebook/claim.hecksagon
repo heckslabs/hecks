@@ -1,0 +1,3 @@
+Hecks.hecksagon "Conductor" do
+  Conductor::Claim.persisted_by("Heki")
+end

@@ -1,0 +1,3 @@
+Hecks.hecksagon "Delivery" do
+  Delivery::Delivery.persisted_by("Heki")
+end

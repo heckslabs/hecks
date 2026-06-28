@@ -1,0 +1,4 @@
+Hecks.hecksagon "OllamaAdapter" do
+  OllamaAdapter::Connection.persisted_by("Heki")
+  OllamaAdapter::Inference.persisted_by("Heki")
+end

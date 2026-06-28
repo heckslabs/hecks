@@ -1,0 +1,7 @@
+Hecks.hecksagon "CloudflareArtifacts" do
+  CloudflareArtifacts::Compilation.persisted_by("Heki")
+  CloudflareArtifacts::WorkerScript.persisted_by("Heki")
+  CloudflareArtifacts::PagesSite.persisted_by("Heki")
+  CloudflareArtifacts::Migration.persisted_by("Heki")
+  CloudflareArtifacts::WranglerConfig.persisted_by("Heki")
+end

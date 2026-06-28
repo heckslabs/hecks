@@ -37,4 +37,7 @@ Hecks.hecksagon "BehaviorsRunner" do
   #   runner owns. Not an outbound port to an external runtime.
 
   adapter :fs, root: "."
+
+  BehaviorsRunner::BehaviorsRun.persisted_by("Heki")
+  BehaviorsRunner::TestExecution.persisted_by("Heki")
 end

@@ -1,0 +1,3 @@
+Hecks.hecksagon "SeedingWorker" do
+  SeedingWorker::Worker.persisted_by("Heki")
+end

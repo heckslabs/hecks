@@ -1,0 +1,3 @@
+Hecks.hecksagon "Cargo" do
+  Cargo::Cargo.persisted_by("Heki")
+end

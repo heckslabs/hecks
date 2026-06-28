@@ -1,0 +1,4 @@
+Hecks.hecksagon "DomainHygiene" do
+  DomainHygiene::DomainHygiene.persisted_by("Heki")
+  DomainHygiene::Enrichment.persisted_by("Heki")
+end

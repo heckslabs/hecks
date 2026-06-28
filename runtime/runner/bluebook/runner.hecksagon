@@ -32,4 +32,6 @@ Hecks.hecksagon "Runner" do
   adapter :runtime_dispatch
   adapter :stdin
   adapter :stdout
+  Runner::ScriptRun.persisted_by("Heki")
+  Runner::InteractiveSession.persisted_by("Heki")
 end

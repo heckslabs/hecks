@@ -1,0 +1,7 @@
+Hecks.hecksagon "BehaviorsConception" do
+  BehaviorsConception::TestSuite.persisted_by("Heki")
+  BehaviorsConception::Behavior.persisted_by("Heki")
+  BehaviorsConception::Precondition.persisted_by("Heki")
+  BehaviorsConception::SampleValueRule.persisted_by("Heki")
+  BehaviorsConception::SetupPlan.persisted_by("Heki")
+end

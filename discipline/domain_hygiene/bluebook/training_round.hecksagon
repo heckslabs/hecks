@@ -1,0 +1,3 @@
+Hecks.hecksagon "TrainingRound" do
+  TrainingRound::Round.persisted_by("Heki")
+end

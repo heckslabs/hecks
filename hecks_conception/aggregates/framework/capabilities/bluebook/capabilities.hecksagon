@@ -1,0 +1,3 @@
+Hecks.hecksagon "Capabilities" do
+  Capabilities::Capability.persisted_by("Heki")
+end

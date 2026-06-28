@@ -1,0 +1,5 @@
+Hecks.world "Dispatch" do
+  persisted_by("Heki") do
+    dir :default
+  end
+end

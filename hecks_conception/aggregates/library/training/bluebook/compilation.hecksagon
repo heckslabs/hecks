@@ -1,0 +1,3 @@
+Hecks.hecksagon "Compilation" do
+  Compilation::Compilation.persisted_by("Heki")
+end

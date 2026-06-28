@@ -64,4 +64,6 @@ Hecks.hecksagon "CommandBus" do
     args: ["storehouse", "route", "{{phrase}}", "{{params_kv}}"],
     output_format: :text,
     timeout: 60
+
+  CommandBus::CommandBus.persisted_by("Memory")
 end

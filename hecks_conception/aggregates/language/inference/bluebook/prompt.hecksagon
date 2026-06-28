@@ -1,0 +1,3 @@
+Hecks.hecksagon "Prompt" do
+  Prompt::Prompt.persisted_by("Heki")
+end

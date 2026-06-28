@@ -1,0 +1,3 @@
+Hecks.hecksagon "LazyIndex" do
+  LazyIndex::LazyIndex.persisted_by("Heki")
+end

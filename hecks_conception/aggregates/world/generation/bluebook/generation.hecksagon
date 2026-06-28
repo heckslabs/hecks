@@ -1,0 +1,3 @@
+Hecks.hecksagon "Generation" do
+  Generation::Generation.persisted_by("Heki")
+end

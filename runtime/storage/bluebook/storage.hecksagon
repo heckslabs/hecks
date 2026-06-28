@@ -28,4 +28,8 @@ Hecks.hecksagon "Storage" do
   # is by design volatile across runtime restarts.
 
   adapter :fs, root: "information"
+
+  Storage::Repository.persisted_by("Heki")
+  Storage::Projection.persisted_by("Heki")
+  Storage::AdapterRegistry.persisted_by("Heki")
 end

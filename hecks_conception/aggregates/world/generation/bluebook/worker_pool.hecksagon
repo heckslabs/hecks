@@ -1,0 +1,3 @@
+Hecks.hecksagon "WorkerPool" do
+  WorkerPool::WorkerPool.persisted_by("Heki")
+end

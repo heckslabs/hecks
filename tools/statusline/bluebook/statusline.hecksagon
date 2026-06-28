@@ -1,0 +1,3 @@
+Hecks.hecksagon "Statusline" do
+  Statusline::Statusline.persisted_by("Heki")
+end

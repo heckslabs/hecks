@@ -1,0 +1,3 @@
+Hecks.hecksagon "StorehouseApiAdapter" do
+  StorehouseApiAdapter::Binding.persisted_by("Heki")
+end

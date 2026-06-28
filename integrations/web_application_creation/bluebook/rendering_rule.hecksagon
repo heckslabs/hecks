@@ -1,0 +1,3 @@
+Hecks.hecksagon "RenderingRule" do
+  RenderingRule::RenderingRule.persisted_by("Heki")
+end

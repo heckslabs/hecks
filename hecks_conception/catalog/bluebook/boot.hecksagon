@@ -1,0 +1,4 @@
+Hecks.hecksagon "Boot" do
+  Boot::Session.persisted_by("Memory")
+  Boot::BrainProbe.persisted_by("Memory")
+end

@@ -1,0 +1,9 @@
+Hecks.hecksagon "DynamicProjection" do
+  DynamicProjection::Binding.persisted_by("Heki")
+  DynamicProjection::BluebookWatch.persisted_by("Heki")
+  DynamicProjection::PageProjection.persisted_by("Heki")
+  DynamicProjection::FormProjection.persisted_by("Heki")
+  DynamicProjection::NavigationProjection.persisted_by("Heki")
+  DynamicProjection::LifecycleBadge.persisted_by("Heki")
+  DynamicProjection::DriftDetector.persisted_by("Heki")
+end

@@ -1,0 +1,3 @@
+Hecks.hecksagon "ContextWindow" do
+  ContextWindow::ContextWindow.persisted_by("Heki")
+end

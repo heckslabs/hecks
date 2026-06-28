@@ -43,4 +43,7 @@ Hecks.hecksagon "Server" do
 
   adapter :fs, root: "."
   adapter :runtime_dispatch
+  Server::Server.persisted_by("Heki")
+  Server::Route.persisted_by("Heki")
+  Server::MultiDomainServer.persisted_by("Heki")
 end

@@ -1,0 +1,4 @@
+Hecks.hecksagon "NoneInStateGate" do
+  NoneInStateGate::Slot.persisted_by("Heki")
+  NoneInStateGate::Claim.persisted_by("Heki")
+end

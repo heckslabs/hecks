@@ -32,4 +32,8 @@ Hecks.hecksagon "EventSourcing" do
                consolidation_id: "log"
     end
   end
+
+  EventSourcing::Consolidation.persisted_by("Heki")
+  EventSourcing::Projection.persisted_by("Heki")
+  EventSourcing::Snapshot.persisted_by("Heki")
 end

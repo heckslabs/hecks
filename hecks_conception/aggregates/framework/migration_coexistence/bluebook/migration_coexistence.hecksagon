@@ -1,0 +1,3 @@
+Hecks.hecksagon "MigrationCoexistence" do
+  MigrationCoexistence::AggregateMigration.persisted_by("Heki")
+end

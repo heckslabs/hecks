@@ -1,0 +1,3 @@
+Hecks.hecksagon "Storehouse" do
+  Storehouse::Primitive.persisted_by("Heki")
+end

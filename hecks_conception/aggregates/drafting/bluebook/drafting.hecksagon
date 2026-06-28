@@ -1,0 +1,3 @@
+Hecks.hecksagon "Drafting" do
+  Drafting::Document.persisted_by("Heki")
+end

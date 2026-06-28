@@ -1,0 +1,3 @@
+Hecks.hecksagon "AgentInstrumentation" do
+  AgentInstrumentation::AgentDefinition.persisted_by("Heki")
+end

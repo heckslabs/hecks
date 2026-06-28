@@ -1,0 +1,3 @@
+Hecks.hecksagon "Enrichment" do
+  Enrichment::Enrichment.persisted_by("Heki")
+end

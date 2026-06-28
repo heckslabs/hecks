@@ -1,0 +1,3 @@
+Hecks.hecksagon "Conception" do
+  Conception::Conception.persisted_by("Heki")
+end

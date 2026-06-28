@@ -1,0 +1,3 @@
+Hecks.hecksagon "Hydration" do
+  Hydration::Hydration.persisted_by("Heki")
+end

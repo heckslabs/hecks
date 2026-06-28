@@ -1,6 +1,20 @@
 Hecks.hecksagon "Macrophage" do
-  # Persistence (i728 Phase B) : durable-by-default. This aggregate persists
-  # to a live heki store under information/ ; :heki declared so the backing is
-  # explicit BEFORE apply_memory_persistence makes :memory real.
-  adapter :heki
+  Macrophage::Macrophage.persisted_by("Heki")
+  Macrophage::BluebookFirst.persisted_by("Heki")
+  Macrophage::FixturesRuntime.persisted_by("Heki")
+  Macrophage::AntibodyExemption.persisted_by("Heki")
+  Macrophage::Warnings.persisted_by("Heki")
+  Macrophage::LinearReference.persisted_by("Heki")
+  Macrophage::LineCount.persisted_by("Heki")
+  Macrophage::TestSpeed.persisted_by("Heki")
+  Macrophage::CardLock.persisted_by("Heki")
+  Macrophage::BidirectionalAssociation.persisted_by("Heki")
+  Macrophage::IdentityDiscipline.persisted_by("Heki")
+  Macrophage::WritingDiscipline.persisted_by("Heki")
+  Macrophage::CorrespondenceDiscipline.persisted_by("Heki")
+  Macrophage::AdapterLocation.persisted_by("Heki")
+  Macrophage::SuccessFailurePairing.persisted_by("Heki")
+  Macrophage::InvocationPrinciple.persisted_by("Heki")
+  Macrophage::IdempotentByConstruction.persisted_by("Heki")
+  Macrophage::RelationshipDiscipline.persisted_by("Heki")
 end

@@ -1,0 +1,3 @@
+Hecks.hecksagon "FewShot" do
+  FewShot::FewShot.persisted_by("Heki")
+end

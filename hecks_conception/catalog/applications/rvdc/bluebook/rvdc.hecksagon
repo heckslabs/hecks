@@ -1,0 +1,3 @@
+Hecks.hecksagon "RVDC" do
+  RVDC::App.persisted_by("Heki")
+end

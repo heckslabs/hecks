@@ -99,4 +99,8 @@ Hecks.hecksagon "LivingDiagram" do
   #     Already exists at /domains/:domain_name/dispatch (single-
   #     domain routes layer). The diagram form posts there. Future
   #     :web adapter could move that wiring here.
+
+  LivingDiagram::Diagram.persisted_by("Heki")
+  LivingDiagram::CascadeTrace.persisted_by("Heki")
+  LivingDiagram::FormSubmission.persisted_by("Heki")
 end

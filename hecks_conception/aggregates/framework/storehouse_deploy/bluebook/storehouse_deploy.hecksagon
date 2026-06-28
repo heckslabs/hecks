@@ -1,0 +1,3 @@
+Hecks.hecksagon "StorehouseDeploy" do
+  StorehouseDeploy::Deploy.persisted_by("Heki")
+end

@@ -1,0 +1,3 @@
+Hecks.hecksagon "TrainingExtraction" do
+  TrainingExtraction::TrainingPair.persisted_by("Heki")
+end

@@ -1,0 +1,4 @@
+Hecks.hecksagon "ToolCache" do
+  ToolCache::ToolStats.persisted_by("Heki")
+  ToolCache::ToolCacheSnapshot.persisted_by("Heki")
+end

@@ -1,0 +1,3 @@
+Hecks.hecksagon "Discovery" do
+  Discovery::BootDiscovery.persisted_by("Heki")
+end

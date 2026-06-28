@@ -1,0 +1,4 @@
+Hecks.hecksagon "DispatchAudit" do
+  DispatchAudit::AuditEntry.persisted_by("Heki")
+  DispatchAudit::AuditQuery.persisted_by("Heki")
+end

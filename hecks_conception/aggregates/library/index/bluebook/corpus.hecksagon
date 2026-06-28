@@ -1,0 +1,3 @@
+Hecks.hecksagon "Corpus" do
+  Corpus::Search.persisted_by("Heki")
+end

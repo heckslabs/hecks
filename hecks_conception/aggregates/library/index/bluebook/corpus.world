@@ -1,0 +1,5 @@
+Hecks.world "Corpus" do
+  persisted_by("Heki") do
+    dir :default
+  end
+end

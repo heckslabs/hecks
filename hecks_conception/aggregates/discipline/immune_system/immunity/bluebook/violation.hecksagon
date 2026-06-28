@@ -1,0 +1,3 @@
+Hecks.hecksagon "Violation" do
+  Violation::Violation.persisted_by("Heki")
+end

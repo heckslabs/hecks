@@ -1,0 +1,3 @@
+Hecks.hecksagon "Template" do
+  Template::Template.persisted_by("Heki")
+end

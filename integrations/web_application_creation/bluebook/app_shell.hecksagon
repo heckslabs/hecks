@@ -1,0 +1,3 @@
+Hecks.hecksagon "AppShell" do
+  AppShell::AppShell.persisted_by("Heki")
+end

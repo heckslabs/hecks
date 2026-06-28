@@ -1,0 +1,3 @@
+Hecks.hecksagon "CapabilityIndex" do
+  CapabilityIndex::CapabilityIndex.persisted_by("Heki")
+end

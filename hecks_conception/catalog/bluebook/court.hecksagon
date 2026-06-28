@@ -1,0 +1,5 @@
+Hecks.hecksagon "Court" do
+  Court::Case.persisted_by("Heki")
+  Court::Finding.persisted_by("Heki")
+  Court::Precedent.persisted_by("Heki")
+end

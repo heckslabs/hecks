@@ -1,0 +1,3 @@
+Hecks.hecksagon "KnowledgeStore" do
+  KnowledgeStore::KnowledgeStore.persisted_by("Heki")
+end

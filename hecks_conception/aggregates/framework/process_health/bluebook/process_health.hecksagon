@@ -1,45 +1,4 @@
 Hecks.hecksagon "ProcessHealth" do
-  # ProcessHealth wiring. The sweep + heal side-effects are no longer
-  # imperative `:exec` adapters resolved by a hand-written Rust arm
-  # (resolve_exec_adapters, retired) — they are ordinary bluebook now.
-  # See process_health.bluebook's two policies :
-  #
-  #   * RunSweepOnSwept — `on "ProcessMacrophage.Swept"` (gap #1b,
-  #       aggregate-qualified so it can't mis-fire on the discipline
-  #       macrophage's Swept or collide with MarkHangedOnMissingHeartbeat)
-  #       → Primitive::Process.Spawn (literal cmd `bin/process_health_sweep`,
-  #       result_into `Cascade.RecordResult`). The recurring tick that
-  #       walks the watchlist. (Script bin/process_health_sweep is still
-  #       follow-up work — the binding is live, the leaf is pending.)
-  #
-  #   * RunHealOnHealRequested — `on "ProcessMacrophage.HealRequested"`
-  #       → Primitive::Process.Spawn (literal cmd
-  #       `node bin/process_health_heal.mjs`, result_into
-  #       `Cascade.RecordResult`). The teeth : the script detects
-  #       whether overmind is alive (else `overmind start -D` from
-  #       hecks_conception/), reads process_sentinel.heki for state=dead
-  #       records, runs `overmind restart <process_name>` per dead
-  #       sentinel, and dispatches MarkAlive on each restarted sentinel
-  #       so ProposeHealOnDeath doesn't re-fire on the next sweep.
-  #
-  # The bluebook stays pure (records the dispatch + emits) ; the scripts
-  # are the impure leaves the process-spawn primitive runs. Pure
-  # composition meets pure execution at the bus boundary — the
-  # adapters-as-bluebook arc (plan: structured-pondering-pie, gap #1b).
-  #
-  # cwd contract : the process-spawn primitive (exec_dispatcher leaf)
-  # inherits the runtime process cwd. The overmind process_macrophage
-  # member runs from hecks_conception/, so bin/process_health_sweep +
-  # bin/process_health_heal.mjs resolve identically whether the loop or
-  # a manual dispatch fired them — same convention as inbox_poll.
-
-  # Persistence : :heki, not :memory. The sweep fan-out runs OUT-OF-PROCESS
-  # (RunSweepOnSwept -> Process.Spawn bin/process_health_sweep), so its
-  # MarkAlive | MarkHanged | MarkDead dispatches are SEPARATE cold processes
-  # from the process_macrophage loop. Memory-backing the sentinels means each
-  # mark lives in a throwaway process and vanishes on exit — the loop never
-  # sees them and process_health_heal.mjs (which reads process_sentinel.heki)
-  # finds nothing. Durable heki is the shared medium that makes the
-  # sweep -> mark -> heal flow actually function across the three processes.
-  adapter :heki
+  ProcessHealth::ProcessSentinel.persisted_by("Heki")
+  ProcessHealth::ProcessMacrophage.persisted_by("Heki")
 end

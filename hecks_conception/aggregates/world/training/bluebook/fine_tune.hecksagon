@@ -1,0 +1,3 @@
+Hecks.hecksagon "FineTune" do
+  FineTune::FineTune.persisted_by("Heki")
+end

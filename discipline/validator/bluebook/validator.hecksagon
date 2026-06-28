@@ -1,0 +1,3 @@
+Hecks.hecksagon "Validator" do
+  Validator::Validator.persisted_by("Heki")
+end

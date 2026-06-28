@@ -1,0 +1,3 @@
+Hecks.hecksagon "OutboundEvent" do
+  OutboundEvent::OutboundEvent.persisted_by("Heki")
+end

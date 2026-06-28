@@ -1,0 +1,3 @@
+Hecks.hecksagon "DomainEntry" do
+  DomainEntry::DomainEntry.persisted_by("Heki")
+end

@@ -47,4 +47,6 @@ Hecks.hecksagon "Status" do
     args: ["-0", "{{pid}}"],
     output_format: :exit_code,
     ok_exit: 0
+
+  Status::StatusReport.persisted_by("Heki")
 end

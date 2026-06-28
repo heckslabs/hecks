@@ -1,0 +1,3 @@
+Hecks.hecksagon "Bluebook" do
+  Bluebook::Domain.persisted_by("Heki")
+end

@@ -34,4 +34,11 @@ Hecks.hecksagon "Restructure" do
   # streams one line per planned move ; Layout.Apply reports each
   # ApplyMove + VerifyMove outcome as it happens.
   adapter :stdout
+
+  # ---- Persistence binds -------------------------------------------
+  # One persisted_by per aggregate, mirroring each aggregate's current
+  # backend. Restructure aggregates are all in-memory today.
+  Restructure::Layout.persisted_by("Memory")
+  Restructure::Placement.persisted_by("Memory")
+  Restructure::Move.persisted_by("Memory")
 end

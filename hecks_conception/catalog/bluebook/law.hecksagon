@@ -1,0 +1,5 @@
+Hecks.hecksagon "Law" do
+  Law::Law.persisted_by("Heki")
+  Law::Violation.persisted_by("Heki")
+  Law::Enforcement.persisted_by("Heki")
+end

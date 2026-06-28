@@ -37,4 +37,6 @@ Hecks.hecksagon "Lexicon" do
   # heki upsert path. Lookup reads via heki::read. List filters in
   # memory.
   adapter :memory
+
+  Lexicon::Lexicon.persisted_by("Memory")
 end

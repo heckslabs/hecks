@@ -1,0 +1,3 @@
+Hecks.hecksagon "Deduplication" do
+  Deduplication::Deduplication.persisted_by("Heki")
+end

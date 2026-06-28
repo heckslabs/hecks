@@ -1,0 +1,3 @@
+Hecks.hecksagon "Morphology" do
+  Morphology::VerbException.persisted_by("Heki")
+end

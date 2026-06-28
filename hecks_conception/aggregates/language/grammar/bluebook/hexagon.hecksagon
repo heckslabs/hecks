@@ -1,0 +1,8 @@
+Hecks.hecksagon "Hexagon" do
+  Hexagon::Hexagon.persisted_by("Heki")
+  Hexagon::Family.persisted_by("Heki")
+  Hexagon::Field.persisted_by("Heki")
+  Hexagon::ProducedField.persisted_by("Heki")
+  Hexagon::Adapter.persisted_by("Heki")
+  Hexagon::Binding.persisted_by("Heki")
+end

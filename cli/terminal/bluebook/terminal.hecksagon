@@ -16,4 +16,6 @@ Hecks.hecksagon "Terminal" do
   adapter :stdout, prompt: "  ❄ "
   adapter :stdin,  prompt: "  ❄ "
   adapter :stderr
+
+  Terminal::Session.persisted_by("Heki")
 end

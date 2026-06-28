@@ -189,4 +189,27 @@ Hecks.hecksagon "Tools" do
     command: "Hecks::Framework::Tools::EmailTool.GetAttachment",
     tool:    "gmail_attachment",
     result_into: "Hecks::Framework::Cascade::Cascade.RecordResult"
+
+  # ── persisted_by binds (mirror each aggregate's current backend) ──
+  Tools::AgentTool.persisted_by("Memory")
+  Tools::AskTool.persisted_by("Memory")
+  Tools::CronTool.persisted_by("Memory")
+  Tools::EmailTool.persisted_by("Memory")
+  Tools::FileTool.persisted_by("Memory")
+  Tools::GitHubTool.persisted_by("Memory")
+  Tools::GitTool.persisted_by("Memory")
+  Tools::LspTool.persisted_by("Memory")
+  Tools::MetaTool.persisted_by("Memory")
+  Tools::MonitorTool.persisted_by("Memory")
+  Tools::NotifyTool.persisted_by("Memory")
+  Tools::PlanTool.persisted_by("Memory")
+  Tools::RemoteTriggerTool.persisted_by("Memory")
+  Tools::SearchTool.persisted_by("Memory")
+  Tools::ShellTool.persisted_by("Memory")
+  Tools::Sidequest.persisted_by("Memory")
+  Tools::SkillTool.persisted_by("Memory")
+  Tools::TaskTool.persisted_by("Memory")
+  Tools::WakeupTool.persisted_by("Memory")
+  Tools::WebTool.persisted_by("Memory")
+  Tools::WorktreeTool.persisted_by("Memory")
 end

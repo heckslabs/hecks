@@ -1,15 +1,9 @@
 Hecks.hecksagon "HecksagonIr" do
-  # ============================================================
-  # HECKSAGON IR — memory wiring for every aggregate
-  # ============================================================
-  #
-  # The HecksagonIr bluebook (sibling file hecksagon_ir.bluebook)
-  # is a contract domain — it describes the shape of a parsed
-  # .hecksagon file. The aggregates carry no persistence concern
-  # of their own : they're a structural mirror of the Rust IR.
-  # Memory adapter wiring is the right runtime default ; Phase 2
-  # (Rust parser catches up to this contract) will exercise the
-  # Conceive surface during parser tests.
-
-  adapter :memory
+  HecksagonIr::Hecksagon.persisted_by("Memory")
+  HecksagonIr::IoAdapter.persisted_by("Memory")
+  HecksagonIr::ShellAdapter.persisted_by("Memory")
+  HecksagonIr::Gate.persisted_by("Memory")
+  HecksagonIr::LlmAdapter.persisted_by("Memory")
+  HecksagonIr::ComputeAdapter.persisted_by("Memory")
+  HecksagonIr::TtsAdapter.persisted_by("Memory")
 end

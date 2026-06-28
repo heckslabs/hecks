@@ -1,0 +1,3 @@
+Hecks.hecksagon "AgentDiscipline" do
+  AgentDiscipline::AgentDiscipline.persisted_by("Heki")
+end

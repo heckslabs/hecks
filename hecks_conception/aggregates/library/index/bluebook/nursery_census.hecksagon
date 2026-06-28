@@ -1,0 +1,3 @@
+Hecks.hecksagon "NurseryCensus" do
+  NurseryCensus::NurseryCensus.persisted_by("Heki")
+end

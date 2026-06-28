@@ -1,0 +1,3 @@
+Hecks.hecksagon "CloudflareDeploy" do
+  CloudflareDeploy::Deployment.persisted_by("Heki")
+end

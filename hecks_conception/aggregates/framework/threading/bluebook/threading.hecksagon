@@ -1,0 +1,4 @@
+Hecks.hecksagon "Threading" do
+  Threading::Thread.persisted_by("Memory")
+  Threading::Mailbox.persisted_by("Memory")
+end

@@ -1,0 +1,3 @@
+Hecks.hecksagon "Agent" do
+  Agent::Agent.persisted_by("Heki")
+end

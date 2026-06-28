@@ -1,0 +1,3 @@
+Hecks.hecksagon "ChaosMonkey" do
+  ChaosMonkey::ChaosMonkey.persisted_by("Heki")
+end

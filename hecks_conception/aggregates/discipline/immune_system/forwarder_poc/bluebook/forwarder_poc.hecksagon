@@ -1,0 +1,4 @@
+Hecks.hecksagon "ForwarderPoc" do
+  ForwarderPoc::NewHome.persisted_by("Heki")
+  ForwarderPoc::OldHome.persisted_by("Heki")
+end

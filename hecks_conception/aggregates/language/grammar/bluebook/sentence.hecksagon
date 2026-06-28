@@ -1,0 +1,3 @@
+Hecks.hecksagon "Sentence" do
+  Sentence::Sentence.persisted_by("Heki")
+end

@@ -1,0 +1,3 @@
+Hecks.hecksagon "Relationship" do
+  Relationship::Relationship.persisted_by("Heki")
+end

@@ -1,0 +1,3 @@
+Hecks.hecksagon "Labor" do
+  Labor::Labor.persisted_by("Heki")
+end

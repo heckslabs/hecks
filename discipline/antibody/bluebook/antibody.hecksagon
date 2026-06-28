@@ -87,4 +87,10 @@ Hecks.hecksagon "Antibody" do
   gate "StagedCheck", :hook do
     allow :CheckStaged, :EnforceStaged, :ExemptStaged, :RejectStaged
   end
+
+  # ---- Persistence binds -----------------------------------------
+  Antibody::CommitCheck.persisted_by("Heki")
+  Antibody::BranchScan.persisted_by("Heki")
+  Antibody::StagedCheck.persisted_by("Heki")
+  Antibody::ExemptRegistry.persisted_by("Heki")
 end

@@ -102,4 +102,7 @@ Hecks.hecksagon "Boot" do
   # its EnterNREMLight / EnterNREMDeep / EnterREM commands were
   # retired in i309 when sleep advancement migrated to the BodySleep
   # process_manager.
+
+  # ---- Persistence binds (mirroring current backends) -------------
+  Boot::BootRun.persisted_by("Memory")
 end

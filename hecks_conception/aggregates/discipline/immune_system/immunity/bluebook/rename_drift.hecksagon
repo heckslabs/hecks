@@ -1,0 +1,3 @@
+Hecks.hecksagon "RenameDrift" do
+  RenameDrift::RenameDriftCheck.persisted_by("Heki")
+end

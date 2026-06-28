@@ -1,0 +1,3 @@
+Hecks.hecksagon "BaseModel" do
+  BaseModel::BaseModel.persisted_by("Heki")
+end

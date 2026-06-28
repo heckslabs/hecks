@@ -35,4 +35,6 @@ Hecks.hecksagon "Statusline" do
   adapter :shell, name: :harness_wrapper,
           command: "{dir}/statusline-command.sh",
           ok_exit: 0
+
+  Statusline::Statusline.persisted_by("Heki")
 end

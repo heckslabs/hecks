@@ -1,0 +1,3 @@
+Hecks.hecksagon "Component" do
+  Component::Component.persisted_by("Heki")
+end

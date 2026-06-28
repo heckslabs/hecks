@@ -1,0 +1,3 @@
+Hecks.hecksagon "SeedingMerge" do
+  SeedingMerge::Merge.persisted_by("Heki")
+end

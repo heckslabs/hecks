@@ -1,0 +1,3 @@
+Hecks.hecksagon "BatchOperation" do
+  BatchOperation::BatchOperation.persisted_by("Heki")
+end

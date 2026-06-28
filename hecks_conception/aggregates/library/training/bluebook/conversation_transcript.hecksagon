@@ -1,0 +1,3 @@
+Hecks.hecksagon "ConversationTranscript" do
+  ConversationTranscript::ConversationTranscript.persisted_by("Heki")
+end

@@ -1,0 +1,3 @@
+Hecks.hecksagon "BehaviorExample" do
+  BehaviorExample::BehaviorExample.persisted_by("Heki")
+end

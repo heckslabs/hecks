@@ -1,0 +1,3 @@
+Hecks.hecksagon "Macrophage" do
+  Macrophage::GovernedDoor.persisted_by("Heki")
+end

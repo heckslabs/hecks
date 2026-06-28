@@ -1,0 +1,6 @@
+Hecks.hecksagon "Catalog" do
+  Catalog::Entry.persisted_by("Heki")
+  Catalog::Version.persisted_by("Heki")
+  Catalog::Mirror.persisted_by("Heki")
+  Catalog::Index.persisted_by("Heki")
+end

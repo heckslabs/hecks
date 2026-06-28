@@ -18,4 +18,6 @@ Hecks.hecksagon "Git" do
   adapter :git_tool, command: "Hecks::Framework::Tools::Git::Git.Diff",          tool: :git_diff,           result_into: "Hecks::Framework::Cascade::Cascade.RecordResult"
   adapter :git_tool, command: "Hecks::Framework::Tools::Git::Git.CurrentBranch", tool: :git_current_branch, result_into: "Hecks::Framework::Cascade::Cascade.RecordResult"
   adapter :git_tool, command: "Hecks::Framework::Tools::Git::Git.WorktreeList",  tool: :git_worktree_list,  result_into: "Hecks::Framework::Cascade::Cascade.RecordResult"
+
+  Git::Git.persisted_by("Memory")
 end

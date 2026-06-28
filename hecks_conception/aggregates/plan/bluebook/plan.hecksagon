@@ -1,0 +1,10 @@
+Hecks.hecksagon "Plan" do
+  Plan::Sprint.persisted_by("Heki")
+  Plan::Story.persisted_by("Heki")
+  Plan::Task.persisted_by("Heki")
+  Plan::Board.persisted_by("Heki")
+  Plan::Backlog.persisted_by("Heki")
+  Plan::UseCase.persisted_by("Heki")
+  Plan::Epic.persisted_by("Heki")
+  Plan::Project.persisted_by("Heki")
+end

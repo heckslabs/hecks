@@ -1,0 +1,3 @@
+Hecks.hecksagon "Inbox" do
+  Inbox::Inbox.persisted_by("Heki")
+end

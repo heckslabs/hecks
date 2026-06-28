@@ -1,0 +1,3 @@
+Hecks.hecksagon "WebComponents" do
+  WebComponents::WebComponents.persisted_by("Heki")
+end
