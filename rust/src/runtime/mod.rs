@@ -43,11 +43,10 @@ mod middleware;
 mod policy_engine;
 mod projection;
 mod repository;
-// i728 runtime-as-bluebook strangler file-split — the persistence-resolution
-// `impl Runtime` methods (dump_backend_map, unwired_aggregates) live in this
-// GENERATED, golden-gated child module, not in mod.rs. Inherent impl in a
-// child module attaches to Runtime ; regenerate with `storehouse specialize
-// persistence_resolution`.
+// The persistence-resolution `impl Runtime` methods (dump_backend_map,
+// unwired_aggregates) live in this hand-written child module, not in mod.rs.
+// Inherent impl in a child module attaches to Runtime. (Was a runtime_shape
+// codegen artifact until 2026-06-27.)
 mod persistence_resolution;
 // i728 file-split cluster 4 — the event/outbox driving methods
 // (enqueue_and_drain, fire_driving_cron_ticks) generated into this child module.

@@ -1,9 +1,9 @@
 //! Lifecycle validator
 //!
-//! GENERATED FILE — do not edit.
-//! Source:    codegen/lifecycle_validator_shape/
-//! Regenerate: storehouse specialize lifecycle --output storehouse/src/lifecycle_validator.rs
-//! Contract:  storehouse/src/specializer/lifecycle_validator.rs (Rust-native)
+//! Hand-written framework source. Was generated from
+//! codegen/lifecycle_validator_shape until 2026-06-27, when the self-projection
+//! codegen was retired — a .bluebook whose only job is to re-emit imperative
+//! Rust captures no domain.
 //! Tests:     storehouse/tests/lifecycle_validator_test.rs
 //!
 //! Catches contradictions in lifecycle declarations — patterns where

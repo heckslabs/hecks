@@ -6,10 +6,9 @@
 //! `storehouse specialize <name>` emits — and adding hand-written
 //! functions to them breaks the 2nd Futamura proof.
 //!
-//! GENERATED FILE — do not edit.
-//! Source:    codegen/validator_corpus_shape/
-//! Regenerate: storehouse specialize validator_corpus --output storehouse/src/validator_corpus.rs
-//! Contract:  storehouse/src/specializer/validator_corpus.rs (Rust-native)
+//! Hand-written framework source. Was generated from codegen/validator_corpus
+//! _shape until 2026-06-27, when the self-projection codegen was retired — a
+//! .bluebook whose only job is to re-emit imperative Rust captures no domain.
 //!
 //! Six rules :
 //!

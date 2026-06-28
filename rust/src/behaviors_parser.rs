@@ -1,9 +1,8 @@
 //! Behaviors parser — reads `_behavioral_tests.bluebook` files into a TestSuite.
 //!
-//! GENERATED FILE — do not edit.
-//! Source:    codegen/behaviors_parser_shape/
-//! Regenerate: storehouse specialize behaviors_parser --output storehouse/src/behaviors_parser.rs
-//! Contract:  storehouse/src/specializer/behaviors_parser.rs (Rust-native)
+//! Hand-written framework source. Was generated from codegen/behaviors_parser
+//! _shape until 2026-06-27, when the self-projection codegen was retired — a
+//! .bluebook whose only job is to re-emit imperative Rust captures no domain.
 //! Tests:     in-file #[cfg(test)] mod tests
 //!
 //! Fourth parser retirement after validator.rs, dump.rs, and

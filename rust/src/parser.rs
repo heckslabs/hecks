@@ -4,11 +4,11 @@
 //! Not a full Ruby parser — just enough to read Bluebook declarations.
 //! Block parsers live in parse_blocks.rs.
 //!
-//! [antibody-exempt: parser.rs — kernel-surface bluebook parser;
-//!  storehouse specialize parser regenerates this file byte-for-byte from
-//!  parser_shape fixtures. Edit here seeds the golden fixture; update
-//!  parser_shape to match. Subsumes unique:true singleton pattern via
-//!  identified_by natural-key dispatch.]
+//! [antibody-exempt: parser.rs — kernel-surface bluebook parser, hand-written
+//!  framework source. Was generated from parser_shape until 2026-06-27, when the
+//!  self-projection codegen was retired (a .bluebook that only re-emits
+//!  imperative Rust captures no domain). Subsumes the unique:true singleton
+//!  pattern via identified_by natural-key dispatch.]
 
 use crate::ir::*;
 use crate::parser_helpers::*;

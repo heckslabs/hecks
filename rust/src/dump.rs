@@ -1,9 +1,8 @@
 //! Canonical IR dump — JSON shape that both Ruby and Rust must agree on.
 //!
-//! GENERATED FILE — do not edit.
-//! Source:    codegen/dump_shape/
-//! Regenerate: storehouse specialize dump --output storehouse/src/dump.rs
-//! Contract:  storehouse/src/specializer/dump.rs (Rust-native)
+//! Hand-written framework source. Was generated from codegen/dump_shape until
+//! 2026-06-27, when the self-projection codegen was retired — a .bluebook whose
+//! only job is to re-emit imperative Rust captures no domain.
 //!
 //! This is the parity contract. Hand-written so the JSON shape is chosen
 //! explicitly, not accidentally derived from Rust struct field names or

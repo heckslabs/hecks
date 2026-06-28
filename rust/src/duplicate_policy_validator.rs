@@ -1,9 +1,9 @@
 //! Duplicate policy validator
 //!
-//! GENERATED FILE — do not edit.
-//! Source:    codegen/duplicate_policy_validator_shape/
-//! Regenerate: storehouse specialize duplicate_policy --output storehouse/src/duplicate_policy_validator.rs
-//! Contract:  storehouse/src/specializer/duplicate_policy_validator.rs (Rust-native)
+//! Hand-written framework source. Was generated from
+//! codegen/duplicate_policy_validator_shape until 2026-06-27, when the
+//! self-projection codegen was retired — a .bluebook whose only job is to
+//! re-emit imperative Rust captures no domain.
 //! Tests:     storehouse/cli/tests/duplicate_policy_validator_test.rs
 //!
 //! Catches bluebooks that declare two or more policies wired to the

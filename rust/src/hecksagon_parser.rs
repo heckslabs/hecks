@@ -1,9 +1,9 @@
 //! Hecksagon parser — reads .hecksagon files into the Hecksagon IR.
-//! [antibody-exempt: generated hecksagon parser — regenerated from the parser-shape contract ; never hand-edited]//!
-//! GENERATED FILE — do not edit.
-//! Source:    codegen/hecksagon_parser_shape/
-//! Regenerate: storehouse specialize hecksagon_parser --output storehouse/src/hecksagon_parser.rs
-//! Contract:  storehouse/src/specializer/hecksagon_parser.rs (Rust-native)
+//! [antibody-exempt: hecksagon_parser.rs — hand-written framework source ; was generated from the hecksagon_parser_shape contract until 2026-06-27, when the self-projection codegen was retired]
+//! Hand-written framework source. Was generated from
+//! codegen/hecksagon_parser_shape until 2026-06-27, when the self-projection
+//! codegen was retired — a .bluebook whose only job is to re-emit imperative
+//! Rust captures no domain.
 //! Tests:     storehouse/tests/hecksagon_parser_test.rs
 //!
 //! Line-oriented, pattern-match style just like the bluebook parser. Not
@@ -422,10 +422,7 @@ fn join_adapter_lines(lines: &[&str]) -> (String, usize) {
             // intact, which broke downstream URL construction in any
             // adapter consumer that expected a
             // clean value. Inlined here (not pulled into its own helper)
-            // so the specializer golden (codegen/hecksagon_parser_shape/
-            // snippets/join_adapter_lines_body.rs.frag) stays a single
-            // self-contained snippet — no new ParserHelper fixture row
-            // needed.
+            // to keep the cleanup local — a small self-contained step.
             let cleaned: String = {
                 let mut out = String::with_capacity(raw_t.len());
                 let mut in_str = false;

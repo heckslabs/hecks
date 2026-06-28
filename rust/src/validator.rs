@@ -1,9 +1,8 @@
 //! Domain validator — checks a parsed domain for DDD consistency
 //!
-//! GENERATED FILE — do not edit.
-//! Source:    codegen/validator_shape/
-//! Regenerate: storehouse specialize validator --output storehouse/src/validator.rs
-//! Contract:  storehouse/src/specializer/validator.rs (Rust-native)
+//! Hand-written framework source. Was generated from codegen/validator_shape
+//! until 2026-06-27, when the self-projection codegen was retired — a .bluebook
+//! whose only job is to re-emit imperative Rust captures no domain.
 //! Tests:     storehouse/tests/validator_rules_test.rs (moved out for i51 Phase A commit 4)
 //!
 //! Ports the Ruby Hecks::Validator rules to Rust. Each rule inspects

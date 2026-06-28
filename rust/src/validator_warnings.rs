@@ -1,9 +1,8 @@
 //! Soft warnings for domain quality — non-failing bounded-context checks
 //!
-//! GENERATED FILE — do not edit.
-//! Source:    codegen/validator_warnings_shape/
-//! Regenerate: storehouse specialize validator_warnings --output storehouse/src/validator_warnings.rs
-//! Contract:  storehouse/src/specializer/validator_warnings.rs (Rust-native)
+//! Hand-written framework source. Was generated from codegen/validator_warnings
+//! _shape until 2026-06-27, when the self-projection codegen was retired — a
+//! .bluebook whose only job is to re-emit imperative Rust captures no domain.
 //! Tests:     storehouse/tests/validator_warnings_test.rs
 //!
 //! These rules emit advisory warnings but never cause validation to fail.
