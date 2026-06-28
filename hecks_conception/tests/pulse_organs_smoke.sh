@@ -88,12 +88,12 @@ trap 'kill -- -$$ 2>/dev/null || true; rm -rf "$TMP"' EXIT
 # whole body/ tree so the runtime sees both the PM and its dispatch
 # targets.
 mkdir -p "$TMP/bluebooks/pulse_organs" "$TMP/bluebooks/organs"
-ln -sf "$BODY_DIR/pulse_organs/pulse_organs.bluebook" \
+ln -sf "$BODY_DIR/pulse_organs/bluebook/pulse_organs.bluebook" \
        "$TMP/bluebooks/pulse_organs/pulse_organs.bluebook"
-ln -sf "$BODY_DIR/pulse_organs/pulse_organs.hecksagon" \
+ln -sf "$BODY_DIR/pulse_organs/bluebook/pulse_organs.hecksagon" \
        "$TMP/bluebooks/pulse_organs/pulse_organs.hecksagon"
 for agg in synapse signal focus remains; do
-  ln -sf "$BODY_DIR/organs/${agg}.bluebook" \
+  ln -sf "$BODY_DIR/organs/bluebook/${agg}.bluebook" \
          "$TMP/bluebooks/organs/${agg}.bluebook"
 done
 

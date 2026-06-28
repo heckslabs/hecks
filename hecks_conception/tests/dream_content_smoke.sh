@@ -118,9 +118,9 @@ mkdir -p "$STORE/consciousness" "$STORE/dream" "$STORE/body_dream"
 # (parse silently drops the unknown commands) and the assertion path
 # has nothing to read.
 for src in \
-  "$BODY_DIR/sleep/consciousness.bluebook" \
-  "$BODY_DIR/dream/dream.bluebook" \
-  "$BODY_DIR/dream/dream.hecksagon" \
+  "$BODY_DIR/sleep/bluebook/consciousness.bluebook" \
+  "$BODY_DIR/dream/bluebook/dream.bluebook" \
+  "$BODY_DIR/dream/bluebook/dream.hecksagon" \
   "$BODY_DIR/dream/dream_image.adapter" \
   "$BODY_DIR/dream/llm.family" ; do
   [ -f "$src" ] && ln -sf "$src" "$TMP/aggregates/"
