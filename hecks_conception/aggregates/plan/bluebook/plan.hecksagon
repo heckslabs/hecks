@@ -12,8 +12,8 @@ Hecks.hecksagon "Plan" do
   # checks (all fire on the one command, mirroring the four policies that fired
   # on StoryChecksRequested). Re-homed from the RunXCheckOnChecksRequested
   # Process.Spawn policies — the impure edge lives here, not in the bluebook.
-  adapter :exec, name: "check_worktree",      command: "Story.RunCheck", exec: "bin/check-worktree",      result_into: "Cascade::Cascade.RecordResult"
-  adapter :exec, name: "check_merged",        command: "Story.RunCheck", exec: "bin/check-merged",        result_into: "Cascade::Cascade.RecordResult"
-  adapter :exec, name: "check_tests",         command: "Story.RunCheck", exec: "bin/check-tests",         result_into: "Cascade::Cascade.RecordResult"
-  adapter :exec, name: "check_verb_resolves", command: "Story.RunCheck", exec: "bin/check-verb-resolves", result_into: "Cascade::Cascade.RecordResult"
+  adapter :exec, name: "check_worktree",      command: "Story.RunCheck", exec: "bin/check-worktree",      result_into: "Hecks::Framework::Cascade::Cascade::Cascade.RecordResult"
+  adapter :exec, name: "check_merged",        command: "Story.RunCheck", exec: "bin/check-merged",        result_into: "Hecks::Framework::Cascade::Cascade::Cascade.RecordResult"
+  adapter :exec, name: "check_tests",         command: "Story.RunCheck", exec: "bin/check-tests",         result_into: "Hecks::Framework::Cascade::Cascade::Cascade.RecordResult"
+  adapter :exec, name: "check_verb_resolves", command: "Story.RunCheck", exec: "bin/check-verb-resolves", result_into: "Hecks::Framework::Cascade::Cascade::Cascade.RecordResult"
 end

@@ -9,5 +9,5 @@ Hecks.hecksagon "Inbox" do
           name:        "inbox_poll",
           command:     "Inbox.Check",
           exec:        "node bin/inbox_poll.mjs",
-          result_into: "Cascade::Cascade.RecordResult"
+          result_into: "Hecks::Framework::Cascade::Cascade::Cascade.RecordResult"
 end

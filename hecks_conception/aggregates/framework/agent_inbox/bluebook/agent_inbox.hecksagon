@@ -36,7 +36,7 @@ Hecks.hecksagon "AgentInbox" do
 
   adapter "InboxPollClock" do
     driving on interval "2s" do |clock|
-      dispatch "AgentInbox::InboxPoller.Poll",
+      dispatch "Hecks::Framework::AgentInbox::AgentInbox::InboxPoller.Poll",
                name: "inbox_poller",
                last_polled_at: "{now}"
     end
@@ -44,8 +44,8 @@ Hecks.hecksagon "AgentInbox" do
 
   adapter "InboxAutoReply" do
     driven on "InboxPoller.Polled" do |event|
-      dispatch "AgentInbox::AgentMessage.Reply",
-               for_each: { from: "AgentInbox::AgentMessage.AllUnread", where: {} },
+      dispatch "Hecks::Framework::AgentInbox::AgentInbox::AgentMessage.Reply",
+               for_each: { from: "Hecks::Framework::AgentInbox::AgentInbox::AgentMessage.AllUnread", where: {} },
                id: "{mid}",
                reply: "[agent {agent_id}] received: {body}"
     end

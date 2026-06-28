@@ -28,7 +28,7 @@ Hecks.hecksagon "EventSourcing" do
   # `storehouse drive` is run against this realm.
   adapter "LogConsolidation" do
     driving on interval "5s" do |clock|
-      dispatch "EventSourcing::Consolidation.Consolidate",
+      dispatch "Hecks::Framework::EventSourcing::EventSourcing::Consolidation.Consolidate",
                consolidation_id: "log"
     end
   end

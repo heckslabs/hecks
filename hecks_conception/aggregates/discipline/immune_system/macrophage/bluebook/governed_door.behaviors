@@ -3,26 +3,26 @@ Hecks.behaviors "Macrophage" do
 
   test "Record logs a denied native tool attempt" do
     tests "Record", on: "GovernedDoor"
-    input  id: "Bash-2026-06-26T05:00:00Z", tool_name: "Bash", door: "Tools::ShellTool.Bash", reason: "native Bash makes no bus event", occurred_at: "2026-06-26T05:00:00Z"
-    expect tool_name: "Bash", door: "Tools::ShellTool.Bash", reason: "native Bash makes no bus event"
+    input  id: "Bash-2026-06-26T05:00:00Z", tool_name: "Bash", door: "Hecks::Framework::Tools::Tools::ShellTool.Bash", reason: "native Bash makes no bus event", occurred_at: "2026-06-26T05:00:00Z"
+    expect tool_name: "Bash", door: "Hecks::Framework::Tools::Tools::ShellTool.Bash", reason: "native Bash makes no bus event"
   end
 
   test "Record emits Recorded" do
     tests "Record", on: "GovernedDoor"
-    input  id: "Edit-2026-06-26T05:01:00Z", tool_name: "Edit", door: "Tools::FileTool.Edit", reason: "native Edit makes no bus event", occurred_at: "2026-06-26T05:01:00Z"
+    input  id: "Edit-2026-06-26T05:01:00Z", tool_name: "Edit", door: "Hecks::Framework::Tools::Tools::FileTool.Edit", reason: "native Edit makes no bus event", occurred_at: "2026-06-26T05:01:00Z"
     expect_event "Recorded"
   end
 
   test "ByTool lists the denials recorded for one tool" do
     tests "ByTool", on: "GovernedDoor", kind: :query
-    setup  "Record", id: "Bash-2026-06-26T05:02:00Z", tool_name: "Bash", door: "Tools::ShellTool.Bash", reason: "native Bash makes no bus event", occurred_at: "2026-06-26T05:02:00Z"
+    setup  "Record", id: "Bash-2026-06-26T05:02:00Z", tool_name: "Bash", door: "Hecks::Framework::Tools::Tools::ShellTool.Bash", reason: "native Bash makes no bus event", occurred_at: "2026-06-26T05:02:00Z"
     input  tool_name: "Bash"
     expect count: 1
   end
 
   test "ListAll returns the denial audit trail" do
     tests "ListAll", on: "GovernedDoor", kind: :query
-    setup  "Record", id: "Grep-2026-06-26T05:03:00Z", tool_name: "Grep", door: "Tools::SearchTool.Grep", reason: "native Grep makes no bus event", occurred_at: "2026-06-26T05:03:00Z"
+    setup  "Record", id: "Grep-2026-06-26T05:03:00Z", tool_name: "Grep", door: "Hecks::Framework::Tools::Tools::SearchTool.Grep", reason: "native Grep makes no bus event", occurred_at: "2026-06-26T05:03:00Z"
     expect count: 1
   end
 end

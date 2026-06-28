@@ -710,7 +710,17 @@ fn main() {
         // prefix. A legacy seen with TWO distinct canonicals is realm-
         // AMBIGUOUS (same Bluebook::Aggregate in two realms) — dropped, never
         // guessed.
+        // --foreign-only : only flip a ref whose target lives in a DIFFERENT
+        // bluebook folder than the declaring file (the edges that LEAVE the
+        // domain). Local (same-folder) refs stay short — the local-short half
+        // of the i-fqn model.
+        let foreign_only = args.iter().any(|a| a == "--foreign-only");
         let mut map: std::collections::HashMap<String, Option<String>> =
+            std::collections::HashMap::new();
+        // legacy `Bluebook::Aggregate` -> the target's realm_path ("realm/ctx"),
+        // so --foreign-only can compare it against the declaring file's own
+        // folder scope and SKIP local refs.
+        let mut legacy_realm: std::collections::HashMap<String, String> =
             std::collections::HashMap::new();
         for agg in &domain.aggregates {
             let Some(rp) = agg.realm_path.as_deref() else { continue; };
@@ -719,6 +729,7 @@ fn main() {
             if bluebook.is_empty() { continue; }
             let legacy = format!("{}::{}", bluebook, agg.name);
             let canonical = format!("{}::{}::{}", realm_ctx, bluebook, agg.name);
+            legacy_realm.insert(legacy.clone(), rp.to_string());
             map.entry(legacy)
                 .and_modify(|e| { if e.as_deref() != Some(canonical.as_str()) { *e = None; } })
                 .or_insert(Some(canonical));
@@ -756,14 +767,33 @@ fn main() {
         }
         let mut files = Vec::new();
         collect_files(std::path::Path::new(&agg_dir), &mut files);
-        let (mut files_changed, mut refs_rewritten) = (0usize, 0usize);
+        let (mut files_changed, mut refs_rewritten, mut local_skipped) = (0usize, 0usize, 0usize);
         for path in files {
             let Ok(orig) = std::fs::read_to_string(&path) else { continue; };
+            // The declaring file's own folder scope ("realm/ctx"). Under
+            // --foreign-only, a ref whose target shares this scope is LOCAL and
+            // stays short ; only refs that LEAVE the folder are flipped.
+            let file_scope: Option<String> = if foreign_only {
+                match storehouse::heki::folder_address(&path.to_string_lossy()) {
+                    (Some(r), Some(c)) => Some(format!("{}/{}", r, c)),
+                    (Some(r), None) => Some(r),
+                    _ => None,
+                }
+            } else { None };
             let mut content = orig.clone();
             let mut n = 0usize;
             for (legacy, canonical) in &prefixes {
                 let from = format!("\"{}.", legacy);
                 if !content.contains(&from) { continue; }
+                if foreign_only {
+                    // Skip LOCAL refs : target's realm_path == this file's scope.
+                    if let (Some(fs), Some(tr)) = (file_scope.as_deref(), legacy_realm.get(legacy)) {
+                        if fs == tr.as_str() {
+                            local_skipped += content.matches(&from).count();
+                            continue;
+                        }
+                    }
+                }
                 n += content.matches(&from).count();
                 content = content.replace(&from, &format!("\"{}.", canonical));
             }
@@ -773,8 +803,9 @@ fn main() {
                 refs_rewritten += n;
             }
         }
-        eprintln!("fqns --rewrite : {} 2-seg refs rewritten in {} files ({} unambiguous prefixes)",
-            refs_rewritten, files_changed, prefixes.len());
+        eprintln!("fqns --rewrite{} : {} refs rewritten in {} files ({} unambiguous prefixes ; {} local refs left short)",
+            if foreign_only { " --foreign-only" } else { "" },
+            refs_rewritten, files_changed, prefixes.len(), local_skipped);
         std::process::exit(0);
     }
 

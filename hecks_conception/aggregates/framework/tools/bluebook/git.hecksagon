@@ -8,11 +8,11 @@ Hecks.hecksagon "Git" do
 
   adapter :memory
 
-  adapter :exec, name: "git_status",         command: "Git.Status",        exec: "bin/git_status",         result_into: "Cascade::Cascade.RecordResult"
-  adapter :exec, name: "git_log",            command: "Git.Log",           exec: "bin/git_log",            result_into: "Cascade::Cascade.RecordResult"
-  adapter :exec, name: "git_diff",           command: "Git.Diff",          exec: "bin/git_diff",           result_into: "Cascade::Cascade.RecordResult"
-  adapter :exec, name: "git_current_branch", command: "Git.CurrentBranch", exec: "bin/git_current_branch", result_into: "Cascade::Cascade.RecordResult"
-  adapter :exec, name: "git_worktree_list",  command: "Git.WorktreeList",  exec: "bin/git_worktree_list",  result_into: "Cascade::Cascade.RecordResult"
+  adapter :exec, name: "git_status",         command: "Git.Status",        exec: "bin/git_status",         result_into: "Hecks::Framework::Cascade::Cascade::Cascade.RecordResult"
+  adapter :exec, name: "git_log",            command: "Git.Log",           exec: "bin/git_log",            result_into: "Hecks::Framework::Cascade::Cascade::Cascade.RecordResult"
+  adapter :exec, name: "git_diff",           command: "Git.Diff",          exec: "bin/git_diff",           result_into: "Hecks::Framework::Cascade::Cascade::Cascade.RecordResult"
+  adapter :exec, name: "git_current_branch", command: "Git.CurrentBranch", exec: "bin/git_current_branch", result_into: "Hecks::Framework::Cascade::Cascade::Cascade.RecordResult"
+  adapter :exec, name: "git_worktree_list",  command: "Git.WorktreeList",  exec: "bin/git_worktree_list",  result_into: "Hecks::Framework::Cascade::Cascade::Cascade.RecordResult"
 
   Git::Git.persisted_by("Memory")
 end

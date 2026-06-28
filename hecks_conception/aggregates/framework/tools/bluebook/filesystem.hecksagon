@@ -5,10 +5,10 @@ Hecks.hecksagon "Filesystem" do
   # cascades the output. Re-homed from the RunXOnY Process.Spawn policies — the
   # impure edge lives here, not in the bluebook. Entity-scoped command names
   # (File.Move / Directory.Remove) match by FULL command path.
-  adapter :exec, name: "fs_file_move",       command: "Filesystem.File.Move",        exec: "bin/filesystem_file_move",        result_into: "Cascade::Cascade.RecordResult"
-  adapter :exec, name: "fs_file_remove",     command: "Filesystem.File.Remove",      exec: "bin/filesystem_file_remove",      result_into: "Cascade::Cascade.RecordResult"
-  adapter :exec, name: "fs_file_read_range", command: "Filesystem.File.ReadRange",   exec: "bin/filesystem_file_read_range",   result_into: "Cascade::Cascade.RecordResult"
-  adapter :exec, name: "fs_dir_create",      command: "Filesystem.Directory.Create", exec: "bin/filesystem_directory_create", result_into: "Cascade::Cascade.RecordResult"
-  adapter :exec, name: "fs_dir_remove",      command: "Filesystem.Directory.Remove", exec: "bin/filesystem_directory_remove", result_into: "Cascade::Cascade.RecordResult"
-  adapter :exec, name: "fs_dir_list",        command: "Filesystem.Directory.List",   exec: "bin/filesystem_directory_list",   result_into: "Cascade::Cascade.RecordResult"
+  adapter :exec, name: "fs_file_move",       command: "Filesystem.File.Move",        exec: "bin/filesystem_file_move",        result_into: "Hecks::Framework::Cascade::Cascade::Cascade.RecordResult"
+  adapter :exec, name: "fs_file_remove",     command: "Filesystem.File.Remove",      exec: "bin/filesystem_file_remove",      result_into: "Hecks::Framework::Cascade::Cascade::Cascade.RecordResult"
+  adapter :exec, name: "fs_file_read_range", command: "Filesystem.File.ReadRange",   exec: "bin/filesystem_file_read_range",   result_into: "Hecks::Framework::Cascade::Cascade::Cascade.RecordResult"
+  adapter :exec, name: "fs_dir_create",      command: "Filesystem.Directory.Create", exec: "bin/filesystem_directory_create", result_into: "Hecks::Framework::Cascade::Cascade::Cascade.RecordResult"
+  adapter :exec, name: "fs_dir_remove",      command: "Filesystem.Directory.Remove", exec: "bin/filesystem_directory_remove", result_into: "Hecks::Framework::Cascade::Cascade::Cascade.RecordResult"
+  adapter :exec, name: "fs_dir_list",        command: "Filesystem.Directory.List",   exec: "bin/filesystem_directory_list",   result_into: "Hecks::Framework::Cascade::Cascade::Cascade.RecordResult"
 end

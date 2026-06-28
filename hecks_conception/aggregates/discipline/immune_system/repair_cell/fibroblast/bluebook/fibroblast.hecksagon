@@ -8,5 +8,5 @@ Hecks.hecksagon "Fibroblast" do
           name:        "fibroblast_sweep",
           command:     "Fibroblast.Sweep",
           exec:        "bash bin/fibroblast_sweep.sh",
-          result_into: "Cascade::Cascade.RecordResult"
+          result_into: "Hecks::Framework::Cascade::Cascade::Cascade.RecordResult"
 end

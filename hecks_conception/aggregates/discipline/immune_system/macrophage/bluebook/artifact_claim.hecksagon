@@ -5,6 +5,6 @@ Hecks.hecksagon "ArtifactClaim" do
   # Impure edges, hecksagon-first : the no-promises sweep's scan + verify leaves.
   # Re-homed from the RunScanOnScanRequested / RunVerifyOnVerifyRequested
   # Process.Spawn policies — the impure edge lives here, not in the bluebook.
-  adapter :exec, name: "artifact_claim_scan",   command: "NoPromisesSweep.Scan",   exec: "node bin/artifact_claim_scan.mjs",   result_into: "Cascade::Cascade.RecordResult"
-  adapter :exec, name: "artifact_claim_verify", command: "NoPromisesSweep.Verify", exec: "node bin/artifact_claim_verify.mjs", result_into: "Cascade::Cascade.RecordResult"
+  adapter :exec, name: "artifact_claim_scan",   command: "NoPromisesSweep.Scan",   exec: "node bin/artifact_claim_scan.mjs",   result_into: "Hecks::Framework::Cascade::Cascade::Cascade.RecordResult"
+  adapter :exec, name: "artifact_claim_verify", command: "NoPromisesSweep.Verify", exec: "node bin/artifact_claim_verify.mjs", result_into: "Hecks::Framework::Cascade::Cascade::Cascade.RecordResult"
 end
