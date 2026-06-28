@@ -1,19 +1,15 @@
 //! Runtime persistence resolution (i728) — the backend-map projection read
-//! + the dormant is-wired check. GENERATED from codegen/runtime_shape (the
-//! `ResolutionMethod` rows + snippets) by the runtime-as-bluebook strangler
-//! file-split. Do NOT hand-edit ; edit the shape + snippets and run
-//! `storehouse specialize persistence_resolution --output
-//! rust/src/runtime/persistence_resolution.rs`.
+//! + the dormant is-wired check.
 //!
 //! Inherent `impl Runtime` methods in a child module : child modules see the
 //! parent's private fields + helpers, so these reach `self.repositories` /
 //! `self.hecksagons` / `repo_key` directly.
 //!
-//! [antibody-exempt: rust/src/runtime/persistence_resolution.rs — GENERATED
-//!  output of the runtime_shape specializer (runtime-as-bluebook strangler
-//!  file-split, i728). The bluebook shape is the source ; this .rs is a
-//!  golden-gated build artifact, not hand-written. Retires at the i78
-//!  meta-shape like its specializer siblings.]
+//! [antibody-exempt: rust/src/runtime/persistence_resolution.rs — hand-written
+//!  runtime kernel-floor. Was a codegen/runtime_shape artifact ; the shape was
+//!  retired 2026-06-27 — a .bluebook that only re-emitted imperative Rust
+//!  captures no domain, so the runtime kernel is hand-maintained Rust like
+//!  mod.rs.]
 
 use super::*;
 

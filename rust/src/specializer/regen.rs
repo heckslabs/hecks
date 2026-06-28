@@ -12,13 +12,12 @@
 //!   1. Per-deployment emitters (wasm_worker / cf_function_proxy /
 //!      embedded_bluebooks / wrangler_toml / procfile) — flag-driven output,
 //!      not a single tracked file.
-//!   2. The `runtime` whole-file target : runtime/mod.rs is hand-rewritten
-//!      and maintained per-SECTION (the runtime_shape section goldens gate the
-//!      parts that ARE generated). The whole-file golden was retired 2026-06-24
-//!      — regenerating the whole file would CLOBBER the hand-maintained kernel,
-//!      so `all` skips it. cli_dispatch and run_statusline were retired entirely
-//!      the same day : their shapes lost the race with hand-editing, so main.rs
-//!      / run_statusline are now honestly hand-maintained.
+//!   2. The runtime kernel files (mod.rs + persistence_resolution / query /
+//!      reaction / event_driving) are hand-written Rust — codegen/runtime_shape
+//!      was retired 2026-06-27 (a .bluebook that only re-emitted imperative Rust
+//!      captures no domain). cli_dispatch and run_statusline were retired the
+//!      same way earlier : their shapes lost the race with hand-editing, so
+//!      main.rs / run_statusline are honestly hand-maintained too.
 
 use super::emit;
 use std::error::Error;
@@ -43,7 +42,6 @@ pub fn targets() -> &'static [(&'static str, &'static str)] {
         ("discover",                 "rust/src/run_boot/discover.rs"),
         ("dispatch_query",           "rust/src/dispatch_query.rs"),
         ("dump",                     "rust/src/dump.rs"),
-        ("event_driving",            "rust/src/runtime/event_driving.rs"),
         ("fixtures_parser",          "rust/src/fixtures_parser.rs"),
         ("hecksagon_ir",             "rust/src/hecksagon_ir.rs"),
         ("hecksagon_parser",         "rust/src/hecksagon_parser.rs"),
@@ -55,9 +53,6 @@ pub fn targets() -> &'static [(&'static str, &'static str)] {
         ("parse_blocks",             "rust/src/parse_blocks.rs"),
         ("parser",                   "rust/src/parser.rs"),
         ("parser_helpers",           "rust/src/parser_helpers.rs"),
-        ("persistence_resolution",   "rust/src/runtime/persistence_resolution.rs"),
-        ("query",                    "rust/src/runtime/query.rs"),
-        ("reaction",                 "rust/src/runtime/reaction.rs"),
         ("repository",               "rust/src/runtime/repository.rs"),
         ("specializer_mod",          "rust/src/specializer/mod.rs"),
         ("system_prompt",            "rust/src/run_boot/system_prompt.rs"),

@@ -66,13 +66,8 @@ Hecks.fixtures "SpecializerModShape" do
     fixture "lifecycle_validator", target_name: "lifecycle_validator", module_path: "lifecycle_validator", order: 20
     fixture "parse_blocks", target_name: "parse_blocks", module_path: "parse_blocks", order: 21
     fixture "parser", target_name: "parser", module_path: "parser", order: 22
-    fixture "event_driving", target_name: "event_driving", module_path: "runtime::event_driving", order: 23
-    fixture "persistence_resolution", target_name: "persistence_resolution", module_path: "runtime::persistence_resolution", order: 24
-    fixture "query", target_name: "query", module_path: "runtime::query", order: 25
-    fixture "reaction", target_name: "reaction", module_path: "runtime::reaction", order: 26
     fixture "parser_helpers", target_name: "parser_helpers", module_path: "parser_helpers", order: 27
     fixture "repository", target_name: "repository", module_path: "repository", order: 28
-    fixture "runtime", target_name: "runtime", module_path: "runtime::root", order: 29
     fixture "specializer_mod", target_name: "specializer_mod", module_path: "specializer_mod", order: 30
     fixture "system_prompt", target_name: "system_prompt", module_path: "run_boot::system_prompt", order: 31
     fixture "validator", target_name: "validator", module_path: "validator", order: 32

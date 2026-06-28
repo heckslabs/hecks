@@ -1,18 +1,15 @@
 //! Runtime event driving (Sprint 14) — the event-advancement surface OUTSIDE
 //! the main dispatch path : the actor-mailbox enqueue/drain and the cron-tick
-//! firing. GENERATED from codegen/runtime_shape (the `SplitMethod` rows with
-//! file `event_driving`) by the runtime-as-bluebook strangler file-split. Do
-//! NOT hand-edit ; edit the shape + snippets and run `storehouse specialize
-//! event_driving --output rust/src/runtime/event_driving.rs`.
+//! firing.
 //!
 //! Inherent `impl Runtime` methods in a child module ; reach Runtime's private
 //! fields (mailbox_registry, event_bus, mailbox_drained) and the pub `actor` /
 //! `driving_adapter_resolver` modules through the `super::*` glob.
 //!
-//! [antibody-exempt: rust/src/runtime/event_driving.rs — GENERATED output of
-//!  the runtime_shape specializer (runtime-as-bluebook strangler file-split,
-//!  cluster 4). The bluebook shape is the source ; this .rs is a golden-gated
-//!  build artifact, not hand-written. Retires at the i78 meta-shape.]
+//! [antibody-exempt: rust/src/runtime/event_driving.rs — hand-written runtime
+//!  kernel-floor. Was a codegen/runtime_shape artifact ; the shape was retired
+//!  2026-06-27 — a .bluebook that only re-emitted imperative Rust captures no
+//!  domain, so the runtime kernel is hand-maintained Rust like mod.rs.]
 
 use super::*;
 
