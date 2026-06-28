@@ -84,8 +84,17 @@ impl Runtime {
         if self.hecksagons.is_empty() {
             return;
         }
-        let bare_command = command_name.rsplit('.').next().unwrap_or(command_name);
-        let target = format!("{}.{}", result.aggregate_type, bare_command);
+        // The command portion is everything after "{aggregate_type}." in the
+        // dispatched command_name — preserving ENTITY-SCOPED command names
+        // (File.Move, Directory.Remove) so they do not collide on a bare last
+        // segment (File.Remove + Directory.Remove both end ".Remove"). Falls
+        // back to the last segment when the aggregate prefix is absent.
+        let agg_prefix = format!("{}.", result.aggregate_type);
+        let command_part = command_name
+            .rfind(&agg_prefix)
+            .map(|i| &command_name[i + agg_prefix.len()..])
+            .unwrap_or_else(|| command_name.rsplit('.').next().unwrap_or(command_name));
+        let target = format!("{}.{}", result.aggregate_type, command_part);
         let matched: Vec<(String, Option<String>)> = self
             .hecksagons
             .iter()

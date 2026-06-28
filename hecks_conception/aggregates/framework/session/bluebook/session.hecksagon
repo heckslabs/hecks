@@ -1,3 +1,8 @@
 Hecks.hecksagon "Session" do
   Session::Session.persisted_by("Heki")
+
+  # Impure edge, hecksagon-first : on RebuildContext, run session-recall and
+  # cascade the recalled context. Re-homed from the RunRecallOnContextRebuilt
+  # Process.Spawn policy — the impure edge lives here, not in the bluebook.
+  adapter :exec, name: "session_recall", command: "Session.RebuildContext", exec: "/Users/christopheryoung/Projects/hecks/bin/session-recall", result_into: "Cascade::Cascade.RecordResult"
 end

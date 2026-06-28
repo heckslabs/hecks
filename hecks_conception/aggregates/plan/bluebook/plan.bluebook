@@ -1333,28 +1333,7 @@ Hecks.bluebook "Plan", version: "2026.06.12.1" do
   # All four triggers route through Primitive::Process.Spawn to satisfy
   # the single-file validator (it does not see Git.Status / Cargo.Test
   # declared in sibling bluebooks). Each spawn invokes a bin/ wrapper
-  # script. Wrappers follow the sq/policy-cmd-bin-wrappers convention :
-  # they receive AGG_ID + AGG_TYPE + EVENT_NAME as env vars (lifted by
-  # the spawn primitive from the triggering event) and the full event
-  # payload as JSON on stdin. Each script prints one JSON line, exits
-  # 0 on ok / non-zero on not-ok. The cascade lifts (ok, exit_code,
-  # output) back into the Record*CheckResult command. Tooling lives in
-  # bin/ rather than as DSL interpolation : bluebook stays declarative,
-  # the act of measuring is imperative bash.
 
-  policy "RunWorktreeCheckOnChecksRequested" do
-    on "Story.StoryChecksRequested"
-    trigger "Hecks::Framework::Primitive::Process.Spawn"
-    with "cmd", "bin/check-worktree"
-    with "result_into", "Hecks::Plan::Story.RecordWorktreeCheckResult"
-  end
-
-  policy "RunMergedCheckOnChecksRequested" do
-    on "Story.StoryChecksRequested"
-    trigger "Hecks::Framework::Primitive::Process.Spawn"
-    with "cmd", "bin/check-merged"
-    with "result_into", "Hecks::Plan::Story.RecordMergedCheckResult"
-  end
 
   # ci-fence-main-up-to-date (sprint 20): main_up_to_date is now a REAL inline
   # live-check — plan/hecksagons/main_uptodate_check.hecksagon runs the
@@ -1365,19 +1344,7 @@ Hecks.bluebook "Plan", version: "2026.06.12.1" do
   # check could never pass). Freshness of the origin/main ref is the runtime's
   # fetch concern ; the leaf evaluates against the last-known remote.
 
-  policy "RunTestsCheckOnChecksRequested" do
-    on "Story.StoryChecksRequested"
-    trigger "Hecks::Framework::Primitive::Process.Spawn"
-    with "cmd", "bin/check-tests"
-    with "result_into", "Hecks::Plan::Story.RecordTestsCheckResult"
-  end
 
-  policy "RunVerbResolvesCheckOnChecksRequested" do
-    on "Story.StoryChecksRequested"
-    trigger "Hecks::Framework::Primitive::Process.Spawn"
-    with "cmd", "bin/check-verb-resolves"
-    with "result_into", "Hecks::Plan::Story.RecordVerbResolvesCheckResult"
-  end
 
   # pr_mergeable is now a REAL inline gh probe — plan/hecksagons/pr_mergeable_check.hecksagon
   # runs the run/result_into leaf `gh pr view sq/<id> --json state,mergeable,statusCheckRollup

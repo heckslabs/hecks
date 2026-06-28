@@ -252,27 +252,4 @@ Hecks.bluebook "ArtifactClaim", version: "2026.06.16.1" do
     end
   end
 
-  # ── Process.Spawn policies — the bluebook owns the wiring ──
-  #
-  # Mirrors filesystem.bluebook / process_health.bluebook exactly : each
-  # policy fires on the sweep event and spawns the matching leaf, routing
-  # its captured output into Cascade.RecordResult. The cmd strings are
-  # static (the policy DSL `with "cmd"` accepts only literals) ; the
-  # leaves read their inputs by querying the aggregate through the door,
-  # not from interpolated args. The only imperative leaves in the whole
-  # rule are these two spawned programs.
-
-  policy "RunScanOnScanRequested" do
-    on "NoPromisesSweep.ScanRequested"
-    trigger "Hecks::Framework::Primitive::Process.Spawn"
-    with "cmd", "node bin/artifact_claim_scan.mjs"
-    with "result_into", "Hecks::Framework::Cascade::Cascade.RecordResult"
-  end
-
-  policy "RunVerifyOnVerifyRequested" do
-    on "NoPromisesSweep.VerifyRequested"
-    trigger "Hecks::Framework::Primitive::Process.Spawn"
-    with "cmd", "node bin/artifact_claim_verify.mjs"
-    with "result_into", "Hecks::Framework::Cascade::Cascade.RecordResult"
-  end
 end
