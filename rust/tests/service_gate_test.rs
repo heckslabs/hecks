@@ -31,7 +31,7 @@ fn as_session(session: &str, extra: &[(&str, &str)]) -> HashMap<String, Value> {
 }
 
 const GATING: &str =
-    include_str!("../../hecks_conception/aggregates/language/grammar/gating.bluebook");
+    include_str!("../../hecks_conception/aggregates/language/grammar/bluebook/gating.bluebook");
 const DEMO: &str = include_str!("fixtures/service_gate_demo.bluebook");
 
 fn booted() -> Runtime {

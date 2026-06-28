@@ -29,9 +29,9 @@ fn as_agent(auth: &str, extra: &[(&str, &str)]) -> HashMap<String, Value> {
 }
 
 const GATING: &str =
-    include_str!("../../hecks_conception/aggregates/language/grammar/gating.bluebook");
+    include_str!("../../hecks_conception/aggregates/language/grammar/bluebook/gating.bluebook");
 const AUTH: &str =
-    include_str!("../../hecks_conception/aggregates/framework/agent/auth_identity.bluebook");
+    include_str!("../../hecks_conception/aggregates/framework/agent/bluebook/auth_identity.bluebook");
 
 fn booted() -> Runtime {
     let mut domain = parser::parse(GATING);

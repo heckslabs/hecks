@@ -26,8 +26,8 @@ fn a(p: &[(&str, &str)]) -> HashMap<String, Value> {
 }
 
 const GAME: &str = include_str!("fixtures/deciderate_acl.bluebook");
-const ROLE: &str = include_str!("../../hecks_conception/aggregates/framework/agent/role.bluebook");
-const AGENT: &str = include_str!("../../hecks_conception/aggregates/framework/agent/agent.bluebook");
+const ROLE: &str = include_str!("../../hecks_conception/aggregates/framework/agent/bluebook/role.bluebook");
+const AGENT: &str = include_str!("../../hecks_conception/aggregates/framework/agent/bluebook/agent.bluebook");
 
 /// Boot the game fixture merged with the REAL Role + Agent framework bluebooks,
 /// so the RBAC read-model hydrates from genuine Role/Agent state.

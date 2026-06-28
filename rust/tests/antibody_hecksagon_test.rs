@@ -17,7 +17,7 @@ fn real_antibody_hecksagon_parses_non_empty() {
         .ok()
         .and_then(|c| std::path::Path::new(&c).parent().map(|p| p.to_path_buf()))
         .unwrap_or_else(|| std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../hecks"));
-    let src = fs::read_to_string(hecks.join("discipline/antibody/antibody.hecksagon")).expect("cannot find antibody.hecksagon");
+    let src = fs::read_to_string(hecks.join("discipline/antibody/bluebook/antibody.hecksagon")).expect("cannot find antibody.hecksagon");
     let hex = hecksagon_parser::parse(&src);
     assert_eq!(hex.name, "Antibody");
     // i728 — antibody.hecksagon declares no persistence adapter (only :shell) ;

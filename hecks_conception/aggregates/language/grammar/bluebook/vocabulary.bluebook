@@ -61,16 +61,16 @@ Hecks.bluebook "Vocabulary", version: "2026.06.14.1" do
 
   policy "CompileOnDefine" do
     on "SentenceDefined"
-    trigger "Compile"
+    trigger "Vocabulary.Compile"
   end
 
   policy "CompileOnCompose" do
     on "CompositionCreated"
-    trigger "Compile"
+    trigger "Vocabulary.Compile"
   end
 
   policy "CompileOnGrant" do
     on "AccessGranted"
-    trigger "Compile"
+    trigger "Vocabulary.Compile"
   end
 end

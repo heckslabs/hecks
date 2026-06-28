@@ -28,7 +28,7 @@ fn parse_file(rel_path: &str) -> storehouse::ir::Domain {
 
 #[test]
 fn pizzas_domain_is_valid() {
-    let domain = parse_file(&format!("{}/catalog/pizzas.bluebook", storehouse::storehouse_router::conception_root()));
+    let domain = parse_file(&format!("{}/catalog/bluebook/pizzas.bluebook", storehouse::storehouse_router::conception_root()));
     let errors = validator::validate(&domain);
     // "uses primitive type" errors are filtered : the no_primitive_envy
     // rule is intentionally strict, but the existing bluebooks (pizzas,
@@ -75,7 +75,7 @@ fn large_domain_is_valid() {
     // monolith was retired (every aggregate had refined homes under
     // miette/mind, miette/body, aggregates/world); now points at
     // catalog/appeal — the largest remaining multi-aggregate domain.
-    let domain = parse_file(&format!("{}/catalog/appeal.bluebook", storehouse::storehouse_router::conception_root()));
+    let domain = parse_file(&format!("{}/catalog/bluebook/appeal.bluebook", storehouse::storehouse_router::conception_root()));
     let errors = validator::validate(&domain);
     // See pizzas_domain_is_valid for the i102 migration-debt rationale.
     let migration_pending: Vec<&String> = errors.iter()

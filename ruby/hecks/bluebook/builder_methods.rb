@@ -212,7 +212,7 @@ module Hecks
           builder.instance_eval { send(ext_name) { config.each { |k, v| send(k, v) } } }
         end
       end
-      builder.instance_eval(&block)
+      with_world_constants(builder) { builder.instance_eval(&block) }
       result = builder.build
       Hecks.last_world = result
       result
@@ -278,6 +278,30 @@ module Hecks
       yield
     ensure
       Thread.current[:_hecksagon_eval] = false
+    end
+
+    # Temporarily intercept constant resolution so PascalCase FQN heads in
+    # .world blocks (e.g. WebDebug::Screenshot.buffered_by("DiskBuffer")) resolve
+    # to an adapter-keyed config proxy instead of raising NameError. Mirrors
+    # with_annotation_constants ; routes the first const to WorldFqnProxy.node so
+    # the legacy Ruby WorldBuilder parses the FQN-verb world form byte-equal to
+    # rust/src/world/parser.rs.
+    def with_world_constants(builder)
+      configs = builder.instance_variable_get(:@configs)
+      saved = Object.method(:const_missing) rescue nil
+      Object.define_singleton_method(:const_missing) do |name|
+        if Thread.current[:_world_eval]
+          Hecksagon::DSL::WorldFqnProxy.node(name.to_s, configs)
+        elsif saved
+          saved.call(name)
+        else
+          super(name)
+        end
+      end
+      Thread.current[:_world_eval] = true
+      yield
+    ensure
+      Thread.current[:_world_eval] = false
     end
   end
 end

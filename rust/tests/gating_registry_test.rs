@@ -23,7 +23,7 @@ fn a(p: &[(&str, &str)]) -> HashMap<String, Value> {
 }
 
 const GATING: &str =
-    include_str!("../../hecks_conception/aggregates/language/grammar/gating.bluebook");
+    include_str!("../../hecks_conception/aggregates/language/grammar/bluebook/gating.bluebook");
 
 /// Boot a Runtime over the real Gating grammar bluebook, so `all("Gate")`
 /// resolves and Gate.Declare / Gate.Retire dispatch.

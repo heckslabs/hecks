@@ -164,12 +164,12 @@ fn cascade_stamps_causation_end_to_end() {
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::copy(
-        format!("{}/event_sourcing/event_sourcing.bluebook", fw),
+        format!("{}/event_sourcing/bluebook/event_sourcing.bluebook", fw),
         dir.join("event_sourcing.bluebook"),
     )
     .unwrap();
     std::fs::copy(
-        format!("{}/cascade/cascade_run.bluebook", fw),
+        format!("{}/cascade/bluebook/cascade_run.bluebook", fw),
         dir.join("cascade_run.bluebook"),
     )
     .unwrap();

@@ -37,7 +37,7 @@ fn repo_root() -> PathBuf {
         .to_path_buf()
 }
 
-const GRAMMAR_REL: &str = "aggregates/language/grammar/hexagon.bluebook";
+const GRAMMAR_REL: &str = "aggregates/language/grammar/bluebook/hexagon.bluebook";
 const SHAPE_REL: &str = "codegen/hecksagon_ir_shape/fixtures/hecksagon_ir_shape.fixtures";
 
 // (grammar aggregate name, IR struct name). Field -> FamilyField is the

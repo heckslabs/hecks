@@ -954,7 +954,7 @@ end"#);
 #[test]
 fn parse_pizzas() {
     let source = std::fs::read_to_string(
-        format!("{}/catalog/pizzas.bluebook", storehouse::storehouse_router::conception_root())
+        format!("{}/catalog/bluebook/pizzas.bluebook", storehouse::storehouse_router::conception_root())
     ).unwrap();
     let domain = storehouse::parser::parse(&source);
     assert_eq!(domain.name, "Pizzas");

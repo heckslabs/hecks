@@ -80,7 +80,15 @@ module Hecksagon
       end
 
       def method_missing(ext_name, *args, &block)
-        if block
+        if block && args.first.is_a?(String)
+          # Family-verb call carrying values : `persisted_by("Heki") do dir :default end`.
+          # MIRRORS rust/src/world/parser.rs :: verb_call_adapter — the config is keyed by
+          # the ADAPTER name (downcased), not the verb ; the verb + aggregate are the
+          # human selector, the first quoted arg is the config key.
+          config_builder = ExtensionConfigBuilder.new
+          config_builder.instance_eval(&block)
+          @configs[args.first.downcase.to_sym] = config_builder.to_h
+        elsif block
           config_builder = ExtensionConfigBuilder.new
           config_builder.instance_eval(&block)
           @configs[ext_name.to_sym] = config_builder.to_h
@@ -188,6 +196,42 @@ module Hecksagon
 
       def to_h
         { name: @name, token_env: @token_env }
+      end
+    end
+
+    # FQN-verb world binds : `WebDebug::Screenshot.buffered_by("DiskBuffer") do … end`
+    # / `Pizzas::Order.charged_by("Stripe") do … end`. MIRRORS the hecksagon
+    # FqnBindingProxy, but records an ADAPTER-KEYED config (not a binding) so the
+    # Ruby WorldBuilder matches rust/src/world/parser.rs : the `::`-qualified head +
+    # verb are the human selector, the first quoted arg (downcased) is the config
+    # key, the block body is the values. Wired via builder_methods :: with_world_constants.
+    module WorldFqnProxy
+      module_function
+
+      # One `::`-reachable node. A deeper `::` keeps qualifying ; `.verb("X") do … end`
+      # records the adapter-keyed config into `configs`.
+      def node(qualified, configs)
+        mod = Module.new
+        mod.define_singleton_method(:const_missing) do |child|
+          WorldFqnProxy.node("#{qualified}::#{child}", configs)
+        end
+        mod.define_singleton_method(:method_missing) do |_verb, *args, **_opts, &block|
+          adapter = args.first.to_s
+          values = {}
+          if block
+            cb = ExtensionConfigBuilder.new
+            cb.instance_eval(&block)
+            values = cb.to_h
+          end
+          configs[adapter.downcase.to_sym] = values unless adapter.empty?
+          mod
+        end
+        mod.define_singleton_method(:to_s)   { qualified }
+        mod.define_singleton_method(:to_str) { qualified }
+        mod.define_singleton_method(:name)   { qualified }
+        mod.define_singleton_method(:inspect) { qualified }
+        mod.define_singleton_method(:respond_to_missing?) { |*| true }
+        mod
       end
     end
   end

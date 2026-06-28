@@ -2,7 +2,7 @@
 //! stdlib bluebook at `rust/resources/outbound_event.bluebook` (the canonical
 //! copy baked into the binary via `Runtime::OUTBOX_SUBSTRATE`). The framework
 //! conception keeps a copy at
-//! `hecks_conception/aggregates/framework/hexagon/outbound_event.bluebook`
+//! `hecks_conception/aggregates/framework/hexagon/bluebook/outbound_event.bluebook`
 //! (referenced by event_sourcing.bluebook, and an override per
 //! `ensure_outbox_substrate`). This guards the two against DRIFT.
 //!
@@ -28,7 +28,7 @@ fn conception_copy() -> Option<PathBuf> {
     let mut cur = exe.parent()?.to_path_buf();
     for _ in 0..10 {
         let candidate = cur
-            .join("hecks_conception/aggregates/framework/hexagon/outbound_event.bluebook");
+            .join("hecks_conception/aggregates/framework/hexagon/bluebook/outbound_event.bluebook");
         if cur.join("hecks_conception/aggregates").is_dir() && candidate.is_file() {
             return Some(candidate);
         }

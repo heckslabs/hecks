@@ -17,7 +17,6 @@
 # legacy Ruby WorldBuilder errors on the FQN-verb dotted form (uninitialized
 # constant Pizzas) — the SAME `::` const-resolution limit as pizzas.hecksagon.
 # Ruby is being retired ; retires with the hecksagon parser lift.
-examples/pizzas/bluebook/pizzas.world  # ports-and-adapters world shape (persisted_by("Heki") / Pizzas::Order.charged_by("Stripe")) — Rust resolves it ; legacy Ruby WorldBuilder errors on the FQN-verb form. Retires with the hecksagon parser lift.
 
 # ── 2026-06-25 — web_debug.world : same ports-and-adapters world shape ──
 # web_debug.world MIRRORS web_debug.hecksagon's bind selectors exactly as

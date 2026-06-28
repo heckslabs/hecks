@@ -16,8 +16,8 @@ use std::fs;
 
 // cli/ stayed in the hecks tree ; the engine lives outside it post-extraction,
 // so resolve via the sibling hecks root (HECKS_CONCEPTION_DIR's parent).
-const BLUEBOOK: &str = "cli/terminal/terminal.bluebook";
-const HECKSAGON: &str = "cli/terminal/terminal.hecksagon";
+const BLUEBOOK: &str = "cli/terminal/bluebook/terminal.bluebook";
+const HECKSAGON: &str = "cli/terminal/bluebook/terminal.hecksagon";
 
 fn hecks_root() -> std::path::PathBuf {
     std::env::var("HECKS_CONCEPTION_DIR")
