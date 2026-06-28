@@ -79,6 +79,52 @@ conceptions — EXCEPT the one gap below.
    (MietteMemory/Vows write-in-A read-in-B) before declaring done.
 4. Revert path: keep the binary backup ; `overmind quit` + restore + restart.
 
+## REAL CHAIN — verified in-code + empirically (2026-06-28, deeper than the 5 above)
+
+The 5 touch points are correct but UNDERSTATE the entanglement. Verified facts:
+
+- **World-less → DISK today, NOT memory.** A bare /tmp `Widget.bluebook` (no world,
+  no binding) round-trips cross-process and `backends` shows it `Heki` at
+  `~/Library/.../Hecks/hecks` — it POLLUTES the shared hecks store. So the
+  `resolve_info_dir` doc-comment ("bare bluebook → MEMORY ; infer_data_dir returns
+  None") is STALE/ASPIRATIONAL for the dispatch path. The flip is genuinely undone.
+
+- **The real opt-out is the `info_dir` GLOBAL FALLBACK, not `boot_with_data_dir`.**
+  Dispatch resolves data_dir = `world_heki_dir(path).or(info_dir)` (`run.rs:223-224`)
+  → `storehouse_router::info_dir` → `heki::resolve_info_dir` (heki.rs:1160), which
+  returns the global hecks store for ANY world-less conception. THIS is the line
+  the flip must change: world-less must resolve `None` (→ Memory floor), never the
+  global store. Touch point #1 (`boot_with_data_dir`) is downstream of this.
+
+- **Two production boot paths, BOTH apply bindings** (de-risks the floor flip):
+  dispatch `run.rs:150` and serve `server/multi.rs:205` both use
+  `boot_with_hecksagons` → attaches hecksagons → `apply_hexagon_persistence`
+  rebinds explicit `persisted_by`. So bound (all body) aggregates rebind to
+  Heki@realm regardless of the floor. CONFIRM the `storehouse loop` handler also
+  routes through this (run.rs dispatch) BEFORE flipping — if a loop ever booted via
+  plain `Runtime::boot` (Heki-floor-reliant, no rebind), Memory-floor would drop
+  its organs. (Evidence points to boot_with_hecksagons everywhere in prod; the
+  loop_driver.rs:368 `Runtime::boot` is a TEST helper, not prod.)
+
+- **`ensure_outbox_substrate` ALREADY injects the OutboundEvent AGGREGATE** (mod.rs,
+  in `boot_with_hecksagons`, gated on an effect binding present). Touch point #4 is
+  therefore SMALLER than feared: not "inject the aggregate" but "also attach its
+  `persisted_by(\"Heki\")` binding" so it survives the Memory floor. Verify with
+  `backends <any tree>` → OutboundEvent `wired`, 0 unwired.
+
+- **`realm_store_dir(realm, None)`** returns the realm-anchored disk path even when
+  data_dir is None — this is WHY the body persists today without per-aggregate
+  worlds. `apply_hexagon_persistence` uses it directly for `"Heki"` binds, so bound
+  aggregates stay durable post-flip. The floor change must NOT route unbound
+  aggregates through realm_store_dir (that would keep them on disk) — unbound +
+  worldless must become `new_memory`.
+
+- **Blast radius = the whole runtime's resolution chain.** Every dispatch in the
+  live body flows through run.rs / the info_dir chain. This is its-own-session,
+  incremental, body-down, test-each-step kernel surgery — NOT a marathon tail edit.
+  The conformance arc (#2) already met the flip's safety precondition; the flip
+  itself is the careful next effort.
+
 ## State at handoff (2026-06-28)
 
 - Conformance committed: miette 190cb93 (P1) / 343532c (P2) / 8fd30a3 (Memory
