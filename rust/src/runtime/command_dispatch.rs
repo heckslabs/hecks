@@ -559,10 +559,10 @@ fn resolve(rt: &Runtime, command_name: &str, caller_scope: Option<&str>) -> Resu
                 // ONLY a foreign, stamped aggregate is an error — a cascade must
                 // address a foreign bluebook by its full FQN, never a short ref
                 // that silently first-matches across the corpus. Top-level (no
-                // caller_scope) and unstamped targets keep first-match. Evidence
-                // (HECKS_WARN_FOREIGN_SHORT across the corpus) : 0 such refs today,
-                // so this is a no-op now and a structural guard against future
-                // homonym mis-resolution.
+                // caller_scope) and unstamped targets keep first-match. A
+                // foreign-short diagnostic run across the corpus before this
+                // enforcement found 0 such refs, so this is a no-op today and a
+                // structural guard against future homonym mis-resolution.
                 if first_global_foreign {
                     return Err(RuntimeError::UnknownCommand(format!(
                         "{} — short ref resolves only to a FOREIGN bluebook (caller scope {:?}); a cross-bluebook cascade must use the full Realm::Context::Bluebook::Aggregate FQN",
