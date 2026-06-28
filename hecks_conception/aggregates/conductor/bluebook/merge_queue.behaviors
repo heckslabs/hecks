@@ -1,5 +1,5 @@
 Hecks.behaviors "Conductor" do
-  vision "MergeQueue behaviors — Open / Enqueue / StartMerge / CompleteMerge / FailMerge / query:Active / query:Idle."
+  vision "MergeQueue behaviors — Open / Enqueue / StartMerge / CompleteMerge / FailMerge / Retire / query:Active / query:Idle."
 
   test "Open creates an idle queue" do
     tests "Open", on: "MergeQueue"
@@ -94,5 +94,45 @@ Hecks.behaviors "Conductor" do
     setup  "StartMerge", branch: "bq1", story_ref: "s1"
     input  branch: "bq1", story_ref: "s2"
     expect refused: "queue must be idle to start a merge"
+  end
+
+  # Retire : soft-delete a phantom/demo queue to the terminal `retired`
+  # state. Valid from any state ; drops the queue out of Active and Idle.
+
+  test "Retire moves a queue to the terminal retired state" do
+    tests "Retire", on: "MergeQueue"
+    setup  "Open", branch: "br1"
+    input  branch: "br1"
+    expect state: "retired"
+  end
+
+  test "Retire emits MergeQueueRetired" do
+    tests "Retire", on: "MergeQueue"
+    setup  "Open", branch: "br2"
+    input  branch: "br2"
+    expect emits: ["MergeQueueRetired"]
+  end
+
+  test "Retire is valid from merging (clears a stuck demo queue)" do
+    tests "Retire", on: "MergeQueue"
+    setup  "Open",       branch: "br3"
+    setup  "StartMerge", branch: "br3", story_ref: "s1"
+    input  branch: "br3"
+    expect state: "retired"
+  end
+
+  test "Active excludes a retired queue" do
+    tests "Active", on: "MergeQueue", kind: :query
+    setup  "Open",       branch: "br4"
+    setup  "StartMerge", branch: "br4", story_ref: "s1"
+    setup  "Retire",     branch: "br4"
+    expect count: 0
+  end
+
+  test "Idle excludes a retired queue" do
+    tests "Idle", on: "MergeQueue", kind: :query
+    setup  "Open",   branch: "br5"
+    setup  "Retire", branch: "br5"
+    expect count: 0
   end
 end

@@ -1,4 +1,4 @@
-Hecks.bluebook "Conductor", version: "2026.06.02.2" do
+Hecks.bluebook "Conductor", version: "2026.06.28.1" do
   vision "The Conductor domain : workforce orchestration. The MergeQueue aggregate serialises story merges. One queue per target branch (default: main). Enqueued stories wait ; the queue admits exactly one merge at a time (invariant). An Approve adapter enqueues ; a CompleteMerge adapter marks story done."
   category "framework"
 
@@ -17,7 +17,7 @@ Hecks.bluebook "Conductor", version: "2026.06.02.2" do
     end
 
     value_object "State" do
-      # idle | merging
+      # idle | merging | retired (terminal — soft-deleted, drops out of all views)
       attribute :value, String
     end
 
@@ -77,6 +77,14 @@ Hecks.bluebook "Conductor", version: "2026.06.02.2" do
       then_set :state,   to: "idle"
       then_set :current, to: ""
       emits "MergeFailed"
+    end
+
+    command "Retire" do
+      role "System"
+      description "Retire a merge queue — soft-delete to the terminal `retired` state. For removing phantom or demo queues left in the live store (e.g. a demo flow run against the prod store, like the demo-main queue that dangled a current ref to an unstored story). Valid from any state. Retired queues drop out of both Active (merging) and Idle (idle), so they vanish from the Merge View and the PR-Acceptance views. Mirrors the framework Retire convention (authorization / agent / role) ; hard record removal stays a separate runtime concern (no Delete primitive yet)."
+      reference_to(MergeQueue)
+      then_set :state, to: "retired"
+      emits "MergeQueueRetired"
     end
 
     # ============================================================
