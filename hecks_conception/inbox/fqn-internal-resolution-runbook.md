@@ -93,6 +93,34 @@ model replaces it with CALLER-SCOPED resolution.
   hecks_conception/{aggregates,adapters,catalog} : 105 .behaviors, must stay 105/105).
 - macOS `ls --time-style` is unsupported (BSD ls) — use `stat -f %Sm -t %H:%M:%S`.
 
+## PROGRESS (2026-06-28)
+- DONE c7d7724e4 — step 1 : caller-scoped local-first resolve (additive, fallback kept).
+  3 unit tests prove it. caller_scope = cascade_hint upstream's realm_path.
+- DONE ee7fb4076 — step 3 : `storehouse fqns --foreign-only` + corpus flip. 40
+  foreign 2-seg refs -> FQN ; local refs stay bare. Tool is in cli/src/main.rs.
+
+## REMAINING (in order ; each gated)
+- **step 2 (declaring-scope stamp)** — caller_scope today = cascade_hint upstream
+  (the EVENT SOURCE). For a cross-domain driven adapter (`driven on A.Event ->
+  dispatch X` declared in bluebook B) the true local scope is B, not A. Stamp the
+  declaring bluebook onto driven/driving dispatch declarations in the IR + thread
+  behaviors-file scope. REQUIRED before tighten is correct.
+- **foreign BARE-ref flip** — --foreign-only only flipped 2-seg `Bluebook::Aggregate`
+  refs. Bare `Aggregate.verb` refs (21 resolved, 0 ambiguous today) that are
+  FOREIGN must also be qualified, or they break on tighten. Needs a foreign-aware
+  `--resolve-bare` pass.
+- **step 4 (TIGHTEN)** — drop the global fallback from resolve() : a short ref is
+  local-ONLY, absent-local is an error. Homonyms structurally impossible. The
+  dangerous step — do only after the two above, full gate, fresh head.
+- **step 5 (events)** — full-FQN matching for FOREIGN event subscriptions.
+
+## position-blindness (known tool limitation)
+`fqns --rewrite` is quote-anchored, not position-aware — it matches ANY
+"Bluebook::Aggregate.verb" string, including comment examples + data attribute
+values. Phase 2 hit 2 comment lines (reverted by hand). A position-aware rewriter
+(only dispatch-address keywords : dispatch/result_into/trigger/setup/tests/driven)
+is the eventual clean tool. Always `git diff` review after running it.
+
 ## Risk
 Dispatch core. Additive-first (step 1) is the safe entry. Gate hard between every
 step. The behaviors corpus caught the folder-exact regression this session — trust it.
