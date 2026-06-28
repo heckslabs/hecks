@@ -1,74 +1,98 @@
-# Runbook — use FQN internally (realm-qualified dispatch resolution) (2026-06-28)
+# Runbook — local-short / foreign-FQN dispatch addressing (CORRECTED 2026-06-28)
 
-## Goal (Chris)
-Use the FULL FQN internally instead of short Domain::Aggregate names, so homonyms
-across realms/domains can never collide. Today only the realm-OMITTED 2-segment
-short form resolves ; every realm-qualified form fails — the friction that ran
-through the whole :exec sweep (`result_into` had to be short, the door rejects
-qualified FQNs, etc.).
+## This SUPERSEDES the prior runbook, which was WRONG
+The prior version claimed a dispatch-core bug (a "mysterious 4-seg downstream
+failure") and proposed using the FULL FQN internally everywhere. Both were wrong.
+Proven this session against the live binary :
 
-## Empirical state (verified 2026-06-28, in-tree binary)
-Dispatch `*.InboxPoller.Poll` against hecks_conception :
-- `AgentInbox::InboxPoller.Poll`            (2-seg, Domain::Aggregate)        -> ok:true
-- `Framework::AgentInbox::InboxPoller.Poll` (3-seg, Realm::Domain::Aggregate) -> UnknownCommand
-- `Hecks::Framework::AgentInbox::InboxPoller.Poll` (4-seg, Root::Realm::…)    -> UnknownCommand
+- **There is no dispatch-core bug.** The designed FQN
+  `Realm::Context::Bluebook::Aggregate.verb` already resolves, and the corpus
+  already uses it (`evaluation.bluebook` triggers
+  `Hecks::World::Training::Evaluation::Evaluation.EvaluateModel`, green today).
+- The "4-seg friction" was an **under-qualified address** — missing the bluebook
+  segment. The bluebook NAME is a distinct address segment; `realm_path` is the
+  folder path WITHOUT it. `fqn_realm_context`'s `segs[1..n-2]` was correct.
+- A prototyped "folder-exact" kernel change (drop the bluebook segment,
+  `segs[1..n-1]`) BROKE 2 behaviors (fine_tune, conception) because it rejects
+  the designed bluebook-segment form the corpus already uses. Reverted. Folder-
+  exact REJECTED by Chris.
 
-## Root semantics (the subtle part)
-`heki.rs::folder_address_segments` stamps an aggregate's `realm_path` from its
-SOURCE FOLDER, after dropping the *.bluebook file, the same-named container
-folder (agent_inbox/agent_inbox stutter), and the literals hecks_conception /
-aggregates / bluebook. For
-`hecks/hecks_conception/aggregates/framework/agent_inbox/agent_inbox.bluebook`
-the remaining segs are `[hecks, framework]` → **realm = "hecks", context =
-"framework"** (proven by the folder_address_realm_plus_context unit test, which
-stamps realm=hecks context=language/grammar for a grammar bluebook).
+## The DECISION (Chris, 2026-06-28) — local-short / foreign-FQN
+ONE rule, not two formats — matches the Hexagon chapter ("the domain handles its
+own intra-domain aggregate calls by naming convention; the hexagon wires only the
+edges that LEAVE the domain") :
 
-So the REALM is the repo dir (`hecks`), and `framework` is the CONTEXT. The DSL
-root token in a binding FQN (`Hecks::…`) snake-cases to `hecks` — which DOES
-equal the stamped realm. So `fqn_realm_context("Hecks::Framework::AgentInbox::
-InboxPoller.Poll")` = (realm "hecks", context "framework"), and
-`realm_context_matches("hecks/framework", "hecks", "framework")` returns TRUE.
-The realm match is NOT the blocker for the 4-seg form.
+| Call | Form | Resolution |
+|------|------|-----------|
+| same bluebook (local) | `InboxPoller.Poll` (short) | scoped to the CALLER's bluebook; ERROR if absent locally |
+| crosses bluebook (foreign) | `Hecks::World::Training::Evaluation.EvaluateModel` (full FQN) | exact, collision-proof |
 
-## The two bugs
-1. **3-seg form** (`Framework::AgentInbox::…`) : `fqn_realm_context` reads
-   segs[0] = "Framework" as the realm → "framework", but the stamped realm is
-   "hecks" → mismatch → fail. (The 3-seg Realm::Domain::Aggregate shape doesn't
-   model the repo-as-realm + folder-as-context split.)
-2. **4-seg form** (`Hecks::Framework::AgentInbox::…`) : realm + context BOTH
-   match per the analysis above, yet it still returns UnknownCommand. So a
-   SECOND bug lives in `resolve_fully_qualified` downstream of the realm gate —
-   in `domain_matches(rt, ai, "AgentInbox", "agentinbox")` or the command
-   lookup. NEEDS LIVE TRACING (add eprintln in the hits-collection loop : print
-   agg.name, agg.realm_path, domain_matches result, realm_context_matches result
-   for the InboxPoller candidate) to see which predicate rejects it.
+Local stays short and readable; only edges that LEAVE the bluebook carry the FQN
+(and thus the honest `::Evaluation::Evaluation` repeat — folder vs bluebook vs
+aggregate are three axes that often share a word). This kills the doubling for
+the common (local) case and collapses the migration : most of ~1900 address
+sites are same-bluebook and STAY SHORT — only foreign edges flip.
+
+## The safety gap today
+`resolve()` resolves a short ref by GLOBAL FIRST-MATCH across every aggregate
+(command_dispatch.rs `resolve()`, the dotted `[agg, cmd]` and bare `[cmd]` paths;
+plus `resolve_fully_qualified` treats a realm-less 2-seg `Bluebook::Aggregate` as
+lenient → first match). That is the homonym risk (Swept x2, Macrophage x2). The
+model replaces it with CALLER-SCOPED resolution.
+
+## Caller-context availability (VERIFIED this session)
+- `resolve(rt, command_name)` is called inside `dispatch_inner`
+  (command_dispatch.rs:119), which already receives
+  `cascade_hint: Option<(upstream_type, upstream_id)>`.
+- For a **policy `trigger`** : the upstream aggregate IS the declaring bluebook →
+  `cascade_hint.0`'s `realm_path` = the local scope. AVAILABLE.
+- For a **cross-domain driven adapter** (`driven on A's Event -> dispatch X`,
+  declared in bluebook B) : true local scope is B, but `cascade_hint` = A. So the
+  IR must STAMP the declaring bluebook onto driven/driving dispatch declarations.
+- **Behaviors** : the file belongs to one bluebook; the `storehouse behaviors`
+  harness knows it → scope from the file.
+- **Top-level dispatch** (MCP/CLI) : `cascade_hint = None` → no local scope →
+  FQN required. Correct by construction.
+
+## Implementation sequence (flip-then-tighten ; gate between each)
+1. **resolve() becomes caller-scope-aware, ADDITIVE** : thread
+   `caller_scope: Option<&realm_path>` from `cascade_hint` (upstream aggregate's
+   realm_path) through `dispatch_inner` into `resolve()`. A short ref prefers a
+   LOCAL match (realm_path == caller_scope); FALLS BACK to today's global first-
+   match if none. Breaks nothing (fallback preserves current behavior); only
+   improves local-homonym correctness. Gate.
+2. **Stamp declaring-scope** on driven/driving dispatch declarations in the IR
+   (the cross-domain-driven gap above) + thread behaviors-file scope. Gate.
+3. **Flip FOREIGN refs to FQN** : for every address site whose target aggregate
+   is in a DIFFERENT bluebook than the declaring file, qualify to the canonical
+   FQN. DERIVE via the runtime (`fqns_resolve::canonical_prefix` /
+   `storehouse fqns`), foreign-aware — NOT regex. Local refs stay short. Gate.
+4. **Tighten** : remove the global first-match fallback from step 1. A short ref
+   now resolves local-ONLY; absent-local is an error. Homonyms structurally
+   impossible. Gate.
+5. **Events** : extend policy/driven `on` event matching to the full FQN for
+   FOREIGN event subscriptions (Swept x2 can't collide), local stays short.
 
 ## Files
-- rust/src/runtime/command_dispatch.rs : `resolve_fully_qualified` (694),
-  `parse_fqn` (677), `domain_matches`, `ambiguity_candidates`. EXEMPT kernel.
-- rust/src/heki.rs : `fqn_realm_context` (FQN -> realm/context),
-  `realm_context_matches`, `folder_address_segments` (folder -> realm_path).
-- rust/src/runtime/policy_engine.rs : event matching (by_event bare name +
-  aggregate qualifier + realm_path) — the EVENT side of the same FQN story.
+- rust/src/runtime/command_dispatch.rs : `resolve` (470), `resolve_fully_qualified`
+  (694), `dispatch_inner` (113, has cascade_hint), `dispatch_cascade` (103).
+- rust/src/heki.rs : `fqn_realm_context` (1083, CORRECT — do not change),
+  `realm_context_matches` (1110), `folder_address_segments` (1040).
+- rust/src/fqns_resolve.rs : `canonical_prefix` (35), `resolve_bare` — the derive
+  source for the foreign-ref flip.
+- rust/cli/src/main.rs : `fqns` subcommand (621) — `--rewrite` (2-seg sweep),
+  `--resolve-bare --rewrite`. Needs a FOREIGN-AWARE mode (only flip cross-bluebook).
 
-## Plan (mechanical once the 4-seg bug is traced)
-1. LIVE-TRACE the 4-seg failure (eprintln the predicate results) — find which of
-   {domain_matches, realm_context_matches, command-name} rejects the known-good
-   InboxPoller.Poll candidate.
-2. Decide the CANONICAL internal FQN shape. Candidates :
-   - `Root::Realm::Domain::Aggregate.Command` (4-seg, what bindings already use)
-     — fix the downstream predicate so it resolves.
-   - drop the realm semantics' repo-as-realm quirk so 3-seg Realm::Domain::Agg
-     works too.
-3. Make `resolve_fully_qualified` accept the canonical FQN (and keep the 2-seg
-   short form as a convenience, OR flip the corpus fully to FQN).
-4. EVENTS : extend policy `on` matching to the full FQN (realm::domain::
-   aggregate.event) so event-name collisions (Swept x2) are impossible without
-   relying on the aggregate-only qualifier (gap #1b).
-5. Flip internal declarations (binding `on:`, :exec `command:`, policy `on`) to
-   the canonical FQN. Gate : cargo test --release + 141 behaviors + integrity.
+## Build/gate notes (cost me an hour this session — DO NOT REPEAT)
+- The binary is the **storehouse-cli** package, NOT the `storehouse` lib. Build with
+  `cargo build --release -p storehouse-cli`. A plain `cargo build --release` in rust/
+  builds only the LIB and leaves the CLI binary STALE (mtime won't move).
+- NEVER pipe cargo through `| tail` when you care about success — the pipe SWALLOWS
+  cargo's non-zero exit. Check `${PIPESTATUS[0]}` or run unpiped with `echo EXIT=$?`.
+- Gate : `cargo test -p storehouse` + the behaviors corpus (pre-push loop over
+  hecks_conception/{aggregates,adapters,catalog} : 105 .behaviors, must stay 105/105).
+- macOS `ls --time-style` is unsupported (BSD ls) — use `stat -f %Sm -t %H:%M:%S`.
 
 ## Risk
-This is the DISPATCH CORE. A wrong predicate change makes EVERY command
-UnknownCommand. Trace first, change one predicate, run the full gate before the
-next. Fresh-head work — not tail-of-a-long-session.
+Dispatch core. Additive-first (step 1) is the safe entry. Gate hard between every
+step. The behaviors corpus caught the folder-exact regression this session — trust it.

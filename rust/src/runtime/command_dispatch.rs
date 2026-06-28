@@ -116,7 +116,19 @@ fn dispatch_inner(
     attrs: HashMap<String, Value>,
     cascade_hint: Option<(String, String)>,
 ) -> Result<CommandResult, RuntimeError> {
-    let res = resolve(rt, command_name)?;
+    // Caller-scoped resolution (i-fqn local-short) : the CALLER's bluebook is
+    // the upstream aggregate's realm_path (cascade_hint = the aggregate whose
+    // event triggered this dispatch). A SHORT ref then resolves LOCAL-first —
+    // a same-name aggregate in the caller's own bluebook wins over a foreign
+    // homonym. None for a top-level dispatch (no cascade), so those fall back
+    // to global match and should carry a full FQN. ADDITIVE : the fallback
+    // preserves today's global first-match whenever no local candidate exists.
+    let caller_scope: Option<String> = cascade_hint.as_ref().and_then(|(up_type, _)| {
+        rt.domain.aggregates.iter()
+            .find(|a| &a.name == up_type)
+            .and_then(|a| a.realm_path.clone())
+    });
+    let res = resolve(rt, command_name, caller_scope.as_deref())?;
     let agg_idx = res.agg_idx();
 
     // Many-form dispatch (i113 / i116) — only applies to aggregate-level
@@ -483,13 +495,13 @@ fn ambiguity_candidates(hit_realms: &[String], realm_omitted: bool, command_name
 ///     match a known context (i111-J).
 ///   - `Aggregate.Command` — two dotted parts.
 ///   - `Command` — bare command name.
-fn resolve(rt: &Runtime, command_name: &str) -> Result<Resolution, RuntimeError> {
-    // i560 v2 — canonical FQN form first. Presence of `::` is the
-    // discriminator ; the rest falls through to the legacy dotted
-    // forms that internal cascade dispatch relies on.
-    if command_name.contains("::") {
-        return resolve_fully_qualified(rt, command_name);
-    }
+fn resolve(rt: &Runtime, command_name: &str, caller_scope: Option<&str>) -> Result<Resolution, RuntimeError> {
+        // i560 v2 — canonical FQN form first. Presence of `::` is the
+        // discriminator ; the rest falls through to the legacy dotted
+        // forms that internal cascade dispatch relies on.
+        if command_name.contains("::") {
+            return resolve_fully_qualified(rt, command_name, caller_scope);
+        }
     let parts: Vec<&str> = command_name.split('.').collect();
     match parts.as_slice() {
         [a, b, c] => {
@@ -517,13 +529,26 @@ fn resolve(rt: &Runtime, command_name: &str) -> Result<Resolution, RuntimeError>
             ))
         }
         [agg_name, cmd_name] => {
-            // First pass — direct aggregate command match.
+            // First pass — direct aggregate command match. LOCAL-first
+            // (i-fqn local-short) : a same-name aggregate in the caller's own
+            // bluebook wins over a foreign homonym ; otherwise the first global
+            // match (additive fallback — identical to the old behaviour when
+            // caller_scope is None or no local candidate exists).
+            let mut first_global: Option<Resolution> = None;
             for (ai, agg) in rt.domain.aggregates.iter().enumerate() {
                 if agg.name != *agg_name { continue; }
                 for (ci, cmd) in agg.commands.iter().enumerate() {
-                    if cmd.name == *cmd_name { return Ok(Resolution::Aggregate(ai, ci)); }
+                    if cmd.name == *cmd_name {
+                        if caller_scope.is_some() && agg.realm_path.as_deref() == caller_scope {
+                            return Ok(Resolution::Aggregate(ai, ci));
+                        }
+                        if first_global.is_none() {
+                            first_global = Some(Resolution::Aggregate(ai, ci));
+                        }
+                    }
                 }
             }
+            if let Some(r) = first_global { return Ok(r); }
             // Second pass (i111-J) — entity-owned command, accepted
             // only when unambiguous (single owning entity within the
             // aggregate). Multiple owners on the same aggregate is a
@@ -691,7 +716,7 @@ pub fn parse_fqn(command_name: &str) -> Result<(String, String, String), String>
 /// name (PascalCase) ; queries are resolved by the query layer using
 /// `parse_fqn` directly, so this function only returns a Resolution
 /// for command-shaped addresses.
-fn resolve_fully_qualified(rt: &Runtime, command_name: &str) -> Result<Resolution, RuntimeError> {
+fn resolve_fully_qualified(rt: &Runtime, command_name: &str, caller_scope: Option<&str>) -> Result<Resolution, RuntimeError> {
     let (domain, target, cmd) = match parse_fqn(command_name) {
         Ok(parts) => parts,
         Err(msg) => return Err(RuntimeError::UnknownCommand(msg)),
@@ -726,6 +751,18 @@ fn resolve_fully_qualified(rt: &Runtime, command_name: &str) -> Result<Resolutio
         return Ok(hits.remove(0));
     }
     if hits.len() > 1 {
+        // LOCAL-first (i-fqn local-short) : when the caller's bluebook is known
+        // and exactly one hit lives in it, the local aggregate wins over foreign
+        // homonyms — no ambiguity error, no first-match guess.
+        if let Some(scope) = caller_scope {
+            let local: Vec<usize> = hit_realms.iter().enumerate()
+                .filter(|(_, rp)| rp.as_str() == scope)
+                .map(|(i, _)| i)
+                .collect();
+            if local.len() == 1 {
+                return Ok(hits.remove(local[0]));
+            }
+        }
         if let Some(candidates) = ambiguity_candidates(&hit_realms, realm.is_none(), command_name) {
             return Err(RuntimeError::AmbiguousCommand {
                 name: command_name.to_string(),
@@ -1425,6 +1462,57 @@ fn ambiguity_unstamped_realms_keep_first_match() {
     // filtered out, so they fall through to first-match-wins.
     let realms = vec![String::new(), String::new()];
     assert_eq!(super::ambiguity_candidates(&realms, true, "X::Y.Z"), None);
+}
+
+// ---- caller-scoped local-first (i-fqn local-short) ----
+
+// A "Widget.Make" homonym across two bluebooks (hecks + miette), both with
+// context "Framework" so the 2-seg `Framework::Widget.Make` form hits BOTH.
+fn two_widget_domain() -> crate::ir::Domain {
+    let src = r#"
+Hecks.bluebook "Framework" do
+aggregate "Widget" do
+attribute :id, Id
+command "Make" do
+  attribute :id, Id
+end
+end
+end
+"#;
+    let mut d = crate::parser::parse(src);
+    for a in d.aggregates.iter_mut() { a.realm_path = Some("hecks/framework".to_string()); }
+    let mut other = d.aggregates.iter().find(|a| a.name == "Widget").unwrap().clone();
+    other.realm_path = Some("miette/framework".to_string());
+    d.aggregates.push(other);
+    d
+}
+
+#[test]
+fn caller_scope_picks_local_dotted_form() {
+    let rt = crate::runtime::Runtime::boot(two_widget_domain());
+    // Dotted Aggregate.Command : caller in hecks resolves the hecks Widget …
+    let r = super::resolve(&rt, "Widget.Make", Some("hecks/framework")).unwrap();
+    assert_eq!(rt.domain.aggregates[r.agg_idx()].realm_path.as_deref(), Some("hecks/framework"));
+    // … the SAME short ref from miette resolves the miette Widget.
+    let r = super::resolve(&rt, "Widget.Make", Some("miette/framework")).unwrap();
+    assert_eq!(rt.domain.aggregates[r.agg_idx()].realm_path.as_deref(), Some("miette/framework"));
+}
+
+#[test]
+fn caller_scope_picks_local_two_seg_form() {
+    let rt = crate::runtime::Runtime::boot(two_widget_domain());
+    // 2-seg Bluebook::Aggregate.Command hits both ; caller scope disambiguates
+    // instead of erroring AmbiguousCommand or first-match-guessing.
+    let r = super::resolve(&rt, "Framework::Widget.Make", Some("miette/framework")).unwrap();
+    assert_eq!(rt.domain.aggregates[r.agg_idx()].realm_path.as_deref(), Some("miette/framework"));
+}
+
+#[test]
+fn no_caller_scope_falls_back_to_first_match() {
+    let rt = crate::runtime::Runtime::boot(two_widget_domain());
+    // ADDITIVE : no caller scope → today's global first-match (hecks declared first).
+    let r = super::resolve(&rt, "Widget.Make", None).unwrap();
+    assert_eq!(rt.domain.aggregates[r.agg_idx()].realm_path.as_deref(), Some("hecks/framework"));
 }
 
 }
