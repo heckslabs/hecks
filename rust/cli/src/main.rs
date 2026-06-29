@@ -4287,6 +4287,23 @@ fn dispatch_hecksagon(agg_dir: &str, command: &str, attrs: std::collections::Has
     storehouse::world::attach::attach_world_servers(&mut rt, agg_dir);
     storehouse::world::attach::attach_world_adapter_bindings(&mut rt, agg_dir);
 
+    // Gate a cold-CLI READ symmetrically with a write : stamp the caller
+    // principal from env and run the before-gates (authorize PDP / authenticate /
+    // service) against the query phrase as the action, exit 2 on deny. The
+    // runtime's `query()` already gates the warm path ; the cold resolve_query*
+    // sites below were calling the UNGATED core directly, so an unpermitted agent
+    // could READ any aggregate while the command path correctly denied (authz
+    // read-bypass, 2026-06-29). Mirrors the command path's stamp + authorize_entry.
+    fn authorize_read_or_exit(rt: &mut Runtime, phrase: &str) {
+        let mut gate_attrs: std::collections::HashMap<String, storehouse::runtime::Value> =
+            std::collections::HashMap::new();
+        storehouse::runtime::acl_readmodel::stamp_principal_from_env(&mut gate_attrs);
+        if let Err(e) = rt.authorize_entry(phrase, &mut gate_attrs) {
+            eprintln!("{}", e);
+            std::process::exit(2);
+        }
+    }
+
     // FQN-aware query resolution. Commands resolve their
     // Domain::Aggregate.Command form inside command_dispatch::resolve ;
     // queries need the same parsing here, else a
@@ -4313,6 +4330,7 @@ fn dispatch_hecksagon(agg_dir: &str, command: &str, attrs: std::collections::Has
                     .find(|q| storehouse::util::snake_case(&q.name) == tail || q.name == tail)
                     .map(|q| (a.context.clone(), a.name.clone(), q.name.clone())));
             if let Some((ctx, agg_name, q_name)) = q_match {
+                authorize_read_or_exit(&mut rt, command);
                 let str_attrs: std::collections::HashMap<String, String> = attrs.iter()
                     .map(|(k, v)| (k.clone(), v.as_str().unwrap_or("").to_string()))
                     .collect();
@@ -4327,6 +4345,7 @@ fn dispatch_hecksagon(agg_dir: &str, command: &str, attrs: std::collections::Has
         a.queries.iter().any(|q| q.name == command));
 
     if is_query {
+        authorize_read_or_exit(&mut rt, command);
         let result = rt.resolve_query(command, &attrs.iter()
             .map(|(k, v)| (k.clone(), v.as_str().unwrap_or("").to_string()))
             .collect::<std::collections::HashMap<_, _>>());
