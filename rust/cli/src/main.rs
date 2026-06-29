@@ -4225,6 +4225,23 @@ println!(
 );
 }
 
+/// Gate a cold-CLI READ symmetrically with a write : stamp the caller principal
+/// from env, run the before-gates (authorize PDP / authenticate / service)
+/// against the read phrase, exit 2 on deny. The cold resolve_query* / find sites
+/// call the UNGATED runtime core directly, so without this an unpermitted agent
+/// could READ any aggregate while the command path correctly denied (authz
+/// read-bypass, 2026-06-29). Mirrors the command path's stamp + authorize_entry ;
+/// shared by dispatch_hecksagon (queries) and cmd_state (by-id reads).
+fn authorize_read_or_exit(rt: &mut Runtime, phrase: &str) {
+    let mut gate_attrs: std::collections::HashMap<String, storehouse::runtime::Value> =
+        std::collections::HashMap::new();
+    storehouse::runtime::acl_readmodel::stamp_principal_from_env(&mut gate_attrs);
+    if let Err(e) = rt.authorize_entry(phrase, &mut gate_attrs) {
+        eprintln!("{}", e);
+        std::process::exit(2);
+    }
+}
+
 fn cmd_state(agg_dir: &str, agg_name: &str, id: &str) {
     let data_dir = find_world_heki_dir(agg_dir)
         .unwrap_or_else(|| format!("{}/data", agg_dir.trim_end_matches('/')));
@@ -4237,6 +4254,8 @@ fn cmd_state(agg_dir: &str, agg_name: &str, id: &str) {
     let mut rt = Runtime::boot_with_hecksagons(combined, Some(data_dir), hecksagons);
     storehouse::world::attach::apply_per_domain_world_dirs(&mut rt, agg_dir);
     storehouse::world::attach::attach_world_adapter_bindings(&mut rt, agg_dir);
+    // Gate the by-id state read symmetrically with a query / command.
+    authorize_read_or_exit(&mut rt, &format!("{}.state", agg_name));
     let (ok, state_json) = match rt.find(agg_name, id) {
         Some(rec) => {
             let mut map = serde_json::Map::new();
@@ -4286,23 +4305,6 @@ fn dispatch_hecksagon(agg_dir: &str, command: &str, attrs: std::collections::Has
     register_llm_providers(&mut rt, agg_dir);
     storehouse::world::attach::attach_world_servers(&mut rt, agg_dir);
     storehouse::world::attach::attach_world_adapter_bindings(&mut rt, agg_dir);
-
-    // Gate a cold-CLI READ symmetrically with a write : stamp the caller
-    // principal from env and run the before-gates (authorize PDP / authenticate /
-    // service) against the query phrase as the action, exit 2 on deny. The
-    // runtime's `query()` already gates the warm path ; the cold resolve_query*
-    // sites below were calling the UNGATED core directly, so an unpermitted agent
-    // could READ any aggregate while the command path correctly denied (authz
-    // read-bypass, 2026-06-29). Mirrors the command path's stamp + authorize_entry.
-    fn authorize_read_or_exit(rt: &mut Runtime, phrase: &str) {
-        let mut gate_attrs: std::collections::HashMap<String, storehouse::runtime::Value> =
-            std::collections::HashMap::new();
-        storehouse::runtime::acl_readmodel::stamp_principal_from_env(&mut gate_attrs);
-        if let Err(e) = rt.authorize_entry(phrase, &mut gate_attrs) {
-            eprintln!("{}", e);
-            std::process::exit(2);
-        }
-    }
 
     // FQN-aware query resolution. Commands resolve their
     // Domain::Aggregate.Command form inside command_dispatch::resolve ;

@@ -111,6 +111,19 @@ pub(crate) fn handle_request(
     if is_query {
         let str_attrs: HashMap<String, String> = attrs_pairs.iter()
             .map(|(k, v)| (k.clone(), v.clone())).collect();
+        // RBAC gate (warm READ door): authorize the read symmetrically with
+        // a write. The command branch below gates via rt.dispatch ; the query
+        // core (resolve_query_qualified) is UNGATED, so an unpermitted agent
+        // could READ any aggregate here (authz read-bypass, 2026-06-29). Stamp
+        // the caller principal from env + run the before-gates ; a resident
+        // server returns an ERROR sentinel on deny instead of process::exit.
+        let mut gate_attrs: HashMap<String, Value> = HashMap::new();
+        crate::runtime::acl_readmodel::stamp_principal_from_env(&mut gate_attrs);
+        if let Err(e) = rt.authorize_entry(&command, &mut gate_attrs) {
+            return format!("{}{}", ERROR_SENTINEL, serde_json::json!({
+                "ok": false, "error": e.to_string(), "command": command,
+            }));
+        }
         let result = rt.resolve_query_qualified(ctx.as_deref(), &agg, &bare_verb, &str_attrs);
         format!("{}{}", RESULT_SENTINEL, result)
     } else {

@@ -73,3 +73,43 @@ fn cold_read_admits_system() {
         "System read should return the query result: {}", stdout);
     let _ = std::fs::remove_dir_all(&root);
 }
+
+// ── The `state` subcommand (by-id read) is the sibling read door ──
+// `storehouse state <root> <Agg> <id>` (the storehouse__state MCP tool) calls
+// rt.find directly ; cmd_state must gate it like a query.
+
+fn run_state(root: &std::path::Path, agent: bool) -> std::process::Output {
+    let bin = env!("CARGO_BIN_EXE_storehouse");
+    let mut cmd = Command::new(bin);
+    cmd.arg("state").arg(root).arg("Box").arg("nope");
+    cmd.env_remove("HECKS_GOVERNANCE_OFF");
+    if agent {
+        cmd.env("HECKS_PRINCIPAL_KIND", "agent")
+           .env("HECKS_SESSION_AUTH_ID", "ghost");
+    }
+    cmd.output().expect("invoke storehouse state")
+}
+
+#[test]
+fn cold_state_denies_unpermitted_agent() {
+    let root = temp_root("state_deny");
+    let out = run_state(&root, true);
+    assert_eq!(out.status.code(), Some(2),
+        "agent by-id state read must be DENIED (exit 2); stdout: {}\nstderr: {}",
+        String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr));
+    assert!(String::from_utf8_lossy(&out.stderr).contains("denied"),
+        "stderr should explain the denial: {}", String::from_utf8_lossy(&out.stderr));
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn cold_state_admits_system() {
+    // A missing record returns ok:false, but the GATE runs before find, so a
+    // System read is admitted (exit 0) regardless of whether the record exists.
+    let root = temp_root("state_admit");
+    let out = run_state(&root, false);
+    assert!(out.status.success(),
+        "System by-id state read must be admitted; stdout: {}\nstderr: {}",
+        String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr));
+    let _ = std::fs::remove_dir_all(&root);
+}
