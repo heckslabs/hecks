@@ -345,7 +345,7 @@ pub struct Runtime {
     /// record) — it carries no persistence and is empty for root dispatches.
     pub last_event_id_by_agg: HashMap<String, String>,
     /// Layer-2 authorization (RBAC) read-model. Boot-hydrated; refreshed when a
-    /// Role/Agent lifecycle command applies. Read SYNCHRONOUSLY by acl_check ;
+    /// Role/Agent lifecycle command applies. Read SYNCHRONOUSLY by authorize_check ;
     /// never bus-queried (no async, no reentrancy).
     pub acl_read_model: acl_readmodel::AclReadModel,
 }
@@ -402,7 +402,7 @@ impl Runtime {
         let m = acl_readmodel::AclReadModel::hydrate(&rt);
         rt.acl_read_model = m;
         // Hydrate the middleware stack (runtime projection of the Gate
-        // grammar) after the RBAC read-model the rbac-authorize gate reads.
+        // grammar) after the RBAC read-model the authorize gate reads.
         rt.hydrate_middleware();
         rt
     }
@@ -616,7 +616,7 @@ impl Runtime {
             last_event_id_by_agg: HashMap::new(),
             acl_read_model: acl_readmodel::AclReadModel::empty(),
         };
-        // Hydrate the RBAC read-model from Role/Agent state (covers the bare
+        // Hydrate the RBAC read-model from Agent state (covers the bare
         // boot path). boot_with_hecksagons re-hydrates after persistence
         // overrides so it reads the final repositories.
         let m = acl_readmodel::AclReadModel::hydrate(&rt);
@@ -648,74 +648,6 @@ impl Runtime {
         rt.framework_registry =
             framework_registry::FrameworkRegistry::build_from_dir(framework_dir);
         rt
-    }
-
-    /// The role a command's inline `role` requires (RBAC). Resolves the
-    /// command by its bare name (the tail after the last `.`) and returns
-    /// its declared role. None when no command matches or none declares a
-    /// role — either way the command is ungated. The inline `role` on the
-    /// command is the SOURCE OF TRUTH for who may dispatch it.
-    fn acl_required_role(&self, command_name: &str) -> Option<String> {
-        let bare = command_name.rsplit('.').next().unwrap_or(command_name);
-        for agg in &self.domain.aggregates {
-            for cmd in &agg.commands {
-                if cmd.name == bare {
-                    return cmd.role.clone().filter(|r| !r.is_empty());
-                }
-            }
-            for ent in &agg.entities {
-                for cmd in &ent.commands {
-                    if cmd.name == bare {
-                        return cmd.role.clone().filter(|r| !r.is_empty());
-                    }
-                }
-            }
-        }
-        None
-    }
-
-    /// Authorization gate (RBAC) for the ENTRY dispatch. Synchronous: reads
-    /// ONLY the in-memory acl_read_model + the IR, never the bus.
-    ///
-    /// The caller is a Principal — NOT always an agent. A `System` origin
-    /// (driver/clock, cascade, adapter verdict, fixture, boot) is admitted
-    /// by origin. An `agent` origin resolves auth_id -> role and grants iff
-    /// the command's required role is the caller's role or one of its
-    /// (non-retired) ancestors. An agent-claimed call with no resolvable
-    /// role FAILS CLOSED. Cascades never reach here (they use
-    /// dispatch_cascade), so System commands stay reachable only internally.
-    fn acl_check(
-        &self,
-        command_name: &str,
-        attrs: &HashMap<String, Value>,
-    ) -> Result<(), RuntimeError> {
-        let auth_identity_id = match acl_readmodel::principal_from_attrs(attrs) {
-            acl_readmodel::Principal::System => return Ok(()),
-            acl_readmodel::Principal::Agent { auth_identity_id } => auth_identity_id,
-        };
-        let required = match self.acl_required_role(command_name) {
-            Some(r) => r,
-            None => return Ok(()),
-        };
-        let held = match self.acl_read_model.role_for_auth(&auth_identity_id) {
-            Some(r) => r.to_string(),
-            None => {
-                return Err(RuntimeError::Unauthorized {
-                    command: command_name.to_string(),
-                    required,
-                    held: String::new(),
-                });
-            }
-        };
-        if self.acl_read_model.role_satisfies(&held, &required) {
-            Ok(())
-        } else {
-            Err(RuntimeError::Unauthorized {
-                command: command_name.to_string(),
-                required,
-                held,
-            })
-        }
     }
 
     /// Record an authorization denial as a `Governance::Violation` via the
@@ -773,7 +705,7 @@ impl Runtime {
             if let Err(e) = self.run_gate(&handler, command_name, attrs) {
                 let reason = match &e {
                     RuntimeError::Unauthorized { required, held, .. } => format!(
-                        "middleware '{}': requires role '{}', caller holds '{}'",
+                        "middleware '{}': requires {}, caller {}",
                         gate_name, required, held
                     ),
                     other => format!("middleware '{}': {:?}", gate_name, other),
@@ -800,11 +732,10 @@ impl Runtime {
         attrs: &HashMap<String, Value>,
     ) -> Result<(), RuntimeError> {
         match handler {
-            "rbac-authorize" => self.acl_check(command_name, attrs),
             "authenticate" => self.authenticate_check(command_name, attrs),
             "authorize" => self.authorize_check(command_name, attrs),
             // A check that names a storehouse query (it has a `.`) IS the gate :
-            // "it can all be storehouse service". rbac-authorize / authenticate
+            // "it can all be storehouse service". authenticate / authorize
             // are the two conventional shortcuts for the read-model-backed gates ;
             // every OTHER gate is a plain bluebook query, run through the one door.
             fqn if fqn.contains('.') => self.service_gate(fqn, command_name, attrs),
@@ -1004,10 +935,10 @@ impl Runtime {
     /// Hydrate the middleware stack — the runtime projection of the Gate registry
     /// (aggregates/storehouse/storehouse.bluebook), the way the Procfile is the
     /// projection of declared Drivers. Reads every declared, active Storehouse::Gate
-    /// record (via `all`, the same path the RBAC read-model reads Role/Agent) and
+    /// record (via `all`, the same path the RBAC read-model reads Agent) and
     /// turns each into a MiddlewareEntry. If NO Gate is declared yet — the
     /// `gating on dispatch` parser surface that mints them is a sibling kernel
-    /// card — it FALLS BACK to self-seeding the standing rbac-authorize before-
+    /// card — it FALLS BACK to self-seeding the standing authorize (PDP) before-
     /// gate, so the door stays gated regardless of boot-time establishment
     /// (unwired at a real boot today, inbox/boot-establishment-not-wired-
     /// FINDING.md). Called at boot after the RBAC read-model is hydrated, and
@@ -1035,15 +966,17 @@ impl Runtime {
                 order,
             });
         }
-        // The rbac-authorize gate is STANDING : self-seed it unless a Gate of
+        // The authorize (PDP) gate is STANDING : self-seed it unless a Gate of
         // that name is explicitly declared (so declaring OTHER gates never drops
-        // authz). Once the parser surface declares rbac-authorize as a Gate, the
-        // declared one wins and this self-seed is skipped.
-        if !entries.iter().any(|e| e.name == "rbac-authorize") {
+        // authz). Once a Gate named "authorize" is declared, the declared one wins
+        // and this self-seed is skipped. Deny-by-default with zero policies ;
+        // System is admitted by origin (authorize_check), so the operator is never
+        // locked out (fail-closed for future non-System dispatchers, not the floor).
+        if !entries.iter().any(|e| e.name == "authorize") {
             entries.push(middleware::MiddlewareEntry {
-                name: "rbac-authorize".to_string(),
+                name: "authorize".to_string(),
                 phase: middleware::Phase::Before,
-                handler: "rbac-authorize".to_string(),
+                handler: "authorize".to_string(),
                 pattern: "*".to_string(),
                 order: 20,
             });
@@ -4030,7 +3963,7 @@ impl std::fmt::Display for RuntimeError {
                     name, candidates, name)
             }
             RuntimeError::Unauthorized { command, required, held } => {
-                write!(f, "GOVERNANCE (rbac): '{}' requires role '{}' ; caller holds role '{}'",
+                write!(f, "GOVERNANCE (authz): '{}' denied : requires {} ; caller {}",
                     command, required, held)
             }
         }

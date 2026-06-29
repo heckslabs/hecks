@@ -8,7 +8,7 @@
 //!   * a SYSTEM origin is admitted by origin ;
 //!   * an AGENT whose session is NOT admitted is DENIED by the service gate ;
 //!   * an AGENT whose session IS admitted passes the service gate (order 5)
-//!     and then meets the standing rbac gate (order 20) — proving admission
+//!     and then meets the standing authorize gate (order 20) — proving admission
 //!     and that the gates compose in order.
 
 use storehouse::parser;
@@ -84,12 +84,12 @@ fn unadmitted_session_is_denied_by_the_service_gate() {
 }
 
 #[test]
-fn admitted_session_passes_the_service_gate_then_meets_rbac() {
+fn admitted_session_passes_the_service_gate_then_meets_authorize() {
     let mut rt = booted();
     setup(&mut rt, "chris-laptop");
     // chris-laptop IS admitted -> the service gate (order 5) lets it through ;
-    // the next gate is the standing rbac-authorize (order 20), which denies
-    // because no role is bound. The denial is the RBAC one, NOT the
+    // the next gate is the standing authorize (order 20), which denies
+    // because no role is bound. The denial is the authorize (PDP) one, NOT the
     // service-gate one — proving the query admitted the session and the gates
     // compose in order.
     let err = rt

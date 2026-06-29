@@ -134,7 +134,7 @@ pub(crate) fn handle_request(
             .map(|(k, v)| (k.clone(), Value::Str(v.clone())))
             .collect();
         // RBAC gate (warm door): stamp the caller principal from the
-        // environment; dispatch() runs acl_check + strips the reserved keys.
+        // environment; dispatch() runs the before-gates + strips the reserved keys.
         crate::runtime::acl_readmodel::stamp_principal_from_env(&mut rt_attrs);
         match rt.dispatch(&command, rt_attrs) {
             Ok(result) => {

@@ -2,6 +2,12 @@
 //! authorization gate (Layer-2), plus the `Principal` that classifies a
 //! caller at the ENTRY door.
 //!
+//! [antibody-exempt: rust/src/runtime/acl_readmodel.rs — kernel-floor runtime ;
+//!  the in-memory RBAC read-model (auth_identity -> role) the authorize PDP gate
+//!  reads, plus the Principal that classifies a caller at the entry door. Sibling
+//!  of mod.rs / middleware.rs, themselves exempt. The bluebook is the declared
+//!  truth ; this is its imperative leaf.]
+//!
 //! WHY in-memory : the gate must block BEFORE the act, so it resolves over
 //! hydrated local state ONLY — never an async bus query for Role/Agent state
 //! (that would break the two-color rule, inject a blocking await, and risk
@@ -9,22 +15,22 @@
 //! this read-model at boot (mirroring how persistence hydrates state before the
 //! sync core) and refreshes it when a Role/Agent lifecycle event applies.
 //!
-//! WHAT it holds : only the data that comes from aggregate STATE (role
-//! hierarchy + retirement, agent auth->role). The command's required role is
-//! NOT held here — it is read on demand from the in-memory IR (`self.domain`),
-//! since the inline `role` on each command is the source of truth.
+//! WHAT it holds : only the agent auth->role binding from aggregate STATE. Role
+//! hierarchy and retirement are NOT held — the PDP exact-matches the bound role
+//! name against a policy principal (no inheritance), per the RBAC->PDP
+//! consolidation. The command's inline `role` is the DDD actor, not enforcement.
 //!
-//! Usage (inside acl_check):
+//! Usage (inside authorize_check):
 //!   match principal_from_attrs(&attrs) {
 //!       Principal::System => Ok(()),                  // admitted by origin
-//!       Principal::Agent { auth_identity_id } => {    // resolve + check
+//!       Principal::Agent { auth_identity_id } => {    // resolve role, then
 //!           let role = rt.acl_read_model.role_for_auth(&auth_identity_id);
-//!           ... rt.acl_read_model.role_satisfies(role, required_role) ...
+//!           ... exact-match `role` against active Policy permits/forbids ...
 //!       }
 //!   }
 
 use super::{Runtime, Value};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 /// Reserved meta-attr keys the door stamps onto a dispatch to declare the
 /// caller. Stripped before the command applies (as `actor_caps` was), so they
@@ -52,7 +58,7 @@ pub enum Principal {
 /// kind defaults to `System` — so existing internal/test dispatches that stamp
 /// nothing stay admitted (no regression); the external doors stamp `agent`
 /// explicitly to opt a call into RBAC. An `agent` kind with an empty auth id
-/// still returns `Agent` (it fails closed in acl_check).
+/// still returns `Agent` (it fails closed in authorize_check).
 pub fn principal_from_attrs(attrs: &HashMap<String, Value>) -> Principal {
     let kind = attrs.get(KIND_KEY).map(value_string).unwrap_or_default();
     match kind.as_str() {
@@ -91,16 +97,11 @@ pub fn stamp_system(attrs: &mut HashMap<String, Value>) {
     attrs.insert(KIND_KEY.to_string(), Value::Str("system".to_string()));
 }
 
-/// In-memory RBAC read-model. Built from Role + Agent aggregate state.
+/// In-memory RBAC read-model. Built from Agent aggregate state.
 #[derive(Debug, Clone, Default)]
 pub struct AclReadModel {
     /// auth_identity_id -> role_name, active (non-retired) agents only.
     role_for_auth: HashMap<String, String>,
-    /// role_name -> its flattened ancestor chain (parents..., retired excluded).
-    /// The role itself is NOT included.
-    ancestors: HashMap<String, Vec<String>>,
-    /// retired role names — excluded from chains and from a direct bind.
-    retired_roles: HashSet<String>,
 }
 
 impl AclReadModel {
@@ -108,47 +109,11 @@ impl AclReadModel {
         Self::default()
     }
 
-    /// Build from current Role + Agent aggregate state. Synchronous, in-memory;
+    /// Build from current Agent aggregate state. Synchronous, in-memory;
     /// reads via `Runtime::all` (lazy-loads the repository on first touch).
+    /// Role hierarchy/retirement are NOT read — the PDP exact-matches the bound
+    /// role name (no inheritance), per the RBAC->PDP consolidation.
     pub fn hydrate(rt: &Runtime) -> Self {
-        // Roles: name -> parent, plus the retired set.
-        let mut parent_of: HashMap<String, String> = HashMap::new();
-        let mut retired_roles: HashSet<String> = HashSet::new();
-        for st in rt.all("Role") {
-            let name = value_string(st.get("name"));
-            if name.is_empty() {
-                continue;
-            }
-            if value_string(st.get("status")) == "retired" {
-                retired_roles.insert(name.clone());
-            }
-            let parent = value_string(st.get("parent_name"));
-            if !parent.is_empty() {
-                parent_of.insert(name.clone(), parent);
-            }
-        }
-
-        // Flatten ancestor chains — cycle-safe (in-progress set), missing-parent
-        // safe (loop ends), retired ancestors excluded from the resolved chain.
-        let mut ancestors: HashMap<String, Vec<String>> = HashMap::new();
-        for role in parent_of.keys() {
-            let mut chain: Vec<String> = Vec::new();
-            let mut seen: HashSet<String> = HashSet::new();
-            seen.insert(role.clone());
-            let mut cur = role.clone();
-            while let Some(parent) = parent_of.get(&cur) {
-                if seen.contains(parent) {
-                    break; // cycle guard
-                }
-                seen.insert(parent.clone());
-                if !retired_roles.contains(parent) {
-                    chain.push(parent.clone());
-                }
-                cur = parent.clone();
-            }
-            ancestors.insert(role.clone(), chain);
-        }
-
         // Agents: auth_identity_id -> role_name, active only.
         let mut role_for_auth: HashMap<String, String> = HashMap::new();
         for st in rt.all("Agent") {
@@ -163,33 +128,12 @@ impl AclReadModel {
             role_for_auth.insert(auth, role); // last-wins on duplicate auth id
         }
 
-        AclReadModel {
-            role_for_auth,
-            ancestors,
-            retired_roles,
-        }
+        AclReadModel { role_for_auth }
     }
 
     /// The role_name bound to an authenticated identity, if any (active agents).
     pub fn role_for_auth(&self, auth_id: &str) -> Option<&str> {
         self.role_for_auth.get(auth_id).map(|s| s.as_str())
-    }
-
-    /// True iff `required_role` is the caller's `held` role or one of its
-    /// non-retired ancestors, and `held` itself is not retired. A child role
-    /// inherits its parents: Manager(parent Employee) satisfies a command
-    /// requiring Employee.
-    pub fn role_satisfies(&self, held: &str, required_role: &str) -> bool {
-        if self.retired_roles.contains(held) {
-            return false;
-        }
-        if held == required_role {
-            return true;
-        }
-        self.ancestors
-            .get(held)
-            .map(|chain| chain.iter().any(|r| r == required_role))
-            .unwrap_or(false)
     }
 }
 

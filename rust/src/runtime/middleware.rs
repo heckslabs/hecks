@@ -9,7 +9,7 @@
 //! a `handler` lookup key the runtime resolves to an in-process verdict
 //! function, a `pattern` selecting which dispatches it wraps, and an `order`.
 //! The runtime hydrates this stack at boot from the standing gates (today the
-//! self-seeded rbac-authorize gate ; once the `gating on dispatch` parser
+//! self-seeded authorize gate ; once the `gating on dispatch` parser
 //! surface lands, from `Storehouse::Gate.Active`). This is the runtime side of the
 //! Gate registry (aggregates/storehouse/storehouse.bluebook) — the
 //! MiddlewareStack is to Gates what the Procfile is to Drivers.
@@ -142,7 +142,7 @@ mod tests {
     #[test]
     fn before_matching_filters_phase_and_pattern() {
         let s = MiddlewareStack::from_entries(vec![
-            MiddlewareEntry { name: "authz".into(), phase: Phase::Before, handler: "rbac-authorize".into(), pattern: "*".into(), order: 20 },
+            MiddlewareEntry { name: "authz".into(), phase: Phase::Before, handler: "authorize".into(), pattern: "*".into(), order: 20 },
             MiddlewareEntry { name: "after-only".into(), phase: Phase::After, handler: "log".into(), pattern: "*".into(), order: 5 },
             MiddlewareEntry { name: "scoped".into(), phase: Phase::Before, handler: "x".into(), pattern: "Agent::*".into(), order: 1 },
         ]);

@@ -7,7 +7,7 @@
 //!   * a SYSTEM origin is admitted by origin (daemons, cascades, boot) ;
 //!   * an AGENT whose auth id is NOT an active AuthIdentity FAILS CLOSED ;
 //!   * an AGENT whose auth id IS an active AuthIdentity passes authenticate
-//!     (order 10) and then meets the standing rbac gate (order 20) — proving
+//!     (order 10) and then meets the standing authorize gate (order 20) — proving
 //!     authenticate admitted it and the two gates compose in order.
 
 use storehouse::parser;
@@ -88,12 +88,12 @@ fn unknown_agent_is_denied_by_authenticate() {
 }
 
 #[test]
-fn known_identity_passes_authenticate_then_meets_rbac() {
+fn known_identity_passes_authenticate_then_meets_authorize() {
     let mut rt = booted();
     turn_on_authn(&mut rt, "sess-ok");
     // sess-ok is an active identity -> authenticate (order 10) admits it ; the
-    // next gate is the standing rbac-authorize (order 20), which denies because
-    // no Agent/role is bound. The denial is the RBAC one, NOT the authenticate
+    // next gate is the standing authorize (order 20), which denies because
+    // no Agent/role is bound. The denial is the authorize (PDP) one, NOT the authenticate
     // one — proving authenticate admitted the known identity and the gates
     // compose in order.
     let err = rt

@@ -1,5 +1,15 @@
 # RESTART — the auth door (decoupled Cedar PDP) — 2026-06-27
 
+## STATUS — RBAC→PDP CONSOLIDATION LANDED (2026-06-29)
+The consolidation is DONE. Legacy `rbac-authorize` gate, `acl_check`, `acl_required_role`,
+and `role_satisfies` are DELETED. The `authorize` PDP is now the SOLE standing gate
+(posture A′: self-seeded, deny-by-default, System admitted by origin = fail-closed, the
+operator structurally undeniable since origin-admit precedes the policy loop). Role
+inheritance is dropped — the PDP exact-matches role principals. `role` STAYS as the DDD
+ACTOR (documentation/provenance, never enforced) — so REMAINING #2 ("corpus role-strip")
+is NOT happening: role is kept, just not the authz source of truth. All `rbac-authorize`
+mentions below are HISTORICAL.
+
 ## What this is
 Authn/authz at the storehouse dispatch door. The gate MECHANISM (middleware
 stack) + the EXTERNALIZED, decoupled Cedar-shaped Authorization PDP — multi-team,

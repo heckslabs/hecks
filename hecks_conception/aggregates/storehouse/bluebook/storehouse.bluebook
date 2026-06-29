@@ -190,17 +190,18 @@ Hecks.bluebook "Storehouse", version: "2026.06.27.1" do
   #
   # `check` mirrors Storehouse::Primitive.implementation : a STRING the
   # runtime registry resolves to an IN-PROCESS verdict function the
-  # runtime owns. "rbac-authorize" resolves to the role/permission gate
-  # that consults the boot-hydrated AclReadModel (auth_identity_id ->
-  # role -> ancestors). The bluebook declares the ATTACHMENT (which gate,
+  # runtime owns. "authorize" resolves to the Cedar-shaped PDP gate
+  # that consults active Policy permits/forbids (deny-by-default) ; the
+  # AclReadModel maps auth_identity_id -> role, matched EXACTLY (no
+  # inheritance). The bluebook declares the ATTACHMENT (which gate,
   # what phase, what order, over which dispatches) ; the runtime owns the
   # verdict the key names. The macrophage enforces that every declared
   # `check` key has a matching runtime leaf — the same contract that binds
   # Storehouse::Primitive.implementation to its dispatcher.
   #
   # Why a key and not a dispatchable bluebook query : a before-Gate runs
-  # SYNCHRONOUSLY inside the dispatch it gates, and the role-hierarchy
-  # traversal (flatten ancestors, test membership) is algorithmic, not a
+  # SYNCHRONOUSLY inside the dispatch it gates, and the policy evaluation
+  # (match principal/action/resource patterns, forbid-override) is algorithmic, not a
   # where-filter. The verdict is genuine in-process runtime motion
   # (Sambhogakaya), like a read-model. A LATER chapter may let `check`
   # name a dispatchable query for purely-declarative gates ; the first
@@ -216,9 +217,9 @@ Hecks.bluebook "Storehouse", version: "2026.06.27.1" do
   # framework/governance/governance.bluebook — Policy / Violation : the
   #   audit a vetoing before-Gate writes to on Deny.
   # framework/agent/{agent,role}.bluebook — the RBAC identity + permission
-  #   domains the rbac-authorize check's read-model is built from.
+  #   domains the authorize check's role read-model is built from.
 
-  aggregate "Gate", "One inbound wrapper across a domain's dispatches : the phase it runs in (before|after the aggregate handler), the check the runtime resolves to an in-process verdict function, the match pattern selecting which dispatches it wraps, and the order it runs in. Keyed by name (e.g. 'rbac-authorize', 'authenticate'). Declared through the storehouse door via Gate.Declare — no DSL, no hexagon form. A before-Gate is VETOING (Deny aborts + records a Violation) ; an after-Gate observes. The inverse of a Driver : a Driver names its own inbound schedule and runs out-of-process ; a Gate names its own inbound check and runs in-process, synchronous, blocking the dispatch it gates." do
+  aggregate "Gate", "One inbound wrapper across a domain's dispatches : the phase it runs in (before|after the aggregate handler), the check the runtime resolves to an in-process verdict function, the match pattern selecting which dispatches it wraps, and the order it runs in. Keyed by name (e.g. 'authorize', 'authenticate'). Declared through the storehouse door via Gate.Declare — no DSL, no hexagon form. A before-Gate is VETOING (Deny aborts + records a Violation) ; an after-Gate observes. The inverse of a Driver : a Driver names its own inbound schedule and runs out-of-process ; a Gate names its own inbound check and runs in-process, synchronous, blocking the dispatch it gates." do
     identified_by :name
 
     # ---- Identity ----
@@ -236,7 +237,7 @@ Hecks.bluebook "Storehouse", version: "2026.06.27.1" do
     # ── Value objects ─────────────────────────────────────────
 
     value_object "GateName" do
-      # The gate's natural-key identifier (e.g. "rbac-authorize",
+      # The gate's natural-key identifier (e.g. "authorize",
       # "authenticate", or a custom name). The registry keys by this string ;
       # Declare upserts on it.
       attribute :value, String
@@ -253,11 +254,9 @@ Hecks.bluebook "Storehouse", version: "2026.06.27.1" do
       # What the gate runs to decide allow/deny. Built-in verdict keys :
           # — "authorize" : the CANONICAL authz — the externalized Cedar-shaped
           #   Authorization PDP (deny-by-default, forbid-override, expiry), policy
-          #   owned in ONE bounded context, multi-team, NO per-command role. This
-          #   SUPERSEDES "rbac-authorize" per the decoupling decision (2026-06-27).
+          #   owned in ONE bounded context, multi-team, NO per-command role. Role
+          #   principals are matched EXACTLY (no inheritance).
           # — "authenticate" : the caller is an active AuthIdentity.
-          # — "rbac-authorize" : LEGACY — role over the AclReadModel, coupled to a
-          #   per-command `role`. Kept for back-compat ; new gates use "authorize".
           # OR any bluebook QUERY named Aggregate.Query — the runtime runs it
           # read-only with the caller's principal as the reserved `actor` kwarg
           # and ALLOWS iff it returns a row. An unresolvable check fails closed
@@ -293,7 +292,7 @@ Hecks.bluebook "Storehouse", version: "2026.06.27.1" do
 
     command "Declare" do
       role "Framework"
-      description "Bring a Gate into being — declared through the storehouse door (a normal dispatch, no DSL). Declares the phase, the check (a built-in verdict key like 'rbac-authorize' / 'authenticate', OR a bluebook query named Aggregate.Query), the match pattern, and the order. Idempotent on name : re-declaring replaces the phase/check/pattern/order. The runtime picks up the change on next boot, or on the in-session re-hydrate that follows a Gate lifecycle event."
+      description "Bring a Gate into being — declared through the storehouse door (a normal dispatch, no DSL). Declares the phase, the check (a built-in verdict key like 'authorize' / 'authenticate', OR a bluebook query named Aggregate.Query), the match pattern, and the order. Idempotent on name : re-declaring replaces the phase/check/pattern/order. The runtime picks up the change on next boot, or on the in-session re-hydrate that follows a Gate lifecycle event."
       attribute :name,    GateName
       attribute :phase,   Phase
       attribute :check,   Check
