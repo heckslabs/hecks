@@ -1,0 +1,58 @@
+# gating — an IN-PROCESS, before-veto PORT for deciding allow/deny on an inbound
+# dispatch, declared once and used by every domain's hexagon (the bind
+# `Aggregate.gated_by("authorize")` references this family by its how-verb). The
+# shared vocabulary lives here ; a domain never redeclares it.
+#
+# Two-color rule, the IN-PROCESS pole : where payment / authentication are EFFECT
+# families (out-of-process, the adapter host runs them async), a gate is a REPLY
+# family — and REPLY ALREADY MEANS in-process / DI'd / called inline (the same
+# property that makes persisted_by inline). A gate MUST be in-process : it vetoes
+# BEFORE the act and returns a verdict the dispatch waits on, so it can never
+# await an async edge without breaking the two-color rule. So `in_process` is NOT
+# a new marker — it is DERIVED from `signal :reply`. (Phase 6 A3/A4 sketched an
+# explicit in_process marker ; the reply signal already carries it, so deriving
+# it keeps the family vocabulary minimal — no keyword to invent.)
+#
+# The gate is the inverse of a Driver (driving.bluebook) : a Driver names its own
+# inbound SCHEDULE and runs OUT-of-process ; a Gate names its own inbound CHECK
+# and runs IN-process, synchronous, blocking the dispatch it gates.
+#   Driver : Gate  ::  out-of-process clock : in-process check.
+#
+# The how-verb `gated_by` takes the CHECK as its argument, exactly as
+# `persisted_by` takes the adapter : `Aggregate.gated_by("authorize")`,
+# `gated_by("authenticate")`, or `gated_by("SomeAggregate.some_query")` (a bluebook
+# query run read-only with the caller's principal as the reserved `actor` kwarg,
+# allowing iff it returns a row). ONE verb covers authn and authz alike — the
+# difference is the check name + the order (authn orders before authz), never a
+# second verb. (Phase 6 sketched `authenticated_by` as a sibling verb ; it is
+# redundant — `gated_by("authenticate")` already says it, check-as-argument.)
+#
+# A gate carries NO per-deployment config, so this family declares NO fields :
+# its phase / check / pattern / order are DOMAIN attributes on Storehouse::Gate,
+# not .world values (like the Memory adapter, which carries no .world block). And
+# no `produces` : a reply family returns its verdict, it emits no produced fact
+# (unlike payment's :payment_ref or authentication's :verification_ref).
+#
+# CONCEIVED HEXAGON SURFACE (parser-pending — the production that reads it is the
+# kernel/parity sibling card, NOT wired here, exactly as driving's `interval`
+# sugar is conceived-but-unwired) :
+#
+#   # cross-cutting standing gates (pattern "*"), the mirror of `driving on cron` :
+#   gating on dispatch do
+#     gate "authenticate", phase: before, order: 10, pattern: "*"
+#     gate "authorize",    phase: before, order: 20, pattern: "*"
+#   end
+#
+#   # scoped sugar — one aggregate's dispatches (pattern derived from the FQN) :
+#   Pizzas::Order.gated_by("SomeAggregate.member_of_owning_org")
+#
+# Today gates are authored through the storehouse door via Storehouse::Gate.Declare
+# (no DSL) ; the runtime's hydrate_middleware already PROJECTS the active Gate
+# records into the before/after middleware stack. Phase 6 Half B inverts that flow
+# — the hexagon surface above becomes the SOURCE and Gate.Declare its projection,
+# the way the Procfile is the projection of declared Drivers — keeping Gate.Declare
+# + the self-seeded standing `authorize` working untouched until the projection lands.
+Hecks.family "gating" do
+  verb   "gated_by"   # the how-verb the bind hangs off the aggregate FQN ; the CHECK is its argument
+  signal :reply       # returns an allow/deny verdict INLINE — and reply => in-process (the gate vetoes before the act)
+end
