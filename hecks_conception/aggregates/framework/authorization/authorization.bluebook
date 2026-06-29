@@ -99,6 +99,10 @@ Hecks.bluebook "Authorization", version: "2026.06.27.1" do
       where status: "active"
     end
 
+    query "Explain" do
+      description "DRY-RUN the decision : given a SUBJECT `principal` + an `action`, return the verdict (permit / forbid / deny-by-default) + the matched rules WITHOUT dispatching — so policy is authored confidently. The INVERSE of Active : Active is the BUNDLE (the rules), Explain is the DECISION (runtime-COMPUTED, not a where-filter, like the gate). The caller's access is gated like any read (operator/System sees it ; agents are denied, so explain is not a policy-enumeration oracle) ; the SUBJECT is evaluated with NO origin short-circuit, so it shows the true verdict even for a System subject (the gate's origin-admit is noted, not applied). A conditional permit shows as inert until the `when` frontier lands."
+    end
+
     lifecycle :status, default: "active" do
       transition "Permit" => "active",  from: ["active"]
       transition "Forbid" => "active",  from: ["active"]

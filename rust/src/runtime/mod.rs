@@ -852,6 +852,12 @@ impl Runtime {
         command_name: &str,
         attrs: &HashMap<String, Value>,
     ) -> Result<(), RuntimeError> {
+        // GATE-side System admit : returns BEFORE the shared eval core, so the
+        // operator (System) is admitted by origin regardless of policy. The
+        // `explain` dry path deliberately does NOT short-circuit System (it
+        // shows what policy WOULD do for any subject). This short-circuit MUST
+        // stay here, never inside evaluate_policy — the lockout proof rests on
+        // origin-admit preceding the policy loop.
         let auth_id = match acl_readmodel::principal_from_attrs(attrs) {
             acl_readmodel::Principal::System => return Ok(()),
             acl_readmodel::Principal::Agent { auth_identity_id } => auth_identity_id,
@@ -861,11 +867,46 @@ impl Runtime {
             .role_for_auth(&auth_id)
             .unwrap_or("")
             .to_string();
+        let held = if auth_id.is_empty() {
+            "<no identity>".to_string()
+        } else {
+            auth_id.clone()
+        };
+        match self.evaluate_policy(&auth_id, &role, command_name) {
+            PolicyOutcome::Permitted { .. } => Ok(()),
+            PolicyOutcome::Forbidden { policy_id, .. } => Err(RuntimeError::Unauthorized {
+                command: command_name.to_string(),
+                required: format!("not forbidden by authorization policy '{}'", policy_id),
+                held,
+                cause: format!("forbid:{}", policy_id),
+            }),
+            PolicyOutcome::DeniedByDefault { .. } => Err(RuntimeError::Unauthorized {
+                command: command_name.to_string(),
+                required: "an authorization permit (deny-by-default)".to_string(),
+                held,
+                cause: "deny-by-default".to_string(),
+            }),
+        }
+    }
+
+    /// The policy-eval CORE — shared by `authorize_check` (the live gate) and
+    /// `explain_authorization` (the dry path). Evaluates the active, unexpired
+    /// Policy rules for (auth_id, role) over (action = command_name, resource =
+    /// the aggregate), deny-by-default, forbid-overrides-permit. Returns the
+    /// verdict + the matched rule descriptions.
+    ///
+    /// NO System-origin short-circuit lives here — the CALLER decides : the gate
+    /// admits System by origin BEFORE calling this ; explain calls it for any
+    /// subject so it can show the true policy verdict. Putting the short-circuit
+    /// here would break BOTH (a vacuous explain for System AND the lockout proof
+    /// moving off the gate side).
+    fn evaluate_policy(&self, auth_id: &str, role: &str, command_name: &str) -> PolicyOutcome {
         let resource = command_name
             .rsplit_once('.')
             .map(|(r, _)| r)
             .unwrap_or(command_name);
         let now = crate::clock::now_iso();
+        let mut matched: Vec<String> = Vec::new();
         let mut permitted = false;
         for st in self.all("Policy") {
             if Self::value_field(st.get("status")) != "active" {
@@ -884,45 +925,59 @@ impl Runtime {
             if !(p_match && a_match && r_match) {
                 continue;
             }
+            let id = Self::value_field(st.get("id"));
             match Self::value_field(st.get("effect")).as_str() {
                 "forbid" => {
                     // forbid overrides permit, regardless of order
-                    return Err(RuntimeError::Unauthorized {
-                        command: command_name.to_string(),
-                        required: format!(
-                            "not forbidden by authorization policy '{}'",
-                            Self::value_field(st.get("id"))
-                        ),
-                        held: if auth_id.is_empty() {
-                            "<no identity>".to_string()
-                        } else {
-                            auth_id.clone()
-                        },
-                        cause: format!("forbid:{}", Self::value_field(st.get("id"))),
-                    });
+                    matched.push(format!("forbid:{}", id));
+                    return PolicyOutcome::Forbidden { policy_id: id, matched };
                 }
                 "permit" => {
                     if Self::value_field(st.get("condition")) == "-" {
                         permitted = true;
+                        matched.push(format!("permit:{}", id));
+                    } else {
+                        // FRONTIER : a conditional permit matches but is INERT
+                        // until the `when` grammar lands (Phase 5).
+                        matched.push(format!("permit:{} (conditional, inert)", id));
                     }
                 }
                 _ => {}
             }
         }
         if permitted {
-            Ok(())
+            PolicyOutcome::Permitted { matched }
         } else {
-            Err(RuntimeError::Unauthorized {
-                command: command_name.to_string(),
-                required: "an authorization permit (deny-by-default)".to_string(),
-                held: if auth_id.is_empty() {
-                    "<no identity>".to_string()
-                } else {
-                    auth_id
-                },
-                cause: "deny-by-default".to_string(),
-            })
+            PolicyOutcome::DeniedByDefault { matched }
         }
+    }
+
+    /// The `explain` dry path — evaluate policy for a SUBJECT principal over an
+    /// action and return the verdict + matched rules, WITHOUT dispatching and
+    /// WITHOUT the System-origin short-circuit (so it shows the true policy
+    /// verdict even for a System subject ; the live gate's origin-admit is NOTED,
+    /// not applied). Read-only ; the CALLER's access is gated by the query path,
+    /// so an agent cannot enumerate policy through explain.
+    pub(crate) fn explain_authorization(&self, subject_auth_id: &str, action: &str) -> serde_json::Value {
+        let role = self
+            .acl_read_model
+            .role_for_auth(subject_auth_id)
+            .unwrap_or("")
+            .to_string();
+        let (verdict, matched) = match self.evaluate_policy(subject_auth_id, &role, action) {
+            PolicyOutcome::Permitted { matched } => ("permit", matched),
+            PolicyOutcome::Forbidden { matched, .. } => ("forbid", matched),
+            PolicyOutcome::DeniedByDefault { matched } => ("deny-by-default", matched),
+        };
+        serde_json::json!({
+            "query": "explain",
+            "subject": subject_auth_id,
+            "role": role,
+            "action": action,
+            "verdict": verdict,
+            "matched_rules": matched,
+            "note": "policy verdict for the SUBJECT ; at the live gate a System-origin caller is admitted by origin regardless of this verdict",
+        })
     }
 
     /// Read a single-value aggregate field as a plain String — the coercion the
@@ -3954,6 +4009,17 @@ pub enum RuntimeError {
         /// never plumbed to a caller-facing error (a policy-enumeration oracle).
         cause: String,
     },
+}
+
+/// The verdict of evaluating the active Policy rule set for one principal over
+/// (action, resource) — the shared output of `authorize_check` (the live gate)
+/// and `explain_authorization` (the dry path). `matched` lists the rule
+/// descriptions that matched the (principal, action, resource) patterns, for the
+/// explain surface ; a conditional permit is tagged inert (the `when` frontier).
+enum PolicyOutcome {
+    Permitted { matched: Vec<String> },
+    Forbidden { policy_id: String, matched: Vec<String> },
+    DeniedByDefault { matched: Vec<String> },
 }
 
 impl std::fmt::Display for RuntimeError {

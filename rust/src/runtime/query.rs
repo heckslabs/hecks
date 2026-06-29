@@ -54,6 +54,24 @@ impl Runtime {
         query_name: &str,
         attrs: &std::collections::HashMap<String, String>,
     ) -> serde_json::Value {
+        // The `explain` dry path (Authorization::Policy.explain) is a runtime-
+        // COMPUTED query, not a where-filter : evaluate policy for a SUBJECT
+        // principal (the `principal` attr) over an `action`, returning the
+        // verdict + matched rules. The CALLER's access is gated by `query()`
+        // (System/operator admitted, agents denied) ; the SUBJECT evaluation
+        // runs with NO origin short-circuit, so it shows the true verdict even
+        // for a System subject. Mirrors the SinceSequence runtime-computed
+        // precedent below.
+        if query_name
+            .rsplit('.')
+            .next()
+            .unwrap_or(query_name)
+            .eq_ignore_ascii_case("explain")
+        {
+            let subject = attrs.get("principal").map(|s| s.as_str()).unwrap_or("");
+            let action = attrs.get("action").map(|s| s.as_str()).unwrap_or("");
+            return self.explain_authorization(subject, action);
+        }
         // Walk the IR with the same (context, name) filter the qualified
         // dispatcher uses ; capture the matching aggregate's context so
         // the record retrieval below targets the SAME repo, not a
