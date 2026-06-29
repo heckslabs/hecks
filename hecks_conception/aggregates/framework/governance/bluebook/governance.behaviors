@@ -7,6 +7,12 @@ Hecks.behaviors "Governance" do
     expect tool_name: "Bash", reason: "native Bash makes no bus event"
   end
 
+  test "Record captures the structured gate + cause (legible deny)" do
+    tests "Record", on: "Violation"
+    input  id: "v-3", tool_name: "Pizzas::Order.Open", reason: "middleware 'authorize': requires an authorization permit (deny-by-default), caller ghost", gate: "authorize", cause: "deny-by-default", occurred_at: "2026-06-29T05:00:00Z"
+    expect gate: "authorize", cause: "deny-by-default"
+  end
+
   test "Record emits Recorded" do
     tests "Record", on: "Violation"
     input  id: "v-2", tool_name: "Read", reason: "native Read makes no bus event", occurred_at: "2026-06-25T05:01:00Z"

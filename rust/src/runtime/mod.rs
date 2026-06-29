@@ -655,13 +655,15 @@ impl Runtime {
     /// so the gate can never recurse. Best-effort: if the Governance domain
     /// is not loaded (a minimal runtime), the denial still stands — we just
     /// don't get an audit row.
-    fn record_violation_internal(&mut self, command: &str, reason: &str) {
+    fn record_violation_internal(&mut self, command: &str, gate: &str, cause: &str, reason: &str) {
         let d = crate::clock::now_duration();
         let id = format!("viol_{:x}", (d.subsec_nanos() as u64) ^ d.as_secs());
         let mut attrs: HashMap<String, Value> = HashMap::new();
         attrs.insert("id".to_string(), Value::Str(id));
         attrs.insert("tool_name".to_string(), Value::Str(command.to_string()));
         attrs.insert("reason".to_string(), Value::Str(reason.to_string()));
+        attrs.insert("gate".to_string(), Value::Str(gate.to_string()));
+        attrs.insert("cause".to_string(), Value::Str(cause.to_string()));
         attrs.insert("occurred_at".to_string(), Value::Str(crate::clock::now_iso()));
         let _ = self.dispatch_impl("Governance::Violation.Record", attrs);
     }
@@ -703,14 +705,14 @@ impl Runtime {
             .collect();
         for (gate_name, handler) in gates {
             if let Err(e) = self.run_gate(&handler, command_name, attrs) {
-                let reason = match &e {
-                    RuntimeError::Unauthorized { required, held, .. } => format!(
-                        "middleware '{}': requires {}, caller {}",
-                        gate_name, required, held
+                let (reason, cause) = match &e {
+                    RuntimeError::Unauthorized { required, held, cause, .. } => (
+                        format!("middleware '{}': requires {}, caller {}", gate_name, required, held),
+                        cause.clone(),
                     ),
-                    other => format!("middleware '{}': {:?}", gate_name, other),
+                    other => (format!("middleware '{}': {:?}", gate_name, other), String::new()),
                 };
-                self.record_violation_internal(command_name, &reason);
+                self.record_violation_internal(command_name, &gate_name, &cause, &reason);
                 return Err(e);
             }
         }
@@ -746,6 +748,7 @@ impl Runtime {
                     other
                 ),
                 held: String::new(),
+                cause: format!("unresolvable-gate:{}", other),
             }),
         }
     }
@@ -790,6 +793,7 @@ impl Runtime {
                 command: command_name.to_string(),
                 required: format!("storehouse-service gate '{}' to permit", query_fqn),
                 held: String::new(),
+                cause: format!("service-gate-denied:{}", query_fqn),
             })
         }
     }
@@ -827,6 +831,7 @@ impl Runtime {
                 } else {
                     auth_id
                 },
+                cause: "no-active-identity".to_string(),
             })
         }
     }
@@ -893,6 +898,7 @@ impl Runtime {
                         } else {
                             auth_id.clone()
                         },
+                        cause: format!("forbid:{}", Self::value_field(st.get("id"))),
                     });
                 }
                 "permit" => {
@@ -914,6 +920,7 @@ impl Runtime {
                 } else {
                     auth_id
                 },
+                cause: "deny-by-default".to_string(),
             })
         }
     }
@@ -3941,6 +3948,11 @@ pub enum RuntimeError {
         command: String,
         required: String,
         held: String,
+        /// Structured, audit-internal deny cause ("deny-by-default",
+        /// "forbid:<policy-id>", "no-active-identity", ...). Recorded on the
+        /// Governance::Violation ; NOT rendered by Display — operator/audit only,
+        /// never plumbed to a caller-facing error (a policy-enumeration oracle).
+        cause: String,
     },
 }
 
@@ -3962,10 +3974,10 @@ impl std::fmt::Display for RuntimeError {
                 write!(f, "ambiguous bare-name dispatch: '{}' is declared on aggregates {:?} — qualify with `Aggregate.{}`",
                     name, candidates, name)
             }
-            RuntimeError::Unauthorized { command, required, held } => {
-                write!(f, "GOVERNANCE (authz): '{}' denied : requires {} ; caller {}",
-                    command, required, held)
-            }
+            RuntimeError::Unauthorized { command, required, held, .. } => {
+                    write!(f, "GOVERNANCE (authz): '{}' denied : requires {} ; caller {}",
+                        command, required, held)
+                }
         }
     }
 }

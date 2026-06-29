@@ -8,6 +8,8 @@ Hecks.bluebook "Governance", version: "2026.06.26.1" do
     attribute :id,          Id
     attribute :tool_name,   ToolName
     attribute :reason,      Reason
+    attribute :gate,        GateName
+    attribute :cause,       Cause
     attribute :occurred_at, OccurredAt
 
     value_object "Id" do
@@ -22,6 +24,20 @@ Hecks.bluebook "Governance", version: "2026.06.26.1" do
       attribute :value, String
     end
 
+    value_object "GateName" do
+      # Which gate vetoed (e.g. "authorize", "authenticate", or a service
+      # gate's Aggregate.Query name). Empty for non-gate denials.
+      attribute :value, String
+    end
+
+    value_object "Cause" do
+      # The STRUCTURED, audit-internal reason : "deny-by-default",
+      # "forbid:<policy-id>", "no-active-identity". Distinct from the human
+      # `reason`. NEVER surfaced to a non-System caller (would be a
+      # policy-enumeration oracle) — operator/audit only.
+      attribute :value, String
+    end
+
     value_object "OccurredAt" do
       attribute :iso8601, String
     end
@@ -32,11 +48,15 @@ Hecks.bluebook "Governance", version: "2026.06.26.1" do
       attribute :id,          Id
       attribute :tool_name,   ToolName
       attribute :reason,      Reason
+      attribute :gate,        GateName
+      attribute :cause,       Cause
       attribute :occurred_at, OccurredAt
       emits "Recorded"
       then_set :id,          to: :id
       then_set :tool_name,   to: :tool_name
       then_set :reason,      to: :reason
+      then_set :gate,        to: :gate
+      then_set :cause,       to: :cause
       then_set :occurred_at, to: :occurred_at
     end
 
