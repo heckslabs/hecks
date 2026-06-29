@@ -121,10 +121,13 @@ jobs:
           # i499 audit (2026-05-08) extended coverage to adapters and
           # framework dirs (tools, discipline, runtime, bluebook,
           # codegen, integrations). Mirrors tooling/git-hooks/pre-push
-          # roots. cli/ is NOT yet wired in — it has known-failing
-          # .behaviors that need separate triage.
+          # roots.
           # i499 follow-up (2026-05-08) — catalog/ joined the gate
           # after the wire-orphan agent fixed boot/mind/appeal/rvdc.
+          # i499 follow-up CLOSED (2026-06-29) — cli/ behaviors are green
+          # now, so cli/ joins, alongside the active root adapters/ tree
+          # (serving + storage, distinct from hecks_conception/adapters)
+          # and hecks_conception/storehouse/. All green.
           [ -d "$GITHUB_WORKSPACE/hecks/hecks_conception/adapters" ] && ROOTS="$ROOTS $GITHUB_WORKSPACE/hecks/hecks_conception/adapters"
           [ -d "$GITHUB_WORKSPACE/hecks/hecks_conception/catalog" ] && ROOTS="$ROOTS $GITHUB_WORKSPACE/hecks/hecks_conception/catalog"
           [ -d "$GITHUB_WORKSPACE/hecks/tools" ] && ROOTS="$ROOTS $GITHUB_WORKSPACE/hecks/tools"
@@ -133,6 +136,9 @@ jobs:
           [ -d "$GITHUB_WORKSPACE/hecks/bluebook" ] && ROOTS="$ROOTS $GITHUB_WORKSPACE/hecks/bluebook"
           [ -d "$GITHUB_WORKSPACE/hecks/codegen" ] && ROOTS="$ROOTS $GITHUB_WORKSPACE/hecks/codegen"
           [ -d "$GITHUB_WORKSPACE/hecks/integrations" ] && ROOTS="$ROOTS $GITHUB_WORKSPACE/hecks/integrations"
+          [ -d "$GITHUB_WORKSPACE/hecks/adapters" ] && ROOTS="$ROOTS $GITHUB_WORKSPACE/hecks/adapters"
+          [ -d "$GITHUB_WORKSPACE/hecks/cli" ] && ROOTS="$ROOTS $GITHUB_WORKSPACE/hecks/cli"
+          [ -d "$GITHUB_WORKSPACE/hecks/hecks_conception/storehouse" ] && ROOTS="$ROOTS $GITHUB_WORKSPACE/hecks/hecks_conception/storehouse"
           [ -d "$GITHUB_WORKSPACE/miette" ] && ROOTS="$ROOTS $GITHUB_WORKSPACE/miette"
           [ -d "$GITHUB_WORKSPACE/miette_family" ] && ROOTS="$ROOTS $GITHUB_WORKSPACE/miette_family"
           fail=0

@@ -1,6 +1,12 @@
 #!/bin/bash
 # Miette Governance — pre-push enforcement
 #
+# [antibody-exempt: tooling/git-hooks/pre-push — git-hook glue, the behaviors
+#  gate itself. OS-edge surface git invokes, not a domain concept (sibling of
+#  bin/antibody-check, itself self-exempt). The hardcoded behaviors-roots list
+#  is a known smell ; a declared single-source both this hook and CI read is a
+#  follow-up.]
+#
 # Tracked hook source. Install with: tooling/install-hooks
 #
 # Heavyweight gate that runs every .behaviors file across the
@@ -93,6 +99,10 @@ fi
 #
 # i499 follow-up (2026-05-08) — catalog/ joined the gate after the
 # wire-orphan agent fixed boot/mind/appeal/rvdc cascades.
+# i499 follow-up CLOSED (2026-06-29) — cli/ behaviors are green now, so
+# the deferred cli/ root joins, alongside the active root adapters/ tree
+# (serving + storage, distinct from hecks_conception/adapters) and
+# hecks_conception/storehouse/. All green (141 -> 152 gated files).
 ROOTS=""
 [ -d "$REPO/hecks_conception/aggregates" ]      && ROOTS="$ROOTS $REPO/hecks_conception/aggregates"
 [ -d "$REPO/hecks_conception/adapters" ]        && ROOTS="$ROOTS $REPO/hecks_conception/adapters"
@@ -103,6 +113,9 @@ ROOTS=""
 [ -d "$REPO/bluebook" ]                         && ROOTS="$ROOTS $REPO/bluebook"
 [ -d "$REPO/codegen" ]                          && ROOTS="$ROOTS $REPO/codegen"
 [ -d "$REPO/integrations" ]                     && ROOTS="$ROOTS $REPO/integrations"
+[ -d "$REPO/adapters" ]                         && ROOTS="$ROOTS $REPO/adapters"
+[ -d "$REPO/cli" ]                              && ROOTS="$ROOTS $REPO/cli"
+[ -d "$REPO/hecks_conception/storehouse" ]      && ROOTS="$ROOTS $REPO/hecks_conception/storehouse"
 # Being corpora (miette, miette_family) are their OWN git repos post-split
 # and gate their OWN .behaviors from their OWN pre-push hook. This hecks
 # gate no longer reaches across the repo boundary (Phase 2 decoupling) ;
