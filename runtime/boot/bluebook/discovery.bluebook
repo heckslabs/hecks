@@ -6,7 +6,7 @@ Hecks.bluebook "Discovery", version: "2026.05.09.1" do
   # DISCOVERY — i522, kernel-floor file walk as bluebook
   # ============================================================
   #
-  # Sibling to runtime/boot/boot.bluebook. Boot's DiscoverOrgans
+  # Sibling to runtime/boot/bluebook/boot.bluebook. Boot's DiscoverOrgans
   # phase reduces the cluster set this domain produces into the
   # five tally counters (organs / capabilities / aggregates /
   # nerves / vows) ; the walk itself — what is a Hecks source
