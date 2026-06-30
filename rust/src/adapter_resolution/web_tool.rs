@@ -11,8 +11,8 @@
 //!  driver — this is the kernel arm the bluebook family declares.]
 
 use crate::runtime::{
-    command_dispatch, storehouse_log, strip_quotes_or_colon, web_tool_dispatcher,
-    AggregateState, CommandResult, Runtime, Value,
+    binding_command_tail, command_dispatch, storehouse_log, strip_quotes_or_colon,
+    web_tool_dispatcher, AggregateState, CommandResult, Runtime, Value,
 };
 use std::collections::HashMap;
 
@@ -82,8 +82,16 @@ impl Runtime {
                         _ => {}
                     }
                 }
+                // FQN-tolerant match — mirror the claude_tool / mcp arms
+                // (mod.rs:2310 / 2668) : the hecksagon binds the fully-
+                // qualified `Hecks::Framework::Tools::WebTool.WebSearch`,
+                // but `target` is the bare `aggregate_type.command`
+                // (`WebTool.WebSearch`). Compare the binding's tail, not the
+                // whole FQN, so namespace-qualified bindings still resolve.
                 match (cmd, tool) {
-                    (Some(c), Some(t)) if c == target => Some((c, t, result_into)),
+                    (Some(c), Some(t)) if binding_command_tail(&c) == target.as_str() => {
+                        Some((c, t, result_into))
+                    }
                     _ => None,
                 }
             })

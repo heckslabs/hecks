@@ -362,6 +362,52 @@ fn no_binding_in_process_fires_cascade_and_records_zero_outbound_events() {
     );
 }
 
+/// REGRESSION (FQN rename-drift, 2026-06-30) — the LIVE tools.hecksagon binds
+/// the REALM-QUALIFIED FQN `Hecks::Framework::Tools::WebTool.WebSearch`, but the
+/// dispatched `target` the resolver builds is the bare `aggregate_type.command`
+/// (`WebTool.WebSearch`). The matcher must compare the binding's TAIL
+/// (`binding_command_tail`), not the whole FQN — the same tolerance the
+/// claude_tool / mcp arms already carry. The old raw `c == target` silently
+/// matched ZERO adapters for every realm-qualified binding, so web fetch/search
+/// returned EMPTY through the door. Every keystone fixture above used a BARE
+/// `command: "Fetch.Start"`, so the bug never showed in tests. This pins the
+/// tail-match : a REALM-QUALIFIED binding command must still fire the in-process
+/// cascade. Mirrors `no_binding_in_process_...` (no-network BAD_URL, asserts on
+/// `status` — the firing mark only the cascade sets) and varies ONLY the
+/// binding's `command` to the qualified form. Under the old `==` this test goes
+/// red (status never reaches `completed`); under the tail-match it passes.
+#[test]
+fn realm_qualified_binding_command_still_resolves_in_process() {
+    let domain = parser::parse(FETCH);
+    let mut hex = Hecksagon::default();
+    hex.name = "Fetch".into();
+    // Identical to in_process_io_adapter() EXCEPT the command is realm-qualified
+    // — the exact live-hecksagon form that drifted past the raw-`==` matcher.
+    hex.io_adapters.push(IoAdapter {
+        kind: "web_tool".into(),
+        options: vec![
+            ("command".into(), "Hecks::Examples::Fetch::Fetch.Start".into()),
+            ("tool".into(), "web_fetch".into()),
+            ("result_into".into(), "Fetch.RecordResult".into()),
+        ],
+        on_events: vec![],
+    });
+    let mut rt = Runtime::boot_with_hecksagons(domain, None, vec![hex]);
+
+    let mut attrs = HashMap::new();
+    attrs.insert("id".to_string(), s("f1"));
+    attrs.insert("tool".to_string(), s(TOOL));
+    attrs.insert("url".to_string(), s(BAD_URL));
+    rt.dispatch("Start", attrs).expect("Start dispatches");
+
+    assert_eq!(
+        fetch_field(&rt, "status"),
+        "completed",
+        "a REALM-QUALIFIED binding command must still match the bare dispatch \
+         target via binding_command_tail, firing the in-process RecordResult cascade"
+    );
+}
+
 /// claude_tool / mcp events carry NO verdict binding — has_effect_binding_for is
 /// false for them, so they are NEVER suppressed (always in-process). The
 /// explicit "don't touch claude_tool/mcp" assertion the slice requires.
