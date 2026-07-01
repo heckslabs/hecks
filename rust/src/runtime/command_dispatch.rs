@@ -531,11 +531,14 @@ fn resolve(rt: &Runtime, command_name: &str, caller_scope: Option<&str>) -> Resu
         [agg_name, cmd_name] => {
             // First pass — direct aggregate command match. LOCAL-first
             // (i-fqn local-short) : a same-name aggregate in the caller's own
-            // bluebook wins over a foreign homonym ; otherwise the first global
-            // match (additive fallback — identical to the old behaviour when
-            // caller_scope is None or no local candidate exists).
-            let mut first_global: Option<Resolution> = None;
-            let mut first_global_foreign = false;
+            // bluebook wins outright. Else decide by UNIQUENESS — a unique target
+            // resolves even when foreign (mirrors the lenient bare-name path every
+            // cross-bluebook PM `dispatch` / policy `then trigger` short ref relies
+            // on). Only a genuine HOMONYM — the same Aggregate.Command in 2+
+            // DISTINCT stamped bluebooks, none local — must use the full FQN.
+            // (pulse-pm fix : the prior guard errored on the FIRST foreign match
+            // without counting, silently killing cross-bluebook PM dotted refs.)
+            let mut matches: Vec<(Resolution, Option<String>)> = Vec::new();
             for (ai, agg) in rt.domain.aggregates.iter().enumerate() {
                 if agg.name != *agg_name { continue; }
                 for (ci, cmd) in agg.commands.iter().enumerate() {
@@ -543,32 +546,19 @@ fn resolve(rt: &Runtime, command_name: &str, caller_scope: Option<&str>) -> Resu
                         if caller_scope.is_some() && agg.realm_path.as_deref() == caller_scope {
                             return Ok(Resolution::Aggregate(ai, ci));
                         }
-                        if first_global.is_none() {
-                            first_global = Some(Resolution::Aggregate(ai, ci));
-                            // Foreign = the caller is scoped (a cascade) AND this
-                            // target is STAMPED in a different bluebook. Unstamped
-                            // (string-parsed / outside ~/Projects) stays lenient.
-                            first_global_foreign =
-                                caller_scope.is_some() && agg.realm_path.is_some();
-                        }
+                        matches.push((Resolution::Aggregate(ai, ci), agg.realm_path.clone()));
                     }
                 }
             }
-            if let Some(r) = first_global {
-                // TIGHTEN (i-fqn local-short) : a CASCADE short ref that matched
-                // ONLY a foreign, stamped aggregate is an error — a cascade must
-                // address a foreign bluebook by its full FQN, never a short ref
-                // that silently first-matches across the corpus. Top-level (no
-                // caller_scope) and unstamped targets keep first-match. A
-                // foreign-short diagnostic run across the corpus before this
-                // enforcement found 0 such refs, so this is a no-op today and a
-                // structural guard against future homonym mis-resolution.
-                if first_global_foreign {
+            if !matches.is_empty() {
+                let distinct_scopes: std::collections::HashSet<&str> =
+                    matches.iter().filter_map(|(_, rp)| rp.as_deref()).collect();
+                if caller_scope.is_some() && distinct_scopes.len() > 1 {
                     return Err(RuntimeError::UnknownCommand(format!(
-                        "{} — short ref resolves only to a FOREIGN bluebook (caller scope {:?}); a cross-bluebook cascade must use the full Realm::Context::Bluebook::Aggregate FQN",
-                        command_name, caller_scope)));
+                        "{} — short ref is ambiguous across {} bluebooks (caller scope {:?}); a cross-bluebook cascade must use the full Realm::Context::Bluebook::Aggregate FQN",
+                        command_name, distinct_scopes.len(), caller_scope)));
                 }
-                return Ok(r);
+                return Ok(matches.into_iter().next().unwrap().0);
             }
             // Second pass (i111-J) — entity-owned command, accepted
             // only when unambiguous (single owning entity within the
@@ -1574,6 +1564,35 @@ fn cascade_two_seg_foreign_only_errors_but_local_resolves() {
     // … but the SAME ref from a local scope still resolves (local-first intact).
     let r2 = super::resolve(&rt, "Framework::Widget.Make", Some("miette/framework")).unwrap();
     assert_eq!(rt.domain.aggregates[r2.agg_idx()].realm_path.as_deref(), Some("miette/framework"));
+}
+
+// A single Widget stamped in ONE bluebook (no homonym).
+fn one_widget_domain() -> crate::ir::Domain {
+    let src = r#"
+Hecks.bluebook "Framework" do
+aggregate "Widget" do
+attribute :id, Id
+command "Make" do
+  attribute :id, Id
+end
+end
+end
+"#;
+    let mut d = crate::parser::parse(src);
+    for a in d.aggregates.iter_mut() { a.realm_path = Some("miette/body/organs".to_string()); }
+    d
+}
+
+#[test]
+fn cascade_unique_foreign_short_ref_resolves() {
+    // REGRESSION (pulse-pm cross-bluebook fix) : a CASCADE (scoped) short ref
+    // whose only match is a UNIQUE foreign stamped aggregate must RESOLVE, not
+    // error — the cross-bluebook PM `dispatch` path (Synapse.CreateSynapse from
+    // the Pulse PM, event source in body/cycles, target in body/organs). Only a
+    // genuine homonym across 2+ bluebooks errors.
+    let rt = crate::runtime::Runtime::boot(one_widget_domain());
+    let r = super::resolve(&rt, "Widget.Make", Some("miette/body/cycles")).unwrap();
+    assert_eq!(rt.domain.aggregates[r.agg_idx()].realm_path.as_deref(), Some("miette/body/organs"));
 }
 
 }
