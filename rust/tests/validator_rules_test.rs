@@ -19,6 +19,7 @@ use storehouse::ir::{Aggregate, Command, Domain, Policy};
 use storehouse::parser;
 use storehouse::validator::validate;
 use storehouse::validator_corpus::{ambiguous_cross_reference_errors, unknown_aggregate_errors};
+use storehouse::validator_inside_refs::dangling_inside_reference_errors;
 
 #[test]
 fn valid_domain_passes() {
@@ -397,4 +398,114 @@ fn qualified_cross_ref_is_not_flagged() {
         "a qualified cross ref must not be flagged, got: {:?}",
         errors
     );
+}
+
+// ── dangling_inside_reference_errors (per-file inside-boundary refs) ──
+// `reference_to X` is an INSIDE-boundary ref : its resolution universe is the
+// single file, so a dangling target is provable with no corpus. These lock the
+// bare-`validate` hole a newcomer hits first (DX perfection game, Tier 0 #4).
+
+#[test]
+fn inside_ref_dangling_is_flagged() {
+// reference_to a nonexistent aggregate, declared at aggregate level.
+let domain = parser::parse(r#"Hecks.bluebook "T" do
+aggregate "Order" do
+description "An order"
+reference_to Widget
+command "PlaceOrder" do
+  role "Customer"
+end
+end
+end"#);
+let errors = dangling_inside_reference_errors(&domain);
+assert!(
+    errors.iter().any(|e| e.contains("unknown aggregate: Widget")),
+    "a dangling reference_to must be flagged per-file, got: {:?}",
+    errors
+);
+}
+
+#[test]
+fn inside_ref_dangling_in_command_is_flagged() {
+// reference_to a nonexistent aggregate, declared inside a command : the
+// "Command <name>" message branch.
+let domain = parser::parse(r#"Hecks.bluebook "T" do
+aggregate "Order" do
+description "An order"
+command "Cancel" do
+  role "Customer"
+  reference_to Widget
+end
+end
+end"#);
+let errors = dangling_inside_reference_errors(&domain);
+assert!(
+    errors.iter().any(|e| e.contains("Command Cancel references unknown aggregate: Widget")),
+    "a dangling command-level reference_to must be flagged, got: {:?}",
+    errors
+);
+}
+
+#[test]
+fn inside_ref_to_sibling_resolves() {
+// reference_to a same-file sibling aggregate resolves — no error.
+let domain = parser::parse(r#"Hecks.bluebook "T" do
+aggregate "Pizza" do
+description "A pizza"
+command "CreatePizza" do
+  role "Chef"
+end
+end
+aggregate "Order" do
+description "An order"
+reference_to Pizza
+command "PlaceOrder" do
+  role "Customer"
+end
+end
+end"#);
+assert!(
+    dangling_inside_reference_errors(&domain).is_empty(),
+    "reference_to a declared sibling must resolve"
+);
+}
+
+#[test]
+fn inside_ref_self_resolves() {
+// The self-ref transition-command form (reference_to the aggregate itself)
+// resolves against the same-file aggregate name.
+let domain = parser::parse(r#"Hecks.bluebook "T" do
+aggregate "Order" do
+description "An order"
+identified_by :name
+command "Cancel" do
+  role "Customer"
+  reference_to Order
+end
+end
+end"#);
+assert!(
+    dangling_inside_reference_errors(&domain).is_empty(),
+    "reference_to the aggregate itself must resolve"
+);
+}
+
+#[test]
+fn cross_kind_ref_is_not_checked_per_file() {
+// belongs_to / has_one / has_many may target a sibling BLUEBOOK, so the
+// per-file inside check must ignore them — only the corpus pass owns them.
+// Story is undeclared here yet must NOT be flagged by this rule.
+let domain = parser::parse(r#"Hecks.bluebook "T" do
+aggregate "Lease" do
+description "A lease"
+belongs_to Story
+command "Grant" do
+  role "System"
+end
+end
+end"#);
+assert!(
+    dangling_inside_reference_errors(&domain).is_empty(),
+    "a cross-kind belongs_to (potentially cross-bluebook) must NOT be flagged per-file"
+);
 }

@@ -1262,6 +1262,18 @@ fn main() {
                 .and_then(|i| args.get(i + 1))
                 .map(|s| s.as_str());
             let mut errors = validator::validate(&domain);
+            // Bare `validate <file>` has no corpus to resolve refs
+            // against, so the corpus reference rules below never run.
+            // Fill that hole for INSIDE-boundary refs (`reference_to`),
+            // whose universe is the single file : a dangling target is
+            // provable here with no false positives. Corpus modes skip
+            // this — their corpus rules already resolve `reference_to`, so
+            // running it too would double-report.
+            if check_refs_dir.is_none() && corpus_dir.is_none() {
+                errors.extend(
+                    storehouse::validator_inside_refs::dangling_inside_reference_errors(&domain),
+                );
+            }
             if let Some(dir) = check_refs_dir {
                 let mut corpus = load_combined_domain(dir);
                 // The validated file's OWN aggregates belong to the
@@ -1367,7 +1379,14 @@ fn run_batch(command: &str) {
         match command {
             "validate" => {
                 emit_validator_warnings_to_stderr(&domain);
-                let errors = validator::validate(&domain);
+                let mut errors = validator::validate(&domain);
+                // Batch mode is per-file with no corpus context, exactly
+                // like bare `validate <file>` — so it shares the same
+                // inside-boundary reference check (a dangling `reference_to`
+                // resolves within the single file, no false positives).
+                errors.extend(
+                    storehouse::validator_inside_refs::dangling_inside_reference_errors(&domain),
+                );
                 if errors.is_empty() {
                     println!("VALID|{}", file_path); valid += 1;
                 }
