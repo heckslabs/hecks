@@ -86,6 +86,16 @@ fn main() {
     let is_named = std::path::Path::new(&args[0]).file_name()
         .map_or(false, |n| n == "miette" || n == "summer");
 
+    // Explicit help request — print the command list and exit 0. Without
+    // this, `--help` / `-h` / `help` fall through to command dispatch and are
+    // treated as an unknown command NAME ("Usage: storehouse --help
+    // <bluebook-file-or-dir>", exit 1) — a broken help surface a newcomer
+    // hits first (DX Tier 0). Help is a successful request, so exit 0.
+    if args[1..].iter().any(|a| a == "--help" || a == "-h" || a == "help") {
+        print_usage();
+        return;
+    }
+
     if args.len() < 2 {
         if is_named {
             let dir = resolve_home(&being);
