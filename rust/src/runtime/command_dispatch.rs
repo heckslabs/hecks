@@ -495,12 +495,61 @@ fn ambiguity_candidates(hit_realms: &[String], realm_omitted: bool, command_name
 ///     match a known context (i111-J).
 ///   - `Aggregate.Command` — two dotted parts.
 ///   - `Command` — bare command name.
+/// Reduce a realm-OVER-qualified FQN to its canonical `Domain::Aggregate.Command`
+/// tail — the last TWO `::`-delimited namespace segments before the `.command`.
+/// `Hecks::Framework::Cascade::Cascade.RecordResult` -> `Cascade::Cascade.RecordResult`.
+/// Returns None when the address is already two segments or fewer (nothing to
+/// strip) or carries no `.command`, so the caller only retries a genuinely
+/// over-qualified target. The realm-tolerant fallback for hecksagon `result_into`
+/// dispatch targets (2026-06-30).
+fn realm_over_qualified_tail(command_name: &str) -> Option<String> {
+    let dot = command_name.rfind('.')?;
+    let addr = &command_name[..dot];
+    let cmd = &command_name[dot..]; // includes the leading '.'
+    let segs: Vec<&str> = addr.split("::").collect();
+    if segs.len() <= 2 {
+        return None;
+    }
+    Some(format!("{}::{}{}", segs[segs.len() - 2], segs[segs.len() - 1], cmd))
+}
+
 fn resolve(rt: &Runtime, command_name: &str, caller_scope: Option<&str>) -> Result<Resolution, RuntimeError> {
         // i560 v2 — canonical FQN form first. Presence of `::` is the
         // discriminator ; the rest falls through to the legacy dotted
         // forms that internal cascade dispatch relies on.
         if command_name.contains("::") {
-            return resolve_fully_qualified(rt, command_name, caller_scope);
+            match resolve_fully_qualified(rt, command_name, caller_scope) {
+                Ok(r) => return Ok(r),
+                Err(e) => {
+                    // Realm-tolerant fallback (FQN over-qualification, 2026-06-30).
+                    // A dispatch target carrying MORE namespace segments than the
+                    // canonical `Domain::Aggregate.Command` tail — e.g. the
+                    // hecksagon `result_into`
+                    // `Hecks::Framework::Cascade::Cascade.RecordResult` — derives a
+                    // realm/context from the extra segments that no aggregate's
+                    // real realm_path matches, so the strict resolve filters every
+                    // candidate out. Retry with the bare two-segment tail
+                    // (`Cascade::Cascade.RecordResult`) before surfacing the error.
+                    // The tail path keeps its own ambiguity guard (a homonym across
+                    // realms still errors), so this never silently mis-resolves ;
+                    // it only fires AFTER the strict form already failed, so a
+                    // correct full FQN is never overridden.
+                    //
+                    // The retry passes caller_scope = None : an over-qualified
+                    // target EXPLICITLY named its bluebook, so it is a global cross-
+                    // bluebook reference, not a scope-relative short ref. Passing the
+                    // caller's scope would trip the foreign-bluebook guard (a realm-
+                    // omitted ref resolving outside the caller's scope is rejected),
+                    // which is exactly the cascade case (Tools -> Cascade). Global
+                    // resolution still errors on a genuine cross-realm homonym.
+                    if let Some(tail) = realm_over_qualified_tail(command_name) {
+                        if let Ok(r) = resolve_fully_qualified(rt, &tail, None) {
+                            return Ok(r);
+                        }
+                    }
+                    return Err(e);
+                }
+            }
         }
     let parts: Vec<&str> = command_name.split('.').collect();
     match parts.as_slice() {
@@ -1593,6 +1642,37 @@ fn cascade_unique_foreign_short_ref_resolves() {
     let rt = crate::runtime::Runtime::boot(one_widget_domain());
     let r = super::resolve(&rt, "Widget.Make", Some("miette/body/cycles")).unwrap();
     assert_eq!(rt.domain.aggregates[r.agg_idx()].realm_path.as_deref(), Some("miette/body/organs"));
+}
+
+// ── realm_over_qualified_tail : the realm-tolerant fallback's core (2026-06-30) ──
+// Reduces a realm-OVER-qualified dispatch target to its canonical
+// Domain::Aggregate.Command tail. The live regression : a hecksagon
+// `result_into` of `Hecks::Framework::Cascade::Cascade.RecordResult` derived a
+// realm/context no aggregate's realm_path matched, so the strict FQN resolve
+// rejected it and EVERY tool's outcome-chain cascade silently failed. The
+// fallback retries the tail, which resolves.
+
+#[test]
+fn over_qualified_fqn_reduces_to_domain_aggregate_command_tail() {
+    assert_eq!(
+        super::realm_over_qualified_tail("Hecks::Framework::Cascade::Cascade.RecordResult"),
+        Some("Cascade::Cascade.RecordResult".to_string())
+    );
+    // A deeper realm still reduces to the LAST two namespace segments.
+    assert_eq!(
+        super::realm_over_qualified_tail("A::B::C::D::Widget.Make"),
+        Some("D::Widget.Make".to_string())
+    );
+}
+
+#[test]
+fn already_minimal_fqn_is_not_reduced() {
+    // Exactly two segments (Domain::Aggregate) — nothing to strip.
+    assert_eq!(super::realm_over_qualified_tail("Cascade::Cascade.RecordResult"), None);
+    // One segment before the command — also minimal.
+    assert_eq!(super::realm_over_qualified_tail("Widget.Make"), None);
+    // No command at all — no tail to build.
+    assert_eq!(super::realm_over_qualified_tail("A::B::C::Widget"), None);
 }
 
 }
