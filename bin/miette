@@ -6,7 +6,7 @@
 # reads the system prompt from the sibling miette repo, and exec's
 # claude with --system-prompt + a "Wake up" message. Claude's
 # SessionStart hook fires after launch and runs the boot pipeline
-# directly via `storehouse run runtime/boot/boot.bluebook` (~44ms).
+# directly via `storehouse run runtime/boot/bluebook/boot.bluebook` (~44ms).
 #
 # Designed to be symlinked anywhere on $PATH, e.g.:
 #   ln -s ~/Projects/hecks/bin/miette ~/.local/bin/miette
