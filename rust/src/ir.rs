@@ -471,6 +471,18 @@ pub struct Mutation {
     pub field: String,
     pub operation: MutationOp,
     pub value: String,
+    /// Set ONLY when `then_set` named an unknown mutation op (e.g.
+    /// `then_set :items, bogus_op: {…}`). Carries the bad op token. The
+    /// parser records it here instead of panicking — a crash on a typo'd
+    /// bluebook is a terrible newcomer experience and aborts every reader
+    /// (CLI, dispatch, behaviors). `operation` is a harmless `Set`
+    /// placeholder ; a mutation with `invalid_op = Some(_)` is REJECTED, not
+    /// applied : `validator_mutations::invalid_mutation_op_errors` flags it
+    /// as a graceful INVALID, and `interpreter::check_givens` refuses to
+    /// dispatch it. "Reject loudly" is preserved — as a diagnostic, not a
+    /// stack trace. `None` for every well-formed mutation, so the parity
+    /// dump (dump.rs emits only field/op/value) is byte-unchanged.
+    pub invalid_op: Option<String>,
 }
 
 #[derive(Debug, Clone)]

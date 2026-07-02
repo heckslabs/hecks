@@ -1262,6 +1262,13 @@ fn main() {
                 .and_then(|i| args.get(i + 1))
                 .map(|s| s.as_str());
             let mut errors = validator::validate(&domain);
+            // An unknown `then_set` op is invalid regardless of corpus
+            // context, so this runs in EVERY mode : the parser records it
+            // (rather than panicking) and validate is where the author
+            // sees the graceful error.
+            errors.extend(
+                storehouse::validator_mutations::invalid_mutation_op_errors(&domain),
+            );
             // Bare `validate <file>` has no corpus to resolve refs
             // against, so the corpus reference rules below never run.
             // Fill that hole for INSIDE-boundary refs (`reference_to`),
@@ -1386,6 +1393,9 @@ fn run_batch(command: &str) {
                 // resolves within the single file, no false positives).
                 errors.extend(
                     storehouse::validator_inside_refs::dangling_inside_reference_errors(&domain),
+                );
+                errors.extend(
+                    storehouse::validator_mutations::invalid_mutation_op_errors(&domain),
                 );
                 if errors.is_empty() {
                     println!("VALID|{}", file_path); valid += 1;

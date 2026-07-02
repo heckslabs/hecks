@@ -172,12 +172,16 @@ end
 }
 
 // An unrecognised `then_set` op keyword (here a typo'd `upsert:`) must be
-// REJECTED loudly at parse, not silently stored as a Set literal. Mirrors
-// the Ruby DSL's `unknown keyword:` ArgumentError (both runtimes reject it).
+// REJECTED — but GRACEFULLY, not by panicking the parse (a crash on a
+// typo'd bluebook aborts every reader : CLI validate, dispatch,
+// behaviors). The parser records the bad op as `invalid_op` and the
+// validator surfaces it as an INVALID, preserving the Ruby DSL's
+// `unknown keyword:` reject-loudly intent without the Rust stack trace.
+// (DX perfection game, Tier 0 #2 ; was a `#[should_panic]` on the old
+// parse_blocks.rs:1102 panic.)
 #[test]
-#[should_panic(expected = "unknown mutation op `upsert:`")]
-fn unknown_mutation_op_is_rejected_at_parse() {
-    let _ = parser::parse(
+fn unknown_mutation_op_is_recorded_not_panicked() {
+    let domain = parser::parse(
         r#"Hecks.bluebook "T" do
 core
 aggregate "A" do
@@ -194,5 +198,20 @@ end
 end
 end
 "#,
+    );
+    // Parse COMPLETED (no panic) and recorded the bad op on the mutation.
+    let cmd = &domain.aggregates[0].commands[0];
+    let bad = cmd
+        .mutations
+        .iter()
+        .find(|m| m.invalid_op.is_some())
+        .expect("the upsert op must be recorded as invalid_op, not panicked");
+    assert_eq!(bad.invalid_op.as_deref(), Some("upsert"));
+    // And the validator surfaces it as a graceful INVALID.
+    let errors = storehouse::validator_mutations::invalid_mutation_op_errors(&domain);
+    assert!(
+        errors.iter().any(|e| e.contains("unknown op `upsert:`")),
+        "validator must flag the unknown op, got: {:?}",
+        errors
     );
 }

@@ -20,6 +20,7 @@ use storehouse::parser;
 use storehouse::validator::validate;
 use storehouse::validator_corpus::{ambiguous_cross_reference_errors, unknown_aggregate_errors};
 use storehouse::validator_inside_refs::dangling_inside_reference_errors;
+use storehouse::validator_mutations::invalid_mutation_op_errors;
 
 #[test]
 fn valid_domain_passes() {
@@ -507,5 +508,60 @@ end"#);
 assert!(
     dangling_inside_reference_errors(&domain).is_empty(),
     "a cross-kind belongs_to (potentially cross-bluebook) must NOT be flagged per-file"
+);
+}
+
+// ── invalid_mutation_op_errors (then_set unknown-op, DX Tier-0 #2) ──
+// The parser records an unknown then_set op as invalid_op INSTEAD of panicking
+// (a crash on a typo'd bluebook aborts every reader). These lock that : parse
+// completes, and validate surfaces the graceful INVALID.
+
+#[test]
+fn unknown_then_set_op_is_flagged_not_panicked() {
+// Reaching the assert at all proves parser::parse did NOT panic on the
+// bad op — the regression that was a `panic!` at parse_blocks.rs:1102.
+let domain = parser::parse(r#"Hecks.bluebook "T" do
+aggregate "Thing" do
+description "t"
+attribute :items, list_of(Item)
+value_object "Item" do
+  attribute :n, Integer
+end
+command "Do" do
+  role "X"
+  attribute :n, Integer
+  then_set :items, bogus_op: { n: :n }
+end
+end
+end"#);
+let errors = invalid_mutation_op_errors(&domain);
+assert!(
+    errors.iter().any(|e| e.contains("unknown op `bogus_op:`") && e.contains(":items")),
+    "an unknown then_set op must be flagged gracefully, got: {:?}",
+    errors
+);
+}
+
+#[test]
+fn valid_then_set_ops_are_not_flagged() {
+let domain = parser::parse(r#"Hecks.bluebook "T" do
+aggregate "Thing" do
+description "t"
+attribute :items, list_of(Item)
+attribute :count, Integer
+value_object "Item" do
+  attribute :n, Integer
+end
+command "Do" do
+  role "X"
+  attribute :n, Integer
+  then_set :items, append: { n: :n }
+  then_set :count, increment: 1
+end
+end
+end"#);
+assert!(
+    invalid_mutation_op_errors(&domain).is_empty(),
+    "known then_set ops (append, increment) must not be flagged"
 );
 }

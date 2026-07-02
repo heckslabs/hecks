@@ -33,7 +33,26 @@ pub fn check_givens(
     state: &AggregateState,
     attrs: &HashMap<String, Value>,
 ) -> Result<(), RuntimeError> {
-    // `required: true` attributes are enforced before givens — a kwarg that is
+        // A mutation the parser could not resolve (an unknown `then_set` op like
+        // `bogus_op:`) is recorded with `invalid_op = Some(_)` instead of
+        // panicking the parse. Refuse to dispatch it : applying the placeholder
+        // `Set` would silently write the wrong value — the exact silent failure
+        // the graceful-record path exists to avoid. `validate` catches this
+        // earlier ; this is the runtime's own guard for callers that skip it.
+        for m in &cmd.mutations {
+            if let Some(op) = &m.invalid_op {
+                return Err(RuntimeError::GivenFailed {
+                    message: format!(
+                        "unknown mutation op `{}:` in then_set for `:{}` — valid ops are \
+                         to, append, append_unique, remove, increment, decrement, \
+                         multiply, clamp, decay, from",
+                        op, m.field
+                    ),
+                    expression: "invalid_mutation_op".to_string(),
+                });
+            }
+        }
+        // `required: true` attributes are enforced before givens — a kwarg that is
     // absent, Null, or empty refuses the command the same shape a failed given
     // does. Structural superset of the old `given { x != "" }` idiom, which
     // could not see a truly-absent (Null) kwarg.
@@ -557,4 +576,66 @@ pub fn resolve_mutation_value(
         .get(value_expr)
         .cloned()
         .unwrap_or(Value::Str(value_expr.to_string()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::check_givens;
+    use crate::parser;
+    use crate::runtime::AggregateState;
+    use std::collections::HashMap;
+
+    // The runtime half of DX Tier-0 #2 : a command whose then_set named an
+    // unknown op (recorded by the parser as invalid_op, never panicked) must
+    // be REFUSED before apply_mutations — applying the placeholder Set would
+    // silently write the wrong value.
+    #[test]
+    fn check_givens_refuses_invalid_mutation_op() {
+        let domain = parser::parse(
+            r#"Hecks.bluebook "T" do
+  aggregate "Thing" do
+    description "t"
+    attribute :items, list_of(Item)
+    value_object "Item" do
+      attribute :n, Integer
+    end
+    command "Do" do
+      role "X"
+      attribute :n, Integer
+      then_set :items, bogus_op: { n: :n }
+    end
+  end
+end"#,
+        );
+        let cmd = &domain.aggregates[0].commands[0];
+        let state = AggregateState::new("x");
+        let attrs = HashMap::new();
+        let result = check_givens(cmd, &state, &attrs);
+        assert!(result.is_err(), "invalid-op mutation must refuse dispatch");
+        let msg = format!("{:?}", result.unwrap_err());
+        assert!(msg.contains("bogus_op"), "error must name the bad op, got: {}", msg);
+    }
+
+    #[test]
+    fn check_givens_admits_valid_mutation_ops() {
+        let domain = parser::parse(
+            r#"Hecks.bluebook "T" do
+  aggregate "Thing" do
+    description "t"
+    attribute :count, Integer
+    command "Do" do
+      role "X"
+      then_set :count, increment: 1
+    end
+  end
+end"#,
+        );
+        let cmd = &domain.aggregates[0].commands[0];
+        let state = AggregateState::new("x");
+        let attrs = HashMap::new();
+        assert!(
+            check_givens(cmd, &state, &attrs).is_ok(),
+            "a well-formed then_set must not be refused by the invalid-op guard"
+        );
+    }
 }

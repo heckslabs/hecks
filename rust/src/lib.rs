@@ -33,6 +33,8 @@ pub mod validator_corpus;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod validator_inside_refs;
 #[cfg(not(target_arch = "wasm32"))]
+pub mod validator_mutations;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod conceiver;
 pub mod clock;
 pub mod util;

@@ -211,7 +211,7 @@ pub fn parse_command(lines: &[&str]) -> (Command, usize) {
                 if let Some(m) = parse_mutation(line) { cmd.mutations.push(m); }
             } else if line.starts_with("then_toggle") {
                 if let Some(field) = extract_symbol(line) {
-                    cmd.mutations.push(Mutation { field, operation: MutationOp::Toggle, value: String::new() });
+                    cmd.mutations.push(Mutation { field, operation: MutationOp::Toggle, value: String::new(), invalid_op: None });
                 }
             } else if line.starts_with("then_delete") {
                 // Record-level deletion. No field, no value — the op
@@ -220,6 +220,7 @@ pub fn parse_command(lines: &[&str]) -> (Command, usize) {
                     field: String::new(),
                     operation: MutationOp::Delete,
                     value: String::new(),
+                    invalid_op: None,
                 });
             }
         }
@@ -1099,12 +1100,20 @@ pub fn parse_mutation(line: &str) -> Option<Mutation> {
                 .take_while(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || **b == b'_')
                 .count();
             if raw[end..].starts_with(':') {
-                panic!(
-                    "unknown mutation op `{}:` in then_set for `:{}` — valid ops are \
-                     to, append, append_unique, remove, increment, decrement, \
-                     multiply, clamp, decay, from",
-                    &raw[..end], field
-                );
+                // Unknown op. DON'T panic — a crash on a typo'd bluebook
+                // is a terrible newcomer experience and aborts every
+                // reader (CLI validate, dispatch, behaviors). Record the
+                // bad op on the Mutation and let the parse complete ;
+                // validator_mutations::invalid_mutation_op_errors reports
+                // it as a graceful INVALID and interpreter::check_givens
+                // refuses to dispatch it. "Reject loudly" is preserved —
+                // as a diagnostic, not a stack trace.
+                return Some(Mutation {
+                    field,
+                    operation: MutationOp::Set,
+                    value: String::new(),
+                    invalid_op: Some(raw[..end].to_string()),
+                });
             }
         }
         let value = if raw.starts_with('"') {
@@ -1119,7 +1128,7 @@ pub fn parse_mutation(line: &str) -> Option<Mutation> {
         if value.is_empty() { return None; }
         (MutationOp::Set, value)
     };
-    Some(Mutation { field, operation: op, value })
+    Some(Mutation { field, operation: op, value, invalid_op: None })
 }
 
 /// Parse a `process_manager "Name" do … end` block.
