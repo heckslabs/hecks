@@ -1269,6 +1269,11 @@ fn main() {
             errors.extend(
                 storehouse::validator_mutations::invalid_mutation_op_errors(&domain),
             );
+            // A typo'd block-opener keyword (commnd → command) is a typo
+            // regardless of corpus — also every mode.
+            errors.extend(
+                storehouse::validator_keywords::unknown_keyword_errors(&domain),
+            );
             // Bare `validate <file>` has no corpus to resolve refs
             // against, so the corpus reference rules below never run.
             // Fill that hole for INSIDE-boundary refs (`reference_to`),
@@ -1396,6 +1401,9 @@ fn run_batch(command: &str) {
                 );
                 errors.extend(
                     storehouse::validator_mutations::invalid_mutation_op_errors(&domain),
+                );
+                errors.extend(
+                    storehouse::validator_keywords::unknown_keyword_errors(&domain),
                 );
                 if errors.is_empty() {
                     println!("VALID|{}", file_path); valid += 1;

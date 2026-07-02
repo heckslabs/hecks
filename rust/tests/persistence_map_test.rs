@@ -30,6 +30,7 @@ fn agg(name: &str, ctx: &str) -> Aggregate {
         lifecycle: None,
         invariants: vec![],
         views: vec![],
+        unknown_keywords: vec![],
     }
 }
 

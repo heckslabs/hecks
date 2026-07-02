@@ -298,6 +298,7 @@ fn parse_aggregate(lines: &[&str]) -> (Aggregate, Vec<Policy>, usize) {
         references: vec![], lifecycle: None, identified_by: None,
         invariants: vec![],
         views: vec![],
+        unknown_keywords: vec![],
     };
 
     // Policies declared INSIDE the aggregate (lifecycle reactions like
@@ -435,6 +436,23 @@ fn parse_aggregate(lines: &[&str]) -> (Aggregate, Vec<Policy>, usize) {
                 i += consumed;
                 continue;
             } else if ends_with_do_block(line) {
+                // An unrecognised keyword opened a `do` block at the
+                // aggregate top level. The dispatch chain above IS the
+                // keyword dictionary — reaching here means the word is not
+                // a known block opener, and the whole block is about to be
+                // walked past (dropping e.g. a mistyped `commnd` command
+                // from the IR). If the word is a near-miss of a real
+                // keyword (edit-distance ≤ 2) it is almost certainly a typo
+                // — record it so the validator can name it with a `did you
+                // mean` hint. A far word (a genuinely-unhandled construct
+                // like `specification`) yields None and is left alone.
+                let word = line.split_whitespace().next().unwrap_or("");
+                if let Some(suggestion) = suggest_block_keyword(word) {
+                    agg.unknown_keywords.push(crate::ir::UnknownKeyword {
+                        keyword: word.to_string(),
+                        suggestion,
+                    });
+                }
                 depth += 1;
             }
         } else if ends_with_do_block(line) {
@@ -445,6 +463,50 @@ fn parse_aggregate(lines: &[&str]) -> (Aggregate, Vec<Policy>, usize) {
     }
 
     (agg, nested_policies, i + 1)
+}
+
+/// Aggregate-body block-opener keywords a typo is measured against. Not the
+/// full grammar — just the `do`-block openers a `<word> ".." do` line could be
+/// a misspelling of. Used ONLY to SUGGEST a correction ; DETECTION is the
+/// dispatch reaching its unrecognised-do-opener fallthrough, so a stale entry
+/// here only weakens a hint, never misses a real keyword.
+const BLOCK_KEYWORDS: &[&str] = &[
+    "command", "query", "value_object", "entity", "invariant",
+    "view", "rule", "policy", "factory", "lifecycle", "create",
+];
+
+/// The nearest block keyword to `word` when it is a plausible typo — within
+/// Levenshtein distance 2 and not itself an exact keyword. `None` for a far
+/// word (a genuinely-unhandled construct), so `specification` and friends are
+/// left silently walked-past exactly as before. (DX perfection game, Tier 0 #3.)
+fn suggest_block_keyword(word: &str) -> Option<String> {
+    if word.is_empty() || BLOCK_KEYWORDS.contains(&word) {
+        return None;
+    }
+    BLOCK_KEYWORDS
+        .iter()
+        .map(|kw| (*kw, levenshtein(word, kw)))
+        .filter(|(_, d)| *d <= 2)
+        .min_by_key(|(_, d)| *d)
+        .map(|(kw, _)| kw.to_string())
+}
+
+/// Classic iterative two-row Levenshtein edit distance. Inputs are keyword
+/// tokens (a handful of chars), so the allocation is negligible.
+fn levenshtein(a: &str, b: &str) -> usize {
+    let a: Vec<char> = a.chars().collect();
+    let b: Vec<char> = b.chars().collect();
+    let mut prev: Vec<usize> = (0..=b.len()).collect();
+    let mut cur = vec![0usize; b.len() + 1];
+    for (i, ca) in a.iter().enumerate() {
+        cur[0] = i + 1;
+        for (j, cb) in b.iter().enumerate() {
+            let cost = if ca == cb { 0 } else { 1 };
+            cur[j + 1] = (prev[j + 1] + 1).min(cur[j] + 1).min(prev[j] + cost);
+        }
+        std::mem::swap(&mut prev, &mut cur);
+    }
+    prev[b.len()]
 }
 
 fn absorb_reference_to(line: &str, agg: &mut Aggregate) {

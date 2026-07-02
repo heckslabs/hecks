@@ -310,6 +310,20 @@ pub struct SectionRow {
     pub field: String,
 }
 
+/// A line inside an aggregate body that OPENED a `do` block with an
+/// unrecognised keyword close enough to a real one to be a typo — e.g.
+/// `commnd "Do" do` (`command`). The parser records it here instead of
+/// silently walking past the whole block (which drops the command from the
+/// IR and makes validate complain about an unrelated symptom like "no
+/// commands"). `validator_keywords::unknown_keyword_errors` surfaces it with
+/// the `did you mean` suggestion. Empty for every well-formed aggregate, and
+/// dump.rs emits no such field, so the parity dump is byte-unchanged.
+#[derive(Debug, Clone)]
+pub struct UnknownKeyword {
+    pub keyword: String,
+    pub suggestion: String,
+}
+
 #[derive(Debug, Clone)]
 pub struct Aggregate {
     pub name: String,
@@ -375,6 +389,12 @@ pub struct Aggregate {
     /// pull from the same single source of truth. Empty when no
     /// `view "name" do ... end` blocks were declared.
     pub views: Vec<View>,
+    /// Typo'd block-opener keywords caught at parse time — a `<word> ".." do`
+    /// line whose word is within edit-distance 2 of a real aggregate-body
+    /// keyword (e.g. `commnd` → `command`). Recorded rather than silently
+    /// dropped ; `validator_keywords::unknown_keyword_errors` reports each
+    /// with a `did you mean` hint. Empty for every well-formed aggregate.
+    pub unknown_keywords: Vec<UnknownKeyword>,
     /// The FOLDER address of the bluebook this aggregate was loaded from —
     /// `realm/context` (e.g. "hecks/language/grammar"), the Realm + Context
     /// segments of `Realm::Context::Bluebook::Aggregate`. Stamped by
