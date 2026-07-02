@@ -42,6 +42,7 @@
 
 pub mod classify;
 pub mod agent_defs;
+pub mod complete;
 mod daemons;
 mod discover;
 mod system_prompt;
@@ -142,6 +143,14 @@ pub fn run(
 
     // Stamp final state into BootRun for any watchers reading it.
     stamp_aggregate(rt, &being, &info_dir, &counts, &classification, &daemon_statuses);
+
+    // Boot-establishment keystone : route BootCompleted through the policy
+    // engine so cross-domain `on "BootCompleted"` establishment policies
+    // self-seed. Clone the boot domain + hecksagons from the runner's
+    // runtime and dispatch CompleteBoot on a corpus-loaded runtime (see
+    // complete.rs). Best-effort post-completion effect — never gates the
+    // boot exit code.
+    complete::complete_boot(rt.domain.clone(), rt.hecksagons.clone(), &being);
 
     ExitKind::Ok.code()
 }
