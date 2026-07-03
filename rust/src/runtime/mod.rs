@@ -1046,6 +1046,15 @@ impl Runtime {
         self.middleware = middleware::MiddlewareStack::from_entries(entries);
     }
 
+    /// Re-hydrate the RBAC read-model from current RoleAssignment state.
+    /// Called after the boot-completion cascade settles (run_boot/complete.rs) :
+    /// the entry-dispatch trigger in `dispatch` cannot see cascade-authored
+    /// assignments (the entry aggregate is BootRun, not RoleAssignment).
+    pub fn rehydrate_acl(&mut self) {
+        let m = acl_readmodel::AclReadModel::hydrate(self);
+        self.acl_read_model = m;
+    }
+
     pub fn dispatch(
         &mut self,
         command_name: &str,
@@ -1069,11 +1078,14 @@ impl Runtime {
         self.pump_outbox();
         self.pump();
         self.policy_engine.reset_in_flight();
-        // Refresh the RBAC read-model when a Role/Agent lifecycle command
+        // Refresh the RBAC read-model when a RoleAssignment lifecycle command
         // applied — keyed off the RESOLVED aggregate type, so it fires for
-        // bare- and qualified-name dispatch alike (a bare "Bind" carries no
-        // FQN prefix). A Define/Bind/Retire is reflected on the next gate.
-        if r.aggregate_type == "Role" || r.aggregate_type == "Agent" {
+        // bare- and qualified-name dispatch alike (a bare "Assign" carries no
+        // FQN prefix). An Assign/Retire is reflected on the next gate. NOTE :
+        // this sees ENTRY dispatches only — cascade-authored assignments (the
+        // boot roster) are covered by the post-settle `rehydrate_acl` in
+        // run_boot/complete.rs and by boot-time hydration in boot_with_*.
+        if r.aggregate_type == "RoleAssignment" {
             let m = acl_readmodel::AclReadModel::hydrate(self);
             self.acl_read_model = m;
         }

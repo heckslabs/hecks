@@ -93,6 +93,14 @@ pub fn complete_over(
     // ignored : boot already succeeded ; the establishment cascade is a
     // best-effort post-completion effect, never a gate on the boot exit code.
     let _ = rt.dispatch("BootRun.CompleteBoot", attrs);
+    // The establishment cascade may have authored RoleAssignments (the authz
+    // roster). Those arrive as CASCADES, so the entry-dispatch re-hydrate
+    // trigger in `Runtime::dispatch` never fires for them (the entry aggregate
+    // is BootRun, not RoleAssignment) — re-hydrate the RBAC read-model now
+    // that the cascade has settled, so THIS runtime (and any boot assertion
+    // inspecting it) sees the roster immediately. Later runtimes hydrate at
+    // their own boot from persisted state.
+    rt.rehydrate_acl();
     rt
 }
 
