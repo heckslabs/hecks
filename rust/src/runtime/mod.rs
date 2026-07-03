@@ -1773,6 +1773,15 @@ impl Runtime {
         // Snapshot the Record attr-maps under the immutable borrow ; dispatch
         // after (dispatch_cascade takes &mut self).
         let mut records: Vec<HashMap<String, Value>> = Vec::new();
+        // Bug B guard — the SAME binding seen twice across the loaded
+        // hecksagons (a duplicate-loaded or re-declared hexagon) would record
+        // the same delivery_id twice per emit, double-firing
+        // OutboundEventRecorded. delivery_id IS the idempotency key, so record
+        // each at most once per cascade. Distinct adapters keep distinct
+        // delivery_ids (adapter name is in the key), so this only collapses
+        // true duplicates — never a legitimate second subscriber.
+        let mut seen_deliveries: std::collections::HashSet<String> =
+            std::collections::HashSet::new();
         for hex in &self.hecksagons {
             for b in &hex.bindings {
                 // Effect port subscribing to THIS event. A VERDICT bind
@@ -1816,6 +1825,10 @@ impl Runtime {
                     "{}::{}::{}::{}",
                     event.aggregate_type, event.aggregate_id, event.name, b.adapter
                 );
+                // Bug B — skip a delivery_id already recorded this cascade.
+                if !seen_deliveries.insert(delivery_id.clone()) {
+                    continue;
+                }
                 let mut attrs = HashMap::new();
                 attrs.insert("delivery_id".to_string(), Value::Str(delivery_id));
                 attrs.insert("adapter".to_string(), Value::Str(b.adapter.clone()));
@@ -3083,6 +3096,12 @@ impl Runtime {
         struct Pending {
             delivery_id: String,
             adapter: String,
+            // The ORIGIN aggregate id (OrderPlaced's Order#N). Threaded into
+            // the verdict command as its self-reference `id` so an effect
+            // verdict (Authorize/Decline) re-enters ON THE SAME aggregate that
+            // emitted the trigger — mirrors run_host_pass. Without it, a
+            // transition verdict (upsert-on-identity) mints a phantom.
+            source_id: String,
             payload: String,
             success_command: String,
             failure_command: String,
@@ -3108,6 +3127,7 @@ impl Runtime {
                 .map(|s| Pending {
                     delivery_id: fld(s, "delivery_id"),
                     adapter: fld(s, "adapter"),
+                    source_id: fld(s, "source_id"),
                     payload: fld(s, "payload"),
                     success_command: fld(s, "success_command"),
                     failure_command: fld(s, "failure_command"),
@@ -3178,6 +3198,14 @@ impl Runtime {
                             for (k, v) in &outcome.verdict_pairs {
                                 vattrs.insert(k.clone(), Value::Str(v.clone()));
                             }
+                            // Async-boundary verdict identity — an effect verdict
+                            // re-enters BY CONTRACT on the SAME aggregate that
+                            // emitted the trigger. Inject the origin source_id as
+                            // the verdict's universal-id self-reference so a
+                            // transition (upsert-on-identity, e.g. Order.Authorize)
+                            // transitions the REAL order instead of minting a
+                            // phantom. Twin of run_host_pass's identical inject.
+                            vattrs.insert("id".to_string(), Value::Str(d.source_id.clone()));
                             let _ = self.dispatch(verdict, vattrs);
                         }
                         // Reached a verdict == HANDLED -> MarkDelivered (terminal).
