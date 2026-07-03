@@ -52,8 +52,12 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('rust/Cargo.lock', 'rust/Cargo.toml') }}
 
       - name: Build storehouse (release)
+        # --workspace : the `storehouse` [[bin]] lives in the storehouse-cli
+        # member crate (rust/cli) ; the workspace root package is the lib,
+        # so a bare `cargo build` never produces the binary fuzz_test.rb
+        # spawns.
         working-directory: rust
-        run: cargo build --release --quiet
+        run: cargo build --release --workspace --quiet
 
       - name: Run differential fuzzer
         run: |

@@ -47,7 +47,11 @@ jobs:
           key: ${{ runner.os }}-ratchet-cargo-${{ hashFiles('rust/Cargo.lock', 'rust/Cargo.toml') }}
 
       - name: Build storehouse (release)
-        run: cargo build --manifest-path rust/Cargo.toml --release
+        # --workspace : the `storehouse` [[bin]] lives in the storehouse-cli
+        # member crate (rust/cli) ; the workspace root package is the lib,
+        # so a bare `cargo build` never produces the binary loc-ratchet's
+        # is-dispatched query needs (without it the ratchet over-reports).
+        run: cargo build --manifest-path rust/Cargo.toml --release --workspace
 
       - name: Run loc-ratchet
         run: bin/loc-ratchet --base "origin/${{ github.base_ref }}" --verbose
