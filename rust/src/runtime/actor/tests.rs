@@ -37,6 +37,7 @@ fn mk_event(agg_type: &str, agg_id: &str, evt_name: &str) -> Event {
         aggregate_id: agg_id.to_string(),
         data: HashMap::new(),
         realm_path: None,
+        ..Default::default()
     }
 }
 

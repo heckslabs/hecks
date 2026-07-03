@@ -35,12 +35,13 @@ fn two_events_on_same_aggregate_land_in_order_via_mailbox() {
     let mut rt = Runtime::boot(domain);
 
     let mk_event = |evt_name: &str| Event {
-        name: evt_name.to_string(),
-        aggregate_type: "ActorAggregate".to_string(),
-        aggregate_id:   "actor-1".to_string(),
-            data: HashMap::new(),
-            realm_path: None,
-        };
+            name: evt_name.to_string(),
+            aggregate_type: "ActorAggregate".to_string(),
+            aggregate_id:   "actor-1".to_string(),
+                data: HashMap::new(),
+                realm_path: None,
+                ..Default::default()
+            };
 
     rt.enqueue_and_drain(mk_event("First"));
     rt.enqueue_and_drain(mk_event("Second"));
@@ -75,10 +76,12 @@ fn event_on_a_while_slow_handler_on_b_is_not_blocked() {
     let event_a = Event {
         name: "X".into(), aggregate_type: "ActorAggregate".into(),
         aggregate_id: "A".into(), data: HashMap::new(), realm_path: None,
+        ..Default::default()
     };
     let event_b = Event {
         name: "Y".into(), aggregate_type: "ActorAggregate".into(),
         aggregate_id: "B".into(), data: HashMap::new(), realm_path: None,
+        ..Default::default()
     };
 
     rt.enqueue_and_drain(event_a);

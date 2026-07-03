@@ -6,6 +6,10 @@
 //!
 //! Usage:
 //!   let js = wizard_script();  // include in <script> block
+//!
+//! [antibody-exempt: rust/src/server/html_wizard.rs (causation exposure) —
+//!  served-UI + causation plumbing, authorized by Chris 2026-07-03]
+//! [loc-ratchet-override: causation-tree view; authorized by Chris 2026-07-03]
 
 /// Return the wizard JS functions (already double-braced for format!)
 pub fn wizard_script() -> &'static str {
@@ -59,6 +63,62 @@ pub fn wizard_script() -> &'static str {
     document.body.appendChild(modal);
     modal.querySelector('input,select')?.focus();
   }
+  function cascadeTreeHtml(cascade) {
+    // Build a causation tree from the enriched cascade : index every event
+    // by its event_id, then nest each under the event whose event_id equals
+    // its causation_id. Elements with no (in-slice) parent become tree roots
+    // — so the originating command's event (no causation_id) is THE root, and
+    // any lineage-less straggler still renders top-level (flat fallback).
+    var byId = {};
+    cascade.forEach(function(ev) { if (ev.event_id) byId[ev.event_id] = ev; });
+    var kidsOf = {}, roots = [];
+    cascade.forEach(function(ev) {
+      var p = ev.causation_id;
+      if (p && byId[p] && p !== ev.event_id) {
+        (kidsOf[p] = kidsOf[p] || []).push(ev);
+      } else {
+        roots.push(ev);
+      }
+    });
+    function nodeHtml(ev, depth) {
+      var label = humanize(ev.name || '') +
+        (ev.aggregate_type ? ' · ' + humanize(ev.aggregate_type) : '') +
+        (ev.aggregate_id ? ' #' + ev.aggregate_id : '');
+      var pad = depth * 16;
+      var connector = depth > 0 ? '<span class="text-brand/50">↳ </span>' : '';
+      var out = '<div class="caus-node py-1 px-2 rounded cursor-pointer hover:bg-brand/10 transition" ' +
+        'style="margin-left:' + pad + 'px" data-eid="' + (ev.event_id || '') + '" ' +
+        'data-cid="' + (ev.causation_id || '') + '" onclick="highlightCausation(this)">' +
+        connector + '<span class="text-brand">' + label + '</span></div>';
+      var kids = ev.event_id ? (kidsOf[ev.event_id] || []) : [];
+      kids.forEach(function(k) { out += nodeHtml(k, depth + 1); });
+      return out;
+    }
+    var body = roots.map(function(r) { return nodeHtml(r, 0); }).join('');
+    return '<div class="mt-2 text-xs text-gray-400">causation tree :</div>' +
+      '<div class="caus-tree border border-brand/20 rounded-lg p-2 mt-1 bg-surface-0/40 text-xs">' +
+      body + '</div>';
+  }
+  function highlightCausation(el) {
+    // Click a node : clear the tree, then tint the clicked node, its parent
+    // (data-eid == clicked's data-cid) and its children (data-cid == clicked's
+    // data-eid). Re-clicking the active node clears the highlight (toggle).
+    var tree = el.closest('.caus-tree');
+    if (!tree) return;
+    var wasActive = el.classList.contains('caus-active');
+    tree.querySelectorAll('.caus-node').forEach(function(n) {
+      n.classList.remove('caus-active');
+      n.style.background = '';
+    });
+    if (wasActive) return;
+    el.classList.add('caus-active');
+    el.style.background = 'rgba(96,165,250,0.25)';
+    var eid = el.getAttribute('data-eid'), cid = el.getAttribute('data-cid');
+    tree.querySelectorAll('.caus-node').forEach(function(n) {
+      if (cid && n.getAttribute('data-eid') === cid) n.style.background = 'rgba(52,211,153,0.18)';
+      if (eid && n.getAttribute('data-cid') === eid) n.style.background = 'rgba(251,191,36,0.15)';
+    });
+  }
   function wizardSubmit(form, domain, cmd) {
     const data = {};
     new FormData(form).forEach((v, k) => { if(v) data[k] = v; });
@@ -76,6 +136,13 @@ pub fn wizard_script() -> &'static str {
         // event name + aggregate. First entry usually duplicates
         // the top-level event ; skip it when ids match.
         if (Array.isArray(r.cascade) && r.cascade.length > 0) {
+          var hasLineage = r.cascade.some(function(ev) { return !!ev.event_id; });
+          if (hasLineage) {
+            // Causation-tree view: nest each event under the one that caused
+            // it (causation_id -> parent). Root = originating command's event.
+            // Click a node to highlight its parent + children.
+            html += cascadeTreeHtml(r.cascade);
+          }
           var chips = r.cascade
             .filter(function(ev) { return !(ev.aggregate_id === r.aggregate_id && ev.name === r.event); })
             .map(function(ev) {
@@ -85,14 +152,15 @@ pub fn wizard_script() -> &'static str {
                 (ev.aggregate_id ? ' #' + ev.aggregate_id : '') +
                 '</span>';
             }).join('');
-          if (chips) {
+          // Flat fallback: without lineage, render the original chip trail.
+          if (chips && !hasLineage) {
             html += '<div class="mt-2 text-xs text-gray-400">cascade :</div><div>' + chips + '</div>';
-            // Log each cascade event to the event stream too.
-            r.cascade.forEach(function(ev) {
-              if (ev.aggregate_id === r.aggregate_id && ev.name === r.event) return;
-              addEvent(ev.name, cmd, ev.aggregate_type, ev.aggregate_id, true);
-            });
           }
+          // Log each downstream cascade event to the event stream too.
+          r.cascade.forEach(function(ev) {
+            if (ev.aggregate_id === r.aggregate_id && ev.name === r.event) return;
+            addEvent(ev.name, cmd, ev.aggregate_type, ev.aggregate_id, true);
+          });
         }
         el.innerHTML = html;
         addEvent(r.event, cmd, r.aggregate_type, r.aggregate_id, true);

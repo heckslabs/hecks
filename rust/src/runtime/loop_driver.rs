@@ -242,6 +242,7 @@ impl LoopDriver {
                         aggregate_id,
                         data,
                         realm_path: None,
+                        ..Default::default()
                     };
                     self.runtime.publish_synthetic_event(event);
                 }
@@ -324,6 +325,7 @@ impl LoopDriver {
                 aggregate_id,
                 data,
                 realm_path: None,
+                ..Default::default()
             };
             self.runtime.publish_synthetic_event(event);
         }

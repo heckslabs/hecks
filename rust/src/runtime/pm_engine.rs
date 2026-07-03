@@ -421,6 +421,7 @@ mod tests {
             aggregate_id: order_id.into(),
             data,
             realm_path: None,
+            ..Default::default()
         }
     }
 

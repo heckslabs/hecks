@@ -370,16 +370,24 @@ fn dispatch_inner(
         repo.save(state, ctx);
     }
 
-    let event = build_event_res(rt, res, &aggregate_id, &event_data);
-    if let Some(ref evt) = event {
-        // Sprint 14 (retire-sync-cascade-pipeline) — the legacy Sync vs.
-        // Actor fork retired. Every aggregate publishes inline through the
-        // event bus ; the `delivery :actor` mailbox-stub path is gone. The
-        // actor-per-aggregate-instance + async-event-delivery-bus stories
-        // will rewire publishing into per-mailbox enqueueing later without
-        // a bluebook-visible fork — the runtime is the swappable substrate.
-        rt.event_bus.publish(evt.clone());
-    }
+    let mut event = build_event_res(rt, res, &aggregate_id, &event_data);
+        if let Some(ref mut evt) = event {
+            // Causation-tree view — stamp this event's parent link before publish.
+            // A cascaded dispatch cites the event that triggered it : the last
+            // event the upstream (cascade_hint) aggregate published. None for a
+            // root dispatch, which leaves this event a tree root. Gate-independent
+            // of the durable Log — reads the in-memory bus directly.
+            if let Some((up_type, up_id)) = &cascade_hint {
+                evt.causation_id = rt.event_bus.last_event_for(up_type, up_id);
+            }
+            // Sprint 14 (retire-sync-cascade-pipeline) — the legacy Sync vs.
+            // Actor fork retired. Every aggregate publishes inline through the
+            // event bus ; the `delivery :actor` mailbox-stub path is gone. The
+            // actor-per-aggregate-instance + async-event-delivery-bus stories
+            // will rewire publishing into per-mailbox enqueueing later without
+            // a bluebook-visible fork — the runtime is the swappable substrate.
+            rt.event_bus.publish(evt.clone());
+        }
 
     let result = CommandResult {
         aggregate_id,
@@ -1135,6 +1143,9 @@ fn build_event_res(
         aggregate_id: aggregate_id.to_string(),
         data: attrs.clone(),
         realm_path: agg.realm_path.clone(),
+        // Lineage stamped downstream : event_id by publish, causation_id by the
+        // dispatcher from the cascade hint (causation-tree view).
+        ..Default::default()
     })
 }
 
@@ -1429,6 +1440,7 @@ fn dispatch_bulk(
             aggregate_id: row_id.clone(),
             data: row_attrs,
             realm_path: rt.domain.aggregates[agg_idx].realm_path.clone(),
+            ..Default::default()
         };
         // Sprint 14 (retire-sync-cascade-pipeline) — many-form
         // (`list_of(VO)`) inputs publish one event per row through the

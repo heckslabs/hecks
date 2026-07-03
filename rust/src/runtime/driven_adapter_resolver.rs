@@ -532,8 +532,9 @@ mod tests {
             aggregate_type: "InboxPoller".into(),
             aggregate_id: "x".into(),
             data: HashMap::new(),
-            realm_path: Some("hecks/framework".into()),
-        };
+                realm_path: Some("hecks/framework".into()),
+                ..Default::default()
+            };
         // Canonical ref matching the emitter's realm + context → fires.
         assert!(event_ref_matches("Hecks::Framework::AgentInbox::InboxPoller.Polled", &evt));
         // Legacy 2-seg ref → lenient, still fires.

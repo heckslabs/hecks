@@ -207,9 +207,24 @@ pub fn dispatch(
                 .map(|e| format!(r#","event":"{}""#, e.name))
                 .unwrap_or_default();
             let cascade: Vec<String> = rt.event_bus.events()[pre_count..].iter().map(|e| {
+                // Causation-tree view — enrich each cascade element with its
+                // own lineage id (event_id) and its parent's (causation_id) so
+                // the served UI can build the tree client-side from THIS one
+                // response : parent = the element whose event_id == this
+                // element's causation_id ; root = the originating command's
+                // event (no causation_id). Both keys are OMITTED when absent
+                // (older events / non-emitting paths), so the panel falls back
+                // to a flat list and never crashes.
+                let mut extra = String::new();
+                if let Some(ref id) = e.event_id {
+                    extra.push_str(&format!(r#","event_id":"{}""#, id));
+                }
+                if let Some(ref cid) = e.causation_id {
+                    extra.push_str(&format!(r#","causation_id":"{}""#, cid));
+                }
                 format!(
-                    r#"{{"event":"{}","aggregate_type":"{}","aggregate_id":"{}"}}"#,
-                    e.name, e.aggregate_type, e.aggregate_id
+                    r#"{{"event":"{}","aggregate_type":"{}","aggregate_id":"{}"{}}}"#,
+                    e.name, e.aggregate_type, e.aggregate_id, extra
                 )
             }).collect();
             ("200 OK", format!(
