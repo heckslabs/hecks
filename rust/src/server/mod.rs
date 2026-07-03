@@ -54,16 +54,39 @@ pub fn serve(rt: Runtime, port: u16) {
 }
 
 fn handle_single(mut stream: std::net::TcpStream, rt: &RefCell<Runtime>) {
-    let (method, path, body) = match read_request(&stream) {
+    let req = match read_request(&stream) {
         Some(r) => r,
         None => return,
     };
-    let (status, resp_body) = routes::route(&method, &path, &body, rt);
+    // POSTURE DEFAULT (single-file arm) : `storehouse serve <file.bluebook>`
+    // does no `.world` walk at all, so its door posture is always Open — a
+    // header-less caller stamps as System, exactly today's behavior. A
+    // governed single-file deployment would need the minimal extension of
+    // parsing a sibling `.world` next to the served bluebook ; until one
+    // materialises, governed doors are a `serve <dir>` concern (multi.rs).
+    let (status, resp_body) = routes::route(
+        &req.method, &req.path, &req.body, req.bearer.as_deref(),
+        crate::runtime::acl_readmodel::DoorPosture::Open, rt,
+    );
     write_response(&mut stream, status, &resp_body);
 }
 
-/// Read an HTTP request, return (method, path, body)
-pub fn read_request(stream: &std::net::TcpStream) -> Option<(String, String, String)> {
+/// One parsed HTTP request at the serve door. `bearer` carries the
+/// `Authorization: Bearer <token>` header value when present — the caller's
+/// auth_identity_id, stamped per REQUEST (a resident door serves many
+/// callers ; the per-process env cannot identify them). A struct rather than
+/// a widened tuple : a fourth positional Option across three call sites
+/// invites transposition bugs.
+pub struct Request {
+    pub method: String,
+    pub path: String,
+    pub body: String,
+    pub bearer: Option<String>,
+}
+
+/// Read an HTTP request — request line, the Content-Length and
+/// Authorization headers, and the body.
+pub fn read_request(stream: &std::net::TcpStream) -> Option<Request> {
     let mut reader = BufReader::new(stream);
     let mut request_line = String::new();
     if reader.read_line(&mut request_line).is_err() { return None; }
@@ -74,12 +97,24 @@ pub fn read_request(stream: &std::net::TcpStream) -> Option<(String, String, Str
     let path = parts[1].to_string();
 
     let mut content_length = 0usize;
+    let mut bearer: Option<String> = None;
     loop {
         let mut header = String::new();
         if reader.read_line(&mut header).is_err() { return None; }
         if header.trim().is_empty() { break; }
-        if header.to_lowercase().starts_with("content-length:") {
+        let lower = header.to_lowercase();
+        if lower.starts_with("content-length:") {
             content_length = header[15..].trim().parse().unwrap_or(0);
+        }
+        if lower.starts_with("authorization:") {
+            // `Authorization: Bearer <token>` — scheme is case-insensitive.
+            let value = header[14..].trim();
+            if value.len() > 7 && value[..7].eq_ignore_ascii_case("bearer ") {
+                let token = value[7..].trim();
+                if !token.is_empty() {
+                    bearer = Some(token.to_string());
+                }
+            }
         }
     }
 
@@ -91,7 +126,7 @@ pub fn read_request(stream: &std::net::TcpStream) -> Option<(String, String, Str
         String::new()
     };
 
-    Some((method, path, body))
+    Some(Request { method, path, body, bearer })
 }
 
 /// Write an HTTP response with CORS headers
@@ -105,7 +140,7 @@ pub fn write_response(stream: &mut std::net::TcpStream, status: &str, body: &str
         "HTTP/1.1 {}\r\nContent-Type: {}\r\n\
          Access-Control-Allow-Origin: *\r\n\
          Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n\
-         Access-Control-Allow-Headers: Content-Type\r\n\
+         Access-Control-Allow-Headers: Content-Type, Authorization\r\n\
          Content-Length: {}\r\n\r\n{}",
         status, content_type, body.len(), body
     );

@@ -17,7 +17,8 @@
 //!   POST /domains/:name/dispatch   Dispatch a command to a domain
 //!   GET  /domains/:name/aggregates List aggregates for a domain
 
-use crate::runtime::Runtime;
+use crate::runtime::acl_readmodel::{self, DoorPosture};
+use crate::runtime::{Runtime, Value};
 use crate::parser;
 use crate::hecksagon_parser;
 use crate::hecksagon_ir::Hecksagon;
@@ -65,6 +66,20 @@ pub fn serve_directory(dir: &str, port: u16) {
         eprintln!("  :web   : {} {} ({})", route.method, route.pattern, route.source_hecksagon);
     }
 
+    // Door posture — read from the SERVED root's OWN `.world` only (the
+    // sibling-union walk in attach_world_adapter_bindings must never decide
+    // the door : a stray sibling `.world` would flip it). Absent = Open,
+    // which keeps every existing deployment byte-identical.
+    // (world::attach is host-only fs plumbing, cfg-gated out of the wasm
+    // worker build — which never runs serve_directory ; wasm gets Open.)
+    #[cfg(not(target_arch = "wasm32"))]
+    let posture = crate::world::attach::door_posture_for_root(dir);
+    #[cfg(target_arch = "wasm32")]
+    let posture = DoorPosture::Open;
+    if posture == DoorPosture::Governed {
+        eprintln!("  door   : governed (per-request bearer principals, fail-closed)");
+    }
+
     let addr = format!("0.0.0.0:{}", port);
     let listener = TcpListener::bind(&addr).unwrap_or_else(|e| {
         eprintln!("Cannot bind {}: {}", addr, e);
@@ -72,7 +87,7 @@ pub fn serve_directory(dir: &str, port: u16) {
     });
 
     for stream in listener.incoming().flatten() {
-        handle_multi(stream, &runtimes, &registry);
+        handle_multi(stream, &runtimes, &registry, posture);
     }
 }
 
@@ -305,11 +320,14 @@ fn handle_multi(
     mut stream: std::net::TcpStream,
     runtimes: &HashMap<String, RefCell<Runtime>>,
     registry: &WebRegistry,
+    posture: DoorPosture,
 ) {
-    let (method, path, body) = match read_request(&stream) {
+    let req = match read_request(&stream) {
         Some(r) => r,
         None => return,
     };
+    let (method, path, body) = (req.method, req.path, req.body);
+    let bearer = req.bearer;
 
     // First : try the bluebook-declared :web routes. The hecksagons
     // are the source of truth for route registration (i527). When
@@ -318,8 +336,34 @@ fn handle_multi(
     // in turn ; the first whose render succeeds wins. Render returns
     // None when its serializer's preconditions don't match (e.g. the
     // graph_projection serializer can't resolve `_all` to a runtime).
+    let web_matches = registry.resolve_all(&method, &path);
+
+    // Under a GOVERNED door the :web template projections — read-only
+    // renders that BYPASS routes::route entirely — gate HERE, the earliest
+    // common point, ONCE, over the synthetic read phrase
+    // `Web::Projection.render` (no :web route declares a backing query
+    // today ; when one does, its query FQN becomes the phrase). Under an
+    // OPEN door the renders are untouched.
+    if !web_matches.is_empty() && posture == DoorPosture::Governed {
+        if let Some(rt) = gate_runtime(runtimes) {
+            let mut gate_attrs: HashMap<String, Value> = HashMap::new();
+            acl_readmodel::stamp_principal_from_request(
+                &mut gate_attrs, bearer.as_deref(), posture,
+            );
+            let verdict = rt.borrow_mut()
+                .authorize_entry("Web::Projection.render", &mut gate_attrs);
+            if let Err(e) = verdict {
+                write_response(&mut stream, "403 Forbidden", &format!(
+                    r#"{{"ok":false,"error":{},"command":"Web::Projection.render"}}"#,
+                    crate::json_helpers::json_str(&e.to_string())
+                ));
+                return;
+            }
+        }
+    }
+
     let mut served = false;
-    for (route, params) in registry.resolve_all(&method, &path) {
+    for (route, params) in web_matches {
         if let Some((content_type, body)) =
             crate::server::web_adapter::render(
                 route, &params, runtimes, &registry.served_dir, &registry.repo_root,
@@ -333,8 +377,19 @@ fn handle_multi(
     if served { return; }
 
     let seg: Vec<&str> = path.trim_matches('/').split('/').collect();
-    let (status, resp_body) = route_multi(&method, &seg, &body, runtimes);
+    let (status, resp_body) =
+        route_multi(&method, &seg, &body, bearer.as_deref(), posture, runtimes);
     write_response(&mut stream, status, &resp_body);
+}
+
+/// The runtime door-level gates run against : the primary/sole served
+/// runtime in the common governed deployment (primary-bluebook mode boots
+/// exactly one) ; alphabetically-first for determinism when several
+/// legacy-mode domains are served.
+fn gate_runtime(
+    runtimes: &HashMap<String, RefCell<Runtime>>,
+) -> Option<&RefCell<Runtime>> {
+    runtimes.keys().min().and_then(|k| runtimes.get(k))
 }
 
 fn write_response_typed(
@@ -345,7 +400,7 @@ fn write_response_typed(
         "HTTP/1.1 {}\r\nContent-Type: {}\r\n\
          Access-Control-Allow-Origin: *\r\n\
          Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n\
-         Access-Control-Allow-Headers: Content-Type\r\n\
+         Access-Control-Allow-Headers: Content-Type, Authorization\r\n\
          Content-Length: {}\r\n\r\n{}",
         status, content_type, body.len(), body
     );
@@ -354,10 +409,25 @@ fn write_response_typed(
 
 fn route_multi(
     method: &str, seg: &[&str], body: &str,
+    bearer: Option<&str>, posture: DoorPosture,
     runtimes: &HashMap<String, RefCell<Runtime>>,
 ) -> (&'static str, String) {
     match (method, seg) {
         ("OPTIONS", _) => ("204 No Content", String::new()),
+
+        // The HTML index, the domain list, and the per-domain page are
+        // introspection over the whole served universe — under a GOVERNED
+        // door they answer 403 wholesale, same ruling as routes::route's
+        // /domain / /events / /policies (readers enter through aggregate
+        // queries). Under an OPEN door they are unchanged.
+        ("GET", [""]) | ("GET", []) | ("GET", ["domains"]) | ("GET", ["domains", _])
+            if posture == DoorPosture::Governed =>
+        {
+            ("403 Forbidden", format!(
+                r#"{{"ok":false,"error":"introspection is closed under a governed door","command":{}}}"#,
+                crate::json_helpers::json_str(&format!("/{}", seg.join("/")))
+            ))
+        }
 
         ("GET", [""]) | ("GET", []) => {
             ("200 OK", html::generate_index(runtimes))
@@ -400,7 +470,7 @@ fn route_multi(
             match runtimes.get(*name) {
                 Some(rt) => {
                     let sub = format!("/{}", rest.join("/"));
-                    routes::route(method, &sub, body, rt)
+                    routes::route(method, &sub, body, bearer, posture, rt)
                 }
                 None => ("404 Not Found", format!(
                     r#"{{"error":"domain not found","name":"{}"}}"#, name

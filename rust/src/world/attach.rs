@@ -102,6 +102,44 @@ pub fn attach_world_adapter_bindings(rt: &mut Runtime, agg_dir: &str) {
     }
 }
 
+/// Client-door posture for a SERVED root — walk `agg_dir`'s OWN tree only
+/// (never the sibling repos / top-level buckets `attach_world_adapter_bindings`
+/// unions in — a stray sibling `.world` must not flip the door), parse each
+/// `.world`, and return Governed iff one declares
+/// `door do posture "governed" end`. Deterministic : paths sorted, the first
+/// world that declares a door posture wins. No block anywhere = Open, which
+/// keeps today's behavior byte-identical for every existing deployment.
+pub fn door_posture_for_root(agg_dir: &str) -> crate::runtime::acl_readmodel::DoorPosture {
+    use crate::runtime::acl_readmodel::DoorPosture;
+    let root = std::path::Path::new(agg_dir);
+    let mut stack = vec![root.to_path_buf()];
+    let mut worlds: Vec<std::path::PathBuf> = vec![];
+    while let Some(dir) = stack.pop() {
+        let Ok(entries) = fs::read_dir(&dir) else { continue };
+        for entry in entries.flatten() {
+            let p = entry.path();
+            let name = p.file_name().and_then(|n| n.to_str()).unwrap_or("");
+            if matches!(name, ".git" | "target" | "node_modules" | "data" | ".claude") {
+                continue;
+            }
+            if p.is_dir() {
+                stack.push(p);
+            } else if p.extension().map(|e| e == "world").unwrap_or(false) {
+                worlds.push(p);
+            }
+        }
+    }
+    worlds.sort();
+    for wp in &worlds {
+        let Ok(src) = fs::read_to_string(wp) else { continue };
+        let world = crate::world::parser::parse(&src);
+        if let Some(v) = world.door_posture() {
+            return DoorPosture::parse(v);
+        }
+    }
+    DoorPosture::Open
+}
+
 /// Walk `agg_dir` (and its `aggregates/` subdirectory when present) for
 /// `*.world` files that declare `heki do dir "…" end`. Returns a map of
 /// `category → canonical_heki_dir` resolved relative to each world file's

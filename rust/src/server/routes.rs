@@ -17,11 +17,14 @@
 //!   GET  /health
 
 use crate::json_helpers::*;
-use crate::runtime::Runtime;
+use crate::runtime::acl_readmodel::{self, DoorPosture};
+use crate::runtime::{Runtime, RuntimeError, Value};
 use std::cell::RefCell;
+use std::collections::HashMap;
 
 pub fn route(
-    method: &str, path: &str, body: &str, rt: &RefCell<Runtime>,
+    method: &str, path: &str, body: &str,
+    bearer: Option<&str>, posture: DoorPosture, rt: &RefCell<Runtime>,
 ) -> (&'static str, String) {
     let seg: Vec<&str> = path.trim_matches('/').split('/').collect();
 
@@ -30,40 +33,39 @@ pub fn route(
 
         ("GET", ["health"]) => ("200 OK", r#"{"status":"ok"}"#.into()),
 
+        // Raw introspection — under a GOVERNED door these answer 403
+        // wholesale : /domain and /aggregates project the whole domain
+        // shape, /events the full event log, /policies the policy chain.
+        // Readers enter through aggregate queries (the aggregate IS the
+        // conceptual layer). Under an OPEN door they are unchanged.
+        ("GET", ["domain"]) | ("GET", ["aggregates"])
+        | ("GET", ["events"]) | ("GET", ["policies"])
+            if posture == DoorPosture::Governed =>
+        {
+            forbidden_introspection(path)
+        }
+
         ("GET", ["domain"]) => {
             let rt = rt.borrow();
             ("200 OK", domain_json(&rt))
         }
 
-        ("POST", ["dispatch"]) => dispatch(body, rt),
+        ("POST", ["dispatch"]) => dispatch(body, bearer, posture, rt),
 
         // Read side — `GET /query/:verb` resolves a read-only query by
         // its snake_case verb (e.g. /query/daily_musing). Lets the blog
         // be read over HTTP, not just written : dispatch is commands,
         // this is queries.
-        ("GET", ["query", verb]) => query(verb, rt),
+        ("GET", ["query", verb]) => query(verb, bearer, posture, rt),
 
         ("GET", ["aggregates"]) => {
             let rt = rt.borrow();
             ("200 OK", domain_json(&rt))
         }
 
-        ("GET", ["aggregates", name]) => {
-            let rt = rt.borrow();
-            ("200 OK", aggregates_json(&rt, name))
-        }
+        ("GET", ["aggregates", name]) => all_records(name, bearer, posture, rt),
 
-        ("GET", ["aggregates", name, id]) => {
-            let rt = rt.borrow();
-            match rt.find(name, id) {
-                Some(s) => ("200 OK", format!(
-                    r#"{{"id":"{}",{}}}"#, s.id, value_map_to_json(&s.fields)
-                )),
-                None => ("404 Not Found", format!(
-                    r#"{{"error":"not found","aggregate":"{}","id":"{}"}}"#, name, id
-                )),
-            }
-        }
+        ("GET", ["aggregates", name, id]) => find_record(name, id, bearer, posture, rt),
 
         ("GET", ["events"]) => {
             let rt = rt.borrow();
@@ -79,28 +81,115 @@ pub fn route(
     }
 }
 
-/// Resolve a read-only query by its verb — matched against each
-/// aggregate's query names by exact or snake_case form (so `daily_musing`
-/// finds the `DailyMusing` query). Returns the query's JSON result.
-pub fn query(verb: &str, rt: &RefCell<Runtime>) -> (&'static str, String) {
+/// Wholesale 403 for a raw introspection route under a governed door.
+fn forbidden_introspection(path: &str) -> (&'static str, String) {
+    ("403 Forbidden", format!(
+        r#"{{"ok":false,"error":"introspection is closed under a governed door","command":{}}}"#,
+        json_str(path)
+    ))
+}
+
+/// Gate a READ at the HTTP door : stamp the caller principal from the
+/// REQUEST (bearer + posture) into a SEPARATE gate_attrs map — never the
+/// query params — and run the standing before-gates over the read phrase
+/// (the warm-serve is_query recipe). `authorize_entry` is `&mut self` (it
+/// records denials as governed Violations), so the mutable borrow is taken
+/// HERE and dropped before the caller borrows for the read itself.
+/// Deny -> Some(403 response) ; the resident server NEVER exits on a denial.
+fn authorize_read(
+    rt: &RefCell<Runtime>, phrase: &str, bearer: Option<&str>, posture: DoorPosture,
+) -> Option<(&'static str, String)> {
+    let mut gate_attrs: HashMap<String, Value> = HashMap::new();
+    acl_readmodel::stamp_principal_from_request(&mut gate_attrs, bearer, posture);
+    let verdict = rt.borrow_mut().authorize_entry(phrase, &mut gate_attrs);
+    match verdict {
+        Ok(()) => None,
+        Err(e) => Some(("403 Forbidden", format!(
+            r#"{{"ok":false,"error":{},"command":{}}}"#,
+            json_str(&e.to_string()), json_str(phrase)
+        ))),
+    }
+}
+
+/// `GET /aggregates/:name` — every record of one aggregate. Enters through
+/// the aggregate's read surface, so it gates as `<Aggregate>.state` like the
+/// by-id read (the cold `state` subcommand precedent).
+fn all_records(
+    name: &str, bearer: Option<&str>, posture: DoorPosture, rt: &RefCell<Runtime>,
+) -> (&'static str, String) {
+    if let Some(denied) = authorize_read(rt, &format!("{}.state", name), bearer, posture) {
+        return denied;
+    }
     let rt = rt.borrow();
-    let qname = rt.domain.aggregates.iter()
-        .flat_map(|a| a.queries.iter())
-        .find(|q| q.name == verb || crate::util::snake_case(&q.name) == verb)
-        .map(|q| q.name.clone());
-    match qname {
-        Some(name) => {
-            let result = rt.resolve_query(&name, &std::collections::HashMap::new());
-            ("200 OK", result.to_string())
-        }
+    ("200 OK", aggregates_json(&rt, name))
+}
+
+/// `GET /aggregates/:name/:id` — one record by id. Gates as
+/// `<Aggregate>.state` (the cold `state` subcommand precedent).
+fn find_record(
+    name: &str, id: &str, bearer: Option<&str>, posture: DoorPosture, rt: &RefCell<Runtime>,
+) -> (&'static str, String) {
+    if let Some(denied) = authorize_read(rt, &format!("{}.state", name), bearer, posture) {
+        return denied;
+    }
+    let rt = rt.borrow();
+    match rt.find(name, id) {
+        Some(s) => ("200 OK", format!(
+            r#"{{"id":"{}",{}}}"#, s.id, value_map_to_json(&s.fields)
+        )),
         None => ("404 Not Found", format!(
-            r#"{{"error":"unknown query","verb":"{}"}}"#, verb
+            r#"{{"error":"not found","aggregate":"{}","id":"{}"}}"#, name, id
         )),
     }
 }
 
-pub fn dispatch(body: &str, rt: &RefCell<Runtime>) -> (&'static str, String) {
-    let (cmd, attrs) = parse_dispatch_body(body);
+/// Resolve a read-only query by its verb — matched against each
+/// aggregate's query names by exact or snake_case form (so `daily_musing`
+/// finds the `DailyMusing` query). The read is GATED before it resolves :
+/// the phrase is the query's own FQN (`<Context>::<Aggregate>.<snake_verb>`,
+/// context falling back to the domain name), mirroring the warm-serve
+/// is_query recipe. Returns the query's JSON result.
+pub fn query(
+    verb: &str, bearer: Option<&str>, posture: DoorPosture, rt: &RefCell<Runtime>,
+) -> (&'static str, String) {
+    // Resolve the verb under a SHORT immutable borrow, dropped before the
+    // gate needs `&mut` (the borrow trap : this fn used to hold rt.borrow()
+    // across its whole body ; authorize_entry records Violations, so it
+    // needs borrow_mut).
+    let target = {
+        let rt = rt.borrow();
+        rt.domain.aggregates.iter()
+            .flat_map(|a| a.queries.iter().map(move |q| (a, q)))
+            .find(|(_, q)| q.name == verb || crate::util::snake_case(&q.name) == verb)
+            .map(|(a, q)| {
+                let ctx = a.context.clone().unwrap_or_else(|| rt.domain.name.clone());
+                let phrase = format!(
+                    "{}::{}.{}", ctx, a.name, crate::util::snake_case(&q.name)
+                );
+                (q.name.clone(), phrase)
+            })
+    };
+    let Some((qname, phrase)) = target else {
+        return ("404 Not Found", format!(
+            r#"{{"error":"unknown query","verb":"{}"}}"#, verb
+        ));
+    };
+    if let Some(denied) = authorize_read(rt, &phrase, bearer, posture) {
+        return denied;
+    }
+    let rt = rt.borrow();
+    let result = rt.resolve_query(&qname, &std::collections::HashMap::new());
+    ("200 OK", result.to_string())
+}
+
+pub fn dispatch(
+    body: &str, bearer: Option<&str>, posture: DoorPosture, rt: &RefCell<Runtime>,
+) -> (&'static str, String) {
+    let (cmd, mut attrs) = parse_dispatch_body(body);
+    // Stamp the caller principal from the REQUEST onto the dispatch attrs ;
+    // rt.dispatch runs the before-gates internally and strips the reserved
+    // keys, exactly like the warm-serve command branch.
+    acl_readmodel::stamp_principal_from_request(&mut attrs, bearer, posture);
     let mut rt = rt.borrow_mut();
     // Snapshot the event log before dispatch ; everything after this
     // index is the full cascade fired by this command (i527 — the
@@ -128,6 +217,12 @@ pub fn dispatch(body: &str, rt: &RefCell<Runtime>) -> (&'static str, String) {
                 r.aggregate_type, r.aggregate_id, evt, cascade.join(",")
             ))
         }
+        // A denial is 403 with a JSON body (it used to collapse into the
+        // generic 422) ; the resident server answers and keeps serving.
+        Err(e @ RuntimeError::Unauthorized { .. }) => ("403 Forbidden", format!(
+            r#"{{"ok":false,"error":{},"command":{}}}"#,
+            json_str(&e.to_string()), json_str(&cmd)
+        )),
         Err(e) => ("422 Unprocessable Entity", format!(
             r#"{{"ok":false,"error":"{}"}}"#, e
         )),

@@ -106,6 +106,56 @@ pub fn stamp_system(attrs: &mut HashMap<String, Value>) {
     attrs.insert(KIND_KEY.to_string(), Value::Str("system".to_string()));
 }
 
+/// The HTTP serve door's posture — a per-deployment `.world` `door` block
+/// value (`door do posture "governed" end`). `Open` (the default, and what an
+/// absent block means) keeps today's behavior byte-identical : a header-less
+/// caller stamps as System, admitted by origin — Miette's local studio
+/// unbroken. `Governed` is what a shipped client deployment declares : a
+/// header-less caller stamps as an identity-LESS Agent and fails closed at
+/// the gate, and the raw introspection routes answer 403 wholesale.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum DoorPosture {
+    #[default]
+    Open,
+    Governed,
+}
+
+impl DoorPosture {
+    /// Parse a `.world` `door` block's `posture` value. Only the ratified
+    /// "governed" flips the door ; anything else (including absence) is Open.
+    pub fn parse(s: &str) -> DoorPosture {
+        if s == "governed" { DoorPosture::Governed } else { DoorPosture::Open }
+    }
+}
+
+/// Stamp the caller principal from an HTTP REQUEST (the resident serve door).
+/// Per-REQUEST where `stamp_principal_from_env` is per-PROCESS — one warm
+/// HTTP server serves MANY callers, so the `Authorization: Bearer <token>`
+/// header carries the caller's identity. The bearer IS the auth_identity_id
+/// (first cut) ; opaque-token / JWT-sub mapping arrives with the future
+/// Session chapter. Same reserved keys, explicit source :
+///   Some(token)      -> agent (RBAC resolves its role)
+///   None + Open      -> system (today's behavior, admitted by origin)
+///   None + Governed  -> agent with NO identity -> fails closed at the gate
+pub fn stamp_principal_from_request(
+    attrs: &mut HashMap<String, Value>,
+    bearer: Option<&str>,
+    posture: DoorPosture,
+) {
+    match bearer {
+        Some(token) => {
+            attrs.insert(KIND_KEY.to_string(), Value::Str("agent".to_string()));
+            attrs.insert(AUTH_KEY.to_string(), Value::Str(token.to_string()));
+        }
+        None => match posture {
+            DoorPosture::Open => stamp_system(attrs),
+            DoorPosture::Governed => {
+                attrs.insert(KIND_KEY.to_string(), Value::Str("agent".to_string()));
+            }
+        },
+    }
+}
+
 /// In-memory RBAC read-model. Built from `Authorization::RoleAssignment`
 /// aggregate state — never from Agent, which carries no auth surface since
 /// the Phase 4 decouple.

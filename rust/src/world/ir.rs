@@ -133,6 +133,16 @@ impl World {
         self.config_for("persistence").and_then(|c| c.get("strict")) == Some("true")
     }
 
+    /// Client-door posture — `door do posture "governed" end` in a `.world`
+    /// declares the HTTP serve door GOVERNED for this deployment (per-request
+    /// bearer principals, fail-closed without one, introspection closed).
+    /// Absent block = open (today's behavior). Read from the SERVED root's
+    /// own `.world` only — see `attach::door_posture_for_root` for why the
+    /// sibling-union walk must never decide the door.
+    pub fn door_posture(&self) -> Option<&str> {
+        self.config_for("door").and_then(|c| c.get("posture"))
+    }
+
     /// Look up an MCP server declaration by name (i610). Trims a leading
     /// `:` so both `:gmail` and `gmail` answer — same rule the dispatcher's
     /// `resolve_server_spawn` follows for the `server` adapter field.
