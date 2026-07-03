@@ -1618,7 +1618,7 @@ impl Runtime {
         // reentrancy guard breaks cyclic cascades (a re-entrant policy within
         // this pump session is skipped) ; in_flight is not cleared here — the
         // fork-per-dispatch process boundary resets it.
-        let policy_resolved: Vec<(String, HashMap<String, Value>)> = self
+        let policy_resolved: Vec<(String, HashMap<String, Value>, HashMap<String, Value>)> = self
             .policy_engine
             .react(&event)
             .into_iter()
@@ -1627,10 +1627,10 @@ impl Runtime {
                 for (k, v) in &t.with_data {
                     data.insert(k.clone(), v.clone());
                 }
-                (t.command_name.clone(), data)
+                (t.command_name.clone(), data, t.with_data)
             })
             .collect();
-        for (cmd, mut data) in policy_resolved {
+        for (cmd, mut data, with_data) in policy_resolved {
             // inject_refs matches the BARE command name (DropPendingTaskCount),
             // not the FQN (Story.DropPendingTaskCount) the policy binding carries.
             // Strip the aggregate prefix so the reference_to target resolves into
@@ -1639,6 +1639,19 @@ impl Runtime {
             // from the real upstream inside dispatch_inner instead).
             let bare = cmd.rsplit('.').next().unwrap_or(&cmd).to_string();
             self.inject_refs(&bare, &event.aggregate_type, &event.aggregate_id, &mut data);
+            // A policy's explicit `with` pairs are INTENT, never upstream leak —
+            // re-assert them AFTER inject_refs, whose identified_by heuristic
+            // (i151 leak-removal) strips an identity key that names a record not
+            // existing yet. An establishment cascade (the authz roster on
+            // BootCompleted) supplies exactly such a key to CREATE the record ;
+            // without this re-assert the outbox payload lost auth_identity_id /
+            // id and the roster collapsed into one junk counter-minted row
+            // (FINDING-keystone-dead-path). The eager path never stripped them :
+            // fire_policy_cascade passes the QUALIFIED command name, which
+            // inject_refs doesn't match — this aligns the outbox path with it.
+            for (k, v) in with_data {
+                data.insert(k, v);
+            }
             let mut obj = serde_json::Map::new();
             for (k, v) in &data {
                 obj.insert(k.clone(), value_to_json(v));

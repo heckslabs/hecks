@@ -403,6 +403,21 @@ fn main() {
         std::process::exit(storehouse::run::run_script(&args));
     }
 
+    // `storehouse establish <root> [being=<Name>]`
+    //
+    // The boot-establishment keystone as a first-class verb
+    // (FINDING-keystone-dead-path, Option A) : resolve the boot domain
+    // (runtime/boot/bluebook/boot.bluebook in the root's repo, the same
+    // bluebook the Procfile `boot:` member runs), load the corpus at <root>,
+    // route BootCompleted through the corpus-loaded policy engine, and
+    // PERSIST the establishment writes (the authz roster, every future
+    // establishment policy) to the root's world store. Idempotent —
+    // establishment targets upsert on natural keys. Thin by design : the
+    // logic lives in storehouse::run_boot::complete.
+    if command == "establish" {
+        std::process::exit(run_establish(&args));
+    }
+
     // `storehouse loop <agg-dir-or-bluebook> <Aggregate.Command> --every <duration> [key=val ...]`
     //
     // Cadence-loop primitive (i76). Boots the runtime once and dispatches
@@ -6665,6 +6680,59 @@ fn resolve_home(_being: &str) -> String {
     ".".into()
 }
 
+/// `storehouse establish <root> [being=<Name>]` — CLI glue for the
+/// boot-establishment keystone verb. Resolves the boot bluebook in the
+/// root's repo, parses it (+ companion hecksagon) exactly as `storehouse
+/// run` would, and hands off to `run_boot::complete::establish`, which
+/// routes BootCompleted through the corpus policy engine and persists the
+/// establishment writes to the root's world store.
+fn run_establish(args: &[String]) -> i32 {
+    let Some(root) = args.get(2) else {
+        eprintln!("Usage: storehouse establish <root> [being=<Name>]");
+        return 1;
+    };
+    if !std::path::Path::new(root).is_dir() {
+        eprintln!("storehouse establish: root {} is not a directory", root);
+        return 1;
+    }
+    // The boot domain lives in the root's REPO, not under the root itself :
+    // the Procfile boot member runs `storehouse run
+    // <repo>/runtime/boot/bluebook/boot.bluebook`, so walk up from the root
+    // until that path appears — mirroring how the deployed boot obtains it.
+    let Some(boot_path) = find_boot_bluebook(root) else {
+        eprintln!(
+            "storehouse establish: no runtime/boot/bluebook/boot.bluebook found walking \
+             up from {} — cannot resolve the boot domain that emits BootCompleted",
+            root
+        );
+        return 1;
+    };
+    let (boot_domain, hex) = match storehouse::run::load_script(&boot_path) {
+        Ok(x) => x,
+        Err(e) => return e.code(),
+    };
+    let being = args.iter().skip(3)
+        .find_map(|a| a.strip_prefix("being=").map(String::from))
+        .unwrap_or_else(|| "Miette".to_string());
+    storehouse::run_boot::complete::establish(root, boot_domain, vec![hex], &being)
+}
+
+/// Walk up from `root` looking for `runtime/boot/bluebook/boot.bluebook` —
+/// the repo-anchored home of the boot pipeline (the conception root is a
+/// child of the repo, so the first hit is normally one level up).
+fn find_boot_bluebook(root: &str) -> Option<String> {
+    let mut dir = std::fs::canonicalize(root).ok()?;
+    loop {
+        let candidate = dir.join("runtime/boot/bluebook/boot.bluebook");
+        if candidate.is_file() {
+            return Some(candidate.to_string_lossy().into_owned());
+        }
+        if !dir.pop() {
+            return None;
+        }
+    }
+}
+
 fn print_usage() {
     eprintln!("storehouse — the Bluebook compiler and runtime\n");
     eprintln!("Usage: storehouse <command> <bluebook-file> [options]\n");
@@ -6675,6 +6743,7 @@ fn print_usage() {
     eprintln!("  tree       Tree view of aggregates and commands");
     eprintln!("  list       Summary list of aggregates and commands");
     eprintln!("  run        Execute a bluebook as an executable (shebang-run)");
+    eprintln!("  establish  Route BootCompleted through the corpus policy engine (seed establishment state)");
     eprintln!("  repl       Boot runtime with interactive REPL (legacy `run`)");
     eprintln!("  serve      Boot runtime as HTTP JSON API (file or directory)");
     eprintln!("  conceive   Generate a new domain from corpus archetypes");
