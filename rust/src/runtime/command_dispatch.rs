@@ -436,6 +436,131 @@ pub fn canonical_for_log(rt: &Runtime, command_name: &str) -> String {
     command_name.to_string()
 }
 
+/// The canonical strings an authorization gate matches a policy against —
+/// derived from the RESOLVED target, NEVER the caller's raw input, so a BARE
+/// dispatch (`PlaceOrder`) and a fully-qualified one (`Pizzas::Order.PlaceOrder`)
+/// of the SAME command yield IDENTICAL forms and therefore the IDENTICAL gate
+/// verdict. This is the forbid-bypass fix (SECURITY-gate-matches-raw-not-fqn,
+/// 2026-07-03) : before it, `evaluate_policy` matched the policy `action`
+/// pattern against whatever the caller typed, so a namespace-scoped
+/// `forbid Pizzas::Order.*` was escaped by dispatching the bare verb (which
+/// never prefix-matched the pattern) and a namespace `permit Pizzas::*` wrongly
+/// failed a bare-verb caller.
+/// [antibody-exempt: rust/src/runtime/command_dispatch.rs (canonical_action) —
+///  kernel-floor authz gate, security fix, authorized by Chris 2026-07-03]
+///
+/// `action_forms` is matched against the policy `action` ; `resource_forms`
+/// against `resource`. A form SET (not a single string) keeps BOTH legacy
+/// authoring conventions matching after canonicalisation — a bare-verb policy
+/// (`Open`, `List`) AND a qualified one (`AuthzDemo::Vault.list`) — while every
+/// form is resolution-derived, so parity across dispatch shapes holds. An
+/// unresolvable phrase (the synthetic `<Aggregate>.state` reads, or genuine
+/// junk) falls back to the raw string : nothing that fails to resolve can
+/// dispatch anyway, so the raw fallback can never reopen the bypass, and
+/// deny-by-default still bites an unknown verb.
+pub(crate) struct CanonicalAction {
+    pub action_forms: Vec<String>,
+    pub resource_forms: Vec<String>,
+}
+
+pub(crate) fn canonical_action(rt: &Runtime, name: &str) -> CanonicalAction {
+    // Command first — the dispatch path's OWN resolver, so the gate keys on
+    // exactly what would execute.
+    if let Ok(res) = resolve(rt, name, None) {
+        let agg = &rt.domain.aggregates[res.agg_idx()];
+        let verb = cmd_for(rt, res).name.clone();
+        return canon_forms(agg, &verb);
+    }
+    // Then a query — by exact or snake_case verb, refusing on a homonym (an
+    // ambiguous verb keeps the raw fallback rather than guess an aggregate).
+    if let Some((agg, verb)) = resolve_query_agg(rt, name) {
+        return canon_forms(agg, &verb);
+    }
+    // Unresolvable — keep the raw phrase and its tail so synthetic reads
+    // (`Vault.state`) and any bare form still match a policy authored on them.
+    // Resource mirrors the pre-fix derivation exactly : the head before the
+    // last `.`, or the whole name when bare — never empty, so a `resource: *`
+    // policy still matches (the `explain` dry path resolves no domain).
+    let verb = name.rsplit('.').next().unwrap_or(name).to_string();
+    let resource = name.rsplit_once('.').map(|(h, _)| h).unwrap_or(name);
+    CanonicalAction {
+        action_forms: dedup_nonempty(vec![name.to_string(), verb]),
+        resource_forms: dedup_nonempty(vec![resource.to_string()]),
+    }
+}
+
+/// Build the action/resource form set for a RESOLVED (aggregate, verb). The
+/// `Domain` segment is the aggregate's bluebook context (falling back to its
+/// category), mirroring `Domain::Aggregate.verb` — the shape a policy is
+/// authored against and the one `parse_fqn` reads back.
+fn canon_forms(agg: &crate::ir::Aggregate, verb: &str) -> CanonicalAction {
+    let verb_snake = crate::util::snake_case(verb);
+    let domain = agg
+        .context
+        .clone()
+        .or_else(|| agg.category.clone())
+        .unwrap_or_default();
+    let mut action_forms = Vec::new();
+    let mut resource_forms = vec![agg.name.clone()];
+    if domain.is_empty() {
+        // No context to anchor a 2-seg FQN — expose the verb forms alone.
+        action_forms.push(verb.to_string());
+        action_forms.push(verb_snake);
+    } else {
+        let resource_fqn = format!("{}::{}", domain, agg.name);
+        action_forms.push(format!("{}.{}", resource_fqn, verb));
+        action_forms.push(format!("{}.{}", resource_fqn, verb_snake));
+        action_forms.push(verb.to_string());
+        action_forms.push(verb_snake);
+        resource_forms.push(resource_fqn);
+    }
+    CanonicalAction {
+        action_forms: dedup_nonempty(action_forms),
+        resource_forms: dedup_nonempty(resource_forms),
+    }
+}
+
+/// Find the single aggregate declaring `name`'s verb as a query — exact or
+/// snake_case. `name` may be bare (`List`) or qualified (`AuthzDemo::Vault.list`) ;
+/// when qualified the intended aggregate name disambiguates a homonym. Returns
+/// None on no match OR ambiguity (the caller keeps the raw fallback).
+fn resolve_query_agg<'a>(
+    rt: &'a Runtime,
+    name: &str,
+) -> Option<(&'a crate::ir::Aggregate, String)> {
+    let verb = name.rsplit('.').next().unwrap_or(name);
+    let want_agg = if name.contains('.') {
+        parse_fqn(name).ok().map(|(_d, target, _c)| target)
+    } else {
+        None
+    };
+    let mut hit: Option<(&crate::ir::Aggregate, String)> = None;
+    for agg in rt.domain.aggregates.iter() {
+        if let Some(ref want) = want_agg {
+            if &agg.name != want {
+                continue;
+            }
+        }
+        for q in agg.queries.iter() {
+            if q.name == verb || crate::util::snake_case(&q.name) == verb {
+                if hit.is_some() {
+                    return None; // homonym — refuse, keep raw fallback
+                }
+                hit = Some((agg, q.name.clone()));
+            }
+        }
+    }
+    hit
+}
+
+fn dedup_nonempty(v: Vec<String>) -> Vec<String> {
+    let mut seen = std::collections::HashSet::new();
+    v.into_iter()
+        .filter(|s| !s.is_empty())
+        .filter(|s| seen.insert(s.clone()))
+        .collect()
+}
+
 /// Decide whether a multi-hit resolution is AMBIGUOUS — the pure core of the
 /// FQN flip, extracted so it is unit-testable without a Runtime. A dispatch
 /// that OMITTED its realm (`realm_omitted`) and resolves to >1 DISTINCT

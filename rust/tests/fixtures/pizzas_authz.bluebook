@@ -1,0 +1,35 @@
+Hecks.bluebook "Pizzas" do
+  vision "Two-aggregate fixture for the authz FQN-resolution regression. Order and Pizza carry NO role, so the standing rbac gate passes them through and the externalized `authorize` PDP is the sole decider — letting a test isolate whether a BARE dispatch and a fully-qualified one of the same command reach the IDENTICAL verdict (SECURITY-gate-matches-raw-not-fqn)."
+  category "examples"
+
+  aggregate "Order", "A pizza order, gated purely by the Authorization PDP." do
+    identified_by :ref
+    attribute :ref, ORef
+    value_object "ORef" do
+      attribute :value, String
+    end
+    command "PlaceOrder" do
+      description "Place an order. Authorized only by the PDP, not a per-command role."
+      attribute :ref, ORef
+      then_set :ref, to: :ref
+      emits "OrderPlaced"
+    end
+  end
+
+  aggregate "Pizza", "A pizza on the menu, gated purely by the Authorization PDP." do
+    identified_by :name
+    attribute :name, PName
+    value_object "PName" do
+      attribute :value, String
+    end
+    command "CreatePizza" do
+      description "Create a pizza. Authorized only by the PDP, not a per-command role."
+      attribute :name, PName
+      then_set :name, to: :name
+      emits "PizzaCreated"
+    end
+    query "Menu" do
+      description "List the pizzas on the menu — a role-LESS read, so the authorize PDP gate is the sole decider for the query path."
+    end
+  end
+end

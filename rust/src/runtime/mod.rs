@@ -901,10 +901,16 @@ impl Runtime {
     /// here would break BOTH (a vacuous explain for System AND the lockout proof
     /// moving off the gate side).
     fn evaluate_policy(&self, auth_id: &str, role: &str, command_name: &str) -> PolicyOutcome {
-        let resource = command_name
-            .rsplit_once('.')
-            .map(|(r, _)| r)
-            .unwrap_or(command_name);
+        // FQN-resolve the action to the SAME canonical target the dispatch path
+        // would execute, then match the policy against the resolution-derived
+        // form SET — so a BARE and a fully-qualified dispatch of one command
+        // yield the IDENTICAL verdict. Closes the namespace-forbid bypass
+        // (SECURITY-gate-matches-raw-not-fqn, 2026-07-03) : matching the raw
+        // caller string let `forbid Pizzas::Order.*` be escaped by the bare
+        // verb. `resource` is aligned to the same canonical the same way.
+        // [antibody-exempt: rust/src/runtime/mod.rs (evaluate_policy) —
+        //  kernel-floor authz gate, security fix, authorized by Chris 2026-07-03]
+        let canon = command_dispatch::canonical_action(self, command_name);
         let now = crate::clock::now_iso();
         let mut matched: Vec<String> = Vec::new();
         let mut permitted = false;
@@ -920,8 +926,14 @@ impl Runtime {
             let a = Self::value_field(st.get("action"));
             let r = Self::value_field(st.get("resource"));
             let p_match = p == "*" || p == auth_id || (!role.is_empty() && p == role);
-            let a_match = middleware::pattern_matches(&a, command_name);
-            let r_match = middleware::pattern_matches(&r, resource);
+            let a_match = canon
+                .action_forms
+                .iter()
+                .any(|f| middleware::pattern_matches(&a, f));
+            let r_match = canon
+                .resource_forms
+                .iter()
+                .any(|f| middleware::pattern_matches(&r, f));
             if !(p_match && a_match && r_match) {
                 continue;
             }
