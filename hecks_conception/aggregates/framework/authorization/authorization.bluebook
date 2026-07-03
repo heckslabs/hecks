@@ -109,4 +109,189 @@ Hecks.bluebook "Authorization", version: "2026.06.27.1" do
       transition "Retire" => "retired", from: "active"
     end
   end
+
+  aggregate "RoleAssignment", "RBAC's identity→role, owned by the authorization context — never by a domain aggregate. One record per auth identity (identified_by :auth_identity_id ; Assign upserts on it). The gate's AclReadModel hydrates auth_identity_id → role_name from the active set, then exact-matches the role against Policy principals. This is where the Agent domain's auth surface moved in the Phase 4 decouple (2026-07-02) : a principal — client-app user, API key, agent — holds a role without any domain carrying auth." do
+    identified_by :auth_identity_id
+
+    attribute :auth_identity_id, AuthIdentityId
+    attribute :role_name,        RoleName
+    attribute :status,           Status, default: "active"
+
+    value_object "AuthIdentityId" do
+      # The principal's stable identity — an OIDC sub, an agent's stamped
+      # HECKS_SESSION_AUTH_ID, an API-key id. The natural key : one
+      # assignment per identity, so a duplicate is structurally
+      # unrepresentable (replacing the read-model's old last-wins-by-
+      # iteration over Agent rows).
+      attribute :value, String
+    end
+    value_object "RoleName" do
+      # The role this identity fills — matched EXACTLY against Policy
+      # principals by the gate (no inheritance, per the RBAC→PDP
+      # consolidation). Roles keep RBAC ; sub keeps direct grants.
+      attribute :value, String
+    end
+    value_object "Status" do
+      attribute :value, String, enum: ["active", "retired"]
+    end
+
+    command "Assign" do
+      role "Framework"
+      description "Assign (upsert by auth identity) a role to a principal. Re-assigning replaces the role — the audit trail keeps both events. Idempotent : the roster re-asserts each boot."
+      attribute :auth_identity_id, AuthIdentityId
+      attribute :role_name,        RoleName
+      then_set :auth_identity_id, to: :auth_identity_id
+      then_set :role_name,        to: :role_name
+      then_set :status,           to: "active"
+      emits "Assigned"
+    end
+
+    command "Retire" do
+      role "Framework"
+      description "Retire an assignment — revoke the principal's role. Fail closed : a retired assignment resolves to NO role, so the principal is deny-by-default at the gate on the next re-hydrate."
+      reference_to(RoleAssignment)
+      given("assignment must currently be active") { status == "active" }
+      then_set :status, to: "retired"
+      emits "AssignmentRetired"
+    end
+
+    query "Active" do
+      description "Every active assignment — the set the gate's AclReadModel hydrates into auth_identity_id → role_name (at boot, on a RoleAssignment lifecycle dispatch, and after the boot-completion cascade settles)."
+      where status: "active"
+    end
+
+    lifecycle :status, default: "active" do
+      transition "Assign" => "active",  from: ["active"]
+      transition "Retire" => "retired", from: "active"
+    end
+  end
+
+  # ============================================================
+  # THE ROSTER — who this deployment's principals are
+  # ============================================================
+  #
+  # Establishment policies that self-seed the standing authz state at
+  # boot. On BootCompleted (the genesis event) each policy re-asserts a
+  # RoleAssignment or a Policy rule via the EXISTING commands above +
+  # `with` literals : order-independent and idempotent, because every
+  # target upserts on its natural key (RoleAssignment on
+  # auth_identity_id, Policy on id). No domain bluebook is touched, no
+  # new field, no new runtime capability — the keystone (BootCompleted
+  # through the policy engine) fires these exactly as it fires
+  # boot.bluebook's StartStudioOnComplete. They live at this bluebook's
+  # top level, beside the aggregates they trigger, so the single-file
+  # validator resolves every trigger.
+  #
+  # Type-shaped : agents of the same TYPE share a ROLE, and permits are
+  # authored per role, never per identity. pr-agent stands alone ;
+  # workflow-subagent + sidequest are two identities sharing the
+  # workflow-subagent role — the role layer exercised, not decorative
+  # (retire ONE assignment to revoke ONE being ; retire the role's
+  # permits to revoke the type). The operator and the drivers/clocks
+  # stay System : admitted by origin, never rostered.
+  #
+  # Grants are least-privilege by construction : deny-by-default means
+  # the permits below are the ENTIRE surface an agent principal can
+  # touch. Tools::* is the working surface ; Authorization::* and
+  # Governance::* are explicitly forbidden (forbid-overrides-permit)
+  # so no future broad permit can accidentally open the control plane.
+  #
+  # LATENT (Q3 two-step) : the roster authors records, but no launcher
+  # stamps HECKS_SESSION_AUTH_ID yet — no real agent dispatches as
+  # governed until the separate, reversible env cutover.
+
+  # ── Role assignments (upsert on auth_identity_id) ──────────────
+
+  policy "RosterAssignPrAgent" do
+    on "BootCompleted"
+    trigger "RoleAssignment.Assign"
+    with "auth_identity_id", "pr-agent"
+    with "role_name", "pr-agent"
+  end
+
+  policy "RosterAssignWorkflowSubagent" do
+    on "BootCompleted"
+    trigger "RoleAssignment.Assign"
+    with "auth_identity_id", "workflow-subagent"
+    with "role_name", "workflow-subagent"
+  end
+
+  # sidequest shares the workflow-subagent ROLE — two identities, one
+  # role : the grouping RBAC exists for.
+  policy "RosterAssignSidequest" do
+    on "BootCompleted"
+    trigger "RoleAssignment.Assign"
+    with "auth_identity_id", "sidequest"
+    with "role_name", "workflow-subagent"
+  end
+
+  # ── pr-agent grants (upsert on Policy id) ─────────────────────
+
+  policy "RosterPermitPrAgentTools" do
+    on "BootCompleted"
+    trigger "Policy.Permit"
+    with "id", "roster-pr-agent-tools"
+    with "principal", "pr-agent"
+    with "action", "Tools::*"
+    with "resource", "*"
+    with "condition", "-"
+    with "expires_at", "-"
+  end
+
+  policy "RosterForbidPrAgentAuthz" do
+    on "BootCompleted"
+    trigger "Policy.Forbid"
+    with "id", "roster-pr-agent-no-authz"
+    with "principal", "pr-agent"
+    with "action", "Authorization::*"
+    with "resource", "*"
+    with "condition", "-"
+    with "expires_at", "-"
+  end
+
+  policy "RosterForbidPrAgentGovernance" do
+    on "BootCompleted"
+    trigger "Policy.Forbid"
+    with "id", "roster-pr-agent-no-governance"
+    with "principal", "pr-agent"
+    with "action", "Governance::*"
+    with "resource", "*"
+    with "condition", "-"
+    with "expires_at", "-"
+  end
+
+  # ── workflow-subagent grants (cover sidequest too, by role) ──────
+
+  policy "RosterPermitWorkflowSubagentTools" do
+    on "BootCompleted"
+    trigger "Policy.Permit"
+    with "id", "roster-workflow-subagent-tools"
+    with "principal", "workflow-subagent"
+    with "action", "Tools::*"
+    with "resource", "*"
+    with "condition", "-"
+    with "expires_at", "-"
+  end
+
+  policy "RosterForbidWorkflowSubagentAuthz" do
+    on "BootCompleted"
+    trigger "Policy.Forbid"
+    with "id", "roster-workflow-subagent-no-authz"
+    with "principal", "workflow-subagent"
+    with "action", "Authorization::*"
+    with "resource", "*"
+    with "condition", "-"
+    with "expires_at", "-"
+  end
+
+  policy "RosterForbidWorkflowSubagentGovernance" do
+    on "BootCompleted"
+    trigger "Policy.Forbid"
+    with "id", "roster-workflow-subagent-no-governance"
+    with "principal", "workflow-subagent"
+    with "action", "Governance::*"
+    with "resource", "*"
+    with "condition", "-"
+    with "expires_at", "-"
+  end
 end

@@ -48,9 +48,11 @@ Hecks.bluebook "Role", version: "2026.05.12.1" do
   #
   # ── Companion bluebooks ───────────────────────────────────────
   #
-  # agent.bluebook — Agent is the being that fills the Role. Bind links
-  #                  an Agent to a Role by its name (Role.identified_by
-  #                  :name).
+  # agent.bluebook — Agent is the being that fills the Role. Since the
+  #                  Phase 4 decouple (2026-07-02) the identity↔role
+  #                  binding lives in Authorization::RoleAssignment
+  #                  (keyed by auth_identity_id, naming Role by its
+  #                  natural key) — Agent carries no binding.
   # storehouse/lexicon.bluebook — Lexicon's Phrase is the same dotted
   #                  Aggregate.Command form Role permissions reference.
   #                  When permission validation lands, it'll resolve
@@ -164,7 +166,7 @@ Hecks.bluebook "Role", version: "2026.05.12.1" do
 
     command "Retire" do
       role "Framework"
-      description "Mark a Role as retired. Bound Agents are unbound on the next Bind ; cascades already in flight complete with the retired Role attribution intact."
+      description "Mark a Role as retired. Revoke access by retiring the RoleAssignments that name it in the Authorization context ; cascades already in flight complete with the retired Role attribution intact."
       reference_to(Role)
       emits "Retired"
     end

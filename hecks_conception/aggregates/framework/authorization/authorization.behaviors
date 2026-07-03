@@ -45,7 +45,54 @@ Hecks.behaviors "Authorization" do
   test "Active excludes a retired rule" do
     tests "Active", on: "Policy", kind: :query
     setup  "Permit", id: "p4", principal: "editor", action: "Doc.Edit", resource: "Doc", condition: "-", expires_at: "-"
-    setup  "Retire", id: "p4"
+    setup  "Policy.Retire", id: "p4"
+    expect count: 0
+  end
+
+  # ── RoleAssignment : identity→role, decoupled from Agent (Phase 4) ────
+  test "Assign binds an identity to a role" do
+    tests "Assign", on: "RoleAssignment"
+    input  auth_identity_id: "pr-agent", role_name: "pr-agent"
+    expect auth_identity_id: "pr-agent", role_name: "pr-agent", status: "active"
+  end
+
+  test "Assign emits Assigned" do
+    tests "Assign", on: "RoleAssignment"
+    input  auth_identity_id: "a1", role_name: "editor"
+    expect_event "Assigned"
+  end
+
+  test "Re-assign replaces the role (upsert by identity)" do
+    tests "Assign", on: "RoleAssignment"
+    setup  "Assign", auth_identity_id: "a2", role_name: "editor"
+    input  auth_identity_id: "a2", role_name: "admin"
+    expect auth_identity_id: "a2", role_name: "admin", status: "active"
+  end
+
+  test "Retire revokes the assignment (fail closed)" do
+    tests "Retire", on: "RoleAssignment"
+    setup  "Assign", auth_identity_id: "a3", role_name: "editor"
+    input  id: "a3"
+    expect status: "retired"
+  end
+
+  test "Retire emits AssignmentRetired" do
+    tests "Retire", on: "RoleAssignment"
+    setup  "Assign", auth_identity_id: "a4", role_name: "editor"
+    input  id: "a4"
+    expect_event "AssignmentRetired"
+  end
+
+  test "Active lists an assignment" do
+    tests "Active", on: "RoleAssignment", kind: :query
+    setup  "Assign", auth_identity_id: "a5", role_name: "editor"
+    expect count: 1
+  end
+
+  test "Active excludes a retired assignment" do
+    tests "Active", on: "RoleAssignment", kind: :query
+    setup  "Assign", auth_identity_id: "a6", role_name: "editor"
+    setup  "RoleAssignment.Retire", id: "a6"
     expect count: 0
   end
 end
