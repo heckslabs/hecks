@@ -60,12 +60,20 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('hecks/rust/Cargo.lock', 'hecks/rust/Cargo.toml') }}
 
       - name: Build storehouse (release)
+        # --workspace : the `storehouse` [[bin]] lives in the storehouse-cli
+        # member crate (rust/cli) ; the workspace root package is the lib,
+        # so a bare `cargo build` never produces the binary the cargo tests
+        # and the lifecycle step spawn.
         working-directory: hecks/rust
-        run: cargo build --release --quiet
+        run: cargo build --release --workspace --quiet
 
       - name: Cargo tests (incl. conceiver_parity_test)
+        # --workspace : without it only the root (lib) crate's tests run —
+        # the storehouse-cli and storehouse-sqlite member crates' own
+        # integration tests (CARGO_BIN_EXE-based CLI pins among them)
+        # would run nowhere in CI.
         working-directory: hecks/rust
-        run: cargo test --release --quiet
+        run: cargo test --release --workspace --quiet
 
       - name: Run parser parity suite (Ruby DSL ↔ Rust IR)
         working-directory: hecks

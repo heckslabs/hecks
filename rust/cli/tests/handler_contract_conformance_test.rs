@@ -19,16 +19,22 @@ use std::path::PathBuf;
 use std::process::{Command, Stdio};
 
 fn repo_root() -> PathBuf {
-    // adapters/ stayed in the hecks tree ; the engine lives outside it post-
-    // extraction, so resolve via the sibling hecks root (HECKS_CONCEPTION_DIR's
-    // parent, or ../../hecks beside the engine).
-    std::env::var("HECKS_CONCEPTION_DIR")
+    // adapters/ + examples/ live in the hecks tree. Resolve it via
+    // HECKS_CONCEPTION_DIR's parent when set ; otherwise from the manifest —
+    // in-tree the cli crate sits at <hecks>/rust/cli (this is CI's shape),
+    // post-extraction the engine sits beside the hecks repo (../../hecks).
+    if let Some(p) = std::env::var("HECKS_CONCEPTION_DIR")
         .ok()
         .and_then(|c| std::path::Path::new(&c).parent().map(|p| p.to_path_buf()))
-        .unwrap_or_else(|| {
-            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                .join("../../hecks")
-        })
+    {
+        return p;
+    }
+    let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let in_tree = manifest.join("../..");
+    if in_tree.join("examples/pizzas/bluebook").is_dir() {
+        return in_tree;
+    }
+    manifest.join("../../hecks")
 }
 
 fn dump(root: &PathBuf, rel: &str) -> serde_json::Value {

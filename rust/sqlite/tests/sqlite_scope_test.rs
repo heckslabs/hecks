@@ -44,16 +44,24 @@ fn sqlite_scopes_to_its_declaring_context_only() {
         "Git context must be SQL-backed by its own :sqlite hecksagon",
     );
 
-    // A DIFFERENT context is untouched — it keeps heki/memory, NOT SQL.
-    // This is the i735 regression guard : the over-apply made this SQL too.
-    let policy_repo = rt
+    // EVERY other context is untouched — keeps heki/memory, NOT SQL.
+    // This is the i735 regression guard : the over-apply made these SQL
+    // too. Sweeping all non-Git repositories (not one pinned aggregate
+    // name) keeps the guard honest as the conception evolves — the old
+    // Governance::Policy probe rotted away when Policy left Governance
+    // in the 2026-06-26 restructure.
+    let others: Vec<_> = rt
         .repositories
-        .get(&repo_key(Some("Governance"), "Policy"))
-        .expect("Governance::Policy repository present in the combined domain");
-    assert!(
-        !policy_repo.is_adapter(),
-        "Governance must NOT be SQL-backed — :sqlite was scoped to Git (i735)",
-    );
+        .iter()
+        .filter(|(key, _)| !key.starts_with("Git::"))
+        .collect();
+    assert!(!others.is_empty(), "combined domain must contain non-Git contexts");
+    for (key, repo) in others {
+        assert!(
+            !repo.is_adapter(),
+            "{key} must NOT be SQL-backed — :sqlite was scoped to Git (i735)",
+        );
+    }
 }
 
 // ---- i735 defect 2 : a SQL-incompatible column refuses the aggregate

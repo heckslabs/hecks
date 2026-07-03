@@ -71,7 +71,11 @@ jobs:
           path: miette_family
 
       - name: Build storehouse
-        run: cd hecks/rust && cargo build --release
+        # --workspace : the `storehouse` [[bin]] lives in the storehouse-cli
+        # member crate (rust/cli) ; the workspace root package is the lib,
+        # so a bare `cargo build` never produces the binary the smoke +
+        # behaviors steps spawn.
+        run: cd hecks/rust && cargo build --release --workspace
 
       - name: Smoke tests
         run: |

@@ -157,7 +157,14 @@ fn cascade_stamps_causation_end_to_end() {
     // sets it), falling back to the standard sibling checkout (storehouse
     // beside hecks) for a bare local run.
     let conception = std::env::var("HECKS_CONCEPTION_DIR").unwrap_or_else(|_| {
-        format!("{}/../../hecks/hecks_conception", env!("CARGO_MANIFEST_DIR"))
+        // In-tree the engine sits at <hecks>/rust (CI's shape) ; post-
+        // extraction it sits beside the hecks repo.
+        let in_tree = format!("{}/../hecks_conception", env!("CARGO_MANIFEST_DIR"));
+        if std::path::Path::new(&in_tree).is_dir() {
+            in_tree
+        } else {
+            format!("{}/../../hecks/hecks_conception", env!("CARGO_MANIFEST_DIR"))
+        }
     });
     let fw = format!("{}/aggregates/framework", conception);
     let dir = std::env::temp_dir().join(format!("caus_e2e_{}", std::process::id()));
