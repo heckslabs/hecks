@@ -6,7 +6,9 @@
 //!  the in-memory RBAC read-model (auth_identity -> role) the authorize PDP gate
 //!  reads, plus the Principal that classifies a caller at the entry door. Sibling
 //!  of mod.rs / middleware.rs, themselves exempt. The bluebook is the declared
-//!  truth ; this is its imperative leaf.]
+//!  truth ; this is its imperative leaf. Kernel-floor growth +31 core_runtime
+//!  (2026-07-02, Phase 4 authz decouple — rehydrate_acl + repointed hydrate)
+//!  authorized by Chris via loc-ratchet-override ; shrink-back on a later arc.]
 //!
 //! WHY in-memory : the gate must block BEFORE the act, so it resolves over
 //! hydrated local state ONLY — never an async bus query for RoleAssignment
