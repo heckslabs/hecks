@@ -8,11 +8,21 @@
 use std::process::Command;
 
 fn rel(p: &str) -> String {
-    // examples/ stayed in the hecks tree ; resolve via the sibling hecks root.
+    // examples/ lives in the hecks tree. HECKS_CONCEPTION_DIR's parent when
+    // set ; otherwise in-tree the cli crate sits at <hecks>/rust/cli (CI's
+    // shape), post-extraction the engine sits beside the hecks repo.
     let hecks = std::env::var("HECKS_CONCEPTION_DIR")
         .ok()
         .and_then(|c| std::path::Path::new(&c).parent().map(|x| x.to_path_buf()))
-        .unwrap_or_else(|| std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../hecks"));
+        .unwrap_or_else(|| {
+            let manifest = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+            let in_tree = manifest.join("../..");
+            if in_tree.join("examples/pizzas/bluebook").is_dir() {
+                in_tree
+            } else {
+                manifest.join("../../hecks")
+            }
+        });
     hecks.join("examples/pizzas/bluebook").join(p).to_string_lossy().into_owned()
 }
 

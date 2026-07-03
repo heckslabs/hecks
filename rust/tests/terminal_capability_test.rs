@@ -23,7 +23,11 @@ fn hecks_root() -> std::path::PathBuf {
     std::env::var("HECKS_CONCEPTION_DIR")
         .ok()
         .and_then(|c| std::path::Path::new(&c).parent().map(|p| p.to_path_buf()))
-        .unwrap_or_else(|| std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../hecks"))
+        .unwrap_or_else(|| {
+            let manifest = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+            let in_tree = manifest.join("..");
+            if in_tree.join("hecks_conception").is_dir() { in_tree } else { manifest.join("../../hecks") }
+        })
 }
 
 #[test]
