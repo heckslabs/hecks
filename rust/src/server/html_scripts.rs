@@ -6,6 +6,60 @@
 //! Usage:
 //!   let js = core_script();  // include in <script> block
 
+/// Bearer-token + governance-denial helpers, shared by the app shell
+/// (wrap_page) and the standalone Living Diagram page. Plain JS with
+/// inline styles so the denial banner renders on any served document,
+/// Tailwind or not. The token lives in localStorage under 'hecks_bearer' ;
+/// every dispatch fetch attaches `Authorization: Bearer <token>` when
+/// the token is non-empty (authHeaders). A 403 — or an ok:false body
+/// whose error text carries GOVERNANCE — raises an unmissable fixed
+/// banner showing the error text verbatim (showDenial).
+pub fn bearer_script() -> &'static str {
+    r#"  var HECKS_BEARER_KEY = 'hecks_bearer';
+  function bearerToken() {
+    try { return (localStorage.getItem(HECKS_BEARER_KEY) || '').trim(); } catch (e) { return ''; }
+  }
+  function authHeaders(extra) {
+    var h = extra || {};
+    var t = bearerToken();
+    if (t) h['Authorization'] = 'Bearer ' + t;
+    return h;
+  }
+  function isGovernanceDenial(status, r) {
+    if (status === 403) return true;
+    return !!(r && !r.ok && typeof r.error === 'string' && r.error.indexOf('GOVERNANCE') !== -1);
+  }
+  function denialText(err) {
+    if (err && typeof err === 'object') return err.message || JSON.stringify(err);
+    return String(err || 'denied');
+  }
+  function showDenial(text, cmd) {
+    var bar = document.getElementById('governance-banner');
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.id = 'governance-banner';
+      bar.setAttribute('role', 'alert');
+      bar.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;display:flex;align-items:flex-start;gap:12px;background:#450a0a;border-bottom:2px solid #ef4444;color:#fecaca;padding:12px 24px;font-size:13px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;box-shadow:0 8px 24px rgba(0,0,0,0.5);';
+      var icon = document.createElement('span');
+      icon.textContent = '⛔ DENIED';
+      icon.style.cssText = 'font-weight:700;color:#f87171;white-space:nowrap;';
+      var msg = document.createElement('span');
+      msg.id = 'governance-banner-text';
+      msg.style.cssText = 'flex:1;word-break:break-word;';
+      var close = document.createElement('button');
+      close.type = 'button';
+      close.textContent = '×';
+      close.setAttribute('aria-label', 'Dismiss governance denial');
+      close.style.cssText = 'background:#7f1d1d;color:#fecaca;border:none;border-radius:4px;padding:0 8px;cursor:pointer;font-size:14px;';
+      close.onclick = function () { bar.remove(); };
+      bar.appendChild(icon); bar.appendChild(msg); bar.appendChild(close);
+      document.body.appendChild(bar);
+    }
+    document.getElementById('governance-banner-text').textContent =
+      text + (cmd ? ' — ' + cmd : '');
+  }"#
+}
+
 /// Return core JS functions (already double-braced for format!)
 pub fn core_script() -> &'static str {
     r#"  function submitCmd(form, cmd) {
@@ -13,9 +67,9 @@ pub fn core_script() -> &'static str {
     new FormData(form).forEach((v, k) => { if(v) data[k] = v; });
     fetch(form.action, {
       method: 'POST',
-      headers: {'Content-Type': 'application/json'},
+      headers: authHeaders({'Content-Type': 'application/json'}),
       body: JSON.stringify({command: cmd, attrs: data})
-    }).then(r => r.json()).then(r => {
+    }).then(resp => resp.json().then(r => {
       const el = form.querySelector('.cmd-result');
       el.classList.remove('hidden', 'bg-emerald-900/40', 'text-emerald-300', 'bg-red-900/40', 'text-red-300');
       if (r.ok) {
@@ -24,11 +78,12 @@ pub fn core_script() -> &'static str {
         form.querySelectorAll('input').forEach(i => i.value = '');
         addEvent(r.event, cmd, r.aggregate_type, r.aggregate_id, true);
       } else {
-        el.textContent = '\u2718 Error: ' + r.error;
+        el.textContent = '\u2718 Error: ' + denialText(r.error);
         el.classList.add('bg-red-900/40', 'text-red-300');
-        addEvent(r.error, cmd, '', '', false);
+        if (isGovernanceDenial(resp.status, r)) showDenial(denialText(r.error), cmd);
+        addEvent(denialText(r.error), cmd, '', '', false);
       }
-    });
+    }));
     return false;
   }
   function humanize(s) { return s.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/_/g, ' '); }

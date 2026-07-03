@@ -90,6 +90,7 @@ pub fn generate(domain_name: &str, rt: &RefCell<Runtime>) -> String {
   </div>
 
   <script>
+  {bearer}
     const GRAPH = {graph};
     const DOMAIN = {domain};
 
@@ -235,20 +236,20 @@ pub fn generate(domain_name: &str, rt: &RefCell<Runtime>) -> String {
       result.textContent = 'Dispatching…';
       fetch(`/domains/${{DOMAIN}}/dispatch`, {{
         method: 'POST',
-        headers: {{ 'Content-Type': 'application/json' }},
+        headers: authHeaders({{ 'Content-Type': 'application/json' }}),
         body: JSON.stringify({{ command: cmd, attrs: data }}),
       }})
-      .then(r => r.json())
-      .then(r => {{
+      .then(resp => resp.json().then(r => {{
         if (r.ok) {{
           result.className = 'result ok';
           result.textContent = `✓ ${{r.event || 'success'}} on ${{r.aggregate_type}}#${{r.aggregate_id}}`;
           if (r.event) animateEdgeFromEvent(r.event, cmd);
         }} else {{
           result.className = 'result error';
-          result.textContent = `✗ ${{r.error}}`;
+          result.textContent = `✗ ${{denialText(r.error)}}`;
+          if (isGovernanceDenial(resp.status, r)) showDenial(denialText(r.error), cmd);
         }}
-      }})
+      }}))
       .catch(err => {{
         result.className = 'result error';
         result.textContent = `✗ ${{err.message}}`;
@@ -267,6 +268,7 @@ pub fn generate(domain_name: &str, rt: &RefCell<Runtime>) -> String {
         name = domain_name,
         domain = domain_label,
         graph = graph_json,
+        bearer = super::html_scripts::bearer_script(),
     )
 }
 

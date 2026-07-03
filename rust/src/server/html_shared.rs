@@ -49,6 +49,8 @@ pub fn top_bar(current_domain: Option<&str>) -> String {
       <option value="system">System</option>
       <option value="public">Public</option>
     </select>
+    <label class="text-xs text-gray-500 mr-1 hidden sm:inline" for="bearer-token">Bearer</label>
+    <input id="bearer-token" type="text" placeholder="token" autocomplete="off" spellcheck="false" aria-label="Bearer token sent as the Authorization header on every dispatch" class="bg-surface-0 border border-surface-3 rounded px-2 py-1 text-xs text-gray-300 w-28 mr-2 focus:border-brand focus:outline-none">
     <a href="/portal/" data-topbar="portal" class="topbar-link px-3 py-1.5 rounded hover:bg-surface-2 text-gray-300 hover:text-white transition">🏬 Customer Portal</a>
   </nav>
   <script>
@@ -95,6 +97,25 @@ pub fn top_bar(current_domain: Option<&str>) -> String {
         apply(v);
       }});
     }})();
+
+    // Bearer token — persisted in localStorage ('hecks_bearer') and
+    // applied on page load. Every dispatch fetch attaches it as
+    // `Authorization: Bearer <token>` when non-empty (authHeaders()
+    // in the core script reads the same key at call time, so a
+    // token pasted here takes effect on the very next click).
+    (function () {{
+      var KEY = 'hecks_bearer';
+      var input = document.getElementById('bearer-token');
+      if (!input) return;
+      try {{ input.value = localStorage.getItem(KEY) || ''; }} catch (e) {{}}
+      input.addEventListener('input', function () {{
+        try {{
+          var v = input.value.trim();
+          if (v) localStorage.setItem(KEY, v);
+          else localStorage.removeItem(KEY);
+        }} catch (e) {{}}
+      }});
+    }})();
   </script>
 </header>"#,
     )
@@ -115,6 +136,7 @@ pub fn wrap_page_with_domain(
 ) -> String {
     let app_name = title;
     let app_subtitle = "Dashboard";
+    let bearer_script = super::html_scripts::bearer_script();
     let core_script = super::html_scripts::core_script();
     let help_script = super::html_help::help_script();
     let wizard_script = super::html_wizard::wizard_script();
@@ -177,6 +199,7 @@ pub fn wrap_page_with_domain(
     }}
   </style>
   <script>
+  {bearer_script}
   {core_script}
   {help_script}
   {wizard_script}
@@ -262,6 +285,7 @@ pub fn wrap_page_with_domain(
         app_subtitle = app_subtitle,
         sidebar_html = sidebar_html,
         main_html = main_html,
+        bearer_script = bearer_script,
         core_script = core_script,
         help_script = help_script,
         wizard_script = wizard_script,

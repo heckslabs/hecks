@@ -64,9 +64,9 @@ pub fn wizard_script() -> &'static str {
     new FormData(form).forEach((v, k) => { if(v) data[k] = v; });
     fetch('/domains/' + domain + '/dispatch', {
       method: 'POST',
-      headers: {'Content-Type': 'application/json'},
+      headers: authHeaders({'Content-Type': 'application/json'}),
       body: JSON.stringify({command: cmd, attrs: data})
-    }).then(r => r.json()).then(r => {
+    }).then(resp => resp.json().then(r => {
       const el = form.querySelector('.wizard-result');
       if (r.ok) {
         // Top-level success badge.
@@ -124,9 +124,10 @@ pub fn wizard_script() -> &'static str {
             input.focus();
           }
         }
+        if (isGovernanceDenial(resp.status, r)) showDenial(msg, cmd);
         addEvent(msg, cmd, '', '', false);
       }
-    });
+    }));
     return false;
   }
   document.addEventListener('keydown', function(e) {
