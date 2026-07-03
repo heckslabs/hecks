@@ -49,7 +49,10 @@
 # An i122 `ir_claimed?` skip still drops files the corpus claims (a
 # hecksagon adapter / specializer dispatches them) from the count, and
 # a [loc-ratchet-override: <reason>] commit marker still authorises
-# ANY concern's failure.
+# ANY concern's failure. The marker is honoured from committed branch
+# messages (git log base..HEAD) AND — via --message-file — from the
+# in-flight commit message at commit-msg time, so the marker-carrying
+# commit can authorise itself (bootstrap fix, 2026-07-02).
 #
 # Usage:
 #   bin/loc-ratchet --base origin/main
@@ -189,10 +192,12 @@ def counts_at(concerns, treeish)
   totals
 end
 
-def overrides_present?(base_ref)
+def overrides_present?(base_ref, message_file = nil)
+  rx = /^\s*\[loc-ratchet-override:\s*[^\]]+\]/i
   out, ok = run(["git", "log", "--format=%B", "#{base_ref}..HEAD"])
-  return false unless ok
-  !out.to_s.match(/^\s*\[loc-ratchet-override:\s*[^\]]+\]/i).nil?
+  return true if ok && out.to_s.match?(rx)
+  return true if message_file && File.exist?(message_file) && File.read(message_file).match?(rx)
+  false
 end
 
 # Does this concern's delta violate its direction?
@@ -206,10 +211,11 @@ def violates?(direction, delta)
   end
 end
 
-options = { base: nil, verbose: false }
+options = { base: nil, verbose: false, message_file: nil }
 OptionParser.new do |opts|
   opts.on("--base REF",   "Base ref to compare HEAD against")        { |v| options[:base] = v }
   opts.on("--verbose",    "Print per-concern counts + directions")    { options[:verbose] = true }
+  opts.on("--message-file PATH", "Also honor an override marker in this in-flight commit message") { |v| options[:message_file] = v }
 end.parse!
 
 base_ref = options[:base] || "origin/main"
@@ -240,7 +246,7 @@ if failures.empty?
   exit 0
 end
 
-if overrides_present?(base_ref)
+if overrides_present?(base_ref, options[:message_file])
   summary = failures.map { |r| "#{r[:name]} (#{r[:dir]} +#{r[:delta]})" }.join(", ")
   puts "✓ loc-ratchet: #{summary} — authorised by [loc-ratchet-override]"
   exit 0

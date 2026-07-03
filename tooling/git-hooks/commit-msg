@@ -5,6 +5,11 @@
 #   Gate B: antibody — if this commit touches non-bluebook files, the
 #           message must carry [antibody-exempt: <reason>]. Strict;
 #           no exemption-leak from earlier commits on the branch.
+#   Gate C: LoC ratchet — if a counted concern violates its direction,
+#           the message must carry [loc-ratchet-override: <reason>].
+#           Enforced HERE (not pre-commit) because this is the only
+#           hook that sees the in-flight message — the marker-carrying
+#           commit can authorise itself (bootstrap fix, 2026-07-02).
 #
 
 set -e
@@ -32,6 +37,24 @@ if [ -x "$REPO/bin/antibody-check" ]; then
     echo "  .bluebook  .hecksagon  .fixtures  .behaviors  .world"
     echo "or add to your commit message a specific exemption:"
     echo "  [antibody-exempt: <concrete per-change reason>]"
+    exit 1
+  fi
+fi
+
+# ── Gate C: LoC ratchet — direction violations need an override ──
+# Enforced here so the [loc-ratchet-override: ...] marker in THIS
+# in-flight message counts — pre-commit runs before the message
+# exists (Gate 7 there is informational only).
+#
+# Set RATCHET_SKIP=1 to bypass (an antibody failure for emergencies).
+if [ -z "$RATCHET_SKIP" ] && [ -x "$REPO/bin/loc-ratchet" ]; then
+  if ! "$REPO/bin/loc-ratchet" --base "origin/main" --message-file "$commit_msg_file"; then
+    echo ""
+    echo "COMMIT BLOCKED: non-bluebook LoC violated a concern's direction."
+    echo "  Re-run : bin/loc-ratchet --base origin/main --verbose"
+    echo "  Authorise by adding to THIS commit message:"
+    echo "    [loc-ratchet-override: <concrete reason>]"
+    echo "  Bypass (use only for emergencies) : RATCHET_SKIP=1 git commit ..."
     exit 1
   fi
 fi

@@ -392,28 +392,19 @@ if [ -z "$BEHAVIORS_SKIP" ] && [ -x "$STOREHOUSE" ]; then
     fi
 fi
 
-# ── Gate 7: LoC ratchet — non-bluebook LoC may not increase ───────
-# Mirrors the CI ratchet (`.github/workflows/ratchet.yml`). When a
-# CI gate fires that local didn't, that's an antibody failure for
-# the hook — the hook should keep growing until local = CI. Catches
-# Rust / shell / YAML growth before push, not at PR time.
-#
-# The ratchet compares HEAD against origin/main, reports per-tree
-# deltas, and blocks if any non-bluebook LoC grew without a
-# [loc-ratchet-override: <reason>] marker on a branch commit.
+# ── Gate 7: LoC ratchet — report deltas (informational) ───────────
+# Mirrors the CI ratchet (`.github/workflows/ratchet.yml`). Actual
+# enforcement happens in the commit-msg hook (Gate C), which is the
+# only hook that sees the in-flight commit message (where the
+# [loc-ratchet-override: <reason>] marker lives). Pre-commit runs
+# before the message exists, so blocking here would deadlock the
+# marker-carrying commit itself (the bootstrap gap, fixed 2026-07-02).
+# Here we just surface the per-concern report so the author can add
+# the marker BEFORE writing their message.
 #
 # Set RATCHET_SKIP=1 to bypass (an antibody failure for emergencies).
 if [ -z "$RATCHET_SKIP" ] && [ -x "$REPO/bin/loc-ratchet" ]; then
-    if ! "$REPO/bin/loc-ratchet" --base "origin/main" >/tmp/loc_ratchet.out 2>&1; then
-        cat /tmp/loc_ratchet.out
-        echo ""
-        echo "COMMIT BLOCKED: non-bluebook LoC increased."
-        echo "  Re-run : bin/loc-ratchet --base origin/main --verbose"
-        echo "  Authorise with a branch commit whose message carries"
-        echo "    [loc-ratchet-override: <concrete reason>]"
-        echo "  Bypass (use only for emergencies) : RATCHET_SKIP=1 git commit ..."
-        exit 1
-    fi
+    "$REPO/bin/loc-ratchet" --base "origin/main" --verbose || true
 fi
 
 # == Gate 8: cargo check --tests -- all integration tests compile ==
