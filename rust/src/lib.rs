@@ -127,3 +127,8 @@ pub mod story_runtime;
 pub mod storehouse_router;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod storehouse_query;
+// embed — the one-shot in-process dispatch/query entry shared by the cold CLI
+// door and native bindings (magnus Ruby ext, etc). Not-wasm : it pulls in the
+// corpus_loader / world::attach std::fs boot substrate.
+#[cfg(not(target_arch = "wasm32"))]
+pub mod embed;
