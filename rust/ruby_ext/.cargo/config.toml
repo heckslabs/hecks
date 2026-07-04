@@ -1,0 +1,5 @@
+# macOS link fix (required) : C-extensions resolve libruby symbols at LOAD
+# time, so the cdylib must be linked with dangling _rb_* symbols allowed.
+# Without this flag a bare `cargo build` fails on undefined _rb_* symbols.
+[target.'cfg(target_os = "macos")']
+rustflags = ["-C", "link-arg=-Wl,-undefined,dynamic_lookup"]
