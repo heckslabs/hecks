@@ -8,6 +8,7 @@
 //! Host-only : depends on rusqlite. The wasm SqliteRepository stub carries its
 //! own (unreachable) query / ensure_indexes.
 
+use crate::sqlite_mapping::quote_ident;
 use crate::sqlite_repository::SqliteRepository;
 use storehouse::runtime::AggregateState;
 use std::collections::HashMap;
@@ -49,9 +50,10 @@ impl SqliteRepository {
                 continue;
             }
             let ddl = format!(
-                "CREATE INDEX IF NOT EXISTS idx_{t}_{c}_text ON {t} (CAST({c} AS TEXT))",
-                t = self.table,
-                c = col,
+                "CREATE INDEX IF NOT EXISTS {idx} ON {t} (CAST({c} AS TEXT))",
+                idx = quote_ident(&format!("idx_{}_{}_text", self.table, col)),
+                t = quote_ident(&self.table),
+                c = quote_ident(col),
             );
             let _ = self.conn.execute(&ddl, []);
             // Numeric range pushdown (Gt/Gte/Lt/Lte on an INTEGER column) filters
@@ -60,9 +62,10 @@ impl SqliteRepository {
             // columns, the only ones the numeric pushdown targets.
             if self.numeric_columns.iter().any(|c| c == col) {
                 let int_ddl = format!(
-                    "CREATE INDEX IF NOT EXISTS idx_{t}_{c}_int ON {t} (CAST({c} AS INTEGER))",
-                    t = self.table,
-                    c = col,
+                    "CREATE INDEX IF NOT EXISTS {idx} ON {t} (CAST({c} AS INTEGER))",
+                    idx = quote_ident(&format!("idx_{}_{}_int", self.table, col)),
+                    t = quote_ident(&self.table),
+                    c = quote_ident(col),
                 );
                 let _ = self.conn.execute(&int_ddl, []);
             }

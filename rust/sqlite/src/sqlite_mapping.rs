@@ -14,6 +14,17 @@
 
 use storehouse::runtime::Value;
 
+/// Quote a SQL identifier (table or column name) so a reserved word — `order`,
+/// `group`, `select`, `user` — or any keyword is a legal identifier instead of
+/// a syntax error. SQLite's standard double-quote form, with any embedded quote
+/// doubled per the SQL spec. The identifiers reaching here are always internal
+/// (a snake_cased aggregate name, or an IR-declared column already whitelisted
+/// against the known column set), so this is a keyword-collision correctness
+/// guard — the injection boundary is the `?N` bind params, not this.
+pub fn quote_ident(name: &str) -> String {
+    format!("\"{}\"", name.replace('"', "\"\""))
+}
+
 /// Map a bluebook IR attribute type to its SQL column type. Verbatim
 /// mirror of Ruby's `sql_type` : String→VARCHAR(255), Integer→INTEGER,
 /// Float→REAL, Boolean (and the Ruby TrueClass/FalseClass aliases)→

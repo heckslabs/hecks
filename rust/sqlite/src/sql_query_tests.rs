@@ -29,7 +29,7 @@ fn eq_builds_cast_text_bound_param() {
     let attrs = HashMap::new();
     let (sql, params) =
         build_pushdown(&[clause("status", WhereOp::Eq, "pending")], &attrs, &cols(), &nums()).unwrap();
-    assert_eq!(sql, "CAST(status AS TEXT) = ?1");
+    assert_eq!(sql, "CAST(\"status\" AS TEXT) = ?1");
     assert_eq!(params, vec![SqlValue::Text("pending".into())]);
 }
 
@@ -38,7 +38,7 @@ fn in_builds_placeholder_list_bound_params() {
     let attrs = HashMap::new();
     let (sql, params) =
         build_pushdown(&[clause("status", WhereOp::In, "a, b ,c")], &attrs, &cols(), &nums()).unwrap();
-    assert_eq!(sql, "CAST(status AS TEXT) IN (?1, ?2, ?3)");
+    assert_eq!(sql, "CAST(\"status\" AS TEXT) IN (?1, ?2, ?3)");
     assert_eq!(
         params,
         vec![
@@ -55,7 +55,7 @@ fn kwarg_ref_resolves_from_attrs() {
     attrs.insert("st".to_string(), "shipped".to_string());
     let (sql, params) =
         build_pushdown(&[clause("status", WhereOp::Eq, ":st")], &attrs, &cols(), &nums()).unwrap();
-    assert_eq!(sql, "CAST(status AS TEXT) = ?1");
+    assert_eq!(sql, "CAST(\"status\" AS TEXT) = ?1");
     assert_eq!(params, vec![SqlValue::Text("shipped".into())]);
 }
 
@@ -67,7 +67,7 @@ fn injection_value_is_bound_never_interpolated() {
         build_pushdown(&[clause("status", WhereOp::Eq, evil)], &attrs, &cols(), &nums()).unwrap();
     // The malicious string never appears in the SQL text — only a ?N.
     assert!(!sql.contains("DROP"));
-    assert_eq!(sql, "CAST(status AS TEXT) = ?1");
+    assert_eq!(sql, "CAST(\"status\" AS TEXT) = ?1");
     assert_eq!(params, vec![SqlValue::Text(evil.into())]);
 }
 
@@ -115,21 +115,21 @@ fn numeric_target_on_integer_column_pushes_as_cast_integer() {
     let attrs = HashMap::new();
     let (sql, params) =
         build_pushdown(&[clause("priority", WhereOp::Gt, "5")], &attrs, &cols(), &nums()).unwrap();
-    assert_eq!(sql, "CAST(priority AS INTEGER) > ?1");
+    assert_eq!(sql, "CAST(\"priority\" AS INTEGER) > ?1");
     assert_eq!(params, vec![SqlValue::Integer(5)]);
 
     let (sql, _) =
         build_pushdown(&[clause("priority", WhereOp::Gte, "9")], &attrs, &cols(), &nums()).unwrap();
-    assert_eq!(sql, "CAST(priority AS INTEGER) >= ?1");
+    assert_eq!(sql, "CAST(\"priority\" AS INTEGER) >= ?1");
 
     let (sql, params) =
         build_pushdown(&[clause("priority", WhereOp::Lt, "5")], &attrs, &cols(), &nums()).unwrap();
-    assert_eq!(sql, "(priority IS NULL OR CAST(priority AS INTEGER) < ?1)");
+    assert_eq!(sql, "(\"priority\" IS NULL OR CAST(\"priority\" AS INTEGER) < ?1)");
     assert_eq!(params, vec![SqlValue::Integer(5)]);
 
     let (sql, _) =
         build_pushdown(&[clause("priority", WhereOp::Lte, "2")], &attrs, &cols(), &nums()).unwrap();
-    assert_eq!(sql, "(priority IS NULL OR CAST(priority AS INTEGER) <= ?1)");
+    assert_eq!(sql, "(\"priority\" IS NULL OR CAST(\"priority\" AS INTEGER) <= ?1)");
 }
 
 #[test]
@@ -146,7 +146,7 @@ fn nonnumeric_target_ordered_ops_push_as_cast_text() {
     for (op, sym) in ops {
         let (sql, params) =
             build_pushdown(&[clause("status", op, "pending")], &attrs, &cols(), &nums()).unwrap();
-        assert_eq!(sql, format!("CAST(status AS TEXT) {} ?1", sym));
+        assert_eq!(sql, format!("CAST(\"status\" AS TEXT) {} ?1", sym));
         assert_eq!(params, vec![SqlValue::Text("pending".into())]);
     }
 }
@@ -176,6 +176,6 @@ fn mixed_clauses_push_only_the_pushable_subset() {
         &nums(),
     )
     .unwrap();
-    assert_eq!(sql, "CAST(status AS TEXT) = ?1");
+    assert_eq!(sql, "CAST(\"status\" AS TEXT) = ?1");
     assert_eq!(params.len(), 1);
 }
