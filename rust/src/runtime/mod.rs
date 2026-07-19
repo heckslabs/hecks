@@ -3126,8 +3126,8 @@ impl Runtime {
             success_command: String,
             failure_command: String,
         }
-        fn fld(s: &AggregateState, k: &str) -> String {
-            s.get(k).as_str().unwrap_or("").to_string()
+        fn fld(r: &serde_json::Value, k: &str) -> String {
+            r[k].as_str().unwrap_or("").to_string()
         }
 
         let mut drained = 0usize;
@@ -3138,21 +3138,30 @@ impl Runtime {
                 eprintln!("[drain_outbound_to_quiescence] budget reached — stopping");
                 break;
             }
-            // Snapshot pending VERDICT-BEARING deliveries with a built handler.
-            let pending: Vec<Pending> = self
-                .all("OutboundEvent")
-                .into_iter()
-                .filter(|s| fld(s, "status") == "pending")
-                .filter(|s| !fld(s, "success_command").is_empty())
-                .map(|s| Pending {
-                    delivery_id: fld(s, "delivery_id"),
-                    adapter: fld(s, "adapter"),
-                    source_id: fld(s, "source_id"),
-                    payload: fld(s, "payload"),
-                    success_command: fld(s, "success_command"),
-                    failure_command: fld(s, "failure_command"),
+            // Snapshot pending VERDICT-BEARING deliveries with a built
+            // handler. WHICH deliveries are undelivered comes from the
+            // declared `AllPending` query (the aggregate owns its own
+            // lifecycle vocabulary) ; the verdict-bearing narrowing stays
+            // here because it is a DRAIN concern, not a lifecycle one —
+            // this loop only drives edges that re-enter with a verdict.
+            let pending_result =
+                self.resolve_query("AllPending", &std::collections::HashMap::new());
+            let pending: Vec<Pending> = pending_result["state"]
+                .as_array()
+                .map(|rows| {
+                    rows.iter()
+                        .filter(|r| !fld(r, "success_command").is_empty())
+                        .map(|r| Pending {
+                            delivery_id: fld(r, "delivery_id"),
+                            adapter: fld(r, "adapter"),
+                            source_id: fld(r, "source_id"),
+                            payload: fld(r, "payload"),
+                            success_command: fld(r, "success_command"),
+                            failure_command: fld(r, "failure_command"),
+                        })
+                        .collect()
                 })
-                .collect();
+                .unwrap_or_default();
 
             // Keep only deliveries whose adapter has a built handler binary —
             // a handler-less / unbuilt-binary delivery is LEFT PENDING for its

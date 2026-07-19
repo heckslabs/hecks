@@ -112,26 +112,36 @@ struct Delivery {
     failure_command: String,
 }
 
-fn field(state: &crate::runtime::AggregateState, key: &str) -> String {
-    state.get(key).as_str().unwrap_or("").to_string()
+fn field(row: &serde_json::Value, key: &str) -> String {
+    row[key].as_str().unwrap_or("").to_string()
 }
 
-/// Snapshot every OutboundEvent still pending — the host's poll. Read via
-/// `all` + filter (not the Pending query, which returns one `state`) so a
-/// single pass drains the whole backlog.
+/// Snapshot every OutboundEvent still pending — the host's poll, read through
+/// the DECLARED `AllPending` query.
+///
+/// This used to be `all("OutboundEvent")` + a hand-written
+/// `status == "pending"` filter, because the declared query returned a bare
+/// object for a one-record result and an array otherwise — unusable for
+/// draining a backlog. That shape is now invariant (a query always returns a
+/// list), so the predicate lives where it belongs: in the aggregate that owns
+/// the lifecycle. What "pending" MEANS is no longer restated here.
 fn pending_deliveries(rt: &Runtime) -> Vec<Delivery> {
-    rt.all("OutboundEvent")
-        .into_iter()
-        .filter(|s| field(s, "status") == "pending")
-        .map(|s| Delivery {
-            delivery_id: field(s, "delivery_id"),
-            adapter: field(s, "adapter"),
-            source_id: field(s, "source_id"),
-            payload: field(s, "payload"),
-            success_command: field(s, "success_command"),
-            failure_command: field(s, "failure_command"),
+    let result = rt.resolve_query("AllPending", &std::collections::HashMap::new());
+    result["state"]
+        .as_array()
+        .map(|rows| {
+            rows.iter()
+                .map(|r| Delivery {
+                    delivery_id: field(r, "delivery_id"),
+                    adapter: field(r, "adapter"),
+                    source_id: field(r, "source_id"),
+                    payload: field(r, "payload"),
+                    success_command: field(r, "success_command"),
+                    failure_command: field(r, "failure_command"),
+                })
+                .collect()
         })
-        .collect()
+        .unwrap_or_default()
 }
 
 fn str_attr(k: &str, v: &str) -> (String, Value) {

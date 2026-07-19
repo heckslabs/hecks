@@ -178,5 +178,10 @@ Hecks.bluebook "OutboundEvent", version: "2026.06.16.1" do
       where adapter: :adapter
       where status:  "pending"
     end
+
+    query "AllPending" do
+      description "Every undelivered delivery, across ALL adapters — the whole backlog in one pass. Pending(adapter) is the per-host poll ; this is the drain. The in-process pump and the standalone host's pass both consume the entire backlog rather than one adapter's slice, and this is the DECLARED way to ask for it. What 'undelivered' MEANS (status == pending) is this aggregate's lifecycle knowledge and belongs here : the runtime re-implemented the predicate at three call sites while the read contract was unreliable, so a lifecycle change (say, a 'retrying' status) had to be made in Rust three times instead of once, here."
+      where status: "pending"
+    end
   end
 end

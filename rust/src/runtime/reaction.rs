@@ -337,23 +337,31 @@ impl Runtime {
             success_command: String,
             failure_command: String,
         }
-        fn fld(s: &AggregateState, k: &str) -> String {
-            s.get(k).as_str().unwrap_or("").to_string()
+        fn fld(r: &serde_json::Value, k: &str) -> String {
+            r[k].as_str().unwrap_or("").to_string()
         }
-        let pending: Vec<Pending> = self
-            .all("OutboundEvent")
-            .into_iter()
-            .filter(|s| fld(s, "status") == "pending")
-            .map(|s| Pending {
-                delivery_id: fld(&s, "delivery_id"),
-                adapter: fld(&s, "adapter"),
-                source_id: fld(&s, "source_id"),
-                source_type: fld(&s, "source_type"),
-                payload: fld(&s, "payload"),
-                success_command: fld(&s, "success_command"),
-                failure_command: fld(&s, "failure_command"),
+        // The whole undelivered backlog, read through the DECLARED
+        // `AllPending` query rather than a hand-written status filter —
+        // "pending" is the outbox aggregate's lifecycle knowledge, not the
+        // pump's.
+        let pending_result =
+            self.resolve_query("AllPending", &std::collections::HashMap::new());
+        let pending: Vec<Pending> = pending_result["state"]
+            .as_array()
+            .map(|rows| {
+                rows.iter()
+                    .map(|r| Pending {
+                        delivery_id: fld(r, "delivery_id"),
+                        adapter: fld(r, "adapter"),
+                        source_id: fld(r, "source_id"),
+                        source_type: fld(r, "source_type"),
+                        payload: fld(r, "payload"),
+                        success_command: fld(r, "success_command"),
+                        failure_command: fld(r, "failure_command"),
+                    })
+                    .collect()
             })
-            .collect();
+            .unwrap_or_default();
         if pending.is_empty() {
             return 0;
         }
