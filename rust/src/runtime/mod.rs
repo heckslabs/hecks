@@ -255,6 +255,24 @@ pub struct Runtime {
     /// explicit `register_llm_provider` call so unit tests can never
     /// silently shell out to a real model.
     pub llm_providers: HashMap<String, Box<dyn llm_providers::LlmProvider>>,
+    /// The FRAMEWORK COLLABORATOR (CARD-framework-substrate-service, step
+    /// zero) — a second runtime booted on crate-owned framework substrate,
+    /// which the kernel dispatches into instead of requiring that substrate to
+    /// have been merged into the USER's domain.
+    ///
+    /// The runtime needs to write framework aggregates it does not own
+    /// (`EventSourcing::Event`, `CascadeRun`, `OutboundEvent`,
+    /// `Governance::Violation`). Today it asks "is that aggregate in my
+    /// domain?" at seven guard sites and silently does nothing when it isn't —
+    /// so a minimal boot writes no Log and loses authorization audit rows.
+    /// `ensure_outbox_substrate` is a manual graft patching exactly one of the
+    /// four.
+    ///
+    /// `None` until first use : booting a 400-line framework domain inside
+    /// every Runtime would tax all 124 test binaries for a path most never
+    /// take. `framework_mut()` boots it on demand. The collaborator's OWN
+    /// `framework` stays `None`, which is what stops the recursion.
+    pub framework: Option<Box<Runtime>>,
     /// i557 part 1 — Phase-2 framework registry. Populated at boot by
     /// `boot_with_framework_dir` (walks
     /// `<framework_dir>/adapter_families/*.hecksagon` +
@@ -421,6 +439,38 @@ impl Runtime {
     const OUTBOX_SUBSTRATE: &'static str = include_str!(
         "../../resources/outbound_event.bluebook"
     );
+
+    /// The embedded EventSourcing chapter — the Event Log the kernel appends
+    /// to. Crate-owned for the same reason the outbox is : storehouse must be
+    /// able to event-source a domain without a sibling `hecks_conception/`.
+    const EVENT_SOURCING_SUBSTRATE: &'static str = include_str!(
+        "../../resources/event_sourcing.bluebook"
+    );
+
+    /// The framework collaborator, booted on first use.
+    ///
+    /// This is the step-zero proof for CARD-framework-substrate-service : the
+    /// kernel gets somewhere to dispatch framework commands that is NOT the
+    /// user's domain. Booted lazily because most runtimes never append an
+    /// Event, and paying a 400-line parse at every boot would tax all 124 test
+    /// binaries for a path they don't take.
+    ///
+    /// It inherits `data_dir` so the Log lands under the same store root the
+    /// parent writes to. (CARD decision 4 says the durable home is the
+    /// FRAMEWORK REALM ; inheriting the parent's dir is the step-zero shape and
+    /// is what keeps temp-dir tests isolated. Moving it to the framework realm
+    /// is a follow-up, not a borrow-shape question.)
+    ///
+    /// The collaborator's own `framework` stays `None` — it never needs one,
+    /// and that is what bounds the recursion.
+    fn framework_mut(&mut self) -> &mut Runtime {
+        if self.framework.is_none() {
+            let domain = crate::parser::parse(Self::EVENT_SOURCING_SUBSTRATE);
+            let rt = Runtime::boot_with_data_dir(domain, self.data_dir.clone());
+            self.framework = Some(Box::new(rt));
+        }
+        self.framework.as_mut().expect("just booted")
+    }
 
     /// Merge the framework outbox aggregate into `domain` when (a) some
     /// attached hecksagon declares an EFFECT binding (a bind carrying `on:` —
@@ -606,6 +656,8 @@ impl Runtime {
             data_dir,
             hecksagons: Vec::new(),
             llm_providers: HashMap::new(),
+            // Booted on demand by `framework_mut()`, never eagerly.
+            framework: None,
             // i557 part 1 — boot without a framework dir leaves the
             // family + behavior maps empty but still seeds the native
             // kernel hooks. Discovery-aware callers use
@@ -1357,12 +1409,17 @@ impl Runtime {
         {
             return;
         }
-        // No-op when the Event Log aggregate isn't loaded (e.g. a single-
-        // bluebook example boot without the EventSourcing framework chapter).
+        // The Event Log lives in the FRAMEWORK COLLABORATOR, not in the user's
+        // domain. This used to read
+        //
+        //     if !self.repositories.contains_key(&es_key) { return; }
+        //
+        // i.e. "no Log unless the EventSourcing chapter happened to be merged
+        // into MY domain" — so a single-bluebook boot carrying the
+        // `event_sourced` directive silently wrote nothing at all. There is no
+        // such guard now : the collaborator always has the Event aggregate,
+        // because the kernel owns it.
         let es_key = repo_key(Some("EventSourcing"), "Event");
-        if !self.repositories.contains_key(&es_key) {
-            return;
-        }
         // Infra guard — never event-source the runtime's own machinery.
         // These are MECHANISM, not domain intent : the runtime's delivery
         // bookkeeping (CascadeRun / OutboundEvent / Cascade carry cascades),
@@ -1387,7 +1444,16 @@ impl Runtime {
             // dir, so the merge daemon's --global (event.heki) and the shards it
             // folds live under one event_sourcing/ root. Memory-backed Event
             // (no disk) has no shard target — skip.
-            let store_dir = match self.repositories.get(&es_key).and_then(|r| r.heki_path()) {
+            // The shard dir hangs off the COLLABORATOR's Event repo. The
+            // mutable borrow ends with this statement (heki_path returns an
+            // owned String), so the per-delta dispatch below can borrow it
+            // again — the borrow-shape question step zero exists to answer.
+            let store_dir = match self
+                .framework_mut()
+                .repositories
+                .get(&es_key)
+                .and_then(|r| r.heki_path())
+            {
                 Some(d) => d,
                 None => return,
             };
@@ -1451,7 +1517,14 @@ impl Runtime {
                 // routes through the AppendLog adapter to THIS process's shard.
                 // The recursion guard above skips the EventSourcing aggregates,
                 // so this inner Append never re-enters this hook.
-                let _ = command_dispatch::dispatch(self, "EventSourcing::Event.Append", attrs);
+                // Dispatch into the COLLABORATOR, not into self. The user's
+                // domain never carried EventSourcing::Event and no longer
+                // needs to.
+                let _ = command_dispatch::dispatch(
+                    self.framework_mut(),
+                    "EventSourcing::Event.Append",
+                    attrs,
+                );
             }
             // Phase-4 causation : remember this command's last recorded event
             // so a cascade off this aggregate can stamp it as its cause.
