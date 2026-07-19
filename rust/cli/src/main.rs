@@ -1254,6 +1254,17 @@ fn main() {
     match command {
         "parse" => { println!("{}", domain); emit_validator_warnings_to_stderr(&domain); }
         "dump" => { println!("{}", serde_json::to_string_pretty(&dump::dump(&domain)).unwrap()); emit_validator_warnings_to_stderr(&domain); }
+        "schema" => {
+            // JSON Schema (draft 2020-12) per command, from the IR
+            // (PLAN-json-schema-projection). An optional `Aggregate.Command`
+            // arg selects one ; absent emits every command's schema keyed by
+            // FQN. The served form renders from this ; external clients
+            // validate against it ; the payload gate enforces it.
+            let all = storehouse::projection::json_schema::domain_schemas(&domain);
+            let one = args.iter().find_map(|a| all.get(a.as_str()).cloned());
+            let out = one.unwrap_or(all);
+            println!("{}", serde_json::to_string_pretty(&out).unwrap());
+        }
         "validate" => {
             emit_validator_warnings_to_stderr(&domain);
             // --corpus <dir> opts into corpus-wide checks : merges every

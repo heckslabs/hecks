@@ -40,6 +40,7 @@ pub fn route(
         // conceptual layer). Under an OPEN door they are unchanged.
         ("GET", ["domain"]) | ("GET", ["aggregates"])
         | ("GET", ["events"]) | ("GET", ["policies"])
+        | ("GET", ["schema"]) | ("GET", ["schema", _])
             if posture == DoorPosture::Governed =>
         {
             forbidden_introspection(path)
@@ -57,6 +58,24 @@ pub fn route(
         // be read over HTTP, not just written : dispatch is commands,
         // this is queries.
         ("GET", ["query", verb]) => query(verb, bearer, posture, rt),
+
+        // JSON Schema (draft 2020-12) per command, from the IR
+        // (PLAN-json-schema-projection). `/schema` emits every command's
+        // schema keyed by FQN ; `/schema/Aggregate.Command` emits one. The
+        // served form renders from this ; external clients validate against
+        // it. Read-only introspection — no auth gate (same posture as
+        // /domain).
+        ("GET", ["schema"]) => {
+            let all = crate::projection::json_schema::domain_schemas(&rt.borrow().domain);
+            ("200 OK", serde_json::to_string(&all).unwrap_or_else(|_| "{}".into()))
+        }
+        ("GET", ["schema", fqn]) => {
+            let all = crate::projection::json_schema::domain_schemas(&rt.borrow().domain);
+            match all.get(*fqn) {
+                Some(one) => ("200 OK", serde_json::to_string(one).unwrap_or_else(|_| "{}".into())),
+                None => ("404 Not Found", format!(r#"{{"error":"no command {}"}}"#, fqn)),
+            }
+        }
 
         ("GET", ["aggregates"]) => {
             let rt = rt.borrow();
