@@ -1,5 +1,26 @@
 # PLAN — The outbox is a PROJECTION over the event log, not an aggregate
 
+> **CLOSED 2026-07-19. Slices 1-3 shipped through `50b3b8db7`. Read
+> `SESSION-STATE-2026-07-19-outbox-event-sourcing.md` first.**
+>
+> **This document's SLICE 3 IS WRONG — do not execute it.** "Delete the
+> injection" was written under the PROJECTION model below (model B), where the
+> outbox was not an aggregate at all. Model A — locked by Chris further down and
+> shipped — makes the outbox a normal `event_sourced` AGGREGATE, so bundling it
+> as runtime stdlib is coherent (the `CascadeRun` precedent), and deleting the
+> graft would strand standalone-served effect domains that have no corpus walk
+> to supply `OutboundEvent`.
+>
+> The actual defect behind the ToolShed symptom was an over-broad predicate :
+> `ensure_outbox_substrate` asked "does ANY attached hecksagon carry an effect
+> binding?" while `serve_directory` loads every hecksagon in the repo. Fixed by
+> scoping to bindings targeting THIS domain (`50b3b8db7`).
+>
+> The deeper finding, with the design LOCKED and no code yet, is
+> `CARD-framework-substrate-service.md` : the graft is a manual patch for one of
+> FOUR framework substrates the runtime dispatches into, and the other three
+> degrade silently.
+
 **Decided with Chris, 2026-07-19**, superseding PLAN-outbox-as-middleware-not-
 injection.md (which kept a materialized OutboundEvent aggregate, runtime-owned).
 Chris : "I don't know why we need a special aggregate — can't it deal with
