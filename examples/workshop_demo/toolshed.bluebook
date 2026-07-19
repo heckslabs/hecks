@@ -110,8 +110,12 @@ Hecks.bluebook "ToolShed" do
 
   aggregate "Loan" do
     description "One tool in one member's hands — active until returned, flagged when overdue"
-    reference_to Tool
-    reference_to Member
+    # belongs_to (not reference_to) so the runtime injects the tool + member
+    # ids from Loan state into the emitted events. Without this, ToolReturned
+    # carries only `loan`, and CheckInOnReturn's Tool.CheckIn falls to the
+    # singleton fallback — checking in an ARBITRARY tool, not this loan's.
+    belongs_to Tool
+    belongs_to Member
     attribute :due_on, DueDate
 
     value_object "DueDate" do

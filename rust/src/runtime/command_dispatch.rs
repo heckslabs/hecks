@@ -309,6 +309,22 @@ fn dispatch_inner(
                 }
             }
         }
+        // Store belongs_to FKs supplied as create inputs, symmetric with
+        // the belongs_to-on-event emit below : a create command's
+        // `reference_to X` input names an aggregate belongs_to (`tool`,
+        // `member`), but references are not attributes, so the loop above
+        // dropped them. Without this the stored FK the event-emit reads is
+        // always empty, and a downstream policy needing that FK falls to
+        // the singleton fallback (arbitrary record). Completes the
+        // half-wired belongs_to-on-event feature. VALIDATOR-cross-
+        // aggregate-policy-ref-naming.
+        for r in &rt.domain.aggregates[agg_idx].references {
+            if matches!(r.kind, crate::ir::ReferenceKind::BelongsTo) {
+                if let Some(val) = attrs.get(&r.name) {
+                    state.set(&r.name, val.clone());
+                }
+            }
+        }
     }
 
     // Pipeline: givens → lifecycle check → mutations → lifecycle transition
