@@ -40,6 +40,26 @@ pub fn parse_dispatch_body(body: &str) -> (String, HashMap<String, Value>) {
     (command, attrs)
 }
 
+/// Top-level keys of a JSON object body — used by the HTTP door to
+/// reject unknown keys LOUDLY. A silently-ignored "args" key once let an
+/// attribute-less command through and minted phantom records ; the door
+/// must argue like the MCP door does, never swallow.
+pub fn top_level_keys(body: &str) -> Vec<String> {
+    let body = body.trim();
+    let inner = match (body.find('{'), body.rfind('}')) {
+        (Some(s), Some(e)) if e > s => &body[s + 1..e],
+        _ => return vec![],
+    };
+    split_json_pairs(inner)
+        .iter()
+        .filter_map(|pair| {
+            let pair = pair.trim();
+            let colon = pair.find(':')?;
+            Some(pair[..colon].trim().trim_matches('"').to_string())
+        })
+        .collect()
+}
+
 fn extract_json_string(s: &str) -> Option<String> {
     let start = s.find('"')? + 1;
     let end = s[start..].find('"')? + start;

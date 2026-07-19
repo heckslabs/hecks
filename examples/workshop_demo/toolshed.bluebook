@@ -1,0 +1,119 @@
+Hecks.bluebook "ToolShed" do
+  vision "A neighborhood tool-rental shop. Members borrow tools, a deposit is held, and overdue loans get flagged so the late fee can be charged. Community over consumption : one good drill serves a whole street."
+  core
+
+  aggregate "Tool" do
+    description "A tool on the shelf with its category, daily fee, and deposit"
+    attribute :name, ToolName
+    attribute :category, Category
+    attribute :daily_fee, Fee
+    attribute :deposit, Deposit
+
+    value_object "ToolName" do
+      attribute :value, String
+    end
+
+    value_object "Category" do
+      attribute :value, String
+    end
+
+    value_object "Fee" do
+      attribute :cents, Integer
+      invariant "must be non-negative" do
+        cents >= 0
+      end
+    end
+
+    value_object "Deposit" do
+      attribute :cents, Integer
+      invariant "must be non-negative" do
+        cents >= 0
+      end
+    end
+
+    command "AddTool" do
+      role "Owner"
+      goal "Put a tool on the shelf for members to borrow"
+      attribute :name, ToolName, required: true
+      attribute :category, Category, required: true
+      attribute :daily_fee, Fee, required: true
+      attribute :deposit, Deposit, required: true
+    end
+
+    query "ByCategory" do |cat|
+      where(category: cat)
+    end
+  end
+
+  aggregate "Member" do
+    description "A neighbor enrolled in the shop, allowed to borrow tools"
+    attribute :name, MemberName
+    attribute :email, Email
+
+    value_object "MemberName" do
+      attribute :value, String
+    end
+
+    value_object "Email" do
+      attribute :value, String
+    end
+
+    command "EnrollMember" do
+      role "Owner"
+      goal "Welcome a neighbor into the shop"
+      attribute :name, MemberName, required: true
+      attribute :email, Email, required: true
+    end
+  end
+
+  aggregate "Loan" do
+    description "One tool in one member's hands — active until returned, flagged when overdue"
+    reference_to Tool
+    reference_to Member
+    attribute :due_on, DueDate
+
+    value_object "DueDate" do
+      attribute :value, String
+    end
+
+    value_object "LoanStatus" do
+      attribute :value, String
+    end
+
+    attribute :status, LoanStatus, default: "active" do
+      transition "ReturnTool" => "returned"
+      transition "MarkLate"  => "late"
+    end
+
+    command "BorrowTool" do
+      role "Member"
+      goal "Take a tool home — the deposit is held until it comes back"
+      reference_to Tool
+      reference_to Member
+      attribute :due_on, DueDate, required: true
+      emits "ToolBorrowed"
+    end
+
+    command "ReturnTool" do
+      role "Member"
+      goal "Bring the tool back and release the deposit"
+      reference_to Loan
+      emits "ToolReturned"
+    end
+
+    command "MarkLate" do
+      role "System"
+      goal "Flag an overdue loan so the late fee can be charged"
+      reference_to Loan
+      emits "LoanMarkedLate"
+    end
+
+    query "Active" do
+      where(status: "active")
+    end
+
+    query "Late" do
+      where(status: "late")
+    end
+  end
+end

@@ -158,6 +158,10 @@ module Hecks
           "name"          => agg.name,
           "context"       => agg.respond_to?(:context) ? agg.context : nil,
           "description"   => agg.description,
+          # 2026-07-18 — aggregate identified_by joins the canonical IR
+          # (payload-gate arc closed the un-guarded gap). Mirrors dump.rs :
+          # after description, before attributes — same slot as dump_entity.
+          "identified_by" => agg.respond_to?(:identified_by) && agg.identified_by ? agg.identified_by.to_s : nil,
           "attributes"    => (agg.attributes || []).map { |a| dump_attribute(a) },
           "value_objects" => (agg.value_objects || []).map { |vo| dump_value_object(vo) },
           "entities"      => (agg.entities || []).map { |ent| dump_entity(ent) },
@@ -219,10 +223,13 @@ module Hecks
 
       def dump_attribute(attr)
         {
-          "name"    => attr.name.to_s,
-          "type"    => type_string(attr.type),
-          "list"    => attr.list?,
-          "default" => attr.default.nil? ? nil : attr.default.to_s,
+          "name"     => attr.name.to_s,
+          "type"     => type_string(attr.type),
+          "list"     => attr.list?,
+          "default"  => attr.default.nil? ? nil : attr.default.to_s,
+          # 2026-07-18 — the payload gate enforces `required: true` ; the
+          # flag joins the canonical IR. Mirrors dump.rs : after default.
+          "required" => attr.respond_to?(:required) ? !!attr.required : false,
         }
       end
 
@@ -231,6 +238,13 @@ module Hecks
           "name"        => vo.name,
           "description" => vo.description,
           "attributes"  => (vo.attributes || []).map { |a| dump_attribute(a) },
+          # 2026-07-18 — VO invariants, NAMES ONLY (mirrors dump.rs) : the
+          # Ruby side holds the predicate as a Proc whose source is
+          # unrecoverable, so the shared canonical contract is the name ;
+          # each runtime enforces the predicate from its own parse.
+          "invariants"  => (vo.respond_to?(:invariants) ? (vo.invariants || []) : []).map { |inv|
+            { "name" => inv.respond_to?(:message) ? inv.message.to_s : inv.name.to_s }
+          },
         }
       end
 

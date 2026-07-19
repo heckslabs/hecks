@@ -284,6 +284,28 @@ fn run_one(
                         format!("expected refused: {:?}, got: {:?}", expected_msg, name))
                 }
             }
+            // Payload-gate refusals (2026-07-18) are REFUSALS, not errors —
+            // 0 events, no state touch, same contract as a failed given.
+            // MissingAttribute matches as "missing attribute: <name>" (its
+            // Display form) ; PayloadInvariantViolation matches on the
+            // invariant's declared name, mirroring InvariantViolation above.
+            Err(RuntimeError::MissingAttribute(attr)) => {
+                let msg = format!("missing attribute: {}", attr);
+                if msg == *expected_msg {
+                    TestRun::pass(&test.description)
+                } else {
+                    TestRun::fail(&test.description,
+                        format!("expected refused: {:?}, got: {:?}", expected_msg, msg))
+                }
+            }
+            Err(RuntimeError::PayloadInvariantViolation { name, .. }) => {
+                if name == *expected_msg {
+                    TestRun::pass(&test.description)
+                } else {
+                    TestRun::fail(&test.description,
+                        format!("expected refused: {:?}, got: {:?}", expected_msg, name))
+                }
+            }
             Err(other) => TestRun::fail(&test.description,
                 format!("expected refused: {:?}, got error: {}", expected_msg, other)),
             Ok(_) => TestRun::fail(&test.description,

@@ -560,6 +560,16 @@ pub struct ValueObject {
     pub name: String,
     pub description: Option<String>,
     pub attributes: Vec<Attribute>,
+    /// Value-intrinsic predicates (`invariant "non-negative" do cents >= 0 end`)
+    /// declared inside the value_object block — the Pizzas-canon form. Judged
+    /// by the payload gate (runtime/payload_gate.rs) against the INCOMING
+    /// command attrs, before hydration or mutation : the domain can always
+    /// assume its payloads are valid. Distinct from aggregate-level
+    /// `holds_when` invariants (checked on resulting state) and from `given`
+    /// blocks (state-dependent preconditions). The Ruby DSL has collected
+    /// these since day one (ValueObjectBuilder#invariant) ; the Rust parser
+    /// silently dropped them until 2026-07-18.
+    pub invariants: Vec<Invariant>,
 }
 
 #[derive(Debug, Clone)]

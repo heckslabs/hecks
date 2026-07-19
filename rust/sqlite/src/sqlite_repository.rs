@@ -27,7 +27,7 @@
 //!   let cols = vec![("title".into(), "VARCHAR(255)".into())];
 //!   let repo = SqliteRepository::new("BlogEntry", "/tmp/app.db", None, cols)?; // fallible
 
-use crate::sqlite_mapping::{value_from_sql, value_to_sql};
+use crate::sqlite_mapping::{quote_ident, value_from_sql, value_to_sql};
 use storehouse::runtime::AggregateState;
 use storehouse::runtime::Value;
 use storehouse::heki;
@@ -104,17 +104,26 @@ impl SqliteRepository {
     ) -> Result<(), rusqlite::Error> {
         let mut defs = vec!["id TEXT PRIMARY KEY".to_string()];
         for (name, ty) in columns {
-            defs.push(format!("{name} {ty}"));
+            defs.push(format!("{} {ty}", quote_ident(name)));
         }
         defs.push("created_at DATETIME".to_string());
         defs.push("updated_at DATETIME".to_string());
-        let ddl = format!("CREATE TABLE IF NOT EXISTS {table} (\n  {}\n)", defs.join(",\n  "));
+        let ddl = format!(
+            "CREATE TABLE IF NOT EXISTS {} (\n  {}\n)",
+            quote_ident(table),
+            defs.join(",\n  "),
+        );
         conn.execute_batch(&ddl)?;
         Ok(())
     }
 
     fn load_persisted(&mut self) {
-        let select = format!("SELECT id, {} FROM {}", self.columns.join(", "), self.table);
+        let quoted_cols: Vec<String> = self.columns.iter().map(|c| quote_ident(c)).collect();
+        let select = format!(
+            "SELECT id, {} FROM {}",
+            quoted_cols.join(", "),
+            quote_ident(&self.table),
+        );
         let mut stmt = match self.conn.prepare(&select) {
             Ok(s) => s,
             Err(_) => return,
@@ -159,12 +168,16 @@ impl SqliteRepository {
         col_list.extend(self.columns.iter().cloned());
         let placeholders: Vec<String> =
             (1..=col_list.len()).map(|i| format!("?{i}")).collect();
+        let quoted_cols: Vec<String> = col_list.iter().map(|c| quote_ident(c)).collect();
         let upsert = format!(
             "INSERT INTO {t} ({cols}) VALUES ({ph}) ON CONFLICT(id) DO UPDATE SET {set}, updated_at = CURRENT_TIMESTAMP",
-            t = self.table,
-            cols = col_list.join(", "),
+            t = quote_ident(&self.table),
+            cols = quoted_cols.join(", "),
             ph = placeholders.join(", "),
-            set = self.columns.iter().map(|c| format!("{c} = excluded.{c}")).collect::<Vec<_>>().join(", "),
+            set = self.columns.iter().map(|c| {
+                let q = quote_ident(c);
+                format!("{q} = excluded.{q}")
+            }).collect::<Vec<_>>().join(", "),
         );
         let mut params: Vec<rusqlite::types::Value> = vec![state.id.clone().into()];
         for c in &self.columns {
@@ -179,7 +192,7 @@ impl SqliteRepository {
     pub fn delete(&mut self, id: &str, _ctx: heki::WriteContext<'_>) {
         self.store.remove(id);
         let _ = self.conn.execute(
-            &format!("DELETE FROM {} WHERE id = ?1", self.table),
+            &format!("DELETE FROM {} WHERE id = ?1", quote_ident(&self.table)),
             [id],
         );
     }
@@ -263,7 +276,14 @@ pub fn sqlite_factory(
         .map(|a| (a.name.clone(), crate::sqlite_mapping::sql_type(&a.attr_type).to_string()))
         .collect();
     if let Some(lc) = &agg.lifecycle {
-        columns.push((lc.field.clone(), "TEXT".to_string()));
+        // The lifecycle state field is usually ALSO a declared attribute
+        // (the lifecycle is declared ON an attribute — Order's `status`),
+        // which already added the column above. Only add it when no
+        // attribute of that name exists, else the DDL carries a duplicate
+        // column (`status TEXT, status TEXT`) and CREATE TABLE fails.
+        if !columns.iter().any(|(n, _)| n == &lc.field) {
+            columns.push((lc.field.clone(), "TEXT".to_string()));
+        }
     }
     let mut indexed_columns: Vec<String> = Vec::new();
     for q in &agg.queries {

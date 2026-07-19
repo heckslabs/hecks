@@ -47,6 +47,7 @@
 //!       let rows = run_filtered(&conn, &table, &cols, &where_sql, &params);
 //!   }
 
+use crate::sqlite_mapping::quote_ident;
 use storehouse::runtime::AggregateState;
 use storehouse::ir::{WhereClause, WhereOp};
 use rusqlite::types::Value as SqlValue;
@@ -94,7 +95,7 @@ pub fn build_pushdown(
                     continue;
                 }
                 params.push(SqlValue::Text(target));
-                clauses.push(format!("CAST({} AS TEXT) = ?{}", w.field, params.len()));
+                clauses.push(format!("CAST({} AS TEXT) = ?{}", quote_ident(&w.field), params.len()));
             }
             WhereOp::In => {
                 let resolved = resolve(&w.value, attrs);
@@ -113,7 +114,7 @@ pub fn build_pushdown(
                 }
                 clauses.push(format!(
                     "CAST({} AS TEXT) IN ({})",
-                    w.field,
+                    quote_ident(&w.field),
                     placeholders.join(", ")
                 ));
             }
@@ -140,7 +141,7 @@ pub fn build_pushdown(
                         continue;
                     }
                     params.push(SqlValue::Integer(n));
-                    let cmp = format!("CAST({} AS INTEGER) {} ?{}", w.field, sql_op, params.len());
+                    let cmp = format!("CAST({} AS INTEGER) {} ?{}", quote_ident(&w.field), sql_op, params.len());
                     // NULL handling, EXACT vs the oracle : a missing cell reads as
                     // "" there, and compare_strings("", <numeric>) is LEXICAL
                     // ("" < any digit). So Lt/Lte KEEP nulls — the SQL `IS NULL OR`
@@ -148,7 +149,7 @@ pub fn build_pushdown(
                     // `NULL OP ?` is NULL -> excluded, matching the oracle.
                     match w.op {
                         WhereOp::Lt | WhereOp::Lte => {
-                            clauses.push(format!("({} IS NULL OR {})", w.field, cmp));
+                            clauses.push(format!("({} IS NULL OR {})", quote_ident(&w.field), cmp));
                         }
                         _ => clauses.push(cmp),
                     }
@@ -158,7 +159,7 @@ pub fn build_pushdown(
                     // `CAST(col AS TEXT) OP ?` mirrors exactly, reusing the text
                     // index. The canonical date / timestamp / prefix range.
                     params.push(SqlValue::Text(target));
-                    clauses.push(format!("CAST({} AS TEXT) {} ?{}", w.field, sql_op, params.len()));
+                    clauses.push(format!("CAST({} AS TEXT) {} ?{}", quote_ident(&w.field), sql_op, params.len()));
                 }
             }
             // Ne / Contains / NoneInState / Resolved carry list, cross-aggregate,
@@ -187,10 +188,11 @@ pub fn run_filtered(
     where_sql: &str,
     params: &[SqlValue],
 ) -> Option<Vec<AggregateState>> {
+    let quoted_cols: Vec<String> = columns.iter().map(|c| quote_ident(c)).collect();
     let select = format!(
         "SELECT id, {} FROM {} WHERE {}",
-        columns.join(", "),
-        table,
+        quoted_cols.join(", "),
+        quote_ident(table),
         where_sql
     );
     let mut stmt = conn.prepare(&select).ok()?;

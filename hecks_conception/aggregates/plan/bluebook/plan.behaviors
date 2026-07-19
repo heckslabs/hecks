@@ -615,13 +615,13 @@ Hecks.behaviors "Plan" do
   test "Plan refuses a sprint with no project" do
     tests "Plan", on: "Sprint"
     input  number: "5", goal: "orphan sprint"
-    expect refused: "project is required"
+    expect refused: "missing attribute: project"
   end
 
   test "Capture refuses a story with no project" do
     tests "Capture", on: "Story"
     input  ref: "np1", title: "No project", tier: 1, summary: "s", target: "t"
-    expect refused: "project is required"
+    expect refused: "missing attribute: project"
   end
 
   test "Sprint.AssignToProject sets a sprint's project" do
@@ -635,7 +635,7 @@ Hecks.behaviors "Plan" do
     tests "AssignToProject", on: "Sprint"
     setup  "Plan", number: "201", goal: "g", project: "plan"
     input  id: "201"
-    expect refused: "project is required"
+    expect refused: "missing attribute: project"
   end
 
 

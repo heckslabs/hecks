@@ -144,6 +144,18 @@ fn dispatch_inner(
     // the resolution block below) — the #729 name-heuristic and the
     // first-class-factory `is_create` bit both retired. `self_ref` survives
     // only to resolve the id a legacy `reference_to` kwarg carries.
+    // PAYLOAD GATE (ACL) — value-object invariants judge the incoming
+    // attrs BEFORE any hydration, id resolution, or mutation. A refusal
+    // here touches nothing : no record, no event, no cascade. The domain
+    // below this line can assume its payloads are valid (2026-07-18,
+    // inbox/PLAN-payload-gate-acl.md).
+    super::payload_gate::check(
+        &rt.domain.aggregates[agg_idx],
+        cmd_for(rt, res),
+        &attrs,
+        cascade_hint.is_some(),
+    )?;
+
     let self_ref = find_self_ref_res(rt, res);
     let aggregate_name = rt.domain.aggregates[agg_idx].name.clone();
     let aggregate_context = rt.domain.aggregates[agg_idx].context.clone();

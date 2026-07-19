@@ -34,3 +34,7 @@ getrandom = { version = "0.2", features = ["js"] }
 
 [workspace]
 members = ["sqlite", "cli"]
+# ruby_ext is a PROJECTION TARGET, not a workspace member : building it needs
+# ruby dev headers (rb-sys/magnus), which the CI gates must never require.
+# It is built only by bin/project-storehouse. See rust/ruby_ext/Cargo.toml.
+exclude = ["ruby_ext"]

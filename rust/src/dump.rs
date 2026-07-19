@@ -126,6 +126,10 @@ fn dump_aggregate(agg: &Aggregate) -> Value {
         "name": agg.name,
         "context": agg.context,
         "description": agg.description,
+        // 2026-07-18 — aggregate identified_by joins the canonical IR
+        // (it was un-guarded by parity until the payload-gate arc).
+        // Same slot as dump_entity's : after description, before attributes.
+        "identified_by": agg.identified_by,
         "attributes": agg.attributes.iter().map(dump_attribute).collect::<Vec<_>>(),
         "value_objects": agg.value_objects.iter().map(dump_value_object).collect::<Vec<_>>(),
         "entities": agg.entities.iter().map(dump_entity).collect::<Vec<_>>(),
@@ -145,6 +149,9 @@ fn dump_attribute(attr: &Attribute) -> Value {
         "type": attr.attr_type,
         "list": attr.list,
         "default": attr.default,
+        // 2026-07-18 — the payload gate enforces `required: true`, so the
+        // flag joins the canonical IR (both parsers already carried it).
+        "required": attr.required,
     })
 }
 
@@ -153,6 +160,13 @@ fn dump_value_object(vo: &ValueObject) -> Value {
         "name": vo.name,
         "description": vo.description,
         "attributes": vo.attributes.iter().map(dump_attribute).collect::<Vec<_>>(),
+        // 2026-07-18 — VO invariants, NAMES ONLY : the Ruby side holds the
+        // predicate as a Proc (source unrecoverable), so the shared canonical
+        // contract is the invariant's name ; each runtime enforces the
+        // predicate from its own parse. The Rust IR keeps the expression
+        // internally (payload_gate) — it just isn't part of the parity
+        // contract.
+        "invariants": vo.invariants.iter().map(|i| json!({"name": i.name})).collect::<Vec<_>>(),
     })
 }
 

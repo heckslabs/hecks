@@ -191,11 +191,11 @@ module Hecks
       #   has_many Stories                      # 0..unbounded
       #   has_many Tasks, max: 5                # 0..5
       #   has_many Stories, at_least: 1, max: 5 # 1..5
-      def has_many(type, max: nil, at_least: 0, as: nil)
+      def has_many(type, max: nil, at_least: 0, as: nil, from: nil)
         raise ArgumentError, "has_many requires a constant, not a string: #{type.inspect}" if type.class == String
         plural = type.to_s.split("::").last
-        domain = type.to_s.split("::")[0..-2].join("::")
-        domain = nil if domain.empty?
+        domain = from ? from.to_s : type.to_s.split("::")[0..-2].join("::")
+        domain = nil if domain.nil? || domain.empty?
         singular = singularize(plural)
         # `as: :alias` overrides the derived snake_case plural so an aggregate
         # can hold multiple collections of the same target type under distinct
@@ -214,11 +214,11 @@ module Hecks
       # Single relationship from owner side. IR-equivalent to belongs_to
       # and reference_to (Cardinality { min: 0, max: 1 }) ; the distinction
       # is intent-only at the bluebook level.
-      def has_one(type, as: nil, at_least: 0)
+      def has_one(type, as: nil, at_least: 0, from: nil)
         raise ArgumentError, "has_one requires a constant, not a string: #{type.inspect}" if type.class == String
         target = type.to_s.split("::").last
-        domain = type.to_s.split("::")[0..-2].join("::")
-        domain = nil if domain.empty?
+        domain = from ? from.to_s : type.to_s.split("::")[0..-2].join("::")
+        domain = nil if domain.nil? || domain.empty?
         attr_name = (as || target.gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2')
                                  .gsub(/([a-z\d])([A-Z])/, '\1_\2').downcase).to_sym
         @references << BluebookModel::Structure::Reference.new(
@@ -240,11 +240,14 @@ module Hecks
       # warns against denormalizing the parent identity onto the child ;
       # use sparingly, only when the dependent genuinely needs the owner's
       # identity for its own behavior.
-      def belongs_to(type, as: nil, at_least: 0)
+      def belongs_to(type, as: nil, at_least: 0, from: nil)
         raise ArgumentError, "belongs_to requires a constant, not a string: #{type.inspect}" if type.class == String
         target = type.to_s.split("::").last
-        domain = type.to_s.split("::")[0..-2].join("::")
-        domain = nil if domain.empty?
+        # `from:` — the cross-context qualifier, English AND valid Ruby
+        # (2026-07-18 ruling : the Bluebook is Ruby ; the space-form
+        # ` from Context` and the codey `Context::X` are both retired).
+        domain = from ? from.to_s : type.to_s.split("::")[0..-2].join("::")
+        domain = nil if domain.nil? || domain.empty?
         attr_name = (as || target.gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2')
                                  .gsub(/([a-z\d])([A-Z])/, '\1_\2').downcase).to_sym
         @references << BluebookModel::Structure::Reference.new(
