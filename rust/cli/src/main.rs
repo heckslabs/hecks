@@ -1345,6 +1345,11 @@ fn main() {
                 // contexts with no same-context resolution (relationship
                 // grammar's no-silent-guess rule).
                 errors.extend(storehouse::validator_corpus::ambiguous_cross_reference_errors(&corpus, &corpus));
+                // INVALID-grade : a policy triggers a cross-aggregate
+                // command whose reference key nothing supplies, so the
+                // runtime's inject_refs singleton fallback substitutes an
+                // arbitrary record. The policy-payload no-silent-guess rule.
+                errors.extend(storehouse::validator_corpus::policy_reference_alignment_errors(&corpus));
                 for w in storehouse::validator_corpus::policy_event_warnings(&corpus) {
                     eprintln!("{}", w);
                 }

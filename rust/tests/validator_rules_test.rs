@@ -570,3 +570,166 @@ assert!(
     "known then_set ops (append, increment) must not be flagged"
 );
 }
+
+// ── policy_reference_alignment_errors (VALIDATOR-cross-aggregate-policy-
+//    ref-naming) — a policy triggering a cross-aggregate command whose
+//    reference key nothing supplies would silently hit the singleton
+//    fallback and act on an ARBITRARY record. Flag it at validate time. ──
+
+#[test]
+fn policy_ref_alignment_ignores_pure_singleton_reliance() {
+    // ReturnTool carries only `loan` — the event carries NO Tool-typed key
+    // at all. Tool.CheckIn then relies on the singleton fallback. That is
+    // legitimate for a singleton aggregate and undetectable from a genuine
+    // bug statically, so the NAME-MISMATCH rule leaves it alone. (This is a
+    // real ToolShed bug — Tool is multi-record — but it is fixed in the
+    // domain, not caught here ; the narrowed rule fires only on misnamed
+    // keys.) The borrow path is satisfied outright, so: zero findings.
+    let d = storehouse::parser::parse(r#"Hecks.bluebook "ToolShed" do
+  aggregate "Tool" do
+    command "CheckOut" do
+      role "System"
+      reference_to Tool
+    end
+    command "CheckIn" do
+      role "System"
+      reference_to Tool
+    end
+  end
+  aggregate "Loan" do
+    reference_to Tool
+    command "BorrowTool" do
+      role "Member"
+      reference_to Tool
+      emits "ToolBorrowed"
+    end
+    command "ReturnTool" do
+      role "Member"
+      reference_to Loan
+      emits "ToolReturned"
+    end
+  end
+  policy "CheckOutOnBorrow" do
+    on "Loan.ToolBorrowed"
+    trigger "Tool.CheckOut"
+  end
+  policy "CheckInOnReturn" do
+    on "Loan.ToolReturned"
+    trigger "Tool.CheckIn"
+  end
+end"#);
+    let errors = storehouse::validator_corpus::policy_reference_alignment_errors(&d);
+    assert!(
+        errors.is_empty(),
+        "pure singleton reliance (no Tool key on the event) is out of scope: {:?}", errors
+    );
+}
+
+#[test]
+fn policy_ref_alignment_flags_return_path_alias_mismatch() {
+    // Here the event DOES carry the Tool — ReturnTool declares it as
+    // `returned_tool` — but Tool.CheckIn expects `tool`. The data is right
+    // there under the wrong name, so the runtime ignores it and grabs an
+    // arbitrary tool. A genuine misalignment — must flag.
+    let d = storehouse::parser::parse(r#"Hecks.bluebook "ToolShed" do
+  aggregate "Tool" do
+    command "CheckIn" do
+      role "System"
+      reference_to Tool
+    end
+  end
+  aggregate "Loan" do
+    reference_to Tool
+    command "ReturnTool" do
+      role "Member"
+      reference_to Loan
+      reference_to Tool, as: :returned_tool
+      emits "ToolReturned"
+    end
+  end
+  policy "CheckInOnReturn" do
+    on "Loan.ToolReturned"
+    trigger "Tool.CheckIn"
+  end
+end"#);
+    let errors = storehouse::validator_corpus::policy_reference_alignment_errors(&d);
+    assert!(
+        errors.iter().any(|e| e.contains("CheckInOnReturn") && e.contains("returned_tool")),
+        "a Tool carried under 'returned_tool' but needed as 'tool' must flag: {:?}", errors
+    );
+}
+
+#[test]
+fn policy_ref_alignment_belongs_to_return_path_ok() {
+// Same shape, but Loan `belongs_to Tool` — the runtime injects the
+// belongs_to ref from state into ToolReturned, so `tool` IS carried.
+// No fallback, no error. This is the fix for the flagged case above.
+let d = storehouse::parser::parse(r#"Hecks.bluebook "ToolShed" do
+aggregate "Tool" do
+command "CheckOut" do
+  role "System"
+  reference_to Tool
+end
+command "CheckIn" do
+  role "System"
+  reference_to Tool
+end
+end
+aggregate "Loan" do
+belongs_to Tool
+command "BorrowTool" do
+  role "Member"
+  reference_to Tool
+  emits "ToolBorrowed"
+end
+command "ReturnTool" do
+  role "Member"
+  reference_to Loan
+  emits "ToolReturned"
+end
+end
+policy "CheckOutOnBorrow" do
+on "Loan.ToolBorrowed"
+trigger "Tool.CheckOut"
+end
+policy "CheckInOnReturn" do
+on "Loan.ToolReturned"
+trigger "Tool.CheckIn"
+end
+end"#);
+let errors = storehouse::validator_corpus::policy_reference_alignment_errors(&d);
+assert!(errors.is_empty(), "belongs_to return path is satisfied: {:?}", errors);
+}
+
+#[test]
+fn policy_ref_alignment_flags_alias_mismatch() {
+// The card's exact scenario : BorrowTool declares the tool ref as
+// `borrowed_tool`, so ToolBorrowed carries `borrowed_tool`, not the
+// `tool` Tool.CheckOut expects. The borrow path now silently breaks —
+// flag it.
+let d = storehouse::parser::parse(r#"Hecks.bluebook "ToolShed" do
+aggregate "Tool" do
+command "CheckOut" do
+  role "System"
+  reference_to Tool
+end
+end
+aggregate "Loan" do
+reference_to Tool
+command "BorrowTool" do
+  role "Member"
+  reference_to Tool, as: :borrowed_tool
+  emits "ToolBorrowed"
+end
+end
+policy "CheckOutOnBorrow" do
+on "Loan.ToolBorrowed"
+trigger "Tool.CheckOut"
+end
+end"#);
+let errors = storehouse::validator_corpus::policy_reference_alignment_errors(&d);
+assert!(
+    errors.iter().any(|e| e.contains("CheckOutOnBorrow") && e.contains("tool")),
+    "alias mismatch must flag the borrow path: {:?}", errors
+);
+}

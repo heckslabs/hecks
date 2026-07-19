@@ -345,3 +345,136 @@ pub fn ambiguous_cross_reference_errors(domain: &Domain, corpus: &Domain) -> Vec
     }
     errors
 }
+
+/// INVALID-grade : a policy triggers a CROSS-AGGREGATE command whose
+/// reference key is MISNAMED — the triggering event carries the needed
+/// entity, but under a DIFFERENT name than the trigger expects (the
+/// `reference_to Tool, as: :borrowed_tool` case). At dispatch the runtime's
+/// `inject_refs` ignores the misnamed key and its singleton fallback
+/// (mod.rs) substitutes `repo.all().first()` — an ARBITRARY record. No
+/// error, wrong record. This rule is the policy-payload analog of
+/// `ambiguous_cross_reference_errors` : it errors where the data IS present
+/// but the runtime would silently guess anyway.
+///
+/// SCOPE (name-mismatch only) : a trigger whose target type the event does
+/// NOT carry at all relies on the singleton fallback deliberately —
+/// legitimate for singleton aggregates (one Mood, one current record), and
+/// undetectable from `first()`-vs-bug statically. Those are OUT of scope ;
+/// this rule fires only when the same target rides the event under another
+/// name, which is unambiguously a misalignment.
+///
+/// Mirrors `inject_refs` satisfiability. A reference `r` on the triggered
+/// command is SATISFIED (never hits the fallback) when any of :
+///   - a command emitting the policy's event carries `r.name` as an
+///     attribute or a reference (the event data flows by name), OR
+///   - the emitting AGGREGATE declares `belongs_to` under `r.name` — the
+///     runtime injects those from state into the event (command_dispatch
+///     :341), OR
+///   - `r.target` equals an emitting aggregate's type (the event's own id
+///     is injected — `r.target == upstream_type`), OR
+///   - the policy supplies `r.name` via `with key: …`, OR
+///   - the policy fans out with `for_each` (record identity comes from the
+///     sweep, not the reference).
+/// When unsatisfied, flag ONLY if the event carries `r.target` under a
+/// different name (a genuine misalignment) ; a target absent from the event
+/// is singleton reliance and out of scope.
+///
+/// Corpus-only : the triggered command usually lives in another bluebook,
+/// so this needs the merged Domain. Empty on a single-aggregate Domain
+/// (nothing can be cross-aggregate). Skips policies whose event nothing
+/// emits (dangling — `policy_event_warnings`' job ; never fires anyway) and
+/// triggers no command declares (`corpus_phantom_trigger_errors`' job).
+/// VALIDATOR-cross-aggregate-policy-ref-naming, 2026-07-19.
+pub fn policy_reference_alignment_errors(domain: &Domain) -> Vec<String> {
+if domain.aggregates.len() < 2 {
+    return vec![];
+}
+let mut errors = vec![];
+for p in domain.policies.iter().filter(|p| p.target_domain.is_none()) {
+    // The trigger may be aggregate-qualified (`Tool.CheckOut`) ; command
+    // names in the IR are bare. Split the qualifier off, and when present
+    // scope the command lookup to that aggregate.
+    let (trig_agg, trig_cmd) = match p.trigger_command.split_once('.') {
+        Some((a, c)) => (Some(a), c),
+        None => (None, p.trigger_command.as_str()),
+    };
+    let Some(triggered) = domain
+        .aggregates
+        .iter()
+        .filter(|a| trig_agg.map_or(true, |ta| ta == a.name))
+        .flat_map(|a| a.commands.iter())
+        .find(|c| c.name == trig_cmd)
+    else {
+        continue;
+    };
+    // Every command emitting this policy's event, the keys its event
+    // data carries (command attrs + refs, plus the emitting aggregate's
+    // belongs_to refs injected from state), and the emitter types.
+    let event = p.event_name();
+    let qualifier = p.event_qualifier();
+    // `carried` : keys the event data supplies by name (satisfaction).
+    // `carried_targets` : (target-type, name) pairs for every ENTITY the
+    // event carries a reference to — used to spot a same-type key under a
+    // DIFFERENT name (the misalignment we flag). A target absent from this
+    // list entirely means the trigger relies on the singleton fallback,
+    // which is legitimate for singleton aggregates — NOT flagged.
+    let mut carried: HashSet<&str> = HashSet::new();
+    let mut carried_targets: Vec<(&str, &str)> = Vec::new();
+    let mut emitter_types: HashSet<&str> = HashSet::new();
+    for agg in &domain.aggregates {
+        for cmd in &agg.commands {
+            if cmd.emits.as_deref() != Some(event) {
+                continue;
+            }
+            if let Some(q) = qualifier {
+                if q != agg.name {
+                    continue;
+                }
+            }
+            emitter_types.insert(agg.name.as_str());
+            for a in &cmd.attributes {
+                carried.insert(a.name.as_str());
+            }
+            for r in &cmd.references {
+                carried.insert(r.name.as_str());
+                carried_targets.push((r.target.as_str(), r.name.as_str()));
+            }
+            for r in &agg.references {
+                if matches!(r.kind, crate::ir::ReferenceKind::BelongsTo) {
+                    carried.insert(r.name.as_str());
+                    carried_targets.push((r.target.as_str(), r.name.as_str()));
+                }
+            }
+        }
+    }
+    if emitter_types.is_empty() || p.for_each.is_some() {
+        continue;
+    }
+    let with_keys: HashSet<&str> = p.with.iter().map(|(k, _)| k.as_str()).collect();
+    for r in &triggered.references {
+        let satisfied = carried.contains(r.name.as_str())
+            || emitter_types.contains(r.target.as_str())
+            || with_keys.contains(r.name.as_str());
+        if satisfied {
+            continue;
+        }
+        // Name-mismatch only : the event carries this target type, just
+        // under other name(s). A target absent here is singleton reliance
+        // — out of scope for this rule.
+        let misaligned: Vec<&str> = carried_targets
+            .iter()
+            .filter(|(t, _)| *t == r.target.as_str())
+            .map(|(_, n)| *n)
+            .collect();
+        if misaligned.is_empty() {
+            continue;
+        }
+        errors.push(format!(
+            "Policy {} triggers {} needing reference '{}' (→{}), but event {} carries {} under '{}' instead — the runtime ignores the misnamed key and substitutes an arbitrary {}. Align the reference name across the event's source command and {}, or supply it with `with {}: …`.",
+            p.name, p.trigger_command, r.name, r.target, p.on_event,
+            r.target, misaligned.join("', '"), r.target, p.trigger_command, r.name
+        ));
+    }
+}
+errors
+}
