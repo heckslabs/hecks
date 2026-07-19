@@ -46,7 +46,7 @@ pub fn serve_directory(dir: &str, port: u16) {
         hecksagons.extend(load_all_hecksagons(repo_root.to_str().unwrap_or(".")));
     }
 
-    let runtimes = load_all_domains(dir, &hecksagons);
+    let mut runtimes = load_all_domains(dir, &hecksagons);
     if runtimes.is_empty() {
         eprintln!("No .bluebook files found in {}", dir);
         std::process::exit(1);
@@ -54,7 +54,7 @@ pub fn serve_directory(dir: &str, port: u16) {
 
     let repo_root = repo_root_of_binary().unwrap_or_else(|| std::path::PathBuf::from("."));
     let served_dir = std::fs::canonicalize(dir).unwrap_or_else(|_| std::path::PathBuf::from(dir));
-    let registry = WebRegistry::scan(&hecksagons, &repo_root, &served_dir);
+    let mut registry = WebRegistry::scan(&hecksagons, &repo_root, &served_dir);
 
     let names: Vec<String> = runtimes.keys().cloned().collect();
     eprintln!("Hecks Life — {} domains, {} :web routes on http://localhost:{}",
@@ -86,8 +86,95 @@ pub fn serve_directory(dir: &str, port: u16) {
         std::process::exit(1);
     });
 
+    // Hot reload — the refresh must show the bluebook as it IS. Before
+    // each request, fingerprint the served tree (paths + mtimes of every
+    // .bluebook / .hecksagon / .family / .adapter / .world) ; when it
+    // changes, re-boot the domains from disk. Records survive : reload
+    // re-hydrates from the same heki stores. A half-saved or invalid
+    // edit must NEVER take the server down — the reload is panic-guarded
+    // and keeps the previous runtimes when the fresh tree yields nothing.
+    let mut fingerprint = tree_fingerprint(dir);
     for stream in listener.incoming().flatten() {
+        let fresh = tree_fingerprint(dir);
+        if fresh != fingerprint {
+            fingerprint = fresh;
+            let reloaded = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let mut hexes = load_all_hecksagons(dir);
+                if let Some(rr) = repo_root_of_binary() {
+                    hexes.extend(load_all_hecksagons(rr.to_str().unwrap_or(".")));
+                }
+                let rts = load_all_domains(dir, &hexes);
+                let reg = WebRegistry::scan(&hexes, &repo_root, &served_dir);
+                (rts, reg)
+            }));
+            match reloaded {
+                Ok((rts, reg)) if !rts.is_empty() => {
+                    let names: Vec<String> = rts.keys().cloned().collect();
+                    runtimes = rts;
+                    registry = reg;
+                    eprintln!("reload : bluebook tree changed — {} domain(s) re-booted : {}",
+                        names.len(), names.join(", "));
+                }
+                Ok(_) => {
+                    eprintln!("reload : tree changed but no valid bluebooks parsed — keeping previous domains");
+                }
+                Err(_) => {
+                    eprintln!("reload : parse panicked on the fresh tree — keeping previous domains");
+                }
+            }
+        }
         handle_multi(stream, &runtimes, &registry, posture);
+    }
+}
+
+/// Fingerprint of every domain-definition file under the served tree —
+/// path + mtime of each .bluebook / .hecksagon / .family / .adapter /
+/// .world, folded into one u64. Same walk-skips as walk_hecksagons
+/// (data/, node_modules/, target/, dotfiles). Adding, editing, or
+/// deleting a file all change the hash.
+fn tree_fingerprint(dir: &str) -> u64 {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::Hasher;
+    let mut hasher = DefaultHasher::new();
+    fingerprint_walk(Path::new(dir), &mut hasher);
+    hasher.finish()
+}
+
+fn fingerprint_walk(root: &Path, hasher: &mut std::collections::hash_map::DefaultHasher) {
+    use std::hash::Hash;
+    let entries = match std::fs::read_dir(root) {
+        Ok(e) => e,
+        Err(_) => return,
+    };
+    let mut paths: Vec<std::path::PathBuf> = entries.flatten().map(|e| e.path()).collect();
+    paths.sort();
+    for path in paths {
+        let name = path.file_name().unwrap_or_default().to_string_lossy().into_owned();
+        if name.starts_with('.') {
+            continue;
+        }
+        if path.is_dir() {
+            if name == "data" || name == "node_modules" || name == "target" {
+                continue;
+            }
+            fingerprint_walk(&path, hasher);
+        } else if path
+            .extension()
+            .map(|e| {
+                e == "bluebook" || e == "hecksagon" || e == "family" || e == "adapter" || e == "world"
+            })
+            .unwrap_or(false)
+        {
+            path.to_string_lossy().hash(hasher);
+            if let Ok(meta) = std::fs::metadata(&path) {
+                if let Ok(mtime) = meta.modified() {
+                    if let Ok(d) = mtime.duration_since(std::time::UNIX_EPOCH) {
+                        d.as_nanos().hash(hasher);
+                    }
+                }
+                meta.len().hash(hasher);
+            }
+        }
     }
 }
 

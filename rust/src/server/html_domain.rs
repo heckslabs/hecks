@@ -79,8 +79,12 @@ pub fn generate_domain_page(
         esc(&divider_label),
     ));
 
-    // Records table
+    // Records table — wrapped in a stable id so wizardSubmit can
+    // re-fetch the page and swap this section live after a dispatch
+    // (the panel must show the store, and the store just changed).
+    main.push_str(r#"<div id="records-section">"#);
     main.push_str(&records_table(&rt));
+    main.push_str("</div>");
 
     wrap_page_with_domain(&display_name(name), Some(name), &sidebar, &main)
 }
@@ -350,13 +354,87 @@ function glassSelect(i) {{
     )
 }
 
-/// Records table — all fixtures/records for this domain
+/// Records table — LIVE event-sourced records first (the store is the
+/// truth ; a refresh must show what was dispatched, not just declared
+/// fixtures). Falls back to the bluebook's declared fixtures for
+/// fixture-only demos, then to the empty-state hint.
 fn records_table(rt: &Runtime) -> String {
-    if rt.domain.fixtures.is_empty() {
-        return r#"<div class="p-8 rounded-lg border border-dashed border-surface-4 text-center">
-  <p class="text-gray-500">No records yet — use the palette above to dispatch a command</p>
-</div>"#.to_string();
+    let live = live_records_section(rt);
+    if !live.is_empty() {
+        return live;
     }
-    fixtures_section(&rt.domain.fixtures)
+    if !rt.domain.fixtures.is_empty() {
+        return fixtures_section(&rt.domain.fixtures);
+    }
+    r#"<div class="p-8 rounded-lg border border-dashed border-surface-4 text-center">
+  <p class="text-gray-500">No records yet — use the palette above to dispatch a command</p>
+</div>"#.to_string()
+}
+
+/// Render every aggregate's live repository records as per-aggregate
+/// tables. Columns follow the aggregate's declared attribute order (the
+/// IR is the contract) ; an ID column leads. Returns "" when no
+/// aggregate holds any record, so the caller can fall back.
+fn live_records_section(rt: &Runtime) -> String {
+    let mut body = String::new();
+    let mut total = 0usize;
+    for agg in &rt.domain.aggregates {
+        let items = rt.all(&agg.name);
+        if items.is_empty() {
+            continue;
+        }
+        total += items.len();
+        // Columns : references first (tool, member, …), then declared
+        // attributes — both in IR order. A reference is part of the
+        // record's shape ; omitting it hid the very field that links
+        // aggregates together.
+        let keys: Vec<&str> = agg
+            .references
+            .iter()
+            .map(|r| r.name.as_str())
+            .chain(agg.attributes.iter().map(|a| a.name.as_str()))
+            .collect();
+        body.push_str(&format!(
+            r#"<h3 class="font-semibold text-brand mt-6 mb-2">{} <span class="text-xs text-gray-500 font-normal">{} record{}</span></h3>"#,
+            esc(&display_name(&agg.name)),
+            items.len(),
+            if items.len() == 1 { "" } else { "s" },
+        ));
+        body.push_str(r#"<div class="max-h-96 overflow-x-auto overflow-y-auto rounded-lg border border-surface-3"><table class="w-full text-sm"><thead class="sticky top-0 bg-surface-2"><tr class="border-b border-surface-3 text-left text-gray-400">"#);
+        body.push_str(r#"<th class="px-3 py-2">ID</th>"#);
+        for k in &keys {
+            body.push_str(&format!(r#"<th class="px-3 py-2">{}</th>"#, esc(&display_name(k))));
+        }
+        body.push_str("</tr></thead><tbody>");
+        for item in &items {
+            body.push_str(r#"<tr class="border-b border-surface-3 hover:bg-surface-3 transition">"#);
+            body.push_str(&format!(r#"<td class="px-3 py-2 text-gray-400">{}</td>"#, esc(&item.id)));
+            for k in &keys {
+                let cell = item.fields.get(*k).map(display_value).unwrap_or_default();
+                body.push_str(&format!(r#"<td class="px-3 py-2">{}</td>"#, esc(&cell)));
+            }
+            body.push_str("</tr>");
+        }
+        body.push_str("</tbody></table></div>");
+    }
+    if total == 0 {
+        return String::new();
+    }
+    format!(
+        r#"<div class="mt-8"><h2 class="text-xl font-semibold mb-4">Records</h2>{}</div>"#,
+        body
+    )
+}
+
+/// Human-readable cell for a runtime Value — strings bare (no quotes),
+/// scalars via Display, lists/maps compact JSON.
+fn display_value(v: &crate::runtime::Value) -> String {
+    use crate::runtime::Value;
+    match v {
+        Value::Str(s) => s.clone(),
+        Value::Null => String::new(),
+        Value::List(items) if items.is_empty() => String::new(),
+        other => crate::json_helpers::value_to_json(other),
+    }
 }
 

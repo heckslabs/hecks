@@ -77,7 +77,11 @@ pub fn render_command_form(domain: &str, agg: &Aggregate, cmd: &Command, rt: &Ru
 /// back to a text input for unknown / nested value-object types.
 pub fn field_input(agg: &Aggregate, attr: &Attribute, rt: &Runtime) -> String {
     let label = display_name(&attr.name);
-    let required = attr.default.is_none();
+    // Words match state (2026-07-18) : the asterisk marks what the gate
+    // ENFORCES — the explicit `required: true` flag — not the aspirational
+    // no-default heuristic. A form that claims required while the door
+    // waves absence through is the lie the payload gate retired.
+    let required = attr.required;
     let req_mark = if required { r#" <span class="text-red-400">*</span>"# } else { "" };
     let req_attr = if required { " required" } else { "" };
     let lower = attr.attr_type.to_lowercase();
@@ -88,7 +92,7 @@ pub fn field_input(agg: &Aggregate, attr: &Attribute, rt: &Runtime) -> String {
         return labelled(
             &label,
             req_mark,
-            &repository_select(&attr.name, target, rt, req_attr),
+            &reference_browser_button(&attr.name, target),
         );
     }
 
@@ -168,53 +172,26 @@ fn checkbox(name: &str, req: &str) -> String {
     )
 }
 
-/// <select> populated from `rt.all(target)`. Lists the record id plus
-/// the first two String attributes (best-effort identifying display).
-/// Shows a single disabled option when the target repository is empty.
-fn repository_select(name: &str, target: &Aggregate, rt: &Runtime, req: &str) -> String {
-    let records = rt.all(&target.name);
+/// Reference picker = hidden input + browser button. Clicking the button
+/// opens the record-browser modal (`openRefBrowser` in html_wizard.rs),
+/// which fetches the target aggregate's records LIVE from
+/// `/domains/{d}/aggregates/{Target}` and shows each as attribute chips —
+/// pick a child by seeing it, never by decoding a numeric id. The hidden
+/// input still submits `name = rec.id`, so the dispatch resolution chain
+/// (`command_dispatch.rs` resolved_id) is untouched. `data-attrs` /
+/// `data-labels` carry the declared attribute order from the IR — the
+/// same ordering source as the live records table.
+fn reference_browser_button(name: &str, target: &Aggregate) -> String {
     let target_label = display_name(&target.name);
-    if records.is_empty() {
-        return format!(
-            r#"<select name="{name}"{req} class="bg-surface-0 border border-surface-4 rounded px-3 py-1.5 text-sm text-gray-100 focus:border-brand focus:outline-none w-full">
-  <option value="" disabled selected>— no {label} yet —</option>
-</select>"#,
-            name = esc(name),
-            req = req,
-            label = esc(&target_label),
-        );
-    }
-    let display_attrs: Vec<&str> = target.attributes.iter()
-        .filter(|a| a.attr_type.eq_ignore_ascii_case("string"))
-        .take(2)
-        .map(|a| a.name.as_str())
-        .collect();
-    let mut opts = String::new();
-    opts.push_str(&format!(
-        r#"<option value="" disabled selected>— pick {} —</option>"#,
-        esc(&target_label),
-    ));
-    for rec in records {
-        let mut bits: Vec<String> = Vec::new();
-        for attr_name in &display_attrs {
-            let v = rec.get(attr_name);
-            let s = format!("{}", v);
-            if !s.is_empty() && s != "null" {
-                bits.push(s);
-            }
-        }
-        let display = if bits.is_empty() { rec.id.clone() } else { bits.join(" — ") };
-        opts.push_str(&format!(
-            r#"<option value="{id}">{disp}</option>"#,
-            id = esc(&rec.id),
-            disp = esc(&display),
-        ));
-    }
+    let attr_names: Vec<&str> = target.attributes.iter().map(|a| a.name.as_str()).collect();
+    let attr_labels: Vec<String> = target.attributes.iter().map(|a| display_name(&a.name)).collect();
     format!(
-        r#"<select name="{name}"{req} class="bg-surface-0 border border-surface-4 rounded px-3 py-1.5 text-sm text-gray-100 focus:border-brand focus:outline-none w-full">{opts}</select>"#,
+        r#"<input type="hidden" name="{name}" value="" data-ref="{target_name}"><button type="button" onclick="openRefBrowser(this)" data-target="{target_name}" data-target-label="{label}" data-attrs="{attrs}" data-labels="{labels}" class="bg-surface-0 border border-surface-4 rounded px-3 py-1.5 text-sm text-gray-500 hover:border-brand focus:border-brand focus:outline-none w-full text-left transition">— pick {label} —</button>"#,
         name = esc(name),
-        req = req,
-        opts = opts,
+        target_name = esc(&target.name),
+        label = esc(&target_label),
+        attrs = esc(&attr_names.join(",")),
+        labels = esc(&attr_labels.join(",")),
     )
 }
 
@@ -228,7 +205,7 @@ fn reference_picker(r: &Reference, rt: &Runtime) -> String {
     labelled(
         &label,
         r#" <span class="text-red-400">*</span>"#,
-        &repository_select(&r.name, target, rt, " required"),
+        &reference_browser_button(&r.name, target),
     )
 }
 

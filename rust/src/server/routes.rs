@@ -185,6 +185,28 @@ pub fn query(
 pub fn dispatch(
     body: &str, bearer: Option<&str>, posture: DoorPosture, rt: &RefCell<Runtime>,
 ) -> (&'static str, String) {
+    // The door argues, never swallows — a stray body key ("args" for
+    // "attrs", a typo) must 400 with a hint, not silently dispatch an
+    // attribute-less command that mints a phantom record.
+    let stray: Vec<String> = crate::json_helpers::top_level_keys(body)
+        .into_iter()
+        .filter(|k| k != "command" && k != "attrs")
+        .collect();
+    if !stray.is_empty() {
+        let hint = if stray.iter().any(|k| k == "args") {
+            " — did you mean \\\"attrs\\\"?"
+        } else {
+            ""
+        };
+        return (
+            "400 Bad Request",
+            format!(
+                r#"{{"ok":false,"error":"unknown dispatch body key(s): {}. The body shape is {{\"command\":\"Aggregate.Command\",\"attrs\":{{...}}}}{}"}}"#,
+                stray.join(", "),
+                hint
+            ),
+        );
+    }
     let (cmd, mut attrs) = parse_dispatch_body(body);
     // Stamp the caller principal from the REQUEST onto the dispatch attrs ;
     // rt.dispatch runs the before-gates internally and strips the reserved

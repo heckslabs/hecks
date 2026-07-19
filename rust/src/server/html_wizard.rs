@@ -119,7 +119,100 @@ pub fn wizard_script() -> &'static str {
       if (eid && n.getAttribute('data-cid') === eid) n.style.background = 'rgba(251,191,36,0.15)';
     });
   }
+  function openRefBrowser(btn) {
+    // Record-browser modal for reference pickers — fetches the target
+    // aggregate's records LIVE and renders each as attribute chips.
+    // Picking a row fills the hidden ref input with rec.id and labels
+    // the button with the composed identity (first ≤3 scalar values
+    // joined ' · ').
+    var domain = location.pathname.split('/')[2];
+    var target = btn.getAttribute('data-target');
+    var label = btn.getAttribute('data-target-label') || target;
+    var attrNames = (btn.getAttribute('data-attrs') || '').split(',').filter(Boolean);
+    var attrLabels = (btn.getAttribute('data-labels') || '').split(',').filter(Boolean);
+    var overlay = document.createElement('div');
+    overlay.className = 'fixed inset-0 bg-black/60 flex items-center justify-center z-50';
+    overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+    overlay.innerHTML = '<div class="bg-surface-2 rounded-xl p-5 max-w-lg w-full mx-4 max-h-[70vh] overflow-y-auto border border-surface-3 shadow-2xl">' +
+      '<div class="flex items-center justify-between mb-3">' +
+        '<h3 class="font-semibold text-brand">Pick ' + label + '</h3>' +
+        '<button type="button" class="text-xs text-gray-500 hover:text-white" onclick="this.closest(\'div.fixed\').remove()">✕</button>' +
+      '</div>' +
+      '<div class="ref-browser-rows text-sm text-gray-400">Loading…</div></div>';
+    document.body.appendChild(overlay);
+    fetch('/domains/' + domain + '/aggregates/' + target, { headers: authHeaders({}) })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        var rows = overlay.querySelector('.ref-browser-rows');
+        var records = (data && data.records) || [];
+        if (!records.length) {
+          rows.innerHTML = '<div class="p-4 rounded border border-dashed border-surface-4 text-center text-gray-500">No ' + label + ' records yet — dispatch its create command first</div>';
+          return;
+        }
+        rows.innerHTML = records.map(function(rec, idx) {
+          var chips = attrNames.map(function(a, i) {
+            var v = rec[a];
+            if (v === undefined || v === null || v === '' || (Array.isArray(v) && !v.length)) return '';
+            if (typeof v === 'object') v = JSON.stringify(v);
+            return '<span class="inline-block px-2 py-0.5 mr-1 mb-1 rounded text-xs bg-brand/10 text-brand border border-brand/30">' + (attrLabels[i] || a) + ': ' + String(v) + '</span>';
+          }).join('');
+          return '<div class="p-3 mb-2 rounded-lg border border-surface-3 hover:border-brand hover:bg-surface-3 cursor-pointer transition" data-rec-idx="' + idx + '">' +
+            '<span class="text-xs text-gray-500 mr-2">#' + rec.id + '</span>' +
+            (chips || '<span class="text-xs text-gray-500">(empty record)</span>') + '</div>';
+        }).join('');
+        rows.querySelectorAll('[data-rec-idx]').forEach(function(row) {
+          row.onclick = function() {
+            var rec = records[parseInt(row.getAttribute('data-rec-idx'), 10)];
+            var input = btn.previousElementSibling;
+            if (input && input.type === 'hidden') input.value = rec.id;
+            var bits = [];
+            for (var i = 0; i < attrNames.length && bits.length < 3; i++) {
+              var v = rec[attrNames[i]];
+              if (v === undefined || v === null || v === '' || typeof v === 'object') continue;
+              bits.push(String(v));
+            }
+            btn.textContent = bits.length ? bits.join(' · ') : ('#' + rec.id);
+            btn.classList.remove('text-gray-500');
+            btn.classList.add('text-gray-100');
+            overlay.remove();
+          };
+        });
+      })
+      .catch(function() {
+        overlay.querySelector('.ref-browser-rows').textContent = 'Could not load records';
+      });
+  }
+  function refreshRecords() {
+    // Live records panel refresh — after a successful dispatch the
+    // store changed, so re-fetch the page and swap #records-section
+    // in place. Server rendering stays the single source of truth
+    // for the markup ; no client-side table building.
+    var target = document.getElementById('records-section');
+    if (!target) return;
+    fetch(location.pathname, { headers: authHeaders({}) })
+      .then(function(r) { return r.text(); })
+      .then(function(html) {
+        var doc = new DOMParser().parseFromString(html, 'text/html');
+        var fresh = doc.getElementById('records-section');
+        if (fresh) target.replaceWith(fresh);
+      })
+      .catch(function() {});
+  }
   function wizardSubmit(form, domain, cmd) {
+    // Pre-flight : hidden reference inputs don't fire native `required`,
+    // so an unpicked reference must block the dispatch with an inline
+    // error instead of posting an attribute-less command.
+    var unpicked = null;
+    form.querySelectorAll('input[type=hidden][data-ref]').forEach(function(inp) {
+      if (!inp.value && !unpicked) unpicked = inp;
+    });
+    if (unpicked) {
+      var resEl = form.querySelector('.wizard-result');
+      if (resEl) resEl.innerHTML = '<div class="p-3 rounded bg-red-900/40 text-red-300 text-sm">✘ pick a ' + humanize(unpicked.getAttribute('data-ref')) + ' first</div>';
+      var pickBtn = unpicked.nextElementSibling;
+      if (pickBtn) { pickBtn.classList.add('ring-2', 'ring-red-400'); pickBtn.focus(); }
+      return false;
+    }
     const data = {};
     new FormData(form).forEach((v, k) => { if(v) data[k] = v; });
     fetch('/domains/' + domain + '/dispatch', {
@@ -164,6 +257,7 @@ pub fn wizard_script() -> &'static str {
         }
         el.innerHTML = html;
         addEvent(r.event, cmd, r.aggregate_type, r.aggregate_id, true);
+        refreshRecords();
         form.querySelectorAll('input').forEach(function(i) { i.value = ''; });
         // Auto-dismiss only when there's no cascade to read.
         if (!Array.isArray(r.cascade) || r.cascade.length <= 1) {
