@@ -432,9 +432,29 @@ impl Runtime {
     /// — no double-load. Discriminator is `on` (the triggering event), NOT a
     /// verdict : persistence binds carry no `on`, fire-and-forget binds do.
     fn ensure_outbox_substrate(mut domain: Domain, hecksagons: &[Hecksagon]) -> Domain {
-        let has_effect = hecksagons
-            .iter()
-            .any(|h| h.bindings.iter().any(|b| !b.on.is_empty()));
+        // The effect binding must target an aggregate of THIS domain. Asking
+        // merely "does any attached hecksagon carry an effect binding?" was too
+        // broad : `serve_directory` deliberately loads every hecksagon under the
+        // served tree AND under the running repo, so ONE `charged_by` anywhere
+        // in the monorepo grafted OutboundEvent onto EVERY served domain. That
+        // is why ToolShed — which declares no effect port at all — rendered the
+        // framework outbox as one of its own modules.
+        //
+        // Bindings store the aggregate FQN ("Ctx::Agg") while the domain carries
+        // the bare name, so match on the last `::` segment, as
+        // `aggregate_is_event_sourced` does. Scoping here also keeps the
+        // standalone-serve case working BY CONSTRUCTION : a domain that really
+        // does declare an effect port still gets the outbox it needs to record
+        // deliveries, with no compensating merge or UI filter.
+        let has_effect = hecksagons.iter().any(|h| {
+            h.bindings.iter().any(|b| {
+                !b.on.is_empty()
+                    && domain
+                        .aggregates
+                        .iter()
+                        .any(|a| Some(a.name.as_str()) == b.aggregate.rsplit("::").next())
+            })
+        });
         if !has_effect || domain.aggregates.iter().any(|a| a.name == "OutboundEvent") {
             return domain;
         }
