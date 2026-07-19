@@ -1,0 +1,72 @@
+Hecks.bluebook "Governance", version: "2026.06.26.1" do
+  vision "Governance is the claim that every act is accountable : an act that emits no bus event cannot be governed, so a denied or vetoed act is RECORDED — the denial itself becomes a governed, logged fact. This domain holds that audit (Violation). What once lived here has moved to where it belongs : the deny-by-default channel barrier is now the Macrophage::GovernedDoor rule (the native->door map projected from the command IR + the per-record denial audit), and authorization-at-the-door is the inbound Gate concept (language/grammar/gating — 'a Deny aborts the dispatch and records a Governance::Violation'). The deny-by-default Policy + the harness EnforcementAdapter that formerly lived here are retired : their never-wired boot-establishment chain (BootCompleted had no producer — the boot-establishment-not-wired finding) carried no runtime weight, and authorization is being conceived afresh as the Gate. Violation remains as the shared veto-audit sink the Gate records to."
+  category "framework"
+
+  aggregate "Violation", "A tool act denied or vetoed because it would not have emitted a bus event — one immutable record per attempt. Recording it is the point : the denial itself becomes a governed, logged fact. The shared veto-audit sink the inbound Gate records to." do
+    identified_by :id
+
+    attribute :id,          Id
+    attribute :tool_name,   ToolName
+    attribute :reason,      Reason
+    attribute :gate,        GateName
+    attribute :cause,       Cause
+    attribute :occurred_at, OccurredAt
+
+    value_object "Id" do
+      attribute :value, String
+    end
+
+    value_object "ToolName" do
+      attribute :value, String
+    end
+
+    value_object "Reason" do
+      attribute :value, String
+    end
+
+    value_object "GateName" do
+      # Which gate vetoed (e.g. "authorize", "authenticate", or a service
+      # gate's Aggregate.Query name). Empty for non-gate denials.
+      attribute :value, String
+    end
+
+    value_object "Cause" do
+      # The STRUCTURED, audit-internal reason : "deny-by-default",
+      # "forbid:<policy-id>", "no-active-identity". Distinct from the human
+      # `reason`. NEVER surfaced to a non-System caller (would be a
+      # policy-enumeration oracle) — operator/audit only.
+      attribute :value, String
+    end
+
+    value_object "OccurredAt" do
+      attribute :iso8601, String
+    end
+
+    command "Record" do
+      role "Framework"
+      description "Record that a denied or vetoed dispatch was attempted. Dispatched by a Gate's veto (or any adapter that reaches the bus). One immutable record per attempt."
+      attribute :id,          Id
+      attribute :tool_name,   ToolName
+      attribute :reason,      Reason
+      attribute :gate,        GateName
+      attribute :cause,       Cause
+      attribute :occurred_at, OccurredAt
+      emits "Recorded"
+      then_set :id,          to: :id
+      then_set :tool_name,   to: :tool_name
+      then_set :reason,      to: :reason
+      then_set :gate,        to: :gate
+      then_set :cause,       to: :cause
+      then_set :occurred_at, to: :occurred_at
+    end
+
+    query "ListAll" do
+      description "Every recorded denial/veto — the full audit trail. A tool's count is the rows whose tool_name matches (a read over records, never stored derived state)."
+    end
+
+    query "ByTool" do
+      description "Every denial recorded for one native tool by name — the per-tool audit."
+      where tool_name: :tool_name
+    end
+  end
+end

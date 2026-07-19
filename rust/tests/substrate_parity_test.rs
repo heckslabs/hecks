@@ -4,9 +4,10 @@
 //! The framework conception keeps a copy of each. This guards them against
 //! DRIFT.
 //!
-//! Two substrates today :
+//! Three substrates today :
 //!   - OutboundEvent  — the event-out messaging port
 //!   - EventSourcing  — the Event Log the framework collaborator appends to
+//!   - Governance     — the veto-audit sink a denied dispatch records to
 //!
 //! This guard EARNS ITS KEEP : on 2026-07-19 the outbox copy was edited on one
 //! side only and seven tests went red immediately, which is exactly the job.
@@ -30,6 +31,7 @@ use std::path::PathBuf;
 /// The crate-owned canonical copies — the same bytes baked into the binary.
 const BUNDLED_OUTBOX: &str = include_str!("../resources/outbound_event.bluebook");
 const BUNDLED_EVENT_SOURCING: &str = include_str!("../resources/event_sourcing.bluebook");
+const BUNDLED_GOVERNANCE: &str = include_str!("../resources/governance.bluebook");
 
 /// Walk up from the test binary to the monorepo root (the dir holding
 /// `hecks_conception/aggregates/`), mirroring `heki::walk_up_from`, and resolve
@@ -77,6 +79,17 @@ fn bundled_outbox_matches_the_conception_copy() {
         "OutboundEvent",
         BUNDLED_OUTBOX,
         "hecks_conception/aggregates/framework/hexagon/bluebook/outbound_event.bluebook",
+    );
+}
+
+#[test]
+fn bundled_governance_matches_the_conception_copy() {
+    // Bundled 2026-07-19 so a denied dispatch can record its audit row on ANY
+    // runtime, not only one that merged the Governance conception.
+    assert_matches(
+        "Governance",
+        BUNDLED_GOVERNANCE,
+        "hecks_conception/aggregates/framework/governance/bluebook/governance.bluebook",
     );
 }
 

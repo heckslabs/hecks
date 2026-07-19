@@ -135,6 +135,126 @@ fn the_users_domain_stays_clean_and_the_recursion_is_bounded() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
+// ---------------------------------------------------------------------------
+// GOVERNANCE — the same coupling, with the worst consequence.
+//
+// `record_violation_internal` used to be `let _ = self.dispatch_impl(...)`, so
+// on a runtime that had not merged the Governance conception the dispatch
+// failed and the Result was DISCARDED : a denied dispatch left no audit row and
+// no trace of the loss. The denial always stood — this was never an
+// authorization hole — but "who was refused what, and why" is the whole point
+// of a veto audit, and it was contingent on corpus layout.
+//
+// The setup below is lifted from `authorize_pdp_test`, which boots exactly such
+// a runtime : storehouse + authorization + a demo domain, and NO Governance.
+// Every denial that file asserts recorded nothing at all.
+// ---------------------------------------------------------------------------
+
+const GATING: &str =
+    include_str!("../../hecks_conception/aggregates/storehouse/bluebook/storehouse.bluebook");
+const AUTHZ: &str =
+    include_str!("../../hecks_conception/aggregates/framework/authorization/authorization.bluebook");
+const DEMO: &str = include_str!("fixtures/authz_demo.bluebook");
+
+fn s(p: &[(&str, &str)]) -> HashMap<String, Value> {
+    p.iter().map(|(k, v)| (k.to_string(), Value::Str(v.to_string()))).collect()
+}
+
+/// storehouse + authorization + demo domain. Deliberately NO Governance chapter.
+fn gated_runtime() -> Runtime {
+    let mut domain = parser::parse(GATING);
+    domain.aggregates.extend(parser::parse(AUTHZ).aggregates);
+    domain.aggregates.extend(parser::parse(DEMO).aggregates);
+    let mut rt = Runtime::boot_with_hecksagons(domain, None, vec![]);
+    // Turn the PDP gate on as System (admitted by origin), so deny-by-default
+    // is in force for an agent dispatch.
+    rt.dispatch(
+        "Declare",
+        s(&[
+            ("name", "authorize"),
+            ("phase", "before"),
+            ("check", "authorize"),
+            ("pattern", "*"),
+            ("order", "30"),
+        ]),
+    )
+    .expect("Declare authorize gate");
+    rt
+}
+
+#[test]
+fn a_denied_dispatch_records_its_violation_through_the_collaborator() {
+    let mut rt = gated_runtime();
+
+    // Precondition : Governance is NOT in this domain. If it ever is, this test
+    // proves nothing about the collaborator.
+    assert!(
+        !rt.domain.aggregates.iter().any(|a| a.name == "Violation"),
+        "the gated runtime must NOT carry Governance::Violation — that is the case \
+         whose audit row used to vanish",
+    );
+
+    // Deny-by-default : an agent with no permit.
+    let mut attrs = s(&[("name", "v1")]);
+    attrs.insert("actor_kind".to_string(), Value::Str("agent".to_string()));
+    attrs.insert("actor_auth_id".to_string(), Value::Str("alice".to_string()));
+    let denied = rt.dispatch("Open", attrs);
+    assert!(denied.is_err(), "deny-by-default must refuse an unpermitted agent");
+
+    // The audit row exists, in the collaborator.
+    let fw = rt.framework.as_ref().expect("the collaborator booted to record the denial");
+    let violations = fw.all_qualified(Some("Governance"), "Violation");
+    assert_eq!(
+        violations.len(),
+        1,
+        "a denied dispatch must leave exactly one audit row (got {})",
+        violations.len(),
+    );
+    let v = violations[0];
+    assert_eq!(
+        v.get("tool_name").to_string(),
+        "Open",
+        "the row names the refused command",
+    );
+    assert_eq!(v.get("gate").to_string(), "authorize", "and which gate refused it");
+    assert!(
+        !v.get("cause").to_string().is_empty(),
+        "and why — the structured cause is what makes the row auditable rather \
+         than merely present",
+    );
+}
+
+#[test]
+fn an_allowed_dispatch_records_no_violation() {
+    // The collaborator makes the audit sink REACHABLE ; it must not make it
+    // chatty. A permitted dispatch leaves no row.
+    let mut rt = gated_runtime();
+    rt.dispatch(
+        "Permit",
+        s(&[
+            ("id", "p1"),
+            ("principal", "alice"),
+            ("action", "Open"),
+            ("resource", "*"),
+            ("condition", "-"),
+            ("expires_at", "-"),
+        ]),
+    )
+    .expect("Permit");
+
+    let mut attrs = s(&[("name", "v1")]);
+    attrs.insert("actor_kind".to_string(), Value::Str("agent".to_string()));
+    attrs.insert("actor_auth_id".to_string(), Value::Str("alice".to_string()));
+    rt.dispatch("Open", attrs).expect("a permitted agent is admitted");
+
+    let recorded = rt
+        .framework
+        .as_ref()
+        .map(|fw| fw.all_qualified(Some("Governance"), "Violation").len())
+        .unwrap_or(0);
+    assert_eq!(recorded, 0, "an allowed dispatch is not a violation");
+}
+
 #[test]
 fn no_directive_means_no_log_even_with_the_collaborator_available() {
     // The collaborator makes the Log REACHABLE ; it must not make it automatic.

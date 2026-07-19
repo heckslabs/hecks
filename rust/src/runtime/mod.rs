@@ -447,6 +447,39 @@ impl Runtime {
         "../../resources/event_sourcing.bluebook"
     );
 
+    /// The embedded Governance chapter — the veto-audit sink every denied
+    /// dispatch records to. Crate-owned for the same reason as the others : an
+    /// authorization denial must be auditable on ANY runtime, not only one that
+    /// happened to merge the Governance conception.
+    const GOVERNANCE_SUBSTRATE: &'static str = include_str!(
+        "../../resources/governance.bluebook"
+    );
+
+    /// Every framework substrate the collaborator carries, merged into one
+    /// domain. Aggregates keep their own `context`, so FQN dispatch
+    /// (`Governance::Violation.Record`, `EventSourcing::Event.Append`) resolves
+    /// against the merge exactly as it would against a corpus.
+    ///
+    /// ONE collaborator, not one per substrate (CARD decision 1) : four boots
+    /// would mean four stores and four times the wiring for a single mechanism.
+    fn framework_domain() -> Domain {
+        let mut domain = crate::parser::parse(Self::EVENT_SOURCING_SUBSTRATE);
+        for source in [Self::GOVERNANCE_SUBSTRATE] {
+            let extra = crate::parser::parse(source);
+            for agg in extra.aggregates {
+                if !domain
+                    .aggregates
+                    .iter()
+                    .any(|e| e.name == agg.name && e.context == agg.context)
+                {
+                    domain.aggregates.push(agg);
+                }
+            }
+            domain.policies.extend(extra.policies);
+        }
+        domain
+    }
+
     /// The framework collaborator, booted on first use.
     ///
     /// This is the step-zero proof for CARD-framework-substrate-service : the
@@ -465,8 +498,7 @@ impl Runtime {
     /// and that is what bounds the recursion.
     fn framework_mut(&mut self) -> &mut Runtime {
         if self.framework.is_none() {
-            let domain = crate::parser::parse(Self::EVENT_SOURCING_SUBSTRATE);
-            let rt = Runtime::boot_with_data_dir(domain, self.data_dir.clone());
+            let rt = Runtime::boot_with_data_dir(Self::framework_domain(), self.data_dir.clone());
             self.framework = Some(Box::new(rt));
         }
         self.framework.as_mut().expect("just booted")
@@ -738,7 +770,21 @@ impl Runtime {
         attrs.insert("gate".to_string(), Value::Str(gate.to_string()));
         attrs.insert("cause".to_string(), Value::Str(cause.to_string()));
         attrs.insert("occurred_at".to_string(), Value::Str(crate::clock::now_iso()));
-        let _ = self.dispatch_impl("Governance::Violation.Record", attrs);
+        // Record into the FRAMEWORK COLLABORATOR, which always carries the
+        // Governance chapter. This used to be `self.dispatch_impl(...)` with the
+        // Result discarded : on any runtime that had not merged the Governance
+        // conception, the dispatch failed and the denial's audit row was thrown
+        // away without a trace. `authorize_pdp_test` boots exactly such a
+        // runtime, so every denial it asserts recorded NOTHING.
+        //
+        // The denial itself always stood — this was never an authorization
+        // hole — but "who was refused what, and why" is the entire point of a
+        // veto audit, and it was contingent on corpus layout. Still ungated
+        // (`dispatch_impl`, never `dispatch`), so recording a denial can never
+        // re-enter the gate that produced it.
+        let _ = self
+            .framework_mut()
+            .dispatch_impl("Governance::Violation.Record", attrs);
     }
 
     /// RBAC gate for an ENTRY door. `dispatch` calls this; the cold one-shot
