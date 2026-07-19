@@ -44,11 +44,54 @@ only flagged"). This card executes that deferred migration.
    state as a fold of its Log (snapshots are cached folds).
 
 ## THE API DECISION — LOCKED (Chris, 2026-07-19)
-`Pizzas::Order.persisted_by("EventSourced")` — event sourcing is another
-ADAPTER on the existing persistence family (reply signal ; save = append
-Event, find = fold-or-snapshot). Reuses the family/adapter/world machinery,
-minimal new grammar. The hexagon already chooses persistence per aggregate ;
-this is one more choice.
+Event sourcing is NOT a peer persistence adapter (not `persisted_by(
+"EventSourced")`) — it is ITS OWN DIRECTIVE, layered ON TOP of persistence :
+"persistence+". The directive is just `event_sourced` :
+
+    Pizzas::Order.persisted_by("Heki")   # snapshot base
+    Pizzas::Order.event_sourced          # + the Log on top (persistence+)
+
+This resolves the tension that heki cannot be REPLACED by "EventSourced" —
+heki IS the snapshot the Log folds onto. Persistence is the base ; event
+sourcing is the `+`.
+
+## THE BLOCKER — the Log writer is gated off as lossy (found 2026-07-19)
+The whole outbox-as-projection depends on the event Log being WRITTEN.
+`record_event_append` (mod.rs) is gated OFF by default (`HECKS_EVENT_SOURCING`)
+because the OLD event.heki whole-file RMW clobbered under concurrent writers
+(Chris, 2026-06-20 : "Until the out-of-process single-writer lands, event
+sourcing is gated OFF so no lossy Log runs"). BUT the CURRENT record_event_
+append writes per-process `shards/` (event_shard::reserve) folded by a merge —
+which looks like the safe single-writer-per-shard design the gate awaited.
+DECISION (Chris) : VERIFY the shard/merge writer is single-writer-safe and
+that reads see merged data BEFORE turning anything on.
+
+### VERIFIED SAFE — the gate is stale (2026-07-19)
+- SHARD WRITE : single-writer-per-shard, lossless append at any size (each
+  process owns its `.shard`, O_APPEND, no interleave). 7/7 event_shard tests.
+- MERGE (event_merge.rs) : sole writer to the global Log, byte-offset
+  checkpoint, idempotent on crash (dedup by event_id), GC only dead+fully-
+  folded shards. PROVEN lossless : `thirty_concurrent_writers_lose_nothing`
+  = 1500 events / 30 writers / 0 lost (old whole-file repo lost 13/30). 7/7
+  event_merge tests.
+- WIRED : `run_consolidate_if` fires the merge on
+  `EventSourcing::Consolidation.Consolidate`, which `storehouse drive` fires
+  on an interval (the retired merge daemon, reborn as a bluebook Driver).
+  Reads are eventually-consistent — a shard is visible within one
+  consolidation tick, which is exactly right for an outbox.
+- The ONLY thing still off is `record_event_append`'s `HECKS_EVENT_SOURCING`
+  early-return. Its rationale (lossy whole-file RMW) NO LONGER HOLDS — the
+  shards+merge topology superseded it. Moving that gate from the global env
+  var to the per-aggregate `event_sourced` directive is safe.
+
+## NEXT BUILD STEP (unblocked)
+1. The `event_sourced` hecksagon directive (persistence+) : parse it (Ruby +
+   Rust), and make `record_event_append` fire for an aggregate carrying it
+   (regardless of the env var). Keep the env var as a global override.
+2. The `UndeliveredEffects` projection over the Log + delivery-as-events.
+3. Delete the OutboundEvent injection ; the served page is clean because the
+   outbox is a projection, not an aggregate.
+Each a green, gated commit.
 
 HEKI COMPOSES, it is NOT replaced. Two senses :
   1. `persisted_by("Heki")` (or default) stays as snapshot-only persistence
