@@ -1,6 +1,36 @@
 # CARD — framework substrate is an injected SERVICE, not a graft into the user's domain
 
-**Decided with Chris, 2026-07-19.** Design LOCKED below ; no code written yet.
+**Decided with Chris, 2026-07-19.** Design LOCKED below.
+
+> **STEP ZERO IS DONE — `1e49c0ef4`.** Both risks that could have killed this
+> card are resolved. The BORROW SHAPE works : `record_event_append` runs inside
+> `&mut self` and calls the collaborator cleanly, because `heki_path()` returns
+> an owned String so the store-dir borrow ends before the per-delta dispatch
+> re-borrows. Zero borrow errors, first compile. The BEHAVIORS CORPUS stays
+> green (152/152) because the collaborator boots LAZILY and the corpus never
+> appends an Event.
+>
+> Shipped : `Runtime.framework: Option<Box<Runtime>>`, `framework_mut()`,
+> `EVENT_SOURCING_SUBSTRATE` bundled at `rust/resources/`, and
+> `record_event_append` routing into the collaborator. A single-bluebook boot
+> carrying `event_sourced` now writes its Log — the case that silently wrote
+> NOTHING before.
+>
+> Unplanned property worth keeping : the collaborator inherits `data_dir`, so
+> existing readers of `rt.all_qualified(Some("EventSourcing"), "Event")` still
+> see the Log (the parent's lazy repo hydrates from the same store). Verified by
+> MUTATION — neutering the collaborator's Append fails both the new proof and
+> slice 1's, so nothing passes by luck.
+>
+> REMAINING : `OutboundEvent`, `CascadeRun`, `Governance::Violation` still use
+> the old graft/guard path. Do **Governance next** — it is the only one whose
+> silent degradation loses an authorization audit row. Each is now repetition of
+> a proven shape, not new design.
+>
+> Decision 4 (one framework-realm store) is NOT yet implemented : step zero
+> inherits the parent's `data_dir`, which is what keeps temp-dir tests isolated.
+> Moving the durable home to the framework realm is a follow-up and was never a
+> borrow-shape question.
 Supersedes the deferred "should framework substrate be injected at boot?"
 question raised at the close of the outbox-as-event-sourcing arc.
 

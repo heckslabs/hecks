@@ -1,6 +1,6 @@
-# SESSION STATE — 2026-07-19 : outbox-as-event-sourcing arc CLOSED
+# SESSION STATE — 2026-07-19 : outbox arc CLOSED + framework collaborator step zero
 
-`main` is clean, green, and PUSHED through `50b3b8db7`. Full suite 124/124 test
+`main` is clean, green, and PUSHED through `1e49c0ef4`. Full suite 125/125 test
 binaries, hecksagon parity 400/400, behaviors 152/152, zero warnings.
 
 The three planned slices are DONE. The arc also flushed out three bugs that were
@@ -78,7 +78,33 @@ directory and confirming the gate still reads them.
 - Parity : `cargo build --release -p storehouse-cli --bin storehouse` (from
   `rust/`), then `ruby -Iruby parity/hecksagon_parity_test.rb`.
 
-## NEXT — design is LOCKED, no code yet
+## Framework collaborator — STEP ZERO SHIPPED (`1e49c0ef4`)
+
+The card's two killer risks are resolved. `Runtime` now carries
+`framework: Option<Box<Runtime>>` — a lazily-booted second runtime on
+crate-owned substrate that the kernel dispatches into, instead of requiring the
+substrate to be merged into the USER's domain.
+
+- **Borrow shape works.** `record_event_append` runs inside `&mut self` and
+  calls the collaborator cleanly (`heki_path()` returns owned, so the store-dir
+  borrow ends before the per-delta dispatch re-borrows). First compile, zero
+  warnings.
+- **Behaviors stay green** (152/152) — the collaborator boots LAZILY, so the
+  corpus never pays for it.
+- **The closed bug** : a single-bluebook boot declaring `event_sourced` used to
+  write NOTHING, silently. That is now a passing test.
+- **Backwards compatible by accident worth keeping** : the collaborator inherits
+  `data_dir`, so existing `rt.all_qualified(Some("EventSourcing"), "Event")`
+  readers still see the Log. Verified by MUTATION, not assumed.
+
+**NEXT : Governance.** `OutboundEvent`, `CascadeRun`, and
+`Governance::Violation` still use the old graft/guard path. Do Governance first
+— it is the only one whose silent degradation loses an AUTHORIZATION AUDIT ROW.
+Each is now repetition of a proven shape, not new design. Net kernel shrink
+lands as they move over (seven guards, the graft, its predicate, and eventually
+`substrate_parity_test` plus its duplicate bluebooks all go).
+
+## The card, for full context
 
 `inbox/CARD-framework-substrate-service.md`. The arc's closing finding : the
 outbox graft is a manual patch for ONE of FOUR substrates the runtime dispatches
