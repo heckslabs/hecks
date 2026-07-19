@@ -595,7 +595,7 @@ pub fn parse_limit_line(line: &str) -> Option<LimitSpec> {
 pub fn parse_value_object(lines: &[&str]) -> (ValueObject, usize) {
     let first = lines[0].trim();
     let name = extract_string(first).unwrap_or_default();
-    let mut vo = ValueObject { name, description: None, attributes: vec![] };
+    let mut vo = ValueObject { name, description: None, attributes: vec![], invariants: vec![] };
 
     let mut i = 1;
     let mut depth = 1;
@@ -610,6 +610,52 @@ pub fn parse_value_object(lines: &[&str]) -> (ValueObject, usize) {
             // can't decrement the surrounding depth.
             let consumed = consume_rule_block(&lines[i..]);
             i += consumed;
+            continue;
+        } else if depth == 1 && line.starts_with("invariant") && line.contains(" do ") && line.ends_with("end") {
+            // VO-level invariant, INLINE one-liner form (inbox.bluebook's
+            // CommitSha) : invariant "non-empty" do value.length > 0 end
+            // The whole block sits on one line, so ends_with_do_block is
+            // false and the multi-line arm below never fires — the parity
+            // contract caught this gap the same day the field joined the
+            // canonical IR.
+            let inv_name = extract_string(line).unwrap_or_default();
+            if let (Some(do_pos), Some(stripped)) = (line.find(" do "), line.strip_suffix("end")) {
+                let expr = stripped[do_pos + " do ".len()..].trim();
+                if !inv_name.is_empty() && !expr.is_empty() {
+                    vo.invariants.push(Invariant { name: inv_name, expression: expr.to_string() });
+                }
+            }
+        } else if depth == 1 && line.starts_with("invariant") && ends_with_do_block(line) {
+            // VO-level invariant — the Pizzas-canon direct-predicate form :
+            //   invariant "must be non-negative" do
+            //     cents >= 0
+            //   end
+            // (Aggregate-level invariants use the separate `holds_when` form ;
+            // this one's body IS the predicate.) Body lines join with ` && `
+            // for the rare multi-line predicate. Before 2026-07-18 this arm
+            // was missing and the block fell through to the generic do-block
+            // depth tracking — parsed to nowhere, silently dropped.
+            let inv_name = extract_string(line).unwrap_or_default();
+            let mut body: Vec<&str> = Vec::new();
+            let mut j = i + 1;
+            let mut d = 1;
+            while j < lines.len() && d > 0 {
+                let l = lines[j].trim();
+                if l == "end" {
+                    d -= 1;
+                    if d == 0 { break; }
+                } else if ends_with_do_block(l) {
+                    d += 1;
+                }
+                if d >= 1 && !l.is_empty() {
+                    body.push(l);
+                }
+                j += 1;
+            }
+            if !inv_name.is_empty() && !body.is_empty() {
+                vo.invariants.push(Invariant { name: inv_name, expression: body.join(" && ") });
+            }
+            i = j + 1;
             continue;
         } else if ends_with_do_block(line) {
             depth += 1;

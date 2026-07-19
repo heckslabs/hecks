@@ -25,6 +25,7 @@
 mod aggregate_state;
 pub mod acl_readmodel;
 pub(crate) mod command_dispatch;
+pub mod payload_gate;
 mod event_bus;
 pub mod loop_driver;
 pub mod pm_engine;
@@ -4040,6 +4041,12 @@ pub enum RuntimeError {
     /// rejected with 0 events, the same shape as a failed `given`. `name`
     /// is the invariant's rule name ; `expression` is its predicate source.
     InvariantViolation { name: String, expression: String },
+    /// Payload gate (ACL, 2026-07-18) — a VALUE-OBJECT invariant was false
+    /// for an incoming command attribute, judged BEFORE hydration or
+    /// mutation. Refused at the door : no state touch, no event, no
+    /// cascade. `field` names the offending command attribute so forms
+    /// can ring the exact input ; `value` is what the caller sent.
+    PayloadInvariantViolation { name: String, expression: String, field: String, value: String },
     AggregateNotFound(String),
     MissingAttribute(String),
     LifecycleViolation {
@@ -4095,6 +4102,9 @@ impl std::fmt::Display for RuntimeError {
             RuntimeError::PersistenceRefused(m) => write!(f, "{}", m),
             RuntimeError::GivenFailed { message, .. } => write!(f, "given failed: {}", message),
             RuntimeError::InvariantViolation { name, .. } => write!(f, "invariant violation: {}", name),
+            RuntimeError::PayloadInvariantViolation { name, field, value, .. } => {
+                write!(f, "{} — {} = {}", name, field, value)
+            }
             RuntimeError::AggregateNotFound(id) => write!(f, "aggregate not found: {}", id),
             RuntimeError::MissingAttribute(a) => write!(f, "missing attribute: {}", a),
             RuntimeError::LifecycleViolation { command, field, current, allowed } => {

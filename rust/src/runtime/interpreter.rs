@@ -313,6 +313,15 @@ fn resolve_expr(expr: &str, state: &AggregateState, attrs: &HashMap<String, Valu
     if let Ok(n) = expr.parse::<i64>() {
         return Value::Int(n);
     }
+    // Float literal (`1.0`, `0.5`) — no Float variant exists, so carry it
+    // as a Str : numeric_value coerces Str through f64 in every
+    // comparison. Without this branch a float literal fell through to the
+    // field-lookup, resolved Null, numeric-coerced to 0, and
+    // `value <= 1.0` judged against 0 — refusing valid payloads (caught
+    // by the payload gate on language.bluebook's Confidence, 2026-07-18).
+    if expr.parse::<f64>().is_ok() {
+        return Value::Str(expr.to_string());
+    }
     if expr.starts_with('"') && expr.ends_with('"') {
         return Value::Str(expr[1..expr.len() - 1].to_string());
     }
