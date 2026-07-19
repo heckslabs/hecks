@@ -108,22 +108,22 @@ pub fn fold_forward_onto(
 }
 
 /// The runtime's own machinery — aggregates that are MECHANISM, not domain
-/// intent : delivery bookkeeping (CascadeRun / OutboundEvent / Cascade),
-/// process-spawn side-effects (Process), and liveness supervision
-/// (ProcessSentinel / ProcessMacrophage). One list, two callers : the write
-/// path (`record_event_append`) never SOURCES them and the proof
+/// intent : delivery bookkeeping (CascadeRun / Cascade), process-spawn
+/// side-effects (Process), and liveness supervision (ProcessSentinel /
+/// ProcessMacrophage). One list, two callers : the write path
+/// (`record_event_append`) never SOURCES them and the proof
 /// (`verify-projection`) never MEASURES them, so the gauge and the Log agree
 /// by construction. Their ids are process-ephemeral, so fold(Log) cannot
 /// reconstruct the live store — they are read models OF the Log, not intent.
+///
+/// OutboundEvent is DELIBERATELY NOT here : its delivery_id is stable
+/// (`type::id::event::adapter`), so it IS event-sourced (persistence+ via its
+/// hecksagon) — the outbox's Record/Claim/MarkDelivered history rides the Log,
+/// and its Pending query is the read model of undelivered deliveries.
 pub fn is_infra_mechanism(aggregate_type: &str) -> bool {
     matches!(
         aggregate_type,
-        "CascadeRun"
-            | "OutboundEvent"
-            | "Cascade"
-            | "Process"
-            | "ProcessSentinel"
-            | "ProcessMacrophage"
+        "CascadeRun" | "Cascade" | "Process" | "ProcessSentinel" | "ProcessMacrophage"
     )
 }
 

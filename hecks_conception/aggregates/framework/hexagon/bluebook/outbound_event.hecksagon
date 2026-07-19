@@ -1,3 +1,7 @@
 Hecks.hecksagon "OutboundEvent" do
   OutboundEvent::OutboundEvent.persisted_by("Heki")
+  # persistence+ : the outbox is event-sourced, so its Record / Claim /
+  # MarkDelivered lifecycle rides the append-only Log (audit + replay + the
+  # read model of undelivered deliveries), with heki as the snapshot base.
+  OutboundEvent::OutboundEvent.event_sourced
 end
