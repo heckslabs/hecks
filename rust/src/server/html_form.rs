@@ -21,7 +21,7 @@
 //! [antibody-exempt: form rendering — kernel surface alongside
 //!  html_domain.rs ; i106 + i107 + i109 walking-skeleton upgrades.]
 
-use crate::ir::{Aggregate, Attribute, Command, Reference, ValueObject};
+use crate::ir::{Aggregate, Attribute, Command, Reference};
 use crate::runtime::Runtime;
 use super::html_shared::{display_name, esc};
 
@@ -84,30 +84,54 @@ pub fn field_input(agg: &Aggregate, attr: &Attribute, rt: &Runtime) -> String {
     let required = attr.required;
     let req_mark = if required { r#" <span class="text-red-400">*</span>"# } else { "" };
     let req_attr = if required { " required" } else { "" };
-    let lower = attr.attr_type.to_lowercase();
 
-    // one_of (GRAMMAR-one-of, 2026-07-19) — a closed vocabulary renders as
-    // a dropdown : the user cannot even TYPE a bad value. Two homes :
-    //   - scalar sugar : the attribute's own enum_values
-    //   - whole-value members : the VO's members ; the option VALUE is the
-    //     discriminant (first field), the LABEL is every member field
-    //     joined " · " (the lookup table lives in the type)
-    let vocabulary: Vec<(String, String)> = if !attr.enum_values.is_empty() {
-        attr.enum_values.iter().map(|v| (v.clone(), v.clone())).collect()
-    } else if let Some(vo) = agg.value_objects.iter().find(|v| v.name == attr.attr_type) {
-        vo.members
+    // References render as the record browser (richer than the schema's
+    // id-string). EVERYTHING else is a projection of the command's schema :
+    // json_schema::attr_schema is the ONE place that decides enum-vs-type,
+    // shared with external validators and the MCP door — so "what the form
+    // shows" can never diverge from "what the schema says" (2026-07-19).
+    if let Some(target) = aggregate_by_name(rt, &attr.attr_type) {
+        return labelled(&label, req_mark, &reference_browser_button(&attr.name, target));
+    }
+    let prop = crate::projection::json_schema::attr_schema(agg, attr);
+    labelled(&label, req_mark, &input_from_schema(agg, attr, &prop, req_attr))
+}
+
+/// Render one input from a schema property (`{type, enum}`). The schema
+/// carries the CONTRACT (which values, which primitive) ; the form adds
+/// PRESENTATION only — a member VO's " · " option labels and the
+/// "— pick —" placeholder. Enum → dropdown ; integer/number/boolean →
+/// typed input ; else text.
+fn input_from_schema(
+    agg: &Aggregate,
+    attr: &Attribute,
+    prop: &serde_json::Value,
+    req_attr: &str,
+) -> String {
+    let label = display_name(&attr.name);
+    if let Some(en) = prop.get("enum").and_then(|e| e.as_array()) {
+        // Presentation only : member VOs get rich " · " labels ; scalar
+        // enums show the value itself. The VALUES come from the schema.
+        let pairs: Vec<(String, String)> = agg
+            .value_objects
             .iter()
-            .filter_map(|m| {
-                m.first().map(|(_, disc)| {
-                    let label: Vec<&str> = m.iter().map(|(_, v)| v.as_str()).collect();
-                    (disc.clone(), label.join(" · "))
-                })
+            .find(|v| v.name == attr.attr_type && !v.members.is_empty())
+            .map(|vo| {
+                vo.members
+                    .iter()
+                    .filter_map(|m| {
+                        m.first().map(|(_, disc)| {
+                            let text = m.iter().map(|(_, x)| x.as_str()).collect::<Vec<_>>().join(" · ");
+                            (disc.clone(), text)
+                        })
+                    })
+                    .collect()
             })
-            .collect()
-    } else {
-        vec![]
-    };
-    if !vocabulary.is_empty() {
+            .unwrap_or_else(|| {
+                en.iter()
+                    .filter_map(|v| v.as_str().map(|s| (s.to_string(), s.to_string())))
+                    .collect()
+            });
         let mut opts = String::new();
         let selected_default = attr.default.as_deref().unwrap_or("");
         if selected_default.is_empty() {
@@ -116,76 +140,21 @@ pub fn field_input(agg: &Aggregate, attr: &Attribute, rt: &Runtime) -> String {
                 esc(&label)
             ));
         }
-        for (val, text) in &vocabulary {
+        for (val, text) in &pairs {
             let sel = if val == selected_default { " selected" } else { "" };
-            opts.push_str(&format!(
-                r#"<option value="{}"{}>{}</option>"#,
-                esc(val), sel, esc(text)
-            ));
+            opts.push_str(&format!(r#"<option value="{}"{}>{}</option>"#, esc(val), sel, esc(text)));
         }
-        return labelled(
-            &label,
-            req_mark,
-            &format!(
-                r#"<select name="{}"{} class="bg-surface-0 border border-surface-4 rounded px-3 py-1.5 text-sm text-gray-100 focus:border-brand focus:outline-none w-full">{}</select>"#,
-                esc(&attr.name), req_attr, opts
-            ),
+        return format!(
+            r#"<select name="{}"{} class="bg-surface-0 border border-surface-4 rounded px-3 py-1.5 text-sm text-gray-100 focus:border-brand focus:outline-none w-full">{}</select>"#,
+            esc(&attr.name), req_attr, opts
         );
     }
-
-    // Reference-by-name : when attr_type matches a known aggregate,
-    // render a record picker.
-    if let Some(target) = aggregate_by_name(rt, &attr.attr_type) {
-        return labelled(
-            &label,
-            req_mark,
-            &reference_browser_button(&attr.name, target),
-        );
-    }
-
-    // Value-object lookup : a wrapper VO (single inner attribute named
-    // `:value`) unwraps to its inner type so `attribute :bin_count,
-    // BinCount` where `BinCount` wraps `attribute :value, Integer`
-    // renders as a numeric input rather than text. Multi-field VOs
-    // still flatten to text for now.
-    if let Some(vo) = value_object_by_name(agg, &attr.attr_type) {
-        if let Some(inner) = wrapper_inner_type(vo) {
-            let body = match inner.as_str() {
-                "bool" | "boolean" => checkbox(&attr.name, req_attr),
-                "int" | "integer" => text_input(&attr.name, &label, "number", r#" step="1""#, req_attr),
-                "decimal" => text_input(&attr.name, &label, "number", r#" step="0.01""#, req_attr),
-                "float" => text_input(&attr.name, &label, "number", r#" step="any""#, req_attr),
-                _ => text_input(&attr.name, &label, "text", "", req_attr),
-            };
-            return labelled(&label, req_mark, &body);
-        }
-        return labelled(
-            &label,
-            req_mark,
-            &text_input(&attr.name, &label, "text", "", req_attr),
-        );
-    }
-
-    let body = match lower.as_str() {
-        "bool" | "boolean" => checkbox(&attr.name, req_attr),
-        "int" | "integer" => text_input(&attr.name, &label, "number", r#" step="1""#, req_attr),
-        "decimal" => text_input(&attr.name, &label, "number", r#" step="0.01""#, req_attr),
-        "float" => text_input(&attr.name, &label, "number", r#" step="any""#, req_attr),
+    match prop.get("type").and_then(|t| t.as_str()) {
+        Some("integer") => text_input(&attr.name, &label, "number", r#" step="1""#, req_attr),
+        Some("number") => text_input(&attr.name, &label, "number", r#" step="any""#, req_attr),
+        Some("boolean") => checkbox(&attr.name, req_attr),
         _ => text_input(&attr.name, &label, "text", "", req_attr),
-    };
-    labelled(&label, req_mark, &body)
-}
-
-/// If `vo` is a wrapper value object — exactly one attribute, named
-/// `value` — return its inner type lowercased. Otherwise None.
-/// Matches the common `BinCount = attribute :value, Integer` shape used
-/// across bin-buddy ; renders the wrapped int/decimal/bool through to
-/// a typed input on the form.
-fn wrapper_inner_type(vo: &ValueObject) -> Option<String> {
-    if vo.attributes.len() != 1 { return None; }
-    let inner = &vo.attributes[0];
-    if inner.name != "value" { return None; }
-    Some(inner.attr_type.to_lowercase())
+    }
 }
 
 /// Render the <label> wrapper around an input. The asterisk for
@@ -258,8 +227,4 @@ fn reference_picker(r: &Reference, rt: &Runtime) -> String {
 
 fn aggregate_by_name<'a>(rt: &'a Runtime, name: &str) -> Option<&'a Aggregate> {
     rt.domain.aggregates.iter().find(|a| a.name == name)
-}
-
-fn value_object_by_name<'a>(agg: &'a Aggregate, name: &str) -> Option<&'a ValueObject> {
-    agg.value_objects.iter().find(|v| v.name == name)
 }
