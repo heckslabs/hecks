@@ -32,15 +32,18 @@
 #
 # ── Reading the concerns ──
 #
-# The script reads the Concern fixtures via the storehouse binary :
-#   storehouse dump-fixtures <loc_ratchet.fixtures>  → JSON
+# The script reads the Concern fixtures via the storehouse binary,
+# naming a DOMAIN rather than a path :
+#   storehouse dump-fixtures --domain LocRatchet --corpus <repo>  → JSON
 # The fixtures file IS the source of truth ; dump-fixtures is the
 # IR-aware read of it (the behaviors runner reads the same file for
-# the ListConcerns spec). If the binary is missing, the fixtures file
-# is missing, the dump fails to parse, or it yields no Concern records,
-# the script FALLS BACK to the historical hard-coded concerns so the
-# gate never silently no-ops on a fresh clone. Fallback is announced
-# on stderr.
+# the ListConcerns spec). Asking by DOMAIN keeps bluebook layout out of
+# this script entirely — the corpus is the only thing entitled to know
+# where a domain's files live, and moving them can no longer strand the
+# gate. If the binary is missing, no .fixtures file declares the domain,
+# the dump fails to parse, or it yields no Concern records, the script
+# FALLS BACK to the historical hard-coded concerns so the gate never
+# silently no-ops on a fresh clone. Fallback is announced on stderr.
 #
 # In a worktree without a built binary, point HECKS_BIN at the main
 # checkout's storehouse (rust/target/release/storehouse) — that is the
@@ -85,10 +88,19 @@ FALLBACK_CONCERNS = [
   { "name" => "shell",        "path" => "hecks_conception", "extensions" => "sh", "direction" => "shrink", "baseline" => "" },
 ].freeze
 
-# Where the Concern fixtures live, relative to this script's parent.
-CONCERN_FIXTURES = File.expand_path(
-  "../hecks_conception/aggregates/discipline/loc_ratchet/loc_ratchet.fixtures", __dir__
-)
+# The DOMAIN whose Concern fixtures configure this gate, and the corpus root
+# to resolve it against. This script does NOT know where that domain's files
+# live — `dump-fixtures --domain` asks the corpus, which is the only thing
+# entitled to know bluebook layout.
+#
+# It used to hard-code the full path. When the tree moved under it (domains
+# conformed to a `bluebook/` subdir), the path silently went stale and the
+# gate fell back to its hard-coded concerns on every run — for long enough
+# that the declared fixtures drifted to the OPPOSITE of what they documented
+# without anyone noticing, because nothing was reading them. A stale path
+# cannot fail loudly. An unresolvable DOMAIN NAME can, and does.
+CONCERN_DOMAIN = "LocRatchet"
+REPO_ROOT      = File.expand_path("..", __dir__)
 
 # Locate the storehouse binary — same lookup the i122 ir_claimed? path
 # uses. Reused here to ALSO read the Concern fixtures via dump-fixtures.
@@ -118,14 +130,12 @@ end
 # Returns the FALLBACK_CONCERNS (announced on stderr) on any failure so
 # the gate never silently no-ops. Normalises baseline to "" when absent.
 def load_concerns
-  reason =
-    if STOREHOUSE_BIN.nil?               then "no storehouse binary (set HECKS_BIN?)"
-    elsif !File.exist?(CONCERN_FIXTURES) then "concern fixtures not found at #{CONCERN_FIXTURES}"
-    end
-  return fallback(reason) if reason
+  return fallback("no storehouse binary (set HECKS_BIN?)") if STOREHOUSE_BIN.nil?
 
-  out, ok = run([STOREHOUSE_BIN, "dump-fixtures", CONCERN_FIXTURES])
-  return fallback("dump-fixtures failed") unless ok
+  out, ok = run(
+    [STOREHOUSE_BIN, "dump-fixtures", "--domain", CONCERN_DOMAIN, "--corpus", REPO_ROOT]
+  )
+  return fallback("no .fixtures file declares domain #{CONCERN_DOMAIN}") unless ok
 
   parsed = begin
     JSON.parse(out)

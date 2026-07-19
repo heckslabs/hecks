@@ -279,7 +279,55 @@ fn main() {
     }
 
     if command == "dump-fixtures" {
-        let path = args.get(2).expect("usage: storehouse dump-fixtures <file.fixtures>");
+        // Two forms. The PATH form takes a literal file. The DOMAIN form
+        // (`--domain <Name> --corpus <root>`) names a DOMAIN and lets the
+        // corpus find its .fixtures file, so a caller never encodes bluebook
+        // directory layout. bin/loc-ratchet used the path form and silently
+        // fell back to hard-coded concerns for however long the tree had moved
+        // under it (2026-07-19) — a stale path cannot fail loudly, but an
+        // unresolvable DOMAIN NAME can, and does, below.
+        let flag = |name: &str| {
+            args.iter()
+                .position(|a| a == name)
+                .and_then(|i| args.get(i + 1))
+                .cloned()
+        };
+        let path = match flag("--domain") {
+            None => args
+                .get(2)
+                .cloned()
+                .expect("usage: storehouse dump-fixtures <file.fixtures> | --domain <Name> [--corpus <root>]"),
+            Some(domain) => {
+                let root = flag("--corpus").unwrap_or_else(|| ".".to_string());
+                let hits = find_fixtures_for_domain(std::path::Path::new(&root), &domain);
+                match hits.len() {
+                    1 => hits[0].to_string_lossy().into_owned(),
+                    0 => {
+                        eprintln!(
+                            "dump-fixtures: no .fixtures file declares domain {:?} under {}",
+                            domain, root
+                        );
+                        std::process::exit(2);
+                    }
+                    _ => {
+                        // Ambiguity is a real conflict, never a silent pick —
+                        // the same no-silent-resolution rule the Relationship
+                        // chapter enforces on cross-context names.
+                        eprintln!(
+                            "dump-fixtures: domain {:?} is declared by {} .fixtures files under {} — ambiguous:",
+                            domain,
+                            hits.len(),
+                            root
+                        );
+                        for h in &hits {
+                            eprintln!("  {}", h.display());
+                        }
+                        std::process::exit(2);
+                    }
+                }
+            }
+        };
+        let path = &path;
         let source = std::fs::read_to_string(path).expect("cannot read");
         let file = storehouse::fixtures_parser::parse(&source);
         let mut payload = serde_json::json!({
@@ -7123,5 +7171,45 @@ fn invoke_route(route: &heki::Record, args: &[String]) -> bool {
         // if-chain. Returns false so the caller continues.
         _                => false,
     }
+}
+
+/// Find every `.fixtures` file under `root` whose `Hecks.fixtures "<Name>"`
+/// header declares `domain`. Backs `dump-fixtures --domain`, so a caller names
+/// a DOMAIN and the corpus resolves the file, never the other way round.
+///
+/// Returns ALL matches rather than the first : two files claiming one domain is
+/// a conflict the caller must see, not something settled by walk order. Skips
+/// build / vendor / VCS trees so the walk stays cheap on a monorepo.
+fn find_fixtures_for_domain(root: &std::path::Path, domain: &str) -> Vec<std::path::PathBuf> {
+    fn walk(dir: &std::path::Path, domain: &str, out: &mut Vec<std::path::PathBuf>) {
+        let entries = match std::fs::read_dir(dir) {
+            Ok(e) => e,
+            Err(_) => return,
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            let name = entry.file_name();
+            let name = name.to_string_lossy();
+            if path.is_dir() {
+                if matches!(
+                    name.as_ref(),
+                    "target" | "node_modules" | ".git" | ".heki" | "generated" | "tmp"
+                ) {
+                    continue;
+                }
+                walk(&path, domain, out);
+            } else if path.extension().and_then(|e| e.to_str()) == Some("fixtures") {
+                if let Ok(src) = std::fs::read_to_string(&path) {
+                    if storehouse::fixtures_parser::parse(&src).domain_name == domain {
+                        out.push(path);
+                    }
+                }
+            }
+        }
+    }
+    let mut out = Vec::new();
+    walk(root, domain, &mut out);
+    out.sort();
+    out
 }
 

@@ -1,25 +1,43 @@
 Hecks.fixtures "LocRatchet" do
-  # The three seeded concerns. core_runtime + shell preserve today's
-  # shrink pressure exactly ; codegen carves the specializer emitters
-  # out of core_runtime (longest-prefix-match) and lets them grow,
-  # because the shape (codegen/*_shape/*.bluebook) is the contract and
-  # the emitter Rust is a mechanical projection of it.
+  # The seeded concerns. core_runtime + shell carry the SHRINK pressure ;
+  # every other concern is a deliberate GROW carve-out, each justified at
+  # its own fixture below. A carve-out wins by longest-prefix-match, so
+  # declaring a subtree of rust/src here removes it from core_runtime's
+  # shrink gate — which is the point : where a bluebook shape is the
+  # contract, the Rust that projects it should grow with the shape rather
+  # than fight the gate. codegen was the first such carve-out (the
+  # specializer emitters, projections of codegen/*_shape/*.bluebook).
   #
   # Leave room for a future `deploy` grow concern alongside these.
   aggregate "Concern" do
-    # core_runtime baseline re-based from "" (compare-against-base-ref) to a
-    # pinned floor of 31460 — the f4 invariant wiring (ec1b2edf + the
-    # `pub mod invariants;` crate decl) grows core_runtime by an irreducible
-    # +31 of call-site / IR / parser-branch wiring (the evaluator itself lives
-    # in the `invariants` GROW concern below). Owner-blessed as the new floor
-    # rather than a [loc-ratchet-override:] : the shrink gate now ratchets
-    # down from 31460, so future growth past it still fails.
+    # core_runtime is the kernel's SHRINK concern — the pressure that keeps
+    # imperative Rust from accreting where a bluebook should carry the
+    # knowledge. Growth rides an explicit [loc-ratchet-override: core_runtime]
+    # per commit, never a silent allowance.
+    #
+    # 2026-07-19 — this fixture was repaired after declaring the OPPOSITE of
+    # what it documented. It read `direction: "grow", baseline: "31460"` under
+    # a comment describing a shrink gate that "ratchets down from 31460, so
+    # future growth past it still fails". But `grow` NEVER fails (bin/loc-
+    # ratchet's `violates?`), so the concern was declaring no gate at all. The
+    # contradiction went unseen because bin/loc-ratchet was reading this file
+    # from a stale path (missing the `bluebook/` segment) and silently falling
+    # back to its hard-coded concerns — which enforce shrink-vs-base-ref. The
+    # fallback was STRICTER than the declaration it stood in for, so the bug
+    # masked itself: fixing only the path would have turned the gate off and
+    # printed a green check while doing it (base=31460 head=38170 delta=+6710).
+    #
+    # The pinned 31460 floor is retired rather than re-pinned : it had drifted
+    # 6710 lines stale, and re-basing it would bless growth that accrued while
+    # the gate was masked. baseline "" restores compare-against-base-ref —
+    # exactly the enforcement the fallback has been applying all along, so this
+    # repair changes no behaviour, only stops the declaration from lying.
     fixture "core_runtime",
             name:       "core_runtime",
             path:       "rust/src",
             extensions: "rs",
-            direction:  "grow",
-            baseline:   "31460"
+            direction:  "shrink",
+            baseline:   ""
 
     fixture "codegen",
             name:       "codegen",

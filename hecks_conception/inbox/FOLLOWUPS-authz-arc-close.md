@@ -50,10 +50,22 @@ today.*
 10. **CI YAML as bluebook projection** — the whole #747 failure class existed
     because workflows are hand-maintained ; reinforces the existing
     bluebook-derived-CI card. Root-level cure.
-11. **loc-ratchet concern fixtures missing at runtime** — the gate announces
-    "falling back to hard-coded concerns" on every run ; the bluebook-seeded
-    concern read path (aggregates/discipline/loc_ratchet) isn't found where the
-    script looks. Make the declared source resolve or retire the fallback notice.
+11. ~~**loc-ratchet concern fixtures missing at runtime**~~ — CLOSED 2026-07-19.
+    The stale path was the smaller half. `bin/loc-ratchet` read the fixtures
+    from `.../loc_ratchet/loc_ratchet.fixtures`, missing the `bluebook/`
+    segment, and fell back to its hard-coded concerns — which enforce
+    core_runtime SHRINK vs base ref. The declared fixture said
+    `direction: "grow", baseline: "31460"` under a comment describing a shrink
+    gate that "ratchets down from 31460". But `grow` never fails, so the
+    declaration was no gate at all, and the FALLBACK WAS STRICTER THAN THE
+    DECLARATION IT STOOD IN FOR. Fixing only the path would have turned the
+    kernel's main pressure gate off and printed a green check doing it
+    (base=31460 head=38170 delta=+6710 ✓). Fixed all three: the path, the
+    grow→shrink contradiction, and the 6710-line-stale pinned floor (retired to
+    `""`/compare-against-base-ref rather than re-pinned, so growth accrued while
+    the gate was masked is not blessed). Owner call on the baseline. Verified by
+    mutation: +60 lines in `rust/src` now fails core_runtime, and the same +60
+    inside the `world` carve-out correctly routes there and passes.
 
 ## From the pizzas governed-UI demo (2026-07-03 night)
 
