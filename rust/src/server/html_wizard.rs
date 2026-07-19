@@ -214,7 +214,17 @@ pub fn wizard_script() -> &'static str {
       return false;
     }
     const data = {};
-    new FormData(form).forEach((v, k) => { if(v) data[k] = v; });
+    new FormData(form).forEach((v, k) => {
+      if (!v) return;
+      // Money fields display dollars but the wire is cents — convert
+      // ×100 back before dispatch (data-money="cents", set by the form).
+      const el = form.querySelector('[name="' + k + '"]');
+      if (el && el.getAttribute('data-money') === 'cents') {
+        data[k] = String(Math.round(parseFloat(v) * 100));
+      } else {
+        data[k] = v;
+      }
+    });
     fetch('/domains/' + domain + '/dispatch', {
       method: 'POST',
       headers: authHeaders({'Content-Type': 'application/json'}),

@@ -73,6 +73,15 @@ fn one_of_members_map_to_discriminant_enum() {
 }
 
 #[test]
+fn wrapper_vo_invariant_becomes_minimum() {
+    // Fee wraps Integer cents with `cents >= 0` → minimum 0 : the form
+    // renders min="0" so a negative can't be typed. The invariant becomes
+    // a schema keyword.
+    let s = schema_for("AddTool");
+    assert_eq!(s["properties"]["daily_fee"]["minimum"], 0);
+}
+
+#[test]
 fn required_and_additional_properties() {
     let s = schema_for("AddTool");
     let req = s["required"].as_array().unwrap();

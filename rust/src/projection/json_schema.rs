@@ -69,9 +69,37 @@ pub fn attr_schema(agg: &Aggregate, attr: &Attribute) -> Value {
                 .collect();
             return json!({ "type": "string", "enum": discs });
         }
-        // Wrapper VO (single inner attribute) → its inner primitive.
+        // Wrapper VO (single inner attribute) → its inner primitive,
+        // enriched with minimum / maximum from any simple `>= N` / `<= N`
+        // invariant — invariants that ARE schema keywords
+        // (PLAN-json-schema-projection). The form renders these as the
+        // number input's min / max, so a below-bound value can't be typed.
         if vo.attributes.len() == 1 {
-            return primitive_schema(&vo.attributes[0].attr_type);
+            let mut schema = primitive_schema(&vo.attributes[0].attr_type);
+            if let Some(obj) = schema.as_object_mut() {
+                for inv in &vo.invariants {
+                    for clause in inv.expression.split("&&") {
+                        if let Some((_, rhs)) = clause.split_once(">=") {
+                            if let Ok(n) = rhs.trim().parse::<i64>() {
+                                obj.insert("minimum".into(), json!(n));
+                            }
+                        } else if let Some((_, rhs)) = clause.split_once("<=") {
+                            if let Ok(n) = rhs.trim().parse::<i64>() {
+                                obj.insert("maximum".into(), json!(n));
+                            }
+                        }
+                    }
+                }
+                // Money convention : a wrapper whose inner field is `cents`
+                // is minor-unit money (Pizzas' Price/Fee shape). The WIRE
+                // stays cents — minimum too — so external validators and the
+                // gate see the true integer contract ; the form reads this
+                // hint to DISPLAY dollars and convert ×100 on submit.
+                if vo.attributes[0].name == "cents" {
+                    obj.insert("x-hecks-money".into(), json!("cents"));
+                }
+            }
+            return schema;
         }
     }
     primitive_schema(&attr.attr_type)

@@ -86,6 +86,13 @@ pub fn generate_domain_page(
     main.push_str(&records_table(&rt));
     main.push_str("</div>");
 
+    // Raw bluebook source — the actual .bluebook text (not a reconstruction),
+    // fetched on demand from /domains/{d}/source and shown in a <pre>.
+    main.push_str(&format!(
+        r#"<div class="mt-10"><button onclick="toggleSource('{n}')" class="text-xs text-brand hover:underline">&lt;/&gt; view bluebook source</button><pre id="src-{n}" class="hidden mt-3 p-4 rounded-lg border border-surface-3 bg-surface-0 text-xs text-gray-300 overflow-x-auto whitespace-pre"></pre></div><script>function toggleSource(d){{var p=document.getElementById('src-'+d);if(p.classList.contains('hidden')){{fetch(location.pathname+'/source').then(function(r){{return r.json();}}).then(function(j){{p.textContent=j.source;p.classList.remove('hidden');}});}}else{{p.classList.add('hidden');}}}}</script>"#,
+        n = esc(name)
+    ));
+
     wrap_page_with_domain(&display_name(name), Some(name), &sidebar, &main)
 }
 

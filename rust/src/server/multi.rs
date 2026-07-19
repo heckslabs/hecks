@@ -32,8 +32,59 @@ use std::collections::HashMap;
 use std::net::TcpListener;
 use std::path::Path;
 
+/// Process-wide served root, set once at serve start. The `/source` route
+/// reads the raw .bluebook files from here on demand — the serve is one
+/// dir per process, so a OnceLock is the honest home ; no per-request
+/// param threading through handle_multi / route_multi.
+static SERVED_ROOT: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+
+/// Read + concatenate every .bluebook under the served root (skipping
+/// data/, node_modules/, target/, dotfiles) — the RAW source behind the
+/// domain, for the UI's "view source" (the actual file text, never a
+/// reconstruction). Each file gets a `# ── name ──` header.
+fn read_bluebook_source() -> String {
+    let root = match SERVED_ROOT.get() {
+        Some(r) => r,
+        None => return String::new(),
+    };
+    let mut files: Vec<std::path::PathBuf> = Vec::new();
+    collect_bluebook_files(Path::new(root), &mut files);
+    files.sort();
+    let mut out = String::new();
+    for f in files {
+        if let Ok(src) = std::fs::read_to_string(&f) {
+            let name = f.file_name().unwrap_or_default().to_string_lossy();
+            out.push_str(&format!("# ── {} ──\n{}\n\n", name, src));
+        }
+    }
+    out
+}
+
+fn collect_bluebook_files(root: &Path, out: &mut Vec<std::path::PathBuf>) {
+    let entries = match std::fs::read_dir(root) {
+        Ok(e) => e,
+        Err(_) => return,
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let name = path.file_name().unwrap_or_default().to_string_lossy().into_owned();
+        if name.starts_with('.') {
+            continue;
+        }
+        if path.is_dir() {
+            if name == "data" || name == "node_modules" || name == "target" {
+                continue;
+            }
+            collect_bluebook_files(&path, out);
+        } else if path.extension().map(|e| e == "bluebook").unwrap_or(false) {
+            out.push(path);
+        }
+    }
+}
+
 /// Boot all bluebooks in a directory and serve them
 pub fn serve_directory(dir: &str, port: u16) {
+    let _ = SERVED_ROOT.set(dir.to_string());
     // Load every hecksagon (incl. .family / .adapter) under the served tree
     // AND under the running repo FIRST — the domain runtimes boot WITH them
     // attached (boot_served_runtime), so ensure_outbox_substrate merges the
@@ -508,6 +559,7 @@ fn route_multi(
         // /domain / /events / /policies (readers enter through aggregate
         // queries). Under an OPEN door they are unchanged.
         ("GET", [""]) | ("GET", []) | ("GET", ["domains"]) | ("GET", ["domains", _])
+        | ("GET", ["domains", _, "source"])
             if posture == DoorPosture::Governed =>
         {
             ("403 Forbidden", format!(
@@ -549,6 +601,19 @@ fn route_multi(
                 None => ("404 Not Found", format!(
                     r#"{{"error":"domain not found","name":"{}"}}"#, name
                 )),
+            }
+        }
+
+        // Raw bluebook source — the actual .bluebook text behind the domain,
+        // for the UI's "view source". More specific than the delegation arm
+        // below, so it must precede it.
+        ("GET", ["domains", name, "source"]) => {
+            match runtimes.get(*name) {
+                Some(_) => (
+                    "200 OK",
+                    format!(r#"{{"source":{}}}"#, crate::json_helpers::json_str(&read_bluebook_source())),
+                ),
+                None => ("404 Not Found", format!(r#"{{"error":"domain not found","name":"{}"}}"#, name)),
             }
         }
 

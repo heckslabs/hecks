@@ -149,12 +149,39 @@ fn input_from_schema(
             esc(&attr.name), req_attr, opts
         );
     }
-    match prop.get("type").and_then(|t| t.as_str()) {
-        Some("integer") => text_input(&attr.name, &label, "number", r#" step="1""#, req_attr),
-        Some("number") => text_input(&attr.name, &label, "number", r#" step="any""#, req_attr),
-        Some("boolean") => checkbox(&attr.name, req_attr),
-        _ => text_input(&attr.name, &label, "text", "", req_attr),
+    if prop.get("type").and_then(|t| t.as_str()) == Some("boolean") {
+        return checkbox(&attr.name, req_attr);
     }
+    // Money (cents convention) : the wire is cents but humans think in
+    // dollars, so DISPLAY dollars (min/max ÷100, step 0.01) and mark the
+    // input `data-money="cents"` — wizardSubmit multiplies ×100 back to the
+    // cents the gate expects. The schema minimum stays cents (the contract).
+    if prop.get("x-hecks-money").is_some() {
+        let mut extra = String::from(r#" step="0.01" data-money="cents""#);
+        if let Some(mn) = prop.get("minimum").and_then(|m| m.as_i64()) {
+            extra.push_str(&format!(r#" min="{:.2}""#, mn as f64 / 100.0));
+        }
+        if let Some(mx) = prop.get("maximum").and_then(|m| m.as_i64()) {
+            extra.push_str(&format!(r#" max="{:.2}""#, mx as f64 / 100.0));
+        }
+        return text_input(&attr.name, &format!("{} ($)", label), "number", &extra, req_attr);
+    }
+    let (input_type, step): (&str, &str) = match prop.get("type").and_then(|t| t.as_str()) {
+        Some("integer") => ("number", r#" step="1""#),
+        Some("number") => ("number", r#" step="any""#),
+        _ => ("text", ""),
+    };
+    // min / max come straight from the schema's minimum / maximum — the
+    // browser then refuses an out-of-bounds value before it ever reaches
+    // the gate (the invariant enforced twice : field hint + payload gate).
+    let mut extra = step.to_string();
+    if let Some(mn) = prop.get("minimum").and_then(|m| m.as_i64()) {
+        extra.push_str(&format!(r#" min="{}""#, mn));
+    }
+    if let Some(mx) = prop.get("maximum").and_then(|m| m.as_i64()) {
+        extra.push_str(&format!(r#" max="{}""#, mx));
+    }
+    text_input(&attr.name, &label, input_type, &extra, req_attr)
 }
 
 /// Render the <label> wrapper around an input. The asterisk for

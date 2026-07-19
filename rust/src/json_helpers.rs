@@ -131,5 +131,24 @@ pub fn value_map_to_json(fields: &HashMap<String, Value>) -> String {
 }
 
 pub fn json_str(s: &str) -> String {
-    format!(r#""{}""#, s.replace('"', "\\\""))
+    // A proper JSON string encoder : escape the quote, the backslash, and
+    // the control characters (newline / tab / …) that strict parsers
+    // (browsers' JSON.parse, Python's json) reject raw. Before 2026-07-19
+    // this only escaped `"`, so any multi-line or backslash-bearing value
+    // (e.g. the /source raw-bluebook route) emitted invalid JSON.
+    let mut out = String::with_capacity(s.len() + 2);
+    out.push('"');
+    for c in s.chars() {
+        match c {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            c if (c as u32) < 0x20 => out.push_str(&format!("\\u{:04x}", c as u32)),
+            c => out.push(c),
+        }
+    }
+    out.push('"');
+    out
 }
