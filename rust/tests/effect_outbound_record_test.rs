@@ -105,23 +105,34 @@ fn effect_binding_records_one_outbound_event_on_emit() {
     let mut q = HashMap::new();
     q.insert("adapter".to_string(), "Stripe".to_string());
     let pending = rt.resolve_query("Pending", &q);
+    // `state` is always a LIST, so the host's poll reads its whole backlog
+    // with one shape whether one delivery is waiting or twenty.
     let state = &pending["state"];
     assert_eq!(
-        state["adapter"].as_str(),
+        state.as_array().map(|a| a.len()),
+        Some(1),
+        "Pending(adapter: Stripe) returns the one Stripe delivery (got {})",
+        state,
+    );
+    assert_eq!(
+        state[0]["adapter"].as_str(),
         Some("Stripe"),
         "Pending(adapter: Stripe) returns the Stripe delivery",
     );
-    assert_eq!(state["status"].as_str(), Some("pending"));
-    assert_eq!(state["success_command"].as_str(), Some("Shop::Order.Authorize"));
+    assert_eq!(state[0]["status"].as_str(), Some("pending"));
+    assert_eq!(state[0]["success_command"].as_str(), Some("Shop::Order.Authorize"));
 
     // A non-subscribing adapter sees nothing — the host only consumes its own.
     let mut q2 = HashMap::new();
     q2.insert("adapter".to_string(), "Ghost".to_string());
     let none = rt.resolve_query("Pending", &q2);
-    assert!(
-        none["state"].as_str().is_none()
-            && none["state"].as_object().is_none(),
-        "Pending(adapter: Ghost) returns no delivery (got {:?})",
+    // An empty backlog is an EMPTY LIST, not null and not a bare object — the
+    // no-match case has the same shape as every other case, so a host can loop
+    // it without a special branch.
+    assert_eq!(
+        none["state"].as_array().map(|a| a.len()),
+        Some(0),
+        "Pending(adapter: Ghost) returns an empty list (got {:?})",
         none["state"],
     );
 }
@@ -239,7 +250,8 @@ fn host_round_trip_consumes_claims_dispatches_verdict_and_acks() {
     let mut q = HashMap::new();
     q.insert("adapter".to_string(), "Stripe".to_string());
     let pending = rt.resolve_query("Pending", &q);
-    let d = &pending["state"];
+    // `state` is always a LIST — the host takes the first of its backlog.
+    let d = &pending["state"][0];
     let delivery_id = d["delivery_id"].as_str().expect("delivery_id").to_string();
     let source_id = d["source_id"].as_str().expect("source_id").to_string();
     let success_command = d["success_command"].as_str().expect("success_command").to_string();

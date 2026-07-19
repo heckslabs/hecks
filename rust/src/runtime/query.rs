@@ -456,9 +456,17 @@ impl Runtime {
             }
             serde_json::Value::Object(map)
         }).collect();
+        // `state` is ALWAYS a list — never a bare object for the one-record
+        // case. The old shape (`records[0]` when len == 1, else the array) made
+        // the result type depend on the DATA, so a caller written against one
+        // record silently broke the moment a second arrived. run_host worked
+        // around it by bypassing the declared query entirely and re-filtering
+        // `status == pending` in Rust — domain knowledge leaking back into the
+        // runtime because the read contract could not be relied on. A list of
+        // one is a list.
         serde_json::json!({
             "aggregate": agg_name, "query": query_name,
-            "state": if records.len() == 1 { records[0].clone() } else { serde_json::json!(records) },
+            "state": serde_json::json!(records),
         })
     }
 }

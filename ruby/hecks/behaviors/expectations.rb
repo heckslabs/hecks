@@ -63,11 +63,12 @@ module Hecks
         result = rt.resolve_query(test.tests_command, test.input)
         expected = test.expect[:count] || test.expect["count"]
         return Runner::TestRun.new(test.description, :pass, nil) unless expected
-        actual = case result["state"]
-                 when Array then result["state"].size
-                 when Hash  then 1
-                 else 0
-                 end
+        # `state` is ALWAYS a list, on both targets. Ruby has always
+        # returned one ; Rust unwrapped a single record to a bare object
+        # until 2026-07-19, and the `when Hash then 1` branch here was the
+        # defensive shim for that. The shape is now invariant, so the shim
+        # is gone : a query returns a list, and its size is the count.
+        actual = Array(result["state"]).size
         if actual != expected.to_i
           return Runner::TestRun.new(test.description, :fail,
             "expected query count == #{expected}, got #{actual}")

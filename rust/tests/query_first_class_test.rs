@@ -162,11 +162,17 @@ end"#;
 
     let result = rt.resolve_query("Available", &HashMap::new());
     let state = &result["state"];
-    // Only the second book remains in the available state — single-record
-    // results render as a bare object (resolve_query unwraps len==1).
-    assert!(!state.is_array(), "single record renders as object, not array");
-    assert_eq!(state["title"].as_str(), Some("Hyperion"));
-    assert_eq!(state["status"].as_str(), Some("available"));
+    // Only the second book remains available. `state` is ALWAYS a list — a
+    // one-record result is a list of one, never a bare object, so the result
+    // TYPE never depends on how many rows happened to match.
+    assert_eq!(
+        state.as_array().map(|a| a.len()),
+        Some(1),
+        "one book remains available, rendered as a list of one (got {})",
+        state,
+    );
+    assert_eq!(state[0]["title"].as_str(), Some("Hyperion"));
+    assert_eq!(state[0]["status"].as_str(), Some("available"));
 }
 
 #[test]
@@ -202,9 +208,10 @@ end"#;
     attrs.insert("author".to_string(), "Herbert".to_string());
     let result = rt.resolve_query("ByAuthor", &attrs);
     let state = &result["state"];
-    // Single-record results render as a bare object, not an array.
-    assert_eq!(state["title"].as_str(), Some("Dune"));
-    assert_eq!(state["author"].as_str(), Some("Herbert"));
+    // A one-record result is a LIST of one — the shape is invariant.
+    assert_eq!(state.as_array().map(|a| a.len()), Some(1), "one Herbert book (got {})", state);
+    assert_eq!(state[0]["title"].as_str(), Some("Dune"));
+    assert_eq!(state[0]["author"].as_str(), Some("Herbert"));
 }
 
 #[test]
@@ -324,10 +331,15 @@ end"#;
     attrs.insert("person".to_string(), "alice".to_string());
     let result = rt.resolve_query("AlreadyDrafted", &attrs);
     let state = &result["state"];
-    // Single-record result renders as a bare object (not an array)
-    assert!(!state.is_array(), "alice is drafting — should return exactly one record");
-    assert_eq!(state["person"].as_str(), Some("alice"));
-    assert_eq!(state["draft_status"].as_str(), Some("drafting"));
+    // One matching record, rendered as a list of one (the shape is invariant).
+    assert_eq!(
+        state.as_array().map(|a| a.len()),
+        Some(1),
+        "alice is drafting — should return exactly one record (got {})",
+        state,
+    );
+    assert_eq!(state[0]["person"].as_str(), Some("alice"));
+    assert_eq!(state[0]["draft_status"].as_str(), Some("drafting"));
 
     // Query for bob — draft_status is "none", not "drafting" → empty
     let mut attrs2 = HashMap::new();
