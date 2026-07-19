@@ -1282,6 +1282,22 @@ impl Runtime {
         Ok(result)
     }
 
+    /// True when some attached hecksagon carries `Aggregate.event_sourced`
+    /// for this aggregate — the per-aggregate event-sourcing toggle
+    /// (persistence+). Bindings store the FQN (`"Ctx::Agg"`) ; the event
+    /// carries the bare name (`"Agg"`), so match on the last `::` segment,
+    /// as `record_effect_outbound` does. An aggregate carrying the directive
+    /// writes its deltas to the Log even with the global HECKS_EVENT_SOURCING
+    /// override unset.
+    fn aggregate_is_event_sourced(&self, aggregate_type: &str) -> bool {
+        self.hecksagons.iter().any(|h| {
+            h.bindings.iter().any(|b| {
+                b.verb == "event_sourced"
+                    && b.aggregate.rsplit("::").next() == Some(aggregate_type)
+            })
+        })
+    }
+
     /// Event-sourcing Log writer (i-event-sourcing) — append one immutable
     /// `EventSourcing::Event` to the durable Log per delta this command
     /// produced. The out-of-domain sibling of `record_cascade_run` /
@@ -1301,16 +1317,14 @@ impl Runtime {
     /// Append never appends. (Belt-and-suspenders — `dispatch_cascade` does
     /// not re-enter this hook ; only the eager dispatch wrapper calls it.)
     fn record_event_append(&mut self, result: &CommandResult, command_name: &str, causation_id: &str) {
-        // GATE (default OFF) — the in-process Log writer persists via DEFAULT
-        // heki (whole-file read-modify-write), which CLOBBERS under concurrent
-        // writers, so the live governance Log silently drops events. Per Chris
-        // (2026-06-20) the Event Log moves OUT-OF-PROCESS (an async projection,
-        // single-writer). Until that lands, event-sourcing is gated OFF so no
-        // lossy Log runs. Set HECKS_EVENT_SOURCING=1 to re-enable once the
-        // out-of-process writer owns event.heki. Sibling of HECKS_REPLY_OOP_LLM.
-        if std::env::var("HECKS_EVENT_SOURCING").is_err() {
-            return;
-        }
+        // GATE — event sourcing is opt-in PER AGGREGATE via the `event_sourced`
+        // hecksagon directive (persistence+). The shards+merge Log writer is
+        // now single-writer-safe and proven lossless (thirty_concurrent_
+        // writers_lose_nothing : 1500 events / 30 writers / 0 lost), so the old
+        // blanket lossiness gate is retired : an aggregate carrying the
+        // directive writes its deltas to the Log. HECKS_EVENT_SOURCING stays as
+        // a global override (every aggregate) ; neither set -> no Log write
+        // (the historical default).
         if result.deltas.is_empty() {
             return;
         }
@@ -1318,6 +1332,11 @@ impl Runtime {
             Some(e) => e.clone(),
             None => return,
         };
+        if std::env::var("HECKS_EVENT_SOURCING").is_err()
+            && !self.aggregate_is_event_sourced(event.aggregate_type.as_str())
+        {
+            return;
+        }
         // No-op when the Event Log aggregate isn't loaded (e.g. a single-
         // bluebook example boot without the EventSourcing framework chapter).
         let es_key = repo_key(Some("EventSourcing"), "Event");

@@ -150,6 +150,7 @@ const PIZZAS_BINDS: &str = r#"Hecks.hecksagon "Pizzas" do
     success "Order.Authorize"
     failure "Order.Decline"
   end
+  Pizzas::Order.event_sourced
 end
 "#;
 
@@ -157,7 +158,16 @@ end
 fn parses_reply_and_effect_bindings() {
     let hex = hecksagon_parser::parse(PIZZAS_BINDS);
     assert_eq!(hex.name, "Pizzas");
-    assert_eq!(hex.bindings.len(), 3, "expected three binds");
+    assert_eq!(hex.bindings.len(), 4, "expected four binds (incl. the event_sourced directive)");
+
+    // The no-argument `event_sourced` directive (persistence+) parses to a
+    // Binding with the verb and an empty adapter — byte-equal with the Ruby
+    // FqnBindingProxy, so hecksagon parity holds.
+    let es = &hex.bindings[3];
+    assert_eq!(es.aggregate, "Pizzas::Order");
+    assert_eq!(es.verb, "event_sourced");
+    assert_eq!(es.adapter, "", "a directive carries no adapter");
+    assert!(es.on.is_empty() && es.success.is_empty() && es.failure.is_empty());
 
     let reply = &hex.bindings[0];
     assert_eq!(reply.aggregate, "Pizzas::Pizza");

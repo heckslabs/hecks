@@ -863,7 +863,10 @@ fn is_binding_line(line: &str) -> bool {
             head.starts_with(|c: char| c.is_ascii_uppercase())
                 && head.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
                 && t.contains('.')
-                && t.contains('(')
+                // No `(` requirement : a no-argument directive verb
+                // (`Order.event_sourced`, persistence+) is a binding too.
+                // The Ruby FqnBindingProxy already records any no-arg verb,
+                // so Rust must accept the paren-less form to stay in parity.
         }
         _ => false,
     }
@@ -874,7 +877,31 @@ fn is_binding_line(line: &str) -> bool {
 /// 1 (always consumes a single line, so it slots into multiline_block).
 fn parse_binding(lines: &[&str]) -> (Option<Binding>, usize) {
         let t = lines[0].trim();
-        let paren = match t.find('(') { Some(p) => p, None => return (None, 1) };
+        let paren = match t.find('(') {
+            Some(p) => p,
+            None => {
+                // A no-argument directive verb (`Pizzas::Order.event_sourced`)
+                // — a persistence+ flag with no adapter. Split at the last '.' :
+                // the aggregate FQN + the bare verb, every other field empty.
+                // Mirrors the Ruby FqnBindingProxy (records any no-arg verb as
+                // a Binding with empty adapter), so both parsers agree.
+                let dot = match t.rfind('.') { Some(d) => d, None => return (None, 1) };
+                let aggregate = t[..dot].trim().to_string();
+                let verb = t[dot + 1..].trim().to_string();
+                if aggregate.is_empty() || verb.is_empty() { return (None, 1); }
+                return (
+                    Some(Binding {
+                        aggregate,
+                        verb,
+                        adapter: String::new(),
+                        on: String::new(),
+                        success: String::new(),
+                        failure: String::new(),
+                    }),
+                    1,
+                );
+            }
+        };
         let head = &t[..paren];
         let dot = match head.rfind('.') { Some(d) => d, None => return (None, 1) };
         let aggregate = head[..dot].trim().to_string();
