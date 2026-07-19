@@ -3484,7 +3484,7 @@ Hecks.bluebook "Macrophage", version: "2026.05.14.1" do
   # The chapter's principle : the verb carries the boundary, in ENGLISH.
   # `list_of` / `reference_to` are INSIDE (composition, local identity) ;
   # `has_one` / `has_many` / `belongs_to` are CROSS (reference, global
-  # identity). Cross-context is the English `belongs_to Story from Plan`,
+  # identity). Cross-context is the English kwarg `belongs_to Story, from: Plan`,
   # never the codey `Plan::Story` (`::` is Ruby's constant-resolution
   # operator leaking into the domain language).
   #

@@ -565,16 +565,20 @@ fn parse_as_alias(line: &str) -> Option<String> {
     line.find(", as:").and_then(|pos| extract_symbol(&line[pos + ", as:".len()..]))
 }
 
-/// Extract the ` from <Context>` cross-context qualifier — the English form of
-/// the retired `Context::X` prefix (`::` is codey ; a bluebook reads as words).
-/// `belongs_to Story from Plan` -> Some("Plan") ; the leaf stays bare and the
-/// context rides separately, so the IR is identical to the old `Plan::Story`.
+/// Extract the `, from: Context` cross-context qualifier — English AND valid
+/// Ruby (a kwarg), per the 2026-07-18 ruling : the Bluebook is a Ruby-embedded
+/// language, and VALID RUBY IS A DESIGN CONSTRAINT. This one spelling replaces
+/// BOTH retired forms — the codey `Context::X` prefix (implementation leaking
+/// through the words) and the space-form ` from Context` (English but not
+/// Ruby ; it was the last known_drift entry, retired the day the ruling
+/// landed). `belongs_to Story, from: Plan` -> Some("Plan") ; the leaf stays
+/// bare and the context rides separately, IR-identical to the old prefix.
 fn parse_from_context(line: &str) -> Option<String> {
-    line.find(" from ").and_then(|pos| {
-        line[pos + " from ".len()..]
+    line.find("from:").and_then(|pos| {
+        line[pos + "from:".len()..]
             .split_whitespace()
             .next()
-            .map(|s| s.to_string())
+            .map(|s| s.trim_matches(',').to_string())
             .filter(|s| !s.is_empty())
     })
 }
