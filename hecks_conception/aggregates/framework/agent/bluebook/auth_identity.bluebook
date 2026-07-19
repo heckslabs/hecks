@@ -101,7 +101,7 @@ Hecks.bluebook "AuthIdentity", version: "2026.06.26.1" do
       # the authenticate Gate admits this principal. rejected : verifier
       # denied — never admitted. retired : session ended / credential
       # rotated — excluded from the Gate's read-model (fail closed).
-      attribute :value, String, enum: ["pending", "active", "rejected", "retired"]
+      attribute :value, one_of("pending", "active", "rejected", "retired")
     end
 
     command "Establish" do

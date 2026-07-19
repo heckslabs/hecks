@@ -74,6 +74,15 @@ module Hecks
         # violations`). Rust never did the conversion ; Ruby did.
         # Now they agree : list-shaped attributes MUST use
         # `list_of(X)` explicitly.
+        # one_of scalar sugar (GRAMMAR-one-of, 2026-07-19) :
+        #   attribute :standing, one_of("good", "suspended"), default: "good"
+        # The closed vocabulary rides the pre-declared Structure::Attribute
+        # enum field ; the storage type is String.
+        if type.is_a?(Hash) && type[:enum]
+          options[:enum] = type[:enum]
+          type = String
+        end
+
         type = resolve_type(type)
         list = type.is_a?(Hash) && type[:list]
         actual_type = type.is_a?(Hash) ? type.values.first : type
@@ -103,6 +112,16 @@ module Hecks
       def list_of(type)
         raise ArgumentError, "Use bare constant #{type} instead of string \"#{type}\" in list_of" if type.class == String && Hecks::DSL::TypeName.match?(type)
         { list: type }
+      end
+
+      # Closed scalar vocabulary (GRAMMAR-one-of, 2026-07-19) :
+      #   attribute :standing, one_of("good", "suspended", "banned"), default: "good"
+      # Values ride Structure::Attribute#enum ; the payload gate refuses
+      # anything outside the set, and the form renders a dropdown. (The
+      # query-scope one_of — the In operator — is a different builder
+      # context ; no collision.)
+      def one_of(*values)
+        { enum: values.map(&:to_s) }
       end
 
       # Shorthand: `Float :flow_rate_gph` → `attribute :flow_rate_gph, Float`.

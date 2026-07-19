@@ -167,6 +167,7 @@ fn no_warnings_on_small_connected_domain() {
 fn ref_attr(name: &str, ty: &str) -> storehouse::ir::Attribute {
     storehouse::ir::Attribute {
         name: name.into(), attr_type: ty.into(), default: None, list: false, required: false,
+        enum_values: vec![],
     }
 }
 

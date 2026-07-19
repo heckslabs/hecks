@@ -102,7 +102,7 @@ Hecks.bluebook "ArtifactClaim", version: "2026.06.16.1" do
       # checked) | "satisfied" (path exists) | "broken" (path missing —
       # the documented-the-unbuilt violation) | "retracted" (source no
       # longer claims it).
-      attribute :value, String, enum: ["unverified", "satisfied", "broken", "retracted"]
+      attribute :value, one_of("unverified", "satisfied", "broken", "retracted")
     end
 
     value_object "Severity" do

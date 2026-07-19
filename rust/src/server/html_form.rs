@@ -86,6 +86,53 @@ pub fn field_input(agg: &Aggregate, attr: &Attribute, rt: &Runtime) -> String {
     let req_attr = if required { " required" } else { "" };
     let lower = attr.attr_type.to_lowercase();
 
+    // one_of (GRAMMAR-one-of, 2026-07-19) — a closed vocabulary renders as
+    // a dropdown : the user cannot even TYPE a bad value. Two homes :
+    //   - scalar sugar : the attribute's own enum_values
+    //   - whole-value members : the VO's members ; the option VALUE is the
+    //     discriminant (first field), the LABEL is every member field
+    //     joined " · " (the lookup table lives in the type)
+    let vocabulary: Vec<(String, String)> = if !attr.enum_values.is_empty() {
+        attr.enum_values.iter().map(|v| (v.clone(), v.clone())).collect()
+    } else if let Some(vo) = agg.value_objects.iter().find(|v| v.name == attr.attr_type) {
+        vo.members
+            .iter()
+            .filter_map(|m| {
+                m.first().map(|(_, disc)| {
+                    let label: Vec<&str> = m.iter().map(|(_, v)| v.as_str()).collect();
+                    (disc.clone(), label.join(" · "))
+                })
+            })
+            .collect()
+    } else {
+        vec![]
+    };
+    if !vocabulary.is_empty() {
+        let mut opts = String::new();
+        let selected_default = attr.default.as_deref().unwrap_or("");
+        if selected_default.is_empty() {
+            opts.push_str(&format!(
+                r#"<option value="" disabled selected>— pick {} —</option>"#,
+                esc(&label)
+            ));
+        }
+        for (val, text) in &vocabulary {
+            let sel = if val == selected_default { " selected" } else { "" };
+            opts.push_str(&format!(
+                r#"<option value="{}"{}>{}</option>"#,
+                esc(val), sel, esc(text)
+            ));
+        }
+        return labelled(
+            &label,
+            req_mark,
+            &format!(
+                r#"<select name="{}"{} class="bg-surface-0 border border-surface-4 rounded px-3 py-1.5 text-sm text-gray-100 focus:border-brand focus:outline-none w-full">{}</select>"#,
+                esc(&attr.name), req_attr, opts
+            ),
+        );
+    }
+
     // Reference-by-name : when attr_type matches a known aggregate,
     // render a record picker.
     if let Some(target) = aggregate_by_name(rt, &attr.attr_type) {

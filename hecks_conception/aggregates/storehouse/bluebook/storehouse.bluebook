@@ -247,7 +247,7 @@ Hecks.bluebook "Storehouse", version: "2026.06.27.1" do
       # When the gate runs relative to the aggregate handler. "before"
       # gates are VETOING (may Deny and abort) ; "after" gates observe the
       # result only.
-      attribute :value, String, enum: ["before", "after"]
+      attribute :value, one_of("before", "after")
     end
 
     value_object "Check" do
@@ -285,7 +285,7 @@ Hecks.bluebook "Storehouse", version: "2026.06.27.1" do
       # Lifecycle token : active | retired. Active gates hydrate into the
       # runtime stack ; retired ones stay on the audit row but are NOT in
       # the stack (the Active query excludes them).
-      attribute :value, String, enum: ["active", "retired"]
+      attribute :value, one_of("active", "retired")
     end
 
     # ── Commands ───────────────────────────────────────────────────

@@ -111,8 +111,7 @@ Hecks.bluebook "HekiR2", version: "2026.05.11.1" do
     #             records (post-bootstrap pre-first-record, or
     #             post-last-Delete).
     value_object "Phase" do
-      attribute :value, String,
-        enum: ["missing", "loaded", "written", "empty"]
+      attribute :value, one_of("missing", "loaded", "written", "empty")
     end
 
     # ── Attributes ─────────────────────────────────────────────

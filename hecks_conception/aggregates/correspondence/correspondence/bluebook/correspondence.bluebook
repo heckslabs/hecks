@@ -86,7 +86,7 @@ Hecks.bluebook "Correspondence", version: "2026.05.24.1" do
       #                 composing another ; surface the existing one.
       #   "sent"      : most recent correspondence was sent.
       #   "discarded" : most recent draft was explicitly discarded.
-      attribute :value, String, enum: ["none", "drafting", "sent", "discarded"]
+      attribute :value, one_of("none", "drafting", "sent", "discarded")
     end
 
     value_object "LetterId" do
@@ -117,7 +117,7 @@ Hecks.bluebook "Correspondence", version: "2026.05.24.1" do
 
     value_object "LetterStatus" do
       # One of: "draft", "sent", "discarded".
-      attribute :value, String, enum: ["draft", "sent", "discarded"]
+      attribute :value, one_of("draft", "sent", "discarded")
     end
 
     value_object "Timestamp" do

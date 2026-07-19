@@ -1,0 +1,36 @@
+# 25 — one_of closed value sets (GRAMMAR-one-of, 2026-07-19). Both
+# spellings, both parsers, byte-equal canonical IR : the scalar sugar
+# (attribute enum) and the whole-value member block (VO members,
+# first attribute = discriminant). Both are valid Ruby by construction
+# (DECISION-bluebook-is-ruby).
+Hecks.bluebook "OneOfShed" do
+  aggregate "Member" do
+    description "A member with a closed standing vocabulary"
+    attribute :name, MemberName
+    attribute :standing, one_of("good", "suspended", "banned"), default: "good"
+
+    value_object "MemberName" do
+      attribute :value, String
+    end
+
+    value_object "Currency" do
+      attribute :code,        String
+      attribute :symbol,      String
+      attribute :minor_units, Integer
+      one_of do
+        member code: "USD", symbol: "$", minor_units: 2
+        member code: "CAD", symbol: "C$", minor_units: 2
+        member code: "JPY", symbol: "¥", minor_units: 0
+      end
+    end
+
+    attribute :currency, Currency
+
+    command "Enroll" do
+      role "Owner"
+      attribute :name, MemberName, required: true
+      attribute :standing, one_of("good", "suspended", "banned"), default: "good"
+      attribute :currency, Currency
+    end
+  end
+end

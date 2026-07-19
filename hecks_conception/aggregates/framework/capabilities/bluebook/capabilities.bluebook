@@ -86,10 +86,7 @@ Hecks.bluebook "Capabilities", version: "2026.05.12.1" do
       #   persistence : storage adapters (event_store, heki backends)
       #   substrate   : boot-time wiring with no dispatch surface
       #   framework   : framework-internal plumbing
-      attribute :value, String, enum: [
-        "tools", "chat_agent", "crud", "websocket",
-        "ui", "persistence", "substrate", "framework"
-      ]
+      attribute :value, one_of("tools", "chat_agent", "crud", "websocket", "ui", "persistence", "substrate", "framework")
     end
 
     value_object "Timestamp" do
@@ -120,7 +117,7 @@ Hecks.bluebook "Capabilities", version: "2026.05.12.1" do
       # the bluebook stays in the registry, the apply step skips).
       # The lifecycle block at the bottom of this aggregate enforces
       # the transitions ; never set this attribute directly.
-      attribute :value, String, enum: ["nursery", "active", "dormant"]
+      attribute :value, one_of("nursery", "active", "dormant")
     end
 
     value_object "AggregateName" do

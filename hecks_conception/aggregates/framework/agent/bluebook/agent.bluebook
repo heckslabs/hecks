@@ -111,7 +111,7 @@ Hecks.bluebook "Agent", version: "2026.07.02.1" do
     # carry a model reference, human Agents drive the audit trail
     # visible to compliance.
     value_object "Kind" do
-      attribute :value, String, enum: ["human", "system", "daemon", "bot", "ai"]
+      attribute :value, one_of("human", "system", "daemon", "bot", "ai")
     end
 
     # Status — the Agent's lifecycle state. "active" on Birth ;
@@ -121,7 +121,7 @@ Hecks.bluebook "Agent", version: "2026.07.02.1" do
     # revoke access by retiring the RoleAssignment in the authz
     # context. Mirrors the Pizzas Order.status form.
     value_object "Status" do
-      attribute :value, String, enum: ["active", "retired"]
+      attribute :value, one_of("active", "retired")
     end
 
     attribute :name,        Name

@@ -230,6 +230,11 @@ module Hecks
           # 2026-07-18 — the payload gate enforces `required: true` ; the
           # flag joins the canonical IR. Mirrors dump.rs : after default.
           "required" => attr.respond_to?(:required) ? !!attr.required : false,
+          # one_of scalar vocabulary (2026-07-19) — mirrors dump.rs. Key
+          # named `one_of` : the canonical IR reads as words ("enum is too
+          # codey"). The internal Structure::Attribute field keeps its
+          # historical name ; the surface and the contract speak one_of.
+          "one_of"   => (attr.respond_to?(:enum) && attr.enum ? attr.enum : []).map(&:to_s),
         }
       end
 
@@ -244,6 +249,11 @@ module Hecks
           # each runtime enforces the predicate from its own parse.
           "invariants"  => (vo.respond_to?(:invariants) ? (vo.invariants || []) : []).map { |inv|
             { "name" => inv.respond_to?(:message) ? inv.message.to_s : inv.name.to_s }
+          },
+          # one_of members (2026-07-19) — ordered objects mirroring dump.rs ;
+          # Ruby kwargs preserve declaration order.
+          "members"     => (vo.respond_to?(:members) ? (vo.members || []) : []).map { |m|
+            m.each_pair.map { |k, v| [k.to_s, v.to_s] }.to_h
           },
         }
       end

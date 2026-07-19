@@ -145,6 +145,41 @@ pub fn check(
         }
     }
 
+    // ONE_OF membership (GRAMMAR-one-of, 2026-07-19) — closed vocabularies
+    // refuse anything outside the set. Two homes, one rule :
+    //   - scalar sugar : the attribute's own enum_values
+    //   - whole-value members : the VO's members, judged on the
+    //     DISCRIMINANT (the value the form submits ; the first attribute)
+    // Absence still passes — presence is the required arm's concern.
+    for cmd_attr in &cmd.attributes {
+        let Some(raw) = attrs.get(&cmd_attr.name) else { continue };
+        if matches!(raw, Value::Null) {
+            continue;
+        }
+        let sent = raw.to_string();
+        if sent.trim().is_empty() {
+            continue;
+        }
+        let vocabulary: Vec<String> = if !cmd_attr.enum_values.is_empty() {
+            cmd_attr.enum_values.clone()
+        } else if let Some(vo) = agg.value_objects.iter().find(|v| v.name == cmd_attr.attr_type) {
+            vo.members
+                .iter()
+                .filter_map(|m| m.first().map(|(_, v)| v.clone()))
+                .collect()
+        } else {
+            vec![]
+        };
+        if !vocabulary.is_empty() && !vocabulary.iter().any(|v| v == &sent) {
+            return Err(RuntimeError::PayloadInvariantViolation {
+                name: format!("must be one of: {}", vocabulary.join(", ")),
+                expression: "one_of".to_string(),
+                field: cmd_attr.name.clone(),
+                value: sent,
+            });
+        }
+    }
+
     for cmd_attr in &cmd.attributes {
         let Some(vo) = agg.value_objects.iter().find(|v| v.name == cmd_attr.attr_type) else {
             continue;

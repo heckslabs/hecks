@@ -379,6 +379,7 @@ pub fn parse_query(lines: &[&str]) -> (Query, usize) {
                         default: None,
                         list: false,
                         required: false,
+                        enum_values: vec![],
                     });
                 }
             }
@@ -592,10 +593,33 @@ pub fn parse_limit_line(line: &str) -> Option<LimitSpec> {
     Some(LimitSpec { value: token.to_string() })
 }
 
+/// Split a member line's body on top-level commas, quote-aware —
+/// `code: "USD", symbol: "C$", minor_units: 2` → three pairs even when a
+/// quoted value contains a comma.
+fn split_member_pairs(s: &str) -> Vec<&str> {
+    let mut pairs = Vec::new();
+    let mut in_quotes = false;
+    let mut last = 0;
+    for (i, c) in s.char_indices() {
+        match c {
+            '"' => in_quotes = !in_quotes,
+            ',' if !in_quotes => {
+                pairs.push(&s[last..i]);
+                last = i + 1;
+            }
+            _ => {}
+        }
+    }
+    if last < s.len() {
+        pairs.push(&s[last..]);
+    }
+    pairs
+}
+
 pub fn parse_value_object(lines: &[&str]) -> (ValueObject, usize) {
     let first = lines[0].trim();
     let name = extract_string(first).unwrap_or_default();
-    let mut vo = ValueObject { name, description: None, attributes: vec![], invariants: vec![] };
+    let mut vo = ValueObject { name, description: None, attributes: vec![], invariants: vec![], members: vec![] };
 
     let mut i = 1;
     let mut depth = 1;
@@ -610,6 +634,46 @@ pub fn parse_value_object(lines: &[&str]) -> (ValueObject, usize) {
             // can't decrement the surrounding depth.
             let consumed = consume_rule_block(&lines[i..]);
             i += consumed;
+            continue;
+        } else if depth == 1 && (line == "one_of do" || line.starts_with("one_of do")) {
+            // Closed whole-value set (GRAMMAR-one-of, 2026-07-19) :
+            //   one_of do
+            //     member code: "USD", symbol: "$", minor_units: 2
+            //   end
+            // Each member line's ordered key:value pairs become one member ;
+            // declaration order is the parity contract (Ruby kwargs preserve
+            // insertion order). Values : quoted strings verbatim, bare
+            // tokens (numbers) stringified.
+            let mut j = i + 1;
+            let mut d = 1;
+            while j < lines.len() && d > 0 {
+                let l = lines[j].trim();
+                if l == "end" {
+                    d -= 1;
+                    if d == 0 { break; }
+                } else if ends_with_do_block(l) {
+                    d += 1;
+                } else if l.starts_with("member ") || l.starts_with("member(") {
+                    let body = l.trim_start_matches("member").trim_start_matches('(').trim_end_matches(')');
+                    let mut fields: Vec<(String, String)> = Vec::new();
+                    for pair in split_member_pairs(body) {
+                        if let Some(colon) = pair.find(':') {
+                            let key = pair[..colon].trim().trim_matches(':').to_string();
+                            let raw_val = pair[colon + 1..].trim();
+                            let val = extract_string(raw_val)
+                                .unwrap_or_else(|| raw_val.trim_matches(',').trim().to_string());
+                            if !key.is_empty() && !val.is_empty() {
+                                fields.push((key, val));
+                            }
+                        }
+                    }
+                    if !fields.is_empty() {
+                        vo.members.push(fields);
+                    }
+                }
+                j += 1;
+            }
+            i = j + 1;
             continue;
         } else if depth == 1 && line.starts_with("invariant") && line.contains(" do ") && line.ends_with("end") {
             // VO-level invariant, INLINE one-liner form (inbox.bluebook's
@@ -965,7 +1029,28 @@ pub fn parse_attribute(line: &str) -> Option<Attribute> {
         if after.contains('"') { extract_string(&after) }
         else { Some(after.split_whitespace().next().unwrap_or(&after).to_string()) }
     } else { None };
-    Some(Attribute { name, attr_type, default, list, required })
+    // one_of scalar sugar (GRAMMAR-one-of, 2026-07-19) :
+    //   attribute :standing, one_of("good", "suspended"), default: "good"
+    // The quoted values inside the parens are the closed vocabulary ; the
+    // storage type is String (mirrors the Ruby collector routing the
+    // enum-hash to Structure::Attribute#enum).
+    let (attr_type, enum_values) = if let Some(start) = line.find("one_of(") {
+        let inner = &line[start + "one_of(".len()..];
+        let close = inner.find(')').unwrap_or(inner.len());
+        let vals: Vec<String> = inner[..close]
+            .split(',')
+            .filter_map(|seg| extract_string(seg))
+            .collect();
+        ("String".to_string(), vals)
+    } else {
+        // The legacy `enum: [...]` kwarg spelling is RETIRED ("enum is too
+        // codey" — Chris, 2026-07-19) : all 20 corpus files migrated to
+        // one_of the same day. Deliberately NOT parsed here — the Ruby DSL
+        // still collects it, so any straggler drifts loudly in parity
+        // instead of silently working. The ledger is the guard.
+        (attr_type, vec![])
+    };
+    Some(Attribute { name, attr_type, default, list, required, enum_values })
 }
 
 /// Pull the PascalCase value-object name from the first segment of a

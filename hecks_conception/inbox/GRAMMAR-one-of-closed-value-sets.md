@@ -58,7 +58,18 @@ Plus ToolShed : Currency/Price (above), Member.Standing (scalar sugar).
 ## Lineage (for the vision block when this becomes grammar)
 Evans : Whole Value (via Cunningham CHECKS) — the type's universe IS the legal set, illegal values unconstructible. Making Implicit Concepts Explicit — the vocabulary is a named domain concept in the ubiquitous language. Published Language — for world-owned sets (ISO-4217) bind to the standard. Specification — the ladder up when membership grows into logic. Fowler : Money. CHECKS pairs Instant Reaction (dropdown) with Deferred Validation (gate).
 
-## Touch list (fresh-head work)
+## LANDED — 2026-07-19, same session, all gates green
+- Both spellings live : scalar sugar (`one_of("good","suspended")` → attribute vocabulary) + whole-value members (`one_of do member … end` → VO members, first attribute = discriminant). Both parsers, byte-equal.
+- Gate membership bites : `must be one of: USD, CAD, JPY — currency = EUR` refused at every door.
+- Form renders dropdowns : scalar values plain ; members labeled with every field joined " · " (USD · $ · 2).
+- Canonical IR keys : `one_of` (attribute) + `members` (VO) — named as WORDS ("enum is too codey" — Chris, mid-implementation ruling).
+- **The legacy `enum:` kwarg is RETIRED** : all 20 hecks-side + 27 miette-side files migrated to one_of the same day. The Rust parser deliberately does NOT read `enum:` — the Ruby side still collects it, so any straggler drifts loudly in parity. The ledger is the guard.
+- Validator : one_of scalars exempt from primitive-envy (the vocabulary IS the type).
+- En route the canonical field exposed a latent 20-file parser drift (Ruby collected `enum:`, Rust ignored it) — same class as the dropped VO invariants, now structurally impossible to reintroduce.
+- Parity 388/388 (fixture 25 proves both spellings) ; behaviors 779/779 ; workspace clean ; zero warnings.
+- Deferred (still open here) : hand-painted wizard enum dropdowns (power_type, chemistry …) retire onto one_of ; Pizzas Size canonical exemplar rides the next Pizzas-canon pass ; JSON Schema enum emission rides PLAN-json-schema-projection.
+
+## Touch list (original, for reference)
 - Ruby DSL : `one_of(*values)` attribute type + `one_of do member … end` VO block
 - Rust parser : same two forms → IR (new enum-carrying attr_type or VO.members)
 - IR + dump.rs + canonical_ir.rb (parity — note aggregate identified_by parity gap discovered same session)

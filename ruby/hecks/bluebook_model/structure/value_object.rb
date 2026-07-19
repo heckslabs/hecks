@@ -47,12 +47,21 @@ module Hecks
       # @param invariants [Array<Invariant>] business rules enforced at construction time
       #
       # @return [ValueObject] a new ValueObject instance
-      def initialize(name:, attributes: [], invariants: [], description: nil)
+      def initialize(name:, attributes: [], invariants: [], description: nil, members: [])
         @name = name
         @attributes = attributes
         @invariants = invariants
         @description = description
+        @members = members
       end
+
+      # @return [Array<Hash>] one_of members — when non-empty, this value
+      #   object is a CLOSED SET of whole values (GRAMMAR-one-of, 2026-07-19).
+      #   Each member is an ordered Hash of attribute_name => value ; the
+      #   first attribute is the discriminant the form submits and the
+      #   payload gate judges. Empty means the type is open (any value
+      #   satisfying the invariants).
+      attr_reader :members
 
       # @return [String, nil] human-readable description of this value object
       attr_reader :description

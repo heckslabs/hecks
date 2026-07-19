@@ -413,6 +413,13 @@ pub struct Attribute {
     pub default: Option<String>,
     pub list: bool,
     pub required: bool,
+    /// Closed scalar vocabulary (GRAMMAR-one-of, 2026-07-19) :
+    /// `attribute :standing, one_of("good", "suspended")`. Empty = open.
+    /// Mirrors the Ruby Structure::Attribute `enum` field (pre-declared
+    /// there since the beginning ; surfaced by the one_of grammar word).
+    /// The payload gate refuses values outside the set ; the form renders
+    /// a dropdown ; the JSON Schema projection emits `enum`.
+    pub enum_values: Vec<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -570,6 +577,13 @@ pub struct ValueObject {
     /// these since day one (ValueObjectBuilder#invariant) ; the Rust parser
     /// silently dropped them until 2026-07-18.
     pub invariants: Vec<Invariant>,
+    /// one_of members (GRAMMAR-one-of, 2026-07-19) — when non-empty, this
+    /// value object is a CLOSED SET of whole values. Each member is the
+    /// ordered (attribute_name, value) pairs of one fully-specified
+    /// instance ; the FIRST attribute is the discriminant the form submits
+    /// and the payload gate judges. The lookup table lives in the type :
+    /// picking "USD" delivers symbol and minor_units without any service.
+    pub members: Vec<Vec<(String, String)>>,
 }
 
 #[derive(Debug, Clone)]
