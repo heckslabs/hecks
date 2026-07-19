@@ -48,7 +48,7 @@ Hecks.bluebook "AgentDiscipline", version: "2026.05.31.1" do
       # The kind drives which payload fields the hook records :
       # skip_env_var carries the var-name + value ; ignored_isolation
       # carries the agent's cwd + the expected worktree path.
-      attribute :value, String, enum: ["skip_env_var", "ignored_isolation"]
+      attribute :value, one_of("skip_env_var", "ignored_isolation")
     end
 
     value_object "Severity" do

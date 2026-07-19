@@ -95,7 +95,7 @@ Hecks.bluebook "Story", version: "2026.05.23.1" do
     value_object "Status" do
       # draft (Conceive) → complete (successful Run). No richer
       # lifecycle in v1 ; per-step status is deferred.
-      attribute :value, String, enum: ["draft", "complete"]
+      attribute :value, one_of("draft", "complete")
     end
 
     value_object "StepCount" do

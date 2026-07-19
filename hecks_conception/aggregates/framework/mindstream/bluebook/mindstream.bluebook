@@ -112,7 +112,7 @@ Hecks.bluebook "Mindstream", version: "2026.05.12.1" do
     # may_exit + restart_on_failure capture the semantic dimensions
     # the generator reads to produce overmind directives.
     value_object "Lifespan" do
-      attribute :kind,               String,    enum: ["one_shot", "persistent"]
+      attribute :kind, one_of("one_shot", "persistent")
       attribute :may_exit,           TrueClass, default: false
       attribute :restart_on_failure, TrueClass, default: true
     end

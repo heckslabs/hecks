@@ -20,13 +20,13 @@ Hecks.bluebook "Sidequest", version: "2026.05.22.1" do
       # Who raised it : operator (Miette dispatched it), worker-watch (a
       # warm worker saw it in the main session stream), self-volunteer
       # (a worker proposed its own task).
-      attribute :value, String, enum: ["operator", "worker-watch", "self-volunteer"]
+      attribute :value, one_of("operator", "worker-watch", "self-volunteer")
     end
 
     value_object "Status" do
       # proposed — open, unclaimed. claimed — a worker owns it.
       # done — completed ok. failed — worker reported failure.
-      attribute :value, String, enum: ["proposed", "claimed", "done", "failed"]
+      attribute :value, one_of("proposed", "claimed", "done", "failed")
     end
 
     value_object "WorkerId" do

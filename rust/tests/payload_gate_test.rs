@@ -136,6 +136,72 @@ end"##;
         .expect("unjudgeable predicate must not refuse a valid phrase");
 }
 
+// --- one_of : closed value sets (GRAMMAR-one-of, 2026-07-19) ---
+
+const ONE_OF_SHED: &str = r##"Hecks.bluebook "OneOfShed" do
+  aggregate "Member" do
+    attribute :standing, one_of("good", "suspended", "banned"), default: "good"
+    attribute :currency, Currency
+
+    value_object "Currency" do
+      attribute :code, String
+      attribute :symbol, String
+      attribute :minor_units, Integer
+      one_of do
+        member code: "USD", symbol: "$", minor_units: 2
+        member code: "JPY", symbol: "¥", minor_units: 0
+      end
+    end
+
+    command "Enroll" do
+      role "Owner"
+      attribute :standing, one_of("good", "suspended", "banned"), default: "good"
+      attribute :currency, Currency
+    end
+  end
+end"##;
+
+#[test]
+fn one_of_scalar_parses_and_bites() {
+    let domain = parser::parse(ONE_OF_SHED);
+    let cmd = &domain.aggregates[0].commands[0];
+    let standing = cmd.attributes.iter().find(|a| a.name == "standing").unwrap();
+    assert_eq!(standing.enum_values, vec!["good", "suspended", "banned"]);
+    assert_eq!(standing.attr_type, "String");
+    assert_eq!(standing.default.as_deref(), Some("good"));
+
+    let mut rt = Runtime::boot(domain);
+    rt.dispatch("Enroll", attrs(&[("standing", s("suspended"))]))
+        .expect("in-vocabulary value passes");
+    match rt.dispatch("Enroll", attrs(&[("standing", s("vip"))])) {
+        Err(RuntimeError::PayloadInvariantViolation { name, field, .. }) => {
+            assert!(name.contains("must be one of"));
+            assert_eq!(field, "standing");
+        }
+        other => panic!("out-of-vocabulary must refuse, got {:?}", other),
+    }
+}
+
+#[test]
+fn one_of_members_parse_and_bite_on_discriminant() {
+    let domain = parser::parse(ONE_OF_SHED);
+    let vo = domain.aggregates[0].value_objects.iter().find(|v| v.name == "Currency").unwrap();
+    assert_eq!(vo.members.len(), 2);
+    assert_eq!(vo.members[0][0], ("code".to_string(), "USD".to_string()));
+    assert_eq!(vo.members[1][2], ("minor_units".to_string(), "0".to_string()));
+
+    let mut rt = Runtime::boot(domain);
+    rt.dispatch("Enroll", attrs(&[("currency", s("JPY"))]))
+        .expect("declared member discriminant passes");
+    match rt.dispatch("Enroll", attrs(&[("currency", s("EUR"))])) {
+        Err(RuntimeError::PayloadInvariantViolation { name, field, .. }) => {
+            assert!(name.contains("must be one of"));
+            assert_eq!(field, "currency");
+        }
+        other => panic!("undeclared currency must refuse, got {:?}", other),
+    }
+}
+
 #[test]
 fn vo_invariants_survive_parsing() {
     let domain = parser::parse(TOOLSHED);

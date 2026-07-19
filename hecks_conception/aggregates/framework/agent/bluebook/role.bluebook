@@ -109,7 +109,7 @@ Hecks.bluebook "Role", version: "2026.05.12.1" do
     # roles when it flattens ancestor chains, so an Agent bound to a
     # retired Role resolves to no permissions (fail closed).
     value_object "Status" do
-      attribute :value, String, enum: ["active", "retired"]
+      attribute :value, one_of("active", "retired")
     end
 
     attribute :name,        Name

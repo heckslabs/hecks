@@ -19,7 +19,7 @@ Hecks.bluebook "Authorization", version: "2026.06.27.1" do
       attribute :value, String
     end
     value_object "Effect" do
-      attribute :value, String, enum: ["permit", "forbid"]
+      attribute :value, one_of("permit", "forbid")
     end
     value_object "Principal" do
       # WHO : a role name ("editor"), a specific principal id (an OIDC sub), or "*" (any). Roles keep RBAC ; sub keeps direct grants.
@@ -42,7 +42,7 @@ Hecks.bluebook "Authorization", version: "2026.06.27.1" do
       attribute :value, String
     end
     value_object "Status" do
-      attribute :value, String, enum: ["active", "retired"]
+      attribute :value, one_of("active", "retired")
     end
 
     command "Permit" do
@@ -132,7 +132,7 @@ Hecks.bluebook "Authorization", version: "2026.06.27.1" do
       attribute :value, String
     end
     value_object "Status" do
-      attribute :value, String, enum: ["active", "retired"]
+      attribute :value, one_of("active", "retired")
     end
 
     command "Assign" do

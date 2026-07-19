@@ -53,7 +53,7 @@ Hecks.bluebook "SessionLog", version: "2026.05.21.1" do
     value_object "Outcome" do
       # ok | error — whether the dispatch succeeded. Stored as a
       # closed-set string ; the renderer colours accordingly.
-      attribute :value, String, enum: ["ok", "error"]
+      attribute :value, one_of("ok", "error")
     end
 
     value_object "ResultState" do
@@ -76,7 +76,7 @@ Hecks.bluebook "SessionLog", version: "2026.05.21.1" do
     value_object "DispatchKind" do
       # sync — result inline, one self-contained block.
       # async — outcome lands later, references parent_invocation_id.
-      attribute :value, String, enum: ["sync", "async"]
+      attribute :value, one_of("sync", "async")
     end
 
     value_object "EventCount" do
@@ -102,7 +102,7 @@ Hecks.bluebook "SessionLog", version: "2026.05.21.1" do
       #                       background dispatch.
       # Chris filters the log by this : "show me everything the process
       # managers dispatched."
-      attribute :value, String, enum: ["process-manager", "operator", "hook", "sidequest-agent", "cascade", "daemon"]
+      attribute :value, one_of("process-manager", "operator", "hook", "sidequest-agent", "cascade", "daemon")
     end
 
     value_object "MetadataJson" do
@@ -123,7 +123,7 @@ Hecks.bluebook "SessionLog", version: "2026.05.21.1" do
       # line by kind : dispatch=cyan, event=green, cascade-ok=green,
       # cascade-fail=red, adapter=magenta, error=bright-red,
       # fallback=yellow.
-      attribute :kind, String, enum: ["dispatch", "event", "cascade", "adapter", "policy", "attr", "error", "fallback"]
+      attribute :kind, one_of("dispatch", "event", "cascade", "adapter", "policy", "attr", "error", "fallback")
       attribute :verb, String
       attribute :ok,   Bool
     end

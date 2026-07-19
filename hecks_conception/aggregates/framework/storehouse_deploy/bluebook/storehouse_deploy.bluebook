@@ -70,7 +70,7 @@ Hecks.bluebook "StorehouseDeploy", version: "2026.05.25.1" do
       #   shipped   — binary running on target, serve-socket bound
       #   verified  — warm dispatch confirmed (round-trip succeeded)
       #   failed    — any step failed; terminal, start a new Deploy
-      attribute :value, String, enum: ["new", "building", "packaged", "shipped", "verified", "failed"]
+      attribute :value, one_of("new", "building", "packaged", "shipped", "verified", "failed")
     end
 
     value_object "SocketPath" do

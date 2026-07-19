@@ -152,6 +152,12 @@ fn dump_attribute(attr: &Attribute) -> Value {
         // 2026-07-18 — the payload gate enforces `required: true`, so the
         // flag joins the canonical IR (both parsers already carried it).
         "required": attr.required,
+        // one_of scalar vocabulary (2026-07-19). Key named `one_of` — the
+        // canonical IR reads as words, not code ("enum is too codey" —
+        // Chris, same session ; the `enum:` kwarg spelling was migrated
+        // out of all 20 corpus files and is retired : any future usage
+        // drifts loudly because only the Ruby side would collect it).
+        "one_of": attr.enum_values,
     })
 }
 
@@ -167,6 +173,15 @@ fn dump_value_object(vo: &ValueObject) -> Value {
         // internally (payload_gate) — it just isn't part of the parity
         // contract.
         "invariants": vo.invariants.iter().map(|i| json!({"name": i.name})).collect::<Vec<_>>(),
+        // one_of members (2026-07-19) — ordered objects, declaration order
+        // on both sides (Ruby kwargs preserve insertion order).
+        "members": vo.members.iter().map(|m| {
+            let mut obj = serde_json::Map::new();
+            for (k, v) in m {
+                obj.insert(k.clone(), serde_json::Value::String(v.clone()));
+            }
+            serde_json::Value::Object(obj)
+        }).collect::<Vec<_>>(),
     })
 }
 

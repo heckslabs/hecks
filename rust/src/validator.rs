@@ -240,7 +240,10 @@ fn distinct_reference_aliases(domain: &Domain) -> Vec<String> {
 }
 /// Aggregate and command attributes must use typed value objects, not bare primitives.
 /// Primitives belong inside value_object bodies as the storage layer, never at the
-/// aggregate or command surface. No exemptions — write a value object every time.
+/// aggregate or command surface. ONE principled exemption (2026-07-19) : a one_of
+/// scalar (`attribute :standing, one_of("good", "suspended")`) stores as String but
+/// is NOT a naked primitive — the closed vocabulary IS its type, richer than any
+/// wrapper VO with an unconstrained String inside.
 fn no_primitive_envy(domain: &Domain) -> Vec<String> {
     const PRIMITIVES: &[&str] = &[
         "String", "Integer", "Float", "Boolean", "Date", "DateTime", "JSON",
@@ -248,6 +251,9 @@ fn no_primitive_envy(domain: &Domain) -> Vec<String> {
     let mut errors = vec![];
     for agg in &domain.aggregates {
         for attr in &agg.attributes {
+            if !attr.enum_values.is_empty() {
+                continue;
+            }
             if PRIMITIVES.contains(&attr.attr_type.as_str()) {
                 errors.push(format!(
                     "{}.{} uses primitive type {} — wrap it in a value_object so the domain reads as itself, not as a {}",
@@ -257,6 +263,9 @@ fn no_primitive_envy(domain: &Domain) -> Vec<String> {
         }
         for cmd in &agg.commands {
             for attr in &cmd.attributes {
+                if !attr.enum_values.is_empty() {
+                    continue;
+                }
                 if PRIMITIVES.contains(&attr.attr_type.as_str()) {
                     errors.push(format!(
                         "{}.{}.{} uses primitive type {} — wrap it in a value_object so the domain reads as itself, not as a {}",

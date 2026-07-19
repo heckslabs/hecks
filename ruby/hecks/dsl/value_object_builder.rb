@@ -38,6 +38,34 @@ module Hecks
         @name = name
         @attributes = []
         @invariants = []
+        @members = []
+      end
+
+      # Declare this value object as a CLOSED SET of whole values
+      # (GRAMMAR-one-of, 2026-07-19). Each +member+ inside the block is a
+      # fully-specified instance ; the first attribute is the discriminant.
+      #
+      #   one_of do
+      #     member code: "USD", symbol: "$",  minor_units: 2
+      #     member code: "JPY", symbol: "¥", minor_units: 0
+      #   end
+      # Both spellings resolve here inside a VO body (this def shadows
+      # the AttributeCollector mixin's scalar helper, so it must speak
+      # both) : with a block it declares the closed member set ; with
+      # values it is the scalar sugar passthrough used in attribute
+      # position (`attribute :value, one_of("none", "drafting")`).
+      def one_of(*values, &block)
+        if block
+          instance_eval(&block)
+        else
+          { enum: values.map(&:to_s) }
+        end
+      end
+
+      # One member of the closed set — kwargs preserve declaration order,
+      # which the canonical IR relies on for parity with the Rust parser.
+      def member(**fields)
+        @members << fields
       end
 
       # Define an invariant constraint on this value object.
@@ -60,7 +88,8 @@ module Hecks
           name: @name,
           attributes: @attributes,
           invariants: @invariants,
-          description: @description
+          description: @description,
+          members: @members
         )
       end
     end

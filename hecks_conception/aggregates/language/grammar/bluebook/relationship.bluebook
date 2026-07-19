@@ -56,7 +56,7 @@ Hecks.bluebook "Relationship", version: "2026.06.18.2" do
       # The English relationship verb. The verb alone carries the boundary :
       #   list_of / reference_to -> INSIDE (by local identity)
       #   has_one / has_many / belongs_to -> ACROSS (by global identity)
-      attribute :value, String, enum: ["list_of", "reference_to", "has_one", "has_many", "belongs_to"]
+      attribute :value, one_of("list_of", "reference_to", "has_one", "has_many", "belongs_to")
     end
 
     value_object "LeafName" do
@@ -71,20 +71,20 @@ Hecks.bluebook "Relationship", version: "2026.06.18.2" do
       # Read off the verb, never authored :
       #   inside = list_of / reference_to  (a member of my boundary, local id)
       #   cross  = has_one / has_many / belongs_to  (another root, global id)
-      attribute :value, String, enum: ["inside", "cross", "unresolved"]
+      attribute :value, one_of("inside", "cross", "unresolved")
     end
 
     value_object "Nature" do
       # Read off the scope :
       #   composition (inside) — the leaf lives in me, persisted with me.
       #   reference (cross) — I hold the leaf root's identity, never embed it.
-      attribute :value, String, enum: ["composition", "reference", "unresolved"]
+      attribute :value, one_of("composition", "reference", "unresolved")
     end
 
     value_object "Cardinality" do
       # Read off the verb : reference_to / has_one / belongs_to -> one ;
       # list_of / has_many -> many.
-      attribute :value, String, enum: ["one", "many", "unresolved"]
+      attribute :value, one_of("one", "many", "unresolved")
     end
 
     command "Declare" do
