@@ -26,8 +26,8 @@ Hecks.bluebook "ToolShed" do
 
     value_object "Deposit" do
       attribute :cents, Integer
-      invariant "must be non-negative" do
-        cents >= 0
+      invariant "must be at least $1 (100 cents)" do
+        cents >= 100
       end
     end
 
@@ -56,6 +56,31 @@ Hecks.bluebook "ToolShed" do
 
     query "ByCategory" do |cat|
       where(category: cat)
+    end
+
+    # A tool is on the shelf (available) or out in a member's hands.
+    # "available" / "out" are the shop owner's own words ; the shelf list
+    # shows only available tools, and the borrow/return lifecycle flips
+    # this — the customer never thinks about it.
+    attribute :availability, one_of("available", "out"), default: "available" do
+      transition "CheckOut" => "out"
+      transition "CheckIn"  => "available"
+    end
+
+    command "CheckOut" do
+      role "System"
+      goal "Take a tool off the shelf when a member borrows it — driven by ToolBorrowed, never dispatched by hand"
+      reference_to Tool
+    end
+
+    command "CheckIn" do
+      role "System"
+      goal "Return a tool to the shelf when its loan comes back"
+      reference_to Tool
+    end
+
+    query "Available" do
+      where(availability: "available")
     end
   end
 
@@ -132,5 +157,18 @@ Hecks.bluebook "ToolShed" do
     query "Late" do
       where(status: "late")
     end
+  end
+
+  # The borrow/return lifecycle flips a tool's availability. Cross-aggregate
+  # cascade : a Loan event drives a Tool command, so the shelf reflects
+  # reality — the Available query never lists a tool that's out.
+  policy "CheckOutOnBorrow" do
+    on "Loan.ToolBorrowed"
+    trigger "Tool.CheckOut"
+  end
+
+  policy "CheckInOnReturn" do
+    on "Loan.ToolReturned"
+    trigger "Tool.CheckIn"
   end
 end
