@@ -387,6 +387,41 @@ fn records_table(rt: &Runtime) -> String {
 /// tables. Columns follow the aggregate's declared attribute order (the
 /// IR is the contract) ; an ID column leads. Returns "" when no
 /// aggregate holds any record, so the caller can fall back.
+/// A human label for the record `id` refers to in aggregate `target`.
+///
+/// A `belongs_to` column stores a foreign KEY, so rendering it raw shows the
+/// reader `11` and `1` when the row actually says "Chris Young borrowed the
+/// drill". The relationship is present and unreadable — the linking field is
+/// exactly the one a reader most needs in words.
+///
+/// Convention, most-specific first : a `name` attribute, else the first
+/// String-typed attribute in IR order, else the id itself. The id fallback
+/// matters — a target with no textual attribute (or a dangling key pointing at
+/// a deleted record) must still render something truthful rather than blank.
+fn reference_label(rt: &Runtime, target: &str, id: &str) -> String {
+    let Some(record) = rt.find(target, id) else {
+        // Dangling key : show it, do not hide it. A blank cell would read as
+        // "no relationship" when the truth is "points at something missing".
+        return id.to_string();
+    };
+    let Some(agg) = rt.domain.aggregates.iter().find(|a| a.name == target) else {
+        return id.to_string();
+    };
+    let labelled = agg
+        .attributes
+        .iter()
+        .find(|a| a.name == "name")
+        .or_else(|| {
+            agg.attributes.iter().find(|a| {
+                matches!(record.fields.get(&a.name), Some(crate::runtime::Value::Str(s)) if !s.is_empty())
+            })
+        });
+    match labelled.and_then(|a| record.fields.get(&a.name)) {
+        Some(crate::runtime::Value::Str(s)) if !s.is_empty() => s.clone(),
+        _ => id.to_string(),
+    }
+}
+
 fn live_records_section(rt: &Runtime) -> String {
     let mut body = String::new();
     let mut total = 0usize;
@@ -400,12 +435,25 @@ fn live_records_section(rt: &Runtime) -> String {
         // attributes — both in IR order. A reference is part of the
         // record's shape ; omitting it hid the very field that links
         // aggregates together.
-        let keys: Vec<&str> = agg
+        //
+        // DEDUPED, because the two lists legitimately OVERLAP : a
+        // `belongs_to X` pushes a Reference AND synthesises a stored FK
+        // Attribute of the same name (parser.rs `absorb_belongs_to`,
+        // "references-not-ids"). Chaining them raw rendered every
+        // belongs_to twice — ToolShed's Loan showed `Tool | Member | Tool |
+        // Member`. The overlap is correct in the IR (relationship vs stored
+        // field) ; it is the presentation that must not double it.
+        let mut keys: Vec<&str> = Vec::new();
+        for k in agg
             .references
             .iter()
             .map(|r| r.name.as_str())
             .chain(agg.attributes.iter().map(|a| a.name.as_str()))
-            .collect();
+        {
+            if !keys.contains(&k) {
+                keys.push(k);
+            }
+        }
         body.push_str(&format!(
             r#"<h3 class="font-semibold text-brand mt-6 mb-2">{} <span class="text-xs text-gray-500 font-normal">{} record{}</span></h3>"#,
             esc(&display_name(&agg.name)),
@@ -422,7 +470,22 @@ fn live_records_section(rt: &Runtime) -> String {
             body.push_str(r#"<tr class="border-b border-surface-3 hover:bg-surface-3 transition">"#);
             body.push_str(&format!(r#"<td class="px-3 py-2 text-gray-400">{}</td>"#, esc(&item.id)));
             for k in &keys {
-                let cell = item.fields.get(*k).map(display_value).unwrap_or_default();
+                // A reference column resolves its foreign key to the target
+                // record's label ; every other column renders its own value.
+                let cell = match agg.references.iter().find(|r| &r.name == k) {
+                    Some(reference) => match item.fields.get(*k) {
+                        Some(v) => {
+                            let id = display_value(v);
+                            if id.is_empty() {
+                                String::new()
+                            } else {
+                                reference_label(rt, &reference.target, &id)
+                            }
+                        }
+                        None => String::new(),
+                    },
+                    None => item.fields.get(*k).map(display_value).unwrap_or_default(),
+                };
                 body.push_str(&format!(r#"<td class="px-3 py-2">{}</td>"#, esc(&cell)));
             }
             body.push_str("</tr>");
