@@ -97,12 +97,33 @@ substrate to be merged into the USER's domain.
   `data_dir`, so existing `rt.all_qualified(Some("EventSourcing"), "Event")`
   readers still see the Log. Verified by MUTATION, not assumed.
 
-**NEXT : Governance.** `OutboundEvent`, `CascadeRun`, and
-`Governance::Violation` still use the old graft/guard path. Do Governance first
-— it is the only one whose silent degradation loses an AUTHORIZATION AUDIT ROW.
-Each is now repetition of a proven shape, not new design. Net kernel shrink
-lands as they move over (seven guards, the graft, its predicate, and eventually
-`substrate_parity_test` plus its duplicate bluebooks all go).
+**GOVERNANCE DONE** (`8045e5b2e`) — a denied dispatch always leaves an audit
+row. It had been `let _ = self.dispatch_impl(...)`, so on a runtime without the
+Governance conception the row was discarded silently. `authorize_pdp_test`
+boots exactly such a runtime and had been asserting denials that recorded
+nothing. The denial always stood — never an authz hole — but the RECORD of who
+was refused what was contingent on corpus layout.
+
+**IT IS THREE SUBSTRATES, NOT FOUR.** The card's original claim was corrected :
+CascadeRun's guard selects between TWO WORKING PATHS (persistent outbox vs the
+in-memory pump), not between working and losing data. `mod.rs:1204` says so
+outright. It should NOT move ; doing so would change dispatch semantics for
+every runtime for no correctness gain.
+
+Also REJECTED : a suspected cross-domain cascade-drain bug (every served runtime
+shares `<dir>/data`, CascadeRun has no domain discriminator). Probed with two
+runtimes on one data dir — not reproduced, because `dispatch` pumps to
+quiescence so runs complete before a sibling sees them. Don't re-derive it.
+
+**NEXT : OutboundEvent, and it is a real refactor — not a repeat.** See the card
+for the scoping. Short version : the lifecycle commands are dispatched by SHORT
+name from `run_host` and the pump/drain ; the consumers straddle both runtimes
+(Claim/MarkDelivered to the collaborator, verdicts to the parent) ; `run_host`
+is a separate program booting its own runtime off disk. It is also the LOWEST
+urgency of the three, because the graft already patches its coupling — nothing
+is silently lost today. The shrink (seven guards, the graft, its predicate,
+`outbox_graft_scope_test`, and eventually `substrate_parity_test` with its
+duplicate bluebooks) lands when it moves.
 
 ## The card, for full context
 

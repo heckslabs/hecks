@@ -22,10 +22,30 @@
 > MUTATION — neutering the collaborator's Append fails both the new proof and
 > slice 1's, so nothing passes by luck.
 >
-> REMAINING : `OutboundEvent`, `CascadeRun`, `Governance::Violation` still use
-> the old graft/guard path. Do **Governance next** — it is the only one whose
-> silent degradation loses an authorization audit row. Each is now repetition of
-> a proven shape, not new design.
+> GOVERNANCE DONE — `8045e5b2e`. A denied dispatch now always leaves an audit
+> row ; `authorize_pdp_test` had been asserting denials that recorded nothing.
+>
+> REMAINING : **OutboundEvent only** (CascadeRun is out of scope — see the
+> CORRECTION at the top). And it is NOT the simple repetition this card
+> originally assumed. Scoped on 2026-07-19 :
+>
+> - Only ONE lifecycle dispatch carries an FQN (`mod.rs:2007`, Record). `Claim`
+>   / `MarkDelivered` / `MarkFailed` are dispatched by SHORT NAME from
+>   `run_host` and from the pump/drain, so they resolve against whichever
+>   runtime is being dispatched into — all of them need re-addressing.
+> - The consumers straddle BOTH runtimes : `Claim` / `MarkDelivered` must land
+>   in the COLLABORATOR while the verdict commands (`Order.Authorize` /
+>   `Order.Decline`) must land in the PARENT. Today both are `self`.
+> - `run_host` is a SEPARATE PROGRAM that boots its own runtime and reads the
+>   outbox off disk. It would need the collaborator too, and `framework_mut()`
+>   is currently private.
+> - `AllPending` (slice 2, `0bd076d20`) is queried on the parent and moves.
+> - Only then can `ensure_outbox_substrate`, its predicate, the 2026-07-19
+>   scoping fix, and `outbox_graft_scope_test` be deleted.
+>
+> This is the LOWEST-urgency of the three : unlike EventSourcing and Governance,
+> the outbox's coupling is already PATCHED by the graft, so nothing is silently
+> lost today. It is a real refactor deserving a fresh head, not a repeat.
 >
 > Decision 4 (one framework-realm store) is NOT yet implemented : step zero
 > inherits the parent's `data_dir`, which is what keeps temp-dir tests isolated.
@@ -33,6 +53,38 @@
 > borrow-shape question.
 Supersedes the deferred "should framework substrate be injected at boot?"
 question raised at the close of the outbox-as-event-sourcing arc.
+
+## CORRECTION 2026-07-19 — it is THREE substrates, not four
+
+This card originally said "four substrates, seven guard sites, one shape". That
+was right about the SHAPE of the guard and WRONG to conclude all four should
+move. Investigated when moving CascadeRun ; the guards split two ways :
+
+- **EventSourcing / Governance / OutboundEvent** — the guard selects between
+  WORKING and LOSING DATA. No Log, no audit row, no delivery record.
+- **CascadeRun** — the guard selects between TWO WORKING PATHS. Without it,
+  reactions go to the IN-MEMORY outbox (`self.outbox`) delivered by `pump()`
+  instead of the persistent one delivered by `pump_outbox()`. Both settle
+  in-process before dispatch returns. `mod.rs:1204` states the equivalence
+  outright : "Roots without the CascadeRun outbox fall back to the in-memory
+  pump (== the prior synchronous react), so behaviour is preserved there."
+
+**CascadeRun should NOT move.** Moving it would switch every runtime from the
+in-memory path to the persistent one — disk writes on every cascading dispatch,
+changed ordering, test-expectation churn — for zero correctness gain. Its guard
+is a legitimate strategy switch, not a silent failure.
+
+### A hypothesis tested and REJECTED
+
+Before moving CascadeRun I suspected a latent bug : `serve_directory` gives
+EVERY served runtime the same `<dir>/data` (`multi.rs:317`), CascadeRun carries
+no domain discriminator, and `pump_outbox` filters only on
+`status == "running"` — so domain A's pump looked able to drain domain B's runs.
+**Probed with two runtimes sharing a data dir : NOT reproduced.** `dispatch`
+pumps to quiescence synchronously, so a run is `completed` before any sibling
+could see it. Recorded here so nobody re-derives the same suspicion. (A run
+stranded Active by a crash mid-pump, or a second PROCESS on the same data dir,
+is still theoretically exposed — speculative, unproven, not blocking.)
 
 ## The bug, stated once
 
