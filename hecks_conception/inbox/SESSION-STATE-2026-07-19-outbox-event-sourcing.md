@@ -115,7 +115,19 @@ shares `<dir>/data`, CascadeRun has no domain discriminator). Probed with two
 runtimes on one data dir — not reproduced, because `dispatch` pumps to
 quiescence so runs complete before a sibling sees them. Don't re-derive it.
 
-**OutboundEvent : BUILT, then BLOCKED and PARKED.** Preserved on the local
+**OutboundEvent : LANDED 2026-07-20 (`da9625fff`).** The graft is deleted, the
+smoke passes, all three substrates route through the collaborator. It was a
+DOOR bug, not a store bug — every in-process caller was rerouted and no
+out-of-process one was, so the CLI could not resolve a framework verb and died
+as an unknown command behind `2>/dev/null`. Fix : `framework_resolves`,
+consulted after the served domain so a domain's own aggregate still wins.
+See CARD-framework-substrate-service.md. The arc did NOT shrink the kernel
+(+27 measured) — explicit costs more lines than implicit ; the win is
+correctness.
+
+---
+
+**(superseded) OutboundEvent : BUILT, then BLOCKED and PARKED.** Preserved on the local
 branch `wip/outbox-collaborator` (`f12a42e57`) — green on 124/124 unit tests,
 parity 400/400, behaviors — and blocked by `dream_content_smoke`. The outbox is
 the ONE substrate with out-of-process readers (the adapter-host ; the smoke's

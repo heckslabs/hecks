@@ -54,7 +54,42 @@
 Supersedes the deferred "should framework substrate be injected at boot?"
 question raised at the close of the outbox-as-event-sourcing arc.
 
-## BLOCKER 2026-07-19 — the outbox CANNOT move until its store is canonical
+## RESOLVED 2026-07-20 — it was a DOOR bug, not a store bug (`da9625fff`)
+
+The outbox has landed. `dream_content_smoke` passes. All three substrates now
+route through the collaborator, and `ensure_outbox_substrate` is deleted.
+
+**The blocker below was misdiagnosed.** The store location was never wrong —
+both processes resolved the same directory all along. The bug was that every
+IN-process caller was rerouted to the collaborator and no OUT-of-process door
+was. The CLI resolves a verb against the SERVED domain ; framework substrate is
+deliberately not in it ; so `OutboundEvent::OutboundEvent.pending` fell through
+the query arm to the command arm and died as an unknown command, with the
+smoke's `2>/dev/null` swallowing the error into a bare WARN.
+
+On `main` it had only ever worked by accident : the graft injected OutboundEvent
+into the served domain, so the door found it there.
+
+Confirmed by controlled experiment — identical script, identical temp dir, only
+the branch differing : `main` returned the delivery, the branch returned
+`unknown command`. Fix : `Runtime::framework_resolves(aggregate, tail)`,
+consulted ONLY AFTER the served domain fails, so a domain declaring its own
+aggregate still wins.
+
+**Lesson**: the unit suite passed at every step of the failed attempt because
+the bug lives BETWEEN two processes and an in-process test cannot express it.
+`git diff --stat` told the story — the parked branch touched `run_host`,
+`runtime/mod.rs`, `reaction.rs`, `server/multi.rs` and no door at all.
+
+**Also corrected**: this arc did NOT shrink the kernel. Measured +27 on
+`core_runtime` (127 insertions / 97 deletions). Deleting the 49-line graft and
+three guards is more than offset by the explicit routing. Replacing an implicit
+mechanism with an explicit one costs lines even while deleting the old one. The
+win is correctness, not line count.
+
+---
+
+## (superseded) BLOCKER 2026-07-19 — the outbox CANNOT move until its store is canonical
 
 The outbox move was BUILT and is green on unit tests (124/124), parity
 (400/400) and behaviors — then **blocked by `dream_content_smoke`**, which the
