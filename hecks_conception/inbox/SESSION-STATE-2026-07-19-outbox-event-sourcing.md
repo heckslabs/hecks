@@ -1,3 +1,14 @@
+# (SUPERSEDED) SESSION STATE — 2026-07-19
+
+> **Read `SESSION-STATE-2026-07-20-framework-substrate.md` instead.**
+>
+> This file accreted several diagnoses that were later disproved — most
+> importantly it says the outbox was blocked on a canonical STORE LOCATION. It
+> wasn't : the store was correct all along and the bug was DOOR ROUTING. Kept
+> for the reasoning trail, not as a source of truth.
+
+---
+
 # SESSION STATE — 2026-07-19 : outbox arc CLOSED + framework collaborator step zero
 
 `main` is clean, green, and PUSHED through `1e49c0ef4`. Full suite 125/125 test
