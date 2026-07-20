@@ -224,6 +224,75 @@ fn a_domain_with_an_effect_port_never_carries_the_outbox() {
 }
 
 // ---------------------------------------------------------------------------
+// THE DECLARED STORE — `dir :default`, co-located with the host's persistence.
+//
+// The collaborator used to clone `self.data_dir` outright : the right location
+// for the wrong reason, an accident nobody had declared and no reader could look
+// up. `rust/resources/framework.world` now states it, and the behaviour is
+// unchanged BY DESIGN — the point is to convert an inheritance into a contract.
+//
+// These pin that no-op as an INVARIANT (the framework store IS the host's
+// store) rather than as a before/after diff, which a test cannot express.
+// ---------------------------------------------------------------------------
+
+#[test]
+fn the_framework_store_co_locates_with_the_hosts_persistence() {
+    let dir = std::env::temp_dir().join("fw_declared_store");
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let host = dir.to_string_lossy().into_owned();
+
+    let mut rt = Runtime::boot_with_hecksagons(
+        parser::parse(LEDGER),
+        Some(host.clone()),
+        vec![hecksagon_parser::parse(LEDGER_HEX)],
+    );
+    post(&mut rt, "e-1", "first");
+
+    let fw = rt.framework.as_ref().expect("collaborator booted");
+    assert_eq!(
+        fw.data_dir.as_deref(),
+        Some(host.as_str()),
+        "`dir :default` means the framework store sits in the SAME FOLDER as the \
+         host's persistence — declaring it must not move it",
+    );
+
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn a_temp_dir_host_keeps_its_own_framework_store() {
+    // Isolation survives the declaration : `:default` resolves to whatever the
+    // HOST is using, so two hosts never share a framework store. This is the
+    // property that keeps a /tmp conception from writing into the real one.
+    let a = std::env::temp_dir().join("fw_iso_a");
+    let b = std::env::temp_dir().join("fw_iso_b");
+    for d in [&a, &b] {
+        let _ = std::fs::remove_dir_all(d);
+        std::fs::create_dir_all(d).unwrap();
+    }
+
+    let boot = |dir: &std::path::Path| {
+        let mut rt = Runtime::boot_with_hecksagons(
+            parser::parse(LEDGER),
+            Some(dir.to_string_lossy().into_owned()),
+            vec![hecksagon_parser::parse(LEDGER_HEX)],
+        );
+        post(&mut rt, "e-1", "first");
+        rt.framework.as_ref().and_then(|f| f.data_dir.clone())
+    };
+
+    let (ra, rb) = (boot(&a), boot(&b));
+    assert_ne!(ra, rb, "two hosts must not share one framework store");
+    assert_eq!(ra.as_deref(), Some(a.to_string_lossy().as_ref()));
+    assert_eq!(rb.as_deref(), Some(b.to_string_lossy().as_ref()));
+
+    for d in [&a, &b] {
+        let _ = std::fs::remove_dir_all(d);
+    }
+}
+
+// ---------------------------------------------------------------------------
 // THE DOOR — the half that the unit suite could not see.
 //
 // Every IN-process caller was rerouted to the collaborator and no OUT-of-process

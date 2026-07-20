@@ -537,10 +537,52 @@ impl Runtime {
     /// and that is what bounds the recursion.
     pub fn framework_mut(&mut self) -> &mut Runtime {
         if self.framework.is_none() {
-            let rt = Runtime::boot_with_data_dir(Self::framework_domain(), self.data_dir.clone());
+            let dir = self.framework_store_dir();
+            let rt = Runtime::boot_with_data_dir(Self::framework_domain(), dir);
             self.framework = Some(Box::new(rt));
         }
         self.framework.as_mut().expect("just booted")
+    }
+
+    /// The crate-owned world declaring WHERE the framework collaborator's stores
+    /// live. Compiled in for the same reason the substrate bluebooks are :
+    /// storehouse must build standalone with no sibling `hecks_conception`.
+    #[cfg(not(target_arch = "wasm32"))]
+    const FRAMEWORK_WORLD: &'static str = include_str!("../../resources/framework.world");
+
+    /// Resolve the framework store location from its DECLARATION.
+    ///
+    /// The collaborator used to clone `self.data_dir` outright — the right
+    /// location for the wrong reason, an accident nobody had declared. Now
+    /// `framework.world` states it : `dir :default` means "the same folder as
+    /// the host application's persistence", which is that same inherited
+    /// `data_dir`. Behaviour is unchanged BY DESIGN — this converts an
+    /// inheritance into a contract, so the location can be read rather than
+    /// inferred, and a deployment can override it by naming a literal dir.
+    ///
+    /// Temp-dir isolation is preserved by construction : `:default` resolves to
+    /// whatever the host is using, so a `/tmp` conception keeps its own store
+    /// exactly as before.
+    #[cfg(not(target_arch = "wasm32"))]
+    fn framework_store_dir(&self) -> Option<String> {
+        let world = crate::world::parser::parse(Self::FRAMEWORK_WORLD);
+        match world.config_for("heki").and_then(|c| c.get("dir")) {
+            // The declared default : co-locate with the host's persistence.
+            Some("default") | None => self.data_dir.clone(),
+            // An explicit location wins over the host's.
+            Some(literal) => Some(crate::heki::expand_tilde(literal)),
+        }
+    }
+
+    /// wasm has no world parser (`crate::world::parser` is cfg'd out) and no
+    /// filesystem to point a literal dir at, so the declaration cannot be read
+    /// there. That costs nothing : `dir :default` MEANS "inherit the host's
+    /// store", which is exactly what this returns. A wasm worker therefore
+    /// behaves identically to a host running the shipped declaration — it just
+    /// cannot honour an overridden one, which it could not reach anyway.
+    #[cfg(target_arch = "wasm32")]
+    fn framework_store_dir(&self) -> Option<String> {
+        self.data_dir.clone()
     }
 
     /// Can the framework collaborator resolve `<aggregate>.<tail>` — as either a

@@ -1,0 +1,26 @@
+# WHERE the framework collaborator's own stores live — the event Log
+# (EventSourcing::Event), the veto audit (Governance::Violation) and the
+# event-out outbox (OutboundEvent).
+#
+# The runtime writes these three ; a user's domain never carries them. They used
+# to land wherever the booted app's data happened to go, by INHERITANCE — the
+# collaborator simply cloned its parent's data_dir. That produced the right
+# location for the wrong reason : an accident nobody had declared, which no
+# reader could look up.
+#
+# `dir :default` is that same location, now DECLARED : the framework store sits
+# in the SAME FOLDER as the host application's persistence. Per-project by
+# construction — a deployed app gets its own storehouse, so it gets its own
+# framework store, and two projects on one dev machine can never drain each
+# other's outbound queue.
+#
+# This file is CRATE-OWNED (rust/resources/) and compiled in, because storehouse
+# must build standalone with no sibling hecks_conception. That also keeps it out
+# of reach of `apply_per_domain_world_dirs`, which keys on `category` and would
+# otherwise match the ~48 conception bluebooks that also declare
+# `category "framework"`.
+Hecks.world "Framework" do
+  persisted_by("Heki") do
+    dir :default
+  end
+end
