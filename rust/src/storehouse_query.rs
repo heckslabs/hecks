@@ -62,10 +62,22 @@ pub fn query_route(phrase: &str, args: &[String]) -> i32 {
 
     // Boot the conception's combined domain against per-domain world stores
     // so the query reads the same heki the matching command wrote.
+    //
+    // The data_dir MUST be resolved through `embed::data_dir` — the same
+    // resolver the command door (`dispatch_hecksagon` via `find_world_heki_dir`)
+    // and every other reader uses. This used to pass `agg_dir` itself, which is
+    // the SOURCE tree, not a store root : commands wrote to the world-resolved
+    // location (`data_root()/<realm>`) while this read from
+    // `<conception>/aggregates`, so a read here could never see what a command
+    // wrote. The doc comment above claimed otherwise and had been wrong for as
+    // long as it existed — proven by writing a Story through the command door
+    // and reading it back through both paths : `storehouse query` returned the
+    // row, this path returned `state: []`.
     let conception = storehouse_router::conception_root();
     let agg_dir = format!("{}/aggregates", conception);
     let domain = crate::corpus_loader::load_combined_domain(&agg_dir);
-    let mut rt = crate::runtime::Runtime::boot_with_data_dir(domain, Some(agg_dir.clone()));
+    let data_dir = crate::embed::data_dir(&agg_dir);
+    let mut rt = crate::runtime::Runtime::boot_with_data_dir(domain, Some(data_dir));
     crate::world::attach::apply_per_domain_world_dirs(&mut rt, &agg_dir);
 
     // Match the snake_case (or exact) tail against the aggregate's queries,
@@ -117,6 +129,31 @@ mod tests {
     #[test]
     fn no_dot_is_not_a_query() {
         assert!(!is_query_phrase("NotAPhrase"));
+    }
+
+    #[test]
+    fn the_router_reads_where_commands_write() {
+        // REGRESSION. `query_route` used to boot against `agg_dir` itself — the
+        // SOURCE tree — while every command door resolves its store through
+        // `embed::data_dir`. So a read here could never see what a command
+        // wrote, while the doc comment claimed the opposite. Proven by writing a
+        // Story through the command door and reading it back both ways :
+        // `storehouse query` returned the row, this path returned `state: []`.
+        //
+        // The invariant : whatever the conception's aggregates dir is, the store
+        // this path reads is the one `embed::data_dir` resolves — never the
+        // source directory that was passed in.
+        let conception = storehouse_router::conception_root();
+        let agg_dir = format!("{}/aggregates", conception);
+        let resolved = crate::embed::data_dir(&agg_dir);
+        assert_ne!(
+            resolved, agg_dir,
+            "the store root must not be the source tree — that was the bug",
+        );
+        assert!(
+            !resolved.is_empty(),
+            "embed::data_dir always resolves (it never returns None)",
+        );
     }
 
     #[test]
