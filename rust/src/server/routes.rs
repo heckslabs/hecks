@@ -59,6 +59,13 @@ pub fn route(
         // this is queries.
         ("GET", ["query", verb]) => query(verb, bearer, posture, rt),
 
+        // Read side WITH arguments — `POST /query` takes the same body
+        // shape as /dispatch (`{"command":"…","attrs":{…}}`) so the served
+        // UI encodes commands and queries identically. This is the door the
+        // walking skeleton's query cards post to : the GET form above can
+        // only run argument-less queries.
+        ("POST", ["query"]) => query_post(body, bearer, posture, rt),
+
         // JSON Schema (draft 2020-12) per command, from the IR
         // (PLAN-json-schema-projection). `/schema` emits every command's
         // schema keyed by FQN ; `/schema/Aggregate.Command` emits one. The
@@ -171,6 +178,22 @@ fn find_record(
 pub fn query(
     verb: &str, bearer: Option<&str>, posture: DoorPosture, rt: &RefCell<Runtime>,
 ) -> (&'static str, String) {
+    // The raw request path reaches us WITH its query string attached
+    // (server/mod.rs takes `parts[1]` verbatim), so `/query/by_category?cat=hand`
+    // arrives here as the single segment `by_category?cat=hand`. Split it.
+    //
+    // This used to be ignored entirely : the verb was matched whole, so an
+    // arg-taking query answered `/query/by_category` by running UNFILTERED --
+    // a caller asked a narrow question and got every row back, with nothing
+    // signalling the filter had been dropped -- while the correctly-formed
+    // `?cat=hand` form 404'd, because `by_category?cat=hand` matched no query
+    // name. Both halves were wrong, and silently so.
+    let (verb, query_string) = match verb.split_once('?') {
+        Some((v, qs)) => (v, qs),
+        None => (verb, ""),
+    };
+    let params = parse_query_string(query_string);
+
     // Resolve the verb under a SHORT immutable borrow, dropped before the
     // gate needs `&mut` (the borrow trap : this fn used to hold rt.borrow()
     // across its whole body ; authorize_entry records Violations, so it
@@ -197,8 +220,124 @@ pub fn query(
         return denied;
     }
     let rt = rt.borrow();
-    let result = rt.resolve_query(&qname, &std::collections::HashMap::new());
+    let result = rt.resolve_query(&qname, &params);
     ("200 OK", result.to_string())
+}
+
+/// Parse an HTTP query string (`cat=hand&status=available`) into the plain
+/// string params the runtime's where-clause resolver compares against a
+/// record's stringified fields — the same shape `query_post` builds from its
+/// JSON body, so the GET and POST read doors agree on argument handling.
+///
+/// Percent-escapes and `+`-as-space are decoded : a query string is the one
+/// place a caller cannot avoid encoding (`?cat=hand%20tools`), and leaving it
+/// raw would silently filter on the literal `hand%20tools` and match nothing.
+fn parse_query_string(qs: &str) -> HashMap<String, String> {
+    qs.split('&')
+        .filter(|pair| !pair.is_empty())
+        .filter_map(|pair| pair.split_once('='))
+        .map(|(k, v)| (percent_decode(k), percent_decode(v)))
+        .collect()
+}
+
+/// Decode `%XX` escapes and `+`-as-space. Invalid escapes pass through
+/// verbatim rather than erroring — a malformed filter should return no rows,
+/// not fail the read.
+fn percent_decode(s: &str) -> String {
+    let bytes = s.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'+' => {
+                out.push(b' ');
+                i += 1;
+            }
+            b'%' if i + 2 < bytes.len() => {
+                let hex = std::str::from_utf8(&bytes[i + 1..i + 3]).unwrap_or("");
+                match u8::from_str_radix(hex, 16) {
+                    Ok(byte) => {
+                        out.push(byte);
+                        i += 3;
+                    }
+                    Err(_) => {
+                        out.push(bytes[i]);
+                        i += 1;
+                    }
+                }
+            }
+            b => {
+                out.push(b);
+                i += 1;
+            }
+        }
+    }
+    String::from_utf8_lossy(&out).into_owned()
+}
+
+/// `POST /query` — resolve a read-only query WITH its named arguments.
+/// The body is the /dispatch shape (`{"command":"<verb>","attrs":{…}}`) ;
+/// the verb is the query's FQN (`<Context>::<Aggregate>.<snake_verb>`) or a
+/// bare query name. Resolution + gating is [`crate::embed::gated_query`] —
+/// the SAME core both CLI read doors use, never a second query path.
+/// The result is the query's own `{aggregate, query, state:[…]}` on admit ;
+/// a governance denial answers 403 and an unknown verb 404, both carrying
+/// the runtime's own `{ok:false,error}` body.
+pub fn query_post(
+    body: &str, bearer: Option<&str>, posture: DoorPosture, rt: &RefCell<Runtime>,
+) -> (&'static str, String) {
+    let (verb, attrs) = parse_dispatch_body(body);
+    if verb.is_empty() {
+        return ("400 Bad Request", format!(
+            r#"{{"ok":false,"error":{}}}"#,
+            json_str("missing \"command\" — the body shape is {\"command\":\"Aggregate.query_verb\",\"attrs\":{}}")
+        ));
+    }
+    // Query params are plain strings (the runtime's where-clause resolver
+    // compares against the record's stringified fields), so the parsed
+    // Values collapse through Display — Str yields the bare text.
+    let params: HashMap<String, String> = attrs.iter()
+        .map(|(k, v)| (k.clone(), v.to_string()))
+        .collect();
+
+    // The principal is derived from the REQUEST through the same two
+    // helpers the write door uses — stamp it into a throwaway meta map,
+    // then classify. No second notion of "who is calling".
+    let mut meta: HashMap<String, Value> = HashMap::new();
+    acl_readmodel::stamp_principal_from_request(&mut meta, bearer, posture);
+    let principal = acl_readmodel::principal_from_attrs(&meta);
+
+    let result = gated_query_at_door(&mut rt.borrow_mut(), &verb, params, principal);
+    let admitted = result.get("ok").and_then(|o| o.as_bool()) != Some(false);
+    if admitted {
+        return ("200 OK", result.to_string());
+    }
+    let msg = result.get("error").and_then(|e| e.as_str()).unwrap_or_default();
+    let status = if msg.starts_with("unknown query") {
+        "404 Not Found"
+    } else {
+        "403 Forbidden"
+    };
+    (status, result.to_string())
+}
+
+/// `embed::gated_query` is not-wasm (it pulls the std::fs boot substrate
+/// in through its module). The wasm worker never serves HTTP, so the
+/// door there answers as an unknown verb rather than failing the build.
+#[cfg(not(target_arch = "wasm32"))]
+fn gated_query_at_door(
+    rt: &mut Runtime, verb: &str, params: HashMap<String, String>,
+    principal: acl_readmodel::Principal,
+) -> serde_json::Value {
+    crate::embed::gated_query(rt, verb, params, principal)
+}
+
+#[cfg(target_arch = "wasm32")]
+fn gated_query_at_door(
+    _rt: &mut Runtime, verb: &str, _params: HashMap<String, String>,
+    _principal: acl_readmodel::Principal,
+) -> serde_json::Value {
+    serde_json::json!({ "ok": false, "error": format!("unknown query: {}", verb) })
 }
 
 pub fn dispatch(

@@ -1,3 +1,6 @@
+// [antibody-exempt: rust/src/server/html_shared.rs — storehouse engine served-UI
+//  shell (head, scripts, footer). Pure presentation transport carrying no domain
+//  concept. Engine surface, same class as routes.rs.]
 //! Shared HTML layout — app shell, head, sidebar, footer
 //!
 //! Provides the Tailwind-styled page wrapper used by both
@@ -140,6 +143,7 @@ pub fn wrap_page_with_domain(
     let core_script = super::html_scripts::core_script();
     let help_script = super::html_help::help_script();
     let wizard_script = super::html_wizard::wizard_script();
+    let query_script = super::html_query::query_script();
     let topbar_html = top_bar(current_domain);
     format!(
         r#"<!DOCTYPE html>
@@ -203,6 +207,7 @@ pub fn wrap_page_with_domain(
   {core_script}
   {help_script}
   {wizard_script}
+  {query_script}
   </script>
 </head>
 <body class="h-full bg-surface-0 text-gray-100">
@@ -289,6 +294,7 @@ pub fn wrap_page_with_domain(
         core_script = core_script,
         help_script = help_script,
         wizard_script = wizard_script,
+        query_script = query_script,
         topbar_html = topbar_html,
     )
 }

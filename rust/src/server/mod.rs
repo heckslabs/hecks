@@ -1,3 +1,7 @@
+// [antibody-exempt: rust/src/server/mod.rs — storehouse engine HTTP server entry
+//  (listener, request parse, module wiring). Kernel Rust transport that serves
+//  bluebook runtimes over HTTP ; it cannot be bluebook vocabulary (it IS the
+//  runtime's surface). Engine surface, same class as routes.rs.]
 //! HTTP Server — JSON API for domain runtimes
 //!
 //! Zero-dependency HTTP server using std::net. Serves one or many
@@ -25,6 +29,7 @@ pub mod html_sidebar;
 pub mod html_wizard;
 pub mod html_narration;
 pub mod html_policy_chain;
+pub mod html_query;
 pub mod html_rules;
 pub mod html_usage;
 pub mod html_workflow;

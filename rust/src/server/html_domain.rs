@@ -1,3 +1,7 @@
+// [antibody-exempt: rust/src/server/html_domain.rs — storehouse engine served-UI
+//  rendering. Projects a domain's aggregates, commands and queries into HTML ;
+//  it renders bluebook vocabulary rather than being any. Engine surface, same
+//  class as routes.rs.]
 //! HTML domain page — detail view for a single domain
 //!
 //! Shows modules (aggregates), commands, lifecycle states, and records
@@ -141,6 +145,7 @@ fn creation_cards(domain: &str, rt: &Runtime) -> String {
         ));
 
         s.push_str(&render_agg_commands(domain, agg, rt));
+        s.push_str(&super::html_query::render_agg_queries(domain, agg, rt));
         s.push_str(&render_agg_rules(agg));
 
         s.push_str("</div>");

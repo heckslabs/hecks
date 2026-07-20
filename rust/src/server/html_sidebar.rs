@@ -1,3 +1,7 @@
+// [antibody-exempt: rust/src/server/html_sidebar.rs — storehouse engine served-UI
+//  navigation. Projects the domain/aggregate/query tree into links ; it indexes
+//  bluebook vocabulary rather than being any. Engine surface, same class as
+//  routes.rs.]
 //! Sidebar navigation — grouped domain links and utility helpers
 //!
 //! Generates the sidebar HTML with domains grouped under category
@@ -135,15 +139,20 @@ pub fn sidebar_tree(
             }
         }
 
-        // Queries — same jump-to-parent shortcut.
+        // Queries — each links to its OWN runnable card (html_query
+        // renders one <details> per query, anchored by query_anchor),
+        // so a listed query is one click from being run. `onclick`
+        // forces the <details> open : jumping to a collapsed card
+        // would land the operator on a closed panel.
         if !agg.queries.is_empty() {
             out.push_str(r#"<div class="px-2 pt-1 text-[0.6rem] font-bold uppercase tracking-widest text-gray-600">Queries</div>"#);
             for q in &agg.queries {
+                let anchor = super::html_query::query_anchor(&agg.name, &q.name);
                 out.push_str(&format!(
-                    r##"<a href="#{anchor}" class="flex items-center gap-1.5 px-2 py-1 rounded text-xs text-gray-300 hover:bg-brand/10 hover:text-brand transition truncate">
-  <span class="text-teal-400 text-[0.5rem]">◎</span> {label}
+                    r##"<a href="#{anchor}" onclick="var d=document.getElementById('{anchor}'); if(d) d.open=true;" class="flex items-center gap-1.5 px-2 py-1 rounded text-xs text-gray-300 hover:bg-brand/10 hover:text-brand transition truncate">
+<span class="text-teal-400 text-[0.5rem]">◎</span> {label}
 </a>"##,
-                    anchor = agg_jump,
+                    anchor = esc(&anchor),
                     label = esc(&display_name(&q.name)),
                 ));
             }
