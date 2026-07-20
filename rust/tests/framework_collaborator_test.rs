@@ -224,6 +224,84 @@ fn a_domain_with_an_effect_port_never_carries_the_outbox() {
 }
 
 // ---------------------------------------------------------------------------
+// THE DOOR — the half that the unit suite could not see.
+//
+// Every IN-process caller was rerouted to the collaborator and no OUT-of-process
+// door was, so 124/124 unit binaries stayed green while `dream_content_smoke`
+// failed : the CLI resolves a verb against the SERVED domain, framework
+// substrate is deliberately not in it, and the verb died as an unknown command
+// with `2>/dev/null` swallowing the error.
+//
+// `framework_resolves` is the door-side lookup. These pin BOTH halves of its
+// contract — it must find substrate the served domain lacks, and it must not
+// override a domain that declares its own.
+// ---------------------------------------------------------------------------
+
+#[test]
+fn the_door_resolves_framework_substrate_the_served_domain_lacks() {
+    let mut rt = Runtime::boot_with_hecksagons(parser::parse(LEDGER), None, vec![]);
+
+    assert!(
+        !rt.domain.aggregates.iter().any(|a| a.name == "OutboundEvent"),
+        "precondition : the served domain must NOT carry the outbox",
+    );
+
+    assert!(
+        rt.framework_resolves("OutboundEvent", "pending"),
+        "the door must reach the outbox's Pending query through the collaborator — \
+         this is the lookup whose absence broke dream_content_smoke",
+    );
+    assert!(
+        rt.framework_resolves("OutboundEvent", "Claim"),
+        "and its lifecycle COMMANDS too — the adapter host dispatches Claim / \
+         MarkDelivered from a separate process",
+    );
+    assert!(
+        rt.framework_resolves("Event", "Append"),
+        "the same door serves every substrate, not just the outbox",
+    );
+    assert!(
+        !rt.framework_resolves("Entry", "Post"),
+        "a USER aggregate must not resolve through the framework door",
+    );
+    assert!(
+        !rt.framework_resolves("OutboundEvent", "NoSuchVerb"),
+        "an unknown verb on a real substrate aggregate still does not resolve",
+    );
+}
+
+#[test]
+fn a_domain_declaring_its_own_outbox_is_not_overridden() {
+    // PRECEDENCE. The door consults the collaborator only AFTER the served
+    // domain fails, so a domain that declares its own OutboundEvent keeps it.
+    // This replaces outbox_graft_scope_test, which pinned the deleted graft's
+    // predicate : the question it asked (whose outbox wins?) is still live, the
+    // mechanism it asked about is not.
+    const OWN: &str = r#"Hecks.bluebook "Shipping" do
+      aggregate "OutboundEvent" do
+        identified_by :delivery_id
+        attribute :delivery_id, DeliveryId
+        value_object "DeliveryId" do
+          attribute :value, String
+        end
+        query "Pending" do
+          where status: "pending"
+        end
+      end
+    end
+    "#;
+    let rt = Runtime::boot_with_hecksagons(parser::parse(OWN), None, vec![]);
+
+    // The served domain resolves it itself, so the door never falls through.
+    let own = rt.domain.aggregates.iter().find(|a| a.name == "OutboundEvent");
+    assert!(own.is_some(), "the domain's own OutboundEvent survives");
+    assert!(
+        own.unwrap().queries.iter().any(|q| q.name == "Pending"),
+        "and it is the DOMAIN's Pending that answers, not the framework's",
+    );
+}
+
+// ---------------------------------------------------------------------------
 // GOVERNANCE — the same coupling, with the worst consequence.
 //
 // `record_violation_internal` used to be `let _ = self.dispatch_impl(...)`, so

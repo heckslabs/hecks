@@ -4325,6 +4325,22 @@ fn dispatch_hecksagon(agg_dir: &str, command: &str, attrs: std::collections::Has
                     storehouse::embed::principal_from_env()));
                 return;
             }
+            // FRAMEWORK FALLBACK — the served domain does not own this
+            // aggregate, but the framework collaborator might. Framework
+            // substrate (the event Log, the veto audit, the outbox) is
+            // deliberately NOT merged into a user's domain, so a door that only
+            // consults `rt.domain` cannot see it and the verb dies as an unknown
+            // command. Checked AFTER the served domain, so a domain that
+            // declares its own aggregate of the same name still wins.
+            if rt.framework_resolves(agg, tail) {
+                let attrs_s = attrs.iter()
+                    .map(|(k, v)| (k.clone(), v.as_str().unwrap_or("").to_string()))
+                    .collect();
+                let principal = storehouse::embed::principal_from_env();
+                emit_query_verdict(storehouse::embed::gated_query(
+                    rt.framework_mut(), command, attrs_s, principal));
+                return;
+            }
         }
     }
 

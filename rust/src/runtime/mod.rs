@@ -543,6 +543,34 @@ impl Runtime {
         self.framework.as_mut().expect("just booted")
     }
 
+    /// Can the framework collaborator resolve `<aggregate>.<tail>` — as either a
+    /// query or a command on one of the substrate aggregates it owns?
+    ///
+    /// This is the DOOR-side half of the collaborator. An out-of-process door
+    /// (the CLI, the adapter host) resolves a verb against the SERVED domain ;
+    /// framework aggregates are deliberately not in that domain any more, so
+    /// without this the verb falls through and dies as an unknown command. That
+    /// is exactly how `dream_content_smoke` broke : every IN-process caller was
+    /// rerouted to the collaborator and no out-of-process one was, so the whole
+    /// unit suite stayed green while a cross-process read failed.
+    ///
+    /// Consulted ONLY AFTER the served domain fails to resolve, so the common
+    /// path never pays for booting the collaborator. Derived from the substrate
+    /// domain itself — never a hardcoded name list, which would drift the moment
+    /// a substrate is added or renamed.
+    pub fn framework_resolves(&mut self, aggregate: &str, tail: &str) -> bool {
+        self.framework_mut()
+            .domain
+            .aggregates
+            .iter()
+            .filter(|a| a.name == aggregate)
+            .any(|a| {
+                a.queries.iter().any(|q| {
+                    crate::util::snake_case(&q.name) == tail || q.name == tail
+                }) || a.commands.iter().any(|c| c.name == tail)
+            })
+    }
+
     /// Test-harness boot (i735 plan step 4) : every aggregate gets the
     /// EXPLICIT in-process `Backend::Memory` repository, not the implicit
     /// `Backend::Heki { data_dir: None }` default. "The harness chooses its
