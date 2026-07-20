@@ -420,6 +420,21 @@ pub struct Attribute {
     /// The payload gate refuses values outside the set ; the form renders
     /// a dropdown ; the JSON Schema projection emits `enum`.
     pub enum_values: Vec<String>,
+    /// Closed scalar SHAPE : `attribute :email, String, pattern: '...'`.
+    /// None = any string. Exactly parallel to `enum_values` — the gate
+    /// refuses a non-matching value, the form renders it as the input's
+    /// `pattern` attribute, and the JSON Schema projection emits `pattern`.
+    ///
+    /// SUBSET-RESTRICTED BY DESIGN. The pattern must match identically under
+    /// Ruby's `Regexp` (the behaviors runner) and Rust's `regex` crate (the
+    /// runtime), and those dialects DIFFER : Rust has no lookaround and no
+    /// backreferences, deliberately, to guarantee linear-time matching. A
+    /// pattern using them would compile in Ruby and fail in Rust — one
+    /// declaration, two behaviours, which is the drift this codebase keeps
+    /// paying for. `validate_pattern_subset` refuses those constructs at
+    /// AUTHORING time so the divergence is unrepresentable rather than merely
+    /// tested for.
+    pub pattern: Option<String>,
 }
 
 #[derive(Debug, Clone)]

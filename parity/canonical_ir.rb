@@ -235,6 +235,10 @@ module Hecks
           # codey"). The internal Structure::Attribute field keeps its
           # historical name ; the surface and the contract speak one_of.
           "one_of"   => (attr.respond_to?(:enum) && attr.enum ? attr.enum : []).map(&:to_s),
+          # pattern scalar SHAPE (GRAMMAR-pattern) — mirrors dump.rs. The
+          # closed-shape sibling of one_of : a regex the value must match,
+          # restricted to the Ruby-Rust intersection so both engines agree.
+          "pattern"  => (attr.respond_to?(:pattern) ? attr.pattern : nil),
         }
       end
 

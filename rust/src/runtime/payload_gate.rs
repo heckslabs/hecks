@@ -180,6 +180,47 @@ pub fn check(
         }
     }
 
+    // PATTERN shape (GRAMMAR-pattern) -- the closed-SHAPE sibling of one_of's
+    // closed vocabulary. The form already renders `pattern` from the same
+    // schema, but a form is a hint : the DOOR is what enforces. Without this
+    // the browser would refuse a bad value and curl would sail through, which
+    // is the form/gate split this codebase keeps paying for.
+    //
+    // Two homes, mirroring one_of : the attribute's own pattern, or the
+    // wrapper VO's inner attribute. Absence still passes -- presence is the
+    // required arm's concern.
+    for cmd_attr in &cmd.attributes {
+        let Some(raw) = attrs.get(&cmd_attr.name) else { continue };
+        if matches!(raw, Value::Null) {
+            continue;
+        }
+        let sent = raw.to_string();
+        if sent.trim().is_empty() {
+            continue;
+        }
+        let declared = cmd_attr.pattern.as_ref().or_else(|| {
+            agg.value_objects
+                .iter()
+                .find(|v| v.name == cmd_attr.attr_type)
+                .and_then(|vo| vo.attributes.first())
+                .and_then(|inner| inner.pattern.as_ref())
+        });
+        let Some(pattern) = declared else { continue };
+        // An unparseable pattern FAILS OPEN. It cannot happen through the
+        // parser (pattern_subset refuses divergent constructs, and anything it
+        // admits compiles here), so refusing the payload would punish the
+        // caller for an authoring fault they cannot see or fix.
+        let Ok(re) = regex::Regex::new(pattern) else { continue };
+        if !re.is_match(&sent) {
+            return Err(RuntimeError::PayloadInvariantViolation {
+                name: format!("must match {}", pattern),
+                expression: "pattern".to_string(),
+                field: cmd_attr.name.clone(),
+                value: sent,
+            });
+        }
+    }
+
     for cmd_attr in &cmd.attributes {
         let Some(vo) = agg.value_objects.iter().find(|v| v.name == cmd_attr.attr_type) else {
             continue;

@@ -8,6 +8,18 @@ description = "Bluebook compiler — reads domain declarations, emits any target
 flate2 = "1"
 serde_json = "1"
 
+# regex — enforces a declared `pattern:` at the payload gate. The SEVENTH
+# dependency in a deliberately lean crate, so it earns its place explicitly :
+# a pattern the form shows but the door does not enforce is a lie, and the
+# only alternative was hand-rolling a matcher whose semantics would drift from
+# both Ruby's Regexp and the browser's. `default-features = false` with just
+# `std` + `unicode-perl` keeps it small — no fancy Unicode tables we never use.
+# Ships to wasm too : the gate must refuse identically wherever it runs.
+# What a bluebook may DECLARE is narrowed to the Ruby-Rust intersection by
+# `pattern_subset`, so this engine never sees a construct Ruby would read
+# differently.
+regex = { version = "1", default-features = false, features = ["std", "unicode-perl"] }
+
 # tokio — async substrate for the actor model (sprint-14
 # tokio-mailbox-substrate). Replaces the std::thread-per-mailbox
 # substrate PR #702 landed ; mailbox abstraction unchanged. Full

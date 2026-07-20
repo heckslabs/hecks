@@ -181,7 +181,24 @@ fn input_from_schema(
     if let Some(mx) = prop.get("maximum").and_then(|m| m.as_i64()) {
         extra.push_str(&format!(r#" max="{}""#, mx));
     }
+    // `pattern` comes straight from the schema, exactly as min/max do, so the
+    // browser refuses a mis-shaped value before it reaches the gate. The subset
+    // a bluebook may declare is the Ruby-Rust intersection (pattern_subset),
+    // which is also valid ECMAScript -- anchors, classes, quantifiers,
+    // alternation, plain groups -- so one source text means the same thing in
+    // all THREE engines, the browser included.
+    if let Some(p) = prop.get("pattern").and_then(|p| p.as_str()) {
+        extra.push_str(&format!(concat!(" pattern=", "\"{}\""), esc_pattern_attr(p)));
+    }
     text_input(&attr.name, &label, input_type, &extra, req_attr)
+}
+
+/// Escape a regex for a double-quoted HTML attribute. ONLY `&` and `"` can
+/// break out ; every other regex metacharacter is inert in attribute position
+/// and must survive VERBATIM -- escaping more would silently change the
+/// pattern the browser enforces.
+fn esc_pattern_attr(s: &str) -> String {
+    s.replace('&', "&amp;").replace('"', "&quot;")
 }
 
 /// Render the <label> wrapper around an input. The asterisk for

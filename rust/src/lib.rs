@@ -93,6 +93,9 @@ pub mod invariants;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod adapter_resolution;
 pub mod projection;
+/// The regex subset a `pattern:` may declare — the intersection of Ruby's
+/// `Regexp` and Rust's `regex`, so the two engines cannot disagree.
+pub mod pattern_subset;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod run;
 #[cfg(not(target_arch = "wasm32"))]

@@ -158,6 +158,11 @@ fn dump_attribute(attr: &Attribute) -> Value {
         // out of all 20 corpus files and is retired : any future usage
         // drifts loudly because only the Ruby side would collect it).
         "one_of": attr.enum_values,
+        // pattern scalar SHAPE (GRAMMAR-pattern) — the closed-shape sibling of
+        // one_of's closed vocabulary. Both parsers carry it, so a pattern that
+        // only one side collected drifts loudly here rather than silently
+        // enforcing on one target and not the other.
+        "pattern": attr.pattern,
     })
 }
 

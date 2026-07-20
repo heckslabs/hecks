@@ -96,7 +96,16 @@ Hecks.bluebook "ToolShed" do
     end
 
     value_object "Email" do
-      attribute :value, String
+      # The SHAPE is part of the domain, so it is declared here rather than
+      # re-implemented in a form validator, a gate check and a test. One
+      # declaration reaches the JSON Schema (`pattern`), the served form (the
+      # input's `pattern` attribute) and the payload gate, which is what makes
+      # the browser and `curl` refuse the same values.
+      #
+      # Deliberately permissive : anything with a local part, an @, and a
+      # dotted domain. Email is famously under-specified and an over-strict
+      # pattern rejects valid addresses — a refusal a user cannot argue with.
+      attribute :value, String, pattern: '^[^@\s]+@[^@\s]+\.[^@\s]+$'
     end
 
     command "EnrollMember" do

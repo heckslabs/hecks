@@ -618,6 +618,7 @@ fn absorb_has_one(line: &str, agg: &mut Aggregate) {
                 list: false,
                 required: false,
                 enum_values: vec![],
+                pattern: None,
             });
         }
     }
@@ -642,6 +643,7 @@ fn absorb_belongs_to(line: &str, agg: &mut Aggregate) {
                 list: false,
                 required: false,
                 enum_values: vec![],
+                pattern: None,
             });
         }
     }

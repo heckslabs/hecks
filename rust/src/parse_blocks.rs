@@ -380,6 +380,7 @@ pub fn parse_query(lines: &[&str]) -> (Query, usize) {
                         list: false,
                         required: false,
                         enum_values: vec![],
+                pattern: None,
                     });
                 }
             }
@@ -1050,7 +1051,37 @@ pub fn parse_attribute(line: &str) -> Option<Attribute> {
         // instead of silently working. The ledger is the guard.
         (attr_type, vec![])
     };
-    Some(Attribute { name, attr_type, default, list, required, enum_values })
+    // `pattern: '<regex>'` — the scalar SHAPE constraint, sibling of one_of's
+    // closed vocabulary. Refused here if it uses a construct Ruby and Rust
+    // would treat differently, so the divergence never reaches the IR.
+    let pattern = parse_pattern_kwarg(line);
+    Some(Attribute { name, attr_type, default, list, required, enum_values, pattern })
+}
+
+/// Pull `pattern: '<regex>'` (or "double-quoted") off an attribute line.
+///
+/// A pattern using a construct Ruby and Rust would treat differently is
+/// REFUSED here rather than stored — the IR never carries a declaration the
+/// two engines would disagree about. The rejection is loud on stderr and the
+/// attribute keeps `None`, so a bad pattern fails open (any string) rather
+/// than silently enforcing something only one engine understands.
+fn parse_pattern_kwarg(line: &str) -> Option<String> {
+    let after = line.split("pattern:").nth(1)?.trim_start();
+    let quote = after.chars().next().filter(|c| *c == '\'' || *c == '"')?;
+    let body: String = after[quote.len_utf8()..]
+        .chars()
+        .take_while(|c| *c != quote)
+        .collect();
+    match crate::pattern_subset::validate_pattern_subset(&body) {
+        Ok(()) => Some(body),
+        Err(rejection) => {
+            eprintln!(
+                "[bluebook] pattern REFUSED ({}): {}\n  in: {}\n  — {}",
+                rejection.construct, body, line.trim(), rejection.reason,
+            );
+            None
+        }
+    }
 }
 
 /// Pull the PascalCase value-object name from the first segment of a

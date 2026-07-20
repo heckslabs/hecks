@@ -32,6 +32,16 @@ module Hecks
       #   an enum. When set, generated code validates that values are within this list.
       attr_reader :enum
 
+      # @return [String, nil] a regex the value must match, or nil for any string.
+      #   The closed-SHAPE sibling of `enum`'s closed vocabulary : the payload gate
+      #   refuses a non-matching value, the JSON Schema projection emits `pattern`,
+      #   and the served form renders it as the input's `pattern` attribute.
+      #
+      #   Restricted to the Ruby-Rust intersection (no lookaround, no backreferences)
+      #   so the same source text means the same thing in this runner and in the Rust
+      #   runtime. See rust/src/pattern_subset.rs.
+      attr_reader :pattern
+
       # Creates a new Attribute.
       #
       # @param name [Symbol, String] the attribute name. Will be converted to a Symbol via +to_sym+.
@@ -49,7 +59,7 @@ module Hecks
       #   like passwords, tokens, or raw foreign keys that should not be displayed to users.
       #
       # @return [Attribute] a new Attribute instance
-      def initialize(name:, type:, default: nil, list: false, pii: false, enum: nil, visible: true, required: false)
+      def initialize(name:, type:, default: nil, list: false, pii: false, enum: nil, visible: true, required: false, pattern: nil)
         @name = name.to_sym
         @type = type.is_a?(Class) ? type : type.to_s
         @default = default
@@ -58,7 +68,44 @@ module Hecks
         @pii = pii
         @enum = enum
         @visible = visible
+        @pattern = self.class.admit_pattern(pattern, name)
       end
+
+        # The regex subset a `pattern:` may use -- the Ruby half of the guard whose
+        # Rust half is rust/src/pattern_subset.rs. Ruby's Regexp has lookaround and
+        # backreferences ; Rust's regex crate deliberately has neither (they cannot
+        # be matched in linear time). A pattern using them would work HERE and fail
+        # THERE -- one declaration, two behaviours, which is the drift this codebase
+        # keeps paying for.
+        #
+        # Both sides refuse the same constructs and both fail OPEN (warn + nil)
+        # rather than raising, so an authoring mistake degrades to "no constraint"
+        # identically on each target instead of one runner loading the bluebook and
+        # the other rejecting it.
+        DIVERGENT = {
+          /\(\?=/    => "lookahead",
+          /\(\?!/    => "lookahead",
+          /\(\?<=/   => "lookbehind",
+          /\(\?<!/   => "lookbehind",
+          /\(\?>/    => "atomic group",
+          /\\[1-9]/  => "backreference",
+          /\\k</     => "named backreference",
+          /[*+?]\+/   => "possessive quantifier",
+        }.freeze
+
+        def self.admit_pattern(pattern, name)
+          return nil if pattern.nil?
+          text = pattern.to_s
+          DIVERGENT.each do |probe, construct|
+            next unless text =~ probe
+            warn("[bluebook] pattern REFUSED (#{construct}) on :#{name} -- " \
+                 "#{text} : Rust's regex crate cannot express it, so the two " \
+                 "engines would disagree. See rust/src/pattern_subset.rs.")
+            return nil
+          end
+          text
+        end
+
 
       # Returns true if this attribute holds a collection of values.
       # List attributes are generated as Array types and support

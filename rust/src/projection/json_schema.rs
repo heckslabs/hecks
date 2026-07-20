@@ -98,11 +98,24 @@ pub fn attr_schema(agg: &Aggregate, attr: &Attribute) -> Value {
                 if vo.attributes[0].name == "cents" {
                     obj.insert("x-hecks-money".into(), json!("cents"));
                 }
+                // The wrapper's SHAPE constraint. `pattern` is JSON Schema's
+                // own keyword, so this reaches external validators and the
+                // MCP door as well as the form — unlike an invariant, which
+                // only the dispatch gate can see.
+                if let Some(p) = &vo.attributes[0].pattern {
+                    obj.insert("pattern".into(), json!(p));
+                }
             }
             return schema;
         }
     }
-    primitive_schema(&attr.attr_type)
+    let mut schema = primitive_schema(&attr.attr_type);
+    // A pattern declared directly on the attribute (`attribute :sku,
+    // String, pattern: '...'`), not via a wrapper VO.
+    if let (Some(obj), Some(p)) = (schema.as_object_mut(), &attr.pattern) {
+        obj.insert("pattern".into(), json!(p));
+    }
+    schema
 }
 
 fn primitive_schema(ty: &str) -> Value {
