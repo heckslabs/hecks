@@ -54,6 +54,44 @@
 Supersedes the deferred "should framework substrate be injected at boot?"
 question raised at the close of the outbox-as-event-sourcing arc.
 
+## BLOCKER 2026-07-19 — the outbox CANNOT move until its store is canonical
+
+The outbox move was BUILT and is green on unit tests (124/124), parity
+(400/400) and behaviors — then **blocked by `dream_content_smoke`**, which the
+unit suite structurally could not catch. Preserved on the local branch
+`wip/outbox-collaborator` (`f12a42e57`) ; main stays at the working state.
+
+**Why the outbox is different from the other two.** EventSourcing and
+Governance moved cleanly because their consumers are all IN-PROCESS. The outbox
+is the one substrate with OUT-OF-PROCESS readers :
+
+- the generic adapter-host (`bin/adapter-host`) drains it as a separate program
+- `dream_content_smoke` reads it via a separate CLI process :
+  `storehouse query <root> OutboundEvent::OutboundEvent.pending adapter=DreamImage`
+
+Those readers resolve the **corpus** OutboundEvent store — which carries its own
+`outbound_event.world` with `dir :default`, a FOLDER-DERIVED location — while
+the collaborator is booted through `boot_with_data_dir` and writes plain
+`data_dir`. Writer and reader diverge, so a recorded delivery is invisible
+off-process and the `:dream_image` adapter never fires. Symptom :
+`WARN : run-loop recorded no DreamImage outbox`.
+
+**This is CARD decision 4 turning out to be LOAD-BEARING.** "One framework-realm
+store" was filed as a follow-up and explicitly deferred at step zero as "not a
+borrow-shape question". True — but it IS the outbox question. The collaborator's
+store location must be canonical AND discoverable by an out-of-process reader
+before the outbox can move.
+
+Note the awkward wrinkle : `heki::folder_address` derives the realm from the
+repo directory name (`hecks`), so "anchor the collaborator to the framework
+realm" cannot be done by hardcoding a realm string into the kernel without
+baking a repo name into it. That is the design question to answer first.
+
+**Lesson recorded** : the unit suite passed at every step of this move. Only a
+smoke test that crosses a PROCESS boundary could see the divergence, because
+the bug is about where two processes each think the store lives. In-process
+tests cannot express it.
+
 ## CORRECTION 2026-07-19 — it is THREE substrates, not four
 
 This card originally said "four substrates, seven guard sites, one shape". That

@@ -115,8 +115,23 @@ shares `<dir>/data`, CascadeRun has no domain discriminator). Probed with two
 runtimes on one data dir — not reproduced, because `dispatch` pumps to
 quiescence so runs complete before a sibling sees them. Don't re-derive it.
 
-**NEXT : OutboundEvent, and it is a real refactor — not a repeat.** See the card
-for the scoping. Short version : the lifecycle commands are dispatched by SHORT
+**OutboundEvent : BUILT, then BLOCKED and PARKED.** Preserved on the local
+branch `wip/outbox-collaborator` (`f12a42e57`) — green on 124/124 unit tests,
+parity 400/400, behaviors — and blocked by `dream_content_smoke`. The outbox is
+the ONE substrate with out-of-process readers (the adapter-host ; the smoke's
+`storehouse query OutboundEvent::OutboundEvent.pending`). They resolve the
+CORPUS store, which has its own `.world dir :default`, while the collaborator
+writes plain `data_dir` — so a recorded delivery is invisible off-process.
+
+The unit suite passed at every step. Only a smoke crossing a PROCESS boundary
+could see it, because the bug is about where two processes think the store
+lives. **Before resuming, make the collaborator's store canonical and
+discoverable out-of-process** (CARD decision 4, which turned out to be
+load-bearing rather than a follow-up). Watch out : `folder_address` derives the
+realm from the repo directory name, so this cannot be fixed by hardcoding a
+realm string into the kernel.
+
+Older scoping notes below still apply. See the card for detail. Short version : the lifecycle commands are dispatched by SHORT
 name from `run_host` and the pump/drain ; the consumers straddle both runtimes
 (Claim/MarkDelivered to the collaborator, verdicts to the parent) ; `run_host`
 is a separate program booting its own runtime off disk. It is also the LOWEST
