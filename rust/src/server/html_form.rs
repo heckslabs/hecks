@@ -94,7 +94,22 @@ pub fn field_input(agg: &Aggregate, attr: &Attribute, rt: &Runtime) -> String {
         return labelled(&label, req_mark, &reference_browser_button(&attr.name, target));
     }
     let prop = crate::projection::json_schema::attr_schema(agg, attr);
-    labelled(&label, req_mark, &input_from_schema(agg, attr, &prop, req_attr))
+    let input = input_from_schema(agg, attr, &prop, req_attr);
+    // A DECLARED `hint:` is VISIBLE guidance, rendered under the field — not
+    // the input's `title`, which is only a hover tooltip / post-submit
+    // popup and so tells a user nothing while they are typing. The
+    // mechanical fallback stays on the `title` (it is a mismatch message,
+    // wrong to show before the user has done anything). Only the author's
+    // own words go on the page.
+    let hint_line = prop
+        .get("x-hecks-hint")
+        .and_then(|h| h.as_str())
+        .map(|h| format!(
+            r#"<p class="text-xs text-gray-500 mt-1">{}</p>"#,
+            esc(h)
+        ))
+        .unwrap_or_default();
+    labelled(&label, req_mark, &format!("{}{}", input, hint_line))
 }
 
 /// Render one input from a schema property (`{type, enum}`). The schema
