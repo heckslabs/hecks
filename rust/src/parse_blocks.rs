@@ -380,7 +380,7 @@ pub fn parse_query(lines: &[&str]) -> (Query, usize) {
                         list: false,
                         required: false,
                         enum_values: vec![],
-                pattern: None,
+                pattern: None, hint: None,
                     });
                 }
             }
@@ -1055,7 +1055,10 @@ pub fn parse_attribute(line: &str) -> Option<Attribute> {
     // closed vocabulary. Refused here if it uses a construct Ruby and Rust
     // would treat differently, so the divergence never reaches the IR.
     let pattern = parse_pattern_kwarg(line);
-    Some(Attribute { name, attr_type, default, list, required, enum_values, pattern })
+    // `hint: "..."` — human guidance surfaced by the form on a shape mismatch.
+    // Pure presentation, so it takes no subset check ; it is never a regex.
+    let hint = parse_hint_kwarg(line);
+    Some(Attribute { name, attr_type, default, list, required, enum_values, pattern, hint })
 }
 
 /// Pull `pattern: '<regex>'` (or "double-quoted") off an attribute line.
@@ -1082,6 +1085,19 @@ fn parse_pattern_kwarg(line: &str) -> Option<String> {
             None
         }
     }
+}
+
+/// Pull `hint: "..."` (or 'single-quoted') off an attribute line — the human
+/// guidance the form shows when a value fails its shape. Unlike `pattern`, this
+/// is prose, never a regex, so it needs no subset check ; it is stored verbatim.
+fn parse_hint_kwarg(line: &str) -> Option<String> {
+    let after = line.split("hint:").nth(1)?.trim_start();
+    let quote = after.chars().next().filter(|c| *c == '"' || *c == '\'')?;
+    let body: String = after[quote.len_utf8()..]
+        .chars()
+        .take_while(|c| *c != quote)
+        .collect();
+    if body.is_empty() { None } else { Some(body) }
 }
 
 /// Pull the PascalCase value-object name from the first segment of a

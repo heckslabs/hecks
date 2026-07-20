@@ -435,6 +435,12 @@ pub struct Attribute {
     /// AUTHORING time so the divergence is unrepresentable rather than merely
     /// tested for.
     pub pattern: Option<String>,
+    /// Human guidance shown when a value fails its shape — `attribute :email,
+    /// String, pattern: '...', hint: "like name@example.com"`. None = the form
+    /// derives a generic message. The form renders it as the input's `title`,
+    /// which the browser surfaces on a `pattern` mismatch. Pure presentation :
+    /// the gate never reads it (it enforces the pattern, not the prose).
+    pub hint: Option<String>,
 }
 
 #[derive(Debug, Clone)]

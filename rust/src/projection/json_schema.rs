@@ -105,6 +105,9 @@ pub fn attr_schema(agg: &Aggregate, attr: &Attribute) -> Value {
                 if let Some(p) = &vo.attributes[0].pattern {
                     obj.insert("pattern".into(), json!(p));
                 }
+                if let Some(h) = &vo.attributes[0].hint {
+                    obj.insert("x-hecks-hint".into(), json!(h));
+                }
             }
             return schema;
         }
@@ -112,8 +115,13 @@ pub fn attr_schema(agg: &Aggregate, attr: &Attribute) -> Value {
     let mut schema = primitive_schema(&attr.attr_type);
     // A pattern declared directly on the attribute (`attribute :sku,
     // String, pattern: '...'`), not via a wrapper VO.
-    if let (Some(obj), Some(p)) = (schema.as_object_mut(), &attr.pattern) {
-        obj.insert("pattern".into(), json!(p));
+    if let Some(obj) = schema.as_object_mut() {
+        if let Some(p) = &attr.pattern {
+            obj.insert("pattern".into(), json!(p));
+        }
+        if let Some(h) = &attr.hint {
+            obj.insert("x-hecks-hint".into(), json!(h));
+        }
     }
     schema
 }

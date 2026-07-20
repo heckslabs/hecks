@@ -163,6 +163,9 @@ fn dump_attribute(attr: &Attribute) -> Value {
         // only one side collected drifts loudly here rather than silently
         // enforcing on one target and not the other.
         "pattern": attr.pattern,
+        // hint (GRAMMAR-pattern) — human guidance for a shape mismatch. Both
+        // parsers carry it so it round-trips through the canonical IR.
+        "hint": attr.hint,
     })
 }
 

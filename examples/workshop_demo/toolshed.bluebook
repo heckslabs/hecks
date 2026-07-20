@@ -105,7 +105,7 @@ Hecks.bluebook "ToolShed" do
       # Deliberately permissive : anything with a local part, an @, and a
       # dotted domain. Email is famously under-specified and an over-strict
       # pattern rejects valid addresses — a refusal a user cannot argue with.
-      attribute :value, String, pattern: '^[^@\s]+@[^@\s]+\.[^@\s]+$'
+      attribute :value, String, pattern: '^[^@\s]+@[^@\s]+\.[^@\s]+$', hint: "Use a real email address, like name@example.com"
     end
 
     command "EnrollMember" do

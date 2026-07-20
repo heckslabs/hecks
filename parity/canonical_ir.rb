@@ -239,6 +239,9 @@ module Hecks
           # closed-shape sibling of one_of : a regex the value must match,
           # restricted to the Ruby-Rust intersection so both engines agree.
           "pattern"  => (attr.respond_to?(:pattern) ? attr.pattern : nil),
+          # hint (GRAMMAR-pattern) — mirrors dump.rs. Human guidance for a
+          # shape mismatch ; prose, so no subset check.
+          "hint"     => (attr.respond_to?(:hint) ? attr.hint : nil),
         }
       end
 

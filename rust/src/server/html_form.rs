@@ -166,9 +166,19 @@ fn input_from_schema(
         }
         return text_input(&attr.name, &format!("{} ($)", label), "number", &extra, req_attr);
     }
+    // `type="email"` for an email-shaped field — the browser gives it the
+    // mobile @ keyboard, native validation and autofill, all free. Detected
+    // from the attribute NAME (`email`, `*_email`) rather than the pattern,
+    // because the same address can be written a dozen ways and matching the
+    // regex would be brittle ; the name is the domain's own signal. The
+    // `pattern` below still rides along, so a stricter shape than the
+    // browser's built-in email check is honoured too.
+    let looks_like_email =
+        attr.name == "email" || attr.name.ends_with("_email");
     let (input_type, step): (&str, &str) = match prop.get("type").and_then(|t| t.as_str()) {
         Some("integer") => ("number", r#" step="1""#),
         Some("number") => ("number", r#" step="any""#),
+        _ if looks_like_email => ("email", ""),
         _ => ("text", ""),
     };
     // min / max come straight from the schema's minimum / maximum — the
@@ -189,6 +199,18 @@ fn input_from_schema(
     // all THREE engines, the browser included.
     if let Some(p) = prop.get("pattern").and_then(|p| p.as_str()) {
         extra.push_str(&format!(concat!(" pattern=", "\"{}\""), esc_pattern_attr(p)));
+        // `title` is what the browser shows on a pattern mismatch instead of
+        // its generic "Please match the requested format". Prefer the
+        // author's declared `hint:` ; fall back to a mechanical message so a
+        // pattern is NEVER enforced with no guidance — a silent refusal is
+        // the worst form feedback there is. The generic fallback names no
+        // regex : "^[^@\s]+@..." tells a user nothing.
+        let title = prop
+            .get("x-hecks-hint")
+            .and_then(|h| h.as_str())
+            .map(str::to_string)
+            .unwrap_or_else(|| format!("{} isn't in the expected format", label));
+        extra.push_str(&format!(concat!(" title=", "\"{}\""), esc(&title)));
     }
     text_input(&attr.name, &label, input_type, &extra, req_attr)
 }

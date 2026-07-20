@@ -462,7 +462,7 @@ pub fn parse_shorthand_attribute(line: &str) -> Option<crate::ir::Attribute> {
     } else { None };
     let required = line.contains("required:")
         && line.split("required:").nth(1).map(|a| a.trim_start().starts_with("true")).unwrap_or(false);
-    Some(crate::ir::Attribute { name, attr_type, default, list, required, enum_values: vec![], pattern: None })
+    Some(crate::ir::Attribute { name, attr_type, default, list, required, enum_values: vec![], pattern: None, hint: None })
 }
 
 /// Parse a reference declaration in any of these forms:

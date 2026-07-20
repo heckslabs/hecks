@@ -93,6 +93,45 @@ fn absence_still_passes_the_pattern_gate() {
 }
 
 #[test]
+fn a_declared_hint_reaches_the_schema_for_the_form_to_show() {
+    // The hint is guidance, not enforcement : it rides the schema so the form
+    // can render it as the input's `title`, but the gate never reads it.
+    const WITH_HINT: &str = r#"Hecks.bluebook "Help" do
+      aggregate "Row" do
+        identified_by :id
+        attribute :id,   RowId
+        attribute :code, String, pattern: '^[A-Z]{2}$', hint: "two capital letters, like CA"
+        value_object "RowId" do
+          attribute :value, String
+        end
+        command "Set" do
+          role "System"
+          attribute :id,   RowId
+          attribute :code, String, pattern: '^[A-Z]{2}$', hint: "two capital letters, like CA"
+        end
+      end
+    end
+    "#;
+    let domain = parser::parse(WITH_HINT);
+    let agg = &domain.aggregates[0];
+    let attr = agg.attributes.iter().find(|a| a.name == "code").unwrap();
+    assert_eq!(
+        attr.hint.as_deref(),
+        Some("two capital letters, like CA"),
+        "the hint is parsed onto the attribute",
+    );
+    let cmd_attr = agg.commands.iter().find(|c| c.name == "Set").unwrap()
+        .attributes.iter().find(|a| a.name == "code").unwrap();
+    let schema = storehouse::projection::json_schema::attr_schema(agg, cmd_attr);
+    assert_eq!(
+        schema.get("x-hecks-hint").and_then(|h| h.as_str()),
+        Some("two capital letters, like CA"),
+        "the hint reaches the schema (got {})",
+        schema,
+    );
+}
+
+#[test]
 fn the_schema_carries_the_pattern_so_the_form_inherits_it() {
     // The form renders from `attr_schema` and nothing else, so a pattern in the
     // schema IS a pattern on the input. Pinning the schema pins both.

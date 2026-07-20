@@ -42,6 +42,11 @@ module Hecks
       #   runtime. See rust/src/pattern_subset.rs.
       attr_reader :pattern
 
+      # @return [String, nil] human guidance shown when a value fails its
+      #   shape (rendered by the form as the input's `title`). Prose, not a
+      #   regex — no subset check. Mirrors the Rust IR's `hint` field.
+      attr_reader :hint
+
       # Creates a new Attribute.
       #
       # @param name [Symbol, String] the attribute name. Will be converted to a Symbol via +to_sym+.
@@ -59,7 +64,7 @@ module Hecks
       #   like passwords, tokens, or raw foreign keys that should not be displayed to users.
       #
       # @return [Attribute] a new Attribute instance
-      def initialize(name:, type:, default: nil, list: false, pii: false, enum: nil, visible: true, required: false, pattern: nil)
+      def initialize(name:, type:, default: nil, list: false, pii: false, enum: nil, visible: true, required: false, pattern: nil, hint: nil)
         @name = name.to_sym
         @type = type.is_a?(Class) ? type : type.to_s
         @default = default
@@ -69,6 +74,7 @@ module Hecks
         @enum = enum
         @visible = visible
         @pattern = self.class.admit_pattern(pattern, name)
+        @hint = hint
       end
 
         # The regex subset a `pattern:` may use -- the Ruby half of the guard whose
