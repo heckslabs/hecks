@@ -320,11 +320,9 @@ impl Runtime {
         use std::os::unix::process::CommandExt as _;
         use std::process::{Command, Stdio};
 
-        // No OutboundEvent aggregate loaded → nothing to drain (library/test
-        // roots that don't carry the hexagon framework).
-        if !self.domain.aggregates.iter().any(|a| a.name == "OutboundEvent") {
-            return 0;
-        }
+        // No presence guard : the outbox lives in the framework collaborator,
+        // so every runtime can drain — including the library/test roots that
+        // never carried the hexagon framework and silently drained nothing.
 
         // Snapshot every pending delivery under the immutable borrow, then take
         // &mut self for the Claim+spawn phase — mirrors run_host::pending_deliveries.
@@ -345,7 +343,7 @@ impl Runtime {
         // "pending" is the outbox aggregate's lifecycle knowledge, not the
         // pump's.
         let pending_result =
-            self.resolve_query("AllPending", &std::collections::HashMap::new());
+            self.framework_mut().resolve_query("AllPending", &std::collections::HashMap::new());
         let pending: Vec<Pending> = pending_result["state"]
             .as_array()
             .map(|rows| {
@@ -431,7 +429,7 @@ impl Runtime {
             //    pump's Claim error : skip, it's not ours (another process took it).
             let mut claim = HashMap::new();
             claim.insert("delivery_id".to_string(), Value::Str(d.delivery_id.clone()));
-            if self.dispatch("Claim", claim).is_err() {
+            if self.framework_mut().dispatch_impl("Claim", claim).is_err() {
                 continue;
             }
 

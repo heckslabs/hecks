@@ -136,6 +136,94 @@ fn the_users_domain_stays_clean_and_the_recursion_is_bounded() {
 }
 
 // ---------------------------------------------------------------------------
+// THE OUTBOX — and the symptom that opened this whole arc.
+//
+// ToolShed's served page rendered the framework OutboundEvent as one of its own
+// modules. The cause was `ensure_outbox_substrate`, which SPLICED the outbox
+// aggregate into any domain with an effect binding so the kernel's
+// "is OutboundEvent in MY domain?" guards would pass. It was narrowed once
+// (scoped to a domain's OWN effect port) and then deleted outright, because a
+// domain never needed to carry the outbox — only to reach it.
+//
+// Now a served page shows exactly what its author wrote, by construction. There
+// is no graft to scope and no UI filter to maintain.
+// ---------------------------------------------------------------------------
+
+const SHOP: &str = r#"Hecks.bluebook "Shop" do
+  aggregate "Order" do
+    identified_by :id
+    attribute :id,     OrderId
+    attribute :status, Status, default: "pending"
+    value_object "OrderId" do
+      attribute :value, String
+    end
+    value_object "Status" do
+      attribute :value, String
+    end
+    command "PlaceOrder" do
+      role "Customer"
+      attribute :id, OrderId
+      emits "OrderPlaced"
+    end
+    command "Authorize" do
+      role "System"
+      attribute :id, OrderId
+      then_set :status, to: "authorized"
+    end
+    command "Decline" do
+      role "System"
+      attribute :id, OrderId
+      then_set :status, to: "declined"
+    end
+  end
+end
+"#;
+
+fn shop_with_effect_port() -> Runtime {
+    Runtime::boot_with_hecksagons(
+        parser::parse(SHOP),
+        None,
+        vec![
+            hecksagon_parser::parse(
+                "Hecks.family \"payment\" do\n  verb \"charged_by\"\n  signal :effect\n  field :endpoint\nend\n",
+            ),
+            hecksagon_parser::parse("Hecks.adapter \"Stripe\" do\n  family \"payment\"\nend\n"),
+            hecksagon_parser::parse(
+                "Hecks.hecksagon \"Shop\" do\n  Shop::Order.charged_by(\"Stripe\", on: \"OrderPlaced\") do\n    success \"Order.Authorize\"\n    failure \"Order.Decline\"\n  end\nend\n",
+            ),
+        ],
+    )
+}
+
+#[test]
+fn a_domain_with_an_effect_port_never_carries_the_outbox() {
+    let mut rt = shop_with_effect_port();
+
+    let mut attrs = HashMap::new();
+    attrs.insert("id".to_string(), Value::Str("order-1".to_string()));
+    rt.dispatch("PlaceOrder", attrs).expect("PlaceOrder dispatches");
+
+    // The delivery WAS recorded — the effect port works.
+    assert_eq!(
+        rt.outbound_deliveries().len(),
+        1,
+        "the effect binding records its delivery into the collaborator",
+    );
+
+    // ...and the served domain is exactly what its author wrote. This is the
+    // ToolShed symptom, now unrepresentable rather than merely fixed.
+    let names: Vec<String> = rt.domain.aggregates.iter().map(|a| a.name.clone()).collect();
+    assert_eq!(
+        names,
+        vec!["Order".to_string()],
+        "a domain declaring an effect port must NOT acquire OutboundEvent as one \
+         of its own aggregates — it reaches the outbox by calling, not by \
+         carrying (got {:?})",
+        names,
+    );
+}
+
+// ---------------------------------------------------------------------------
 // GOVERNANCE — the same coupling, with the worst consequence.
 //
 // `record_violation_internal` used to be `let _ = self.dispatch_impl(...)`, so

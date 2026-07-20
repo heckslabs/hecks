@@ -261,15 +261,19 @@ pub struct Runtime {
     /// have been merged into the USER's domain.
     ///
     /// The runtime needs to write framework aggregates it does not own
-    /// (`EventSourcing::Event`, `CascadeRun`, `OutboundEvent`,
-    /// `Governance::Violation`). Today it asks "is that aggregate in my
-    /// domain?" at seven guard sites and silently does nothing when it isn't —
-    /// so a minimal boot writes no Log and loses authorization audit rows.
-    /// `ensure_outbox_substrate` is a manual graft patching exactly one of the
-    /// four.
+    /// (`EventSourcing::Event`, `Governance::Violation`, `OutboundEvent`). It
+    /// used to ask "is that aggregate in MY domain?" and silently do nothing
+    /// when it wasn't — a minimal boot wrote no Log and lost authorization
+    /// audit rows — while `ensure_outbox_substrate` grafted the outbox into
+    /// every domain with an effect port to paper over the third. All of that
+    /// is gone : the kernel calls the collaborator, which always has them.
     ///
-    /// `None` until first use : booting a 400-line framework domain inside
-    /// every Runtime would tax all 124 test binaries for a path most never
+    /// `CascadeRun` deliberately did NOT move. Its guard selects between two
+    /// WORKING paths (the persistent outbox vs the in-memory pump), not
+    /// between working and losing data — see CARD-framework-substrate-service.
+    ///
+    /// `None` until first use : booting the framework domain inside
+    /// every Runtime would tax all 125 test binaries for a path most never
     /// take. `framework_mut()` boots it on demand. The collaborator's OWN
     /// `framework` stays `None`, which is what stops the recursion.
     pub framework: Option<Box<Runtime>>,
@@ -382,13 +386,12 @@ impl Runtime {
         data_dir: Option<String>,
         hecksagons: Vec<Hecksagon>,
     ) -> Self {
-        // Framework substrate — an effect binding needs the OutboundEvent
-        // event-out port to record deliveries. Merge the embedded framework
-        // outbox aggregate so ANY root (a self-contained example included) can
-        // round-trip an effect port without copying the bluebook. Gated on an
-        // effect binding being present ; a domain already declaring
-        // OutboundEvent wins (no double-load).
-        let domain = Self::ensure_outbox_substrate(domain, &hecksagons);
+        // No substrate graft. The outbox lives in the framework collaborator,
+        // so a domain with an effect port reaches it by CALLING rather than by
+        // having it merged in. `ensure_outbox_substrate` used to splice the
+        // OutboundEvent aggregate into any domain with an effect binding —
+        // which is how ToolShed came to render the framework outbox as one of
+        // its own modules.
         let mut rt = Self::boot_with_data_dir(domain, data_dir);
         rt.hecksagons = hecksagons;
         // Persistence override (i642) — when a hecksagon declares
@@ -433,9 +436,9 @@ impl Runtime {
     /// is CRATE-OWNED (`rust/resources/outbound_event.bluebook`) — storehouse
     /// carries its own outbox contract and no longer reaches into a sibling
     /// `hecks_conception/` to build (decouple Phase 1). The conception keeps a
-    /// copy (referenced by event_sourcing.bluebook, and an override wins per
-    /// `ensure_outbox_substrate`); a monorepo parity check guards them against
-    /// drift.
+    /// copy (referenced by event_sourcing.bluebook) ; a monorepo parity check
+    /// guards them against drift. Loaded into the framework collaborator, never
+    /// merged into a user's domain.
     const OUTBOX_SUBSTRATE: &'static str = include_str!(
         "../../resources/outbound_event.bluebook"
     );
@@ -464,7 +467,7 @@ impl Runtime {
     /// would mean four stores and four times the wiring for a single mechanism.
     fn framework_domain() -> Domain {
         let mut domain = crate::parser::parse(Self::EVENT_SOURCING_SUBSTRATE);
-        for source in [Self::GOVERNANCE_SUBSTRATE] {
+        for source in [Self::GOVERNANCE_SUBSTRATE, Self::OUTBOX_SUBSTRATE] {
             let extra = crate::parser::parse(source);
             for agg in extra.aggregates {
                 if !domain
@@ -478,6 +481,42 @@ impl Runtime {
             domain.policies.extend(extra.policies);
         }
         domain
+    }
+
+    /// Every delivery currently in the framework outbox.
+    ///
+    /// The outbox is framework substrate and lives in the collaborator, so a
+    /// caller inspecting it (a test, an operator tool) cannot reach it through
+    /// its own domain any more — `rt.all("OutboundEvent")` returns nothing,
+    /// correctly, because the user's domain never carried it. Empty when no
+    /// delivery has ever been recorded (the collaborator has not booted).
+    pub fn outbound_deliveries(&self) -> Vec<&AggregateState> {
+        self.framework
+            .as_ref()
+            .map(|fw| fw.all("OutboundEvent"))
+            .unwrap_or_default()
+    }
+
+    /// One delivery from the framework outbox, by delivery_id. The `find`
+    /// sibling of `outbound_deliveries` — same reason it exists.
+    pub fn outbound_delivery(&self, delivery_id: &str) -> Option<&AggregateState> {
+        self.framework
+            .as_ref()
+            .and_then(|fw| fw.find("OutboundEvent", delivery_id))
+    }
+
+    /// Resolve a query against the framework collaborator (the outbox's
+    /// `Pending` / `AllPending`, the Log, the veto audit). Returns an empty
+    /// result shape when the collaborator has not booted.
+    pub fn framework_query(
+        &self,
+        query_name: &str,
+        attrs: &std::collections::HashMap<String, String>,
+    ) -> serde_json::Value {
+        match self.framework.as_ref() {
+            Some(fw) => fw.resolve_query(query_name, attrs),
+            None => serde_json::json!({ "state": [] }),
+        }
     }
 
     /// The framework collaborator, booted on first use.
@@ -496,61 +535,12 @@ impl Runtime {
     ///
     /// The collaborator's own `framework` stays `None` — it never needs one,
     /// and that is what bounds the recursion.
-    fn framework_mut(&mut self) -> &mut Runtime {
+    pub fn framework_mut(&mut self) -> &mut Runtime {
         if self.framework.is_none() {
             let rt = Runtime::boot_with_data_dir(Self::framework_domain(), self.data_dir.clone());
             self.framework = Some(Box::new(rt));
         }
         self.framework.as_mut().expect("just booted")
-    }
-
-    /// Merge the framework outbox aggregate into `domain` when (a) some
-    /// attached hecksagon declares an EFFECT binding (a bind carrying `on:` —
-    /// a verdict `charged_by(... ) do success/failure end` OR a fire-and-forget
-    /// `voiced_by(..., on:)` with no verdict) and (b) the domain doesn't already
-    /// declare OutboundEvent. The outbox is needed exactly when an effect port
-    /// exists ; an effect-free domain stays untouched, and a domain that already
-    /// carries OutboundEvent (the conception, or an example that copied it) wins
-    /// — no double-load. Discriminator is `on` (the triggering event), NOT a
-    /// verdict : persistence binds carry no `on`, fire-and-forget binds do.
-    fn ensure_outbox_substrate(mut domain: Domain, hecksagons: &[Hecksagon]) -> Domain {
-        // The effect binding must target an aggregate of THIS domain. Asking
-        // merely "does any attached hecksagon carry an effect binding?" was too
-        // broad : `serve_directory` deliberately loads every hecksagon under the
-        // served tree AND under the running repo, so ONE `charged_by` anywhere
-        // in the monorepo grafted OutboundEvent onto EVERY served domain. That
-        // is why ToolShed — which declares no effect port at all — rendered the
-        // framework outbox as one of its own modules.
-        //
-        // Bindings store the aggregate FQN ("Ctx::Agg") while the domain carries
-        // the bare name, so match on the last `::` segment, as
-        // `aggregate_is_event_sourced` does. Scoping here also keeps the
-        // standalone-serve case working BY CONSTRUCTION : a domain that really
-        // does declare an effect port still gets the outbox it needs to record
-        // deliveries, with no compensating merge or UI filter.
-        let has_effect = hecksagons.iter().any(|h| {
-            h.bindings.iter().any(|b| {
-                !b.on.is_empty()
-                    && domain
-                        .aggregates
-                        .iter()
-                        .any(|a| Some(a.name.as_str()) == b.aggregate.rsplit("::").next())
-            })
-        });
-        if !has_effect || domain.aggregates.iter().any(|a| a.name == "OutboundEvent") {
-            return domain;
-        }
-        let substrate = crate::parser::parse(Self::OUTBOX_SUBSTRATE);
-        for agg in substrate.aggregates {
-            if !domain
-                .aggregates
-                .iter()
-                .any(|e| e.name == agg.name && e.context == agg.context)
-            {
-                domain.aggregates.push(agg);
-            }
-        }
-        domain
     }
 
     /// Test-harness boot (i735 plan step 4) : every aggregate gets the
@@ -1242,7 +1232,7 @@ impl Runtime {
         self.dispatch_impl(command_name, attrs)
     }
 
-    fn dispatch_impl(
+    pub(crate) fn dispatch_impl(
         &mut self,
         command_name: &str,
         attrs: HashMap<String, Value>,
@@ -1914,9 +1904,10 @@ impl Runtime {
             Some(e) => e.clone(),
             None => return,
         };
-        if !self.domain.aggregates.iter().any(|a| a.name == "OutboundEvent") {
-            return;
-        }
+        // No substrate-presence guard : the outbox lives in the framework
+        // collaborator, so it is ALWAYS available. This used to read "is
+        // OutboundEvent in MY domain?", which is why the runtime had to graft
+        // the outbox into every domain with an effect port (the graft is gone).
         // adapter -> family, family -> verb : the typed attach checkpoint, so a
         // broken bind records nothing (mirrors resolve_bindings' flat-map).
         let mut adapter_family: HashMap<String, String> = HashMap::new();
@@ -2002,12 +1993,18 @@ impl Runtime {
             }
         }
         for attrs in records {
+            // Record into the FRAMEWORK COLLABORATOR. The outbox is kernel
+            // substrate, not a user aggregate — the domain that emitted the
+            // event never needs to carry it.
+            let agg_type = event.aggregate_type.clone();
+            let agg_id = event.aggregate_id.clone();
+            let fw = self.framework_mut();
             let _ = command_dispatch::dispatch_cascade(
-                self,
+                fw,
                 "Hecks::Framework::Hexagon::OutboundEvent::OutboundEvent.Record",
                 attrs,
-                &event.aggregate_type,
-                &event.aggregate_id,
+                &agg_type,
+                &agg_id,
             );
         }
     }
@@ -3247,9 +3244,8 @@ impl Runtime {
     #[cfg(not(target_arch = "wasm32"))]
     pub fn drain_outbound_to_quiescence(&mut self) -> usize {
         const MAX_ITERS: usize = 256;
-        if !self.domain.aggregates.iter().any(|a| a.name == "OutboundEvent") {
-            return 0;
-        }
+        // The outbox lives in the framework collaborator — always available, so
+        // no presence guard.
         let root = self.aggregates_root.clone().unwrap_or_default();
 
         struct Pending {
@@ -3284,7 +3280,7 @@ impl Runtime {
             // here because it is a DRAIN concern, not a lifecycle one —
             // this loop only drives edges that re-enter with a verdict.
             let pending_result =
-                self.resolve_query("AllPending", &std::collections::HashMap::new());
+                self.framework_mut().resolve_query("AllPending", &std::collections::HashMap::new());
             let pending: Vec<Pending> = pending_result["state"]
                 .as_array()
                 .map(|rows| {
@@ -3326,7 +3322,7 @@ impl Runtime {
                 // (or the daemon) Claiming the same delivery errors here : skip.
                 let mut claim = HashMap::new();
                 claim.insert("delivery_id".to_string(), Value::Str(d.delivery_id.clone()));
-                if self.dispatch("Claim", claim).is_err() {
+                if self.framework_mut().dispatch_impl("Claim", claim).is_err() {
                     continue;
                 }
                 drained += 1;
@@ -3349,7 +3345,7 @@ impl Runtime {
                         let mut mf = HashMap::new();
                         mf.insert("delivery_id".to_string(), Value::Str(d.delivery_id.clone()));
                         mf.insert("error".to_string(), Value::Str(e));
-                        let _ = self.dispatch("MarkFailed", mf);
+                        let _ = self.framework_mut().dispatch_impl("MarkFailed", mf);
                     }
                     Ok(outcome) => {
                         let verdict = if outcome.success {
@@ -3379,7 +3375,7 @@ impl Runtime {
                         // Reached a verdict == HANDLED -> MarkDelivered (terminal).
                         let mut md = HashMap::new();
                         md.insert("delivery_id".to_string(), Value::Str(d.delivery_id.clone()));
-                        let _ = self.dispatch("MarkDelivered", md);
+                        let _ = self.framework_mut().dispatch_impl("MarkDelivered", md);
                     }
                 }
             }

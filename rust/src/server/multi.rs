@@ -87,9 +87,11 @@ pub fn serve_directory(dir: &str, port: u16) {
     let _ = SERVED_ROOT.set(dir.to_string());
     // Load every hecksagon (incl. .family / .adapter) under the served tree
     // AND under the running repo FIRST — the domain runtimes boot WITH them
-    // attached (boot_served_runtime), so ensure_outbox_substrate merges the
-    // OutboundEvent outbox and the effect drain resolves each adapter's
-    // handler. Loading them AFTER the runtimes (as before) left every served
+    // attached (boot_served_runtime), so the effect drain resolves each
+    // adapter's handler. (The outbox itself is no longer merged in : it lives
+    // in the framework collaborator, which is why a served domain's page shows
+    // only the aggregates its author wrote.) Loading them AFTER the runtimes
+    // (as before) left every served
     // runtime hecksagon-less, so declared effect ports never fired. They also
     // register their :web routes (living_diagram, etc.).
     let mut hecksagons = load_all_hecksagons(dir);
@@ -342,8 +344,7 @@ fn load_all_domains(
 
 /// Boot a served domain runtime the way the CLI dispatch path does
 /// (`dispatch_hecksagon`) : `boot_with_hecksagons` so the attached hecksagons
-/// let `ensure_outbox_substrate` merge the OutboundEvent outbox and the effect
-/// drain resolve each adapter's handler ; set the `aggregates_root` a
+/// let the effect drain resolve each adapter's handler ; set the `aggregates_root` a
 /// re-entering handler shells against ; fold the per-deployment `.world`
 /// config onto the adapters so a drained handler gets its env. Before this a
 /// served runtime booted hecksagon-less (`boot_with_data_dir`), so it had no

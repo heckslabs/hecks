@@ -104,7 +104,7 @@ fn host_pass_authorizes_order_and_delivers() {
     place_order(&mut rt, "order-1");
 
     // One delivery is pending before the pass.
-    let before = rt.find("OutboundEvent", "Order::order-1::OrderPlaced::Stripe");
+    let before = rt.outbound_delivery("Order::order-1::OrderPlaced::Stripe");
     assert_eq!(before.expect("delivery recorded").get("status"), &s("pending"));
 
     // The host pass : claim -> exec the real handler -> dispatch verdict -> ack.
@@ -120,8 +120,7 @@ fn host_pass_authorizes_order_and_delivers() {
     );
 
     // The delivery closed : pending -> delivered.
-    let delivery = rt
-        .find("OutboundEvent", "Order::order-1::OrderPlaced::Stripe")
+    let delivery = rt.outbound_delivery("Order::order-1::OrderPlaced::Stripe")
         .expect("delivery exists");
     assert_eq!(
         delivery.get("status"),
@@ -163,8 +162,7 @@ fn host_pass_declines_order_and_still_delivers() {
         "the failure verdict (Decline) re-entered on a non-zero handler exit",
     );
 
-    let delivery = rt
-        .find("OutboundEvent", "Order::order-2::OrderPlaced::Stripe")
+    let delivery = rt.outbound_delivery("Order::order-2::OrderPlaced::Stripe")
         .expect("delivery exists");
     assert_eq!(
         delivery.get("status"),

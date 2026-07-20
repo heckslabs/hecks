@@ -112,7 +112,7 @@ fn no_binding_in_process_lands_completion_and_records_zero_outbound_events() {
 
     // Nothing went out-of-process : ZERO OutboundEvents recorded.
     assert_eq!(
-        rt.all("OutboundEvent").len(),
+        rt.outbound_deliveries().len(),
         0,
         "in-process path records NO OutboundEvent (no effect binding to record)"
     );

@@ -156,7 +156,7 @@ fn fetch_field(rt: &Runtime, field: &str) -> String {
 }
 
 fn oe_status(rt: &Runtime) -> Option<String> {
-    rt.all("OutboundEvent")
+    rt.outbound_deliveries()
         .into_iter()
         .find(|d| d.get("adapter").as_str() == Some("TestWeb"))
         .map(|d| d.get("status").as_str().unwrap_or("").to_string())
@@ -358,7 +358,7 @@ fn no_binding_in_process_fires_cascade_and_records_zero_outbound_events() {
 
     // Nothing went out-of-process : ZERO OutboundEvents recorded.
     assert_eq!(
-        rt.all("OutboundEvent").len(),
+        rt.outbound_deliveries().len(),
         0,
         "in-process path records NO OutboundEvent (no effect binding to record)"
     );

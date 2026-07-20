@@ -123,17 +123,31 @@ fn verdict_transitions_the_real_order_no_phantom() {
     }
 
     // Exactly two OutboundEvents recorded (one per order), both pending.
-    let deliveries = rt.all("OutboundEvent");
+    let deliveries = rt.outbound_deliveries();
     assert_eq!(deliveries.len(), 2, "one effect binding per order records two OutboundEvents");
 
     // Bug B — OutboundEventRecorded fires exactly once per order (no double-record).
+    //
+    // Counted on the FRAMEWORK COLLABORATOR's bus, not the user's. The outbox
+    // is kernel substrate, so its bookkeeping events belong to the framework
+    // runtime — a Shop consumer subscribing to Shop's bus should not have to
+    // filter out the kernel's own chatter. Same guard, correct bus.
     let recorded = rt
-        .event_bus
-        .events()
-        .iter()
-        .filter(|e| e.name == "OutboundEventRecorded")
-        .count();
+        .framework
+        .as_ref()
+        .map(|fw| {
+            fw.event_bus
+                .events()
+                .iter()
+                .filter(|e| e.name == "OutboundEventRecorded")
+                .count()
+        })
+        .unwrap_or(0);
     assert_eq!(recorded, 2, "OutboundEventRecorded fires exactly once per cascade (no double)");
+    assert!(
+        !rt.event_bus.events().iter().any(|e| e.name == "OutboundEventRecorded"),
+        "framework bookkeeping must NOT appear on the user domain's event bus",
+    );
 
     // Drive the in-process drain (the serve/dispatch boundary path).
     let drained = rt.drain_outbound_to_quiescence();

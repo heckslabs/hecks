@@ -130,7 +130,7 @@ fn dream_completion_text(rt: &Runtime) -> String {
 }
 
 fn oe_status(rt: &Runtime) -> Option<String> {
-    rt.all("OutboundEvent")
+    rt.outbound_deliveries()
         .into_iter()
         .find(|d| d.get("adapter").as_str() == Some("TestLlm"))
         .map(|d| d.get("status").as_str().unwrap_or("").to_string())

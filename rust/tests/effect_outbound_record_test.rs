@@ -79,7 +79,7 @@ fn effect_binding_records_one_outbound_event_on_emit() {
     attrs.insert("total".to_string(), s("4200"));
     rt.dispatch("PlaceOrder", attrs).expect("PlaceOrder dispatches");
 
-    let deliveries = rt.all("OutboundEvent");
+    let deliveries = rt.outbound_deliveries();
     assert_eq!(
         deliveries.len(),
         1,
@@ -104,7 +104,7 @@ fn effect_binding_records_one_outbound_event_on_emit() {
     // The host's poll : Pending(adapter) returns the delivery for its adapter.
     let mut q = HashMap::new();
     q.insert("adapter".to_string(), "Stripe".to_string());
-    let pending = rt.resolve_query("Pending", &q);
+    let pending = rt.framework_query("Pending", &q);
     // `state` is always a LIST, so the host's poll reads its whole backlog
     // with one shape whether one delivery is waiting or twenty.
     let state = &pending["state"];
@@ -125,7 +125,7 @@ fn effect_binding_records_one_outbound_event_on_emit() {
     // A non-subscribing adapter sees nothing — the host only consumes its own.
     let mut q2 = HashMap::new();
     q2.insert("adapter".to_string(), "Ghost".to_string());
-    let none = rt.resolve_query("Pending", &q2);
+    let none = rt.framework_query("Pending", &q2);
     // An empty backlog is an EMPTY LIST, not null and not a bare object — the
     // no-match case has the same shape as every other case, so a host can loop
     // it without a special branch.
@@ -182,7 +182,7 @@ fn fire_and_forget_effect_binding_records_outbound_event_with_no_verdict() {
     attrs.insert("text".to_string(), s("hello"));
     rt.dispatch("Speak", attrs).expect("Speak dispatches");
 
-    let deliveries = rt.all("OutboundEvent");
+    let deliveries = rt.outbound_deliveries();
     assert_eq!(deliveries.len(), 1, "a fire-and-forget bind records one OutboundEvent");
     let d = deliveries[0];
     assert_eq!(d.get("adapter"), &s("ElevenLabs"), "named for the tts adapter");
@@ -216,7 +216,7 @@ fn fire_and_forget_effect_binding_records_outbound_event_with_no_verdict() {
     rt.dispatch("PlaceOrder", attrs).expect("PlaceOrder dispatches");
 
     assert!(
-        rt.all("OutboundEvent").is_empty(),
+        rt.outbound_deliveries().is_empty(),
         "a reply port is DI/in-process — it records no outbound delivery",
     );
 }
@@ -249,7 +249,7 @@ fn host_round_trip_consumes_claims_dispatches_verdict_and_acks() {
     // 2. HOST: poll its pending deliveries.
     let mut q = HashMap::new();
     q.insert("adapter".to_string(), "Stripe".to_string());
-    let pending = rt.resolve_query("Pending", &q);
+    let pending = rt.framework_query("Pending", &q);
     // `state` is always a LIST — the host takes the first of its backlog.
     let d = &pending["state"][0];
     let delivery_id = d["delivery_id"].as_str().expect("delivery_id").to_string();
@@ -259,9 +259,14 @@ fn host_round_trip_consumes_claims_dispatches_verdict_and_acks() {
     let verdict_bare = success_command.rsplit('.').next().unwrap().to_string();
 
     // 3. HOST: claim -> (thin handler returns success) -> dispatch verdict -> ack.
+    //
+    // The two halves of a delivery now land in DIFFERENT runtimes : Claim and
+    // MarkDelivered are OUTBOX lifecycle and go to the framework collaborator,
+    // while the verdict is a DOMAIN transition and goes to the parent. This is
+    // exactly the split `run_host` performs.
     let mut claim = HashMap::new();
     claim.insert("delivery_id".to_string(), s(&delivery_id));
-    rt.dispatch("Claim", claim).expect("Claim");
+    rt.framework_mut().dispatch("Claim", claim).expect("Claim");
 
     let mut verdict = HashMap::new();
     verdict.insert("id".to_string(), s(&source_id));
@@ -269,7 +274,7 @@ fn host_round_trip_consumes_claims_dispatches_verdict_and_acks() {
 
     let mut ack = HashMap::new();
     ack.insert("delivery_id".to_string(), s(&delivery_id));
-    rt.dispatch("MarkDelivered", ack).expect("MarkDelivered");
+    rt.framework_mut().dispatch("MarkDelivered", ack).expect("MarkDelivered");
 
     // The verdict landed on the originating order, and the delivery closed.
     let order = rt.find("Order", "order-7").expect("order exists");
@@ -278,7 +283,7 @@ fn host_round_trip_consumes_claims_dispatches_verdict_and_acks() {
         &s("authorized"),
         "the host's success verdict (Authorize) re-entered onto the right order",
     );
-    let closed = rt.find("OutboundEvent", &delivery_id).expect("delivery exists");
+    let closed = rt.outbound_delivery(&delivery_id).expect("delivery exists");
     assert_eq!(
         closed.get("status"),
         &s("delivered"),

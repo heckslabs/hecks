@@ -125,8 +125,12 @@ fn field(row: &serde_json::Value, key: &str) -> String {
 /// draining a backlog. That shape is now invariant (a query always returns a
 /// list), so the predicate lives where it belongs: in the aggregate that owns
 /// the lifecycle. What "pending" MEANS is no longer restated here.
-fn pending_deliveries(rt: &Runtime) -> Vec<Delivery> {
-    let result = rt.resolve_query("AllPending", &std::collections::HashMap::new());
+fn pending_deliveries(rt: &mut Runtime) -> Vec<Delivery> {
+    // The outbox lives in the framework collaborator, so the host polls THERE
+    // — the served domain never carries it.
+    let result = rt
+        .framework_mut()
+        .resolve_query("AllPending", &std::collections::HashMap::new());
     result["state"]
         .as_array()
         .map(|rows| {
@@ -160,7 +164,10 @@ pub fn run_host_pass(rt: &mut Runtime) -> usize {
         //    pending` makes a second host's Claim error : skip, it's not ours.
         let mut claim = HashMap::new();
         claim.insert("delivery_id".to_string(), Value::Str(d.delivery_id.clone()));
-        if rt.dispatch("Claim", claim).is_err() {
+        // Claim is OUTBOX lifecycle — the collaborator. (The verdict command
+        // below is DOMAIN and still goes to the parent : the two halves of a
+        // delivery land in different runtimes now.)
+        if rt.framework_mut().dispatch_impl("Claim", claim).is_err() {
             continue;
         }
         acted += 1;
@@ -225,7 +232,7 @@ pub fn run_host_pass(rt: &mut Runtime) -> usize {
 fn mark_delivered(rt: &mut Runtime, delivery_id: &str) {
     let mut a = HashMap::new();
     a.insert("delivery_id".to_string(), Value::Str(delivery_id.to_string()));
-    if let Err(e) = rt.dispatch("MarkDelivered", a) {
+    if let Err(e) = rt.framework_mut().dispatch_impl("MarkDelivered", a) {
         eprintln!("[storehouse host] MarkDelivered({}) error: {:?}", delivery_id, e);
     }
 }
@@ -234,7 +241,7 @@ fn mark_failed(rt: &mut Runtime, delivery_id: &str, error: &str) {
     let mut a = HashMap::new();
     a.insert("delivery_id".to_string(), Value::Str(delivery_id.to_string()));
     a.insert("error".to_string(), Value::Str(error.to_string()));
-    if let Err(e) = rt.dispatch("MarkFailed", a) {
+    if let Err(e) = rt.framework_mut().dispatch_impl("MarkFailed", a) {
         eprintln!("[storehouse host] MarkFailed({}) error: {:?}", delivery_id, e);
     }
 }
