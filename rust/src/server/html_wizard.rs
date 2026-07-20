@@ -81,7 +81,7 @@ pub fn wizard_script() -> &'static str {
       }
     });
     function nodeHtml(ev, depth) {
-      var label = humanize(ev.name || '') +
+      var label = humanize(ev.event || '') +
         (ev.aggregate_type ? ' · ' + humanize(ev.aggregate_type) : '') +
         (ev.aggregate_id ? ' #' + ev.aggregate_id : '');
       var pad = depth * 16;
@@ -247,10 +247,10 @@ pub fn wizard_script() -> &'static str {
             html += cascadeTreeHtml(r.cascade);
           }
           var chips = r.cascade
-            .filter(function(ev) { return !(ev.aggregate_id === r.aggregate_id && ev.name === r.event); })
+            .filter(function(ev) { return !(ev.aggregate_id === r.aggregate_id && ev.event === r.event); })
             .map(function(ev) {
               return '<span class="inline-block px-2 py-1 mr-1 mt-2 rounded text-xs bg-brand/10 text-brand border border-brand/30">' +
-                '\u21aa ' + humanize(ev.name || '') +
+                '\u21aa ' + humanize(ev.event || '') +
                 (ev.aggregate_type ? ' \u00b7 ' + humanize(ev.aggregate_type) : '') +
                 (ev.aggregate_id ? ' #' + ev.aggregate_id : '') +
                 '</span>';
@@ -261,8 +261,8 @@ pub fn wizard_script() -> &'static str {
           }
           // Log each downstream cascade event to the event stream too.
           r.cascade.forEach(function(ev) {
-            if (ev.aggregate_id === r.aggregate_id && ev.name === r.event) return;
-            addEvent(ev.name, cmd, ev.aggregate_type, ev.aggregate_id, true);
+            if (ev.aggregate_id === r.aggregate_id && ev.event === r.event) return;
+              addEvent(ev.event, cmd, ev.aggregate_type, ev.aggregate_id, true);
           });
         }
         el.innerHTML = html;
