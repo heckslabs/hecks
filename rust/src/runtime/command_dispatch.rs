@@ -306,6 +306,16 @@ fn dispatch_inner(
             if agg_attr_names.contains(&cmd_attr.name.as_str()) {
                 if let Some(val) = attrs.get(&cmd_attr.name) {
                     state.set(&cmd_attr.name, val.clone());
+                } else if let Some(ref d) = cmd_attr.default {
+                    // The COMMAND's declared default, when the caller
+                    // omitted the attribute. Previously only a supplied
+                    // value ever reached state, so
+                    // `attribute :currency, Currency, default: "USD"` on a
+                    // command was inert — the field simply stayed unset,
+                    // and the declaration said something the runtime did
+                    // not do. Aggregate-level defaults already applied
+                    // (apply_defaults) ; this closes the command-level half.
+                    state.set(&cmd_attr.name, parse_default(d, &cmd_attr.attr_type));
                 }
             }
         }
@@ -1143,11 +1153,19 @@ pub(crate) fn apply_lifecycle_default(rt: &Runtime, agg_idx: usize, state: &mut 
 
 fn apply_defaults(rt: &Runtime, agg_idx: usize, state: &mut AggregateState) {
     let agg = &rt.domain.aggregates[agg_idx];
-    let vo_names: Vec<&str> = agg.value_objects.iter().map(|vo| vo.name.as_str()).collect();
     for attr in &agg.attributes {
         if let Some(ref default) = attr.default {
             state.set(&attr.name, parse_default(default, &attr.attr_type));
-        } else if attr.list || vo_names.contains(&attr.attr_type.as_str()) {
+        } else if attr.list {
+            // ONLY a declared list gets an empty-list placeholder. This used to
+            // read `attr.list || vo_names.contains(&attr.attr_type)` — the
+            // AUTO-LIST HEURISTIC, which the locked convention retired from both
+            // parsers (`attribute :foos, Foo` is SCALAR ; lists require
+            // `list_of(X)`). It survived here, so every scalar value-object
+            // attribute was initialised as an empty list and read back as the
+            // string "[0 items]" — e.g. ToolShed's `attribute :currency,
+            // Currency`. The symptom looked like a Display leak ; the value
+            // itself was wrong.
             state.set(&attr.name, Value::List(vec![]));
         }
     }

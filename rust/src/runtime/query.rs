@@ -444,15 +444,17 @@ impl Runtime {
             });
         }
 
+        // Project through `value_to_json`, the shared converter — NOT a
+        // hand-rolled match. This used to cover Str/Int/Bool and fall back to
+        // `v.to_string()` for everything else, so a list field rendered as the
+        // string `"[0 items]"` and a value-object map as its Display form :
+        // `Value`'s DEBUG-oriented Display leaking into a read the CLI, the
+        // served UI and every embedder consume. A list is a JSON array and a
+        // value object is a JSON object.
         let records: Vec<serde_json::Value> = filtered.iter().map(|s| {
             let mut map = serde_json::Map::new();
             for (k, v) in &s.fields {
-                map.insert(k.clone(), match v {
-                    Value::Str(s) => serde_json::json!(s),
-                    Value::Int(n) => serde_json::json!(n),
-                    Value::Bool(b) => serde_json::json!(b),
-                    _ => serde_json::json!(v.to_string()),
-                });
+                map.insert(k.clone(), value_to_json(v));
             }
             serde_json::Value::Object(map)
         }).collect();
