@@ -843,9 +843,12 @@ impl Runtime {
     /// the other gates ; no per-dispatch network hop). Cedar-shaped, deny-by-
     /// default, forbid-overrides-permit : map the dispatch to (principal,
     /// action, resource) and ALLOW iff an active, unexpired PERMIT matches and
-    /// NO matching FORBID does. System origin admitted by origin. Declaration-
-    /// gated (not self-seeded) — enforces nothing until a Gate with check
-    /// "authorize" is declared, so turning on deny-by-default is explicit.
+    /// NO matching FORBID does. System origin admitted by origin. STANDING :
+    /// self-seeded ON at every boot (`hydrate_middleware`) unless a Gate named
+    /// "authorize" is declared, so the door is deny-by-default from boot. A
+    /// command's own declared `role` is an IMPLICIT PERMIT for a caller of
+    /// that role, so `role "System"` enforces with no Policy authored ; Policy
+    /// is the OVERRIDE (permit another role ; forbid the declared one).
     /// FRONTIER : a PERMIT applies only when unconditional (condition "-") ; a
     /// conditional FORBID is treated as unconditional-deny (fail-closed) until
     /// the `when` grammar lands.
@@ -957,6 +960,22 @@ impl Runtime {
                     }
                 }
                 _ => {}
+            }
+        }
+        // IMPLICIT PERMIT from the command's own declared role. Reached only
+        // PAST the loop, so a matching Forbid already returned (it wins) and
+        // any explicit Permit already set `permitted`. A caller acting AS the
+        // command's declared role is admitted with no policy authored, so
+        // `role "System"` MEANS something ; Policy stays the OVERRIDE. Match
+        // EXACTLY (as the `p == role` match above) ; `declared_role` rode in
+        // on the same resolution as `action_forms`, so it is the executing
+        // command's role.
+        if !permitted {
+            if let Some(cmd_role) = canon.declared_role.as_deref() {
+                if !role.is_empty() && !cmd_role.is_empty() && cmd_role == role {
+                    permitted = true;
+                    matched.push(format!("permit:command-role:{}", cmd_role));
+                }
             }
         }
         if permitted {

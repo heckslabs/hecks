@@ -507,6 +507,12 @@ pub fn canonical_for_log(rt: &Runtime, command_name: &str) -> String {
 pub(crate) struct CanonicalAction {
     pub action_forms: Vec<String>,
     pub resource_forms: Vec<String>,
+    /// The RESOLVED command's declared actor (`role "System"`). `Some` only
+    /// on the command branch (query / raw fallback leave it `None`, so an
+    /// unresolvable phrase gets no implicit permit — fail-closed). The authz
+    /// gate reads it as an implicit permit for a caller of that role
+    /// (evaluate_policy), bound to the command whose forms are matched.
+    pub declared_role: Option<String>,
 }
 
 pub(crate) fn canonical_action(rt: &Runtime, name: &str) -> CanonicalAction {
@@ -514,8 +520,12 @@ pub(crate) fn canonical_action(rt: &Runtime, name: &str) -> CanonicalAction {
     // exactly what would execute.
     if let Ok(res) = resolve(rt, name, None) {
         let agg = &rt.domain.aggregates[res.agg_idx()];
-        let verb = cmd_for(rt, res).name.clone();
-        return canon_forms(agg, &verb);
+        let cmd = cmd_for(rt, res);
+        let verb = cmd.name.clone();
+        let role = cmd.role.clone();
+        let mut ca = canon_forms(agg, &verb);
+        ca.declared_role = role; // the EXECUTING command's role — same resolution
+        return ca;
     }
     // Then a query — by exact or snake_case verb, refusing on a homonym (an
     // ambiguous verb keeps the raw fallback rather than guess an aggregate).
@@ -532,8 +542,11 @@ pub(crate) fn canonical_action(rt: &Runtime, name: &str) -> CanonicalAction {
     CanonicalAction {
         action_forms: dedup_nonempty(vec![name.to_string(), verb]),
         resource_forms: dedup_nonempty(vec![resource.to_string()]),
+        declared_role: None, // unresolvable phrase -> no implicit permit (fail-closed)
     }
 }
+
+
 
 /// Build the action/resource form set for a RESOLVED (aggregate, verb). The
 /// `Domain` segment is the aggregate's bluebook context (falling back to its
@@ -563,6 +576,7 @@ fn canon_forms(agg: &crate::ir::Aggregate, verb: &str) -> CanonicalAction {
     CanonicalAction {
         action_forms: dedup_nonempty(action_forms),
         resource_forms: dedup_nonempty(resource_forms),
+        declared_role: None, // caller (canonical_action's command branch) overrides
     }
 }
 
