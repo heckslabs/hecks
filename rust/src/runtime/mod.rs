@@ -1088,6 +1088,22 @@ impl Runtime {
         self.acl_read_model = m;
     }
 
+    /// The reference fields (name, id) an event carries in its data — the
+    /// `belongs_to` / `reference_to` leaves of the emitting aggregate, so the
+    /// served causation-tree node can show WHO/WHAT the event linked (member
+    /// #1, tool #1). Empty when the aggregate is unknown or has no references.
+    pub fn event_refs(&self, aggregate_type: &str, data: &HashMap<String, Value>) -> Vec<(String, String)> {
+        self.domain.aggregates.iter()
+            .find(|a| a.name == aggregate_type)
+            .map(|a| a.references.iter().filter_map(|r| {
+                data.get(&r.name)
+                    .map(Self::value_field)
+                    .filter(|s| !s.is_empty())
+                    .map(|s| (r.name.clone(), s))
+            }).collect())
+            .unwrap_or_default()
+    }
+
     pub fn dispatch(
         &mut self,
         command_name: &str,

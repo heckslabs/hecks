@@ -402,6 +402,15 @@ pub fn dispatch(
                 if let Some(ref cid) = e.causation_id {
                     extra.push_str(&format!(r#","causation_id":"{}""#, cid));
                 }
+                // The event's reference leaves (member #1, tool #1) so the
+                // causation node names the participants, not just the event.
+                let refs = rt.event_refs(&e.aggregate_type, &e.data);
+                if !refs.is_empty() {
+                    let inner: Vec<String> = refs.iter()
+                        .map(|(k, v)| format!(r#"{{"name":"{}","id":"{}"}}"#, k, v))
+                        .collect();
+                    extra.push_str(&format!(r#","refs":[{}]"#, inner.join(",")));
+                }
                 format!(
                     r#"{{"event":"{}","aggregate_type":"{}","aggregate_id":"{}"{}}}"#,
                     e.name, e.aggregate_type, e.aggregate_id, extra

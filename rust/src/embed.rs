@@ -276,6 +276,12 @@ pub fn authorized_dispatch(
         o.insert("aggregate_id".to_string(), json!(e.aggregate_id));
         if let Some(id) = &e.event_id { o.insert("event_id".to_string(), json!(id)); }
         if let Some(cid) = &e.causation_id { o.insert("causation_id".to_string(), json!(cid)); }
+        let refs = rt.event_refs(&e.aggregate_type, &e.data);
+        if !refs.is_empty() {
+            o.insert("refs".to_string(), json!(refs.iter()
+                .map(|(k, v)| json!({"name": k, "id": v}))
+                .collect::<Vec<_>>()));
+        }
         serde_json::Value::Object(o)
     }).collect();
 

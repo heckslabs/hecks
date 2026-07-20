@@ -90,6 +90,10 @@ pub fn wizard_script() -> &'static str {
         'style="margin-left:' + pad + 'px" data-eid="' + (ev.event_id || '') + '" ' +
         'data-cid="' + (ev.causation_id || '') + '" onclick="highlightCausation(this)">' +
         connector + '<span class="text-brand">' + label + '</span></div>';
+      if (ev.refs && ev.refs.length) {
+        var refsTxt = ev.refs.map(function(rf) { return humanize(rf.name) + ' #' + rf.id; }).join(', ');
+        out += '<div class="text-gray-500" style="margin-left:' + (pad + 16) + 'px">refs : ' + refsTxt + '</div>';
+      }
       var kids = ev.event_id ? (kidsOf[ev.event_id] || []) : [];
       kids.forEach(function(k) { out += nodeHtml(k, depth + 1); });
       return out;
