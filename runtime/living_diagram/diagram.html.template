@@ -986,10 +986,11 @@
     function closePanel() { panel.classList.remove('open'); }
 
     function onNodeTap(data) {
-      // Always smooth-snap the view so the tapped node centers in
-      // the canvas. The animation makes navigation feel intentional
-      // rather than "the viewport just changed."
-      snapToNode(data.id);
+      // Exactly ONE camera move per tap. An aggregate fit-zooms to its
+      // whole subtree inside showAggregate ; every other kind centers on
+      // itself here. Doing BOTH snap-to-node AND fit-to-subtree made the
+      // view zoom to the node, then jump/scroll to the subtree fit.
+      if (data.kind !== 'aggregate') snapToNode(data.id);
 
       if (data.kind === 'command')   showCommandForm(data);
       else if (data.kind === 'aggregate') showAggregate(data);
@@ -1788,7 +1789,8 @@
           if (id) {
             const node = cy.$id(id);
             if (!node.empty()) {
-              snapToNode(id);
+              // onNodeTap does the single camera move ; calling snapToNode
+              // here too made the view zoom, then jump (double animation).
               onNodeTap(node.data());
             }
           }
