@@ -1117,6 +1117,16 @@ fn main() {
             eprintln!("Usage: storehouse query <root-or-bluebook> <Domain::Aggregate.snake_case> [k=v ...]");
             std::process::exit(1);
         }
+        // A query verb is snake_case ; a PascalCase tail is a COMMAND and would
+        // MUTATE through dispatch_hecksagon's fall-through (it matches the tail
+        // against query names by snake_case ; a command tail matches none and
+        // dispatches). The `query` door is READ-ONLY, so refuse a command here
+        // (mirrors the MCP shim's query.mjs guard).
+        let tail = verb.rsplit(['.', ':']).next().unwrap_or(&verb);
+        if tail.chars().next().is_some_and(|c| c.is_uppercase()) {
+            eprintln!("storehouse query is read-only ; `{verb}` looks like a command (PascalCase tail). Use `storehouse <root> {verb} k=v` to dispatch a command.");
+            std::process::exit(2);
+        }
         let attrs: std::collections::HashMap<String, serde_json::Value> = args.get(4..)
             .unwrap_or(&[]).iter()
             .filter_map(|a| {
