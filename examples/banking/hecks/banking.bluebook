@@ -98,6 +98,13 @@ Hecks.bluebook "Banking" do
       invariant "non-negative for balance contexts" do
         cents >= 0
       end
+      # Rich value object (Evans : VOs are the core) : Money OWNS its
+      # behaviour. Pure, immutable predicates over own-fields + a param,
+      # callable from givens — so the preconditions read as domain language
+      # ("balance covers amount") instead of field arithmetic.
+      derive :positive?,      Boolean do cents > 0 end
+      derive :covers?,        Boolean do |other| cents >= other.cents end
+      derive :same_currency?, Boolean do |other| currency.code == other.currency.code end
     end
 
     value_object "Currency" do
@@ -163,8 +170,8 @@ Hecks.bluebook "Banking" do
       reference_to(Account)
       attribute :amount,      Money
       attribute :description, Description
-      given { amount.cents > 0 }
-      given { amount.currency.code == balance.currency.code }
+      given { amount.positive? }
+      given { amount.same_currency?(balance) }
       emits "Deposited"
       # Balance increases by amount ; a credit LedgerEntry is appended.
       # The runtime composes the arithmetic — Money addition with
@@ -177,10 +184,10 @@ Hecks.bluebook "Banking" do
       reference_to(Account)
       attribute :amount,      Money
       attribute :description, Description
-      given { amount.cents > 0 }
-      given { amount.currency.code == balance.currency.code }
-      given { balance.cents >= amount.cents }                # insufficient-funds gate
-      given { amount.cents <= daily_limit.cents }            # daily-limit gate
+      given { amount.positive? }
+      given { amount.same_currency?(balance) }
+      given { balance.covers?(amount) }                      # insufficient-funds gate
+      given { daily_limit.covers?(amount) }                  # daily-limit gate
       emits "Withdrawn"
       then_set :balance, decrement: :amount
       then_set :ledger,  append: { amount: :amount, description: :description, entry_type: "debit" }

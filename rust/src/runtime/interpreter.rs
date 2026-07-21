@@ -4,7 +4,7 @@
 //! Givens are predicates. Mutations are state changes. Both are data.
 //!
 //! Usage:
-//!   check_givens(cmd, state, attrs)?;
+//!   check_givens(cmd, state, attrs, ctx)?;   // ctx carries VO type info
 //!   apply_mutations(cmd, state, attrs);
 //!
 //! [antibody-exempt: i106 dsl-mutation-primitives — kernel-surface
@@ -25,13 +25,65 @@
 //!  ruby/hecks/behaviors/interpreter.rb.]
 
 use super::{AggregateState, RuntimeError, Value};
-use crate::ir::{Command, MutationOp};
+use crate::ir::{Aggregate, Command, Derivation, MutationOp, ValueObject};
 use std::collections::HashMap;
+
+/// The borrow-only TYPE context a predicate evaluates against. A runtime
+/// `Value::Map` carries no type tag, so a bare `balance` cannot know it is a
+/// `Money` that declares `covers?`. EvalCtx supplies that : `attr_types` maps an
+/// attribute NAME to its value-object type, and `value_objects` is the aggregate's
+/// VO list to resolve the derivation on. It is Copy (two borrows) and threads
+/// unchanged through every recursive `resolve_expr` / `evaluate_given` call.
+/// `EvalCtx::default()` is EMPTY — no types, no VOs — so the invariants and
+/// payload-gate callers (which judge incoming attrs with no VO-method dispatch)
+/// pass it and the method-dispatch branch stays inert there.
+#[derive(Clone, Copy, Default)]
+pub struct EvalCtx<'a> {
+    value_objects: &'a [ValueObject],
+    attr_types: Option<&'a HashMap<String, String>>,
+}
+
+impl<'a> EvalCtx<'a> {
+    /// The type context for a command's givens : the aggregate's value objects
+    /// plus a name→type map spanning the command's attributes and the aggregate's
+    /// own attributes (state fields). Command attrs shadow aggregate attrs on a
+    /// name collision, mirroring `resolve_expr`'s attrs-shadow-state rule.
+    pub fn for_command(vos: &'a [ValueObject], attr_types: &'a HashMap<String, String>) -> Self {
+        EvalCtx { value_objects: vos, attr_types: Some(attr_types) }
+    }
+}
+
+/// Build the name→value-object-type map a command's givens resolve against.
+/// Aggregate attributes first (state fields), then command attributes so a
+/// same-named command kwarg shadows the state field — the attrs-shadow-state
+/// rule `resolve_expr` already honours.
+pub fn build_attr_types(cmd: &Command, agg: &Aggregate) -> HashMap<String, String> {
+    let mut types = HashMap::new();
+    for a in &agg.attributes {
+        types.insert(a.name.clone(), a.attr_type.clone());
+    }
+    for a in &cmd.attributes {
+        types.insert(a.name.clone(), a.attr_type.clone());
+    }
+    types
+}
+
+/// Resolve a `receiver.method` call to the derivation it names — iff a type
+/// context is present, the receiver attribute has a known value-object type,
+/// and that VO declares a derivation of that name. Returns None (so the caller
+/// falls through to field access / flat lookup) in every other case.
+fn lookup_derivation<'a>(ctx: EvalCtx<'a>, receiver: &str, method: &str) -> Option<&'a Derivation> {
+    let types = ctx.attr_types?;
+    let vo_name = types.get(receiver)?;
+    let vo = ctx.value_objects.iter().find(|v| &v.name == vo_name)?;
+    vo.derivations.iter().find(|d| d.name == method)
+}
 
 pub fn check_givens(
     cmd: &Command,
     state: &AggregateState,
     attrs: &HashMap<String, Value>,
+    ctx: EvalCtx,
 ) -> Result<(), RuntimeError> {
         // A mutation the parser could not resolve (an unknown `then_set` op like
         // `bogus_op:`) is recorded with `invalid_op = Some(_)` instead of
@@ -69,7 +121,7 @@ pub fn check_givens(
         }
     }
     for given in &cmd.givens {
-        if !evaluate_given(&given.expression, state, attrs) {
+        if !evaluate_given(&given.expression, state, attrs, ctx) {
             return Err(RuntimeError::GivenFailed {
                 message: given
                     .message
@@ -234,14 +286,16 @@ pub fn evaluate_predicate(
     expr: &str,
     state: &AggregateState,
     attrs: &HashMap<String, Value>,
+    ctx: EvalCtx,
 ) -> bool {
-    evaluate_given(expr, state, attrs)
+    evaluate_given(expr, state, attrs, ctx)
 }
 
 fn evaluate_given(
     expr: &str,
     state: &AggregateState,
     attrs: &HashMap<String, Value>,
+    ctx: EvalCtx,
 ) -> bool {
     let expr = expr.trim();
 
@@ -251,21 +305,21 @@ fn evaluate_given(
     // recursion gives us; `a || b || c` parses left-to-right via the
     // first `||` split, which matches common usage in givens.
     if let Some((lhs, rhs)) = split_top_level(expr, "||") {
-        return evaluate_given(lhs, state, attrs) || evaluate_given(rhs, state, attrs);
+        return evaluate_given(lhs, state, attrs, ctx) || evaluate_given(rhs, state, attrs, ctx);
     }
     if let Some((lhs, rhs)) = split_top_level(expr, "&&") {
-        return evaluate_given(lhs, state, attrs) && evaluate_given(rhs, state, attrs);
+        return evaluate_given(lhs, state, attrs, ctx) && evaluate_given(rhs, state, attrs, ctx);
     }
 
     // `field.any?` → field.size > 0; `field.empty?` → field.size == 0.
     // Ruby idioms used in handwritten bluebooks; rewrite to runtime
     // primitives so the comparison evaluator below handles them.
     if let Some(field) = expr.strip_suffix(".any?") {
-        let val = resolve_expr(&format!("{}.size", field.trim()), state, attrs);
+        let val = resolve_expr(&format!("{}.size", field.trim()), state, attrs, ctx);
         return compare_lt(&Value::Int(0), &val);
     }
     if let Some(field) = expr.strip_suffix(".empty?") {
-        let val = resolve_expr(&format!("{}.size", field.trim()), state, attrs);
+        let val = resolve_expr(&format!("{}.size", field.trim()), state, attrs, ctx);
         return values_equal(&val, &Value::Int(0));
     }
 
@@ -281,7 +335,7 @@ fn evaluate_given(
             let field = expr[..open].trim();
             let arg = without_close[open + ".include?(".len()..].trim();
             let haystack = attrs.get(field).cloned().unwrap_or_else(|| state.get(field).clone());
-            let needle = resolve_expr(arg, state, attrs);
+            let needle = resolve_expr(arg, state, attrs, ctx);
             let needle_s = match &needle {
                 Value::Str(s) => s.clone(),
                 other => other.to_string(),
@@ -298,40 +352,48 @@ fn evaluate_given(
     // operator wins. The split_comparison helpers also bail out on the
     // shorter operator when the longer is present.
     if let Some((lhs, rhs)) = split_comparison(expr, ">=") {
-        let left = resolve_expr(lhs.trim(), state, attrs);
-        let right = resolve_expr(rhs.trim(), state, attrs);
+        let left = resolve_expr(lhs.trim(), state, attrs, ctx);
+        let right = resolve_expr(rhs.trim(), state, attrs, ctx);
         return !compare_lt(&left, &right);
     }
     if let Some((lhs, rhs)) = split_comparison(expr, "<=") {
-        let left = resolve_expr(lhs.trim(), state, attrs);
-        let right = resolve_expr(rhs.trim(), state, attrs);
+        let left = resolve_expr(lhs.trim(), state, attrs, ctx);
+        let right = resolve_expr(rhs.trim(), state, attrs, ctx);
         return !compare_lt(&right, &left);
     }
     if let Some((lhs, rhs)) = split_comparison(expr, "<") {
-        let left = resolve_expr(lhs.trim(), state, attrs);
-        let right = resolve_expr(rhs.trim(), state, attrs);
+        let left = resolve_expr(lhs.trim(), state, attrs, ctx);
+        let right = resolve_expr(rhs.trim(), state, attrs, ctx);
         return compare_lt(&left, &right);
     }
     if let Some((lhs, rhs)) = split_comparison(expr, ">") {
-        let left = resolve_expr(lhs.trim(), state, attrs);
-        let right = resolve_expr(rhs.trim(), state, attrs);
+        let left = resolve_expr(lhs.trim(), state, attrs, ctx);
+        let right = resolve_expr(rhs.trim(), state, attrs, ctx);
         return compare_lt(&right, &left);
     }
     if let Some((lhs, rhs)) = split_comparison(expr, "==") {
-        let left = resolve_expr(lhs.trim(), state, attrs);
-        let right = resolve_expr(rhs.trim(), state, attrs);
+        let left = resolve_expr(lhs.trim(), state, attrs, ctx);
+        let right = resolve_expr(rhs.trim(), state, attrs, ctx);
         return values_equal(&left, &right);
     }
     if let Some((lhs, rhs)) = split_comparison(expr, "!=") {
-        let left = resolve_expr(lhs.trim(), state, attrs);
-        let right = resolve_expr(rhs.trim(), state, attrs);
+        let left = resolve_expr(lhs.trim(), state, attrs, ctx);
+        let right = resolve_expr(rhs.trim(), state, attrs, ctx);
         return !values_equal(&left, &right);
     }
 
-    true
+    // A bare boolean expression with no comparison operator — e.g. a VO
+    // predicate derivation `given { balance.covers?(amount) }`, or a plain
+    // Bool field. Resolve it and honour a Bool result ; a non-boolean bare
+    // given preserves the historical permissive default (passes), so this
+    // only ADDS truthiness for expressions that actually resolve to a Bool.
+    match resolve_expr(expr, state, attrs, ctx) {
+        Value::Bool(b) => b,
+        _ => true,
+    }
 }
 
-fn resolve_expr(expr: &str, state: &AggregateState, attrs: &HashMap<String, Value>) -> Value {
+fn resolve_expr(expr: &str, state: &AggregateState, attrs: &HashMap<String, Value>, ctx: EvalCtx) -> Value {
     // `field.length` is the Ruby-flavoured alias for `field.size` — both
     // resolve to a collection's element count. Bluebook authors reach for
     // `.length` interchangeably (e.g. `given { tasks.length >= 3 }`) ; the
@@ -340,7 +402,7 @@ fn resolve_expr(expr: &str, state: &AggregateState, attrs: &HashMap<String, Valu
     // through to the literal-field lookup, returns Null, numeric-coerces
     // to 0, and silently breaks the predicate.
     if let Some(field) = expr.strip_suffix(".length") {
-        return resolve_expr(&format!("{}.size", field.trim()), state, attrs);
+        return resolve_expr(&format!("{}.size", field.trim()), state, attrs, ctx);
     }
     if let Ok(n) = expr.parse::<i64>() {
         return Value::Int(n);
@@ -373,7 +435,7 @@ fn resolve_expr(expr: &str, state: &AggregateState, attrs: &HashMap<String, Valu
     // circuits to 0 so the predicate fires every call (safer than
     // panicking in a daemon).
     if let Some(arg) = expr.strip_prefix("rand_below(").and_then(|s| s.strip_suffix(')')) {
-        let arg_val = resolve_expr(arg.trim(), state, attrs);
+        let arg_val = resolve_expr(arg.trim(), state, attrs, ctx);
         let n = numeric_value(&arg_val).map(|f| f as i64).unwrap_or(0);
         if n <= 0 {
             return Value::Int(0);
@@ -405,14 +467,63 @@ fn resolve_expr(expr: &str, state: &AggregateState, attrs: &HashMap<String, Valu
         if expr.ends_with(')') {
             let receiver = &expr[..modulo_idx];
             let arg = &expr[modulo_idx + ".modulo(".len()..expr.len() - 1];
-            let recv_val = resolve_expr(receiver.trim(), state, attrs);
-            let arg_val = resolve_expr(arg.trim(), state, attrs);
+            let recv_val = resolve_expr(receiver.trim(), state, attrs, ctx);
+            let arg_val = resolve_expr(arg.trim(), state, attrs, ctx);
             let n = numeric_value(&arg_val).map(|f| f as i64).unwrap_or(0);
             if n <= 0 {
                 return Value::Int(0);
             }
             let lhs = numeric_value(&recv_val).map(|f| f as i64).unwrap_or(0);
             return Value::Int(lhs.rem_euclid(n));
+        }
+    }
+    // Value-object METHOD dispatch (`balance.covers?(amount)`, `amount.zero?`)
+    // — a pure derivation declared on the receiver's value object. Fires only
+    // when a type context is present (production givens) ; the invariants and
+    // payload-gate callers pass an empty ctx, so this is inert there. Placed
+    // BEFORE dotted field access : lookup_derivation returns Some only for a
+    // declared derivation, so a plain nested-field read (`amount.cents`) skips
+    // this and falls through unchanged. Resolve the receiver to its field-map,
+    // bind own-fields + positional params into a sub-scope, and evaluate the
+    // body — a Boolean derivation as a predicate, any other as an expression.
+    {
+        let (call_head, args_str): (&str, Option<&str>) = if expr.ends_with(')') {
+            match expr.find('(') {
+                Some(p) => (&expr[..p], Some(&expr[p + 1..expr.len() - 1])),
+                None => (expr, None),
+            }
+        } else {
+            (expr, None)
+        };
+        if let Some(dot) = call_head.rfind('.') {
+            let receiver = call_head[..dot].trim();
+            let method = call_head[dot + 1..].trim();
+            if !receiver.contains('.') && !receiver.is_empty() {
+                if let Some(deriv) = lookup_derivation(ctx, receiver, method) {
+                    let recv = attrs
+                        .get(receiver)
+                        .cloned()
+                        .unwrap_or_else(|| state.get(receiver).clone());
+                    if let Value::Map(fields) = recv {
+                        let mut sub_attrs = fields.clone();
+                        if let Some(a) = args_str {
+                            let args = split_call_args(a);
+                            for (i, pname) in deriv.params.iter().enumerate() {
+                                if let Some(one) = args.get(i) {
+                                    let v = resolve_expr(one.trim(), state, attrs, ctx);
+                                    sub_attrs.insert(pname.clone(), v);
+                                }
+                            }
+                        }
+                        let empty = AggregateState::new("_vo");
+                        return if deriv.return_type == "Boolean" {
+                            Value::Bool(evaluate_given(&deriv.expression, &empty, &sub_attrs, ctx))
+                        } else {
+                            resolve_expr(&deriv.expression, &empty, &sub_attrs, ctx)
+                        };
+                    }
+                }
+            }
         }
     }
     // Dotted value-object field access : `amount.cents`,
@@ -449,6 +560,35 @@ fn resolve_expr(expr: &str, state: &AggregateState, attrs: &HashMap<String, Valu
         return v.clone();
     }
     state.get(expr).clone()
+}
+
+/// Split a call's argument list on top-level commas — ignoring commas inside
+/// nested parens or quoted strings. An empty / whitespace list yields an empty
+/// vec. Used to bind a VO derivation's positional params at a method call.
+fn split_call_args(s: &str) -> Vec<String> {
+    let s = s.trim();
+    if s.is_empty() {
+        return Vec::new();
+    }
+    let mut args = Vec::new();
+    let mut depth = 0i32;
+    let mut in_str = false;
+    let mut start = 0;
+    let bytes = s.as_bytes();
+    for (i, &b) in bytes.iter().enumerate() {
+        match b {
+            b'"' => in_str = !in_str,
+            b'(' if !in_str => depth += 1,
+            b')' if !in_str => depth -= 1,
+            b',' if !in_str && depth == 0 => {
+                args.push(s[start..i].trim().to_string());
+                start = i + 1;
+            }
+            _ => {}
+        }
+    }
+    args.push(s[start..].trim().to_string());
+    args
 }
 
 /// Split on the first occurrence of `op` that isn't inside a quoted
@@ -647,7 +787,7 @@ pub fn resolve_mutation_value(
 
 #[cfg(test)]
 mod tests {
-    use super::check_givens;
+    use super::{check_givens, EvalCtx};
     use crate::parser;
     use crate::runtime::AggregateState;
     use std::collections::HashMap;
@@ -677,7 +817,7 @@ end"#,
         let cmd = &domain.aggregates[0].commands[0];
         let state = AggregateState::new("x");
         let attrs = HashMap::new();
-        let result = check_givens(cmd, &state, &attrs);
+        let result = check_givens(cmd, &state, &attrs, EvalCtx::default());
         assert!(result.is_err(), "invalid-op mutation must refuse dispatch");
         let msg = format!("{:?}", result.unwrap_err());
         assert!(msg.contains("bogus_op"), "error must name the bad op, got: {}", msg);
@@ -701,7 +841,7 @@ end"#,
         let state = AggregateState::new("x");
         let attrs = HashMap::new();
         assert!(
-            check_givens(cmd, &state, &attrs).is_ok(),
+            check_givens(cmd, &state, &attrs, EvalCtx::default()).is_ok(),
             "a well-formed then_set must not be refused by the invalid-op guard"
         );
     }

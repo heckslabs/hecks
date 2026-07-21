@@ -579,6 +579,56 @@ end"#);
     }
 }
 
+// --- a rich value object's pure derivation is callable from a given ---
+
+#[test]
+fn value_object_derivation_evaluates_in_a_given() {
+    // Money declares two pure BOOLEAN derivations : `covers?(other)` over its
+    // own cents + a param, and no-arg `positive?`. A command's given calls
+    // them (`given { balance.covers?(amount) }`) : the interpreter resolves
+    // the receiver + args to their Money maps, binds `other` = amount, and
+    // evaluates the body against own-fields + params. The behaviour half of a
+    // rich VO — entity minus identity, pure and immutable.
+    let mut rt = boot(r#"Hecks.bluebook "T" do
+  aggregate "Account" do
+    value_object "Money" do
+      attribute :cents, Integer, default: 0
+      derive :covers?,   Boolean do |other| cents >= other.cents end
+      derive :positive?, Boolean do cents > 0 end
+    end
+    command "Check" do
+      attribute :balance, Money
+      attribute :amount, Money
+      given { balance.covers?(amount) }
+    end
+    command "AssertPositive" do
+      attribute :balance, Money
+      given { balance.positive? }
+    end
+  end
+end"#);
+    let money = |c: i64| {
+        let mut m = std::collections::HashMap::new();
+        m.insert("cents".to_string(), Value::Int(c));
+        Value::Map(m)
+    };
+    // covers? : 100 covers 60 → accepted ; 100 covers 140 → rejected.
+    rt.dispatch("Check", attrs(&[("balance", money(100)), ("amount", money(60))]))
+        .expect("balance.covers?(amount) true → accepted");
+    assert!(
+        rt.dispatch("Check", attrs(&[("balance", money(100)), ("amount", money(140))]))
+            .is_err(),
+        "balance.covers?(amount) false → rejected"
+    );
+    // no-arg predicate derivation : positive? reads its own cents.
+    rt.dispatch("AssertPositive", attrs(&[("balance", money(5))]))
+        .expect("balance.positive? true → accepted");
+    assert!(
+        rt.dispatch("AssertPositive", attrs(&[("balance", money(0))])).is_err(),
+        "balance.positive? false → rejected"
+    );
+}
+
 // --- Events ---
 
 #[test]

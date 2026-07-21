@@ -18,7 +18,7 @@
 //!   }
 
 use crate::ir::Invariant;
-use crate::runtime::interpreter::evaluate_predicate;
+use crate::runtime::interpreter::{evaluate_predicate, EvalCtx};
 use crate::runtime::{AggregateState, Value};
 use std::collections::HashMap;
 
@@ -34,7 +34,7 @@ pub fn check_invariants<'a>(
 ) -> Option<&'a Invariant> {
     invariants
         .iter()
-        .find(|inv| !evaluate_predicate(&inv.expression, state, attrs))
+        .find(|inv| !evaluate_predicate(&inv.expression, state, attrs, EvalCtx::default()))
 }
 
 #[cfg(test)]

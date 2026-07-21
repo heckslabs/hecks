@@ -38,6 +38,7 @@ module Hecks
         @name = name
         @attributes = []
         @invariants = []
+        @derivations = []
         @members = []
       end
 
@@ -80,6 +81,33 @@ module Hecks
         @invariants << Structure::Invariant.new(message: message, block: block)
       end
 
+      # Define a pure DERIVATION on this value object -- the behaviour half
+      # of a rich VO (Evans : value objects are the core). A derivation is a
+      # side-effect-free method over the VO's own fields + block params,
+      # callable from a command's `given` or an invariant :
+      #
+      #   derive :zero?,   Boolean do cents == 0 end
+      #   derive :covers?, Boolean do |other| cents >= other.cents end
+      #   # given { balance.covers?(amount) }
+      #
+      # The param NAMES are read from the block's signature (`|other|` =>
+      # ["other"]) ; a param's type is whatever binds at the call site. The
+      # return type token drives evaluation (Boolean => predicate).
+      #
+      # @param name [Symbol, String] the method name (trailing "?" allowed)
+      # @param return_type [Object] the return type token (e.g. Boolean) -- .to_s'd
+      # @yield the pure body, evaluated over own-fields + bound params
+      # @return [void]
+      def derive(name, return_type, &block)
+        params = block ? block.parameters.map { |_kind, pname| pname.to_s } : []
+        @derivations << Structure::Derivation.new(
+          name: name.to_s,
+          return_type: return_type.to_s,
+          params: params,
+          block: block
+        )
+      end
+
       # Build and return the BluebookModel::Structure::ValueObject IR object.
       #
       # @return [BluebookModel::Structure::ValueObject] the fully built value object IR object
@@ -88,6 +116,7 @@ module Hecks
           name: @name,
           attributes: @attributes,
           invariants: @invariants,
+          derivations: @derivations,
           description: @description,
           members: @members
         )

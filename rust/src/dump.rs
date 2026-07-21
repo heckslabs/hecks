@@ -181,6 +181,15 @@ fn dump_value_object(vo: &ValueObject) -> Value {
         // internally (payload_gate) — it just isn't part of the parity
         // contract.
         "invariants": vo.invariants.iter().map(|i| json!({"name": i.name})).collect::<Vec<_>>(),
+        // 2026-07-21 — VO derivations, SIGNATURE ONLY (name + return_type +
+        // param names) : the body is a Ruby Proc on the Ruby side, so the
+        // shared contract excludes the expression, exactly like invariants.
+        // Each runtime evaluates its own parse of the body.
+        "derivations": vo.derivations.iter().map(|d| json!({
+            "name": d.name,
+            "return_type": d.return_type,
+            "params": d.params,
+        })).collect::<Vec<_>>(),
         // one_of members (2026-07-19) — ordered objects, declaration order
         // on both sides (Ruby kwargs preserve insertion order).
         "members": vo.members.iter().map(|m| {

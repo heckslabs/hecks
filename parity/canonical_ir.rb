@@ -257,6 +257,16 @@ module Hecks
           "invariants"  => (vo.respond_to?(:invariants) ? (vo.invariants || []) : []).map { |inv|
             { "name" => inv.respond_to?(:message) ? inv.message.to_s : inv.name.to_s }
           },
+          # 2026-07-21 — VO derivations, SIGNATURE ONLY (mirrors dump.rs) :
+          # name + return_type + param names ; the body is a Proc whose
+          # source is unrecoverable, so it is excluded from the contract.
+          "derivations" => (vo.respond_to?(:derivations) ? (vo.derivations || []) : []).map { |d|
+            {
+              "name"        => d.name.to_s,
+              "return_type" => d.respond_to?(:return_type) ? d.return_type.to_s : "",
+              "params"      => (d.respond_to?(:params) ? (d.params || []) : []).map(&:to_s),
+            }
+          },
           # one_of members (2026-07-19) — ordered objects mirroring dump.rs ;
           # Ruby kwargs preserve declaration order.
           "members"     => (vo.respond_to?(:members) ? (vo.members || []) : []).map { |m|

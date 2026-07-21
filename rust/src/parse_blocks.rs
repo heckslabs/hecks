@@ -617,10 +617,40 @@ fn split_member_pairs(s: &str) -> Vec<&str> {
     pairs
 }
 
+/// Parse a `derive :name, ReturnType` header (the text between `derive` and
+/// ` do`) into (name, return_type). The leading `:` on the name is stripped.
+/// Returns None when either the name or the return type is missing.
+fn parse_derive_signature(header: &str) -> Option<(String, String)> {
+    let sig = header.trim();
+    let comma = sig.find(',')?;
+    let name = sig[..comma].trim().trim_start_matches(':').to_string();
+    let rtype = sig[comma + 1..].trim().to_string();
+    if name.is_empty() || rtype.is_empty() { return None; }
+    Some((name, rtype))
+}
+
+/// Split a `|a, b| rest` block body into its parameter NAMES and the
+/// remaining expression text. A body with no `|params|` prefix returns
+/// (empty, whole body).
+fn split_block_params(body: &str) -> (Vec<String>, &str) {
+    let body = body.trim();
+    if let Some(rest) = body.strip_prefix('|') {
+        if let Some(close) = rest.find('|') {
+            let params = rest[..close]
+                .split(',')
+                .map(|p| p.trim().to_string())
+                .filter(|p| !p.is_empty())
+                .collect();
+            return (params, rest[close + 1..].trim());
+        }
+    }
+    (Vec::new(), body)
+}
+
 pub fn parse_value_object(lines: &[&str]) -> (ValueObject, usize) {
     let first = lines[0].trim();
     let name = extract_string(first).unwrap_or_default();
-    let mut vo = ValueObject { name, description: None, attributes: vec![], invariants: vec![], members: vec![] };
+    let mut vo = ValueObject { name, description: None, attributes: vec![], invariants: vec![], derivations: vec![], members: vec![] };
 
     let mut i = 1;
     let mut depth = 1;
@@ -719,6 +749,52 @@ pub fn parse_value_object(lines: &[&str]) -> (ValueObject, usize) {
             }
             if !inv_name.is_empty() && !body.is_empty() {
                 vo.invariants.push(Invariant { name: inv_name, expression: body.join(" && ") });
+            }
+            i = j + 1;
+            continue;
+        } else if depth == 1 && line.starts_with("derive") && line.contains(" do ") && line.ends_with("end") {
+            // Pure derivation, INLINE one-liner (rich-VO behaviour half) :
+            //   derive :zero?,   Boolean do cents == 0 end
+            //   derive :covers?, Boolean do |other| cents >= other.cents end
+            if let (Some(do_pos), Some(stripped)) = (line.find(" do "), line.strip_suffix("end")) {
+                let header = &line["derive".len()..do_pos];
+                if let Some((name, rtype)) = parse_derive_signature(header) {
+                    let raw_body = stripped[do_pos + " do ".len()..].trim();
+                    let (params, expr) = split_block_params(raw_body);
+                    if !expr.is_empty() {
+                        vo.derivations.push(Derivation { name, return_type: rtype, params, expression: expr.to_string() });
+                    }
+                }
+            }
+        } else if depth == 1 && line.starts_with("derive") && ends_with_do_block(line) {
+            // Pure derivation, multi-line form :
+            //   derive :covers?, Boolean do |other|
+            //     cents >= other.cents
+            //   end
+            let do_pos = line.find(" do").unwrap_or(line.len());
+            let header = &line["derive".len()..do_pos];
+            let after_do = line[do_pos + " do".len()..].trim();
+            let (params, _) = split_block_params(after_do);
+            let mut body: Vec<&str> = Vec::new();
+            let mut j = i + 1;
+            let mut d = 1;
+            while j < lines.len() && d > 0 {
+                let l = lines[j].trim();
+                if l == "end" {
+                    d -= 1;
+                    if d == 0 { break; }
+                } else if ends_with_do_block(l) {
+                    d += 1;
+                }
+                if d >= 1 && !l.is_empty() {
+                    body.push(l);
+                }
+                j += 1;
+            }
+            if let Some((name, rtype)) = parse_derive_signature(header) {
+                if !body.is_empty() {
+                    vo.derivations.push(Derivation { name, return_type: rtype, params, expression: body.join(" && ") });
+                }
             }
             i = j + 1;
             continue;

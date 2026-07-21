@@ -348,7 +348,16 @@ fn dispatch_inner(
 
     // Pipeline: givens → lifecycle check → mutations → lifecycle transition
     let cmd = cmd_for(rt, res);
-    interpreter::check_givens(cmd, &state, &attrs)?;
+    // The type context a given resolves against : the aggregate's value
+    // objects + a name→VO-type map, so `given { balance.covers?(amount) }`
+    // can find the `covers?` derivation on Money. Built per dispatch ; only
+    // production givens carry it (invariants / payload gate pass empty).
+    let given_attr_types = interpreter::build_attr_types(cmd, &rt.domain.aggregates[agg_idx]);
+    let given_ctx = interpreter::EvalCtx::for_command(
+        &rt.domain.aggregates[agg_idx].value_objects,
+        &given_attr_types,
+    );
+    interpreter::check_givens(cmd, &state, &attrs, given_ctx)?;
     check_lifecycle(rt, res, &state)?;
     interpreter::apply_mutations(cmd, &mut state, &attrs);
     apply_lifecycle_transition(rt, res, &mut state);

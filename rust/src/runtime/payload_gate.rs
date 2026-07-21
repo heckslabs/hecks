@@ -247,7 +247,7 @@ pub fn check(
             if !judgeable(&inv.expression) {
                 continue;
             }
-            if !interpreter::evaluate_predicate(&inv.expression, &empty_state, &binding) {
+            if !interpreter::evaluate_predicate(&inv.expression, &empty_state, &binding, interpreter::EvalCtx::default()) {
                 return Err(RuntimeError::PayloadInvariantViolation {
                     name: inv.name.clone(),
                     expression: inv.expression.clone(),

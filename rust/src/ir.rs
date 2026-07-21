@@ -598,6 +598,18 @@ pub struct ValueObject {
     /// these since day one (ValueObjectBuilder#invariant) ; the Rust parser
     /// silently dropped them until 2026-07-18.
     pub invariants: Vec<Invariant>,
+    /// Pure derivations (`derive :covers?, Boolean do |other| cents >= other.cents end`)
+    /// — the BEHAVIOUR half of a rich value object (Evans : VOs are the core).
+    /// A VO is "an entity minus identity" ; because it is IMMUTABLE, its behaviour
+    /// is PURE functions over its own fields + params, never mutation/lifecycle.
+    /// A derivation is callable from a command's `given` / an invariant
+    /// (`given { balance.covers?(amount) }`) : the interpreter resolves the
+    /// receiver to its field-map, binds the args, and evaluates the body against
+    /// a scope of own-fields + params. PARITY : name + return_type + param-NAMES
+    /// only — the body is a Ruby Proc on the Ruby side (source unrecoverable),
+    /// the identical name-only contract VO invariants use. Each runtime enforces
+    /// the expression from its own parse.
+    pub derivations: Vec<Derivation>,
     /// one_of members (GRAMMAR-one-of, 2026-07-19) — when non-empty, this
     /// value object is a CLOSED SET of whole values. Each member is the
     /// ordered (attribute_name, value) pairs of one fully-specified
@@ -846,6 +858,22 @@ impl fmt::Display for Domain {
 #[derive(Debug, Clone)]
 pub struct Invariant {
     pub name: String,
+    pub expression: String,
+}
+
+/// A pure, side-effect-free method declared on a value object over its own
+/// fields + params (`derive :covers?, Boolean do |other| cents >= other.cents end`).
+/// The behaviour half of a rich VO. `params` are the block parameter NAMES
+/// (`|other|` → ["other"]) ; a param's TYPE is not declared — it is whatever
+/// value is bound at the call site. `return_type` drives evaluation : Boolean
+/// derivations evaluate as predicates, others as expressions. The `expression`
+/// is kept internally for the Rust runtime ; the parity contract dumps name +
+/// return_type + param names only (the body is a Ruby Proc on the Ruby side).
+#[derive(Debug, Clone)]
+pub struct Derivation {
+    pub name: String,
+    pub return_type: String,
+    pub params: Vec<String>,
     pub expression: String,
 }
 

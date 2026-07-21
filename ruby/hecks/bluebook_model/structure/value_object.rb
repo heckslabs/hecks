@@ -47,13 +47,20 @@ module Hecks
       # @param invariants [Array<Invariant>] business rules enforced at construction time
       #
       # @return [ValueObject] a new ValueObject instance
-      def initialize(name:, attributes: [], invariants: [], description: nil, members: [])
+      def initialize(name:, attributes: [], invariants: [], derivations: [], description: nil, members: [])
         @name = name
         @attributes = attributes
         @invariants = invariants
+        @derivations = derivations
         @description = description
         @members = members
       end
+
+      # @return [Array<Derivation>] pure derivations declared on this value
+      #   object -- the behaviour half of a rich VO. Each is a side-effect-free
+      #   method over own-fields + params, callable from givens/invariants
+      #   (`given { balance.covers?(amount) }`). Empty for a data-only VO.
+      attr_reader :derivations
 
       # @return [Array<Hash>] one_of members — when non-empty, this value
       #   object is a CLOSED SET of whole values (GRAMMAR-one-of, 2026-07-19).

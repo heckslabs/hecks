@@ -48,6 +48,7 @@ module Hecks
       autoload :Attribute,      "hecks/bluebook_model/structure/attribute"
       autoload :Validation,     "hecks/bluebook_model/structure/validation"
       autoload :Invariant,      "hecks/bluebook_model/structure/invariant"
+      autoload :Derivation,     "hecks/bluebook_model/structure/derivation"
       autoload :Scope,          "hecks/bluebook_model/structure/scope"
       # GateDefinition lives in hecksagon
       autoload :ReadModel,      "hecks/bluebook_model/structure/read_model"
