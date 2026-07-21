@@ -873,6 +873,31 @@ fn banking_transfer_saga_moves_money_and_completes() {
     assert!(rt.find("Transfer", "2").is_none(), "no phantom Transfer");
 }
 
+// --- nested-object dispatch args decode to Maps at the tool boundary ---
+
+#[test]
+fn attr_value_from_str_decodes_nested_objects() {
+    use storehouse::runtime::attr_value_from_str as p;
+    // A JSON object arg becomes a structured Map (a Money value object).
+    match p("{\"cents\":5000,\"currency\":{\"code\":\"USD\"}}") {
+        Value::Map(m) => {
+            assert_eq!(m.get("cents"), Some(&Value::Int(5000)));
+            match m.get("currency") {
+                Some(Value::Map(c)) => assert_eq!(c.get("code"), Some(&s("USD"))),
+                other => panic!("nested currency should be a Map, got {:?}", other),
+            }
+        }
+        other => panic!("object arg should decode to a Map, got {:?}", other),
+    }
+    // A JSON array decodes to a List.
+    assert!(matches!(p("[1,2,3]"), Value::List(v) if v.len() == 3));
+    // Plain scalars stay Str (the runtime coerces per the attribute schema) ;
+    // malformed `{`/`[` falls back to Str rather than erroring.
+    assert_eq!(p("hello"), s("hello"));
+    assert_eq!(p("42"), s("42"));
+    assert_eq!(p("{not valid json"), s("{not valid json"));
+}
+
 // --- Events ---
 
 #[test]

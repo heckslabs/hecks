@@ -143,8 +143,11 @@ pub(crate) fn handle_request(
                 "command": command,
             }));
         }
+        // JSON-aware (same as the cold embed door) : a nested-object arg
+        // decodes to a Map so a value object passed as a command INPUT is not
+        // flattened to a string the arithmetic + given evaluators can't read.
         let mut rt_attrs: HashMap<String, Value> = attrs_pairs.iter()
-            .map(|(k, v)| (k.clone(), Value::Str(v.clone())))
+            .map(|(k, v)| (k.clone(), crate::runtime::attr_value_from_str(v)))
             .collect();
         // RBAC gate (warm door): stamp the caller principal from the
         // environment; dispatch() runs the before-gates + strips the reserved keys.

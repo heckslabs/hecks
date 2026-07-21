@@ -3665,6 +3665,26 @@ pub(crate) fn value_to_json(v: &Value) -> serde_json::Value {
 /// as it reads consolidated ones. A whole-number JSON number decodes to Int ;
 /// any other number (float) falls back to its string form, matching the heki
 /// reader's own from_json.
+/// Parse a raw `k=v` dispatch-arg string into a runtime Value. A JSON object
+/// (`{…}`) or array (`[…]`) is decoded STRUCTURALLY — so a nested value object
+/// (a Money `{"cents":5000,"currency":{"code":"USD"}}`) arrives as a Map, not a
+/// flat string the arithmetic + given evaluators can't read. Everything else
+/// stays a Str ; the runtime coerces scalar types per the attribute schema. A
+/// malformed `{`/`[` value falls back to Str rather than erroring — a bad arg
+/// should reach the payload gate, not break the parse. This is the ONE place
+/// every string-keyed dispatch door (the CLI via embed, the warm serve socket)
+/// turns an arg string into a Value, so nested-object inputs stop being mangled
+/// to `"[object Object]"` / raw JSON text at the tool boundary.
+pub fn attr_value_from_str(raw: &str) -> Value {
+    let t = raw.trim();
+    if (t.starts_with('{') && t.ends_with('}')) || (t.starts_with('[') && t.ends_with(']')) {
+        if let Ok(jv) = serde_json::from_str::<serde_json::Value>(t) {
+            return json_to_value_recursive(&jv);
+        }
+    }
+    Value::Str(raw.to_string())
+}
+
 fn json_to_value_recursive(v: &serde_json::Value) -> Value {
     match v {
         serde_json::Value::String(s) => Value::Str(s.clone()),

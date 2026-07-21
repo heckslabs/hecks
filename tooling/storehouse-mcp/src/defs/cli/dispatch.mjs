@@ -31,7 +31,12 @@ function encodeAttrs(args) {
   const out = [];
   for (const [k, v] of Object.entries(args || {})) {
     if (v === undefined || v === null) continue;
-    out.push(`${k}=${String(v)}`);
+    // A nested value object / array must ride the CLI as JSON, not `String(v)`
+    // (which yields "[object Object]"). The storehouse door decodes a `{…}`/`[…]`
+    // arg structurally (attr_value_from_str), so a Money `{cents,currency}` passed
+    // as a command INPUT arrives as a Map instead of a mangled string.
+    const encoded = typeof v === "object" ? JSON.stringify(v) : String(v);
+    out.push(`${k}=${encoded}`);
   }
   return out;
 }
