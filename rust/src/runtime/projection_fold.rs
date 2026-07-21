@@ -18,11 +18,14 @@
 //! wins = current value — the trivial per-aggregate projection the EventSourcing
 //! vision names ("current-state is just the trivial per-aggregate projection").
 //!
-//! Stringified : the Log stores each delta value as a string
-//! (record_event_append wrote `value.to_string()`), so reconstruction is on
-//! stringified field values ; the equivalence check compares against the store's
-//! `.to_string()` form symmetrically. (Type re-hydration is a later refinement,
-//! not needed to prove derivability of the value content.)
+//! Faithful values : the Log stores each delta value as COMPACT JSON
+//! (record_event_append wrote `value_to_json_string(&value)`), so a Money Map
+//! and a ledger List survive — the old `value.to_string()` rendered them as the
+//! lossy `"{N fields}"` / `"[N items]"`. The fold carries that JSON string per
+//! field ; the derivability check (`verify-projection`) decodes it back with
+//! `value_from_json_str` and compares the typed `Value` STRUCTURALLY to the live
+//! store (order-independent), so a rich aggregate reconstructs exactly and a
+//! legacy lossy delta drifts loudly.
 
 use super::{AggregateState, Value};
 use std::collections::HashMap;

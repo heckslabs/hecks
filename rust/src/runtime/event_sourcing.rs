@@ -171,7 +171,14 @@ impl Runtime {
                 command_vo.insert("inputs".to_string(), Value::Str(inputs.clone()));
                 let mut delta_vo = HashMap::new();
                 delta_vo.insert("field".to_string(), Value::Str(field.clone()));
-                delta_vo.insert("value".to_string(), Value::Str(value.to_string()));
+                // FAITHFUL delta : store the field's post-command value as
+                // COMPACT JSON, not `Display`. `value.to_string()` renders a
+                // Money Map as "{2 fields}" and a ledger List as "[2 items]" —
+                // lossy, so the Log could never reconstruct a rich aggregate.
+                // value_to_json_string preserves structure ; the fold decodes
+                // it back with value_from_json_str. Same serialization
+                // discipline as the tool-boundary decode.
+                delta_vo.insert("value".to_string(), Value::Str(super::value_to_json_string(&value)));
                 let mut sequence_vo = HashMap::new();
                 sequence_vo.insert("value".to_string(), Value::Int(seq as i64));
                 let mut attrs = HashMap::new();

@@ -898,6 +898,39 @@ fn attr_value_from_str_decodes_nested_objects() {
     assert_eq!(p("{not valid json"), s("{not valid json"));
 }
 
+// --- event-log deltas store rich values FAITHFULLY (source-of-truth keystone) ---
+
+#[test]
+fn event_log_delta_round_trips_a_money() {
+    use storehouse::runtime::{value_from_json_str, value_to_json_string};
+    // A Money value object is what an event_sourced Deposit records as a
+    // `balance` delta. The write path stores value_to_json_string ; the fold
+    // decodes with value_from_json_str. The pair must round-trip EXACTLY, or
+    // the Log cannot be a source of truth for a rich aggregate.
+    let mut currency = std::collections::HashMap::new();
+    currency.insert("code".to_string(), s("USD"));
+    let mut money = std::collections::HashMap::new();
+    money.insert("cents".to_string(), Value::Int(1000));
+    money.insert("currency".to_string(), Value::Map(currency));
+    let money = Value::Map(money);
+
+    let stored = value_to_json_string(&money);
+    assert!(stored.contains("\"cents\":1000"), "delta is faithful JSON: {stored}");
+    assert_ne!(stored, "{2 fields}", "must NOT be the lossy Display form");
+    assert_eq!(value_from_json_str(&stored), money, "Money reconstructs structurally");
+
+    // A ledger (list_of) round-trips too — the other rich shape.
+    let ledger = Value::List(vec![money.clone(), s("credit")]);
+    assert_eq!(value_from_json_str(&value_to_json_string(&ledger)), ledger);
+
+    // Scalars stay scalars ; a legacy Display-form delta decodes to Str so it
+    // DRIFTS loudly against a structured live value (verify-projection catches
+    // the old lossy writes rather than passing them by comparing garbage).
+    assert_eq!(value_from_json_str(&value_to_json_string(&Value::Int(42))), Value::Int(42));
+    assert_eq!(value_from_json_str(&value_to_json_string(&s("USD"))), s("USD"));
+    assert_eq!(value_from_json_str("{2 fields}"), s("{2 fields}"));
+}
+
 // --- Events ---
 
 #[test]

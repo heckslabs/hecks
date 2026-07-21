@@ -3665,6 +3665,28 @@ pub(crate) fn value_to_json(v: &Value) -> serde_json::Value {
 /// as it reads consolidated ones. A whole-number JSON number decodes to Int ;
 /// any other number (float) falls back to its string form, matching the heki
 /// reader's own from_json.
+/// Serialize a runtime Value to a COMPACT JSON string — the faithful,
+/// round-trippable form for stashing a value inside a String field (an event-log
+/// delta, a serialized payload). Unlike `Value`'s Display, which renders a Map as
+/// `"{N fields}"` and a List as `"[N items]"` (LOSSY — the cents of a Money are
+/// gone), this preserves structure recursively. `value_from_json_str` is its exact
+/// inverse, so a Money / a ledger survives a store-and-reconstruct round-trip.
+pub fn value_to_json_string(v: &Value) -> String {
+    value_to_json(v).to_string()
+}
+
+/// Decode a JSON string produced by `value_to_json_string` back into a typed
+/// Value (object -> Map, array -> List, recursively ; whole-number -> Int). Falls
+/// back to `Str` for a non-JSON string (a legacy Display-form delta, or a plain
+/// word) rather than erroring — so an old lossy delta reads as its stored string
+/// and DRIFTS loudly against a structured live value, exactly as it should.
+pub fn value_from_json_str(s: &str) -> Value {
+    match serde_json::from_str::<serde_json::Value>(s) {
+        Ok(jv) => json_to_value_recursive(&jv),
+        Err(_) => Value::Str(s.to_string()),
+    }
+}
+
 /// Parse a raw `k=v` dispatch-arg string into a runtime Value. A JSON object
 /// (`{…}`) or array (`[…]`) is decoded STRUCTURALLY — so a nested value object
 /// (a Money `{"cents":5000,"currency":{"code":"USD"}}`) arrives as a Map, not a

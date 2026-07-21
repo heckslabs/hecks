@@ -3902,11 +3902,19 @@ fn measure_projection(rt: &Runtime) -> Option<ProjectionMeasurement> {
             Some(store) => {
                 for (field, folded_val) in recon {
                     m.total_fields += 1;
-                    let store_val = store.get(field).to_string();
-                    if &store_val != folded_val {
+                    // STRUCTURAL compare : decode the reconstructed delta JSON
+                    // to a typed Value and compare to the live store's Value.
+                    // `Value` equality is order-independent (Map is a HashMap),
+                    // so a Money {cents,currency} matches regardless of JSON key
+                    // order — a string compare would false-drift on ordering.
+                    // A legacy Display-form delta ("{2 fields}") decodes to Str
+                    // and DRIFTS against the structured store value, as it must.
+                    let store_val = store.get(field);
+                    let folded_value = storehouse::runtime::value_from_json_str(folded_val);
+                    if &folded_value != store_val {
                         m.drift.insert(
                             (agg_name.clone(), agg_id.clone(), field.clone()),
-                            (folded_val.clone(), store_val),
+                            (folded_val.clone(), storehouse::runtime::value_to_json_string(store_val)),
                         );
                     }
                 }
