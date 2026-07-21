@@ -77,12 +77,35 @@ module Hecks
       # via `.to_i`). Mirrors rust/src/runtime/aggregate_state.rs
       # increment_float.
       def increment_field(state, field, val, sign: 1)
+        # Value-object arithmetic first : Money += Money adds cents, carries
+        # currency. Mirrors rust/src/runtime/interpreter.rs vo_arith — without
+        # it the Money map collapsed to Int(1).
+        if (vo = vo_arith(state.get(field), val, sign))
+          state.set(field, vo)
+          return
+        end
         amount = val.numeric || 1
         if amount.to_i.to_f == amount
           state.increment(field, amount.to_i * sign)
         else
           state.increment_float(field, amount * sign)
         end
+      end
+
+      # Value-object arithmetic : when the field holds a value object (:map)
+      # AND the delta is a value object, combine numeric fields pairwise
+      # (cents += cents), carrying non-numeric fields (currency) from the
+      # field. Returns nil unless both sides are :map. Mirrors Rust vo_arith.
+      def vo_arith(current, delta, sign)
+        current = Value.from(current) unless current.is_a?(Value)
+        return nil unless current.kind == :map && delta.is_a?(Value) && delta.kind == :map
+        out = current.raw.dup
+        delta.raw.each do |k, dv|
+          cn = out[k].is_a?(Value) ? out[k].numeric : nil
+          dn = dv.is_a?(Value) ? dv.numeric : nil
+          out[k] = Value.new(:int, (cn + sign * dn).to_i) if cn && dn
+        end
+        Value.new(:map, out)
       end
 
       # Ruby IR preserves mutation value types: Symbol → attr ref,

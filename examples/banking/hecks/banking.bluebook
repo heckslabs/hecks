@@ -93,7 +93,7 @@ Hecks.bluebook "Banking" do
     # Money is currency-aware, integer-cents — never Float.
     # IEEE 754 rounding has no place in a ledger.
     value_object "Money" do
-      attribute :cents,    Integer
+      attribute :cents,    Integer, default: 0
       attribute :currency, Currency
       invariant "non-negative for balance contexts" do
         cents >= 0
@@ -101,7 +101,7 @@ Hecks.bluebook "Banking" do
     end
 
     value_object "Currency" do
-      attribute :code, String
+      attribute :code, String, default: "USD"
       invariant "ISO 4217 three-letter code" do
         code.is_a?(String) && code.length == 3 && code == code.upcase
       end
@@ -241,7 +241,7 @@ Hecks.bluebook "Banking" do
     attribute :steps,  list_of(TransferStep)
 
     value_object "Money" do
-      attribute :cents,    Integer
+      attribute :cents,    Integer, default: 0
       attribute :currency, Currency
       invariant "positive for transfers" do
         cents > 0
@@ -249,7 +249,7 @@ Hecks.bluebook "Banking" do
     end
 
     value_object "Currency" do
-      attribute :code, String
+      attribute :code, String, default: "USD"
       invariant "ISO 4217 three-letter code" do
         code.is_a?(String) && code.length == 3 && code == code.upcase
       end
@@ -362,7 +362,7 @@ Hecks.bluebook "Banking" do
     attribute :payments,          list_of(LoanPayment)
 
     value_object "Money" do
-      attribute :cents,    Integer
+      attribute :cents,    Integer, default: 0
       attribute :currency, Currency
       invariant "non-negative" do
         cents >= 0
@@ -370,7 +370,7 @@ Hecks.bluebook "Banking" do
     end
 
     value_object "Currency" do
-      attribute :code, String
+      attribute :code, String, default: "USD"
       invariant "ISO 4217 three-letter code" do
         code.is_a?(String) && code.length == 3 && code == code.upcase
       end

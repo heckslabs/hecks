@@ -1182,6 +1182,14 @@ fn apply_defaults(rt: &Runtime, agg_idx: usize, state: &mut AggregateState) {
     for attr in &agg.attributes {
         if let Some(ref default) = attr.default {
             state.set(&attr.name, parse_default(default, &attr.attr_type));
+        } else if let Some(vo_default) = construct_vo_default(agg, &attr.attr_type) {
+            // A value object with inner-attribute defaults self-constructs
+            // its canonical instance (Money{cents:0, currency:{code:"USD"}}) :
+            // a RICH value object owns its zero, no hand-written then_set.
+            // Opt-in — only a VO that declares inner defaults materialises ;
+            // a defaultless VO stays unset (falls through to the list/none
+            // branches), so this never injects an empty map.
+            state.set(&attr.name, vo_default);
         } else if attr.list {
             // ONLY a declared list gets an empty-list placeholder. This used to
             // read `attr.list || vo_names.contains(&attr.attr_type)` — the
@@ -1239,6 +1247,26 @@ fn default_event_name(cmd_name: &str) -> String {
     } else {
         format!("{}Completed", cmd_name)
     }
+}
+
+/// Build a value object's CANONICAL instance from its inner-attribute defaults,
+/// recursively : a nested-VO field (e.g. Money's `currency: Currency`) recurses
+/// into its own inner defaults. Returns `None` when `vo_name` is not a value
+/// object of this aggregate, OR the VO declares no inner defaults — so
+/// materialisation is OPT-IN (declaring an inner `default:`) and a defaultless
+/// VO never becomes an empty map. This makes the inner-attribute `default:`
+/// form (parsed + dumped since day one) finally MATERIALISE at construction.
+fn construct_vo_default(agg: &crate::ir::Aggregate, vo_name: &str) -> Option<Value> {
+    let vo = agg.value_objects.iter().find(|v| v.name == vo_name)?;
+    let mut map = std::collections::HashMap::new();
+    for attr in &vo.attributes {
+        if let Some(ref d) = attr.default {
+            map.insert(attr.name.clone(), parse_default(d, &attr.attr_type));
+        } else if let Some(nested) = construct_vo_default(agg, &attr.attr_type) {
+            map.insert(attr.name.clone(), nested);
+        }
+    }
+    if map.is_empty() { None } else { Some(Value::Map(map)) }
 }
 
 fn parse_default(default: &str, attr_type: &str) -> Value {

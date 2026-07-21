@@ -536,6 +536,49 @@ end"#);
     );
 }
 
+// --- a rich value object self-constructs from its inner-attribute defaults ---
+
+#[test]
+fn value_object_default_materializes_on_create() {
+    // Money declares inner defaults (cents: 0) and nests Currency (code:
+    // "USD"). An aggregate attribute typed Money — with no explicit default,
+    // never supplied — must materialise as a STRUCTURED Map from those inner
+    // defaults on create, recursively into the nested Currency.
+    let mut rt = boot(r#"Hecks.bluebook "T" do
+  aggregate "Wallet" do
+    attribute :owner,   Owner
+    attribute :balance, Money
+    value_object "Owner" do
+      attribute :value, String
+    end
+    value_object "Money" do
+      attribute :cents, Integer, default: 0
+      attribute :currency, Currency
+    end
+    value_object "Currency" do
+      attribute :code, String, default: "USD"
+    end
+    command "Open" do
+      attribute :owner, Owner
+    end
+  end
+end"#);
+    rt.dispatch("Open", attrs(&[("owner", s("Ada"))])).unwrap();
+    let w = rt.find("Wallet", "1").unwrap();
+    match w.get("balance") {
+        Value::Map(m) => {
+            assert_eq!(m.get("cents"), Some(&Value::Int(0)), "cents default materialised");
+            match m.get("currency") {
+                Some(Value::Map(c)) => {
+                    assert_eq!(c.get("code"), Some(&s("USD")), "nested Currency default materialised");
+                }
+                other => panic!("currency should be a nested Map, got {:?}", other),
+            }
+        }
+        other => panic!("balance should materialise as a structured Map, got {:?}", other),
+    }
+}
+
 // --- Events ---
 
 #[test]

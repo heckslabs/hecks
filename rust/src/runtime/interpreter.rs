@@ -99,6 +99,12 @@ pub fn apply_mutations(
             }
             MutationOp::Increment => {
                 let val = resolve_mutation_value(&mutation.value, attrs, state);
+                // Value-object arithmetic first : Money += Money adds cents,
+                // carries currency — without this the Map collapsed to Int(1).
+                if let Some(vo) = vo_arith(state.get(&mutation.field), &val, 1) {
+                    state.set(&mutation.field, vo);
+                    continue;
+                }
                 // Float-valued increment (e.g. fatigue += 0.01) needs
                 // float arithmetic — `as_int()` would silently round it.
                 if let Some(f) = numeric_value(&val) {
@@ -112,6 +118,10 @@ pub fn apply_mutations(
             }
             MutationOp::Decrement => {
                 let val = resolve_mutation_value(&mutation.value, attrs, state);
+                if let Some(vo) = vo_arith(state.get(&mutation.field), &val, -1) {
+                    state.set(&mutation.field, vo);
+                    continue;
+                }
                 if let Some(f) = numeric_value(&val) {
                     if f.fract() != 0.0 {
                         state.decrement_float(&mutation.field, f);
@@ -175,6 +185,28 @@ pub fn apply_mutations(
 }
 
 /// Numeric read of a state field, used by Multiply/Decay/Clamp. Falls
+/// Value-object arithmetic : when the field currently holds a value object
+/// (Value::Map) AND the delta is a value object of the same shape, combine their
+/// NUMERIC fields pairwise (Money.cents += amount.cents), carrying the field's
+/// non-numeric fields (currency) unchanged. `sign` is +1 for increment, -1 for
+/// decrement. Returns None when either side isn't a Map — the caller falls back
+/// to scalar arithmetic. This is what lets `then_set :balance, increment: :amount`
+/// add two Money value objects instead of collapsing balance to a bare integer.
+fn vo_arith(current: &Value, delta: &Value, sign: i64) -> Option<Value> {
+    let (Value::Map(cur), Value::Map(d)) = (current, delta) else {
+        return None;
+    };
+    let mut out = cur.clone();
+    for (k, dv) in d {
+        if let (Some(cn), Some(dn)) = (out.get(k).and_then(numeric_value), numeric_value(dv)) {
+            // both fields numeric — combine (Money is integer cents).
+            out.insert(k.clone(), Value::Int((cn + sign as f64 * dn) as i64));
+        }
+        // a non-numeric field (currency) keeps the field's own value in `out`.
+    }
+    Some(Value::Map(out))
+}
+
 /// back to 0.0 when the field is unset or non-numeric — matches the
 /// existing increment_float behaviour.
 fn field_numeric(field: &str, state: &AggregateState) -> f64 {

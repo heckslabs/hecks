@@ -97,10 +97,34 @@ module Hecks
           next if state.fields[a.name.to_s]
           if a.respond_to?(:default) && !a.default.nil?
             state.set(a.name, Value.from(a.default))
+          elsif (vo_default = construct_vo_default(agg, a.type.to_s))
+            # A value object with inner-attribute defaults self-constructs
+            # its canonical instance. Mirrors rust construct_vo_default.
+            state.set(a.name, vo_default)
           elsif a.respond_to?(:type) && a.type.to_s == "list_of"
             state.set(a.name, Value.list([]))
           end
         end
+      end
+
+      # Build a value object's canonical instance from its inner-attribute
+      # defaults, recursively. Returns nil unless `vo_name` is a VO of this
+      # aggregate that declares at least one inner default (opt-in), so a
+      # defaultless VO never becomes an empty map. Mirrors the Rust runtime's
+      # command_dispatch.rs construct_vo_default exactly.
+      def construct_vo_default(agg, vo_name)
+        vos = agg.respond_to?(:value_objects) ? (agg.value_objects || []) : []
+        vo = vos.find { |v| v.name.to_s == vo_name }
+        return nil unless vo
+        map = {}
+        (vo.attributes || []).each do |a|
+          if a.respond_to?(:default) && !a.default.nil?
+            map[a.name.to_s] = Value.from(a.default)
+          elsif (nested = construct_vo_default(agg, a.type.to_s))
+            map[a.name.to_s] = nested
+          end
+        end
+        map.empty? ? nil : Value.new(:map, map)
       end
 
       def apply_lifecycle_default(agg, state)
