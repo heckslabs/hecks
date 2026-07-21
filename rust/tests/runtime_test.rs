@@ -700,6 +700,179 @@ end"#);
     );
 }
 
+#[test]
+fn cascade_completes_the_saga_via_event_provenance() {
+    // Hop 3 of the transfer saga : the Deposit triggered by a transfer echoes
+    // the originating Transfer id (`map transfer: :id` — :id is the emitting
+    // aggregate's identity) into its Deposited event ; a presence-guarded
+    // completion policy (`where transfer: { ne: "" }`) then resolves that
+    // Transfer and marks it completed. A MANUAL deposit carries no transfer,
+    // so the guard keeps it from minting a phantom completion.
+    let mut rt = boot(r#"Hecks.bluebook "T" do
+  aggregate "Account" do
+    attribute :balance, Integer
+    command "OpenAccount" do
+      attribute :balance, Integer
+      then_set :balance, to: :balance
+    end
+    command "Deposit" do
+      reference_to(Account)
+      reference_to(Transfer)
+      attribute :amount, Integer
+      then_set :balance, increment: :amount
+      emits "Deposited"
+    end
+  end
+  aggregate "Transfer" do
+    reference_to(Account, as: :destination)
+    attribute :amount, Integer
+    lifecycle :status, default: "pending" do
+      transition "CompleteTransfer" => "completed", from: "pending"
+    end
+    command "InitiateTransfer" do
+      reference_to(Account, as: :destination)
+      attribute :amount, Integer
+      emits "TransferInitiated"
+      then_set :amount, to: :amount
+    end
+    command "CompleteTransfer" do
+      reference_to(Transfer)
+      emits "TransferCompleted"
+    end
+  end
+  policy "CreditDestination" do
+    on "TransferInitiated"
+    trigger "Deposit"
+    map account: :destination, amount: :amount, transfer: :id
+  end
+  policy "CompleteOnDeposited" do
+    on "Deposited"
+    where transfer: { ne: "" }
+    trigger "CompleteTransfer"
+    map transfer: :transfer
+  end
+end"#);
+    rt.dispatch("OpenAccount", attrs(&[("balance", Value::Int(0))])).unwrap();
+    rt.dispatch(
+        "InitiateTransfer",
+        attrs(&[("destination", s("1")), ("amount", Value::Int(50))]),
+    )
+    .unwrap();
+    // The destination was credited AND the Transfer completed via provenance.
+    assert_eq!(
+        rt.find("Account", "1").unwrap().get("balance"),
+        &Value::Int(50),
+        "destination credited"
+    );
+    assert_eq!(
+        rt.find("Transfer", "1").unwrap().get("status"),
+        &s("completed"),
+        "Transfer completed via Deposited provenance (map transfer: :id)"
+    );
+    // No phantom : the completion resolved the EXISTING Transfer #1, it did
+    // not mint a #2.
+    assert!(rt.find("Transfer", "2").is_none(), "no phantom Transfer minted");
+
+    // A MANUAL deposit (no transfer) must NOT fire the completion guard —
+    // still just one Transfer, still completed, no new phantom.
+    rt.dispatch("Deposit", attrs(&[("account", s("1")), ("amount", Value::Int(10))]))
+        .unwrap();
+    assert!(
+        rt.find("Transfer", "2").is_none(),
+        "a manual deposit must not mint a phantom Transfer (presence guard)"
+    );
+}
+
+// --- the REAL banking.bluebook transfer saga, end-to-end ---
+
+#[test]
+fn banking_transfer_saga_moves_money_and_completes() {
+    // Boots the ACTUAL examples/banking/hecks/banking.bluebook and runs the
+    // full saga with proper Money value objects : fund the source, transfer,
+    // and assert the source is debited, the destination credited, and the
+    // Transfer marked completed via Deposited provenance. This is the real
+    // domain (Money givens : amount.positive? / same_currency? / covers? /
+    // daily-limit) — proving the cascade fix against banking itself, not a
+    // synthetic stand-in. (The CLI / MCP arg paths mangle nested-object
+    // inputs to strings ; this test injects proper Value::Maps directly.)
+    let src = std::fs::read_to_string(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../examples/banking/hecks/banking.bluebook"
+    ))
+    .expect("read banking.bluebook");
+    let mut rt = Runtime::boot(parser::parse(&src));
+    let money = |cents: i64| {
+        let mut c = std::collections::HashMap::new();
+        c.insert("code".to_string(), s("USD"));
+        let mut m = std::collections::HashMap::new();
+        m.insert("cents".to_string(), Value::Int(cents));
+        m.insert("currency".to_string(), Value::Map(c));
+        Value::Map(m)
+    };
+    let usd = || {
+        let mut c = std::collections::HashMap::new();
+        c.insert("code".to_string(), s("USD"));
+        Value::Map(c)
+    };
+    rt.dispatch("RegisterCustomer", attrs(&[("name", s("Ada")), ("email", s("ada@x.com"))]))
+        .unwrap();
+    for kind in ["savings", "checking"] {
+        rt.dispatch(
+            "OpenAccount",
+            attrs(&[
+                ("customer", s("1")),
+                ("account_type", s(kind)),
+                ("daily_limit", money(100_000)),
+                ("opening_currency", usd()),
+            ]),
+        )
+        .unwrap();
+    }
+    // Fund the source (#1) with 5000.
+    rt.dispatch(
+        "Deposit",
+        attrs(&[("account", s("1")), ("amount", money(5000)), ("description", s("seed funds"))]),
+    )
+    .unwrap();
+    // Transfer 4000 : #1 -> #2. Cascade debits #1, credits #2, completes.
+    rt.dispatch(
+        "InitiateTransfer",
+        attrs(&[
+            ("source", s("1")),
+            ("destination", s("2")),
+            ("amount", money(4000)),
+            ("memo", {
+                let mut m = std::collections::HashMap::new();
+                m.insert("text".to_string(), s("rent"));
+                Value::Map(m)
+            }),
+            ("initiated_at", {
+                let mut m = std::collections::HashMap::new();
+                m.insert("iso8601".to_string(), s("2026-07-21T00:00:00"));
+                Value::Map(m)
+            }),
+        ]),
+    )
+    .unwrap();
+    let cents = |st: &storehouse::runtime::AggregateState| -> i64 {
+        match st.get("balance") {
+            Value::Map(m) => match m.get("cents") {
+                Some(Value::Int(n)) => *n,
+                _ => -1,
+            },
+            _ => -1,
+        }
+    };
+    assert_eq!(cents(&rt.find("Account", "1").unwrap()), 1000, "source debited 5000-4000");
+    assert_eq!(cents(&rt.find("Account", "2").unwrap()), 4000, "destination credited 4000");
+    assert_eq!(
+        rt.find("Transfer", "1").unwrap().get("status"),
+        &s("completed"),
+        "Transfer completed via Deposited provenance"
+    );
+    assert!(rt.find("Transfer", "2").is_none(), "no phantom Transfer");
+}
+
 // --- Events ---
 
 #[test]

@@ -170,6 +170,16 @@ impl PolicyEngine {
                     ValueSpec::FromEvent { name, default } => {
                         if let Some(v) = event.data.get(name) {
                             with_data.insert(key.clone(), v.clone());
+                        } else if name == "id" {
+                            // Provenance : `:id` names the EMITTING aggregate's
+                            // own identity, which rides the Event as aggregate_id
+                            // (not a data field). Lets a cascade carry the source
+                            // aggregate forward — a transfer's Deposit echoes the
+                            // Transfer id so the completion policy resolves it.
+                            // Resolved narrowly here (never injected into
+                            // event.data), so it can't shadow a triggered
+                            // command's own self-ref id fallback.
+                            with_data.insert(key.clone(), super::Value::Str(event.aggregate_id.clone()));
                         } else if let Some(d) = default {
                             with_data.insert(key.clone(), super::Value::Str(d.clone()));
                         }

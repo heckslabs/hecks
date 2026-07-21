@@ -168,6 +168,12 @@ Hecks.bluebook "Banking" do
 
     command "Deposit" do
       reference_to(Account)
+      # Provenance passthrough — set ONLY when a transfer credits this
+      # account (the CreditTransferDestination policy maps `transfer: :id`).
+      # A manual deposit leaves it empty. Because it rides the Deposited
+      # event, the CompleteOnDeposited policy can resolve the originating
+      # Transfer and mark it complete — the saga's final hop.
+      reference_to(Transfer)
       attribute :amount,      Money
       attribute :description, Description
       given { amount.positive? }
@@ -549,17 +555,19 @@ Hecks.bluebook "Banking" do
   policy "CreditTransferDestination" do
     on "TransferInitiated"
     trigger "Deposit"
-    map account: :destination, amount: :amount, description: "Transfer credit"
+    map account: :destination, amount: :amount, transfer: :id, description: "Transfer credit"
   end
 
   # When the destination has been credited, mark the Transfer complete.
-  # Today this requires the Deposited event to carry a `transfer`
-  # reference that the Deposit command echoes from its TransferInitiated
-  # trigger (a flat payload duplication). When i525's graph-walking map
-  # lands, the policy resolves the transfer from the event provenance
-  # instead of relying on payload duplication.
+  # The Deposited event carries the originating `transfer` : the
+  # CreditTransferDestination policy maps `transfer: :id` (the emitting
+  # Transfer's own identity) into the triggered Deposit, which echoes it
+  # onward. The `where transfer` guard keeps this cascade to transfer-
+  # driven deposits only — a manual Deposit (no transfer) never fires it,
+  # so it can't mint a phantom Transfer.
   policy "CompleteOnDeposited" do
     on "Deposited"
+    where transfer: { ne: "" }
     trigger "CompleteTransfer"
     map transfer: :transfer
   end
