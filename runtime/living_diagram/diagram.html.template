@@ -534,8 +534,8 @@
 <body>
   <!-- i547 top-bar nav — mirrors html_shared::top_bar from the
        walking-skeleton surface so the user can hop between Home /
-       Universe / Walking Skeleton / Diagram / Customer Portal from
-       any surface without dead-ending. -->
+       Universe / Walking Skeleton / Diagram from any surface
+       without dead-ending. -->
   <header id="topbar" style="background:#1a1a1a;border-bottom:1px solid #333e48;position:sticky;top:0;z-index:30">
     <nav style="display:flex;align-items:center;gap:4px;padding:8px 16px;font-size:13px;font-family:-apple-system,system-ui,sans-serif">
       <a href="/" data-topbar="home" class="topbar-link" style="padding:6px 12px;border-radius:4px;color:#ddd;text-decoration:none">🏠 Home</a>
@@ -543,7 +543,6 @@
       <a href="/domains/{{domain_name}}" data-topbar="walking" class="topbar-link" style="padding:6px 12px;border-radius:4px;color:#ddd;text-decoration:none">📋 Walking Skeleton</a>
       <a href="/diagram/{{domain_name}}" data-topbar="diagram-domain" class="topbar-link" style="padding:6px 12px;border-radius:4px;color:#ddd;text-decoration:none">📊 Diagram</a>
       <span style="flex:1"></span>
-      <a href="/portal/" data-topbar="portal" class="topbar-link" style="padding:6px 12px;border-radius:4px;color:#ddd;text-decoration:none">🏬 Customer Portal</a>
     </nav>
     <script>
       (function () {
@@ -642,11 +641,11 @@
       const h1 = document.querySelector('header h1');
       if (h1) h1.innerHTML = `🌌 The Universe<span class="subtitle">— every loaded bluebook</span>`;
       document.title = 'The Universe — Living Diagram';
-      // Walking skeleton link is not meaningful for _all ; hide it.
-      // It's the last .back link in the canvas-controls bar.
-      const links = document.querySelectorAll('.canvas-controls .back');
-      links.forEach(a => {
-        if (a.getAttribute('href') === '/domains/_all') a.style.display = 'none';
+      // Walking skeleton points at the non-existent "_all" domain on the
+      // universe view, so hide it BOTH in the canvas-controls back-link AND
+      // the top-bar (the top-bar link was the one that stayed live and 404'd).
+      document.querySelectorAll('a[href="/domains/_all"]').forEach(a => {
+        a.style.display = 'none';
       });
       // Hide the universe link itself (we're already there).
       const universeLink = document.querySelector('.canvas-controls a[href="/diagram"]');

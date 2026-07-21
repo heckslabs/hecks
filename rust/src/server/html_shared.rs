@@ -11,7 +11,7 @@
 
 /// i547 — top-bar nav across surfaces. Rendered above the
 /// sidebar+main+event-panel flex row so the user can hop between
-/// Home / Universe / Walking-Skeleton / Diagram / Customer Portal
+/// Home / Universe / Walking-Skeleton / Diagram
 /// without dead-ending on any one surface. `current_domain` lights
 /// up the per-domain links when known ; pass None on the dashboard.
 ///
@@ -54,7 +54,6 @@ pub fn top_bar(current_domain: Option<&str>) -> String {
     </select>
     <label class="text-xs text-gray-500 mr-1 hidden sm:inline" for="bearer-token">Bearer</label>
     <input id="bearer-token" type="text" placeholder="token" autocomplete="off" spellcheck="false" aria-label="Bearer token sent as the Authorization header on every dispatch" class="bg-surface-0 border border-surface-3 rounded px-2 py-1 text-xs text-gray-300 w-28 mr-2 focus:border-brand focus:outline-none">
-    <a href="/portal/" data-topbar="portal" class="topbar-link px-3 py-1.5 rounded hover:bg-surface-2 text-gray-300 hover:text-white transition">🏬 Customer Portal</a>
   </nav>
   <script>
     // Highlight the active surface based on path.
