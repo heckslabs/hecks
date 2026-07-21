@@ -958,6 +958,33 @@ pub fn parse_policy(lines: &[&str]) -> (Policy, usize) {
                 with.push((key, crate::ir::ValueSpec::Literal { value }));
             }
         }
+        // Cross-field payload map — `map key: :event_field, key2: "literal"`.
+        // Routes the triggering event's data (+ static literals) INTO the
+        // TRIGGERED command's attributes, renaming as declared. This is what
+        // makes a cascade route : `map account: :destination` sends the
+        // triggered Deposit to the DESTINATION account, not the upstream
+        // aggregate. Reuses `with` (both are (command_attr, ValueSpec) args) :
+        // a `:symbol` value is a FromEvent rename, a "string"/number a Literal.
+        // Before 2026-07-21 the parser dropped `map` entirely, so every
+        // cross-aggregate cascade mis-routed (the transfer saga's root bug).
+        if line.starts_with("map ") {
+            let body = line.strip_prefix("map").unwrap_or("").trim();
+            for pair in split_member_pairs(body) {
+                if let Some(colon) = pair.find(':') {
+                    let key = pair[..colon].trim().to_string();
+                    let raw_val = pair[colon + 1..].trim();
+                    if key.is_empty() || raw_val.is_empty() { continue; }
+                    let spec = if let Some(sym) = raw_val.strip_prefix(':') {
+                        crate::ir::ValueSpec::FromEvent { name: sym.trim().to_string(), default: None }
+                    } else if raw_val.starts_with('"') || raw_val.starts_with('\'') {
+                        crate::ir::ValueSpec::Literal { value: extract_string(raw_val).unwrap_or_default() }
+                    } else {
+                        crate::ir::ValueSpec::Literal { value: raw_val.trim_matches(',').trim().to_string() }
+                    };
+                    with.push((key, spec));
+                }
+            }
+        }
         // 0b guard — `where field: value` reuses the query WhereClause grammar.
         if line.starts_with("where") {
             for w in parse_where_line(line, &[]) { wheres.push(w); }

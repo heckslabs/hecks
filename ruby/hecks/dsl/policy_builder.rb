@@ -112,14 +112,18 @@ module Hecks
       # Map event attributes to command attributes.
       #
       # When the triggered command expects different attribute names than the
-      # event provides, use +map+ to define the translation. Keys are event
-      # attribute names, values are command attribute names.
+      # event provides, use +map+ to define the translation. It reads as an
+      # assignment : the KEY is the triggered COMMAND's attribute, the VALUE
+      # (a :symbol) is the EVENT field it is set from (a "string"/number is a
+      # static literal). So `map amount: :principal` sets the command's
+      # `amount` from the event's `principal`. This is the direction the Rust
+      # runtime resolves and every bluebook uses.
       #
-      # @param mapping [Hash{Symbol => Symbol}] event attribute to command attribute mapping
+      # @param mapping [Hash{Symbol => Symbol}] command attribute => event field (or literal)
       # @return [void]
       #
       # @example
-      #   map principal: :amount, account_id: :account_id
+      #   map amount: :principal, account: :account
       def map(**mapping)
         @attribute_map.merge!(mapping)
       end

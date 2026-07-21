@@ -526,7 +526,7 @@ Hecks.bluebook "Banking" do
   policy "DisburseFunds" do
     on "LoanIssued"
     trigger "Deposit"
-    map account: :account, principal: :amount, description: "Loan disbursement"
+    map account: :account, amount: :principal, description: "Loan disbursement"
   end
 
   # Transfer saga : on InitiateTransfer, the runtime fires Withdraw

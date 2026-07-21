@@ -629,6 +629,77 @@ end"#);
     );
 }
 
+// --- cross-aggregate cascade : a policy `map` routes the triggered command ---
+
+#[test]
+fn cascade_map_routes_to_the_named_account() {
+    // The transfer-saga core : `map account: :source` must route the triggered
+    // Withdraw to the SOURCE account and `map account: :destination` the
+    // Deposit to the DESTINATION — each carrying the event's amount. Before
+    // `map` was parsed + its FromEvent renames resolved, both mis-routed to
+    // the upstream aggregate and balances never moved (the i525 root bug).
+    let mut rt = boot(r#"Hecks.bluebook "T" do
+  aggregate "Account" do
+    attribute :balance, Integer
+    command "OpenAccount" do
+      attribute :balance, Integer
+      then_set :balance, to: :balance
+    end
+    command "Withdraw" do
+      reference_to(Account)
+      attribute :amount, Integer
+      then_set :balance, decrement: :amount
+    end
+    command "Deposit" do
+      reference_to(Account)
+      attribute :amount, Integer
+      then_set :balance, increment: :amount
+    end
+  end
+  aggregate "Transfer" do
+    reference_to(Account, as: :source)
+    reference_to(Account, as: :destination)
+    attribute :amount, Integer
+    command "InitiateTransfer" do
+      reference_to(Account, as: :source)
+      reference_to(Account, as: :destination)
+      attribute :amount, Integer
+      emits "TransferInitiated"
+      then_set :amount, to: :amount
+    end
+  end
+  policy "DebitSource" do
+    on "TransferInitiated"
+    trigger "Withdraw"
+    map account: :source, amount: :amount
+  end
+  policy "CreditDestination" do
+    on "TransferInitiated"
+    trigger "Deposit"
+    map account: :destination, amount: :amount
+  end
+end"#);
+    // Two accounts : #1 = 100, #2 = 0.
+    rt.dispatch("OpenAccount", attrs(&[("balance", Value::Int(100))])).unwrap();
+    rt.dispatch("OpenAccount", attrs(&[("balance", Value::Int(0))])).unwrap();
+    // Transfer 30 from #1 to #2 — the cascade fires Withdraw(#1) + Deposit(#2).
+    rt.dispatch(
+        "InitiateTransfer",
+        attrs(&[("source", s("1")), ("destination", s("2")), ("amount", Value::Int(30))]),
+    )
+    .unwrap();
+    assert_eq!(
+        rt.find("Account", "1").unwrap().get("balance"),
+        &Value::Int(70),
+        "source #1 must be debited 30 (map account: :source)"
+    );
+    assert_eq!(
+        rt.find("Account", "2").unwrap().get("balance"),
+        &Value::Int(30),
+        "destination #2 must be credited 30 (map account: :destination)"
+    );
+}
+
 // --- Events ---
 
 #[test]

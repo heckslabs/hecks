@@ -156,8 +156,25 @@ impl PolicyEngine {
             // later families.
             let mut with_data: HashMap<String, super::Value> = HashMap::new();
             for (key, spec) in &binding.with {
-                if let ValueSpec::Literal { value } = spec {
-                    with_data.insert(key.clone(), super::Value::Str(value.clone()));
+                match spec {
+                    ValueSpec::Literal { value } => {
+                        with_data.insert(key.clone(), super::Value::Str(value.clone()));
+                    }
+                    // Cross-field rename (`map account: :destination`) : pull
+                    // the named field off the TRIGGERING event, falling back to
+                    // a declared default. This is what routes a cascade — the
+                    // triggered command learns which aggregate to act on and
+                    // carries the event's amount / provenance forward. Without
+                    // it the rename is silently dropped and the cascade
+                    // mis-routes to the upstream (the transfer-saga root bug).
+                    ValueSpec::FromEvent { name, default } => {
+                        if let Some(v) = event.data.get(name) {
+                            with_data.insert(key.clone(), v.clone());
+                        } else if let Some(d) = default {
+                            with_data.insert(key.clone(), super::Value::Str(d.clone()));
+                        }
+                    }
+                    _ => {}
                 }
             }
             triggers.push(PolicyTrigger {
