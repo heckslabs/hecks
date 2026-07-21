@@ -383,6 +383,32 @@ fn resolve_expr(expr: &str, state: &AggregateState, attrs: &HashMap<String, Valu
             return Value::Int(lhs.rem_euclid(n));
         }
     }
+    // Dotted value-object field access : `amount.cents`,
+    // `amount.currency.code`. Resolve the head from attrs (input shadows
+    // state) or state, then step into each Value::Map segment. This only
+    // ADDS nested navigation — if the head is not a Map or a segment is
+    // missing, it falls through to the flat lookup below, so a plainly-named
+    // field is unaffected. Without this a `given { amount.cents > 0 }`
+    // resolved the whole dotted string as a flat key, found nothing, and
+    // numeric-coerced to 0 — refusing every valid nested-VO payload.
+    if let Some((head, path)) = expr.split_once('.') {
+        if let Some(base) = attrs.get(head).or_else(|| state.fields.get(head)) {
+            let mut cur = base;
+            let mut navigated = true;
+            for seg in path.split('.') {
+                match cur {
+                    Value::Map(m) => match m.get(seg) {
+                        Some(v) => cur = v,
+                        None => { navigated = false; break; }
+                    },
+                    _ => { navigated = false; break; }
+                }
+            }
+            if navigated {
+                return cur.clone();
+            }
+        }
+    }
     // Command attributes shadow state when they share a name — the
     // `given` clause runs at dispatch time with the inbound input
     // already in scope, mirroring how Ruby's predicate DSL evaluates

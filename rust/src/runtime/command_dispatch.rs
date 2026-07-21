@@ -1570,7 +1570,12 @@ fn json_to_value(v: &serde_json::Value) -> Value {
             }
         }
         serde_json::Value::Null => Value::Null,
-        _ => Value::Str(v.to_string()),
+        // Recurse : a nested value object stays a Value::Map (arrays a List),
+        // not a stringified blob — same contract as repository::from_json.
+        serde_json::Value::Array(a) => Value::List(a.iter().map(json_to_value).collect()),
+        serde_json::Value::Object(m) => {
+            Value::Map(m.iter().map(|(k, v)| (k.clone(), json_to_value(v))).collect())
+        }
     }
 }
 

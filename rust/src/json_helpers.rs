@@ -6,38 +6,56 @@
 use crate::runtime::Value;
 use std::collections::HashMap;
 
-/// Parse dispatch body: { "command": "Name", "attrs": { "k": "v" } }
+/// Parse dispatch body: { "command": "Name", "attrs": { "k": v, ... } }.
+/// Parsed with serde_json so NESTED value objects survive as `Value::Map`
+/// (arrays as `Value::List`) end-to-end. The previous hand-rolled parser found
+/// the attrs object's end with the FIRST `}` — a nested VO's brace — truncating
+/// `Money {cents, currency}` to a broken string, and stringified every nested
+/// object (type loss), so `amount.cents > 0` always failed. Now the structure
+/// rides through dispatch, event, and storage intact.
 pub fn parse_dispatch_body(body: &str) -> (String, HashMap<String, Value>) {
-    let body = body.trim();
-    let mut command = String::new();
-    let mut attrs = HashMap::new();
-
-    if let Some(idx) = body.find("\"command\"") {
-        let rest = &body[idx + 9..];
-        if let Some(val) = extract_json_string(rest) {
-            command = val;
-        }
-    }
-
-    if let Some(idx) = body.find("\"attrs\"") {
-        let rest = &body[idx + 7..];
-        if let Some(brace_start) = rest.find('{') {
-            let inner = &rest[brace_start + 1..];
-            if let Some(brace_end) = inner.find('}') {
-                let pairs = &inner[..brace_end];
-                for pair in split_json_pairs(pairs) {
-                    let pair = pair.trim();
-                    if let Some(colon) = pair.find(':') {
-                        let key = pair[..colon].trim().trim_matches('"');
-                        let val_str = pair[colon + 1..].trim();
-                        attrs.insert(key.to_string(), parse_json_value(val_str));
-                    }
-                }
-            }
-        }
-    }
-
+    let parsed: serde_json::Value =
+        serde_json::from_str(body.trim()).unwrap_or(serde_json::Value::Null);
+    let command = parsed
+        .get("command")
+        .and_then(|v| v.as_str())
+        .unwrap_or_default()
+        .to_string();
+    let attrs = parsed
+        .get("attrs")
+        .and_then(|v| v.as_object())
+        .map(|m| {
+            m.iter()
+                .map(|(k, v)| (k.clone(), json_value_to_runtime(v)))
+                .collect()
+        })
+        .unwrap_or_default();
     (command, attrs)
+}
+
+/// Decode a serde_json value into a runtime `Value`, RECURSIVELY : nested
+/// objects -> `Value::Map`, arrays -> `Value::List`, so a value object keeps its
+/// shape instead of collapsing to a string. A whole-number decodes to `Int` ;
+/// any other number falls back to its string form (the `Value` enum has no
+/// float), mirroring repository::from_json and json_to_value_recursive.
+fn json_value_to_runtime(v: &serde_json::Value) -> Value {
+    match v {
+        serde_json::Value::String(s) => Value::Str(s.clone()),
+        serde_json::Value::Bool(b) => Value::Bool(*b),
+        serde_json::Value::Number(n) => n
+            .as_i64()
+            .map(Value::Int)
+            .unwrap_or_else(|| Value::Str(n.to_string())),
+        serde_json::Value::Null => Value::Null,
+        serde_json::Value::Array(a) => {
+            Value::List(a.iter().map(json_value_to_runtime).collect())
+        }
+        serde_json::Value::Object(m) => Value::Map(
+            m.iter()
+                .map(|(k, v)| (k.clone(), json_value_to_runtime(v)))
+                .collect(),
+        ),
+    }
 }
 
 /// Top-level keys of a JSON object body — used by the HTTP door to
@@ -60,12 +78,6 @@ pub fn top_level_keys(body: &str) -> Vec<String> {
         .collect()
 }
 
-fn extract_json_string(s: &str) -> Option<String> {
-    let start = s.find('"')? + 1;
-    let end = s[start..].find('"')? + start;
-    Some(s[start..end].to_string())
-}
-
 fn split_json_pairs(s: &str) -> Vec<&str> {
     let mut pairs = vec![];
     let mut depth = 0;
@@ -85,23 +97,6 @@ fn split_json_pairs(s: &str) -> Vec<&str> {
         pairs.push(&s[last..]);
     }
     pairs
-}
-
-fn parse_json_value(s: &str) -> Value {
-    let s = s.trim();
-    if s.starts_with('"') && s.ends_with('"') {
-        Value::Str(s[1..s.len() - 1].to_string())
-    } else if let Ok(n) = s.parse::<i64>() {
-        Value::Int(n)
-    } else if s == "true" {
-        Value::Bool(true)
-    } else if s == "false" {
-        Value::Bool(false)
-    } else if s == "null" {
-        Value::Null
-    } else {
-        Value::Str(s.to_string())
-    }
 }
 
 pub fn value_to_json(v: &Value) -> String {

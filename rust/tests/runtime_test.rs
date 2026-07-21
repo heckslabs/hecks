@@ -493,6 +493,49 @@ end"#);
     );
 }
 
+// --- a given reads a NESTED value-object field (amount.currency.code) ---
+
+#[test]
+fn given_navigates_nested_value_object_fields() {
+    let mut rt = boot(r#"Hecks.bluebook "T" do
+  aggregate "Wallet" do
+    attribute :balance, Money
+    value_object "Money" do
+      attribute :cents, Integer
+      attribute :currency, Currency
+    end
+    value_object "Currency" do
+      attribute :code, String
+    end
+    command "Fund" do
+      attribute :balance, Money
+      given { balance.cents > 0 }
+      given { balance.currency.code == "USD" }
+      then_set :balance, to: :balance
+    end
+  end
+end"#);
+    let mut currency = std::collections::HashMap::new();
+    currency.insert("code".to_string(), s("USD"));
+    let mut money = std::collections::HashMap::new();
+    money.insert("cents".to_string(), Value::Int(100));
+    money.insert("currency".to_string(), Value::Map(currency));
+    // Both givens navigate into the nested Money map : cents > 0, and
+    // currency.code (two levels deep) == "USD".
+    rt.dispatch("Fund", attrs(&[("balance", Value::Map(money.clone()))]))
+        .expect("nested-VO givens must pass on a structured Money");
+
+    // Negative : cents 0 fails the first given (proves it actually reads
+    // the nested field, not a flat miss coerced to 0 that would pass a
+    // `== 0` but here must FAIL `> 0`).
+    let mut zero = money;
+    zero.insert("cents".to_string(), Value::Int(0));
+    assert!(
+        rt.dispatch("Fund", attrs(&[("balance", Value::Map(zero))])).is_err(),
+        "balance.cents == 0 must fail the `> 0` given"
+    );
+}
+
 // --- Events ---
 
 #[test]

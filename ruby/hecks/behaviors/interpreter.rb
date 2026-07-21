@@ -226,6 +226,28 @@ module Hecks
             return Value.from(lhs % n)
           end
         end
+        # Dotted value-object field access : `amount.cents`,
+        # `amount.currency.code`. Resolve the head from attrs (input shadows
+        # state) or state, then step into each :map segment. Mirrors
+        # rust/src/runtime/interpreter.rs. Only ADDS nested navigation ; a
+        # non-map head falls through to the flat lookup below.
+        if expr.include?(".")
+          head, path = expr.split(".", 2)
+          base = attrs[head] || attrs[head.to_sym] || state.fields[head] || state.fields[head.to_sym]
+          unless base.nil?
+            cur = Value.from(base)
+            navigated = true
+            path.split(".").each do |seg|
+              if cur.kind == :map && (cur.raw.key?(seg) || cur.raw.key?(seg.to_sym))
+                cur = cur.raw[seg] || cur.raw[seg.to_sym]
+              else
+                navigated = false
+                break
+              end
+            end
+            return cur if navigated
+          end
+        end
         if (v = attrs[expr] || attrs[expr.to_sym])
           return Value.from(v)
         end
