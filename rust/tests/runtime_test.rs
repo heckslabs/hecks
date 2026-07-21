@@ -456,6 +456,43 @@ end"#);
     assert_eq!(state.get("customer"), &s("Alice"));
 }
 
+// --- reference_to auto-persists the relationship (no hand `then_set :x_id`) ---
+
+#[test]
+fn reference_to_auto_persists_under_the_bare_name() {
+    // A create command that only DECLARES `reference_to Pizza` — no then_set —
+    // must still store the relationship under its bare name, so a domain can
+    // speak relationships instead of ids. reference_to is LegacyReferenceTo,
+    // treated as BelongsTo for persistence.
+    let mut rt = boot(r#"Hecks.bluebook "T" do
+  aggregate "Pizza" do
+    attribute :name, Name
+    value_object "Name" do
+      attribute :value, String
+    end
+    command "CreatePizza" do
+      attribute :name, Name
+    end
+  end
+  aggregate "Order" do
+    reference_to(Pizza)
+    command "PlaceOrder" do
+      reference_to(Pizza)
+    end
+    query "ByPizza" do
+      where(pizza: :pizza)
+    end
+  end
+end"#);
+    rt.dispatch("CreatePizza", attrs(&[("name", s("Margherita"))])).unwrap();
+    rt.dispatch("PlaceOrder", attrs(&[("pizza", s("1"))])).unwrap();
+    let order = rt.find("Order", "1").unwrap();
+    assert_eq!(
+        order.get("pizza"), &s("1"),
+        "reference_to must auto-persist under the bare relationship name"
+    );
+}
+
 // --- Events ---
 
 #[test]

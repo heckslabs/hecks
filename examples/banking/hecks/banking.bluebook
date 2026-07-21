@@ -212,8 +212,8 @@ Hecks.bluebook "Banking" do
     end
 
     query "AccountsByCustomer" do
-      description "All accounts belonging to a customer, ordered by account_id."
-      where(customer_id: :customer_id)
+      description "All accounts belonging to a customer."
+      where(customer: :customer)
     end
 
     query "ClosedAccounts" do
@@ -300,11 +300,9 @@ Hecks.bluebook "Banking" do
       attribute :amount,       Money
       attribute :memo,         Memo
       attribute :initiated_at, Timestamp
-      given { source_id != destination_id }                  # self-transfer guard
+      given { source != destination }                        # self-transfer guard
       given { amount.cents > 0 }
       emits "TransferInitiated"
-      then_set :source_id,      to: :source_id
-      then_set :destination_id, to: :destination_id
       then_set :amount,         to: :amount
       then_set :memo,           to: :memo
       then_set :steps, append: { kind: "initiated", at: :initiated_at, amount: :amount }
@@ -339,12 +337,12 @@ Hecks.bluebook "Banking" do
 
     query "TransfersFromAccount" do
       description "Every transfer with a given source account, ordered by id."
-      where(source_id: :account_id)
+      where(source: :account)
     end
 
     query "TransfersToAccount" do
       description "Every transfer with a given destination account, ordered by id."
-      where(destination_id: :account_id)
+      where(destination: :account)
     end
   end
 
@@ -422,7 +420,7 @@ Hecks.bluebook "Banking" do
     end
 
     command "IssueLoan" do
-      # account_id only — customer is loan.account.customer_id.
+      # account only — customer is loan.account.customer.
       # Removes the issue-time ambiguity the previous shape allowed
       # (loan recorded under one customer, funded into a different
       # customer's account because both ids were independent strings).
@@ -432,7 +430,6 @@ Hecks.bluebook "Banking" do
       attribute :term,      Term
       given { principal.cents > 0 }
       emits "LoanIssued"
-      then_set :account_id,        to: :account_id
       then_set :principal,         to: :principal
       then_set :rate,              to: :rate
       then_set :term,              to: :term
@@ -502,8 +499,8 @@ Hecks.bluebook "Banking" do
     end
 
     query "LoansForAccount" do
-      description "Every loan whose disbursement account matches a given account_id. Cross-references for collections."
-      where(account_id: :account_id)
+      description "Every loan whose disbursement account matches a given account. Cross-references for collections."
+      where(account: :account)
     end
   end
 
@@ -522,7 +519,7 @@ Hecks.bluebook "Banking" do
   policy "DisburseFunds" do
     on "LoanIssued"
     trigger "Deposit"
-    map account_id: :account_id, principal: :amount, description: "Loan disbursement"
+    map account: :account, principal: :amount, description: "Loan disbursement"
   end
 
   # Transfer saga : on InitiateTransfer, the runtime fires Withdraw
@@ -532,54 +529,54 @@ Hecks.bluebook "Banking" do
   # hops. If Withdraw fails (insufficient funds, daily-limit, etc.),
   # the saga stops there ; a follow-on RejectTransfer policy fires.
   #
-  # Filter on the events' transfer_id presence so this cascade only
+  # Filter on the events' transfer presence so this cascade only
   # applies to Account commands triggered by a transfer — manual
   # Withdraw / Deposit do not loop into transfer completion.
 
   policy "DebitTransferSource" do
     on "TransferInitiated"
     trigger "Withdraw"
-    map account_id: :source_id, amount: :amount, description: "Transfer debit"
+    map account: :source, amount: :amount, description: "Transfer debit"
   end
 
   policy "CreditTransferDestination" do
     on "TransferInitiated"
     trigger "Deposit"
-    map account_id: :destination_id, amount: :amount, description: "Transfer credit"
+    map account: :destination, amount: :amount, description: "Transfer credit"
   end
 
   # When the destination has been credited, mark the Transfer complete.
-  # Today this requires the Deposited event to carry a transfer_id
-  # that the Deposit command echoes from its TransferInitiated trigger
-  # (a flat payload duplication). When i525's graph-walking map lands,
-  # the policy resolves the transfer from the event provenance instead
-  # of relying on payload duplication.
+  # Today this requires the Deposited event to carry a `transfer`
+  # reference that the Deposit command echoes from its TransferInitiated
+  # trigger (a flat payload duplication). When i525's graph-walking map
+  # lands, the policy resolves the transfer from the event provenance
+  # instead of relying on payload duplication.
   policy "CompleteOnDeposited" do
     on "Deposited"
     trigger "CompleteTransfer"
-    map transfer_id: :transfer_id
+    map transfer: :transfer
   end
 
   # Loan default cascade : when a loan defaults, suspend its
   # customer. Today the customer is reached via
-  # loan.account.customer_id ; the LoanDefaulted event carries only
-  # the loan's own attributes, not the customer_id. A graph-walking
-  # map like `map customer_id: :loan.account.customer_id` would let
+  # loan.account.customer ; the LoanDefaulted event carries only
+  # the loan's own attributes, not the customer. A graph-walking
+  # map like `map customer: :loan.account.customer` would let
   # the policy resolve the loan from the event, walk to its account,
-  # take that account's customer_id, and dispatch SuspendCustomer
-  # with the resolved id. The current `map` is a flat key→key
+  # take that account's customer, and dispatch SuspendCustomer
+  # with the resolved relationship. The current `map` is a flat key→key
   # transfer ; cross-aggregate path resolution is a framework gap
   # (i525).
   #
   # Until i525 closes, this bluebook records the intent ; the runtime
-  # adapter that emits LoanDefaulted populates customer_id from the
+  # adapter that emits LoanDefaulted populates customer from the
   # loan's reference graph at emission time. The policy then runs as
   # a flat map. When graph-walking lands, this declaration becomes
-  # `map customer_id: :loan.account.customer_id` and the runtime no
+  # `map customer: :loan.account.customer` and the runtime no
   # longer needs to pre-populate the payload.
   policy "SuspendCustomerOnDefault" do
     on "LoanDefaulted"
     trigger "SuspendCustomer"
-    map customer_id: :customer_id
+    map customer: :customer
   end
 end

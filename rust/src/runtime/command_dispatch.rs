@@ -328,8 +328,17 @@ fn dispatch_inner(
         // the singleton fallback (arbitrary record). Completes the
         // half-wired belongs_to-on-event feature. VALIDATOR-cross-
         // aggregate-policy-ref-naming.
+        // LegacyReferenceTo (`reference_to X`) is treated as BelongsTo for IR
+        // shape (ir.rs), so treat it as BelongsTo for PERSISTENCE too : a
+        // declared relationship is stored under its bare name, no hand-written
+        // `then_set :x_id`. This is what lets a domain speak relationships
+        // instead of ids (banking's customer/source/destination/account).
         for r in &rt.domain.aggregates[agg_idx].references {
-            if matches!(r.kind, crate::ir::ReferenceKind::BelongsTo) {
+            if matches!(
+                r.kind,
+                crate::ir::ReferenceKind::BelongsTo
+                    | crate::ir::ReferenceKind::LegacyReferenceTo
+            ) {
                 if let Some(val) = attrs.get(&r.name) {
                     state.set(&r.name, val.clone());
                 }
@@ -365,8 +374,11 @@ fn dispatch_inner(
     // unlock). Command inputs win on collision ; empty FKs are skipped.
     let mut event_data = attrs.clone();
     for r in &rt.domain.aggregates[agg_idx].references {
-        if matches!(r.kind, crate::ir::ReferenceKind::BelongsTo)
-            && !event_data.contains_key(&r.name)
+        if matches!(
+            r.kind,
+            crate::ir::ReferenceKind::BelongsTo
+                | crate::ir::ReferenceKind::LegacyReferenceTo
+        ) && !event_data.contains_key(&r.name)
         {
             let v = state.get(&r.name);
             if !v.to_string().is_empty() {

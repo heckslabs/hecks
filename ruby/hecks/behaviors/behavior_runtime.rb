@@ -241,6 +241,17 @@ module Hecks
           next unless agg_attr_names.include?(n)
           state.set(n, attrs[n]) if attrs.key?(n)
         end
+        # Auto-persist relationships (belongs_to + reference_to) under the bare
+        # name, mirroring the Rust runtime (command_dispatch.rs) : a declared
+        # reference is stored without a hand-written `then_set :x_id`. References
+        # aren't attributes, so the loop above skipped them. Covering both kinds
+        # fixes the belongs_to/reference_to persistence asymmetry and keeps
+        # behaviors parity honest.
+        (agg.references || []).each do |r|
+          next unless %i[belongs_to reference_to].include?(r.kind)
+          key = r.name.to_s
+          state.set(key, attrs[key]) if attrs.key?(key)
+        end
       end
 
       def publish_emit(cmd, state, attrs)
