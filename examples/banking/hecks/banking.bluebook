@@ -6,18 +6,11 @@ Hecks.bluebook "Banking" do
   # ============================================================
 
   aggregate "Customer" do
-    identified_by :id
-
-    attribute :id,     CustomerId
+    # Identity is runtime-managed — no CustomerId value object, no id
+    # attribute. The domain names the customer by what it IS (name, email),
+    # never by a codey id. Other aggregates link with `reference_to Customer`.
     attribute :name,   PersonName
     attribute :email,  EmailAddress
-
-    value_object "CustomerId" do
-      attribute :value, String
-      invariant "non-empty" do
-        value && !value.strip.empty?
-      end
-    end
 
     value_object "PersonName" do
       attribute :given, String
@@ -46,11 +39,9 @@ Hecks.bluebook "Banking" do
     end
 
     command "RegisterCustomer" do
-      attribute :id,    CustomerId
       attribute :name,  PersonName
       attribute :email, EmailAddress
       emits "CustomerRegistered"
-      then_set :id,    to: :id
       then_set :name,  to: :name
       then_set :email, to: :email
     end
@@ -90,21 +81,14 @@ Hecks.bluebook "Banking" do
   # ============================================================
 
   aggregate "Account" do
-    identified_by :id
-
-    attribute :id,           AccountId
+    # Identity is runtime-managed ; no AccountId value object. Accounts are
+    # linked with `reference_to Account`, and belong to a customer via
+    # `reference_to Customer` — never a raw id attribute.
     reference_to(Customer)
     attribute :balance,      Money
     attribute :account_type, AccountType
     attribute :daily_limit,  Money
     attribute :ledger,       list_of(LedgerEntry)
-
-    value_object "AccountId" do
-      attribute :value, String
-      invariant "non-empty" do
-        value && !value.strip.empty?
-      end
-    end
 
     # Money is currency-aware, integer-cents — never Float.
     # IEEE 754 rounding has no place in a ledger.
@@ -163,13 +147,11 @@ Hecks.bluebook "Banking" do
     end
 
     command "OpenAccount" do
-      attribute :id, AccountId
       reference_to(Customer)
       attribute :account_type,     AccountType
       attribute :daily_limit,      Money
       attribute :opening_currency, Currency
       emits "AccountOpened"
-      then_set :id,           to: :id
       then_set :account_type, to: :account_type
       then_set :daily_limit,  to: :daily_limit
       # Balance initialised to zero in opening_currency at the runtime
@@ -250,21 +232,13 @@ Hecks.bluebook "Banking" do
   # ============================================================
 
   aggregate "Transfer" do
-    identified_by :id
-
-    attribute :id, TransferId
+    # Identity is runtime-managed ; no TransferId value object. A transfer
+    # moves money between two accounts, each named `reference_to Account`.
     reference_to(Account, as: :source)
     reference_to(Account, as: :destination)
     attribute :amount, Money
     attribute :memo,   Memo
     attribute :steps,  list_of(TransferStep)
-
-    value_object "TransferId" do
-      attribute :value, String
-      invariant "non-empty" do
-        value && !value.strip.empty?
-      end
-    end
 
     value_object "Money" do
       attribute :cents,    Integer
@@ -321,7 +295,6 @@ Hecks.bluebook "Banking" do
     end
 
     command "InitiateTransfer" do
-      attribute :id, TransferId
       reference_to(Account, as: :source)
       reference_to(Account, as: :destination)
       attribute :amount,       Money
@@ -330,7 +303,6 @@ Hecks.bluebook "Banking" do
       given { source_id != destination_id }                  # self-transfer guard
       given { amount.cents > 0 }
       emits "TransferInitiated"
-      then_set :id,             to: :id
       then_set :source_id,      to: :source_id
       then_set :destination_id, to: :destination_id
       then_set :amount,         to: :amount
@@ -381,25 +353,15 @@ Hecks.bluebook "Banking" do
   # ============================================================
 
   aggregate "Loan" do
-    # The Customer is reached via loan.account.customer_id.
-    # No redundant `reference_to Customer` ; one path through the
-    # graph means there is nothing to disagree with.
-    identified_by :id
-
-    attribute :id, LoanId
+    # The Customer is reached via loan.account (reference_to Account) ;
+    # no redundant `reference_to Customer`, one path through the graph.
+    # Identity is runtime-managed ; no LoanId value object.
     reference_to(Account)
     attribute :principal,         Money
     attribute :rate,              InterestRate
     attribute :term,              Term
     attribute :remaining_balance, Money
     attribute :payments,          list_of(LoanPayment)
-
-    value_object "LoanId" do
-      attribute :value, String
-      invariant "non-empty" do
-        value && !value.strip.empty?
-      end
-    end
 
     value_object "Money" do
       attribute :cents,    Integer
@@ -460,7 +422,6 @@ Hecks.bluebook "Banking" do
     end
 
     command "IssueLoan" do
-      attribute :id, LoanId
       # account_id only — customer is loan.account.customer_id.
       # Removes the issue-time ambiguity the previous shape allowed
       # (loan recorded under one customer, funded into a different
@@ -471,7 +432,6 @@ Hecks.bluebook "Banking" do
       attribute :term,      Term
       given { principal.cents > 0 }
       emits "LoanIssued"
-      then_set :id,                to: :id
       then_set :account_id,        to: :account_id
       then_set :principal,         to: :principal
       then_set :rate,              to: :rate
