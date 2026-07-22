@@ -68,6 +68,7 @@ pub fn additional_corpus_roots() -> Vec<PathBuf> {
 pub fn load_combined_domain(agg_dir: &str) -> crate::ir::Domain {
     let mut combined = crate::ir::Domain {
         name: "Hecksagon".into(),
+        version: None, // the merge is synthetic ; each aggregate carries its OWN bluebook_version
         category: None, vision: None,
         aggregates: vec![], policies: vec![],
         fixtures: vec![],

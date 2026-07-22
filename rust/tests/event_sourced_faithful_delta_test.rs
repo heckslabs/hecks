@@ -35,7 +35,7 @@ fn copy_dir(from: &Path, to: &Path) {
 
 // A rich aggregate : a Money balance (a nested value object) that a Deposit grows
 // by Money arithmetic — the exact shape (banking's Account) the fold must rebuild.
-const VAULT: &str = r#"Hecks.bluebook "Vault" do
+const VAULT: &str = r#"Hecks.bluebook "Vault", version: "2026.07.21.1" do
   aggregate "Vault" do
     attribute :balance, Money
     value_object "Money" do
@@ -187,6 +187,15 @@ fn event_sourced_money_delta_is_faithful_and_folds_back() {
         _ => String::new(),
     };
     assert!(!rv.is_empty(), "event-row carries runtime_version provenance");
+    // PROVENANCE : the event-row carries the SUBJECT bluebook's declared version
+    // (Vault's header `version: "2026.07.21.1"`) — parsed onto the aggregate
+    // (Aggregate.bluebook_version) and threaded to the writer. Before increment 1
+    // the parser DROPPED the header's version:, so this field was always empty.
+    let bv = match deposited.get("bluebook_version") {
+        Value::Map(m) => m.get("value").map(|v| v.to_string()).unwrap_or_default(),
+        _ => String::new(),
+    };
+    assert_eq!(bv, "2026.07.21.1", "event-row carries the subject bluebook's declared version");
 
     // GOVERNABILITY : the event-row stamps the REAL actor + the verdict this
     // command was admitted under. OpenVault/Deposit declare `role "System"` and

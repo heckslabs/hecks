@@ -60,6 +60,17 @@ pub fn extract_string(line: &str) -> Option<String> {
     None
 }
 
+/// Extract the quoted value of a `keyword: "..."` argument from a single line,
+/// e.g. `version` from `Hecks.bluebook "X", version: "2026.06.27.1" do`. Finds the
+/// `<keyword>:` marker and reads the first double-quoted string after it, reusing
+/// `extract_string`'s escape handling. None when the keyword is absent. Line-
+/// textual, matching how the Ruby DSL captures the keyword arg.
+pub fn extract_kwarg_string(line: &str, keyword: &str) -> Option<String> {
+    let marker = format!("{}:", keyword);
+    let idx = line.find(&marker)?;
+    extract_string(&line[idx + marker.len()..])
+}
+
 /// Extract a possibly multi-line `"..."` string literal beginning on
 /// `lines[start]`, returning the UNESCAPED content and the number of
 /// physical lines consumed.

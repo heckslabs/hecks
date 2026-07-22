@@ -36,6 +36,7 @@ module Hecks
         pms = domain.respond_to?(:process_managers) ? (domain.process_managers || []) : []
         {
           "name"             => domain.name,
+          "version"          => domain.version,
           "category"         => category_for(domain),
           "vision"           => domain.vision,
           "aggregates"       => domain.aggregates.map { |a| dump_aggregate(a) },

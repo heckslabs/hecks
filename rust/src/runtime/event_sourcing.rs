@@ -166,10 +166,26 @@ impl Runtime {
             let agg_name = event.aggregate_type.clone();
             let agg_id = event.aggregate_id.clone();
             // Provenance : the runtime build that recorded these events.
-            // (bluebook_version rides in once Domain carries its version.)
             let runtime_version_val = {
                 let mut m = HashMap::new();
                 m.insert("value".to_string(), Value::Str(env!("CARGO_PKG_VERSION").to_string()));
+                Value::Map(m)
+            };
+            // Provenance : the version of the bluebook that DECLARED this subject
+            // aggregate (Aggregate.bluebook_version, stamped at parse from the
+            // `Hecks.bluebook "X", version: "…"` header). Read owned now so the
+            // &self borrow releases before the row writes. Empty when the header
+            // omits a version — the events still record, without a schema stamp.
+            let bluebook_version_val = {
+                let v = self
+                    .domain
+                    .aggregates
+                    .iter()
+                    .find(|a| a.name == agg_name)
+                    .and_then(|a| a.bluebook_version.clone())
+                    .unwrap_or_default();
+                let mut m = HashMap::new();
+                m.insert("value".to_string(), Value::Str(v));
                 Value::Map(m)
             };
             // Governability : the REAL actor + verdict this command was admitted
@@ -220,6 +236,7 @@ impl Runtime {
                 attrs.insert("sequence".to_string(), Value::Map(sequence_vo));
                 attrs.insert("recorded_at".to_string(), Value::Str(recorded_at.clone()));
                 attrs.insert("runtime_version".to_string(), runtime_version_val.clone());
+                attrs.insert("bluebook_version".to_string(), bluebook_version_val.clone());
                 let _ = command_dispatch::dispatch(
                     self.framework_mut(),
                     "EventSourcing::Event.Append",
@@ -273,6 +290,7 @@ impl Runtime {
                 attrs.insert("sequence".to_string(), Value::Map(sequence_vo));
                 attrs.insert("recorded_at".to_string(), Value::Str(recorded_at.clone()));
                 attrs.insert("runtime_version".to_string(), runtime_version_val.clone());
+                attrs.insert("bluebook_version".to_string(), bluebook_version_val.clone());
                 // Core dispatch (no pump) — EventSourcing::Event.Append's save
                 // routes through the AppendLog adapter to THIS process's shard.
                 // The recursion guard above skips the EventSourcing aggregates,

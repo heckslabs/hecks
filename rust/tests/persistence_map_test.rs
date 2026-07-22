@@ -18,6 +18,7 @@ fn agg(name: &str, ctx: &str) -> Aggregate {
         description: None,
         context: Some(ctx.into()),
         category: None,
+        bluebook_version: None,
         realm_path: None,
         identified_by: None,
         attributes: vec![],
@@ -38,6 +39,7 @@ fn dom(aggs: Vec<Aggregate>) -> Domain {
     Domain {
         name: "T".into(),
         category: None,
+        version: None,
         vision: None,
         aggregates: aggs,
         policies: vec![],

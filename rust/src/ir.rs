@@ -17,6 +17,14 @@ use std::fmt;
 #[derive(Debug, Clone)]
 pub struct Domain {
     pub name: String,
+    /// The bluebook's declared `version:` from its header
+    /// (`Hecks.bluebook "X", version: "2026.06.27.1"`). Provenance : stamped
+    /// onto each aggregate (`Aggregate.bluebook_version`) and thence into every
+    /// event the runtime records, so a replay is self-describing and the
+    /// upcasting foundation exists. None when the header omits it. Line-textual
+    /// on the Rust side ; the Ruby DSL captures the keyword arg natively (both
+    /// emit it in the canonical IR dump, so parity holds).
+    pub version: Option<String>,
     pub category: Option<String>,
     pub vision: Option<String>,
     pub aggregates: Vec<Aggregate>,
@@ -351,6 +359,16 @@ pub struct Aggregate {
     /// didn't declare a category. Added 2026-05-12 for the i560 FQN
     /// migration (v2 — 2-segments-plus-dot form).
     pub category: Option<String>,
+    /// The owning bluebook's `version:` (Domain.version), stamped onto the
+    /// aggregate at parse time and preserved through `load_combined_domain` —
+    /// the same rail `category` rides. RUNTIME-INTERNAL provenance : the event
+    /// writer stamps it into every Event this aggregate records
+    /// (`bluebook_version`), so a replay is self-describing. Deliberately ABSENT
+    /// from the canonical IR dump (dump_aggregate) — it is derived from
+    /// Domain.version, which the dump already carries, so a per-aggregate copy
+    /// would be redundant and would need a matching Ruby field. None when the
+    /// header omits a version.
+    pub bluebook_version: Option<String>,
     /// Natural primary key — name of the attribute that identifies the
     /// aggregate. When set, dispatch routes by `attrs[identified_by]`
     /// (e.g. `inbox.Item identified_by :ref` → key = the dispatched ref

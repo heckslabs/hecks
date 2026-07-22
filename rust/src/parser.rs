@@ -17,6 +17,7 @@ use crate::parse_blocks::*;
 pub fn parse(source: &str) -> Domain {
     let mut domain = Domain {
         name: String::new(),
+        version: None,
         category: None,
         vision: None,
         aggregates: vec![],
@@ -41,6 +42,13 @@ pub fn parse(source: &str) -> Domain {
         if line.starts_with("Hecks.bluebook") {
             if let Some(name) = extract_string(line) {
                 domain.name = name;
+            }
+            // `Hecks.bluebook "X", version: "2026.06.27.1"` — the optional
+            // version keyword rides the same header line. Carry it as
+            // provenance ; it is stamped onto every aggregate below and thence
+            // into each event the runtime records.
+            if let Some(v) = extract_kwarg_string(line, "version") {
+                domain.version = Some(v);
             }
         }
 
@@ -151,6 +159,13 @@ fn invoke(parser: BlockParser, slice: &[&str], domain: &mut Domain) -> usize {
             // grouping. None for bluebooks that didn't declare one.
             if domain.category.is_some() {
                 agg.category = domain.category.clone();
+            }
+            // Same rail : stamp the bluebook's declared version onto the
+            // aggregate so the merged corpus (one Domain, many source
+            // bluebooks) still carries each aggregate's OWN provenance — the
+            // event writer reads it per subject. None when the header omits one.
+            if domain.version.is_some() {
+                agg.bluebook_version = domain.version.clone();
             }
             domain.aggregates.push(agg);
             // Bubble aggregate-nested policies (inbox's LockOnSignoff) up to
@@ -290,6 +305,7 @@ fn parse_aggregate(lines: &[&str]) -> (Aggregate, Vec<Policy>, usize) {
         name, description: desc,
         context: None, // populated by parse() after parse_aggregate returns
         category: None, // i560 v2 — stamped from domain.category by invoke()
+        bluebook_version: None, // stamped from domain.version by invoke() (provenance rail)
         realm_path: None, // stamped by load_combined_domain from the file path (string parse can't know it)
         attributes: vec![],
         factories: vec![], // births — first-class Factory nodes (2026-06-12)

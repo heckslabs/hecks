@@ -32,6 +32,7 @@ use serde_json::{json, Value};
 pub fn dump(domain: &Domain) -> Value {
     json!({
         "name": domain.name,
+        "version": domain.version,
         "category": domain.category,
         "vision": domain.vision,
         "aggregates": domain.aggregates.iter().map(dump_aggregate).collect::<Vec<_>>(),

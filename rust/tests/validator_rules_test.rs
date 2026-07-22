@@ -74,6 +74,7 @@ fn duplicate_aggregate_names() {
     let domain = Domain {
         name: "T".into(),
         category: None,
+        version: None,
         vision: None,
         aggregates: vec![
             Aggregate {
@@ -92,7 +93,7 @@ fn duplicate_aggregate_names() {
                     givens: vec![],
                     mutations: vec![], redirects_native: vec![],
                 }],
-                value_objects: vec![], entities: vec![], context: None, category: None, realm_path: None,
+                value_objects: vec![], entities: vec![], context: None, category: None, realm_path: None, bluebook_version: None,
                 references: vec![],
                 lifecycle: None, invariants: vec![],
                 identified_by: None,
@@ -116,7 +117,7 @@ fn duplicate_aggregate_names() {
                     givens: vec![],
                     mutations: vec![], redirects_native: vec![],
                 }],
-                value_objects: vec![], entities: vec![], context: None, category: None, realm_path: None,
+                value_objects: vec![], entities: vec![], context: None, category: None, realm_path: None, bluebook_version: None,
                 references: vec![],
                 lifecycle: None, invariants: vec![],
                 identified_by: None,
@@ -142,6 +143,7 @@ fn aggregate_without_commands() {
     let domain = Domain {
         name: "T".into(),
         category: None,
+        version: None,
         vision: None,
         aggregates: vec![Aggregate {
             name: "Orphan".into(),
@@ -149,7 +151,7 @@ fn aggregate_without_commands() {
             attributes: vec![],
             factories: vec![],
             commands: vec![],
-            value_objects: vec![], entities: vec![], context: None, category: None, realm_path: None,
+            value_objects: vec![], entities: vec![], context: None, category: None, realm_path: None, bluebook_version: None,
             references: vec![],
             lifecycle: None, invariants: vec![],
             identified_by: None,
@@ -174,6 +176,7 @@ fn bad_command_naming() {
     let domain = Domain {
         name: "T".into(),
         category: None,
+        version: None,
         vision: None,
         aggregates: vec![Aggregate {
             name: "Pizza".into(),
@@ -193,7 +196,7 @@ fn bad_command_naming() {
                 givens: vec![],
                 mutations: vec![], redirects_native: vec![],
             }],
-            value_objects: vec![], entities: vec![], context: None, category: None, realm_path: None,
+            value_objects: vec![], entities: vec![], context: None, category: None, realm_path: None, bluebook_version: None,
             references: vec![],
             lifecycle: None, invariants: vec![],
             identified_by: None,
@@ -296,6 +299,7 @@ fn unknown_policy_trigger() {
     let domain = Domain {
         name: "T".into(),
         category: None,
+        version: None,
         vision: None,
         aggregates: vec![Aggregate {
             name: "Order".into(),
@@ -313,7 +317,7 @@ fn unknown_policy_trigger() {
                 givens: vec![],
                 mutations: vec![], redirects_native: vec![],
             }],
-            value_objects: vec![], entities: vec![], context: None, category: None, realm_path: None,
+            value_objects: vec![], entities: vec![], context: None, category: None, realm_path: None, bluebook_version: None,
             references: vec![],
             lifecycle: None, invariants: vec![],
             identified_by: None,
