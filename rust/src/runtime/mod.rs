@@ -453,6 +453,13 @@ impl Runtime {
         // Hydrate the middleware stack (runtime projection of the Gate
         // grammar) after the RBAC read-model the authorize gate reads.
         rt.hydrate_middleware();
+        // THE READ SIDE (Stage 4) : derive event_sourced state FROM the Log.
+        // LAST, after every persistence override above — the overrides REBUILD
+        // repositories, so hydrating earlier would seed records into a repo that
+        // is then replaced. This is the door the cold CLI boots through ; a
+        // cold-CLI smoke is what caught that wiring only boot_with_framework_dir
+        // left every one-shot `storehouse` invocation reading the store alone.
+        rt.hydrate_event_sourced_from_log();
         rt
     }
 
@@ -657,6 +664,13 @@ impl Runtime {
         rt.hecksagons = hecksagons;
         rt.framework_registry =
             framework_registry::FrameworkRegistry::build_from_dir(framework_dir);
+        // THE READ SIDE (Stage 4) : state for an event_sourced aggregate is DERIVED
+        // from the Log rather than merely mirrored beside it. Runs here, not in
+        // boot_with_data_dir, because `event_sourced` is a HECKSAGON binding — the
+        // directive is unknowable until the line above. Overlays the Log's opinion
+        // onto what the store loaded, so a store that is stale, truncated or gone
+        // no longer decides what a reader sees.
+        rt.hydrate_event_sourced_from_log();
         rt
     }
 

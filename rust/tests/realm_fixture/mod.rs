@@ -51,11 +51,30 @@ pub fn boot_realm(
     std::fs::write(sd.join(format!("{domain}.bluebook")), bluebook).unwrap();
     std::fs::write(sd.join(format!("{domain}.hecksagon")), hecksagon).unwrap();
 
+    let rt = reboot_realm(&root);
+    (rt, root)
+}
+
+/// Boot an EXISTING realm again without touching its files — a second process's
+/// view of the same data dir. `boot_realm` wipes and re-writes the realm ; this
+/// deliberately does not, so a test can mutate what is on disk between boots and
+/// see what the runtime makes of it.
+pub fn reboot_realm(root: &Path) -> Runtime {
     let agg_dir = root.join("aggregates");
     let agg_dir_s = agg_dir.to_str().unwrap();
     let loaded = corpus_loader::load_combined_domain(agg_dir_s);
     let hecksagons = embed::load_hecksagons(agg_dir_s);
     let data = root.join("data").to_string_lossy().into_owned();
-    let rt = Runtime::boot_with_framework_dir(loaded, Some(data), hecksagons, &agg_dir);
-    (rt, root)
+    Runtime::boot_with_framework_dir(loaded, Some(data), hecksagons, &agg_dir)
+}
+
+/// Boot an existing realm with its HECKSAGONS WITHHELD — so `event_sourced` is
+/// unknowable and the Log-derived read side cannot engage. The control case : it
+/// shows what a reader sees from the current-state store ALONE.
+pub fn reboot_realm_store_only(root: &Path) -> Runtime {
+    let agg_dir = root.join("aggregates");
+    let agg_dir_s = agg_dir.to_str().unwrap();
+    let loaded = corpus_loader::load_combined_domain(agg_dir_s);
+    let data = root.join("data").to_string_lossy().into_owned();
+    Runtime::boot_with_data_dir(loaded, Some(data))
 }

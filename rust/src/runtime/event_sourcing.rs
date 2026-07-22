@@ -335,6 +335,95 @@ impl Runtime {
             self.maybe_capture_snapshot();
         }
 
+    /// STAGE 4 — THE READ SIDE. Derive every event-sourced aggregate's state
+    /// FROM the Log, rather than merely mirroring it into a parallel store.
+    ///
+    /// This is what makes the Log authoritative rather than a second record kept
+    /// alongside the real one. Until now the eager heki current-state write WAS
+    /// the read : if it was stale, truncated, or lost, the read was wrong and the
+    /// Log — which had the facts — was never consulted. Now the state a caller
+    /// reads is the state the Log says it is.
+    ///
+    /// `load = Snapshot@watermark + fold_forward(tail)` : the projection is read
+    /// through `ReadForward`, so it is O(tail) rather than O(whole-log) (that is
+    /// what Stage 3's capture bought) and there is ONE fold shared with the query,
+    /// never a second that could drift.
+    ///
+    /// IDEMPOTENT BY CONSTRUCTION — why overlaying is safe. A delta records the
+    /// field's FULL post-command value, never an increment, so applying it once or
+    /// five times lands on the same value. That is also why this OVERLAYS the
+    /// loaded record instead of replacing it : fields the Log has an opinion about
+    /// win, and fields it has never seen (defaults an aggregate was born with)
+    /// survive untouched.
+    ///
+    /// It also dissolves the synchronicity window the arc's locked decision names:
+    /// a crash between the state save and the Log append can no longer strand a
+    /// recorded event, because the next load re-derives from the Log.
+    pub fn hydrate_event_sourced_from_log(&mut self) {
+        let name = Self::CURRENT_STATE_PROJECTION;
+        let mut params: HashMap<String, String> = HashMap::new();
+        params.insert("projection_name".to_string(), name.to_string());
+        let folded = self.framework_mut().resolve_query("ReadForward", &params);
+        let rows = match folded.get("state").and_then(|s| s.as_array()) {
+            Some(rows) if !rows.is_empty() => rows.clone(),
+            _ => return,
+        };
+
+        // Regroup the flat projection rows ("<agg>::<id>::<field>") per instance.
+        // rsplit for the FIELD and split-once for the AGG, so an id containing
+        // "::" cannot smear the parse.
+        let mut per_instance: HashMap<(String, String), Vec<(String, String)>> = HashMap::new();
+        for row in &rows {
+            let key = match row.get("key").and_then(|k| k.as_str()) {
+                Some(k) => k,
+                None => continue,
+            };
+            let value = row.get("value").and_then(|v| v.as_str()).unwrap_or_default();
+            let (agg, rest) = match key.split_once("::") {
+                Some(p) => p,
+                None => continue,
+            };
+            let (id, field) = match rest.rsplit_once("::") {
+                Some(p) => p,
+                None => continue,
+            };
+            if field.is_empty() {
+                continue;
+            }
+            per_instance
+                .entry((agg.to_string(), id.to_string()))
+                .or_default()
+                .push((field.to_string(), value.to_string()));
+        }
+
+        for ((agg, id), fields) in per_instance {
+            if !self.aggregate_is_event_sourced(&agg) {
+                continue;
+            }
+            let key = match repo_lookup_key(&self.repositories, &agg) {
+                Some(k) => k,
+                None => continue,
+            };
+            // Overlay onto what is already loaded, so Log-known fields win and
+            // Log-unknown ones (defaults) survive.
+            let mut record = self
+                .repositories
+                .get(&key)
+                .and_then(|r| r.find(&id))
+                .cloned()
+                .unwrap_or_else(|| AggregateState::new(&id));
+            for (field, raw) in fields {
+                // The Log stores each delta value as COMPACT JSON, so a Money map
+                // and a ledger list decode back TYPED — not as the string that
+                // rendered them.
+                record.set(&field, super::value_from_json_str(&raw));
+            }
+            if let Some(repo) = self.repositories.get_mut(&key) {
+                repo.seed_record(record);
+            }
+        }
+    }
+
     /// The trivial per-aggregate current-state projection — the one
     /// `Snapshot.ReadForward` serves (Row key "agg::id::field"). Named once here
     /// so the writer's capture and the reader's fold can never disagree about
