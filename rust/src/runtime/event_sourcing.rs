@@ -328,7 +328,109 @@ impl Runtime {
             if !cause_row.is_empty() {
                 self.note_last_event(&agg_name, &agg_id, &cause_row.clone());
             }
+            // Snapshots — cache the fold once the Log has grown far enough past
+            // the watermark. Reached only for real domain aggregates : the infra
+            // and EventSourcing guards return above, so a Capture can never
+            // re-enter this writer.
+            self.maybe_capture_snapshot();
         }
+
+    /// The trivial per-aggregate current-state projection — the one
+    /// `Snapshot.ReadForward` serves (Row key "agg::id::field"). Named once here
+    /// so the writer's capture and the reader's fold can never disagree about
+    /// WHICH projection the snapshot caches.
+    pub(crate) const CURRENT_STATE_PROJECTION: &'static str = "current_state";
+
+    /// How far the Log may run past the snapshot before we re-capture.
+    ///
+    /// A THRESHOLD, not a timer — the bluebook is explicit twice over ("capture
+    /// by THRESHOLD (every N events) or ON-DEMAND, not by time"), and it is right
+    /// on the merits : a clock re-captures identical state when nothing happened,
+    /// and falls behind exactly when it matters (a burst), because read cost
+    /// tracks LOG GROWTH, not elapsed time. Tying capture to growth bounds the
+    /// fall-forward tail directly. `HECKS_SNAPSHOT_EVERY` overrides it (0 = never
+    /// capture), so a deployment can trade write cost against read cost.
+    fn snapshot_threshold() -> i64 {
+        std::env::var("HECKS_SNAPSHOT_EVERY")
+            .ok()
+            .and_then(|v| v.trim().parse().ok())
+            .unwrap_or(100)
+    }
+
+    /// Capture the current-state snapshot IFF the Log has grown `threshold`
+    /// events past the last watermark. Runs on the framework COLLABORATOR, where
+    /// both Event and Snapshot live.
+    ///
+    /// The capture IS the read : it materialises exactly what `ReadForward` would
+    /// compute right now (cached rows + the folded tail) and stores it at the new
+    /// watermark, so a snapshot can never mean something different from the query
+    /// that consumes it — there is one fold, not two. Afterwards the tail is
+    /// empty, so the next read is O(1) instead of O(log).
+    ///
+    /// Safe by construction : a snapshot is a CACHE, never the source of truth.
+    /// If this never runs, every read simply folds a longer tail. So a failed or
+    /// skipped capture costs time, never correctness.
+    ///
+    /// KNOWN LIMIT : `sequence` is the per-PROCESS shard sequence until the merge
+    /// assigns the global order, so a watermark captured in one process is only
+    /// meaningful against that process's ordering. `ReadForward` already carries
+    /// this property ; consolidating first is what makes it global.
+    pub(super) fn maybe_capture_snapshot(&mut self) {
+        let threshold = Self::snapshot_threshold();
+        if threshold <= 0 {
+            return;
+        }
+        let name = Self::CURRENT_STATE_PROJECTION;
+        let fw = self.framework_mut();
+
+        let head = fw
+            .all_qualified(Some("EventSourcing"), "Event")
+            .iter()
+            .map(|e| match e.get("sequence") {
+                Value::Int(i) => *i,
+                Value::Map(m) => m.get("value").and_then(|v| v.as_int()).unwrap_or(0),
+                _ => 0,
+            })
+            .max()
+            .unwrap_or(0);
+        let watermark = match fw.find("Snapshot", name).map(|s| s.get("watermark").clone()) {
+            Some(Value::Int(i)) => i,
+            Some(Value::Map(m)) => m.get("value").and_then(|v| v.as_int()).unwrap_or(0),
+            _ => 0,
+        };
+        if head - watermark < threshold {
+            return;
+        }
+
+        // The fold is the READ — one implementation, shared.
+        let mut params: HashMap<String, String> = HashMap::new();
+        params.insert("projection_name".to_string(), name.to_string());
+        let folded = fw.resolve_query("ReadForward", &params);
+        let rows: Vec<Value> = folded
+            .get("state")
+            .and_then(|s| s.as_array())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|r| {
+                        let k = r.get("key")?.as_str()?.to_string();
+                        let v = r.get("value")?.as_str().unwrap_or_default().to_string();
+                        let mut row = HashMap::new();
+                        row.insert("key".to_string(), Value::Str(k));
+                        row.insert("value".to_string(), Value::Str(v));
+                        Some(Value::Map(row))
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        let mut watermark_vo = HashMap::new();
+        watermark_vo.insert("value".to_string(), Value::Int(head));
+        let mut attrs = HashMap::new();
+        attrs.insert("projection_name".to_string(), Value::Str(name.to_string()));
+        attrs.insert("watermark".to_string(), Value::Map(watermark_vo));
+        attrs.insert("state".to_string(), Value::List(rows));
+        let _ = command_dispatch::dispatch(fw, "EventSourcing::Snapshot.Capture", attrs);
+    }
 
     /// Phase-4 causation — note the Log event_id just recorded for a domain
     /// aggregate, so a later cascade off it can stamp `causation_id`. Keyed

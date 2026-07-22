@@ -9,24 +9,11 @@
 //! id, and that a SECOND, independent Fire opens a DISTINCT flow — the two proofs
 //! that make the facet meaningful.
 
+mod realm_fixture;
+
 use std::collections::HashSet;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use storehouse::runtime::{AggregateState, Runtime, Value};
-use storehouse::{corpus_loader, embed};
-
-fn conception() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..").join("hecks_conception")
-}
-
-fn copy_dir(from: &Path, to: &Path) {
-    std::fs::create_dir_all(to).unwrap();
-    for entry in std::fs::read_dir(from).unwrap_or_else(|e| panic!("read {:?}: {}", from, e)) {
-        let entry = entry.unwrap();
-        if entry.file_type().unwrap().is_file() {
-            std::fs::copy(entry.path(), to.join(entry.file_name())).unwrap();
-        }
-    }
-}
 
 // A minimal event_sourced saga : Trigger.Fire -> Fired -> (policy) -> Target.Land
 // -> Landed. Two aggregates, one causal cascade — one FLOW.
@@ -89,31 +76,7 @@ fn s(v: &str) -> Value {
 /// Boot the saga against the REAL framework substrate in its own temp root, so
 /// two tests can run the same fixture concurrently without sharing a data dir.
 fn boot_saga(root_name: &str) -> (Runtime, PathBuf) {
-    let c = conception();
-    let root = std::env::temp_dir().join(root_name);
-    let _ = std::fs::remove_dir_all(&root);
-
-    let fw = root.join("aggregates").join("framework");
-    copy_dir(&c.join("aggregates/framework/adapters"), &fw.join("adapters"));
-    copy_dir(&c.join("aggregates/framework/families"), &fw.join("families"));
-    copy_dir(
-        &c.join("aggregates/framework/event_sourcing/bluebook"),
-        &fw.join("event_sourcing/bluebook"),
-    );
-    copy_dir(&c.join("aggregates/framework/hexagon/bluebook"), &fw.join("hexagon/bluebook"));
-
-    let sd = fw.join("saga/bluebook");
-    std::fs::create_dir_all(&sd).unwrap();
-    std::fs::write(sd.join("saga.bluebook"), SAGA).unwrap();
-    std::fs::write(sd.join("saga.hecksagon"), SAGA_HEX).unwrap();
-
-    let agg_dir = root.join("aggregates");
-    let agg_dir_s = agg_dir.to_str().unwrap();
-    let domain = corpus_loader::load_combined_domain(agg_dir_s);
-    let hecksagons = embed::load_hecksagons(agg_dir_s);
-    let data = root.join("data").to_string_lossy().into_owned();
-    let rt = Runtime::boot_with_framework_dir(domain, Some(data), hecksagons, &agg_dir);
-    (rt, root)
+    realm_fixture::boot_realm(root_name, "saga", SAGA, SAGA_HEX)
 }
 
 fn event_name(e: &AggregateState) -> String {
