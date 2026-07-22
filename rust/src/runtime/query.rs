@@ -13,6 +13,43 @@
 
 use super::*;
 
+/// Read an id-shaped Event field that may be a plain string OR a `{value}` VO.
+/// The Log stamps VOs ; hand-constructed fixtures often carry bare strings, and
+/// both lineage traversals must read either.
+fn id_field(ev: &AggregateState, key: &str) -> String {
+    match ev.fields.get(key) {
+        Some(Value::Str(s)) => s.clone(),
+        Some(Value::Map(m)) => m.get("value").map(|v| v.to_string()).unwrap_or_default(),
+        _ => String::new(),
+    }
+}
+
+/// The Log sequence of an event (0 when absent) — the total order the forward
+/// walk sorts siblings by, so a consequence tree is deterministic.
+fn seq_field(ev: &AggregateState) -> i64 {
+    match ev.fields.get("sequence") {
+        Some(Value::Int(i)) => *i,
+        Some(Value::Map(m)) => m.get("value").and_then(|v| v.as_int()).unwrap_or(0),
+        _ => 0,
+    }
+}
+
+/// One Event as flat JSON — the row shape BOTH lineage traversals return.
+///
+/// Serialised through `value_to_json`, NOT a match that stringifies the
+/// non-scalar arms. The old form rendered every value object as the useless
+/// `"{N fields}"` — so a lineage row lost its `event_name`, `sequence`, `delta`
+/// and `verdict` wholesale, which is exactly the lossiness the Log itself was
+/// fixed for (the source-of-truth floor). A traversal that reports the Log must
+/// report it as faithfully as the Log stores it.
+fn record_json(ev: &AggregateState) -> serde_json::Map<String, serde_json::Value> {
+    let mut map = serde_json::Map::new();
+    for (k, v) in &ev.fields {
+        map.insert(k.clone(), value_to_json(v));
+    }
+    map
+}
+
 impl Runtime {
     /// Context-qualified record retrieval — bypasses repo_lookup_key's
     /// HashMap-iter-order non-determinism by going straight to the
@@ -218,24 +255,61 @@ impl Runtime {
                     Some(e) => e,
                     None => break,
                 };
-                let cause = match ev.fields.get("causation_id") {
-                    Some(Value::Str(s)) => s.clone(),
-                    Some(Value::Map(m)) => {
-                        m.get("value").map(|v| v.to_string()).unwrap_or_default()
-                    }
-                    _ => String::new(),
-                };
-                let mut map = serde_json::Map::new();
-                for (k, v) in &ev.fields {
-                    map.insert(k.clone(), match v {
-                        Value::Str(s) => serde_json::json!(s),
-                        Value::Int(n) => serde_json::json!(n),
-                        Value::Bool(b) => serde_json::json!(b),
-                        _ => serde_json::json!(v.to_string()),
-                    });
-                }
-                records.push(serde_json::Value::Object(map));
+                let cause = id_field(ev, "causation_id");
+                records.push(serde_json::Value::Object(record_json(ev)));
                 current = cause;
+            }
+            return serde_json::json!({
+                "aggregate": agg_name, "query": query_name,
+                "state": serde_json::json!(records),
+            });
+        }
+
+        // ConsequenceTree : the FORWARD lineage walk — CausationTrace's mirror.
+        // Backward is a WALK (an event has at most ONE cause, so each hop is a
+        // find() by key). Forward is a TREE : one event may cause MANY, so the
+        // traversal fans out and neither a where() nor repeated find() can express
+        // it — the depth is unbounded AND causation_id is not a key. So the runtime
+        // builds the reverse index `causation_id -> children` ONCE from the Event
+        // set, then walks it breadth-first from the root.
+        //
+        // Each row carries a `depth` (0 = the root event itself) so the caller can
+        // rebuild the tree shape from the flat, level-ordered list. Siblings are
+        // ordered by Log `sequence` so the answer is DETERMINISTIC — repository
+        // iteration order is not. Cycle-guarded by a seen-set, like the backward
+        // walk. A named query the engine special-cases, not a record-filter.
+        if query_name == "ConsequenceTree" {
+            let mut children: HashMap<String, Vec<&AggregateState>> = HashMap::new();
+            for ev in self.all(&agg_name) {
+                let cause = id_field(ev, "causation_id");
+                if !cause.is_empty() {
+                    children.entry(cause).or_default().push(ev);
+                }
+            }
+            for kids in children.values_mut() {
+                kids.sort_by(|a, b| {
+                    seq_field(a)
+                        .cmp(&seq_field(b))
+                        .then_with(|| id_field(a, "event_id").cmp(&id_field(b, "event_id")))
+                });
+            }
+            let mut records: Vec<serde_json::Value> = Vec::new();
+            let mut seen = std::collections::HashSet::new();
+            let mut queue: std::collections::VecDeque<(String, i64)> =
+                std::collections::VecDeque::new();
+            queue.push_back((attrs.get("event_id").cloned().unwrap_or_default(), 0));
+            while let Some((id, depth)) = queue.pop_front() {
+                if id.is_empty() || !seen.insert(id.clone()) {
+                    continue;
+                }
+                if let Some(ev) = self.find(&agg_name, &id) {
+                    let mut map = record_json(ev);
+                    map.insert("depth".to_string(), serde_json::json!(depth));
+                    records.push(serde_json::Value::Object(map));
+                }
+                for kid in children.get(&id).into_iter().flatten() {
+                    queue.push_back((id_field(kid, "event_id"), depth + 1));
+                }
             }
             return serde_json::json!({
                 "aggregate": agg_name, "query": query_name,

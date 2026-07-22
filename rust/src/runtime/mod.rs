@@ -161,6 +161,10 @@ pub mod event_log_index;
 // (resolve_query_qualified's recursive branch), tested over a seeded chain.
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod causation_trace_tests;
+// The FORWARD half — ConsequenceTree fans out over the reverse index
+// (causation_id -> children), tested over seeded trees a live cascade can't shape.
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod consequence_tree_tests;
 // The merge half : tail N single-writer shards into the global ordered Log.
 pub mod event_merge;
 pub mod compute_functions;

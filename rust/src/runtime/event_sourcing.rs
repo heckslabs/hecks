@@ -217,8 +217,10 @@ impl Runtime {
             // trivial fold skips empty-delta rows, so this lineage/governance
             // fact never disturbs state reconstruction (dual-write). The real
             // actor + verdict + per-flow correlation land here in later slices.
+            let mut domain_event_id = String::new();
             if let Some((shard, seq)) = event_shard::reserve(&shard_dir) {
                 let event_id = format!("{}-{}", shard, seq);
+                domain_event_id = event_id.clone();
                 let mut command_vo = HashMap::new();
                 command_vo.insert("verb".to_string(), Value::Str(verb.clone()));
                 command_vo.insert("inputs".to_string(), Value::Str(inputs.clone()));
@@ -311,10 +313,20 @@ impl Runtime {
                     attrs,
                 );
             }
-            // Phase-4 causation : remember this command's last recorded event
-            // so a cascade off this aggregate can stamp it as its cause.
-            if !last_event_id.is_empty() {
-                self.note_last_event(&agg_name, &agg_id, &last_event_id);
+            // Phase-4 causation : remember the event a cascade off this aggregate
+            // should stamp as its cause. PREFER the first-class DOMAIN EVENT row
+            // over the last delta row. Both are minted here, and the delta rows are
+            // written last — so plain last-write-wins made a cascade's causation_id
+            // point at a bookkeeping delta ROW rather than at the event that
+            // actually caused it. That answered "what caused this?" with a field
+            // mutation, and left the forward ConsequenceTree from a domain event
+            // empty (its children hang off the delta row, not off it). Lineage is a
+            // chain of EVENTS ; the delta id survives only as the fallback for an
+            // aggregate that recorded deltas without emitting one.
+            let cause_row =
+                if domain_event_id.is_empty() { &last_event_id } else { &domain_event_id };
+            if !cause_row.is_empty() {
+                self.note_last_event(&agg_name, &agg_id, &cause_row.clone());
             }
         }
 

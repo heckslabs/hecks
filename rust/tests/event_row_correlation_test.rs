@@ -86,24 +86,11 @@ fn s(v: &str) -> Value {
     Value::Str(v.to_string())
 }
 
-fn event_name(e: &AggregateState) -> String {
-    match e.get("event_name") {
-        Value::Map(m) => m.get("value").map(|v| v.to_string()).unwrap_or_default(),
-        _ => String::new(),
-    }
-}
-fn correlation(e: &AggregateState) -> String {
-    match e.get("correlation_id") {
-        Value::Map(m) => m.get("value").map(|v| v.to_string()).unwrap_or_default(),
-        Value::Str(v) => v.clone(),
-        other => other.to_string(),
-    }
-}
-
-#[test]
-fn one_flow_shares_a_correlation_id_across_the_cascade() {
+/// Boot the saga against the REAL framework substrate in its own temp root, so
+/// two tests can run the same fixture concurrently without sharing a data dir.
+fn boot_saga(root_name: &str) -> (Runtime, PathBuf) {
     let c = conception();
-    let root = std::env::temp_dir().join("es_correlation_proof");
+    let root = std::env::temp_dir().join(root_name);
     let _ = std::fs::remove_dir_all(&root);
 
     let fw = root.join("aggregates").join("framework");
@@ -125,7 +112,27 @@ fn one_flow_shares_a_correlation_id_across_the_cascade() {
     let domain = corpus_loader::load_combined_domain(agg_dir_s);
     let hecksagons = embed::load_hecksagons(agg_dir_s);
     let data = root.join("data").to_string_lossy().into_owned();
-    let mut rt = Runtime::boot_with_framework_dir(domain, Some(data), hecksagons, &agg_dir);
+    let rt = Runtime::boot_with_framework_dir(domain, Some(data), hecksagons, &agg_dir);
+    (rt, root)
+}
+
+fn event_name(e: &AggregateState) -> String {
+    match e.get("event_name") {
+        Value::Map(m) => m.get("value").map(|v| v.to_string()).unwrap_or_default(),
+        _ => String::new(),
+    }
+}
+fn correlation(e: &AggregateState) -> String {
+    match e.get("correlation_id") {
+        Value::Map(m) => m.get("value").map(|v| v.to_string()).unwrap_or_default(),
+        Value::Str(v) => v.clone(),
+        other => other.to_string(),
+    }
+}
+
+#[test]
+fn one_flow_shares_a_correlation_id_across_the_cascade() {
+    let (mut rt, root) = boot_saga("es_correlation_proof");
 
     // TWO flows, dispatched before one read : Fire(t1) cascades to Land(t1) via the
     // LandOnFired policy (pump settles in-process before dispatch returns) ; Fire(t2)
@@ -198,6 +205,60 @@ fn one_flow_shares_a_correlation_id_across_the_cascade() {
     assert_eq!(
         trigger_t1, HashSet::from([corr1.clone()]),
         "every row of flow 1's root aggregate shares its one correlation, got {trigger_t1:?}",
+    );
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+/// LINEAGE, forward : the consequence tree BITES on the live Log. The seeded unit
+/// tests (runtime::consequence_tree_tests) prove the traversal's SHAPE — fan-out,
+/// depth, sibling determinism, cycle guard — over chains a real cascade cannot
+/// produce. This proves the other half : that the field it walks is actually
+/// stamped by a live policy cascade, so asking the root event "what did you
+/// cause?" reaches the far side of the saga.
+#[test]
+fn the_consequence_tree_reaches_the_cascade_on_the_live_log() {
+    let (mut rt, root) = boot_saga("es_consequence_live_proof");
+
+    let mut fire = std::collections::HashMap::new();
+    fire.insert("name".to_string(), s("t1"));
+    rt.dispatch("Saga::Trigger.Fire", fire).expect("Fire(t1) cascades to Land");
+
+    let event_id_of = |e: &AggregateState| match e.get("event_id") {
+        Value::Str(v) => v.clone(),
+        Value::Map(m) => m.get("value").map(|v| v.to_string()).unwrap_or_default(),
+        other => other.to_string(),
+    };
+    let fired_id: String = {
+        let events = rt.all_qualified(Some("EventSourcing"), "Event");
+        events
+            .iter()
+            .find(|e| e.get("aggregate_name").to_string() == "Trigger" && event_name(e) == "Fired")
+            .map(|e| event_id_of(e))
+            .expect("a Fired event-row on the live log")
+    };
+    assert!(!fired_id.is_empty(), "the Fired event-row must carry an event_id");
+
+    let mut attrs = std::collections::HashMap::new();
+    attrs.insert("event_id".to_string(), fired_id.clone());
+    let result = rt.resolve_query("ConsequenceTree", &attrs);
+    let rows = result.get("state").and_then(|v| v.as_array()).cloned().unwrap_or_default();
+
+    // Rooted at Fired, at depth 0.
+    assert!(!rows.is_empty(), "ConsequenceTree returned nothing for {fired_id}");
+    assert_eq!(rows[0].get("depth").and_then(|d| d.as_i64()), Some(0), "the queried event roots the tree");
+
+    // And it REACHES the cascade : the Landed event-row the policy caused is in
+    // the tree, below the root. Before causation_id was stamped on live cascades
+    // this tree would have been the root alone.
+    let reached_landed = rows.iter().any(|r| {
+        let is_landed = r.get("event_name").map(|v| v.to_string().contains("Landed")).unwrap_or(false);
+        let below_root = r.get("depth").and_then(|d| d.as_i64()).unwrap_or(0) > 0;
+        is_landed && below_root
+    });
+    assert!(
+        reached_landed,
+        "the cascade's Landed event must appear below the root of Fired's consequence tree — got {rows:#?}",
     );
 
     let _ = std::fs::remove_dir_all(&root);

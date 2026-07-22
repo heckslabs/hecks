@@ -255,6 +255,22 @@ Hecks.bluebook "EventSourcing", version: "2026.06.19.1" do
           # where the walk stops.
           description "Walk the causation chain from this event up to its root cause"
         end
+
+        query "ConsequenceTree" do |event_id|
+          # The FORWARD lineage walk — CausationTrace's mirror, and the other half
+          # of a trustable log : backward answers "what caused this?", forward
+          # answers "what did this cause?". Backward is a WALK (an event has at
+          # most ONE cause) ; forward is a TREE (one event may cause MANY), so the
+          # traversal fans out breadth-first and each row carries a `depth`
+          # (0 = the root event itself) so the caller rebuilds the tree shape from
+          # the flat, level-ordered list. Neither a where() nor repeated find() can
+          # express it : the depth is unbounded AND causation_id is not a key, so
+          # the runtime builds the reverse index causation_id -> children once and
+          # walks it. Siblings come back in Log `sequence` order, so the answer is
+          # deterministic rather than repository-iteration-order. Cycle-guarded,
+          # like the backward walk.
+          description "Walk forward from this event through everything it caused"
+        end
       end
 
   # ============================================================
