@@ -97,6 +97,45 @@ fn a_healthy_log_records_a_derivable_verdict() {
     let _ = std::fs::remove_dir_all(&root);
 }
 
+/// COMPLETENESS — every emitted domain event reaches the Log.
+///
+/// This is the invariant the original empty-delta bug needed and did not have.
+/// That guard silently swallowed the event-row of any command that emitted an
+/// event while changing no state, and NOTHING caught it : the fold gauge is
+/// structurally blind, because a dropped event-row has an empty delta, so it
+/// contributes nothing to fold(Log) and the projection still matched the store
+/// perfectly. Drift has an oracle ; missing events do not — you cannot compare
+/// against what was never written. So the debt is counted at the dispatch CALLER
+/// and the payment inside the writer, and the gap between them is the answer.
+#[test]
+fn every_emitted_event_reaches_the_log() {
+    let (mut rt, root) = realm_fixture::boot_realm("es_complete", "tally", TALLY, TALLY_HEX);
+
+    bump(&mut rt, "c1", "1");
+    bump(&mut rt, "c2", "2");
+    // The case that was being dropped : a command that emits its declared event
+    // while changing NO state (c1 is already at "1"). Its event-row is owed all
+    // the same — the act happened.
+    bump(&mut rt, "c1", "1");
+
+    assert!(rt.event_rows_owed >= 3, "three dispatches owe at least three event-rows");
+    assert_eq!(
+        rt.missing_event_rows(),
+        0,
+        "every emitted domain event must reach the Log — owed {} vs written {}",
+        rt.event_rows_owed,
+        rt.event_rows_written,
+    );
+
+    // And the standing verdict reports it, so this is checked continuously rather
+    // than only when someone writes a test.
+    verify(&mut rt);
+    assert_eq!(verdict(&mut rt, "missing_rows"), "0", "the verdict carries the completeness count");
+    assert_eq!(verdict(&mut rt, "status"), "derivable");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
 #[test]
 fn a_store_that_disagrees_with_the_log_is_caught_and_named() {
     let (mut rt, root) = realm_fixture::boot_realm("es_verify_drift", "tally", TALLY, TALLY_HEX);

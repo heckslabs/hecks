@@ -515,6 +515,7 @@ Hecks.bluebook "EventSourcing", version: "2026.06.19.1" do
     attribute :drift_fields,    DriftFields, default: "0"
     attribute :transient,       Transient,  default: "0"
     attribute :fields_checked,  FieldsChecked, default: "0"
+    attribute :missing_rows,    MissingRows, default: "0"
     attribute :detail,          Detail,     default: "-"
 
     value_object "VerificationId" do
@@ -539,6 +540,18 @@ Hecks.bluebook "EventSourcing", version: "2026.06.19.1" do
       attribute :value, String
     end
     value_object "FieldsChecked" do
+      attribute :value, String
+    end
+    value_object "MissingRows" do
+      # COMPLETENESS — emitted domain events the Log does not contain. Always 0 on
+      # a healthy runtime ; any other number names events that HAPPENED and were
+      # not recorded, which is the one failure a source of truth cannot have.
+      #
+      # A separate property from drift, and one the derivability gauge is blind to:
+      # a dropped EVENT-row carries an empty delta, so it contributes nothing to
+      # the fold and fold(Log) still matches the store perfectly. Counted at the
+      # dispatch caller (owed) against the writer (written) — because missing
+      # events have no oracle to compare against, unlike drift.
       attribute :value, String
     end
     value_object "Detail" do
@@ -566,12 +579,14 @@ Hecks.bluebook "EventSourcing", version: "2026.06.19.1" do
       attribute :drift_fields,    DriftFields
       attribute :transient,       Transient
       attribute :fields_checked,  FieldsChecked
+      attribute :missing_rows,    MissingRows
       attribute :detail,          Detail
       then_set :status,         to: :status
       then_set :checked_at,     to: :checked_at
       then_set :drift_fields,   to: :drift_fields
       then_set :transient,      to: :transient
       then_set :fields_checked, to: :fields_checked
+      then_set :missing_rows,   to: :missing_rows
       then_set :detail,         to: :detail
       emits "VerificationRecorded"
     end

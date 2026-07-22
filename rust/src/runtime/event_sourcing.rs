@@ -255,6 +255,8 @@ impl Runtime {
                     "EventSourcing::Event.Append",
                     attrs,
                 );
+                // COMPLETENESS : the debt recorded at the caller is now paid.
+                self.event_rows_written += 1;
             }
 
             // One Event per delta, appended to THIS process's private shard.
@@ -341,6 +343,54 @@ impl Runtime {
             // re-enter this writer.
             self.maybe_capture_snapshot();
         }
+
+    /// COMPLETENESS — does this emitted domain event OWE the Log an event-row?
+    ///
+    /// Called from the dispatch path BEFORE the writer runs, so that a writer
+    /// which returns early still leaves the debt visible. It answers the question
+    /// the writer's own early-returns cannot be trusted to answer about themselves.
+    ///
+    /// The LEGITIMATE reasons no row is owed, and only these :
+    ///   * the aggregate is not event_sourced (and the global override is off) —
+    ///     nothing is logged for it at all ;
+    ///   * it is runtime MECHANISM, not domain intent (Cascade / Process / …) ;
+    ///   * it is an EventSourcing aggregate — Append must not append ;
+    ///   * the Event repo is memory-backed, so there is no shard to write to.
+    /// Every OTHER emitted event owes exactly one row. A guard that swallows one
+    /// — as the empty-delta return did — now shows up as a gap rather than as
+    /// silence.
+    pub(crate) fn owes_event_row(&self, aggregate_type: &str) -> bool {
+        if std::env::var("HECKS_EVENT_SOURCING").is_err()
+            && !self.aggregate_is_event_sourced(aggregate_type)
+        {
+            return false;
+        }
+        if projection_fold::is_infra_mechanism(aggregate_type) {
+            return false;
+        }
+        if self
+            .domain
+            .aggregates
+            .iter()
+            .any(|a| a.name == aggregate_type && a.context.as_deref() == Some("EventSourcing"))
+        {
+            return false;
+        }
+        // No shard target (memory-backed Event) => nothing is written by design.
+        let es_key = repo_key(Some("EventSourcing"), "Event");
+        self.framework
+            .as_ref()
+            .and_then(|fw| fw.repositories.get(&es_key))
+            .and_then(|r| r.heki_path())
+            .is_some()
+    }
+
+    /// The emitted domain events the Log does not contain. ALWAYS ZERO on a
+    /// healthy runtime — any other number names events that happened and were not
+    /// recorded, which is the one failure a source of truth cannot have.
+    pub fn missing_event_rows(&self) -> u64 {
+        self.event_rows_owed.saturating_sub(self.event_rows_written)
+    }
 
     /// TRUST (Stage 5) — the content hash of one Log entry, over its own fields
     /// AND the previous entry's hash. Chaining is what turns a per-row checksum
@@ -759,10 +809,21 @@ impl Runtime {
         // implementation, so the standing invariant and the operator's command can
         // never disagree about what derivable means.
         let measured = projection_fold::measure_persistent(self, 2);
+        // COMPLETENESS, measured alongside derivability — two DIFFERENT properties,
+        // and the fold gauge is structurally blind to this one : a dropped
+        // event-row carries an empty delta, contributes nothing to the fold, and
+        // leaves fold(Log) == store looking perfect. Non-zero here means events
+        // happened that the Log does not contain.
+        let missing = self.missing_event_rows();
         let (status, drift, transient, checked, detail) = match measured {
-            None => ("empty", 0usize, 0usize, 0usize, String::from("-")),
+            None => {
+                let s = if missing > 0 { "drifted" } else { "empty" };
+                (s, 0usize, 0usize, 0usize, String::from("-"))
+            }
             Some((persistent, transient, m)) => {
-                let status = if persistent.is_empty() { "derivable" } else { "drifted" };
+                // EITHER failure condemns the verdict : state that cannot be
+                // rederived, OR events that were never recorded.
+                let status = if persistent.is_empty() && missing == 0 { "derivable" } else { "drifted" };
                 // A handful of triples is enough to act on ; the whole set could be
                 // unbounded, and this is domain state, not a dump.
                 let mut keys: Vec<String> = persistent
@@ -790,6 +851,7 @@ impl Runtime {
         attrs.insert("drift_fields".to_string(), Value::Str(drift.to_string()));
         attrs.insert("transient".to_string(), Value::Str(transient.to_string()));
         attrs.insert("fields_checked".to_string(), Value::Str(checked.to_string()));
+        attrs.insert("missing_rows".to_string(), Value::Str(missing.to_string()));
         attrs.insert("detail".to_string(), Value::Str(detail));
         // Into the COLLABORATOR, where the EventSourcing chapter lives — same as
         // the Append writer. Ungated core dispatch : the recursion guard skips the

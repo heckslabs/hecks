@@ -406,6 +406,18 @@ pub struct Runtime {
     /// orders shards, it does not re-chain them. None until this process writes
     /// its first entry, which is where a chain walk starts.
     pub chain_head: Option<String>,
+    /// COMPLETENESS — event-rows the dispatch path knows are OWED, counted at the
+    /// caller, BEFORE the writer runs.
+    ///
+    /// Deliberately not counted inside `record_event_append` : a writer cannot be
+    /// its own oracle. The empty-delta guard that silently swallowed event-rows
+    /// was an early `return` — any counter it skipped past would have been just as
+    /// silent. Counting the debt OUTSIDE means every path that fails to write,
+    /// including one that returns before doing anything, leaves a visible gap.
+    pub event_rows_owed: u64,
+    /// Event-rows the writer actually appended. `owed - written` is the number of
+    /// emitted domain events the Log does not contain — which should always be 0.
+    pub event_rows_written: u64,
 }
 
 impl Runtime {
@@ -640,6 +652,8 @@ impl Runtime {
             current_auth: None,
             current_correlation: None,
             chain_head: None,
+            event_rows_owed: 0,
+            event_rows_written: 0,
             acl_read_model: acl_readmodel::AclReadModel::empty(),
         };
         // Hydrate the RBAC read-model from Agent state (covers the bare

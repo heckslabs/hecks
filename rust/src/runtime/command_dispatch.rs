@@ -476,6 +476,16 @@ fn dispatch_inner(
     // later gate-bypassing dispatch. A cascade passes None and the writer records
     // the honest `system` actor — its originating actor rides correlation_id.
     let captured_auth = if cascade_hint.is_none() { rt.current_auth.take() } else { None };
+    // COMPLETENESS — record the DEBT before the writer runs. Counted here, at the
+    // caller, and never inside record_event_append : a writer cannot be its own
+    // oracle. The empty-delta guard that silently swallowed event-rows was an early
+    // `return`, and a counter placed after it would have been skipped just as
+    // quietly. Owed here, written there, and `missing_event_rows()` is the gap.
+    if let Some(ev) = &result.event {
+        if rt.owes_event_row(&ev.aggregate_type) {
+            rt.event_rows_owed += 1;
+        }
+    }
     rt.record_event_append(&result, command_name, &causation_id, captured_auth);
     // Event Log consolidation : the Consolidate maintenance command folds this
     // realm's per-process shards into the global ordered event.heki. Hooked
