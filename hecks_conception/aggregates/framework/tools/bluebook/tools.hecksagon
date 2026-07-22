@@ -206,6 +206,25 @@ Hecks.hecksagon "Tools" do
   Tools::RemoteTriggerTool.persisted_by("Memory")
   Tools::SearchTool.persisted_by("Memory")
   Tools::ShellTool.persisted_by("Memory")
+  # The invocation HISTORY is durable even though current-state is not. A tool
+  # call is an EVENT, not an entity : it has no lifecycle and nothing to update,
+  # so "the current state of ShellTool#inv_abc" is meaningless and persisting it
+  # would only grow a write-once, never-read table. What matters is that the act
+  # HAPPENED, and by whom — so it belongs in the Log, not in a store.
+  #
+  # Restores a record that was lost by accident. ShellTool wrote ~271K of heki
+  # until 2026-06-14 : `adapter :memory` had been declared here since the
+  # beginning but was INERT, so it fell through to the implicit heki default.
+  # When i728 made :memory actually select Backend::Memory, the declaration
+  # finally took effect and the audit trail of every shell command the system
+  # ran silently stopped. Nothing noticed for five weeks.
+  #
+  # Shell execution is the highest-consequence act the door carries, and it was
+  # the least recorded thing in the system : a denied call persisted as a
+  # Governance::Violation while a SUCCESSFUL one evaporated on process exit —
+  # the same asymmetry 75dad37e8 closed for domain events, one layer down.
+  # Event-sourcing carries actor, verdict, correlation and the hash chain.
+  Tools::ShellTool.event_sourced
   Tools::Sidequest.persisted_by("Memory")
   Tools::SkillTool.persisted_by("Memory")
   Tools::TaskTool.persisted_by("Memory")

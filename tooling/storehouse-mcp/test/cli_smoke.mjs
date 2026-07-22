@@ -216,19 +216,35 @@ async function main() {
   const escapedNewlines = (multiLineText.match(/\\n/g) || []).length;
   truthy(realNewlines > escapedNewlines, "multi-line output has real newlines, not escaped \\n");
 
-  // -- storehouse__state — read the record we just dispatched by id.
+  // -- storehouse__state — a tool invocation's CURRENT STATE is deliberately
+  // ephemeral, and this pins that decision rather than lamenting it.
+  //
+  // `Tools::ShellTool.persisted_by("Memory")` is correct : a tool call is an
+  // EVENT, not an entity. It has no lifecycle and nothing to update, so "the
+  // current state of ShellTool#cli-smoke-bash" is meaningless, and persisting it
+  // would grow a write-once, never-read table forever. The DURABLE record is the
+  // Log — `Tools::ShellTool.event_sourced` carries the invocation with its actor,
+  // verdict and hash chain (rust/tests/tools_event_sourced_test.rs proves it).
+  //
+  // This assertion used to expect the record to SURVIVE into this second process,
+  // and passed only because `adapter :memory` was inert and tools fell through to
+  // the implicit heki default. When i728 made :memory actually select
+  // Backend::Memory — honouring a declaration that had been there all along — the
+  // assertion went red. It had encoded observed behaviour rather than declared
+  // intent. What the door must guarantee is that the read ANSWERS CLEANLY, not
+  // that ephemeral state outlives its process.
   const stateRes = await client.callTool({
     name: "storehouse__state",
     arguments: {
       aggregates_dir: path.join(HECKS_ROOT, "hecks_conception"),
       aggregate_name: "ShellTool",
       id: "cli-smoke-bash",
-      summary: "verify ShellTool record persisted after cli-smoke dispatch",
+      summary: "verify a memory-backed tool record does not outlive its process",
     },
   });
   eq(stateRes.isError, false, "state read isError=false");
-  contains(stateRes.content[0].text, '"ok":true', "state read ok=true");
-  contains(stateRes.content[0].text, "echo smoke", "state carries shell_command");
+  contains(stateRes.content[0].text, '"ok":false', "memory-backed tool state does not survive the process");
+  contains(stateRes.content[0].text, '"aggregate":"ShellTool"', "state answer still names the aggregate asked for");
 
   // -- storehouse__state on a missing id returns ok=false (not error).
   const stateMissRes = await client.callTool({
