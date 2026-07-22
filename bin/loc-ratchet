@@ -202,12 +202,26 @@ def counts_at(concerns, treeish)
   totals
 end
 
+# WHOSE justification authorises this growth?
+#
+# With a --message-file (the commit-msg hook, gating ONE commit) the answer is
+# THIS COMMIT'S message and nothing else. This used to ALSO scan `base..HEAD`,
+# so a single override anywhere on an unmerged branch authorised every later
+# commit on it — on a long-lived arc that silently waved through unbounded
+# growth of a shrink concern, with nobody ever arguing for it. (Found riding a
+# marker written ~10 commits earlier, waving through +568 lines of core_runtime
+# across three commits that never mentioned it.) A per-commit gate must judge
+# the commit in front of it.
+#
+# With no message file (CI, judging a whole PR) the RANGE is the unit of work,
+# so any commit in the PR may carry the override for the PR's net delta.
 def overrides_present?(base_ref, message_file = nil)
   rx = /^\s*\[loc-ratchet-override:\s*[^\]]+\]/i
+  if message_file
+    return File.exist?(message_file) && File.read(message_file).match?(rx)
+  end
   out, ok = run(["git", "log", "--format=%B", "#{base_ref}..HEAD"])
-  return true if ok && out.to_s.match?(rx)
-  return true if message_file && File.exist?(message_file) && File.read(message_file).match?(rx)
-  false
+  ok && out.to_s.match?(rx)
 end
 
 # Does this concern's delta violate its direction?
