@@ -46,11 +46,41 @@ Hecks.bluebook "EventSourcing", version: "2026.06.19.1" do
     # runtime build that recorded it. Self-describing for replay + upcasting.
     attribute :bluebook_version, BluebookVersion
     attribute :runtime_version,  RuntimeVersion
+    # TRUST — the hash chain. Each entry hashes its own content TOGETHER WITH the
+    # previous entry's hash, so the entries of one shard form a chain : edit,
+    # drop, or reorder any entry and every entry after it fails to re-derive.
+    # The chain is PER SHARD, which is the only place a total order exists at
+    # append time — a shard has exactly one writer (its process), while the
+    # global Log is a merge of many. The merge orders shards ; it does not
+    # re-chain them.
+    attribute :prev_hash,  PrevHash
+    attribute :entry_hash, EntryHash
 
     # ── Value objects ──────────────────────────────────────────────
 
     value_object "EventId" do
       # Stable, globally-unique id for this event record. The atom's key.
+      attribute :value, String
+    end
+
+    value_object "PrevHash" do
+      # The entry_hash of the previous entry in THIS SHARD's chain. Empty on the
+      # first entry a process writes — where a chain walk starts.
+      attribute :value, String
+    end
+
+    value_object "EntryHash" do
+      # This entry's hash, over its own content AND prev_hash. Recomputable from
+      # the row alone, so a verifier needs nothing but the Log to check it.
+      #
+      # HONEST LIMIT : this detects CORRUPTION, TRUNCATION and REORDERING — an
+      # accidental or careless change to a log that is supposed to be immutable.
+      # It is NOT proof against a deliberate rewrite : anyone who can edit an
+      # entry can recompute the rest of the chain. Real tamper-EVIDENCE needs a
+      # cryptographic digest plus an anchor the rewriter cannot reach (a signed
+      # or externally-witnessed head). The chain is the mechanism ; the digest
+      # and the anchor are the policy, and can be strengthened without changing
+      # this shape.
       attribute :value, String
     end
 
@@ -173,6 +203,12 @@ Hecks.bluebook "EventSourcing", version: "2026.06.19.1" do
       attribute :recorded_at,    RecordedAt
       attribute :bluebook_version, BluebookVersion
       attribute :runtime_version,  RuntimeVersion
+      # TRUST : the chain the writer stamps — this entry's hash over its own
+      # content AND its predecessor's hash. Carried on Append because Append is
+      # the only writer ; an attribute the command does not declare is dropped at
+      # the door, so the chain would silently never reach the Log.
+      attribute :prev_hash,  PrevHash
+      attribute :entry_hash, EntryHash
       emits "EventAppended"
     end
 
@@ -270,6 +306,22 @@ Hecks.bluebook "EventSourcing", version: "2026.06.19.1" do
           # deterministic rather than repository-iteration-order. Cycle-guarded,
           # like the backward walk.
           description "Walk forward from this event through everything it caused"
+        end
+
+        query "ChainIntact" do
+          # TRUST : re-derive every entry's hash and report the ones that do not
+          # match. Two ways an entry can fail — its own content no longer hashes to
+          # its recorded entry_hash (it was EDITED), or its prev_hash does not name
+          # the entry before it in its shard (one was DROPPED or REORDERED). An
+          # empty result means every chain re-derives.
+          #
+          # Per SHARD, because that is where a total order exists at append time :
+          # one shard has one writer. Entries are grouped by the shard embedded in
+          # their event_id and ordered by sequence within it.
+          #
+          # A named query the runtime special-cases (like CausationTrace) : a
+          # recomputation over ordered entries is not something a where() can say.
+          description "Every entry whose hash chain does not re-derive — empty means intact"
         end
       end
 

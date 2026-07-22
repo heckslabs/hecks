@@ -398,6 +398,14 @@ pub struct Runtime {
     /// bleed together. Transient, per-flow (the framework collaborator carries its
     /// own, never this one — framework_mut is a separate Runtime).
     pub current_correlation: Option<String>,
+    /// TRUST (Stage 5) — the head of THIS process's Log hash chain : the
+    /// entry_hash of the last entry it appended. Each new entry hashes its content
+    /// together with this, so the entries of one shard form a chain that cannot be
+    /// edited, dropped or reordered without every later entry failing to
+    /// re-derive. Per-process because a shard has exactly one writer ; the merge
+    /// orders shards, it does not re-chain them. None until this process writes
+    /// its first entry, which is where a chain walk starts.
+    pub chain_head: Option<String>,
 }
 
 impl Runtime {
@@ -631,6 +639,7 @@ impl Runtime {
             last_event_id_by_agg: HashMap::new(),
             current_auth: None,
             current_correlation: None,
+            chain_head: None,
             acl_read_model: acl_readmodel::AclReadModel::empty(),
         };
         // Hydrate the RBAC read-model from Agent state (covers the bare

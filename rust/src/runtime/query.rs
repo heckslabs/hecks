@@ -265,6 +265,18 @@ impl Runtime {
             });
         }
 
+        // ChainIntact : TRUST. Re-derive every entry's hash and return the ones
+        // that do not match — "content" (the entry was EDITED) and "link" (an
+        // entry was DROPPED or REORDERED) reported separately, because they mean
+        // different things. Empty state = every chain re-derives. The walk lives
+        // beside the hashing it inverts (event_sourcing::chain_breaks).
+        if query_name == "ChainIntact" {
+            return serde_json::json!({
+                "aggregate": agg_name, "query": query_name,
+                "state": serde_json::json!(self.chain_breaks(&agg_name)),
+            });
+        }
+
         // ConsequenceTree : the FORWARD lineage walk — CausationTrace's mirror.
         // Backward is a WALK (an event has at most ONE cause, so each hop is a
         // find() by key). Forward is a TREE : one event may cause MANY, so the
