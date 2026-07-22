@@ -25,11 +25,11 @@ const HECKS_ROOT = "/Users/christopheryoung/Projects/hecks";
 // + sandbox.behaviors pairing.
 const SMOKE_BLUEBOOK = path.join(
   HECKS_ROOT,
-  "hecks_conception/aggregates/framework/restart_prompt/restart_prompt.bluebook",
+  "hecks_conception/aggregates/framework/restart_prompt/bluebook/restart_prompt.bluebook",
 );
 const SMOKE_BEHAVIORS = path.join(
   HECKS_ROOT,
-  "hecks_conception/aggregates/framework/restart_prompt/restart_prompt.behaviors",
+  "hecks_conception/aggregates/framework/restart_prompt/bluebook/restart_prompt.behaviors",
 );
 
 let failed = 0;
