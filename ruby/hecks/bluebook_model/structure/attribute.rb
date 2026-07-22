@@ -47,6 +47,20 @@ module Hecks
       #   regex — no subset check. Mirrors the Rust IR's `hint` field.
       attr_reader :hint
 
+      # @return [Boolean] does this attribute's VALUE reach the event Log?
+      #   `attribute :content, Content, logged: false` keeps it out. Default true —
+      #   the Log records what happened, so silence is the exception that must be
+      #   declared. For EFFECT payloads aimed at an external system (FileTool's
+      #   content / old_string / new_string) : the fold never re-executes a
+      #   command, so such a payload could never be USED on replay, and the Log is
+      #   the source of truth for the DOMAIN, not a backup of the external world.
+      #   Mirrors the Rust IR's `logged` field.
+      #
+      #   NOT a secrecy mechanism — see `pii` for that concern. This only governs
+      #   what the Log records ; the value still crosses the door and still lands
+      #   in aggregate state if the command sets it there.
+      attr_reader :logged
+
       # Creates a new Attribute.
       #
       # @param name [Symbol, String] the attribute name. Will be converted to a Symbol via +to_sym+.
@@ -64,7 +78,7 @@ module Hecks
       #   like passwords, tokens, or raw foreign keys that should not be displayed to users.
       #
       # @return [Attribute] a new Attribute instance
-      def initialize(name:, type:, default: nil, list: false, pii: false, enum: nil, visible: true, required: false, pattern: nil, hint: nil)
+      def initialize(name:, type:, default: nil, list: false, pii: false, enum: nil, visible: true, required: false, pattern: nil, hint: nil, logged: true)
         @name = name.to_sym
         @type = type.is_a?(Class) ? type : type.to_s
         @default = default
@@ -75,6 +89,7 @@ module Hecks
         @visible = visible
         @pattern = self.class.admit_pattern(pattern, name)
         @hint = hint
+        @logged = logged
       end
 
         # The regex subset a `pattern:` may use -- the Ruby half of the guard whose

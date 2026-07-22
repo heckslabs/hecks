@@ -238,8 +238,8 @@ Hecks.bluebook "Tools", version: "2026.05.14.1" do
       description "Apply a string substitution to a file. old_string is matched EXACTLY first ; on no exact match a whitespace-TOLERANT fallback matches by trimmed line content and re-indents new_string to the file's actual indentation, requiring a unique match (else it refuses) — so an old_string authored with the wrong leading whitespace still lands (2026-06-13). The byte-matching primitive itself lives at the :claude_tool kernel-floor edge ; this names its contract. Records the dispatch as a FileTool record and emits EditApplied carrying the file_path, old_string, new_string, replace_all flag, and description. The full old/new strings live in the event payload ; aggregate state stores only the file_path + description."
       attribute :id, Id
       attribute :file_path, FilePath
-      attribute :old_string, OldString
-      attribute :new_string, NewString
+      attribute :old_string, OldString, logged: false
+      attribute :new_string, NewString, logged: false
       attribute :replace_all, ReplaceAll
       attribute :description, Description
       redirects_native "Edit", "MultiEdit", "NotebookEdit"
@@ -254,7 +254,7 @@ Hecks.bluebook "Tools", version: "2026.05.14.1" do
       description "Write content to a file. Records the dispatch as a FileTool record and emits FileUpdated carrying the file_path, content, and description. The full content lives in the event payload ; aggregate state stores only the file_path and description. Same semantic as Claude's existing Write tool — renamed here to emphasize that the runtime treats it as a state-changing dispatch."
       attribute :id, Id
       attribute :file_path, FilePath
-      attribute :content, Content
+      attribute :content, Content, logged: false
       attribute :description, Description
       emits "FileUpdated"
       then_set :file_path,   to: :file_path
@@ -275,7 +275,7 @@ Hecks.bluebook "Tools", version: "2026.05.14.1" do
       description "Write content to a file (full-file overwrite). Records the dispatch as a FileTool record and emits FileWritten carrying the file_path, content, and description. The full content lives in the event payload ; aggregate state stores only the file_path + description. Surfaced under the harness-traditional 'Write' name for parity with Claude Code's existing tool ; Update is the same operation under the bluebook-canonical name."
       attribute :id, Id
       attribute :file_path, FilePath
-      attribute :content, Content
+      attribute :content, Content, logged: false
       attribute :description, Description
       redirects_native "Write"
       emits "FileWritten"
@@ -295,7 +295,7 @@ Hecks.bluebook "Tools", version: "2026.05.14.1" do
       attribute :id, Id
       attribute :notebook_path, NotebookPath
       attribute :cell_id, CellId
-      attribute :new_source, NewSource
+      attribute :new_source, NewSource, logged: false
       attribute :edit_mode, EditMode
       attribute :description, Description
       emits "NotebookEdited"

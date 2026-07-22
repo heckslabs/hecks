@@ -153,9 +153,32 @@ impl Runtime {
             // command = verb + inputs (the caller's intent, recorded as fact ;
             // never re-executed by a fold). inputs = the emitted event data JSON.
             let verb = command_name.to_string();
+            // `logged: false` attributes are withheld from the recorded payload.
+            // Applies to the command's INPUTS only, never to the state deltas — a
+            // delta the fold cannot see is state the Log cannot rederive, which
+            // would break the very property Stage 4 rests on. The marker is for
+            // EFFECT arguments (FileTool's content / old_string / new_string): they
+            // are aimed at the filesystem, not at aggregate state, and the fold
+            // never re-executes a command, so they could never be USED on replay.
+            // Marking a genuine STATE attribute would surface as drift on the
+            // standing Verification verdict rather than passing silently.
+            let unlogged: std::collections::HashSet<&str> = self
+                .domain
+                .aggregates
+                .iter()
+                .filter(|a| a.name == event.aggregate_type)
+                .flat_map(|a| a.commands.iter())
+                .filter(|c| command_name.ends_with(&format!(".{}", c.name)))
+                .flat_map(|c| c.attributes.iter())
+                .filter(|at| !at.logged)
+                .map(|at| at.name.as_str())
+                .collect();
             let inputs = {
                 let mut obj = serde_json::Map::new();
                 for (k, v) in &event.data {
+                    if unlogged.contains(k.as_str()) {
+                        continue;
+                    }
                     obj.insert(k.clone(), value_to_json(v));
                 }
                 serde_json::Value::Object(obj).to_string()

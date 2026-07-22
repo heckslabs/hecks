@@ -459,6 +459,24 @@ pub struct Attribute {
     /// which the browser surfaces on a `pattern` mismatch. Pure presentation :
     /// the gate never reads it (it enforces the pattern, not the prose).
     pub hint: Option<String>,
+    /// Does this attribute's VALUE reach the event Log? `attribute :content,
+    /// Content, logged: false` keeps it out. Default true — the Log records what
+    /// happened, and silence is the exception that must be declared.
+    ///
+    /// For EFFECT payloads aimed at an external system : FileTool's `content` /
+    /// `old_string` / `new_string` are arguments to a filesystem write, not
+    /// aggregate state. Two reasons they do not belong in the Log. First, the fold
+    /// NEVER re-executes a command (it applies deltas only), so a payload can
+    /// never be USED in reconstruction — it is forensic weight by construction.
+    /// Second, the Log is the source of truth for the DOMAIN, not a backup of the
+    /// external world ; if it owed us the filesystem it would owe us every Read's
+    /// returned bytes too, which is absurd. Excluding the payload expresses that
+    /// boundary rather than compromising it.
+    ///
+    /// NOT a secrecy mechanism. It keeps a value out of the Log, nothing more —
+    /// the value still crosses the door, still reaches the adapter, and still
+    /// appears in aggregate state if the command sets it there.
+    pub logged: bool,
 }
 
 #[derive(Debug, Clone)]

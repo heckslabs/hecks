@@ -380,7 +380,7 @@ pub fn parse_query(lines: &[&str]) -> (Query, usize) {
                         list: false,
                         required: false,
                         enum_values: vec![],
-                pattern: None, hint: None,
+                pattern: None, hint: None, logged: true,
                     });
                 }
             }
@@ -1161,7 +1161,16 @@ pub fn parse_attribute(line: &str) -> Option<Attribute> {
     // `hint: "..."` — human guidance surfaced by the form on a shape mismatch.
     // Pure presentation, so it takes no subset check ; it is never a regex.
     let hint = parse_hint_kwarg(line);
-    Some(Attribute { name, attr_type, default, list, required, enum_values, pattern, hint })
+    // `logged: false` — keep this attribute's VALUE out of the event Log. Default
+    // true : the Log records what happened, so silence is the exception and must
+    // be declared. Only the explicit literal `false` excludes ; anything else
+    // (including a malformed value) leaves the attribute logged, so a typo fails
+    // SAFE — toward recording rather than toward silence.
+    let logged = !(line.contains("logged:")
+        && extract_after(line, "logged:")
+            .map(|a| a.trim_start().starts_with("false"))
+            .unwrap_or(false));
+    Some(Attribute { name, attr_type, default, list, required, enum_values, pattern, hint, logged })
 }
 
 /// Pull `pattern: '<regex>'` (or "double-quoted") off an attribute line.

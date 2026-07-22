@@ -105,6 +105,52 @@ fn a_shell_invocation_is_recorded_in_the_log() {
     let _ = std::fs::remove_dir_all(&data);
 }
 
+/// The FileTool half : the ACT is recorded, the BYTES are not.
+///
+/// `content` / `old_string` / `new_string` are declared `logged: false`. They are
+/// arguments to a filesystem write, not aggregate state — and the fold never
+/// re-executes a command, so a payload in the Log could never be USED on replay.
+/// It would be forensic weight growing with every file written, in a Log that is
+/// the source of truth for the DOMAIN and not a backup of the external world.
+///
+/// What must survive is the audit question: WHICH file, by WHOM, under what
+/// verdict. This asserts both halves — the act present, the bytes absent — because
+/// either one alone would be satisfied by a broken implementation.
+#[test]
+fn a_file_write_records_the_act_but_not_the_bytes() {
+    let (mut rt, data) = boot_conception("tools_es_filetool");
+
+    let secret = "SENTINEL-CONTENT-should-not-reach-the-log";
+    let mut attrs = HashMap::new();
+    attrs.insert("id".to_string(), Value::Str("es-file-1".to_string()));
+    attrs.insert("file_path".to_string(), Value::Str("/tmp/es-file-proof.txt".to_string()));
+    attrs.insert("content".to_string(), Value::Str(secret.to_string()));
+    attrs.insert("description".to_string(), Value::Str("filetool proof".to_string()));
+    let _ = rt.dispatch("Tools::FileTool.Update", attrs);
+
+    let events = rt.all_qualified(Some("EventSourcing"), "Event");
+    let file_rows: Vec<&&AggregateState> = events
+        .iter()
+        .filter(|e| e.get("aggregate_name").to_string() == "FileTool")
+        .collect();
+    assert!(!file_rows.is_empty(), "a file write must reach the Log");
+
+    let rendered = format!("{file_rows:?}");
+    // THE ACT — which file was written is the audit fact, and it must be there.
+    assert!(
+        rendered.contains("es-file-proof.txt"),
+        "the Log must record WHICH file was written — got {rendered}",
+    );
+    // THE BYTES — withheld. If this ever fails, the Log has quietly become a
+    // backup of the filesystem and grows with every byte the system writes.
+    assert!(
+        !rendered.contains(secret),
+        "the file's CONTENT must be withheld from the Log (logged: false)",
+    );
+
+    let _ = std::fs::remove_dir_all(&data);
+}
+
 #[test]
 fn completeness_holds_for_tool_dispatches() {
     // The invariant from the completeness slice, applied to the aggregate that

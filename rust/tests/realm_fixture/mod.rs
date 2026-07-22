@@ -7,6 +7,11 @@
 //! about event sourcing. Each realm gets its own root so test binaries (and the
 //! tests within one) never share a data dir.
 
+// Compiled into EVERY test binary that declares `mod realm_fixture;`, and each
+// uses only the entry points it needs — so an unused helper here is expected, not
+// dead weight.
+#![allow(dead_code)]
+
 use std::path::{Path, PathBuf};
 use storehouse::runtime::Runtime;
 use storehouse::{corpus_loader, embed};

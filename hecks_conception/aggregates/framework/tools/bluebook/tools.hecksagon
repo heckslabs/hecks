@@ -196,6 +196,18 @@ Hecks.hecksagon "Tools" do
   Tools::CronTool.persisted_by("Memory")
   Tools::EmailTool.persisted_by("Memory")
   Tools::FileTool.persisted_by("Memory")
+  # Durable HISTORY, same as ShellTool — who changed which file, when, under
+  # what verdict. The effect PAYLOADS (content / old_string / new_string /
+  # new_source) are declared `logged: false` in tools.bluebook, so the Log keeps
+  # the act and not the bytes.
+  #
+  # Those payloads are arguments to a filesystem write, not aggregate state, and
+  # the fold NEVER re-executes a command — so a payload in the Log could never be
+  # USED on replay ; it would be forensic weight that grows with every file
+  # written. The Log is the source of truth for the DOMAIN, not a backup of the
+  # external world : if it owed us the filesystem it would owe us every Read's
+  # returned bytes too. Withholding them expresses that boundary.
+  Tools::FileTool.event_sourced
   Tools::GitHubTool.persisted_by("Memory")
   Tools::GitTool.persisted_by("Memory")
   Tools::LspTool.persisted_by("Memory")
