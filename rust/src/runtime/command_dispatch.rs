@@ -483,6 +483,10 @@ fn dispatch_inner(
     // dispatch path AND the driver's dispatch_cascade fire (storehouse drive).
     // No-op for every other command. Replaces the hand-written run_merge daemon.
     rt.run_consolidate_if(command_name);
+    // Derivability as a STANDING invariant — the Verification trigger's sibling
+    // hook. Fires only for EventSourcing::Verification.Verify, so every other
+    // dispatch pays one string compare.
+    rt.run_verification_if(command_name);
     Ok(result)
 }
 

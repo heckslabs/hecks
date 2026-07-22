@@ -3841,89 +3841,6 @@ fn cmd_wire_all(root: &str, args: &[String]) {
 /// merged event.heki), folds it per aggregate instance, and compares each
 /// reconstructed field to the live store. Green => current state is DERIVABLE
 /// from the Log, so the Log is the source of truth, not a parallel record.
-/// One projection measurement : fold the COMPLETE Log (consolidated event.heki
-/// + the read-only unconsolidated shard tail) and compare each reconstructed
-/// field to the live store. Returns the stable counts plus the set of drifting
-/// (agg, id, field) -> (log, store) pairs. Called more than once by
-/// cmd_verify_projection so a transient liveness race can be told from a
-/// persistent derivability failure. None == the Log is empty (nothing to do).
-struct ProjectionMeasurement {
-    domain_instances: usize,
-    infra: usize,
-    orphan: usize,
-    uncomparable: usize,
-    total_fields: usize,
-    drift: std::collections::HashMap<(String, String, String), (String, String)>,
-}
-
-fn measure_projection(rt: &Runtime) -> Option<ProjectionMeasurement> {
-    use storehouse::runtime::projection_fold::{fold_event_log, is_infra_mechanism};
-    // The COMPLETE Log = consolidated event.heki + the unconsolidated shard tail.
-    // AppendLog reads event.heki ; the tail is the freshest events still in shards,
-    // ~one consolidation-cadence ahead. A LIVE aggregate (e.g. the 2s InboxPoller)
-    // always has its newest event in the tail, so without it the gauge reports a
-    // phantom lag-drift. The tail read is READ-ONLY (no global write, no checkpoint
-    // save).
-    let consolidated = rt.all("Event");
-    let tail = rt.unconsolidated_log_tail();
-    if consolidated.is_empty() && tail.is_empty() {
-        return None;
-    }
-    let mut events: Vec<&storehouse::runtime::AggregateState> = consolidated;
-    events.extend(tail.iter());
-    let folded = fold_event_log(&events);
-
-    let mut m = ProjectionMeasurement {
-        domain_instances: 0,
-        infra: 0,
-        orphan: 0,
-        uncomparable: 0,
-        total_fields: 0,
-        drift: std::collections::HashMap::new(),
-    };
-    for ((agg_name, agg_id), recon) in &folded {
-        // Infra mechanism (Cascade / Process / ProcessSentinel …) is never part
-        // of the projection : its ids are process-ephemeral, so the same predicate
-        // that stops the WRITE path also excludes it from the GAUGE.
-        if is_infra_mechanism(agg_name) {
-            m.infra += 1;
-            continue;
-        }
-        // An instance with no/!string id (e.g. aggregate_id was an empty list,
-        // rendered "[0 items]") cannot be folded per-instance — all such events
-        // collapse into one bogus bucket. Not comparable ; count and skip.
-        if agg_id.is_empty() || agg_id == "[0 items]" || agg_name == "[0 items]" {
-            m.uncomparable += 1;
-            continue;
-        }
-        m.domain_instances += 1;
-        match rt.find(agg_name, agg_id) {
-            None => m.orphan += 1, // Log has events but the live store has no record.
-            Some(store) => {
-                for (field, folded_val) in recon {
-                    m.total_fields += 1;
-                    // STRUCTURAL compare : decode the reconstructed delta JSON
-                    // to a typed Value and compare to the live store's Value.
-                    // `Value` equality is order-independent (Map is a HashMap),
-                    // so a Money {cents,currency} matches regardless of JSON key
-                    // order — a string compare would false-drift on ordering.
-                    // A legacy Display-form delta ("{2 fields}") decodes to Str
-                    // and DRIFTS against the structured store value, as it must.
-                    let store_val = store.get(field);
-                    let folded_value = storehouse::runtime::value_from_json_str(folded_val);
-                    if &folded_value != store_val {
-                        m.drift.insert(
-                            (agg_name.clone(), agg_id.clone(), field.clone()),
-                            (folded_val.clone(), storehouse::runtime::value_to_json_string(store_val)),
-                        );
-                    }
-                }
-            }
-        }
-    }
-    Some(m)
-}
-
 fn cmd_verify_projection(agg_dir: &str) {
     let data_dir = find_world_heki_dir(agg_dir)
         .unwrap_or_else(|| format!("{}/data", agg_dir.trim_end_matches('/')));
@@ -3937,37 +3854,20 @@ fn cmd_verify_projection(agg_dir: &str) {
     storehouse::world::attach::apply_per_domain_world_dirs(&mut rt, agg_dir);
     storehouse::world::attach::attach_world_adapter_bindings(&mut rt, agg_dir);
 
-    let m = match measure_projection(&rt) {
-        Some(m) => m,
+    // The gauge lives in the runtime (projection_fold::measure_persistent), NOT
+    // here — because the ProjectionVerification Driver measures the same property
+    // on a cadence, and two copies of a gauge is two gauges that drift. This
+    // command is now one of its two callers ; the standing invariant is the other.
+    // measure_persistent re-measures to separate a TRANSIENT liveness race (the
+    // store moving under a continuously-dispatching aggregate) from PERSISTENT
+    // drift (an unlogged write, a fold bug).
+    let (persistent, transient, m) = match storehouse::runtime::projection_fold::measure_persistent(&rt, 2) {
+        Some(t) => t,
         None => {
             println!("verify-projection : the Event Log is empty (gate off, or not yet consolidated) — nothing to verify.");
             return;
         }
     };
-
-    // Separate a TRANSIENT race from PERSISTENT drift. A real derivability
-    // failure (an unlogged write, a fold bug) recurs every measurement ; a
-    // liveness race — the store moving between the tail read and the store read
-    // of a continuously-dispatching aggregate — clears on re-measure. So drift
-    // is only REAL if it survives every pass : persistent = the intersection of
-    // the mismatch sets. (You cannot atomically snapshot two cross-process
-    // stores, so a single snapshot cannot tell the two apart — re-measurement
-    // can.) Keep the latest pass's values for an accurate report.
-    let mut persistent = m.drift.clone();
-    for _ in 0..2 {
-        if persistent.is_empty() {
-            break;
-        }
-        if let Some(mr) = measure_projection(&rt) {
-            persistent.retain(|k, _| mr.drift.contains_key(k));
-            for (k, v) in mr.drift {
-                if persistent.contains_key(&k) {
-                    persistent.insert(k, v);
-                }
-            }
-        }
-    }
-    let transient = m.drift.len().saturating_sub(persistent.len());
     let verified = m.domain_instances.saturating_sub(
         // instances with at least one persistent-drift field
         {

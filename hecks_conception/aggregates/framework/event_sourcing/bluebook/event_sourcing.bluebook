@@ -489,6 +489,100 @@ Hecks.bluebook "EventSourcing", version: "2026.06.19.1" do
   end
 
   # ============================================================
+  # VERIFICATION  —  derivability as a STANDING invariant
+  # ============================================================
+  #
+  # `verify-projection` proves the claim the whole substrate rests on : current
+  # state is DERIVABLE from the Log, so the Log is the source of truth and not a
+  # parallel record. Proven ONCE by an operator running a command, that is an
+  # anecdote. The property has to hold continuously, so it has to be MEASURED
+  # continuously — the same shape as Consolidation : a tiny singleton whose
+  # command is the TRIGGER, fired by a driving-on-interval Driver, with the
+  # kernel-floor fold+compare behind it.
+  #
+  # Verify is the trigger ; Record is where the verdict lands, so the answer is
+  # itself domain state a reader can query rather than a line in a log nobody
+  # tails. TRANSIENT drift is reported separately from PERSISTENT drift because a
+  # continuously-dispatching aggregate races the gauge by nature — and an alarm
+  # that fires on every race is one everybody learns to ignore.
+
+  aggregate "Verification", "A singleton standing verdict on derivability : does fold(Log) still reconstruct the live store? One record, keyed \"projection\". Verify is the trigger a Driver fires on an interval ; the runtime performs the fold+compare (kernel-floor, sibling of the consolidation merge) and dispatches Record with the outcome. Persistent drift means the Log and the store genuinely disagree — an unlogged write or a fold bug. Transient drift is the liveness race of reading two stores that cannot be snapshotted atomically, and is counted, not alarmed on." do
+    identified_by :verification_id
+
+    attribute :verification_id, VerificationId
+    attribute :status,          Status,     default: "unknown"
+    attribute :checked_at,      CheckedAt,  default: "-"
+    attribute :drift_fields,    DriftFields, default: "0"
+    attribute :transient,       Transient,  default: "0"
+    attribute :fields_checked,  FieldsChecked, default: "0"
+    attribute :detail,          Detail,     default: "-"
+
+    value_object "VerificationId" do
+      # The singleton key — "projection".
+      attribute :value, String
+    end
+    value_object "Status" do
+      # derivable = every folded field matches the store. drifted = at least one
+      # PERSISTENT mismatch survived re-measurement. empty = the Log has nothing
+      # to verify yet (the gate is off, or nothing has been dispatched).
+      attribute :value, one_of("unknown", "derivable", "drifted", "empty")
+    end
+    value_object "CheckedAt" do
+      attribute :value, String
+    end
+    value_object "DriftFields" do
+      # How many (aggregate, id, field) triples PERSISTENTLY disagree.
+      attribute :value, String
+    end
+    value_object "Transient" do
+      # Mismatches that cleared on re-measurement — the liveness race, not drift.
+      attribute :value, String
+    end
+    value_object "FieldsChecked" do
+      attribute :value, String
+    end
+    value_object "Detail" do
+      # The first drifting triples, so the verdict is actionable without re-running
+      # the command by hand.
+      attribute :value, String
+    end
+
+    command "Verify" do
+      role "System"
+      goal "Ask whether current state is still derivable from the Log"
+      description "The TRIGGER. Carries no result : the runtime hook folds the complete Log (consolidated event.heki + the unconsolidated shard tail), compares each reconstructed field to the live store, re-measures to strip transient races, and dispatches Record with the verdict. Fired by the ProjectionVerification Driver on an interval, or by hand."
+      attribute :verification_id, VerificationId
+      then_set :verification_id, to: :verification_id
+      emits "VerificationRequested"
+    end
+
+    command "Record" do
+      role "System"
+      goal "Record the standing verdict on derivability"
+      description "Where the measurement lands, so the answer is queryable domain state rather than console output. Upserts on the singleton key — the LATEST verdict is the one that matters ; the history of verdicts rides the Log like any other fact."
+      attribute :verification_id, VerificationId
+      attribute :status,          Status
+      attribute :checked_at,      CheckedAt
+      attribute :drift_fields,    DriftFields
+      attribute :transient,       Transient
+      attribute :fields_checked,  FieldsChecked
+      attribute :detail,          Detail
+      then_set :status,         to: :status
+      then_set :checked_at,     to: :checked_at
+      then_set :drift_fields,   to: :drift_fields
+      then_set :transient,      to: :transient
+      then_set :fields_checked, to: :fields_checked
+      then_set :detail,         to: :detail
+      emits "VerificationRecorded"
+    end
+
+    query "Drifted" do
+      description "The verdict IF it is currently drifting — empty means the Log and the store agree. The one query a monitor needs."
+      where status: "drifted"
+    end
+  end
+
+  # ============================================================
   # CONSOLIDATION  —  the merge trigger (operational, NOT an Event)
   # ============================================================
   #

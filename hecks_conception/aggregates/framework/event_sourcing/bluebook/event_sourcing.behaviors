@@ -143,4 +143,36 @@ Hecks.behaviors "EventSourcing" do
       input  consolidation_id: "log"
       expect consolidation_id: "log"
     end
+
+    # ── Verification : derivability as a STANDING invariant ──────────────
+    # Like Consolidate, the measurement itself is kernel-floor (run_verification
+    # folds the Log and compares it to the live store) and does NOT run in the
+    # pure-memory behaviors runtime. These prove the DOMAIN shape : the trigger
+    # keys the singleton, and Record is where a verdict lands.
+
+    test "Verify touches the singleton verification marker" do
+      tests "Verify", on: "Verification"
+      input  verification_id: "projection"
+      expect verification_id: "projection", emits: ["VerificationRequested"]
+    end
+
+    test "Record lands a derivable verdict on the singleton" do
+      tests "Record", on: "Verification"
+      input  verification_id: "projection", status: "derivable",
+             checked_at: "2026-07-22T03:00:00Z", drift_fields: "0",
+             transient: "0", fields_checked: "12", detail: "-"
+      expect status: "derivable", drift_fields: "0", fields_checked: "12",
+             emits: ["VerificationRecorded"]
+    end
+
+    test "Record lands a DRIFTED verdict naming what disagreed" do
+      tests "Record", on: "Verification"
+      setup  "Record", verification_id: "projection", status: "derivable",
+             checked_at: "2026-07-22T03:00:00Z", drift_fields: "0",
+             transient: "0", fields_checked: "12", detail: "-"
+      input  verification_id: "projection", status: "drifted",
+             checked_at: "2026-07-22T03:01:00Z", drift_fields: "1",
+             transient: "0", fields_checked: "12", detail: "Counter::c1::hits"
+      expect status: "drifted", drift_fields: "1", detail: "Counter::c1::hits"
+    end
   end

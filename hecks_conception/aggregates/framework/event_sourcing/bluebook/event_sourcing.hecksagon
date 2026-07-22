@@ -33,7 +33,27 @@ Hecks.hecksagon "EventSourcing" do
     end
   end
 
+  # ── The VERIFICATION driver (derivability as a standing invariant) ──────
+  # `verify-projection` proves that current state is DERIVABLE from the Log — the
+  # claim the whole substrate rests on. Proven once by hand, that is an anecdote ;
+  # a property that must hold continuously has to be measured continuously. Same
+  # shape as LogConsolidation : an external clock reaches in, dispatches the
+  # trigger, and the runtime hook (run_verification) performs the fold+compare and
+  # records the verdict on the Verification singleton.
+  #
+  # SLOWER than the 5s consolidation cadence on purpose : this folds the COMPLETE
+  # Log, so it is O(log) where consolidation is O(new shards). A minute of lag on
+  # a derivability alarm costs nothing ; a gauge that competes with real work for
+  # the hot path costs plenty.
+  adapter "ProjectionVerification" do
+    driving on interval "60s" do |clock|
+      dispatch "Hecks::Framework::EventSourcing::EventSourcing::Verification.Verify",
+               verification_id: "projection"
+    end
+  end
+
   EventSourcing::Consolidation.persisted_by("Heki")
   EventSourcing::Projection.persisted_by("Heki")
   EventSourcing::Snapshot.persisted_by("Heki")
+  EventSourcing::Verification.persisted_by("Heki")
 end

@@ -742,6 +742,65 @@ impl Runtime {
         }
     }
 
+    /// DERIVABILITY AS A STANDING INVARIANT — the sibling of run_consolidate_if.
+    /// Fires when the dispatched command is the Verification trigger (from the
+    /// ProjectionVerification Driver, or by hand) ; a no-op for everything else.
+    ///
+    /// `verify-projection` proved that current state is derivable from the Log —
+    /// the claim the whole substrate rests on — but only when an operator ran it.
+    /// A property that must hold CONTINUOUSLY has to be measured continuously, so
+    /// the verdict becomes queryable domain state (Verification.Drifted) rather
+    /// than console output nobody is watching.
+    pub(super) fn run_verification_if(&mut self, command_name: &str) {
+        if command_name != "EventSourcing::Verification.Verify" {
+            return;
+        }
+        // The SAME gauge `storehouse verify-projection` reports — one
+        // implementation, so the standing invariant and the operator's command can
+        // never disagree about what derivable means.
+        let measured = projection_fold::measure_persistent(self, 2);
+        let (status, drift, transient, checked, detail) = match measured {
+            None => ("empty", 0usize, 0usize, 0usize, String::from("-")),
+            Some((persistent, transient, m)) => {
+                let status = if persistent.is_empty() { "derivable" } else { "drifted" };
+                // A handful of triples is enough to act on ; the whole set could be
+                // unbounded, and this is domain state, not a dump.
+                let mut keys: Vec<String> = persistent
+                    .keys()
+                    .map(|(a, i, f)| format!("{a}::{i}::{f}"))
+                    .collect();
+                keys.sort();
+                let detail = if keys.is_empty() {
+                    String::from("-")
+                } else {
+                    let shown = keys.len().min(5);
+                    let mut d = keys[..shown].join(", ");
+                    if keys.len() > shown {
+                        d.push_str(&format!(" (+{} more)", keys.len() - shown));
+                    }
+                    d
+                };
+                (status, persistent.len(), transient, m.total_fields, detail)
+            }
+        };
+        let mut attrs: HashMap<String, Value> = HashMap::new();
+        attrs.insert("verification_id".to_string(), Value::Str("projection".to_string()));
+        attrs.insert("status".to_string(), Value::Str(status.to_string()));
+        attrs.insert("checked_at".to_string(), Value::Str(crate::clock::now_iso()));
+        attrs.insert("drift_fields".to_string(), Value::Str(drift.to_string()));
+        attrs.insert("transient".to_string(), Value::Str(transient.to_string()));
+        attrs.insert("fields_checked".to_string(), Value::Str(checked.to_string()));
+        attrs.insert("detail".to_string(), Value::Str(detail));
+        // Into the COLLABORATOR, where the EventSourcing chapter lives — same as
+        // the Append writer. Ungated core dispatch : the recursion guard skips the
+        // EventSourcing aggregates, so recording a verdict cannot re-enter this.
+        let _ = command_dispatch::dispatch(
+            self.framework_mut(),
+            "EventSourcing::Verification.Record",
+            attrs,
+        );
+    }
+
     /// One merge pass : fold this realm's per-process Event shards into the
     /// global ordered Log, writing WHERE the Event repository reads (so a
     /// reader sees the consolidated log — the writer/reader never diverge).
