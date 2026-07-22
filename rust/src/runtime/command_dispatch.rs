@@ -463,6 +463,14 @@ fn dispatch_inner(
     // the cause is the last Log event recorded for that aggregate. Root
     // dispatches (no hint) resolve to empty — where CausationTrace stops.
     let causation_id = rt.cause_for_cascade(&cascade_hint);
+    // Per-flow correlation : mint ONE id at the ROOT of a flow (no cascade hint)
+    // and let every cascade the flow triggers inherit it (cascade_hint = Some
+    // skips the mint), so all events of one business flow (a transfer saga)
+    // share a correlation_id. Re-minting at each root keeps flows from bleeding
+    // together. The writer reads rt.current_correlation.
+    if cascade_hint.is_none() {
+        rt.current_correlation = Some(rt.mint_correlation_id(command_name));
+    }
     // Governability : a ROOT dispatch (no cascade hint) carries the principal +
     // verdict captured at the entry gate ; take it once so it can never leak to a
     // later gate-bypassing dispatch. A cascade passes None and the writer records

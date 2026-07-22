@@ -385,6 +385,15 @@ pub struct Runtime {
     /// under which policy." Transient, per-dispatch : set at the gate, consumed by
     /// the root write, None for cascades (which record the honest `system` actor).
     pub current_auth: Option<event_sourcing::CapturedAuth>,
+    /// Per-flow correlation : one id minted at the ROOT of a dispatch and shared
+    /// by every event the flow records — the root command PLUS every cascade it
+    /// triggers — so the Log's ByCorrelation facet gathers a whole business flow
+    /// (e.g. a transfer saga) as one unit, replacing the per-event
+    /// `{type}::{id}::{event}` form. Set by dispatch_inner at the root (cascade_hint
+    /// None) ; cascades inherit it ; re-minted at each new root so flows never
+    /// bleed together. Transient, per-flow (the framework collaborator carries its
+    /// own, never this one — framework_mut is a separate Runtime).
+    pub current_correlation: Option<String>,
 }
 
 impl Runtime {
@@ -610,6 +619,7 @@ impl Runtime {
             aggregates_root: None,
             last_event_id_by_agg: HashMap::new(),
             current_auth: None,
+            current_correlation: None,
             acl_read_model: acl_readmodel::AclReadModel::empty(),
         };
         // Hydrate the RBAC read-model from Agent state (covers the bare

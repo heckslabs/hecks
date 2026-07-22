@@ -119,6 +119,9 @@ hecks_conception/clients/
 # Exploratory / parked scratch — not source, kept local (Chris, 2026-06-18).
 .parked/
 hecks_conception/spikes/
-examples/workshop_demo/data/
+
+# Example-app runtime stores — the .heki dirs an example writes when it is RUN
+# (pizzas, workshop_demo, …). Runtime state, never source.
+examples/*/data/
 .DS_Store
 rust/hecks_conception/

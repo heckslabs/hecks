@@ -86,9 +86,11 @@ impl Runtime {
         // directive writes its deltas to the Log. HECKS_EVENT_SOURCING stays as
         // a global override (every aggregate) ; neither set -> no Log write
         // (the historical default).
-        if result.deltas.is_empty() {
-            return;
-        }
+        // A command with NO deltas may still have EMITTED its declared event, and
+        // since 2ddfc2c88 the domain event is a first-class row (empty delta) — so
+        // an empty-delta early return would silently DROP that event-row. The log
+        // is the source of truth : it stops only when there is neither a state
+        // change nor an emitted event to record.
         let event = match &result.event {
             Some(e) => e.clone(),
             None => return,
@@ -158,10 +160,15 @@ impl Runtime {
                 }
                 serde_json::Value::Object(obj).to_string()
             };
-            // lineage : one correlation id per originating dispatch ; causation
-            // is populated empty this phase (ids ENABLED, facet-queries DEFERRED).
-            let correlation_id =
-                format!("{}::{}::{}", event.aggregate_type, event.aggregate_id, event.name);
+            // Per-flow correlation : the id minted at the ROOT of this flow
+            // (dispatch_inner), shared by the root command AND every cascade it
+            // triggers, so all events of one business flow carry ONE
+            // correlation_id (the ByCorrelation facet). Falls back to the
+            // per-event form only if a dispatch reached the writer without a flow
+            // root having minted one — defensive ; every dispatch_inner root mints.
+            let correlation_id = self.current_correlation.clone().unwrap_or_else(|| {
+                format!("{}::{}::{}", event.aggregate_type, event.aggregate_id, event.name)
+            });
             let recorded_at = storehouse_log::now_iso8601();
             let agg_name = event.aggregate_type.clone();
             let agg_id = event.aggregate_id.clone();
@@ -330,6 +337,22 @@ impl Runtime {
         hint.as_ref()
             .and_then(|(t, i)| self.last_event_id_by_agg.get(&format!("{}::{}", t, i)).cloned())
             .unwrap_or_default()
+    }
+
+    /// Mint a fresh per-FLOW correlation id at the ROOT of a dispatch. Every
+    /// event in one flow — the root command plus every cascade it triggers —
+    /// shares this id, so the Log can gather a whole business flow (a transfer
+    /// saga) as one unit (the ByCorrelation facet). Process-unique : a monotonic
+    /// counter guarantees no two roots collide within a run ; the wall-clock
+    /// second prefix keeps the id readable and distinct across runs, and the
+    /// root verb tail names WHICH flow it is. wasm-safe clock (i630).
+    pub(crate) fn mint_correlation_id(&self, command_name: &str) -> String {
+        use std::sync::atomic::{AtomicU64, Ordering};
+        static CORRELATION_SEQ: AtomicU64 = AtomicU64::new(0);
+        let n = CORRELATION_SEQ.fetch_add(1, Ordering::Relaxed);
+        let secs = crate::clock::now_duration().as_secs();
+        let verb = command_name.rsplit('.').next().unwrap_or(command_name);
+        format!("corr-{:x}-{:x}-{}", secs, n, verb)
     }
 
     /// Event Log consolidation trigger — fires the merge fold IFF the
