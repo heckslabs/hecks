@@ -163,5 +163,30 @@ fn event_sourced_money_delta_is_faithful_and_folds_back() {
         "the fold rebuilds balance == the live store's Money — the Log is derivable",
     );
 
+    // The EVENT-ROW : one first-class fact per emitted domain event — event_name
+    // set, delta empty. The governable/lineage fact. It is logged ALONGSIDE the
+    // delta rows (dual-write) and the fold SKIPS it (proven above : balance still
+    // reconstructs exactly despite these rows existing).
+    let event_name_of = |e: &AggregateState| match e.get("event_name") {
+        Value::Map(m) => m.get("value").map(|v| v.to_string()).unwrap_or_default(),
+        _ => String::new(),
+    };
+    let deposited = events
+        .iter()
+        .find(|e| event_name_of(e) == "Deposited")
+        .expect("a first-class Deposited event-row is logged (event_name set)");
+    // Faithful payload : the Money rides command.inputs as structured JSON.
+    let inputs = match deposited.get("command") {
+        Value::Map(m) => m.get("inputs").map(|v| v.to_string()).unwrap_or_default(),
+        _ => String::new(),
+    };
+    assert!(inputs.contains("\"cents\":5000"), "event-row payload is faithful : {inputs}");
+    // Runtime provenance stamped.
+    let rv = match deposited.get("runtime_version") {
+        Value::Map(m) => m.get("value").map(|v| v.to_string()).unwrap_or_default(),
+        _ => String::new(),
+    };
+    assert!(!rv.is_empty(), "event-row carries runtime_version provenance");
+
     let _ = std::fs::remove_dir_all(&root);
 }

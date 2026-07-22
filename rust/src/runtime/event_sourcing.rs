@@ -149,6 +149,51 @@ impl Runtime {
             let recorded_at = storehouse_log::now_iso8601();
             let agg_name = event.aggregate_type.clone();
             let agg_id = event.aggregate_id.clone();
+            // Provenance : the runtime build that recorded these events.
+            // (bluebook_version rides in once Domain carries its version.)
+            let runtime_version_val = {
+                let mut m = HashMap::new();
+                m.insert("value".to_string(), Value::Str(env!("CARGO_PKG_VERSION").to_string()));
+                Value::Map(m)
+            };
+
+            // EVENT-ROW — one first-class fact per emitted DOMAIN EVENT :
+            // event_name + payload (command.inputs), with an EMPTY delta. The
+            // trivial fold skips empty-delta rows, so this lineage/governance
+            // fact never disturbs state reconstruction (dual-write). The real
+            // actor + verdict + per-flow correlation land here in later slices.
+            if let Some((shard, seq)) = event_shard::reserve(&shard_dir) {
+                let event_id = format!("{}-{}", shard, seq);
+                let mut command_vo = HashMap::new();
+                command_vo.insert("verb".to_string(), Value::Str(verb.clone()));
+                command_vo.insert("inputs".to_string(), Value::Str(inputs.clone()));
+                let mut event_name_vo = HashMap::new();
+                event_name_vo.insert("value".to_string(), Value::Str(event.name.clone()));
+                let mut empty_delta = HashMap::new();
+                empty_delta.insert("field".to_string(), Value::Str(String::new()));
+                empty_delta.insert("value".to_string(), Value::Str(String::new()));
+                let mut sequence_vo = HashMap::new();
+                sequence_vo.insert("value".to_string(), Value::Int(seq as i64));
+                let mut attrs = HashMap::new();
+                attrs.insert("event_id".to_string(), Value::Str(event_id));
+                attrs.insert("aggregate_name".to_string(), Value::Str(agg_name.clone()));
+                attrs.insert("aggregate_id".to_string(), Value::Str(agg_id.clone()));
+                attrs.insert("command".to_string(), Value::Map(command_vo));
+                attrs.insert("event_name".to_string(), Value::Map(event_name_vo));
+                attrs.insert("delta".to_string(), Value::Map(empty_delta));
+                attrs.insert("causation_id".to_string(), Value::Str(causation_id.to_string()));
+                attrs.insert("correlation_id".to_string(), Value::Str(correlation_id.clone()));
+                attrs.insert("actor".to_string(), Value::Str("system".to_string()));
+                attrs.insert("sequence".to_string(), Value::Map(sequence_vo));
+                attrs.insert("recorded_at".to_string(), Value::Str(recorded_at.clone()));
+                attrs.insert("runtime_version".to_string(), runtime_version_val.clone());
+                let _ = command_dispatch::dispatch(
+                    self.framework_mut(),
+                    "EventSourcing::Event.Append",
+                    attrs,
+                );
+            }
+
             // One Event per delta, appended to THIS process's private shard.
             // shard + seq + event_id are assigned inside append_to_process_shard
             // (single-writer per process => lossless at any size, no clobber).
@@ -193,6 +238,7 @@ impl Runtime {
                 attrs.insert("actor".to_string(), Value::Str("system".to_string()));
                 attrs.insert("sequence".to_string(), Value::Map(sequence_vo));
                 attrs.insert("recorded_at".to_string(), Value::Str(recorded_at.clone()));
+                attrs.insert("runtime_version".to_string(), runtime_version_val.clone());
                 // Core dispatch (no pump) — EventSourcing::Event.Append's save
                 // routes through the AppendLog adapter to THIS process's shard.
                 // The recursion guard above skips the EventSourcing aggregates,

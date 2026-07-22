@@ -27,12 +27,25 @@ Hecks.bluebook "EventSourcing", version: "2026.06.19.1" do
     attribute :aggregate_name, AggregateName
     attribute :aggregate_id,   AggregateId
     attribute :command,        Command
+    # The domain EVENT as the first-class fact : the emitted event's name. An
+    # EVENT-row carries event_name with an EMPTY delta (the payload rides
+    # command.inputs) ; the trivial fold skips empty-delta rows, so an event-row
+    # is a lineage/governance fact that never disturbs state reconstruction.
+    attribute :event_name,     EventName
     attribute :delta,          Delta
     attribute :causation_id,   CausationId
     attribute :correlation_id, CorrelationId
     attribute :actor,          Actor
+    # The authorization verdict under which this event was admitted — who was
+    # allowed to do this, in what role, by which policy. Governability : the log
+    # answers "who successfully did what, under what verdict."
+    attribute :verdict,        Verdict
     attribute :sequence,       Sequence
     attribute :recorded_at,    RecordedAt
+    # Provenance : the domain-definition version that produced this event and the
+    # runtime build that recorded it. Self-describing for replay + upcasting.
+    attribute :bluebook_version, BluebookVersion
+    attribute :runtime_version,  RuntimeVersion
 
     # ── Value objects ──────────────────────────────────────────────
 
@@ -100,14 +113,40 @@ Hecks.bluebook "EventSourcing", version: "2026.06.19.1" do
       attribute :value, String
     end
 
+    value_object "EventName" do
+      # The emitted domain event's name, e.g. "Deposited". First-class on the
+      # EVENT-row (the row whose delta is empty) ; empty on a delta-row.
+      attribute :value, String
+    end
+
+    value_object "Verdict" do
+      # The authorization decision this event was admitted under. `allowed` is
+      # "true" for a recorded success (a denied command writes no Event) ; role
+      # + policy_id name WHO was permitted and by which rule. Governability.
+      attribute :allowed,   String
+      attribute :role,      String
+      attribute :policy_id, String
+    end
+
+    value_object "BluebookVersion" do
+      # The version of the SUBJECT aggregate's bluebook in effect when this
+      # event was produced — so a replay knows which schema to read it as.
+      attribute :value, String
+    end
+
+    value_object "RuntimeVersion" do
+      # The storehouse build that recorded this event — provenance for audit.
+      attribute :value, String
+    end
+
     # ── The CONSISTENCY RULE between command and delta (flagged) ──
     #
     # An Event with a command but NO delta means "nothing happened" —
     # forbidden. The delta is AUTHORITATIVE : the fold applies the delta
     # and never re-runs the command. We enforce the floor of that rule
     # here : a delta must name a field.
-    invariant "delta must name a changed field — an event with no delta is not a fact" do
-      delta.field != ""
+    invariant "an event is a fact — it names either a changed field (delta-row) or the domain event (event-row)" do
+      delta.field != "" || event_name.value != ""
     end
 
     invariant "sequence is monotonic and positive" do
@@ -124,12 +163,16 @@ Hecks.bluebook "EventSourcing", version: "2026.06.19.1" do
       attribute :aggregate_name, AggregateName
       attribute :aggregate_id,   AggregateId
       attribute :command,        Command
+      attribute :event_name,     EventName
       attribute :delta,          Delta
       attribute :causation_id,   CausationId
       attribute :correlation_id, CorrelationId
       attribute :actor,          Actor
+      attribute :verdict,        Verdict
       attribute :sequence,       Sequence
       attribute :recorded_at,    RecordedAt
+      attribute :bluebook_version, BluebookVersion
+      attribute :runtime_version,  RuntimeVersion
       emits "EventAppended"
     end
 
