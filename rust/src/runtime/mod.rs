@@ -378,6 +378,13 @@ pub struct Runtime {
     /// Role/Agent lifecycle command applies. Read SYNCHRONOUSLY by authorize_check ;
     /// never bus-queried (no async, no reentrancy).
     pub acl_read_model: acl_readmodel::AclReadModel,
+    /// Governability : the authorization verdict of the CURRENT top-level dispatch,
+    /// captured by `authorize_entry` before it strips the principal attrs. The
+    /// synchronous Log writer takes it once (`record_event_append`) to stamp the
+    /// REAL actor + verdict on a recorded success, so the Log answers "who did what,
+    /// under which policy." Transient, per-dispatch : set at the gate, consumed by
+    /// the root write, None for cascades (which record the honest `system` actor).
+    pub current_auth: Option<event_sourcing::CapturedAuth>,
 }
 
 impl Runtime {
@@ -602,6 +609,7 @@ impl Runtime {
             mailbox_registry: actor::Mailboxes::new(),
             aggregates_root: None,
             last_event_id_by_agg: HashMap::new(),
+            current_auth: None,
             acl_read_model: acl_readmodel::AclReadModel::empty(),
         };
         // Hydrate the RBAC read-model from Agent state (covers the bare
@@ -688,6 +696,8 @@ impl Runtime {
         // never a credential, so a stolen session can't ride it. Covers the
         // gated query path too, since `query` routes through here.
         if std::env::var("HECKS_GOVERNANCE_OFF").is_ok() {
+            let cap = self.capture_auth(command_name, attrs);
+            self.current_auth = Some(cap);
             attrs.remove(acl_readmodel::KIND_KEY);
             attrs.remove(acl_readmodel::AUTH_KEY);
             return Ok(());
@@ -718,9 +728,74 @@ impl Runtime {
                 return Err(e);
             }
         }
+        // Capture the verdict this SUCCESS was admitted under BEFORE stripping
+        // the principal — the synchronous Log writer stamps it, so a recorded
+        // success carries who acted, in what role, under which policy. Closes the
+        // asymmetry : denials already sit in Governance::Violation ; successes
+        // used to lose their actor to a hardcoded "system".
+        let cap = self.capture_auth(command_name, attrs);
+        self.current_auth = Some(cap);
         attrs.remove(acl_readmodel::KIND_KEY);
         attrs.remove(acl_readmodel::AUTH_KEY);
         Ok(())
+    }
+
+    /// Build the `CapturedAuth` for a command that just PASSED the entry gates.
+    /// System origin -> the `system` actor, admitted by origin. An agent -> its
+    /// auth id, its role, and the permit that admitted it (re-evaluated in-memory
+    /// over the same live Policy set the gate read ; deterministic within one
+    /// dispatch). `allowed` is always true : this runs only past a successful
+    /// `authorize_entry`.
+    fn capture_auth(
+        &self,
+        command_name: &str,
+        attrs: &HashMap<String, Value>,
+    ) -> event_sourcing::CapturedAuth {
+        match acl_readmodel::principal_from_attrs(attrs) {
+            acl_readmodel::Principal::System => event_sourcing::CapturedAuth {
+                actor: "system".to_string(),
+                role: String::new(),
+                policy_id: "system-origin".to_string(),
+                allowed: true,
+            },
+            acl_readmodel::Principal::Agent { auth_identity_id } => {
+                let role = self
+                    .acl_read_model
+                    .role_for_auth(&auth_identity_id)
+                    .unwrap_or("")
+                    .to_string();
+                let policy_id = self.permit_id_for(&auth_identity_id, &role, command_name);
+                event_sourcing::CapturedAuth {
+                    actor: auth_identity_id,
+                    role,
+                    policy_id,
+                    allowed: true,
+                }
+            }
+        }
+    }
+
+    /// The Policy id that PERMITTED this dispatch — the governability breadcrumb
+    /// stamped into the Log's verdict. Re-runs the in-memory policy eval
+    /// (deterministic over the live rule set the gate just read) and returns the
+    /// first UNCONDITIONAL permit's id : a Policy id, the `command-role:<role>`
+    /// implicit permit, or "" when admitted with no rule (e.g. the authorize gate
+    /// is not declared). Forbidden / denied dispatches never reach here.
+    fn permit_id_for(&self, auth_id: &str, role: &str, command_name: &str) -> String {
+        match self.evaluate_policy(auth_id, role, command_name) {
+            PolicyOutcome::Permitted { matched } => matched
+                .iter()
+                .find_map(|m| {
+                    let id = m.strip_prefix("permit:")?;
+                    if id.contains("(conditional") {
+                        None
+                    } else {
+                        Some(id.to_string())
+                    }
+                })
+                .unwrap_or_default(),
+            _ => String::new(),
+        }
     }
 
     /// Resolve a middleware `handler` lookup key to a before-gate verdict.

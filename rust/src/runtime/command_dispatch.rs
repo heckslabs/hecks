@@ -463,7 +463,12 @@ fn dispatch_inner(
     // the cause is the last Log event recorded for that aggregate. Root
     // dispatches (no hint) resolve to empty — where CausationTrace stops.
     let causation_id = rt.cause_for_cascade(&cascade_hint);
-    rt.record_event_append(&result, command_name, &causation_id);
+    // Governability : a ROOT dispatch (no cascade hint) carries the principal +
+    // verdict captured at the entry gate ; take it once so it can never leak to a
+    // later gate-bypassing dispatch. A cascade passes None and the writer records
+    // the honest `system` actor — its originating actor rides correlation_id.
+    let captured_auth = if cascade_hint.is_none() { rt.current_auth.take() } else { None };
+    rt.record_event_append(&result, command_name, &causation_id, captured_auth);
     // Event Log consolidation : the Consolidate maintenance command folds this
     // realm's per-process shards into the global ordered event.heki. Hooked
     // HERE (not the Runtime::dispatch wrapper) so it fires on BOTH the manual

@@ -188,5 +188,27 @@ fn event_sourced_money_delta_is_faithful_and_folds_back() {
     };
     assert!(!rv.is_empty(), "event-row carries runtime_version provenance");
 
+    // GOVERNABILITY : the event-row stamps the REAL actor + the verdict this
+    // command was admitted under. OpenVault/Deposit declare `role "System"` and
+    // carry no principal, so the dispatch is System-origin : actor "system" and a
+    // POPULATED verdict VO — allowed "true", policy_id "system-origin". Before this
+    // slice the writer stamped a bare hardcoded actor and NO verdict at all, so
+    // these assertions bite : verdict would be absent.
+    let str_field = |e: &AggregateState, k: &str| match e.get(k) {
+        Value::Map(m) => m.get("value").map(|v| v.to_string()).unwrap_or_default(),
+        Value::Str(s) => s.clone(),
+        other => other.to_string(),
+    };
+    assert_eq!(str_field(deposited, "actor"), "system", "system-origin event-row records the system actor");
+    let verdict_field = |e: &AggregateState, k: &str| match e.get("verdict") {
+        Value::Map(m) => m.get(k).map(|v| v.to_string()).unwrap_or_default(),
+        _ => String::new(),
+    };
+    assert_eq!(verdict_field(deposited, "allowed"), "true", "verdict.allowed is true for a recorded success");
+    assert_eq!(
+        verdict_field(deposited, "policy_id"), "system-origin",
+        "a System-origin dispatch is admitted by origin — the verdict VO is populated, not absent",
+    );
+
     let _ = std::fs::remove_dir_all(&root);
 }

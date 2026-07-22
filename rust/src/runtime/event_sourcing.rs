@@ -26,6 +26,22 @@
 
 use super::*;
 
+/// The authorization verdict captured at the entry gate (`authorize_entry`),
+/// carried to the synchronous Log writer so a recorded SUCCESS is governable —
+/// the Log answers "who did this, in what role, under which policy." Captured
+/// BEFORE the principal attrs are stripped ; consumed take-once by
+/// `record_event_append` for a ROOT dispatch. A cascade carries None and records
+/// the honest `system` actor — its originating actor is linked by correlation_id,
+/// not re-attributed per hop. `allowed` is always true at record time : a denied
+/// command writes no Event (it sits in Governance::Violation instead).
+#[derive(Clone, Debug)]
+pub struct CapturedAuth {
+    pub actor: String,
+    pub role: String,
+    pub policy_id: String,
+    pub allowed: bool,
+}
+
 impl Runtime {
     /// True when some attached hecksagon carries `Aggregate.event_sourced`
     /// for this aggregate — the per-aggregate event-sourcing toggle
@@ -61,7 +77,7 @@ impl Runtime {
     /// Recursion guard : skips the EventSourcing domain's own aggregates so
     /// Append never appends. (Belt-and-suspenders — `dispatch_cascade` does
     /// not re-enter this hook ; only the eager dispatch wrapper calls it.)
-    pub(super) fn record_event_append(&mut self, result: &CommandResult, command_name: &str, causation_id: &str) {
+    pub(super) fn record_event_append(&mut self, result: &CommandResult, command_name: &str, causation_id: &str, auth: Option<CapturedAuth>) {
         // GATE — event sourcing is opt-in PER AGGREGATE via the `event_sourced`
         // hecksagon directive (persistence+). The shards+merge Log writer is
         // now single-writer-safe and proven lossless (thirty_concurrent_
@@ -156,6 +172,22 @@ impl Runtime {
                 m.insert("value".to_string(), Value::Str(env!("CARGO_PKG_VERSION").to_string()));
                 Value::Map(m)
             };
+            // Governability : the REAL actor + verdict this command was admitted
+            // under — captured at the entry gate before the principal was stripped.
+            // A ROOT dispatch carries its principal ; a cascade (None) records the
+            // honest `system` actor, its flow linked by correlation_id. allowed is
+            // always true here : a denied command never reaches the writer.
+            let (actor_str, v_allowed, v_role, v_policy) = match &auth {
+                Some(a) => (a.actor.clone(), a.allowed, a.role.clone(), a.policy_id.clone()),
+                None => ("system".to_string(), true, String::new(), "system-origin".to_string()),
+            };
+            let verdict_val = {
+                let mut m = HashMap::new();
+                m.insert("allowed".to_string(), Value::Str(if v_allowed { "true" } else { "false" }.to_string()));
+                m.insert("role".to_string(), Value::Str(v_role));
+                m.insert("policy_id".to_string(), Value::Str(v_policy));
+                Value::Map(m)
+            };
 
             // EVENT-ROW — one first-class fact per emitted DOMAIN EVENT :
             // event_name + payload (command.inputs), with an EMPTY delta. The
@@ -183,7 +215,8 @@ impl Runtime {
                 attrs.insert("delta".to_string(), Value::Map(empty_delta));
                 attrs.insert("causation_id".to_string(), Value::Str(causation_id.to_string()));
                 attrs.insert("correlation_id".to_string(), Value::Str(correlation_id.clone()));
-                attrs.insert("actor".to_string(), Value::Str("system".to_string()));
+                attrs.insert("actor".to_string(), Value::Str(actor_str.clone()));
+                attrs.insert("verdict".to_string(), verdict_val.clone());
                 attrs.insert("sequence".to_string(), Value::Map(sequence_vo));
                 attrs.insert("recorded_at".to_string(), Value::Str(recorded_at.clone()));
                 attrs.insert("runtime_version".to_string(), runtime_version_val.clone());
@@ -235,7 +268,8 @@ impl Runtime {
                 attrs.insert("delta".to_string(), Value::Map(delta_vo));
                 attrs.insert("causation_id".to_string(), Value::Str(causation_id.to_string()));
                 attrs.insert("correlation_id".to_string(), Value::Str(correlation_id.clone()));
-                attrs.insert("actor".to_string(), Value::Str("system".to_string()));
+                attrs.insert("actor".to_string(), Value::Str(actor_str.clone()));
+                attrs.insert("verdict".to_string(), verdict_val.clone());
                 attrs.insert("sequence".to_string(), Value::Map(sequence_vo));
                 attrs.insert("recorded_at".to_string(), Value::Str(recorded_at.clone()));
                 attrs.insert("runtime_version".to_string(), runtime_version_val.clone());
