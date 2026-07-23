@@ -158,8 +158,16 @@ impl McpSession {
             let server_label = server_name.to_string();
             thread::spawn(move || {
                 let reader = BufReader::new(err);
-                for line in reader.lines().flatten() {
-                    storehouse_log::mcp_stderr_line(&server_label, line.trim_end());
+                // STOP on a read error rather than `.flatten()`, which discards
+                // the Err and asks the iterator for another line — a reader that
+                // keeps erroring (a broken pipe, a dead child) would spin this
+                // thread forever at full tilt. An error here means the child's
+                // stderr is gone, and there is nothing further to pump.
+                for line in reader.lines() {
+                    match line {
+                        Ok(l) => storehouse_log::mcp_stderr_line(&server_label, l.trim_end()),
+                        Err(_) => break,
+                    }
                 }
             });
         }
