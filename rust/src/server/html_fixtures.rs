@@ -16,11 +16,9 @@ pub fn module_fixtures(fixtures: &[Fixture], aggregate_name: &str) -> String {
         .filter(|f| f.aggregate_name == aggregate_name)
         .collect();
     if matched.is_empty() {
-        return format!(
-            r#"<div class="mt-4 p-4 rounded border border-dashed border-surface-4 text-center">
+        return r#"<div class="mt-4 p-4 rounded border border-dashed border-surface-4 text-center">
   <p class="text-sm text-gray-500">No records yet — use the commands above to create one</p>
-</div>"#
-        );
+</div>"#.to_string();
     }
     let keys: Vec<String> = matched[0]
         .attributes

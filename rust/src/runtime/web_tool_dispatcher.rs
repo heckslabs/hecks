@@ -132,7 +132,7 @@ fn validate_url(url: &str) -> Option<String> {
         return Some("scheme parse failure".into());
     };
     let host = after_scheme
-        .split(|c: char| c == '/' || c == ':' || c == '?' || c == '#')
+        .split(['/', ':', '?', '#'])
         .next()
         .unwrap_or("");
     if host.is_empty() {

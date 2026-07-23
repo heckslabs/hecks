@@ -46,5 +46,5 @@ pub const STOPWORDS: &[&str] = &[
 /// corpus per call is small enough that a HashSet wouldn't pay back
 /// its allocation.
 pub fn is_stopword(candidate: &str) -> bool {
-    STOPWORDS.iter().any(|sw| *sw == candidate)
+    STOPWORDS.contains(&candidate)
 }

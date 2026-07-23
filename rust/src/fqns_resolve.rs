@@ -60,7 +60,7 @@ pub enum BareResolution {
     /// ref (`Realm::…::Bluebook::Aggregate.verb`).
     Resolved(String),
     /// >1 distinct canonical address declares the verb — the candidates, for a
-    /// human (or a future local-context tier) to disambiguate. Never rewritten.
+    /// > human (or a future local-context tier) to disambiguate. Never rewritten.
     Ambiguous(Vec<String>),
     /// Aggregate(s) with that name exist, but none declares the verb — the ref
     /// is stale or not actually a dispatch (e.g. an example in a comment).

@@ -1,3 +1,9 @@
+// Same two doc-rendering lints allowed as in the lib crate root, for the same
+// reason : these doc comments are read as SOURCE, hand-aligned, and `cargo doc`
+// is never run over them. Every other clippy warning is treated as real signal.
+#![allow(clippy::doc_overindented_list_items)]
+#![allow(clippy::doc_lazy_continuation)]
+
 //! Hecks Life — the Bluebook compiler and runtime
 //!
 //! Reads .bluebook files, parses them into IR, and executes them.
@@ -84,7 +90,7 @@ fn main() {
 
     // Named beings (miette/summer) with no subcommand go straight to terminal
     let is_named = std::path::Path::new(&args[0]).file_name()
-        .map_or(false, |n| n == "miette" || n == "summer");
+        .is_some_and(|n| n == "miette" || n == "summer");
 
     // Explicit help request — print the command list and exit 0. Without
     // this, `--help` / `-h` / `help` fall through to command dispatch and are
@@ -131,9 +137,9 @@ fn main() {
             let cmd_name = args[1].clone();
             let attrs: std::collections::HashMap<String, serde_json::Value> = args[2..].iter()
                 .filter_map(|a| {
-                    let mut parts = a.splitn(2, '=');
-                    let key = parts.next()?;
-                    let val = parts.next()?;
+                    let (key, val) = a.split_once('=')?;
+                    
+                    
                     Some((key.to_string(), serde_json::Value::String(val.to_string())))
                 })
                 .collect();
@@ -811,7 +817,7 @@ fn main() {
             .filter_map(|(l, c)| c.map(|c| (l, c)))
             .collect();
         // Longest legacy first so no prefix is a substring of another.
-        prefixes.sort_by(|a, b| b.0.len().cmp(&a.0.len()));
+        prefixes.sort_by_key(|p| std::cmp::Reverse(p.0.len()));
 
         if !rewrite {
             for (legacy, canonical) in &prefixes {
@@ -1056,7 +1062,7 @@ fn main() {
     // bluebook `trigger_command` declarations keep working.
     if !path.is_empty()
         && path.contains('.')
-        && path.chars().next().map_or(false, |c| c.is_uppercase())
+        && path.chars().next().is_some_and(|c| c.is_uppercase())
         && (std::path::Path::new(command).is_dir()
             || command.ends_with(".bluebook"))
     {
@@ -1077,9 +1083,9 @@ fn main() {
         // Parse key=value attrs from remaining args
         let attrs: std::collections::HashMap<String, serde_json::Value> = args[3..].iter()
             .filter_map(|a| {
-                let mut parts = a.splitn(2, '=');
-                let key = parts.next()?;
-                let val = parts.next()?;
+                let (key, val) = a.split_once('=')?;
+                
+                
                 Some((key.to_string(), serde_json::Value::String(val.to_string())))
             })
             .collect();
@@ -1130,9 +1136,9 @@ fn main() {
         let attrs: std::collections::HashMap<String, serde_json::Value> = args.get(4..)
             .unwrap_or(&[]).iter()
             .filter_map(|a| {
-                let mut parts = a.splitn(2, '=');
-                let key = parts.next()?;
-                let val = parts.next()?;
+                let (key, val) = a.split_once('=')?;
+                
+                
                 Some((key.to_string(), serde_json::Value::String(val.to_string())))
             })
             .collect();
@@ -1722,8 +1728,7 @@ fn parse_test_opts(args: &[String]) -> Result<TestOpts, String> {
     }
     let path = path.unwrap_or_else(|| {
         // Default to $PWD/hecks_conception or $PWD per i500.
-        let cwd = std::env::current_dir().ok()
-            .and_then(|p| Some(p.to_string_lossy().into_owned()))
+        let cwd = std::env::current_dir().ok().map(|p| p.to_string_lossy().into_owned())
             .unwrap_or_else(|| ".".into());
         let candidate = format!("{}/hecks_conception", cwd);
         if std::path::Path::new(&candidate).is_dir() { candidate } else { cwd }
@@ -2503,7 +2508,7 @@ fn heki_cmd_latest(file: &str) {
 /// (append / upsert / delete) — without it, the write is a discipline
 /// gap. Use a domain command (`storehouse $AGG <Aggregate>.<Command>`)
 /// instead, or pass --reason to acknowledge the out-of-band nature.
-fn extract_reason<'a>(rest: &'a [String]) -> Option<(String, Vec<&'a String>)> {
+fn extract_reason(rest: &[String]) -> Option<(String, Vec<&String>)> {
     let mut iter = rest.iter().peekable();
     let mut reason: Option<String> = None;
     let mut remaining: Vec<&String> = Vec::new();
@@ -3476,9 +3481,12 @@ fn run_serve_socket(agg_dir: &str, socket_path: Option<&str>) {
 /// LLM config (hecksagon :llm triple, else .world ollama pair) so the
 /// caller can build the post-dispatch adapter_llm hook. Shared by both
 /// serve transports.
-fn boot_serve_runtime(
-    agg_dir: &str,
-) -> (Runtime, Option<(String, String, String)>, Option<(String, String)>) {
+/// The hecksagon `:llm` triple (adapter, model, endpoint).
+type LlmTriple = Option<(String, String, String)>;
+/// The `.world` ollama pair (model, endpoint).
+type OllamaPair = Option<(String, String)>;
+
+fn boot_serve_runtime(agg_dir: &str) -> (Runtime, LlmTriple, OllamaPair) {
     // Default the bus log to quiet for the resident process — explicit
     // STOREHOUSE_LOG still wins for debugging.
     if std::env::var("STOREHOUSE_LOG").is_err() {
@@ -4028,7 +4036,7 @@ fn render_log_events(
             // — same exclusion the projection gauge applies. Historical infra events
             // predate the write-skip ; keep them out of the human log view.
             !is_infra_mechanism(name)
-                && aggregate.map_or(true, |a| name == a)
+                && aggregate.is_none_or(|a| name == a)
         })
         .collect();
     sortable.sort_by(|(a, _), (b, _)| {
@@ -4347,7 +4355,7 @@ fn dispatch_hecksagon(agg_dir: &str, command: &str, attrs: std::collections::Has
             let world_dirs = storehouse::world::attach::collect_world_heki_dirs(
                 &storehouse::storehouse_router::conception_root());
             let heki_dir = world_dirs.get("plan").cloned()
-                .or_else(|| storehouse::storehouse_router::info_dir());
+                .or_else(storehouse::storehouse_router::info_dir);
             if let Some(info_dir) = heki_dir {
                 let exit = if result_event == "SprintExecuted" {
                     storehouse::story_runtime::sprint_execute(&result_id, &info_dir, storehouse_route)
@@ -4448,15 +4456,15 @@ fn require_fqn_dispatch_address(subcommand: &str, address: &str) {
     }
 }
 
-/// Run the loop subcommand. Boots the runtime once, dispatches the named
-/// command at the given cadence, exits cleanly on SIGINT / SIGTERM.
-///
-/// Args layout : storehouse loop <target> <Aggregate.Command> --every <dur> [k=v ...]
-///   args[0] = binary
-///   args[1] = "loop"
-///   args[2] = target (agg dir or .bluebook)
-///   args[3] = "Aggregate.Command"
-///   args[4..] = "--every", "<dur>", and key=val attrs
+// Run the loop subcommand. Boots the runtime once, dispatches the named
+// command at the given cadence, exits cleanly on SIGINT / SIGTERM.
+//
+// Args layout : storehouse loop <target> <Aggregate.Command> --every <dur> [k=v ...]
+//   args[0] = binary
+//   args[1] = "loop"
+//   args[2] = target (agg dir or .bluebook)
+//   args[3] = "Aggregate.Command"
+//   args[4..] = "--every", "<dur>", and key=val attrs
 // ============================================================
 // DAEMON SUBCOMMAND — process-lifecycle primitive
 // ============================================================
@@ -4895,15 +4903,14 @@ fn scan_python_write_in(s: &str) -> Option<String> {
         // Look for ", 'w'" or ", 'a'" within ~30 chars after.
         let after = &s[p..];
         let lookahead = &after[..after.len().min(60)];
-        if lookahead.contains(",'w") || lookahead.contains(",\"w")
+        if (lookahead.contains(",'w") || lookahead.contains(",\"w")
             || lookahead.contains(", 'w") || lookahead.contains(", \"w")
             || lookahead.contains(",'a") || lookahead.contains(", 'a")
-            || lookahead.contains(",\"a") || lookahead.contains(", \"a") {
-            if !path.is_empty() && (path.ends_with(".rb") || path.ends_with(".rs")
+            || lookahead.contains(",\"a") || lookahead.contains(", \"a"))
+            && !path.is_empty() && (path.ends_with(".rb") || path.ends_with(".rs")
                 || path.ends_with(".sh") || path.ends_with(".py")) {
                 return Some(path);
             }
-        }
         idx = p;
     }
     None
@@ -4989,10 +4996,7 @@ fn scan_command_with_path_arg(
     // even though no actual write is happening. 2026-05-02 false-
     // positive heal, follow-on to the sed-n fix.
     let needle = format!("{} ", cmd_name);
-    let pos = match find_outside_quotes(cmd, &needle) {
-        Some(p) => p,
-        None => return None,
-    };
+    let pos = find_outside_quotes(cmd, &needle)?;
     let after = &cmd[pos + needle.len()..];
     let tokens: Vec<&str> = after.split_whitespace()
         .take_while(|t| *t != "|" && *t != ";" && *t != "&&" && *t != "||")
@@ -5208,7 +5212,7 @@ fn ymdhms_from_unix(secs: i64) -> (i64, i64, i64, i64, i64, i64) {
     let sec = s % 60;
     let z_shift = z + 719468;
     let era = if z_shift >= 0 { z_shift } else { z_shift - 146096 } / 146097;
-    let doe = (z_shift - era * 146097) as i64;
+    let doe = z_shift - era * 146097;
     let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
     let y = yoe + era * 400;
     let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
@@ -6152,7 +6156,7 @@ fn current_local_hour() -> u32 {
 /// First-match-wins on the segments list. Wrap-around handled : if
 /// `lo > hi`, the segment spans midnight (e.g. 20-4 = 20:00 through
 /// 04:59).
-fn match_segment<'a>(segs: &'a [(u32, u32, String)], hour: u32) -> Option<&'a str> {
+fn match_segment(segs: &[(u32, u32, String)], hour: u32) -> Option<&str> {
     for (lo, hi, cmd) in segs {
         let in_range = if lo <= hi {
             hour >= *lo && hour <= *hi
@@ -6313,7 +6317,7 @@ fn run_sleep(_args: &[String]) {
 
             // State change to non-sleeping → break to wake-read
             if last_state.as_deref() != Some(state.as_str()) {
-                if state != "sleeping" && state != "" && last_state.is_some() {
+                if state != "sleeping" && !state.is_empty() && last_state.is_some() {
                     let suffix = if !summary.is_empty() {
                         format!("  ·  {}", sleep_truncate(&summary, 80))
                     } else {
@@ -6976,8 +6980,8 @@ fn looks_like_aggregate_command(s: &str) -> bool {
     let head = match parts.next() { Some(h) => h, None => return false };
     let tail = match parts.next() { Some(t) => t, None => return false };
     if head.is_empty() || tail.is_empty() { return false; }
-    if !head.chars().next().map_or(false, |c| c.is_ascii_uppercase()) { return false; }
-    if !tail.chars().next().map_or(false, |c| c.is_ascii_uppercase()) { return false; }
+    if !head.chars().next().is_some_and(|c| c.is_ascii_uppercase()) { return false; }
+    if !tail.chars().next().is_some_and(|c| c.is_ascii_uppercase()) { return false; }
     // Reject anything containing path separators — those are file paths.
     if s.contains('/') || s.contains('\\') { return false; }
     true
@@ -7082,9 +7086,9 @@ fn invoke_route(route: &heki::Record, args: &[String]) -> bool {
         let agg_dir = format!("{}/aggregates", conception);
         let attrs: std::collections::HashMap<String, serde_json::Value> = args[2..].iter()
             .filter_map(|a| {
-                let mut parts = a.splitn(2, '=');
-                let key = parts.next()?;
-                let val = parts.next()?;
+                let (key, val) = a.split_once('=')?;
+                
+                
                 Some((key.to_string(), serde_json::Value::String(val.to_string())))
             })
             .collect();

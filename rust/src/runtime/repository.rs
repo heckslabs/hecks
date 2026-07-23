@@ -145,7 +145,7 @@ impl Repository {
             }
         }
         let records = heki::read(&path).unwrap_or_default();
-        for (_, rec) in &records {
+        for rec in records.values() {
             let id = rec.get("id")
                 .and_then(|v| v.as_str())
                 .unwrap_or("1")

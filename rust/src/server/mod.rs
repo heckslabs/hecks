@@ -96,7 +96,7 @@ pub fn read_request(stream: &std::net::TcpStream) -> Option<Request> {
     let mut request_line = String::new();
     if reader.read_line(&mut request_line).is_err() { return None; }
 
-    let parts: Vec<&str> = request_line.trim().split_whitespace().collect();
+    let parts: Vec<&str> = request_line.split_whitespace().collect();
     if parts.len() < 2 { return None; }
     let method = parts[0].to_string();
     let path = parts[1].to_string();

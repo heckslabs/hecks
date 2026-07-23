@@ -1,3 +1,18 @@
+// Two clippy doc lints are allowed crate-wide, deliberately.
+//
+// `doc_overindented_list_items` and `doc_lazy_continuation` both police how
+// rustdoc would RENDER a doc comment. The doc comments here are read as SOURCE —
+// the house rule is that documentation IS the bluebook, so these are hand-aligned
+// essays sitting next to the code they explain, and nobody runs `cargo doc` over
+// them. "Fixing" 151 of them would reflow deliberate alignment (continuation
+// lines aligned under the phrase they continue) to satisfy a renderer that is
+// never invoked — damaging the artifact to please the linter.
+//
+// Scoped to these two lints only : every other clippy warning is a real signal
+// and is fixed rather than allowed.
+#![allow(clippy::doc_overindented_list_items)]
+#![allow(clippy::doc_lazy_continuation)]
+
 //! Hecks Life — the Bluebook compiler and runtime
 //!
 //! Reads .bluebook files, parses them into IR, and executes them.

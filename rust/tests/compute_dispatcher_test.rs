@@ -113,13 +113,17 @@ fn end_to_end_compute_cascade_writes_response_into_target_attr() {
     // Parse the bluebook and load a hecksagon with a matching :compute
     // adapter targeting MusingMint.RequestMint -> MusingMint.MintMusing.
     let domain: Domain = parser::parse(MINT_BLUEBOOK);
-    let mut hexa = Hecksagon::default();
-    hexa.name = "MusingMint".into();
-    let mut adapter = summary_adapter();
     // Trigger ON RequestMint, response routed INTO MintMusing — this
     // is the i227 PM-context-population pattern.
-    adapter.trigger_on = Some("MusingMint.RequestMint".into());
-    hexa.compute_adapters.push(adapter);
+    let adapter = ComputeAdapter {
+        trigger_on: Some("MusingMint.RequestMint".into()),
+        ..summary_adapter()
+    };
+    let hexa = Hecksagon {
+        name: "MusingMint".into(),
+        compute_adapters: vec![adapter],
+        ..Default::default()
+    };
 
     let mut rt = Runtime::boot_with_hecksagons(domain, None, vec![hexa]);
 

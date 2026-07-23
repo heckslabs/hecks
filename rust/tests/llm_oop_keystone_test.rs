@@ -159,9 +159,11 @@ fn boot_oop(root: &str) -> Runtime {
     let handler_rel = "adapters/llm/llm-handler";
     // The in-process adapter rides on a parsed Dream hecksagon so it coexists
     // with the effect binding (which subscribes to the same event's verdict).
-    let mut dream_hex = Hecksagon::default();
-    dream_hex.name = "Dream".into();
-    dream_hex.llm_adapters.push(in_process_adapter());
+    let dream_hex = Hecksagon {
+        name: "Dream".into(),
+        llm_adapters: vec![in_process_adapter()],
+        ..Default::default()
+    };
     let hecksagons = vec![
         hecksagon_parser::parse(
             "Hecks.family \"llm\" do\n  verb \"completed_by\"\n  signal :effect\n  field :backend\n  produces :response_text\nend\n",

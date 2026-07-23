@@ -127,8 +127,13 @@ fn plan_chain<'a>(
         if default_holds(&rule, agg, &pre) {
             continue;
         }
-        match find_producer(agg, &pre, rule.producer).filter(|p| !cascade_excluded(agg, p, exclude)) {
-            Some(producer) => {
+        // No producer for this precondition: lenient skip (the test fails loudly
+        // if the bluebook truly can't reach the state). The Unsatisfiable-via-
+        // cascade path is a later slice.
+        if let Some(producer) =
+            find_producer(agg, &pre, rule.producer).filter(|p| !cascade_excluded(agg, p, exclude))
+        {
+            {
                 match plan_chain(agg, producer, depth - 1, visited, exclude) {
                     Outcome::Chain(sub) => {
                         for c in sub {
@@ -145,10 +150,6 @@ fn plan_chain<'a>(
                 }
                 append_producer(&pre, producer, rule.producer, &mut chain, &mut produced, agg);
             }
-            // No producer for this precondition: lenient skip (the test fails
-            // loudly if the bluebook truly can't reach the state). The
-            // Unsatisfiable-via-cascade path is a later slice.
-            None => {}
         }
     }
 

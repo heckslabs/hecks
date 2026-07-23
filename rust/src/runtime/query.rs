@@ -118,8 +118,8 @@ impl Runtime {
         // present, only Musings::Musing has the seeded records, but
         // self.all("Musing") returned an empty repo half the time).
         let (resolved_context, agg_name, _agg_refs, mut query_ir) = self.domain.aggregates.iter()
-            .filter(|a| context.map_or(true, |ctx| {
-                a.context.as_ref().map_or(false, |c| c == ctx)
+            .filter(|a| context.is_none_or(|ctx| {
+                a.context.as_ref().is_some_and(|c| c == ctx)
             }))
             .filter(|a| aggregate.is_empty() || a.name == aggregate)
             .find_map(|a| a.queries.iter().find(|q| q.name == query_name)

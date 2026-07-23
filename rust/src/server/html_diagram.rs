@@ -629,7 +629,7 @@ fn build_graph_json(rt: &Runtime) -> String {
             json_str(&evt_id), json_str(&p_id)
         ));
         let trigger = &policy.trigger_command;
-        let target_cmd_id = format!("cmd:{}", trigger.split('.').last().unwrap_or(trigger));
+        let target_cmd_id = format!("cmd:{}", trigger.split('.').next_back().unwrap_or(trigger));
         edges.push(format!(
             r#"{{"data":{{"source":{},"target":{},"kind":"triggers"}}}}"#,
             json_str(&p_id), json_str(&target_cmd_id)

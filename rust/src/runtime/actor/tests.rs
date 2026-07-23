@@ -130,7 +130,7 @@ async fn panic_in_one_actor_doesnt_block_others() {
     let bad_mb = reg.mailbox_for(&bad_addr).expect("bad mailbox must still be addressable post-poison");
     let guard = bad_mb.lock().unwrap();
     assert_eq!(guard.status, super::MailboxStatus::Poisoned);
-    assert!(guard.last_panic.as_ref().map_or(false, |r| r.contains("intentional fault")),
+    assert!(guard.last_panic.as_ref().is_some_and(|r| r.contains("intentional fault")),
         "poisoned mailbox must record the panic reason for the audit trail");
 }
 

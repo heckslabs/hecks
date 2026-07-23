@@ -120,9 +120,9 @@ pub fn run_script(args: &[String]) -> i32 {
     // Attrs from argv: each `key=val` pair becomes a Value::Str. This
     // mirrors the bluebook-dispatch loop in main.rs.
     let attrs: HashMap<String, Value> = extra.iter().filter_map(|a| {
-        let mut parts = a.splitn(2, '=');
-        let k = parts.next()?;
-        let v = parts.next()?;
+        let (k, v) = a.split_once('=')?;
+        
+        
         Some((k.to_string(), Value::Str(v.to_string())))
     }).collect();
 

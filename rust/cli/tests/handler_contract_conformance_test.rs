@@ -120,7 +120,7 @@ fn payment_handler_honors_family_produces_contract() {
 
 /// Build the standalone llm-handler into `out`. Returns false (test skips) if
 /// rustc is unavailable.
-fn build_llm_handler(root: &PathBuf, out: &std::path::Path) -> bool {
+fn build_llm_handler(root: &std::path::Path, out: &std::path::Path) -> bool {
     let src = root.join("adapters/llm/llm-handler.rs");
     let status = Command::new("rustc")
         .args(["-O"]).arg(&src).arg("-o").arg(out).status();
@@ -198,7 +198,7 @@ fn llm_handler_honors_family_produces_contract_and_is_replay_idempotent() {
 
 /// Build the standalone web-tool-handler into `out`. Returns false (test skips)
 /// if rustc is unavailable.
-fn build_web_tool_handler(root: &PathBuf, out: &std::path::Path) -> bool {
+fn build_web_tool_handler(root: &std::path::Path, out: &std::path::Path) -> bool {
     let src = root.join("adapters/web_tool/web-tool-handler.rs");
     let status = Command::new("rustc")
         .args(["-O"]).arg(&src).arg("-o").arg(out).status();

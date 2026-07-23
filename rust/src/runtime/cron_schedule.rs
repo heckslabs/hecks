@@ -118,7 +118,7 @@ fn element_matches(elem: &str, value: u32, lo: u32, hi: u32) -> bool {
             Some(b) => b,
             None => return false,
         };
-        return value >= rlo && value <= rhi && (value - rlo) % step == 0;
+        return value >= rlo && value <= rhi && (value - rlo).is_multiple_of(step);
     }
     // Range form : `N-M`.
     if let Some((a, b)) = elem.split_once('-') {

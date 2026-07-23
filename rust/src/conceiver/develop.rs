@@ -68,5 +68,5 @@ fn matches_feature(agg: &Aggregate, feature: &str) -> bool {
 }
 
 fn bump_version() -> String {
-    format!("2026.04.11.2")
+    "2026.04.11.2".to_string()
 }

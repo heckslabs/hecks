@@ -11,7 +11,7 @@
 //! shard from where it left off. And because each shard has exactly ONE
 //! writer (the owning process), there is no cross-process interleave — so the
 //! >4KB O_APPEND-atomicity caveat that killed the multi-writer design does
-//! not apply here AT ALL ; a record may be any size.
+//! > not apply here AT ALL ; a record may be any size.
 //!
 //! Each line is one self-contained JSON `ShardRecord`. The record carries
 //! everything the merge needs to impose a global total order WITHOUT a later
@@ -337,7 +337,7 @@ mod tests {
         w.append(&rec(2, "b")).unwrap();
         w.append(&rec(3, "c")).unwrap();
         let (second, off2) = read_from(&path, off1).unwrap();
-        assert_eq!(second.iter().map(|r| val(r)).collect::<Vec<_>>(), vec!["b", "c"]);
+        assert_eq!(second.iter().map(val).collect::<Vec<_>>(), vec!["b", "c"]);
         assert!(off2 > off1);
         // Resuming from the tip yields nothing.
         let (none, off3) = read_from(&path, off2).unwrap();

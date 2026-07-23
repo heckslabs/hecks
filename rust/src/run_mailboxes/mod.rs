@@ -178,8 +178,8 @@ fn render_rows(rows: &[MailboxSummary], json: bool) {
         println!("no mailboxes registered (try `storehouse mailboxes list --fixture` for a demo)");
         return;
     }
-    println!("{:<18} {:<14} {:<10} {:>6} {:>10}  {}",
-             "TYPE", "ID", "STATUS", "QUEUE", "PROCESSED", "LAST_ERROR");
+    println!("{:<18} {:<14} {:<10} {:>6} {:>10}  LAST_ERROR",
+             "TYPE", "ID", "STATUS", "QUEUE", "PROCESSED");
     for row in rows {
         let err = row.last_error.as_deref().unwrap_or("");
         println!("{:<18} {:<14} {:<10} {:>6} {:>10}  {}",

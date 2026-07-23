@@ -153,7 +153,7 @@ pub(super) fn count_md_inbox_active(inbox_dir: &Path) -> i64 {
     if let Ok(entries) = std::fs::read_dir(inbox_dir) {
         for entry in entries.flatten() {
             let path = entry.path();
-            if path.extension().map_or(false, |e| e == "md")
+            if path.extension().is_some_and(|e| e == "md")
                 && md_status_is_active(
                     &std::fs::read_to_string(&path).unwrap_or_default(),
                 )

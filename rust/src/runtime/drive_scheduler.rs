@@ -29,7 +29,7 @@ use std::time::Duration;
 pub fn ticks_for(interval: Duration, poll: Duration) -> u64 {
     let i = interval.as_millis().max(1);
     let p = poll.as_millis().max(1);
-    (((i + p - 1) / p) as u64).max(1)
+    (i.div_ceil(p) as u64).max(1)
 }
 
 /// Due iff never fired, or at least `interval_ticks` ticks have elapsed

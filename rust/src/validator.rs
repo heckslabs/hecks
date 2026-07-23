@@ -55,10 +55,10 @@ fn aggregates_have_commands(domain: &Domain) -> Vec<String> {
         .collect()
 }
 
-/// Command names must start with a verb — detected by morphological patterns.
-/// Flipped logic: a command is imperative by definition. We only reject if
-/// the first word is provably NOT a verb (noun/adjective suffixes).
-/// Everything else passes — commands are verbs until proven otherwise.
+// Command names must start with a verb — detected by morphological patterns.
+// Flipped logic: a command is imperative by definition. We only reject if
+// the first word is provably NOT a verb (noun/adjective suffixes).
+// Everything else passes — commands are verbs until proven otherwise.
 
 /// Suffixes that prove a word is a noun — not a verb.
 const NOUN_SUFFIXES: &[&str] = &[
@@ -97,7 +97,7 @@ fn is_not_verb(word: &str) -> bool {
     if lower.len() < 2 { return false; }
 
     // Known false positives — articles, possessives, adjectives used as names
-    if FALSE_POSITIVES.iter().any(|fp| *fp == word) { return true; }
+    if FALSE_POSITIVES.contains(&word) { return true; }
 
     // Words ending in noun suffixes that are actually verbs
     let verb_exceptions = ["ferment", "transition", "position", "condition",

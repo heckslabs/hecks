@@ -39,11 +39,7 @@ pub fn run(
     write_stdout(stdout, "type to talk. ctrl-d to leave.", &empty);
     write_stdout(stdout, "", &empty);
 
-    loop {
-        let line = match read_stdin_line(stdin) {
-            Some(l) => l,
-            None => break,
-        };
+    while let Some(line) = read_stdin_line(stdin) {
         let input = line.trim();
         if input.is_empty() { continue; }
         if input == "quit" || input == "exit" { break; }

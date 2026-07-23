@@ -18,7 +18,7 @@ pub fn surface(info_dir: &str) {
         _ => return,
     };
     let mut items: Vec<&heki::Record> = store.values().collect();
-    items.sort_by(|a, b| ts(a).cmp(&ts(b)));
+    items.sort_by_key(|a| ts(a));
     let rec = match items.last() { Some(r) => *r, None => return };
 
     let phase = field(rec, "phase");

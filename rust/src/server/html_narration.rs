@@ -73,7 +73,7 @@ fn to_passive(verb: &str) -> String {
 }
 
 fn starts_with_vowel(s: &str) -> bool {
-    s.chars().next().map_or(false, |c| {
+    s.chars().next().is_some_and(|c| {
         "aeiou".contains(c.to_lowercase().next().unwrap_or(' '))
     })
 }

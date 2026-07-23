@@ -174,7 +174,7 @@ fn scan_command(
 fn has_pascal_prefix(name: &str, prefix: &str) -> bool {
     if !name.starts_with(prefix) { return false; }
     if name.len() == prefix.len() { return true; }
-    name.chars().nth(prefix.len()).map_or(true, |c| c.is_uppercase())
+    name.chars().nth(prefix.len()).is_none_or(|c| c.is_uppercase())
 }
 
 // ─── Runtime smoke ─────────────────────────────────────────────────

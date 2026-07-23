@@ -401,7 +401,7 @@ for p in domain.policies.iter().filter(|p| p.target_domain.is_none()) {
     let Some(triggered) = domain
         .aggregates
         .iter()
-        .filter(|a| trig_agg.map_or(true, |ta| ta == a.name))
+        .filter(|a| trig_agg.is_none_or(|ta| ta == a.name))
         .flat_map(|a| a.commands.iter())
         .find(|c| c.name == trig_cmd)
     else {

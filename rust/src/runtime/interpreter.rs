@@ -111,7 +111,7 @@ pub fn check_givens(
     for attr in &cmd.attributes {
         if attr.required {
             let present = attrs.get(&attr.name)
-                .map_or(false, |v| !matches!(v, Value::Null) && v.to_string() != "");
+                .is_some_and(|v| !matches!(v, Value::Null) && v.to_string() != "");
             if !present {
                 return Err(RuntimeError::GivenFailed {
                     message: format!("{} is required", attr.name),
@@ -442,8 +442,7 @@ fn resolve_expr(expr: &str, state: &AggregateState, attrs: &HashMap<String, Valu
         }
         return Value::Int(rand_below_impl(n));
     }
-    if expr.ends_with(".size") {
-        let field = &expr[..expr.len() - 5];
+    if let Some(field) = expr.strip_suffix(".size") {
         let val = attrs.get(field)
             .cloned()
             .unwrap_or_else(|| state.get(field).clone());
@@ -690,7 +689,7 @@ fn rand_below_impl(n: i64) -> i64 {
     }
     use std::cell::Cell;
     thread_local! {
-        static STATE: Cell<u64> = Cell::new(0);
+        static STATE: Cell<u64> = const { Cell::new(0) };
     }
     STATE.with(|s| {
         let mut x = s.get();
@@ -744,8 +743,7 @@ pub fn resolve_mutation_value(
     // command attribute. The lifecycle_validator catches any bluebook
     // that tries to bring them back.
 
-    if value_expr.starts_with(':') {
-        let field = &value_expr[1..];
+    if let Some(field) = value_expr.strip_prefix(':') {
         // Try attrs first, then state fields
         return attrs.get(field)
             .or_else(|| state.fields.get(field))

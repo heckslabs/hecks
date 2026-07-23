@@ -33,6 +33,15 @@ use std::collections::HashMap;
 /// Reconstructed field map for one aggregate instance : field -> stringified value.
 pub type ReconstructedState = HashMap<String, String>;
 
+/// Where a folded field and the live store disagree :
+/// (aggregate, id, field) -> (what the Log folds to, what the store holds).
+pub type DriftMap = HashMap<(String, String, String), (String, String)>;
+
+/// One instance's ordered delta rows during the fold :
+/// (recorded_at, sequence, field, value). Ordered by recorded_at with sequence
+/// as the tiebreak — see the note in `fold_event_log`.
+type DeltaRows = Vec<(String, i64, String, String)>;
+
 /// Fold the global Log's Event records into per-instance reconstructed state,
 /// keyed by (aggregate_name, aggregate_id). Pure : groups by instance, orders
 /// by sequence, applies field := value (last write wins). Events with no delta
@@ -52,7 +61,7 @@ pub fn fold_event_log(
     // itself imposes, so it orders both populations correctly. sequence is the
     // tiebreak within one source (and the sole key when recorded_at is absent,
     // e.g. the pure-fold unit tests).
-    let mut grouped: HashMap<(String, String), Vec<(String, i64, String, String)>> =
+    let mut grouped: HashMap<(String, String), DeltaRows> =
         HashMap::new();
     for ev in events {
         let agg_name = ev.get("aggregate_name").as_str().unwrap_or("").to_string();
@@ -120,7 +129,7 @@ pub struct ProjectionMeasurement {
     pub uncomparable: usize,
     pub total_fields: usize,
     /// (aggregate, id, field) -> (what the Log folds to, what the store holds)
-    pub drift: HashMap<(String, String, String), (String, String)>,
+    pub drift: DriftMap,
 }
 
 /// Measure once. `None` means the Log is empty (nothing to verify).
@@ -201,7 +210,7 @@ pub fn measure(rt: &super::Runtime) -> Option<ProjectionMeasurement> {
 pub fn measure_persistent(
     rt: &super::Runtime,
     passes: usize,
-) -> Option<(HashMap<(String, String, String), (String, String)>, usize, ProjectionMeasurement)> {
+) -> Option<(DriftMap, usize, ProjectionMeasurement)> {
     let first = measure(rt)?;
     let mut persistent = first.drift.clone();
     for _ in 0..passes {

@@ -578,15 +578,7 @@ impl Runtime {
 
         let mut policy_engine = PolicyEngine::new();
         for policy in &domain.policies {
-            policy_engine.register(
-                &policy.name,
-                &policy.on_event,
-                &policy.trigger_command,
-                policy.with.clone(),
-                policy.wheres.clone(),
-                policy.for_each.clone(),
-                policy.extra_dispatches.clone(),
-            );
+            policy_engine.register(policy);
         }
 
         let mut pm_engine = PMEngine::new();
@@ -1468,7 +1460,9 @@ impl Runtime {
         // reentrancy guard breaks cyclic cascades (a re-entrant policy within
         // this pump session is skipped) ; in_flight is not cleared here — the
         // fork-per-dispatch process boundary resets it.
-        let policy_resolved: Vec<(String, HashMap<String, Value>, HashMap<String, Value>)> = self
+        // (target command, resolved attrs, the event data it resolved from).
+        type ResolvedPolicyDispatch = (String, HashMap<String, Value>, HashMap<String, Value>);
+        let policy_resolved: Vec<ResolvedPolicyDispatch> = self
             .policy_engine
             .react(&event)
             .into_iter()
@@ -3488,8 +3482,8 @@ impl Runtime {
         // both declare "Musing").
         let has_query = self.domain.aggregates.iter()
             .any(|a| a.name == spec.source_aggregate
-                && spec.source_context.as_ref().map_or(true, |ctx| {
-                    a.context.as_ref().map_or(false, |c| c == ctx)
+                && spec.source_context.as_ref().is_none_or(|ctx| {
+                    a.context.as_ref() == Some(ctx)
                 })
                 && a.queries.iter().any(|q| q.name == spec.query_name));
 

@@ -151,7 +151,7 @@ fn kebab_to_pascal(s: &str) -> String {
 /// Convert snake_case or kebab-case ("my_thing" / "my-thing") to
 /// PascalCase ("MyThing"). Both separators handled.
 fn snake_or_kebab_to_pascal(s: &str) -> String {
-    s.split(|c: char| c == '_' || c == '-')
+    s.split(['_', '-'])
         .map(capitalize)
         .collect::<Vec<_>>()
         .join("")

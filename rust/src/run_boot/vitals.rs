@@ -99,7 +99,7 @@ fn latest_field(info_dir: &str, store: &str, field: &str) -> String {
     if store.is_empty() { return "—".into(); }
     // Pick the record with the newest updated_at / created_at.
     let mut items: Vec<&heki::Record> = store.values().collect();
-    items.sort_by(|a, b| ts(a).cmp(&ts(b)));
+    items.sort_by_key(|a| ts(a));
     let latest = match items.last() { Some(r) => *r, None => return "—".into() };
     match latest.get(field) {
         Some(serde_json::Value::String(s)) if !s.is_empty() => s.clone(),

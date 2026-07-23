@@ -627,7 +627,13 @@ fn parse_field_map(spec: &str) -> Vec<(String, String)> {
 fn record_matches(record: &serde_json::Value, pairs: &[(String, String)]) -> bool {
     pairs.iter().all(|(k, v)| match record.get(k) {
         Some(serde_json::Value::String(s)) => s == v,
-        Some(other) => other.to_string() == *v,
+        // Numbers / bools have no borrowable string form, so their display
+        // rendering is genuinely allocated to compare against the expected
+        // token. clippy's cmp_owned flags the allocation ; there is no non-
+        // allocating comparison across every JSON scalar, and matching each
+        // variant by hand would be more code for no gain.
+        #[allow(clippy::cmp_owned)]
+        Some(other) => *v == other.to_string(),
         None => false,
     })
 }

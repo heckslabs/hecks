@@ -49,8 +49,7 @@ pub fn scan_inbox(served_dir: &Path) -> String {
     }
     // Sort by ref using natural numeric order — i1, i2, i10, i100 not
     // i1, i10, i100, i2.
-    cards.sort_by(|a, b| natural_ref_key(&a.reference)
-        .cmp(&natural_ref_key(&b.reference)));
+    cards.sort_by_key(|a| natural_ref_key(&a.reference));
 
     let mut out = String::from("[");
     for (i, c) in cards.iter().enumerate() {

@@ -4,7 +4,7 @@
 //! Reentrant execution is prevented by tracking in-flight policies.
 //!
 //! Usage:
-//!   engine.register("OnPizzaCreated", "PizzaCreated", "NotifyChef");
+//!   engine.register(&policy);   // one ir::Policy from domain.policies
 //!   let triggers = engine.react(&event);
 
 use super::Event;
@@ -67,6 +67,12 @@ pub struct PolicyTrigger {
     pub extra_dispatches: Vec<DispatchSpec>,
 }
 
+impl Default for PolicyEngine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PolicyEngine {
     pub fn new() -> Self {
         PolicyEngine {
@@ -76,16 +82,18 @@ impl PolicyEngine {
         }
     }
 
-    pub fn register(
-        &mut self,
-        name: &str,
-        on_event: &str,
-        trigger_command: &str,
-        with: Vec<(String, ValueSpec)>,
-        wheres: Vec<WhereClause>,
-        for_each: Option<ForEachSpec>,
-        extra_dispatches: Vec<DispatchSpec>,
-    ) {
+    /// Register one policy. Takes the whole `Policy` rather than its seven fields
+    /// spread as arguments — the signature mirrored the struct exactly, so this is
+    /// both simpler and the same shape as `PMEngine::register(&pm)` beside it at
+    /// the call site.
+    pub fn register(&mut self, policy: &crate::ir::Policy) {
+        let name = policy.name.as_str();
+        let on_event = policy.on_event.as_str();
+        let trigger_command = policy.trigger_command.as_str();
+        let with = policy.with.clone();
+        let wheres = policy.wheres.clone();
+        let for_each = policy.for_each.clone();
+        let extra_dispatches = policy.extra_dispatches.clone();
         let idx = self.bindings.len();
         // gap #1b — split `Aggregate.Event` into (qualifier, event).
         // Bare `Event` → qualifier None. The index keys on the bare

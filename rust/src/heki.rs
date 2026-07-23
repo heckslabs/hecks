@@ -179,7 +179,7 @@ pub fn read_dir(dir: &str) -> Result<HashMap<String, Store>, String> {
     let mut entries: Vec<_> = fs::read_dir(path)
         .map_err(|e| format!("{}: {}", dir, e))?
         .filter_map(|e| e.ok())
-        .filter(|e| e.path().extension().map_or(false, |ext| ext == "heki"))
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "heki"))
         .collect();
     entries.sort_by_key(|e| e.file_name());
 
@@ -851,7 +851,7 @@ pub fn resolve_realm_dir(aggregates_path: &str) -> Option<String> {
         let mut worlds: Vec<PathBuf> = entries
             .filter_map(|e| e.ok())
             .map(|e| e.path())
-            .filter(|p| p.extension().map_or(false, |ext| ext == "world"))
+            .filter(|p| p.extension().is_some_and(|ext| ext == "world"))
             .collect();
         worlds.sort();
         for wf in worlds {
@@ -941,7 +941,7 @@ pub fn resolve_default_dir(aggregates_path: &str) -> Option<String> {
         let mut worlds: Vec<PathBuf> = entries
             .filter_map(|e| e.ok())
             .map(|e| e.path())
-            .filter(|p| p.extension().map_or(false, |x| x == "world"))
+            .filter(|p| p.extension().is_some_and(|x| x == "world"))
             .collect();
         worlds.sort();
         for wf in worlds {
@@ -998,7 +998,7 @@ pub fn default_chain(aggregates_path: &str) -> Option<String> {
 /// filename, strip `aggregates`/`bluebook` containers, drop the trailing domain
 /// folder (re-added by `context`). `None` when nothing meaningful remains.
 pub fn strip_chain_segments(mut segs: Vec<String>) -> Option<String> {
-    if segs.last().map_or(false, |s| s.ends_with(".bluebook")) {
+    if segs.last().is_some_and(|s| s.ends_with(".bluebook")) {
         segs.pop();
     }
     segs.retain(|s| s != "aggregates" && s != "bluebook");

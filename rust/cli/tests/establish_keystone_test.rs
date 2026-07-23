@@ -100,7 +100,7 @@ fn roster_counts(root: &str) -> (usize, usize) {
     let n_roster = policies.iter()
         .filter(|p| {
             p.get("principal").and_then(|v| v.as_str())
-                .map_or(false, |s| s == "pr-agent" || s == "workflow-subagent")
+                .is_some_and(|s| s == "pr-agent" || s == "workflow-subagent")
         })
         .count();
     (assignments.len(), n_roster)

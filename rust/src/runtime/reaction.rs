@@ -181,7 +181,9 @@ impl Runtime {
                 eprintln!("[pump_outbox] cascade guard reached — stopping");
                 break;
             }
-            let runs: Vec<(String, String, Vec<(String, String)>)> = self
+            // (cascade id, target command, its attrs) — one pending cascade run.
+            type PendingRun = (String, String, Vec<(String, String)>);
+            let runs: Vec<PendingRun> = self
                 .all_qualified(Some("CascadeRun"), "CascadeRun")
                 .into_iter()
                 .filter(|r| {

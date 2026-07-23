@@ -62,7 +62,7 @@ fn read_world_heki_dir(aggregates_path: &str) -> Option<String> {
     let world_dir = if agg.is_dir() { agg.parent()? } else { agg.parent()?.parent()? };
     let world_file = std::fs::read_dir(world_dir).ok()?
         .filter_map(|e| e.ok())
-        .find(|e| e.path().extension().map_or(false, |ext| ext == "world"))?
+        .find(|e| e.path().extension().is_some_and(|ext| ext == "world"))?
         .path();
     let source = std::fs::read_to_string(&world_file).ok()?;
     let world = crate::world::parser::parse(&source);

@@ -218,10 +218,11 @@ mod tests {
     use crate::hecksagon_ir::IoAdapter;
 
     fn fs_adapter(root: &str) -> IoAdapter {
-        let mut a = IoAdapter::default();
-        a.kind = "fs".into();
-        a.options.push(("root".into(), format!("\"{}\"", root)));
-        a
+        IoAdapter {
+            kind: "fs".into(),
+            options: vec![("root".into(), format!("\"{}\"", root))],
+            ..Default::default()
+        }
     }
 
     #[test]

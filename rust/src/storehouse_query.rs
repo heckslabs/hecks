@@ -31,7 +31,7 @@ pub fn is_query_phrase(phrase: &str) -> bool {
         Some((_head, tail)) => tail
             .chars()
             .next()
-            .map_or(false, |c| c.is_ascii_lowercase()),
+            .is_some_and(|c| c.is_ascii_lowercase()),
         None => false,
     }
 }
@@ -98,9 +98,9 @@ pub fn query_route(phrase: &str, args: &[String]) -> i32 {
 
     let attrs: std::collections::HashMap<String, String> = args.iter()
         .filter_map(|a| {
-            let mut parts = a.splitn(2, '=');
-            let k = parts.next()?;
-            let v = parts.next()?;
+            let (k, v) = a.split_once('=')?;
+            
+            
             Some((k.to_string(), v.to_string()))
         })
         .collect();

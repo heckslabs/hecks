@@ -148,11 +148,11 @@ end"#);
     rt.dispatch("CreateSynapse", HashMap::new()).unwrap();
     rt.dispatch("Decay", attrs(&[("synapse", s("1"))])).unwrap();
     let state = rt.find("Synapse", "1").unwrap();
-    assert_field_close(&state, "strength", 0.25);
+    assert_field_close(state, "strength", 0.25);
 
     rt.dispatch("Decay", attrs(&[("synapse", s("1"))])).unwrap();
     let state = rt.find("Synapse", "1").unwrap();
-    assert_field_close(&state, "strength", 0.125);
+    assert_field_close(state, "strength", 0.125);
 }
 
 #[test]
@@ -176,11 +176,11 @@ end"#);
     rt.dispatch("CreateSynapse", HashMap::new()).unwrap();
     rt.dispatch("Decay", attrs(&[("synapse", s("1"))])).unwrap();
     let state = rt.find("Synapse", "1").unwrap();
-    assert_field_close(&state, "strength", 0.95);
+    assert_field_close(state, "strength", 0.95);
 
     rt.dispatch("Decay", attrs(&[("synapse", s("1"))])).unwrap();
     let state = rt.find("Synapse", "1").unwrap();
-    assert_field_close(&state, "strength", 0.95 * 0.95);
+    assert_field_close(state, "strength", 0.95 * 0.95);
 }
 
 #[test]
@@ -203,7 +203,7 @@ end"#);
     rt.dispatch("CreateFocus", HashMap::new()).unwrap();
     rt.dispatch("Bound", attrs(&[("focus", s("1"))])).unwrap();
     let state = rt.find("Focus", "1").unwrap();
-    assert_field_close(&state, "weight", 1.0);
+    assert_field_close(state, "weight", 1.0);
 }
 
 #[test]
@@ -226,7 +226,7 @@ end"#);
     rt.dispatch("CreateSynapse", HashMap::new()).unwrap();
     rt.dispatch("Bound", attrs(&[("synapse", s("1"))])).unwrap();
     let state = rt.find("Synapse", "1").unwrap();
-    assert_field_close(&state, "strength", 0.0);
+    assert_field_close(state, "strength", 0.0);
 }
 
 #[test]
@@ -253,7 +253,7 @@ end"#);
     rt.dispatch("Pulse", attrs(&[("synapse", s("1"))])).unwrap();
     let state = rt.find("Synapse", "1").unwrap();
     // 0.5 * 0.98 = 0.49, in-range, clamp is a no-op.
-    assert_field_close(&state, "strength", 0.49);
+    assert_field_close(state, "strength", 0.49);
 }
 
 // --- Given enforcement ---
@@ -863,8 +863,8 @@ fn banking_transfer_saga_moves_money_and_completes() {
             _ => -1,
         }
     };
-    assert_eq!(cents(&rt.find("Account", "1").unwrap()), 1000, "source debited 5000-4000");
-    assert_eq!(cents(&rt.find("Account", "2").unwrap()), 4000, "destination credited 4000");
+    assert_eq!(cents(rt.find("Account", "1").unwrap()), 1000, "source debited 5000-4000");
+    assert_eq!(cents(rt.find("Account", "2").unwrap()), 4000, "destination credited 4000");
     assert_eq!(
         rt.find("Transfer", "1").unwrap().get("status"),
         &s("completed"),

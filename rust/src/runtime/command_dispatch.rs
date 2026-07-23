@@ -55,7 +55,7 @@ impl Resolution {
 }
 
 /// Borrow the resolved command from the runtime's IR.
-fn cmd_for<'a>(rt: &'a Runtime, res: Resolution) -> &'a Command {
+fn cmd_for(rt: &Runtime, res: Resolution) -> &Command {
     match res {
         Resolution::Aggregate(a, c) => &rt.domain.aggregates[a].commands[c],
         Resolution::Entity(a, e, c) => &rt.domain.aggregates[a].entities[e].commands[c],
@@ -64,7 +64,7 @@ fn cmd_for<'a>(rt: &'a Runtime, res: Resolution) -> &'a Command {
 
 /// Borrow the lifecycle that gates the resolved command : the entity's
 /// own lifecycle when present, otherwise the parent aggregate's.
-fn lifecycle_for<'a>(rt: &'a Runtime, res: Resolution) -> Option<&'a Lifecycle> {
+fn lifecycle_for(rt: &Runtime, res: Resolution) -> Option<&Lifecycle> {
     match res {
         Resolution::Aggregate(a, _) => rt.domain.aggregates[a].lifecycle.as_ref(),
         Resolution::Entity(a, e, _) => rt.domain.aggregates[a].entities[e]
@@ -202,7 +202,7 @@ fn dispatch_inner(
             // command brings no explicit identity.
             let supplies_own_id = rt.domain.aggregates[agg_idx].identified_by
                 .as_ref()
-                .map_or(false, |idf| attrs.get(idf).map_or(false, |v| !v.to_string().is_empty()));
+                .is_some_and(|idf| attrs.get(idf).is_some_and(|v| !v.to_string().is_empty()));
             if supplies_own_id {
                 return None;
             }

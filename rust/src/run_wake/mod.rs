@@ -252,7 +252,7 @@ fn render_markdown(c: &ConsciousnessSnapshot, d: &DreamSnapshot, woke_at: &str) 
     if c.last_wake_at != "—" {
         out.push_str(&format!("(last wake : `{}`)\n", c.last_wake_at));
     }
-    out.push_str("\n");
+    out.push('\n');
 
     if d.image != "—" {
         out.push_str("The night left me this image —\n\n");
@@ -479,7 +479,7 @@ mod tests {
         let c = ConsciousnessSnapshot { state: "attentive".into(), last_wake_at: "—".into() };
         let mut d = snap(
             "a loop searching for a missing seed",
-            "v1 narrative — should be hushed by v3 synthesis".into(),
+            "v1 narrative — should be hushed by v3 synthesis",
             "boucle",
             "ocean,library,spark",
         );

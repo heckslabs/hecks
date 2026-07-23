@@ -1,3 +1,8 @@
+// Doc-rendering lints allowed as at the crate roots: read as source, never
+// rendered by `cargo doc`.
+#![allow(clippy::doc_overindented_list_items)]
+#![allow(clippy::doc_lazy_continuation)]
+
 //! Ephemeral-port HTTP door smoke — proves over a REAL socket what the
 //! socket-free matrix (tests/http_door_gate_test.rs in the lib crate) proves
 //! over `route()` directly :

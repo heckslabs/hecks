@@ -320,7 +320,7 @@ fn load(info_dir: &str, name: &str) -> heki::Store {
 fn latest(store: &heki::Store) -> heki::Record {
     if store.is_empty() { return HashMap::new(); }
     let mut items: Vec<(&String, &heki::Record)> = store.iter().collect();
-    items.sort_by(|a, b| timestamp(a.1).cmp(&timestamp(b.1)));
+    items.sort_by_key(|a| timestamp(a.1));
     items.last().map(|(_, r)| (*r).clone()).unwrap_or_default()
 }
 

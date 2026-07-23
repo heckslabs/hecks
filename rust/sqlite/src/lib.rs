@@ -1,3 +1,8 @@
+// Doc-rendering lints allowed for the same reason as the lib crate root: these
+// comments are read as source, not rendered by `cargo doc`.
+#![allow(clippy::doc_overindented_list_items)]
+#![allow(clippy::doc_lazy_continuation)]
+
 //! storehouse-sqlite — the SQLite persistence adapter for the storehouse
 //! runtime.
 //!

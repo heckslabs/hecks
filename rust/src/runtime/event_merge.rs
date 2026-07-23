@@ -181,12 +181,11 @@ pub fn reclaim_consumed_shards(
         }
         // Unparseable id, or a live owner : never reclaim.
         match owner_pid(&shard.id) {
-            Some(pid) if !is_alive(pid) => {
-                if std::fs::remove_file(&shard.path).is_ok() {
+            Some(pid) if !is_alive(pid)
+                && std::fs::remove_file(&shard.path).is_ok() => {
                     checkpoint.remove(&shard.id);
                     reclaimed += 1;
                 }
-            }
             _ => {}
         }
     }
@@ -367,8 +366,8 @@ mod tests {
         assert!(!dir.join("p111-1.shard").exists(), "dead + folded -> deleted");
         assert!(dir.join("p222-2.shard").exists(), "unconsumed tail -> kept");
         assert!(dir.join("p333-3.shard").exists(), "alive owner -> kept");
-        assert!(cp.get("p111-1").is_none(), "reclaimed shard's checkpoint entry pruned");
-        assert!(cp.get("p222-2").is_some(), "kept shard's checkpoint entry remains");
+        assert!(!cp.contains_key("p111-1"), "reclaimed shard's checkpoint entry pruned");
+        assert!(cp.contains_key("p222-2"), "kept shard's checkpoint entry remains");
         let _ = std::fs::remove_dir_all(&dir);
     }
 

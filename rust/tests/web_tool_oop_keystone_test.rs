@@ -200,9 +200,11 @@ fn boot_oop(root: &str) -> Runtime {
     let mut hexes = oop_hecksagons();
     // Ride the in-process io-adapter on a Fetch hecksagon so it coexists with the
     // effect binding (both attach to the Start dispatch / its emitted event).
-    let mut fetch_hex = Hecksagon::default();
-    fetch_hex.name = "Fetch".into();
-    fetch_hex.io_adapters.push(in_process_io_adapter());
+    let fetch_hex = Hecksagon {
+        name: "Fetch".into(),
+        io_adapters: vec![in_process_io_adapter()],
+        ..Default::default()
+    };
     hexes.push(fetch_hex);
     let mut rt = Runtime::boot_with_hecksagons(domain, None, hexes);
     rt.aggregates_root = Some(root.to_string());
@@ -330,9 +332,11 @@ fn no_binding_in_process_fires_cascade_and_records_zero_outbound_events() {
     let domain = parser::parse(FETCH);
     // The in-process io-adapter — IDENTICAL to the one the OOP fixture carries.
     // The ONLY difference is the absent effect binding.
-    let mut hex = Hecksagon::default();
-    hex.name = "Fetch".into();
-    hex.io_adapters.push(in_process_io_adapter());
+    let hex = Hecksagon {
+        name: "Fetch".into(),
+        io_adapters: vec![in_process_io_adapter()],
+        ..Default::default()
+    };
     let mut rt = Runtime::boot_with_hecksagons(domain, None, vec![hex]);
 
     // No verdict binding -> the in-process path is NOT suppressed.
@@ -381,19 +385,21 @@ fn no_binding_in_process_fires_cascade_and_records_zero_outbound_events() {
 #[test]
 fn realm_qualified_binding_command_still_resolves_in_process() {
     let domain = parser::parse(FETCH);
-    let mut hex = Hecksagon::default();
-    hex.name = "Fetch".into();
     // Identical to in_process_io_adapter() EXCEPT the command is realm-qualified
     // — the exact live-hecksagon form that drifted past the raw-`==` matcher.
-    hex.io_adapters.push(IoAdapter {
-        kind: "web_tool".into(),
-        options: vec![
-            ("command".into(), "Hecks::Examples::Fetch::Fetch.Start".into()),
-            ("tool".into(), "web_fetch".into()),
-            ("result_into".into(), "Fetch.RecordResult".into()),
-        ],
-        on_events: vec![],
-    });
+    let hex = Hecksagon {
+        name: "Fetch".into(),
+        io_adapters: vec![IoAdapter {
+            kind: "web_tool".into(),
+            options: vec![
+                ("command".into(), "Hecks::Examples::Fetch::Fetch.Start".into()),
+                ("tool".into(), "web_fetch".into()),
+                ("result_into".into(), "Fetch.RecordResult".into()),
+            ],
+            on_events: vec![],
+        }],
+        ..Default::default()
+    };
     let mut rt = Runtime::boot_with_hecksagons(domain, None, vec![hex]);
 
     let mut attrs = HashMap::new();

@@ -73,9 +73,9 @@ fn no_binding_in_process_lands_completion_and_records_zero_outbound_events() {
     // The in-process adapter — IDENTICAL to the one the OOP fixture also carries.
     // The ONLY difference between the two proofs is the effect binding (absent
     // here).
-    let mut hexa = Hecksagon::default();
-    hexa.name = "Dream".into();
-    hexa.llm_adapters.push(LlmAdapter {
+    let hexa = Hecksagon {
+        name: "Dream".into(),
+        llm_adapters: vec![LlmAdapter {
         name: "in_proc_llm".into(),
         prompt_template: PROMPT.into(),
         model: Some("test-model".into()),
@@ -83,8 +83,10 @@ fn no_binding_in_process_lands_completion_and_records_zero_outbound_events() {
         trigger_on: Some("Dream.Seed".into()),
         response_into_target: Some("Dream.RecordCompletion".into()),
         response_into_attr: Some("response_text".into()),
-        backend: Some("test".into()),
-    });
+            backend: Some("test".into()),
+        }],
+        ..Default::default()
+    };
     let mut rt = Runtime::boot_with_hecksagons(domain, None, vec![hexa]);
     let mut fixtures = HashMap::new();
     fixtures.insert(TestProvider::hash_for(PROMPT), COMPLETION.to_string());

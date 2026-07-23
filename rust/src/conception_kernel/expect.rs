@@ -107,11 +107,10 @@ pub fn build_expect(
                     out.push((key, "1".into()));
                 }
             }
-            MutationOp::Toggle => {
-                if seen.insert(m.field.clone()) {
+            MutationOp::Toggle
+                if seen.insert(m.field.clone()) => {
                     out.push((m.field.clone(), "true".into()));
                 }
-            }
             // Increment/Decrement depend on prior state — skip prediction.
             _ => {}
         }

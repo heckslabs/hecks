@@ -163,7 +163,7 @@ pub fn collect_world_heki_dirs(agg_dir: &str) -> std::collections::HashMap<Strin
         let Ok(entries) = std::fs::read_dir(root) else { continue };
         for entry in entries.flatten() {
             let p = entry.path();
-            if p.extension().map_or(true, |e| e != "world") { continue; }
+            if p.extension().is_none_or(|e| e != "world") { continue; }
             let Ok(source) = fs::read_to_string(&p) else { continue };
             let world = crate::world::parser::parse(&source);
             let cat = world.name.to_lowercase();

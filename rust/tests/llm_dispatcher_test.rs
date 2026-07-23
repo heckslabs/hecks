@@ -148,9 +148,11 @@ fn end_to_end_cascade_writes_response_into_target_attr() {
     // Parse the bluebook and load a hecksagon with a matching :llm
     // adapter targeting Dream.ProduceImage.
     let domain: Domain = parser::parse(DREAM_BLUEBOOK);
-    let mut hexa = Hecksagon::default();
-    hexa.name = "Dream".into();
-    hexa.llm_adapters.push(dream_adapter());
+    let hexa = Hecksagon {
+        name: "Dream".into(),
+        llm_adapters: vec![dream_adapter()],
+        ..Default::default()
+    };
 
     let mut rt = Runtime::boot_with_hecksagons(domain, None, vec![hexa]);
 

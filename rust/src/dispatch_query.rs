@@ -118,7 +118,7 @@ fn file_in_exempt_registry(file_path: &str, corpus_root: &Path) -> bool {
         Ok(s) => s,
         Err(_) => return false,
     };
-    for (_id, rec) in &store {
+    for rec in store.values() {
         let Some(path_v) = rec.get("path").and_then(|v| v.as_str()) else { continue };
         if file_path.ends_with(path_v) {
             return true;
@@ -416,8 +416,7 @@ fn infer_repo_root(start_dir: &Path) -> Option<std::path::PathBuf> {
         if cur.join("hecks_conception").is_dir() {
             return Some(cur);
         }
-        let Some(parent) = cur.parent() else { return None };
-        cur = parent.to_path_buf();
+        cur = cur.parent()?.to_path_buf();
     }
     None
 }

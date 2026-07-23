@@ -184,9 +184,7 @@ fn maybe_rotate(f: &mut std::fs::File, path: &std::path::Path, max_bytes: u64, k
 fn sink_write(line: &str) {
     if let Some(sink) = FILE_SINK.get_or_init(file_sink_init) {
         if let Ok(mut f) = sink.lock() {
-            if WRITES_SINCE_BOOT.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
-                % ROTATE_CHECK_EVERY
-                == 0
+            if WRITES_SINCE_BOOT.fetch_add(1, std::sync::atomic::Ordering::Relaxed).is_multiple_of(ROTATE_CHECK_EVERY)
             {
                 maybe_rotate(&mut f, &log_file_path(), rotate_max_bytes(), rotate_keep());
             }

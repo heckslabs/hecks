@@ -79,7 +79,7 @@ impl Runtime {
                 let ctx_unwired = agg
                     .context
                     .as_deref()
-                    .map_or(true, |ctx| !wired_contexts.contains(ctx));
+                    .is_none_or(|ctx| !wired_contexts.contains(ctx));
                 let key = repo_key(agg.context.as_deref(), &agg.name);
                 ctx_unwired && !wired_keys.contains(&key)
             })
@@ -284,7 +284,7 @@ impl Runtime {
             .filter(|agg| {
                 agg.context
                     .as_deref()
-                    .map_or(false, |ctx| memory_contexts.contains(ctx))
+                    .is_some_and(|ctx| memory_contexts.contains(ctx))
             })
             .map(|agg| {
                 (
@@ -345,7 +345,11 @@ impl Runtime {
         // immutable borrow ; patch under the mutable borrow — the two-phase
         // discipline apply_memory_persistence uses. The bind's aggregate IS the
         // FQN, which equals `repo_key(context, name)`.
-        let patches: Vec<(String, String, Option<String>, Option<String>, String, Option<String>)> = self
+        // (aggregate, family, adapter, engine, verb, target) — one resolved
+        // persistence binding waiting to be applied to a repository.
+        type PersistencePatch =
+            (String, String, Option<String>, Option<String>, String, Option<String>);
+        let patches: Vec<PersistencePatch> = self
             .domain
             .aggregates
             .iter()

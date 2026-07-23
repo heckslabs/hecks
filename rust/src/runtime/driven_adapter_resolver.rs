@@ -153,7 +153,9 @@ fn resolve_driven_adapters_at_depth(rt: &mut Runtime, event: &Event, depth: usiz
     // wrapped_call_values) so the merge happens once at the snapshot
     // boundary — the resolver doesn't re-walk the world list per
     // dispatch.
-    let mut matched: Vec<(String, Vec<(String, String)>, Vec<(String, String)>)> = Vec::new();
+    // (adapter kind, its options, its on_events) — one matched driven adapter.
+    type MatchedAdapter = (String, Vec<(String, String)>, Vec<(String, String)>);
+    let mut matched: Vec<MatchedAdapter> = Vec::new();
     let mut runs_to_exec: Vec<String> = Vec::new();
     let mut checks_to_run: Vec<(String, String)> = Vec::new();
 
@@ -434,6 +436,48 @@ pub fn merge_wrapped_and_declared(
     out
 }
 
+
+/// i221-C — resolve a sweep's query inputs against the triggering event
+/// into a string attr map the query executor filters on.
+fn sweep_query_attrs(
+    inputs: &[(String, crate::ir::ValueSpec)],
+    event: &Event,
+) -> HashMap<String, String> {
+    let mut out = HashMap::new();
+    for (k, spec) in inputs {
+        let v = match spec {
+            crate::ir::ValueSpec::Literal { value } => {
+                // strip the source-token quotes before interpolating so the
+                // filter value matches the (unquoted) stored field.
+                interpolate_event(value.trim().trim_matches('"'), event)
+            }
+            crate::ir::ValueSpec::FromEvent { name, default } => event
+                .data
+                .get(name)
+                .map(val_str)
+                .or_else(|| default.clone())
+                .unwrap_or_default(),
+            _ => String::new(),
+        };
+        out.insert(k.clone(), v);
+    }
+    out
+}
+
+/// i221-C — interpolate `{field}` tokens record-first (the swept record's
+/// fields win), then fall back to the triggering event.
+fn interpolate_event_and_record(
+    template: &str,
+    event: &Event,
+    record: &HashMap<String, Value>,
+) -> String {
+    let mut out = template.to_string();
+    for (k, v) in record.iter() {
+        out = out.replace(&format!("{{{}}}", k), &val_str(v));
+    }
+    interpolate_event(&out, event)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -546,46 +590,4 @@ mod tests {
         // Wrong event name → rejected.
         assert!(!event_ref_matches("Hecks::Framework::AgentInbox::InboxPoller.Other", &evt));
     }
-}
-
-
-/// i221-C — resolve a sweep's query inputs against the triggering event
-/// into a string attr map the query executor filters on.
-fn sweep_query_attrs(
-    inputs: &[(String, crate::ir::ValueSpec)],
-    event: &Event,
-) -> HashMap<String, String> {
-    let mut out = HashMap::new();
-    for (k, spec) in inputs {
-        let v = match spec {
-            crate::ir::ValueSpec::Literal { value } => {
-                // strip the source-token quotes before interpolating so the
-                // filter value matches the (unquoted) stored field.
-                interpolate_event(value.trim().trim_matches('"'), event)
-            }
-            crate::ir::ValueSpec::FromEvent { name, default } => event
-                .data
-                .get(name)
-                .map(val_str)
-                .or_else(|| default.clone())
-                .unwrap_or_default(),
-            _ => String::new(),
-        };
-        out.insert(k.clone(), v);
-    }
-    out
-}
-
-/// i221-C — interpolate `{field}` tokens record-first (the swept record's
-/// fields win), then fall back to the triggering event.
-fn interpolate_event_and_record(
-    template: &str,
-    event: &Event,
-    record: &HashMap<String, Value>,
-) -> String {
-    let mut out = template.to_string();
-    for (k, v) in record.iter() {
-        out = out.replace(&format!("{{{}}}", k), &val_str(v));
-    }
-    interpolate_event(&out, event)
 }

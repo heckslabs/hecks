@@ -61,8 +61,8 @@ pub fn is_restructure_capability(registry: &AdapterRegistry, rt: &Runtime) -> bo
     if registry.io("stdout").is_none() { return false; }
     let names: Vec<&str> = rt.domain.aggregates.iter()
         .map(|a| a.name.as_str()).collect();
-    let has_layout = names.iter().any(|n| *n == "Layout");
-    let has_move   = names.iter().any(|n| *n == "Move");
+    let has_layout = names.contains(&"Layout");
+    let has_move   = names.contains(&"Move");
     let has_apply  = rt.domain.aggregates.iter()
         .filter(|a| a.name == "Layout")
         .any(|a| a.commands.iter().any(|c| c.name == "Apply"));
