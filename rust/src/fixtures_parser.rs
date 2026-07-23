@@ -220,7 +220,7 @@ pub fn parse(source: &str) -> FixturesFile {
                 file.fixtures.push(parse_fixture_line(&combined, agg));
             }
         } else if line == "end" {
-            if depth > 0 { depth -= 1; }
+            depth = depth.saturating_sub(1);
             // Closing the `aggregate` block clears the current aggregate.
             // Closing the outer `Hecks.fixtures` leaves depth at 0.
             if depth == 1 { current_agg = None; }

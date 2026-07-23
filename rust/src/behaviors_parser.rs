@@ -223,7 +223,7 @@ fn split_kwarg(part: &str) -> Option<(String, String)> {
     let colon = part.find(':')?;
     let key = part[..colon].trim().to_string();
     if key.is_empty()
-        || !key.chars().next().map_or(false, |c| c.is_ascii_lowercase())
+        || !key.chars().next().is_some_and(|c| c.is_ascii_lowercase())
         || !key.chars().all(|c| c.is_alphanumeric() || c == '_')
     {
         return None;

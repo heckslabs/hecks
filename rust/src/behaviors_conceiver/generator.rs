@@ -806,9 +806,9 @@ fn parse_equality(expr: &str) -> Option<(String, String)> {
     if !is_simple_field(&field) { return None; }
     let raw = parts[1].trim().trim_end_matches('}').trim();
     // Quoted string
-    if raw.starts_with('"') {
-        let end = raw[1..].find('"')? + 1;
-        return Some((field, raw[1..end].to_string()));
+    if let Some(rest) = raw.strip_prefix('"') {
+        let end = rest.find('"')?;
+        return Some((field, rest[..end].to_string()));
     }
     // Bare symbol :value
     if let Some(sym) = raw.strip_prefix(':') {

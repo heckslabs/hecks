@@ -68,9 +68,9 @@ fn parse_equality(expr: &str) -> Option<Precondition> {
         return None;
     }
     let raw = parts[1].trim().trim_end_matches('}').trim();
-    let value = if raw.starts_with('"') {
-        let end = raw[1..].find('"')? + 1;
-        raw[1..end].to_string()
+    let value = if let Some(rest) = raw.strip_prefix('"') {
+        let end = rest.find('"')?;
+        rest[..end].to_string()
     } else if let Some(sym) = raw.strip_prefix(':') {
         let end = sym
             .find(|c: char| !c.is_alphanumeric() && c != '_')

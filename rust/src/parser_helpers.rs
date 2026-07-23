@@ -236,7 +236,7 @@ pub fn extract_block(line: &str) -> Option<String> {
 pub fn extract_after(line: &str, keyword: &str) -> Option<String> {
     let start = line.find(keyword)? + keyword.len();
     let rest = line[start..].trim();
-    Some(rest.trim_end_matches(|c: char| c == ',' || c == ' ').to_string())
+    Some(rest.trim_end_matches([',', ' ']).to_string())
 }
 
 /// Extract a state token from `text`: either a quoted "string" or a bare
@@ -274,8 +274,8 @@ pub fn ends_with_do_block(line: &str) -> bool {
         return true;
     }
     // `... do |args|` — strip a trailing |...| if present
-    if trimmed.ends_with('|') {
-        if let Some(open) = trimmed[..trimmed.len() - 1].rfind('|') {
+    if let Some(without_bar) = trimmed.strip_suffix('|') {
+        if let Some(open) = without_bar.rfind('|') {
             let head = trimmed[..open].trim_end();
             return head.ends_with(" do") || head == "do";
         }
@@ -333,86 +333,6 @@ pub fn to_snake_case(s: &str) -> String {
     result
 }
 
-#[cfg(test)]
-mod snake_case_tests {
-    use super::to_snake_case;
-
-    #[test]
-    fn simple_camel_case() {
-        assert_eq!(to_snake_case("CamelCase"), "camel_case");
-    }
-
-    #[test]
-    fn single_word_pascal() {
-        assert_eq!(to_snake_case("Pizza"), "pizza");
-    }
-
-    #[test]
-    fn all_lowercase_passthrough() {
-        assert_eq!(to_snake_case("dreiletter"), "dreiletter");
-    }
-
-    #[test]
-    fn pascal_with_no_internal_caps() {
-        assert_eq!(to_snake_case("Dreiletter"), "dreiletter");
-    }
-
-    #[test]
-    fn three_letter_leading_acronym() {
-        assert_eq!(to_snake_case("DNAProfile"), "dna_profile");
-    }
-
-    #[test]
-    fn uld_pallet() {
-        assert_eq!(to_snake_case("ULDPallet"), "uld_pallet");
-    }
-
-    #[test]
-    fn cbp_inspection() {
-        assert_eq!(to_snake_case("CBPInspection"), "cbp_inspection");
-    }
-
-    #[test]
-    fn ipm_plan() {
-        assert_eq!(to_snake_case("IPMPlan"), "ipm_plan");
-    }
-
-    #[test]
-    fn hvac_equipment() {
-        assert_eq!(to_snake_case("HVACEquipment"), "hvac_equipment");
-    }
-
-    #[test]
-    fn api_endpoint() {
-        assert_eq!(to_snake_case("APIEndpoint"), "api_endpoint");
-    }
-
-    #[test]
-    fn two_letter_leading_acronym() {
-        assert_eq!(to_snake_case("AIAnalysis"), "ai_analysis");
-    }
-
-    #[test]
-    fn trailing_acronym() {
-        assert_eq!(to_snake_case("DigitalID"), "digital_id");
-    }
-
-    #[test]
-    fn already_snake_case() {
-        assert_eq!(to_snake_case("already_snake"), "already_snake");
-    }
-
-    #[test]
-    fn empty_string() {
-        assert_eq!(to_snake_case(""), "");
-    }
-
-    #[test]
-    fn single_uppercase_letter() {
-        assert_eq!(to_snake_case("A"), "a");
-    }
-}
-
 // --- Shorthand syntax support ---
 
 const SHORTHAND_TYPES: &[&str] = &[
@@ -428,7 +348,7 @@ const KEYWORDS: &[&str] = &[
 /// Detect shorthand attribute or reference lines.
 pub fn is_shorthand_line(line: &str) -> bool {
     SHORTHAND_TYPES.iter().any(|t| {
-        line.starts_with(t) && line[t.len()..].starts_with(|c: char| c == ' ' || c == '\t')
+        line.starts_with(t) && line[t.len()..].starts_with([' ', '\t'])
     }) || line.starts_with("list_of(")
        || line.starts_with("reference_to(")
 }
@@ -441,7 +361,7 @@ pub fn is_shorthand_command(line: &str) -> bool {
     let is_pascal = chars[0].is_uppercase() && chars[1..].iter().any(|c| c.is_lowercase());
     is_pascal
         && (line.ends_with(" do") || line.contains('{'))
-        && !KEYWORDS.iter().any(|k| first_word == *k)
+        && !KEYWORDS.contains(&first_word)
 }
 
 /// Parse `String :name`, `Integer :count`, `list_of(Order) :tags`,
@@ -453,17 +373,17 @@ pub fn parse_shorthand_attribute(line: &str) -> Option<crate::ir::Attribute> {
         let close = line.find(')')?;
         line[open..close].trim().to_string()
     } else {
-        let end = line.find(|c: char| c == ' ' || c == '\t')?;
+        let end = line.find([' ', '\t'])?;
         line[..end].to_string()
     };
     let name = extract_symbol(line)?;
     let default = if line.contains("default:") {
         let pos = line.find("default:")?;
         let after = line[pos + "default:".len()..].trim();
-        if after.starts_with('"') {
+        if let Some(rest) = after.strip_prefix('"') {
             // Quoted string default — strip quotes.
-            let end = after[1..].find('"').map(|i| i + 1)?;
-            Some(after[1..end].to_string())
+            let end = rest.find('"')?;
+            Some(rest[..end].to_string())
         } else {
             // Bare token default (number, true, false, identifier).
             let token = after.split(|c: char| c == ',' || c.is_whitespace())
@@ -549,5 +469,85 @@ pub fn parse_shorthand(line: &str) -> ShorthandResult {
         parse_shorthand_attribute(line)
             .map(ShorthandResult::Attribute)
             .unwrap_or(ShorthandResult::None)
+    }
+}
+
+#[cfg(test)]
+mod snake_case_tests {
+    use super::to_snake_case;
+
+    #[test]
+    fn simple_camel_case() {
+        assert_eq!(to_snake_case("CamelCase"), "camel_case");
+    }
+
+    #[test]
+    fn single_word_pascal() {
+        assert_eq!(to_snake_case("Pizza"), "pizza");
+    }
+
+    #[test]
+    fn all_lowercase_passthrough() {
+        assert_eq!(to_snake_case("dreiletter"), "dreiletter");
+    }
+
+    #[test]
+    fn pascal_with_no_internal_caps() {
+        assert_eq!(to_snake_case("Dreiletter"), "dreiletter");
+    }
+
+    #[test]
+    fn three_letter_leading_acronym() {
+        assert_eq!(to_snake_case("DNAProfile"), "dna_profile");
+    }
+
+    #[test]
+    fn uld_pallet() {
+        assert_eq!(to_snake_case("ULDPallet"), "uld_pallet");
+    }
+
+    #[test]
+    fn cbp_inspection() {
+        assert_eq!(to_snake_case("CBPInspection"), "cbp_inspection");
+    }
+
+    #[test]
+    fn ipm_plan() {
+        assert_eq!(to_snake_case("IPMPlan"), "ipm_plan");
+    }
+
+    #[test]
+    fn hvac_equipment() {
+        assert_eq!(to_snake_case("HVACEquipment"), "hvac_equipment");
+    }
+
+    #[test]
+    fn api_endpoint() {
+        assert_eq!(to_snake_case("APIEndpoint"), "api_endpoint");
+    }
+
+    #[test]
+    fn two_letter_leading_acronym() {
+        assert_eq!(to_snake_case("AIAnalysis"), "ai_analysis");
+    }
+
+    #[test]
+    fn trailing_acronym() {
+        assert_eq!(to_snake_case("DigitalID"), "digital_id");
+    }
+
+    #[test]
+    fn already_snake_case() {
+        assert_eq!(to_snake_case("already_snake"), "already_snake");
+    }
+
+    #[test]
+    fn empty_string() {
+        assert_eq!(to_snake_case(""), "");
+    }
+
+    #[test]
+    fn single_uppercase_letter() {
+        assert_eq!(to_snake_case("A"), "a");
     }
 }

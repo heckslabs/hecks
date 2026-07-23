@@ -167,7 +167,7 @@ fn extension_block_header(line: &str) -> Option<String> {
     // word "do" appears after the ident with optional whitespace.
     if after.starts_with("do") {
         let next = after.chars().nth(2);
-        if next.map_or(true, |c| c.is_whitespace() || c == ';') {
+        if next.is_none_or(|c| c.is_whitespace() || c == ';') {
             return Some(ident.to_string());
         }
     }
@@ -304,8 +304,7 @@ fn verb_call_adapter(line: &str) -> Option<String> {
 /// the call argument, not the leading IDENT).
 fn parse_verb_config_block(lines: &[&str], name: &str) -> (Option<ExtensionConfig>, usize) {
     let first = lines[0].trim();
-    let mut cfg = ExtensionConfig::default();
-    cfg.name = name.to_string();
+    let mut cfg = ExtensionConfig { name: name.to_string(), ..Default::default() };
 
     // Inline form : `verb("X") do; key "val" end`
     if first.ends_with("end") && first.contains("do") {

@@ -128,17 +128,16 @@ pub fn parse_command(lines: &[&str]) -> (Command, usize) {
             continue;
         }
 
-        if ends_with_do_block(line) {
-            if depth > 1 || (!line.starts_with("attribute")
+        if ends_with_do_block(line)
+            && (depth > 1 || (!line.starts_with("attribute")
                 && !line.starts_with("role")
                 && !line.starts_with("given")
-                && !line.starts_with("then_"))
+                && !line.starts_with("then_")))
             {
                 depth += 1;
                 i += 1;
                 continue;
             }
-        }
 
         if depth == 1 {
             if line.starts_with("attribute") {
@@ -1143,7 +1142,7 @@ pub fn parse_attribute(line: &str) -> Option<Attribute> {
         let close = inner.find(')').unwrap_or(inner.len());
         let vals: Vec<String> = inner[..close]
             .split(',')
-            .filter_map(|seg| extract_string(seg))
+            .filter_map(extract_string)
             .collect();
         ("String".to_string(), vals)
     } else {
@@ -1234,7 +1233,7 @@ fn is_kwarg(s: &str) -> bool {
     let Some(colon_pos) = s.find(':') else { return false; };
     let before = &s[..colon_pos];
     !before.is_empty()
-        && before.chars().next().map_or(false, |c| c.is_ascii_lowercase())
+        && before.chars().next().is_some_and(|c| c.is_ascii_lowercase())
         && before.chars().all(|c| c.is_alphanumeric() || c == '_')
 }
 
@@ -1293,7 +1292,7 @@ pub fn parse_fixture_block_body(lines: &[&str]) -> (String, Vec<(String, String)
             let rest = l[token_end..].trim();
             if key == "aggregate" {
                 aggregate_name = extract_string(rest).unwrap_or_default();
-            } else if !key.is_empty() && key.chars().next().map_or(false, |c| c.is_ascii_lowercase()) {
+            } else if !key.is_empty() && key.chars().next().is_some_and(|c| c.is_ascii_lowercase()) {
                 let val = if rest.starts_with('"') {
                     extract_string(rest).unwrap_or_else(|| rest.to_string())
                 } else {
@@ -1385,7 +1384,7 @@ pub fn parse_mutation(line: &str) -> Option<Mutation> {
         // parser's panic-with-hint rejection, and matches the Ruby DSL's
         // `unknown keyword:` ArgumentError (parity : both runtimes reject it).
         let rb = raw.as_bytes();
-        if rb.first().map_or(false, |b| b.is_ascii_lowercase() || *b == b'_') {
+        if rb.first().is_some_and(|b| b.is_ascii_lowercase() || *b == b'_') {
             let end = rb.iter()
                 .take_while(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || **b == b'_')
                 .count();
@@ -1406,10 +1405,10 @@ pub fn parse_mutation(line: &str) -> Option<Mutation> {
                 });
             }
         }
-        let value = if raw.starts_with('"') {
+        let value = if let Some(rest) = raw.strip_prefix('"') {
             // Quoted string — strip surrounding quotes.
-            let end = raw[1..].find('"').map(|i| i + 1)?;
-            raw[1..end].to_string()
+            let end = rest.find('"')?;
+            rest[..end].to_string()
         } else {
             // Bare token — number, true, false, or :symbol.
             raw.split(|c: char| c == ',' || c.is_whitespace())
@@ -2050,8 +2049,8 @@ pub fn consume_rule_block(lines: &[&str]) -> usize {
         // Recognise `requires { ... }` first — its body is what we
         // validate. Single-line and multi-line brace forms both flow
         // through the same body collector.
-        if line.starts_with("requires") {
-            let after = &line["requires".len()..].trim_start();
+        if let Some(tail) = line.strip_prefix("requires") {
+            let after = &tail.trim_start();
             if after.starts_with('{') {
                 let (body, body_end_idx) = read_requires_brace_body(lines, i);
                 check_requires_body(&rule_name, &body, i + 1, body_end_idx + 1);
@@ -2286,7 +2285,10 @@ pub fn parse_view(lines: &[&str]) -> (View, usize) {
                 // ends with a comma, joining tails into one buffer before
                 // splitting. The keyword prefix is stripped once at the head.
                 let mut buf = String::new();
-                let head_keyword_len = if line.starts_with("show") { 4 } else { 4 };
+                // `show` and `plus` are both four characters, so ONE strip
+                // length serves either head — this was a two-armed `if` whose
+                // arms both returned 4, which read like a bug and is not one.
+                let head_keyword_len = 4;
                 buf.push_str(&line[head_keyword_len..]);
                 while buf.trim_end().ends_with(',') && i + 1 < lines.len() {
                     i += 1;
@@ -2324,6 +2326,48 @@ fn absorb_view_fields(tail: &str, fields: &mut Vec<String>) {
         if !name.is_empty() {
             fields.push(name);
         }
+    }
+}
+
+/// Parse an aggregate-level `invariant "name" do holds_when { <pred> } end`
+/// block (f4). The first line carries the rule name (a quoted string) ; the
+/// `holds_when { ... }` line inside carries the predicate, extracted with the
+/// same `{ ... }` block grammar a single-line `given` uses. Returns the
+/// parsed Invariant (None when the name or predicate is missing/unparseable)
+/// plus the number of source lines consumed including the closing `end`.
+///
+/// Form:
+///   invariant "ready_means_verified" do
+///     holds_when { state != "done" || verified == true }
+///   end
+///
+/// Predicates are single-line — the same constraint a `given` carries, since
+/// both flow through the same line-scanning expression grammar.
+pub fn parse_invariant(lines: &[&str]) -> (Option<Invariant>, usize) {
+    let first = lines[0].trim();
+    let name = extract_string(first).unwrap_or_default();
+    let mut expression: Option<String> = None;
+    let mut i = 1;
+    let mut depth = 1usize;
+    while i < lines.len() && depth > 0 {
+        let line = lines[i].trim();
+        if line == "end" {
+            depth -= 1;
+            if depth == 0 { break; }
+            i += 1;
+            continue;
+        }
+        if depth == 1 && line.starts_with("holds_when") {
+            expression = extract_block(line);
+        } else if ends_with_do_block(line) {
+            depth += 1;
+        }
+        i += 1;
+    }
+    let consumed = i + 1;
+    match (name.is_empty(), expression) {
+        (false, Some(expr)) => (Some(Invariant { name, expression: expr }), consumed),
+        _ => (None, consumed),
     }
 }
 
@@ -2582,47 +2626,5 @@ end
         // Dispatches still parsed alongside set_specs on the same handler.
         assert_eq!(h.dispatches.len(), 1);
         assert_eq!(h.dispatches[0].command_name, "Body.Steer");
-    }
-}
-
-/// Parse an aggregate-level `invariant "name" do holds_when { <pred> } end`
-/// block (f4). The first line carries the rule name (a quoted string) ; the
-/// `holds_when { ... }` line inside carries the predicate, extracted with the
-/// same `{ ... }` block grammar a single-line `given` uses. Returns the
-/// parsed Invariant (None when the name or predicate is missing/unparseable)
-/// plus the number of source lines consumed including the closing `end`.
-///
-/// Form:
-///   invariant "ready_means_verified" do
-///     holds_when { state != "done" || verified == true }
-///   end
-///
-/// Predicates are single-line — the same constraint a `given` carries, since
-/// both flow through the same line-scanning expression grammar.
-pub fn parse_invariant(lines: &[&str]) -> (Option<Invariant>, usize) {
-    let first = lines[0].trim();
-    let name = extract_string(first).unwrap_or_default();
-    let mut expression: Option<String> = None;
-    let mut i = 1;
-    let mut depth = 1usize;
-    while i < lines.len() && depth > 0 {
-        let line = lines[i].trim();
-        if line == "end" {
-            depth -= 1;
-            if depth == 0 { break; }
-            i += 1;
-            continue;
-        }
-        if depth == 1 && line.starts_with("holds_when") {
-            expression = extract_block(line);
-        } else if ends_with_do_block(line) {
-            depth += 1;
-        }
-        i += 1;
-    }
-    let consumed = i + 1;
-    match (name.is_empty(), expression) {
-        (false, Some(expr)) => (Some(Invariant { name, expression: expr }), consumed),
-        _ => (None, consumed),
     }
 }
