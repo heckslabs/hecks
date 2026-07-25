@@ -10,8 +10,10 @@
 module Hecksagain
   module IR
     # description — the human sentence from the bluebook ("amount must be positive")
-    # predicate   — the block, instance_eval'd against the constructed value
-    Invariant = Struct.new(:description, :predicate, keyword_init: true)
+    # canonical   — the expression as text ("amount > 0"), extracted from the
+    #               real Ruby. The evaluated form, in every runtime.
+    # predicate   — the original block, kept for reference, never evaluated.
+    Invariant = Struct.new(:description, :canonical, :predicate, keyword_init: true)
 
     class ValueObject
       attr_reader :name, :attributes, :invariants
@@ -28,7 +30,7 @@ module Hecksagain
         {
           name:       @name,
           attributes: @attributes.map(&:to_h),
-          invariants: @invariants.map(&:description)
+          invariants: @invariants.map { |i| { description: i.description, canonical: i.canonical } }
         }
       end
     end

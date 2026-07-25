@@ -5,3 +5,5 @@ vendor/bundle/
 Gemfile.lock
 .DS_Store
 tmp/
+target/
+Cargo.lock

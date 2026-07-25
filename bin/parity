@@ -1,0 +1,47 @@
+#!/bin/sh
+# parity — run one bluebook through both runtimes and diff the answers.
+#
+#   bin/parity [domain] [script.json]
+#
+# The proof hecksagain rests on. Ruby is the source of truth ; Rust is a
+# projection ; and a projection that disagrees with its source is not a
+# projection. Ruby parses the bluebook and exports the IR — Rust reads that IR
+# and never sees a .bluebook file, because parsing it twice, once per language,
+# is the exact mistake this project exists to avoid.
+#
+# Both runtimes run the same script, including the refusal paths. A runtime
+# that ACCEPTS what the other refuses is the failure most worth catching.
+set -e
+
+ROOT=$(cd "$(dirname "$0")/.." && pwd)
+DOMAIN=${1:-"$ROOT/examples/pizzas"}
+SCRIPT=${2:-"$ROOT/examples/pizzas/parity/script.json"}
+BINARY="$ROOT/rust/target/release/hecksagain"
+
+if [ ! -x "$BINARY" ]; then
+  echo "building the rust runtime..."
+  (cd "$ROOT/rust" && cargo build --release --quiet)
+fi
+
+# A stale store would make the second run disagree with the first for reasons
+# that have nothing to do with either runtime.
+rm -rf "$DOMAIN/data"
+
+"$ROOT/bin/ir"  "$DOMAIN"           > /tmp/hecksagain.ir.json
+"$ROOT/bin/run" "$DOMAIN" "$SCRIPT" > /tmp/hecksagain.ruby.raw.json
+"$BINARY" /tmp/hecksagain.ir.json "$SCRIPT" > /tmp/hecksagain.rust.raw.json
+
+"$ROOT/bin/canonicalise" /tmp/hecksagain.ruby.raw.json > /tmp/hecksagain.ruby.json
+"$ROOT/bin/canonicalise" /tmp/hecksagain.rust.raw.json > /tmp/hecksagain.rust.json
+
+if diff -u /tmp/hecksagain.ruby.json /tmp/hecksagain.rust.json; then
+  echo
+  echo "AGREED — ruby and rust returned the same answer for every step."
+  exit 0
+fi
+
+echo
+echo "SPLIT — the runtimes disagreed."
+echo "That is a defect in language/bluebook/expression.bluebook, not in whichever"
+echo "runtime you like less. Tighten the chapter until the ambiguity is gone."
+exit 1

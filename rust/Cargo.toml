@@ -1,0 +1,13 @@
+[package]
+name = "hecksagain"
+version = "0.1.0"
+edition = "2021"
+
+# serde_json only. The Rust side reads an IR that Ruby produced and evaluates
+# it ; it never parses a bluebook, so it needs no parser and no DSL machinery.
+[dependencies]
+serde_json = "1"
+
+[[bin]]
+name = "hecksagain"
+path = "src/main.rs"

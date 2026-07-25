@@ -61,7 +61,7 @@ Hecks.bluebook "Pizzas" do
       reference_to Pizza
       attribute :customer_name, String
 
-      given("a pizza needs at least one topping") { toppings.size.positive? }
+      given("a pizza needs at least one topping") { toppings.size > 0 }
       given("it must still be available")         { status == "available" }
 
       then_set :customer_name, to: :customer_name

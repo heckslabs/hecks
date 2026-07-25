@@ -1,0 +1,25 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Deep-sort a JSON document's object keys so two runtimes can be compared byte
+# for byte.
+#
+# Key ORDER is not semantics — Rust's BTreeMap sorts, Ruby preserves insertion
+# order — so normalising it is fair. NOTHING ELSE is normalised: final state,
+# event order, and refusal wording all have to match on their own, because a
+# difference that gets explained away is exactly where a real one hides.
+
+require "json"
+
+def sort_deep(node)
+  case node
+  when Hash
+    node.sort_by { |key, _| key.to_s }.to_h { |key, value| [key, sort_deep(value)] }
+  when Array
+    node.map { |item| sort_deep(item) }
+  else
+    node
+  end
+end
+
+puts JSON.pretty_generate(sort_deep(JSON.parse(File.read(ARGV.fetch(0)))))

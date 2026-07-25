@@ -1,0 +1,48 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Run a script of commands against a domain and print the result as JSON.
+#
+#   bin/run examples/pizzas examples/pizzas/parity/script.json
+#
+# The Rust binary takes the exported IR and the SAME script and prints the SAME
+# shape, so the two outputs diff directly. That diff is the whole proof: one
+# bluebook, two runtimes, one answer.
+#
+# Refusals are printed as results rather than raised, because a runtime that
+# ACCEPTS what the other refuses is the failure most worth catching — and a
+# crash would hide it.
+
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+
+require "hecksagain"
+require "json"
+
+domain = ARGV.shift or abort "usage: bin/run <domain> <script.json>"
+script = ARGV.shift or abort "usage: bin/run <domain> <script.json>"
+
+runtime   = Hecks.boot(domain)
+steps     = JSON.parse(File.read(script)).fetch("steps")
+instances = {}
+refusals  = []
+
+steps.each do |step|
+  verb = step["verb"]
+  args = (step["args"] || {}).transform_keys(&:to_sym)
+
+  begin
+    result = runtime.dispatch(verb, **args)
+    aggregate = verb.split(".").first
+    instances["#{aggregate}##{result.id}"] = result.instance.state
+  rescue StandardError => e
+    refusals << { verb: verb, error: "#{e.message}" }
+  end
+end
+
+# occurred_at is deliberately dropped — two runtimes cannot agree on a clock,
+# and asking them to would test the wrong thing.
+events = runtime.events.map do |event|
+  { name: event.name, aggregate: event.aggregate, id: event.id, payload: event.payload }
+end
+
+puts JSON.pretty_generate(instances: instances, events: events, refusals: refusals)

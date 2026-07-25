@@ -19,7 +19,11 @@ module Hecksagain
       end
 
       def invariant(description, &predicate)
-        @invariants << IR::Invariant.new(description: description, predicate: predicate)
+        @invariants << IR::Invariant.new(
+          description: description,
+          canonical:   Expression::Extractor.canonical(predicate),
+          predicate:   predicate
+        )
       end
 
       def build

@@ -56,7 +56,7 @@ module Hecksagain
         repository = @registry.repository(domain, aggregate)
         instance   = hydrate(repository, aggregate, command, args)
 
-        enforce_givens(instance, command)
+        enforce_givens(instance, command, args)
         assign_creation_attributes(instance, aggregate, command, args) if command.creates?
         command.mutations.each { |mutation| apply(instance, aggregate, mutation, args) }
 
@@ -103,9 +103,9 @@ module Hecksagain
 
       # All givens must hold. A refused command leaves the instance untouched
       # because nothing has been written yet.
-      def enforce_givens(instance, command)
+      def enforce_givens(instance, command, args)
         command.givens.each do |given|
-          next if instance.instance_eval(&given.predicate)
+          next if Expression::Evaluator.call(given.canonical, instance, args)
 
           raise GivenNotMet, "#{command.name} refused — #{given.description}"
         end

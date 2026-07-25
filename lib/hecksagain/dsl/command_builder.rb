@@ -32,8 +32,14 @@ module Hecksagain
       # Marks the command as acting on an EXISTING instance, loaded by id.
       def reference_to(type) = @references = type.to_s
 
+      # The block is real Ruby and stays real Ruby ; Prism reads its source so
+      # the same text can be evaluated by a runtime that has no Ruby in it.
       def given(description, &predicate)
-        @givens << IR::Given.new(description: description, predicate: predicate)
+        @givens << IR::Given.new(
+          description: description,
+          canonical:   Expression::Extractor.canonical(predicate),
+          predicate:   predicate
+        )
       end
 
       # then_set :status,   to: :new_status              — replace

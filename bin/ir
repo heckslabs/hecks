@@ -1,0 +1,22 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Export a domain's IR as JSON.
+#
+#   bin/ir examples/pizzas > /tmp/pizzas.ir.json
+#
+# This is the whole boundary between the two runtimes. Rust never parses a
+# .bluebook file — parsing it twice is precisely the mistake hecksagain exists
+# to avoid. Ruby is the only parser ; Rust reads what Ruby produced.
+
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+
+require "hecksagain"
+require "json"
+
+domain  = ARGV.shift || File.expand_path("../examples/pizzas", __dir__)
+runtime = Hecks.boot(domain)
+
+export = runtime.registry.bluebooks.transform_values(&:to_h)
+
+puts JSON.pretty_generate(export)

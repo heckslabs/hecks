@@ -16,6 +16,10 @@
 
 require_relative "hecksagain/naming"
 
+require_relative "hecksagain/expression/extractor"
+require_relative "hecksagain/expression/resolver"
+require_relative "hecksagain/expression/evaluator"
+
 require_relative "hecksagain/ir/type_name"
 require_relative "hecksagain/ir/attribute"
 require_relative "hecksagain/ir/value_object"

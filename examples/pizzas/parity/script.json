@@ -1,0 +1,16 @@
+{
+  "name": "pizzas-parity",
+  "note": "Successes and every refusal path. A runtime that ACCEPTS what the other refuses is the failure worth catching, so the refusals matter more than the successes.",
+  "steps": [
+    { "verb": "Pizzas::Pizza.CreatePizza", "args": { "id": "pizza-parity", "name": "Margherita", "price_cents": 1200 } },
+    { "verb": "Pizzas::Pizza.AddTopping",  "args": { "id": "pizza-parity", "name": "Basil", "amount": 3 } },
+    { "verb": "Pizzas::Pizza.AddTopping",  "args": { "id": "pizza-parity", "name": "Olive", "amount": 2 } },
+    { "verb": "Pizzas::Pizza.Purchase",    "args": { "id": "pizza-parity", "customer_name": "Chris" } },
+    { "verb": "Pizzas::Pizza.Purchase",    "args": { "id": "pizza-parity", "customer_name": "Someone" } },
+    { "verb": "Pizzas::Pizza.AddTopping",  "args": { "id": "pizza-parity", "name": "Late", "amount": 1 } },
+    { "verb": "Pizzas::Pizza.CreatePizza", "args": { "id": "pizza-bare", "name": "Bare", "price_cents": 900 } },
+    { "verb": "Pizzas::Pizza.Purchase",    "args": { "id": "pizza-bare", "customer_name": "Nobody" } },
+    { "verb": "Pizzas::Pizza.AddTopping",  "args": { "id": "pizza-bare", "name": "Air", "amount": 0 } },
+    { "verb": "Pizzas::Pizza.Purchase",    "args": { "id": "pizza-ghost", "customer_name": "Nobody" } }
+  ]
+}
