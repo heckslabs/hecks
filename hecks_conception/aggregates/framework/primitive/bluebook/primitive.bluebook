@@ -269,4 +269,62 @@ Hecks.bluebook "Primitive", version: "2026.05.22.1" do
       attribute :value, String
     end
   end
+
+  aggregate "Llm", "One LLM completion side-effect — the language-model sibling of Process / Compute / McpTool / ClaudeTool. Invoke resolves the backend provider, runs the FINAL prompt to completion, records an audit row, and the primitive hook chains the response text into response_into_target(response_into_attr). The :llm hecksagon adapter family is SUGAR over this primitive (reaction.rs resolve_llm_adapters composes — cross-aggregate {{placeholder}} substitution via the adapter's prompt_template — then invokes ; the keystone effect-binding switch and the fired-set chain recursion live in the sugar) — this declaration retires the bespoke resolve_llm_adapters_with_excluded resolver that lived in runtime/mod.rs. Name + signature match the seeded Storehouse::Primitive record Llm.Invoke (kind llm, impl llm_dispatcher)." do
+    identified_by :id
+
+    attribute :id,      Id
+    attribute :backend, Backend
+
+    value_object "Id" do
+      # Invocation id — the originating command's aggregate id, threaded
+      # into the response cascade so the outcome joins the originating
+      # invocation, exactly as the sibling primitives.
+      attribute :value, String
+    end
+
+    value_object "Backend" do
+      # The provider the completion routes to (claude / ollama / test /
+      # fixture). Absent -> the dispatcher's default backend.
+      attribute :value, String
+    end
+
+    command "Invoke" do
+      role "System"
+      description "Run a prompt to completion on the resolved backend and chain the response text into response_into_target carrying response_into_attr. The generic primitive hook (reaction.rs resolve_primitive_llm) runs the kernel-floor llm_dispatcher leaf — reused unchanged, the only imperative Rust on this path — and cascades the response. prompt carries the FINAL text (placeholder substitution is the sugar's composition step) ; model / backend are optional overrides. Emits LlmInvoked so the audit row is a first-class event."
+      attribute :id,                   Id
+      attribute :prompt,               Prompt
+      attribute :model,                Model
+      attribute :backend,              Backend
+      attribute :response_into_target, ResponseIntoTarget
+      attribute :response_into_attr,   ResponseIntoAttr
+      emits "LlmInvoked"
+      then_set :id,      to: :id
+      then_set :backend, to: :backend
+    end
+
+    value_object "Prompt" do
+      # The FINAL prompt text — already substituted. The primitive never
+      # sees a template ; composition is the sugar's job.
+      attribute :value, String
+    end
+
+    value_object "Model" do
+      # Optional model override (sonnet / opus / a local tag). Absent ->
+      # the provider's default.
+      attribute :value, String
+    end
+
+    value_object "ResponseIntoTarget" do
+      # The cascade landing target ("Aggregate.Command") for the response
+      # text. Routing, not data — not persisted.
+      attribute :value, String
+    end
+
+    value_object "ResponseIntoAttr" do
+      # The attribute name on the landing command that carries the
+      # response text. Routing, not data — not persisted.
+      attribute :value, String
+    end
+  end
 end
