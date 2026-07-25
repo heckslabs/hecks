@@ -1,0 +1,6 @@
+# Memory — an in-process persistence adapter. A grammar chapter is a
+# conception : it is reasoned about far more often than it is stored, so it
+# binds Memory rather than claiming a database.
+Hecks.adapter "Memory" do
+  family "persistence"
+end

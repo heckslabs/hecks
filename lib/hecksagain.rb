@@ -14,6 +14,8 @@
 #   runtime.dispatch("Pizzas::Pizza.Purchase", id: pizza.id, customer_name: "Chris")
 #   runtime.events.last   # => PizzaPurchased(...)
 
+require_relative "hecksagain/naming"
+
 require_relative "hecksagain/ir/type_name"
 require_relative "hecksagain/ir/attribute"
 require_relative "hecksagain/ir/value_object"

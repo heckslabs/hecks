@@ -25,10 +25,9 @@ module Hecksagain
       def value_object(named) = @value_objects.find { |v| v.name == named.to_s }
       def command(named)      = @commands.find { |c| c.name == named.to_s }
 
-      # snake_case form used for storage keys and table names.
-      def storage_name
-        @name.gsub(/([a-z\d])([A-Z])/, '\1_\2').downcase
-      end
+      # snake_case form used for storage keys and table names — the same rule
+      # that turns a command name into a Ruby method.
+      def storage_name = Naming.snake(@name)
 
       def to_h
         {

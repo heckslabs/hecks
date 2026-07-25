@@ -1,0 +1,376 @@
+# EXPRESSION — the sublanguage a predicate is allowed to be.
+#
+# ============================================================
+# WHY THIS CHAPTER EXISTS
+# ============================================================
+#
+# Every part of a command is already data — its attributes, its emissions, its
+# mutations are all plain values the IR can carry anywhere. Every part except
+# ONE. The predicate:
+#
+#     given("at most 10 toppings") { toppings.size < 10 }
+#
+# Held as a Ruby block that is a Proc : a closure over a scope, executable by
+# Ruby and by nothing else. One Proc in the IR and the whole bluebook stops
+# being projectable — Rust cannot run it, SQL cannot push it down, no
+# specializer can partially evaluate it. The domain would be data right up to
+# the moment it says something interesting, and opaque from there.
+#
+# So the predicate has to become data too. Not by inventing a predicate DSL —
+# the Ruby ALREADY reads correctly, and a DSL that spelled it
+# `lt(size(prop(:toppings)), lit(10))` would be worse Ruby in exchange for
+# nothing. The Ruby stays exactly as written. What changes is that it is
+# READ rather than merely run.
+#
+# ============================================================
+# THE ARROW ONLY RUNS ONE WAY
+# ============================================================
+#
+#     regular Ruby  →  extraction  →  IR  →  Rust / SQL / anything
+#
+# Ruby is the source of truth. The IR is EXTRACTED from Ruby ; Ruby is never
+# generated from the IR. Reversing that arrow — reflecting over IR to
+# synthesize Ruby classes — makes Ruby a projection of itself and is forbidden
+# outright.
+#
+# Extraction reads the real source. Ruby 3.3 ships Prism, so the predicate a
+# developer wrote is parsed as Ruby, by Ruby's own parser, and lowered into the
+# IR below. Nothing is intercepted, proxied, or re-spelled : `toppings.size <
+# 10` is a genuine Ruby method call on a genuine Ruby object at runtime, AND a
+# comparison node at extraction time. Both readings of one text.
+#
+# ============================================================
+# THE SUBSET IS THE POINT
+# ============================================================
+#
+# This chapter does not define a language. It defines the SUBSET of Ruby that
+# survives extraction — and it is deliberately small, because an expression is
+# only worth admitting if every target can express it. Admit one operation Rust
+# cannot evaluate and the chain breaks for every target at once, silently, at
+# the first predicate that uses it.
+#
+# The boundary is not arbitrary : it is drawn exactly where the Hecks
+# interpreter floor already stands. That floor is four files, and it is what
+# hecksagain inherits rather than reinvents —
+#
+#   rust/src/runtime/interp_expr.rs      resolve_expr : dotted VO paths,
+#                                        `.size` / `.length`, `rand_below(n)`,
+#                                        `.modulo(n)`, VO derivation calls,
+#                                        arithmetic, literals
+#   rust/src/runtime/interp_expr_ops.rs  the pure leaves : numeric_value,
+#                                        compare_lt, values_equal,
+#                                        split_top_level, split_comparison
+#   rust/src/runtime/interp_givens.rs    evaluate_given : `||` then `&&`,
+#                                        `.include?`, then >= <= < > == !=
+#   rust/src/runtime/interp_mutations.rs the then_set executor
+#
+# Those files evaluate expressions held as SOURCE TEXT, not as trees — the IR
+# carries `"toppings.size < 10"` and the interpreter splits it at evaluation
+# time, lowest precedence first. That is already the portable form, already
+# proven in the Hecks runtime, and it costs nothing to keep. So the canonical
+# form of an expression here is its canonical TEXT, and this chapter's job is
+# to say precisely which text is legal and what it means.
+#
+# Two runtimes agreeing is the whole test : the same bluebook, evaluated by
+# Ruby and by Rust, must refuse the same purchase for the same reason.
+
+Hecks.bluebook "Expression" do
+  vision "The subset of regular Ruby a predicate is allowed to be — small enough that every target can evaluate it, and carried as canonical text so Ruby and Rust agree."
+  core
+
+  # ============================================================
+  # OPERATOR — the admitted vocabulary
+  # ============================================================
+  #
+  # The gate. An operation belongs to the sublanguage only if it can be
+  # evaluated by EVERY target, and the way that is enforced is that admitting
+  # one requires declaring how it reads in each. An operator with no Rust
+  # rendering is not a slow operator ; it is not an operator.
+  #
+  # Precedence is declared, not implied by the order anyone happens to write
+  # the splitting code in. `||` binds looser than `&&`, which binds looser than
+  # any comparison, which binds looser than the leaves — so a splitter works
+  # from the LOWEST precedence inward, and both runtimes must split in the same
+  # order or they will disagree on `a || b && c`.
+  aggregate "Operator" do
+    description "One admitted operation — its symbol, its precedence, and how it reads in every target that must evaluate it."
+
+    identified_by :symbol
+
+    attribute :symbol,     String
+    attribute :category,   String
+    attribute :precedence, Integer
+    attribute :arity,      Integer
+    attribute :renderings, list_of(Rendering)
+    attribute :status,     String, default: "proposed"
+
+    value_object "Rendering" do
+      # How this operator reads in one target. `target` names the runtime
+      # ("ruby", "rust") ; `form` is the shape it takes there. An operator is
+      # admitted only once every required target has one of these.
+      attribute :target, String
+      attribute :form,   String
+
+      invariant("a rendering must name its target") { !target.to_s.empty? }
+      invariant("a rendering must have a form")     { !form.to_s.empty? }
+    end
+
+    command "Propose" do
+      role "Language designer"
+      goal "Put an operation forward for the sublanguage"
+
+      attribute :symbol,     String
+      attribute :category,   String
+      attribute :precedence, Integer
+      attribute :arity,      Integer
+
+      emits "OperatorProposed"
+    end
+
+    command "Render" do
+      role "Language designer"
+      goal "Declare how this operator reads in one target"
+
+      reference_to Operator
+      attribute :target, String
+      attribute :form,   String
+
+      given("a retired operator takes no new renderings") { status != "retired" }
+
+      then_set :renderings, append: { target: :target, form: :form }
+
+      emits "OperatorRendered"
+    end
+
+    command "Admit" do
+      role "Language designer"
+      goal "Accept the operation into the sublanguage"
+
+      # The gate that keeps the chain intact : an operator no target can
+      # evaluate must never reach a predicate, because the failure would
+      # surface as a silently wrong verdict in whichever runtime lacks it.
+      reference_to Operator
+
+      given("an operator must read in every target before it is admitted") { renderings.size >= 2 }
+      given("only a proposed operator can be admitted")                    { status == "proposed" }
+
+      then_set :status, to: "admitted"
+
+      emits "OperatorAdmitted"
+    end
+
+    command "Retire" do
+      role "Language designer"
+      goal "Remove an operation from the sublanguage"
+
+      reference_to Operator
+
+      given("only an admitted operator can be retired") { status == "admitted" }
+
+      then_set :status, to: "retired"
+
+      emits "OperatorRetired"
+    end
+  end
+
+  # ============================================================
+  # EXPRESSION — a predicate, extracted
+  # ============================================================
+  #
+  # What the IR actually carries. `source` is the Ruby as the developer wrote
+  # it, kept verbatim so a reader can always see the original. `canonical` is
+  # that same expression normalised — one space around every binary operator,
+  # `.length` folded to `.size`, redundant parens dropped — and IT is the form
+  # both runtimes evaluate.
+  #
+  # Normalising matters more than it looks. Two spellings of one predicate
+  # would hash differently, cache differently, and diff as a change when
+  # nothing changed ; and a specializer that partially evaluates on the text
+  # would treat them as distinct programs. One meaning, one text.
+  #
+  # `subject` names what the expression reads against — the aggregate whose
+  # attributes are in scope. An expression is meaningless without it : the same
+  # text means different things against different subjects, which is precisely
+  # why a captured expression is stored WITH the thing it was captured for.
+  aggregate "Expression" do
+    description "One predicate extracted from regular Ruby — the source as written, the canonical text both runtimes evaluate, and the subject it reads against."
+
+    attribute :description, String
+    attribute :source,      String
+    attribute :canonical,   String
+    attribute :subject,     String
+    attribute :role,        String, default: "given"
+    attribute :references,  list_of(Reference)
+    attribute :status,      String, default: "extracted"
+
+    value_object "Reference" do
+      # A name the expression reads. `kind` is "attribute" when it resolves
+      # against the subject's own state, "argument" when it comes from the
+      # command payload. Recording them is what lets a validator prove, before
+      # anything runs, that a predicate only reads names that actually exist —
+      # a misspelled attribute otherwise resolves to null, coerces to zero, and
+      # quietly refuses every valid command.
+      attribute :name, String
+      attribute :kind, String
+
+      invariant("a reference must be named") { !name.to_s.empty? }
+      invariant("a reference is either an attribute or an argument") do
+        %w[attribute argument].include?(kind.to_s)
+      end
+    end
+
+    command "Extract" do
+      role "System"
+      goal "Lower a real Ruby predicate into the sublanguage"
+
+      # Prism parses the developer's actual source ; this records what came
+      # out. The command carries both spellings because losing the original
+      # would make every later error message worse.
+      attribute :description, String
+      attribute :source,      String
+      attribute :canonical,   String
+      attribute :subject,     String
+
+      emits "ExpressionExtracted"
+    end
+
+    command "Note" do
+      role "System"
+      goal "Record a name the expression reads"
+
+      reference_to Expression
+      attribute :name, String
+      attribute :kind, String
+
+      then_set :references, append: { name: :name, kind: :kind }
+
+      emits "ReferenceNoted"
+    end
+
+    command "Admit" do
+      role "System"
+      goal "Accept the expression as evaluable by every target"
+
+      # An expression is admitted once every operator it uses is admitted and
+      # every name it reads exists on its subject. Until then it is extracted
+      # but not trusted, and no runtime should evaluate it.
+      reference_to Expression
+
+      given("an expression must have canonical text") { !canonical.to_s.empty? }
+      given("an expression must know its subject")    { !subject.to_s.empty? }
+
+      then_set :status, to: "admitted"
+
+      emits "ExpressionAdmitted"
+    end
+
+    command "Reject" do
+      role "System"
+      goal "Refuse a predicate that leaves the sublanguage"
+
+      # The honest failure. A predicate reaching for something the subset does
+      # not admit — a block, a lambda, an arbitrary method call — must fail
+      # LOUDLY at extraction, naming what it reached for. The alternative is a
+      # predicate that works in Ruby and silently means something else in Rust,
+      # which is the exact class of bug this whole chapter exists to prevent.
+      reference_to Expression
+      attribute :reason, String
+
+      then_set :status, to: "rejected"
+
+      emits "ExpressionRejected"
+    end
+  end
+
+  # ============================================================
+  # AGREEMENT — the proof the chain holds
+  # ============================================================
+  #
+  # The sublanguage is only worth anything if two runtimes actually agree, and
+  # the only way to know that is to ask them both and compare. An Agreement is
+  # one such question : one canonical expression, one subject state, evaluated
+  # everywhere, verdicts compared.
+  #
+  # A DISAGREEMENT IS A DEFECT IN THE SUBLANGUAGE, never in one runtime. It
+  # means the chapter admitted something it should not have, or specified it
+  # loosely enough that two honest implementations read it differently. So the
+  # response is never to patch the losing runtime — it is to tighten this
+  # chapter until the ambiguity is gone, and to keep the case forever as the
+  # thing that proved it.
+  aggregate "Agreement" do
+    description "One expression evaluated by every runtime against the same state — the standing proof that Ruby and Rust mean the same thing."
+
+    attribute :canonical, String
+    attribute :subject,   String
+    attribute :verdicts,  list_of(Verdict)
+    attribute :status,    String, default: "open"
+
+    value_object "Verdict" do
+      # What one runtime said. `outcome` is the boolean it reached, as text, so
+      # a runtime that fails to evaluate at all can say so rather than being
+      # forced into a false.
+      attribute :runtime, String
+      attribute :outcome, String
+
+      invariant("a verdict must name its runtime") { !runtime.to_s.empty? }
+      invariant("an outcome is true, false, or error") do
+        %w[true false error].include?(outcome.to_s)
+      end
+    end
+
+    command "Ask" do
+      role "System"
+      goal "Put one expression to every runtime against the same state"
+
+      attribute :canonical, String
+      attribute :subject,   String
+
+      emits "AgreementAsked"
+    end
+
+    command "Answer" do
+      role "System"
+      goal "Record what one runtime said"
+
+      reference_to Agreement
+      attribute :runtime, String
+      attribute :outcome, String
+
+      given("a settled agreement takes no further answers") { status == "open" }
+
+      then_set :verdicts, append: { runtime: :runtime, outcome: :outcome }
+
+      emits "VerdictRecorded"
+    end
+
+    command "Settle" do
+      role "System"
+      goal "Record that every runtime reached the same verdict"
+
+      reference_to Agreement
+
+      given("agreement needs at least two runtimes") { verdicts.size >= 2 }
+      given("an agreement settles once")             { status == "open" }
+
+      then_set :status, to: "settled"
+
+      emits "AgreementSettled"
+    end
+
+    command "Split" do
+      role "System"
+      goal "Record that the runtimes disagreed — a defect in the sublanguage"
+
+      # Never a defect in the losing runtime. A split means this chapter was
+      # ambiguous, and the fix belongs here.
+      reference_to Agreement
+      attribute :reason, String
+
+      given("an agreement splits once") { status == "open" }
+
+      then_set :status, to: "split"
+
+      emits "AgreementSplit"
+    end
+  end
+end
