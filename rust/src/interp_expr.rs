@@ -41,6 +41,29 @@ pub fn resolve_expr(expr: &str, state: &State, attrs: &State) -> Value {
         return Value::Null;
     }
 
+    // .positive? / .negative? / .zero? - the sign predicates. One operation
+    // shape: resolve the receiver numerically and compare against nought. They
+    // read far better than `> 0` in a domain sentence, which is the whole
+    // reason to admit an operator at all.
+    //
+    // A receiver with no numeric reading is NOT positive, NOT negative, and NOT
+    // zero - all three answer false rather than coercing a missing attribute to
+    // 0 and quietly reporting zero? as true.
+    for test in ["positive?", "negative?", "zero?"] {
+        let suffix = format!(".{}", test);
+        if let Some(receiver) = expr.strip_suffix(&suffix) {
+            let value = match numeric_value(&resolve_expr(receiver, state, attrs)) {
+                Some(value) => value,
+                None => return Value::Bool(false),
+            };
+            return Value::Bool(match test {
+                "positive?" => value > 0.0,
+                "negative?" => value < 0.0,
+                _ => value == 0.0,
+            });
+        }
+    }
+
     // tick.modulo(60) - the periodic-cadence gate. A non-positive divisor
     // short-circuits to 0 rather than panicking: in a daemon, firing every
     // tick beats dying.

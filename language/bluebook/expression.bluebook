@@ -57,6 +57,15 @@
 #                                        `.size` / `.length`, `rand_below(n)`,
 #                                        `.modulo(n)`, VO derivation calls,
 #                                        arithmetic, literals
+#
+# Admitted since, in both runtimes at once : the SIGN PREDICATES
+# `.positive?` / `.negative?` / `.zero?`. They earn their place by reading
+# better than the comparison they replace — `toppings.size.positive?` says what
+# `toppings.size > 0` only means — and reading better IS the reason to admit an
+# operator, since the sublanguage exists so that a domain expert recognises
+# their own sentence. A receiver with no numeric reading answers false to all
+# three rather than coercing a missing attribute to nought and quietly
+# reporting `zero?` as true.
 #   rust/src/runtime/interp_expr_ops.rs  the pure leaves : numeric_value,
 #                                        compare_lt, values_equal,
 #                                        split_top_level, split_comparison

@@ -16,6 +16,9 @@ mod interp_expr;
 mod interp_givens;
 mod interp_mutations;
 
+#[cfg(test)]
+mod interp_tests;
+
 use dispatcher::Runtime;
 use serde_json::{json, Map, Value};
 use std::fs;

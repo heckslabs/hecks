@@ -30,6 +30,9 @@ module Hecksagain
         return false             if expr == "false"
         return nil               if expr == "nil"
 
+        sign = match_sign_test(expr)
+        return apply_sign_test(sign, state, attrs) if sign
+
         modulo = match_modulo(expr)
         return apply_modulo(modulo, state, attrs) if modulo
 
@@ -47,6 +50,36 @@ module Hecksagain
         case value
         when Array, String, Hash then value.size
         else 0
+        end
+      end
+
+      # `.positive?` / `.negative?` / `.zero?` — the sign predicates. One
+      # operation shape: resolve the receiver numerically and compare against
+      # nought. They read far better than `> 0` in a domain sentence, which is
+      # the whole reason to admit an operator at all.
+      #
+      # A receiver with no numeric reading is NOT positive, NOT negative, and
+      # NOT zero — all three answer false rather than coercing a missing
+      # attribute to 0 and quietly reporting `zero?` as true.
+      SIGN_TESTS = %w[positive? negative? zero?].freeze
+
+      def match_sign_test(expr)
+        SIGN_TESTS.each do |test|
+          suffix = ".#{test}"
+          return [expr[0...-suffix.length], test] if expr.end_with?(suffix)
+        end
+        nil
+      end
+
+      def apply_sign_test(parts, state, attrs)
+        receiver, test = parts
+        value = numeric(resolve(receiver, state, attrs))
+        return false unless value
+
+        case test
+        when "positive?" then value > 0
+        when "negative?" then value < 0
+        else value.zero?
         end
       end
 

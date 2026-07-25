@@ -25,7 +25,7 @@ Hecks.bluebook "Pizzas" do
       attribute :name,   String
       attribute :amount, Integer
 
-      invariant("amount must be positive") { amount > 0 }
+      invariant("amount must be positive") { amount.positive? }
     end
 
     command "CreatePizza" do
@@ -61,7 +61,7 @@ Hecks.bluebook "Pizzas" do
       reference_to Pizza
       attribute :customer_name, String
 
-      given("a pizza needs at least one topping") { toppings.size > 0 }
+      given("a pizza needs at least one topping") { toppings.size.positive? }
       given("it must still be available")         { status == "available" }
 
       then_set :customer_name, to: :customer_name
