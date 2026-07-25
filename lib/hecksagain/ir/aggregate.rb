@@ -11,6 +11,11 @@ module Hecksagain
     class Aggregate
       attr_reader :name, :description, :attributes, :value_objects, :commands, :identified_by
 
+      # The Ruby class built alongside this IR, in the same pass. The pairing
+      # is recorded here so boot can bind a runtime to it ; nothing reads the
+      # IR to CREATE the class.
+      attr_accessor :ruby_class
+
       def initialize(name:, description: nil, attributes: [], value_objects: [],
                      commands: [], identified_by: :id)
         @name          = name.to_s

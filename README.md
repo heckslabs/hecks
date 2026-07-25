@@ -5,29 +5,21 @@ Hecks, rewritten — with **Ruby as the source of truth**.
 ## The thesis
 
 In Hecks the parser is authored twice: once as a Ruby DSL, once as a Rust
-parser, kept in step by a parity suite. Every drift retired over the last months
-was a disagreement between those two authors — never a routing disagreement,
-because routing was already data.
+parser, kept in step by a parity suite. Every drift retired over the last
+months was a disagreement between those two authors — never a routing
+disagreement, because routing was already data.
 
 So hecksagain inverts the direction. Ruby holds the semantics. **Rust becomes a
 projection** — except the interpreter, which stays hand-written and small.
 
 One author. Nothing to be at parity with.
 
-## The build chain
-
 ```
-  Ruby domain semantics          ← the only hand-authored source
-         ↓
-  IR (plain, serialisable)       ← lib/hecksagain/ir
-         ↓
-  projections                    ← SQL schema today ; Rust next
-         ↓
-  Futamura                       ← interpreter + program → specialised program
+  regular Ruby  →  extraction  →  IR  →  Rust / SQL / anything
 ```
 
-The SQLite adapter is the first projection already in place: its table schema
-is derived from the aggregate IR, never hand-written. Same move, smaller scale.
+The arrow only runs one way. The IR is extracted FROM Ruby ; Ruby is never
+generated from the IR.
 
 ## Try it
 
@@ -35,18 +27,72 @@ is derived from the aggregate IR, never hand-written. Same move, smaller scale.
 bin/console
 ```
 
-```ruby
-pizza = runtime.dispatch("Pizzas::Pizza.CreatePizza", name: "Margherita", price_cents: 1200)
-runtime.dispatch("Pizzas::Pizza.AddTopping", id: pizza.id, name: "Basil", amount: 3)
-runtime.dispatch("Pizzas::Pizza.Purchase", id: pizza.id, customer_name: "Chris")
+Booting constructs the classes, so a domain is just Ruby:
 
-runtime.events.last
-# => PizzaPurchased(Pizzas::Pizza#pizza-015d2d15) {:id=>"...", :customer_name=>"Chris"}
+```ruby
+pizza = Pizza.create_pizza(name: "Margherita", price_cents: 1200)
+pizza.add_topping(name: "Basil", amount: 3)
+pizza.purchase(customer_name: "Chris")
+
+pizza.status        # => "sold"
+pizza.events.last   # => PizzaPurchased(Pizzas::Pizza#pizza-085a6ecc)
+
+Pizza.count         # => 1
+Pizza.find(pizza.id)
 ```
 
-## The folder convention
+A creating command is a class method and returns the new record. A command that
+references its aggregate is an instance method — identity is already known, so
+it is never passed by hand — and returns self, so commands chain. Dispatch is
+plumbing; nobody writing a domain should ever type it.
 
-A domain is a directory with a `bluebook/` folder holding every declaration:
+## Two runtimes, one answer
+
+```sh
+bin/parity
+#   AGREED — ruby and rust returned the same answer for every step
+```
+
+Ruby parses the bluebook and exports the IR. Rust reads that IR and **never
+sees a `.bluebook` file** — parsing it twice, once per language, is the exact
+mistake this project exists to avoid.
+
+The harness runs successes and every refusal path, because a runtime that
+ACCEPTS what the other refuses is the failure most worth catching. Only JSON
+key order is normalised before diffing (key order is not semantics); final
+state, event order, and refusal wording all have to match on their own.
+
+## The expression sublanguage
+
+Everything in a command was already data except the predicate — and a `Proc`
+crosses no language boundary. So predicates are **extracted**, not closed over.
+Ruby 3.3 ships Prism, so the developer's actual source is parsed by Ruby's own
+parser and lowered to canonical text:
+
+```ruby
+given("at most 10 toppings") { toppings.size < 10 }
+                     ↓
+            "toppings.size < 10"
+```
+
+The Ruby stays exactly as written. What changed is that it is now *read* as
+well as run — and **both runtimes evaluate the text**, because a Ruby running a
+closure while Rust runs text agrees only by luck.
+
+The admissible subset is conceived in
+[`language/bluebook/expression.bluebook`](language/bluebook/expression.bluebook)
+and bounded by what the interpreter floor can evaluate:
+
+```
+||  →  &&  →  .include?  →  >= <= < > == !=  →  leaves
+```
+
+Leaves are literals, dotted value-object paths, `.size`/`.length`,
+`.positive?`/`.negative?`/`.zero?`, and `.modulo(n)`. An operator is admitted
+only once it reads in EVERY target — one with no Rust rendering is not a slow
+operator, it is not an operator.
+
+## The folder convention
 
 ```
 examples/pizzas/
@@ -57,37 +103,36 @@ examples/pizzas/
     pizzas.hecksagon       the wiring — Pizzas::Pizza.persisted_by("Sqlite")
     pizzas.world           the per-deployment values
   data/
-    pizzas.db
 ```
 
-Load order is dependency order, not alphabetical: families and adapters first so
-binds can type-check, then the domain, the wiring, the values.
+Load order is dependency order, not alphabetical: families and adapters first
+so binds can type-check, then the domain, the wiring, the values.
 
 ## The shape
 
-- **An aggregate IS the port.** Its commands-in and events-out are the whole
-  contract ; a port is never declared separately.
+- **An aggregate IS the port**, and the hexagon wires the real class —
+  `Pizzas::Pizza.persisted_by("Sqlite")` is a genuine method call.
 - **A family names a how-verb**, a signal, and config field *names*. It never
   names its adapters — the adapter declares the family, so a new backend is
   purely additive.
-- **A bind resolves only if the adapter's family carries the verb.** That check
-  runs for every bind at boot, so a misconfiguration fails on line one.
+- **A bind resolves only if the adapter's family carries the verb**, checked for
+  every bind at boot.
 - **Commands are declared, never scripted.** `given` guards, `then_set`
-  mutates, `emits` announces. There is no handler body anywhere in this
-  codebase — which is exactly what makes the same declaration projectable.
+  mutates, `emits` announces. No handler body exists anywhere — which is what
+  makes the same declaration projectable.
 - **Events are emitted last**, after the state is persisted. An event is a
   promise that the state behind it survived.
+- **The SQLite schema is projected from the IR** — one column per attribute,
+  lists as JSON, never hand-written.
 
-## Status
-
-First vertical slice. Pizzas boots, guards bite, value-object invariants hold,
-state survives a reboot on SQLite.
+## Verify
 
 ```sh
-rspec        # 16 examples, 0 failures, ~0.04s
+rspec                  # 41 examples — the Ruby side
+(cd rust && cargo test) # 11 tests — the Rust half of the sublanguage contract
+bin/parity             # the two runtimes agree
 ```
 
-Carried over from Hecks so far: the bluebook folder convention, the
-family/adapter/bind vocabulary, the hexagon shape, and the Pizzas example. Not
-carried over: the second parser, the parity suite, and the 903 Ruby files that
-would have made this not a clean slate.
+Every Rust interpreter test has a named Ruby twin. The sublanguage is specified
+once and implemented twice, so each implementation needs its own tests or the
+second is only believed rather than known.

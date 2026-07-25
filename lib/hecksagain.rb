@@ -15,6 +15,7 @@
 #   runtime.events.last   # => PizzaPurchased(...)
 
 require_relative "hecksagain/naming"
+require_relative "hecksagain/aggregate"
 
 require_relative "hecksagain/expression/extractor"
 require_relative "hecksagain/expression/resolver"

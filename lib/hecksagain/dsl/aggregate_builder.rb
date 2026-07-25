@@ -1,27 +1,32 @@
-# AggregateBuilder — evaluates an `aggregate "Pizza" do ... end` block.
+# AggregateBuilder — evaluates an `aggregate "Pizza" do ... end` block, and
+# CONSTRUCTS the Ruby class while it reads.
 #
-# Value objects are declared INSIDE the aggregate that uses them. An
-# aggregate-level `reference_to X` points at another root by its identity and
-# lands as a plain `x_id` attribute — references are by identity, never by
-# embedding.
+# One pass, two products: the IR (for export, and for whatever target reads it)
+# and a real Ruby class (for the developer). Both come from reading the source.
+# The IR is never read back to make the class — that would make Ruby a
+# projection of itself.
 #
-#   aggregate "Pizza" do
-#     description "A pizza with toppings, sold to a customer"
-#     attribute :name,     Name
-#     attribute :toppings, list_of(Topping)
-#     value_object("Topping") { ... }
-#     command("AddTopping") { ... }
+#   aggregate "Pizza" do          # -> class Pizzas::Pizza < Hecksagain::Aggregate
+#     attribute :toppings, ...    # -> def toppings
+#     command "AddTopping" do     # -> def add_topping(**args)
+#     command "CreatePizza" do    # -> def self.create_pizza(**args)
 #   end
 module Hecksagain
   module DSL
     class AggregateBuilder
       include AttributeCollector
 
+      # Names the base class already uses. An attribute may not shadow them —
+      # a domain attribute called `state` would break the very thing that
+      # stores it.
+      RESERVED = %i[id state events reload inspect to_h hash class].freeze
+
       def initialize(name)
         @name          = name
         @value_objects = []
         @commands      = []
         @identified_by = :id
+        @klass         = Class.new(Aggregate)
       end
 
       def description(value)   = @description = value
@@ -29,19 +34,22 @@ module Hecksagain
 
       # Another root, referenced by its global identity.
       def reference_to(type)
-        attribute(:"#{snake(type.to_s)}_id", String)
+        attribute(:"#{Naming.snake(type.to_s)}_id", String)
       end
 
       def value_object(name, &block)
         @value_objects << ValueObjectBuilder.build(name, &block)
       end
 
+      # Read the command, keep its IR, and define the method it describes.
       def command(name, &block)
-        @commands << CommandBuilder.build(name, &block)
+        command = CommandBuilder.build(name, &block)
+        @commands << command
+        define_command(command)
       end
 
       def build
-        IR::Aggregate.new(
+        ir = IR::Aggregate.new(
           name:          @name,
           description:   @description,
           attributes:    attributes,
@@ -49,6 +57,11 @@ module Hecksagain
           commands:      @commands,
           identified_by: @identified_by
         )
+
+        @klass.ir     = ir
+        ir.ruby_class = @klass
+        define_readers
+        ir
       end
 
       def self.build(name, &block)
@@ -59,8 +72,34 @@ module Hecksagain
 
       private
 
-      def snake(text)
-        text.gsub(/([a-z\d])([A-Z])/, '\1_\2').downcase
+      def define_readers
+        attributes.each do |attribute|
+          if RESERVED.include?(attribute.name)
+            warn "[hecksagain] #{@name}##{attribute.name} shadows a built-in — no reader defined"
+            next
+          end
+
+          field = attribute.name
+          @klass.define_method(field) { @state[field] }
+        end
+      end
+
+      # A creating command mints identity, so it belongs to the class. Any
+      # other command already knows its instance, so it belongs to the object
+      # and never asks for an id.
+      def define_command(command)
+        method_name = Naming.snake(command.name)
+        verb        = command.name
+
+        if command.creates?
+          @klass.define_singleton_method(method_name) do |**args|
+            wrap(run(verb, **args).instance)
+          end
+        else
+          @klass.define_method(method_name) do |**args|
+            run(verb, **args)
+          end
+        end
       end
     end
   end

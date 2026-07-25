@@ -30,7 +30,32 @@ module Hecksagain
       end
 
       def build
-        IR::Bluebook.new(name: @name, vision: @vision, aggregates: @aggregates)
+        bluebook = IR::Bluebook.new(name: @name, vision: @vision, aggregates: @aggregates)
+        namespace = Module.new
+
+        @aggregates.each do |aggregate|
+          aggregate.ruby_class.domain = @name
+          namespace.const_set(aggregate.name, aggregate.ruby_class)
+        end
+
+        namespace.define_singleton_method(:vision)     { bluebook.vision }
+        namespace.define_singleton_method(:aggregates) { bluebook.aggregates.map(&:name).sort }
+
+        # Naming the module names every class inside it (Pizzas::Pizza), and
+        # lifting the aggregates to top level is what lets a domain be written
+        # as plain Ruby: `Pizza.create_pizza(...)`, not
+        # `Pizzas::Pizza.create_pizza(...)`.
+        Namespace.install(Object, @name, namespace)
+        @aggregates.each do |aggregate|
+          # An aggregate sharing its domain's name (Expression::Expression)
+          # must not claim the domain's constant — it would leave the domain
+          # module unreachable and take its siblings with it.
+          next if aggregate.name == @name
+
+          Namespace.install(Object, aggregate.name, aggregate.ruby_class)
+        end
+
+        bluebook
       end
 
       def self.build(name, &block)

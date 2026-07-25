@@ -33,7 +33,16 @@ module Hecksagain
         end
 
         registry.verify!
-        Dispatcher.new(registry)
+        bind_runtime(Dispatcher.new(registry))
+      end
+
+      # The classes were constructed while the bluebook was read, before any
+      # runtime existed. Boot is where they learn which one they belong to.
+      def self.bind_runtime(dispatcher)
+        dispatcher.registry.bluebooks.each_value do |bluebook|
+          bluebook.aggregates.each { |aggregate| aggregate.ruby_class.runtime = dispatcher }
+        end
+        dispatcher
       end
 
       # Accepts either the domain directory or its bluebook/ folder directly.

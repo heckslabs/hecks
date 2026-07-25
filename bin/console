@@ -1,12 +1,13 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# An IRB session with a domain already booted.
+# An IRB session with a domain booted and answering to its own names.
 #
 #   bin/console                    # boots examples/pizzas
 #   bin/console path/to/domain     # boots any domain directory
 #
-# `runtime` is the door. Everything reaches the domain through it.
+# Booting constructs the classes, so the domain is just Ruby at the prompt:
+# Pizza, not Pizzas::Pizza, and create_pizza, not a dispatch string.
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
@@ -16,21 +17,30 @@ require "irb"
 DOMAIN  = ARGV.shift || File.expand_path("../examples/pizzas", __dir__)
 RUNTIME = Hecks.boot(DOMAIN)
 
-# `runtime` reads better than a constant at a prompt.
-def runtime = RUNTIME
+# Ask the runtime what it loaded rather than guessing from the directory name —
+# a folder and the domain inside it need not share a name.
+RUNTIME.registry.bluebooks.each_value do |bluebook|
+  aggregates = bluebook.aggregates.map do |aggregate|
+    "    #{aggregate.name}: #{aggregate.ruby_class.commands.join(', ')}"
+  end
+
+  puts <<~DOMAIN
+
+    #{bluebook.name} — #{bluebook.vision}
+#{aggregates.join("\n")}
+  DOMAIN
+end
 
 puts <<~BANNER
 
-  hecksagain #{Hecksagain::VERSION} — booted #{File.basename(DOMAIN)}
-
-  verbs:
-  #{RUNTIME.verbs.map { |verb| "    #{verb}" }.join("\n")}
+  hecksagain #{Hecksagain::VERSION}
 
   try:
-    pizza = runtime.dispatch("Pizzas::Pizza.CreatePizza", name: "Margherita", price_cents: 1200)
-    runtime.dispatch("Pizzas::Pizza.AddTopping", id: pizza.id, name: "Basil", amount: 3)
-    runtime.dispatch("Pizzas::Pizza.Purchase", id: pizza.id, customer_name: "Chris")
-    runtime.events
+    pizza = Pizza.create_pizza(name: "Margherita", price_cents: 1200)
+    pizza.add_topping(name: "Basil", amount: 3)
+    pizza.purchase(customer_name: "Chris")
+    pizza.status
+    pizza.events.last
 
 BANNER
 
