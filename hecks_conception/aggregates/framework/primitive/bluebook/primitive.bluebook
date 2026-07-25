@@ -173,4 +173,61 @@ Hecks.bluebook "Primitive", version: "2026.05.22.1" do
       attribute :value, String
     end
   end
+
+  aggregate "McpTool", "One MCP tool-call side-effect — the remote-protocol sibling of Process and Compute. Invoke resolves the named server (a .world-declared server routes as an mcp_dispatch_requested event to the harness-side transport ; a locally-spawnable server runs through the stdio MCP session), calls the tool with the FINAL substituted arguments JSON, records an audit row, and the primitive hook chains (id, tool, output, exit_code, ok) into result_into. The :mcp hecksagon adapter family is SUGAR over this primitive (reaction.rs resolve_mcp_adapters substitutes {attr} placeholders from upstream state + dispatch attrs, then synthesizes Invoke per matched binding) — this declaration retires the bespoke resolve_mcp_adapters resolver that lived in runtime/mod.rs. Name + signature match the seeded Storehouse::Primitive record McpTool.Invoke (kind mcp_tool, impl mcp_dispatcher)." do
+    identified_by :id
+
+    attribute :id,     Id
+    attribute :server, Server
+    attribute :tool,   Tool
+
+    value_object "Id" do
+      # Invocation id — the originating command's aggregate id. The
+      # primitive hook threads this same id into the result_into cascade
+      # so the outcome joins the originating invocation, exactly as
+      # Process.Spawn and Compute.Invoke.
+      attribute :value, String
+    end
+
+    value_object "Server" do
+      # The MCP server the tool call routes to — either declared in a
+      # project's .world `mcp` block (transport-C : the harness-side
+      # subscriber owns the session) or a locally-spawnable stdio server.
+      # A server that is neither logs a warning and skips — the dispatch
+      # still lands, mirroring the retired resolver's graceful guard.
+      attribute :value, String
+    end
+
+    value_object "Tool" do
+      # The MCP tool name (`tools/call` target) on the resolved server.
+      attribute :value, String
+    end
+
+    command "Invoke" do
+      role "System"
+      description "Call an MCP tool to completion and chain (id, tool, output, exit_code, ok) into result_into. The generic primitive hook (reaction.rs resolve_primitive_mcp) routes a .world-declared server to the harness transport or a spawnable server through the kernel-floor mcp_dispatcher leaf — reused unchanged, the only imperative Rust on this path — and cascades the outcome with the same id. arguments carries the FINAL JSON payload (placeholder substitution is the sugar's composition step, not the primitive's). Emits McpToolInvoked so the audit row is a first-class event."
+      attribute :id,          Id
+      attribute :server,      Server
+      attribute :tool,        Tool
+      attribute :arguments,   Arguments
+      attribute :result_into, ResultInto
+      emits "McpToolInvoked"
+      then_set :id,     to: :id
+      then_set :server, to: :server
+      then_set :tool,   to: :tool
+    end
+
+    value_object "Arguments" do
+      # The JSON-encoded MCP `arguments` payload, ALREADY substituted —
+      # the primitive receives the final call, never a template. Routing
+      # payload, not persisted onto McpTool state.
+      attribute :value, String
+    end
+
+    value_object "ResultInto" do
+      # The cascade landing target ("Aggregate.Command") the hook chains
+      # the tool outcome into. Routing, not data — not persisted.
+      attribute :value, String
+    end
+  end
 end

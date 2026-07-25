@@ -2497,194 +2497,6 @@ impl Runtime {
         let _ = cascade_outcome;
     }
 
-    /// i594 — :mcp adapter resolver. Parallel to
-    /// `resolve_claude_tool_adapters`, different adapter family : the
-    /// `:mcp` family (declared at
-    /// `aggregates/framework/adapter_families/mcp.hecksagon`) carries
-    /// `server`, `tool`, `args`, and `result_into` fields plus the
-    /// `command` trigger. When a hecksagon-loaded binding's `command`
-    /// matches the just-dispatched `Aggregate.Command`, this arm :
-    ///
-    ///   1. Resolves the `:server` (graceful warn if unregistered ;
-    ///      e.g. `:gmail` pending i610's bridge).
-    ///   2. Reads the binding's `:args` (a JSON-encoded string per the
-    ///      tools.hecksagon convention) and substitutes `{attr}`
-    ///      placeholders from upstream state ∪ dispatch attrs.
-    ///   3. Calls the kernel-floor `mcp_dispatcher::dispatch` which
-    ///      opens a stdio MCP session and runs `tools/call`.
-    ///   4. Chains the response into `:result_into` as a
-    ///      `dispatch_cascade` carrying `id`, `tool`, `output`,
-    ///      `exit_code` (always 0 for MCP), and `ok`.
-    ///
-    /// HECKS_DEBUG_MCP=1 surfaces the resolution + per-binding fire
-    /// trace ; same shape as HECKS_DEBUG_CLAUDE_TOOL.
-    fn resolve_mcp_adapters(
-        &mut self,
-        result: &CommandResult,
-        command_name: &str,
-        dispatch_attrs: &HashMap<String, Value>,
-    ) {
-        if self.hecksagons.is_empty() { return; }
-        let debug = std::env::var("HECKS_DEBUG_MCP").is_ok();
-        let bare_command = command_name.rsplit('.').next().unwrap_or(command_name);
-        let target = format!("{}.{}", result.aggregate_type, bare_command);
-
-        // Snapshot every `:mcp` io adapter whose `command` field
-        // matches the dispatched target. Strip parser-noise (quotes
-        // around strings, leading colon on symbols) before comparing
-        // / forwarding. `args` carries the JSON-encoded payload that
-        // becomes the MCP `arguments` field after `{attr}` substitution.
-        let matched: Vec<(String, String, String, String, Option<String>)> = self.hecksagons.iter()
-            .flat_map(|h| h.io_adapters.iter())
-            .filter(|a| a.kind == "mcp")
-            .filter_map(|a| {
-                let mut cmd: Option<String> = None;
-                let mut server: Option<String> = None;
-                let mut tool: Option<String> = None;
-                let mut args: String = String::new();
-                let mut result_into: Option<String> = None;
-                for (k, v) in &a.options {
-                    match k.as_str() {
-                        "command"     => cmd = Some(strip_quotes_or_colon(v)),
-                        "server"      => server = Some(strip_quotes_or_colon(v)),
-                        "tool"        => tool = Some(strip_quotes_or_colon(v)),
-                        "args"        => args = strip_quotes_or_colon(v),
-                        "result_into" => result_into = Some(strip_quotes_or_colon(v)),
-                        _ => {}
-                    }
-                }
-                match (cmd, server, tool) {
-                    (Some(c), Some(s), Some(t)) if binding_command_tail(&c) == target.as_str() => {
-                        Some((c, s, t, args, result_into))
-                    }
-                    _ => None,
-                }
-            })
-            .collect();
-        if debug {
-            eprintln!("[mcp:debug] resolve cmd={} target={} matched={}",
-                command_name, target, matched.len());
-        }
-        if matched.is_empty() { return; }
-
-        // Build the attrs map (state ∪ dispatch) for placeholder
-        // substitution — same shape the claude_tool arm uses.
-        let state_clone: Option<AggregateState> = self
-            .find(&result.aggregate_type, &result.aggregate_id)
-            .cloned();
-        let mut attrs: HashMap<String, String> = HashMap::new();
-        if let Some(s) = state_clone.as_ref() {
-            for (k, v) in &s.fields {
-                attrs.insert(k.clone(), v.to_string());
-            }
-        }
-        for (k, v) in dispatch_attrs {
-            attrs.insert(k.clone(), v.to_string());
-        }
-        let invocation_id = attrs
-            .get("id")
-            .cloned()
-            .unwrap_or_else(|| result.aggregate_id.clone());
-
-        for (_cmd, server, tool, args_raw, result_into) in &matched {
-            // Parse + substitute args before the world-server check so the
-            // resolved payload (tool name, substituted args, result_into) can
-            // be forwarded into the transport-C event emit inside
-            // `resolve_world_server`. JSON parse failure skips the whole
-            // binding — no point resolving the server for an unparseable args.
-            let args_value: serde_json::Value = if args_raw.is_empty() {
-                serde_json::Value::Object(Default::default())
-            } else {
-                match serde_json::from_str(args_raw) {
-                    Ok(v) => v,
-                    Err(e) => {
-                        eprintln!(
-                            "[mcp:warn] adapter for {} :args is not JSON ({}) — skipping",
-                            target, e
-                        );
-                        continue;
-                    }
-                }
-            };
-            let args_substituted = mcp_dispatcher::substitute_value(args_value, &attrs);
-
-            // i610 — resolve the server from the project's `*.world` files
-            // (attached at boot into `world_servers`). Emits an
-            // `mcp_dispatch_requested` event on the storehouse follow stream
-            // and continues — the harness-side subscriber owns the transport.
-            // See `adapter_resolution::mcp::resolve_world_server`.
-            // world-server MCP resolution is host-only (adapter_resolution
-            // is wasm-gated). The Worker never resolves *.world servers.
-            #[cfg(not(target_arch = "wasm32"))]
-            if crate::adapter_resolution::mcp::resolve_world_server(
-                self, server, tool, &args_substituted,
-                result_into.as_deref(), &invocation_id, &target,
-            ) {
-                continue;
-            }
-            // i594 — graceful guard for servers neither world-declared nor
-            // locally spawnable. Log + skip rather than panic so the
-            // dispatch still lands in the heki and the cascade proceeds.
-            if !mcp_dispatcher::server_is_registered(server) {
-                eprintln!(
-                    "[mcp:warn] adapter for {} declares server={} which is neither \
-                    world-declared nor a spawnable server. Dispatch recorded ; MCP call skipped.",
-                    target, server
-                );
-                continue;
-            }
-
-            let tool_result = mcp_dispatcher::dispatch(server, tool, &args_substituted);
-            let err_tail = if tool_result.error.is_empty() {
-                String::new()
-            } else {
-                format!(" error={:?}", tool_result.error)
-            };
-            eprintln!(
-                "[mcp:{}] server={} ok={} output={:?}{}",
-                tool, server, !tool_result.is_error, tool_result.text, err_tail
-            );
-
-            let result_into_target = match result_into.as_deref() {
-                Some(s) if !s.is_empty() => s,
-                _ => {
-                    if debug {
-                        eprintln!("[mcp:debug] no result_into on adapter — skipping cascade");
-                    }
-                    continue;
-                }
-            };
-
-            let output_str = if tool_result.text.is_empty() {
-                tool_result.structured.clone()
-            } else {
-                tool_result.text.clone()
-            };
-
-            let mut record_attrs: HashMap<String, Value> = HashMap::new();
-            record_attrs.insert("id".to_string(), Value::Str(invocation_id.clone()));
-            record_attrs.insert("tool".to_string(), Value::Str(tool.clone()));
-            record_attrs.insert("output".to_string(), Value::Str(output_str));
-            record_attrs.insert("exit_code".to_string(), Value::Int(0));
-            record_attrs.insert("ok".to_string(), Value::Bool(!tool_result.is_error));
-
-            let cascade_outcome = command_dispatch::dispatch_cascade(
-                self,
-                result_into_target,
-                record_attrs,
-                &result.aggregate_type,
-                &result.aggregate_id,
-            );
-            if debug {
-                match &cascade_outcome {
-                    Ok(_)  => eprintln!("[mcp:debug] cascaded into {} ok", result_into_target),
-                    Err(e) => eprintln!("[mcp:debug] cascade into {} failed: {:?}", result_into_target, e),
-                }
-            }
-            let _ = cascade_outcome;
-        }
-    }
-
     pub fn find(&self, aggregate_name: &str, id: &str) -> Option<&AggregateState> {
         // Exact-key fast path — when the caller passes either the bare
         // name (single-context corpus) or a fully-qualified
@@ -4079,7 +3891,32 @@ fn trigram_sim(a: &str, b: &str) -> f64 {
 pub(crate) fn strip_quotes_or_colon(raw: &str) -> String {
     let t = raw.trim();
     if t.len() >= 2 && t.starts_with('"') && t.ends_with('"') {
-        return t[1..t.len() - 1].to_string();
+        // Unescape the source-level string escapes (`\"` -> `"`, `\\` -> `\`).
+        // Ruby's own string-literal parsing unescapes these before the DSL ever
+        // sees the value, so the Rust side must match or an args payload like
+        // `"{\"q\":\"{query}\"}"` reaches serde with literal backslashes and
+        // fails JSON parsing — the pre-existing drift the :mcp primitive
+        // migration surfaced (every escaped-quote args binding silently hit
+        // `[mcp:warn] :args is not JSON` before this).
+        let inner = &t[1..t.len() - 1];
+        let mut out = String::with_capacity(inner.len());
+        let mut chars = inner.chars();
+        while let Some(c) = chars.next() {
+            if c == '\\' {
+                match chars.next() {
+                    Some('"') => out.push('"'),
+                    Some('\\') => out.push('\\'),
+                    Some(other) => {
+                        out.push('\\');
+                        out.push(other);
+                    }
+                    None => out.push('\\'),
+                }
+            } else {
+                out.push(c);
+            }
+        }
+        return out;
     }
     if let Some(rest) = t.strip_prefix(':') {
         return rest.to_string();

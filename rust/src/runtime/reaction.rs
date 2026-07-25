@@ -36,6 +36,7 @@ impl Runtime {
         #[cfg(not(target_arch = "wasm32"))]
         self.resolve_web_tool_adapters(result, command_name, attrs);
         self.resolve_primitive_compute(result, command_name, attrs);
+        self.resolve_primitive_mcp(result, command_name, attrs);
         self.resolve_primitive_spawn(result, command_name, attrs, None);
         self.resolve_exec_adapters(result, command_name, attrs);
         if let Some(ref event) = result.event {
@@ -62,6 +63,7 @@ impl Runtime {
         #[cfg(not(target_arch = "wasm32"))]
         self.resolve_web_tool_adapters(result, command_name, attrs);
         self.resolve_primitive_compute(result, command_name, attrs);
+        self.resolve_primitive_mcp(result, command_name, attrs);
         self.resolve_primitive_spawn(result, command_name, attrs, None);
         self.resolve_exec_adapters(result, command_name, attrs);
     }
@@ -347,6 +349,291 @@ impl Runtime {
             cascade_outcome.is_ok(),
         );
         cascade_outcome.ok()
+    }
+
+    /// `:mcp` adapter resolver — the HECKSAGON-FIRST MCP tool-call edge,
+    /// SUGAR over the `Primitive::McpTool.Invoke` primitive exactly as `:exec`
+    /// is sugar over `Process.Spawn` and `:compute` over `Compute.Invoke`.
+    /// The hecksagon DECLARES the edge (`adapter :mcp, command:, server:,
+    /// tool:, args:, result_into:`) ; the sugar's COMPOSITION step is the
+    /// `{attr}` placeholder substitution against upstream state ∪ dispatch
+    /// attrs (the primitive receives the FINAL arguments, never a template) ;
+    /// the one mcp primitive RUNS the call. Replaces the bespoke
+    /// `resolve_mcp_adapters` resolver retired from runtime/mod.rs
+    /// (shrink-mod phase A).
+    pub(super) fn resolve_mcp_adapters(
+        &mut self,
+        result: &CommandResult,
+        command_name: &str,
+        dispatch_attrs: &HashMap<String, Value>,
+    ) {
+        if self.hecksagons.is_empty() {
+            return;
+        }
+        let debug = std::env::var("HECKS_DEBUG_MCP").is_ok();
+        let bare_command = command_name.rsplit('.').next().unwrap_or(command_name);
+        let target = format!("{}.{}", result.aggregate_type, bare_command);
+        let matched: Vec<(String, String, String, Option<String>)> = self
+            .hecksagons
+            .iter()
+            .flat_map(|h| h.io_adapters.iter())
+            .filter(|a| a.kind == "mcp")
+            .filter_map(|a| {
+                let mut cmd: Option<String> = None;
+                let mut server: Option<String> = None;
+                let mut tool: Option<String> = None;
+                let mut args: String = String::new();
+                let mut result_into: Option<String> = None;
+                for (k, v) in &a.options {
+                    match k.as_str() {
+                        "command" => cmd = Some(strip_quotes_or_colon(v)),
+                        "server" => server = Some(strip_quotes_or_colon(v)),
+                        "tool" => tool = Some(strip_quotes_or_colon(v)),
+                        "args" => args = strip_quotes_or_colon(v),
+                        "result_into" => result_into = Some(strip_quotes_or_colon(v)),
+                        _ => {}
+                    }
+                }
+                match (cmd, server, tool) {
+                    (Some(c), Some(s), Some(t)) if binding_command_tail(&c) == target.as_str() => {
+                        Some((s, t, args, result_into))
+                    }
+                    _ => None,
+                }
+            })
+            .collect();
+        if debug {
+            eprintln!(
+                "[mcp:debug] resolve cmd={} target={} matched={}",
+                command_name, target, matched.len()
+            );
+        }
+        if matched.is_empty() {
+            return;
+        }
+        // Composition : substitution attrs are upstream state ∪ dispatch attrs
+        // — the same projection the retired resolver built.
+        let mut attrs: HashMap<String, String> = HashMap::new();
+        if let Some(s) = self.find(&result.aggregate_type, &result.aggregate_id) {
+            for (k, v) in &s.fields {
+                attrs.insert(k.clone(), v.to_string());
+            }
+        }
+        for (k, v) in dispatch_attrs {
+            attrs.insert(k.clone(), v.to_string());
+        }
+        let invocation_id = attrs
+            .get("id")
+            .cloned()
+            .unwrap_or_else(|| result.aggregate_id.clone());
+        for (server, tool, args_raw, result_into) in &matched {
+            let args_value: serde_json::Value = if args_raw.is_empty() {
+                serde_json::Value::Object(Default::default())
+            } else {
+                match serde_json::from_str(args_raw) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        eprintln!(
+                            "[mcp:warn] adapter for {} :args is not JSON ({}) — skipping",
+                            target, e
+                        );
+                        continue;
+                    }
+                }
+            };
+            let args_substituted = mcp_dispatcher::substitute_value(args_value, &attrs);
+            self.run_mcp_invoke(
+                server,
+                tool,
+                &args_substituted,
+                result_into.as_deref(),
+                &invocation_id,
+                &target,
+                &result.aggregate_type,
+                &result.aggregate_id,
+            );
+        }
+    }
+
+    /// The generic `McpTool.Invoke` primitive hook — sibling of
+    /// `resolve_primitive_spawn` / `resolve_primitive_compute`. Fires when an
+    /// `McpTool.Invoke` command is dispatched : consults the PrimitiveRegistry
+    /// (audit trail), reads the declared signature (server / tool / arguments
+    /// — matching the seeded Storehouse::Primitive record — plus result_into),
+    /// parses the FINAL arguments JSON, and runs the call through the one
+    /// engine below. The bluebook IS the contract.
+    fn resolve_primitive_mcp(
+        &mut self,
+        result: &CommandResult,
+        command_name: &str,
+        dispatch_attrs: &HashMap<String, Value>,
+    ) {
+        let bare_command = command_name.rsplit('.').next().unwrap_or(command_name);
+        if result.aggregate_type != "McpTool" || bare_command != "Invoke" {
+            return;
+        }
+        let registry_key = format!("{}.{}", result.aggregate_type, bare_command);
+        match self.primitive_registry.lookup(&registry_key) {
+            Some(spec) => {
+                println!(
+                    "[{}] [primitive:registry] routed name={} kind={} impl={}",
+                    storehouse_log::now_iso8601(),
+                    spec.name, spec.kind, spec.implementation,
+                );
+            }
+            None => {
+                println!(
+                    "[{}] [primitive:registry] miss name={} — Storehouse::Primitive declaration absent",
+                    storehouse_log::now_iso8601(),
+                    registry_key,
+                );
+            }
+        }
+        let (server, tool) = match (
+            dispatch_attrs.get("server").map(|v| v.to_string()),
+            dispatch_attrs.get("tool").map(|v| v.to_string()),
+        ) {
+            (Some(s), Some(t)) if !s.is_empty() && !t.is_empty() => (s, t),
+            _ => {
+                println!(
+                    "[{}] [primitive:mcp] skipped — missing server/tool attr",
+                    storehouse_log::now_iso8601(),
+                );
+                return;
+            }
+        };
+        let arguments_raw = dispatch_attrs
+            .get("arguments")
+            .map(|v| v.to_string())
+            .unwrap_or_default();
+        let args_value: serde_json::Value = if arguments_raw.is_empty() {
+            serde_json::Value::Object(Default::default())
+        } else {
+            match serde_json::from_str(&arguments_raw) {
+                Ok(v) => v,
+                Err(e) => {
+                    println!(
+                        "[{}] [primitive:mcp] skipped — arguments is not JSON ({})",
+                        storehouse_log::now_iso8601(),
+                        e
+                    );
+                    return;
+                }
+            }
+        };
+        let result_into = dispatch_attrs.get("result_into").map(|v| v.to_string());
+        let invocation_id = dispatch_attrs
+            .get("id")
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| result.aggregate_id.clone());
+        let target = registry_key;
+        self.run_mcp_invoke(
+            &server,
+            &tool,
+            &args_value,
+            result_into.as_deref(),
+            &invocation_id,
+            &target,
+            &result.aggregate_type,
+            &result.aggregate_id,
+        );
+    }
+
+    /// The ONE mcp engine both paths share — the sugar (hecksagon `:mcp`
+    /// bindings) and the primitive hook (direct `McpTool.Invoke` dispatches)
+    /// meet here. A `.world`-declared server routes as an
+    /// `mcp_dispatch_requested` event to the harness-side transport (host
+    /// only) ; a locally-spawnable server runs through the kernel-floor
+    /// `mcp_dispatcher` leaf — reused unchanged, the only imperative Rust on
+    /// this path ; a server that is neither logs + skips (the dispatch still
+    /// lands). The outcome cascades (id, tool, output, exit_code, ok) into
+    /// result_into via `dispatch_cascade` — all exactly the retired
+    /// resolver's contract.
+    #[allow(clippy::too_many_arguments)]
+    fn run_mcp_invoke(
+        &mut self,
+        server: &str,
+        tool: &str,
+        args_substituted: &serde_json::Value,
+        result_into: Option<&str>,
+        invocation_id: &str,
+        target: &str,
+        upstream_type: &str,
+        upstream_id: &str,
+    ) {
+        let debug = std::env::var("HECKS_DEBUG_MCP").is_ok();
+        #[cfg(not(target_arch = "wasm32"))]
+        if crate::adapter_resolution::mcp::resolve_world_server(
+            self,
+            server,
+            tool,
+            args_substituted,
+            result_into,
+            invocation_id,
+            target,
+        ) {
+            return;
+        }
+        if !mcp_dispatcher::server_is_registered(server) {
+            eprintln!(
+                "[mcp:warn] adapter for {} declares server={} which is neither \
+                world-declared nor a spawnable server. Dispatch recorded ; MCP call skipped.",
+                target, server
+            );
+            return;
+        }
+        let tool_result = mcp_dispatcher::dispatch(server, tool, args_substituted);
+        let err_tail = if tool_result.error.is_empty() {
+            String::new()
+        } else {
+            format!(" error={:?}", tool_result.error)
+        };
+        eprintln!(
+            "[mcp:{}] server={} ok={} output={:?}{}",
+            tool, server, !tool_result.is_error, tool_result.text, err_tail
+        );
+        let result_into_target = match result_into {
+            Some(s) if !s.is_empty() => s,
+            _ => {
+                if debug {
+                    eprintln!("[mcp:debug] no result_into on adapter — skipping cascade");
+                }
+                return;
+            }
+        };
+        let output_str = if tool_result.text.is_empty() {
+            tool_result.structured.clone()
+        } else {
+            tool_result.text.clone()
+        };
+        let mut record_attrs: HashMap<String, Value> = HashMap::new();
+        record_attrs.insert("id".to_string(), Value::Str(invocation_id.to_string()));
+        record_attrs.insert("tool".to_string(), Value::Str(tool.to_string()));
+        record_attrs.insert("output".to_string(), Value::Str(output_str));
+        record_attrs.insert("exit_code".to_string(), Value::Int(0));
+        record_attrs.insert("ok".to_string(), Value::Bool(!tool_result.is_error));
+        let cascade_outcome = command_dispatch::dispatch_cascade(
+            self,
+            result_into_target,
+            record_attrs,
+            upstream_type,
+            upstream_id,
+        );
+        storehouse_log::cascade_step(
+            result_into_target,
+            invocation_id,
+            cascade_outcome.is_ok(),
+        );
+        if debug {
+            match &cascade_outcome {
+                Ok(_) => eprintln!("[mcp:debug] cascaded into {} ok", result_into_target),
+                Err(e) => eprintln!(
+                    "[mcp:debug] cascade into {} failed: {:?}",
+                    result_into_target, e
+                ),
+            }
+        }
+        let _ = cascade_outcome;
     }
 
     /// Phase 3 — deliver enqueued reactions. Each pending reaction runs
