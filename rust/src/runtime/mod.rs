@@ -76,6 +76,8 @@ mod event_surface;
 // changes : the pub trio stays `runtime::value_to_json_string` etc., the
 // crate-internal value_to_json stays `pub(crate)`, and the private helpers
 // stay reachable by mod.rs + child modules through this use.
+mod value;
+pub use value::Value;
 mod value_convert;
 pub use value_convert::{attr_value_from_str, value_from_json_str, value_to_json_string};
 // errors — RuntimeError + its Display (shrink-mod phase B cask). Same path :
@@ -497,24 +499,4 @@ impl Runtime {
     }
 }
 
-/// Dynamic value — aggregates are bags of these
-#[derive(Debug, Clone, PartialEq)]
-pub enum Value {
-    Str(String),
-    Int(i64),
-    Bool(bool),
-    List(Vec<Value>),
-    Map(HashMap<String, Value>),
-    Null,
-}
-
-/// Macro for building attribute maps
-#[macro_export]
-macro_rules! attrs {
-    ($($key:expr => $val:expr),* $(,)?) => {{
-        let mut map = std::collections::HashMap::new();
-        $(map.insert($key.to_string(), $val);)*
-        map
-    }};
-}
 
