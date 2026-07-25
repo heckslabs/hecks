@@ -1,5 +1,0 @@
-Hecks.hecksagon "GlassboxTraining" do
-  GlassboxTraining::TrainingCorpus.persisted_by("Heki")
-  GlassboxTraining::TrainingExample.persisted_by("Heki")
-  GlassboxTraining::ModelSpec.persisted_by("Heki")
-end

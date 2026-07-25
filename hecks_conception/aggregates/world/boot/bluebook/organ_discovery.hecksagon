@@ -1,3 +1,0 @@
-Hecks.hecksagon "OrganDiscovery" do
-  OrganDiscovery::OrganDiscovery.persisted_by("Heki")
-end

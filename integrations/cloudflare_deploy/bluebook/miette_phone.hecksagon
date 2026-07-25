@@ -1,6 +1,0 @@
-Hecks.hecksagon "MiettePhone" do
-  MiettePhone::Gate.persisted_by("Heki")
-  MiettePhone::Conversation.persisted_by("Heki")
-  MiettePhone::InferenceProxy.persisted_by("Heki")
-  MiettePhone::ChatScreen.persisted_by("Heki")
-end

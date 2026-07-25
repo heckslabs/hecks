@@ -1,0 +1,9 @@
+# Sqlite — a concrete PERSISTENCE adapter backed by a real SQLite database.
+#
+# The contract : it DECLARES the family it implements (the inverted arrow) ;
+# the family never names it. The bind `Pizzas::Pizza.persisted_by("Sqlite")`
+# resolves if and only if this family carries the `persisted_by` verb — the
+# typed attach checkpoint, verified at boot.
+Hecks.adapter "Sqlite" do
+  family "persistence"
+end

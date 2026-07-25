@@ -1,3 +1,0 @@
-Hecks.hecksagon "Driving" do
-  Driving::Driver.persisted_by("Heki")
-end

@@ -1,5 +1,0 @@
-Hecks.world "Bluebook" do
-  persisted_by("Heki") do
-    dir :default
-  end
-end

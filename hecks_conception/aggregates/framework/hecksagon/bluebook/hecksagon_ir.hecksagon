@@ -1,9 +1,0 @@
-Hecks.hecksagon "HecksagonIr" do
-  HecksagonIr::Hecksagon.persisted_by("Memory")
-  HecksagonIr::IoAdapter.persisted_by("Memory")
-  HecksagonIr::ShellAdapter.persisted_by("Memory")
-  HecksagonIr::Gate.persisted_by("Memory")
-  HecksagonIr::LlmAdapter.persisted_by("Memory")
-  HecksagonIr::ComputeAdapter.persisted_by("Memory")
-  HecksagonIr::TtsAdapter.persisted_by("Memory")
-end

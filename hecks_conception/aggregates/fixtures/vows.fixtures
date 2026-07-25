@@ -1,6 +1,0 @@
-Hecks.fixtures "Vows" do
-  aggregate "Vow" do
-    # Constitutional vows (Transparency and Bodhisattva) migrated to heki via Vows.Take dispatch (2026-04-27)
-    # Remaining: BluebookFirst (foundational bluebook principle)
-  end
-end

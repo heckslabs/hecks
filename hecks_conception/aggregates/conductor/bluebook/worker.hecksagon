@@ -1,3 +1,0 @@
-Hecks.hecksagon "Conductor" do
-  Conductor::Worker.persisted_by("Heki")
-end

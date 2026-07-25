@@ -1,3 +1,0 @@
-Hecks.hecksagon "DomainCrossover" do
-  DomainCrossover::Crossover.persisted_by("Heki")
-end

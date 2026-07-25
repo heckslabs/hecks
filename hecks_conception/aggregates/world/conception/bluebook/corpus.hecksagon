@@ -1,3 +1,0 @@
-Hecks.hecksagon "NurseryCorpus" do
-  NurseryCorpus::Corpus.persisted_by("Heki")
-end

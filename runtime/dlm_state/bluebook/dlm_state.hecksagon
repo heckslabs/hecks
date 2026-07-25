@@ -1,8 +1,0 @@
-Hecks.hecksagon "DLMState" do
-  DLMState::SessionState.persisted_by("Heki")
-  DLMState::GrowthTracker.persisted_by("Heki")
-  DLMState::HonestyTracker.persisted_by("Heki")
-  DLMState::DreamLog.persisted_by("Heki")
-  DLMState::PerformanceMetric.persisted_by("Heki")
-  DLMState::SynapseHistory.persisted_by("Heki")
-end

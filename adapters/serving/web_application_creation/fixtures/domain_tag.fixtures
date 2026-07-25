@@ -1,5 +1,0 @@
-Hecks.fixtures "DomainTag" do
-  aggregate "DomainTag" do
-    fixture "DomainTag1", tag_prefix: "data-domain", conventions: []
-  end
-end

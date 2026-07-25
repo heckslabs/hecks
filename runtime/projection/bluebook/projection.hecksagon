@@ -1,5 +1,0 @@
-Hecks.hecksagon "Projection" do
-  Projection::Target.persisted_by("Heki")
-  Projection::ProjectedScript.persisted_by("Heki")
-  Projection::Parity.persisted_by("Heki")
-end

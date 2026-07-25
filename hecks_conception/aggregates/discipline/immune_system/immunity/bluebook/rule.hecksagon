@@ -1,3 +1,0 @@
-Hecks.hecksagon "Rule" do
-  Rule::Rule.persisted_by("Heki")
-end

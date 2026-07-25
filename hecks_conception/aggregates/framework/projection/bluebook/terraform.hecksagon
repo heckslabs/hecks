@@ -1,3 +1,0 @@
-Hecks.hecksagon "TerraformProjection" do
-  TerraformProjection::TerraformProjector.persisted_by("Memory")
-end

@@ -1,4 +1,0 @@
-Hecks.hecksagon "Security" do
-  Security::HashedSecret.persisted_by("Heki")
-  Security::AccessGate.persisted_by("Heki")
-end

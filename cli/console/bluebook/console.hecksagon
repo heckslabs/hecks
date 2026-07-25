@@ -1,6 +1,0 @@
-Hecks.hecksagon "Console" do
-  Console::Session.persisted_by("Heki")
-  Console::Layout.persisted_by("Heki")
-  Console::Footer.persisted_by("Heki")
-  Console::Speaker.persisted_by("Heki")
-end

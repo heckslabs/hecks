@@ -1,32 +1,10 @@
+# The per-deployment VALUES the bound adapters need — and only values.
+#
+# This file MIRRORS the hecksagon's shape : the same how-verb selector, carrying
+# values instead of wiring. You read one line in each and know the whole edge.
+# The path is relative to the domain directory.
 Hecks.world "Pizzas" do
-  # The per-deployment VALUES the bound adapters need — and ONLY values. This file
-  # MIRRORS pizzas.hecksagon's shape : the SAME family-verb selectors, carrying
-  # values instead of wiring. The family declares the verb ; the hexagon hangs the
-  # WIRING (on:, success/failure) off `verb("Adapter")` ; this world hangs the
-  # VALUES off the same selector. You read one line in both files and know the edge.
-
-  # Persistence — bluebook-wide, so it sits at the TOP LEVEL (not dotted off one
-  # aggregate). `persisted_by("Heki")` is the persistence family's verb + the Heki
-  # adapter ; `dir :default` is the store location : rooted at the OS app-support
-  # data root (~/Library/Application Support/Hecks), MIRRORING where this bluebook
-  # lives (the source-tree chain, with aggregates/bluebook stripped) — e.g.
-  # ~/Projects/hecks/examples/pizzas/bluebook/ -> ~/Library/Application Support/
-  # Hecks/hecks/examples/pizzas/{pizza,order}.heki, each aggregate its own folder. No env var,
-  # no hard-coded path. `realm "X"` pins a different namespace. :default is a
-  # DECLARED value that resolves by convention — never a silent fallback.
-  persisted_by("Heki") do
-    dir :default
-  end
-
-  # Payment — dotted off the SAME Order.charged_by("Stripe") binding the hexagon
-  # declares. WHERE the gateway is, the ENV NAME of the secret (the secret itself
-  # never lives in a bluebook — only its name does), and how hard the async adapter
-  # tries. latency / retries / backoff are edge-only ; Authorize / Decline know none.
-  Pizzas::Order.charged_by("Stripe") do
-    endpoint   "PIZZAS_PAYMENT_ENDPOINT"
-    token      "PIZZAS_PAYMENT_TOKEN"
-    timeout_ms 3000
-    retries    3
-    backoff    "exponential"
+  persisted_by("Sqlite") do
+    database "data/pizzas.db"
   end
 end

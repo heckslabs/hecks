@@ -1,3 +1,0 @@
-Hecks.hecksagon "RustToBluebookMacrophage" do
-  RustToBluebookMacrophage::RustToBluebookMacrophage.persisted_by("Memory")
-end

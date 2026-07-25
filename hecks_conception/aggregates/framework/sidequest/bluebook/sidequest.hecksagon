@@ -1,3 +1,0 @@
-Hecks.hecksagon "Sidequest" do
-  Sidequest::Sidequest.persisted_by("Heki")
-end

@@ -1,3 +1,0 @@
-Hecks.hecksagon "StatusCoherence" do
-  StatusCoherence::StatusCoherence.persisted_by("Memory")
-end

@@ -1,3 +1,0 @@
-Hecks.hecksagon "Primitive" do
-  Primitive::Process.persisted_by("Heki")
-end

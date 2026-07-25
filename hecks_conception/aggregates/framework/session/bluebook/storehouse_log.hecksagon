@@ -1,3 +1,0 @@
-Hecks.hecksagon "SessionLog" do
-  SessionLog::StorehouseEntry.persisted_by("Memory")
-end

@@ -1,3 +1,0 @@
-Hecks.fixtures "Being" do
-  # Discovery scan_paths migrated to discovery.heki via Discovery.AddScanPath (2026-04-26)
-end

@@ -1,3 +1,0 @@
-Hecks.hecksagon "Evaluation" do
-  Evaluation::Evaluation.persisted_by("Heki")
-end

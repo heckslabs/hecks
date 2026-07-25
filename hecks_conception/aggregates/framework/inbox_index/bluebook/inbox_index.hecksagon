@@ -1,3 +1,0 @@
-Hecks.hecksagon "InboxIndex" do
-  InboxIndex::InboxIndex.persisted_by("Heki")
-end

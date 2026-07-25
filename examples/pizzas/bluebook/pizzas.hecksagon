@@ -1,106 +1,16 @@
-# The Pizzas hexagon — the ports-and-adapters ring around a synchronous
-# domain core. Everything INSIDE the boundary (pizzas.bluebook) is ONE
-# synchronous domain ; everything that LEAVES it is an ASYNCHRONOUS adapter,
-# and the colour is never declared — the boundary itself decides it
-# (two-color rule : domain sync always, adapter async always).
+# The Pizzas hexagon — the ports-and-adapters ring around a synchronous domain.
 #
-# An aggregate IS the port : its commands-in and events-out — declared in
-# pizzas.bluebook — ARE the contract. A port is not a separate concept and
-# is never re-declared here. This file wires only the edges that LEAVE the
-# domain : the impure adapters. Intra-domain aggregate calls are handled by
-# naming convention and never appear in the hexagon.
+# An aggregate IS the port : its commands-in and events-out are the contract,
+# so a port is never re-declared here. This file wires only the edges that
+# LEAVE the domain.
 #
-# One line of composition decomposes as  aggregate . port ( adapter ) :
+# One line decomposes as  aggregate . how-verb ( adapter ) :
 #
-#     Pizzas::Order . persisted_by ( "Heki" )
+#     Pizzas::Pizza . persisted_by ( "Sqlite" )
 #        aggregate       how-verb      adapter
 #
-# The how-verb (persisted_by, charged_by) names the FAMILY the bind resolves
-# through ; the adapter declares which family it implements (the inverted
-# arrow), so the bind type-checks against the family at attach. Per-deployment
-# VALUES — the heki dir, the gateway endpoint + retry budget — live in
-# pizzas.world, never here. Composition names verbs, ports, and adapters ;
-# it never names a value.
+# Swap "Sqlite" for "Memory" and the domain never notices — same family, same
+# verb, different backing.
 Hecks.hecksagon "Pizzas" do
-
-  # ── REPLY PORT · persistence ────────────────────────────────────────
-  # Disk IO is impure, so persistence is an adapter. `persisted_by` belongs
-  # to the persistence family, whose signal is REPLY : the domain sees a
-  # plain find/save that RETURNS a value. A reply port carries no triggering
-  # event — it returns, it does not round-trip. WHERE the Heki adapter writes
-  # (the .heki dir) is configuration in pizzas.world. Swap "Heki" for another
-  # persistence-family adapter and the domain never notices.
-  Pizzas::Pizza.persisted_by("Heki")
-  Pizzas::Order.persisted_by("Heki")
-
-  # ── REPLY PORT · persistence (MEMORY) ───────────────────────────────
-  # The Cart is transient — an in-progress selection discarded on checkout
-  # or abandonment, never worth surviving a restart. So its persistence port
-  # binds the MEMORY adapter, a sibling of Heki on the same `persisted_by`
-  # family-verb : the runtime keeps it in an in-process HashMap and writes no
-  # disk. Memory carries no location, so it has NO matching pizzas.world
-  # block (nothing to configure). This is the discriminating case — Cart on
-  # Memory beside Pizza / Order on Heki in one domain proves the binding,
-  # not the heki default, selects the backend.
-  Pizzas::Cart.persisted_by("Memory")
-
-  # ── REPLY PORT · persistence (Kitchen) ──────────────────────────────
-  # The Kitchen is the driving-side singleton : its ExpireStale tick records
-  # last_swept_at, so it MUST survive restarts (a sweeper that forgot when it
-  # last swept would re-sweep the world every boot). So it binds Heki like
-  # Pizza / Order — durable, disk-backed. Declared AFTER Cart to mirror the
-  # bluebook's aggregate declaration order (Pizza, Order, Cart, Kitchen), the
-  # same order `storehouse wire-persistence` emits and the golden test pins.
-  Pizzas::Kitchen.persisted_by("Heki")
-
-  # ── EFFECT PORT · payment ───────────────────────────────────────────
-  # The charge is a remote call — latency, retries, a flaky gateway — impure
-  # AND async, so an adapter. `charged_by` belongs to the payment family,
-  # whose signal is EFFECT : the whole round-trip rides ONE verb. The Order
-  # emits OrderPlaced (the inbound edge, `on:`) ; the Stripe adapter does the
-  # external IO ; then it routes its verdict back through the hexagon via
-  # storehouse as the bind's `do success / failure end` block — Order.Authorize
-  # on success, Order.Decline on failure. The verdict commands are domain-specific, so
-  # they live on the binding (the family + adapter are generic, declared once
-  # across every domain ; the binding alone names this aggregate). The
-  # domain stays purely synchronous : it announces OrderPlaced and later
-  # receives Authorize or Decline, knowing nothing of the gateway. The adapter
-  # is named for its identity (the payment provider) — not its transport ;
-  # WHERE the gateway is and how hard it tries live in pizzas.world.
-  Pizzas::Order.charged_by("Stripe", on: "OrderPlaced") do
-    success "Order.Authorize"
-    failure "Order.Decline"
-  end
-
-  # ── DRIVING SIDE · the recurring sweep ──────────────────────────
-  # Everything above is the DRIVEN side : edges that LEAVE the domain (the
-  # domain composes a call, an adapter runs it — persisted_by, charged_by).
-  # This is the inverse : a DRIVER, an external clock that reaches IN. Where a
-  # Family binds a domain event OUT to an adapter (`on: "OrderPlaced"`), a
-  # Driver binds a SCHEDULE to an inbound dispatch (`driving on <schedule>`).
-  # Together they are the two halves of the boundary : the domain stays purely
-  # synchronous, knowing nothing of who pays the gateway OR who watches the
-  # clock.
-  #
-  # The clock fires Kitchen.ExpireStale on a cron cadence (every 10 minutes).
-  # ExpireStale is a SINGLETON SWEEP — it records the tick + emits
-  # StaleOrdersExpired, and the runtime cancels each stale pending Order off
-  # that event (a command acts on one aggregate ; the fan-out is the cascade's
-  # job). The Schedule is one vocabulary covering every cadence — a five-field
-  # CRON expression (here), a simple INTERVAL, or a wall-clock SEGMENT map.
-  # Per the Driving chapter, the Procfile is the PROJECTION of every declared
-  # Driver — this declaration is the truth a `storehouse loop` / `storehouse
-  # clock` process is generated from, never hand-authored.
-  #
-  # `driving on cron` is the proven, parity-verified surface : the runtime
-  # fires `kind == "cron"` driving handlers, and both the Ruby DSL and the
-  # Rust parser model it byte-equal. (The `interval` sugar is conceived in the
-  # Driving chapter but not yet wired in the Ruby DSL ; using it here would
-  # break hecksagon parity, so the cron form is canonical until that lands.)
-  adapter "Kitchen" do
-    driving on cron "*/10 * * * *" do |clock|
-      dispatch "Pizzas::Kitchen.ExpireStale"
-    end
-  end
-
+  Pizzas::Pizza.persisted_by("Sqlite")
 end

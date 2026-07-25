@@ -1,3 +1,0 @@
-Hecks.hecksagon "TopicSource" do
-  TopicSource::TopicSource.persisted_by("Heki")
-end

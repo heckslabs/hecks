@@ -1,3 +1,0 @@
-Hecks.hecksagon "Writing" do
-  Writing::Writing.persisted_by("Heki")
-end

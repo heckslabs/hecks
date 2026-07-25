@@ -1,5 +1,0 @@
-Hecks.world "MindstreamDaemon" do
-  persisted_by("Heki") do
-    dir :default
-  end
-end

@@ -1,4 +1,0 @@
-Hecks.hecksagon "Actions" do
-  Actions::ActionPlan.persisted_by("Heki")
-  Actions::ActionLog.persisted_by("Heki")
-end

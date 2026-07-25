@@ -1,3 +1,0 @@
-Hecks.hecksagon "BoardMarkdownProjector" do
-  BoardMarkdownProjector::BoardMarkdownProjector.persisted_by("Memory")
-end

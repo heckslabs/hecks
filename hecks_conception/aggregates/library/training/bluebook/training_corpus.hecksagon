@@ -1,3 +1,0 @@
-Hecks.hecksagon "TrainingCorpus" do
-  TrainingCorpus::Corpus.persisted_by("Heki")
-end

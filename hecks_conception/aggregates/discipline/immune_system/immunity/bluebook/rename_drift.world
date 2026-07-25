@@ -1,5 +1,0 @@
-Hecks.world "RenameDrift" do
-  persisted_by("Heki") do
-    dir :default
-  end
-end

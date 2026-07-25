@@ -1,3 +1,0 @@
-Hecks.hecksagon "Vocabulary" do
-  Vocabulary::Vocabulary.persisted_by("Heki")
-end

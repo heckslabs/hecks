@@ -1,3 +1,0 @@
-Hecks.hecksagon "Conductor" do
-  Conductor::Lease.persisted_by("Heki")
-end

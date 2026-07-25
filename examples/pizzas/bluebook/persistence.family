@@ -1,18 +1,11 @@
-# persistence — an impure-boundary PORT, declared once and used ACROSS every
-# domain's hexagon (the bind `Aggregate.persisted_by("Heki")` references this
-# family by its how-verb). The shared vocabulary lives here ; a domain never
-# redeclares it.
+# persistence — an impure-boundary PORT, declared once and used across every
+# domain's hexagon.
 #
-# Two-color rule : the DOMAIN is sync, the ADAPTER is async, and there is
-# NEVER a lock — no Mutex, no contention — because every async concern lives
-# at the adapter edge, never in the synchronous core.
-#
-# A family names its how-verb (the bind hangs `aggregate.persisted_by(...)`
-# off the aggregate FQN), its signal, and the config FIELDS its adapters carry
-# — NAMES only ; the per-deployment VALUES live in .world. A family NEVER names
-# its adapters : the adapter declares the family (the inverted arrow, .adapter).
+# A family names its how-verb, its signal, and the config FIELD NAMES its
+# adapters carry — names only ; the per-deployment values live in .world. A
+# family NEVER names its adapters : the adapter declares the family.
 Hecks.family "persistence" do
-  verb   "persisted_by"   # the how-verb the bind hangs off the aggregate FQN
-  signal :reply           # returns a value to the synchronous domain (find / save)
-  field  :dir             # WHERE the store writes ; value supplied in .world
+  verb   "persisted_by"   # the how-verb a bind hangs off the aggregate
+  signal :reply           # returns a value to the domain (find / save)
+  field  :database        # WHERE the store writes ; value supplied in .world
 end

@@ -1,3 +1,0 @@
-Hecks.hecksagon "Governance" do
-  Governance::Violation.persisted_by("Heki")
-end

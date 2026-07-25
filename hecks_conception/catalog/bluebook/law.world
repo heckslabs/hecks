@@ -1,5 +1,0 @@
-Hecks.world "Law" do
-  persisted_by("Heki") do
-    dir :default
-  end
-end

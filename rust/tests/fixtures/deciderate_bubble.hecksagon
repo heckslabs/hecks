@@ -1,7 +1,0 @@
-Hecks.hecksagon "Deciderate" do
-  adapter "BubbleClock" do
-    driving on interval "30s" do |clock|
-      dispatch "Deciderate::BubbleClock.Tick"
-    end
-  end
-end

@@ -1,4 +1,0 @@
-Hecks.hecksagon "Inventions" do
-  Inventions::Invention.persisted_by("Heki")
-  Inventions::Grooming.persisted_by("Heki")
-end

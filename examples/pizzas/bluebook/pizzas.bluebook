@@ -1,233 +1,73 @@
+# Pizzas — the canonical example. Everything hecksagain grows should reference
+# this domain, and when it lacks a shape, this domain gets extended.
+#
+# Deliberately small: a pizza gathers toppings and is eventually sold. The
+# interesting parts are the ones that carry weight — `toppings` is a list of
+# Topping value objects with an invariant, and Purchase is guarded by givens
+# that make a sale impossible before the pizza is ready.
 Hecks.bluebook "Pizzas" do
-  vision "Manage pizza creation, customization, and ordering for a pizzeria. The Order aggregate carries the reference async-boundary pattern : its domain logic is purely synchronous, while the payment charge — latency, retries, a flaky gateway — lives entirely in the payment_gateway adapter declared in pizzas.hecksagon. The gateway's verdict re-enters the domain as a plain Authorize / Decline command. Domain composes the effect ; the adapter runs it."
+  vision "Put toppings on a pizza and sell it to a customer."
   core
 
   aggregate "Pizza" do
-    description "A pizza with toppings, pricing, and menu visibility"
-    attribute :name, Name
-    attribute :description, Description
-    attribute :toppings, list_of(Topping)
-    attribute :price, Price
+    description "A pizza that gathers toppings and is eventually sold to a customer."
 
-    value_object "Name" do
-      attribute :value, String
-    end
+    attribute :name,          String
+    attribute :toppings,      list_of(Topping)
+    attribute :price_cents,   Integer
+    attribute :status,        String, default: "available"
+    attribute :customer_name, String
 
-    value_object "Description" do
-      attribute :value, String
-    end
-
+    # A topping has no identity of its own — two basils in the same amount are
+    # the same topping. Its invariant is enforced before it ever reaches the
+    # pizza.
     value_object "Topping" do
-      attribute :name, String
+      attribute :name,   String
       attribute :amount, Integer
-      invariant "amount must be positive" do
-        amount > 0
-      end
-    end
 
-    value_object "Price" do
-      attribute :cents, Integer
-      attribute :currency, default: "USD"
-      invariant "must be non-negative" do
-        cents >= 0
-      end
+      invariant("amount must be positive") { amount > 0 }
     end
 
     command "CreatePizza" do
       role "Chef"
-      goal "Add a new pizza to the menu"
-      attribute :name, Name
-      attribute :description, Description
-      attribute :price, Price
+      goal "Put a new pizza on the menu"
+
+      attribute :name,        String
+      attribute :price_cents, Integer
+
+      emits "PizzaCreated"
     end
 
     command "AddTopping" do
       role "Chef"
-      goal "Customize a pizza with ingredients"
-      reference_to Pizza
-      attribute :name, Name
-      attribute :amount, Amount
+      goal "Customize a pizza with an ingredient"
 
-      given("max 10 toppings") { toppings.size < 10 }
+      reference_to Pizza
+      attribute :name,   String
+      attribute :amount, Integer
+
+      given("a sold pizza cannot be changed") { status == "available" }
+      given("at most 10 toppings")            { toppings.size < 10 }
+
       then_set :toppings, append: { name: :name, amount: :amount }
+
+      emits "ToppingAdded"
     end
 
-    value_object "Amount" do
-      attribute :value, Integer
-    end
-
-    query "ByDescription" do |desc|
-      where(description: desc)
-    end
-  end
-
-  aggregate "Order" do
-    description "A customer order referencing a pizza with status tracking. Carries the async-boundary pattern : PlaceOrder emits OrderPlaced, the payment_gateway adapter charges asynchronously, and the verdict re-enters as Authorize or Decline."
-    attribute :customer_name, CustomerName
-    attribute :items, list_of(OrderItem)
-    reference_to Pizza
-
-    # The gateway's charge reference, set by the async verdict commands.
-    attribute :payment_ref, PaymentRef
-
-    value_object "CustomerName" do
-      attribute :value, String
-    end
-
-    value_object "Quantity" do
-      attribute :value, Integer
-    end
-
-    value_object "PaymentRef" do
-      attribute :value, String
-    end
-
-    value_object "OrderItem" do
-      attribute :quantity, Integer
-      invariant "quantity must be positive" do
-        quantity > 0
-      end
-    end
-
-    value_object "OrderStatus" do
-      attribute :value, String
-    end
-
-    attribute :status, OrderStatus, default: "pending" do
-      transition "Authorize"    => "authorized"
-      transition "Decline"      => "declined"
-      transition "CancelOrder"  => "cancelled"
-    end
-
-    command "PlaceOrder" do
+    command "Purchase" do
       role "Customer"
-      goal "Order a pizza for delivery or pickup"
+      goal "Buy the pizza"
+
       reference_to Pizza
-      attribute :customer_name, CustomerName
-      attribute :quantity, Quantity
-      # Record a line item from the quantity, so the OrderItem invariant
-      # (quantity > 0) actually guards something — mirrors AddTopping's append.
-      then_set :items, append: { quantity: :quantity }
-      # Composing the effect, not running it : OrderPlaced is handed to
-      # the payment_gateway adapter at the bus boundary (pizzas.hecksagon).
-      # The domain never waits for the charge.
-      emits "OrderPlaced"
-    end
+      attribute :customer_name, String
 
-    command "Authorize" do
-      role "System"
-      goal "Record the gateway's APPROVED verdict as a plain transition"
-      # Cascade-internal : the payment adapter dispatches this when the
-      # async charge succeeds. Never called by hand. pending -> authorized.
-      reference_to Order
-      attribute :payment_ref, PaymentRef
-      then_set :payment_ref, to: :payment_ref
-      emits "OrderAuthorized"
-    end
+      given("a pizza needs at least one topping") { toppings.size.positive? }
+      given("it must still be available")         { status == "available" }
 
-    command "Decline" do
-      role "System"
-      goal "Record the gateway's DECLINED verdict as a plain transition"
-      # Same shape as Authorize — the adapter picks the branch from the
-      # remote verdict ; the domain stays declarative. pending -> declined.
-      reference_to Order
-      attribute :payment_ref, PaymentRef
-      then_set :payment_ref, to: :payment_ref
-      emits "OrderDeclined"
-    end
+      then_set :customer_name, to: :customer_name
+      then_set :status,        to: "sold"
 
-    command "CancelOrder" do
-      role "Customer"
-      goal "Cancel a pending order before preparation starts"
-      reference_to Order
-    end
-
-    query "Pending" do
-      where(status: "pending")
-    end
-  end
-
-  aggregate "Cart" do
-    description "A customer's in-progress selection, held IN MEMORY only — the transient staging area before PlaceOrder mints the durable Order. A half-filled or abandoned cart is worth nothing across a restart, so it never touches disk. This is the exemplar EPHEMERAL aggregate : wired `Pizzas::Cart.persisted_by(\"Memory\")` in pizzas.hecksagon, so the runtime keeps it in an in-process HashMap — the discriminating case that proves the memory adapter BITES, sitting beside Pizza / Order on Heki in the same domain."
-    reference_to Pizza
-    attribute :line_count, LineCount
-
-    value_object "LineCount" do
-      attribute :value, Integer
-      invariant "non-negative" do
-        value >= 0
-      end
-    end
-
-    command "StartCart" do
-      role "Customer"
-      goal "Begin a new in-memory cart for a customer browsing the menu"
-      attribute :line_count, LineCount
-    end
-
-    command "AddLine" do
-      role "Customer"
-      goal "Add a pizza selection to the in-progress cart"
-      reference_to Cart
-      attribute :line_count, LineCount
-      then_set :line_count, to: :line_count
-    end
-  end
-
-  aggregate "Kitchen" do
-    # The DRIVING-SIDE exemplar : a singleton sweeper driven by an external
-    # clock. Where Order / Pizza / Cart are driven BY the customer (commands
-    # reach in from the UI), the Kitchen is driven BY a SCHEDULE — a Driver
-    # (the driving side of the hexagon) fires ExpireStale on a recurring
-    # interval, no human in the loop. The cadence is declared in
-    # pizzas.hecksagon (`driving on interval "600s"`), the inverse of the
-    # `charged_by` Family that LEAVES the domain : a Family is an outbound
-    # edge, a Driver is an inbound clock.
-    #
-    # ExpireStale is a SINGLETON SWEEP, not a per-Order command : it records
-    # the tick (last_swept_at) + emits StaleOrdersExpired, exactly as a
-    # liveness sweeper records last_sweep_at + emits Swept. A command acts on
-    # ONE aggregate, so the per-Order fan-out (cancel each pending order older
-    # than the threshold) is the runtime's job off the emitted event — the
-    # Kitchen command expresses no fan-out, mirroring the recurring-tick shape
-    # every Driver-fired sweep uses. One Kitchen per pizzeria.
-    description "The pizzeria's recurring-sweep singleton — the driving-side exemplar. A Driver (pizzas.hecksagon) fires ExpireStale on an interval ; ExpireStale records the tick + emits StaleOrdersExpired, and the runtime cancels each stale pending order off that event. One Kitchen per pizzeria."
-    identified_by :name
-
-    attribute :name,          KitchenName
-    attribute :last_swept_at, SweptAt,    default: "—"
-    attribute :stale_after_seconds, StaleWindow, default: 1800
-
-    value_object "KitchenName" do
-      # Singleton key — one Kitchen per pizzeria. Default "kitchen".
-      attribute :value, String
-    end
-
-    value_object "SweptAt" do
-      # ISO-8601 instant of the last expire-sweep tick — the freshness signal
-      # that tells a live sweeper from a flatlined one.
-      attribute :value, String
-    end
-
-    value_object "StaleWindow" do
-      # How long a pending order may sit before the sweep cancels it, in
-      # seconds. Default 1800 (30 min). The runtime reads this on the tick to
-      # decide which Pending orders are stale.
-      attribute :value, Integer
-    end
-
-    command "ExpireStale" do
-      role "System"
-      goal "One expire-stale sweep tick — record it ; the runtime cancels each stale order"
-      # Driven by the clock, not a customer. Records last_swept_at + emits
-      # StaleOrdersExpired ; the per-Order fan-out (Order.CancelOrder on each
-      # pending order older than stale_after_seconds) is the runtime's job off
-      # the event — a command acts on one aggregate, so the sweep records the
-      # tick and lets the cascade cancel the many. Mirrors the singleton-sweep
-      # shape of every Driver-fired liveness sweep.
-      attribute :last_swept_at, SweptAt
-      then_set :last_swept_at, to: :last_swept_at
-      emits "StaleOrdersExpired"
+      emits "PizzaPurchased"
     end
   end
 end

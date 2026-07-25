@@ -1,3 +1,0 @@
-Hecks.hecksagon "InstructionPair" do
-  InstructionPair::InstructionPair.persisted_by("Heki")
-end

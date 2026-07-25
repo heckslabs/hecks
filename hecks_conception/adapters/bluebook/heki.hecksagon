@@ -1,4 +1,0 @@
-Hecks.hecksagon "HekiAdapter" do
-  HekiAdapter::Binding.persisted_by("Heki")
-  HekiAdapter::Reference.persisted_by("Heki")
-end

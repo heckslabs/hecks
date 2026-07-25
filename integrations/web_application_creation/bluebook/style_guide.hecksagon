@@ -1,3 +1,0 @@
-Hecks.hecksagon "StyleGuide" do
-  StyleGuide::StyleGuide.persisted_by("Heki")
-end
