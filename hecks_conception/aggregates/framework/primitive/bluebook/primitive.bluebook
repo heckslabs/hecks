@@ -125,4 +125,52 @@ Hecks.bluebook "Primitive", version: "2026.05.22.1" do
       attribute :value, String
     end
   end
+
+  aggregate "Compute", "One local compute-function side-effect — the pure-local sibling of Process. Invoke resolves a named function from the runtime's compute_functions registry, runs it against the caller-supplied attrs (+ data_dir), records an audit row, and the primitive hook chains the returned text into response_into_target(response_into_attr) joinable by id. The :compute hecksagon adapter family is SUGAR over this primitive (reaction.rs resolve_compute_adapters synthesizes Invoke per matched binding), exactly as :exec is sugar over Process.Spawn — this declaration retires the bespoke resolve_compute_adapters_with_excluded resolver that lived in runtime/mod.rs. Name + signature match the seeded Storehouse::Primitive record Compute.Invoke (kind compute, impl compute_dispatcher)." do
+    identified_by :id
+
+    attribute :id,            Id
+    attribute :function_name, FunctionName
+
+    value_object "Id" do
+      # Invocation id — the originating command's aggregate id (the
+      # aggregate whose dispatch the sugar reacted to). The primitive
+      # hook threads this same id into the response_into cascade so the
+      # outcome joins the originating invocation, exactly as Process.Spawn.
+      attribute :value, String
+    end
+
+    value_object "FunctionName" do
+      # Registry key into the runtime's compute_functions library
+      # (e.g. "tokenize_dream_corpus"). An unregistered name is a
+      # Skipped outcome — no cascade fires — mirroring the hecksagon
+      # adapter family's Skipped path.
+      attribute :value, String
+    end
+
+    command "Invoke" do
+      role "System"
+      description "Run a named registry function to completion and chain the returned text into response_into_target carrying response_into_attr. The generic primitive hook (reaction.rs resolve_primitive_compute) resolves the function through the compute_dispatcher leaf — reused unchanged, the only imperative Rust on this path — and cascades the response with the same id, exactly as Process.Spawn does for programs. Emits ComputeInvoked so the audit row is a first-class event."
+      attribute :id,                   Id
+      attribute :function_name,        FunctionName
+      attribute :response_into_target, ResponseIntoTarget
+      attribute :response_into_attr,   ResponseIntoAttr
+      emits "ComputeInvoked"
+      then_set :id,            to: :id
+      then_set :function_name, to: :function_name
+    end
+
+    value_object "ResponseIntoTarget" do
+      # The cascade landing target ("Aggregate.Command") the hook chains
+      # the returned text into. Routing, not data — carried on the Invoke
+      # command only, never persisted onto Compute state.
+      attribute :value, String
+    end
+
+    value_object "ResponseIntoAttr" do
+      # The attribute name on the landing command that carries the
+      # returned text. Routing, not data — not persisted.
+      attribute :value, String
+    end
+  end
 end
