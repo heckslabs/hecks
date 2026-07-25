@@ -2026,22 +2026,7 @@ impl Runtime {
         // STAYS in place — the registry is an overlay, not yet a
         // replacement.
         let registry_key = format!("{}.{}", result.aggregate_type, bare_command);
-        match self.primitive_registry.lookup(&registry_key) {
-            Some(spec) => {
-                println!(
-                    "[{}] [primitive:registry] routed name={} kind={} impl={}",
-                    storehouse_log::now_iso8601(),
-                    spec.name, spec.kind, spec.implementation,
-                );
-            }
-            None => {
-                println!(
-                    "[{}] [primitive:registry] miss name={} — Storehouse::Primitive declaration absent",
-                    storehouse_log::now_iso8601(),
-                    registry_key,
-                );
-            }
-        }
+        self.log_primitive_registry_route(&registry_key);
 
         let cmd = match dispatch_attrs.get("cmd").map(|v| v.to_string()) {
             Some(c) if !c.is_empty() => c,

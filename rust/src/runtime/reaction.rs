@@ -103,28 +103,12 @@ impl Runtime {
             .map(|i| &command_name[i + agg_prefix.len()..])
             .unwrap_or_else(|| command_name.rsplit('.').next().unwrap_or(command_name));
         let target = format!("{}.{}", result.aggregate_type, command_part);
+        // NOTE : exec matches the FULL binding command (`c == target`), not
+        // binding_command_tail — preserved from the pre-primitive surface.
         let matched: Vec<(String, Option<String>)> = self
-            .hecksagons
-            .iter()
-            .flat_map(|h| h.io_adapters.iter())
-            .filter(|a| a.kind == "exec")
-            .filter_map(|a| {
-                let mut cmd: Option<String> = None;
-                let mut exec: Option<String> = None;
-                let mut result_into: Option<String> = None;
-                for (k, v) in &a.options {
-                    match k.as_str() {
-                        "command" => cmd = Some(strip_quotes_or_colon(v)),
-                        "exec" => exec = Some(strip_quotes_or_colon(v)),
-                        "result_into" => result_into = Some(strip_quotes_or_colon(v)),
-                        _ => {}
-                    }
-                }
-                match (cmd, exec) {
-                    (Some(c), Some(e)) if c == target => Some((e, result_into)),
-                    _ => None,
-                }
-            })
+            .matched_io_bindings("exec", &target, false, &["exec", "result_into"])
+            .into_iter()
+            .filter_map(|mut v| v[0].take().map(|e| (e, v[1].take())))
             .collect();
         if matched.is_empty() {
             return;
@@ -193,14 +177,9 @@ impl Runtime {
         if adapters.is_empty() {
             return;
         }
-        // The function's attrs are the upstream aggregate's state fields,
-        // string-shaped — the same projection the retired resolver built.
-        let mut attrs: HashMap<String, String> = HashMap::new();
-        if let Some(s) = self.find(&result.aggregate_type, &result.aggregate_id) {
-            for (k, v) in &s.fields {
-                attrs.insert(k.clone(), v.to_string());
-            }
-        }
+        // The function's attrs are the upstream aggregate's state fields —
+        // the same projection the retired resolver built.
+        let attrs = self.state_attrs(&result.aggregate_type, &result.aggregate_id);
         for adapter in &adapters {
             fired.insert(adapter.name.clone());
             let inner = self.run_compute_invoke(
@@ -241,31 +220,11 @@ impl Runtime {
             return;
         }
         let registry_key = format!("{}.{}", result.aggregate_type, bare_command);
-        match self.primitive_registry.lookup(&registry_key) {
-            Some(spec) => {
-                println!(
-                    "[{}] [primitive:registry] routed name={} kind={} impl={}",
-                    storehouse_log::now_iso8601(),
-                    spec.name, spec.kind, spec.implementation,
-                );
-            }
-            None => {
-                println!(
-                    "[{}] [primitive:registry] miss name={} — Storehouse::Primitive declaration absent",
-                    storehouse_log::now_iso8601(),
-                    registry_key,
-                );
-            }
-        }
-        let function = match dispatch_attrs.get("function_name").map(|v| v.to_string()) {
-            Some(f) if !f.is_empty() => f,
-            _ => {
-                println!(
-                    "[{}] [primitive:compute] skipped — missing function_name attr",
-                    storehouse_log::now_iso8601(),
-                );
-                return;
-            }
+        self.log_primitive_registry_route(&registry_key);
+        let Some(function) =
+            Self::required_primitive_attr("compute", dispatch_attrs, "function_name")
+        else {
+            return;
         };
         let result_into = dispatch_attrs.get("response_into_target").map(|v| v.to_string());
         let result_attr = dispatch_attrs.get("response_into_attr").map(|v| v.to_string());
@@ -378,32 +337,11 @@ impl Runtime {
         let bare_command = command_name.rsplit('.').next().unwrap_or(command_name);
         let target = format!("{}.{}", result.aggregate_type, bare_command);
         let matched: Vec<(String, String, String, Option<String>)> = self
-            .hecksagons
-            .iter()
-            .flat_map(|h| h.io_adapters.iter())
-            .filter(|a| a.kind == "mcp")
-            .filter_map(|a| {
-                let mut cmd: Option<String> = None;
-                let mut server: Option<String> = None;
-                let mut tool: Option<String> = None;
-                let mut args: String = String::new();
-                let mut result_into: Option<String> = None;
-                for (k, v) in &a.options {
-                    match k.as_str() {
-                        "command" => cmd = Some(strip_quotes_or_colon(v)),
-                        "server" => server = Some(strip_quotes_or_colon(v)),
-                        "tool" => tool = Some(strip_quotes_or_colon(v)),
-                        "args" => args = strip_quotes_or_colon(v),
-                        "result_into" => result_into = Some(strip_quotes_or_colon(v)),
-                        _ => {}
-                    }
-                }
-                match (cmd, server, tool) {
-                    (Some(c), Some(s), Some(t)) if binding_command_tail(&c) == target.as_str() => {
-                        Some((s, t, args, result_into))
-                    }
-                    _ => None,
-                }
+            .matched_io_bindings("mcp", &target, true, &["server", "tool", "args", "result_into"])
+            .into_iter()
+            .filter_map(|mut v| match (v[0].take(), v[1].take()) {
+                (Some(s), Some(t)) => Some((s, t, v[2].take().unwrap_or_default(), v[3].take())),
+                _ => None,
             })
             .collect();
         if debug {
@@ -415,14 +353,8 @@ impl Runtime {
         if matched.is_empty() {
             return;
         }
-        // Composition : substitution attrs are upstream state ∪ dispatch attrs
-        // — the same projection the retired resolver built.
-        let mut attrs: HashMap<String, String> = HashMap::new();
-        if let Some(s) = self.find(&result.aggregate_type, &result.aggregate_id) {
-            for (k, v) in &s.fields {
-                attrs.insert(k.clone(), v.to_string());
-            }
-        }
+        // Composition : upstream state ∪ dispatch attrs (overlay wins).
+        let mut attrs = self.state_attrs(&result.aggregate_type, &result.aggregate_id);
         for (k, v) in dispatch_attrs {
             attrs.insert(k.clone(), v.to_string());
         }
@@ -477,34 +409,12 @@ impl Runtime {
             return;
         }
         let registry_key = format!("{}.{}", result.aggregate_type, bare_command);
-        match self.primitive_registry.lookup(&registry_key) {
-            Some(spec) => {
-                println!(
-                    "[{}] [primitive:registry] routed name={} kind={} impl={}",
-                    storehouse_log::now_iso8601(),
-                    spec.name, spec.kind, spec.implementation,
-                );
-            }
-            None => {
-                println!(
-                    "[{}] [primitive:registry] miss name={} — Storehouse::Primitive declaration absent",
-                    storehouse_log::now_iso8601(),
-                    registry_key,
-                );
-            }
-        }
-        let (server, tool) = match (
-            dispatch_attrs.get("server").map(|v| v.to_string()),
-            dispatch_attrs.get("tool").map(|v| v.to_string()),
-        ) {
-            (Some(s), Some(t)) if !s.is_empty() && !t.is_empty() => (s, t),
-            _ => {
-                println!(
-                    "[{}] [primitive:mcp] skipped — missing server/tool attr",
-                    storehouse_log::now_iso8601(),
-                );
-                return;
-            }
+        self.log_primitive_registry_route(&registry_key);
+        let Some(server) = Self::required_primitive_attr("mcp", dispatch_attrs, "server") else {
+            return;
+        };
+        let Some(tool) = Self::required_primitive_attr("mcp", dispatch_attrs, "tool") else {
+            return;
         };
         let arguments_raw = dispatch_attrs
             .get("arguments")
@@ -705,29 +615,9 @@ impl Runtime {
             );
         }
         let matched: Vec<(String, Option<String>)> = self
-            .hecksagons
-            .iter()
-            .flat_map(|h| h.io_adapters.iter())
-            .filter(|a| a.kind == "claude_tool")
-            .filter_map(|a| {
-                let mut cmd: Option<String> = None;
-                let mut tool: Option<String> = None;
-                let mut result_into: Option<String> = None;
-                for (k, v) in &a.options {
-                    match k.as_str() {
-                        "command" => cmd = Some(strip_quotes_or_colon(v)),
-                        "tool" => tool = Some(strip_quotes_or_colon(v)),
-                        "result_into" => result_into = Some(strip_quotes_or_colon(v)),
-                        _ => {}
-                    }
-                }
-                match (cmd, tool) {
-                    (Some(c), Some(t)) if binding_command_tail(&c) == target.as_str() => {
-                        Some((t, result_into))
-                    }
-                    _ => None,
-                }
-            })
+            .matched_io_bindings("claude_tool", &target, true, &["tool", "result_into"])
+            .into_iter()
+            .filter_map(|mut v| v[0].take().map(|t| (t, v[1].take())))
             .collect();
         if debug {
             eprintln!(
@@ -739,16 +629,10 @@ impl Runtime {
         if matched.is_empty() {
             return;
         }
-        // Composition : upstream state fields, then the dispatch attrs
-        // OVERLAID (i559 — event-only payloads like Edit's old_string /
-        // new_string exist only in the dispatch attrs ; user-supplied values
-        // win over any state echo).
-        let mut attrs: HashMap<String, String> = HashMap::new();
-        if let Some(s) = self.find(&result.aggregate_type, &result.aggregate_id) {
-            for (k, v) in &s.fields {
-                attrs.insert(k.clone(), v.to_string());
-            }
-        }
+        // Composition : upstream state, dispatch attrs OVERLAID (i559 —
+        // event-only payloads like Edit's old_string exist only in the
+        // dispatch attrs ; user-supplied values win over any state echo).
+        let mut attrs = self.state_attrs(&result.aggregate_type, &result.aggregate_id);
         for (k, v) in dispatch_attrs {
             attrs.insert(k.clone(), v.to_string());
         }
@@ -786,31 +670,10 @@ impl Runtime {
             return;
         }
         let registry_key = format!("{}.{}", result.aggregate_type, bare_command);
-        match self.primitive_registry.lookup(&registry_key) {
-            Some(spec) => {
-                println!(
-                    "[{}] [primitive:registry] routed name={} kind={} impl={}",
-                    storehouse_log::now_iso8601(),
-                    spec.name, spec.kind, spec.implementation,
-                );
-            }
-            None => {
-                println!(
-                    "[{}] [primitive:registry] miss name={} — Storehouse::Primitive declaration absent",
-                    storehouse_log::now_iso8601(),
-                    registry_key,
-                );
-            }
-        }
-        let tool = match dispatch_attrs.get("tool").map(|v| v.to_string()) {
-            Some(t) if !t.is_empty() => t,
-            _ => {
-                println!(
-                    "[{}] [primitive:claude_tool] skipped — missing tool attr",
-                    storehouse_log::now_iso8601(),
-                );
-                return;
-            }
+        self.log_primitive_registry_route(&registry_key);
+        let Some(tool) = Self::required_primitive_attr("claude_tool", dispatch_attrs, "tool")
+        else {
+            return;
         };
         let result_into = dispatch_attrs.get("result_into").map(|v| v.to_string());
         let invocation_id = dispatch_attrs
@@ -1013,31 +876,9 @@ impl Runtime {
             return;
         }
         let registry_key = format!("{}.{}", result.aggregate_type, bare_command);
-        match self.primitive_registry.lookup(&registry_key) {
-            Some(spec) => {
-                println!(
-                    "[{}] [primitive:registry] routed name={} kind={} impl={}",
-                    storehouse_log::now_iso8601(),
-                    spec.name, spec.kind, spec.implementation,
-                );
-            }
-            None => {
-                println!(
-                    "[{}] [primitive:registry] miss name={} — Storehouse::Primitive declaration absent",
-                    storehouse_log::now_iso8601(),
-                    registry_key,
-                );
-            }
-        }
-        let prompt = match dispatch_attrs.get("prompt").map(|v| v.to_string()) {
-            Some(p) if !p.is_empty() => p,
-            _ => {
-                println!(
-                    "[{}] [primitive:llm] skipped — missing prompt attr",
-                    storehouse_log::now_iso8601(),
-                );
-                return;
-            }
+        self.log_primitive_registry_route(&registry_key);
+        let Some(prompt) = Self::required_primitive_attr("llm", dispatch_attrs, "prompt") else {
+            return;
         };
         let adapter = crate::hecksagon_ir::LlmAdapter {
             name: "llm_invoke".to_string(),
@@ -1114,6 +955,95 @@ impl Runtime {
             upstream_id,
         );
         cascade_outcome.ok()
+    }
+
+    /// Match every `io_adapter` binding of `kind` whose `command:` option
+    /// equals the dispatched target (via `binding_command_tail` when
+    /// `tail_match`, else the full string — exec's historical form),
+    /// returning the requested option values (quote/colon-stripped),
+    /// positionally by `keys`. The ONE match loop every io-family sugar
+    /// shares.
+    fn matched_io_bindings(
+        &self,
+        kind: &str,
+        target: &str,
+        tail_match: bool,
+        keys: &[&str],
+    ) -> Vec<Vec<Option<String>>> {
+        self.hecksagons
+            .iter()
+            .flat_map(|h| h.io_adapters.iter())
+            .filter(|a| a.kind == kind)
+            .filter_map(|a| {
+                let mut cmd: Option<String> = None;
+                let mut vals: Vec<Option<String>> = vec![None; keys.len()];
+                for (k, v) in &a.options {
+                    if k == "command" {
+                        cmd = Some(strip_quotes_or_colon(v));
+                    } else if let Some(i) = keys.iter().position(|kk| *kk == k.as_str()) {
+                        vals[i] = Some(strip_quotes_or_colon(v));
+                    }
+                }
+                let hit = match &cmd {
+                    Some(c) if tail_match => binding_command_tail(c) == target,
+                    Some(c) => c == target,
+                    None => false,
+                };
+                if hit { Some(vals) } else { None }
+            })
+            .collect()
+    }
+
+    /// The upstream aggregate's state fields, string-shaped — the base attrs
+    /// projection every sugar composes from.
+    fn state_attrs(&self, aggregate_type: &str, aggregate_id: &str) -> HashMap<String, String> {
+        let mut attrs: HashMap<String, String> = HashMap::new();
+        if let Some(s) = self.find(aggregate_type, aggregate_id) {
+            for (k, v) in &s.fields {
+                attrs.insert(k.clone(), v.to_string());
+            }
+        }
+        attrs
+    }
+
+    /// Required dispatch attr for a primitive hook — present-and-non-empty
+    /// or a loud skip line, the guard every hook shares.
+    fn required_primitive_attr(
+        family: &str,
+        attrs: &HashMap<String, Value>,
+        key: &str,
+    ) -> Option<String> {
+        match attrs.get(key).map(|v| v.to_string()) {
+            Some(v) if !v.is_empty() => Some(v),
+            _ => {
+                println!(
+                    "[{}] [primitive:{}] skipped — missing {} attr",
+                    storehouse_log::now_iso8601(),
+                    family,
+                    key,
+                );
+                None
+            }
+        }
+    }
+
+    /// PrimitiveRegistry audit line every resolve_primitive_* hook shares —
+    /// routed when the key has a Storehouse::Primitive declaration, a loud
+    /// miss when it does not (the macrophage's signal that an imperative
+    /// leaf lacks its declaration).
+    pub(super) fn log_primitive_registry_route(&self, registry_key: &str) {
+        match self.primitive_registry.lookup(registry_key) {
+            Some(spec) => println!(
+                "[{}] [primitive:registry] routed name={} kind={} impl={}",
+                storehouse_log::now_iso8601(),
+                spec.name, spec.kind, spec.implementation,
+            ),
+            None => println!(
+                "[{}] [primitive:registry] miss name={} — Storehouse::Primitive declaration absent",
+                storehouse_log::now_iso8601(),
+                registry_key,
+            ),
+        }
     }
 
     /// Phase 3 — deliver enqueued reactions. Each pending reaction runs
