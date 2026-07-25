@@ -230,4 +230,43 @@ Hecks.bluebook "Primitive", version: "2026.05.22.1" do
       attribute :value, String
     end
   end
+
+  aggregate "ClaudeTool", "One native tool-call side-effect — shell / edit / read / write / grep / glob, the Tools.* primitives. Invoke runs the named tool against the caller-supplied attrs (shell_command, file_path, …), records an audit row, and the primitive hook chains (id, tool, output, exit_code, ok) into result_into. The :claude_tool hecksagon adapter family is SUGAR over this primitive (reaction.rs resolve_claude_tool_adapters builds the attrs from upstream state + dispatch overlay, then synthesizes Invoke per matched binding) — this declaration retires the bespoke resolve_claude_tool_adapters resolver that lived in runtime/mod.rs. Name + signature match the seeded Storehouse::Primitive record ClaudeTool.Invoke (kind claude_tool, impl claude_tool_dispatcher)." do
+    identified_by :id
+
+    attribute :id,   Id
+    attribute :tool, Tool
+
+    value_object "Id" do
+      # Invocation id — the originating command's aggregate id, threaded
+      # into the result_into cascade so the outcome (typically
+      # Cascade.RecordResult) joins the originating invocation, exactly
+      # as Process.Spawn / Compute.Invoke / McpTool.Invoke.
+      attribute :value, String
+    end
+
+    value_object "Tool" do
+      # The native tool name : bash | edit | read | write | grep | glob.
+      # An unknown name returns ok=false through the dispatcher — never a
+      # panic — mirroring the retired resolver's contract.
+      attribute :value, String
+    end
+
+    command "Invoke" do
+      role "System"
+      description "Run a native tool to completion and chain (id, tool, output, exit_code, ok) into result_into. The generic primitive hook (reaction.rs resolve_primitive_claude_tool) runs the kernel-floor claude_tool_dispatcher leaf — reused unchanged, the only imperative Rust on this path — and cascades the outcome with the same id. The tool's own inputs (shell_command, file_path, old_string, …) ride the Invoke dispatch attrs verbatim. Emits ClaudeToolInvoked so the audit row is a first-class event."
+      attribute :id,          Id
+      attribute :tool,        Tool
+      attribute :result_into, ResultInto
+      emits "ClaudeToolInvoked"
+      then_set :id,   to: :id
+      then_set :tool, to: :tool
+    end
+
+    value_object "ResultInto" do
+      # The cascade landing target ("Aggregate.Command") the hook chains
+      # the tool outcome into. Routing, not data — not persisted.
+      attribute :value, String
+    end
+  end
 end

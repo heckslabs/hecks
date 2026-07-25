@@ -37,6 +37,7 @@ impl Runtime {
         self.resolve_web_tool_adapters(result, command_name, attrs);
         self.resolve_primitive_compute(result, command_name, attrs);
         self.resolve_primitive_mcp(result, command_name, attrs);
+        self.resolve_primitive_claude_tool(result, command_name, attrs);
         self.resolve_primitive_spawn(result, command_name, attrs, None);
         self.resolve_exec_adapters(result, command_name, attrs);
         if let Some(ref event) = result.event {
@@ -64,6 +65,7 @@ impl Runtime {
         self.resolve_web_tool_adapters(result, command_name, attrs);
         self.resolve_primitive_compute(result, command_name, attrs);
         self.resolve_primitive_mcp(result, command_name, attrs);
+        self.resolve_primitive_claude_tool(result, command_name, attrs);
         self.resolve_primitive_spawn(result, command_name, attrs, None);
         self.resolve_exec_adapters(result, command_name, attrs);
     }
@@ -606,12 +608,46 @@ impl Runtime {
         } else {
             tool_result.text.clone()
         };
+        self.cascade_tool_outcome(
+            "mcp",
+            result_into_target,
+            invocation_id,
+            tool,
+            output_str,
+            0,
+            !tool_result.is_error,
+            upstream_type,
+            upstream_id,
+            debug,
+        );
+    }
+
+    /// The ONE tool-outcome cascade tail every tool-shaped primitive shares
+    /// (mcp, claude_tool — the same (id, tool, output, exit_code, ok) record
+    /// the retired resolvers each hand-built). Routes through
+    /// `dispatch_cascade` so depth + cycle protection apply, logs the cascade
+    /// step, and swallows the outcome (failures are observable via the debug
+    /// line ; a tool-side error never breaks the original dispatch's return).
+    #[allow(clippy::too_many_arguments)]
+    fn cascade_tool_outcome(
+        &mut self,
+        family: &str,
+        result_into_target: &str,
+        invocation_id: &str,
+        tool: &str,
+        output: String,
+        exit_code: i64,
+        ok: bool,
+        upstream_type: &str,
+        upstream_id: &str,
+        debug: bool,
+    ) {
         let mut record_attrs: HashMap<String, Value> = HashMap::new();
         record_attrs.insert("id".to_string(), Value::Str(invocation_id.to_string()));
         record_attrs.insert("tool".to_string(), Value::Str(tool.to_string()));
-        record_attrs.insert("output".to_string(), Value::Str(output_str));
-        record_attrs.insert("exit_code".to_string(), Value::Int(0));
-        record_attrs.insert("ok".to_string(), Value::Bool(!tool_result.is_error));
+        record_attrs.insert("output".to_string(), Value::Str(output));
+        record_attrs.insert("exit_code".to_string(), Value::Int(exit_code));
+        record_attrs.insert("ok".to_string(), Value::Bool(ok));
         let cascade_outcome = command_dispatch::dispatch_cascade(
             self,
             result_into_target,
@@ -626,14 +662,223 @@ impl Runtime {
         );
         if debug {
             match &cascade_outcome {
-                Ok(_) => eprintln!("[mcp:debug] cascaded into {} ok", result_into_target),
+                Ok(_) => eprintln!("[{}:debug] cascaded into {} ok", family, result_into_target),
                 Err(e) => eprintln!(
-                    "[mcp:debug] cascade into {} failed: {:?}",
-                    result_into_target, e
+                    "[{}:debug] cascade into {} failed: {:?}",
+                    family, result_into_target, e
                 ),
             }
         }
         let _ = cascade_outcome;
+    }
+
+    /// `:claude_tool` adapter resolver — the HECKSAGON-FIRST native-tool edge
+    /// (shell / edit / read / write / grep / glob), SUGAR over the
+    /// `Primitive::ClaudeTool.Invoke` primitive exactly as its siblings. The
+    /// hecksagon DECLARES the edge (`adapter :claude_tool, command:, tool:,
+    /// result_into:`) ; the sugar's COMPOSITION step builds the tool attrs
+    /// (upstream state fields + dispatch-attr overlay — i559 : Edit's
+    /// old_string/new_string are event-only payloads that exist ONLY in the
+    /// dispatch attrs, so the overlay wins) ; the one primitive RUNS the tool.
+    /// Replaces the bespoke `resolve_claude_tool_adapters` resolver retired
+    /// from runtime/mod.rs (shrink-mod phase A).
+    pub(super) fn resolve_claude_tool_adapters(
+        &mut self,
+        result: &CommandResult,
+        command_name: &str,
+        dispatch_attrs: &HashMap<String, Value>,
+    ) {
+        if self.hecksagons.is_empty() {
+            return;
+        }
+        let debug = std::env::var("HECKS_DEBUG_CLAUDE_TOOL").is_ok();
+        let bare_command = command_name.rsplit('.').next().unwrap_or(command_name);
+        let target = format!("{}.{}", result.aggregate_type, bare_command);
+        if debug {
+            eprintln!(
+                "[claude_tool:debug] resolve cmd={} target={} hecksagons={}",
+                command_name,
+                target,
+                self.hecksagons.len()
+            );
+        }
+        let matched: Vec<(String, Option<String>)> = self
+            .hecksagons
+            .iter()
+            .flat_map(|h| h.io_adapters.iter())
+            .filter(|a| a.kind == "claude_tool")
+            .filter_map(|a| {
+                let mut cmd: Option<String> = None;
+                let mut tool: Option<String> = None;
+                let mut result_into: Option<String> = None;
+                for (k, v) in &a.options {
+                    match k.as_str() {
+                        "command" => cmd = Some(strip_quotes_or_colon(v)),
+                        "tool" => tool = Some(strip_quotes_or_colon(v)),
+                        "result_into" => result_into = Some(strip_quotes_or_colon(v)),
+                        _ => {}
+                    }
+                }
+                match (cmd, tool) {
+                    (Some(c), Some(t)) if binding_command_tail(&c) == target.as_str() => {
+                        Some((t, result_into))
+                    }
+                    _ => None,
+                }
+            })
+            .collect();
+        if debug {
+            eprintln!(
+                "[claude_tool:debug] matched {} adapter(s) for target={}",
+                matched.len(),
+                target
+            );
+        }
+        if matched.is_empty() {
+            return;
+        }
+        // Composition : upstream state fields, then the dispatch attrs
+        // OVERLAID (i559 — event-only payloads like Edit's old_string /
+        // new_string exist only in the dispatch attrs ; user-supplied values
+        // win over any state echo).
+        let mut attrs: HashMap<String, String> = HashMap::new();
+        if let Some(s) = self.find(&result.aggregate_type, &result.aggregate_id) {
+            for (k, v) in &s.fields {
+                attrs.insert(k.clone(), v.to_string());
+            }
+        }
+        for (k, v) in dispatch_attrs {
+            attrs.insert(k.clone(), v.to_string());
+        }
+        let invocation_id = attrs
+            .get("id")
+            .cloned()
+            .unwrap_or_else(|| result.aggregate_id.clone());
+        for (tool, result_into) in &matched {
+            self.run_claude_tool_invoke(
+                tool,
+                &attrs,
+                result_into.as_deref(),
+                &invocation_id,
+                &result.aggregate_type,
+                &result.aggregate_id,
+                debug,
+            );
+        }
+    }
+
+    /// The generic `ClaudeTool.Invoke` primitive hook — sibling of the other
+    /// resolve_primitive_* hooks. Fires when a `ClaudeTool.Invoke` command is
+    /// dispatched : consults the PrimitiveRegistry (audit trail), reads tool /
+    /// result_into / id from the dispatch attrs (the tool's own inputs ride
+    /// the same attrs verbatim), and runs the one engine below. The bluebook
+    /// IS the contract.
+    fn resolve_primitive_claude_tool(
+        &mut self,
+        result: &CommandResult,
+        command_name: &str,
+        dispatch_attrs: &HashMap<String, Value>,
+    ) {
+        let bare_command = command_name.rsplit('.').next().unwrap_or(command_name);
+        if result.aggregate_type != "ClaudeTool" || bare_command != "Invoke" {
+            return;
+        }
+        let registry_key = format!("{}.{}", result.aggregate_type, bare_command);
+        match self.primitive_registry.lookup(&registry_key) {
+            Some(spec) => {
+                println!(
+                    "[{}] [primitive:registry] routed name={} kind={} impl={}",
+                    storehouse_log::now_iso8601(),
+                    spec.name, spec.kind, spec.implementation,
+                );
+            }
+            None => {
+                println!(
+                    "[{}] [primitive:registry] miss name={} — Storehouse::Primitive declaration absent",
+                    storehouse_log::now_iso8601(),
+                    registry_key,
+                );
+            }
+        }
+        let tool = match dispatch_attrs.get("tool").map(|v| v.to_string()) {
+            Some(t) if !t.is_empty() => t,
+            _ => {
+                println!(
+                    "[{}] [primitive:claude_tool] skipped — missing tool attr",
+                    storehouse_log::now_iso8601(),
+                );
+                return;
+            }
+        };
+        let result_into = dispatch_attrs.get("result_into").map(|v| v.to_string());
+        let invocation_id = dispatch_attrs
+            .get("id")
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| result.aggregate_id.clone());
+        let fn_attrs: HashMap<String, String> = dispatch_attrs
+            .iter()
+            .map(|(k, v)| (k.clone(), v.to_string()))
+            .collect();
+        let debug = std::env::var("HECKS_DEBUG_CLAUDE_TOOL").is_ok();
+        self.run_claude_tool_invoke(
+            &tool,
+            &fn_attrs,
+            result_into.as_deref(),
+            &invocation_id,
+            &result.aggregate_type,
+            &result.aggregate_id,
+            debug,
+        );
+    }
+
+    /// The ONE claude_tool engine both paths share. Runs the kernel-floor
+    /// `claude_tool_dispatcher` leaf — reused unchanged, the only imperative
+    /// Rust on this path — prints the i622 stdout audit line, then chains the
+    /// outcome through the shared `cascade_tool_outcome` tail. Missing
+    /// result_into skips the cascade after the tool ran — exactly the retired
+    /// resolver's contract.
+    #[allow(clippy::too_many_arguments)]
+    fn run_claude_tool_invoke(
+        &mut self,
+        tool: &str,
+        attrs: &HashMap<String, String>,
+        result_into: Option<&str>,
+        invocation_id: &str,
+        upstream_type: &str,
+        upstream_id: &str,
+        debug: bool,
+    ) {
+        let tool_result = claude_tool_dispatcher::dispatch(tool, attrs);
+        let err_tail = match (&tool_result.ok, &tool_result.error) {
+            (false, Some(msg)) => format!(" error={:?}", msg),
+            _ => String::new(),
+        };
+        println!(
+            "[{}] [claude_tool:{}] ok={} exit={} output={:?}{}",
+            storehouse_log::now_iso8601(),
+            tool, tool_result.ok, tool_result.exit_code, tool_result.output, err_tail
+        );
+        let result_into_target = match result_into {
+            Some(s) if !s.is_empty() => s,
+            _ => {
+                if debug {
+                    eprintln!("[claude_tool:debug] no result_into on adapter — skipping cascade");
+                }
+                return;
+            }
+        };
+        self.cascade_tool_outcome(
+            "claude_tool",
+            result_into_target,
+            invocation_id,
+            &tool_result.tool,
+            tool_result.output.clone(),
+            tool_result.exit_code as i64,
+            tool_result.ok,
+            upstream_type,
+            upstream_id,
+            debug,
+        );
     }
 
     /// Phase 3 — deliver enqueued reactions. Each pending reaction runs
