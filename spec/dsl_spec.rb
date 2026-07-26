@@ -132,6 +132,48 @@ RSpec.describe "the DSL surface" do
       expect(build_aggregate("Defaulted") {}.identified_by).to eq(:id)
     end
 
+    it "lifecycle records a state machine on a field" do
+      machine = build_aggregate("Machined") do
+        lifecycle :status, default: "pending" do
+          transition "Purchase" => "sold"
+        end
+      end.lifecycle
+
+      expect([machine.field, machine.default]).to eq([:status, "pending"])
+      expect(machine.target_for("Purchase")).to eq("sold")
+    end
+
+    it "lifecycle keeps a from: list as written, and flattens it only when dumped" do
+      machine = build_aggregate("Guarded") do
+        lifecycle :status, default: "draft" do
+          transition "Archive" => "archived", from: ["sold", "draft"]
+        end
+      end.lifecycle
+
+      # As authored : one transition holding both sources.
+      expect(machine.transitions.size).to eq(1)
+      expect(machine.transitions.first.last.from).to eq(["sold", "draft"])
+
+      # As dumped : one record per source, which is what the interpreter reads.
+      expect(machine.to_h[:transitions]).to eq([
+        { command: "Archive", to_state: "archived", from_state: "sold" },
+        { command: "Archive", to_state: "archived", from_state: "draft" }
+      ])
+    end
+
+    it "lifecycle picks the transition whose from: admits the current state" do
+      machine = build_aggregate("Progressing") do
+        lifecycle :status, default: "a" do
+          transition "Advance" => "b", from: "a"
+          transition "Advance" => "c", from: "b"
+        end
+      end.lifecycle
+
+      expect(machine.target_for("Advance", "a")).to eq("b")
+      expect(machine.target_for("Advance", "b")).to eq("c")
+      expect(machine.states).to eq(["a", "b", "c"])
+    end
+
     it "attribute adds a scalar field" do
       declared = build_aggregate("Attributed") { attribute :size, String }.attribute(:size)
 

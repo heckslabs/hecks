@@ -28,7 +28,7 @@ RSpec.describe "the DSL surface is fully covered" do
     ],
     "AggregateBuilder" => [
       Hecksagain::Bluebook::DSL::AggregateBuilder,
-      %i[description identified_by reference_to value_object command attribute list_of attributes]
+      %i[description identified_by reference_to value_object command lifecycle attribute list_of attributes]
     ],
     "ValueObjectBuilder" => [
       Hecksagain::Bluebook::DSL::ValueObjectBuilder,

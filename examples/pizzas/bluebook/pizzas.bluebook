@@ -30,6 +30,15 @@ Hecks.bluebook "Pizzas" do
       end
     end
 
+    # The same movement `Purchase` already spells with `then_set :status`,
+    # said once as a MACHINE : where a new pizza starts, and which command
+    # moves it where. `from:` names the states a move is legal from — a sold
+    # pizza cannot be sold twice, and the rule lives here rather than in
+    # every command that might forget it.
+    lifecycle :status, default: "available" do
+      transition "Purchase" => "sold", from: "available"
+    end
+
     command "CreatePizza" do
       role "Chef"
       goal "Put a new pizza on the menu"

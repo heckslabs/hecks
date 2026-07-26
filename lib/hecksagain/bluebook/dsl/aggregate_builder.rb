@@ -41,6 +41,13 @@ module Hecksagain
           attribute(:"#{Naming.snake(Naming.demodulise(type))}_id", String)
         end
 
+        # A state machine on one of this aggregate's fields. Brought over
+        # from Hecks unchanged — same signature, same block body — so a
+        # bluebook written there reads here without an edit.
+        def lifecycle(field, default:, &block)
+          @lifecycle = LifecycleBuilder.build(field, default: default, &block)
+        end
+
         def value_object(name, &block)
           @value_objects << ValueObjectBuilder.build(name, &block)
         end
@@ -59,7 +66,8 @@ module Hecksagain
             attributes:    attributes,
             value_objects: @value_objects,
             commands:      @commands,
-            identified_by: @identified_by
+            identified_by: @identified_by,
+            lifecycle:     @lifecycle
           )
 
           @klass.ir     = ir

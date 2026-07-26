@@ -16,7 +16,7 @@
 //! When the Rust parser becomes a projection of the Ruby one, this seam is
 //! where that lands, and only this file changes.
 
-use crate::ir::{Aggregate, Attribute, Command, Domain, MutationOp, ValueObject};
+use crate::ir::{Aggregate, Attribute, Command, Domain, Lifecycle, MutationOp, Transition, ValueObject};
 use serde_json::{json, Map, Value};
 
 pub fn domain_to_value(domain: &Domain) -> Value {
@@ -41,7 +41,30 @@ fn aggregate_to_value(aggregate: &Aggregate) -> Value {
         "identified_by": aggregate.identified_by.clone().unwrap_or_else(|| "id".to_string()),
         "attributes": aggregate.attributes.iter().map(attribute_to_value).collect::<Vec<_>>(),
         "value_objects": aggregate.value_objects.iter().map(value_object_to_value).collect::<Vec<_>>(),
-        "commands": aggregate.commands.iter().map(command_to_value).collect::<Vec<_>>()
+        "commands": aggregate.commands.iter().map(command_to_value).collect::<Vec<_>>(),
+        "lifecycle": aggregate.lifecycle.as_ref().map(lifecycle_to_value)
+    })
+}
+
+/// A state machine on one field.
+///
+/// The Ruby side keeps `from:` exactly as it was written — a list stays a list —
+/// and flattens to one record per (command, to, from) only when it dumps. The
+/// parser here already produces the flat form, so nothing needs expanding: this
+/// is the shape both sides agree to speak, reached from opposite directions.
+fn lifecycle_to_value(lifecycle: &Lifecycle) -> Value {
+    json!({
+        "field": lifecycle.field,
+        "default": lifecycle.default,
+        "transitions": lifecycle.transitions.iter().map(transition_to_value).collect::<Vec<_>>()
+    })
+}
+
+fn transition_to_value(transition: &Transition) -> Value {
+    json!({
+        "command": transition.command,
+        "to_state": transition.to_state,
+        "from_state": transition.from_state
     })
 }
 
