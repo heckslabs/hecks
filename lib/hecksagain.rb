@@ -63,6 +63,7 @@ require_relative "hecksagain/runtime/loader"
 
 require_relative "hecksagain/adapters/driven/memory/memory"
 require_relative "hecksagain/adapters/driven/sqlite/sqlite"
+require_relative "hecksagain/adapters/driven/heki/heki"
 require_relative "hecksagain/adapters/driven/prism/prism"
 require_relative "hecksagain/adapters/driven/folder/folder"
 

@@ -1,0 +1,25 @@
+# Heki — a persistence adapter backed by an append-log file per aggregate.
+#
+# The contract : it DECLARES the port it implements (the inverted arrow) ; the
+# port never names it. `persisted_by("Heki")` resolves if and only if the
+# persistence port carries the `persisted_by` verb — the typed attach checkpoint
+# Sqlite and Memory pass through too.
+#
+# The third sibling on one port, and the one that shows the port is real. Memory
+# keeps records in a Hash and forgets them ; Sqlite puts them in a table with a
+# projected schema ; Heki writes one compressed file per aggregate. Same verb,
+# same reply signal, three entirely different stories about where a balance
+# lives — and the domain says `persisted_by("…")` and learns none of them.
+#
+# IN-PROCESS, like every persistence adapter. Persistence is the SOLE impure
+# edge that is dependency-injected and called inline, because find/save is the
+# one edge with a bounded lifecycle : the runtime hydrates BEFORE the sync core
+# runs and persists AFTER it returns, so the call can never stall mid-logic.
+# Every other port runs out-of-process for exactly the reason this one does not.
+#
+# `dir` is WHERE the logs are written — a directory, not a file, because heki
+# keeps one store per aggregate. Its value lives per-deployment in .world.
+Hecks.adapter "Heki" do
+  port   "persistence"
+  field  :dir
+end
