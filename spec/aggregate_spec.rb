@@ -28,7 +28,7 @@ RSpec.describe "a constructed aggregate" do
 
     @dirs ||= []
     @dirs << dir
-    Hecks.boot(dir, shared: SHARED)
+    Hecks.boot(dir)
   end
 
   before { boot }

@@ -34,7 +34,7 @@ RSpec.describe "Pizzas" do
 
     @dirs ||= []
     @dirs << dir
-    Hecks.boot(dir, shared: SHARED)
+    Hecks.boot(dir)
   end
 
   after { @dirs&.each { |dir| FileUtils.remove_entry(dir) } }
@@ -167,7 +167,7 @@ RSpec.describe "Pizzas" do
       runtime.dispatch("Pizzas::Pizza.Purchase", id: pizza.id, customer_name: "Chris")
 
       # Same directory, brand new registry, adapters and all.
-      rebooted  = Hecks.boot(@dirs.last, shared: SHARED)
+      rebooted  = Hecks.boot(@dirs.last)
       aggregate = rebooted.registry.bluebook("Pizzas").aggregate("Pizza")
       stored    = rebooted.registry.repository("Pizzas", aggregate).find(pizza.id)
 
@@ -189,7 +189,7 @@ RSpec.describe "Pizzas" do
         end
       HECKSAGON
 
-      expect { Hecks.boot(dir, shared: SHARED) }.to raise_error(Hecksagain::Runtime::WiringError, /no persisted_by bind/)
+      expect { Hecks.boot(dir) }.to raise_error(Hecksagain::Runtime::WiringError, /no persisted_by bind/)
     ensure
       FileUtils.remove_entry(dir) if dir
     end

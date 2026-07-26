@@ -115,19 +115,31 @@ examples/pizzas/
   data/
 ```
 
-Families and adapters are **not** in there. A family is declared once and used
-across every domain's hexagon — that is the whole point of the inverted arrow —
-so they live in one shared place, found by walking up from the domain:
+Ports and adapters are **not** in there. They are the two halves of the
+inverted arrow, and each ships with the library beside its implementation:
 
 ```
-adapters/
-  persistence.family       the how-verb vocabulary (persisted_by, :reply)
-  sqlite.adapter           the inverted arrow — adapter declares its family
+lib/hecksagain/ports/
+  persistence.port         the PORT — the how-verb and the signal
+lib/hecksagain/adapters/
+  sqlite.adapter           the DECLARATION — its port, and the config it needs
+  sqlite.rb                the IMPLEMENTATION — the same thing said in Ruby
   memory.adapter
+  memory.rb
 ```
 
-Load order is dependency order, not alphabetical: the shared boundary first so
-binds can type-check against it, then the domain, the wiring, the values.
+A declaration and its implementation are one thing described two ways, so they
+live together. A project bringing its **own** port or adapter puts them in a
+`ports/` or `adapters/` folder above its domains, found by walking up — the
+library's load first, so a project's can only add, never silently replace.
+
+Fields belong to the **adapter**, not the port. Adapters implementing one port
+genuinely differ — Sqlite needs a `database`, Memory nothing at all — and the
+`.world` block is checked against what that adapter declares, so a value it does
+not know is refused at boot rather than ignored.
+
+Load order is dependency order, not alphabetical: ports declare the verb, an
+adapter declares a port, the hecksagon names both, the world supplies values.
 
 ## The library
 

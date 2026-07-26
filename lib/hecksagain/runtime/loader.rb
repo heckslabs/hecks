@@ -10,28 +10,31 @@
 #       pizzas.world           the per-deployment values
 #     data/                    whatever the adapters write
 #
-# PORTS AND ADAPTERS ARE NOT IN THERE, and they are not together either.
-# They are the two halves of the inverted arrow and each gets its own folder,
-# shared across every domain:
+# PORTS AND ADAPTERS ARE NOT IN THERE. They are the two halves of the inverted
+# arrow, and each ships with the library beside its implementation:
 #
-#   families/
-#     persistence.family     the PORT — the how-verb and the signal
-#   adapters/
-#     sqlite.adapter         an IMPLEMENTATION — declares its family, and the
-#     memory.adapter         config fields it needs
+#   lib/hecksagain/ports/
+#     persistence.port       the PORT — the how-verb and the signal
+#   lib/hecksagain/adapters/
+#     sqlite.adapter         the DECLARATION — its port, and the config it needs
+#     sqlite.rb              the IMPLEMENTATION — the same thing said in Ruby
+#     memory.adapter
+#     memory.rb
 #
-# Both are found by walking up from the domain, the way a tool finds its
-# project root, so nothing has to be configured for the ordinary case.
+# A declaration and its implementation are one thing described two ways, so
+# they live together. A project that brings its OWN port or adapter puts them
+# in a ports/ or adapters/ folder above its domains, found by walking up — the
+# library's are loaded first, so a project's can only add, never silently
+# replace.
 #
-# Load order is DEPENDENCY order, not alphabetical: families first (an adapter
-# declares the family it implements, so the family has to exist), then
-# adapters, then the domain, its wiring, its values.
+# Load order is DEPENDENCY order, not alphabetical: ports declare the verb, an
+# adapter declares a port, the hecksagon names both, the world supplies values.
 #
 #   Loader.boot("examples/pizzas")  # => Dispatcher
 module Hecksagain
   module Runtime
     class Loader
-      PORTS = "ports"
+      PORTS    = "ports"
       ADAPTERS = "adapters"
       DOMAIN_ORDER = %w[*.port *.adapter *.bluebook *.hecksagon *.world].freeze
 
@@ -41,14 +44,16 @@ module Hecksagain
         registry  = Registry.new(root: File.dirname(directory))
 
         Hecksagain.with_registry(registry) do
-          # Ports ship WITH THE LIBRARY. A port is a framework-level contract —
-          # `persisted_by`, `:reply` — not something a project declares, so it
-          # is not looked for beside the domain.
-          load_each(library_ports, %w[*.port])
+          # The library's own — always.
+          load_each(library(PORTS),    %w[*.port])
+          load_each(library(ADAPTERS), %w[*.adapter])
 
-          # Adapters are the project's choice of backend, shared across its
-          # domains, so they ARE found by walking up.
-          load_each(File.join(root, ADAPTERS), %w[*.adapter]) if root
+          # A project's own, if it has any. Loaded after, so they add rather
+          # than silently replace.
+          if root
+            load_each(File.join(root, PORTS),    %w[*.port])
+            load_each(File.join(root, ADAPTERS), %w[*.adapter])
+          end
 
           load_each(directory, DOMAIN_ORDER)
         end
@@ -65,6 +70,12 @@ module Hecksagain
         end
       end
 
+      # A folder shipped with the library, resolved relative to this file so it
+      # is found wherever the gem lives.
+      def self.library(folder)
+        File.expand_path("../#{folder}", __dir__)
+      end
+
       # Accepts either the domain directory or its bluebook/ folder directly.
       def self.bluebook_directory(path)
         expanded = File.expand_path(path)
@@ -76,15 +87,10 @@ module Hecksagain
         raise Errno::ENOENT, "no such domain directory: #{path}"
       end
 
-      # The directory holding families/ and adapters/. An explicit one wins ;
-      # otherwise walk up until one turns up. A domain with neither above it is
-      # fine — it simply has to declare its own, which is what a standalone
-      # example does.
-      # The ports that ship with the library — lib/hecksagain/ports/.
-      def self.library_ports
-        File.expand_path("../ports", __dir__)
-      end
-
+      # A directory above the domain holding the project's OWN ports/ or
+      # adapters/. An explicit one wins ; otherwise walk up until one turns up.
+      # Finding none is the ordinary case — most projects use only the
+      # library's.
       def self.shared_root(given, directory)
         return File.expand_path(given) if given
 
