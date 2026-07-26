@@ -42,7 +42,8 @@
 // Those modules live in the LIBRARY (src/lib.rs), which is named `storehouse`
 // so the adapters cherry-picked from Hecks import it unedited. This binary is
 // a thin driver over it.
-use storehouse::{dispatcher, dump, ir_json, parser, wiring};
+use storehouse::ports::persistence;
+use storehouse::{dispatcher, dump, ir_json, parser};
 
 
 
@@ -80,7 +81,7 @@ fn main() {
     // inspectable rather than something to be inferred from whether a file
     // appeared.
     if arguments.len() == 3 && arguments[1] == "--wiring" {
-        match wiring::resolve(&arguments[2]) {
+        match persistence::resolve(&arguments[2]) {
             Some(persistence) => println!(
                 "adapter: {}\ndatabase: {}",
                 persistence.adapter,
@@ -120,7 +121,7 @@ fn main() {
     // THIS IS THE COMPOSITION ROOT — the one place the port and a concrete
     // adapter may be named together. The library knows only
     // PersistenceAdapter ; storehouse-sqlite is linked here and nowhere else.
-    if let Some(persistence) = wiring::resolve(&arguments[1]) {
+    if let Some(persistence) = persistence::resolve(&arguments[1]) {
         if persistence.adapter == "Sqlite" {
             let path = persistence.database.to_string_lossy().to_string();
 

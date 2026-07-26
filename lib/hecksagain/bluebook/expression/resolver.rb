@@ -10,7 +10,7 @@
 #   * `.positive?` on something that is not a number RAISES, as it does in Ruby.
 #   * `.size` on something with no size RAISES, as it does in Ruby.
 #
-# Every rule has a twin in rust/src/interp_expr.rs, down to the wording of the
+# Every rule has a twin in projection/rust/src/bluebook/expression/resolver.rs, down to the wording of the
 # errors — the parity harness compares refusals as carefully as successes, so a
 # message that differs between runtimes is a difference someone has to explain
 # away, and an explained-away difference is where a real one hides.

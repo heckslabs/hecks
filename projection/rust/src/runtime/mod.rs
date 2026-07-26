@@ -30,7 +30,7 @@ pub mod value_bridge;
 #[allow(dead_code)]
 pub mod aggregate_state;
 #[allow(dead_code)]
-pub mod persistence_adapter;
+pub use crate::ports::persistence::persistence_adapter;
 #[allow(dead_code)]
 pub mod query_match;
 #[allow(dead_code)]
@@ -46,7 +46,7 @@ pub mod value_convert;
 #[allow(unused_imports)]
 pub use aggregate_state::AggregateState;
 #[allow(unused_imports)]
-pub use persistence_adapter::{
+pub use crate::ports::persistence::persistence_adapter::{
     register_persistence_adapter, PersistenceAdapter, PersistenceSpec,
 };
 #[allow(unused_imports)]

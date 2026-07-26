@@ -1,19 +1,24 @@
-//! wiring - resolve the persistence adapter a domain's hecksagon binds.
+//! persistence - the port's execution : resolve which adapter a domain bound,
+//! and where that adapter points.
 //!
-//! The domain never says where it is stored. The HECKSAGON says which adapter
-//! (`Pizzas::Pizza.persisted_by("Sqlite")`) and the WORLD says where that
-//! adapter points (`database "data/pizzas.db"`). This reads both, using the
-//! parsers cherry-picked from Hecks, and hands back a path - or nothing, when
-//! no persistence is bound and the runtime should stay in memory.
+//! The twin of lib/hecksagain/ports/persistence/persistence.rb. The domain never
+//! says where it is stored. The HECKSAGON says which adapter
+//! (`Pizzas::Pizza.persisted_by("Sqlite")`) and the WORLD says where that adapter
+//! points (`database "data/pizzas.db"`). This reads both and hands back a path -
+//! or nothing, when no persistence is bound and the runtime should stay in
+//! memory.
 //!
-//! Both files sit beside the .bluebook, so finding them needs no configuration.
+//! Reading the DECLARATIONS off a disk is not this port's job : that is the
+//! loading port, and the Folder adapter behind it. What belongs here is the
+//! resolution - given the declarations, which adapter and which location.
+//!
 //! The path is relative to the DOMAIN directory (the parent of bluebook/),
-//! matching how the Ruby adapter resolves it - the two runtimes must land on
-//! the same file or "they agree" would mean nothing.
+//! matching how the Ruby side resolves it. The two runtimes must land on the
+//! same file or "they agree" would mean nothing.
 
 use crate::hecksagon_parser;
+use crate::ports::loading;
 use crate::world::parser as world_parser;
-use std::fs;
 use std::path::{Path, PathBuf};
 
 pub struct Persistence {
@@ -37,7 +42,7 @@ pub fn resolve(bluebook_path: &str) -> Option<Persistence> {
 
 /// The adapter named by a `persisted_by` bind in the hecksagon.
 fn persisted_by(bluebook_dir: &Path) -> Option<String> {
-    for source in sources(bluebook_dir, "hecksagon") {
+    for source in loading::declarations(bluebook_dir, "hecksagon") {
         let hexagon = hecksagon_parser::parse(&source);
 
         if let Some(binding) = hexagon.bindings.iter().find(|b| b.verb == "persisted_by") {
@@ -53,15 +58,15 @@ fn persisted_by(bluebook_dir: &Path) -> Option<String> {
 
 /// The `database` value declared under the same how-verb in the world.
 ///
-/// A verb-call block — `persisted_by("Sqlite") do database "..." end` — lands
-/// in `configs`, keyed by the ADAPTER NAME lowercased. `adapter_bindings` is a
+/// A verb-call block - `persisted_by("Sqlite") do database "..." end` - lands in
+/// `configs`, keyed by the ADAPTER NAME lowercased. `adapter_bindings` is a
 /// different shape entirely (the `adapter "Name" do ... end` form), and looking
 /// there first is what made this resolve to nothing while every parse was
 /// working correctly.
 fn database_path(bluebook_dir: &Path, adapter: &str) -> Option<String> {
     let wanted = adapter.to_lowercase();
 
-    for source in sources(bluebook_dir, "world") {
+    for source in loading::declarations(bluebook_dir, "world") {
         let world = world_parser::parse(&source);
 
         let matching = world
@@ -77,26 +82,4 @@ fn database_path(bluebook_dir: &Path, adapter: &str) -> Option<String> {
         }
     }
     None
-}
-
-fn sources(directory: &Path, extension: &str) -> Vec<String> {
-    let mut found = vec![];
-
-    let Ok(entries) = fs::read_dir(directory) else {
-        return found;
-    };
-
-    let mut paths: Vec<PathBuf> = entries
-        .filter_map(Result::ok)
-        .map(|entry| entry.path())
-        .filter(|path| path.extension().and_then(|e| e.to_str()) == Some(extension))
-        .collect();
-    paths.sort();
-
-    for path in paths {
-        if let Ok(source) = fs::read_to_string(&path) {
-            found.push(source);
-        }
-    }
-    found
 }

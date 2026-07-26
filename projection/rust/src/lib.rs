@@ -12,9 +12,22 @@
 //!   lib/hecksagain/bluebook/    <->  src/bluebook/
 //!   lib/hecksagain/runtime/     <->  src/runtime/
 //!   lib/hecksagain/projector/   <->  src/projector/
-//!   lib/hecksagain/adapters/    <->  sqlite/ (its own crate - the port may
-//!                                    not depend on an adapter, and Cargo
-//!                                    enforces that as a dependency cycle)
+//!   lib/hecksagain/ports/       <->  src/ports/
+//!   lib/hecksagain/adapters/    <->  src/adapters/  +  sqlite/ (its own crate
+//!                                    - a port may not depend on an adapter,
+//!                                    and Cargo enforces that as a dependency
+//!                                    cycle. Same side of the hexagon, a
+//!                                    different compilation unit.)
+//!
+//! One folder per port and per adapter, each named for what it holds. An adapter
+//! does NOT live inside its port : the port must never name its adapters, and
+//! that inversion is what makes a new backend purely additive.
+//!
+//! Ruby declares THREE ports, this side two. Extraction is absent on purpose -
+//! Ruby must recover a predicate's source from a Proc that already swallowed it,
+//! so it re-reads the file with Prism ; the projection reads the .bluebook as
+//! text and never loses it. An edge that does not exist should not be declared
+//! to make two trees look alike.
 //!
 //! That mirroring pulls against re-syncing cherry-picks, which is easiest when
 //! paths match HECKS. The resolution: files keep Hecks's NAMES and CONTENTS and
@@ -23,21 +36,16 @@
 //! `crate::heki`, `crate::world::parser_mcp` exactly as it did in Hecks, and
 //! not one of them needed an edit.
 
+pub mod adapters;
 pub mod bluebook;
+pub mod ports;
 pub mod projector;
 pub mod runtime;
 
 #[allow(dead_code)]
 pub mod clock;
 #[allow(dead_code)]
-pub mod heki;
-#[allow(dead_code)]
 pub mod util;
-
-pub mod wiring;
-
-#[cfg(test)]
-mod wiring_tests;
 
 // ---------------------------------------------------------------------------
 // Crate-root aliases.
@@ -48,6 +56,11 @@ mod wiring_tests;
 // those paths valid while the FILES live in mirrored folders. This is the seam
 // that lets the layout serve the reader without forking the source.
 // ---------------------------------------------------------------------------
+// `crate::heki` and `storehouse::heki` stay valid though the file moved into its
+// adapter folder — the sqlite crate imports it by that path, and a cherry-picked
+// file that had to edit its imports would be a fork rather than a copy.
+pub use adapters::driven::heki;
+
 pub use bluebook::hecksagon_helpers;
 pub use bluebook::hecksagon_ir;
 pub use bluebook::hecksagon_parser;

@@ -177,7 +177,7 @@ semantic core, and Rust is merely the first thing to read it.
 
 ```sh
 rspec                  # 41 examples — the Ruby side
-(cd rust && cargo test) # 11 tests — the Rust half of the sublanguage contract
+(cd projection/rust && cargo test) # 11 tests — the Rust half of the sublanguage contract
 bin/parity             # the two runtimes agree
 ```
 

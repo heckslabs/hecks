@@ -4,7 +4,7 @@
 *.db-journal
 Cargo.lock
 Gemfile.lock
-rust/target/
+projection/rust/target/
 target/
 tmp/
 vendor/bundle/

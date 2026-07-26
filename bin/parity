@@ -19,7 +19,7 @@ set -e
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 DOMAIN=${1:-"$ROOT/examples/pizzas"}
 SCRIPT=${2:-"$ROOT/spec/parity/pizzas.json"}
-BINARY="$ROOT/rust/target/release/hecksagain"
+BINARY="$ROOT/projection/rust/target/release/hecksagain"
 BLUEBOOK=$(ls "$DOMAIN"/bluebook/*.bluebook | head -1)
 
 # ALWAYS rebuild. An earlier version built only when the binary was missing, so
@@ -30,7 +30,7 @@ BLUEBOOK=$(ls "$DOMAIN"/bluebook/*.bluebook | head -1)
 # composition root that links the sqlite adapter) ; a workspace with a root
 # package builds ONLY that package by default, so without this the harness
 # silently compares against a stale binary — which it did, once.
-(cd "$ROOT/rust" && cargo build --release --workspace --quiet)
+(cd "$ROOT/projection/rust" && cargo build --release --workspace --quiet)
 
 # A stale store would make the second run disagree with the first for reasons
 # that have nothing to do with either runtime.

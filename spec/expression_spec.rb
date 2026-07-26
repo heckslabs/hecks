@@ -1,7 +1,7 @@
 # The expression sublanguage — the subset of Ruby a predicate may be.
 #
 # These examples pin the SPEC, not one runtime's reading of it. Every rule here
-# has a twin in rust/src/interp_expr.rs and interp_givens.rs, and bin/parity is
+# has a twin in projection/rust/src/bluebook/expression/, and bin/parity is
 # what proves the twin agrees. When one of these changes, the Rust side changes
 # with it in the same commit — an operator that only one runtime understands is
 # not an operator.

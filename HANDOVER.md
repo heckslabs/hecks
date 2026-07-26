@@ -33,25 +33,55 @@ Ruby from IR.
 
 ```
 rspec                       138 examples, 0 failures, 0.085s
-cd rust && cargo test --release --workspace   116 passed
+cd projection/rust && cargo test --release --workspace   116 passed
 bin/parity                  parsers agree · runtimes agree · records on disk
 ```
 
 ## Layout — Rust mirrors Ruby
 
+Ruby is the source ; everything under `projection/` is projected from it. The
+folder says the thesis out loud, and leaves room for `projection/go/`,
+`projection/sql/` beside `projection/rust/`.
+
 ```
-lib/hecksagain/            rust/src/
-  bluebook/                  bluebook/        what a bluebook IS
-    dsl/                       parser.rs      (ruby BUILDS via DSL,
-    ir/                        ir.rs           rust BUILDS via parser)
-    expression/                expression/    resolver + evaluator, file-for-file
-  runtime/                   runtime/
-  projector/                 projector/
-  adapters/                rust/sqlite/       (own crate: the port may not
-    sqlite.adapter + .rb                       depend on an adapter, Cargo
-  ports/persistence.port                       enforces it as a cycle)
+lib/hecksagain/                  projection/rust/src/
+  bluebook/                        bluebook/      what a bluebook IS
+    dsl/                             parser.rs    (ruby BUILDS via DSL,
+    ir/                              ir.rs         rust BUILDS via parser)
+    expression/                      expression/  resolver + evaluator,
+  runtime/                         runtime/       file-for-file
+  projector/                       projector/
+
+  ports/                           ports/         one folder per port,
+    persistence/                     persistence/ holding the CONTRACT and
+      persistence.port                 mod.rs      the resolution that
+      persistence.rb                   persistence.rs   spends it
+    loading/                         loading/
+      loading.port                     loading.rs
+    extraction/                      — absent on purpose (below)
+
+  adapters/                        adapters/      one folder per adapter,
+    driven/                          driven/      split by SIDE
+      sqlite/  .adapter + .rb          → projection/rust/sqlite/ (own crate:
+      memory/  .adapter + .rb           a port may not depend on an adapter,
+      prism/   .adapter + .rb           Cargo enforces it as a cycle)
+      folder/  .adapter + .rb         heki/   folder/
+    driving/  — empty until the first clock or caller is declared
+
   grammar/expression.bluebook
+          bluebook.bluebook        the language describing itself
 ```
+
+An adapter never lives INSIDE its port. The adapter declares the port and the
+port never names its adapters ; that inversion is what makes a new backend
+purely additive, and a project bringing its own would otherwise have to reach
+inside the library's port folder.
+
+Ruby declares THREE ports, Rust two. Extraction is absent on purpose: Ruby must
+recover a predicate's source from a Proc that already swallowed it, so it
+re-reads the file with Prism — a real impure edge, so it is declared. The
+projection reads the .bluebook as text and never loses it. An edge that does not
+exist should not be declared to make two trees look alike.
 
 `bin/parity` has three stages: parsers agree on the IR → runtimes agree on
 behaviour → both wrote the same rows.
