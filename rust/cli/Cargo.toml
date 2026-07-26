@@ -1,0 +1,18 @@
+# The binary. It links the port (storehouse) AND the adapter
+# (storehouse-sqlite), which is the only place both may be named — the library
+# itself must never depend on an adapter, or the hexagon is inside out.
+#
+# Same shape as Hecks, whose workspace is members = ["sqlite", "cli"].
+[package]
+name = "hecksagain-cli"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "hecksagain"
+path = "src/main.rs"
+
+[dependencies]
+storehouse = { path = ".." }
+storehouse-sqlite = { path = "../sqlite" }
+serde_json = "1"

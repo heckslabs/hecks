@@ -26,7 +26,11 @@ BLUEBOOK=$(ls "$DOMAIN"/bluebook/*.bluebook | head -1)
 # editing the Rust side and re-running compared fresh Ruby against a stale
 # binary — a harness that can report AGREED about code that no longer exists is
 # worse than no harness at all. cargo is incremental; the honesty is free.
-(cd "$ROOT/rust" && cargo build --release --quiet)
+# --workspace, not plain build. The binary lives in the cli member (the
+# composition root that links the sqlite adapter) ; a workspace with a root
+# package builds ONLY that package by default, so without this the harness
+# silently compares against a stale binary — which it did, once.
+(cd "$ROOT/rust" && cargo build --release --workspace --quiet)
 
 # A stale store would make the second run disagree with the first for reasons
 # that have nothing to do with either runtime.
@@ -87,11 +91,13 @@ if diff -u /tmp/hecksagain.ruby.json /tmp/hecksagain.rust.json; then
   # the adapter the hecksagon names, so the rows are the final word on whether
   # the domain really happened.
   if [ -f /tmp/hecksagain.ruby.db ] && [ -f /tmp/hecksagain.rust.db ]; then
-    for table in pizza events; do
-      ruby_rows=$(sqlite3 /tmp/hecksagain.ruby.db "select count(*) from $table" 2>/dev/null || echo "?")
-      rust_rows=$(sqlite3 /tmp/hecksagain.rust.db "select count(*) from $table" 2>/dev/null || echo "?")
-      echo "  $table: ruby $ruby_rows rows, rust $rust_rows rows"
-    done
+    # Aggregate rows only. Events are a SEPARATE concern from persistence:
+    # Hecks keeps them in event_log.rs, not in PersistenceAdapter, so the real
+    # adapter writes no events table. Every emission is still compared, in
+    # stage two, from the runtime log both sides report.
+    ruby_rows=$(sqlite3 /tmp/hecksagain.ruby.db "select count(*) from pizza" 2>/dev/null || echo "?")
+    rust_rows=$(sqlite3 /tmp/hecksagain.rust.db "select count(*) from pizza" 2>/dev/null || echo "?")
+    echo "  pizza: ruby $ruby_rows rows, rust $rust_rows rows"
     echo "  (adapter called on both sides — records are on disk, not in a HashMap)"
   fi
   exit 0

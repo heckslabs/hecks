@@ -14,54 +14,69 @@
 //! it knows how to read an IR. That is what makes it a runtime rather than an
 //! implementation.
 
+use crate::heki::WriteContext;
 use crate::interp_expr::State;
-use crate::sqlite_repository::SqliteRepository;
 use crate::interp_givens::evaluate_given;
 use crate::interp_mutations::{apply_mutation, assign_creation_attributes, defaults_for};
+use crate::runtime::PersistenceAdapter;
+use crate::value_bridge;
 use serde_json::{json, Map, Value};
 use std::collections::BTreeMap;
 
 pub struct Runtime {
     ir: Value,
-    /// Used only when NO persistence adapter is bound. When one is, the
+    /// Used only when NO persistence adapter is attached. When one is, the
     /// adapter is the store - a cache alongside it would let the runtime
     /// appear to work while the adapter silently did nothing.
     store: BTreeMap<String, State>,
-    repository: Option<SqliteRepository>,
+    /// One adapter per aggregate, keyed by aggregate name.
+    ///
+    /// The PORT, never a concrete type. This library must not know that SQLite
+    /// exists - the adapter depends on the port, and Cargo enforces it as a
+    /// dependency cycle if you get it backwards. cli/ is where the two are
+    /// named together.
+    adapters: BTreeMap<String, Box<dyn PersistenceAdapter>>,
     pub events: Vec<Value>,
     minted: usize,
 }
 
 impl Runtime {
     pub fn new(ir: Value) -> Self {
-        Runtime { ir, store: BTreeMap::new(), repository: None, events: Vec::new(), minted: 0 }
+        Runtime {
+            ir,
+            store: BTreeMap::new(),
+            adapters: BTreeMap::new(),
+            events: Vec::new(),
+            minted: 0,
+        }
     }
 
-    /// Bind the persistence adapter the hecksagon named. Every aggregate gets
-    /// its table up front, so the schema exists before the first command
-    /// rather than on first save.
-    pub fn persisted_by_sqlite(&mut self, path: &str) -> Result<(), String> {
-        let repository = SqliteRepository::open(path)?;
+    /// Attach the adapter the hecksagon bound, for one aggregate.
+    pub fn attach(&mut self, aggregate: &str, adapter: Box<dyn PersistenceAdapter>) {
+        self.adapters.insert(aggregate.to_string(), adapter);
+    }
 
+    /// Every aggregate the loaded IR declares, as (name, declaration).
+    pub fn aggregates(&self) -> Vec<(String, Map<String, Value>)> {
+        let mut found = vec![];
         for domain in self.ir.as_object().cloned().unwrap_or_default().values() {
             for aggregate in domain.get("aggregates").and_then(Value::as_array).cloned().unwrap_or_default() {
-                if let Some(aggregate) = aggregate.as_object() {
-                    repository.create_table(aggregate)?;
+                if let Some(object) = aggregate.as_object() {
+                    let name = object.get("name").and_then(Value::as_str).unwrap_or_default();
+                    found.push((name.to_string(), object.clone()));
                 }
             }
         }
-
-        self.repository = Some(repository);
-        Ok(())
+        found
     }
 
     /// What the STORE holds, keyed Domain::Aggregate#id. When an adapter is
     /// bound the answer comes from the adapter, so this reports what was really
     /// written rather than what the runtime believes it wrote.
     pub fn instances(&self) -> BTreeMap<String, State> {
-        let Some(repository) = &self.repository else {
+        if self.adapters.is_empty() {
             return self.store.clone();
-        };
+        }
 
         let mut found = BTreeMap::new();
         for (domain_name, domain) in self.ir.as_object().cloned().unwrap_or_default() {
@@ -69,8 +84,12 @@ impl Runtime {
                 let Some(aggregate) = aggregate.as_object() else { continue };
                 let name = aggregate.get("name").and_then(Value::as_str).unwrap_or_default();
 
-                for (id, state) in repository.all(aggregate) {
-                    found.insert(format!("{}::{}#{}", domain_name, name, id), state);
+                let Some(adapter) = self.adapters.get(name) else { continue };
+                for state in adapter.all() {
+                    found.insert(
+                        format!("{}::{}#{}", domain_name, name, state.id),
+                        value_bridge::from_state(state),
+                    );
                 }
             }
         }
@@ -109,8 +128,11 @@ impl Runtime {
         }
 
         // PERSIST through the adapter the hecksagon bound.
-        match &self.repository {
-            Some(repository) => repository.save(&aggregate, &id, &state)?,
+        match self.adapters.get_mut(&aggregate_name) {
+            Some(adapter) => adapter.save(
+                value_bridge::to_state(&id, &state),
+                WriteContext::Dispatch { aggregate: &aggregate_name, command: &command_name },
+            ),
             None => {
                 let key = format!("{}::{}#{}", domain, aggregate_name, id);
                 self.store.insert(key, state.clone());
@@ -127,9 +149,11 @@ impl Runtime {
                     "payload": Value::Object(args.clone()),
                 });
 
-                if let Some(repository) = &self.repository {
-                    repository.record_event(&event)?;
-                }
+                // Events live in the runtime log, not in the persistence port.
+                // Hecks keeps them in event_log.rs, which is a separate concern
+                // and not part of PersistenceAdapter - an adapter stores
+                // aggregates. Both runtimes report this log, so the harness
+                // still compares every emission.
                 self.events.push(event);
             }
         }
@@ -170,9 +194,10 @@ impl Runtime {
 
         // The bound adapter is the store. Reading from a cache instead would
         // let the adapter be silently broken while everything looked fine.
-        if let Some(repository) = &self.repository {
-            let state = repository
-                .find(aggregate, &id)
+        if let Some(adapter) = self.adapters.get(&aggregate_name) {
+            let state = adapter
+                .find(&id)
+                .map(value_bridge::from_state)
                 .ok_or_else(|| format!("no {} with {} {:?}", aggregate_name, identity, id))?;
             return Ok((id, state));
         }

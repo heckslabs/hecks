@@ -1,0 +1,13 @@
+[package]
+name = "storehouse-sqlite"
+version = "0.1.0"
+edition = "2021"
+description = "SQLite persistence adapter for storehouse — implements the PersistenceAdapter port. Host-only (rusqlite); never linked by the wasm Worker."
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+storehouse = { path = ".." }
+rusqlite = { version = "0.39.0", features = ["bundled"] }
+serde_json = "1"

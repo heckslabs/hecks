@@ -39,47 +39,12 @@
 // ir_json.rs is the one seam we wrote: it renders the typed IR in the shape
 // this interpreter reads. When the Rust parser becomes a projection of the
 // Ruby one, that is the only file that changes.
-#[allow(dead_code)]
-mod dump;
-#[allow(dead_code)]
-mod clock;
-#[allow(dead_code)]
-mod heki;
-#[allow(dead_code)]
-mod runtime;
-#[allow(dead_code)]
-mod util;
-#[allow(dead_code)]
-mod hecksagon_helpers;
-#[allow(dead_code)]
-mod hecksagon_ir;
-#[allow(dead_code)]
-mod hecksagon_parser;
-#[allow(dead_code)]
-mod ir;
-#[allow(dead_code)]
-mod world;
-#[allow(dead_code)]
-mod parse_blocks;
-#[allow(dead_code)]
-mod parser;
-#[allow(dead_code)]
-mod parser_helpers;
-#[allow(dead_code)]
-mod pattern_subset;
+// Those modules live in the LIBRARY (src/lib.rs), which is named `storehouse`
+// so the adapters cherry-picked from Hecks import it unedited. This binary is
+// a thin driver over it.
+use storehouse::{dispatcher, dump, ir_json, parser, wiring};
 
-mod ir_json;
-mod sqlite_repository;
-mod wiring;
-mod dispatcher;
-mod interp_expr;
-mod interp_givens;
-mod interp_mutations;
 
-#[cfg(test)]
-mod interp_tests;
-#[cfg(test)]
-mod wiring_tests;
 
 use dispatcher::Runtime;
 use serde_json::{json, Map, Value};
@@ -152,12 +117,44 @@ fn main() {
     // CALL THE ADAPTER THE HECKSAGON BOUND. Without this the runtime keeps its
     // state in a HashMap and only APPEARS to persist — the domain would look
     // entirely correct while nothing was ever written.
+    // THIS IS THE COMPOSITION ROOT — the one place the port and a concrete
+    // adapter may be named together. The library knows only
+    // PersistenceAdapter ; storehouse-sqlite is linked here and nowhere else.
     if let Some(persistence) = wiring::resolve(&arguments[1]) {
         if persistence.adapter == "Sqlite" {
             let path = persistence.database.to_string_lossy().to_string();
-            if let Err(error) = runtime.persisted_by_sqlite(&path) {
-                eprintln!("cannot bind Sqlite at {}: {}", path, error);
-                std::process::exit(1);
+
+            for (name, aggregate) in runtime.aggregates() {
+                // The columns ARE the IR: one per declared attribute, its SQL
+                // type from storehouse_sqlite::sql_type, which mirrors Ruby's
+                // migration generator verbatim. Nothing here chooses a type.
+                let columns: Vec<(String, String)> = aggregate
+                    .get("attributes")
+                    .and_then(Value::as_array)
+                    .cloned()
+                    .unwrap_or_default()
+                    .iter()
+                    .filter_map(|attribute| {
+                        let column = attribute.get("name").and_then(Value::as_str)?;
+                        let declared = attribute.get("type").and_then(Value::as_str).unwrap_or("String");
+                        let is_list = attribute.get("list").and_then(Value::as_bool).unwrap_or(false);
+                        let sql = if is_list { "TEXT" } else { storehouse_sqlite::sql_type(declared) };
+                        Some((column.to_string(), sql.to_string()))
+                    })
+                    .collect();
+
+                let identified_by = aggregate
+                    .get("identified_by")
+                    .and_then(Value::as_str)
+                    .map(str::to_string);
+
+                match storehouse_sqlite::SqliteRepository::new(&name, &path, identified_by, columns) {
+                    Ok(adapter) => runtime.attach(&name, Box::new(adapter)),
+                    Err(error) => {
+                        eprintln!("cannot bind Sqlite at {} for {}: {}", path, name, error);
+                        std::process::exit(1);
+                    }
+                }
             }
         }
     }

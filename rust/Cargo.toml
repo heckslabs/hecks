@@ -1,23 +1,28 @@
+# The PACKAGE is named `storehouse`, matching Hecks exactly. Cargo resolves
+# path dependencies by package name, so `storehouse = { path = ".." }` in the
+# cherry-picked sqlite crate only resolves if this package carries that name.
+# The alternative was editing that crate's Cargo.toml, which is the first edit,
+# and the first edit is how a cherry-pick becomes a fork.
+#
+# This package is a LIBRARY ONLY. It must not depend on storehouse-sqlite: the
+# adapter depends on the port, never the other way round, and Cargo enforces it
+# as a dependency cycle if you get it backwards. The binary lives in cli/, which
+# links both — the same shape Hecks uses (members = ["sqlite", "cli"]).
 [package]
-name = "hecksagain"
+name = "storehouse"
 version = "0.1.0"
 edition = "2021"
 
-# serde_json only. The Rust side reads an IR that Ruby produced and evaluates
-# it ; it never parses a bluebook, so it needs no parser and no DSL machinery.
+[lib]
+name = "storehouse"
+path = "src/lib.rs"
+
 [dependencies]
 serde_json = "1"
 
-# flate2 - heki compresses its store. Same version Hecks pins, so a store
+# flate2 — heki compresses its store. Same version Hecks pins, so a store
 # written by one runtime is readable by the other.
 flate2 = "1"
 
-# rusqlite — so the Rust runtime actually CALLS the adapter the hecksagon
-# binds, instead of keeping state in a HashMap and only pretending to. Bundled
-# so the build needs no system sqlite and the two runtimes cannot end up on
-# different library versions.
-rusqlite = { version = "0.32", features = ["bundled"] }
-
-[[bin]]
-name = "hecksagain"
-path = "src/main.rs"
+[workspace]
+members = ["sqlite", "cli"]
