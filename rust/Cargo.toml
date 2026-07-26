@@ -8,6 +8,10 @@ edition = "2021"
 [dependencies]
 serde_json = "1"
 
+# flate2 - heki compresses its store. Same version Hecks pins, so a store
+# written by one runtime is readable by the other.
+flate2 = "1"
+
 # rusqlite — so the Rust runtime actually CALLS the adapter the hecksagon
 # binds, instead of keeping state in a HashMap and only pretending to. Bundled
 # so the build needs no system sqlite and the two runtimes cannot end up on

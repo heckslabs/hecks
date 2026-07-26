@@ -42,6 +42,14 @@
 #[allow(dead_code)]
 mod dump;
 #[allow(dead_code)]
+mod clock;
+#[allow(dead_code)]
+mod heki;
+#[allow(dead_code)]
+mod runtime;
+#[allow(dead_code)]
+mod util;
+#[allow(dead_code)]
 mod hecksagon_helpers;
 #[allow(dead_code)]
 mod hecksagon_ir;
