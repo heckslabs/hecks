@@ -18,7 +18,7 @@ set -e
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 DOMAIN=${1:-"$ROOT/examples/pizzas"}
-SCRIPT=${2:-"$ROOT/examples/pizzas/parity/script.json"}
+SCRIPT=${2:-"$ROOT/spec/parity/pizzas.json"}
 BINARY="$ROOT/rust/target/release/hecksagain"
 BLUEBOOK=$(ls "$DOMAIN"/bluebook/*.bluebook | head -1)
 
