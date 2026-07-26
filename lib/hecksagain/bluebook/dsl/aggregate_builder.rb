@@ -83,7 +83,7 @@ module Hecksagain
 
         # Read the command, keep its IR, and define the method it describes.
         def command(name, &block)
-          command = CommandBuilder.build(name, &block)
+          command = CommandBuilder.build(name, owner: @name, &block)
           @commands << command
           define_command(command)
         end

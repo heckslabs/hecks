@@ -48,7 +48,7 @@ fn aggregate_to_value(aggregate: &Aggregate) -> Value {
         "identified_by": aggregate.identified_by.clone().unwrap_or_else(|| "id".to_string()),
         "attributes": aggregate_attributes(aggregate),
         "value_objects": aggregate.value_objects.iter().map(value_object_to_value).collect::<Vec<_>>(),
-        "commands": aggregate.commands.iter().map(command_to_value).collect::<Vec<_>>(),
+        "commands": aggregate.commands.iter().map(|c| command_to_value(c, &aggregate.name)).collect::<Vec<_>>(),
         "lifecycle": aggregate.lifecycle.as_ref().map(lifecycle_to_value),
         "entities": aggregate.entities.iter().map(entity_to_value).collect::<Vec<_>>(),
         "queries": aggregate.queries.iter().map(query_to_value).collect::<Vec<_>>()
@@ -89,7 +89,7 @@ fn entity_to_value(entity: &Entity) -> Value {
         "description": optional(&entity.description),
         "identified_by": optional(&entity.identified_by),
         "attributes": entity.attributes.iter().map(attribute_to_value).collect::<Vec<_>>(),
-        "commands": entity.commands.iter().map(command_to_value).collect::<Vec<_>>(),
+        "commands": entity.commands.iter().map(|c| command_to_value(c, &entity.name)).collect::<Vec<_>>(),
         "queries": entity.queries.iter().map(query_to_value).collect::<Vec<_>>(),
         "lifecycle": entity.lifecycle.as_ref().map(lifecycle_to_value)
     })
@@ -229,7 +229,7 @@ fn value_object_to_value(value_object: &ValueObject) -> Value {
     })
 }
 
-fn command_to_value(command: &Command) -> Value {
+fn command_to_value(command: &Command, owner: &str) -> Value {
     let givens: Vec<Value> = command
         .givens
         .iter()
@@ -241,11 +241,18 @@ fn command_to_value(command: &Command) -> Value {
         })
         .collect();
 
-    // A command acting on an existing instance names the aggregate it
-    // references ; a creating command names nothing.
+    // A command acting on an existing instance names ITS OWN aggregate ; a
+    // creating command names nothing.
+    //
+    // A reference to a DIFFERENT root is not "act on this" — it is "belongs to
+    // that", carried by identity, which is an attribute. Reading both alike is
+    // what made Account.Open refuse with "no Account with id …" : a creating
+    // command asked to load the thing it was about to create, because it said
+    // which customer it was for.
     let references = command
         .references
-        .first()
+        .iter()
+        .find(|reference| reference.target == owner)
         .map(|reference| Value::String(reference.target.clone()))
         .unwrap_or(Value::Null);
 
@@ -262,11 +269,37 @@ fn command_to_value(command: &Command) -> Value {
         "role": optional(&command.role),
         "goal": optional(&command.description),
         "references": references,
-        "attributes": command.attributes.iter().map(attribute_to_value).collect::<Vec<_>>(),
+        "attributes": command_attributes(command, owner),
         "givens": givens,
         "mutations": command.mutations.iter().map(mutation_to_value).collect::<Vec<_>>(),
         "emits": emits
     })
+}
+
+/// A command's inputs, INCLUDING the ones its cross-references imply.
+///
+/// `reference_to Customer` on `Account.Open` is a value the caller supplies —
+/// which customer this account is for — so the Ruby DSL declares it as a plain
+/// `customer_id` String. Only a reference to the command's OWN aggregate is
+/// the thing it acts on, and that one is carried in `references` rather than
+/// here.
+fn command_attributes(command: &Command, owner: &str) -> Vec<Value> {
+    let implied = command
+        .references
+        .iter()
+        .filter(|reference| reference.target != owner)
+        .map(|reference| {
+            json!({
+                "name": format!("{}_id", reference.name),
+                "type": "String",
+                "list": false,
+                "default": Value::Null
+            })
+        });
+
+    implied
+        .chain(command.attributes.iter().map(attribute_to_value))
+        .collect()
 }
 
 /// The Hecks IR keeps a mutation's value as SOURCE TEXT, which is what makes

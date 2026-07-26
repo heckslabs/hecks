@@ -33,7 +33,7 @@ module Hecksagain
         def identified_by(field) = @identified_by = field.to_sym
 
         def command(name, &block)
-          @commands << CommandBuilder.build(name, &block)
+          @commands << CommandBuilder.build(name, owner: @name, &block)
         end
 
         def query(name, &block)

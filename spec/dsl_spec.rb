@@ -130,15 +130,15 @@ RSpec.describe "the DSL surface" do
         .to raise_error(Malformed, /neither sets nor appends/)
     end
 
-    # A command acts on ONE root. A second reference would silently win and the
-    # first would still read as declared.
-    it "refuses a command that references two roots" do
+    # A command acts on ONE root. A second SELF reference would silently win and
+    # the first would still read as declared.
+    it "refuses a command that names its own root twice" do
       expect do
         build_command("Confused") do
-          reference_to "Pizza"
-          reference_to "Order"
+          reference_to "Thing"
+          reference_to "Thing"
         end
-      end.to raise_error(Malformed, /acts on ONE root/)
+      end.to raise_error(Malformed, /acts on ONE/)
     end
 
     # THE ONE THAT CLOSED HECKS'S PARITY HOLE. A predicate whose source cannot
@@ -368,6 +368,25 @@ RSpec.describe "the DSL surface" do
           end
         end
       end.to raise_error(ArgumentError, /unknown comparator/)
+    end
+
+    # THE RULE THE BANKING CORPUS FOUND. A reference to ANOTHER root is not
+    # "act on an existing one" — it says which one this belongs to, and that is
+    # an attribute carried by identity. Reading both alike made every
+    # Account.Open refuse with "no Account with id …" : a creating command
+    # asked to load the thing it was about to create.
+    it "reference_to another root is an attribute, and leaves the command creating" do
+      command = build_command("Open") { reference_to "Customer" }
+
+      expect(command.creates?).to be true
+      expect(command.attribute(:customer_id).type).to eq("String")
+    end
+
+    it "reference_to its OWN root makes the command act on an existing one" do
+      command = build_command("Debit") { reference_to "Thing" }
+
+      expect(command.creates?).to be false
+      expect(command.references).to eq("Thing")
     end
 
     it "policy binds an event to the command it triggers" do

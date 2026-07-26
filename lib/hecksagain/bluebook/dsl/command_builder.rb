@@ -20,8 +20,11 @@ module Hecksagain
       class CommandBuilder
         include AttributeCollector
 
-        def initialize(name)
+        # `owner` is the aggregate this command belongs to. It is what lets
+        # reference_to tell "act on THIS root" from "belongs to THAT one".
+        def initialize(name, owner: nil)
           @name      = name
+          @owner     = owner
           @givens    = []
           @mutations = []
           @emits     = []
@@ -38,19 +41,47 @@ module Hecksagain
         # stringifies to "OtherDomain::Thing" — silently referring across
         # domains. A reference names a type, not whichever class happens to have
         # claimed the constant.
+        # TWO DIFFERENT SENTENCES WEAR ONE KEYWORD.
+        #
+        #   reference_to Account    on Account.Debit   — act on THIS account
+        #   reference_to Customer   on Account.Open    — the account BELONGS to
+        #                                                this customer
+        #
+        # The first names the root the command operates on, so the runtime
+        # must load it before running. The second is a pointer to another
+        # root, which is an ATTRIBUTE — Evans is explicit that you reference
+        # another aggregate by its identity, and an id is a field.
+        #
+        # Reading both as "acts on an existing instance" is what made
+        # Account.Open refuse with "no Account with id …" : a creating command
+        # was asked to load the thing it was about to create, because it
+        # happened to say which customer it was for. Pizzas never caught it —
+        # its creating command references nothing at all.
         def reference_to(type)
-          if @references
-            raise Malformed,
-                  "#{@name} references #{@references} and #{Naming.demodulise(type)} — " \
-                  "a command acts on ONE root ; the second reference would " \
-                  "silently win and the first would look declared"
-          end
-
           demodulised = Naming.demodulise(type)
           raise Malformed, "#{@name}.reference_to names nothing" if demodulised.to_s.empty?
 
+          return cross_reference(demodulised) unless demodulised.to_s == @owner.to_s
+
+          if @references
+            raise Malformed,
+                  "#{@name} references #{@owner} twice — a command acts on ONE " \
+                  "root ; the second would silently win and the first would " \
+                  "still look declared"
+          end
+
           @references = demodulised
         end
+
+        private
+
+        # A pointer to another root, carried by identity — the same shape an
+        # aggregate-level `reference_to` takes.
+        def cross_reference(target)
+          attribute(:"#{Naming.snake(target)}_id", String)
+        end
+
+        public
 
         # The block is real Ruby and stays real Ruby ; Prism reads its source so
         # the same text can be evaluated by a runtime that has no Ruby in it.
@@ -114,8 +145,8 @@ module Hecksagain
           )
         end
 
-        def self.build(name, &block)
-          builder = new(name)
+        def self.build(name, owner: nil, &block)
+          builder = new(name, owner: owner)
           builder.instance_eval(&block) if block
           builder.build
         end
