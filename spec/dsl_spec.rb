@@ -96,6 +96,76 @@ RSpec.describe "the DSL surface" do
       expect(build_bluebook("Visioned") { vision "sell pizza" }.vision).to eq("sell pizza")
     end
 
+    it "policy declares a reaction the domain owns rather than one aggregate" do
+      reaction = build_bluebook("Reacting") do
+        policy "NotifyOnPlacement" do
+          on      "OrderPlaced"
+          trigger "Notify.Send"
+          across  "Notifications"
+        end
+      end.policies.first
+
+      expect([reaction.name, reaction.on_event, reaction.target_domain])
+        .to eq(["NotifyOnPlacement", "OrderPlaced", "Notifications"])
+    end
+
+    it "process_manager declares a correlated conversation with its own states" do
+      checkout = build_bluebook("Converse") do
+        process_manager "Checkout" do
+          correlates_by :order_id
+          starts_on "OrderPlaced"
+          ends_on   "OrderCompleted"
+          state "awaiting_payment"
+          state "paid"
+
+          on "PaymentAuthorized", transition: { "awaiting_payment" => "paid" } do
+            dispatch "Order.Confirm", with: { order: :order_id }
+          end
+        end
+      end.process_managers.first
+
+      expect([checkout.correlates_by, checkout.starts_on]).to eq([:order_id, "OrderPlaced"])
+      expect(checkout.states).to eq(["awaiting_payment", "paid"])
+
+      handler = checkout.handler_for("PaymentAuthorized")
+      expect([handler.from_state, handler.to_state]).to eq(["awaiting_payment", "paid"])
+      # The :symbol KEEPS its colon — it names a value carried by the
+      # correlated instance, not the literal string "order_id".
+      expect(handler.dispatches.first.to_h)
+        .to eq({ command_name: "Order.Confirm", with: [["order", ":order_id"]] })
+    end
+
+    # Each of these describes a machine that would LOAD and then never advance.
+    # Refusing at build time is the whole reason the validations came over.
+    it "process_manager refuses a machine that could never advance" do
+      expect do
+        build_bluebook("Stateless") do
+          process_manager "Broken" do
+            correlates_by :id
+            starts_on "Started"
+            on "Next", transition: { "a" => "b" } do
+              dispatch "X.Y"
+            end
+          end
+        end
+      end.to raise_error(/declares no states/)
+    end
+
+    it "process_manager refuses a transition through an undeclared state" do
+      expect do
+        build_bluebook("Undeclared") do
+          process_manager "Broken" do
+            correlates_by :id
+            starts_on "Started"
+            state "a"
+            on "Next", transition: { "a" => "nowhere" } do
+              dispatch "X.Y"
+            end
+          end
+        end
+      end.to raise_error(/never declared as a state/)
+    end
+
     it "aggregate adds an aggregate" do
       expect(build_bluebook("Agged") { aggregate("Thing") }.aggregates.map(&:name)).to eq(["Thing"])
     end
@@ -172,6 +242,68 @@ RSpec.describe "the DSL surface" do
       expect(machine.target_for("Advance", "a")).to eq("b")
       expect(machine.target_for("Advance", "b")).to eq("c")
       expect(machine.states).to eq(["a", "b", "c"])
+    end
+
+    it "entity declares an identity-bearing member inside the boundary" do
+      line = build_aggregate("Ordered") do
+        entity "OrderLine" do
+          identified_by :sku
+          attribute :sku,      String
+          attribute :quantity, Integer
+        end
+      end.entities.first
+
+      expect([line.name, line.identified_by]).to eq(["OrderLine", :sku])
+      expect(line.attribute(:quantity).type).to eq("Integer")
+    end
+
+    it "query records filters, ordering and a cap as DATA, never a proc" do
+      found = build_aggregate("Readable") do
+        query "Available" do
+          where(status: "available")
+          order_by :name, :desc
+          limit 10
+        end
+      end.queries.first
+
+      expect(found.name).to eq("Available")
+      expect(found.wheres.map(&:to_h)).to eq([{ field: "status", op: "eq", value: "available" }])
+      expect(found.order_by.to_h).to eq({ field: "name", direction: "desc" })
+      expect(found.limit.to_h).to eq({ value: "10" })
+    end
+
+    it "query reads a comparator from the hash form" do
+      found = build_aggregate("Compared") do
+        query "Cheap" do
+          where(price: { lt: 500 })
+        end
+      end.queries.first
+
+      expect(found.wheres.first.to_h).to eq({ field: "price", op: "lt", value: "500" })
+    end
+
+    it "query refuses a comparator it does not know, rather than reading it as a literal" do
+      expect do
+        build_aggregate("Mistyped") do
+          query "Broken" do
+            where(price: { greater_than: 5 })
+          end
+        end
+      end.to raise_error(ArgumentError, /unknown comparator/)
+    end
+
+    it "policy binds an event to the command it triggers" do
+      reaction = build_aggregate("Reactive") do
+        policy "ChargeOnPlacement" do
+          on      "Order.Placed"
+          trigger "Payment.Charge"
+        end
+      end.policies.first
+
+      expect(reaction.on_event).to eq("Order.Placed")
+      expect(reaction.trigger_command).to eq("Payment.Charge")
+      # A qualified subscription names its aggregate ; the bare event survives.
+      expect([reaction.event_qualifier, reaction.event_name]).to eq(["Order", "Placed"])
     end
 
     it "attribute adds a scalar field" do

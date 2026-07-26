@@ -27,6 +27,9 @@ module Hecksagain
           @value_objects = []
           @commands      = []
           @identified_by = :id
+          @entities      = []
+          @queries       = []
+          @policies      = []
           @klass         = Class.new(Aggregate)
         end
 
@@ -48,6 +51,23 @@ module Hecksagain
           @lifecycle = LifecycleBuilder.build(field, default: default, &block)
         end
 
+        # An identity-bearing member inside this boundary — reached through
+        # the root, never around it.
+        def entity(name, &block)
+          @entities << EntityBuilder.build(name, &block)
+        end
+
+        # A named read over this aggregate's records.
+        def query(name, &block)
+          @queries << QueryBuilder.build(name, &block)
+        end
+
+        # An event arrives, a command fires. Declared here when the reaction
+        # belongs to this aggregate's own causality.
+        def policy(name, &block)
+          @policies << PolicyBuilder.build(name, &block)
+        end
+
         def value_object(name, &block)
           @value_objects << ValueObjectBuilder.build(name, &block)
         end
@@ -67,7 +87,10 @@ module Hecksagain
             value_objects: @value_objects,
             commands:      @commands,
             identified_by: @identified_by,
-            lifecycle:     @lifecycle
+            lifecycle:     @lifecycle,
+            entities:      @entities,
+            queries:       @queries,
+            policies:      @policies
           )
 
           @klass.ir     = ir

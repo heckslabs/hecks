@@ -39,6 +39,37 @@ Hecks.bluebook "Pizzas" do
       transition "Purchase" => "sold", from: "available"
     end
 
+    # An identity-bearing member INSIDE the boundary. A topping is a value —
+    # two basils are the same basil — but a line on the order is not : it keeps
+    # its identity while its quantity changes, so it is an entity and carries a
+    # key of its own.
+    entity "OrderLine" do
+      identified_by :sku
+      attribute :sku,      String
+      attribute :quantity, Integer
+    end
+
+    # The read side. `where` filters, `order_by` sorts, and a :symbol names one
+    # of the query's own inputs — resolved from the caller's kwargs at dispatch.
+    query "Available" do
+      where(status: "available")
+      order_by :name
+    end
+
+    query "CostingLessThan" do
+      attribute :ceiling, Integer
+      where(price_cents: { lt: :ceiling })
+    end
+
+    # The domain's reflex : the sale happened, so someone should be told. The
+    # rule is declared where the causality was noticed and kept at domain level,
+    # because the command it fires belongs to another boundary.
+    policy "NotifyOnPurchase" do
+      on      "PizzaPurchased"
+      trigger "Notifications.Send"
+      across  "Notifications"
+    end
+
     command "CreatePizza" do
       role "Chef"
       goal "Put a new pizza on the menu"
@@ -79,6 +110,26 @@ Hecks.bluebook "Pizzas" do
       then_set :status,        to: "sold"
 
       emits "PizzaPurchased"
+    end
+  end
+
+  # A conversation that outlives any one command. A policy is a reflex with no
+  # memory ; this REMEMBERS — it starts on an event, ties every later event to
+  # the same instance by a shared field, and moves through states it declares
+  # up front. Always domain-level : no single aggregate is its subject.
+  #
+  # Its validations refuse a machine that would load and then never advance —
+  # no correlation, no states, or a transition through a state never declared.
+  process_manager "Checkout" do
+    correlates_by :pizza_id
+    starts_on "PizzaPurchased"
+    ends_on   "CheckoutSettled"
+
+    state "awaiting_payment"
+    state "paid"
+
+    on "PaymentAuthorized", transition: { "awaiting_payment" => "paid" } do
+      dispatch "Pizzas::Pizza.Purchase", with: { pizza: :pizza_id }
     end
   end
 end

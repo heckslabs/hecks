@@ -16,7 +16,11 @@
 //! When the Rust parser becomes a projection of the Ruby one, this seam is
 //! where that lands, and only this file changes.
 
-use crate::ir::{Aggregate, Attribute, Command, Domain, Lifecycle, MutationOp, Transition, ValueObject};
+use crate::ir::{
+    Aggregate, Attribute, Command, Direction, Domain, Entity, Lifecycle, MutationOp, Policy,
+    ProcessManager, ProcessManagerHandler, Query, Transition, ValueObject, ValueSpec, WhereClause,
+    WhereOp,
+};
 use serde_json::{json, Map, Value};
 
 pub fn domain_to_value(domain: &Domain) -> Value {
@@ -28,7 +32,10 @@ pub fn domain_to_value(domain: &Domain) -> Value {
         json!({
             "name": domain.name,
             "vision": optional(&domain.vision),
-            "aggregates": aggregates
+            "aggregates": aggregates,
+            "policies": domain.policies.iter().map(policy_to_value).collect::<Vec<_>>(),
+            "process_managers": domain.process_managers.iter()
+                .map(process_manager_to_value).collect::<Vec<_>>()
         }),
     );
     Value::Object(domains)
@@ -42,8 +49,110 @@ fn aggregate_to_value(aggregate: &Aggregate) -> Value {
         "attributes": aggregate.attributes.iter().map(attribute_to_value).collect::<Vec<_>>(),
         "value_objects": aggregate.value_objects.iter().map(value_object_to_value).collect::<Vec<_>>(),
         "commands": aggregate.commands.iter().map(command_to_value).collect::<Vec<_>>(),
-        "lifecycle": aggregate.lifecycle.as_ref().map(lifecycle_to_value)
+        "lifecycle": aggregate.lifecycle.as_ref().map(lifecycle_to_value),
+        "entities": aggregate.entities.iter().map(entity_to_value).collect::<Vec<_>>(),
+        "queries": aggregate.queries.iter().map(query_to_value).collect::<Vec<_>>()
+
     })
+}
+
+/// An identity-bearing member inside the boundary. It declares the same things
+/// a root does, minus the boundary itself — so it renders through the same
+/// helpers, and gains whatever they gain.
+fn entity_to_value(entity: &Entity) -> Value {
+    json!({
+        "name": entity.name,
+        "description": optional(&entity.description),
+        "identified_by": optional(&entity.identified_by),
+        "attributes": entity.attributes.iter().map(attribute_to_value).collect::<Vec<_>>(),
+        "commands": entity.commands.iter().map(command_to_value).collect::<Vec<_>>(),
+        "queries": entity.queries.iter().map(query_to_value).collect::<Vec<_>>(),
+        "lifecycle": entity.lifecycle.as_ref().map(lifecycle_to_value)
+    })
+}
+
+/// A named read. The Ruby side evaluates its block ONCE against a recorder and
+/// keeps data ; the parser here reads the same clauses out of the source text.
+/// Neither carries a closure, which is the property that lets both exist.
+fn query_to_value(query: &Query) -> Value {
+    json!({
+        "name": query.name,
+        "description": optional(&query.description),
+        "attributes": query.attributes.iter().map(attribute_to_value).collect::<Vec<_>>(),
+        "wheres": query.wheres.iter().map(where_to_value).collect::<Vec<_>>(),
+        "order_by": query.order_by.as_ref().map(|o| json!({
+            "field": o.field,
+            "direction": match o.direction { Direction::Desc => "desc", _ => "asc" }
+        })),
+        "limit": query.limit.as_ref().map(|l| json!({ "value": l.value }))
+    })
+}
+
+fn where_to_value(clause: &WhereClause) -> Value {
+    json!({
+        "field": clause.field,
+        "op": match clause.op {
+            WhereOp::Eq => "eq",
+            WhereOp::Ne => "ne",
+            WhereOp::Gt => "gt",
+            WhereOp::Gte => "gte",
+            WhereOp::Lt => "lt",
+            WhereOp::Lte => "lte",
+            WhereOp::In => "in",
+            WhereOp::Contains => "contains",
+            WhereOp::NoneInState => "none_in_state"
+        },
+        "value": clause.value
+    })
+}
+
+/// An event arrives, a command fires. The richer reaction shapes the parser can
+/// read (with-specs, data guards, fan-out) are NOT rendered : the Ruby side
+/// cannot author them, and emitting a field one runtime can never produce would
+/// make parity assert agreement about something only one side can say.
+fn policy_to_value(policy: &Policy) -> Value {
+    json!({
+        "name": policy.name,
+        "on_event": policy.on_event,
+        "trigger_command": policy.trigger_command,
+        "target_domain": optional(&policy.target_domain)
+    })
+}
+
+fn process_manager_to_value(pm: &ProcessManager) -> Value {
+    json!({
+        "name": pm.name,
+        "correlates_by": pm.correlates_by,
+        "starts_on": pm.starts_on,
+        "ends_on": optional(&pm.ends_on),
+        "states": pm.states,
+        "handlers": pm.handlers.iter().map(pm_handler_to_value).collect::<Vec<_>>()
+    })
+}
+
+fn pm_handler_to_value(handler: &ProcessManagerHandler) -> Value {
+    json!({
+        "event_type": handler.event_type,
+        "from_state": handler.from_state,
+        "to_state": handler.to_state,
+        "dispatches": handler.dispatches.iter().map(|d| json!({
+            "command_name": d.command_name,
+            "with": d.with_spec.iter()
+                .map(|(key, spec)| json!([key, value_spec_text(spec)]))
+                .collect::<Vec<_>>()
+        })).collect::<Vec<_>>()
+    })
+}
+
+/// Only the literal/reference text survives — the Ruby recorder stores exactly
+/// that, so anything richer would be a field only one runtime can fill.
+fn value_spec_text(spec: &ValueSpec) -> String {
+    match spec {
+        ValueSpec::Literal { value } => value.clone(),
+        ValueSpec::FromEvent { name, .. } => name.clone(),
+        ValueSpec::FromPm { name, .. } => name.clone(),
+        ValueSpec::FromIter { field } => field.clone()
+    }
 }
 
 /// A state machine on one field.

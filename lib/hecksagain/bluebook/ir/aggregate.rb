@@ -11,7 +11,7 @@ module Hecksagain
     module IR
       class Aggregate
         attr_reader :name, :description, :attributes, :value_objects, :commands,
-                    :identified_by, :lifecycle
+                    :identified_by, :lifecycle, :entities, :queries, :policies
 
         # The Ruby class built alongside this IR, in the same pass. The pairing
         # is recorded here so boot can bind a runtime to it ; nothing reads the
@@ -19,7 +19,11 @@ module Hecksagain
         attr_accessor :ruby_class
 
         def initialize(name:, description: nil, attributes: [], value_objects: [],
-                       commands: [], identified_by: :id, lifecycle: nil)
+                       commands: [], identified_by: :id, lifecycle: nil,
+                       entities: [], queries: [], policies: [])
+          @entities      = entities
+          @queries       = queries
+          @policies      = policies
           @name          = name.to_s
           @description   = description
           @attributes    = attributes
@@ -45,7 +49,9 @@ module Hecksagain
             attributes:    @attributes.map(&:to_h),
             value_objects: @value_objects.map(&:to_h),
             commands:      @commands.map(&:to_h),
-            lifecycle:     @lifecycle&.to_h
+            lifecycle:     @lifecycle&.to_h,
+            entities:      @entities.map(&:to_h),
+            queries:       @queries.map(&:to_h)
           }
         end
       end

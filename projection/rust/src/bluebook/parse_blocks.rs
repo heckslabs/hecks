@@ -1552,12 +1552,25 @@ fn parse_pm_handler(line: &str) -> Option<ProcessManagerHandler> {
     // Body is one of :
     //   `from: :to`        — symbol-rocket sugar
     //   `:from => :to`     — explicit hash-rocket
+    // A state may be written as a symbol (`:paid`) or a string (`"paid"`).
+    // Both name the SAME state, so both must reduce to the same token —
+    // leaving the quotes on would carry source syntax into the IR and make
+    // `"paid"` a different state from `:paid`, which is the shape of every
+    // parser drift ever retired here.
+    let state_token = |raw: &str| {
+        raw.trim()
+            .trim_end_matches(',')
+            .trim()
+            .trim_start_matches(':')
+            .trim_matches('"')
+            .trim()
+            .to_string()
+    };
+
     let (from, to) = if body.contains("=>") {
         let mut parts = body.splitn(2, "=>");
-        let lhs = parts.next()?.trim();
-        let rhs = parts.next()?.trim();
-        let from = lhs.trim_start_matches(':').trim_end_matches(',').trim().to_string();
-        let to = rhs.trim_start_matches(':').trim().to_string();
+        let from = state_token(parts.next()?);
+        let to = state_token(parts.next()?);
         (from, to)
     } else {
         let colon = body.find(':')?;

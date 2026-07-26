@@ -24,11 +24,12 @@ RSpec.describe "the DSL surface is fully covered" do
     ],
     "BluebookBuilder" => [
       Hecksagain::Bluebook::DSL::BluebookBuilder,
-      %i[vision core supporting generic aggregate classification]
+      %i[vision core supporting generic aggregate policy process_manager classification]
     ],
     "AggregateBuilder" => [
       Hecksagain::Bluebook::DSL::AggregateBuilder,
-      %i[description identified_by reference_to value_object command lifecycle attribute list_of attributes]
+      %i[description identified_by reference_to value_object command lifecycle
+         entity query policy attribute list_of attributes]
     ],
     "ValueObjectBuilder" => [
       Hecksagain::Bluebook::DSL::ValueObjectBuilder,

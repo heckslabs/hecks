@@ -17,7 +17,9 @@ module Hecksagain
 
         def initialize(name)
           @name       = name
-          @aggregates = []
+          @aggregates       = []
+          @policies         = []
+          @process_managers = []
         end
 
         def vision(value) = @vision = value
@@ -30,8 +32,32 @@ module Hecksagain
           @aggregates << AggregateBuilder.build(name, &block)
         end
 
+        # A reaction that belongs to the DOMAIN rather than to one aggregate
+        # — the event and the command it triggers live in different
+        # boundaries, so neither root owns the rule.
+        def policy(name, &block)
+          @policies << PolicyBuilder.build(name, &block)
+        end
+
+        # A conversation across several events, correlated to one instance
+        # and carrying its own state. Always domain-level : no single
+        # aggregate is its subject.
+        def process_manager(name, &block)
+          @process_managers << ProcessManagerBuilder.build(name, &block)
+        end
+
         def build
-          bluebook = IR::Bluebook.new(name: @name, vision: @vision, aggregates: @aggregates)
+          # Aggregate-nested policies BUBBLE to the domain. A policy names an
+          # event and a command that may live in different boundaries, so no
+          # single root owns it — declaring it inside an aggregate says where
+          # the causality was noticed, not who keeps the rule. The interpreter
+          # holds them domain-level only, and this is where the two agree.
+          policies = @policies + @aggregates.flat_map(&:policies)
+
+          bluebook = IR::Bluebook.new(name: @name, vision: @vision,
+                                      aggregates: @aggregates,
+                                      policies: policies,
+                                      process_managers: @process_managers)
           namespace = Module.new
 
           @aggregates.each do |aggregate|
