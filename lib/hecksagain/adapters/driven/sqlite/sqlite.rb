@@ -119,8 +119,18 @@ module Hecksagain
         SQL_TYPES.fetch(attr.type, "TEXT")
       end
 
+      # A VALUE OBJECT IS JSON, whether it arrives alone or in a list.
+      #
+      # Only lists were serialised, so a scalar attribute declared as a
+      # value object reached the driver as a Hash and SQLite answered "no
+      # such bind parameter" — a store that could hold `list_of(Money)` but
+      # not one Money. It went unnoticed because value objects were never
+      # CONSTRUCTED for scalar attributes either : the raw scalar bound
+      # fine, so the gap only appeared once the runtime started building
+      # them.
       def encode(attr, value)
         return JSON.generate(value || []) if attr.list?
+        return JSON.generate(value) if value.is_a?(Hash)
 
         value
       end
@@ -131,10 +141,18 @@ module Hecksagain
           state[attr.name] =
             if attr.list?
               raw ? JSON.parse(raw, symbolize_names: true) : []
+            elsif value_object?(attr)
+              raw ? JSON.parse(raw, symbolize_names: true) : nil
             else
               raw
             end
         end
+      end
+
+      # A scalar attribute whose declared type is one of this aggregate's
+      # value objects — the ones that round-trip as JSON.
+      def value_object?(attr)
+        !attr.list? && !@aggregate.value_object(attr.type).nil?
       end
     end
   end

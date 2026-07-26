@@ -122,8 +122,18 @@ module Hecksagain
           wanted = Resolver.resolve(needle, state, attrs).to_s
 
           case (found = Resolver.resolve(haystack, state, attrs))
-          when Array  then found.any? { |item| item.to_s == wanted }
-          when String then found.split(",").any? { |item| item.strip == wanted }
+          when Array then found.any? { |item| item.to_s == wanted }
+          # RUBY'S MEANING, which is SUBSTRING. This read comma-separated
+          # fields and asked whether any whole one equalled the needle, so
+          # `address.include?("@")` split "ada@example.com" on commas, found
+          # no field equal to "@", and answered false — refusing every
+          # address that was in fact an address.
+          #
+          # The sublanguage's whole claim is that an expression means here
+          # what it means in Ruby. A list that happens to be stored as text
+          # is a LIST ; making String#include? mean membership to serve that
+          # storage choice broke the claim for every genuine string.
+          when String then found.include?(wanted)
           else false
           end
         end

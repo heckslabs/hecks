@@ -7,8 +7,13 @@
       "args": {
         "id": "cust-1",
         "reference": "CUST-0001",
-        "name": "Ada",
-        "email": "ada@example.com"
+        "name": {
+          "given": "Ada",
+          "family": "Lovelace"
+        },
+        "email": {
+          "address": "ada@example.com"
+        }
       }
     },
     {
@@ -16,8 +21,13 @@
       "args": {
         "id": "cust-blank",
         "reference": "",
-        "name": "Nobody",
-        "email": "n@example.com"
+        "name": {
+          "given": "No",
+          "family": "Body"
+        },
+        "email": {
+          "address": "n@example.com"
+        }
       }
     },
     {
@@ -134,6 +144,17 @@
         "id": "acct-1",
         "amount": "lots",
         "narrative": "Not a number"
+      }
+    },
+    {
+      "verb": "Banking::Customer.Register",
+      "args": {
+        "id": "cust-scalar",
+        "reference": "CUST-9",
+        "name": "Ada",
+        "email": {
+          "address": "a@b.c"
+        }
       }
     }
   ]

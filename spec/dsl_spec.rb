@@ -169,6 +169,80 @@ RSpec.describe "the DSL surface" do
     end
   end
 
+  # ==========================================================================
+  # A value-object-typed SCALAR attribute is constructed and validated, not
+  # stored raw. Value.build was only ever reached from the append path, so a
+  # scalar declared as a value object was assigned whatever arrived — and a
+  # dotted read of it answered nil, in both runtimes, over a value object that
+  # never existed.
+  # ==========================================================================
+  describe "value-object-typed attributes" do
+    def account_domain
+      in_registry do
+        Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
+        Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
+
+        Hecks.bluebook("Coerced") do
+          aggregate("Holding") do
+            attribute :kind,   Kind
+            attribute :amount, Amount
+
+            value_object("Kind") do
+              attribute :name, String
+              invariant("current or savings") { name == "current" || name == "savings" }
+            end
+
+            value_object("Amount") do
+              attribute :cents,    Integer
+              attribute :currency, String
+            end
+
+            command("Open") do
+              attribute :kind,   Kind
+              attribute :amount, Amount
+            end
+          end
+
+          Hecks.hecksagon("Coerced") { Coerced::Holding.persisted_by("Memory") }
+        end
+      end
+    end
+
+    it "lets a scalar stand in for a value object with exactly one field" do
+      registry = account_domain
+      runtime  = Hecksagain::Runtime::Loader.bind_runtime(
+        Hecksagain::Runtime::Dispatcher.new(registry.tap(&:verify!))
+      )
+
+      state = runtime.dispatch("Coerced::Holding.Open", id: "h1", kind: "current").state
+
+      # Constructed, so a dotted read finds the field — and the invariant ran.
+      expect(state[:kind]).to eq(name: "current")
+    end
+
+    it "enforces the invariant on a coerced scalar" do
+      registry = account_domain
+      runtime  = Hecksagain::Runtime::Loader.bind_runtime(
+        Hecksagain::Runtime::Dispatcher.new(registry.tap(&:verify!))
+      )
+
+      expect { runtime.dispatch("Coerced::Holding.Open", id: "h2", kind: "offshore") }
+        .to raise_error(Hecksagain::Runtime::InvariantViolation, /current or savings/)
+    end
+
+    # Guessing which of several fields a scalar meant is how a currency ends up
+    # in a cents column.
+    it "refuses a scalar for a value object with more than one field" do
+      registry = account_domain
+      runtime  = Hecksagain::Runtime::Loader.bind_runtime(
+        Hecksagain::Runtime::Dispatcher.new(registry.tap(&:verify!))
+      )
+
+      expect { runtime.dispatch("Coerced::Holding.Open", id: "h3", amount: 2500) }
+        .to raise_error(Hecksagain::Runtime::TypeMismatch, /cents, currency/)
+    end
+  end
+
   describe "a bluebook" do
     it "vision records the domain's sentence" do
       expect(build_bluebook("Visioned") { vision "sell pizza" }.vision).to eq("sell pizza")

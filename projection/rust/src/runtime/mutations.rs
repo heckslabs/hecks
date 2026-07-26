@@ -46,7 +46,7 @@ pub fn assign_creation_attributes(
     aggregate: &Map<String, Value>,
     command: &Map<String, Value>,
     args: &State,
-) {
+) -> Result<(), String> {
     let declared: Vec<String> = array(aggregate, "attributes")
         .iter()
         .filter_map(|a| a.get("name").and_then(Value::as_str).map(str::to_string))
@@ -61,9 +61,69 @@ pub fn assign_creation_attributes(
             continue;
         }
         if let Some(value) = args.get(&name) {
-            state.insert(name, value.clone());
+            let coerced = coerce(aggregate, &name, value)?;
+            state.insert(name, coerced);
         }
     }
+    Ok(())
+}
+
+/// A VALUE-OBJECT-TYPED FIELD IS CONSTRUCTED, NOT STORED RAW.
+///
+/// A scalar attribute declared as a value object used to be assigned whatever
+/// arrived: `amount: 2500` on an attribute typed Money sat there as a number,
+/// and `amount.cents` — a dotted read into what the domain says is a Money —
+/// walked into a non-object and answered Null. Ruby did exactly the same, so
+/// parity was green over a value object that never existed.
+///
+/// A SINGLE-ATTRIBUTE value object accepts a bare scalar, because `kind:
+/// "current"` is unambiguous. Anything richer must arrive as its fields —
+/// guessing which of several a scalar meant is how a currency ends up in a
+/// cents column.
+///
+/// The refusal wording is Ruby's, to the character. A message that differs
+/// between runtimes is a difference the harness has to explain away.
+fn coerce(aggregate: &Map<String, Value>, name: &str, value: &Value) -> Result<Value, String> {
+    if is_list_attribute(aggregate, name) {
+        return Ok(value.clone());
+    }
+    let Some(value_object) = value_object_for(aggregate, name) else {
+        return Ok(value.clone());
+    };
+    if value.is_null() || value.is_object() {
+        return Ok(value.clone());
+    }
+
+    let fields: Vec<String> = array(&value_object, "attributes")
+        .iter()
+        .filter_map(|a| a.get("name").and_then(Value::as_str).map(str::to_string))
+        .collect();
+
+    if fields.len() == 1 {
+        let mut only = Map::new();
+        only.insert(fields[0].clone(), value.clone());
+        return Ok(Value::Object(only));
+    }
+
+    let vo_name = value_object.get("name").and_then(Value::as_str).unwrap_or("");
+    Err(format!(
+        "{} is a {}, which has {} — pass those fields, not {}. A scalar can only \
+         stand in for a value object with exactly one field.",
+        name,
+        vo_name,
+        fields.join(", "),
+        value
+    ))
+}
+
+/// A list attribute is built element by element on append, never coerced whole.
+fn is_list_attribute(aggregate: &Map<String, Value>, name: &str) -> bool {
+    array(aggregate, "attributes")
+        .iter()
+        .find(|a| a.get("name").and_then(Value::as_str) == Some(name))
+        .and_then(|a| a.get("list"))
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
 }
 
 pub fn apply_mutation(
@@ -91,7 +151,13 @@ pub fn apply_mutation(
             state.insert(target, Value::Array(items));
         }
         _ => {
-            state.insert(target, resolve_source(mutation, args));
+            // Coerced here too, not only on creation : `then_set :kind, to: :kind`
+            // assigns a value-object-typed field just as directly as a creation
+            // attribute does, and a Money that is a value object on one path and
+            // a bare scalar on the other is two different records.
+            let value = resolve_source(mutation, args);
+            let coerced = coerce(aggregate, &target, &value)?;
+            state.insert(target, coerced);
         }
     }
     Ok(())

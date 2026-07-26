@@ -121,7 +121,7 @@ impl Runtime {
         }
 
         if creates {
-            assign_creation_attributes(&mut state, &aggregate, &command, args);
+            assign_creation_attributes(&mut state, &aggregate, &command, args)?;
         }
         for mutation in array(&command, "mutations") {
             apply_mutation(&mut state, &aggregate, &mutation, args)?;

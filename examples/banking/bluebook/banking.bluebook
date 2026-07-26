@@ -310,15 +310,12 @@ Hecks.bluebook "Banking" do
   aggregate "Transfer" do
     description "Money leaving one account for another. Two movements that must both happen, or neither."
 
-    attribute :amount,    Money
+    # Cents, like the account it moves between. A transfer whose amount is a
+    # Money while the account's balance is an Integer is two currencies of one
+    # currency — and the runtime would refuse the scalar the caller sends,
+    # correctly, forever.
+    attribute :amount,    Integer, default: 0
     attribute :narrative, Narrative
-
-    value_object "Money" do
-      attribute :cents,    Integer, default: 0
-      attribute :currency, String,  default: "USD"
-
-      invariant("a transfer moves something") { cents > 0 }
-    end
 
     value_object "Narrative" do
       attribute :text, String

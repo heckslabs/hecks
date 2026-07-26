@@ -21,6 +21,10 @@ module Hecksagain
     class UnknownVerb < StandardError; end
     class GivenNotMet < StandardError; end
     class NotFound    < StandardError; end
+    # A value arrived in a shape the domain does not admit — a scalar where a
+    # multi-field value object was declared. Loud, because the alternative is
+    # storing it raw and answering nil to every dotted read of it.
+    class TypeMismatch < StandardError; end
 
     class Dispatcher
       # What a dispatch gives back: the instance as it now stands, and whatever
@@ -118,15 +122,66 @@ module Hecksagain
           next unless aggregate.attribute(attr.name)
           next unless args.key?(attr.name)
 
-          instance[attr.name] = args[attr.name]
+          instance[attr.name] = coerce(aggregate, attr.name, args[attr.name])
         end
       end
 
       def apply(instance, aggregate, mutation, args)
         case mutation.op
-        when :set    then instance[mutation.target] = resolve_source(mutation.source, args)
-        when :append then instance[mutation.target] = appended(instance, aggregate, mutation, args)
+        when :set
+          value = resolve_source(mutation.source, args)
+          instance[mutation.target] = coerce(aggregate, mutation.target, value)
+        when :append
+          instance[mutation.target] = appended(instance, aggregate, mutation, args)
         end
+      end
+
+      # A VALUE-OBJECT-TYPED FIELD IS CONSTRUCTED, NOT STORED RAW.
+      #
+      # Value.build was only ever reached from the append path, so a scalar
+      # attribute declared as a value object was assigned whatever arrived
+      # and never validated. `amount: 2500` on an attribute typed Money sat
+      # there as an Integer, and `amount.cents` — a dotted read into what the
+      # domain says is a Money — walked into a non-Hash and answered nil.
+      # Both runtimes did it, so parity was green over a value object that
+      # never existed and an invariant that never fired.
+      #
+      # A SINGLE-ATTRIBUTE value object accepts a bare scalar, because
+      # `kind: "current"` is unambiguous — there is exactly one field it
+      # could mean, and making an author write `{ name: "current" }` buys
+      # nothing. Anything richer must arrive as its fields, because guessing
+      # which one of several a scalar meant is how a currency ends up in a
+      # cents column.
+      def coerce(aggregate, name, value)
+        value_object = value_object_for(aggregate, name)
+        return value unless value_object
+        return value if value.nil?
+
+        Value.build(value_object, fields_for(value_object, name, value))
+      end
+
+      # The value object a SCALAR attribute is declared as, or nil. A list
+      # attribute is built element by element in `appended`, not here.
+      def value_object_for(aggregate, name)
+        attribute = aggregate.attribute(name)
+        return nil unless attribute&.scalar?
+
+        aggregate.value_object(attribute.type)
+      end
+
+      def fields_for(value_object, name, value)
+        return value.transform_keys(&:to_sym) if value.is_a?(Hash)
+
+        only = value_object.attributes
+        if only.size == 1
+          return { only.first.name => value }
+        end
+
+        raise TypeMismatch,
+              "#{name} is a #{value_object.name}, which has " \
+              "#{only.map { |a| a.name }.join(', ')} — pass those fields, not " \
+              "#{value.inspect}. A scalar can only stand in for a value " \
+              "object with exactly one field."
       end
 
       # A Symbol naming a command attribute reads that argument ; anything else
