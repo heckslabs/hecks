@@ -136,7 +136,7 @@ fn build_element(
         let empty = Map::new();
         for invariant in array(&value_object, "invariants") {
             let canonical = invariant.get("canonical").and_then(Value::as_str).unwrap_or("");
-            if evaluate_given(canonical, &fields, &empty) {
+            if evaluate_given(canonical, &fields, &empty)? {
                 continue;
             }
             let description = invariant

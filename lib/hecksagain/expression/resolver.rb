@@ -1,26 +1,35 @@
 # Resolver — the leaves of the sublanguage : one expression string to one value.
 #
-# Mirrors rust/src/runtime/interp_expr.rs and interp_expr_ops.rs in the Hecks
-# runtime, operation for operation. Where that file resolves a literal, a
-# `.size`, a `.modulo(n)`, or a dotted value-object path, this resolves the
-# same one the same way — because the two runtimes have to agree, and they can
-# only agree on rules that are written down twice identically or not at all.
+# The word SUBLANGUAGE is a claim, and the claim is that these expressions mean
+# in the runtime exactly what they mean in Ruby. So the rules here are Ruby's,
+# not a convenient approximation of them :
 #
-# Input shadows state : a command attribute of the same name wins over the
-# aggregate's stored value, matching `attrs.get(field).unwrap_or(state.get(...))`
-# on the Rust side.
+#   * a name that resolves to nothing RAISES, as an undefined name does in Ruby.
+#     Answering nil would let a typo coerce to 0 and quietly satisfy a
+#     predicate that should have failed loudly.
+#   * `.positive?` on something that is not a number RAISES, as it does in Ruby.
+#   * `.size` on something with no size RAISES, as it does in Ruby.
+#
+# Every rule has a twin in rust/src/interp_expr.rs, down to the wording of the
+# errors — the parity harness compares refusals as carefully as successes, so a
+# message that differs between runtimes is a difference someone has to explain
+# away, and an explained-away difference is where a real one hides.
 #
 #   Resolver.resolve("toppings.size", state, attrs)   # => 2
 module Hecksagain
   module Expression
+    # A predicate that cannot be evaluated is a defect, not a false.
+    class EvaluationError < StandardError; end
+
     module Resolver
+      SIGN_TESTS = %w[positive? negative? zero?].freeze
+
       module_function
 
       def resolve(expr, state, attrs)
         expr = expr.to_s.strip
 
-        # `.length` is the Ruby-flavoured alias for `.size` — one operation,
-        # normalised at extraction, tolerated here for hand-written text.
+        # `.length` is the Ruby-flavoured alias for `.size` — one operation.
         return resolve("#{Regexp.last_match(1)}.size", state, attrs) if expr =~ /\A(.+)\.length\z/
 
         return Integer(expr, 10) if expr.match?(/\A-?\d+\z/)
@@ -30,75 +39,69 @@ module Hecksagain
         return false             if expr == "false"
         return nil               if expr == "nil"
 
-        sign = match_sign_test(expr)
+        sign = match_suffix(expr, SIGN_TESTS)
         return apply_sign_test(sign, state, attrs) if sign
 
-        modulo = match_modulo(expr)
+        modulo = match_call(expr, ".modulo(")
         return apply_modulo(modulo, state, attrs) if modulo
 
-        return size_of(resolve(Regexp.last_match(1), state, attrs)) if expr =~ /\A(.+)\.size\z/
+        return size_of(Regexp.last_match(1), state, attrs) if expr =~ /\A(.+)\.size\z/
 
         lookup(expr, state, attrs)
       end
 
       def quoted?(expr)
-        (expr.start_with?('"') && expr.end_with?('"') && expr.length >= 2) ||
-          (expr.start_with?("'") && expr.end_with?("'") && expr.length >= 2)
+        return false if expr.length < 2
+
+        (expr.start_with?('"') && expr.end_with?('"')) ||
+          (expr.start_with?("'") && expr.end_with?("'"))
       end
 
-      def size_of(value)
-        case value
-        when Array, String, Hash then value.size
-        else 0
-        end
+      # Ruby raises NoMethodError for `nil.size` and returns a byte count for
+      # `3.size`. Neither is a thing a predicate should be doing, so both are
+      # refused by name.
+      def size_of(receiver, state, attrs)
+        value = resolve(receiver, state, attrs)
+        return value.size if value.is_a?(Array) || value.is_a?(String) || value.is_a?(Hash)
+
+        raise EvaluationError, "size expects a list or string, got #{describe(value)}"
       end
 
-      # `.positive?` / `.negative?` / `.zero?` — the sign predicates. One
-      # operation shape: resolve the receiver numerically and compare against
-      # nought. They read far better than `> 0` in a domain sentence, which is
-      # the whole reason to admit an operator at all.
-      #
-      # A receiver with no numeric reading is NOT positive, NOT negative, and
-      # NOT zero — all three answer false rather than coercing a missing
-      # attribute to 0 and quietly reporting `zero?` as true.
-      SIGN_TESTS = %w[positive? negative? zero?].freeze
-
-      def match_sign_test(expr)
-        SIGN_TESTS.each do |test|
-          suffix = ".#{test}"
-          return [expr[0...-suffix.length], test] if expr.end_with?(suffix)
+      def match_suffix(expr, suffixes)
+        suffixes.each do |suffix|
+          marker = ".#{suffix}"
+          return [expr[0...-marker.length], suffix] if expr.end_with?(marker)
         end
         nil
       end
 
       def apply_sign_test(parts, state, attrs)
         receiver, test = parts
-        value = numeric(resolve(receiver, state, attrs))
-        return false unless value
+        value = resolve(receiver, state, attrs)
+        number = numeric(value)
+        raise EvaluationError, "#{test} expects a number, got #{describe(value)}" unless number
 
         case test
-        when "positive?" then value > 0
-        when "negative?" then value < 0
-        else value.zero?
+        when "positive?" then number.positive?
+        when "negative?" then number.negative?
+        else number.zero?
         end
       end
 
-      # `tick.modulo(60)` — the periodic-cadence gate. A non-positive divisor
-      # short-circuits to 0 rather than raising, mirroring the Rust guard :
-      # in a daemon, firing every tick beats dying.
-      def match_modulo(expr)
-        index = expr.rindex(".modulo(")
+      # `receiver.call(argument)` split into its two halves.
+      def match_call(expr, marker)
+        index = expr.rindex(marker)
         return nil unless index && expr.end_with?(")")
 
-        [expr[0...index], expr[(index + ".modulo(".length)...-1]]
+        [expr[0...index], expr[(index + marker.length)...-1]]
       end
 
       def apply_modulo(parts, state, attrs)
         receiver, argument = parts
-        divisor = numeric(resolve(argument, state, attrs)).to_i
-        return 0 if divisor <= 0
+        divisor = require_number(resolve(argument, state, attrs), "modulo")
+        raise EvaluationError, "divided by 0" if divisor.zero?
 
-        numeric(resolve(receiver, state, attrs)).to_i % divisor
+        require_number(resolve(receiver, state, attrs), "modulo").to_i % divisor.to_i
       end
 
       # A flat name, or a dotted path stepping into value-object maps.
@@ -113,21 +116,37 @@ module Hecksagain
         end
       end
 
+      # An unknown name RAISES. In Ruby an undefined name is a NameError, not a
+      # nil ; a predicate that reads a misspelled attribute must fail loudly
+      # rather than resolve to nothing and quietly refuse every valid command.
       def fetch(name, state, attrs)
         key = name.to_sym
         return attrs[key] if attrs.key?(key)
+        return state[key] if known?(state, key)
 
-        state[key]
+        raise EvaluationError, "cannot resolve #{name.inspect} — no such attribute or argument"
       end
 
-      # The numeric reading of a value, or nil when it has none. A string that
-      # looks like a number counts — the Rust side coerces Str through f64 in
-      # every comparison, so this must too.
+      def known?(state, key)
+        return state.key?(key) if state.respond_to?(:key?)
+
+        !state[key].nil?
+      end
+
+      # The numeric reading of a value, or nil when it has none. Ruby compares
+      # 1 and 1.0 as equal, so both are numbers here ; a STRING is not, because
+      # in Ruby 1 == "1" is false and this must agree.
       def numeric(value)
-        case value
-        when Integer, Float then value
-        when String         then Float(value, exception: false)
-        end
+        value if value.is_a?(Integer) || value.is_a?(Float)
+      end
+
+      def require_number(value, operation)
+        numeric(value) ||
+          raise(EvaluationError, "#{operation} expects a number, got #{describe(value)}")
+      end
+
+      def describe(value)
+        value.nil? ? "nil" : value.inspect
       end
     end
   end

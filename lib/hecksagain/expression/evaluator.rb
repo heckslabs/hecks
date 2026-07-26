@@ -53,28 +53,41 @@ module Hecksagain
         end
       end
 
-      # Numbers compare as numbers ; anything else compares as text. Same rule
-      # both sides of the boundary.
+      # Ruby's rule, not a convenient approximation of it. Numbers order
+      # against numbers and strings against strings ; anything else RAISES,
+      # exactly as `"abc" < 3` raises in Ruby. Coercing through to_s would have
+      # made "10" < "9" true and called it a comparison.
       def less_than(lhs, rhs)
         left  = Resolver.numeric(lhs)
         right = Resolver.numeric(rhs)
         return left < right if left && right
+        return lhs < rhs    if lhs.is_a?(String) && rhs.is_a?(String)
 
-        lhs.to_s < rhs.to_s
+        raise EvaluationError,
+              "comparison of #{class_of(lhs)} with #{Resolver.describe(rhs)} failed"
       end
 
+      # Ruby's equality: 1 == 1.0 is true, 1 == "1" is false. Comparing to_s
+      # would have made the second one true — the kind of agreement between
+      # runtimes that is worse than a disagreement, because both are wrong.
       def equal?(lhs, rhs)
         left  = Resolver.numeric(lhs)
         right = Resolver.numeric(rhs)
         return left == right if left && right
 
-        lhs.to_s == rhs.to_s
+        lhs == rhs
       end
 
+      # Ruby's truthiness: ONLY nil and false are falsy. 0 is true. "" is true.
+      # An earlier reading of this treated both as false, so
+      # `given { count }` fired when there were none — a predicate that read as
+      # "when there are some" and meant the opposite.
       def truthy?(value)
-        return value if [true, false].include?(value)
+        !value.nil? && value != false
+      end
 
-        !value.nil? && value != 0 && value != ""
+      def class_of(value)
+        value.nil? ? "nil" : value.class.name
       end
 
       # `toppings.include?("Basil")` — membership over a list, or over a

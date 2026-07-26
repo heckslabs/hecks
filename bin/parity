@@ -18,10 +18,12 @@ DOMAIN=${1:-"$ROOT/examples/pizzas"}
 SCRIPT=${2:-"$ROOT/examples/pizzas/parity/script.json"}
 BINARY="$ROOT/rust/target/release/hecksagain"
 
-if [ ! -x "$BINARY" ]; then
-  echo "building the rust runtime..."
-  (cd "$ROOT/rust" && cargo build --release --quiet)
-fi
+# ALWAYS rebuild. An earlier version of this script built only when the binary
+# was missing, so editing the Rust side and re-running compared fresh Ruby
+# against a stale binary — a harness that can report AGREED about code that no
+# longer exists is worse than no harness at all. cargo is incremental; the
+# honesty is free.
+(cd "$ROOT/rust" && cargo build --release --quiet)
 
 # A stale store would make the second run disagree with the first for reasons
 # that have nothing to do with either runtime.

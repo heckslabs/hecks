@@ -54,7 +54,7 @@ impl Runtime {
         // Guard before anything is written, so a refused command leaves no trace.
         for given in array(&command, "givens") {
             let canonical = given.get("canonical").and_then(Value::as_str).unwrap_or("");
-            if !evaluate_given(canonical, &state, args) {
+            if !evaluate_given(canonical, &state, args)? {
                 let description = given.get("description").and_then(Value::as_str).unwrap_or("");
                 return Err(format!("{} refused — {}", command_name, description));
             }

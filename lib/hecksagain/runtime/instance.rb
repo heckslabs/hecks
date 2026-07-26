@@ -31,6 +31,11 @@ module Hecksagain
 
       def [](name) = @state[name.to_sym]
 
+      # Declared-ness, not presence of a value: an attribute the bluebook
+      # declares is known even when it is nil, and a name it does not declare
+      # is unknown even if something else would answer to it.
+      def key?(name) = @state.key?(name.to_sym)
+
       # Not endless — Ruby forbids that form for setter methods.
       def []=(name, value)
         @state[name.to_sym] = value

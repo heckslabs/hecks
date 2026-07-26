@@ -64,13 +64,15 @@ RSpec.describe "the expression sublanguage" do
       expect(evaluate("toppings.size.positive?", { toppings: [] })).to be(false)
     end
 
-    # The trap this guards: a missing attribute resolves to null, coerces to 0,
-    # and would report zero? as TRUE — quietly satisfying a predicate that
-    # should have failed loudly.
-    it "answers false for a value with no numeric reading" do
-      expect(evaluate("missing.positive?")).to be(false)
-      expect(evaluate("missing.negative?")).to be(false)
-      expect(evaluate("missing.zero?")).to be(false)
+    # This once answered FALSE for all three, which was the bug wearing the
+    # costume of a guard: a missing attribute coerced to 0, so `.zero?` would
+    # have reported TRUE and quietly satisfied the rule it was meant to
+    # enforce. Ruby raises on nil.positive? and so does this.
+    it "raises rather than answering for a name it cannot resolve" do
+      %w[positive? negative? zero?].each do |test|
+        expect { evaluate("missing.#{test}") }
+          .to raise_error(Hecksagain::Expression::EvaluationError, /cannot resolve "missing"/)
+      end
     end
   end
 
@@ -104,6 +106,88 @@ RSpec.describe "the expression sublanguage" do
       state = { names: %w[Basil Olive] }
       expect(evaluate('names.include?("Basil")', state)).to be(true)
       expect(evaluate('names.include?("Anchovy")', state)).to be(false)
+    end
+  end
+
+  # THE CLAIM THE WORD "SUBLANGUAGE" MAKES.
+  #
+  # A sublanguage of Ruby must MEAN what Ruby means. Each case below is
+  # evaluated twice — once by the sublanguage, once by Ruby itself — and the
+  # two must land in the same place. An earlier reading of this file agreed
+  # with Ruby on one case out of six: 0 was falsy, "" was falsy, and 1 == "1"
+  # was true, so `given { count }` read as "when there are some" and fired when
+  # there were none.
+  describe "agreeing with Ruby itself" do
+    def agrees?(expression, bindings)
+      mine = begin
+        evaluate(expression, bindings)
+      rescue Hecksagain::Expression::EvaluationError
+        :raised
+      end
+
+      theirs = begin
+        locals = bindings.map { |name, value| "#{name} = #{value.inspect}; " }.join
+        eval("#{locals}#{expression}") # rubocop:disable Security/Eval
+      rescue StandardError
+        :raised
+      end
+
+      # Ruby yields a value ; the sublanguage yields that value's truth.
+      mine == theirs || (mine != :raised && theirs != :raised && mine == !!theirs)
+    end
+
+    it "treats 0 and empty string as TRUE, exactly as Ruby does" do
+      expect(agrees?("count", count: 0)).to be(true)
+      expect(agrees?("label", label: "")).to be(true)
+      expect(evaluate("count", count: 0)).to be(true)
+      expect(evaluate("label", label: "")).to be(true)
+    end
+
+    it "treats nil and false as the only falsy values, exactly as Ruby does" do
+      expect(evaluate("flag", flag: false)).to be(false)
+      expect(evaluate("flag", flag: nil)).to be(false)
+    end
+
+    it "does not equate a number with its string, exactly as Ruby does" do
+      expect(agrees?('count == "1"', count: 1)).to be(true)
+      expect(evaluate('count == "1"', count: 1)).to be(false)
+      expect(evaluate("count == 1", count: 1)).to be(true)
+      expect(evaluate("count == 1.0", count: 1)).to be(true)
+    end
+
+    it "refuses an incomparable ordering, exactly as Ruby does" do
+      expect(agrees?("label < 3", label: "abc")).to be(true)
+      expect { evaluate("label < 3", label: "abc") }
+        .to raise_error(Hecksagain::Expression::EvaluationError, /comparison of String with 3 failed/)
+    end
+
+    it "orders strings against strings" do
+      expect(evaluate('label < "b"', label: "a")).to be(true)
+      expect(evaluate('label < "b"', label: "c")).to be(false)
+    end
+  end
+
+  # A predicate that cannot be evaluated is a defect, not a false. Answering
+  # nil would let a typo coerce to 0 and quietly satisfy the very rule it was
+  # meant to enforce.
+  describe "refusing what it cannot evaluate" do
+    it "raises on a name it cannot resolve" do
+      expect { evaluate("mispelled_attribute > 0") }
+        .to raise_error(Hecksagain::Expression::EvaluationError, /cannot resolve "mispelled_attribute"/)
+    end
+
+    it "raises when a sign predicate has no number" do
+      expect { evaluate("label.positive?", { label: "abc" }) }
+        .to raise_error(Hecksagain::Expression::EvaluationError, /positive\? expects a number/)
+    end
+
+    it "raises when size has nothing to count" do
+      expect { evaluate("count.size", { count: 3 }) }
+        .to raise_error(Hecksagain::Expression::EvaluationError, /size expects a list or string/)
+    end
+
+    it "still resolves a declared attribute that happens to be nil" do
+      expect(evaluate("customer_name == nil", { customer_name: nil })).to be(true)
     end
   end
 
