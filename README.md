@@ -90,7 +90,7 @@ well as run — and **both runtimes evaluate the text**, because a Ruby running 
 closure while Rust runs text agrees only by luck.
 
 The admissible subset is conceived in
-[`language/bluebook/expression.bluebook`](language/bluebook/expression.bluebook)
+[`grammar/expression/bluebook/expression.bluebook`](grammar/expression/bluebook/expression.bluebook)
 and bounded by what the interpreter floor can evaluate:
 
 ```
@@ -133,14 +133,14 @@ binds can type-check against it, then the domain, the wiring, the values.
 
 ```
 lib/hecksagain/
-  language/     dsl → ir → expression.  WHAT A BLUEBOOK IS.
+  bluebook/     dsl → ir → expression.  WHAT A BLUEBOOK IS.
   runtime/      dispatch, instances, the registry.  RUNNING IT.
   adapters/     sqlite, memory.
   projector/    the IR exporter, and whatever targets follow.  SENDING IT ELSEWHERE.
 ```
 
 The split follows the dependency direction rather than the topic. The
-expression evaluator is in `language/` and not `projector/` because the Ruby
+expression evaluator is in `bluebook/` and not `projector/` because the Ruby
 runtime evaluates every given and every invariant through it — it is the
 semantic core, and Rust is merely the first thing to read it.
 

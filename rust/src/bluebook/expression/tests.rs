@@ -2,7 +2,7 @@
 //!
 //! Every example here has a twin in spec/expression_spec.rb, asserting the same
 //! rule with the same inputs. The sublanguage is specified once
-//! (language/bluebook/expression.bluebook) and implemented twice, so each
+//! (grammar/expression/bluebook/expression.bluebook) and implemented twice, so each
 //! implementation needs its own tests or the second is only believed rather
 //! than known. bin/parity then proves the two agree end to end.
 

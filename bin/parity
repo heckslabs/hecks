@@ -107,6 +107,6 @@ echo
 echo "SPLIT — the runtimes disagreed."
 echo "The parsers agreed, so this is the interpreters. If the disagreement is"
 echo "about what an expression MEANS, that is a defect in"
-echo "language/bluebook/expression.bluebook, not in whichever runtime you like"
+echo "grammar/expression/bluebook/expression.bluebook, not in whichever runtime you like"
 echo "less — tighten the chapter until the ambiguity is gone."
 exit 1
