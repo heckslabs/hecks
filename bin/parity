@@ -44,12 +44,17 @@ run_domain() {
   domain=$1
   script=$2
   name=$(basename "$domain")
+
+  # Two layouts. An EXAMPLE keeps its declarations in a bluebook/ folder beside
+  # its data ; a GRAMMAR CHAPTER ships inside the library and is just the files.
+  # Both are domains, and the corpus should not care which shape a domain wears.
   bluebook=$(ls "$domain"/bluebook/*.bluebook 2>/dev/null | head -1)
+  [ -z "$bluebook" ] && bluebook=$(ls "$domain"/*.bluebook 2>/dev/null | head -1)
 
   echo "── $name"
 
   if [ -z "$bluebook" ]; then
-    echo "   NO BLUEBOOK in $domain/bluebook/"
+    echo "   NO BLUEBOOK in $domain"
     return 1
   fi
 
@@ -163,7 +168,13 @@ if [ $# -ge 1 ]; then
   script=${2:-"$ROOT/spec/parity/$(basename "$1").json"}
   run_domain "$domain" "$script" || failed=1
 else
-  for domain in "$ROOT"/examples/*/; do
+  # THE CORPUS. examples/ are the domains written to exercise the language ;
+  # the grammar chapters are domains too, and leaving them out is how the
+  # library's own expression.bluebook came to be written in a form Rust could
+  # only half-read — six invariants in Ruby, two in Rust, shipped and unseen.
+  # A chapter that describes the language is exactly the document you least
+  # want the two parsers disagreeing about.
+  for domain in "$ROOT"/examples/*/ "$ROOT"/lib/hecksagain/grammar/; do
     domain=${domain%/}
     name=$(basename "$domain")
     script="$ROOT/spec/parity/$name.json"

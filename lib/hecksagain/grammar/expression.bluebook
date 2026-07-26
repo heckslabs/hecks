@@ -239,8 +239,14 @@ Hecks.bluebook "Expression" do
       attribute :kind, String
 
       invariant("a reference must be named") { !name.to_s.empty? }
+      # Spelled as comparisons, not `%w[…].include?`. The sublanguage has no
+      # LIST LITERAL — `.include?` needs a receiver it can resolve, and a bare
+      # `%w[]` resolves to nothing — so the array form raised an evaluation
+      # error instead of enforcing anything. It looked exactly like a rule for
+      # as long as nobody ran it, which is the whole reason this chapter is in
+      # the parity corpus now.
       invariant("a reference is either an attribute or an argument") do
-        %w[attribute argument].include?(kind.to_s)
+        kind.to_s == "attribute" || kind.to_s == "argument"
       end
     end
 
@@ -339,7 +345,7 @@ Hecks.bluebook "Expression" do
 
       invariant("a verdict must name its runtime") { !runtime.to_s.empty? }
       invariant("an outcome is true, false, or error") do
-        %w[true false error].include?(outcome.to_s)
+        outcome.to_s == "true" || outcome.to_s == "false" || outcome.to_s == "error"
       end
     end
 
