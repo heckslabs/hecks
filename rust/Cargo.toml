@@ -8,6 +8,12 @@ edition = "2021"
 [dependencies]
 serde_json = "1"
 
+# rusqlite — so the Rust runtime actually CALLS the adapter the hecksagon
+# binds, instead of keeping state in a HashMap and only pretending to. Bundled
+# so the build needs no system sqlite and the two runtimes cannot end up on
+# different library versions.
+rusqlite = { version = "0.32", features = ["bundled"] }
+
 [[bin]]
 name = "hecksagain"
 path = "src/main.rs"

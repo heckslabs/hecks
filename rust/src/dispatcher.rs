@@ -15,6 +15,7 @@
 //! implementation.
 
 use crate::interp_expr::State;
+use crate::sqlite_repository::SqliteRepository;
 use crate::interp_givens::evaluate_given;
 use crate::interp_mutations::{apply_mutation, assign_creation_attributes, defaults_for};
 use serde_json::{json, Map, Value};
@@ -22,18 +23,58 @@ use std::collections::BTreeMap;
 
 pub struct Runtime {
     ir: Value,
+    /// Used only when NO persistence adapter is bound. When one is, the
+    /// adapter is the store - a cache alongside it would let the runtime
+    /// appear to work while the adapter silently did nothing.
     store: BTreeMap<String, State>,
+    repository: Option<SqliteRepository>,
     pub events: Vec<Value>,
     minted: usize,
 }
 
 impl Runtime {
     pub fn new(ir: Value) -> Self {
-        Runtime { ir, store: BTreeMap::new(), events: Vec::new(), minted: 0 }
+        Runtime { ir, store: BTreeMap::new(), repository: None, events: Vec::new(), minted: 0 }
     }
 
-    pub fn instances(&self) -> &BTreeMap<String, State> {
-        &self.store
+    /// Bind the persistence adapter the hecksagon named. Every aggregate gets
+    /// its table up front, so the schema exists before the first command
+    /// rather than on first save.
+    pub fn persisted_by_sqlite(&mut self, path: &str) -> Result<(), String> {
+        let repository = SqliteRepository::open(path)?;
+
+        for domain in self.ir.as_object().cloned().unwrap_or_default().values() {
+            for aggregate in domain.get("aggregates").and_then(Value::as_array).cloned().unwrap_or_default() {
+                if let Some(aggregate) = aggregate.as_object() {
+                    repository.create_table(aggregate)?;
+                }
+            }
+        }
+
+        self.repository = Some(repository);
+        Ok(())
+    }
+
+    /// What the STORE holds, keyed Domain::Aggregate#id. When an adapter is
+    /// bound the answer comes from the adapter, so this reports what was really
+    /// written rather than what the runtime believes it wrote.
+    pub fn instances(&self) -> BTreeMap<String, State> {
+        let Some(repository) = &self.repository else {
+            return self.store.clone();
+        };
+
+        let mut found = BTreeMap::new();
+        for (domain_name, domain) in self.ir.as_object().cloned().unwrap_or_default() {
+            for aggregate in domain.get("aggregates").and_then(Value::as_array).cloned().unwrap_or_default() {
+                let Some(aggregate) = aggregate.as_object() else { continue };
+                let name = aggregate.get("name").and_then(Value::as_str).unwrap_or_default();
+
+                for (id, state) in repository.all(aggregate) {
+                    found.insert(format!("{}::{}#{}", domain_name, name, id), state);
+                }
+            }
+        }
+        found
     }
 
     pub fn dispatch(&mut self, verb: &str, args: &State) -> Result<State, String> {
@@ -67,18 +108,29 @@ impl Runtime {
             apply_mutation(&mut state, &aggregate, &mutation, args)?;
         }
 
-        let key = format!("{}::{}#{}", domain, aggregate_name, id);
-        self.store.insert(key, state.clone());
+        // PERSIST through the adapter the hecksagon bound.
+        match &self.repository {
+            Some(repository) => repository.save(&aggregate, &id, &state)?,
+            None => {
+                let key = format!("{}::{}#{}", domain, aggregate_name, id);
+                self.store.insert(key, state.clone());
+            }
+        }
 
         // Emitting last: an event is a promise that the state behind it survived.
         for emitted in array(&command, "emits") {
             if let Some(name) = emitted.as_str() {
-                self.events.push(json!({
+                let event = json!({
                     "name": name,
                     "aggregate": format!("{}::{}", domain, aggregate_name),
                     "id": id,
                     "payload": Value::Object(args.clone()),
-                }));
+                });
+
+                if let Some(repository) = &self.repository {
+                    repository.record_event(&event)?;
+                }
+                self.events.push(event);
             }
         }
 
@@ -115,6 +167,15 @@ impl Runtime {
             .and_then(Value::as_str)
             .ok_or_else(|| format!("{} acts on an existing {} — pass {}:", command_name, aggregate_name, identity))?
             .to_string();
+
+        // The bound adapter is the store. Reading from a cache instead would
+        // let the adapter be silently broken while everything looked fine.
+        if let Some(repository) = &self.repository {
+            let state = repository
+                .find(aggregate, &id)
+                .ok_or_else(|| format!("no {} with {} {:?}", aggregate_name, identity, id))?;
+            return Ok((id, state));
+        }
 
         let key = self
             .store

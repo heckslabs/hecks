@@ -42,7 +42,15 @@
 #[allow(dead_code)]
 mod dump;
 #[allow(dead_code)]
+mod hecksagon_helpers;
+#[allow(dead_code)]
+mod hecksagon_ir;
+#[allow(dead_code)]
+mod hecksagon_parser;
+#[allow(dead_code)]
 mod ir;
+#[allow(dead_code)]
+mod world;
 #[allow(dead_code)]
 mod parse_blocks;
 #[allow(dead_code)]
@@ -53,6 +61,8 @@ mod parser_helpers;
 mod pattern_subset;
 
 mod ir_json;
+mod sqlite_repository;
+mod wiring;
 mod dispatcher;
 mod interp_expr;
 mod interp_givens;
@@ -60,6 +70,8 @@ mod interp_mutations;
 
 #[cfg(test)]
 mod interp_tests;
+#[cfg(test)]
+mod wiring_tests;
 
 use dispatcher::Runtime;
 use serde_json::{json, Map, Value};
@@ -89,6 +101,23 @@ fn main() {
     // too. Wired now because the Rust half is a clean lift, and because it
     // proves the parsed Domain is rich enough to satisfy the real contract
     // rather than only the subset this interpreter happens to read.
+    // `--wiring` reports which adapter the hecksagon bound and where the world
+    // points it. A runtime that silently falls back to memory when it cannot
+    // read its own wiring is a runtime that lies, so this makes the resolution
+    // inspectable rather than something to be inferred from whether a file
+    // appeared.
+    if arguments.len() == 3 && arguments[1] == "--wiring" {
+        match wiring::resolve(&arguments[2]) {
+            Some(persistence) => println!(
+                "adapter: {}\ndatabase: {}",
+                persistence.adapter,
+                persistence.database.display()
+            ),
+            None => println!("no persistence bound — the runtime would stay in memory"),
+        }
+        return;
+    }
+
     if arguments.len() == 3 && arguments[1] == "--canonical" {
         let source = fs::read_to_string(&arguments[2]).unwrap_or_else(|error| {
             eprintln!("cannot read {}: {}", arguments[2], error);
@@ -111,6 +140,19 @@ fn main() {
     let script = read_json(&arguments[2]);
 
     let mut runtime = Runtime::new(ir);
+
+    // CALL THE ADAPTER THE HECKSAGON BOUND. Without this the runtime keeps its
+    // state in a HashMap and only APPEARS to persist — the domain would look
+    // entirely correct while nothing was ever written.
+    if let Some(persistence) = wiring::resolve(&arguments[1]) {
+        if persistence.adapter == "Sqlite" {
+            let path = persistence.database.to_string_lossy().to_string();
+            if let Err(error) = runtime.persisted_by_sqlite(&path) {
+                eprintln!("cannot bind Sqlite at {}: {}", path, error);
+                std::process::exit(1);
+            }
+        }
+    }
     let mut refusals: Vec<Value> = Vec::new();
 
     let steps = script

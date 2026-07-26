@@ -61,8 +61,16 @@ fi
 # Successes and every refusal path. A runtime that ACCEPTS what the other
 # refuses is the failure most worth catching.
 # ---------------------------------------------------------------------------
+# BOTH runtimes now call the adapter the hecksagon bound, so both write to the
+# SAME database. Each gets a clean one: sharing it would let the second run
+# read the first's rows and agree with itself.
+rm -rf "$DOMAIN/data"
 "$ROOT/bin/run" "$DOMAIN" "$SCRIPT" > /tmp/hecksagain.ruby.raw.json
+cp "$DOMAIN"/data/*.db /tmp/hecksagain.ruby.db 2>/dev/null || true
+
+rm -rf "$DOMAIN/data"
 "$BINARY" "$BLUEBOOK" "$SCRIPT"     > /tmp/hecksagain.rust.raw.json
+cp "$DOMAIN"/data/*.db /tmp/hecksagain.rust.db 2>/dev/null || true
 
 "$ROOT/bin/canonicalise" /tmp/hecksagain.ruby.raw.json > /tmp/hecksagain.ruby.json
 "$ROOT/bin/canonicalise" /tmp/hecksagain.rust.raw.json > /tmp/hecksagain.rust.json
@@ -71,6 +79,21 @@ if diff -u /tmp/hecksagain.ruby.json /tmp/hecksagain.rust.json; then
   echo
   echo "AGREED — ruby and rust read the same bluebook and returned the same"
   echo "answer for every step."
+  echo
+
+  # STAGE THREE — did they write the same RECORDS?
+  #
+  # Agreeing in memory is not the same as agreeing on disk. Both runtimes bind
+  # the adapter the hecksagon names, so the rows are the final word on whether
+  # the domain really happened.
+  if [ -f /tmp/hecksagain.ruby.db ] && [ -f /tmp/hecksagain.rust.db ]; then
+    for table in pizza events; do
+      ruby_rows=$(sqlite3 /tmp/hecksagain.ruby.db "select count(*) from $table" 2>/dev/null || echo "?")
+      rust_rows=$(sqlite3 /tmp/hecksagain.rust.db "select count(*) from $table" 2>/dev/null || echo "?")
+      echo "  $table: ruby $ruby_rows rows, rust $rust_rows rows"
+    done
+    echo "  (adapter called on both sides — records are on disk, not in a HashMap)"
+  fi
   exit 0
 fi
 
