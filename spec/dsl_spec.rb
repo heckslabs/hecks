@@ -48,13 +48,13 @@ RSpec.describe "the DSL surface" do
     end
 
     it ".family registers a family" do
-      registry = in_registry { Hecks.family("post") { verb "posted_by" } }
-      expect(registry.families["post"].verb).to eq("posted_by")
+      registry = in_registry { Hecks.port("post") { verb "posted_by" } }
+      expect(registry.ports["post"].verb).to eq("posted_by")
     end
 
     it ".adapter registers an adapter" do
-      registry = in_registry { Hecks.adapter("Carrier") { family "post" } }
-      expect(registry.adapters["Carrier"].family).to eq("post")
+      registry = in_registry { Hecks.adapter("Carrier") { port "post" } }
+      expect(registry.adapters["Carrier"].port).to eq("post")
     end
 
     it ".world registers per-deployment values" do
@@ -257,44 +257,68 @@ RSpec.describe "the DSL surface" do
   end
 
   # ==========================================================================
-  # FamilyBuilder / AdapterBuilder — the impure boundary
+  # PortBuilder / AdapterBuilder — the impure boundary
   # ==========================================================================
-  describe "a family" do
-    def build_family(&block)
-      in_registry { Hecks.family("post", &block) }.families["post"]
+  describe "a port" do
+    def build_port(&block)
+      in_registry { Hecks.port("post", &block) }.ports["post"]
     end
 
     it "verb names the how-verb a bind hangs off an aggregate" do
-      expect(build_family { verb "posted_by" }.verb).to eq("posted_by")
+      expect(build_port { verb "posted_by" }.verb).to eq("posted_by")
     end
 
     it "signal says whether the domain gets a value back or announces an event" do
-      expect(build_family { signal :effect }.signal).to eq(:effect)
-      expect(build_family { verb "x" }.signal).to eq(:reply)
-    end
-
-    it "field names a config field its adapters carry" do
-      expect(build_family { field :office }.fields).to eq([:office])
-    end
-
-    # A secret is a field whose VALUE never lives in a bluebook - only the name
-    # of the environment variable holding it.
-    it "secret names one too" do
-      expect(build_family { secret :token }.fields).to eq([:token])
+      expect(build_port { signal :effect }.signal).to eq(:effect)
+      expect(build_port { verb "x" }.signal).to eq(:reply)
     end
 
     it "reply? and effect? read the signal" do
-      expect(build_family { signal :reply }.reply?).to be(true)
-      expect(build_family { signal :effect }.effect?).to be(true)
+      expect(build_port { signal :reply }.reply?).to be(true)
+      expect(build_port { signal :effect }.effect?).to be(true)
     end
   end
 
   describe "an adapter" do
+    def build_adapter(&block)
+      in_registry { Hecks.adapter("Carrier", &block) }.adapters["Carrier"]
+    end
+
     # The INVERTED ARROW: the adapter declares its family, never the reverse,
     # so a new backend is purely additive.
-    it "family declares which family it implements" do
-      registry = in_registry { Hecks.adapter("Carrier") { family "post" } }
-      expect(registry.adapters["Carrier"].family).to eq("post")
+    it "port declares which port it implements" do
+      expect(build_adapter { port "post" }.port).to eq("post")
+    end
+
+    # Fields belong to the ADAPTER, not the family. Adapters in one family
+    # genuinely differ - Sqlite needs a database, Memory nothing - and a field
+    # list on the family would force one shape onto both.
+    it "field names a config value this adapter needs" do
+      expect(build_adapter { field :office }.fields).to eq([:office])
+    end
+
+    # A secret is a field whose VALUE never lives in a bluebook - only the name
+    # of the environment variable holding it.
+    it "secret names one too, kept apart from plain fields" do
+      adapter = build_adapter { secret :token }
+
+      expect(adapter.secrets).to eq([:token])
+      expect(adapter.fields).to eq([])
+    end
+
+    it "declares? answers for fields and secrets alike" do
+      adapter = build_adapter do
+        field  :office
+        secret :token
+      end
+
+      expect(adapter.declares?(:office)).to be(true)
+      expect(adapter.declares?(:token)).to be(true)
+      expect(adapter.declares?(:nonsense)).to be(false)
+    end
+
+    it "an adapter needing no configuration declares nothing" do
+      expect(build_adapter { port "post" }.all_fields).to eq([])
     end
   end
 

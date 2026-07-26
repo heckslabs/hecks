@@ -18,15 +18,30 @@ module Hecksagain
     module IR
       # verb   — "persisted_by"
       # signal — :reply (returns a value) or :effect (emits, verdict re-enters)
-      # fields — config field NAMES the adapters need ; values live in .world
-      Family = Struct.new(:name, :verb, :signal, :fields, keyword_init: true) do
+      # A family is the SHARED VOCABULARY — the verb and the signal, and
+      # nothing else. Config fields belong to the ADAPTER, because adapters in
+      # one family genuinely differ.
+      Port = Struct.new(:name, :verb, :signal, keyword_init: true) do
         def reply?  = signal == :reply
         def effect? = signal == :effect
       end
 
       # name   — "Sqlite"
       # family — the family name it implements (the inverted arrow)
-      Adapter = Struct.new(:name, :family, keyword_init: true)
+      # name    — "Sqlite"
+      # family  — the family name it implements (the inverted arrow)
+      # fields  — the config this adapter needs, NAMES only ; values live in
+      #           .world. Declared HERE and not on the family because adapters
+      #           in one family genuinely differ: Heki needs a dir, Sqlite a
+      #           database, Memory nothing at all. A field list on the family
+      #           would force one shape onto all three.
+      # secrets — fields whose VALUE never lives in a bluebook, only the name
+      #           of the environment variable holding it.
+      Adapter = Struct.new(:name, :port, :fields, :secrets, keyword_init: true) do
+        def declares?(field) = all_fields.include?(field.to_sym)
+
+        def all_fields = (fields || []) + (secrets || [])
+      end
 
       # aggregate — "Pizzas::Pizza"
       # verb      — "persisted_by"

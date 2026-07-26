@@ -21,9 +21,14 @@ RSpec.describe "a constructed aggregate" do
       end
     HECKSAGON
 
+    # Memory needs no configuration, so it has NO world block. A world naming a
+    # field its adapter does not declare is refused at boot - which is the
+    # point of declaring fields on the adapter.
+    File.delete(File.join(target, "pizzas.world")) if adapter == "Memory"
+
     @dirs ||= []
     @dirs << dir
-    Hecks.boot(dir, boundary: BOUNDARY)
+    Hecks.boot(dir, shared: SHARED)
   end
 
   before { boot }

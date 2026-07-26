@@ -11,13 +11,13 @@ module Hecksagain
     class WiringError < StandardError; end
 
     class Registry
-      attr_reader :root, :bluebooks, :hecksagons, :families, :adapters, :worlds, :event_log
+      attr_reader :root, :bluebooks, :hecksagons, :ports, :adapters, :worlds, :event_log
 
       def initialize(root: nil)
         @root         = root
         @bluebooks    = {}
         @hecksagons   = {}
-        @families     = {}
+        @ports     = {}
         @adapters     = {}
         @worlds       = {}
         @event_log    = []
@@ -26,7 +26,7 @@ module Hecksagain
 
       def add_bluebook(item)  = @bluebooks[item.name]  = item
       def add_hecksagon(item) = @hecksagons[item.domain] = item
-      def add_family(item)    = @families[item.name]   = item
+      def add_port(item)    = @ports[item.name]   = item
       def add_adapter(item)   = @adapters[item.name]   = item
       def add_world(item)     = @worlds[item.domain]   = item
 
@@ -58,17 +58,38 @@ module Hecksagain
       private
 
       def build_repository(domain, aggregate)
-        bind   = persistence_bind(domain, aggregate)
-        family = family_for(bind)
+        bind = persistence_bind(domain, aggregate)
+        port = port_for(bind)
 
-        unless family.verb.to_s == bind.verb.to_s
+        unless port.verb.to_s == bind.verb.to_s
           raise WiringError,
-                "#{bind.adapter} implements the #{family.name} family (verb #{family.verb}) " \
+                "#{bind.adapter} implements the #{port.name} port (verb #{port.verb}) " \
                 "and cannot satisfy #{bind.verb}"
         end
 
         settings = world(domain)&.for_verb(bind.verb) || {}
+        check_settings(bind, settings)
+
         adapter_class(bind.adapter).new(aggregate: aggregate, settings: settings, root: @root)
+      end
+
+      # The world block answers to the ADAPTER. A value named here that the
+      # adapter does not declare is refused at boot rather than ignored — a
+      # silently dropped setting is how a deployment ends up pointing
+      # somewhere nobody intended, and the misspelling that caused it reads
+      # perfectly well.
+      def check_settings(bind, settings)
+        adapter = @adapters[bind.adapter]
+        return unless adapter
+
+        declared = settings.keys - [:adapter]
+        unknown  = declared.reject { |field| adapter.declares?(field) }
+        return if unknown.empty?
+
+        raise WiringError,
+              "#{bind.adapter} does not declare #{unknown.map(&:inspect).join(', ')} — " \
+              "it declares #{adapter.all_fields.map(&:inspect).join(', ')}. " \
+              "Add the field to the adapter, or remove it from the world."
       end
 
       def persistence_bind(domain, aggregate)
@@ -79,12 +100,12 @@ module Hecksagain
           raise(WiringError, "#{domain}::#{aggregate.name} has no persisted_by bind")
       end
 
-      def family_for(bind)
+      def port_for(bind)
         adapter = @adapters[bind.adapter]
         raise WiringError, "unknown adapter #{bind.adapter.inspect}" unless adapter
 
-        @families[adapter.family] ||
-          raise(WiringError, "adapter #{bind.adapter} declares unknown family #{adapter.family.inspect}")
+        @ports[adapter.port] ||
+          raise(WiringError, "adapter #{bind.adapter} declares unknown port #{adapter.port.inspect}")
       end
 
       def adapter_class(name)

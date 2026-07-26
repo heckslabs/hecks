@@ -10,36 +10,46 @@
 #       pizzas.world           the per-deployment values
 #     data/                    whatever the adapters write
 #
-# FAMILIES AND ADAPTERS ARE NOT IN THERE. A family is declared once and used
-# across every domain's hexagon — that is the whole point of the inverted arrow,
-# and two copies of one family is exactly the drift this project exists to kill.
-# They live in a shared `boundary/` folder, found by walking up from the domain
-# the way a tool finds its project root:
+# PORTS AND ADAPTERS ARE NOT IN THERE, and they are not together either.
+# They are the two halves of the inverted arrow and each gets its own folder,
+# shared across every domain:
 #
-#   boundary/
-#     persistence.family     the how-verb vocabulary
-#     sqlite.adapter         the inverted arrow
-#     memory.adapter
+#   families/
+#     persistence.family     the PORT — the how-verb and the signal
+#   adapters/
+#     sqlite.adapter         an IMPLEMENTATION — declares its family, and the
+#     memory.adapter         config fields it needs
 #
-# Load order is DEPENDENCY order, not alphabetical: the shared boundary first so
-# binds can type-check against it, then the domain, its wiring, and its values.
+# Both are found by walking up from the domain, the way a tool finds its
+# project root, so nothing has to be configured for the ordinary case.
+#
+# Load order is DEPENDENCY order, not alphabetical: families first (an adapter
+# declares the family it implements, so the family has to exist), then
+# adapters, then the domain, its wiring, its values.
 #
 #   Loader.boot("examples/pizzas")  # => Dispatcher
 module Hecksagain
   module Runtime
     class Loader
-      SHARED_ORDER = %w[*.family *.adapter].freeze
-      DOMAIN_ORDER = %w[*.family *.adapter *.bluebook *.hecksagon *.world].freeze
+      PORTS = "ports"
+      ADAPTERS = "adapters"
+      DOMAIN_ORDER = %w[*.port *.adapter *.bluebook *.hecksagon *.world].freeze
 
-      BOUNDARY = "boundary"
-
-      def self.boot(path, boundary: nil)
+      def self.boot(path, shared: nil)
         directory = bluebook_directory(path)
-        shared    = boundary_directory(boundary, directory)
+        root      = shared_root(shared, directory)
         registry  = Registry.new(root: File.dirname(directory))
 
         Hecksagain.with_registry(registry) do
-          load_each(shared, SHARED_ORDER) if shared
+          # Ports ship WITH THE LIBRARY. A port is a framework-level contract —
+          # `persisted_by`, `:reply` — not something a project declares, so it
+          # is not looked for beside the domain.
+          load_each(library_ports, %w[*.port])
+
+          # Adapters are the project's choice of backend, shared across its
+          # domains, so they ARE found by walking up.
+          load_each(File.join(root, ADAPTERS), %w[*.adapter]) if root
+
           load_each(directory, DOMAIN_ORDER)
         end
 
@@ -48,6 +58,8 @@ module Hecksagain
       end
 
       def self.load_each(directory, patterns)
+        return unless File.directory?(directory)
+
         patterns.each do |pattern|
           Dir[File.join(directory, pattern)].sort.each { |file| Kernel.load(file) }
         end
@@ -64,16 +76,22 @@ module Hecksagain
         raise Errno::ENOENT, "no such domain directory: #{path}"
       end
 
-      # An explicit boundary wins ; otherwise walk up until one turns up. A
-      # domain with no boundary above it is fine — it simply has to declare its
-      # own families, which is what a standalone example does.
-      def self.boundary_directory(given, directory)
+      # The directory holding families/ and adapters/. An explicit one wins ;
+      # otherwise walk up until one turns up. A domain with neither above it is
+      # fine — it simply has to declare its own, which is what a standalone
+      # example does.
+      # The ports that ship with the library — lib/hecksagain/ports/.
+      def self.library_ports
+        File.expand_path("../ports", __dir__)
+      end
+
+      def self.shared_root(given, directory)
         return File.expand_path(given) if given
 
         current = directory
         loop do
-          candidate = File.join(current, BOUNDARY)
-          return candidate if File.directory?(candidate)
+          return current if File.directory?(File.join(current, PORTS)) ||
+                            File.directory?(File.join(current, ADAPTERS))
 
           parent = File.dirname(current)
           return nil if parent == current

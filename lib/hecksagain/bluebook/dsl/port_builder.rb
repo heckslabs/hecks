@@ -1,4 +1,4 @@
-# FamilyBuilder — evaluates a `Hecks.family "persistence" do ... end` block.
+# PortBuilder — evaluates a `Hecks.port "persistence" do ... end` block.
 #
 # A family declares the HOW-VERB a bind hangs off an aggregate, the SIGNAL that
 # says whether the domain gets a value back (:reply) or announces an event and
@@ -7,7 +7,7 @@
 # A family NEVER names its adapters — the adapter declares the family. That
 # inversion is what makes a new backend purely additive.
 #
-#   Hecks.family "persistence" do
+#   Hecks.port "persistence" do
 #     verb   "persisted_by"
 #     signal :reply
 #     field  :database
@@ -15,23 +15,17 @@
 module Hecksagain
   module Bluebook
     module DSL
-      class FamilyBuilder
+      class PortBuilder
         def initialize(name)
           @name   = name
-          @fields = []
           @signal = :reply
         end
 
         def verb(value)   = @verb = value.to_s
         def signal(value) = @signal = value.to_sym
-        def field(name)   = @fields << name.to_sym
-
-        # A secret is a field whose VALUE is never stored in a bluebook — only
-        # the name of the environment variable holding it.
-        def secret(name) = @fields << name.to_sym
 
         def build
-          IR::Family.new(name: @name, verb: @verb, signal: @signal, fields: @fields)
+          IR::Port.new(name: @name, verb: @verb, signal: @signal)
         end
 
         def self.build(name, &block)

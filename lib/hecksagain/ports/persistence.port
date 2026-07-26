@@ -1,0 +1,18 @@
+# persistence — an impure-boundary PORT, declared once and used across every
+# domain's hexagon.
+#
+# A port is the CONTRACT and nothing else: the how-verb a bind hangs off an
+# aggregate, and the signal saying whether the domain gets a value back
+# (:reply) or announces an event and waits for a verdict (:effect).
+#
+# It declares NO fields. Config belongs to the ADAPTER, because adapters
+# implementing one port genuinely differ — Sqlite needs a database, Heki a dir,
+# Memory nothing at all — and a field list here would force one shape onto all
+# three, making Memory carry configuration it has no use for.
+#
+# A port NEVER names its adapters : the adapter declares the port. That
+# inversion is what makes a new backend purely additive.
+Hecks.port "persistence" do
+  verb   "persisted_by"   # the how-verb a bind hangs off the aggregate
+  signal :reply           # returns a value to the domain (find / save)
+end

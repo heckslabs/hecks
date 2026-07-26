@@ -1,0 +1,15 @@
+# Sqlite — a concrete PERSISTENCE adapter backed by a real SQLite database.
+#
+# The contract : it DECLARES the family it implements (the inverted arrow) ;
+# the family never names it. The bind `Pizzas::Pizza.persisted_by("Sqlite")`
+# resolves if and only if this family carries the `persisted_by` verb — the
+# typed attach checkpoint, verified at boot.
+#
+# It also declares the config it needs. `database` is a SQLITE concern, not a
+# persistence one — Heki would say `dir`, Memory says nothing — so it lives
+# here and the .world block is checked against this list. A world naming a field
+# this adapter does not declare is refused at boot rather than ignored.
+Hecks.adapter "Sqlite" do
+  port   "persistence"
+  field  :database        # WHERE the store writes ; value supplied in .world
+end

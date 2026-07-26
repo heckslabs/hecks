@@ -20,7 +20,7 @@ RSpec.describe "the DSL surface is fully covered" do
   COVERED = {
     "Hecksagain (module surface)" => [
       Hecksagain.singleton_class,
-      %i[boot with_registry bluebook hecksagon family adapter world current_registry]
+      %i[boot with_registry bluebook hecksagon port adapter world current_registry]
     ],
     "BluebookBuilder" => [
       Hecksagain::Bluebook::DSL::BluebookBuilder,
@@ -38,13 +38,13 @@ RSpec.describe "the DSL surface is fully covered" do
       Hecksagain::Bluebook::DSL::CommandBuilder,
       %i[role goal reference_to given then_set emits attribute list_of attributes]
     ],
-    "FamilyBuilder" => [
-      Hecksagain::Bluebook::DSL::FamilyBuilder,
-      %i[verb signal field secret]
+    "PortBuilder" => [
+      Hecksagain::Bluebook::DSL::PortBuilder,
+      %i[verb signal]
     ],
     "AdapterBuilder" => [
       Hecksagain::Bluebook::DSL::AdapterBuilder,
-      %i[family]
+      %i[port field secret]
     ],
     "WorldBuilder" => [
       Hecksagain::Bluebook::DSL::WorldBuilder,

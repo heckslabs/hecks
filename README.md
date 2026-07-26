@@ -120,7 +120,7 @@ across every domain's hexagon — that is the whole point of the inverted arrow 
 so they live in one shared place, found by walking up from the domain:
 
 ```
-boundary/
+adapters/
   persistence.family       the how-verb vocabulary (persisted_by, :reply)
   sqlite.adapter           the inverted arrow — adapter declares its family
   memory.adapter

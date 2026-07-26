@@ -37,7 +37,7 @@ require_relative "hecksagain/bluebook/dsl/aggregate_builder"
 require_relative "hecksagain/bluebook/dsl/bluebook_builder"
 require_relative "hecksagain/bluebook/dsl/binding_proxy"
 require_relative "hecksagain/bluebook/dsl/hecksagon_builder"
-require_relative "hecksagain/bluebook/dsl/family_builder"
+require_relative "hecksagain/bluebook/dsl/port_builder"
 require_relative "hecksagain/bluebook/dsl/adapter_builder"
 require_relative "hecksagain/bluebook/dsl/world_builder"
 
@@ -62,9 +62,9 @@ module Hecksagain
     attr_reader :current_registry
 
     # Boot a domain directory and get back the door.
-    # `boundary:` names the folder holding the shared families and adapters.
-    # Left out, it is found by walking up from the domain.
-    def boot(path, boundary: nil) = Runtime::Loader.boot(path, boundary: boundary)
+    # `shared:` names the folder holding ports/ and adapters/. Left out, it is
+    # found by walking up from the domain.
+    def boot(path, shared: nil) = Runtime::Loader.boot(path, shared: shared)
 
     # Declarations land in whichever registry is booting.
     def with_registry(registry)
@@ -77,7 +77,7 @@ module Hecksagain
 
     def bluebook(name, &block)  = collect(:add_bluebook,  Bluebook::DSL::BluebookBuilder.build(name, &block))
     def hecksagon(name, &block) = collect(:add_hecksagon, Bluebook::DSL::HecksagonBuilder.build(name, &block))
-    def family(name, &block)    = collect(:add_family,    Bluebook::DSL::FamilyBuilder.build(name, &block))
+    def port(name, &block)    = collect(:add_port,    Bluebook::DSL::PortBuilder.build(name, &block))
     def adapter(name, &block)   = collect(:add_adapter,   Bluebook::DSL::AdapterBuilder.build(name, &block))
     def world(name, &block)     = collect(:add_world,     Bluebook::DSL::WorldBuilder.build(name, &block))
 

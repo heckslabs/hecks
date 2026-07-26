@@ -27,9 +27,14 @@ RSpec.describe "Pizzas" do
       end
     HECKSAGON
 
+    # Memory needs no configuration, so it has NO world block. A world naming a
+    # field its adapter does not declare is refused at boot - which is the
+    # point of declaring fields on the adapter.
+    File.delete(File.join(target, "pizzas.world")) if adapter == "Memory"
+
     @dirs ||= []
     @dirs << dir
-    Hecks.boot(dir, boundary: BOUNDARY)
+    Hecks.boot(dir, shared: SHARED)
   end
 
   after { @dirs&.each { |dir| FileUtils.remove_entry(dir) } }
@@ -162,7 +167,7 @@ RSpec.describe "Pizzas" do
       runtime.dispatch("Pizzas::Pizza.Purchase", id: pizza.id, customer_name: "Chris")
 
       # Same directory, brand new registry, adapters and all.
-      rebooted  = Hecks.boot(@dirs.last, boundary: BOUNDARY)
+      rebooted  = Hecks.boot(@dirs.last, shared: SHARED)
       aggregate = rebooted.registry.bluebook("Pizzas").aggregate("Pizza")
       stored    = rebooted.registry.repository("Pizzas", aggregate).find(pizza.id)
 
@@ -184,7 +189,7 @@ RSpec.describe "Pizzas" do
         end
       HECKSAGON
 
-      expect { Hecks.boot(dir, boundary: BOUNDARY) }.to raise_error(Hecksagain::Runtime::WiringError, /no persisted_by bind/)
+      expect { Hecks.boot(dir, shared: SHARED) }.to raise_error(Hecksagain::Runtime::WiringError, /no persisted_by bind/)
     ensure
       FileUtils.remove_entry(dir) if dir
     end

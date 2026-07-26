@@ -53,7 +53,7 @@ module Hecksagain
       #
       # An aggregate IS the port, so a bind is a genuine method call on the
       # genuine class rather than a stand-in for one. Any how-verb is accepted
-      # here because the vocabulary belongs to the FAMILIES, not to this class
+      # here because the vocabulary belongs to the PORTS, not to this class
       # — declaring a new family must never require editing this file. Which
       # verbs are real is checked at boot, against the adapter's declared
       # family.
