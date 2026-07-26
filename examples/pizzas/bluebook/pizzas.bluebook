@@ -25,7 +25,9 @@ Hecks.bluebook "Pizzas" do
       attribute :name,   String
       attribute :amount, Integer
 
-      invariant("amount must be positive") { amount.positive? }
+      invariant "amount must be positive" do
+        amount.positive?
+      end
     end
 
     command "CreatePizza" do

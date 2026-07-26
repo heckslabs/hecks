@@ -1,0 +1,190 @@
+//! ir_json - the Hecks IR, rendered in the shape this runtime's interpreter
+//! reads.
+//!
+//! The parser (parser.rs, parse_blocks.rs, parser_helpers.rs, ir.rs,
+//! pattern_subset.rs) came over from Hecks WHOLE and unedited. It produces
+//! `ir::Domain`, a typed IR far richer than this runtime uses - policies,
+//! fixtures, process managers, cadences, queries, views. That richness is not a
+//! problem to be trimmed: it is the parser's knowledge, and trimming it would
+//! fork it.
+//!
+//! So nothing upstream is touched. This module is the ONE seam: it reads the
+//! typed IR and emits the subset this interpreter understands, which is also
+//! exactly the shape the Ruby exporter emits - so bin/parity can diff the two
+//! parsers' readings of the same file.
+//!
+//! When the Rust parser becomes a projection of the Ruby one, this seam is
+//! where that lands, and only this file changes.
+
+use crate::ir::{Aggregate, Attribute, Command, Domain, MutationOp, ValueObject};
+use serde_json::{json, Map, Value};
+
+pub fn domain_to_value(domain: &Domain) -> Value {
+    let aggregates: Vec<Value> = domain.aggregates.iter().map(aggregate_to_value).collect();
+
+    let mut domains = Map::new();
+    domains.insert(
+        domain.name.clone(),
+        json!({
+            "name": domain.name,
+            "vision": optional(&domain.vision),
+            "aggregates": aggregates
+        }),
+    );
+    Value::Object(domains)
+}
+
+fn aggregate_to_value(aggregate: &Aggregate) -> Value {
+    json!({
+        "name": aggregate.name,
+        "description": optional(&aggregate.description),
+        "identified_by": aggregate.identified_by.clone().unwrap_or_else(|| "id".to_string()),
+        "attributes": aggregate.attributes.iter().map(attribute_to_value).collect::<Vec<_>>(),
+        "value_objects": aggregate.value_objects.iter().map(value_object_to_value).collect::<Vec<_>>(),
+        "commands": aggregate.commands.iter().map(command_to_value).collect::<Vec<_>>()
+    })
+}
+
+fn attribute_to_value(attribute: &Attribute) -> Value {
+    json!({
+        "name": attribute.name,
+        "type": attribute.attr_type,
+        "list": attribute.list,
+        "default": literal(attribute.default.as_deref())
+    })
+}
+
+fn value_object_to_value(value_object: &ValueObject) -> Value {
+    let invariants: Vec<Value> = value_object
+        .invariants
+        .iter()
+        .map(|invariant| {
+            json!({
+                "description": invariant.name,
+                "canonical": canonicalise(&invariant.expression)
+            })
+        })
+        .collect();
+
+    json!({
+        "name": value_object.name,
+        "attributes": value_object.attributes.iter().map(attribute_to_value).collect::<Vec<_>>(),
+        "invariants": invariants
+    })
+}
+
+fn command_to_value(command: &Command) -> Value {
+    let givens: Vec<Value> = command
+        .givens
+        .iter()
+        .map(|given| {
+            json!({
+                "description": optional(&given.message),
+                "canonical": canonicalise(&given.expression)
+            })
+        })
+        .collect();
+
+    // A command acting on an existing instance names the aggregate it
+    // references ; a creating command names nothing.
+    let references = command
+        .references
+        .first()
+        .map(|reference| Value::String(reference.target.clone()))
+        .unwrap_or(Value::Null);
+
+    // Hecks carries a single `emits` ; this runtime carries a list, because a
+    // command announcing two facts is a shape worth leaving room for.
+    let emits: Vec<Value> = command
+        .emits
+        .iter()
+        .map(|name| Value::String(name.clone()))
+        .collect();
+
+    json!({
+        "name": command.name,
+        "role": optional(&command.role),
+        "goal": optional(&command.description),
+        "references": references,
+        "attributes": command.attributes.iter().map(attribute_to_value).collect::<Vec<_>>(),
+        "givens": givens,
+        "mutations": command.mutations.iter().map(mutation_to_value).collect::<Vec<_>>(),
+        "emits": emits
+    })
+}
+
+/// The Hecks IR keeps a mutation's value as SOURCE TEXT, which is what makes
+/// the argument-vs-literal distinction survive: a leading `:` is a command
+/// argument, a quoted string is a literal. Nothing has to be guessed.
+fn mutation_to_value(mutation: &crate::ir::Mutation) -> Value {
+    let target = mutation.field.clone();
+
+    if matches!(mutation.operation, MutationOp::Append | MutationOp::AppendUnique) {
+        let mut fields = Map::new();
+        let body = mutation
+            .value
+            .trim()
+            .trim_start_matches('{')
+            .trim_end_matches('}');
+
+        for pair in body.split(',') {
+            if let Some((field, argument)) = pair.split_once(':') {
+                let argument = argument.trim().trim_start_matches(':').trim();
+                if !argument.is_empty() {
+                    fields.insert(field.trim().to_string(), Value::String(argument.to_string()));
+                }
+            }
+        }
+        return json!({ "target": target, "op": "append", "fields": fields });
+    }
+
+    let text = mutation.value.trim();
+    let source = if let Some(name) = text.strip_prefix(':') {
+        json!({ "kind": "argument", "name": name })
+    } else {
+        json!({ "kind": "literal", "value": literal(Some(text)) })
+    };
+
+    json!({ "target": target, "op": "set", "source": source })
+}
+
+/// One meaning, one text. Must agree with the Ruby extractor, which
+/// canonicalises what Prism hands back.
+fn canonicalise(source: &str) -> String {
+    source
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .replace(".length", ".size")
+        .trim()
+        .to_string()
+}
+
+/// Source text to a typed JSON value: quotes stripped, whole numbers as
+/// numbers, true/false as booleans.
+fn literal(text: Option<&str>) -> Value {
+    let text = match text {
+        Some(text) => text.trim(),
+        None => return Value::Null,
+    };
+
+    if text.len() >= 2 && text.starts_with('"') && text.ends_with('"') {
+        return Value::String(text[1..text.len() - 1].to_string());
+    }
+    if let Ok(number) = text.parse::<i64>() {
+        return Value::from(number);
+    }
+    match text {
+        "true" => Value::Bool(true),
+        "false" => Value::Bool(false),
+        "nil" | "null" | "" => Value::Null,
+        other => Value::String(other.to_string()),
+    }
+}
+
+fn optional(text: &Option<String>) -> Value {
+    match text {
+        Some(text) => Value::String(text.clone()),
+        None => Value::Null,
+    }
+}
