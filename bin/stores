@@ -1,0 +1,39 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# What each aggregate's store HOLDS, asked through the port.
+#
+#   bin/stores examples/banking
+#
+# NOTHING HERE KNOWS A STORAGE FORMAT. An earlier version of this read .db and
+# .heki files itself, which put knowledge of both formats in a script sitting
+# outside the adapters that own them — the exact thing a port exists to contain.
+# Adding a third backend would have meant teaching this file about it, which is
+# how a port stops being one.
+#
+# So it boots the domain and asks. The adapter the hecksagon bound reads its own
+# store, in its own format, and answers `count`. That is the port's question and
+# the adapter's business, and this only reports the answer.
+#
+# It also means the check is honest about the SAME THING the runtime is : if an
+# adapter cannot read back what it wrote, the count is wrong here for exactly
+# the reason it would be wrong in production.
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+
+require "hecksagain"
+
+domain = ARGV.fetch(0)
+exit 0 unless Dir.exist?(domain)
+
+runtime = Hecks.boot(domain)
+registry = runtime.registry
+
+lines = registry.bluebooks.flat_map do |name, bluebook|
+  bluebook.aggregates.map do |aggregate|
+    # A FRESH read through the bound adapter — not the runtime's memory of what
+    # it just did. The question is what is on disk, and only the adapter can say.
+    "#{aggregate.storage_name} #{registry.repository(name, aggregate).count}"
+  end
+end
+
+puts lines.sort.join("\n")

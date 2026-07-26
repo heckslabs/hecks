@@ -62,6 +62,13 @@ run_domain() {
   # that have nothing to do with either runtime.
   rm -rf "$domain/data"
 
+  # AND THE TEMP FILES FROM LAST TIME. Stage three copies whatever store the
+  # domain wrote into /tmp and diffs the pair ; those files outlive the run. A
+  # domain switched from Sqlite to Heki stops writing .db entirely, and the
+  # stage happily compared the PREVIOUS run's databases and reported that the
+  # records agreed — a check passing on data neither runtime had just written.
+  rm -f "/tmp/parity.$name."*
+
   # STAGE ONE — did the two parsers UNDERSTAND the same document?
   #
   # Agreeing on behaviour is good ; agreeing on the IR is stronger, because two
@@ -92,11 +99,11 @@ run_domain() {
   # read the first's rows and agree with itself.
   rm -rf "$domain/data"
   "$ROOT/bin/run" "$domain" "$script" > "/tmp/parity.$name.ruby.raw.json" || return 1
-  cp "$domain"/data/*.db "/tmp/parity.$name.ruby.db" 2>/dev/null || true
+  "$ROOT/bin/stores" "$domain" > "/tmp/parity.$name.ruby.rows" 2>/dev/null || true
 
   rm -rf "$domain/data"
   "$BINARY" "$bluebook" "$script"     > "/tmp/parity.$name.rust.raw.json" || return 1
-  cp "$domain"/data/*.db "/tmp/parity.$name.rust.db" 2>/dev/null || true
+  "$ROOT/bin/stores" "$domain" > "/tmp/parity.$name.rust.rows" 2>/dev/null || true
 
   "$ROOT/bin/canonicalise" "/tmp/parity.$name.ruby.raw.json" > "/tmp/parity.$name.ruby.json"
   "$ROOT/bin/canonicalise" "/tmp/parity.$name.rust.raw.json" > "/tmp/parity.$name.rust.json"
@@ -112,47 +119,34 @@ run_domain() {
   fi
   echo "   runtimes agree — same answer for every step"
 
-  # STAGE THREE — did they write the same RECORDS?
-  #
-  # Agreeing in memory is not the same as agreeing on disk. Both runtimes bind
-  # the adapter the hecksagon names, so the rows are the final word on whether
-  # the domain really happened.
-  #
-  # Table names are READ from the database rather than named here — a hardcoded
-  # table meant this stage silently reported "?" for every domain that was not
-  # pizzas, which is a check that passes by not looking.
-  #
-  # Aggregate rows only. Events are a SEPARATE concern from persistence: Hecks
-  # keeps them in event_log.rs, not in PersistenceAdapter, so the real adapter
-  # writes no events table. Every emission is still compared, in stage two.
-  if [ -f "/tmp/parity.$name.ruby.db" ] && [ -f "/tmp/parity.$name.rust.db" ]; then
-    for side in ruby rust; do
-      : > "/tmp/parity.$name.$side.rows"
-      # sqlite_% is SQLite's own bookkeeping, not ours.
-      #
-      # `events` is excluded for a stated reason, not a convenient one : events
-      # are a SEPARATE concern from persistence. Rust keeps them in event_log,
-      # not in PersistenceAdapter, so its adapter writes no events table while
-      # Ruby's does. Every emission is still compared — in stage two, from the
-      # runtime log both sides report — so nothing here goes unchecked. (That
-      # the two adapters differ at all is worth knowing ; it is an adapter
-      # asymmetry below the domain, and it belongs in a card, not in a filter
-      # that pretends it away.)
-      for table in $(sqlite3 "/tmp/parity.$name.$side.db" \
-            "select name from sqlite_master where type='table' \
-               and name not like 'sqlite_%' and name <> 'events' order by name" 2>/dev/null); do
-        count=$(sqlite3 "/tmp/parity.$name.$side.db" "select count(*) from \"$table\"" 2>/dev/null || echo "?")
-        echo "$table $count" >> "/tmp/parity.$name.$side.rows"
-      done
-    done
-
-    if ! diff -u "/tmp/parity.$name.ruby.rows" "/tmp/parity.$name.rust.rows"; then
-      echo
-      echo "   SPLIT — the runtimes agreed in memory and wrote different rows."
-      return 1
-    fi
-    echo "   records agree — $(tr '\n' ' ' < "/tmp/parity.$name.ruby.rows")"
+# STAGE THREE — did they write the same RECORDS?
+#
+# Agreeing in memory is not the same as agreeing on disk. Both runtimes bind
+# the adapter the hecksagon names, so the stores are the final word on
+# whether the domain really happened.
+#
+# bin/stores ASKS THROUGH THE PORT rather than reading files. The adapter the
+# hecksagon bound reads its own store, in its own format, and answers count —
+# so nothing in this harness knows what a .db or a .heki is, and a third
+# backend needs no change here.
+#
+# It reads whatever is on disk after each run, which means the second call
+# reads the store RUST wrote, through RUBY's adapter. A format one side
+# writes and the other cannot read shows up as a wrong count, which is the
+# question worth asking.
+if [ -s "/tmp/parity.$name.ruby.rows" ] || [ -s "/tmp/parity.$name.rust.rows" ]; then
+  if ! diff -u "/tmp/parity.$name.ruby.rows" "/tmp/parity.$name.rust.rows"; then
+    echo
+    echo "   SPLIT — the runtimes agreed in memory and wrote different stores."
+    return 1
   fi
+
+  # A store that cannot be read back needs no special check now : asking
+  # through the port means an adapter that cannot read its own writing fails
+  # where it would fail in production, and the count comes out wrong.
+
+  echo "   stores agree — $(tr "\n" " " < "/tmp/parity.$name.ruby.rows")"
+fi
 
   rm -rf "$domain/data"
   return 0

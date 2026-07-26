@@ -3,7 +3,7 @@
 # Mirrors the hecksagon's shape : the same how-verb selector, carrying values
 # instead of wiring. Read one line in each and you know the whole edge.
 Hecks.world "Banking" do
-  persisted_by("Sqlite") do
-    database "data/banking.db"
+  persisted_by("Heki") do
+    dir "data"
   end
 end

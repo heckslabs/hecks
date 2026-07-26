@@ -85,7 +85,7 @@ fn main() {
             Some(persistence) => println!(
                 "adapter: {}\ndatabase: {}",
                 persistence.adapter,
-                persistence.database.display()
+                persistence.location.display()
             ),
             None => println!("no persistence bound — the runtime would stay in memory"),
         }
@@ -122,8 +122,40 @@ fn main() {
     // adapter may be named together. The library knows only
     // PersistenceAdapter ; storehouse-sqlite is linked here and nowhere else.
     if let Some(persistence) = persistence::resolve(&arguments[1]) {
-        if persistence.adapter == "Sqlite" {
-            let path = persistence.database.to_string_lossy().to_string();
+        let path = persistence.location.to_string_lossy().to_string();
+
+        // A BIND THAT DOES NOT RESOLVE IS AN ERROR, not a silent fallback.
+        // This was `if adapter == "Sqlite"` with no else, so a domain bound
+        // to anything else kept its state in a HashMap and looked entirely
+        // correct while nothing was written. A store nobody can find is the
+        // failure a persistence port exists to make impossible.
+        match persistence.adapter.as_str() {
+            "Heki" => {
+                for (name, aggregate) in runtime.aggregates() {
+                    let identified_by = aggregate
+                        .get("identified_by")
+                        .and_then(Value::as_str)
+                        .map(str::to_string);
+
+                    match storehouse::adapters::driven::heki::HekiRepository::new(
+                        &name,
+                        &path,
+                        identified_by,
+                    ) {
+                        Ok(adapter) => runtime.attach(&name, Box::new(adapter)),
+                        Err(error) => {
+                            eprintln!("cannot bind Heki at {} for {}: {}", path, name, error);
+                            std::process::exit(1);
+                        }
+                    }
+                }
+            }
+            "Memory" => {
+                // The runtime's own in-process store IS the memory adapter.
+                // Named here so a Memory bind reads as a decision rather
+                // than as the fallback of an unmatched name.
+            }
+            "Sqlite" => {
 
             for (name, aggregate) in runtime.aggregates() {
                 // The columns ARE the IR: one per declared attribute, its SQL
@@ -156,6 +188,16 @@ fn main() {
                         std::process::exit(1);
                     }
                 }
+                }
+            }
+            other => {
+                eprintln!(
+                    "cannot bind {}: this runtime links Sqlite, Heki and Memory. \
+                     An unbound adapter would keep state in a HashMap and look \
+                     entirely correct while nothing was written.",
+                    other
+                );
+                std::process::exit(1);
             }
         }
     }

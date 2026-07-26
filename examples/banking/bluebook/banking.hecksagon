@@ -6,7 +6,7 @@
 # is remembering which half. An in-memory Transfer would lose exactly the state
 # the saga exists to hold.
 Hecks.hecksagon "Banking" do
-  Banking::Customer.persisted_by("Sqlite")
-  Banking::Account.persisted_by("Sqlite")
-  Banking::Transfer.persisted_by("Sqlite")
+  Banking::Customer.persisted_by("Heki")
+  Banking::Account.persisted_by("Heki")
+  Banking::Transfer.persisted_by("Heki")
 end
