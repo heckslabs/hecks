@@ -2,14 +2,26 @@
 //!
 //!   hecksagain <ir.json> <script.json>
 //!
-//! Reads an IR that Ruby produced and a script of commands, runs them, and
-//! prints the result as JSON. Its Ruby counterpart (bin/run) takes the same two
-//! files and prints the same shape, so the two outputs can be diffed directly.
+//! Reads an IR and a script of commands, runs them, and prints the result as
+//! JSON. Its Ruby counterpart (bin/run) takes the same inputs and prints the
+//! same shape, so the two outputs can be diffed directly.
 //!
-//! This binary contains no knowledge of any particular domain. It never parses
-//! a bluebook - parsing the bluebook twice, once per language, is the exact
-//! mistake hecksagain exists to avoid. Ruby is the only parser; this reads what
-//! Ruby produced.
+//! This binary contains no knowledge of any particular domain.
+//!
+//! STANDING GAP: it cannot yet parse a .bluebook file. It should. Both
+//! runtimes are meant to read the NATIVE format - a JSON IR handed over from
+//! Ruby is a stepping stone, not the architecture, and it exists here only
+//! because it made semantic parity provable early.
+//!
+//! The mistake hecksagain exists to avoid is not "two parsers". It is two
+//! parsers AUTHORED TWICE BY HAND, held together by a suite that can only
+//! detect drift after the fact. A Rust parser that is a PROJECTION of the Ruby
+//! one is a different thing entirely: one author, two artifacts. Rust is a
+//! projection, except the interpreter.
+//!
+//! Note that a .bluebook file is already Ruby, so the parseable subset and the
+//! evaluable subset are the same question - see
+//! language/bluebook/expression.bluebook.
 
 mod dispatcher;
 mod interp_expr;

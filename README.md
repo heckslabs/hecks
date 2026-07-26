@@ -53,9 +53,19 @@ bin/parity
 #   AGREED — ruby and rust returned the same answer for every step
 ```
 
-Ruby parses the bluebook and exports the IR. Rust reads that IR and **never
-sees a `.bluebook` file** — parsing it twice, once per language, is the exact
-mistake this project exists to avoid.
+Ruby parses the bluebook and exports an IR ; Rust currently reads that IR.
+
+**That is a scaffold, not the destination.** Both runtimes should parse the
+native `.bluebook` format — and since a `.bluebook` file is already Ruby, the
+parseable subset and the evaluable subset turn out to be the same question. The
+JSON handover exists because it made semantic parity provable early, and it
+retires when the Rust parser lands.
+
+The mistake this project exists to avoid is not *two parsers*. It is two
+parsers **authored twice by hand**, held together by a suite that can only
+detect drift after the fact. A Rust parser that is a *projection* of the Ruby
+one is a different thing: one author, two artifacts. Rust is a projection,
+except the interpreter.
 
 The harness runs successes and every refusal path, because a runtime that
 ACCEPTS what the other refuses is the failure most worth catching. Only JSON
