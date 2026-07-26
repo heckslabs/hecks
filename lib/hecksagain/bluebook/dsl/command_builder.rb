@@ -38,14 +38,41 @@ module Hecksagain
         # stringifies to "OtherDomain::Thing" — silently referring across
         # domains. A reference names a type, not whichever class happens to have
         # claimed the constant.
-        def reference_to(type) = @references = Naming.demodulise(type)
+        def reference_to(type)
+          if @references
+            raise Malformed,
+                  "#{@name} references #{@references} and #{Naming.demodulise(type)} — " \
+                  "a command acts on ONE root ; the second reference would " \
+                  "silently win and the first would look declared"
+          end
+
+          demodulised = Naming.demodulise(type)
+          raise Malformed, "#{@name}.reference_to names nothing" if demodulised.to_s.empty?
+
+          @references = demodulised
+        end
 
         # The block is real Ruby and stays real Ruby ; Prism reads its source so
         # the same text can be evaluated by a runtime that has no Ruby in it.
         def given(description, &predicate)
+          canonical = Ports::Extraction.canonical(predicate)
+
+          # A rule has to SAY what it means and SURVIVE extraction. An
+          # unreadable predicate is not a lenient rule — it is a rule that
+          # cannot be evaluated by any target but this one, and a bluebook
+          # carrying one would pass here and refuse nothing everywhere else.
+          raise Malformed, "#{@name} has a given with no description" if description.to_s.empty?
+
+          if canonical.to_s.empty?
+            raise Malformed,
+                  "#{@name}'s given #{description.inspect} did not survive " \
+                  "extraction — its source could not be read, so no other " \
+                  "runtime could ever evaluate it"
+          end
+
           @givens << IR::Given.new(
             description: description,
-            canonical:   Ports::Extraction.canonical(predicate),
+            canonical:   canonical,
             predicate:   predicate
           )
         end
@@ -53,6 +80,14 @@ module Hecksagain
         # then_set :status,   to: :new_status              — replace
         # then_set :toppings, append: { name: :name }      — push onto a list
         def then_set(target, to: nil, append: nil)
+          raise Malformed, "#{@name} has a then_set with no target" if target.to_s.empty?
+
+          if to.nil? && append.nil?
+            raise Malformed,
+                  "#{@name}'s then_set :#{target} neither sets nor appends — " \
+                  "it would record a mutation that changes nothing"
+          end
+
           if append
             @mutations << IR::Mutation.new(target: target.to_sym, op: :append, source: append)
           else
@@ -60,7 +95,11 @@ module Hecksagain
           end
         end
 
-        def emits(event_name) = @emits << event_name.to_s
+        def emits(event_name)
+          raise Malformed, "#{@name} emits an unnamed event" if event_name.to_s.empty?
+
+          @emits << event_name.to_s
+        end
 
         def build
           IR::Command.new(

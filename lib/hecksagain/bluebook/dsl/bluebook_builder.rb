@@ -22,7 +22,11 @@ module Hecksagain
           @process_managers = []
         end
 
-        def vision(value) = @vision = value
+        def vision(value)
+          raise Malformed, "#{@name}'s vision says nothing" if value.to_s.empty?
+
+          @vision = value
+        end
 
         def core       = @classification = :core
         def supporting = @classification = :supporting

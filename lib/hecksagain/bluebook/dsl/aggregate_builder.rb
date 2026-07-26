@@ -33,8 +33,17 @@ module Hecksagain
           @klass         = Class.new(Aggregate)
         end
 
-        def description(value)   = @description = value
-        def identified_by(field) = @identified_by = field.to_sym
+        def description(value)
+          raise Malformed, "#{@name}'s description says nothing" if value.to_s.empty?
+
+          @description = value
+        end
+
+        def identified_by(field)
+          raise Malformed, "#{@name}.identified_by names no field" if field.to_s.empty?
+
+          @identified_by = field.to_sym
+        end
 
         # Another root, referenced by its global identity.
         #

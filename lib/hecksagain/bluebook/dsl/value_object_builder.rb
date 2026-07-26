@@ -20,9 +20,25 @@ module Hecksagain
         end
 
         def invariant(description, &predicate)
+          canonical = Ports::Extraction.canonical(predicate)
+
+          # The rule that closed Hecks's parity hole. Its dump excluded
+          # invariant EXPRESSIONS because the predicate was a Proc and its
+          # source was "unrecoverable" — so an invariant could be inverted
+          # while keeping its name and nothing downstream would notice.
+          # Carrying `canonical` is what fixed it ; refusing an invariant that
+          # has none is what keeps it fixed.
+          raise Malformed, "#{@name} has an invariant with no description" if description.to_s.empty?
+
+          if canonical.to_s.empty?
+            raise Malformed,
+                  "#{@name}'s invariant #{description.inspect} did not survive " \
+                  "extraction — it would be a rule no other runtime could read"
+          end
+
           @invariants << IR::Invariant.new(
             description: description,
-            canonical:   Ports::Extraction.canonical(predicate),
+            canonical:   canonical,
             predicate:   predicate
           )
         end

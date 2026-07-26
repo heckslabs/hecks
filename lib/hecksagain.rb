@@ -36,6 +36,7 @@ require_relative "hecksagain/bluebook/ir/aggregate"
 require_relative "hecksagain/bluebook/ir/bluebook"
 require_relative "hecksagain/bluebook/ir/hexagon"
 
+require_relative "hecksagain/bluebook/dsl/malformed"
 require_relative "hecksagain/bluebook/dsl/const_shim"
 require_relative "hecksagain/bluebook/dsl/attribute_collector"
 require_relative "hecksagain/bluebook/dsl/value_object_builder"

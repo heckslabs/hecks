@@ -18,6 +18,8 @@ module Hecksagain
         def attributes = @attributes ||= []
 
         def attribute(name, type = String, default: nil)
+          raise Malformed, "an attribute must be named" if name.to_s.empty?
+
           list = type.is_a?(ListOf)
           attributes << IR::Attribute.new(
             name:    name,

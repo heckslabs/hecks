@@ -91,6 +91,84 @@ RSpec.describe "the DSL surface" do
   # ==========================================================================
   # BluebookBuilder
   # ==========================================================================
+  # ==========================================================================
+  # These rules were DECLARED in grammar/bluebook.bluebook and enforced by
+  # nothing — a self-description executing against its own toy state while the
+  # real builders accepted anything. They live in the builders now, and these
+  # examples are the difference between a rule and a sentence about a rule.
+  # ==========================================================================
+  describe "declarations that cannot mean what they say" do
+    Malformed = Hecksagain::Bluebook::DSL::Malformed
+
+    it "refuses a vision that says nothing" do
+      expect { build_bluebook("Mute") { vision "" } }
+        .to raise_error(Malformed, /vision says nothing/)
+    end
+
+    it "refuses a description that says nothing" do
+      expect { build_aggregate("Blank") { description "" } }
+        .to raise_error(Malformed, /description says nothing/)
+    end
+
+    it "refuses an identity that names no field" do
+      expect { build_aggregate("Unkeyed") { identified_by "" } }
+        .to raise_error(Malformed, /names no field/)
+    end
+
+    it "refuses an unnamed attribute" do
+      expect { build_aggregate("Nameless") { attribute "", String } }
+        .to raise_error(Malformed, /must be named/)
+    end
+
+    it "refuses an unnamed event" do
+      expect { build_command("Silent") { emits "" } }
+        .to raise_error(Malformed, /unnamed event/)
+    end
+
+    it "refuses a mutation that neither sets nor appends" do
+      expect { build_command("Inert") { then_set :status } }
+        .to raise_error(Malformed, /neither sets nor appends/)
+    end
+
+    # A command acts on ONE root. A second reference would silently win and the
+    # first would still read as declared.
+    it "refuses a command that references two roots" do
+      expect do
+        build_command("Confused") do
+          reference_to "Pizza"
+          reference_to "Order"
+        end
+      end.to raise_error(Malformed, /acts on ONE root/)
+    end
+
+    # THE ONE THAT CLOSED HECKS'S PARITY HOLE. A predicate whose source cannot
+    # be recovered is not a lenient rule — it is a rule no other runtime can
+    # ever evaluate. An eval'd block has no file, so nothing to read.
+    it "refuses a given whose source could not be read" do
+      expect do
+        in_registry do
+          Hecks.bluebook("Unreadable") do
+            aggregate("Thing") do
+              command("Do") { given("unreadable", &eval("proc { 1 < 2 }")) }
+            end
+          end
+        end
+      end.to raise_error(Malformed, /did not survive extraction/)
+    end
+
+    it "refuses an invariant whose source could not be read" do
+      expect do
+        in_registry do
+          Hecks.bluebook("Unreadable2") do
+            aggregate("Thing") do
+              value_object("V") { invariant("unreadable", &eval("proc { 1 < 2 }")) }
+            end
+          end
+        end
+      end.to raise_error(Malformed, /did not survive extraction/)
+    end
+  end
+
   describe "a bluebook" do
     it "vision records the domain's sentence" do
       expect(build_bluebook("Visioned") { vision "sell pizza" }.vision).to eq("sell pizza")
