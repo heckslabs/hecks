@@ -58,6 +58,22 @@
 #                                        `.modulo(n)`, VO derivation calls,
 #                                        arithmetic, literals
 #
+# Admitted since, in both runtimes at once : NEGATION `!`, plus `.empty?` and
+# `.to_s`. These three came in together because they are one sentence, not three
+# operators — `!name.to_s.empty?` is the shape this chapter and every other
+# grammar chapter uses in its own invariants, and admitting two of the three
+# leaves it unevaluable.
+#
+# That they were MISSING while this chapter already used them is the finding
+# worth keeping. `Operator.Render` could not be dispatched at all — the rule
+# guarding it raised on its own text — and 138 green examples ran straight past
+# it, because nothing tested the chapter that defines the language against the
+# language it defines. `.empty?` is computed DIRECTLY here rather than rewritten
+# to `.size == 0` : Hecks takes the rewrite route, so where `.size` misreads its
+# receiver `.empty?` silently answers TRUE and a predicate returns the opposite
+# of what it says. `!a == b` RAISES rather than being guessed at — Ruby reads it
+# as `(!a) == b`, and guessing the other reading would invert a verdict quietly.
+#
 # Admitted since, in both runtimes at once : the SIGN PREDICATES
 # `.positive?` / `.negative?` / `.zero?`. They earn their place by reading
 # better than the comparison they replace — `toppings.size.positive?` says what

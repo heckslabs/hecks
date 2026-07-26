@@ -76,6 +76,84 @@ RSpec.describe "the expression sublanguage" do
     end
   end
 
+  # `!`, `.empty?` and `.to_s` — admitted together because the shape the grammar
+  # chapters actually use is `!name.to_s.empty?`, and admitting two of the three
+  # leaves that sentence unevaluable.
+  describe "emptiness" do
+    it "answers for a string, a list, and a map" do
+      expect(evaluate("label.empty?", { label: "" })).to be true
+      expect(evaluate("label.empty?", { label: "Hello" })).to be false
+      expect(evaluate("toppings.empty?", { toppings: [] })).to be true
+      expect(evaluate("toppings.empty?", { toppings: ["Basil"] })).to be false
+    end
+
+    # `.empty?` is computed DIRECTLY, never rewritten to `.size == 0`. Hecks
+    # takes the rewrite route, so wherever `.size` misreads its receiver
+    # `.empty?` reports TRUE for a value that is plainly not empty.
+    it "reads a string attribute rather than folding through size" do
+      expect(evaluate("label.empty?", {}, { label: "Hello" })).to be false
+    end
+
+    it "raises when the receiver has no emptiness" do
+      expect { evaluate("count.empty?", { count: 3 }) }
+        .to raise_error(/empty\? expects a list or string, got 3/)
+    end
+  end
+
+  describe "negation" do
+    it "inverts a verdict" do
+      expect(evaluate("!ready", { ready: false })).to be true
+      expect(evaluate("!ready", { ready: true })).to be false
+    end
+
+    # Ruby's truthiness survives the `!`: only nil and false are falsy, so
+    # `!0` and `!""` are both FALSE.
+    it "negates Ruby's truthiness, not a convenient approximation of it" do
+      expect(evaluate("!count", { count: 0 })).to be false
+      expect(evaluate("!label", { label: "" })).to be false
+      expect(evaluate("!missing", { missing: nil })).to be true
+    end
+
+    # THE REGRESSION. A predicate and its exact negation must disagree. Both
+    # runtimes once answered TRUE to both of these — the `!` was swallowed by
+    # the `.empty?` suffix match, which stripped it off `!label` instead of
+    # `label`, so the rule returned the opposite of what it said and nothing
+    # failed. This example is the reason the branch exists.
+    it "disagrees with the predicate it negates" do
+      state = { label: "Hello" }
+
+      expect(evaluate("label.empty?",  state)).to be false
+      expect(evaluate("!label.empty?", state)).to be true
+    end
+
+    it "binds tighter than the binary operators" do
+      expect(evaluate("!ready && open", { ready: false, open: true })).to be true
+      expect(evaluate("!ready && open", { ready: true,  open: true })).to be false
+      expect(evaluate("!(a && b)",      { a: true, b: false })).to be true
+    end
+  end
+
+  describe "to_s" do
+    it "renders the scalars a predicate can hold, as Ruby renders them" do
+      expect(evaluate('count.to_s == "3"',    { count: 3 })).to be true
+      expect(evaluate('flag.to_s == "true"',  { flag: true })).to be true
+      expect(evaluate('missing.to_s == ""',   { missing: nil })).to be true
+    end
+
+    # The exact sentence every grammar chapter uses in its invariants. Before
+    # the three operators were admitted this raised, which made
+    # Expression::Operator.Render impossible to dispatch at all.
+    it "composes with emptiness and negation, the shape the chapters use" do
+      expect(evaluate("!target.to_s.empty?", { target: "ruby" })).to be true
+      expect(evaluate("!target.to_s.empty?", { target: nil })).to be false
+    end
+
+    it "raises rather than printing a collection" do
+      expect { evaluate("toppings.to_s", { toppings: ["Basil"] }) }
+        .to raise_error(/to_s expects a scalar/)
+    end
+  end
+
   describe "precedence" do
     # This is the rule that most needs pinning. `a || b && c` means
     # `a || (b && c)` ONLY because || splits first. A runtime that split &&

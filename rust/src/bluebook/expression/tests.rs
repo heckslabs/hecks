@@ -28,6 +28,93 @@ fn refusal(expression: &str, fields: serde_json::Value) -> String {
     }
 }
 
+// `!`, `.empty?` and `.to_s` - admitted together because the shape the grammar
+// chapters actually use is `!name.to_s.empty?`, and admitting two of the three
+// leaves that sentence unevaluable. Twins of spec/expression_spec.rb.
+
+#[test]
+fn answers_emptiness_for_string_list_and_map() {
+    assert!(check("label.empty?", json!({ "label": "" })));
+    assert!(!check("label.empty?", json!({ "label": "Hello" })));
+    assert!(check("toppings.empty?", json!({ "toppings": [] })));
+    assert!(!check("toppings.empty?", json!({ "toppings": ["Basil"] })));
+}
+
+/// `.empty?` is computed DIRECTLY, never rewritten to `.size == 0`. Hecks takes
+/// the rewrite route, so wherever `.size` misreads its receiver `.empty?`
+/// reports TRUE for a value that is plainly not empty.
+#[test]
+fn emptiness_reads_an_argument_rather_than_folding_through_size() {
+    let passed = state(json!({ "label": "Hello" }));
+    assert_eq!(
+        evaluate_given("label.empty?", &State::new(), &passed),
+        Ok(false)
+    );
+}
+
+#[test]
+fn refuses_emptiness_of_something_that_has_none() {
+    assert_eq!(
+        refusal("count.empty?", json!({ "count": 3 })),
+        "empty? expects a list or string, got 3"
+    );
+}
+
+#[test]
+fn negation_inverts_a_verdict() {
+    assert!(check("!ready", json!({ "ready": false })));
+    assert!(!check("!ready", json!({ "ready": true })));
+}
+
+/// Ruby's truthiness survives the `!`: only nil and false are falsy, so `!0`
+/// and `!""` are both FALSE.
+#[test]
+fn negation_uses_rubys_truthiness() {
+    assert!(!check("!count", json!({ "count": 0 })));
+    assert!(!check("!label", json!({ "label": "" })));
+    assert!(check("!missing", json!({ "missing": null })));
+}
+
+/// THE REGRESSION. A predicate and its exact negation must disagree. Both
+/// runtimes once answered TRUE to both of these - the `!` was swallowed by the
+/// `.empty?` suffix match, which stripped it off `!label` instead of `label`,
+/// so the rule returned the opposite of what it said and nothing failed.
+#[test]
+fn negation_disagrees_with_the_predicate_it_negates() {
+    let fields = json!({ "label": "Hello" });
+    assert!(!check("label.empty?", fields.clone()));
+    assert!(check("!label.empty?", fields));
+}
+
+#[test]
+fn negation_binds_tighter_than_the_binary_operators() {
+    assert!(check("!ready && open", json!({ "ready": false, "open": true })));
+    assert!(!check("!ready && open", json!({ "ready": true, "open": true })));
+    assert!(check("!(a && b)", json!({ "a": true, "b": false })));
+}
+
+#[test]
+fn renders_scalars_with_to_s_as_ruby_renders_them() {
+    assert!(check("count.to_s == \"3\"", json!({ "count": 3 })));
+    assert!(check("flag.to_s == \"true\"", json!({ "flag": true })));
+    assert!(check("missing.to_s == \"\"", json!({ "missing": null })));
+}
+
+/// The exact sentence every grammar chapter uses in its invariants. Before the
+/// three operators were admitted this raised, which made
+/// Expression::Operator.Render impossible to dispatch at all.
+#[test]
+fn to_s_composes_with_emptiness_and_negation() {
+    assert!(check("!target.to_s.empty?", json!({ "target": "ruby" })));
+    assert!(!check("!target.to_s.empty?", json!({ "target": null })));
+}
+
+#[test]
+fn refuses_to_print_a_collection() {
+    assert!(refusal("toppings.to_s", json!({ "toppings": ["Basil"] }))
+        .starts_with("to_s expects a scalar"));
+}
+
 #[test]
 fn reads_literals() {
     assert!(check("1 < 2", json!({})));

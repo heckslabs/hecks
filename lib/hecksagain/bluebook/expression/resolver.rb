@@ -43,6 +43,9 @@ module Hecksagain
           sign = match_suffix(expr, SIGN_TESTS)
           return apply_sign_test(sign, state, attrs) if sign
 
+          return emptiness_of(Regexp.last_match(1), state, attrs) if expr =~ /\A(.+)\.empty\?\z/
+          return string_of(Regexp.last_match(1), state, attrs)    if expr =~ /\A(.+)\.to_s\z/
+
           modulo = match_call(expr, ".modulo(")
           return apply_modulo(modulo, state, attrs) if modulo
 
@@ -66,6 +69,37 @@ module Hecksagain
           return value.size if value.is_a?(Array) || value.is_a?(String) || value.is_a?(Hash)
 
           raise EvaluationError, "size expects a list or string, got #{describe(value)}"
+        end
+
+        # Ruby's `empty?` lives on String, Array and Hash and nowhere else, so
+        # anything else RAISES rather than answering true.
+        #
+        # It is computed DIRECTLY, never rewritten to `.size == 0`. Hecks takes
+        # the rewrite route and inherits every weakness of `.size` through it :
+        # where `.size` misreads a receiver, `.empty?` silently reports true and
+        # the predicate returns the opposite of what it says.
+        def emptiness_of(receiver, state, attrs)
+          value = resolve(receiver, state, attrs)
+          return value.empty? if value.is_a?(Array) || value.is_a?(String) || value.is_a?(Hash)
+
+          raise EvaluationError, "empty? expects a list or string, got #{describe(value)}"
+        end
+
+        # Ruby's `to_s` over the scalars a predicate can hold. A list or map has
+        # a to_s in Ruby (it is `inspect`), but a predicate comparing against
+        # the printed form of a collection is asking a question it should be
+        # asking of the collection, so those RAISE.
+        def string_of(receiver, state, attrs)
+          value = resolve(receiver, state, attrs)
+
+          case value
+          when String                then value
+          when Integer, Float        then value.to_s
+          when TrueClass, FalseClass then value.to_s
+          when NilClass              then ""
+          else
+            raise EvaluationError, "to_s expects a scalar, got #{describe(value)}"
+          end
         end
 
         def match_suffix(expr, suffixes)

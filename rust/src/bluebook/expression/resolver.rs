@@ -59,6 +59,14 @@ pub fn resolve_expr(expr: &str, state: &State, attrs: &State) -> Eval<Value> {
         return apply_modulo(&receiver, &argument, state, attrs);
     }
 
+    if let Some(receiver) = expr.strip_suffix(".empty?") {
+        return emptiness_of(receiver.trim(), state, attrs);
+    }
+
+    if let Some(receiver) = expr.strip_suffix(".to_s") {
+        return string_of(receiver.trim(), state, attrs);
+    }
+
     if let Some(receiver) = expr.strip_suffix(".size") {
         return size_of(receiver.trim(), state, attrs);
     }
@@ -86,6 +94,51 @@ fn size_of(receiver: &str, state: &State, attrs: &State) -> Eval<Value> {
         Value::Object(map) => Ok(Value::from(map.len() as i64)),
         other => Err(format!("size expects a list or string, got {}", describe(other))),
     }
+}
+
+/// Ruby's `empty?` lives on String, Array and Hash and nowhere else, so anything
+/// else RAISES rather than answering true.
+///
+/// Computed DIRECTLY, never rewritten to `.size == 0`. Hecks takes the rewrite
+/// route and inherits every weakness of `.size` through it: where `.size`
+/// misreads a receiver, `.empty?` silently reports true and the predicate
+/// returns the opposite of what it says.
+fn emptiness_of(receiver: &str, state: &State, attrs: &State) -> Eval<Value> {
+    let value = resolve_expr(receiver, state, attrs)?;
+
+    match &value {
+        Value::Array(items) => Ok(Value::Bool(items.is_empty())),
+        Value::String(text) => Ok(Value::Bool(text.is_empty())),
+        Value::Object(map) => Ok(Value::Bool(map.is_empty())),
+        other => Err(format!(
+            "empty? expects a list or string, got {}",
+            describe(other)
+        )),
+    }
+}
+
+/// Ruby's `to_s` over the scalars a predicate can hold. A list or map has a to_s
+/// in Ruby (it is `inspect`), but a predicate comparing against the printed form
+/// of a collection is asking a question it should be asking of the collection,
+/// so those RAISE.
+fn string_of(receiver: &str, state: &State, attrs: &State) -> Eval<Value> {
+    let value = resolve_expr(receiver, state, attrs)?;
+
+    Ok(Value::String(match &value {
+        Value::String(text) => text.clone(),
+        Value::Null => String::new(),
+        Value::Bool(flag) => flag.to_string(),
+        Value::Number(n) => match n.as_i64() {
+            Some(i) => i.to_string(),
+            None => format_float(n.as_f64().unwrap_or(0.0)),
+        },
+        other => {
+            return Err(format!(
+                "to_s expects a scalar, got {}",
+                describe(other)
+            ))
+        }
+    }))
 }
 
 fn apply_sign_test(receiver: &str, test: &str, state: &State, attrs: &State) -> Eval<Value> {

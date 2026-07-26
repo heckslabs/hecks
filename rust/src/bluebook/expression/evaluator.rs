@@ -3,7 +3,11 @@
 //! Mirrors lib/hecksagain/expression/evaluator.rb, including its SPLIT ORDER,
 //! which is the part that carries meaning:
 //!
-//!   ||  ->  &&  ->  .include?  ->  >= <= < > == !=  ->  leaves
+//!   ||  ->  &&  ->  .include?  ->  >= <= < > == !=  ->  !  ->  leaves
+//!
+//! `!` sits second-from-last because it binds TIGHTER than every binary
+//! operator - reaching it earlier would read `!a && b` as `!(a && b)` and invert
+//! the verdict on a sentence that looks unambiguous.
 //!
 //! `a || b && c` means `a || (b && c)` only because || is split first. A
 //! runtime that split && first would reach a different verdict on the same text
@@ -41,6 +45,20 @@ pub fn evaluate_given(expr: &str, state: &State, attrs: &State) -> Eval<bool> {
         if let Some((left, right)) = split_comparison(expr, operator) {
             return compare(operator, &left, &right, state, attrs);
         }
+    }
+
+    // NEGATION binds tighter than every binary operator above, so it is reached
+    // only after they have all split: `!a && b` arrives here as `!a`, already
+    // separated. Ruby's rule, not a convenience: only nil and false are falsy, so
+    // `!0` is false and `!""` is false.
+    //
+    // `!a == b` is left to RAISE rather than guessed at. Ruby reads it as
+    // `(!a) == b`, so the comparison split above hands `!a` to the resolver, which
+    // has no such name and says so. Guessing the other reading - `!(a == b)` -
+    // would silently inverse the verdict, and a predicate that cannot be evaluated
+    // is a defect, not a false. Write `a != b`, or parenthesise.
+    if let Some(inner) = expr.strip_prefix('!') {
+        return Ok(!evaluate_given(inner, state, attrs)?);
     }
 
     Ok(truthy(&resolve_expr(expr, state, attrs)?))
