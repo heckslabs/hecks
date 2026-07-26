@@ -31,7 +31,14 @@ module Hecksagain
         def goal(value) = @goal = value
 
         # Marks the command as acting on an EXISTING instance, loaded by id.
-        def reference_to(type) = @references = type.to_s
+        #
+        # The BARE name, always. The const shim only fires for constants that do
+        # not exist, so once any domain has installed a real class called Thing,
+        # a later bluebook writing `reference_to Thing` receives that CLASS and
+        # stringifies to "OtherDomain::Thing" — silently referring across
+        # domains. A reference names a type, not whichever class happens to have
+        # claimed the constant.
+        def reference_to(type) = @references = Naming.demodulise(type)
 
         # The block is real Ruby and stays real Ruby ; Prism reads its source so
         # the same text can be evaluated by a runtime that has no Ruby in it.

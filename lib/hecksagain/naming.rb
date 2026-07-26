@@ -12,6 +12,14 @@ module Hecksagain
   module Naming
     module_function
 
+    # The bare name of a type, whatever arrived: a TypeName from the const
+    # shim, or a real class once some domain has claimed that constant.
+    #
+    #   demodulise("Pizzas::Pizza")  # => "Pizza"
+    def demodulise(type)
+      type.to_s.split("::").last.to_s
+    end
+
     def snake(text)
       text.to_s
           .gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2')

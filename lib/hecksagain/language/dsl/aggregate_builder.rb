@@ -34,8 +34,11 @@ module Hecksagain
         def identified_by(field) = @identified_by = field.to_sym
 
         # Another root, referenced by its global identity.
+        #
+        # The BARE name — see CommandBuilder#reference_to for why a fully
+        # qualified one would silently point across domains.
         def reference_to(type)
-          attribute(:"#{Naming.snake(type.to_s)}_id", String)
+          attribute(:"#{Naming.snake(Naming.demodulise(type))}_id", String)
         end
 
         def value_object(name, &block)
