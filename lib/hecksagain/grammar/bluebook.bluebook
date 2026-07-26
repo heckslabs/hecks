@@ -1,0 +1,593 @@
+# BLUEBOOK — the language describing the language.
+#
+# ============================================================
+# WHY THIS CHAPTER EXISTS
+# ============================================================
+#
+# `expression.bluebook` describes the sublanguage a PREDICATE is allowed to be.
+# This chapter describes everything around it : what an aggregate is, what a
+# command is, what an attribute is — written in the DSL those things define.
+#
+# That circularity is the point. If the bluebook language can describe itself,
+# then a specializer applied to this file has the parser as its subject, and the
+# projection can be compared against the parser we actually wrote. Byte-identity
+# is the proof that the description is complete ; any divergence is a place the
+# language cannot yet say what it does.
+#
+#     interpreter + this chapter   →   the parser            (1st projection)
+#     specializer + interpreter    →   a bluebook compiler   (2nd projection)
+#     specializer + specializer    →   a compiler generator  (3rd projection)
+#
+# Hecks reached for this and stopped short. Its `chapters/` tree describes the
+# framework in the framework — but the descriptions are an INVENTORY, not a
+# specification. Across 7,270 lines it carries `emits` 92 times and `then_set`
+# zero times ; `DefineAttribute(name: String, type: String)` names the concept
+# and determines nothing. And there is no `chapters/bluebook.bluebook` at all —
+# every chapter describing an APPLICATION was extracted, the one chapter that
+# would close the loop never was.
+#
+# The reason is upstream of anyone's discipline : Ruby held predicates as Procs
+# and their source was unrecoverable, so a self-description COULD not carry
+# behaviour. Prism removes that, which is why this file can exist here and could
+# not exist there.
+#
+# ============================================================
+# WHAT WRITING IT REVEALED
+# ============================================================
+#
+# The reason to write the description BEFORE porting Hecks's DSL is that the
+# places it cannot say what it means are exactly the keywords worth porting.
+# Four surfaced, and three of them are the port list already agreed :
+#
+#   RELATIONSHIPS.  `Aggregate` holds value objects, commands and attributes,
+#   and every one of those is modelled below as a `list_of(...)` of a flat VO
+#   carrying a NAME. That is not what the parser does — it holds the built
+#   thing. The language has only `reference_to`, which is a cross-root pointer ;
+#   it has no `has_many` for owned members, so ownership is written as a
+#   name-shaped shadow of the real structure. Every `Ref` value object below is
+#   a `has_many` waiting to be spelled.
+#
+#   DERIVATION.  `Command#creates?` is one line — `@references.nil?`. It is a
+#   function of state, so it wants `derive :creates, from: ...`. With no
+#   `derive`, it is written below as a `kind` attribute that `Reference` mutates,
+#   which states the CONSEQUENCE and hides the RULE. A projection reading this
+#   chapter would reproduce the mutation and never learn the invariant.
+#
+#   READ SIDE.  `IR::Bluebook#aggregate(named)`, `#verbs`, `IR::Aggregate
+#   #command(named)` are lookups over held collections — queries, every one.
+#   There is no `query` keyword, so the entire read half of the IR is invisible
+#   to this description. What is invisible cannot be projected.
+#
+#   SET MEMBERSHIP.  `AggregateBuilder::RESERVED` is a constant list and the
+#   shadowing rule is a membership test against it. The sublanguage admits
+#   `.include?` but has no list LITERAL, so the rule cannot be stated over a
+#   fixed set. The invariant below is deliberately narrower than the code, and
+#   is marked where it is weaker. This one is a gap in `expression.bluebook`,
+#   not in the DSL — the first found by describing rather than by using.
+#
+# Nothing below is stubbed to make the file look finished. Where the language
+# falls short the comment says so, because the shortfall is the deliverable.
+#
+# ============================================================
+# HOW TO READ IT
+# ============================================================
+#
+# Each aggregate is one builder. Each command is one DSL keyword, and its
+# `given`s are the rules that builder enforces while reading source. The
+# lifecycle attributes (`kind`, `installed`) are not in the builders — a builder
+# enforces ordering by which method has run. Written declaratively the ordering
+# has to become state, and that is a faithful translation, not an embellishment.
+
+Hecks.bluebook "Bluebook" do
+  vision "The bluebook language described in itself — one aggregate per builder, one command per keyword, so a specializer can take the parser as its subject."
+  core
+
+  # ============================================================
+  # BLUEBOOK — the domain declaration
+  # ============================================================
+  #
+  # `Hecks.bluebook "Pizzas" do ... end`. Mirrors BluebookBuilder.
+  #
+  # This aggregate shares its domain's name, which is not an accident — it
+  # exercises the one path BluebookBuilder guards explicitly : an aggregate
+  # named for its domain must NOT claim the domain constant, or the module
+  # becomes unreachable and takes its siblings with it. The chapter that
+  # describes that rule is the chapter that triggers it.
+  aggregate "Bluebook" do
+    description "One domain declaration — a name, a vision, a strategic classification, and the aggregates it installs as a namespace."
+
+    identified_by :name
+
+    attribute :name,           String
+    attribute :vision,         String, default: ""
+    attribute :classification, String, default: "unclassified"
+    attribute :aggregates,     list_of(AggregateRef)
+    attribute :installed,      String, default: "pending"
+
+    # GAP (relationships) — a Bluebook HOLDS its aggregates ; the builder keeps
+    # the built IR objects. With no `has_many` for owned members this carries
+    # names only, so the description is one indirection shallower than the code.
+    value_object "AggregateRef" do
+      attribute :name, String
+
+      invariant("an aggregate reference must name something") { !name.to_s.empty? }
+    end
+
+    command "Declare" do
+      role "Domain author"
+      goal "Open a domain and give it a name"
+
+      attribute :name, String
+
+      emits "BluebookDeclared"
+    end
+
+    command "Envision" do
+      role "Domain author"
+      goal "State what the domain is for, in one sentence"
+
+      reference_to Bluebook
+      attribute :vision, String
+
+      given("a vision must say something") { !vision.to_s.empty? }
+
+      then_set :vision, to: :vision
+
+      emits "BluebookEnvisioned"
+    end
+
+    command "Classify" do
+      role "Domain author"
+      goal "Record Evans' strategic distinction for this domain"
+
+      # Recorded, never enforced — it tells a reader where to spend attention
+      # and later tells a generator how hard to optimise.
+      reference_to Bluebook
+      attribute :classification, String
+
+      given("a domain is core, supporting, or generic") do
+        classification == "core" || classification == "supporting" || classification == "generic"
+      end
+
+      then_set :classification, to: :classification
+
+      emits "BluebookClassified"
+    end
+
+    command "AddAggregate" do
+      role "Domain author"
+      goal "Read an aggregate block and keep what it built"
+
+      # The payload is `aggregate`, not `name` — see the IDENTITY SHADOWING note
+      # in the header. This aggregate is `identified_by :name`, so a command
+      # attribute called `name` is read as the identity of the Bluebook being
+      # acted on and never reaches the mutation.
+      reference_to Bluebook
+      attribute :aggregate, String
+
+      given("aggregates are added before the namespace is installed") { installed == "pending" }
+
+      then_set :aggregates, append: { name: :aggregate }
+
+      emits "AggregateAdded"
+    end
+
+    command "Install" do
+      role "Domain author"
+      goal "Name the module and lift its aggregates to top level"
+
+      # Naming the module names every class inside it (Pizzas::Pizza) ; lifting
+      # the aggregates is what lets a domain be written as plain Ruby —
+      # `Pizza.create_pizza(...)` rather than `Pizzas::Pizza.create_pizza(...)`.
+      reference_to Bluebook
+
+      given("a domain with no aggregates installs nothing") { aggregates.size.positive? }
+      given("a domain installs once")                       { installed == "pending" }
+
+      then_set :installed, to: "installed"
+
+      emits "NamespaceInstalled"
+    end
+  end
+
+  # ============================================================
+  # AGGREGATE — the class-building builder
+  # ============================================================
+  #
+  # `aggregate "Pizza" do ... end`. Mirrors AggregateBuilder, the one builder
+  # that makes TWO products in a single pass : the IR, and a real Ruby class.
+  # The IR is never read back to make the class — that would make Ruby a
+  # projection of itself, which the arrow forbids.
+  aggregate "Aggregate" do
+    description "One aggregate root — its attributes, value objects and commands, plus the Ruby class constructed while the block is read."
+
+    identified_by :name
+
+    attribute :name,          String
+    attribute :description,   String, default: ""
+    attribute :identified_by, String, default: "id"
+    attribute :attributes,    list_of(FieldRef)
+    attribute :value_objects, list_of(TypeRef)
+    attribute :commands,      list_of(TypeRef)
+
+    # GAP (relationships) — three `has_many` collections, all flattened to names.
+    value_object "FieldRef" do
+      attribute :name, String
+
+      # WEAKER THAN THE CODE. AggregateBuilder::RESERVED is
+      # %i[id state events reload inspect to_h hash class] and the real rule is
+      # membership in that set. The sublanguage has `.include?` but no list
+      # literal, so only the load-bearing member can be stated : `state` is what
+      # actually stores the attributes, so shadowing it breaks the reader it
+      # would define. See the SET MEMBERSHIP gap in the header.
+      invariant("an attribute may not shadow the state it is stored in") { name.to_s != "state" }
+    end
+
+    value_object "TypeRef" do
+      attribute :name, String
+
+      invariant("a type reference must name something") { !name.to_s.empty? }
+    end
+
+    command "Declare" do
+      role "Domain author"
+      goal "Open an aggregate and construct its Ruby class"
+
+      attribute :name, String
+
+      emits "AggregateDeclared"
+    end
+
+    command "Describe" do
+      role "Domain author"
+      goal "Say in one sentence what this aggregate is"
+
+      reference_to Aggregate
+      attribute :description, String
+
+      given("a description must say something") { !description.to_s.empty? }
+
+      then_set :description, to: :description
+
+      emits "AggregateDescribed"
+    end
+
+    command "IdentifyBy" do
+      role "Domain author"
+      goal "Choose the field that carries identity"
+
+      reference_to Aggregate
+      attribute :field, String
+
+      given("identity must name a field") { !field.to_s.empty? }
+
+      then_set :identified_by, to: :field
+
+      emits "IdentityChosen"
+    end
+
+    command "AddAttribute" do
+      role "Domain author"
+      goal "Give the aggregate a field, and the class a reader for it"
+
+      reference_to Aggregate
+      attribute :field, String
+
+      then_set :attributes, append: { name: :field }
+
+      emits "AttributeAdded"
+    end
+
+    command "Reference" do
+      role "Domain author"
+      goal "Point at another root by its global identity"
+
+      # `reference_to Pizza` becomes a plain `pizza_id` String — identity, never
+      # an embedded object. The BARE name is used deliberately : the const shim
+      # fires only for constants that do not yet exist, so once any domain has
+      # installed a real `Pizza`, a later `reference_to Pizza` would receive that
+      # CLASS and stringify to `OtherDomain::Pizza` — silently referring across
+      # domains. A reference names a TYPE, not whichever class holds the constant.
+      reference_to Aggregate
+      attribute :type, String
+
+      given("a reference must name a type") { !type.to_s.empty? }
+
+      then_set :attributes, append: { name: :type }
+
+      emits "ReferenceAdded"
+    end
+
+    command "AddValueObject" do
+      role "Domain author"
+      goal "Read a value object block and keep what it built"
+
+      reference_to Aggregate
+      attribute :type, String
+
+      then_set :value_objects, append: { name: :type }
+
+      emits "ValueObjectAdded"
+    end
+
+    command "AddCommand" do
+      role "Domain author"
+      goal "Read a command block, keep its IR, and define the method it describes"
+
+      reference_to Aggregate
+      attribute :verb, String
+
+      then_set :commands, append: { name: :verb }
+
+      emits "CommandAdded"
+    end
+  end
+
+  # ============================================================
+  # COMMAND — the declaration with no body
+  # ============================================================
+  #
+  # `command "AddTopping" do ... end`. Mirrors CommandBuilder.
+  #
+  # Everything a command does is DECLARED : no handler, no `def call`. The
+  # runtime reads givens, mutations and emissions straight off the IR, and that
+  # is precisely what makes the same declaration projectable to a language with
+  # no Ruby in it.
+  aggregate "Command" do
+    description "One command — who issues it, what it needs, what must hold, what it changes, and what it announces. No body."
+
+    identified_by :name
+
+    attribute :name,       String
+    attribute :role,       String, default: ""
+    attribute :goal,       String, default: ""
+    attribute :kind,       String, default: "creating"
+    attribute :attributes, list_of(FieldRef)
+    attribute :givens,     list_of(Given)
+    attribute :mutations,  list_of(Mutation)
+    attribute :emits,      list_of(EventRef)
+
+    value_object "FieldRef" do
+      attribute :name, String
+    end
+
+    # A rule, plus the canonical TEXT Prism recovered from its block. The text
+    # is the portable form : `expression.bluebook` fixes what it may contain,
+    # and both runtimes split it at evaluation time, lowest precedence first.
+    value_object "Given" do
+      attribute :description, String
+      attribute :canonical,   String
+
+      invariant("a rule must say what it means")   { !description.to_s.empty? }
+      invariant("a rule must survive extraction")  { !canonical.to_s.empty? }
+    end
+
+    # `then_set :status, to: :new_status` replaces ; `then_set :toppings,
+    # append: {...}` pushes onto a list. Two operations, no others.
+    value_object "Mutation" do
+      attribute :target, String
+      attribute :op,     String
+
+      invariant("a mutation must name its target")     { !target.to_s.empty? }
+      invariant("a mutation either sets or appends")   { op.to_s == "set" || op.to_s == "append" }
+    end
+
+    value_object "EventRef" do
+      attribute :name, String
+
+      invariant("an event must be named") { !name.to_s.empty? }
+    end
+
+    command "Declare" do
+      role "Domain author"
+      goal "Open a command block"
+
+      attribute :name, String
+
+      emits "CommandDeclared"
+    end
+
+    command "Attribute" do
+      role "Domain author"
+      goal "State a value the command needs from its issuer"
+
+      reference_to Command
+      attribute :field, String
+
+      then_set :attributes, append: { name: :field }
+
+      emits "CommandAttributeAdded"
+    end
+
+    command "Reference" do
+      role "Domain author"
+      goal "Mark the command as acting on an instance that already exists"
+
+      # GAP (derivation). In the parser this is not a mutation at all —
+      # `creates?` is `@references.nil?`, read fresh whenever asked. Written as
+      # a `then_set` it records the CONSEQUENCE (kind becomes "acting") and
+      # loses the RULE (kind IS the absence of a reference). A projection built
+      # from this chapter would copy the assignment and never learn the
+      # equivalence. It wants `derive :kind, from: :references`.
+      #
+      # The distinction is load-bearing : a creating command mints identity so
+      # it becomes a CLASS method, and any other command already knows its
+      # instance so it becomes an INSTANCE method and never asks for an id.
+      reference_to Command
+      attribute :type, String
+
+      given("a command references one root, once") { kind == "creating" }
+
+      then_set :kind, to: "acting"
+
+      emits "CommandReferenced"
+    end
+
+    command "Constrain" do
+      role "Domain author"
+      goal "State a rule that must hold before the command runs"
+
+      # The block stays real Ruby and is never re-spelled. Prism reads its
+      # source, so `toppings.size < 10` is a genuine method call at runtime AND
+      # a comparison node at extraction time — both readings of one text.
+      reference_to Command
+      attribute :description, String
+      attribute :canonical,   String
+
+      given("a rule that did not survive extraction is not a rule") { !canonical.to_s.empty? }
+
+      then_set :givens, append: { description: :description, canonical: :canonical }
+
+      emits "CommandConstrained"
+    end
+
+    command "Mutate" do
+      role "Domain author"
+      goal "Declare a change the command makes to the aggregate's state"
+
+      reference_to Command
+      attribute :target, String
+      attribute :op,     String
+
+      given("a mutation either sets or appends") { op == "set" || op == "append" }
+
+      then_set :mutations, append: { target: :target, op: :op }
+
+      emits "CommandMutationAdded"
+    end
+
+    command "Emit" do
+      role "Domain author"
+      goal "Announce that something happened, in the past tense"
+
+      reference_to Command
+      attribute :event, String
+
+      given("an event must be named") { !event.to_s.empty? }
+
+      then_set :emits, append: { name: :event }
+
+      emits "CommandEmissionAdded"
+    end
+  end
+
+  # ============================================================
+  # ATTRIBUTE — the field, and the explicitness of its shape
+  # ============================================================
+  #
+  # `attribute :toppings, list_of(Topping)`. Mirrors AttributeCollector.
+  #
+  # List shape is EXPLICIT and nothing is inferred from the name. `list_of(X)`
+  # returns a marker the collector unwraps ; a bare type is always scalar. The
+  # auto-list heuristic — plural name implies collection — was retired because a
+  # domain called `address` holding several is a real thing, and a language that
+  # guesses is a language that is sometimes wrong silently.
+  aggregate "Attribute" do
+    description "One typed field — its name, its type, whether it is a list, and its default. Shape is declared, never inferred."
+
+    identified_by :name
+
+    attribute :name,  String
+    attribute :type,  String, default: "String"
+    attribute :shape, String, default: "scalar"
+
+    command "Declare" do
+      role "Domain author"
+      goal "Give a holder a typed field"
+
+      attribute :name, String
+      attribute :type, String
+
+      given("an attribute must be named") { !name.to_s.empty? }
+
+      emits "AttributeDeclared"
+    end
+
+    command "MakeList" do
+      role "Domain author"
+      goal "Declare that this field holds many of its type"
+
+      reference_to Attribute
+
+      given("a field becomes a list once") { shape == "scalar" }
+
+      then_set :shape, to: "list"
+
+      emits "AttributeMadeList"
+    end
+  end
+
+  # ============================================================
+  # VALUE OBJECT — the type that is its rules
+  # ============================================================
+  #
+  # `value_object "Topping" do ... end`. Mirrors ValueObjectBuilder.
+  #
+  # Invariants are captured as blocks and evaluated against the CONSTRUCTED
+  # value, so the bluebook reads as a rule rather than as a validation call.
+  # Value objects live INSIDE the aggregate that uses them ; duplication across
+  # aggregates is fine, and a file-top-level value object is forbidden.
+  aggregate "ValueObject" do
+    description "One value type — fields plus the rules that must hold of any value of it. Identity is the values themselves."
+
+    identified_by :name
+
+    attribute :name,       String
+    attribute :attributes, list_of(FieldRef)
+    attribute :invariants, list_of(Invariant)
+
+    value_object "FieldRef" do
+      attribute :name, String
+    end
+
+    value_object "Invariant" do
+      attribute :description, String
+      attribute :canonical,   String
+
+      # The hole in Hecks's parity contract was exactly here : `dump.rs`
+      # excluded invariant expressions because the predicate was a Proc and its
+      # source was "unrecoverable". Invert an invariant's meaning while keeping
+      # its name and Hecks's contract sees no change. Carrying `canonical` is
+      # what closes it — so this rule, on this value object, is the one that
+      # states why the extension exists.
+      invariant("a rule must say what it means")  { !description.to_s.empty? }
+      invariant("a rule must survive extraction") { !canonical.to_s.empty? }
+    end
+
+    command "Declare" do
+      role "Domain author"
+      goal "Open a value object block"
+
+      attribute :name, String
+
+      emits "ValueObjectDeclared"
+    end
+
+    command "AddAttribute" do
+      role "Domain author"
+      goal "Give the value type a field"
+
+      reference_to ValueObject
+      attribute :field, String
+
+      then_set :attributes, append: { name: :field }
+
+      emits "ValueObjectAttributeAdded"
+    end
+
+    command "Constrain" do
+      role "Domain author"
+      goal "State a rule that must hold of every value of this type"
+
+      reference_to ValueObject
+      attribute :description, String
+      attribute :canonical,   String
+
+      given("a rule that did not survive extraction is not a rule") { !canonical.to_s.empty? }
+
+      then_set :invariants, append: { description: :description, canonical: :canonical }
+
+      emits "ValueObjectConstrained"
+    end
+  end
+end
