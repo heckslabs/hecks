@@ -1,0 +1,28 @@
+# extraction — real Ruby source in, canonical expression text out.
+#
+# The impure edge hiding in the middle of the parser. A predicate is written as
+# an ordinary Ruby block :
+#
+#   given("at most 10 toppings") { toppings.size < 10 }
+#
+# and the IR has to carry its TEXT, because a Proc is executable by Ruby and by
+# nothing else. Recovering that text means asking the block where it was written
+# and READING THAT FILE — disk IO, in the middle of what otherwise looks like a
+# pure read of a declaration. An edge that leaves the domain is an adapter, so
+# it is declared here rather than buried in a builder.
+#
+# Signal is REPLY : the parser hands over a block and gets a string back. There
+# is no event, no verdict, no round-trip.
+#
+# Naming the port rather than the tool is what makes this swappable. `Prism` is
+# one way to recover source — Ruby's own parser, which is why it is the one that
+# ships — but a target that carries its predicates some other way (a sidecar
+# file, a pre-extracted manifest, a different language's parser) implements this
+# same port and the builders never learn the difference.
+#
+# It declares NO fields : where the source lives is a property of the block, not
+# of a deployment, so there is nothing for a .world to supply.
+Hecks.port "extraction" do
+  verb   "extracted_by"   # the how-verb a bind hangs off
+  signal :reply           # returns canonical text to the parser
+end

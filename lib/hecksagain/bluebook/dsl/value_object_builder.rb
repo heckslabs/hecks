@@ -22,7 +22,7 @@ module Hecksagain
         def invariant(description, &predicate)
           @invariants << IR::Invariant.new(
             description: description,
-            canonical:   Expression::Extractor.canonical(predicate),
+            canonical:   Ports::Extraction.canonical(predicate),
             predicate:   predicate
           )
         end

@@ -142,7 +142,9 @@ RSpec.describe "Pizzas" do
       expect do
         Hecksagain.with_registry(registry) do
           Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
+          Kernel.load(InMemoryDomain::EXTRACTION_PORT)
           Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
+          Kernel.load(InMemoryDomain::PRISM_ADAPTER)
           Kernel.load(InMemoryDomain::PIZZAS_BLUEBOOK)
           Hecks.hecksagon("Pizzas") { Pizzas::Pizza.charged_by("Memory") }
         end

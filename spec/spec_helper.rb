@@ -23,8 +23,10 @@ require "hecksagain"
 module InMemoryDomain
   ROOT             = File.expand_path("..", __dir__)
   PIZZAS_BLUEBOOK  = File.join(ROOT, "examples/pizzas/bluebook/pizzas.bluebook")
-  PERSISTENCE_PORT = File.join(ROOT, "lib/hecksagain/ports/persistence.port")
-  MEMORY_ADAPTER   = File.join(ROOT, "lib/hecksagain/adapters/memory.adapter")
+  PERSISTENCE_PORT = File.join(ROOT, "lib/hecksagain/ports/persistence/persistence.port")
+  EXTRACTION_PORT  = File.join(ROOT, "lib/hecksagain/ports/extraction/extraction.port")
+  MEMORY_ADAPTER   = File.join(ROOT, "lib/hecksagain/adapters/driven/memory/memory.adapter")
+  PRISM_ADAPTER    = File.join(ROOT, "lib/hecksagain/adapters/driven/prism/prism.adapter")
 
   # A booted Pizzas domain held entirely in memory.
   #
@@ -35,8 +37,15 @@ module InMemoryDomain
     registry = Hecksagain::Runtime::Registry.new
 
     Hecksagain.with_registry(registry) do
+      # Dependency order : ports declare the verb, an adapter declares a
+      # port, the bluebook is read last. Extraction is loaded because
+      # reading a `given` resolves that port — recovering a predicate's
+      # source is an impure edge like any other, and an unbound one refuses
+      # rather than silently returning empty text.
       Kernel.load(PERSISTENCE_PORT)
+      Kernel.load(EXTRACTION_PORT)
       Kernel.load(MEMORY_ADAPTER)
+      Kernel.load(PRISM_ADAPTER)
       Kernel.load(PIZZAS_BLUEBOOK)
 
       Hecks.hecksagon("Pizzas") { Pizzas::Pizza.persisted_by("Memory") }

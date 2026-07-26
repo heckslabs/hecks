@@ -271,12 +271,12 @@ RSpec.describe "the expression sublanguage" do
 
   describe "extraction" do
     it "lowers a real Ruby block to canonical text" do
-      canonical = Hecksagain::Bluebook::Expression::Extractor.canonical(proc { 1 < 2 })
+      canonical = Hecksagain::Adapters::Prism.canonical(proc { 1 < 2 })
       expect(canonical).to eq("1 < 2")
     end
 
     it "folds .length onto .size while extracting" do
-      canonical = Hecksagain::Bluebook::Expression::Extractor.canonical(proc { [].length < 10 })
+      canonical = Hecksagain::Adapters::Prism.canonical(proc { [].length < 10 })
       expect(canonical).to include(".size")
     end
   end

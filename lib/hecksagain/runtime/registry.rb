@@ -37,9 +37,13 @@ module Hecksagain
       # Every command in every loaded domain, as fully-qualified verbs.
       def verbs = @bluebooks.values.flat_map(&:verbs).sort
 
-      # Resolve (and memoise) the persistence adapter instance for an aggregate.
+      # Resolve (and memoise) the persistence adapter instance for an
+      # aggregate. The RESOLUTION lives with its port
+      # (ports/persistence/persistence.rb) ; what belongs here is the boot's
+      # lifetime — one adapter per aggregate, built once.
       def repository(domain, aggregate)
-        @repositories[[domain.to_s, aggregate.name]] ||= build_repository(domain, aggregate)
+        @repositories[[domain.to_s, aggregate.name]] ||=
+          Ports::Persistence.repository(self, domain, aggregate)
       end
 
       # Fail fast: resolve every declared bind now.
@@ -55,23 +59,9 @@ module Hecksagain
         self
       end
 
-      private
-
-      def build_repository(domain, aggregate)
-        bind = persistence_bind(domain, aggregate)
-        port = port_for(bind)
-
-        unless port.verb.to_s == bind.verb.to_s
-          raise WiringError,
-                "#{bind.adapter} implements the #{port.name} port (verb #{port.verb}) " \
-                "and cannot satisfy #{bind.verb}"
-        end
-
-        settings = world(domain)&.for_verb(bind.verb) || {}
-        check_settings(bind, settings)
-
-        adapter_class(bind.adapter).new(aggregate: aggregate, settings: settings, root: @root)
-      end
+      # Generic port machinery — PUBLIC, because the port modules under ports/
+      # are its callers. A port resolves its own binds ; the registry only holds
+      # what one boot loaded and answers questions about it.
 
       # The world block answers to the ADAPTER. A value named here that the
       # adapter does not declare is refused at boot rather than ignored — a
@@ -90,14 +80,6 @@ module Hecksagain
               "#{bind.adapter} does not declare #{unknown.map(&:inspect).join(', ')} — " \
               "it declares #{adapter.all_fields.map(&:inspect).join(', ')}. " \
               "Add the field to the adapter, or remove it from the world."
-      end
-
-      def persistence_bind(domain, aggregate)
-        hexagon = hecksagon(domain)
-        raise WiringError, "no hecksagon loaded for #{domain}" unless hexagon
-
-        hexagon.bind_for(aggregate.name, "persisted_by") ||
-          raise(WiringError, "#{domain}::#{aggregate.name} has no persisted_by bind")
       end
 
       def port_for(bind)

@@ -17,7 +17,9 @@
 require_relative "hecksagain/naming"
 require_relative "hecksagain/aggregate"
 
-require_relative "hecksagain/bluebook/expression/extractor"
+require_relative "hecksagain/ports/loading/loading"
+require_relative "hecksagain/ports/persistence/persistence"
+require_relative "hecksagain/ports/extraction/extraction"
 require_relative "hecksagain/bluebook/expression/resolver"
 require_relative "hecksagain/bluebook/expression/evaluator"
 
@@ -48,8 +50,10 @@ require_relative "hecksagain/runtime/registry"
 require_relative "hecksagain/runtime/dispatcher"
 require_relative "hecksagain/runtime/loader"
 
-require_relative "hecksagain/adapters/memory"
-require_relative "hecksagain/adapters/sqlite"
+require_relative "hecksagain/adapters/driven/memory/memory"
+require_relative "hecksagain/adapters/driven/sqlite/sqlite"
+require_relative "hecksagain/adapters/driven/prism/prism"
+require_relative "hecksagain/adapters/driven/folder/folder"
 
 require_relative "hecksagain/projector/exporter"
 

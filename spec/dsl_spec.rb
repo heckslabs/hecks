@@ -12,9 +12,16 @@ require "hecksagain"
 RSpec.describe "the DSL surface" do
   # Declarations land in whichever registry is booting, so tests supply one
   # rather than booting a whole domain from disk.
+  # Extraction is loaded because reading a `given` or an `invariant` resolves
+  # that port : recovering a predicate's source is an impure edge like any
+  # other, and an unbound one refuses rather than silently returning empty text.
   def in_registry
     registry = Hecksagain::Runtime::Registry.new
-    Hecks.with_registry(registry) { yield }
+    Hecks.with_registry(registry) do
+      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
+      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+      yield
+    end
     registry
   end
 

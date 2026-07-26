@@ -45,7 +45,7 @@ module Hecksagain
         def given(description, &predicate)
           @givens << IR::Given.new(
             description: description,
-            canonical:   Expression::Extractor.canonical(predicate),
+            canonical:   Ports::Extraction.canonical(predicate),
             predicate:   predicate
           )
         end
