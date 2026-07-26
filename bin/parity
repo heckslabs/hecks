@@ -1,7 +1,8 @@
 #!/bin/sh
-# parity — run one bluebook through both runtimes and diff the answers.
+# parity — run every example through both runtimes and diff the answers.
 #
-#   bin/parity [domain] [script.json]
+#   bin/parity                      every domain in examples/
+#   bin/parity <domain> [script]    just one
 #
 # BOTH RUNTIMES READ THE SAME SOURCE FILE. Neither is handed the other's
 # output, so this compares two PARSERS and two INTERPRETERS.
@@ -9,104 +10,183 @@
 # Two parsers is not the mistake hecksagain exists to avoid — two parsers
 # AUTHORED TWICE BY HAND, kept in step by a suite that only detects drift after
 # the fact, is. Until the Rust parser is a projection of the Ruby one, this
-# harness is what keeps them honest: drift shows up as a wrong answer, not as a
+# harness is what keeps them honest : drift shows up as a wrong answer, not as a
 # diff nobody reads.
+#
+# THE GUARANTEE IS ONLY AS WIDE AS THE CORPUS. Green here means the two runtimes
+# agree about the documents in examples/ — and says NOTHING about a construct no
+# example uses. That is why banking exists : every keyword the DSL admits gets
+# exercised by a domain, so "parity green" is a coverage claim rather than a
+# spot check. It is also why a domain with no script is a FAILURE below and not
+# a skip. An example nobody runs looks exactly like an example that passes.
 #
 # Object key ORDER is normalised before diffing (Rust sorts, Ruby preserves
 # insertion order) because key order is not semantics. Nothing else is.
-set -e
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-DOMAIN=${1:-"$ROOT/examples/pizzas"}
-SCRIPT=${2:-"$ROOT/spec/parity/pizzas.json"}
 BINARY="$ROOT/projection/rust/target/release/hecksagain"
-BLUEBOOK=$(ls "$DOMAIN"/bluebook/*.bluebook | head -1)
 
-# ALWAYS rebuild. An earlier version built only when the binary was missing, so
-# editing the Rust side and re-running compared fresh Ruby against a stale
-# binary — a harness that can report AGREED about code that no longer exists is
-# worse than no harness at all. cargo is incremental; the honesty is free.
+# ALWAYS rebuild, ONCE, before any domain runs. An earlier version built only
+# when the binary was missing, so editing the Rust side and re-running compared
+# fresh Ruby against a stale binary — a harness that can report AGREED about code
+# that no longer exists is worse than no harness at all.
+#
 # --workspace, not plain build. The binary lives in the cli member (the
 # composition root that links the sqlite adapter) ; a workspace with a root
 # package builds ONLY that package by default, so without this the harness
 # silently compares against a stale binary — which it did, once.
-(cd "$ROOT/projection/rust" && cargo build --release --workspace --quiet)
-
-# A stale store would make the second run disagree with the first for reasons
-# that have nothing to do with either runtime.
-rm -rf "$DOMAIN/data"
+(cd "$ROOT/projection/rust" && cargo build --release --workspace --quiet) || exit 1
 
 # ---------------------------------------------------------------------------
-# STAGE ONE — did the two parsers UNDERSTAND the same document?
-#
-# Agreeing on behaviour is good ; agreeing on the IR is stronger, because two
-# parsers can read two DIFFERENT documents that happen to run the same way. If
-# this passes, any later disagreement is in the interpreters and nowhere else.
+# One domain, three stages.
 # ---------------------------------------------------------------------------
-"$ROOT/bin/ir" "$DOMAIN"     > /tmp/hecksagain.ruby.ir.json
-"$BINARY" --dump "$BLUEBOOK" > /tmp/hecksagain.rust.ir.json
+run_domain() {
+  domain=$1
+  script=$2
+  name=$(basename "$domain")
+  bluebook=$(ls "$domain"/bluebook/*.bluebook 2>/dev/null | head -1)
 
-"$ROOT/bin/canonicalise" /tmp/hecksagain.ruby.ir.json > /tmp/hecksagain.ruby.ir.c.json
-"$ROOT/bin/canonicalise" /tmp/hecksagain.rust.ir.json > /tmp/hecksagain.rust.ir.c.json
+  echo "── $name"
 
-if diff -u /tmp/hecksagain.ruby.ir.c.json /tmp/hecksagain.rust.ir.c.json; then
-  echo "parsers agree — both read the same IR from $(basename "$BLUEBOOK")"
-else
-  echo
-  echo "SPLIT — the two PARSERS read the same file differently."
-  echo "Fix that before reading any behavioural diff: the interpreters are"
-  echo "being fed different documents."
-  exit 1
-fi
+  if [ -z "$bluebook" ]; then
+    echo "   NO BLUEBOOK in $domain/bluebook/"
+    return 1
+  fi
 
-# ---------------------------------------------------------------------------
-# STAGE TWO — do the two interpreters DO the same thing?
-#
-# Successes and every refusal path. A runtime that ACCEPTS what the other
-# refuses is the failure most worth catching.
-# ---------------------------------------------------------------------------
-# BOTH runtimes now call the adapter the hecksagon bound, so both write to the
-# SAME database. Each gets a clean one: sharing it would let the second run
-# read the first's rows and agree with itself.
-rm -rf "$DOMAIN/data"
-"$ROOT/bin/run" "$DOMAIN" "$SCRIPT" > /tmp/hecksagain.ruby.raw.json
-cp "$DOMAIN"/data/*.db /tmp/hecksagain.ruby.db 2>/dev/null || true
+  # A stale store would make the second run disagree with the first for reasons
+  # that have nothing to do with either runtime.
+  rm -rf "$domain/data"
 
-rm -rf "$DOMAIN/data"
-"$BINARY" "$BLUEBOOK" "$SCRIPT"     > /tmp/hecksagain.rust.raw.json
-cp "$DOMAIN"/data/*.db /tmp/hecksagain.rust.db 2>/dev/null || true
+  # STAGE ONE — did the two parsers UNDERSTAND the same document?
+  #
+  # Agreeing on behaviour is good ; agreeing on the IR is stronger, because two
+  # parsers can read two DIFFERENT documents that happen to run the same way. If
+  # this passes, any later disagreement is in the interpreters and nowhere else.
+  "$ROOT/bin/ir" "$domain"     > "/tmp/parity.$name.ruby.ir.json" || return 1
+  "$BINARY" --dump "$bluebook" > "/tmp/parity.$name.rust.ir.json" || return 1
 
-"$ROOT/bin/canonicalise" /tmp/hecksagain.ruby.raw.json > /tmp/hecksagain.ruby.json
-"$ROOT/bin/canonicalise" /tmp/hecksagain.rust.raw.json > /tmp/hecksagain.rust.json
+  "$ROOT/bin/canonicalise" "/tmp/parity.$name.ruby.ir.json" > "/tmp/parity.$name.ruby.ir.c.json"
+  "$ROOT/bin/canonicalise" "/tmp/parity.$name.rust.ir.json" > "/tmp/parity.$name.rust.ir.c.json"
 
-if diff -u /tmp/hecksagain.ruby.json /tmp/hecksagain.rust.json; then
-  echo
-  echo "AGREED — ruby and rust read the same bluebook and returned the same"
-  echo "answer for every step."
-  echo
+  if ! diff -u "/tmp/parity.$name.ruby.ir.c.json" "/tmp/parity.$name.rust.ir.c.json"; then
+    echo
+    echo "   SPLIT — the two PARSERS read $(basename "$bluebook") differently."
+    echo "   Fix that before reading any behavioural diff : the interpreters are"
+    echo "   being fed different documents."
+    return 1
+  fi
+  echo "   parsers agree — same IR from $(basename "$bluebook")"
+
+  # STAGE TWO — do the two interpreters DO the same thing?
+  #
+  # Successes and every refusal path. A runtime that ACCEPTS what the other
+  # refuses is the failure most worth catching.
+  #
+  # Both runtimes call the adapter the hecksagon bound, so both write to the
+  # SAME database. Each gets a clean one : sharing it would let the second run
+  # read the first's rows and agree with itself.
+  rm -rf "$domain/data"
+  "$ROOT/bin/run" "$domain" "$script" > "/tmp/parity.$name.ruby.raw.json" || return 1
+  cp "$domain"/data/*.db "/tmp/parity.$name.ruby.db" 2>/dev/null || true
+
+  rm -rf "$domain/data"
+  "$BINARY" "$bluebook" "$script"     > "/tmp/parity.$name.rust.raw.json" || return 1
+  cp "$domain"/data/*.db "/tmp/parity.$name.rust.db" 2>/dev/null || true
+
+  "$ROOT/bin/canonicalise" "/tmp/parity.$name.ruby.raw.json" > "/tmp/parity.$name.ruby.json"
+  "$ROOT/bin/canonicalise" "/tmp/parity.$name.rust.raw.json" > "/tmp/parity.$name.rust.json"
+
+  if ! diff -u "/tmp/parity.$name.ruby.json" "/tmp/parity.$name.rust.json"; then
+    echo
+    echo "   SPLIT — the runtimes disagreed on $name."
+    echo "   The parsers agreed, so this is the interpreters. If the disagreement"
+    echo "   is about what an expression MEANS, that is a defect in"
+    echo "   lib/hecksagain/grammar/expression.bluebook, not in whichever runtime"
+    echo "   you like less — tighten the chapter until the ambiguity is gone."
+    return 1
+  fi
+  echo "   runtimes agree — same answer for every step"
 
   # STAGE THREE — did they write the same RECORDS?
   #
   # Agreeing in memory is not the same as agreeing on disk. Both runtimes bind
   # the adapter the hecksagon names, so the rows are the final word on whether
   # the domain really happened.
-  if [ -f /tmp/hecksagain.ruby.db ] && [ -f /tmp/hecksagain.rust.db ]; then
-    # Aggregate rows only. Events are a SEPARATE concern from persistence:
-    # Hecks keeps them in event_log.rs, not in PersistenceAdapter, so the real
-    # adapter writes no events table. Every emission is still compared, in
-    # stage two, from the runtime log both sides report.
-    ruby_rows=$(sqlite3 /tmp/hecksagain.ruby.db "select count(*) from pizza" 2>/dev/null || echo "?")
-    rust_rows=$(sqlite3 /tmp/hecksagain.rust.db "select count(*) from pizza" 2>/dev/null || echo "?")
-    echo "  pizza: ruby $ruby_rows rows, rust $rust_rows rows"
-    echo "  (adapter called on both sides — records are on disk, not in a HashMap)"
+  #
+  # Table names are READ from the database rather than named here — a hardcoded
+  # table meant this stage silently reported "?" for every domain that was not
+  # pizzas, which is a check that passes by not looking.
+  #
+  # Aggregate rows only. Events are a SEPARATE concern from persistence: Hecks
+  # keeps them in event_log.rs, not in PersistenceAdapter, so the real adapter
+  # writes no events table. Every emission is still compared, in stage two.
+  if [ -f "/tmp/parity.$name.ruby.db" ] && [ -f "/tmp/parity.$name.rust.db" ]; then
+    for side in ruby rust; do
+      : > "/tmp/parity.$name.$side.rows"
+      # sqlite_% is SQLite's own bookkeeping, not ours.
+      #
+      # `events` is excluded for a stated reason, not a convenient one : events
+      # are a SEPARATE concern from persistence. Rust keeps them in event_log,
+      # not in PersistenceAdapter, so its adapter writes no events table while
+      # Ruby's does. Every emission is still compared — in stage two, from the
+      # runtime log both sides report — so nothing here goes unchecked. (That
+      # the two adapters differ at all is worth knowing ; it is an adapter
+      # asymmetry below the domain, and it belongs in a card, not in a filter
+      # that pretends it away.)
+      for table in $(sqlite3 "/tmp/parity.$name.$side.db" \
+            "select name from sqlite_master where type='table' \
+               and name not like 'sqlite_%' and name <> 'events' order by name" 2>/dev/null); do
+        count=$(sqlite3 "/tmp/parity.$name.$side.db" "select count(*) from \"$table\"" 2>/dev/null || echo "?")
+        echo "$table $count" >> "/tmp/parity.$name.$side.rows"
+      done
+    done
+
+    if ! diff -u "/tmp/parity.$name.ruby.rows" "/tmp/parity.$name.rust.rows"; then
+      echo
+      echo "   SPLIT — the runtimes agreed in memory and wrote different rows."
+      return 1
+    fi
+    echo "   records agree — $(tr '\n' ' ' < "/tmp/parity.$name.ruby.rows")"
   fi
+
+  rm -rf "$domain/data"
+  return 0
+}
+
+# ---------------------------------------------------------------------------
+# One domain, or the whole corpus.
+# ---------------------------------------------------------------------------
+failed=0
+
+if [ $# -ge 1 ]; then
+  domain=$1
+  script=${2:-"$ROOT/spec/parity/$(basename "$1").json"}
+  run_domain "$domain" "$script" || failed=1
+else
+  for domain in "$ROOT"/examples/*/; do
+    domain=${domain%/}
+    name=$(basename "$domain")
+    script="$ROOT/spec/parity/$name.json"
+
+    # NOT a skip. An example with no script is an example nobody checks, and it
+    # would sit in the tree looking exactly like one that passes.
+    if [ ! -f "$script" ]; then
+      echo "── $name"
+      echo "   NO SCRIPT at spec/parity/$name.json — write one, or remove the example."
+      failed=1
+      continue
+    fi
+
+    run_domain "$domain" "$script" || failed=1
+    echo
+  done
+fi
+
+if [ "$failed" -eq 0 ]; then
+  echo "AGREED — every example reads the same in both runtimes, and writes the"
+  echo "same rows. The guarantee covers exactly these documents."
   exit 0
 fi
 
-echo
-echo "SPLIT — the runtimes disagreed."
-echo "The parsers agreed, so this is the interpreters. If the disagreement is"
-echo "about what an expression MEANS, that is a defect in"
-echo "lib/hecksagain/grammar/expression.bluebook, not in whichever runtime you like"
-echo "less — tighten the chapter until the ambiguity is gone."
+echo "PARITY FAILED."
 exit 1
