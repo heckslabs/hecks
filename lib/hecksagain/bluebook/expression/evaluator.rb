@@ -13,7 +13,7 @@
 #
 #   Evaluator.call("toppings.size < 10", state, attrs)   # => true
 module Hecksagain
-  module Language
+  module Bluebook
     module Expression
       module Evaluator
         COMPARISONS = %w[>= <= < > == !=].freeze

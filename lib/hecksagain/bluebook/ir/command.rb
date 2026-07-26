@@ -11,7 +11,7 @@
 #
 #   Command.new(name: "AddTopping", references: "Pizza", mutations: [...])
 module Hecksagain
-  module Language
+  module Bluebook
     module IR
       # description — the sentence from the bluebook ("max 10 toppings")
       # canonical   — the expression as text ("toppings.size < 10"), extracted

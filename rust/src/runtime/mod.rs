@@ -19,10 +19,23 @@
 // none of them needed an edit.
 pub use std::collections::HashMap;
 
+// Ours, mirroring lib/hecksagain/runtime/ on the Ruby side.
+pub mod dispatcher;
+pub mod mutations;
+pub mod value_bridge;
+
+// Cherry-picked from Hecks, unedited. They carry helpers this runtime does not
+// call — dead HERE, load-bearing THERE — and trimming them would fork the
+// source, so the allow is by name on exactly these modules.
+#[allow(dead_code)]
 pub mod aggregate_state;
+#[allow(dead_code)]
 pub mod persistence_adapter;
+#[allow(dead_code)]
 pub mod query_match;
+#[allow(dead_code)]
 pub mod value;
+#[allow(dead_code)]
 pub mod value_convert;
 
 // The seam the storehouse-sqlite crate consumes: `use storehouse::runtime::{

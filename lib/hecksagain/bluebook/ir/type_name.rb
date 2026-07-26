@@ -9,7 +9,7 @@
 #
 #   TypeName.new(:Topping).to_s  # => "Topping"
 module Hecksagain
-  module Language
+  module Bluebook
     module IR
       class TypeName
         attr_reader :name

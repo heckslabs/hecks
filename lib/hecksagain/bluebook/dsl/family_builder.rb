@@ -13,7 +13,7 @@
 #     field  :database
 #   end
 module Hecksagain
-  module Language
+  module Bluebook
     module DSL
       class FamilyBuilder
         def initialize(name)

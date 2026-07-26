@@ -9,7 +9,7 @@
 #     invariant("amount must be positive") { amount > 0 }
 #   end
 module Hecksagain
-  module Language
+  module Bluebook
     module DSL
       class ValueObjectBuilder
         include AttributeCollector

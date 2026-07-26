@@ -10,7 +10,7 @@
 #     aggregate("Pizza") { ... }
 #   end
 module Hecksagain
-  module Language
+  module Bluebook
     module DSL
       class BluebookBuilder
         attr_reader :classification

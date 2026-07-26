@@ -9,7 +9,7 @@ require "hecksagain"
 
 RSpec.describe "the expression sublanguage" do
   def evaluate(expression, state = {}, args = {})
-    Hecksagain::Language::Expression::Evaluator.call(expression, state, args)
+    Hecksagain::Bluebook::Expression::Evaluator.call(expression, state, args)
   end
 
   describe "literals" do
@@ -71,7 +71,7 @@ RSpec.describe "the expression sublanguage" do
     it "raises rather than answering for a name it cannot resolve" do
       %w[positive? negative? zero?].each do |test|
         expect { evaluate("missing.#{test}") }
-          .to raise_error(Hecksagain::Language::Expression::EvaluationError, /cannot resolve "missing"/)
+          .to raise_error(Hecksagain::Bluebook::Expression::EvaluationError, /cannot resolve "missing"/)
       end
     end
   end
@@ -121,7 +121,7 @@ RSpec.describe "the expression sublanguage" do
     def agrees?(expression, bindings)
       mine = begin
         evaluate(expression, bindings)
-      rescue Hecksagain::Language::Expression::EvaluationError
+      rescue Hecksagain::Bluebook::Expression::EvaluationError
         :raised
       end
 
@@ -158,7 +158,7 @@ RSpec.describe "the expression sublanguage" do
     it "refuses an incomparable ordering, exactly as Ruby does" do
       expect(agrees?("label < 3", label: "abc")).to be(true)
       expect { evaluate("label < 3", label: "abc") }
-        .to raise_error(Hecksagain::Language::Expression::EvaluationError, /comparison of String with 3 failed/)
+        .to raise_error(Hecksagain::Bluebook::Expression::EvaluationError, /comparison of String with 3 failed/)
     end
 
     it "orders strings against strings" do
@@ -173,17 +173,17 @@ RSpec.describe "the expression sublanguage" do
   describe "refusing what it cannot evaluate" do
     it "raises on a name it cannot resolve" do
       expect { evaluate("mispelled_attribute > 0") }
-        .to raise_error(Hecksagain::Language::Expression::EvaluationError, /cannot resolve "mispelled_attribute"/)
+        .to raise_error(Hecksagain::Bluebook::Expression::EvaluationError, /cannot resolve "mispelled_attribute"/)
     end
 
     it "raises when a sign predicate has no number" do
       expect { evaluate("label.positive?", { label: "abc" }) }
-        .to raise_error(Hecksagain::Language::Expression::EvaluationError, /positive\? expects a number/)
+        .to raise_error(Hecksagain::Bluebook::Expression::EvaluationError, /positive\? expects a number/)
     end
 
     it "raises when size has nothing to count" do
       expect { evaluate("count.size", { count: 3 }) }
-        .to raise_error(Hecksagain::Language::Expression::EvaluationError, /size expects a list or string/)
+        .to raise_error(Hecksagain::Bluebook::Expression::EvaluationError, /size expects a list or string/)
     end
 
     it "still resolves a declared attribute that happens to be nil" do
@@ -193,12 +193,12 @@ RSpec.describe "the expression sublanguage" do
 
   describe "extraction" do
     it "lowers a real Ruby block to canonical text" do
-      canonical = Hecksagain::Language::Expression::Extractor.canonical(proc { 1 < 2 })
+      canonical = Hecksagain::Bluebook::Expression::Extractor.canonical(proc { 1 < 2 })
       expect(canonical).to eq("1 < 2")
     end
 
     it "folds .length onto .size while extracting" do
-      canonical = Hecksagain::Language::Expression::Extractor.canonical(proc { [].length < 10 })
+      canonical = Hecksagain::Bluebook::Expression::Extractor.canonical(proc { [].length < 10 })
       expect(canonical).to include(".size")
     end
   end

@@ -12,7 +12,7 @@
 #
 #   ConstShim.with(->(name) { IR::TypeName.new(name) }) { load(path) }
 module Hecksagain
-  module Language
+  module Bluebook
     module DSL
       module ConstShim
         class << self
@@ -43,4 +43,4 @@ module Hecksagain
 end
 
 # Top-level constant lookups route through Object's singleton.
-Object.singleton_class.prepend(Hecksagain::Language::DSL::ConstShim::Hook)
+Object.singleton_class.prepend(Hecksagain::Bluebook::DSL::ConstShim::Hook)

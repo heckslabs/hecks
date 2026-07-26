@@ -12,7 +12,7 @@
 #
 # Adding a family never requires touching this file. That is the point.
 module Hecksagain
-  module Language
+  module Bluebook
     module DSL
       class BindingProxy
         # Builds the namespace module a bare domain constant resolves to.

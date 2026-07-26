@@ -8,7 +8,7 @@
 #
 #   ValueObject.new(name: "Topping", attributes: [...], invariants: [...])
 module Hecksagain
-  module Language
+  module Bluebook
     module IR
       # description — the human sentence from the bluebook ("amount must be positive")
       # canonical   — the expression as text ("amount > 0"), extracted from the

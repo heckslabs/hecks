@@ -15,7 +15,7 @@
 #     emits "ToppingAdded"
 #   end
 module Hecksagain
-  module Language
+  module Bluebook
     module DSL
       class CommandBuilder
         include AttributeCollector

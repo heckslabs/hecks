@@ -14,7 +14,7 @@
 # That check is the typed attach checkpoint — it fails loudly at boot, not at
 # first fire.
 module Hecksagain
-  module Language
+  module Bluebook
     module IR
       # verb   — "persisted_by"
       # signal — :reply (returns a value) or :effect (emits, verdict re-enters)

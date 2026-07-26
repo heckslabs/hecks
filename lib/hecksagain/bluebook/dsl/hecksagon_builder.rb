@@ -11,7 +11,7 @@
 #     Pizzas::Pizza.persisted_by("Sqlite")
 #   end
 module Hecksagain
-  module Language
+  module Bluebook
     module DSL
       class HecksagonBuilder
         # The binds being collected right now, or nil when no hecksagon is being

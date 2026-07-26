@@ -23,43 +23,43 @@ RSpec.describe "the DSL surface is fully covered" do
       %i[boot with_registry bluebook hecksagon family adapter world current_registry]
     ],
     "BluebookBuilder" => [
-      Hecksagain::Language::DSL::BluebookBuilder,
+      Hecksagain::Bluebook::DSL::BluebookBuilder,
       %i[vision core supporting generic aggregate classification]
     ],
     "AggregateBuilder" => [
-      Hecksagain::Language::DSL::AggregateBuilder,
+      Hecksagain::Bluebook::DSL::AggregateBuilder,
       %i[description identified_by reference_to value_object command attribute list_of attributes]
     ],
     "ValueObjectBuilder" => [
-      Hecksagain::Language::DSL::ValueObjectBuilder,
+      Hecksagain::Bluebook::DSL::ValueObjectBuilder,
       %i[invariant attribute list_of attributes]
     ],
     "CommandBuilder" => [
-      Hecksagain::Language::DSL::CommandBuilder,
+      Hecksagain::Bluebook::DSL::CommandBuilder,
       %i[role goal reference_to given then_set emits attribute list_of attributes]
     ],
     "FamilyBuilder" => [
-      Hecksagain::Language::DSL::FamilyBuilder,
+      Hecksagain::Bluebook::DSL::FamilyBuilder,
       %i[verb signal field secret]
     ],
     "AdapterBuilder" => [
-      Hecksagain::Language::DSL::AdapterBuilder,
+      Hecksagain::Bluebook::DSL::AdapterBuilder,
       %i[family]
     ],
     "WorldBuilder" => [
-      Hecksagain::Language::DSL::WorldBuilder,
+      Hecksagain::Bluebook::DSL::WorldBuilder,
       %i[method_missing]
     ],
     "SettingsCollector" => [
-      Hecksagain::Language::DSL::SettingsCollector,
+      Hecksagain::Bluebook::DSL::SettingsCollector,
       %i[method_missing to_h]
     ],
     "BindingProxy" => [
-      Hecksagain::Language::DSL::BindingProxy,
+      Hecksagain::Bluebook::DSL::BindingProxy,
       %i[method_missing to_s]
     ],
     "HecksagonBuilder" => [
-      Hecksagain::Language::DSL::HecksagonBuilder,
+      Hecksagain::Bluebook::DSL::HecksagonBuilder,
       %i[binds]
     ]
   }.freeze
@@ -90,12 +90,12 @@ RSpec.describe "the DSL surface is fully covered" do
   # on the three builders that include it — checked there. This asserts the
   # mixin itself has not grown a fourth method nobody noticed.
   it "AttributeCollector has no method without a test" do
-    actual = Hecksagain::Language::DSL::AttributeCollector.public_instance_methods(false)
+    actual = Hecksagain::Bluebook::DSL::AttributeCollector.public_instance_methods(false)
     expect(actual.sort).to eq(%i[attribute attributes list_of].sort)
   end
 
   it "ConstShim has no method without a test" do
-    actual = Hecksagain::Language::DSL::ConstShim.singleton_methods(false).sort
+    actual = Hecksagain::Bluebook::DSL::ConstShim.singleton_methods(false).sort
     expect(actual).to eq(%i[active? resolver resolver= with].sort)
   end
 
@@ -105,9 +105,9 @@ RSpec.describe "the DSL surface is fully covered" do
   # respond_to_missing?, or the object lies to respond_to?.
   it "every method_missing has a matching respond_to_missing?" do
     [
-      Hecksagain::Language::DSL::WorldBuilder,
-      Hecksagain::Language::DSL::SettingsCollector,
-      Hecksagain::Language::DSL::BindingProxy
+      Hecksagain::Bluebook::DSL::WorldBuilder,
+      Hecksagain::Bluebook::DSL::SettingsCollector,
+      Hecksagain::Bluebook::DSL::BindingProxy
     ].each do |klass|
       expect(klass.public_instance_methods(false)).to include(:method_missing),
                                                       "#{klass} should answer to anything"
@@ -119,7 +119,7 @@ RSpec.describe "the DSL surface is fully covered" do
   # The private helpers that construct the Ruby class are implementation, not
   # surface — asserted private so they cannot quietly become part of the DSL.
   it "class construction stays private" do
-    builder = Hecksagain::Language::DSL::AggregateBuilder
+    builder = Hecksagain::Bluebook::DSL::AggregateBuilder
 
     expect(builder.private_instance_methods(false)).to include(:define_readers, :define_command)
     expect(builder.public_instance_methods(false)).not_to include(:define_readers, :define_command)

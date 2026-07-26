@@ -7,7 +7,7 @@
 #
 #   Bluebook.new(name: "Pizzas", vision: "...", aggregates: [...])
 module Hecksagain
-  module Language
+  module Bluebook
     module IR
       class Bluebook
         attr_reader :name, :vision, :aggregates

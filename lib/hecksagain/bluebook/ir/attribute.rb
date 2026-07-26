@@ -7,7 +7,7 @@
 #
 #   Attribute.new(name: :toppings, type: "Topping", list: true)
 module Hecksagain
-  module Language
+  module Bluebook
     module IR
       class Attribute
         attr_reader :name, :type, :default

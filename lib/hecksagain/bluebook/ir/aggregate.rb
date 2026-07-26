@@ -7,7 +7,7 @@
 #
 #   Aggregate.new(name: "Pizza", attributes: [...], commands: [...])
 module Hecksagain
-  module Language
+  module Bluebook
     module IR
       class Aggregate
         attr_reader :name, :description, :attributes, :value_objects, :commands, :identified_by

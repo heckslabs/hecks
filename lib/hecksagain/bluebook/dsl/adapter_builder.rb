@@ -11,7 +11,7 @@
 #     family "persistence"
 #   end
 module Hecksagain
-  module Language
+  module Bluebook
     module DSL
       class AdapterBuilder
         def initialize(name)

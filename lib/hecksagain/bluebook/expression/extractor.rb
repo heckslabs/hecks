@@ -16,7 +16,7 @@
 require "prism"
 
 module Hecksagain
-  module Language
+  module Bluebook
     module Expression
       class NotExtractable < StandardError; end
 

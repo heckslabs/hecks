@@ -11,7 +11,7 @@
 #     end
 #   end
 module Hecksagain
-  module Language
+  module Bluebook
     module DSL
       # Collects `key value` lines inside a settings block into a plain hash.
       class SettingsCollector

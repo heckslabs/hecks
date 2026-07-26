@@ -97,7 +97,7 @@ RSpec.describe "the DSL surface" do
     # where to spend attention.
     it "core, supporting and generic each record a classification" do
       %i[core supporting generic].each_with_index do |keyword, index|
-        builder = Hecksagain::Language::DSL::BluebookBuilder.new("Classified#{index}")
+        builder = Hecksagain::Bluebook::DSL::BluebookBuilder.new("Classified#{index}")
         builder.public_send(keyword)
         expect(builder.classification).to eq(keyword)
       end
@@ -330,14 +330,14 @@ RSpec.describe "the DSL surface" do
     let(:collector) { [] }
 
     it ".namespace answers any aggregate constant with a proxy" do
-      namespace = Hecksagain::Language::DSL::BindingProxy.namespace("Dom", collector)
-      expect(namespace::Anything).to be_a(Hecksagain::Language::DSL::BindingProxy)
+      namespace = Hecksagain::Bluebook::DSL::BindingProxy.namespace("Dom", collector)
+      expect(namespace::Anything).to be_a(Hecksagain::Bluebook::DSL::BindingProxy)
     end
 
     # ANY how-verb is accepted, because the vocabulary belongs to the families.
     # Declaring a new family must never mean editing this class.
     it "method_missing records a bind for any how-verb" do
-      namespace = Hecksagain::Language::DSL::BindingProxy.namespace("Dom", collector)
+      namespace = Hecksagain::Bluebook::DSL::BindingProxy.namespace("Dom", collector)
       namespace::Thing.invented_by("Someone")
 
       bind = collector.first
@@ -345,12 +345,12 @@ RSpec.describe "the DSL surface" do
     end
 
     it "respond_to_missing? agrees that it answers to anything" do
-      proxy = Hecksagain::Language::DSL::BindingProxy.new("Dom::Thing", collector)
+      proxy = Hecksagain::Bluebook::DSL::BindingProxy.new("Dom::Thing", collector)
       expect(proxy).to respond_to(:any_verb_at_all)
     end
 
     it "to_s is the fully-qualified aggregate it stands for" do
-      proxy = Hecksagain::Language::DSL::BindingProxy.new("Dom::Thing", collector)
+      proxy = Hecksagain::Bluebook::DSL::BindingProxy.new("Dom::Thing", collector)
       expect(proxy.to_s).to eq("Dom::Thing")
     end
 
@@ -365,12 +365,12 @@ RSpec.describe "the DSL surface" do
 
   describe "the world's settings collector" do
     it "respond_to_missing? agrees that any key is a setting" do
-      collector = Hecksagain::Language::DSL::SettingsCollector.new
+      collector = Hecksagain::Bluebook::DSL::SettingsCollector.new
       expect(collector).to respond_to(:anything_at_all)
     end
 
     it "to_h returns the collected values" do
-      collector = Hecksagain::Language::DSL::SettingsCollector.new
+      collector = Hecksagain::Bluebook::DSL::SettingsCollector.new
       collector.instance_eval { office "EC1" }
       expect(collector.to_h).to eq(office: "EC1")
     end
@@ -381,19 +381,19 @@ RSpec.describe "the DSL surface" do
   # ==========================================================================
   describe "the const shim" do
     it "is inert outside a load, so an ordinary typo still raises" do
-      expect(Hecksagain::Language::DSL::ConstShim).not_to be_active
+      expect(Hecksagain::Bluebook::DSL::ConstShim).not_to be_active
       expect { NoSuchConstantAnywhere }.to raise_error(NameError)
     end
 
     it "resolves unknown constants while a load is running, and restores after" do
       seen = nil
-      Hecksagain::Language::DSL::ConstShim.with(->(name) { "resolved:#{name}" }) do
+      Hecksagain::Bluebook::DSL::ConstShim.with(->(name) { "resolved:#{name}" }) do
         seen = SomeUndefinedType
-        expect(Hecksagain::Language::DSL::ConstShim).to be_active
+        expect(Hecksagain::Bluebook::DSL::ConstShim).to be_active
       end
 
       expect(seen).to eq("resolved:SomeUndefinedType")
-      expect(Hecksagain::Language::DSL::ConstShim).not_to be_active
+      expect(Hecksagain::Bluebook::DSL::ConstShim).not_to be_active
     end
   end
 end

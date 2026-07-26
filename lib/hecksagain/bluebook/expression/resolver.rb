@@ -17,7 +17,7 @@
 #
 #   Resolver.resolve("toppings.size", state, attrs)   # => 2
 module Hecksagain
-  module Language
+  module Bluebook
     module Expression
       # A predicate that cannot be evaluated is a defect, not a false.
       class EvaluationError < StandardError; end

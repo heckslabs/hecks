@@ -12,7 +12,7 @@
 #     command "CreatePizza" do    # -> def self.create_pizza(**args)
 #   end
 module Hecksagain
-  module Language
+  module Bluebook
     module DSL
       class AggregateBuilder
         include AttributeCollector

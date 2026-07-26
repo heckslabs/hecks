@@ -9,7 +9,7 @@
 #   attribute :toppings, list_of(Topping)     # list
 #   attribute :currency, String, default: "USD"
 module Hecksagain
-  module Language
+  module Bluebook
     module DSL
       module AttributeCollector
         # Marker returned by list_of — unwrapped immediately by `attribute`.
