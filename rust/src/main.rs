@@ -40,6 +40,8 @@
 // this interpreter reads. When the Rust parser becomes a projection of the
 // Ruby one, that is the only file that changes.
 #[allow(dead_code)]
+mod dump;
+#[allow(dead_code)]
 mod ir;
 #[allow(dead_code)]
 mod parse_blocks;
@@ -73,6 +75,29 @@ fn main() {
     // happened to run the same.
     if arguments.len() == 3 && arguments[1] == "--dump" {
         println!("{}", serde_json::to_string_pretty(&read_bluebook(&arguments[2])).unwrap());
+        return;
+    }
+
+    // `--canonical` prints the CANONICAL IR — the parity contract Hecks holds
+    // its two implementations to, brought over in dump.rs unedited. Hecks
+    // measures its agreement against THIS shape (113/113, zero active drift),
+    // so it is the contract worth answering to rather than one invented here.
+    //
+    // Only half of it is present so far: its Ruby counterpart, canonical_ir.rb,
+    // walks Hecks's BluebookModel, which this project does not have yet — so
+    // nothing can be diffed against this output until the Ruby model comes over
+    // too. Wired now because the Rust half is a clean lift, and because it
+    // proves the parsed Domain is rich enough to satisfy the real contract
+    // rather than only the subset this interpreter happens to read.
+    if arguments.len() == 3 && arguments[1] == "--canonical" {
+        let source = fs::read_to_string(&arguments[2]).unwrap_or_else(|error| {
+            eprintln!("cannot read {}: {}", arguments[2], error);
+            std::process::exit(1);
+        });
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&dump::dump(&parser::parse(&source))).unwrap()
+        );
         return;
     }
 
