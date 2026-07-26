@@ -23,6 +23,8 @@
 //! evaluable subset are the same question - see
 //! language/bluebook/expression.bluebook.
 
+mod bluebook_lines;
+mod bluebook_parser;
 mod dispatcher;
 mod interp_expr;
 mod interp_givens;
@@ -37,12 +39,24 @@ use std::fs;
 
 fn main() {
     let arguments: Vec<String> = std::env::args().collect();
+
+    // `--dump <bluebook>` prints the IR this parser read, so it can be diffed
+    // against the IR Ruby's parser read. Agreeing on BEHAVIOUR is good ;
+    // agreeing on the IR itself is the stronger claim, because it shows the
+    // two parsers understood the same document rather than two documents that
+    // happened to run the same.
+    if arguments.len() == 3 && arguments[1] == "--dump" {
+        println!("{}", serde_json::to_string_pretty(&read_ir(&arguments[2])).unwrap());
+        return;
+    }
+
     if arguments.len() < 3 {
-        eprintln!("usage: hecksagain <ir.json> <script.json>");
+        eprintln!("usage: hecksagain <bluebook|ir.json> <script.json>");
+        eprintln!("       hecksagain --dump <bluebook>");
         std::process::exit(2);
     }
 
-    let ir = read_json(&arguments[1]);
+    let ir = read_ir(&arguments[1]);
     let script = read_json(&arguments[2]);
 
     let mut runtime = Runtime::new(ir);
@@ -82,6 +96,25 @@ fn main() {
     });
 
     println!("{}", serde_json::to_string_pretty(&output).unwrap());
+}
+
+/// A .bluebook is PARSED here. A .json is read as an already-parsed IR, which
+/// is the scaffold path kept for debugging and for targets that want data
+/// rather than source.
+fn read_ir(path: &str) -> Value {
+    if !path.ends_with(".bluebook") {
+        return read_json(path);
+    }
+
+    let source = fs::read_to_string(path).unwrap_or_else(|error| {
+        eprintln!("cannot read {}: {}", path, error);
+        std::process::exit(1);
+    });
+
+    bluebook_parser::parse(&source).unwrap_or_else(|error| {
+        eprintln!("cannot parse {}: {}", path, error);
+        std::process::exit(1);
+    })
 }
 
 fn read_json(path: &str) -> Value {
