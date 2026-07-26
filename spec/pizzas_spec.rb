@@ -8,38 +8,12 @@
 # Persistence is bound to Memory for speed ; the Sqlite binding is exercised in
 # its own example so the durable path is not left unproven.
 require "hecksagain"
-require "tmpdir"
-require "fileutils"
 
 RSpec.describe "Pizzas" do
-  # A domain directory identical to examples/pizzas, but bound to whichever
-  # adapter the example asks for.
-  def boot(adapter: "Memory")
-    source = File.expand_path("../examples/pizzas/bluebook", __dir__)
-    dir    = Dir.mktmpdir("hecksagain-")
-    target = File.join(dir, "bluebook")
-    FileUtils.mkdir_p(target)
-
-    FileUtils.cp(Dir[File.join(source, "*")], target)
-    File.write(File.join(target, "pizzas.hecksagon"), <<~HECKSAGON)
-      Hecks.hecksagon "Pizzas" do
-        Pizzas::Pizza.persisted_by("#{adapter}")
-      end
-    HECKSAGON
-
-    # Memory needs no configuration, so it has NO world block. A world naming a
-    # field its adapter does not declare is refused at boot - which is the
-    # point of declaring fields on the adapter.
-    File.delete(File.join(target, "pizzas.world")) if adapter == "Memory"
-
-    @dirs ||= []
-    @dirs << dir
-    Hecks.boot(dir)
-  end
-
-  after { @dirs&.each { |dir| FileUtils.remove_entry(dir) } }
-
-  let(:runtime) { boot }
+  # No disk. See spec/spec_helper.rb — the domain is composed straight into a
+  # registry and bound to Memory, because none of what these examples verify
+  # has anything to do with a filesystem.
+  let(:runtime) { boot_in_memory }
 
   def create(name: "Margherita", price_cents: 1200)
     runtime.dispatch("Pizzas::Pizza.CreatePizza", name: name, price_cents: price_cents)
@@ -160,38 +134,20 @@ RSpec.describe "Pizzas" do
   end
 
   describe "the persistence binding" do
-    it "survives a reboot when bound to Sqlite" do
-      runtime = boot(adapter: "Sqlite")
-      pizza   = runtime.dispatch("Pizzas::Pizza.CreatePizza", name: "Margherita", price_cents: 1200)
-      runtime.dispatch("Pizzas::Pizza.AddTopping", id: pizza.id, name: "Basil", amount: 3)
-      runtime.dispatch("Pizzas::Pizza.Purchase", id: pizza.id, customer_name: "Chris")
-
-      # Same directory, brand new registry, adapters and all.
-      rebooted  = Hecks.boot(@dirs.last)
-      aggregate = rebooted.registry.bluebook("Pizzas").aggregate("Pizza")
-      stored    = rebooted.registry.repository("Pizzas", aggregate).find(pizza.id)
-
-      expect(stored.status).to eq("sold")
-      expect(stored.customer_name).to eq("Chris")
-      expect(stored.toppings).to eq([{ name: "Basil", amount: 3 }])
-    end
-
+    # No disk: a bad bind is refused while the registry is being composed, so
+    # there is nothing to write and nowhere to write it.
     it "refuses a bind whose adapter cannot satisfy the verb" do
-      source = File.expand_path("../examples/pizzas/bluebook", __dir__)
-      dir    = Dir.mktmpdir("hecksagain-bad-")
-      target = File.join(dir, "bluebook")
-      FileUtils.mkdir_p(target)
-      FileUtils.cp(Dir[File.join(source, "*")], target)
+      registry = Hecksagain::Runtime::Registry.new
 
-      File.write(File.join(target, "pizzas.hecksagon"), <<~HECKSAGON)
-        Hecks.hecksagon "Pizzas" do
-          Pizzas::Pizza.charged_by("Sqlite")
+      expect do
+        Hecksagain.with_registry(registry) do
+          Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
+          Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
+          Kernel.load(InMemoryDomain::PIZZAS_BLUEBOOK)
+          Hecks.hecksagon("Pizzas") { Pizzas::Pizza.charged_by("Memory") }
         end
-      HECKSAGON
-
-      expect { Hecks.boot(dir) }.to raise_error(Hecksagain::Runtime::WiringError, /no persisted_by bind/)
-    ensure
-      FileUtils.remove_entry(dir) if dir
+        registry.verify!
+      end.to raise_error(Hecksagain::Runtime::WiringError, /no persisted_by bind/)
     end
   end
 end

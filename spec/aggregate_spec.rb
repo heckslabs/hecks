@@ -8,31 +8,9 @@ require "tmpdir"
 require "fileutils"
 
 RSpec.describe "a constructed aggregate" do
-  def boot(adapter: "Memory")
-    source = File.expand_path("../examples/pizzas/bluebook", __dir__)
-    dir    = Dir.mktmpdir("hecksagain-class-")
-    target = File.join(dir, "bluebook")
-    FileUtils.mkdir_p(target)
-    FileUtils.cp(Dir[File.join(source, "*")], target)
+  # No disk - see spec/spec_helper.rb.
+  before { boot_in_memory }
 
-    File.write(File.join(target, "pizzas.hecksagon"), <<~HECKSAGON)
-      Hecks.hecksagon "Pizzas" do
-        Pizzas::Pizza.persisted_by("#{adapter}")
-      end
-    HECKSAGON
-
-    # Memory needs no configuration, so it has NO world block. A world naming a
-    # field its adapter does not declare is refused at boot - which is the
-    # point of declaring fields on the adapter.
-    File.delete(File.join(target, "pizzas.world")) if adapter == "Memory"
-
-    @dirs ||= []
-    @dirs << dir
-    Hecks.boot(dir)
-  end
-
-  before { boot }
-  after  { @dirs&.each { |dir| FileUtils.remove_entry(dir) } }
 
   it "names the domain and its aggregates" do
     expect(Pizzas.aggregates).to eq(["Pizza"])
