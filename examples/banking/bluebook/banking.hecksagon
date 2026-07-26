@@ -1,0 +1,12 @@
+# The Banking hexagon — the ring around a synchronous domain.
+#
+# Customer and Account are DURABLE : a bank that forgets a balance on restart is
+# not a bank. Transfer is durable too, and for a sharper reason — it is the one
+# that can be half-done, and the whole point of the Settlement process manager
+# is remembering which half. An in-memory Transfer would lose exactly the state
+# the saga exists to hold.
+Hecks.hecksagon "Banking" do
+  Banking::Customer.persisted_by("Sqlite")
+  Banking::Account.persisted_by("Sqlite")
+  Banking::Transfer.persisted_by("Sqlite")
+end

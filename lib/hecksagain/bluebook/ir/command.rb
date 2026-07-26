@@ -36,9 +36,21 @@ module Hecksagain
       Mutation = Struct.new(:target, :op, :source, keyword_init: true) do
         def to_h
           base = { target: target, op: op }
-          return base.merge(fields: source) if op == :append
+          return base.merge(fields: appended_fields) if op == :append
 
           base.merge(source: classified_source)
+        end
+
+        # An appended field is either an ARGUMENT to read or a LITERAL to
+        # write : `{ amount: :amount, direction: "credit" }` means take the
+        # amount the caller passed, and write the word credit. JSON has no
+        # symbols, so the literal keeps its quotes and the argument goes
+        # bare — the same distinction `classified_source` makes for `to:`,
+        # carried the way the interpreter already spells it.
+        def appended_fields
+          source.transform_values do |value|
+            value.is_a?(Symbol) ? value.to_s : value.inspect
+          end
         end
 
         def classified_source

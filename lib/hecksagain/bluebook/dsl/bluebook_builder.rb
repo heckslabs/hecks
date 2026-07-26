@@ -56,7 +56,12 @@ module Hecksagain
           # single root owns it — declaring it inside an aggregate says where
           # the causality was noticed, not who keeps the rule. The interpreter
           # holds them domain-level only, and this is where the two agree.
-          policies = @policies + @aggregates.flat_map(&:policies)
+          # DOCUMENT ORDER, not declaration-site order. An aggregate's policies
+          # come first because the aggregates that hold them are read first —
+          # the interpreter emits in the order it encountered them, and a
+          # canonical dump that reorders is a dump the two runtimes cannot
+          # compare.
+          policies = @aggregates.flat_map(&:policies) + @policies
 
           bluebook = IR::Bluebook.new(name: @name, vision: @vision,
                                       aggregates: @aggregates,

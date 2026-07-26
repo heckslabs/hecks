@@ -507,7 +507,11 @@ RSpec.describe "the DSL surface" do
       mutation = build_command("CmdAppend") { then_set :parts, append: { size: :size } }.mutations.first
 
       expect([mutation.target, mutation.op]).to eq([:parts, :append])
-      expect(mutation.to_h[:fields]).to eq(size: :size)
+      # An appended field says WHICH it is : a :symbol renders as the bare
+      # argument name, a String literal keeps its quotes. Rendering both alike
+      # would make `{ direction: :direction }` and `{ direction: "direction" }`
+      # the same document.
+      expect(mutation.to_h[:fields]).to eq(size: "size")
     end
 
     it "emits announces a fact" do

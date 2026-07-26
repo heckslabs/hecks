@@ -705,6 +705,29 @@ pub fn parse_value_object(lines: &[&str]) -> (ValueObject, usize) {
             }
             i = j + 1;
             continue;
+        } else if depth == 1
+            && line.starts_with("invariant")
+            && line.contains('{')
+            && line.ends_with('}')
+        {
+            // VO-level invariant, BRACE form :
+            //   invariant("an address routes somewhere") { address.include?("@") }
+            //
+            // Ruby takes a block either way — `do … end` and `{ … }` are the
+            // same construct — so a parser that reads only one accepts a
+            // NARROWER language than the DSL does, and a bluebook can then be
+            // valid Ruby and invisible here. That is what happened : the
+            // library's own grammar/expression.bluebook is written in this form,
+            // and Rust silently read 2 of its 6 invariants while Ruby read all
+            // six. Nothing failed, because an invariant nobody parses looks
+            // exactly like an invariant that holds.
+            let inv_name = extract_string(line).unwrap_or_default();
+            if let (Some(open), Some(stripped)) = (line.find('{'), line.strip_suffix('}')) {
+                let expr = stripped[open + 1..].trim();
+                if !inv_name.is_empty() && !expr.is_empty() {
+                    vo.invariants.push(Invariant { name: inv_name, expression: expr.to_string() });
+                }
+            }
         } else if depth == 1 && line.starts_with("invariant") && line.contains(" do ") && line.ends_with("end") {
             // VO-level invariant, INLINE one-liner form (inbox.bluebook's
             // CommitSha) : invariant "non-empty" do value.length > 0 end

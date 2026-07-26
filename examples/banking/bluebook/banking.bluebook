@@ -1,0 +1,433 @@
+# BANKING — the domain that exercises every word of the language.
+#
+# Pizzas taught the shape ; this one is the coverage. Every keyword the DSL
+# admits appears here at least once, doing something a banker would recognise —
+# because a construct that cannot be motivated in a real domain is telling you
+# something about the construct.
+#
+# It is also the parity corpus. `bin/parity` diffs the two runtimes' reading of
+# this file byte for byte, so every keyword below is a keyword both parsers are
+# proven to agree on. Anything NOT here is unverified, however green the suite
+# looks — which is why the coverage gate refuses a DSL method with no exercise.
+#
+# Money is integer cents with a currency. Never a Float : IEEE 754 rounding has
+# no place in a ledger, and "0.1 + 0.2" is not a rounding detail when it is
+# someone's overdraft.
+Hecks.bluebook "Banking" do
+  vision "Customers hold accounts, accounts move money, and every movement is a transfer that can fail halfway. The domain that has to get it right twice — once in the rules, once in the recovery."
+  core
+
+  # ============================================================
+  # CUSTOMER — who the bank is talking to
+  # ============================================================
+  aggregate "Customer" do
+    description "A person the bank holds a relationship with. Suspended rather than deleted — a bank forgets nothing."
+
+    identified_by :reference
+
+    attribute :reference, String
+    attribute :name,      PersonName
+    attribute :email,     EmailAddress
+    attribute :standing,  String, default: "good"
+
+    value_object "PersonName" do
+      attribute :given,  String
+      attribute :family, String
+
+      invariant("a given name is present")  { !given.to_s.empty? }
+      invariant("a family name is present") { !family.to_s.empty? }
+    end
+
+    value_object "EmailAddress" do
+      attribute :address, String
+
+      invariant("an address routes somewhere") { address.include?("@") }
+    end
+
+    # Suspension is a STATE, not a flag someone remembers to check. `from:`
+    # names the states each move is legal from, so a suspended customer cannot
+    # be suspended twice and a closed one cannot be reinstated.
+    lifecycle :status, default: "active" do
+      transition "Suspend"   => "suspended", from: "active"
+      transition "Reinstate" => "active",    from: "suspended"
+      transition "Close"     => "closed",    from: ["active", "suspended"]
+    end
+
+    command "Register" do
+      role "Branch clerk"
+      goal "Take on a new customer"
+
+      attribute :reference, String
+      attribute :name,      PersonName
+      attribute :email,     EmailAddress
+
+      given("a customer reference is given") { !reference.to_s.empty? }
+
+      then_set :reference, to: :reference
+      then_set :name,      to: :name
+      then_set :email,     to: :email
+
+      emits "CustomerRegistered"
+    end
+
+    command "Suspend" do
+      role "Compliance officer"
+      goal "Stop a customer transacting while something is investigated"
+
+      reference_to Customer
+      attribute :standing, String
+
+      given("a suspension says why") { !standing.to_s.empty? }
+
+      then_set :standing, to: :standing
+
+      emits "CustomerSuspended"
+    end
+
+    command "Reinstate" do
+      role "Compliance officer"
+      goal "Let a cleared customer transact again"
+
+      reference_to Customer
+      then_set :standing, to: "good"
+
+      emits "CustomerReinstated"
+    end
+
+    command "Close" do
+      role "Branch clerk"
+      goal "End the relationship"
+
+      reference_to Customer
+      emits "CustomerClosed"
+    end
+
+    query "InGoodStanding" do
+      description "The everyday customer roll — active, and nothing outstanding against them."
+      where(status: "active", standing: "good")
+      order_by :reference
+    end
+
+    query "Suspended" do
+      description "The compliance queue, newest concern first."
+      where(status: "suspended")
+      order_by :reference, :desc
+      limit 50
+    end
+  end
+
+  # ============================================================
+  # ACCOUNT — where the money actually sits
+  # ============================================================
+  aggregate "Account" do
+    description "A balance belonging to one customer, and the ledger that explains how it got there."
+
+    reference_to Customer
+
+    attribute :number,       String
+    attribute :balance,      Money
+    attribute :kind,         AccountKind
+    attribute :daily_limit,  Money
+    attribute :ledger,       list_of(LedgerEntry)
+
+    # Integer cents and a currency, together. A balance without its currency is
+    # a number pretending to be money.
+    value_object "Money" do
+      attribute :cents,    Integer, default: 0
+      attribute :currency, String,  default: "USD"
+
+      invariant("a balance is never negative")      { cents >= 0 }
+      invariant("a currency is a three-letter code") { currency.to_s.size == 3 }
+    end
+
+    value_object "AccountKind" do
+      attribute :name, String
+
+      invariant("an account is current, savings, or reserve") do
+        name == "current" || name == "savings" || name == "reserve"
+      end
+    end
+
+    value_object "Narrative" do
+      attribute :text, String
+
+      invariant("a movement explains itself") { !text.to_s.empty? }
+    end
+
+    # An entry has identity that outlives its values — a correction changes what
+    # it says without making it a different entry. That is what makes it an
+    # ENTITY and the Money it carries a value object.
+    entity "LedgerEntry" do
+      description "One movement across the account, in the order it was posted."
+
+      identified_by :sequence
+
+      attribute :sequence,  Integer
+      attribute :amount,    Money
+      attribute :narrative, Narrative
+      attribute :direction, String
+
+      lifecycle :state, default: "posted" do
+        transition "Reverse" => "reversed", from: "posted"
+      end
+
+      command "Reverse" do
+        role "Back office"
+        goal "Undo a movement that should not have been posted"
+
+        attribute :narrative, Narrative
+        then_set :narrative, to: :narrative
+
+        emits "LedgerEntryReversed"
+      end
+
+      query "Reversed" do
+        description "Entries that were undone — the audit trail nobody wants to need."
+        where(state: "reversed")
+      end
+    end
+
+    lifecycle :status, default: "open" do
+      transition "Freeze"  => "frozen", from: "open"
+      transition "Unfreeze" => "open",  from: "frozen"
+      transition "CloseAccount" => "closed", from: ["open", "frozen"]
+    end
+
+    command "Open" do
+      role "Branch clerk"
+      goal "Give a customer somewhere to keep money"
+
+      reference_to Customer
+      attribute :number,      String
+      attribute :kind,        AccountKind
+      attribute :daily_limit, Money
+
+      given("an account has a number") { !number.to_s.empty? }
+
+      then_set :number,      to: :number
+      then_set :kind,        to: :kind
+      then_set :daily_limit, to: :daily_limit
+
+      emits "AccountOpened"
+    end
+
+    command "Credit" do
+      role "Teller"
+      goal "Put money in"
+
+      reference_to Account
+      attribute :amount,    Money
+      attribute :narrative, Narrative
+
+      given("a credit moves something")     { amount.cents.positive? }
+      given("a credit matches the currency") { amount.currency == balance.currency }
+
+      then_set :balance, to: :amount
+      then_set :ledger,  append: { amount: :amount, narrative: :narrative, direction: "credit" }
+
+      emits "AccountCredited"
+    end
+
+    command "Debit" do
+      role "Teller"
+      goal "Take money out, if it is there to take"
+
+      reference_to Account
+      attribute :amount,    Money
+      attribute :narrative, Narrative
+
+      # The four gates a debit has to pass. Each is a sentence a banker would
+      # say out loud, which is the test of whether the rule belongs here.
+      given("a debit moves something")        { amount.cents.positive? }
+      given("a debit matches the currency")   { amount.currency == balance.currency }
+      given("the balance covers it")          { balance.cents >= amount.cents }
+      given("the daily limit allows it")      { daily_limit.cents >= amount.cents }
+
+      then_set :balance, to: :amount
+      then_set :ledger,  append: { amount: :amount, narrative: :narrative, direction: "debit" }
+
+      emits "AccountDebited"
+    end
+
+    command "Freeze" do
+      role "Compliance officer"
+      goal "Stop an account moving while something is investigated"
+
+      reference_to Account
+      emits "AccountFrozen"
+    end
+
+    command "Unfreeze" do
+      role "Compliance officer"
+      goal "Release a cleared account"
+
+      reference_to Account
+      emits "AccountUnfrozen"
+    end
+
+    command "CloseAccount" do
+      role "Branch clerk"
+      goal "Close an account that has been emptied"
+
+      reference_to Account
+
+      given("an account closes empty") { balance.cents.zero? }
+
+      emits "AccountClosed"
+    end
+
+    query "Open" do
+      description "Accounts that can transact today."
+      where(status: "open")
+      order_by :number
+    end
+
+    query "Overdrawn" do
+      description "Accounts below a floor the caller supplies — the morning risk report."
+      attribute :floor, Integer
+      where(balance: { lt: :floor })
+      order_by :balance
+      limit 100
+    end
+
+    # A frozen account is a compliance event, not just a state change. Declared
+    # HERE because this is where the causality was noticed ; it is kept at
+    # domain level because the command it fires belongs elsewhere.
+    policy "ReviewOnFreeze" do
+      on      "Account.AccountFrozen"
+      trigger "Compliance.OpenReview"
+      across  "Compliance"
+    end
+  end
+
+  # ============================================================
+  # TRANSFER — the thing that can fail halfway
+  # ============================================================
+  aggregate "Transfer" do
+    description "Money leaving one account for another. Two movements that must both happen, or neither."
+
+    attribute :amount,    Money
+    attribute :narrative, Narrative
+
+    value_object "Money" do
+      attribute :cents,    Integer, default: 0
+      attribute :currency, String,  default: "USD"
+
+      invariant("a transfer moves something") { cents > 0 }
+    end
+
+    value_object "Narrative" do
+      attribute :text, String
+
+      invariant("a transfer explains itself") { !text.to_s.empty? }
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "Debited"  => "debited",   from: "requested"
+      transition "Settle"   => "settled",   from: "debited"
+      transition "Reverse"  => "reversed",  from: "debited"
+      transition "Reject"   => "rejected",  from: "requested"
+    end
+
+    command "Request" do
+      role "Customer"
+      goal "Send money to another account"
+
+      attribute :amount,    Money
+      attribute :narrative, Narrative
+
+      given("a transfer moves something") { amount.cents.positive? }
+
+      then_set :amount,    to: :amount
+      then_set :narrative, to: :narrative
+
+      emits "TransferRequested"
+    end
+
+    command "Debited" do
+      role "System"
+      goal "Record that the source account has given up the money"
+
+      reference_to Transfer
+      emits "TransferDebited"
+    end
+
+    command "Settle" do
+      role "System"
+      goal "Record that the destination has received it"
+
+      reference_to Transfer
+      emits "TransferSettled"
+    end
+
+    command "Reverse" do
+      role "System"
+      goal "Put the money back when the credit could not be made"
+
+      reference_to Transfer
+      emits "TransferReversed"
+    end
+
+    command "Reject" do
+      role "System"
+      goal "Refuse a transfer before any money moved"
+
+      reference_to Transfer
+      emits "TransferRejected"
+    end
+
+    query "InFlight" do
+      description "Transfers that have left one account and not arrived at the other. The list that must always empty."
+      where(status: "debited")
+      order_by :status
+    end
+  end
+
+  # ============================================================
+  # THE REACTIONS
+  # ============================================================
+
+  # Domain-level because neither aggregate owns the rule : the event belongs to
+  # Customer and the command belongs to Account.
+  policy "FreezeAccountsOnSuspension" do
+    on      "CustomerSuspended"
+    trigger "Account.Freeze"
+  end
+
+  policy "NotifyOnClosure" do
+    on      "AccountClosed"
+    trigger "Notifications.Send"
+    across  "Notifications"
+  end
+
+  # A transfer is the case a policy cannot express : it takes several steps, it
+  # can be half-done, and something has to REMEMBER which half. Correlated by
+  # the transfer, moving through states it declares up front, and compensating
+  # when the second leg fails.
+  process_manager "Settlement" do
+    correlates_by :transfer
+    starts_on "TransferRequested"
+    ends_on   "TransferSettled"
+
+    state "awaiting_debit"
+    state "awaiting_credit"
+    state "settled"
+    state "reversing"
+
+    on "AccountDebited", transition: { "awaiting_debit" => "awaiting_credit" } do
+      dispatch "Banking::Transfer.Debited", with: { transfer: :transfer }
+      dispatch "Banking::Account.Credit",   with: { transfer: :transfer }
+    end
+
+    on "AccountCredited", transition: { "awaiting_credit" => "settled" } do
+      dispatch "Banking::Transfer.Settle", with: { transfer: :transfer }
+    end
+
+    # The compensating leg. A saga without one is a saga that loses money the
+    # first time the destination account is frozen between the two movements.
+    on "AccountFrozen", transition: { "awaiting_credit" => "reversing" } do
+      dispatch "Banking::Account.Credit",   with: { transfer: :transfer }
+      dispatch "Banking::Transfer.Reverse", with: { transfer: :transfer }
+    end
+  end
+end

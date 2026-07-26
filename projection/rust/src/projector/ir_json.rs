@@ -46,7 +46,7 @@ fn aggregate_to_value(aggregate: &Aggregate) -> Value {
         "name": aggregate.name,
         "description": optional(&aggregate.description),
         "identified_by": aggregate.identified_by.clone().unwrap_or_else(|| "id".to_string()),
-        "attributes": aggregate.attributes.iter().map(attribute_to_value).collect::<Vec<_>>(),
+        "attributes": aggregate_attributes(aggregate),
         "value_objects": aggregate.value_objects.iter().map(value_object_to_value).collect::<Vec<_>>(),
         "commands": aggregate.commands.iter().map(command_to_value).collect::<Vec<_>>(),
         "lifecycle": aggregate.lifecycle.as_ref().map(lifecycle_to_value),
@@ -54,6 +54,30 @@ fn aggregate_to_value(aggregate: &Aggregate) -> Value {
         "queries": aggregate.queries.iter().map(query_to_value).collect::<Vec<_>>()
 
     })
+}
+
+/// An aggregate's fields, INCLUDING the ones its references imply.
+///
+/// `reference_to Customer` on an aggregate means "this record carries the
+/// customer it belongs to, by identity". The Ruby DSL says that by declaring a
+/// plain `customer_id` String — a reference IS an attribute, and Evans is
+/// explicit that you point at another root by its identity rather than embedding
+/// it. The parser keeps references in a separate list, which is a fine internal
+/// shape but a different DOCUMENT, so the seam folds them back in where Ruby
+/// puts them.
+fn aggregate_attributes(aggregate: &Aggregate) -> Vec<Value> {
+    let declared = aggregate.attributes.iter().map(attribute_to_value);
+
+    let implied = aggregate.references.iter().map(|reference| {
+        json!({
+            "name": format!("{}_id", reference.name),
+            "type": "String",
+            "list": false,
+            "default": Value::Null
+        })
+    });
+
+    implied.chain(declared).collect()
 }
 
 /// An identity-bearing member inside the boundary. It declares the same things
