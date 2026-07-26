@@ -17,7 +17,7 @@ module Hecksagain
     class Value
       def self.build(value_object, fields)
         value_object.invariants.each do |invariant|
-          next if Expression::Evaluator.call(invariant.canonical, fields)
+          next if Language::Expression::Evaluator.call(invariant.canonical, fields)
 
           # Rendered as canonical JSON with sorted keys rather than Ruby's
           # hash inspect — a message that differs between runtimes is a

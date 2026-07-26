@@ -17,29 +17,29 @@
 require_relative "hecksagain/naming"
 require_relative "hecksagain/aggregate"
 
-require_relative "hecksagain/expression/extractor"
-require_relative "hecksagain/expression/resolver"
-require_relative "hecksagain/expression/evaluator"
+require_relative "hecksagain/language/expression/extractor"
+require_relative "hecksagain/language/expression/resolver"
+require_relative "hecksagain/language/expression/evaluator"
 
-require_relative "hecksagain/ir/type_name"
-require_relative "hecksagain/ir/attribute"
-require_relative "hecksagain/ir/value_object"
-require_relative "hecksagain/ir/command"
-require_relative "hecksagain/ir/aggregate"
-require_relative "hecksagain/ir/bluebook"
-require_relative "hecksagain/ir/hexagon"
+require_relative "hecksagain/language/ir/type_name"
+require_relative "hecksagain/language/ir/attribute"
+require_relative "hecksagain/language/ir/value_object"
+require_relative "hecksagain/language/ir/command"
+require_relative "hecksagain/language/ir/aggregate"
+require_relative "hecksagain/language/ir/bluebook"
+require_relative "hecksagain/language/ir/hexagon"
 
-require_relative "hecksagain/dsl/const_shim"
-require_relative "hecksagain/dsl/attribute_collector"
-require_relative "hecksagain/dsl/value_object_builder"
-require_relative "hecksagain/dsl/command_builder"
-require_relative "hecksagain/dsl/aggregate_builder"
-require_relative "hecksagain/dsl/bluebook_builder"
-require_relative "hecksagain/dsl/binding_proxy"
-require_relative "hecksagain/dsl/hecksagon_builder"
-require_relative "hecksagain/dsl/family_builder"
-require_relative "hecksagain/dsl/adapter_builder"
-require_relative "hecksagain/dsl/world_builder"
+require_relative "hecksagain/language/dsl/const_shim"
+require_relative "hecksagain/language/dsl/attribute_collector"
+require_relative "hecksagain/language/dsl/value_object_builder"
+require_relative "hecksagain/language/dsl/command_builder"
+require_relative "hecksagain/language/dsl/aggregate_builder"
+require_relative "hecksagain/language/dsl/bluebook_builder"
+require_relative "hecksagain/language/dsl/binding_proxy"
+require_relative "hecksagain/language/dsl/hecksagon_builder"
+require_relative "hecksagain/language/dsl/family_builder"
+require_relative "hecksagain/language/dsl/adapter_builder"
+require_relative "hecksagain/language/dsl/world_builder"
 
 require_relative "hecksagain/runtime/event"
 require_relative "hecksagain/runtime/value"
@@ -50,6 +50,8 @@ require_relative "hecksagain/runtime/loader"
 
 require_relative "hecksagain/adapters/memory"
 require_relative "hecksagain/adapters/sqlite"
+
+require_relative "hecksagain/projector/exporter"
 
 module Hecksagain
   VERSION = "2026.07.25.1"
@@ -73,11 +75,11 @@ module Hecksagain
       @current_registry = previous
     end
 
-    def bluebook(name, &block)  = collect(:add_bluebook,  DSL::BluebookBuilder.build(name, &block))
-    def hecksagon(name, &block) = collect(:add_hecksagon, DSL::HecksagonBuilder.build(name, &block))
-    def family(name, &block)    = collect(:add_family,    DSL::FamilyBuilder.build(name, &block))
-    def adapter(name, &block)   = collect(:add_adapter,   DSL::AdapterBuilder.build(name, &block))
-    def world(name, &block)     = collect(:add_world,     DSL::WorldBuilder.build(name, &block))
+    def bluebook(name, &block)  = collect(:add_bluebook,  Language::DSL::BluebookBuilder.build(name, &block))
+    def hecksagon(name, &block) = collect(:add_hecksagon, Language::DSL::HecksagonBuilder.build(name, &block))
+    def family(name, &block)    = collect(:add_family,    Language::DSL::FamilyBuilder.build(name, &block))
+    def adapter(name, &block)   = collect(:add_adapter,   Language::DSL::AdapterBuilder.build(name, &block))
+    def world(name, &block)     = collect(:add_world,     Language::DSL::WorldBuilder.build(name, &block))
 
     private
 

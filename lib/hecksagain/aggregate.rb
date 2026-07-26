@@ -61,16 +61,16 @@ module Hecksagain
       # Outside a hecksagon this stays an ordinary NoMethodError, so a typo in
       # domain code still fails the way Ruby should.
       def method_missing(verb, *args, &block)
-        collector = DSL::HecksagonBuilder.collector
+        collector = Language::DSL::HecksagonBuilder.collector
         return super unless collector
 
-        collector << IR::Bind.new(aggregate: fqn, verb: verb.to_s, adapter: args.first.to_s)
+        collector << Language::IR::Bind.new(aggregate: fqn, verb: verb.to_s, adapter: args.first.to_s)
         block&.call
         self
       end
 
       def respond_to_missing?(name, include_private = false)
-        !DSL::HecksagonBuilder.collector.nil? || super
+        !Language::DSL::HecksagonBuilder.collector.nil? || super
       end
     end
 

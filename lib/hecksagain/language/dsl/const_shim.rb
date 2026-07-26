@@ -12,28 +12,30 @@
 #
 #   ConstShim.with(->(name) { IR::TypeName.new(name) }) { load(path) }
 module Hecksagain
-  module DSL
-    module ConstShim
-      class << self
-        attr_accessor :resolver
+  module Language
+    module DSL
+      module ConstShim
+        class << self
+          attr_accessor :resolver
 
-        # Install `resolver` for the duration of the block, then put back
-        # whatever was there before (nil, normally).
-        def with(resolver)
-          previous  = @resolver
-          @resolver = resolver
-          yield
-        ensure
-          @resolver = previous
+          # Install `resolver` for the duration of the block, then put back
+          # whatever was there before (nil, normally).
+          def with(resolver)
+            previous  = @resolver
+            @resolver = resolver
+            yield
+          ensure
+            @resolver = previous
+          end
+
+          def active? = !@resolver.nil?
         end
 
-        def active? = !@resolver.nil?
-      end
-
-      module Hook
-        def const_missing(name)
-          resolver = ConstShim.resolver
-          resolver ? resolver.call(name) : super
+        module Hook
+          def const_missing(name)
+            resolver = ConstShim.resolver
+            resolver ? resolver.call(name) : super
+          end
         end
       end
     end
@@ -41,4 +43,4 @@ module Hecksagain
 end
 
 # Top-level constant lookups route through Object's singleton.
-Object.singleton_class.prepend(Hecksagain::DSL::ConstShim::Hook)
+Object.singleton_class.prepend(Hecksagain::Language::DSL::ConstShim::Hook)

@@ -11,20 +11,22 @@
 #     family "persistence"
 #   end
 module Hecksagain
-  module DSL
-    class AdapterBuilder
-      def initialize(name)
-        @name = name
-      end
+  module Language
+    module DSL
+      class AdapterBuilder
+        def initialize(name)
+          @name = name
+        end
 
-      def family(value) = @family = value.to_s
+        def family(value) = @family = value.to_s
 
-      def build = IR::Adapter.new(name: @name, family: @family)
+        def build = IR::Adapter.new(name: @name, family: @family)
 
-      def self.build(name, &block)
-        builder = new(name)
-        builder.instance_eval(&block) if block
-        builder.build
+        def self.build(name, &block)
+          builder = new(name)
+          builder.instance_eval(&block) if block
+          builder.build
+        end
       end
     end
   end

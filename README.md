@@ -94,19 +94,45 @@ operator, it is not an operator.
 
 ## The folder convention
 
+A domain's `bluebook/` folder holds only what is **its own**:
+
 ```
 examples/pizzas/
   bluebook/
-    persistence.family     the how-verb vocabulary (persisted_by, :reply)
-    sqlite.adapter         the inverted arrow — adapter declares its family
     pizzas.bluebook        the domain
     pizzas.hecksagon       the wiring — Pizzas::Pizza.persisted_by("Sqlite")
     pizzas.world           the per-deployment values
   data/
 ```
 
-Load order is dependency order, not alphabetical: families and adapters first
-so binds can type-check, then the domain, the wiring, the values.
+Families and adapters are **not** in there. A family is declared once and used
+across every domain's hexagon — that is the whole point of the inverted arrow —
+so they live in one shared place, found by walking up from the domain:
+
+```
+boundary/
+  persistence.family       the how-verb vocabulary (persisted_by, :reply)
+  sqlite.adapter           the inverted arrow — adapter declares its family
+  memory.adapter
+```
+
+Load order is dependency order, not alphabetical: the shared boundary first so
+binds can type-check against it, then the domain, the wiring, the values.
+
+## The library
+
+```
+lib/hecksagain/
+  language/     dsl → ir → expression.  WHAT A BLUEBOOK IS.
+  runtime/      dispatch, instances, the registry.  RUNNING IT.
+  adapters/     sqlite, memory.
+  projector/    the IR exporter, and whatever targets follow.  SENDING IT ELSEWHERE.
+```
+
+The split follows the dependency direction rather than the topic. The
+expression evaluator is in `language/` and not `projector/` because the Ruby
+runtime evaluates every given and every invariant through it — it is the
+semantic core, and Rust is merely the first thing to read it.
 
 ## The shape
 

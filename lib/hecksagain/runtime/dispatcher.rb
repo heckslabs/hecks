@@ -105,7 +105,7 @@ module Hecksagain
       # because nothing has been written yet.
       def enforce_givens(instance, command, args)
         command.givens.each do |given|
-          next if Expression::Evaluator.call(given.canonical, instance, args)
+          next if Language::Expression::Evaluator.call(given.canonical, instance, args)
 
           raise GivenNotMet, "#{command.name} refused — #{given.description}"
         end
