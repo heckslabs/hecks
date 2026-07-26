@@ -60,7 +60,9 @@ module Hecksagain
     attr_reader :current_registry
 
     # Boot a domain directory and get back the door.
-    def boot(path) = Runtime::Loader.boot(path)
+    # `boundary:` names the folder holding the shared families and adapters.
+    # Left out, it is found by walking up from the domain.
+    def boot(path, boundary: nil) = Runtime::Loader.boot(path, boundary: boundary)
 
     # Declarations land in whichever registry is booting.
     def with_registry(registry)

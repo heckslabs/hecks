@@ -20,15 +20,10 @@ RSpec.describe "a constructed aggregate" do
         Pizzas::Pizza.persisted_by("#{adapter}")
       end
     HECKSAGON
-    File.write(File.join(target, "memory.adapter"), <<~ADAPTER)
-      Hecks.adapter "Memory" do
-        family "persistence"
-      end
-    ADAPTER
 
     @dirs ||= []
     @dirs << dir
-    Hecks.boot(dir)
+    Hecks.boot(dir, boundary: BOUNDARY)
   end
 
   before { boot }
