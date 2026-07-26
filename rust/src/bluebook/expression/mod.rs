@@ -10,7 +10,7 @@
 //! the canonical text already extracted — the whole reason the sublanguage is
 //! carried as text.
 //!
-//! The two sides are specified once, in grammar/expression/bluebook/expression.bluebook,
+//! The two sides are specified once, in lib/hecksagain/grammar/expression.bluebook,
 //! and implemented twice. bin/parity is what proves the pair agree.
 
 pub mod evaluator;

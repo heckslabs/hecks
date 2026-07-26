@@ -90,7 +90,7 @@ well as run — and **both runtimes evaluate the text**, because a Ruby running 
 closure while Rust runs text agrees only by luck.
 
 The admissible subset is conceived in
-[`grammar/expression/bluebook/expression.bluebook`](grammar/expression/bluebook/expression.bluebook)
+[`lib/hecksagain/grammar/expression.bluebook`](lib/hecksagain/grammar/expression.bluebook)
 and bounded by what the interpreter floor can evaluate:
 
 ```

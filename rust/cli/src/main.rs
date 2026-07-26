@@ -21,7 +21,7 @@
 //!
 //! Note that a .bluebook file is already Ruby, so the parseable subset and the
 //! evaluable subset are the same question - see
-//! grammar/expression/bluebook/expression.bluebook.
+//! lib/hecksagain/grammar/expression.bluebook.
 
 // THE PARSER CAME OVER FROM HECKS WHOLE AND UNEDITED.
 //
