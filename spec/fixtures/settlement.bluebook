@@ -1,0 +1,134 @@
+# frozen_string_literal: true
+
+# Banking's moving parts in miniature, bound to Memory — the fixture
+# saga_spec drives to pin what the RUBY runtime (the truth) means by a
+# process manager : born with memory, advanced transition-first, refused
+# legs recorded, compensated, ended. Every number in the spec is exact.
+Hecks.bluebook "Wire" do
+  vision "Money leaves one drawer for another, and something remembers which half happened."
+  core
+
+  aggregate "Drawer" do
+    attribute :cents, Integer, default: 0
+
+    lifecycle :status, default: "open" do
+      transition "Shut" => "shut", from: "open"
+      transition "Reopen" => "open", from: "shut"
+    end
+
+    command "Open" do
+      role "Clerk"
+      goal "A new drawer"
+      emits "DrawerOpened"
+    end
+
+    command "Put" do
+      role "Clerk"
+      goal "Money in"
+      reference_to Drawer
+      attribute :amount, Integer
+      given("the drawer is open") { status == "open" }
+      then_set :cents, increment: :amount
+      emits "PutIn"
+    end
+
+    command "Take" do
+      role "Clerk"
+      goal "Money out"
+      reference_to Drawer
+      attribute :amount, Integer
+      given("the drawer is open")  { status == "open" }
+      given("the cents cover it")  { cents >= amount }
+      then_set :cents, decrement: :amount
+      emits "Taken"
+    end
+
+    command "Shut" do
+      role "Clerk"
+      goal "Shut the drawer"
+      reference_to Drawer
+      emits "DrawerShut"
+    end
+
+    command "Reopen" do
+      role "Clerk"
+      goal "Open it again"
+      reference_to Drawer
+      emits "DrawerReopened"
+    end
+  end
+
+  aggregate "Wire" do
+    attribute :amount,      Integer, default: 0
+    attribute :source,      String
+    attribute :destination, String
+
+    lifecycle :status, default: "asked" do
+      transition "Moved"    => "moved",    from: "asked"
+      transition "Landed"   => "landed",   from: "moved"
+      transition "Returned" => "returned", from: "moved"
+    end
+
+    command "Ask" do
+      role "Customer"
+      goal "Move money between drawers"
+      attribute :amount,      Integer
+      attribute :source,      String
+      attribute :destination, String
+      given("a wire moves something") { amount.positive? }
+      then_set :amount,      to: :amount
+      then_set :source,      to: :source
+      then_set :destination, to: :destination
+      emits "WireAsked"
+    end
+
+    command "Moved" do
+      role "System"
+      goal "The source gave it up"
+      reference_to Wire
+      emits "WireMoved"
+    end
+
+    command "Landed" do
+      role "System"
+      goal "The destination has it"
+      reference_to Wire
+      emits "WireLanded"
+    end
+
+    command "Returned" do
+      role "System"
+      goal "It went back"
+      reference_to Wire
+      emits "WireReturned"
+    end
+  end
+
+  process_manager "Carry" do
+    correlates_by :wire
+    starts_on "WireAsked"
+    ends_on   "WireLanded"
+
+    state "asked"
+    state "carrying"
+    state "landed"
+    state "returned"
+
+    on "WireAsked", transition: { "asked" => "asked" } do
+      dispatch "Wire::Drawer.Take", with: { id: :source, amount: :amount, wire: :wire }
+    end
+
+    on "Taken", transition: { "asked" => "carrying" } do
+      dispatch "Wire::Wire.Moved",  with: { wire: :wire }
+      dispatch "Wire::Drawer.Put",  with: { id: :destination, amount: :amount, wire: :wire }
+    end
+
+    on "PutIn", transition: { "carrying" => "landed" } do
+      dispatch "Wire::Wire.Landed", with: { wire: :wire }
+    end
+
+    on "WireReturned", transition: { "carrying" => "returned" } do
+      dispatch "Wire::Drawer.Put", with: { id: :source, amount: :amount, wire: :wire }
+    end
+  end
+end

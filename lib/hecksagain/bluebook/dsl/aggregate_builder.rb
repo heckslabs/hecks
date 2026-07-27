@@ -126,6 +126,16 @@ module Hecksagain
             field = attribute.name
             @klass.define_method(field) { @state[field] }
           end
+
+          # `lifecycle :status` declares a field as surely as `attribute`
+          # does — the runtime births and moves it, so the class reads it.
+          # Until now the only way to READ a lifecycle was to declare a
+          # shadow attribute beside it, which is exactly the fake pizzas
+          # shipped with.
+          if @lifecycle && !RESERVED.include?(@lifecycle.field)
+            field = @lifecycle.field
+            @klass.define_method(field) { @state[field] }
+          end
         end
 
         # A creating command mints identity, so it belongs to the class. Any
