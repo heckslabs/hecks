@@ -16,6 +16,7 @@ module Hecksagain
 
     class Value
       def self.build(value_object, fields)
+        admit_member(value_object, fields)
         value_object.invariants.each do |invariant|
           next if Bluebook::Expression::Evaluator.call(invariant.canonical, fields)
 
@@ -28,6 +29,24 @@ module Hecksagain
                 "(given #{canonical_fields(fields)})"
         end
         fields
+      end
+
+      # `one_of` declares the CLOSED SET of values this object may take. The
+      # judgment falls on the DISCRIMINANT — the first declared attribute,
+      # the value a caller actually offers. Values compare and render as
+      # strings because the canonical IR serialises member rows as strings ;
+      # both runtimes speak the seam's rendering, so the refusal reads
+      # identically from either side.
+      def self.admit_member(value_object, fields)
+        return if value_object.members.empty?
+
+        discriminant = value_object.attributes.first.name
+        offered      = fields[discriminant]
+        admitted     = value_object.members.map { |member| member[discriminant].to_s }
+        return if admitted.include?(offered.to_s)
+
+        raise InvariantViolation,
+              "#{value_object.name} admits #{admitted.map(&:inspect).join(', ')} — got #{offered.inspect}"
       end
 
       def self.canonical_fields(fields)

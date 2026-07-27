@@ -104,7 +104,16 @@ fn coerce(aggregate: &Map<String, Value>, name: &str, value: &Value) -> Result<V
     let Some(value_object) = value_object_for(aggregate, name) else {
         return Ok(value.clone());
     };
-    if value.is_null() || value.is_object() {
+    if value.is_null() {
+        return Ok(value.clone());
+    }
+    // An OBJECT payload used to pass through here untouched — Ruby built and
+    // judged it, Rust stored it raw, and a value that broke its own rule would
+    // have split the runtimes the first time anyone sent one. Every
+    // construction now walks the same door : members first, invariants second.
+    if let Some(object) = value.as_object() {
+        admit_member(&value_object, object)?;
+        enforce_invariants(&value_object, object)?;
         return Ok(value.clone());
     }
 
@@ -116,6 +125,8 @@ fn coerce(aggregate: &Map<String, Value>, name: &str, value: &Value) -> Result<V
     if fields.len() == 1 {
         let mut only = Map::new();
         only.insert(fields[0].clone(), value.clone());
+        admit_member(&value_object, &only)?;
+        enforce_invariants(&value_object, &only)?;
         return Ok(Value::Object(only));
     }
 
@@ -312,27 +323,80 @@ fn build_element(
     }
 
     if let Some(value_object) = value_object_for(aggregate, target) {
-        let empty = Map::new();
-        for invariant in array(&value_object, "invariants") {
-            let canonical = invariant.get("canonical").and_then(Value::as_str).unwrap_or("");
-            if evaluate_given(canonical, &fields, &empty)? {
-                continue;
-            }
-            let description = invariant
-                .get("description")
-                .and_then(Value::as_str)
-                .unwrap_or_default();
-            let name = value_object.get("name").and_then(Value::as_str).unwrap_or_default();
-            return Err(format!(
-                "{} invariant violated — {} (given {})",
-                name,
-                description,
-                Value::Object(fields.clone())
-            ));
-        }
+        admit_member(&value_object, &fields)?;
+        enforce_invariants(&value_object, &fields)?;
     }
 
     Ok(Value::Object(fields))
+}
+
+/// `one_of` declares the CLOSED SET of values this object may take. The
+/// judgment falls on the DISCRIMINANT — the first declared attribute, the
+/// value a caller actually offers. Member rows ride the canonical IR as
+/// strings, so both runtimes compare and render the seam's spelling.
+fn admit_member(value_object: &Map<String, Value>, fields: &Map<String, Value>) -> Result<(), String> {
+    let members = array(value_object, "members");
+    if members.is_empty() {
+        return Ok(());
+    }
+    let discriminant = array(value_object, "attributes")
+        .first()
+        .and_then(|a| a.get("name").and_then(Value::as_str))
+        .unwrap_or_default()
+        .to_string();
+    let admitted: Vec<String> = members
+        .iter()
+        .filter_map(Value::as_array)
+        .filter_map(|pairs| {
+            pairs.iter().filter_map(Value::as_array).find_map(|pair| {
+                match (pair.first().and_then(Value::as_str), pair.get(1).and_then(Value::as_str)) {
+                    (Some(field), Some(value)) if field == discriminant => Some(value.to_string()),
+                    _ => None,
+                }
+            })
+        })
+        .collect();
+    let offered = fields.get(&discriminant).cloned().unwrap_or(Value::Null);
+    let offered_text = match &offered {
+        Value::String(text) => text.clone(),
+        Value::Null => String::new(),
+        other => other.to_string(),
+    };
+    if admitted.iter().any(|value| *value == offered_text) {
+        return Ok(());
+    }
+    let name = value_object.get("name").and_then(Value::as_str).unwrap_or_default();
+    let rendered: Vec<String> = admitted.iter().map(|value| format!("{value:?}")).collect();
+    let got = match &offered {
+        Value::String(text) => format!("{text:?}"),
+        Value::Null => "nil".to_string(),
+        other => other.to_string(),
+    };
+    Err(format!("{} admits {} — got {}", name, rendered.join(", "), got))
+}
+
+/// A violated invariant refuses BEFORE the value reaches the aggregate — an
+/// aggregate never holds a value that broke its own rule.
+fn enforce_invariants(value_object: &Map<String, Value>, fields: &Map<String, Value>) -> Result<(), String> {
+    let empty = Map::new();
+    for invariant in array(value_object, "invariants") {
+        let canonical = invariant.get("canonical").and_then(Value::as_str).unwrap_or("");
+        if evaluate_given(canonical, fields, &empty)? {
+            continue;
+        }
+        let description = invariant
+            .get("description")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        let name = value_object.get("name").and_then(Value::as_str).unwrap_or_default();
+        return Err(format!(
+            "{} invariant violated — {} (given {})",
+            name,
+            description,
+            Value::Object(fields.clone())
+        ));
+    }
+    Ok(())
 }
 
 /// The ENTITY a list attribute holds, when its element type names one.

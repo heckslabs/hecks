@@ -146,11 +146,16 @@ Hecks.bluebook "Banking" do
       invariant("a currency is a three-letter code") { currency.to_s.size == 3 }
     end
 
+    # The kinds an account may be form a CLOSED SET, so the set is declared as
+    # one, not hand-spelled as a chain of ==s in an invariant. `one_of` is the
+    # FACT ; the runtime refuses anything outside it by name.
     value_object "AccountKind" do
       attribute :name, String
 
-      invariant("an account is current, savings, or reserve") do
-        name == "current" || name == "savings" || name == "reserve"
+      one_of do
+        member name: "current"
+        member name: "savings"
+        member name: "reserve"
       end
     end
 
