@@ -191,7 +191,7 @@ RSpec.describe "Pizzas" do
       )
     end
 
-    it "gives an aggregate with no bind the internal Memory adapter" do
+    it "gives a domain with no hecksagon the internal Memory adapter" do
       registry = Hecksagain::Runtime::Registry.new
 
       runtime = Hecksagain.with_registry(registry) do
@@ -209,6 +209,50 @@ RSpec.describe "Pizzas" do
       # And it is a REAL repository, not a stub that swallows writes.
       runtime.dispatch("Pizzas::Pizza.CreatePizza", name: "Margherita", price_cents: 900)
       expect(registry.repository("Pizzas", pizza).count).to eq(1)
+    end
+
+    # A HECKSAGON IS EVIDENCE OF INTENT. Writing one says the wiring is being
+    # decided, so an aggregate left out is a FORGOTTEN decision — and
+    # defaulting there would be the silence this port exists to refuse : a
+    # domain that meant to persist, looking entirely correct while nothing was
+    # written for the root nobody remembered.
+    it "refuses an unbound aggregate when the domain declares a hecksagon" do
+      registry = Hecksagain::Runtime::Registry.new
+
+      expect do
+        Hecksagain.with_registry(registry) do
+          Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
+          Kernel.load(InMemoryDomain::EXTRACTION_PORT)
+          Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
+          Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+          Kernel.load(InMemoryDomain::PIZZAS_BLUEBOOK)
+          # A hecksagon that decides something — but not where Pizza is stored.
+          Hecks.hecksagon("Pizzas") { Pizzas::Pizza.charged_by("Memory") }
+        end
+
+        pizza = registry.bluebook("Pizzas").aggregate("Pizza")
+        registry.repository("Pizzas", pizza)
+      end.to raise_error(
+        Hecksagain::Runtime::WiringError,
+        /Pizza has no persisted_by bind.*forgotten decision/m
+      )
+    end
+
+    # … and in-memory ON PURPOSE is a decision, which reads as one.
+    it "accepts an aggregate the hecksagon binds to Memory explicitly" do
+      registry = Hecksagain::Runtime::Registry.new
+
+      Hecksagain.with_registry(registry) do
+        Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
+        Kernel.load(InMemoryDomain::EXTRACTION_PORT)
+        Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
+        Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+        Kernel.load(InMemoryDomain::PIZZAS_BLUEBOOK)
+        Hecks.hecksagon("Pizzas") { Pizzas::Pizza.persisted_by("Memory") }
+      end
+
+      pizza = registry.bluebook("Pizzas").aggregate("Pizza")
+      expect(registry.repository("Pizzas", pizza)).to be_a(Hecksagain::Adapters::Memory)
     end
   end
 end

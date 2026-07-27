@@ -12,11 +12,16 @@
 # checkout has no business claiming a database — so there is no single-adapter
 # rule here. Every aggregate says which backing it wants, in the hecksagon.
 #
-# An aggregate that says NOTHING gets the internal Memory adapter. That is the
-# override principle : a hecksagon bind changes which adapter answers, it is not
-# what makes persistence exist. Memory is an ordinary adapter — same port, same
-# contract, same attach checkpoint — that the runtime happens to always carry,
-# so an undeclared aggregate still gets a real repository rather than an error.
+# A domain with NO HECKSAGON gets the internal Memory adapter for every
+# aggregate. That is the override principle : a hecksagon bind changes which
+# adapter answers, it is not what makes persistence exist. Memory is an ordinary
+# adapter — same port, same contract, same attach checkpoint — that the runtime
+# always carries, so a bluebook runs before anyone has written a hecksagon.
+#
+# But a domain that DOES declare a hecksagon is deciding its wiring, and an
+# aggregate left out of it is a forgotten decision rather than an absent one.
+# That is an error. The distinction is intent : nothing decided means nothing
+# forgotten, and `Cart.persisted_by("Memory")` says in-memory ON PURPOSE.
 #
 #   Ports::Persistence.repository(registry, "Pizzas", pizza_ir)  # => Adapters::Sqlite
 module Hecksagain
@@ -65,17 +70,28 @@ module Hecksagain
       # chapter — reasoned about far more often than stored — need not claim a
       # database to be dispatchable.
       #
-      # THE COST, NAMED : a domain that wires some aggregates and forgets one
-      # gets Memory for the one it forgot, and looks entirely correct while
-      # nothing is written for it. `registry.verify!` still resolves every
-      # DECLARED bind eagerly, so a bind that is wrong fails at boot — but a
-      # bind that is absent cannot be distinguished from one never wanted.
-      # Tightening that is one condition here (default only when the domain
-      # declares no persistence at all) if the silence ever costs more than
-      # the convenience.
+      # A HECKSAGON IS EVIDENCE OF INTENT. Writing one says the wiring is
+      # being decided ; an aggregate left out of it is a FORGOTTEN decision,
+      # not an absent one, and defaulting there would be the silence this
+      # whole port exists to refuse — a domain that meant to persist, looking
+      # entirely correct while nothing was written.
+      #
+      # So the default belongs only to a domain that declares no hecksagon at
+      # all : nothing has been decided, so nothing was forgotten. A domain
+      # that genuinely wants an aggregate in memory says so —
+      # `Cart.persisted_by("Memory")` is a decision, and reads as one.
       def bind_for(registry, domain, aggregate)
-        registry.hecksagon(domain)&.bind_for(aggregate.name, VERB) ||
-          default_bind(aggregate)
+        hexagon = registry.hecksagon(domain)
+        return default_bind(aggregate) unless hexagon
+
+        hexagon.bind_for(aggregate.name, VERB) || raise(
+          Runtime::WiringError,
+          "#{domain}::#{aggregate.name} has no #{VERB} bind. #{domain} declares a " \
+          "hecksagon, so its wiring is being decided explicitly and an aggregate " \
+          "left out is a forgotten decision. Bind it, or say " \
+          "#{aggregate.name}.#{VERB}(#{DEFAULT_ADAPTER.inspect}) to keep it in " \
+          "memory on purpose."
+        )
       end
 
       # The internal adapter, as a bind. Synthesised rather than special-cased

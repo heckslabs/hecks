@@ -59,21 +59,49 @@ pub const DEFAULT_ADAPTER: &str = "Memory";
 /// looked entirely correct. Banking and pizzas are each uniformly bound, which
 /// is why the corpus never showed it.
 ///
-/// AND AN AGGREGATE THAT DECLARES NOTHING GETS Memory, not an error. Wiring is
-/// override, not substrate : a hecksagon bind changes which adapter answers, it
-/// is not what makes persistence exist. Mirrors `bind_for` / `default_bind` in
-/// lib/hecksagain/ports/persistence/persistence.rb, which is the source of this
-/// behaviour — Ruby holds the semantics, this is the projection.
-pub fn resolve_for(bluebook_path: &str, aggregate: &str) -> Persistence {
-    let adapter = Path::new(bluebook_path)
-        .parent()
-        .and_then(|dir| persisted_by(dir, aggregate))
-        .unwrap_or_else(|| DEFAULT_ADAPTER.to_string());
+/// A DOMAIN WITH NO HECKSAGON gets Memory for every aggregate : wiring is
+/// override, not substrate, so a bluebook runs before anyone has written one.
+///
+/// But a hecksagon IS EVIDENCE OF INTENT. Writing one says the wiring is being
+/// decided, so an aggregate left out of it is a FORGOTTEN decision, not an
+/// absent one — and defaulting there would be the silence this port exists to
+/// refuse. `Err` is that case ; the caller refuses the boot.
+///
+/// Mirrors `bind_for` in lib/hecksagain/ports/persistence/persistence.rb, which
+/// is the source of this behaviour — Ruby holds the semantics, this projects it.
+pub fn resolve_for(bluebook_path: &str, aggregate: &str) -> Result<Persistence, String> {
+    let bluebook_dir = Path::new(bluebook_path).parent();
+    let declared = bluebook_dir.map(binds).unwrap_or_default();
 
-    Persistence {
+    let adapter = match persisted_by(&declared, aggregate) {
+        Some(adapter) => adapter,
+        // No hecksagon at all : nothing was decided, so nothing was forgotten.
+        None if declared.is_empty() && !has_hecksagon(bluebook_dir) => {
+            DEFAULT_ADAPTER.to_string()
+        }
+        None => {
+            return Err(format!(
+                "{aggregate} has no persisted_by bind. This domain declares a hecksagon, \
+                 so its wiring is being decided explicitly and an aggregate left out is a \
+                 forgotten decision. Bind it, or say \
+                 {aggregate}.persisted_by({DEFAULT_ADAPTER:?}) to keep it in memory on purpose."
+            ))
+        }
+    };
+
+    Ok(Persistence {
         settings: settings_for(bluebook_path, &adapter),
         adapter,
-    }
+    })
+}
+
+/// Whether the domain declares a hecksagon at all — the intent signal. A
+/// hecksagon that binds only OTHER verbs still counts : it is a file saying the
+/// wiring is being decided.
+fn has_hecksagon(bluebook_dir: Option<&Path>) -> bool {
+    bluebook_dir
+        .map(|dir| !loading::declarations(dir, "hecksagon").is_empty())
+        .unwrap_or(false)
 }
 
 /// Every `persisted_by` bind the domain declares, as (aggregate FQN, adapter).
@@ -98,9 +126,7 @@ fn binds(bluebook_dir: &Path) -> Vec<(String, String)> {
 /// The adapter bound to ONE aggregate. The hecksagon names it by FQN
 /// (`Pizzas::Pizza`), so the match is on the trailing segment — the projection
 /// of Ruby's `Bind#aggregate_name`.
-fn persisted_by(bluebook_dir: &Path, aggregate: &str) -> Option<String> {
-    let declared = binds(bluebook_dir);
-
+fn persisted_by(declared: &[(String, String)], aggregate: &str) -> Option<String> {
     declared
         .iter()
         .find(|(named, _)| named.rsplit("::").next().unwrap_or(named) == aggregate)

@@ -93,7 +93,15 @@ fn main() {
             std::process::exit(1);
         });
         for aggregate in parser::parse(&source).aggregates.iter() {
-            let persistence = persistence::resolve_for(&arguments[2], &aggregate.name);
+            let persistence = match persistence::resolve_for(&arguments[2], &aggregate.name) {
+                Ok(persistence) => persistence,
+                // The report's job is to show the wiring as it stands, including
+                // that an aggregate has none.
+                Err(reason) => {
+                    println!("{}: UNBOUND — {}", aggregate.name, reason);
+                    continue;
+                }
+            };
             // WHICH ADAPTER ANSWERS — and only that. Printing the settings
             // alongside read as a claim about storage : a Memory bind showed
             // `database data/mix.db` because the world block is handed over
@@ -145,7 +153,13 @@ fn main() {
     // wiring is override, not substrate. Both behaviours are the projection of
     // lib/hecksagain/ports/persistence/persistence.rb, which holds the semantics.
     for (name, aggregate) in runtime.aggregates() {
-        let persistence = persistence::resolve_for(&arguments[1], &name);
+        let persistence = match persistence::resolve_for(&arguments[1], &name) {
+            Ok(persistence) => persistence,
+            Err(reason) => {
+                eprintln!("{reason}");
+                std::process::exit(1);
+            }
+        };
 
         // EACH ADAPTER READS ITS OWN FIELD. The port carries the world block
         // verbatim ; what `database` or `dir` means is the adapter's business,
