@@ -82,7 +82,7 @@ RSpec.describe "a policy" do
     runtime.dispatch("Reflex::Echo.Ring", id: "bell-1")
 
     # One reaction per level until the bound refuses the next.
-    expect(runtime.reactions.size).to eq(Hecksagain::Runtime::Dispatcher::MAX_REACTION_DEPTH + 1)
+    expect(runtime.reactions.size).to eq(Hecksagain::Runtime::PolicyInterpreter::MAX_REACTION_DEPTH + 1)
 
     # A reaction is appended when it COMPLETES, so the deepest one lands first
     # and the outermost last. Asserting on content rather than position — the
