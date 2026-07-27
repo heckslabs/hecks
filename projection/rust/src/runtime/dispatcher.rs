@@ -17,7 +17,7 @@
 use crate::heki::WriteContext;
 use crate::interp_expr::State;
 use crate::interp_givens::evaluate_given;
-use crate::interp_mutations::{apply_mutation, assign_creation_attributes, defaults_for};
+use crate::interp_mutations::{apply_mutation, arithmetic, assign_creation_attributes, defaults_for, resolve_source};
 use crate::runtime::PersistenceAdapter;
 use crate::value_bridge;
 use serde_json::{json, Map, Value};
@@ -61,6 +61,23 @@ pub struct Runtime {
 
 /// Mirrors Ruby's MAX_REACTION_DEPTH.
 const MAX_REACTION_DEPTH: usize = 5;
+
+/// "LedgerEntry" → "ledger_entry" — the reference-key spelling used by
+/// correlation fallback, hydrate, and entity-query parent keys alike.
+fn snake_case(name: &str) -> String {
+    let mut key = String::new();
+    for (i, c) in name.chars().enumerate() {
+        if c.is_ascii_uppercase() {
+            if i > 0 {
+                key.push('_');
+            }
+            key.push(c.to_ascii_lowercase());
+        } else {
+            key.push(c);
+        }
+    }
+    key
+}
 
 /// A query-clause value : ":symbol" reads the caller's argument of that
 /// name ; anything else is the literal itself. The projection of Ruby's
@@ -191,6 +208,179 @@ impl Runtime {
         found
     }
 
+    /// An entity command — the projection of Ruby's `dispatch_entity` :
+    /// hydrate the PARENT, address ONE element of the list holding this
+    /// entity's records by the entity's own identified_by, gate its
+    /// lifecycle, mutate THAT element, save the parent, announce
+    /// parent-tagged. DELIBERATE DIVERGENCE FROM HECKS, noted where it is
+    /// visible : hecks runs an entity command against the parent record
+    /// itself ("entities live within the parent's record"), which would
+    /// write Reverse's narrative onto the Account — runnable, but not what
+    /// "undo ONE movement" declares. Addressing the element is what the
+    /// Entity IR's own docstring promises (`Order.OrderLine.Restock`).
+    fn dispatch_entity(
+        &mut self,
+        domain: &str,
+        aggregate_name: &str,
+        dotted: &str,
+        args: &State,
+    ) -> Result<State, String> {
+        let (entity_name, command_name) = dotted.split_once('.').unwrap_or((dotted, ""));
+        let aggregate = self.find_aggregate(domain, aggregate_name, dotted)?;
+        let entity = array(&aggregate, "entities")
+            .into_iter()
+            .find(|e| e.get("name").and_then(Value::as_str) == Some(entity_name))
+            .and_then(|e| e.as_object().cloned())
+            .ok_or_else(|| format!("{} has no entity {:?}", aggregate_name, entity_name))?;
+        let command = array(&entity, "commands")
+            .into_iter()
+            .find(|c| c.get("name").and_then(Value::as_str) == Some(command_name))
+            .and_then(|c| c.as_object().cloned())
+            .ok_or_else(|| format!("{} has no command {:?}", entity_name, command_name))?;
+
+        let identity = aggregate
+            .get("identified_by")
+            .and_then(Value::as_str)
+            .unwrap_or("id")
+            .to_string();
+        let parent_id = args
+            .get(&identity)
+            .or_else(|| args.get("id"))
+            .and_then(Value::as_str)
+            .map(str::to_string)
+            .ok_or_else(|| {
+                format!("{command_name} acts on a {aggregate_name}'s {entity_name} — pass {identity}:")
+            })?;
+
+        // The parent, through the bound adapter — same wording as hydrate.
+        let mut state = if let Some(adapter) = self.adapters.get(aggregate_name) {
+            adapter
+                .find(&parent_id)
+                .map(value_bridge::from_state)
+                .ok_or_else(|| format!("no {} with {} {:?}", aggregate_name, identity, parent_id))?
+        } else {
+            let key = format!("{}::{}#{}", domain, aggregate_name, parent_id);
+            self.store
+                .get(&key)
+                .cloned()
+                .ok_or_else(|| format!("no {} with {} {:?}", aggregate_name, identity, parent_id))?
+        };
+
+        let list_attr = array(&aggregate, "attributes")
+            .into_iter()
+            .filter_map(|a| a.as_object().cloned())
+            .find(|a| {
+                a.get("list").and_then(Value::as_bool).unwrap_or(false)
+                    && a.get("type").and_then(Value::as_str) == Some(entity_name)
+            })
+            .and_then(|a| a.get("name").and_then(Value::as_str).map(str::to_string))
+            .ok_or_else(|| format!("{} holds no list of {}", aggregate_name, entity_name))?;
+
+        let entity_key = entity
+            .get("identified_by")
+            .and_then(Value::as_str)
+            .unwrap_or("id")
+            .to_string();
+        let want = args
+            .get(&entity_key)
+            .cloned()
+            .ok_or_else(|| format!("{command_name} acts on one {entity_name} — pass {entity_key}:"))?;
+
+        let mut elements = state
+            .get(&list_attr)
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        let position = elements
+            .iter()
+            .position(|el| el.get(&entity_key) == Some(&want))
+            .ok_or_else(|| {
+                format!(
+                    "no {} with {} {} on {} {:?}",
+                    entity_name, entity_key, want, aggregate_name, parent_id
+                )
+            })?;
+        let mut element = elements[position]
+            .as_object()
+            .cloned()
+            .unwrap_or_default();
+
+        // Givens, the state machine, then the mutations — the exact pipeline,
+        // one element deep. Wordings shared with the aggregate path.
+        for given in array(&command, "givens") {
+            let canonical = given.get("canonical").and_then(Value::as_str).unwrap_or("");
+            if !evaluate_given(canonical, &element, args)? {
+                let description = given.get("description").and_then(Value::as_str).unwrap_or("");
+                return Err(format!("{} refused — {}", command_name, description));
+            }
+        }
+        let transition_to = admissible_transition(&entity, command_name, &element)?;
+
+        for mutation in array(&command, "mutations") {
+            let target = mutation
+                .get("target")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .to_string();
+            match mutation.get("op").and_then(Value::as_str) {
+                Some("increment") | Some("decrement") => {
+                    let operation = mutation.get("op").and_then(Value::as_str).unwrap_or("increment");
+                    let updated = arithmetic(&element, &target, operation, &mutation, args)?;
+                    element.insert(target, updated);
+                }
+                _ => {
+                    // Values store RAW — the append path stores an element's
+                    // fields as they arrive, and one entry VO-wrapped by a
+                    // later Reverse beside ten raw siblings would be two
+                    // shapes for one column. Mirrors Ruby's apply_to_element.
+                    element.insert(target, resolve_source(&mutation, args));
+                }
+            }
+        }
+        if let Some((field, to_state)) = transition_to {
+            element.insert(field, Value::String(to_state));
+        }
+
+        elements[position] = Value::Object(element);
+        state.insert(list_attr, Value::Array(elements));
+
+        // PERSIST, then announce — the same order and the same reasons.
+        match self.adapters.get_mut(aggregate_name) {
+            Some(adapter) => adapter.save(
+                value_bridge::to_state(&parent_id, &state),
+                WriteContext::Dispatch { aggregate: aggregate_name, command: command_name },
+            ),
+            None => {
+                let key = format!("{}::{}#{}", domain, aggregate_name, parent_id);
+                self.store.insert(key, state.clone());
+            }
+        }
+
+        let mut announced: Vec<Value> = Vec::new();
+        for emitted in array(&command, "emits") {
+            if let Some(name) = emitted.as_str() {
+                let event = json!({
+                    "name": name,
+                    "aggregate": format!("{}::{}", domain, aggregate_name),
+                    "id": parent_id,
+                    "payload": Value::Object(args.clone()),
+                });
+                self.events.push(event.clone());
+                announced.push(event);
+            }
+        }
+        for event in &announced {
+            self.react_to(event, domain);
+        }
+        for event in &announced {
+            self.advance_sagas(event, domain);
+        }
+
+        let mut result = state;
+        result.insert(identity, Value::String(parent_id));
+        Ok(result)
+    }
+
     /// THE QUESTIONS, finally answered — the projection of Ruby's `query`.
     /// eq and lt are the whole vocabulary ; a clause value is a literal or a
     /// ":symbol" naming one of the query's own attributes, resolved from the
@@ -201,6 +391,9 @@ impl Runtime {
     pub fn query(&mut self, verb: &str, args: &State) -> Result<Vec<Value>, String> {
         let (domain, aggregate_name, query_name) = parse_verb(verb)?;
         let aggregate = self.find_aggregate(&domain, &aggregate_name, verb)?;
+        if query_name.contains('.') {
+            return self.query_entity(&domain, &aggregate_name, &aggregate, &query_name, args);
+        }
         let declared = array(&aggregate, "queries")
             .into_iter()
             .find(|q| q.get("name").and_then(Value::as_str) == Some(query_name.as_str()))
@@ -273,6 +466,94 @@ impl Runtime {
             .collect())
     }
 
+    /// An entity query — the projection of Ruby's `query_entity` : elements
+    /// across every parent record, each row the element plus the parent's id
+    /// under the parent's snake_case name, because an element's address
+    /// outside the boundary always includes whose boundary it is.
+    fn query_entity(
+        &mut self,
+        domain: &str,
+        aggregate_name: &str,
+        aggregate: &Map<String, Value>,
+        dotted: &str,
+        args: &State,
+    ) -> Result<Vec<Value>, String> {
+        let (entity_name, query_name) = dotted.split_once('.').unwrap_or((dotted, ""));
+        let entity = array(aggregate, "entities")
+            .into_iter()
+            .find(|e| e.get("name").and_then(Value::as_str) == Some(entity_name))
+            .and_then(|e| e.as_object().cloned())
+            .ok_or_else(|| format!("{} has no entity {:?}", aggregate_name, entity_name))?;
+        let declared = array(&entity, "queries")
+            .into_iter()
+            .find(|q| q.get("name").and_then(Value::as_str) == Some(query_name))
+            .and_then(|q| q.as_object().cloned())
+            .ok_or_else(|| format!("{} has no query {:?}", entity_name, query_name))?;
+        let list_attr = array(aggregate, "attributes")
+            .into_iter()
+            .filter_map(|a| a.as_object().cloned())
+            .find(|a| {
+                a.get("list").and_then(Value::as_bool).unwrap_or(false)
+                    && a.get("type").and_then(Value::as_str) == Some(entity_name)
+            })
+            .and_then(|a| a.get("name").and_then(Value::as_str).map(str::to_string))
+            .ok_or_else(|| format!("{} holds no list of {}", aggregate_name, entity_name))?;
+
+        let parent_key = snake_case(aggregate_name);
+        let mut rows: Vec<Value> = Vec::new();
+        for (parent_id, state) in self.all_records(domain, aggregate_name, aggregate) {
+            for element in state.get(&list_attr).and_then(Value::as_array).cloned().unwrap_or_default() {
+                let Some(element) = element.as_object() else { continue };
+                let holds = array(&declared, "wheres").iter().all(|clause| {
+                    let field = clause.get("field").and_then(Value::as_str).unwrap_or_default();
+                    let held = element.get(field).cloned().unwrap_or(Value::Null);
+                    let want = resolve_query_value(clause.get("value"), args);
+                    match clause.get("op").and_then(Value::as_str) {
+                        Some("lt") => match (held.as_i64(), want.as_i64()) {
+                            (Some(h), Some(w)) => h < w,
+                            _ => false,
+                        },
+                        _ => held == want,
+                    }
+                });
+                if holds {
+                    let mut row = Map::new();
+                    row.insert(parent_key.clone(), Value::String(parent_id.clone()));
+                    for (k, v) in element {
+                        row.insert(k.clone(), v.clone());
+                    }
+                    rows.push(Value::Object(row));
+                }
+            }
+        }
+
+        if let Some(order) = declared.get("order_by").and_then(Value::as_object) {
+            let field = order.get("field").and_then(Value::as_str).unwrap_or_default().to_string();
+            rows.sort_by(|a, b| {
+                let rank = |row: &Value| {
+                    let v = row.get(&field).cloned().unwrap_or(Value::Null);
+                    match v.as_i64() {
+                        Some(n) => (0i64, n, String::new()),
+                        None => (1i64, 0, v.as_str().map(str::to_string).unwrap_or_else(|| v.to_string())),
+                    }
+                };
+                rank(a).cmp(&rank(b))
+            });
+            if order.get("direction").and_then(Value::as_str) == Some("desc") {
+                rows.reverse();
+            }
+        }
+        if let Some(limit) = declared.get("limit").and_then(|l| l.get("value")) {
+            if let Some(n) = resolve_query_value(Some(limit), args)
+                .as_str()
+                .and_then(|s| s.parse::<usize>().ok())
+            {
+                rows.truncate(n);
+            }
+        }
+        Ok(rows)
+    }
+
     /// Every stored record of one aggregate, as (bare id, state) — through
     /// the bound adapter when there is one, same as `instances`.
     fn all_records(
@@ -298,6 +579,11 @@ impl Runtime {
 
     pub fn dispatch(&mut self, verb: &str, args: &State) -> Result<State, String> {
         let (domain, aggregate_name, command_name) = parse_verb(verb)?;
+        // `Order.OrderLine.Restock` — an entity is addressed THROUGH the
+        // parent, never around it. The projection of Ruby's dispatch_entity.
+        if command_name.contains('.') {
+            return self.dispatch_entity(&domain, &aggregate_name, &command_name, args);
+        }
         let aggregate = self.find_aggregate(&domain, &aggregate_name, verb)?;
         let command = find_command(&aggregate, &command_name)
             .ok_or_else(|| format!("{} has no command {:?}", aggregate_name, command_name))?;

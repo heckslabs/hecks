@@ -131,13 +131,25 @@ LOG while the destination is frozen, sits in InFlight, reverses, ends
 hecks mirror (fix/spawn-cwd-contract 95bb1418f) : the ±1 fallback dies —
 a non-numeric increment/decrement skips loudly, moves nothing.
 
-## The one declared-but-unrunnable surface left
+## The last surface — CLOSED same day (Chris : "so the whole of banking
+can not be run" — right, and now it can)
 
-ENTITY commands and queries (LedgerEntry.Reverse, LedgerEntry.Reversed).
-No verb spelling reaches an entity in either runtime — equal, and now
-DOCUMENTED rather than silent. hecks dispatches entities as
-`Aggregate.Entity.Command` (3-part) ; bringing that over is its own
-layer, and the coverage gate should refuse the keywords until it lands.
-Also open : ledger entries carry no `sequence` (the entity's declared
-identity) on append — entity identity assignment belongs to the same
-layer.
+ENTITY commands and queries run, three-part-addressed through the parent
+(`Banking::Account.LedgerEntry.Reverse`), exactly as the Entity IR's
+docstring always promised. An appended element is BORN with its declared
+identity (1-based position — append order is the order it was posted) and
+its lifecycle default ; the command gates the element's own state machine
+(`Reverse refused — state is "reversed"…`), mutates THAT element only,
+and announces parent-tagged ; the entity query answers each element with
+whose boundary it is (`account: "acct-1"`).
+
+DELIBERATE DIVERGENCE FROM HECKS, the one this arc makes : hecks runs an
+entity command against the PARENT record ("entities live within the
+parent's record") — Reverse's narrative would land on the Account.
+Runnable, but not what "undo ONE movement" declares ; if hecks adopts
+element addressing, that is the fix to port back.
+
+Parity : 45 steps, entity legs included, byte-identical — sequences 1..6
+on acct-1's ledger, entry 2 reversed with its correction narrative, the
+rest posted, the audit query answering with the account. Pins :
+spec/entity_spec.rb, against the REAL banking bluebook Memory-bound.

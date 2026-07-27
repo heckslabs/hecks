@@ -155,12 +155,12 @@ pub fn apply_mutation(
 
     match operation {
         "append" => {
-            let element = build_element(aggregate, &target, mutation, args)?;
             let mut items = state
                 .get(&target)
                 .and_then(Value::as_array)
                 .cloned()
                 .unwrap_or_default();
+            let element = build_element(aggregate, &target, mutation, args, items.len())?;
             items.push(element);
             state.insert(target, Value::Array(items));
         }
@@ -190,7 +190,7 @@ pub fn apply_mutation(
 /// returns the Symbol itself, so the refusal says `got :amount` — mirrored
 /// here from the source descriptor, because a runtime that words the same
 /// refusal differently is a diff the harness has to explain away.
-fn arithmetic(
+pub fn arithmetic(
     state: &State,
     target: &str,
     operation: &str,
@@ -243,7 +243,7 @@ fn arithmetic(
 
 /// A source is either a named command argument or a literal, and the IR says
 /// which. Guessing from the text is exactly the bug this avoids.
-fn resolve_source(mutation: &Value, args: &State) -> Value {
+pub fn resolve_source(mutation: &Value, args: &State) -> Value {
     let source = match mutation.get("source") {
         Some(source) => source,
         None => return Value::Null,
@@ -266,6 +266,7 @@ fn build_element(
     target: &str,
     mutation: &Value,
     args: &State,
+    current_len: usize,
 ) -> Result<Value, String> {
     let mut fields = Map::new();
 
@@ -287,6 +288,26 @@ fn build_element(
                 args.get(token).cloned().unwrap_or(Value::Null)
             };
             fields.insert(field.clone(), value);
+        }
+    }
+
+    // An ENTITY element is born WITH its identity and its lifecycle state —
+    // the projection of Ruby's `entity_element`. Identity defaults to its
+    // 1-based position (append order IS the order it was posted) unless the
+    // append names it ; the lifecycle field starts at the declared default.
+    if let Some(entity) = entity_for(aggregate, target) {
+        if let Some(key) = entity.get("identified_by").and_then(Value::as_str) {
+            fields
+                .entry(key.to_string())
+                .or_insert_with(|| Value::from(current_len as i64 + 1));
+        }
+        if let Some(lifecycle) = entity.get("lifecycle").and_then(Value::as_object) {
+            if let (Some(field), Some(default)) = (
+                lifecycle.get("field").and_then(Value::as_str),
+                lifecycle.get("default"),
+            ) {
+                fields.entry(field.to_string()).or_insert_with(|| default.clone());
+            }
         }
     }
 
@@ -312,6 +333,21 @@ fn build_element(
     }
 
     Ok(Value::Object(fields))
+}
+
+/// The ENTITY a list attribute holds, when its element type names one.
+pub fn entity_for(aggregate: &Map<String, Value>, target: &str) -> Option<Map<String, Value>> {
+    let element_type = array(aggregate, "attributes")
+        .iter()
+        .find(|a| a.get("name").and_then(Value::as_str) == Some(target))?
+        .get("type")
+        .and_then(Value::as_str)?
+        .to_string();
+
+    array(aggregate, "entities")
+        .iter()
+        .find(|e| e.get("name").and_then(Value::as_str) == Some(element_type.as_str()))
+        .and_then(|e| e.as_object().cloned())
 }
 
 /// The value object a list attribute holds, found through the attribute's

@@ -72,6 +72,8 @@ module Hecksagain
       def query(verb, **args)
         domain, aggregate_name, query_name = parse(verb)
         aggregate = resolve_aggregate(domain, aggregate_name, verb)
+        return query_entity(aggregate, query_name, args) if query_name.include?(".")
+
         declared  = aggregate.queries.find { |q| q.name == query_name } ||
                     raise(UnknownVerb, "#{aggregate_name} has no query #{query_name.inspect}")
 
@@ -84,6 +86,51 @@ module Hecksagain
       end
 
       private
+
+      # An entity query reads ELEMENTS across every parent record : each row
+      # is the element plus the parent's id under the parent's snake_case
+      # name — `account: "acct-1"` — because an element's address outside
+      # the boundary always includes whose boundary it is. Same eq/lt
+      # vocabulary, same ordering rules, one level down.
+      def query_entity(aggregate, dotted, args)
+        entity_name, query_name = dotted.split(".", 2)
+        entity = aggregate.entities.find { |e| e.name == entity_name } ||
+                 raise(UnknownVerb, "#{aggregate.name} has no entity #{entity_name.inspect}")
+        declared = entity.query(query_name) ||
+                   raise(UnknownVerb, "#{entity_name} has no query #{query_name.inspect}")
+        list_attr = aggregate.attributes.find { |a| a.list? && a.type.to_s == entity_name } ||
+                    raise(UnknownVerb, "#{aggregate.name} holds no list of #{entity_name}")
+
+        parent_key = aggregate.name.gsub(/([a-z\d])([A-Z])/, '\1_\2').downcase.to_sym
+        domain     = @registry.bluebooks.find { |_, b| b.aggregates.include?(aggregate) }&.first
+        rows = @registry.repository(domain, aggregate).all.flat_map do |record|
+          Array(record[list_attr.name])
+            .select { |el| declared.wheres.all? { |w| element_where_holds?(w, el, args) } }
+            .map    { |el| { parent_key => record.id }.merge(el) }
+        end
+
+        ordered = declared.order_by ? ordered_elements(rows, declared.order_by) : rows
+        declared.limit ? ordered.first(resolve_query_value(declared.limit.value, args).to_i) : ordered
+      end
+
+      def element_where_holds?(clause, element, args)
+        held = element[clause.field.to_sym]
+        want = resolve_query_value(clause.value, args)
+
+        case clause.op.to_s
+        when "lt" then held.is_a?(Numeric) && want.is_a?(Numeric) && held < want
+        else           held == want
+        end
+      end
+
+      def ordered_elements(rows, order_by)
+        field  = order_by.field.to_sym
+        sorted = rows.sort_by do |row|
+          value = row[field]
+          value.is_a?(Numeric) ? [0, value, ""] : [1, 0, value.to_s]
+        end
+        order_by.direction.to_s == "desc" ? sorted.reverse : sorted
+      end
 
       # eq and lt are the whole vocabulary the DSL admits today. A clause
       # value is a literal, or a :symbol naming one of the query's own
@@ -120,6 +167,11 @@ module Hecksagain
 
       def dispatch(verb, **args)
         domain, aggregate_name, command_name = parse(verb)
+        # `Order.OrderLine.Restock` — the three-part spelling the Entity IR
+        # documented from the day it was written : an entity is addressed
+        # THROUGH the parent, never around it.
+        return dispatch_entity(domain, aggregate_name, command_name, verb, **args) if command_name.include?(".")
+
         aggregate = resolve_aggregate(domain, aggregate_name, verb)
         command   = aggregate.command(command_name) ||
                     raise(UnknownVerb, "#{aggregate_name} has no command #{command_name.inspect}")
@@ -436,6 +488,72 @@ module Hecksagain
         "#{aggregate.storage_name}-#{SecureRandom.hex(4)}"
       end
 
+      # An entity command : hydrate the PARENT, address ONE element of the
+      # list that holds this entity's records, gate its lifecycle, mutate
+      # THAT element, save the parent, and announce — the event rides the
+      # parent's name, because outside the boundary the parent is the only
+      # addressable thing. The exact machinery of `dispatch`, one element
+      # deep.
+      def dispatch_entity(domain, aggregate_name, dotted, verb, **args)
+        entity_name, command_name = dotted.split(".", 2)
+        aggregate = resolve_aggregate(domain, aggregate_name, verb)
+        entity    = aggregate.entities.find { |e| e.name == entity_name } ||
+                    raise(UnknownVerb, "#{aggregate_name} has no entity #{entity_name.inspect}")
+        command   = entity.command(command_name) ||
+                    raise(UnknownVerb, "#{entity_name} has no command #{command_name.inspect}")
+
+        repository = @registry.repository(domain, aggregate)
+        parent_id  = args[aggregate.identified_by] || args[:id] ||
+                     raise(NotFound, "#{command_name} acts on a #{aggregate.name}'s #{entity_name} — pass #{aggregate.identified_by}:")
+        instance   = repository.find(parent_id) ||
+                     raise(NotFound, "no #{aggregate.name} with #{aggregate.identified_by} #{parent_id.inspect}")
+
+        list_attr = aggregate.attributes.find { |a| a.list? && a.type.to_s == entity_name } ||
+                    raise(UnknownVerb, "#{aggregate.name} holds no list of #{entity_name}")
+        elements  = Array(instance[list_attr.name])
+        key       = entity.identified_by
+        want      = args[key] ||
+                    raise(NotFound, "#{command_name} acts on one #{entity_name} — pass #{key}:")
+        element   = elements.find { |el| el[key] == want } ||
+                    raise(NotFound, "no #{entity_name} with #{key} #{want.inspect} on #{aggregate.name} #{parent_id.inspect}")
+
+        view = Instance.new(aggregate: entity, id: want.to_s, state: element)
+        enforce_givens(view, command, args)
+        transition = admissible_transition(entity, command, view)
+        command.mutations.each { |mutation| apply_to_element(element, mutation, args) }
+        element[entity.lifecycle.field] = transition.target if transition
+
+        repository.save(instance)
+        announced = emit(command, domain, aggregate, instance, args, repository)
+        announced.each { |event| react_to(event, domain) }
+        announced.each { |event| advance_sagas(event, domain) }
+
+        Result.new(verb: verb, instance: instance, events: announced)
+      end
+
+      # then_set on an element. Values store RAW — the append path stores an
+      # element's fields as they arrive, and one entry VO-wrapped by a later
+      # Reverse beside ten raw siblings would be two shapes for one column.
+      # (VO construction for elements, both paths at once, is a named
+      # follow-up on DESIGN-banking-exact.)
+      def apply_to_element(element, mutation, args)
+        case mutation.op
+        when :set
+          element[mutation.target] = resolve_source(mutation.source, args)
+        when :increment, :decrement
+          # The same Integer-or-nothing rule as `arithmetic` — an element's
+          # count drifting on a coerced word is the same disease one level
+          # down.
+          amount  = resolve_source(mutation.source, args)
+          op      = mutation.op.to_s
+          current = element[mutation.target] || 0
+          raise TypeMismatch, "#{op} of #{mutation.target} needs an Integer, got #{amount.inspect}" unless amount.is_a?(Integer)
+          raise TypeMismatch, "#{op} of #{mutation.target} needs an Integer #{mutation.target}, got #{current.inspect}" unless current.is_a?(Integer)
+
+          element[mutation.target] = current + (mutation.op == :increment ? amount : -amount)
+        end
+      end
+
       # The lifecycle's admission rule. Nil when the command is not part of
       # the machine ; the admitted StateTransition when it is and the current
       # state allows it ; LifecycleRefused when the machine says no. A
@@ -581,9 +699,24 @@ module Hecksagain
         fields       = mutation.source.transform_values { |source| source.is_a?(Symbol) ? args[source] : source }
         element_type = aggregate.attribute(mutation.target)&.type
         value_object = aggregate.value_object(element_type)
-        element      = value_object ? Value.build(value_object, fields) : fields
+        element      = value_object ? Value.build(value_object, fields) : entity_element(aggregate, element_type, instance[mutation.target], fields)
 
         Array(instance[mutation.target]) + [element]
+      end
+
+      # An ENTITY element is born WITH its identity and its lifecycle state —
+      # "an entity has identity that outlives its values", and until this
+      # method no appended ledger entry carried the `sequence` its own
+      # `identified_by` declared, so nothing could ever address one. The
+      # identity defaults to its position (1-based, append order IS the
+      # order it was posted) unless the append names it.
+      def entity_element(aggregate, element_type, current, fields)
+        entity = aggregate.entities.find { |e| e.name == element_type.to_s }
+        return fields unless entity
+
+        fields[entity.identified_by] ||= Array(current).size + 1 if entity.identified_by
+        fields[entity.lifecycle.field] ||= entity.lifecycle.default if entity.lifecycle
+        fields
       end
 
       def emit(command, domain, aggregate, instance, args, repository)
