@@ -153,3 +153,36 @@ Parity : 45 steps, entity legs included, byte-identical — sequences 1..6
 on acct-1's ledger, entry 2 reversed with its correction narrative, the
 rest posted, the audit query answering with the account. Pins :
 spec/entity_spec.rb, against the REAL banking bluebook Memory-bound.
+
+## The dead-word closure (2026-07-27)
+
+The survey that started this layer corrected itself first : the saga / view /
+workflow / service builder list previously mapped as "hecksagain's dead
+constructs" was HECKS' surface, misread from hecks' bluebook_builder.rb.
+hecksagain never had those builders. Its true author surface, computed from
+the DSL `def`s, is exercised by the corpus as follows after tonight :
+
+- `one_of` / `member` (fa5d224) — was declared SHAPE with no gate in either
+  runtime. Value.build now judges the discriminant against the member rows
+  before invariants ; Rust walks the same door. The same commit closed a real
+  divergence : Rust `coerce` did not check invariants on OBJECT payloads at
+  all (Ruby refused a bad EmailAddress, Rust stored it — the corpus never
+  sent one). Banking's AccountKind is now the declared one_of ; two refusal
+  steps pin both wordings byte-identically (50 steps).
+- `core` / `supporting` / `generic` (4284e3a) — set @classification and DIED
+  in the builder. Now ride Bluebook IR -> canonical dump -> Rust parser ->
+  seam, so stage 1 diffs the strategic map. Corpus reclassified honestly :
+  banking core, pizzas supporting, expression grammar generic.
+- `cross_reference` and `split_comparator` are PRIVATE builder helpers, not
+  author words — excluded from the surface audit.
+
+With those, every author-facing word hecksagain's DSL admits is exercised by
+banking + pizzas + grammar, and every word's behaviour has a wording or a
+byte-identity check that fails loudly. The banking coverage goal is closed.
+
+Standing findings, not tonight's scope : projection/rust parser still
+tolerates hecks-dialect words hecksagain's Ruby never emits (`category`,
+`fixture`, `entrypoint`, `section`, `cadence`, `block_grammar` fields on the
+Rust Domain) — dead weight the seam hides ; and 8 pre-existing clippy lints
+(3 module_inception, 1 collapsible_if, 1 doc indent, +3 unshown) in adapter
+modules. Both deserve a dedicated pass.
