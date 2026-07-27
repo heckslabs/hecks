@@ -15,6 +15,54 @@ module Hecksagain
     class InvariantViolation < StandardError; end
 
     class Value
+      # WHAT A VALUE-OBJECT-TYPED ATTRIBUTE DOES WITH WHAT ARRIVED.
+      #
+      # Value.build was only ever reached from the append path, so a scalar
+      # attribute declared as a value object was assigned whatever arrived
+      # and never validated. `amount: 2500` on an attribute typed Money sat
+      # there as an Integer, and `amount.cents` — a dotted read into what
+      # the domain says is a Money — walked into a non-Hash and answered
+      # nil. Both runtimes did it, so parity was green over a value object
+      # that never existed and an invariant that never fired.
+      #
+      # Not the aggregate's business and not the command's : this is what a
+      # value IS, so it lives beside the rule that judges one.
+      def self.for(aggregate, name, value)
+        value_object = declared_by(aggregate, name)
+        return value unless value_object
+        return value if value.nil?
+
+        build(value_object, fields_for(value_object, name, value))
+      end
+
+      # The value object a SCALAR attribute is declared as, or nil. A list
+      # attribute is built element by element on the append path.
+      def self.declared_by(aggregate, name)
+        attribute = aggregate.attribute(name)
+        return nil unless attribute&.scalar?
+
+        aggregate.value_object(attribute.type)
+      end
+
+      # A SINGLE-ATTRIBUTE value object accepts a bare scalar, because
+      # `kind: "current"` is unambiguous — there is exactly one field it
+      # could mean, and making an author write `{ name: "current" }` buys
+      # nothing. Anything richer must arrive as its fields, because guessing
+      # which one of several a scalar meant is how a currency ends up in a
+      # cents column.
+      def self.fields_for(value_object, name, value)
+        return value.transform_keys(&:to_sym) if value.is_a?(Hash)
+
+        only = value_object.attributes
+        return { only.first.name => value } if only.size == 1
+
+        raise TypeMismatch,
+              "#{name} is a #{value_object.name}, which has " \
+              "#{only.map { |a| a.name }.join(', ')} — pass those fields, not " \
+              "#{value.inspect}. A scalar can only stand in for a value " \
+              "object with exactly one field."
+      end
+
       def self.build(value_object, fields)
         admit_member(value_object, fields)
         value_object.invariants.each do |invariant|
