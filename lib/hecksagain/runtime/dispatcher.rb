@@ -221,7 +221,31 @@ module Hecksagain
           instance[mutation.target] = coerce(aggregate, mutation.target, value)
         when :append
           instance[mutation.target] = appended(instance, aggregate, mutation, args)
+        when :increment
+          instance[mutation.target] = arithmetic(instance, mutation, args, 1)
+        when :decrement
+          instance[mutation.target] = arithmetic(instance, mutation, args, -1)
         end
+      end
+
+      # Integer cents or nothing. Money is the reason these ops exist, and
+      # IEEE 754 has no place in a ledger — so a non-Integer amount is refused
+      # LOUDLY rather than coerced. (Hecks's runtime falls back to ±1 when the
+      # amount will not read as a number ; a balance moving by one cent because
+      # the caller sent "lots" is exactly the silent wrongness this refuses.)
+      def arithmetic(instance, mutation, args, sign)
+        amount  = resolve_source(mutation.source, args)
+        current = instance[mutation.target] || 0
+        op      = sign.positive? ? "increment" : "decrement"
+
+        unless amount.is_a?(Integer)
+          raise TypeMismatch, "#{op} of #{mutation.target} needs an Integer, got #{amount.inspect}"
+        end
+        unless current.is_a?(Integer)
+          raise TypeMismatch, "#{op} of #{mutation.target} needs an Integer #{mutation.target}, got #{current.inspect}"
+        end
+
+        current + (sign * amount)
       end
 
       # A VALUE-OBJECT-TYPED FIELD IS CONSTRUCTED, NOT STORED RAW.
@@ -280,8 +304,14 @@ module Hecksagain
         source
       end
 
+      # An appended field is either an ARGUMENT to read or a LITERAL to write —
+      # the same Symbol-vs-literal rule resolve_source applies to `to:`. This
+      # read every field as an argument lookup, so a literal like
+      # `direction: "credit"` looked up args["credit"], found nothing, and every
+      # ledger entry in the corpus carried `direction: null` — in BOTH runtimes,
+      # which is why parity never said a word.
       def appended(instance, aggregate, mutation, args)
-        fields       = mutation.source.transform_values { |arg| args[arg] }
+        fields       = mutation.source.transform_values { |source| source.is_a?(Symbol) ? args[source] : source }
         element_type = aggregate.attribute(mutation.target)&.type
         value_object = aggregate.value_object(element_type)
         element      = value_object ? Value.build(value_object, fields) : fields

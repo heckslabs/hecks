@@ -125,9 +125,16 @@ RSpec.describe "the DSL surface" do
         .to raise_error(Malformed, /unnamed event/)
     end
 
-    it "refuses a mutation that neither sets nor appends" do
+    it "refuses a mutation that names no operation" do
       expect { build_command("Inert") { then_set :status } }
-        .to raise_error(Malformed, /neither sets nor appends/)
+        .to raise_error(Malformed, /names no operation/)
+    end
+
+    # One mutation, one meaning. A then_set that both sets and increments
+    # would apply in SOME order, and the order would be the semantics.
+    it "refuses a mutation that names two operations" do
+      expect { build_command("Torn") { then_set :balance, to: 5, increment: :amount } }
+        .to raise_error(Malformed, /one mutation, one meaning/)
     end
 
     # A command acts on ONE root. A second SELF reference would silently win and
@@ -664,6 +671,23 @@ RSpec.describe "the DSL surface" do
       # would make `{ direction: :direction }` and `{ direction: "direction" }`
       # the same document.
       expect(mutation.to_h[:fields]).to eq(size: "size")
+    end
+
+    # The arithmetic pair. A ledger is addition ; before these, banking wrote
+    # `then_set :balance, to: :amount` and a credit REPLACED the balance —
+    # both runtimes agreed, because both did the same wrong ledger.
+    it "then_set increment: reads a command argument to add" do
+      mutation = build_command("CmdInc") { then_set :balance, increment: :amount }.mutations.first
+
+      expect([mutation.target, mutation.op]).to eq([:balance, :increment])
+      expect(mutation.to_h[:source]).to eq(kind: "argument", name: "amount")
+    end
+
+    it "then_set decrement: takes a literal amount away" do
+      mutation = build_command("CmdDec") { then_set :lives, decrement: 1 }.mutations.first
+
+      expect([mutation.target, mutation.op]).to eq([:lives, :decrement])
+      expect(mutation.to_h[:source]).to eq(kind: "literal", value: 1)
     end
 
     it "emits announces a fact" do

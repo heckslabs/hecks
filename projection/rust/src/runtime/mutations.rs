@@ -150,6 +150,10 @@ pub fn apply_mutation(
             items.push(element);
             state.insert(target, Value::Array(items));
         }
+        "increment" | "decrement" => {
+            let updated = arithmetic(state, &target, operation, mutation, args)?;
+            state.insert(target, updated);
+        }
         _ => {
             // Coerced here too, not only on creation : `then_set :kind, to: :kind`
             // assigns a value-object-typed field just as directly as a creation
@@ -161,6 +165,66 @@ pub fn apply_mutation(
         }
     }
     Ok(())
+}
+
+/// Integer cents or nothing — the wording is Ruby's `arithmetic`, to the
+/// character. Hecks's runtime falls back to ±1 when an amount will not read
+/// as a number ; a balance moving by one cent because the caller sent "lots"
+/// is exactly the silent wrongness this refuses to inherit.
+///
+/// A MISSING argument renders the way Ruby sees it : resolve_source there
+/// returns the Symbol itself, so the refusal says `got :amount` — mirrored
+/// here from the source descriptor, because a runtime that words the same
+/// refusal differently is a diff the harness has to explain away.
+fn arithmetic(
+    state: &State,
+    target: &str,
+    operation: &str,
+    mutation: &Value,
+    args: &State,
+) -> Result<Value, String> {
+    let source = mutation.get("source");
+    let missing_argument = source
+        .and_then(|s| s.get("kind"))
+        .and_then(Value::as_str)
+        == Some("argument")
+        && source
+            .and_then(|s| s.get("name"))
+            .and_then(Value::as_str)
+            .is_some_and(|name| !args.contains_key(name));
+
+    let amount = resolve_source(mutation, args);
+    let amount_int = match &amount {
+        Value::Number(n) if !missing_argument => n.as_i64(),
+        _ => None,
+    };
+    let Some(amount_int) = amount_int else {
+        let shown = if missing_argument {
+            let name = source
+                .and_then(|s| s.get("name"))
+                .and_then(Value::as_str)
+                .unwrap_or_default();
+            format!(":{name}")
+        } else {
+            amount.to_string()
+        };
+        return Err(format!("{operation} of {target} needs an Integer, got {shown}"));
+    };
+
+    let current = state.get(target).cloned().unwrap_or(Value::Null);
+    let current_int = match &current {
+        Value::Null => Some(0),
+        Value::Number(n) => n.as_i64(),
+        _ => None,
+    };
+    let Some(current_int) = current_int else {
+        return Err(format!(
+            "{operation} of {target} needs an Integer {target}, got {current}"
+        ));
+    };
+
+    let sign = if operation == "increment" { 1 } else { -1 };
+    Ok(Value::from(current_int + sign * amount_int))
 }
 
 /// A source is either a named command argument or a literal, and the IR says
@@ -192,9 +256,23 @@ fn build_element(
     let mut fields = Map::new();
 
     if let Some(mapping) = mutation.get("fields").and_then(Value::as_object) {
-        for (field, argument) in mapping {
-            let name = argument.as_str().unwrap_or_default();
-            fields.insert(field.clone(), args.get(name).cloned().unwrap_or(Value::Null));
+        for (field, token) in mapping {
+            let token = token.as_str().unwrap_or_default();
+            // An appended field is either an ARGUMENT to read or a LITERAL to
+            // write, and the IR spells which : arguments bare, string literals
+            // with their quotes, numbers as digits. This used to read EVERY
+            // field as an argument lookup, so `direction: "credit"` looked up
+            // an argument called `"credit"`, found nothing, and every ledger
+            // entry in the corpus carried `direction: null` — in BOTH runtimes,
+            // which is why parity never said a word.
+            let value = if token.len() >= 2 && token.starts_with('"') && token.ends_with('"') {
+                Value::String(token[1..token.len() - 1].to_string())
+            } else if let Ok(number) = token.parse::<i64>() {
+                Value::from(number)
+            } else {
+                args.get(token).cloned().unwrap_or(Value::Null)
+            };
+            fields.insert(field.clone(), value);
         }
     }
 

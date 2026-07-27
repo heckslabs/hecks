@@ -227,7 +227,11 @@ Hecks.bluebook "Banking" do
 
       given("a credit moves something") { amount.positive? }
 
-      then_set :balance, to: :amount
+      # increment, not to:. A credit ADDS — `to: :amount` REPLACED the balance
+      # with the deposit, both runtimes executed it faithfully, and parity
+      # agreed about a ledger that was wrong on both sides at once. The
+      # language grew the arithmetic pair so the domain could stop bending.
+      then_set :balance, increment: :amount
       then_set :ledger,  append: { amount: :amount, narrative: :narrative, direction: "credit" }
 
       emits "AccountCredited"
@@ -247,7 +251,7 @@ Hecks.bluebook "Banking" do
       given("the balance covers it")     { balance >= amount }
       given("the daily limit allows it") { daily_limit >= amount }
 
-      then_set :balance, to: :amount
+      then_set :balance, decrement: :amount
       then_set :ledger,  append: { amount: :amount, narrative: :narrative, direction: "debit" }
 
       emits "AccountDebited"

@@ -110,20 +110,34 @@ module Hecksagain
 
         # then_set :status,   to: :new_status              — replace
         # then_set :toppings, append: { name: :name }      — push onto a list
-        def then_set(target, to: nil, append: nil)
+        # then_set :balance,  increment: :amount           — add to a count
+        # then_set :balance,  decrement: :amount           — take from a count
+        #
+        # increment/decrement exist because a ledger is ARITHMETIC : banking
+        # wrote `then_set :balance, to: :amount` for a credit — replacing the
+        # balance with the deposit — because the language could not say "add".
+        # Bending the domain to fit the interpreter is the inversion this
+        # project exists to avoid, so the language grew instead.
+        def then_set(target, to: nil, append: nil, increment: nil, decrement: nil)
           raise Malformed, "#{@name} has a then_set with no target" if target.to_s.empty?
 
-          if to.nil? && append.nil?
+          named = { set: to, append: append, increment: increment, decrement: decrement }
+                  .reject { |_, source| source.nil? }
+
+          if named.empty?
             raise Malformed,
-                  "#{@name}'s then_set :#{target} neither sets nor appends — " \
-                  "it would record a mutation that changes nothing"
+                  "#{@name}'s then_set :#{target} names no operation — " \
+                  "give it to:, append:, increment:, or decrement:"
           end
 
-          if append
-            @mutations << IR::Mutation.new(target: target.to_sym, op: :append, source: append)
-          else
-            @mutations << IR::Mutation.new(target: target.to_sym, op: :set, source: to)
+          if named.size > 1
+            raise Malformed,
+                  "#{@name}'s then_set :#{target} tries to #{named.keys.join(' and ')} " \
+                  "at once — one mutation, one meaning"
           end
+
+          op, source = named.first
+          @mutations << IR::Mutation.new(target: target.to_sym, op: op, source: source)
         end
 
         def emits(event_name)

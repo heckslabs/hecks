@@ -363,7 +363,14 @@ fn mutation_to_value(mutation: &crate::ir::Mutation) -> Value {
         json!({ "kind": "literal", "value": literal(Some(text)) })
     };
 
-    json!({ "target": target, "op": "set", "source": source })
+    // The op rides the same classified source — increment/decrement are set's
+    // arithmetic siblings, not a different shape.
+    let op = match mutation.operation {
+        MutationOp::Increment => "increment",
+        MutationOp::Decrement => "decrement",
+        _ => "set",
+    };
+    json!({ "target": target, "op": op, "source": source })
 }
 
 /// One meaning, one text — by the declared table below, which must equal the

@@ -1,0 +1,65 @@
+# frozen_string_literal: true
+
+# The smallest domain that COUNTS. Exists for mutation_spec : increment and
+# decrement are the ledger primitives (banking's Credit replaced the balance
+# before the language could say "add"), and the literal-vs-argument rule for
+# appended fields is pinned here where it is cheap to see.
+Hecks.bluebook "TillRoom" do
+  vision "A till takes money in and gives money out, and the drawer count is arithmetic — never a guess."
+  core
+
+  aggregate "Till" do
+    description "One cash drawer and the count of cents inside it."
+
+    attribute :balance, Integer, default: 0
+    attribute :marks,   list_of(Mark)
+
+    value_object "Mark" do
+      attribute :amount,    Integer
+      attribute :direction, String
+    end
+
+    command "OpenTill" do
+      role "Clerk"
+      goal "Start the day with an empty drawer"
+
+      emits "TillOpened"
+    end
+
+    command "TakeIn" do
+      role "Clerk"
+      goal "Add cents to the drawer"
+
+      reference_to Till
+      attribute :amount, Integer
+
+      then_set :balance, increment: :amount
+      then_set :marks,   append: { amount: :amount, direction: "in" }
+
+      emits "TakenIn"
+    end
+
+    command "PayOut" do
+      role "Clerk"
+      goal "Take cents out of the drawer"
+
+      reference_to Till
+      attribute :amount, Integer
+
+      then_set :balance, decrement: :amount
+      then_set :marks,   append: { amount: :amount, direction: "out" }
+
+      emits "PaidOut"
+    end
+
+    command "Bump" do
+      role "Clerk"
+      goal "Add the fixed float the branch always starts with"
+
+      reference_to Till
+      then_set :balance, increment: 500
+
+      emits "Bumped"
+    end
+  end
+end

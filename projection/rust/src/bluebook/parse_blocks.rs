@@ -1441,37 +1441,23 @@ fn escaped_at(s: &str, i: usize) -> bool {
 
 pub fn parse_mutation(line: &str) -> Option<Mutation> {
     let field = extract_symbol(line)?;
-    let (op, value) = if line.contains("append_unique:") {
-        // append iff no value-equal element is already present — idempotent
-        // list growth (a re-fired establishment policy re-appends as a no-op).
-        (MutationOp::AppendUnique, extract_after(line, "append_unique:")?)
-    } else if line.contains("append:") {
+    // THE LANGUAGE IS WHAT RUBY ADMITS. This file arrived as a Hecks
+    // cherry-pick carrying Hecks's whole mutation zoo — append_unique, remove,
+    // multiply, clamp, decay, from: — none of which the Ruby DSL (the source
+    // of truth) accepts. A keyword one parser reads and the other raises on is
+    // a document that means something in exactly one runtime, and the corpus
+    // never exercised any of them, so stage one never noticed. Narrowed to the
+    // Ruby surface : to / append / increment / decrement. Anything else falls
+    // to the unknown-op path below and is refused with a hint, which is what
+    // Ruby's ArgumentError does with an unknown keyword.
+    let (op, value) = if line.contains("append:") {
         (MutationOp::Append, extract_after(line, "append:")?)
-    } else if line.contains("remove:") {
-        (MutationOp::Remove, extract_after(line, "remove:")?)
     } else if line.contains("increment:") {
         (MutationOp::Increment, extract_after(line, "increment:")?)
     } else if line.contains("decrement:") {
         (MutationOp::Decrement, extract_after(line, "decrement:")?)
-    } else if line.contains("multiply:") {
-        // i106 — multiplicative scaling. Value is the f64 factor.
-        (MutationOp::Multiply, extract_after(line, "multiply:")?)
-    } else if line.contains("clamp:") {
-        // i106 — bound a field to [min, max]. Value is the list literal.
-        (MutationOp::Clamp, extract_after(line, "clamp:")?)
-    } else if line.contains("decay:") {
-        // i106 — exponential decay. Value is the rate (0.05 → ×0.95).
-        (MutationOp::Decay, extract_after(line, "decay:")?)
     } else if line.contains("to:") {
         (MutationOp::Set, extract_after(line, "to:")?)
-    } else if line.contains("from:") {
-        // i106 — `then_set :field, from: :param` reads the named command
-        // param at dispatch time. We carry the source symbol form
-        // (`:param`) so the canonical IR matches Ruby's then_set
-        // path : Ruby's mutation_value formats Symbol → ":param", and
-        // extract_after returns the raw `:param` token here. Both
-        // sides emit `value: ":param"` after canonical normalization.
-        (MutationOp::Set, extract_after(line, "from:")?)
     } else {
         // Positional form: `then_set :field, <value>` — value is the
         // token after the field's symbol, separated by a comma.
