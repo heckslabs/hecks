@@ -139,6 +139,66 @@ fn argument_shadows_state() {
     );
 }
 
+/// Both spellings of a block must parse to the same rule. Ruby takes a block
+/// either way, so a parser that reads only one accepts a NARROWER language than
+/// the DSL does — and a bluebook is then valid Ruby that means something else
+/// here.
+///
+/// Before the multi-line arm existed, `given("msg") do … end` fell back to the
+/// MESSAGE as its expression : a non-empty string compared against nothing,
+/// permanently truthy. Worse, the block's `end` closed the COMMAND early, so
+/// `emits` and every later clause vanished with it.
+#[test]
+fn every_given_spelling_yields_its_predicate() {
+    let src = r##"Hecks.bluebook "GivenForms" do
+  aggregate "Thing" do
+    attribute :name, String
+    attribute :size, Integer
+
+    command "Register" do
+      role "Operator"
+      attribute :name, String
+      attribute :size, Integer
+
+      given("brace given") { !name.to_s.empty? }
+
+      given("multiline given") do
+        size > 0
+      end
+
+      given("inline do given") do size < 100 end
+
+      emits "ThingRegistered"
+    end
+  end
+end"##;
+
+    let domain = crate::bluebook::parser::parse(src);
+    let cmd = &domain.aggregates[0].commands[0];
+    let found: Vec<(String, String)> = cmd
+        .givens
+        .iter()
+        .map(|g| (g.message.clone().unwrap_or_default(), g.expression.clone()))
+        .collect();
+
+    assert_eq!(
+        found,
+        vec![
+            ("brace given".to_string(), "!name.to_s.empty?".to_string()),
+            ("multiline given".to_string(), "size > 0".to_string()),
+            ("inline do given".to_string(), "size < 100".to_string()),
+        ]
+    );
+
+    // A predicate equal to its own message is a rule that can only answer true.
+    for given in &cmd.givens {
+        assert_ne!(given.expression, given.message.clone().unwrap_or_default());
+    }
+
+    // And the block must not swallow what follows it.
+    assert_eq!(cmd.emits.as_deref(), Some("ThingRegistered"));
+}
+
 #[test]
 fn counts_with_size_and_folds_length() {
     let fields = json!({ "toppings": [1, 2] });

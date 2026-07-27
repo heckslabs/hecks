@@ -191,6 +191,53 @@ pub fn parse_command(lines: &[&str]) -> (Command, usize) {
                     // the impl helpers added by ImplReference fixture.
                     cmd.references.push(Reference::single(name, target, None));
                 }
+            } else if line.starts_with("given") && line.contains(" do ") && line.ends_with("end") {
+                // INLINE one-liner : given("msg") do expr end
+                // Mirrors the invariant arm of the same shape.
+                let msg = extract_string(line);
+                if let (Some(do_pos), Some(stripped)) = (inline_do_pos(line), line.strip_suffix("end")) {
+                    let expr = stripped[do_pos + " do ".len()..].trim().to_string();
+                    if !expr.is_empty() {
+                        cmd.givens.push(Given { expression: expr, message: msg });
+                    }
+                }
+            } else if line.starts_with("given") && ends_with_do_block(line) {
+                // MULTI-LINE : given("msg") do
+                //                expr
+                //              end
+                //
+                // Ruby takes a block either way — `do … end` and `{ … }` are
+                // the same construct — so a parser that reads only one accepts
+                // a NARROWER language than the DSL does, and a bluebook can
+                // then be valid Ruby and invisible here. The invariant parser
+                // already carries this exact scar ("Rust silently read 2 of
+                // its 6 invariants while Ruby read all six") ; givens had the
+                // same hole and nothing caught it, because no corpus domain
+                // wrote a given this way.
+                //
+                // Worse than dropping it : the block's `end` fell through to
+                // the depth tracker and closed the COMMAND early, so `emits`
+                // and every later clause vanished too.
+                let msg = extract_string(line);
+                let mut body: Vec<&str> = Vec::new();
+                let mut j = i + 1;
+                let mut d = 1;
+                while j < lines.len() && d > 0 {
+                    let l = lines[j].trim();
+                    if ends_with_do_block(l) { d += 1; }
+                    if l == "end" {
+                        d -= 1;
+                        if d == 0 { break; }
+                    }
+                    if !l.is_empty() && !l.starts_with('#') { body.push(l); }
+                    j += 1;
+                }
+                let expr = body.join(" && ");
+                if !expr.is_empty() {
+                    cmd.givens.push(Given { expression: expr, message: msg });
+                }
+                i = j + 1;
+                continue;
             } else if line.starts_with("given") {
                 // Two forms:
                 //   given "msg"         → expression = "msg", message = "msg"
@@ -628,6 +675,30 @@ fn parse_derive_signature(header: &str) -> Option<(String, String)> {
     Some((name, rtype))
 }
 
+/// Byte offset of the ` do ` that OPENS a one-line block body, for the forms
+/// that carry a quoted message first (`given("…") do … end`,
+/// `invariant("…") do … end`).
+///
+/// Naively taking the FIRST ` do ` picks up one sitting inside the message :
+/// `given("inline do given") do size < 100 end` split at the message's own
+/// ` do `, yielding the predicate `given") do size < 100`. The message is
+/// author-supplied prose and may contain anything ; the body always begins
+/// after it closes.
+///
+/// NOT for `derive :name, Type do … end`, which carries no quoted message —
+/// there the first quote would be in the BODY and skipping past it would break
+/// a form that works today.
+fn inline_do_pos(line: &str) -> Option<usize> {
+    let after_message = match line.find('"') {
+        Some(open) => line[open + 1..]
+            .find('"')
+            .map(|close| open + 1 + close + 1)
+            .unwrap_or(0),
+        None => 0,
+    };
+    line[after_message..].find(" do ").map(|at| after_message + at)
+}
+
 /// Split a `|a, b| rest` block body into its parameter NAMES and the
 /// remaining expression text. A body with no `|params|` prefix returns
 /// (empty, whole body).
@@ -690,9 +761,18 @@ pub fn parse_value_object(lines: &[&str]) -> (ValueObject, usize) {
                         if let Some(colon) = pair.find(':') {
                             let key = pair[..colon].trim().trim_matches(':').to_string();
                             let raw_val = pair[colon + 1..].trim();
+                            let bare = raw_val.trim_matches(',').trim();
                             let val = extract_string(raw_val)
-                                .unwrap_or_else(|| raw_val.trim_matches(',').trim().to_string());
-                            if !key.is_empty() && !val.is_empty() {
+                                .unwrap_or_else(|| bare.to_string());
+                            // A DECLARED empty string is a value, not an absence.
+                            // `source_token: ""` says this rule takes no operand,
+                            // and dropping the pair makes the member one field
+                            // shorter than the one the author wrote — which the
+                            // Ruby side keeps, so the two members stop matching.
+                            // Only a missing key or an unparseable bare token is
+                            // nothing.
+                            let declared = bare.starts_with('"') || !val.is_empty();
+                            if !key.is_empty() && declared {
                                 fields.push((key, val));
                             }
                         }
@@ -736,7 +816,7 @@ pub fn parse_value_object(lines: &[&str]) -> (ValueObject, usize) {
             // contract caught this gap the same day the field joined the
             // canonical IR.
             let inv_name = extract_string(line).unwrap_or_default();
-            if let (Some(do_pos), Some(stripped)) = (line.find(" do "), line.strip_suffix("end")) {
+            if let (Some(do_pos), Some(stripped)) = (inline_do_pos(line), line.strip_suffix("end")) {
                 let expr = stripped[do_pos + " do ".len()..].trim();
                 if !inv_name.is_empty() && !expr.is_empty() {
                     vo.invariants.push(Invariant { name: inv_name, expression: expr.to_string() });
