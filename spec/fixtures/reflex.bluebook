@@ -42,4 +42,30 @@ Hecks.bluebook "Reflex" do
       trigger "Light.Log"
     end
   end
+
+  # A REACTION THAT FEEDS ITSELF. Echo.Ring emits Rang, and the policy answers
+  # Rang by ringing again — a cycle that would react for ever.
+  #
+  # It exists because the depth guard was written and nothing exercised it, which
+  # is the exact shape of every bug found the day this was added : a construct
+  # legal, unexercised, and unverified. A bound nobody reaches is a bound nobody
+  # knows is there.
+  aggregate "Echo" do
+    description "A bell whose ring makes it ring"
+
+    attribute :rings, Integer
+
+    command "Ring" do
+      role "Operator"
+      goal "Ring the bell, which rings the bell"
+      attribute :id, String
+
+      emits "Rang"
+    end
+
+    policy "RingOnRang" do
+      on      "Rang"
+      trigger "Echo.Ring"
+    end
+  end
 end

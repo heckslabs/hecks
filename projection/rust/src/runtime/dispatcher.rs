@@ -37,8 +37,21 @@ pub struct Runtime {
     /// named together.
     adapters: BTreeMap<String, Box<dyn PersistenceAdapter>>,
     pub events: Vec<Value>,
+    /// Every policy that FIRED, and whether its command was delivered. The
+    /// projection of Ruby's `registry.reaction_log`. A reaction nobody records
+    /// is a reaction nobody misses — which is how four declared policies ran
+    /// nowhere in BOTH runtimes while parity stayed green.
+    pub reactions: Vec<Value>,
     minted: usize,
+    /// How deep the current reaction chain is. A policy whose command emits the
+    /// event it waits for would react for ever ; bounded rather than detected,
+    /// because the cycle is a modelling error and the runtime's job is to stop
+    /// rather than to diagnose.
+    reaction_depth: usize,
 }
+
+/// Mirrors Ruby's MAX_REACTION_DEPTH.
+const MAX_REACTION_DEPTH: usize = 5;
 
 impl Runtime {
     pub fn new(ir: Value) -> Self {
@@ -47,7 +60,9 @@ impl Runtime {
             store: BTreeMap::new(),
             adapters: BTreeMap::new(),
             events: Vec::new(),
+            reactions: Vec::new(),
             minted: 0,
+            reaction_depth: 0,
         }
     }
 
@@ -98,7 +113,7 @@ impl Runtime {
 
     pub fn dispatch(&mut self, verb: &str, args: &State) -> Result<State, String> {
         let (domain, aggregate_name, command_name) = parse_verb(verb)?;
-        let aggregate = self.find_aggregate(&domain, &aggregate_name)?;
+        let aggregate = self.find_aggregate(&domain, &aggregate_name, verb)?;
         let command = find_command(&aggregate, &command_name)
             .ok_or_else(|| format!("{} has no command {:?}", aggregate_name, command_name))?;
 
@@ -140,6 +155,7 @@ impl Runtime {
         }
 
         // Emitting last: an event is a promise that the state behind it survived.
+        let mut announced: Vec<Value> = Vec::new();
         for emitted in array(&command, "emits") {
             if let Some(name) = emitted.as_str() {
                 let event = json!({
@@ -154,8 +170,17 @@ impl Runtime {
                 // and not part of PersistenceAdapter - an adapter stores
                 // aggregates. Both runtimes report this log, so the harness
                 // still compares every emission.
-                self.events.push(event);
+                self.events.push(event.clone());
+                announced.push(event);
             }
+        }
+
+        // REACT - a policy is a standing instruction that something else should
+        // follow, so the reflex fires after the event it waits for. After emit,
+        // for the same reason emit is last: a reaction is a promise the state
+        // behind it survived.
+        for event in &announced {
+            self.react_to(event, &domain);
         }
 
         let mut result = state;
@@ -212,11 +237,126 @@ impl Runtime {
         Ok((id, self.store[&key].clone()))
     }
 
-    fn find_aggregate(&self, domain: &str, name: &str) -> Result<Map<String, Value>, String> {
+    /// The domain's reflex. The projection of Ruby's `react_to` in
+    /// lib/hecksagain/runtime/dispatcher.rb, which holds the semantics.
+    ///
+    /// EVERY reaction is recorded, delivered or not. A policy pointing at a
+    /// domain nobody loaded (pizzas' Notifications.Send) is a real thing to know
+    /// about, and swallowing it would rebuild the silence this fixes.
+    fn react_to(&mut self, event: &Value, domain: &str) {
+        // Matches are collected as OWNED data before dispatching : the nested
+        // dispatch takes `&mut self`, so a borrow of `self.ir` cannot still be
+        // live when it runs.
+        let matched = self.policies_for(event, domain);
+
+        for (name, target) in matched {
+            let mut record = json!({
+                "policy": name,
+                "on": event.get("name").cloned().unwrap_or(Value::Null),
+                "trigger": target,
+            });
+
+            let outcome = if self.reaction_depth >= MAX_REACTION_DEPTH {
+                Err(format!("reaction depth {MAX_REACTION_DEPTH} reached"))
+            } else {
+                let payload = event
+                    .get("payload")
+                    .and_then(Value::as_object)
+                    .cloned()
+                    .unwrap_or_default();
+
+                self.reaction_depth += 1;
+                let result = self.dispatch(&target, &payload);
+                self.reaction_depth -= 1;
+                result.map(|_| ())
+            };
+
+            let entry = record.as_object_mut().expect("record is an object");
+            match outcome {
+                Ok(()) => {
+                    entry.insert("delivered".into(), Value::Bool(true));
+                }
+                // Recorded rather than propagated. The triggering command already
+                // succeeded and its state is saved ; a consequence that cannot be
+                // delivered does not retract it. What it must not do is vanish.
+                Err(reason) => {
+                    entry.insert("delivered".into(), Value::Bool(false));
+                    entry.insert("reason".into(), Value::String(reason));
+                }
+            }
+
+            self.reactions.push(record);
+        }
+    }
+
+    /// The policies watching for this event, as (policy name, target verb).
+    ///
+    /// DOMAIN-LEVEL ONLY. An aggregate-nested policy BUBBLES to the domain at
+    /// build time and the aggregate keeps a copy for its own IR ; reading both
+    /// lists fires every nested policy twice.
+    ///
+    /// A policy matches on the event NAME, and when its subscription is
+    /// qualified (`on "Order.Placed"`) on the emitting aggregate too.
+    fn policies_for(&self, event: &Value, domain: &str) -> Vec<(String, String)> {
+        let Some(name) = event.get("name").and_then(Value::as_str) else {
+            return Vec::new();
+        };
+        let emitting = event
+            .get("aggregate")
+            .and_then(Value::as_str)
+            .and_then(|fqn| fqn.rsplit("::").next())
+            .unwrap_or_default();
+
+        let Some(policies) = self
+            .ir
+            .get(domain)
+            .and_then(|bluebook| bluebook.get("policies"))
+            .and_then(Value::as_array)
+        else {
+            return Vec::new();
+        };
+
+        policies
+            .iter()
+            .filter_map(|policy| {
+                let on_event = policy.get("on_event").and_then(Value::as_str)?;
+                let (qualifier, event_name) = match on_event.split_once('.') {
+                    Some((aggregate, bare)) => (Some(aggregate), bare),
+                    None => (None, on_event),
+                };
+
+                if event_name != name {
+                    return None;
+                }
+                if qualifier.is_some_and(|aggregate| aggregate != emitting) {
+                    return None;
+                }
+
+                let trigger = policy.get("trigger_command").and_then(Value::as_str)?;
+                let target_domain = policy
+                    .get("target_domain")
+                    .and_then(Value::as_str)
+                    .unwrap_or(domain);
+
+                Some((
+                    policy.get("name").and_then(Value::as_str).unwrap_or_default().to_string(),
+                    format!("{target_domain}::{trigger}"),
+                ))
+            })
+            .collect()
+    }
+
+    /// The verb rides along ONLY for the not-found message. Ruby says "no domain
+    /// X loaded (verb ...)" and this said "no domain X in the IR" — the same
+    /// failure phrased two ways, unnoticed because the only refusals the corpus
+    /// exercised were GivenNotMet. Adding reactions to the parity contract is
+    /// what surfaced it : a policy pointing at an unloaded domain fails here, and
+    /// its reason is compared.
+    fn find_aggregate(&self, domain: &str, name: &str, verb: &str) -> Result<Map<String, Value>, String> {
         let bluebook = self
             .ir
             .get(domain)
-            .ok_or_else(|| format!("no domain {:?} in the IR", domain))?;
+            .ok_or_else(|| format!("no domain {domain:?} loaded (verb {verb})"))?;
 
         bluebook
             .get("aggregates")

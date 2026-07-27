@@ -71,6 +71,28 @@ RSpec.describe "a policy" do
     expect(runtime.reactions.size).to eq(2)
   end
 
+  # THE GUARD, EXERCISED. Echo.Ring emits Rang and RingOnRang answers Rang by
+  # ringing again. Without a bound this recurses until the stack gives out ; the
+  # bound is what turns a modelling error into a recorded refusal.
+  #
+  # Written because the guard existed and nothing reached it — the same shape as
+  # every bug found today : legal, unexercised, unverified.
+  it "stops a reaction that feeds itself, and says so" do
+    runtime = boot_reflex
+    runtime.dispatch("Reflex::Echo.Ring", id: "bell-1")
+
+    # One reaction per level until the bound refuses the next.
+    expect(runtime.reactions.size).to eq(Hecksagain::Runtime::Dispatcher::MAX_REACTION_DEPTH + 1)
+
+    # A reaction is appended when it COMPLETES, so the deepest one lands first
+    # and the outermost last. Asserting on content rather than position — the
+    # ordering is a real property both runtimes share, but it is not what this
+    # example is about.
+    stopped = runtime.reactions.select { |r| r[:delivered] == false }
+    expect(stopped.size).to eq(1)
+    expect(stopped.first[:reason]).to match(/reaction depth \d+ reached/)
+  end
+
   it "records a reaction it cannot deliver rather than swallowing it" do
     # pizzas' NotifyOnPurchase reaches ACROSS to a domain nobody loaded. The
     # triggering command already succeeded and its state is saved ; a

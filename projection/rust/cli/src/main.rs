@@ -284,6 +284,12 @@ fn main() {
         "instances": Value::Object(instances),
         "events": runtime.events,
         "refusals": refusals,
+        // REACTIONS ARE IN THE CONTRACT. Four policies were declared, ran
+        // nowhere, and parity stayed green BECAUSE both runtimes discarded
+        // them equally — stage one cannot tell "both understood it" from
+        // "both threw it away". A reaction the harness does not compare is a
+        // reaction that can silently stop happening again.
+        "reactions": runtime.reactions,
     });
 
     println!("{}", serde_json::to_string_pretty(&output).unwrap());
