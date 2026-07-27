@@ -19,74 +19,137 @@
 use crate::hecksagon_parser;
 use crate::ports::loading;
 use crate::world::parser as world_parser;
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 pub struct Persistence {
     pub adapter: String,
-    /// WHERE the adapter points, resolved against the domain directory.
+    /// The world block's values for this bind, VERBATIM.
     ///
-    /// Each adapter names this field for itself — Sqlite declares `database` (a
-    /// file), Heki declares `dir` (a folder holding one store per aggregate) —
-    /// so the world block is read for whichever the bound adapter uses. Calling
-    /// it `database` here worked only while there was one adapter, and would
-    /// have made every future one either lie about its field or resolve to
-    /// nothing.
-    pub location: PathBuf,
+    /// Not a resolved path. Each adapter names its own field — Sqlite declares
+    /// `database` (a file), Heki declares `dir` (a folder holding one store per
+    /// aggregate), Memory declares none — so the port carries the values and the
+    /// adapter decides what they mean. Mirrors the `settings:` kwarg Ruby's port
+    /// hands to `adapter_class(...).new`.
+    pub settings: HashMap<String, String>,
 }
 
-pub fn resolve(bluebook_path: &str) -> Option<Persistence> {
-    let bluebook = Path::new(bluebook_path);
-    let bluebook_dir = bluebook.parent()?;
-    let domain_dir = bluebook_dir.parent()?;
+impl Persistence {
+    /// One setting, resolved against the DOMAIN directory when it is a path.
+    ///
+    /// The domain dir is the parent of `bluebook/`, matching how the Ruby side
+    /// resolves it. The two runtimes must land on the same file or "they agree"
+    /// would mean nothing.
+    pub fn path(&self, bluebook_path: &str, field: &str) -> Option<PathBuf> {
+        let domain_dir = Path::new(bluebook_path).parent()?.parent()?;
+        self.settings.get(field).map(|value| domain_dir.join(value))
+    }
+}
 
-    let adapter = persisted_by(bluebook_dir)?;
-    let declared = location_of(bluebook_dir, &adapter)?;
+/// The adapter the runtime always carries. The projection of Ruby's
+/// `Ports::Persistence::DEFAULT_ADAPTER`.
+pub const DEFAULT_ADAPTER: &str = "Memory";
 
-    Some(Persistence {
+/// The bind ONE aggregate resolves through — the one it declares, or the default.
+///
+/// PERSISTENCE BINDS PER AGGREGATE. This used to take the FIRST `persisted_by`
+/// in the hecksagon and hand it to the whole domain, so a bluebook wiring
+/// `Pizza.persisted_by("Sqlite")` beside `Cart.persisted_by("Memory")` bound
+/// EVERYTHING to whichever the parser saw first — silently, with a domain that
+/// looked entirely correct. Banking and pizzas are each uniformly bound, which
+/// is why the corpus never showed it.
+///
+/// AND AN AGGREGATE THAT DECLARES NOTHING GETS Memory, not an error. Wiring is
+/// override, not substrate : a hecksagon bind changes which adapter answers, it
+/// is not what makes persistence exist. Mirrors `bind_for` / `default_bind` in
+/// lib/hecksagain/ports/persistence/persistence.rb, which is the source of this
+/// behaviour — Ruby holds the semantics, this is the projection.
+pub fn resolve_for(bluebook_path: &str, aggregate: &str) -> Persistence {
+    let adapter = Path::new(bluebook_path)
+        .parent()
+        .and_then(|dir| persisted_by(dir, aggregate))
+        .unwrap_or_else(|| DEFAULT_ADAPTER.to_string());
+
+    Persistence {
+        settings: settings_for(bluebook_path, &adapter),
         adapter,
-        location: domain_dir.join(declared),
-    })
+    }
 }
 
-/// The adapter named by a `persisted_by` bind in the hecksagon.
-fn persisted_by(bluebook_dir: &Path) -> Option<String> {
+/// Every `persisted_by` bind the domain declares, as (aggregate FQN, adapter).
+fn binds(bluebook_dir: &Path) -> Vec<(String, String)> {
+    let mut found = Vec::new();
     for source in loading::declarations(bluebook_dir, "hecksagon") {
         let hexagon = hecksagon_parser::parse(&source);
 
-        if let Some(binding) = hexagon.bindings.iter().find(|b| b.verb == "persisted_by") {
-            return Some(binding.adapter.clone());
+        for binding in hexagon.bindings.iter().filter(|b| b.verb == "persisted_by") {
+            found.push((binding.aggregate.clone(), binding.adapter.clone()));
         }
-        // The older single-slot form, still understood by the parser.
+        // The older single-slot form, still understood by the parser. It names no
+        // aggregate, so it applies to all of them — recorded with an empty name
+        // and matched as a wildcard below.
         if let Some(persistence) = hexagon.persistence.clone() {
-            return Some(persistence);
+            found.push((String::new(), persistence));
         }
     }
-    None
+    found
 }
 
-/// The `database` value declared under the same how-verb in the world.
-///
-/// A verb-call block - `persisted_by("Sqlite") do database "..." end` - lands in
-/// `configs`, keyed by the ADAPTER NAME lowercased. `adapter_bindings` is a
-/// different shape entirely (the `adapter "Name" do ... end` form), and looking
-/// there first is what made this resolve to nothing while every parse was
-/// working correctly.
-/// The field names an adapter may use to say WHERE it points.
-///
-/// Read in order, so a world declaring one of them is understood whichever
-/// adapter is bound. This is knowledge about concrete adapters sitting in the
-/// port, which is not ideal — the truthful source is each `.adapter` file's
-/// `field` declaration, and Rust does not read those. Recorded as a seam rather
-/// than hidden : when Rust learns to read .adapter declarations, this list is
-/// what it replaces.
-const LOCATION_FIELDS: [&str; 2] = ["database", "dir"];
+/// The adapter bound to ONE aggregate. The hecksagon names it by FQN
+/// (`Pizzas::Pizza`), so the match is on the trailing segment — the projection
+/// of Ruby's `Bind#aggregate_name`.
+fn persisted_by(bluebook_dir: &Path, aggregate: &str) -> Option<String> {
+    let declared = binds(bluebook_dir);
 
-fn location_of(bluebook_dir: &Path, adapter: &str) -> Option<String> {
+    declared
+        .iter()
+        .find(|(named, _)| named.rsplit("::").next().unwrap_or(named) == aggregate)
+        .or_else(|| declared.iter().find(|(named, _)| named.is_empty()))
+        .map(|(_, adapter)| adapter.clone())
+}
+
+/// THE WORLD BLOCK, HANDED OVER WHOLE.
+///
+/// This used to resolve a concrete `location: PathBuf` here, picking a value by
+/// trying a hardcoded list of field names :
+///
+/// ```text
+/// const LOCATION_FIELDS: [&str; 2] = ["database", "dir"];
+/// ```
+///
+/// whose own comment admitted the problem — "knowledge about concrete adapters
+/// sitting in the port, which is not ideal". It was worse than untidy. A port
+/// that insists on a location cannot express an adapter that HAS none, so every
+/// Memory bind resolved to nothing, which read as "no bind at all" and took the
+/// grammar chapter down the moment an unbound aggregate became an error. Three
+/// attempted fixes — an Option, a name check, a closure — were all shapes of the
+/// same wrong idea.
+///
+/// Ruby never had the problem, because its port does not resolve a location :
+///
+/// ```text
+/// settings = registry.world(domain)&.for_verb(bind.verb) || {}
+/// registry.adapter_class(bind.adapter).new(aggregate:, settings:, root:)
+/// ```
+///
+/// The adapter reads whichever field it declares — Sqlite `database`, Heki
+/// `dir` — and Memory reads none, which is why it needs no world block at all.
+/// This is the projection of that : the port carries the values, the adapter
+/// decides what they mean.
+fn settings_for(bluebook_path: &str, adapter: &str) -> HashMap<String, String> {
+    let Some(bluebook_dir) = Path::new(bluebook_path).parent() else {
+        return HashMap::new();
+    };
     let wanted = adapter.to_lowercase();
 
     for source in loading::declarations(bluebook_dir, "world") {
         let world = world_parser::parse(&source);
 
+        // A verb-call block — `persisted_by("Sqlite") do database "..." end` —
+        // lands in `configs`, keyed by the ADAPTER NAME lowercased.
+        // `adapter_bindings` is a different shape entirely (the
+        // `adapter "Name" do ... end` form), and looking there first is what made
+        // this resolve to nothing while every parse was working correctly.
         let matching = world
             .configs
             .iter()
@@ -94,12 +157,15 @@ fn location_of(bluebook_dir: &Path, adapter: &str) -> Option<String> {
             .or_else(|| world.configs.first());
 
         if let Some(config) = matching {
-            for field in LOCATION_FIELDS {
-                if let Some((_, value)) = config.values.iter().find(|(key, _)| key == field) {
-                    return Some(value.clone());
-                }
-            }
+            return config
+                .values
+                .iter()
+                .map(|(key, value)| (key.clone(), value.clone()))
+                .collect();
         }
     }
-    None
+
+    // No world block is not a failure. Memory declares none, and an adapter that
+    // needs a value says so when it looks and does not find one.
+    HashMap::new()
 }

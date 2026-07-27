@@ -15,7 +15,7 @@ pub use crate::runtime::aggregate_state::AggregateState;
 pub use crate::runtime::value::Value;
 
 mod persistence;
-pub use persistence::{resolve, Persistence};
+pub use persistence::{resolve_for, Persistence, DEFAULT_ADAPTER};
 
 // Cherry-picked from Hecks, unedited. It carries helpers this projection does
 // not call - dead HERE, load-bearing THERE - so the allow is by name.

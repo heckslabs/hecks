@@ -1,7 +1,19 @@
 # The Expression hexagon — a grammar chapter, held in memory.
+#
+# EMPTY ON PURPOSE. This used to name Memory once per aggregate :
+#
+#   Expression::Operator.persisted_by("Memory")
+#   Expression::Normalisation.persisted_by("Memory")
+#   …
+#
+# which is four lines saying "no decision", and one more every time the chapter
+# grows an aggregate — a line whose absence, once an unbound aggregate became an
+# error, was a boot failure rather than the obvious default.
+#
+# Memory is what an aggregate gets when nobody wires it. A grammar chapter is a
+# conception : it is reasoned about far more often than it is stored, so it
+# claims no database, and now says so by saying nothing. Wiring is override, not
+# substrate — the file stays because the hexagon is still the place a decision
+# WOULD go, and there is simply no decision to record.
 Hecks.hecksagon "Expression" do
-  Expression::Operator.persisted_by("Memory")
-  Expression::Normalisation.persisted_by("Memory")
-  Expression::Expression.persisted_by("Memory")
-  Expression::Agreement.persisted_by("Memory")
 end

@@ -81,13 +81,27 @@ fn main() {
     // inspectable rather than something to be inferred from whether a file
     // appeared.
     if arguments.len() == 3 && arguments[1] == "--wiring" {
-        match persistence::resolve(&arguments[2]) {
-            Some(persistence) => println!(
-                "adapter: {}\ndatabase: {}",
-                persistence.adapter,
-                persistence.location.display()
-            ),
-            None => println!("no persistence bound — the runtime would stay in memory"),
+        // PER AGGREGATE, because that is how persistence binds. Reporting one
+        // adapter for the whole domain was not merely incomplete : on a domain
+        // binding two different adapters it named one and read as the whole truth.
+        //
+        // Every aggregate appears, including the ones nobody wired — those report
+        // the Memory default, which is the honest answer to "where does this
+        // store" and the one a reader most needs when they expected a database.
+        let source = fs::read_to_string(&arguments[2]).unwrap_or_else(|error| {
+            eprintln!("cannot read {}: {}", arguments[2], error);
+            std::process::exit(1);
+        });
+        for aggregate in parser::parse(&source).aggregates.iter() {
+            let persistence = persistence::resolve_for(&arguments[2], &aggregate.name);
+            // WHICH ADAPTER ANSWERS — and only that. Printing the settings
+            // alongside read as a claim about storage : a Memory bind showed
+            // `database data/mix.db` because the world block is handed over
+            // whole and Memory simply ignores it. The port cannot say which
+            // settings an adapter reads (that is the adapter's business, and the
+            // reason the port stopped resolving a path at all), so it should not
+            // imply an answer it does not have.
+            println!("{}: {}", aggregate.name, persistence.adapter);
         }
         return;
     }
@@ -121,46 +135,69 @@ fn main() {
     // THIS IS THE COMPOSITION ROOT — the one place the port and a concrete
     // adapter may be named together. The library knows only
     // PersistenceAdapter ; storehouse-sqlite is linked here and nowhere else.
-    if let Some(persistence) = persistence::resolve(&arguments[1]) {
-        let path = persistence.location.to_string_lossy().to_string();
+    // PERSISTENCE BINDS PER AGGREGATE, so the bind is resolved INSIDE this loop.
+    // It used to be resolved once for the whole domain and the first
+    // `persisted_by` in the hecksagon handed to every aggregate — so a bluebook
+    // wiring Pizza to Sqlite beside Cart to Memory bound EVERYTHING to whichever
+    // the parser saw first, silently, with a domain that looked entirely correct.
+    //
+    // And an aggregate that declares NOTHING gets Memory rather than an error :
+    // wiring is override, not substrate. Both behaviours are the projection of
+    // lib/hecksagain/ports/persistence/persistence.rb, which holds the semantics.
+    for (name, aggregate) in runtime.aggregates() {
+        let persistence = persistence::resolve_for(&arguments[1], &name);
 
-        // A BIND THAT DOES NOT RESOLVE IS AN ERROR, not a silent fallback.
-        // This was `if adapter == "Sqlite"` with no else, so a domain bound
-        // to anything else kept its state in a HashMap and looked entirely
-        // correct while nothing was written. A store nobody can find is the
-        // failure a persistence port exists to make impossible.
+        // EACH ADAPTER READS ITS OWN FIELD. The port carries the world block
+        // verbatim ; what `database` or `dir` means is the adapter's business,
+        // and Memory reads neither, which is why it needs no world block at all.
+        let stored_at = |field: &str| -> String {
+            match persistence.path(&arguments[1], field) {
+                Some(location) => location.to_string_lossy().to_string(),
+                None => {
+                    eprintln!(
+                        "{} binds {}, which stores somewhere, but its world declares no {:?}.",
+                        name, persistence.adapter, field
+                    );
+                    std::process::exit(1);
+                }
+            }
+        };
+
+        // A BIND THAT DOES NOT RESOLVE IS AN ERROR, not a silent fallback. This
+        // was `if adapter == "Sqlite"` with no else, so a domain bound to anything
+        // else kept its state in a HashMap and looked entirely correct while
+        // nothing was written. A store nobody can find is the failure a
+        // persistence port exists to make impossible.
         match persistence.adapter.as_str() {
             "Heki" => {
-                for (name, aggregate) in runtime.aggregates() {
-                    let identified_by = aggregate
-                        .get("identified_by")
-                        .and_then(Value::as_str)
-                        .map(str::to_string);
+                let path = stored_at("dir");
+                let identified_by = aggregate
+                    .get("identified_by")
+                    .and_then(Value::as_str)
+                    .map(str::to_string);
 
-                    match storehouse::adapters::driven::heki::HekiRepository::new(
-                        &name,
-                        &path,
-                        identified_by,
-                    ) {
-                        Ok(adapter) => runtime.attach(&name, Box::new(adapter)),
-                        Err(error) => {
-                            eprintln!("cannot bind Heki at {} for {}: {}", path, name, error);
-                            std::process::exit(1);
-                        }
+                match storehouse::adapters::driven::heki::HekiRepository::new(
+                    &name,
+                    &path,
+                    identified_by,
+                ) {
+                    Ok(adapter) => runtime.attach(&name, Box::new(adapter)),
+                    Err(error) => {
+                        eprintln!("cannot bind Heki at {} for {}: {}", path, name, error);
+                        std::process::exit(1);
                     }
                 }
             }
             "Memory" => {
-                // The runtime's own in-process store IS the memory adapter.
-                // Named here so a Memory bind reads as a decision rather
-                // than as the fallback of an unmatched name.
+                // The runtime's own in-process store IS the memory adapter, and
+                // it is what an aggregate gets when nobody wired it.
             }
             "Sqlite" => {
+                let path = stored_at("database");
 
-            for (name, aggregate) in runtime.aggregates() {
-                // The columns ARE the IR: one per declared attribute, its SQL
-                // type from storehouse_sqlite::sql_type, which mirrors Ruby's
-                // migration generator verbatim. Nothing here chooses a type.
+                // The columns ARE the IR: one per declared attribute, its SQL type
+                // from storehouse_sqlite::sql_type, which mirrors Ruby's migration
+                // generator verbatim. Nothing here chooses a type.
                 let columns: Vec<(String, String)> = aggregate
                     .get("attributes")
                     .and_then(Value::as_array)
@@ -187,7 +224,6 @@ fn main() {
                         eprintln!("cannot bind Sqlite at {} for {}: {}", path, name, error);
                         std::process::exit(1);
                     }
-                }
                 }
             }
             other => {
