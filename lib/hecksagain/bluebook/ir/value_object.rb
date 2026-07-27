@@ -17,12 +17,19 @@ module Hecksagain
       Invariant = Struct.new(:description, :canonical, :predicate, keyword_init: true)
 
       class ValueObject
-        attr_reader :name, :attributes, :invariants
+        attr_reader :name, :attributes, :invariants, :members
 
-        def initialize(name:, attributes: [], invariants: [])
+        # members — the CLOSED SET this value may take, when one is declared
+        #           (`one_of do member ... end`). Each is an ordered list of
+        #           [field, value] pairs, declaration order preserved,
+        #           because that is the order the Rust parser carries and a
+        #           reordered member would diff as a change that is not one.
+        #           Empty means open : any value the invariants admit.
+        def initialize(name:, attributes: [], invariants: [], members: [])
           @name       = name.to_s
           @attributes = attributes
           @invariants = invariants
+          @members    = members
         end
 
         def attribute(named) = @attributes.find { |a| a.name == named.to_sym }
@@ -31,7 +38,8 @@ module Hecksagain
           {
             name:       @name,
             attributes: @attributes.map(&:to_h),
-            invariants: @invariants.map { |i| { description: i.description, canonical: i.canonical } }
+            invariants: @invariants.map { |i| { description: i.description, canonical: i.canonical } },
+            members:    @members.map { |m| m.map { |field, value| [field.to_s, value.to_s] } }
           }
         end
       end

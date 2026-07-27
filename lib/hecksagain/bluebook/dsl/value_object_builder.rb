@@ -17,6 +17,42 @@ module Hecksagain
         def initialize(name)
           @name       = name
           @invariants = []
+          @members    = []
+        end
+
+        # The CLOSED SET this value may take, declared as data in the
+        # bluebook rather than dispatched into it later.
+        #
+        #   one_of do
+        #     member code: "USD", symbol: "$", minor_units: 2
+        #     member code: "JPY", symbol: "Y", minor_units: 0
+        #   end
+        #
+        # A bluebook could already declare a SHAPE and not a FACT, which is
+        # why the Expression chapter's own admitted operators had to live in
+        # a parity script — test data standing in for language truth. The
+        # Rust parser has read this block since it was lifted from Hecks ;
+        # this side raised NoMethodError on it, so the construct was
+        # readable by one runtime and fatal to the other. Nothing caught it
+        # because no domain used it.
+        def one_of(&block)
+          unless block
+            raise Malformed,
+                  "#{@name} declared one_of with no block — the scalar form " \
+                  "(`attribute :x, one_of(\"a\", \"b\")`) is not read on this " \
+                  "side yet, and silently dropping it would be the same " \
+                  "half-present construct one_of itself was"
+          end
+
+          instance_eval(&block)
+        end
+
+        # One member of the closed set. Keyword order is DECLARATION order,
+        # and both parsers carry it that way, so the two IRs stay diffable.
+        def member(**fields)
+          raise Malformed, "#{@name} declared an empty member" if fields.empty?
+
+          @members << fields
         end
 
         def invariant(description, &predicate)
@@ -44,7 +80,10 @@ module Hecksagain
         end
 
         def build
-          IR::ValueObject.new(name: @name, attributes: attributes, invariants: @invariants)
+          IR::ValueObject.new(
+            name: @name, attributes: attributes,
+            invariants: @invariants, members: @members
+          )
         end
 
         def self.build(name, &block)

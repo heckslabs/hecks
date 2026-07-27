@@ -167,6 +167,65 @@ RSpec.describe "the DSL surface" do
         end
       end.to raise_error(Malformed, /did not survive extraction/)
     end
+
+    # A bluebook could declare a SHAPE but not a FACT, so the Expression
+    # chapter's own admitted operators had to live in a parity script — test
+    # data standing in for language truth. The Rust parser has read this block
+    # since it was lifted from Hecks ; this side raised NoMethodError on it, so
+    # the construct was readable by one runtime and fatal to the other, and
+    # nothing noticed because no domain used it.
+    it "one_of declares a closed set of members, in declaration order" do
+      registry = in_registry do
+        Hecks.bluebook("Coins") do
+          aggregate("Coin") do
+            attribute :currency, Currency
+
+            value_object("Currency") do
+              attribute :code,        String
+              attribute :minor_units, Integer
+
+              one_of do
+                member code: "USD", minor_units: 2
+                member code: "JPY", minor_units: 0
+              end
+            end
+          end
+        end
+      end
+
+      currency = registry.bluebooks["Coins"].aggregates.first.value_objects.first
+      expect(currency.members).to eq(
+        [{ code: "USD", minor_units: 2 }, { code: "JPY", minor_units: 0 }]
+      )
+    end
+
+    it "refuses an empty member" do
+      expect do
+        in_registry do
+          Hecks.bluebook("Empty") do
+            aggregate("Thing") do
+              value_object("V") { one_of { member } }
+            end
+          end
+        end
+      end.to raise_error(Malformed, /empty member/)
+    end
+
+    # The scalar spelling (`attribute :x, one_of("a", "b")`) is read by the Rust
+    # parser and not by this side. Refusing it loudly is the point : accepting
+    # and dropping it would leave exactly the half-present construct that made
+    # one_of worth fixing.
+    it "refuses the scalar one_of spelling rather than dropping it" do
+      expect do
+        in_registry do
+          Hecks.bluebook("Scalar") do
+            aggregate("Thing") do
+              value_object("V") { one_of }
+            end
+          end
+        end
+      end.to raise_error(Malformed, /not read on this side yet/)
+    end
   end
 
   # ==========================================================================

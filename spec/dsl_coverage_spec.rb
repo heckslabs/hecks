@@ -33,7 +33,7 @@ RSpec.describe "the DSL surface is fully covered" do
     ],
     "ValueObjectBuilder" => [
       Hecksagain::Bluebook::DSL::ValueObjectBuilder,
-      %i[invariant attribute list_of attributes]
+      %i[invariant one_of member attribute list_of attributes]
     ],
     "CommandBuilder" => [
       Hecksagain::Bluebook::DSL::CommandBuilder,

@@ -35,7 +35,16 @@ pub fn domain_to_value(domain: &Domain) -> Value {
             "aggregates": aggregates,
             "policies": domain.policies.iter().map(policy_to_value).collect::<Vec<_>>(),
             "process_managers": domain.process_managers.iter()
-                .map(process_manager_to_value).collect::<Vec<_>>()
+                .map(process_manager_to_value).collect::<Vec<_>>(),
+            // THE NORMALISATION TABLE THIS RUNTIME USED, carried in the
+            // contract rather than left in code for someone to compare by eye.
+            // Every `canonical` field above was produced by these rows, so a
+            // table that disagrees with the other runtime's is a SPLIT on the
+            // very next parity run — which is what "agree by construction"
+            // buys that "agree by care" does not. The fold's word-boundary
+            // divergence lived for as long as it did because nothing diffed
+            // this.
+            "canonical_form": canonical_form_table()
         }),
     );
     Value::Object(domains)
@@ -222,10 +231,30 @@ fn value_object_to_value(value_object: &ValueObject) -> Value {
         })
         .collect();
 
+    // The CLOSED SET, when one is declared (`one_of do member ... end`).
+    //
+    // The parser has read these since it was lifted from Hecks, but the seam
+    // dropped them, so they never reached the parity contract — a fact declared
+    // in a bluebook that no diff could see. Declaration order is preserved on
+    // both sides : a reordered member is not a changed member, and sorting here
+    // would hide a real reordering instead.
+    let members: Vec<Value> = value_object
+        .members
+        .iter()
+        .map(|member| {
+            member
+                .iter()
+                .map(|(field, value)| json!([field, value]))
+                .collect::<Vec<_>>()
+        })
+        .map(Value::from)
+        .collect();
+
     json!({
         "name": value_object.name,
         "attributes": value_object.attributes.iter().map(attribute_to_value).collect::<Vec<_>>(),
-        "invariants": invariants
+        "invariants": invariants,
+        "members": members
     })
 }
 
@@ -337,16 +366,120 @@ fn mutation_to_value(mutation: &crate::ir::Mutation) -> Value {
     json!({ "target": target, "op": "set", "source": source })
 }
 
-/// One meaning, one text. Must agree with the Ruby extractor, which
-/// canonicalises what Prism hands back.
+/// One meaning, one text — by the declared table below, which must equal the
+/// Ruby extractor's (bluebook/expression/canonical_form.rb) row for row.
+/// Both are emitted into the IR this runtime is diffed on, so a divergence is
+/// a parity SPLIT rather than something found by probing.
 fn canonicalise(source: &str) -> String {
-    source
-        .split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ")
-        .replace(".length", ".size")
+    let mut rules: Vec<&Rule> = RULES.iter().collect();
+    rules.sort_by_key(|rule| rule.position);
+    rules
+        .iter()
+        .fold(source.to_string(), |text, rule| step(&text, rule))
         .trim()
         .to_string()
+}
+
+/// A normalisation rule : a named strategy plus its operands, applied in
+/// `position` order.
+///
+/// The shape is borrowed, not invented. Hecks states a parse rule twice and
+/// both times the same way — `BlockGrammarEntry (keyword, parser)` for routing,
+/// `FieldRule (field, strategy, source_token)` for extraction. Prose was the
+/// mistake : the fold used to live as a comment saying "`.length` folded to
+/// `.size`", which each side then implemented honestly and differently.
+///
+/// The bootstrap is deliberate, for the reason Hecks gives in
+/// `BlockGrammar::canonical_bluebook` — "the parser of bluebook can't itself
+/// require a parsed bluebook to run". `expression.bluebook` declares this same
+/// table as `one_of` members and is the canonical source ; regenerating this
+/// from it is specializer work.
+struct Rule {
+    strategy: &'static str,
+    source_token: &'static str,
+    replacement: &'static str,
+    boundary: &'static str,
+    position: u8,
+}
+
+const RULES: &[Rule] = &[
+    Rule { strategy: "collapse_whitespace", source_token: "", replacement: "", boundary: "none", position: 1 },
+    Rule { strategy: "replace", source_token: ".length", replacement: ".size", boundary: "word", position: 2 },
+];
+
+/// The table as the parity contract carries it — ordered, all strings, so the
+/// two runtimes' tables diff directly rather than through each language's idea
+/// of a number.
+pub fn canonical_form_table() -> Value {
+    let mut rules: Vec<&Rule> = RULES.iter().collect();
+    rules.sort_by_key(|rule| rule.position);
+    Value::from(
+        rules
+            .iter()
+            .map(|rule| {
+                json!({
+                    "strategy": rule.strategy,
+                    "source_token": rule.source_token,
+                    "replacement": rule.replacement,
+                    "boundary": rule.boundary,
+                    "position": rule.position.to_string()
+                })
+            })
+            .collect::<Vec<_>>(),
+    )
+}
+
+fn step(text: &str, rule: &Rule) -> String {
+    match rule.strategy {
+        "collapse_whitespace" => text.split_whitespace().collect::<Vec<_>>().join(" "),
+        "replace" => replace(text, rule),
+        // Unreachable through the declared table, and loud if it ever is.
+        // Returning the text unchanged would be the fail-open this chapter
+        // exists to refuse.
+        other => panic!("{other:?} is not a linked normalisation strategy"),
+    }
+}
+
+/// `.length` to `.size`, folded ONLY at a word boundary.
+///
+/// The Ruby extractor folds with a boundary-anchored pattern, so it rewrites
+/// `.length` and leaves `.length_cm` alone: the trailing underscore is a word
+/// character, so there is no boundary there. This side used a plain substring
+/// replace, which has no such notion and rewrote any name merely STARTING with
+/// length. `dims.length_cm > 0` was read as `dims.size_cm > 0`, renaming a
+/// member that exists to one that does not.
+///
+/// Two parsers then read the same document differently, which is the split
+/// stage one exists to catch. It went unseen because no corpus domain names a
+/// member `length_*` -- the corpus guarantee stated exactly: green covers the
+/// documents we wrote and is silent about a construct none of them uses.
+///
+/// Ruby is the source of truth, so this adopts Ruby's boundary rather than
+/// loosening the extractor to match.
+fn replace(source: &str, rule: &Rule) -> String {
+    let mut out = String::with_capacity(source.len());
+    let mut rest = source;
+
+    while let Some(at) = rest.find(rule.source_token) {
+        let after = &rest[at + rule.source_token.len()..];
+        // `boundary: "word"` means the token only folds when what follows is
+        // not a word character — so `.length` folds and `.length_cm` does not.
+        // That sentence is the one that was missing, and the one both sides now
+        // read from the same row.
+        let applies = rule.boundary == "none"
+            || after
+                .chars()
+                .next()
+                .map(|c| !(c.is_alphanumeric() || c == '_'))
+                .unwrap_or(true);
+
+        out.push_str(&rest[..at]);
+        out.push_str(if applies { rule.replacement } else { rule.source_token });
+        rest = after;
+    }
+
+    out.push_str(rest);
+    out
 }
 
 /// Source text to a typed JSON value: quotes stripped, whole numbers as
@@ -375,5 +508,44 @@ fn optional(text: &Option<String>) -> Value {
     match text {
         Some(text) => Value::String(text.clone()),
         None => Value::Null,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::canonicalise;
+
+    // The canonical text is what BOTH runtimes evaluate, so a rule this side
+    // applies and the Ruby extractor does not is two parsers reading one
+    // document differently. These pin the fold against Ruby's boundary.
+
+    #[test]
+    fn folds_the_length_alias() {
+        assert_eq!(canonicalise("toppings.length < 10"), "toppings.size < 10");
+        assert_eq!(canonicalise("value.length"), "value.size");
+    }
+
+    #[test]
+    fn leaves_a_length_prefixed_member_alone() {
+        // The regression. A plain substring replace rewrote these, renaming a
+        // member that exists to one that does not; Ruby's boundary anchor never
+        // touched them. No corpus domain names a member `length_*`, so nothing
+        // in the suite could see the split.
+        assert_eq!(canonicalise("dims.length_cm > 0"), "dims.length_cm > 0");
+        assert_eq!(canonicalise("a.lengthy"), "a.lengthy");
+        assert_eq!(canonicalise("box.length2"), "box.length2");
+    }
+
+    #[test]
+    fn folds_every_occurrence_and_only_at_a_boundary() {
+        assert_eq!(
+            canonicalise("a.length + b.length_cm + c.length"),
+            "a.size + b.length_cm + c.size"
+        );
+    }
+
+    #[test]
+    fn still_collapses_whitespace() {
+        assert_eq!(canonicalise("  a.length   >   0  "), "a.size > 0");
     }
 }
