@@ -62,6 +62,17 @@ pub struct Runtime {
 /// Mirrors Ruby's MAX_REACTION_DEPTH.
 const MAX_REACTION_DEPTH: usize = 5;
 
+/// A query-clause value : ":symbol" reads the caller's argument of that
+/// name ; anything else is the literal itself. The projection of Ruby's
+/// `resolve_query_value`.
+fn resolve_query_value(value: Option<&Value>, args: &State) -> Value {
+    let Some(value) = value else { return Value::Null };
+    if let Some(name) = value.as_str().and_then(|s| s.strip_prefix(':')) {
+        return args.get(name).cloned().unwrap_or(Value::Null);
+    }
+    value.clone()
+}
+
 /// The lifecycle's admission rule — the projection of Ruby's
 /// `admissible_transition`. None when the command is not part of the machine ;
 /// Some((field, to_state)) when admitted ; Err when the machine says no. A
@@ -178,6 +189,111 @@ impl Runtime {
             }
         }
         found
+    }
+
+    /// THE QUESTIONS, finally answered — the projection of Ruby's `query`.
+    /// eq and lt are the whole vocabulary ; a clause value is a literal or a
+    /// ":symbol" naming one of the query's own attributes, resolved from the
+    /// caller. Numeric fields sort as numbers, everything else as text, ties
+    /// break on id, `desc` reverses whole — spelled identically to Ruby's
+    /// `ordered`, because two runtimes sorting differently is ordering noise
+    /// the harness would drown in.
+    pub fn query(&mut self, verb: &str, args: &State) -> Result<Vec<Value>, String> {
+        let (domain, aggregate_name, query_name) = parse_verb(verb)?;
+        let aggregate = self.find_aggregate(&domain, &aggregate_name, verb)?;
+        let declared = array(&aggregate, "queries")
+            .into_iter()
+            .find(|q| q.get("name").and_then(Value::as_str) == Some(query_name.as_str()))
+            .and_then(|q| q.as_object().cloned())
+            .ok_or_else(|| format!("{} has no query {:?}", aggregate_name, query_name))?;
+
+        let mut matched: Vec<(String, State)> = Vec::new();
+        for (key, state) in self.all_records(&domain, &aggregate_name, &aggregate) {
+            let holds = array(&declared, "wheres").iter().all(|clause| {
+                let field = clause.get("field").and_then(Value::as_str).unwrap_or_default();
+                let held = state.get(field).cloned().unwrap_or(Value::Null);
+                let want = resolve_query_value(clause.get("value"), args);
+                match clause.get("op").and_then(Value::as_str) {
+                    Some("lt") => match (held.as_i64(), want.as_i64()) {
+                        (Some(h), Some(w)) => h < w,
+                        _ => false,
+                    },
+                    _ => held == want,
+                }
+            });
+            if holds {
+                matched.push((key, state));
+            }
+        }
+
+        if let Some(order) = declared.get("order_by").and_then(Value::as_object) {
+            let field = order.get("field").and_then(Value::as_str).unwrap_or_default().to_string();
+            matched.sort_by(|(a_id, a), (b_id, b)| {
+                let rank = |s: &State, id: &String| {
+                    let v = s.get(&field).cloned().unwrap_or(Value::Null);
+                    match v.as_i64() {
+                        Some(n) => (0i64, n, String::new(), id.clone()),
+                        None => (
+                            1i64,
+                            0,
+                            v.as_str().map(str::to_string).unwrap_or_else(|| v.to_string()),
+                            id.clone(),
+                        ),
+                    }
+                };
+                rank(a, a_id).cmp(&rank(b, b_id))
+            });
+            if order.get("direction").and_then(Value::as_str) == Some("desc") {
+                matched.reverse();
+            }
+        }
+
+        let capped: Vec<(String, State)> = match declared.get("limit").and_then(|l| l.get("value")) {
+            Some(limit) => {
+                let n = resolve_query_value(Some(limit), args)
+                    .as_str()
+                    .and_then(|s| s.parse::<usize>().ok())
+                    .or_else(|| resolve_query_value(Some(limit), args).as_u64().map(|v| v as usize))
+                    .unwrap_or(usize::MAX);
+                matched.into_iter().take(n).collect()
+            }
+            None => matched,
+        };
+
+        Ok(capped
+            .into_iter()
+            .map(|(id, state)| {
+                let mut row = Map::new();
+                row.insert("id".to_string(), Value::String(id));
+                for (k, v) in state {
+                    row.insert(k, v);
+                }
+                Value::Object(row)
+            })
+            .collect())
+    }
+
+    /// Every stored record of one aggregate, as (bare id, state) — through
+    /// the bound adapter when there is one, same as `instances`.
+    fn all_records(
+        &mut self,
+        domain: &str,
+        aggregate_name: &str,
+        _aggregate: &Map<String, Value>,
+    ) -> Vec<(String, State)> {
+        if let Some(adapter) = self.adapters.get(aggregate_name) {
+            return adapter
+                .all()
+                .into_iter()
+                .map(|s| (s.id.clone(), value_bridge::from_state(s)))
+                .collect();
+        }
+        let prefix = format!("{}::{}#", domain, aggregate_name);
+        self.store
+            .iter()
+            .filter(|(key, _)| key.starts_with(&prefix))
+            .map(|(key, state)| (key[prefix.len()..].to_string(), state.clone()))
+            .collect()
     }
 
     pub fn dispatch(&mut self, verb: &str, args: &State) -> Result<State, String> {

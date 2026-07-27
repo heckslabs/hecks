@@ -63,6 +63,61 @@ module Hecksagain
       def sagas = @registry.saga_log
       def verbs  = @registry.verbs
 
+      # THE QUESTIONS, finally answered. Seven queries in banking alone —
+      # where / order_by / desc / limit / a caller-supplied :floor — parsed,
+      # reached the IR, agreed byte-for-byte… and neither runtime could RUN
+      # one. The fourth construct in the same silence (policies, sagas,
+      # lifecycles before it). A query filters the store through the port,
+      # orders, caps, and answers full records — id first, then state.
+      def query(verb, **args)
+        domain, aggregate_name, query_name = parse(verb)
+        aggregate = resolve_aggregate(domain, aggregate_name, verb)
+        declared  = aggregate.queries.find { |q| q.name == query_name } ||
+                    raise(UnknownVerb, "#{aggregate_name} has no query #{query_name.inspect}")
+
+        records = @registry.repository(domain, aggregate).all
+        matched = records.select { |r| declared.wheres.all? { |w| where_holds?(w, r, args) } }
+        ordered = ordered(matched, declared.order_by)
+        capped  = declared.limit ? ordered.first(resolve_query_value(declared.limit.value, args).to_i) : ordered
+
+        capped.map { |r| { id: r.id }.merge(r.state) }
+      end
+
+      private
+
+      # eq and lt are the whole vocabulary the DSL admits today. A clause
+      # value is a literal, or a :symbol naming one of the query's own
+      # attributes, resolved from the caller.
+      def where_holds?(clause, record, args)
+        held = record[clause.field]
+        want = resolve_query_value(clause.value, args)
+
+        case clause.op.to_s
+        when "lt" then held.is_a?(Numeric) && want.is_a?(Numeric) && held < want
+        else           held == want
+        end
+      end
+
+      def resolve_query_value(value, args)
+        value.is_a?(Symbol) ? args[value] : value
+      end
+
+      # Numeric fields sort as numbers, everything else as text, ties break
+      # on id — spelled out because BOTH runtimes must sort identically or
+      # the harness drowns in ordering noise that means nothing.
+      def ordered(records, order_by)
+        return records unless order_by
+
+        field  = order_by.field
+        sorted = records.sort_by do |r|
+          value = r[field]
+          value.is_a?(Numeric) ? [0, value, 0, r.id.to_s] : [1, 0, value.to_s, r.id.to_s]
+        end
+        order_by.direction.to_s == "desc" ? sorted.reverse : sorted
+      end
+
+      public
+
       def dispatch(verb, **args)
         domain, aggregate_name, command_name = parse(verb)
         aggregate = resolve_aggregate(domain, aggregate_name, verb)

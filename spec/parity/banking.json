@@ -1,101 +1,306 @@
 {
   "name": "banking-parity",
-  "note": "Every operation the domain declares, walked to an EXACT ledger. Commands happy and refused (each debit gate one at a time, each lifecycle wall, each payload shape) ; the Settlement saga end to end - request, debit leg, credit leg, settle, retire - and its compensating leg : destination frozen mid-flight, credit refused ON THE SAGA LOG, back office reverses off the InFlight queue, money back where it started. Running balances are arithmetic all the way down : acct-1 ends at 60000 (the 1000 came back), acct-2 at 0 and closed, and any runtime that disagrees by one cent is the bug this file exists to catch. The last steps pass a non-numeric amount and a scalar where a two-field value object is declared, so the comparison proves the two runtimes word an EVALUATION failure identically, not just a rule failure.",
+  "note": "Every operation the domain declares, walked to an EXACT ledger. Commands happy and refused (each debit gate one at a time, each lifecycle wall, each payload shape) ; the Settlement saga end to end - request, debit leg, credit leg, settle, retire - and its compensating leg : destination frozen mid-flight, credit refused ON THE SAGA LOG, back office reverses off the InFlight queue, money back where it started. Running balances are arithmetic all the way down : acct-1 ends at 60000 (the 1000 came back), acct-2 at 0 and closed, and any runtime that disagrees by one cent is the bug this file exists to catch. The last steps pass a non-numeric amount and a scalar where a two-field value object is declared, so the comparison proves the two runtimes word an EVALUATION failure identically, not just a rule failure. Reads ride the same steps : InFlight shows the stuck transfer mid-story and empties by the end ; the compliance queue fills and drains ; Overdrawn takes its floor from the caller.",
   "steps": [
-    { "verb": "Banking::Customer.Register",
-      "args": { "reference": "CUST-0001",
-                "name": { "given": "Ada", "family": "Lovelace" },
-                "email": { "address": "ada@example.com" } } },
-
-    { "verb": "Banking::Customer.Register",
-      "args": { "reference": "",
-                "name": { "given": "No", "family": "Body" },
-                "email": { "address": "n@example.com" } } },
-
-    { "verb": "Banking::Account.Open",
-      "args": { "id": "acct-1", "customer": "CUST-0001", "number": "ACC-1",
-                "kind": "current", "daily_limit": 50000 } },
-
-    { "verb": "Banking::Account.Open",
-      "args": { "id": "acct-2", "customer": "CUST-0001", "number": "ACC-2",
-                "kind": "savings", "daily_limit": 10000 } },
-
-    { "verb": "Banking::Account.Open",
-      "args": { "id": "acct-noname", "customer": "CUST-0001", "number": "",
-                "kind": "savings", "daily_limit": 10000 } },
-
-    { "verb": "Banking::Account.Credit",
-      "args": { "id": "acct-1", "amount": 10000, "narrative": "Opening deposit" } },
-
-    { "verb": "Banking::Account.Credit",
-      "args": { "id": "acct-1", "amount": 0, "narrative": "Nothing at all" } },
-
-    { "verb": "Banking::Account.Debit",
-      "args": { "id": "acct-1", "amount": 2500, "narrative": "Groceries" } },
-
-    { "verb": "Banking::Account.Debit",
-      "args": { "id": "acct-1", "amount": 999999, "narrative": "More than is there" } },
-
-    { "verb": "Banking::Account.Debit",
-      "args": { "id": "acct-1", "amount": 0, "narrative": "Nothing at all" } },
-
-    { "verb": "Banking::Account.Credit",
-      "args": { "id": "acct-1", "amount": 55000, "narrative": "Salary" } },
-
-    { "verb": "Banking::Account.Debit",
-      "args": { "id": "acct-1", "amount": 52000, "narrative": "Covered, but over the daily limit" } },
-
-    { "verb": "Banking::Transfer.Request",
-      "args": { "id": "xfer-1", "source": "acct-1", "destination": "acct-2",
-                "amount": 2500, "narrative": "Rent" } },
-
-    { "verb": "Banking::Transfer.Request",
-      "args": { "id": "xfer-zero", "source": "acct-1", "destination": "acct-2",
-                "amount": 0, "narrative": "Nothing" } },
-
-    { "verb": "Banking::Transfer.Request",
-      "args": { "id": "xfer-self", "source": "acct-1", "destination": "acct-1",
-                "amount": 100, "narrative": "To myself" } },
-
-    { "verb": "Banking::Account.Freeze",  "args": { "id": "acct-2" } },
-
-    { "verb": "Banking::Transfer.Request",
-      "args": { "id": "xfer-2", "source": "acct-1", "destination": "acct-2",
-                "amount": 1000, "narrative": "Into the frozen account" } },
-
-    { "verb": "Banking::Transfer.Reverse", "args": { "transfer": "xfer-2" } },
-
-    { "verb": "Banking::Account.Unfreeze", "args": { "id": "acct-2" } },
-
-    { "verb": "Banking::Account.Freeze",   "args": { "id": "acct-1" } },
-    { "verb": "Banking::Account.Freeze",   "args": { "id": "acct-1" } },
-    { "verb": "Banking::Account.Debit",
-      "args": { "id": "acct-1", "amount": 100, "narrative": "From a frozen account" } },
-    { "verb": "Banking::Account.Unfreeze", "args": { "id": "acct-1" } },
-
-    { "verb": "Banking::Customer.Suspend",
-      "args": { "customer": "CUST-0001", "standing": "chargeback investigation" } },
-    { "verb": "Banking::Customer.Suspend",
-      "args": { "customer": "CUST-0001", "standing": "twice over" } },
-    { "verb": "Banking::Customer.Reinstate", "args": { "customer": "CUST-0001" } },
-    { "verb": "Banking::Customer.Reinstate", "args": { "customer": "CUST-0001" } },
-
-    { "verb": "Banking::Account.CloseAccount", "args": { "id": "acct-1" } },
-
-    { "verb": "Banking::Account.Debit",
-      "args": { "id": "acct-2", "amount": 2500, "narrative": "Emptying before close" } },
-    { "verb": "Banking::Account.CloseAccount", "args": { "id": "acct-2" } },
-    { "verb": "Banking::Account.Credit",
-      "args": { "id": "acct-2", "amount": 100, "narrative": "Into a closed account" } },
-
-    { "verb": "Banking::Account.Debit",
-      "args": { "id": "acct-ghost", "amount": 100, "narrative": "No such account" } },
-
-    { "verb": "Banking::Account.Debit",
-      "args": { "id": "acct-1", "amount": "lots", "narrative": "Not a number" } },
-
-    { "verb": "Banking::Customer.Register",
-      "args": { "reference": "CUST-9", "name": "Ada",
-                "email": { "address": "a@b.c" } } }
+    {
+      "verb": "Banking::Customer.Register",
+      "args": {
+        "reference": "CUST-0001",
+        "name": {
+          "given": "Ada",
+          "family": "Lovelace"
+        },
+        "email": {
+          "address": "ada@example.com"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Customer.Register",
+      "args": {
+        "reference": "",
+        "name": {
+          "given": "No",
+          "family": "Body"
+        },
+        "email": {
+          "address": "n@example.com"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.Open",
+      "args": {
+        "id": "acct-1",
+        "customer": "CUST-0001",
+        "number": "ACC-1",
+        "kind": "current",
+        "daily_limit": 50000
+      }
+    },
+    {
+      "verb": "Banking::Account.Open",
+      "args": {
+        "id": "acct-2",
+        "customer": "CUST-0001",
+        "number": "ACC-2",
+        "kind": "savings",
+        "daily_limit": 10000
+      }
+    },
+    {
+      "verb": "Banking::Account.Open",
+      "args": {
+        "id": "acct-noname",
+        "customer": "CUST-0001",
+        "number": "",
+        "kind": "savings",
+        "daily_limit": 10000
+      }
+    },
+    {
+      "verb": "Banking::Account.Credit",
+      "args": {
+        "id": "acct-1",
+        "amount": 10000,
+        "narrative": "Opening deposit"
+      }
+    },
+    {
+      "verb": "Banking::Account.Credit",
+      "args": {
+        "id": "acct-1",
+        "amount": 0,
+        "narrative": "Nothing at all"
+      }
+    },
+    {
+      "verb": "Banking::Account.Debit",
+      "args": {
+        "id": "acct-1",
+        "amount": 2500,
+        "narrative": "Groceries"
+      }
+    },
+    {
+      "verb": "Banking::Account.Debit",
+      "args": {
+        "id": "acct-1",
+        "amount": 999999,
+        "narrative": "More than is there"
+      }
+    },
+    {
+      "verb": "Banking::Account.Debit",
+      "args": {
+        "id": "acct-1",
+        "amount": 0,
+        "narrative": "Nothing at all"
+      }
+    },
+    {
+      "verb": "Banking::Account.Credit",
+      "args": {
+        "id": "acct-1",
+        "amount": 55000,
+        "narrative": "Salary"
+      }
+    },
+    {
+      "verb": "Banking::Account.Debit",
+      "args": {
+        "id": "acct-1",
+        "amount": 52000,
+        "narrative": "Covered, but over the daily limit"
+      }
+    },
+    {
+      "verb": "Banking::Transfer.Request",
+      "args": {
+        "id": "xfer-1",
+        "source": "acct-1",
+        "destination": "acct-2",
+        "amount": 2500,
+        "narrative": "Rent"
+      }
+    },
+    {
+      "verb": "Banking::Transfer.Request",
+      "args": {
+        "id": "xfer-zero",
+        "source": "acct-1",
+        "destination": "acct-2",
+        "amount": 0,
+        "narrative": "Nothing"
+      }
+    },
+    {
+      "verb": "Banking::Transfer.Request",
+      "args": {
+        "id": "xfer-self",
+        "source": "acct-1",
+        "destination": "acct-1",
+        "amount": 100,
+        "narrative": "To myself"
+      }
+    },
+    {
+      "verb": "Banking::Account.Freeze",
+      "args": {
+        "id": "acct-2"
+      }
+    },
+    {
+      "verb": "Banking::Transfer.Request",
+      "args": {
+        "id": "xfer-2",
+        "source": "acct-1",
+        "destination": "acct-2",
+        "amount": 1000,
+        "narrative": "Into the frozen account"
+      }
+    },
+    {
+      "query": "Banking::Transfer.InFlight"
+    },
+    {
+      "verb": "Banking::Transfer.Reverse",
+      "args": {
+        "transfer": "xfer-2"
+      }
+    },
+    {
+      "verb": "Banking::Account.Unfreeze",
+      "args": {
+        "id": "acct-2"
+      }
+    },
+    {
+      "verb": "Banking::Account.Freeze",
+      "args": {
+        "id": "acct-1"
+      }
+    },
+    {
+      "verb": "Banking::Account.Freeze",
+      "args": {
+        "id": "acct-1"
+      }
+    },
+    {
+      "verb": "Banking::Account.Debit",
+      "args": {
+        "id": "acct-1",
+        "amount": 100,
+        "narrative": "From a frozen account"
+      }
+    },
+    {
+      "verb": "Banking::Account.Unfreeze",
+      "args": {
+        "id": "acct-1"
+      }
+    },
+    {
+      "verb": "Banking::Customer.Suspend",
+      "args": {
+        "customer": "CUST-0001",
+        "standing": "chargeback investigation"
+      }
+    },
+    {
+      "verb": "Banking::Customer.Suspend",
+      "args": {
+        "customer": "CUST-0001",
+        "standing": "twice over"
+      }
+    },
+    {
+      "query": "Banking::Customer.Suspended"
+    },
+    {
+      "verb": "Banking::Customer.Reinstate",
+      "args": {
+        "customer": "CUST-0001"
+      }
+    },
+    {
+      "verb": "Banking::Customer.Reinstate",
+      "args": {
+        "customer": "CUST-0001"
+      }
+    },
+    {
+      "verb": "Banking::Account.CloseAccount",
+      "args": {
+        "id": "acct-1"
+      }
+    },
+    {
+      "verb": "Banking::Account.Debit",
+      "args": {
+        "id": "acct-2",
+        "amount": 2500,
+        "narrative": "Emptying before close"
+      }
+    },
+    {
+      "verb": "Banking::Account.CloseAccount",
+      "args": {
+        "id": "acct-2"
+      }
+    },
+    {
+      "verb": "Banking::Account.Credit",
+      "args": {
+        "id": "acct-2",
+        "amount": 100,
+        "narrative": "Into a closed account"
+      }
+    },
+    {
+      "verb": "Banking::Account.Debit",
+      "args": {
+        "id": "acct-ghost",
+        "amount": 100,
+        "narrative": "No such account"
+      }
+    },
+    {
+      "verb": "Banking::Account.Debit",
+      "args": {
+        "id": "acct-1",
+        "amount": "lots",
+        "narrative": "Not a number"
+      }
+    },
+    {
+      "verb": "Banking::Customer.Register",
+      "args": {
+        "reference": "CUST-9",
+        "name": "Ada",
+        "email": {
+          "address": "a@b.c"
+        }
+      }
+    },
+    {
+      "query": "Banking::Account.Open"
+    },
+    {
+      "query": "Banking::Account.Overdrawn",
+      "args": {
+        "floor": 70000
+      }
+    },
+    {
+      "query": "Banking::Customer.InGoodStanding"
+    },
+    {
+      "query": "Banking::Customer.Suspended"
+    },
+    {
+      "query": "Banking::Transfer.InFlight"
+    }
   ]
 }

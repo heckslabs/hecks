@@ -252,6 +252,7 @@ fn main() {
         }
     }
     let mut refusals: Vec<Value> = Vec::new();
+    let mut queries: Vec<Value> = Vec::new();
 
     let steps = script
         .get("steps")
@@ -260,13 +261,25 @@ fn main() {
         .unwrap_or_default();
 
     for step in steps {
-        let verb = step.get("verb").and_then(Value::as_str).unwrap_or_default();
         let args = step
             .get("args")
             .and_then(Value::as_object)
             .cloned()
             .unwrap_or_default();
 
+        // A step ASKS (`query`) or ACTS (`verb`). Reads are in the contract
+        // for the same reason reactions and sagas are : seven query
+        // declarations sat in the corpus with no step ever running one, on
+        // either side.
+        if let Some(question) = step.get("query").and_then(Value::as_str) {
+            match runtime.query(question, &args) {
+                Ok(rows) => queries.push(json!({ "query": question, "args": args, "rows": rows })),
+                Err(message) => queries.push(json!({ "query": question, "args": args, "error": message })),
+            }
+            continue;
+        }
+
+        let verb = step.get("verb").and_then(Value::as_str).unwrap_or_default();
         // A refusal is a RESULT, not a crash - the parity harness compares
         // refusals as carefully as it compares successes, because a runtime
         // that accepts what the other refuses is the failure worth catching.
@@ -294,6 +307,8 @@ fn main() {
         // parsers agreed byte-for-byte, and it ran nowhere. Every born /
         // advanced / refused / ended step is compared.
         "sagas": runtime.sagas,
+        // AND THE READS — the fourth construct in the same silence.
+        "queries": queries,
     });
 
     println!("{}", serde_json::to_string_pretty(&output).unwrap());

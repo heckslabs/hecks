@@ -25,10 +25,26 @@ runtime   = Hecks.boot(domain)
 steps     = JSON.parse(File.read(script)).fetch("steps")
 refusals  = []
 
+queries = []
+
 steps.each do |step|
-  verb = step["verb"]
   args = (step["args"] || {}).transform_keys(&:to_sym)
 
+  # A step ASKS (`query`) or ACTS (`verb`). Reads are in the contract for
+  # the same reason reactions and sagas are : seven query declarations —
+  # where / order_by / desc / limit / a caller-supplied floor — sat in the
+  # corpus with no step ever running one, on either side.
+  if (question = step["query"])
+    begin
+      rows = runtime.query(question, **args)
+      queries << { query: question, args: args, rows: rows }
+    rescue StandardError => e
+      queries << { query: question, args: args, error: e.message }
+    end
+    next
+  end
+
+  verb = step["verb"]
   begin
     runtime.dispatch(verb, **args)
   rescue StandardError => e
@@ -72,5 +88,5 @@ sagas = runtime.sagas
 
 puts JSON.pretty_generate(
   instances: instances, events: events, refusals: refusals, reactions: reactions,
-  sagas: sagas
+  sagas: sagas, queries: queries
 )
