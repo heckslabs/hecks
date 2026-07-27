@@ -48,15 +48,72 @@ module Hecksagain
 
       # Fail fast: resolve every declared bind now.
       def verify!
+        verify_default_adapter!
+
         @hecksagons.each_value do |hexagon|
           hexagon.binds.each do |bind|
             aggregate = bluebook(hexagon.domain)&.aggregate(bind.aggregate_name)
             raise WiringError, "#{bind.aggregate} is bound but not declared in the bluebook" unless aggregate
 
+            # THE ATTACH CHECKPOINT, for EVERY declared bind — not only the
+            # persistence one. `repository` below resolves the aggregate's
+            # persisted_by bind and ignores whichever bind we are iterating, so
+            # a bind on any other verb was never verb-checked at all. A spec
+            # named "refuses a bind whose adapter cannot satisfy the verb" wired
+            # `Pizza.charged_by("Memory")` and passed — on the unrelated error
+            # that Pizza had no persisted_by bind. Once an unbound aggregate got
+            # the Memory default that accident vanished and the gap showed.
+            check_verb(bind)
+
             repository(hexagon.domain, aggregate)
           end
         end
         self
+      end
+
+      # THE DEFAULT ADAPTER MUST ACTUALLY BE THERE.
+      #
+      # An aggregate with no bind resolves through a synthesised bind naming
+      # Ports::Persistence::DEFAULT_ADAPTER — a STRING, matched against a
+      # declaration that arrives by a glob in the Folder adapter's
+      # `load_library`, backed by a class that arrives by a require in
+      # hecksagain.rb. Three independent things that have to meet, none of them
+      # checked, and all of them reliable right up until one is renamed.
+      #
+      # Unchecked, a break surfaces as `unknown adapter "Memory"` at first save
+      # — legible, but late, and raised on a path the author never wrote, which
+      # is the worst place to learn it. The default is the one bind nobody
+      # declares, so it is the one bind nobody would think to look at.
+      #
+      # Proving it costs one lookup : resolve it exactly as a real bind would.
+      def verify_default_adapter!
+        name = Ports::Persistence::DEFAULT_ADAPTER
+
+        check_verb(
+          Bluebook::IR::Bind.new(
+            aggregate: "(default)",
+            verb:      Ports::Persistence::VERB,
+            adapter:   name
+          )
+        )
+        adapter_class(name)
+        self
+      rescue WiringError => error
+        raise WiringError,
+              "the default persistence adapter (#{name}) is not usable, so an " \
+              "aggregate with no bind could not be given one: #{error.message}"
+      end
+
+      # An adapter may exist, be spelled correctly, and still be the wrong KIND
+      # of edge. Memory implements persistence and cannot charge, and that is
+      # caught here — at boot, rather than at first fire.
+      def check_verb(bind)
+        port = port_for(bind)
+        return if port.verb.to_s == bind.verb.to_s
+
+        raise WiringError,
+              "#{bind.adapter} implements the #{port.name} port (verb #{port.verb}) " \
+              "and cannot satisfy #{bind.verb}"
       end
 
       # Generic port machinery — PUBLIC, because the port modules under ports/
