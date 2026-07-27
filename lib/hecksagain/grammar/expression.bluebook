@@ -199,14 +199,173 @@ Hecks.bluebook "Expression" do
   end
 
   # ============================================================
+  # NORMALISATION — the rules that MAKE the canonical text
+  # ============================================================
+  #
+  # Operator declares what an expression may SAY. This declares how what it says
+  # is SPELLED. Both are language facts, so both are declared the same way :
+  # a rule is admitted only once it reads in every target, because a rule one
+  # runtime applies and another does not is two runtimes canonicalising one
+  # predicate into two different texts — and canonical text is the thing they
+  # were supposed to agree about.
+  #
+  # WHY THIS AGGREGATE EXISTS. It was written the day the fold proved the
+  # chapter's own warning. `.length` folded to `.size` was stated in a COMMENT
+  # and nowhere else, so each side implemented it honestly and differently :
+  # Ruby anchored the match at a word boundary, Rust replaced the bare
+  # substring. They agree on `.length` and split on `.length_cm`, where Rust
+  # renamed a member that exists to one that does not. Neither author was
+  # careless. The chapter was loose, which is the failure this chapter says is
+  # always its own : "specified it loosely enough that two honest
+  # implementations read it differently."
+  #
+  # So a rule carries its BOUNDARY CONDITION as declared text, not as an
+  # implementer's inference. "Fold `.length` to `.size`" is ambiguous ; "fold
+  # `.length` to `.size` when the next character is not a word character" is
+  # not, and both targets can be held to it.
+  #
+  # ORDER IS DECLARED, not left to whichever sequence each side happens to
+  # write. Collapsing whitespace before folding, or after, can differ for a
+  # rule whose boundary is a space — so `position` says which runs first, for
+  # the same reason Operator declares precedence rather than implying it.
+  aggregate "Normalisation" do
+    description "One rule that turns written source into canonical text — its boundary condition, where it sits in the order, and how it reads in every target that must apply it."
+
+    identified_by :name
+
+    # The shape is borrowed, not invented. Hecks states a parse rule twice and
+    # both times as a named PRIMITIVE plus its OPERANDS — `BlockGrammarEntry
+    # (keyword, parser)` for routing, `FieldRule (field, strategy,
+    # source_token)` for extraction. Prose was the mistake ; "the substring
+    # .length becomes .size" is a description of a rule, and a description is
+    # what two honest implementations read differently.
+    #
+    # `strategy` names HOW — the primitive each target implements.
+    # `source_token` and `replacement` are WHAT it operates on.
+    # `boundary` is the condition that was missing the day this split.
+    attribute :name,         String
+    attribute :strategy,     String
+    attribute :source_token, String
+    attribute :replacement,  String
+    attribute :boundary,     String, default: "none"
+    attribute :position,     Integer
+    attribute :readings,     list_of(Reading)
+    attribute :status,       String, default: "proposed"
+
+    # THE CANONICAL TABLE, declared as data rather than dispatched in from a
+    # test script. This is the source both runtimes' bootstrap tables answer
+    # to, and the reason `one_of` had to come over from Hecks first : until it
+    # did, this chapter could declare a SHAPE and not a FACT.
+    #
+    # A rule may only name a strategy the targets have LINKED. Hecks says this
+    # exactly — `BlockParser::from_name` returns None for an unknown name,
+    # "the bluebook grammar can't reach functions that haven't been linked into
+    # the binary". A bluebook composes primitives ; it does not invent them.
+    value_object "Rule" do
+      attribute :strategy,     String
+      attribute :source_token, String
+      attribute :replacement,  String
+      attribute :boundary,     String
+      attribute :position,     Integer
+
+      one_of do
+        member strategy: "collapse_whitespace", source_token: "", replacement: "", boundary: "none", position: 1
+        member strategy: "replace", source_token: ".length", replacement: ".size", boundary: "word", position: 2
+      end
+    end
+
+    value_object "Reading" do
+      # How this rule reads in one target. `target` names the runtime ("ruby",
+      # "rust") ; `form` is the shape it takes there. Recording the form is what
+      # makes a silent divergence visible : two forms sitting side by side in
+      # one document are read together, and a boundary present in one and
+      # absent in the other is obvious in a way two files never are.
+      attribute :target, String
+      attribute :form,   String
+
+      invariant("a reading must name its target") { !target.to_s.empty? }
+      invariant("a reading must have a form")     { !form.to_s.empty? }
+    end
+
+    command "Propose" do
+      role "Language designer"
+      goal "Put a normalisation rule forward for the canonical form"
+
+      attribute :name,         String
+      attribute :strategy,     String
+      attribute :source_token, String
+      attribute :replacement,  String
+      attribute :boundary,     String
+      attribute :position,     Integer
+
+      # A rule may only name a strategy every target has LINKED. Hecks draws
+      # this line at `BlockParser::from_name` returning None ; here it is a
+      # given, so the refusal is the domain's rather than a parser's silence.
+      given("a rule must name a linked strategy") do
+        strategy == "collapse_whitespace" || strategy == "replace"
+      end
+
+      # The boundary is the condition that was missing the day this split.
+      # "none" is a declared answer ; silence is not.
+      given("a rule must state its boundary") { boundary == "none" || boundary == "word" }
+
+      emits "NormalisationProposed"
+    end
+
+    command "Read" do
+      role "Language designer"
+      goal "Declare how this rule reads in one target"
+
+      reference_to Normalisation
+      attribute :target, String
+      attribute :form,   String
+
+      given("a retired rule takes no new readings") { status != "retired" }
+
+      then_set :readings, append: { target: :target, form: :form }
+
+      emits "NormalisationRead"
+    end
+
+    command "Admit" do
+      role "Language designer"
+      goal "Accept the rule into the canonical form"
+
+      # The same gate Operator keeps, for the same reason. A normalisation rule
+      # only one target applies does not produce a canonical text — it produces
+      # two texts and the appearance of one.
+      reference_to Normalisation
+
+      given("a rule must read in every target before it is admitted") { readings.size >= 2 }
+      given("only a proposed rule can be admitted")                   { status == "proposed" }
+
+      then_set :status, to: "admitted"
+
+      emits "NormalisationAdmitted"
+    end
+
+    command "Retire" do
+      role "Language designer"
+      goal "Remove a rule from the canonical form"
+
+      reference_to Normalisation
+
+      given("only an admitted rule can be retired") { status == "admitted" }
+
+      then_set :status, to: "retired"
+
+      emits "NormalisationRetired"
+    end
+  end
+
+  # ============================================================
   # EXPRESSION — a predicate, extracted
   # ============================================================
   #
   # What the IR actually carries. `source` is the Ruby as the developer wrote
   # it, kept verbatim so a reader can always see the original. `canonical` is
-  # that same expression normalised — one space around every binary operator,
-  # `.length` folded to `.size`, redundant parens dropped — and IT is the form
-  # both runtimes evaluate.
+  # that same expression normalised — by the rules Normalisation declares above,
+  # in the order it declares them — and IT is the form both runtimes evaluate.
   #
   # Normalising matters more than it looks. Two spellings of one predicate
   # would hash differently, cache differently, and diff as a change when

@@ -77,6 +77,89 @@
       }
     },
     {
+      "verb": "Expression::Normalisation.Propose",
+      "args": {
+        "name": "collapse_whitespace",
+        "strategy": "collapse_whitespace",
+        "source_token": "",
+        "replacement": "",
+        "boundary": "none",
+        "position": 1
+      }
+    },
+    {
+      "verb": "Expression::Normalisation.Admit",
+      "args": {
+        "name": "collapse_whitespace"
+      }
+    },
+    {
+      "verb": "Expression::Normalisation.Read",
+      "args": {
+        "name": "collapse_whitespace",
+        "target": "ruby",
+        "form": "source.split.join(' ')"
+      }
+    },
+    {
+      "verb": "Expression::Normalisation.Read",
+      "args": {
+        "name": "collapse_whitespace",
+        "target": "rust",
+        "form": "source.split_whitespace().collect::<Vec<_>>().join(\" \")"
+      }
+    },
+    {
+      "verb": "Expression::Normalisation.Admit",
+      "args": {
+        "name": "collapse_whitespace"
+      }
+    },
+    {
+      "verb": "Expression::Normalisation.Propose",
+      "args": {
+        "name": "fold_length",
+        "strategy": "replace",
+        "source_token": ".length",
+        "replacement": ".size",
+        "boundary": "word",
+        "position": 2
+      }
+    },
+    {
+      "verb": "Expression::Normalisation.Read",
+      "args": {
+        "name": "fold_length",
+        "target": "ruby",
+        "form": "gsub(/\\.length\\b/, '.size')"
+      }
+    },
+    {
+      "verb": "Expression::Normalisation.Read",
+      "args": {
+        "name": "fold_length",
+        "target": "rust",
+        "form": "fold_length : find(\".length\") then require the next char be non-word"
+      }
+    },
+    {
+      "verb": "Expression::Normalisation.Admit",
+      "args": {
+        "name": "fold_length"
+      }
+    },
+    {
+      "verb": "Expression::Normalisation.Propose",
+      "args": {
+        "name": "drop_redundant_parens",
+        "strategy": "invent_something",
+        "source_token": "",
+        "replacement": "",
+        "boundary": "none",
+        "position": 3
+      }
+    },
+    {
       "verb": "Expression::Expression.Extract",
       "args": {
         "id": "ex-1",
@@ -157,6 +240,52 @@
       "args": {
         "id": "ag-1",
         "reason": "already settled"
+      }
+    },
+    {
+      "verb": "Expression::Expression.Extract",
+      "args": {
+        "id": "ex-length-cm",
+        "description": "the case that proved the fold was underspecified",
+        "source": "dims.length_cm > 0",
+        "canonical": "dims.length_cm > 0",
+        "subject": "Box"
+      }
+    },
+    {
+      "verb": "Expression::Expression.Admit",
+      "args": {
+        "id": "ex-length-cm"
+      }
+    },
+    {
+      "verb": "Expression::Agreement.Ask",
+      "args": {
+        "id": "ag-length-cm",
+        "canonical": "dims.length_cm > 0",
+        "subject": "Box"
+      }
+    },
+    {
+      "verb": "Expression::Agreement.Answer",
+      "args": {
+        "id": "ag-length-cm",
+        "runtime": "ruby",
+        "outcome": "true"
+      }
+    },
+    {
+      "verb": "Expression::Agreement.Answer",
+      "args": {
+        "id": "ag-length-cm",
+        "runtime": "rust",
+        "outcome": "true"
+      }
+    },
+    {
+      "verb": "Expression::Agreement.Settle",
+      "args": {
+        "id": "ag-length-cm"
       }
     }
   ]

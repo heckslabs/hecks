@@ -37,7 +37,14 @@ module Hecksagain
             vision:           @vision,
             aggregates:       @aggregates.map(&:to_h),
             policies:         @policies.map(&:to_h),
-            process_managers: @process_managers.map(&:to_h)
+            process_managers: @process_managers.map(&:to_h),
+            # THE NORMALISATION TABLE THIS RUNTIME USED, carried in the contract
+            # rather than left in code for someone to compare by eye. Every
+            # `canonical` above was produced by these rows, so a table that
+            # disagrees with the other runtime's is a SPLIT on the very next
+            # parity run. The fold's word-boundary divergence lived for as long
+            # as it did because nothing diffed this.
+            canonical_form:   Expression::CanonicalForm.table
           }
         end
       end

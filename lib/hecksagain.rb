@@ -20,6 +20,7 @@ require_relative "hecksagain/aggregate"
 require_relative "hecksagain/ports/loading/loading"
 require_relative "hecksagain/ports/persistence/persistence"
 require_relative "hecksagain/ports/extraction/extraction"
+require_relative "hecksagain/bluebook/expression/canonical_form"
 require_relative "hecksagain/bluebook/expression/resolver"
 require_relative "hecksagain/bluebook/expression/evaluator"
 

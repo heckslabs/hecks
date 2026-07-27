@@ -70,18 +70,14 @@ module Hecksagain
         node.compact_child_nodes.each { |child| walk(child, &visit) }
       end
 
-      # One meaning, one text. Two spellings of the same predicate would hash
-      # differently, diff as a change when nothing changed, and read as two
-      # distinct programs to anything that partially evaluates on the text.
-      #
-      # `.length` folds to `.size` because the interpreter floor treats them as
-      # one operation — normalising here means the fold happens once, at
-      # extraction, rather than in every target that has to evaluate it.
+      # One meaning, one text — by the declared table, not by a line written
+      # here and a matching line written in Rust. Those two were written by
+      # different hands and did not match : this side anchored `.length` at a
+      # word boundary, the other replaced the bare substring, and
+      # `dims.length_cm` came out differently in each. See
+      # bluebook/expression/canonical_form.rb.
       def canonicalise(source)
-        source.to_s
-              .gsub(/\s+/, " ")
-              .gsub(/\.length\b/, ".size")
-              .strip
+        Bluebook::Expression::CanonicalForm.apply(source)
       end
     end
   end

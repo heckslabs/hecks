@@ -1,6 +1,7 @@
 # The Expression hexagon — a grammar chapter, held in memory.
 Hecks.hecksagon "Expression" do
   Expression::Operator.persisted_by("Memory")
+  Expression::Normalisation.persisted_by("Memory")
   Expression::Expression.persisted_by("Memory")
   Expression::Agreement.persisted_by("Memory")
 end
