@@ -94,3 +94,50 @@ L6 hecks mirrors — the wprobe payload-gate acceptance (live dispatch
 - hecksagain commits tell the finding-first story like the existing log.
 - hecks commits ride feat/fixtures-to-policies conventions (antibody
   markers, parity 389/389, workspace builds).
+
+## CLOSED (2026-07-27) — what the arc found and shipped
+
+Five constructs were vocabulary without machinery, all green-by-agreement :
+
+1. **Arithmetic** — then_set knew to:/append: only ; banking's credit
+   REPLACED the balance. increment:/decrement: (hecks i106 spelling, one
+   deliberate deviation : non-Integer refuses loudly, never ±1). 894ef9b
+2. **Appended literals** — `direction: "credit"` resolved as an argument
+   lookup ; every ledger entry carried null, both sides. Same commit.
+3. **Sagas** — the engine : born-with-memory / advance-transition-first /
+   with: resolving correlation→payload→memory / refused-legs-recorded /
+   ends_on-retires ; correlation falls back to the emitting aggregate's
+   own id ; sagas: joins the run contract. afffaec
+4. **Lifecycles** — field born at default, from: refuses in so many
+   words, transition applies after mutations ; facade reads the field.
+   Same commit + ede742e
+5. **Queries** — where/order_by/desc/limit/:param execute through the
+   port ; queries: joins the contract ; InFlight checked full AND empty.
+   abbd713
+
+Plus : reference-key hydration (natural key → id → reference key — the
+hecks convention ; 21 agreeing "pass id:" refusals had looked like a
+passing suite), and instances: read from the STORE after the run (the
+per-step snapshot reported "requested" while the store held "settled" —
+Rust told the truth, the diff caught it).
+
+Banking now walks 41 steps to an EXACT ledger on both runtimes,
+byte-identical : acct-1 ends at 60000 through six movements including
+the 1000 the compensation brought back ; acct-2 empties and closes ;
+xfer-1 settles and its saga retires ; xfer-2's credit is refused ON THE
+LOG while the destination is frozen, sits in InFlight, reverses, ends
+"reversed". rspec 218/218 · cargo zero warnings · bin/parity AGREED ×3.
+
+hecks mirror (fix/spawn-cwd-contract 95bb1418f) : the ±1 fallback dies —
+a non-numeric increment/decrement skips loudly, moves nothing.
+
+## The one declared-but-unrunnable surface left
+
+ENTITY commands and queries (LedgerEntry.Reverse, LedgerEntry.Reversed).
+No verb spelling reaches an entity in either runtime — equal, and now
+DOCUMENTED rather than silent. hecks dispatches entities as
+`Aggregate.Entity.Command` (3-part) ; bringing that over is its own
+layer, and the coverage gate should refuse the keywords until it lands.
+Also open : ledger entries carry no `sequence` (the entity's declared
+identity) on append — entity identity assignment belongs to the same
+layer.
