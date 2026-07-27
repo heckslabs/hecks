@@ -42,6 +42,15 @@ pub struct Runtime {
     /// is a reaction nobody misses — which is how four declared policies ran
     /// nowhere in BOTH runtimes while parity stayed green.
     pub reactions: Vec<Value>,
+    /// Every process-manager step — born, advanced, refused, ended. The
+    /// projection of Ruby's `registry.saga_log` : Settlement parsed, both
+    /// parsers agreed on it byte-for-byte, and it ran NOWHERE. A saga the
+    /// contract does not compare is a saga that can silently stop again.
+    pub sagas: Vec<Value>,
+    /// Live conversations : pm name → correlation → (state, remembered opening
+    /// payload). Memory is the STARTING event's payload — a saga exists because
+    /// something has to remember which half is done.
+    saga_instances: BTreeMap<String, BTreeMap<String, (String, Map<String, Value>)>>,
     minted: usize,
     /// How deep the current reaction chain is. A policy whose command emits the
     /// event it waits for would react for ever ; bounded rather than detected,
@@ -53,6 +62,64 @@ pub struct Runtime {
 /// Mirrors Ruby's MAX_REACTION_DEPTH.
 const MAX_REACTION_DEPTH: usize = 5;
 
+/// The lifecycle's admission rule — the projection of Ruby's
+/// `admissible_transition`. None when the command is not part of the machine ;
+/// Some((field, to_state)) when admitted ; Err when the machine says no. A
+/// transition whose from_state is null admits any state. The canonical IR is
+/// already flat — one record per (command, to, from) — so admission is a scan.
+fn admissible_transition(
+    aggregate: &Map<String, Value>,
+    command_name: &str,
+    state: &State,
+) -> Result<Option<(String, String)>, String> {
+    let Some(lifecycle) = aggregate.get("lifecycle").and_then(Value::as_object) else {
+        return Ok(None);
+    };
+    let field = lifecycle.get("field").and_then(Value::as_str).unwrap_or_default();
+    let transitions: Vec<&Value> = lifecycle
+        .get("transitions")
+        .and_then(Value::as_array)
+        .map(|t| {
+            t.iter()
+                .filter(|t| t.get("command").and_then(Value::as_str) == Some(command_name))
+                .collect()
+        })
+        .unwrap_or_default();
+    if transitions.is_empty() {
+        return Ok(None);
+    }
+
+    let current = state
+        .get(field)
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string();
+    let admitted = transitions.iter().find(|t| {
+        match t.get("from_state") {
+            None | Some(Value::Null) => true,
+            Some(from) => from.as_str() == Some(current.as_str()),
+        }
+    });
+    if let Some(t) = admitted {
+        let to = t.get("to_state").and_then(Value::as_str).unwrap_or_default().to_string();
+        return Ok(Some((field.to_string(), to)));
+    }
+
+    let mut allowed: Vec<String> = Vec::new();
+    for t in &transitions {
+        if let Some(from) = t.get("from_state").and_then(Value::as_str) {
+            let shown = format!("{from:?}");
+            if !allowed.contains(&shown) {
+                allowed.push(shown);
+            }
+        }
+    }
+    Err(format!(
+        "{command_name} refused — {field} is {current:?}, and {command_name} moves it only from {}",
+        allowed.join(" or ")
+    ))
+}
+
 impl Runtime {
     pub fn new(ir: Value) -> Self {
         Runtime {
@@ -61,6 +128,8 @@ impl Runtime {
             adapters: BTreeMap::new(),
             events: Vec::new(),
             reactions: Vec::new(),
+            sagas: Vec::new(),
+            saga_instances: BTreeMap::new(),
             minted: 0,
             reaction_depth: 0,
         }
@@ -135,11 +204,20 @@ impl Runtime {
             }
         }
 
+        // The state machine gates BEFORE anything is written and moves AFTER
+        // the mutations land. The projection of Ruby's `admissible_transition` —
+        // wording to the character, because a refusal the two runtimes phrase
+        // differently is a diff the harness has to explain away.
+        let transition_to = admissible_transition(&aggregate, &command_name, &state)?;
+
         if creates {
             assign_creation_attributes(&mut state, &aggregate, &command, args)?;
         }
         for mutation in array(&command, "mutations") {
             apply_mutation(&mut state, &aggregate, &mutation, args)?;
+        }
+        if let Some((field, to_state)) = transition_to {
+            state.insert(field, Value::String(to_state));
         }
 
         // PERSIST through the adapter the hecksagon bound.
@@ -183,6 +261,14 @@ impl Runtime {
             self.react_to(event, &domain);
         }
 
+        // REMEMBER - a process manager is the conversation that outlives any
+        // one command. After the reflexes, and after react_to, so a policy's
+        // reaction and a saga's advance read the same event in a fixed order
+        // on both runtimes. The projection of Ruby's `advance_sagas`.
+        for event in &announced {
+            self.advance_sagas(event, &domain);
+        }
+
         let mut result = state;
         result.insert(identity, Value::String(id));
         Ok(result)
@@ -211,8 +297,35 @@ impl Runtime {
             return Ok((id, defaults_for(aggregate)));
         }
 
+        // Three spellings address a record, in order : the natural key
+        // (identified_by), the universal `id:`, and the REFERENCE KEY — the
+        // snake_case of the aggregate `reference_to` names, so Reverse takes
+        // `transfer:`. The projection of Ruby's hydrate ; only the first
+        // spelling resolved before, and the whole saga surface refused with
+        // "pass id:" in both runtimes — 21 agreeing refusals that looked like
+        // a passing suite.
+        let reference_key = command
+            .get("references")
+            .and_then(Value::as_str)
+            .map(|target| {
+                let mut key = String::new();
+                for (i, c) in target.chars().enumerate() {
+                    if c.is_ascii_uppercase() {
+                        if i > 0 {
+                            key.push('_');
+                        }
+                        key.push(c.to_ascii_lowercase());
+                    } else {
+                        key.push(c);
+                    }
+                }
+                key
+            })
+            .unwrap_or_default();
         let id = args
             .get(identity)
+            .or_else(|| args.get("id"))
+            .or_else(|| args.get(&reference_key))
             .and_then(Value::as_str)
             .ok_or_else(|| format!("{} acts on an existing {} — pass {}:", command_name, aggregate_name, identity))?
             .to_string();
@@ -297,6 +410,286 @@ impl Runtime {
     ///
     /// A policy matches on the event NAME, and when its subscription is
     /// qualified (`on "Order.Placed"`) on the emitting aggregate too.
+    // ======================================================================
+    // THE CONVERSATION THAT OUTLIVES A COMMAND — the projection of Ruby's
+    // saga engine (lib/hecksagain/runtime/dispatcher.rb holds the semantics
+    // and the doctrine comment ; this is the mirror, step for step) :
+    // born → advanced (transition FIRST, then dispatches ; `with:` symbols
+    // read the event payload first, the remembered opening payload second)
+    // → refused dispatches recorded, never propagated → ended on ends_on.
+    // ======================================================================
+    fn advance_sagas(&mut self, event: &Value, domain: &str) {
+        let pms = self
+            .ir
+            .get(domain)
+            .and_then(|bluebook| bluebook.get("process_managers"))
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+
+        for pm in &pms {
+            self.begin_saga(pm, event);
+            self.advance_saga(pm, event, domain);
+            self.end_saga(pm, event);
+        }
+    }
+
+    /// The projection of Ruby's `saga_correlation` : the payload's
+    /// correlates_by field when it rides there — and when the field NAMES THE
+    /// EMITTING AGGREGATE (correlates_by :transfer, event from Transfer), the
+    /// event's own id IS that value, because `transfer` is the reference-key
+    /// spelling of a Transfer's identity everywhere else in the language.
+    fn correlation(pm: &Value, event: &Value) -> Option<String> {
+        let field = pm.get("correlates_by").and_then(Value::as_str)?;
+        if let Some(value) = event.get("payload").and_then(|p| p.get(field)) {
+            // Null is ABSENT, not the four-letter string "null" — Ruby's nil
+            // reads as no-correlation, and a saga keyed by "null" would be a
+            // conversation with a ghost.
+            if !value.is_null() {
+                let text = value.as_str().map(str::to_string).unwrap_or_else(|| value.to_string());
+                if !text.is_empty() {
+                    return Some(text);
+                }
+            }
+        }
+
+        let emitting = event
+            .get("aggregate")
+            .and_then(Value::as_str)
+            .and_then(|fqn| fqn.rsplit("::").next())
+            .unwrap_or_default();
+        let mut own_key = String::new();
+        for (i, c) in emitting.chars().enumerate() {
+            if c.is_ascii_uppercase() {
+                if i > 0 {
+                    own_key.push('_');
+                }
+                own_key.push(c.to_ascii_lowercase());
+            } else {
+                own_key.push(c);
+            }
+        }
+        if own_key != field {
+            return None;
+        }
+        let id = event.get("id").and_then(Value::as_str).unwrap_or_default();
+        if id.is_empty() { None } else { Some(id.to_string()) }
+    }
+
+    fn begin_saga(&mut self, pm: &Value, event: &Value) {
+        let name = pm.get("name").and_then(Value::as_str).unwrap_or_default().to_string();
+        let event_name = event.get("name").and_then(Value::as_str).unwrap_or_default();
+        if Some(event_name) != pm.get("starts_on").and_then(Value::as_str) {
+            return;
+        }
+
+        let Some(correlation) = Self::correlation(pm, event) else {
+            let field = pm.get("correlates_by").and_then(Value::as_str).unwrap_or_default();
+            self.sagas.push(json!({
+                "process_manager": name, "on": event_name,
+                "born": false, "reason": format!("no {field} in the payload"),
+            }));
+            return;
+        };
+        if self.saga_instances.get(&name).is_some_and(|t| t.contains_key(&correlation)) {
+            return;
+        }
+
+        let first_state = pm
+            .get("states")
+            .and_then(Value::as_array)
+            .and_then(|s| s.first())
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string();
+        let memory = event
+            .get("payload")
+            .and_then(Value::as_object)
+            .cloned()
+            .unwrap_or_default();
+
+        self.saga_instances
+            .entry(name.clone())
+            .or_default()
+            .insert(correlation.clone(), (first_state.clone(), memory));
+        self.sagas.push(json!({
+            "process_manager": name, "on": event_name,
+            "instance": correlation, "born": true, "state": first_state,
+        }));
+    }
+
+    fn advance_saga(&mut self, pm: &Value, event: &Value, domain: &str) {
+        let pm_name = pm.get("name").and_then(Value::as_str).unwrap_or_default().to_string();
+        let event_name = event.get("name").and_then(Value::as_str).unwrap_or_default().to_string();
+        let Some(handler) = pm
+            .get("handlers")
+            .and_then(Value::as_array)
+            .and_then(|hs| {
+                hs.iter()
+                    .find(|h| h.get("event_type").and_then(Value::as_str) == Some(event_name.as_str()))
+            })
+            .cloned()
+        else {
+            return;
+        };
+        let Some(correlation) = Self::correlation(pm, event) else { return };
+
+        let from = handler.get("from_state").and_then(Value::as_str).unwrap_or_default().to_string();
+        let to = handler.get("to_state").and_then(Value::as_str).unwrap_or_default().to_string();
+
+        let Some((state, memory)) = self
+            .saga_instances
+            .get(&pm_name)
+            .and_then(|t| t.get(&correlation))
+            .cloned()
+        else {
+            self.sagas.push(json!({
+                "process_manager": pm_name, "on": event_name, "instance": correlation,
+                "advanced": false, "reason": format!("no conversation remembers {correlation:?}"),
+            }));
+            return;
+        };
+        if state != from {
+            self.sagas.push(json!({
+                "process_manager": pm_name, "on": event_name, "instance": correlation,
+                "advanced": false, "reason": format!("in {state:?}, not {from:?}"),
+            }));
+            return;
+        }
+
+        // Transition FIRST — a dispatch below can cascade back into this saga
+        // (Credit → AccountCredited), and the nested advance must see the new
+        // state, not the one it is leaving.
+        if let Some(instance) = self
+            .saga_instances
+            .get_mut(&pm_name)
+            .and_then(|t| t.get_mut(&correlation))
+        {
+            instance.0 = to.clone();
+        }
+        self.sagas.push(json!({
+            "process_manager": pm_name, "on": event_name, "instance": correlation,
+            "advanced": true, "from": from, "to": to,
+        }));
+
+        let dispatches = handler
+            .get("dispatches")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        for spec in &dispatches {
+            self.deliver_saga_dispatch(&pm_name, spec, event, &memory, &correlation, domain);
+        }
+    }
+
+    fn deliver_saga_dispatch(
+        &mut self,
+        pm_name: &str,
+        spec: &Value,
+        event: &Value,
+        memory: &Map<String, Value>,
+        correlation: &str,
+        domain: &str,
+    ) {
+        let command = spec.get("command_name").and_then(Value::as_str).unwrap_or_default();
+        let payload = event
+            .get("payload")
+            .and_then(Value::as_object)
+            .cloned()
+            .unwrap_or_default();
+
+        // `with:` values ride the canonical IR spelling : a leading ':' names a
+        // key to READ — the conversation's own name when it IS the
+        // correlates_by field (inside this saga `:transfer` means exactly the
+        // correlation), then the triggering event's payload, then the
+        // remembered opening payload — and anything else is a literal to write.
+        // The projection of Ruby's resolution order, exactly.
+        let correlates_by = self
+            .ir
+            .get(domain)
+            .and_then(|b| b.get("process_managers"))
+            .and_then(Value::as_array)
+            .and_then(|pms| {
+                pms.iter()
+                    .find(|p| p.get("name").and_then(Value::as_str) == Some(pm_name))
+            })
+            .and_then(|p| p.get("correlates_by"))
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string();
+        let mut args = Map::new();
+        for pair in spec.get("with").and_then(Value::as_array).cloned().unwrap_or_default() {
+            let (Some(key), Some(token)) = (
+                pair.get(0).and_then(Value::as_str),
+                pair.get(1).and_then(Value::as_str),
+            ) else {
+                continue;
+            };
+            let value = match token.strip_prefix(':') {
+                Some(name) if name == correlates_by => Value::String(correlation.to_string()),
+                Some(name) => payload
+                    .get(name)
+                    .or_else(|| memory.get(name))
+                    .cloned()
+                    .unwrap_or(Value::Null),
+                None => Value::String(token.to_string()),
+            };
+            args.insert(key.to_string(), value);
+        }
+
+        let target = if command.contains("::") {
+            command.to_string()
+        } else {
+            format!("{domain}::{command}")
+        };
+        let mut record = json!({
+            "process_manager": pm_name, "instance": correlation, "dispatch": command,
+        });
+
+        let outcome = if self.reaction_depth >= MAX_REACTION_DEPTH {
+            Err(format!("reaction depth {MAX_REACTION_DEPTH} reached"))
+        } else {
+            self.reaction_depth += 1;
+            let result = self.dispatch(&target, &args);
+            self.reaction_depth -= 1;
+            result.map(|_| ())
+        };
+
+        let entry = record.as_object_mut().expect("record is an object");
+        match outcome {
+            Ok(()) => {
+                entry.insert("delivered".into(), Value::Bool(true));
+            }
+            Err(reason) => {
+                entry.insert("delivered".into(), Value::Bool(false));
+                entry.insert("reason".into(), Value::String(reason));
+            }
+        }
+        self.sagas.push(record);
+    }
+
+    fn end_saga(&mut self, pm: &Value, event: &Value) {
+        let name = pm.get("name").and_then(Value::as_str).unwrap_or_default().to_string();
+        let event_name = event.get("name").and_then(Value::as_str).unwrap_or_default();
+        if Some(event_name) != pm.get("ends_on").and_then(Value::as_str) {
+            return;
+        }
+        let Some(correlation) = Self::correlation(pm, event) else { return };
+        if self
+            .saga_instances
+            .get_mut(&name)
+            .and_then(|t| t.remove(&correlation))
+            .is_none()
+        {
+            return;
+        }
+
+        self.sagas.push(json!({
+            "process_manager": name, "on": event_name,
+            "instance": correlation, "ended": true,
+        }));
+    }
+
     fn policies_for(&self, event: &Value, domain: &str) -> Vec<(String, String)> {
         let Some(name) = event.get("name").and_then(Value::as_str) else {
             return Vec::new();

@@ -290,6 +290,10 @@ fn main() {
         // "both threw it away". A reaction the harness does not compare is a
         // reaction that can silently stop happening again.
         "reactions": runtime.reactions,
+        // AND SO ARE SAGAS, one construct later : Settlement parsed, both
+        // parsers agreed byte-for-byte, and it ran nowhere. Every born /
+        // advanced / refused / ended step is compared.
+        "sagas": runtime.sagas,
     });
 
     println!("{}", serde_json::to_string_pretty(&output).unwrap());

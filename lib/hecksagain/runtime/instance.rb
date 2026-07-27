@@ -22,11 +22,17 @@ module Hecksagain
       end
 
       # Starting state straight from the IR: [] for lists, declared default
-      # otherwise.
+      # otherwise — and the lifecycle's field at the lifecycle's default.
+      # `lifecycle :status, default: "open"` DECLARES an attribute as surely
+      # as `attribute` does ; until this line it declared nothing, every
+      # status in the corpus was absent from state, and Freeze froze
+      # nothing in either runtime.
       def self.defaults(aggregate)
-        aggregate.attributes.each_with_object({}) do |attr, acc|
+        state = aggregate.attributes.each_with_object({}) do |attr, acc|
           acc[attr.name] = attr.list? ? [] : attr.default
         end
+        state[aggregate.lifecycle.field.to_sym] = aggregate.lifecycle.default if aggregate.lifecycle
+        state
       end
 
       def [](name) = @state[name.to_sym]

@@ -21,6 +21,11 @@ module Hecksagain
     class UnknownVerb < StandardError; end
     class GivenNotMet < StandardError; end
     class NotFound    < StandardError; end
+    # A command moved against its declared state machine — a frozen account
+    # frozen again, a settled transfer settled twice. The lifecycle block
+    # parsed, validated, and gated NOTHING in either runtime until this
+    # error had something to raise it.
+    class LifecycleRefused < StandardError; end
     # A value arrived in a shape the domain does not admit — a scalar where a
     # multi-field value object was declared. Loud, because the alternative is
     # storing it raw and answering nil to every dotted read of it.
@@ -52,6 +57,10 @@ module Hecksagain
 
       # Every policy that fired this session, and whether its command landed.
       def reactions = @registry.reaction_log
+
+      # Every process-manager step this session — born, advanced, refused,
+      # ended — oldest first.
+      def sagas = @registry.saga_log
       def verbs  = @registry.verbs
 
       def dispatch(verb, **args)
@@ -64,8 +73,13 @@ module Hecksagain
         instance   = hydrate(repository, aggregate, command, args)
 
         enforce_givens(instance, command, args)
+        # The state machine gates BEFORE anything is written and moves AFTER
+        # the mutations land — a refused Freeze touches nothing, and a legal
+        # one changes state exactly once, beside the fields the command set.
+        transition = admissible_transition(aggregate, command, instance)
         assign_creation_attributes(instance, aggregate, command, args) if command.creates?
         command.mutations.each { |mutation| apply(instance, aggregate, mutation, args) }
+        instance[aggregate.lifecycle.field] = transition.target if transition
 
         repository.save(instance)
         announced = emit(command, domain, aggregate, instance, args, repository)
@@ -75,6 +89,12 @@ module Hecksagain
         # After emit, for the same reason emit is last : a reaction is a
         # promise the state behind it survived.
         announced.each { |event| react_to(event, domain) }
+
+        # 8. REMEMBER — a process manager is the conversation that outlives
+        # any one command. After the reflexes, for the same reason again ;
+        # and after react_to so a policy's reaction and a saga's advance
+        # read the same event in a fixed order on both runtimes.
+        announced.each { |event| advance_sagas(event, domain) }
 
         Result.new(verb: verb, instance: instance, events: announced)
       end
@@ -158,6 +178,157 @@ module Hecksagain
       # and the runtime's job is to stop rather than to diagnose.
       MAX_REACTION_DEPTH = 5
 
+      # ======================================================================
+      # THE CONVERSATION THAT OUTLIVES A COMMAND — process managers, running.
+      #
+      # Settlement parsed, reached the IR, was agreed on byte-for-byte by both
+      # parsers — and ran nowhere, in either runtime. The same silence the
+      # policies had, one construct along. These four steps are the machine :
+      #
+      #   born      starts_on fires and the payload carries correlates_by —
+      #             an instance is minted in the FIRST declared state, and it
+      #             REMEMBERS the starting payload (a saga exists because
+      #             something has to remember which half is done)
+      #   advanced  a handler's event arrives carrying the correlation — the
+      #             instance moves from→to FIRST, then the handler's
+      #             dispatches fire (so a nested event sees the new state) ;
+      #             `with:` symbols read the event payload first, the
+      #             instance's memory second ; literals are themselves
+      #   refused   a dispatch the domain turns away is RECORDED, delivered:
+      #             false, and the saga does not pretend — the instance
+      #             already moved ; what failed is on the log for the
+      #             operator's queue (banking : InFlight, "the list that
+      #             must always empty")
+      #   ended     ends_on fires with the correlation — the instance retires
+      #
+      # An event that matches a handler but carries NO correlation value is
+      # not saga traffic (a manual Debit is just a debit) ; one that carries
+      # a correlation NOBODY remembers, or arrives in the wrong state, is
+      # recorded — a conversation out of order is a fact worth keeping.
+      # ======================================================================
+      def advance_sagas(event, domain)
+        bluebook = @registry.bluebook(domain)
+        return unless bluebook
+
+        bluebook.process_managers.each do |pm|
+          begin_saga(pm, event)
+          advance_saga(pm, event, domain)
+          end_saga(pm, event)
+        end
+      end
+
+      # The correlation value an event carries for one process manager :
+      # the payload's correlates_by field when it rides there — and when the
+      # field NAMES THE EMITTING AGGREGATE (correlates_by :transfer, event
+      # from Transfer), the event's own id IS that value. `transfer` is the
+      # reference-key spelling of a Transfer's identity everywhere else in
+      # the language ; the saga reads it the same way, so TransferRequested
+      # correlates without the domain smuggling its own id into a payload
+      # field that repeats it.
+      def saga_correlation(pm, event)
+        value = event.payload[pm.correlates_by]
+        return value unless value.to_s.empty?
+
+        emitting = event.aggregate.to_s.split("::").last.to_s
+        own_key  = emitting.gsub(/([a-z\d])([A-Z])/, '\1_\2').downcase
+        own_key == pm.correlates_by.to_s ? event.id : nil
+      end
+
+      def begin_saga(pm, event)
+        return unless event.name == pm.starts_on
+
+        correlation = saga_correlation(pm, event)
+        if correlation.to_s.empty?
+          @registry.saga_log << { process_manager: pm.name, on: event.name,
+                                  born: false, reason: "no #{pm.correlates_by} in the payload" }
+          return
+        end
+        return if @registry.saga_instances[pm.name].key?(correlation)
+
+        @registry.saga_instances[pm.name][correlation] =
+          { state: pm.states.first, memory: event.payload }
+        @registry.saga_log << { process_manager: pm.name, on: event.name,
+                                instance: correlation, born: true, state: pm.states.first }
+      end
+
+      def advance_saga(pm, event, domain)
+        handler = pm.handler_for(event.name)
+        return unless handler
+
+        correlation = saga_correlation(pm, event)
+        return if correlation.to_s.empty?
+
+        instance = @registry.saga_instances[pm.name][correlation]
+        record   = { process_manager: pm.name, on: event.name, instance: correlation }
+
+        unless instance
+          @registry.saga_log << record.merge(advanced: false, reason: "no conversation remembers #{correlation.inspect}")
+          return
+        end
+        unless instance[:state] == handler.from_state
+          @registry.saga_log << record.merge(advanced: false,
+                                             reason: "in #{instance[:state].inspect}, not #{handler.from_state.inspect}")
+          return
+        end
+
+        instance[:state] = handler.to_state
+        @registry.saga_log << record.merge(advanced: true, from: handler.from_state, to: handler.to_state)
+
+        handler.dispatches.each do |spec|
+          deliver_saga_dispatch(pm, spec, event, instance, correlation, domain)
+        end
+      end
+
+      def deliver_saga_dispatch(pm, spec, event, instance, correlation, domain)
+        # A `with:` symbol reads, in order : the conversation's own name when
+        # it IS the correlates_by field (TransferRequested never carries a
+        # `transfer` key — the transfer's id lives under `id` — yet inside
+        # this saga `:transfer` means exactly the correlation), then the
+        # triggering event's payload, then the remembered opening payload.
+        args = spec.with_spec.to_h do |key, value|
+          resolved = if !value.is_a?(Symbol) then value
+                     elsif value == pm.correlates_by then correlation
+                     elsif event.payload.key?(value) then event.payload[value]
+                     else instance[:memory][value]
+                     end
+          [key.to_sym, resolved]
+        end
+        record = { process_manager: pm.name, instance: correlation, dispatch: spec.command_name }
+        depth  = @reaction_depth.to_i
+
+        if depth >= MAX_REACTION_DEPTH
+          @registry.saga_log << record.merge(delivered: false, reason: "reaction depth #{MAX_REACTION_DEPTH} reached")
+          return
+        end
+
+        begin
+          @reaction_depth = depth + 1
+          dispatch(qualified(spec.command_name, domain), **args)
+          @registry.saga_log << record.merge(delivered: true)
+        rescue StandardError => error
+          @registry.saga_log << record.merge(delivered: false, reason: error.message)
+        ensure
+          @reaction_depth = depth
+        end
+      end
+
+      # A saga dispatch written as "Banking::Account.Debit" is already
+      # qualified ; "Account.Debit" belongs to the declaring domain.
+      def qualified(command_name, domain)
+        command_name.include?("::") ? command_name : "#{domain}::#{command_name}"
+      end
+
+      def end_saga(pm, event)
+        return unless event.name == pm.ends_on
+
+        correlation = saga_correlation(pm, event)
+        return if correlation.to_s.empty?
+        return unless @registry.saga_instances[pm.name].delete(correlation)
+
+        @registry.saga_log << { process_manager: pm.name, on: event.name,
+                                instance: correlation, ended: true }
+      end
+
       # "Pizzas::Pizza.Purchase" => ["Pizzas", "Pizza", "Purchase"]
       def parse(verb)
         path, command = verb.to_s.split(".", 2)
@@ -178,19 +349,60 @@ module Hecksagain
       end
 
       # A creating command mints identity ; every other command loads by it.
+      #
+      # Three spellings address a record, in order : the natural key
+      # (identified_by), the universal `id:`, and the REFERENCE KEY — the
+      # snake_case of the aggregate a `reference_to` names, so `Reverse`
+      # takes `transfer:` and `Suspend` takes `customer:`. Hecks locked this
+      # convention long ago ; here only the first spelling ever resolved, so
+      # every `transfer:`-addressed command in the corpus — the whole saga's
+      # Debited/Settle/Reverse surface — refused with "pass id:", in both
+      # runtimes, and 21 agreeing refusals looked like a passing suite.
       def hydrate(repository, aggregate, command, args)
         if command.creates?
           id = args[aggregate.identified_by] || mint_id(aggregate)
           Instance.new(aggregate: aggregate, id: id)
         else
-          id = args[aggregate.identified_by] ||
+          id = args[aggregate.identified_by] || args[:id] || args[reference_key(command)] ||
                raise(NotFound, "#{command.name} acts on an existing #{aggregate.name} — pass #{aggregate.identified_by}:")
           repository.find(id) || raise(NotFound, "no #{aggregate.name} with #{aggregate.identified_by} #{id.inspect}")
         end
       end
 
+      # `reference_to Transfer` means the caller may say `transfer:`.
+      def reference_key(command)
+        target = command.references.to_s
+        return nil if target.empty?
+
+        target.gsub(/([a-z\d])([A-Z])/, '\1_\2').downcase.to_sym
+      end
+
       def mint_id(aggregate)
         "#{aggregate.storage_name}-#{SecureRandom.hex(4)}"
+      end
+
+      # The lifecycle's admission rule. Nil when the command is not part of
+      # the machine ; the admitted StateTransition when it is and the current
+      # state allows it ; LifecycleRefused when the machine says no. A
+      # transition with no `from:` admits any state. The helpers this walks
+      # (transitions_for, constrained?) sat on IR::Lifecycle from the day it
+      # was written, called by nothing — the same shelf IR::Policy's matchers
+      # waited on.
+      def admissible_transition(aggregate, command, instance)
+        lifecycle = aggregate.lifecycle
+        return nil unless lifecycle
+
+        candidates = lifecycle.transitions_for(command.name)
+        return nil if candidates.empty?
+
+        current  = instance[lifecycle.field].to_s
+        admitted = candidates.find { |t| !t.constrained? || Array(t.from).include?(current) }
+        return admitted if admitted
+
+        allowed = candidates.flat_map { |t| Array(t.from) }.uniq
+        raise LifecycleRefused,
+              "#{command.name} refused — #{lifecycle.field} is #{current.inspect}, and " \
+              "#{command.name} moves it only from #{allowed.map(&:inspect).join(' or ')}"
       end
 
       # All givens must hold. A refused command leaves the instance untouched

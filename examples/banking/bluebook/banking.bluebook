@@ -225,6 +225,12 @@ Hecks.bluebook "Banking" do
       attribute :amount,    Integer
       attribute :narrative, Narrative
 
+      # "Stop an account moving" is Freeze's stated goal, and until this line
+      # it stopped nothing : Credit and Debit are not lifecycle transitions,
+      # so the frozen state never gated them — a frozen account transacted
+      # freely in both runtimes. The machine holds the state ; the GIVEN is
+      # what makes the state mean something to the money.
+      given("the account is open")      { status == "open" }
       given("a credit moves something") { amount.positive? }
 
       # increment, not to:. A credit ADDS — `to: :amount` REPLACED the balance
@@ -247,6 +253,7 @@ Hecks.bluebook "Banking" do
 
       # The four gates a debit has to pass. Each is a sentence a banker would
       # say out loud, which is the test of whether the rule belongs here.
+      given("the account is open")       { status == "open" }
       given("a debit moves something")   { amount.positive? }
       given("the balance covers it")     { balance >= amount }
       given("the daily limit allows it") { daily_limit >= amount }
@@ -320,6 +327,14 @@ Hecks.bluebook "Banking" do
     # correctly, forever.
     attribute :amount,    Integer, default: 0
     attribute :narrative, Narrative
+    # The two ends of the movement, by account id. A transfer that does not
+    # say WHERE FROM and WHERE TO is not a transfer — Settlement was declared
+    # against a Transfer that named neither, so its Debit and Credit legs had
+    # nothing to say and the saga could never have moved money even if the
+    # runtime had run it. (`reference_to Account` twice needs an as: the DSL
+    # does not have yet ; two plain ids carry the meaning until it does.)
+    attribute :source,      String
+    attribute :destination, String
 
     value_object "Narrative" do
       attribute :text, String
@@ -338,13 +353,20 @@ Hecks.bluebook "Banking" do
       role "Customer"
       goal "Send money to another account"
 
-      attribute :amount,    Integer
-      attribute :narrative, Narrative
+      attribute :amount,      Integer
+      attribute :narrative,   Narrative
+      attribute :source,      String
+      attribute :destination, String
 
-      given("a transfer moves something") { amount.positive? }
+      given("a transfer moves something")   { amount.positive? }
+      given("a transfer names its source")  { !source.to_s.empty? }
+      given("a transfer goes somewhere")    { !destination.to_s.empty? }
+      given("a transfer moves BETWEEN accounts") { source != destination }
 
-      then_set :amount,    to: :amount
-      then_set :narrative, to: :narrative
+      then_set :amount,      to: :amount
+      then_set :narrative,   to: :narrative
+      then_set :source,      to: :source
+      then_set :destination, to: :destination
 
       emits "TransferRequested"
     end
@@ -407,32 +429,54 @@ Hecks.bluebook "Banking" do
 
   # A transfer is the case a policy cannot express : it takes several steps, it
   # can be half-done, and something has to REMEMBER which half. Correlated by
-  # the transfer, moving through states it declares up front, and compensating
-  # when the second leg fails.
+  # the transfer, remembering the payload it started with (source, destination,
+  # amount), moving through states it declares up front.
+  #
+  # HOW CORRELATION RIDES : a saga dispatch may carry keys beyond the command's
+  # declared attributes (Debit takes no :transfer), and an event's payload
+  # echoes every argument its dispatch received — so the transfer id threads
+  # Debit → AccountDebited → the next handler, and a MANUAL debit, carrying no
+  # transfer, is invisible to the saga. `with:` symbols read the triggering
+  # event's payload first and the remembered opening payload second, which is
+  # how the credit leg knows the destination the debit event never carried.
+  #
+  # THE COMPENSATING LEG rides TransferReversed, not AccountFrozen — a freeze
+  # names an account and cannot carry the transfer, so no conversation could
+  # ever correlate it. When the credit leg is REFUSED (destination frozen
+  # between the two movements), the refusal is on the saga log, the transfer
+  # sits in InFlight — "the list that must always empty" — and the back office
+  # dispatches Transfer.Reverse ; the saga hears TransferReversed and puts the
+  # money back where it took it from.
   process_manager "Settlement" do
     correlates_by :transfer
     starts_on "TransferRequested"
     ends_on   "TransferSettled"
 
-    state "awaiting_debit"
+    state "requested"
     state "awaiting_credit"
     state "settled"
-    state "reversing"
+    state "reversed"
 
-    on "AccountDebited", transition: { "awaiting_debit" => "awaiting_credit" } do
+    # The first leg : the money leaves the source. The transfer id and the
+    # destination ride the dispatch so the debit's event can carry them on.
+    on "TransferRequested", transition: { "requested" => "requested" } do
+      dispatch "Banking::Account.Debit", with: { id: :source, amount: :amount, narrative: "transfer out", transfer: :transfer, destination: :destination }
+    end
+
+    on "AccountDebited", transition: { "requested" => "awaiting_credit" } do
       dispatch "Banking::Transfer.Debited", with: { transfer: :transfer }
-      dispatch "Banking::Account.Credit",   with: { transfer: :transfer }
+      dispatch "Banking::Account.Credit", with: { id: :destination, amount: :amount, narrative: "transfer in", transfer: :transfer }
     end
 
     on "AccountCredited", transition: { "awaiting_credit" => "settled" } do
       dispatch "Banking::Transfer.Settle", with: { transfer: :transfer }
     end
 
-    # The compensating leg. A saga without one is a saga that loses money the
-    # first time the destination account is frozen between the two movements.
-    on "AccountFrozen", transition: { "awaiting_credit" => "reversing" } do
-      dispatch "Banking::Account.Credit",   with: { transfer: :transfer }
-      dispatch "Banking::Transfer.Reverse", with: { transfer: :transfer }
+    # The money goes back where it came from. TransferReversed's payload is
+    # the transfer reference ; source and amount come from the remembered
+    # opening payload.
+    on "TransferReversed", transition: { "awaiting_credit" => "reversed" } do
+      dispatch "Banking::Account.Credit", with: { id: :source, amount: :amount, narrative: "transfer reversed" }
     end
   end
 end

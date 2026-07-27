@@ -36,6 +36,20 @@ pub fn defaults_for(aggregate: &Map<String, Value>) -> State {
         };
         state.insert(name, value);
     }
+
+    // The lifecycle's field is born at the lifecycle's default —
+    // `lifecycle :status, default: "open"` DECLARES an attribute as surely as
+    // `attribute` does. Until this block it declared nothing, every status in
+    // the corpus was absent from state, and Freeze froze nothing in either
+    // runtime. Mirrors Ruby's Instance.defaults.
+    if let Some(lifecycle) = aggregate.get("lifecycle").and_then(Value::as_object) {
+        if let (Some(field), Some(default)) = (
+            lifecycle.get("field").and_then(Value::as_str),
+            lifecycle.get("default"),
+        ) {
+            state.insert(field.to_string(), default.clone());
+        }
+    }
     state
 }
 

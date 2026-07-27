@@ -23,7 +23,6 @@ script = ARGV.shift or abort "usage: bin/run <domain> <script.json>"
 
 runtime   = Hecks.boot(domain)
 steps     = JSON.parse(File.read(script)).fetch("steps")
-instances = {}
 refusals  = []
 
 steps.each do |step|
@@ -31,11 +30,25 @@ steps.each do |step|
   args = (step["args"] || {}).transform_keys(&:to_sym)
 
   begin
-    result = runtime.dispatch(verb, **args)
-    aggregate = verb.split(".").first
-    instances["#{aggregate}##{result.id}"] = result.instance.state
+    runtime.dispatch(verb, **args)
   rescue StandardError => e
     refusals << { verb: verb, error: "#{e.message}" }
+  end
+end
+
+# INSTANCES ARE READ FROM THE STORE, AFTER EVERYTHING RAN — not snapshotted
+# per step. A step's Result holds the OUTER instance as that dispatch left
+# it ; a saga leg that settled the transfer afterwards mutated a fresh
+# hydration, and the snapshot kept reporting "requested" while the store
+# held "settled". Rust read the store and told the truth, the diff caught
+# it, and this is the fix : the adapter the hecksagon bound answers, same
+# as stage three.
+instances = {}
+runtime.registry.bluebooks.each do |domain_name, bluebook|
+  bluebook.aggregates.each do |aggregate|
+    runtime.registry.repository(domain_name, aggregate).all.each do |record|
+      instances["#{domain_name}::#{aggregate.name}##{record.id}"] = record.state
+    end
   end
 end
 
@@ -51,6 +64,13 @@ end
 # harness does not compare is a reaction that can silently stop happening again.
 reactions = runtime.reactions
 
+# AND SO ARE SAGAS, for the same reason one construct later : Settlement parsed,
+# both parsers agreed on it byte-for-byte, and it ran nowhere. Every born /
+# advanced / refused / ended step is compared, so a conversation that stops
+# happening shows up as a diff rather than as silence.
+sagas = runtime.sagas
+
 puts JSON.pretty_generate(
-  instances: instances, events: events, refusals: refusals, reactions: reactions
+  instances: instances, events: events, refusals: refusals, reactions: reactions,
+  sagas: sagas
 )

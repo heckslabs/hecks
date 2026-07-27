@@ -12,7 +12,7 @@ module Hecksagain
 
     class Registry
       attr_reader :root, :bluebooks, :hecksagons, :ports, :adapters, :worlds, :event_log,
-                  :reaction_log
+                  :reaction_log, :saga_log, :saga_instances
 
       def initialize(root: nil)
         @root         = root
@@ -26,6 +26,16 @@ module Hecksagain
         # reaction nobody records is a reaction nobody misses — which is how four
         # declared policies ran nowhere while parity stayed green.
         @reaction_log = []
+        # Every process-manager step — born, advanced, refused, ended — in the
+        # order it happened. The same lesson as reaction_log : Settlement was
+        # declared, agreed on by both parsers, and ran NOWHERE ; a saga the
+        # contract does not compare is a saga that can silently stop again.
+        @saga_log = []
+        # Live process-manager conversations : pm name → correlation value →
+        # { state:, memory: }. Memory is the STARTING event's payload — a saga
+        # exists because something has to REMEMBER which half is done, and the
+        # opening payload is the half it started with.
+        @saga_instances = Hash.new { |h, k| h[k] = {} }
         @repositories = {}
       end
 
