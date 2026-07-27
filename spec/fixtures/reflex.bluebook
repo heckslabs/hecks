@@ -1,0 +1,45 @@
+# Reflex — the smallest domain where a policy can actually LAND.
+#
+# The corpus's four policies all reach ACROSS to a domain nobody loads
+# (Notifications, Compliance), so they can only ever be recorded as
+# undelivered. That proves the reflex is observed ; it does not prove it
+# arrives. This one stays inside its own boundary and needs nothing the
+# triggering event does not already carry, so the reaction completes and the
+# second command's state change is visible.
+Hecks.bluebook "Reflex" do
+  vision "An event arrives and a command fires — the whole of a policy, in one aggregate."
+  core
+
+  aggregate "Light" do
+    description "A light that logs its own flip"
+
+    attribute :condition, String
+
+    command "Flip" do
+      role "Operator"
+      goal "Turn the light on"
+      attribute :id, String
+
+      then_set :condition, to: "on"
+
+      emits "Flipped"
+    end
+
+    # The reaction's target. It needs only the id, which the Flipped payload
+    # carries — hecksagain's policy has no `with` / `map`, so the event payload
+    # is the whole of the reaction's input and a command needing more than it
+    # holds cannot complete.
+    command "Log" do
+      role "System"
+      goal "Record that the flip was noticed"
+      attribute :id, String
+
+      then_set :condition, to: "logged"
+    end
+
+    policy "LogOnFlip" do
+      on      "Flipped"
+      trigger "Light.Log"
+    end
+  end
+end

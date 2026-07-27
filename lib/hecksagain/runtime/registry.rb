@@ -11,7 +11,8 @@ module Hecksagain
     class WiringError < StandardError; end
 
     class Registry
-      attr_reader :root, :bluebooks, :hecksagons, :ports, :adapters, :worlds, :event_log
+      attr_reader :root, :bluebooks, :hecksagons, :ports, :adapters, :worlds, :event_log,
+                  :reaction_log
 
       def initialize(root: nil)
         @root         = root
@@ -21,6 +22,10 @@ module Hecksagain
         @adapters     = {}
         @worlds       = {}
         @event_log    = []
+        # Every policy that FIRED, and whether its command was delivered. A
+        # reaction nobody records is a reaction nobody misses — which is how four
+        # declared policies ran nowhere while parity stayed green.
+        @reaction_log = []
         @repositories = {}
       end
 
