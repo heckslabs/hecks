@@ -20,6 +20,7 @@ pub fn parse(source: &str) -> Domain {
         version: None,
         category: None,
         vision: None,
+        classification: None,
         aggregates: vec![],
         policies: vec![],
         fixtures: vec![],
@@ -68,6 +69,12 @@ pub fn parse(source: &str) -> Domain {
             }
             i += consumed;
             continue;
+        }
+
+        // The classification is a BARE word on its own line — exact equality,
+        // not starts_with, so `core` never swallows some future `core_thing`.
+        if line == "core" || line == "supporting" || line == "generic" {
+            domain.classification = Some(line.to_string());
         }
 
         if line.starts_with("entrypoint") {

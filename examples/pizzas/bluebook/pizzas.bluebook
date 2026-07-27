@@ -7,7 +7,7 @@
 # that make a sale impossible before the pizza is ready.
 Hecks.bluebook "Pizzas" do
   vision "Put toppings on a pizza and sell it to a customer."
-  core
+  supporting
 
   aggregate "Pizza" do
     description "A pizza that gathers toppings and is eventually sold to a customer."

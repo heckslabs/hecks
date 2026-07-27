@@ -32,6 +32,7 @@ pub fn domain_to_value(domain: &Domain) -> Value {
         json!({
             "name": domain.name,
             "vision": optional(&domain.vision),
+            "classification": optional(&domain.classification),
             "aggregates": aggregates,
             "policies": domain.policies.iter().map(policy_to_value).collect::<Vec<_>>(),
             "process_managers": domain.process_managers.iter()

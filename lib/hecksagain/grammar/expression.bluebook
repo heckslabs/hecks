@@ -101,7 +101,9 @@
 
 Hecks.bluebook "Expression" do
   vision "The subset of regular Ruby a predicate is allowed to be — small enough that every target can evaluate it, and carried as canonical text so Ruby and Rust agree."
-  core
+  # A sublanguage every domain shares differentiates none of them — Evans'
+  # GENERIC subdomain, said with the word instead of implied by the path.
+  generic
 
   # ============================================================
   # OPERATOR — the admitted vocabulary

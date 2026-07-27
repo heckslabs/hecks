@@ -66,7 +66,8 @@ module Hecksagain
           bluebook = IR::Bluebook.new(name: @name, vision: @vision,
                                       aggregates: @aggregates,
                                       policies: policies,
-                                      process_managers: @process_managers)
+                                      process_managers: @process_managers,
+                                      classification: @classification)
           namespace = Module.new
 
           @aggregates.each do |aggregate|

@@ -27,6 +27,10 @@ pub struct Domain {
     pub version: Option<String>,
     pub category: Option<String>,
     pub vision: Option<String>,
+    /// Evans' strategic distinction — the bare words `core` / `supporting` /
+    /// `generic` at the top level. Declarative, so its observable artifact is
+    /// the canonical IR itself ; stage 1 diffs it.
+    pub classification: Option<String>,
     pub aggregates: Vec<Aggregate>,
     pub policies: Vec<Policy>,
     pub fixtures: Vec<Fixture>,
