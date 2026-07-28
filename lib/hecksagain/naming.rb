@@ -76,7 +76,8 @@ module Hecksagain
     # below answers the other question — rather than one function guessing
     # which caller it has.
     def split_dotted(dotted)
-      dotted.to_s.split(".", 2)
+      first, second = dotted.to_s.split(".", 2)
+      [first.to_s, second.to_s]
     end
 
     # The QUALIFIER of a dotted name, or nil when the name is bare.
@@ -94,7 +95,8 @@ module Hecksagain
     #   unqualified("Account.Opened") # => "Opened"
     #   unqualified("Opened")         # => "Opened"
     def unqualified(dotted)
-      dotted.to_s.split(".", 2).last
+      text = dotted.to_s
+      text.include?(".") ? text.split(".", 2).last : text
     end
 
     # A FULLY-QUALIFIED VERB — `Domain::Aggregate.Command`. Returns the three

@@ -1,0 +1,71 @@
+{
+  "snake": [
+    { "in": "Pizza",          "out": "pizza" },
+    { "in": "LedgerEntry",    "out": "ledger_entry" },
+    { "in": "AddTopping",     "out": "add_topping" },
+    { "in": "CreatePizza",    "out": "create_pizza" },
+    { "in": "CamelCase",      "out": "camel_case" },
+    { "in": "ATMCard",        "out": "atm_card" },
+    { "in": "HTTPGateway",    "out": "http_gateway" },
+    { "in": "APIEndpoint",    "out": "api_endpoint" },
+    { "in": "DNAProfile",     "out": "dna_profile" },
+    { "in": "ULDPallet",      "out": "uld_pallet" },
+    { "in": "CBPInspection",  "out": "cbp_inspection" },
+    { "in": "IPMPlan",        "out": "ipm_plan" },
+    { "in": "HVACEquipment",  "out": "hvac_equipment" },
+    { "in": "AIAnalysis",     "out": "ai_analysis" },
+    { "in": "DigitalID",      "out": "digital_id" },
+    { "in": "CustomerAPI",    "out": "customer_api" },
+    { "in": "Base64Encoder",  "out": "base64_encoder" },
+    { "in": "ledger_entry",   "out": "ledger_entry" },
+    { "in": "already_snake",  "out": "already_snake" },
+    { "in": "pizza",          "out": "pizza" },
+    { "in": "dreiletter",     "out": "dreiletter" },
+    { "in": "Dreiletter",     "out": "dreiletter" },
+    { "in": "Über",           "out": "über" },
+    { "in": "A",              "out": "a" },
+    { "in": "",               "out": "" }
+  ],
+  "demodulise": [
+    { "in": "Pizzas::Pizza",    "out": "Pizza" },
+    { "in": "Banking::ATMCard", "out": "ATMCard" },
+    { "in": "Pizza",            "out": "Pizza" },
+    { "in": "A::B::C",          "out": "C" },
+    { "in": "",                 "out": "" }
+  ],
+  "reference_key": [
+    { "in": "Transfer",          "out": "transfer" },
+    { "in": "LedgerEntry",       "out": "ledger_entry" },
+    { "in": "Banking::Transfer", "out": "transfer" },
+    { "in": "Banking::ATMCard",  "out": "atm_card" },
+    { "in": "ATMCard",           "out": "atm_card" }
+  ],
+  "split_dotted": [
+    { "in": "Account.Opened", "out": ["Account", "Opened"] },
+    { "in": "Line.overdue",   "out": ["Line", "overdue"] },
+    { "in": "Line.Amend",     "out": ["Line", "Amend"] },
+    { "in": "Opened",         "out": ["Opened", ""] },
+    { "in": "A.B.C",          "out": ["A", "B.C"] },
+    { "in": "",               "out": ["", ""] }
+  ],
+  "qualifier": [
+    { "in": "Account.Opened", "out": "Account" },
+    { "in": "A.B.C",          "out": "A" },
+    { "in": "Opened",         "out": null },
+    { "in": "",               "out": null }
+  ],
+  "unqualified": [
+    { "in": "Account.Opened", "out": "Opened" },
+    { "in": "Opened",         "out": "Opened" },
+    { "in": "A.B.C",          "out": "B.C" },
+    { "in": "",               "out": "" }
+  ],
+  "split_verb": [
+    { "in": "Pizzas::Pizza.Purchase",   "out": ["Pizzas", "Pizza", "Purchase"] },
+    { "in": "Banking::ATMCard.Suspend", "out": ["Banking", "ATMCard", "Suspend"] },
+    { "in": "A::B.C.D",                 "out": ["A", "B", "C.D"] },
+    { "in": "Pizza.Purchase",           "out": null },
+    { "in": "Pizzas::Pizza",            "out": null },
+    { "in": "",                         "out": null }
+  ]
+}
