@@ -51,7 +51,7 @@ module Hecksagain
         list_attr = aggregate.attributes.find { |a| a.list? && a.type.to_s == entity_name } ||
                     raise(UnknownVerb, "#{aggregate.name} holds no list of #{entity_name}")
 
-        parent_key = aggregate.name.gsub(/([a-z\d])([A-Z])/, '\1_\2').downcase.to_sym
+        parent_key = Naming.reference_key(aggregate.name)
         rows = @registry.repository(domain, aggregate).all.flat_map do |record|
           Array(record[list_attr.name])
             .select { |el| declared.wheres.all? { |w| element_where_holds?(w, el, args) } }

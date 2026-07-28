@@ -47,8 +47,9 @@ module Hecksagain
       # verb      — "persisted_by"
       # adapter   — "Sqlite"
       Bind = Struct.new(:aggregate, :verb, :adapter, keyword_init: true) do
-        # The bare aggregate name, without its domain prefix.
-        def aggregate_name = aggregate.to_s.split("::").last
+        # The bare aggregate name, without its domain prefix. One rule, named
+        # once — open-coding the split here is how the two spellings drift.
+        def aggregate_name = Naming.demodulise(aggregate)
       end
 
       class Hecksagon

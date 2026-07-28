@@ -47,7 +47,7 @@ module Hecksagain
         bluebook = @registry.bluebook(domain)
         return [] unless bluebook
 
-        emitting = event.aggregate.to_s.split("::").last
+        emitting = Naming.demodulise(event.aggregate)
 
         # DOMAIN-LEVEL ONLY. An aggregate-nested policy BUBBLES to the domain
         # at build time — the aggregate keeps a copy for its own IR, and

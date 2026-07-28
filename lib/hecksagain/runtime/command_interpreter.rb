@@ -83,7 +83,7 @@ module Hecksagain
         target = command.references.to_s
         return nil if target.empty?
 
-        target.gsub(/([a-z\d])([A-Z])/, '\1_\2').downcase.to_sym
+        Naming.reference_key(target)
       end
 
       def mint_id(aggregate)

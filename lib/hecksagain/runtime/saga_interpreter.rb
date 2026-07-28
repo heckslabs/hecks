@@ -64,9 +64,7 @@ module Hecksagain
         value = event.payload[pm.correlates_by]
         return value unless value.to_s.empty?
 
-        emitting = event.aggregate.to_s.split("::").last.to_s
-        own_key  = emitting.gsub(/([a-z\d])([A-Z])/, '\1_\2').downcase
-        own_key == pm.correlates_by.to_s ? event.id : nil
+        Naming.reference_key(event.aggregate) == pm.correlates_by.to_sym ? event.id : nil
       end
 
       def begin_saga(pm, event)

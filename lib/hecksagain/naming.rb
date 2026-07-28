@@ -26,5 +26,21 @@ module Hecksagain
           .gsub(/([a-z\d])([A-Z])/, '\1_\2')
           .downcase
     end
+
+    # THE KEY AN AGGREGATE IS ADDRESSED BY, from outside itself — `transfer:`
+    # for a Transfer, `atm_card:` for an ATMCard. One idea with three names
+    # before this : `reference_key` on the command path (what a
+    # `reference_to` lets a caller say), `parent_key` on the query path
+    # (whose boundary an element came from), and `own_key` in the saga
+    # (whether an event's correlation field names its own emitter). All
+    # three open-coded the same transformation, and all three open-coded it
+    # WRONG — skipping the acronym rule above, so ATMCard keyed as
+    # "atmcard" while its storage_name said "atm_card".
+    #
+    #   Naming.reference_key("Transfer")        # => :transfer
+    #   Naming.reference_key("Banking::ATMCard") # => :atm_card
+    def reference_key(type)
+      snake(demodulise(type)).to_sym
+    end
   end
 end
