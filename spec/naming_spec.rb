@@ -95,4 +95,51 @@ RSpec.describe Hecksagain::Naming do
         .to eq(described_class.snake("ATMCard"))
     end
   end
+
+  # TAKING A NAME APART. One grammar — `Qualifier.name` — carries an entity
+  # command, an entity query, and a qualified subscription. It was read in
+  # four places before it was read here.
+  describe ".split_dotted" do
+    it "splits a dotted name into its two parts" do
+      expect(described_class.split_dotted("Account.Opened")).to eq(["Account", "Opened"])
+      expect(described_class.split_dotted("Line.overdue")).to eq(["Line", "overdue"])
+    end
+
+    # A BARE NAME IS THE FIRST PART. An entity path with no dot names an
+    # entity and no member — which is why the split reports what is written
+    # and leaves the reading to `qualifier`.
+    it "reads a bare name as the first part" do
+      expect(described_class.split_dotted("Opened")).to eq(["Opened"])
+      expect(described_class.split_dotted("Opened").last).to eq("Opened")
+    end
+
+    it "splits on the FIRST dot only" do
+      expect(described_class.split_dotted("A.B.C")).to eq(["A", "B.C"])
+    end
+  end
+
+  describe ".qualifier" do
+    it "names the qualifier of a dotted name" do
+      expect(described_class.qualifier("Account.Opened")).to eq("Account")
+    end
+
+    it "is nil for a bare name" do
+      expect(described_class.qualifier("Opened")).to be_nil
+    end
+  end
+
+  describe ".split_verb" do
+    it "reads a fully-qualified verb into its three parts" do
+      expect(described_class.split_verb("Pizzas::Pizza.Purchase"))
+        .to eq(["Pizzas", "Pizza", "Purchase"])
+    end
+
+    # The REFUSAL belongs to the caller — Naming reports the shape and says
+    # nothing about what the caller wanted.
+    it "answers nil when the verb is not fully qualified" do
+      expect(described_class.split_verb("Pizza.Purchase")).to be_nil
+      expect(described_class.split_verb("Pizzas::Pizza")).to be_nil
+      expect(described_class.split_verb("")).to be_nil
+    end
+  end
 end

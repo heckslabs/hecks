@@ -214,7 +214,7 @@ impl Runtime {
         dotted: &str,
         args: &State,
     ) -> Result<State, String> {
-        let (entity_name, command_name) = dotted.split_once('.').unwrap_or((dotted, ""));
+        let (entity_name, command_name) = crate::naming::split_dotted(dotted);
         let aggregate = self.find_aggregate(domain, aggregate_name, dotted)?;
         let entity = array(&aggregate, "entities")
             .into_iter()
@@ -467,7 +467,7 @@ impl Runtime {
         dotted: &str,
         args: &State,
     ) -> Result<Vec<Value>, String> {
-        let (entity_name, query_name) = dotted.split_once('.').unwrap_or((dotted, ""));
+        let (entity_name, query_name) = crate::naming::split_dotted(dotted);
         let entity = array(aggregate, "entities")
             .into_iter()
             .find(|e| e.get("name").and_then(Value::as_str) == Some(entity_name))
@@ -1084,10 +1084,8 @@ impl Runtime {
             .iter()
             .filter_map(|policy| {
                 let on_event = policy.get("on_event").and_then(Value::as_str)?;
-                let (qualifier, event_name) = match on_event.split_once('.') {
-                    Some((aggregate, bare)) => (Some(aggregate), bare),
-                    None => (None, on_event),
-                };
+                let qualifier = crate::naming::qualifier(on_event);
+                let event_name = crate::naming::unqualified(on_event);
 
                 if event_name != name {
                     return None;
@@ -1136,12 +1134,10 @@ impl Runtime {
     }
 }
 
+// The SHAPE of a verb is naming's to know ; the REFUSAL is the door's, because
+// only the door knows what it was asked for.
 fn parse_verb(verb: &str) -> Result<(String, String, String), String> {
-    let (path, command) = verb
-        .split_once('.')
-        .ok_or_else(|| format!("{:?} is not a fully-qualified verb", verb))?;
-    let (domain, aggregate) = path
-        .split_once("::")
+    let (domain, aggregate, command) = crate::naming::split_verb(verb)
         .ok_or_else(|| format!("{:?} is not a fully-qualified verb", verb))?;
 
     Ok((domain.to_string(), aggregate.to_string(), command.to_string()))

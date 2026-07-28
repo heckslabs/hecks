@@ -138,15 +138,12 @@ module Hecksagain
       private
 
       # "Pizzas::Pizza.Purchase" => ["Pizzas", "Pizza", "Purchase"]
+      #
+      # The SHAPE of a verb is Naming's to know ; the REFUSAL is the door's,
+      # because only the door knows what it was asked for.
       def parse(verb)
-        path, command = verb.to_s.split(".", 2)
-        domain, aggregate = path.to_s.split("::", 2)
-
-        unless domain && aggregate && command
-          raise UnknownVerb, "#{verb.inspect} is not a fully-qualified verb (Domain::Aggregate.Command)"
-        end
-
-        [domain, aggregate, command]
+        Naming.split_verb(verb) ||
+          raise(UnknownVerb, "#{verb.inspect} is not a fully-qualified verb (Domain::Aggregate.Command)")
       end
 
       def resolve_aggregate(domain, aggregate_name, verb)

@@ -43,7 +43,7 @@ module Hecksagain
       # the boundary always includes whose boundary it is. Same eq/lt
       # vocabulary, same ordering rules, one level down.
       def entity_rows(domain, aggregate, dotted, args)
-        entity_name, query_name = dotted.split(".", 2)
+        entity_name, query_name = Naming.split_dotted(dotted)
         entity = aggregate.entities.find { |e| e.name == entity_name } ||
                  raise(UnknownVerb, "#{aggregate.name} has no entity #{entity_name.inspect}")
         declared = entity.query(query_name) ||

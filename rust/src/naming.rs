@@ -83,6 +83,46 @@ pub fn reference_key(type_name: &str) -> String {
     snake(demodulise(type_name))
 }
 
+// ---------------------------------------------------------------------------
+// TAKING A NAME APART. The rules above SPELL a name ; these read one that is
+// already spelled. `Domain::Aggregate.Command` is a grammar, and a grammar
+// read in six places is six parsers that agree only by luck.
+// ---------------------------------------------------------------------------
+
+/// A DOTTED NAME, split as written — `Line.Amend` -> `("Line", "Amend")`.
+///
+/// A BARE NAME IS THE FIRST PART: `"Line"` -> `("Line", "")`. That is the
+/// entity reading, where the first part names an entity and the second names
+/// a member. The subscription reading is the MIRROR of it — a bare name is an
+/// event with no qualifier — so that question is asked of `qualifier` and
+/// `unqualified` instead, rather than having this function guess which caller
+/// it has. The counterpart of Ruby's `Naming.split_dotted`.
+pub fn split_dotted(dotted: &str) -> (&str, &str) {
+    dotted.split_once('.').unwrap_or((dotted, ""))
+}
+
+/// The QUALIFIER of a dotted name, or None when the name is bare.
+/// The counterpart of Ruby's `Naming.qualifier`.
+pub fn qualifier(dotted: &str) -> Option<&str> {
+    dotted.split_once('.').map(|(q, _)| q)
+}
+
+/// The NAME with any qualifier stripped — the other half of `qualifier`, and
+/// the half a bare name keeps. The counterpart of Ruby's `Naming.unqualified`.
+pub fn unqualified(dotted: &str) -> &str {
+    dotted.split_once('.').map(|(_, n)| n).unwrap_or(dotted)
+}
+
+/// A FULLY-QUALIFIED VERB — `Domain::Aggregate.Command` — in three parts, or
+/// None if the name is not fully qualified. The REFUSAL is the caller's to
+/// word, because only the caller knows what it was looking for. The
+/// counterpart of Ruby's `Naming.split_verb`.
+pub fn split_verb(verb: &str) -> Option<(&str, &str, &str)> {
+    let (path, command) = verb.split_once('.')?;
+    let (domain, aggregate) = path.split_once("::")?;
+    Some((domain, aggregate, command))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -187,5 +227,52 @@ mod tests {
     fn reference_key_agrees_with_the_storage_spelling_on_an_acronym() {
         assert_eq!(reference_key("Banking::ATMCard"), "atm_card");
         assert_eq!(reference_key("ATMCard"), snake("ATMCard"));
+    }
+
+    #[test]
+    fn split_dotted_splits_a_dotted_name_into_its_two_parts() {
+        assert_eq!(split_dotted("Account.Opened"), ("Account", "Opened"));
+        assert_eq!(split_dotted("Line.overdue"), ("Line", "overdue"));
+    }
+
+    // A BARE NAME IS THE FIRST PART — the entity reading. The subscription
+    // reading is the mirror, and lives in qualifier/unqualified.
+    #[test]
+    fn split_dotted_reads_a_bare_name_as_the_first_part() {
+        assert_eq!(split_dotted("Opened"), ("Opened", ""));
+    }
+
+    #[test]
+    fn split_dotted_splits_on_the_first_dot_only() {
+        assert_eq!(split_dotted("A.B.C"), ("A", "B.C"));
+    }
+
+    #[test]
+    fn qualifier_names_the_qualifier_or_nothing() {
+        assert_eq!(qualifier("Account.Opened"), Some("Account"));
+        assert_eq!(qualifier("Opened"), None);
+    }
+
+    #[test]
+    fn unqualified_strips_any_qualifier_and_keeps_a_bare_name() {
+        assert_eq!(unqualified("Account.Opened"), "Opened");
+        assert_eq!(unqualified("Opened"), "Opened");
+    }
+
+    #[test]
+    fn split_verb_reads_a_fully_qualified_verb() {
+        assert_eq!(
+            split_verb("Pizzas::Pizza.Purchase"),
+            Some(("Pizzas", "Pizza", "Purchase"))
+        );
+    }
+
+    // The REFUSAL belongs to the caller — naming reports the shape and says
+    // nothing about what the caller wanted.
+    #[test]
+    fn split_verb_answers_none_when_not_fully_qualified() {
+        assert_eq!(split_verb("Pizza.Purchase"), None);
+        assert_eq!(split_verb("Pizzas::Pizza"), None);
+        assert_eq!(split_verb(""), None);
     }
 }

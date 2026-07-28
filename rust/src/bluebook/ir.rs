@@ -742,7 +742,7 @@ impl Policy {
     /// bare. We split on the first `.` so an event name never contains
     /// one (they're PascalCase identifiers, so this is safe).
     pub fn event_qualifier(&self) -> Option<&str> {
-        self.on_event.split_once('.').map(|(agg, _)| agg)
+        crate::naming::qualifier(&self.on_event)
     }
 
     /// The bare event name with any `Aggregate.` qualifier stripped.
@@ -750,10 +750,7 @@ impl Policy {
     /// subscription still resolves against the corpus's emitted-event
     /// set (which carries bare names only).
     pub fn event_name(&self) -> &str {
-        match self.on_event.split_once('.') {
-            Some((_, ev)) => ev,
-            None => self.on_event.as_str(),
-        }
+        crate::naming::unqualified(&self.on_event)
     }
 }
 

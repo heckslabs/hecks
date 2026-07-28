@@ -37,7 +37,7 @@ module Hecksagain
       end
 
       def call(domain, aggregate, dotted, args)
-        entity_name, command_name = dotted.split(".", 2)
+        entity_name, command_name = Naming.split_dotted(dotted)
         entity  = aggregate.entities.find { |e| e.name == entity_name } ||
                   raise(UnknownVerb, "#{aggregate.name} has no entity #{entity_name.inspect}")
         command = entity.command(command_name) ||

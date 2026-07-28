@@ -31,16 +31,11 @@ module Hecksagain
         end
 
         # The aggregate a qualified subscription names, or nil when bare.
-        def event_qualifier
-          aggregate, _event = @on_event.to_s.split(".", 2)
-          @on_event.to_s.include?(".") ? aggregate : nil
-        end
+        def event_qualifier = Naming.qualifier(@on_event)
 
         # The event name with any `Aggregate.` qualifier stripped, which is what
         # the emitted-event set carries.
-        def event_name
-          @on_event.to_s.split(".", 2).last
-        end
+        def event_name = Naming.unqualified(@on_event)
 
         def to_h
           {
