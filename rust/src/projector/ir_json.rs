@@ -13,8 +13,10 @@
 //! exactly the shape the Ruby exporter emits - so bin/parity can diff the two
 //! parsers' readings of the same file.
 //!
-//! When the Rust parser becomes a projection of the Ruby one, this seam is
-//! where that lands, and only this file changes.
+//! This is the ONE SEAM where the two hand-written parsers are made
+//! comparable. Neither generates the other, so agreement is not structural —
+//! it is checked here, and a divergence surfaces as a diff rather than as a
+//! silent difference of opinion.
 
 use crate::ir::{
     Aggregate, Attribute, Command, Direction, Domain, Entity, Lifecycle, MutationOp, Policy,

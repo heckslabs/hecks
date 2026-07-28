@@ -303,7 +303,7 @@ fn build_element(
     }
 
     // An ENTITY element is born WITH its identity and its lifecycle state —
-    // the projection of Ruby's `entity_element`. Identity defaults to its
+    // the counterpart of Ruby's `entity_element`. Identity defaults to its
     // 1-based position (append order IS the order it was posted) unless the
     // append names it ; the lifecycle field starts at the declared default.
     if let Some(entity) = entity_for(aggregate, target) {

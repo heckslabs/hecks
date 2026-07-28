@@ -14,10 +14,10 @@
 //! because it made semantic parity provable early.
 //!
 //! The mistake hecksagain exists to avoid is not "two parsers". It is two
-//! parsers AUTHORED TWICE BY HAND, held together by a suite that can only
-//! detect drift after the fact. A Rust parser that is a PROJECTION of the Ruby
-//! one is a different thing entirely: one author, two artifacts. Rust is a
-//! projection, except the interpreter.
+//! parsers whose agreement nobody CHECKS. Both parsers here are authored by
+//! hand — this one is not generated from the Ruby one — so the whole burden
+//! falls on bin/parity, which compares what the two runtimes DO rather than
+//! where they came from.
 //!
 //! Note that a .bluebook file is already Ruby, so the parseable subset and the
 //! evaluable subset are the same question - see
@@ -37,8 +37,8 @@
 // still builds clean.
 //
 // ir_json.rs is the one seam we wrote: it renders the typed IR in the shape
-// this interpreter reads. When the Rust parser becomes a projection of the
-// Ruby one, that is the only file that changes.
+// this interpreter reads, and in the shape the Ruby exporter emits, so the two
+// readings of one file can be diffed.
 // Those modules live in the LIBRARY (src/lib.rs), which is named `storehouse`
 // so the adapters cherry-picked from Hecks import it unedited. This binary is
 // a thin driver over it.
@@ -150,7 +150,7 @@ fn main() {
     // the parser saw first, silently, with a domain that looked entirely correct.
     //
     // And an aggregate that declares NOTHING gets Memory rather than an error :
-    // wiring is override, not substrate. Both behaviours are the projection of
+    // wiring is override, not substrate. Both behaviours are the counterpart of
     // lib/hecksagain/ports/persistence/persistence.rb, which holds the semantics.
     for (name, aggregate) in runtime.aggregates() {
         let persistence = match persistence::resolve_for(&arguments[1], &name) {

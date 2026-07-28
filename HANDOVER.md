@@ -11,9 +11,13 @@ Ruby as the source of truth. Read `README.md` first, then this.
 
 In Hecks the parser is authored twice (Ruby DSL + Rust parser) and kept in step
 by a parity suite. Every drift retired there was a disagreement between those
-two authors. Here, **Ruby holds the semantics and Rust is a projection, except
-the interpreter**. The arrow only ever runs `Ruby → IR → Rust`. Never generate
-Ruby from IR.
+two authors. Here, **both runtimes are still hand-written — but Ruby holds the
+semantics.** When they disagree, Ruby is right and Rust is the bug.
+
+Do not call Rust a projection. It is not generated from anything, and saying so
+hides real divergence (the Rust parser has `has_many` / `has_one` / `belongs_to`
+/ `singularize`, none of which exist in the Ruby DSL). Parity is a claim about
+OUTPUT: same source file in, same answers out.
 
 ## Standing rules — these are not negotiable
 
@@ -29,24 +33,24 @@ Ruby from IR.
 5. **Tests do no IO** except `spec/adapters/` — the domain runs in memory.
 6. **Ruby wins when the shapes differ.** If the interpreter wants a different
    shape, the EXPORTER converts. Never change how a bluebook is written to suit
-   a projection — that is the inversion this project exists to avoid.
+   the Rust side — that is the inversion this project exists to avoid.
 
 ## Current state (hecksagain @ baade06, all green)
 
 ```
 bundle exec rspec                                189 examples, 0 failures
-cd projection/rust && cargo test --release --workspace   128 passed, 0 warnings
+cd rust && cargo test --release --workspace              128 passed, 0 warnings
 bin/parity                                       banking, pizzas, grammar — all stages
 ```
 
 ## Layout
 
-Ruby is the source ; everything under `projection/` is projected from it. The
-folder says the thesis out loud, and leaves room for `projection/go/` beside
-`projection/rust/`.
+Ruby holds the semantics ; `rust/` is a second hand-written runtime held to
+Ruby's answers by `bin/parity`. A third would sit beside it as `go/` — one
+flat folder per language, none of them claiming to be generated.
 
 ```
-lib/hecksagain/                  projection/rust/src/
+lib/hecksagain/                  rust/src/
   bluebook/dsl/                    bluebook/parser.rs      (ruby BUILDS via DSL,
   bluebook/ir/                     bluebook/ir.rs           rust BUILDS via parser)
   bluebook/expression/             bluebook/expression/    file-for-file

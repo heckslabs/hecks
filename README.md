@@ -9,17 +9,31 @@ parser, kept in step by a parity suite. Every drift retired over the last
 months was a disagreement between those two authors — never a routing
 disagreement, because routing was already data.
 
-So hecksagain inverts the direction. Ruby holds the semantics. **Rust becomes a
-projection** — except the interpreter, which stays hand-written and small.
+hecksagain does not fix that by generating one runtime from the other. **Both
+runtimes are hand-written, and that is the design.** What changed is where
+authority lives: **Ruby holds the semantics**, and Rust is a second
+implementation held to Ruby's answers.
 
-One author. Nothing to be at parity with.
+So parity here is a claim about OUTPUT, not about origin — two authors reading
+the same source file must produce the same IR, the same behaviour, and the same
+stored records. `bin/parity` is what makes the claim real.
 
 ```
-  regular Ruby  →  extraction  →  IR  →  Rust / SQL / anything
+  a .bluebook  →  Ruby runtime  ┐
+                                ├─→  must agree, or it is a SPLIT
+  the same file →  Rust runtime ┘
 ```
 
-The arrow only runs one way. The IR is extracted FROM Ruby ; Ruby is never
-generated from the IR.
+Neither runtime is handed the other's output. The IR is *extracted* from Ruby
+for inspection and diffing ; Ruby is never generated from it, and neither is
+Rust.
+
+> **A note on the word "projection."** An earlier framing called Rust a
+> projection of Ruby. It never was one, and the code says so plainly: the Rust
+> parser carries a whole relationship vocabulary (`has_many`, `has_one`,
+> `belongs_to`, `singularize`) that has no counterpart in the Ruby DSL. A
+> projection cannot have features its source lacks. Calling it one hid real
+> divergence behind a word.
 
 ## Try it
 
@@ -61,11 +75,11 @@ parseable subset and the evaluable subset turn out to be the same question. The
 JSON handover exists because it made semantic parity provable early, and it
 retires when the Rust parser lands.
 
-The mistake this project exists to avoid is not *two parsers*. It is two
-parsers **authored twice by hand**, held together by a suite that can only
-detect drift after the fact. A Rust parser that is a *projection* of the Ruby
-one is a different thing: one author, two artifacts. Rust is a projection,
-except the interpreter.
+Two parsers is not the mistake. Two parsers whose agreement nobody CHECKS is.
+Both parsers here are authored by hand, so the whole burden falls on the
+harness — and the harness answers it by comparing what the runtimes DO, at
+three stages: the IR they read, the behaviour they run, and the records they
+write.
 
 The harness runs successes and every refusal path, because a runtime that
 ACCEPTS what the other refuses is the failure most worth catching. Only JSON
@@ -177,7 +191,7 @@ semantic core, and Rust is merely the first thing to read it.
 
 ```sh
 rspec                  # 41 examples — the Ruby side
-(cd projection/rust && cargo test) # 11 tests — the Rust half of the sublanguage contract
+(cd rust && cargo test)  # the Rust half of the sublanguage contract
 bin/parity             # the two runtimes agree
 ```
 

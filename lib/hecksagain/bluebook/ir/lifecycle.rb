@@ -15,8 +15,8 @@
 # `from:` KEEPS ITS SHAPE HERE. A list stays a list. The interpreter wants one
 # record per (command, to, from) triple, but flattening is a rendering concern
 # and it belongs to the exporter — the same place Hecks does it (canonical_ir.rb
-# `transitions_to_array`). Doing it in the builder would let the projection
-# dictate how a bluebook is written, and the arrow only runs the other way.
+# `transitions_to_array`). Doing it in the builder would let an interpreter
+# dictate how a bluebook is written, and authority only runs the other way.
 module Hecksagain
   module Bluebook
     module IR
@@ -67,7 +67,7 @@ module Hecksagain
         # per source state — the interpreter wants a flat (command, to, from)
         # triple, and rendering is the right place to give it one. The authoring
         # shape above is untouched, so how a bluebook is written never bends to
-        # what a projection finds convenient to read.
+        # what an interpreter finds convenient to read.
         def to_h
           {
             field:       field.to_s,

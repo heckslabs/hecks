@@ -25,7 +25,7 @@
 //!
 //! Ruby declares THREE ports, this side two. Extraction is absent on purpose -
 //! Ruby must recover a predicate's source from a Proc that already swallowed it,
-//! so it re-reads the file with Prism ; the projection reads the .bluebook as
+//! so it re-reads the file with Prism ; this side reads the .bluebook as
 //! text and never loses it. An edge that does not exist should not be declared
 //! to make two trees look alike.
 //!

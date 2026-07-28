@@ -14,7 +14,7 @@ require "spec_helper"
 # in the corpus, in either runtime.
 #
 # So these examples drive the SAME rule from both sides and assert the SAME
-# words. That is the contract the Rust projection answers to : its
+# words. That is the contract the Rust side answers to : its
 # `mutations.rs::arithmetic` is called by both its record path and its element
 # path, and these strings are what both must produce.
 #

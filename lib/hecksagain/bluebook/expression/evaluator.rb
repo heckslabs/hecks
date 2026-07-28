@@ -1,6 +1,6 @@
 # Evaluator — one canonical expression string to one verdict.
 #
-# Mirrors projection/rust/src/bluebook/expression/evaluator.rs, including its SPLIT ORDER, which
+# Mirrors rust/src/bluebook/expression/evaluator.rs, including its SPLIT ORDER, which
 # is the part that actually matters. Precedence here is not a detail of how the
 # code happens to be written — it IS the semantics. `a || b && c` means
 # `a || (b && c)` only because the splitter takes `||` first, so a runtime that

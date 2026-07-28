@@ -7,11 +7,11 @@
 # BOTH RUNTIMES READ THE SAME SOURCE FILE. Neither is handed the other's
 # output, so this compares two PARSERS and two INTERPRETERS.
 #
-# Two parsers is not the mistake hecksagain exists to avoid — two parsers
-# AUTHORED TWICE BY HAND, kept in step by a suite that only detects drift after
-# the fact, is. Until the Rust parser is a projection of the Ruby one, this
-# harness is what keeps them honest : drift shows up as a wrong answer, not as a
-# diff nobody reads.
+# BOTH PARSERS ARE AUTHORED BY HAND. That is the design, not a waypoint on the
+# way to one generating the other. Parity here is therefore a claim about OUTPUT
+# — two independent authors reading the same source must produce the same answer
+# — and this harness is what makes the claim real : drift shows up as a wrong
+# answer, not as a diff nobody reads.
 #
 # THE GUARANTEE IS ONLY AS WIDE AS THE CORPUS. Green here means the two runtimes
 # agree about the documents in examples/ — and says NOTHING about a construct no
@@ -24,7 +24,7 @@
 # insertion order) because key order is not semantics. Nothing else is.
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-BINARY="$ROOT/projection/rust/target/release/hecksagain"
+BINARY="$ROOT/rust/target/release/hecksagain"
 
 # ALWAYS rebuild, ONCE, before any domain runs. An earlier version built only
 # when the binary was missing, so editing the Rust side and re-running compared
@@ -35,7 +35,7 @@ BINARY="$ROOT/projection/rust/target/release/hecksagain"
 # composition root that links the sqlite adapter) ; a workspace with a root
 # package builds ONLY that package by default, so without this the harness
 # silently compares against a stale binary — which it did, once.
-(cd "$ROOT/projection/rust" && cargo build --release --workspace --quiet) || exit 1
+(cd "$ROOT/rust" && cargo build --release --workspace --quiet) || exit 1
 
 # ---------------------------------------------------------------------------
 # One domain, three stages.

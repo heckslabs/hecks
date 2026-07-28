@@ -47,7 +47,7 @@ CURRENT coverage. The findings below are all inside that green.
    Notifications). Reactions are recorded undelivered — by design — but
    the parity script never ASSERTS the recorded shape for these ; pin it.
 
-## The layers (each : Ruby first, Rust projection, corpus pin, commit)
+## The layers (each : Ruby first, Rust counterpart, corpus pin, commit)
 
 L1 `increment:`/`decrement:` — DSL command_builder + IR::Mutation op +
    Ruby interpreter (instance/mutations) → Rust ir/parser/mutations.rs →
@@ -89,7 +89,7 @@ L6 hecks mirrors — the wprobe payload-gate acceptance (live dispatch
 ## Standing constraints
 
 - Ruby is truth ; the exporter converts shapes ; never bend a bluebook to
-  a projection (finding 1 is the cautionary tale).
+  suit an interpreter (finding 1 is the cautionary tale).
 - Zero warnings, zero failing tests, specs do no IO outside spec/adapters.
 - hecksagain commits tell the finding-first story like the existing log.
 - hecks commits ride feat/fixtures-to-policies conventions (antibody
@@ -180,7 +180,7 @@ With those, every author-facing word hecksagain's DSL admits is exercised by
 banking + pizzas + grammar, and every word's behaviour has a wording or a
 byte-identity check that fails loudly. The banking coverage goal is closed.
 
-Standing findings, not tonight's scope : projection/rust parser still
+Standing findings, not tonight's scope : rust parser still
 tolerates hecks-dialect words hecksagain's Ruby never emits (`category`,
 `fixture`, `entrypoint`, `section`, `cadence`, `block_grammar` fields on the
 Rust Domain) — dead weight the seam hides ; and 8 pre-existing clippy lints

@@ -46,7 +46,7 @@ impl Persistence {
     }
 }
 
-/// The adapter the runtime always carries. The projection of Ruby's
+/// The adapter the runtime always carries. The counterpart of Ruby's
 /// `Ports::Persistence::DEFAULT_ADAPTER`.
 pub const DEFAULT_ADAPTER: &str = "Memory";
 
@@ -124,7 +124,7 @@ fn binds(bluebook_dir: &Path) -> Vec<(String, String)> {
 }
 
 /// The adapter bound to ONE aggregate. The hecksagon names it by FQN
-/// (`Pizzas::Pizza`), so the match is on the trailing segment — the projection
+/// (`Pizzas::Pizza`), so the match is on the trailing segment — the counterpart
 /// of Ruby's `Bind#aggregate_name`.
 fn persisted_by(declared: &[(String, String)], aggregate: &str) -> Option<String> {
     declared
@@ -160,7 +160,7 @@ fn persisted_by(declared: &[(String, String)], aggregate: &str) -> Option<String
 ///
 /// The adapter reads whichever field it declares — Sqlite `database`, Heki
 /// `dir` — and Memory reads none, which is why it needs no world block at all.
-/// This is the projection of that : the port carries the values, the adapter
+/// This is the counterpart of that : the port carries the values, the adapter
 /// decides what they mean.
 fn settings_for(bluebook_path: &str, adapter: &str) -> HashMap<String, String> {
     let Some(bluebook_dir) = Path::new(bluebook_path).parent() else {

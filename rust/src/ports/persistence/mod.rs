@@ -17,7 +17,7 @@ pub use crate::runtime::value::Value;
 mod persistence;
 pub use persistence::{resolve_for, Persistence, DEFAULT_ADAPTER};
 
-// Cherry-picked from Hecks, unedited. It carries helpers this projection does
+// Cherry-picked from Hecks, unedited. It carries helpers this side does
 // not call - dead HERE, load-bearing THERE - so the allow is by name.
 #[allow(dead_code)]
 pub mod persistence_adapter;

@@ -38,12 +38,12 @@ pub struct Runtime {
     adapters: BTreeMap<String, Box<dyn PersistenceAdapter>>,
     pub events: Vec<Value>,
     /// Every policy that FIRED, and whether its command was delivered. The
-    /// projection of Ruby's `registry.reaction_log`. A reaction nobody records
+    /// counterpart of Ruby's `registry.reaction_log`. A reaction nobody records
     /// is a reaction nobody misses — which is how four declared policies ran
     /// nowhere in BOTH runtimes while parity stayed green.
     pub reactions: Vec<Value>,
     /// Every process-manager step — born, advanced, refused, ended. The
-    /// projection of Ruby's `registry.saga_log` : Settlement parsed, both
+    /// counterpart of Ruby's `registry.saga_log` : Settlement parsed, both
     /// parsers agreed on it byte-for-byte, and it ran NOWHERE. A saga the
     /// contract does not compare is a saga that can silently stop again.
     pub sagas: Vec<Value>,
@@ -80,7 +80,7 @@ fn snake_case(name: &str) -> String {
 }
 
 /// A query-clause value : ":symbol" reads the caller's argument of that
-/// name ; anything else is the literal itself. The projection of Ruby's
+/// name ; anything else is the literal itself. The counterpart of Ruby's
 /// `resolve_query_value`.
 fn resolve_query_value(value: Option<&Value>, args: &State) -> Value {
     let Some(value) = value else { return Value::Null };
@@ -90,7 +90,7 @@ fn resolve_query_value(value: Option<&Value>, args: &State) -> Value {
     value.clone()
 }
 
-/// The lifecycle's admission rule — the projection of Ruby's
+/// The lifecycle's admission rule — the counterpart of Ruby's
 /// `admissible_transition`. None when the command is not part of the machine ;
 /// Some((field, to_state)) when admitted ; Err when the machine says no. A
 /// transition whose from_state is null admits any state. The canonical IR is
@@ -208,7 +208,7 @@ impl Runtime {
         found
     }
 
-    /// An entity command — the projection of Ruby's `dispatch_entity` :
+    /// An entity command — the counterpart of Ruby's `dispatch_entity` :
     /// hydrate the PARENT, address ONE element of the list holding this
     /// entity's records by the entity's own identified_by, gate its
     /// lifecycle, mutate THAT element, save the parent, announce
@@ -381,7 +381,7 @@ impl Runtime {
         Ok(result)
     }
 
-    /// THE QUESTIONS, finally answered — the projection of Ruby's `query`.
+    /// THE QUESTIONS, finally answered — the counterpart of Ruby's `query`.
     /// eq and lt are the whole vocabulary ; a clause value is a literal or a
     /// ":symbol" naming one of the query's own attributes, resolved from the
     /// caller. Numeric fields sort as numbers, everything else as text, ties
@@ -466,7 +466,7 @@ impl Runtime {
             .collect())
     }
 
-    /// An entity query — the projection of Ruby's `query_entity` : elements
+    /// An entity query — the counterpart of Ruby's `query_entity` : elements
     /// across every parent record, each row the element plus the parent's id
     /// under the parent's snake_case name, because an element's address
     /// outside the boundary always includes whose boundary it is.
@@ -580,7 +580,7 @@ impl Runtime {
     pub fn dispatch(&mut self, verb: &str, args: &State) -> Result<State, String> {
         let (domain, aggregate_name, command_name) = parse_verb(verb)?;
         // `Order.OrderLine.Restock` — an entity is addressed THROUGH the
-        // parent, never around it. The projection of Ruby's dispatch_entity.
+        // parent, never around it. The counterpart of Ruby's dispatch_entity.
         if command_name.contains('.') {
             return self.dispatch_entity(&domain, &aggregate_name, &command_name, args);
         }
@@ -607,7 +607,7 @@ impl Runtime {
         }
 
         // The state machine gates BEFORE anything is written and moves AFTER
-        // the mutations land. The projection of Ruby's `admissible_transition` —
+        // the mutations land. The counterpart of Ruby's `admissible_transition` —
         // wording to the character, because a refusal the two runtimes phrase
         // differently is a diff the harness has to explain away.
         let transition_to = admissible_transition(&aggregate, &command_name, &state)?;
@@ -666,7 +666,7 @@ impl Runtime {
         // REMEMBER - a process manager is the conversation that outlives any
         // one command. After the reflexes, and after react_to, so a policy's
         // reaction and a saga's advance read the same event in a fixed order
-        // on both runtimes. The projection of Ruby's `advance_sagas`.
+        // on both runtimes. The counterpart of Ruby's `advance_sagas`.
         for event in &announced {
             self.advance_sagas(event, &domain);
         }
@@ -702,7 +702,7 @@ impl Runtime {
         // Three spellings address a record, in order : the natural key
         // (identified_by), the universal `id:`, and the REFERENCE KEY — the
         // snake_case of the aggregate `reference_to` names, so Reverse takes
-        // `transfer:`. The projection of Ruby's hydrate ; only the first
+        // `transfer:`. The counterpart of Ruby's hydrate ; only the first
         // spelling resolved before, and the whole saga surface refused with
         // "pass id:" in both runtimes — 21 agreeing refusals that looked like
         // a passing suite.
@@ -752,7 +752,7 @@ impl Runtime {
         Ok((id, self.store[&key].clone()))
     }
 
-    /// The domain's reflex. The projection of Ruby's `react_to` in
+    /// The domain's reflex. The counterpart of Ruby's `react_to` in
     /// lib/hecksagain/runtime/dispatcher.rb, which holds the semantics.
     ///
     /// EVERY reaction is recorded, delivered or not. A policy pointing at a
@@ -813,7 +813,7 @@ impl Runtime {
     /// A policy matches on the event NAME, and when its subscription is
     /// qualified (`on "Order.Placed"`) on the emitting aggregate too.
     // ======================================================================
-    // THE CONVERSATION THAT OUTLIVES A COMMAND — the projection of Ruby's
+    // THE CONVERSATION THAT OUTLIVES A COMMAND — the counterpart of Ruby's
     // saga engine (lib/hecksagain/runtime/dispatcher.rb holds the semantics
     // and the doctrine comment ; this is the mirror, step for step) :
     // born → advanced (transition FIRST, then dispatches ; `with:` symbols
@@ -836,7 +836,7 @@ impl Runtime {
         }
     }
 
-    /// The projection of Ruby's `saga_correlation` : the payload's
+    /// The counterpart of Ruby's `saga_correlation` : the payload's
     /// correlates_by field when it rides there — and when the field NAMES THE
     /// EMITTING AGGREGATE (correlates_by :transfer, event from Transfer), the
     /// event's own id IS that value, because `transfer` is the reference-key
@@ -1005,7 +1005,7 @@ impl Runtime {
         // correlates_by field (inside this saga `:transfer` means exactly the
         // correlation), then the triggering event's payload, then the
         // remembered opening payload — and anything else is a literal to write.
-        // The projection of Ruby's resolution order, exactly.
+        // The counterpart of Ruby's resolution order, exactly.
         let correlates_by = self
             .ir
             .get(domain)

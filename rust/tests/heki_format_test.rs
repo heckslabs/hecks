@@ -20,7 +20,7 @@ fn fixture() -> String {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .and_then(|p| p.parent())
-        .expect("repo root above projection/rust")
+        .expect("repo root above rust/")
         .join("spec/parity/fixtures/ruby_written.heki");
 
     root.to_string_lossy().to_string()

@@ -6,10 +6,10 @@
 # provable early, and it retires once the Rust parser exists.
 #
 # The mistake hecksagain exists to avoid is NOT "two parsers". It is two
-# parsers authored twice BY HAND, kept in step by a suite that can only detect
-# drift after the fact. A Rust parser that is a PROJECTION of the Ruby one is a
-# different thing entirely: one author, two artifacts. Rust is a projection,
-# except the interpreter.
+# parsers whose agreement nobody CHECKS. Both parsers here are authored by hand
+# — Rust is not generated from Ruby and never was — so the whole burden falls on
+# bin/parity, which compares what the two runtimes DO rather than where they
+# came from.
 #
 # The export stays useful regardless — as a debugging surface, and as the input
 # to targets that genuinely want data rather than source (SQL, docs, a
