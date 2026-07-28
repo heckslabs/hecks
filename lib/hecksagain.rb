@@ -40,19 +40,7 @@ require_relative "hecksagain/bluebook/dsl/port_builder"
 require_relative "hecksagain/bluebook/dsl/adapter_builder"
 require_relative "hecksagain/bluebook/dsl/world_builder"
 
-require_relative "hecksagain/runtime/event"
-require_relative "hecksagain/runtime/value"
-require_relative "hecksagain/runtime/instance"
-require_relative "hecksagain/runtime/registry"
-require_relative "hecksagain/runtime/errors"
-require_relative "hecksagain/runtime/command_rules"
-require_relative "hecksagain/runtime/command_interpreter"
-require_relative "hecksagain/runtime/entity_interpreter"
-require_relative "hecksagain/runtime/query_interpreter"
-require_relative "hecksagain/runtime/policy_interpreter"
-require_relative "hecksagain/runtime/saga_interpreter"
-require_relative "hecksagain/runtime/dispatcher"
-require_relative "hecksagain/runtime/loader"
+require_relative "hecksagain/runtime"
 
 require_relative "hecksagain/adapters/driven/memory/memory"
 require_relative "hecksagain/adapters/driven/sqlite/sqlite"
@@ -70,15 +58,15 @@ module Hecksagain
   class << self
     attr_reader :current_registry
 
-    def boot(path, shared: nil) = Runtime::Loader.boot(path, shared: shared)
+    # The loading words below collect into the registry the RUNTIME is
+    # holding open ; booting and that ambient state belong to the runtime
+    # layer, so this module is their facade and Hecksagain::Runtime is where
+    # they live.
+    def boot(path, shared: nil) = Runtime.boot(path, shared: shared)
 
-    def with_registry(registry)
-      previous          = @current_registry
-      @current_registry = registry
-      yield
-    ensure
-      @current_registry = previous
-    end
+    def with_registry(registry, &block) = Runtime.with_registry(registry, &block)
+
+    def current_registry = Runtime.current_registry
 
     def bluebook(name, &block)  = collect(:add_bluebook,  Bluebook::DSL::BluebookBuilder.build(name, &block))
     def hecksagon(name, &block) = collect(:add_hecksagon, Bluebook::DSL::HecksagonBuilder.build(name, &block))
@@ -89,12 +77,12 @@ module Hecksagain
     private
 
     def collect(method, item)
-      unless @current_registry
+      unless Runtime.current_registry
         raise LoadOutsideBoot,
               "declaration loaded outside a boot — use Hecks.boot(path) rather than requiring the file directly"
       end
 
-      @current_registry.public_send(method, item)
+      Runtime.current_registry.public_send(method, item)
       item
     end
   end
