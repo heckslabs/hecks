@@ -1,9 +1,3 @@
-//! sql_query_tests — unit tests for the injection-safe WHERE pushdown builder
-//!
-//! Covers `build_pushdown` in isolation : the SQL text it emits, the bound
-//! params, and the injection / unknown-column / not-pushed guards. The
-//! end-to-end SQL ↔ where_matches parity (over a real SqliteRepository) lives
-//! in `query_parity_tests`.
 
 use crate::sql_query::build_pushdown;
 use storehouse::ir::{WhereClause, WhereOp};
@@ -18,8 +12,6 @@ fn cols() -> Vec<String> {
     vec!["status".to_string(), "priority".to_string()]
 }
 
-/// The INTEGER-typed subset — only `priority`. A numeric-target range pushes
-/// only on these columns.
 fn nums() -> Vec<String> {
     vec!["priority".to_string()]
 }
@@ -65,7 +57,6 @@ fn injection_value_is_bound_never_interpolated() {
     let evil = "x'; DROP TABLE ticket; --";
     let (sql, params) =
         build_pushdown(&[clause("status", WhereOp::Eq, evil)], &attrs, &cols(), &nums()).unwrap();
-    // The malicious string never appears in the SQL text — only a ?N.
     assert!(!sql.contains("DROP"));
     assert_eq!(sql, "CAST(\"status\" AS TEXT) = ?1");
     assert_eq!(params, vec![SqlValue::Text(evil.into())]);
@@ -74,7 +65,6 @@ fn injection_value_is_bound_never_interpolated() {
 #[test]
 fn unknown_column_is_dropped_not_emitted() {
     let attrs = HashMap::new();
-    // A field name not in the trusted column list never reaches SQL.
     let out = build_pushdown(
         &[clause("status; DROP TABLE ticket", WhereOp::Eq, "x")],
         &attrs,
@@ -97,8 +87,6 @@ fn ne_and_contains_are_always_left_to_oracle() {
 
 #[test]
 fn numeric_target_on_non_integer_column_is_left_to_oracle() {
-    // A numeric target on a NON-INTEGER column (status) could be numeric for some
-    // rows and lexical for others in the oracle, so SQL can't push it safely.
     let attrs = HashMap::new();
     for op in [WhereOp::Gt, WhereOp::Gte, WhereOp::Lt, WhereOp::Lte] {
         assert!(
@@ -110,8 +98,6 @@ fn numeric_target_on_non_integer_column_is_left_to_oracle() {
 
 #[test]
 fn numeric_target_on_integer_column_pushes_as_cast_integer() {
-    // Gt/Gte push a bare `CAST(col AS INTEGER) OP ?` (NULL excluded, matching the
-    // oracle) ; Lt/Lte add `col IS NULL OR ...` (the oracle keeps nulls for <).
     let attrs = HashMap::new();
     let (sql, params) =
         build_pushdown(&[clause("priority", WhereOp::Gt, "5")], &attrs, &cols(), &nums()).unwrap();
@@ -134,8 +120,6 @@ fn numeric_target_on_integer_column_pushes_as_cast_integer() {
 
 #[test]
 fn nonnumeric_target_ordered_ops_push_as_cast_text() {
-    // A non-numeric target forces the oracle's lexical branch, which
-    // CAST(col AS TEXT) OP ? mirrors exactly — so the ordered op pushes.
     let attrs = HashMap::new();
     let ops = [
         (WhereOp::Gt, ">"),
@@ -169,7 +153,7 @@ fn mixed_clauses_push_only_the_pushable_subset() {
     let (sql, params) = build_pushdown(
         &[
             clause("status", WhereOp::Eq, "pending"),
-            clause("priority", WhereOp::Ne, "3"), // Ne never pushes
+            clause("priority", WhereOp::Ne, "3"), 
         ],
         &attrs,
         &cols(),

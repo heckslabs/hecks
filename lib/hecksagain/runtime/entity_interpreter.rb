@@ -1,30 +1,3 @@
-# EntityInterpreter — the command machinery, ONE ELEMENT DEEP.
-#
-# An entity is addressed THROUGH its parent, never around it — the three-part
-# verb the Entity IR documented from the day it was written:
-#
-#   dispatch("Banking::Account.LedgerEntry.Reverse", id: "acct-1", sequence: 2)
-#
-# Hydrate the PARENT, address ONE element of the list that holds this entity's
-# records, gate its own lifecycle, mutate THAT element, save the parent. The
-# event rides the parent's name, because outside the boundary the parent is
-# the only addressable thing.
-#
-# ONE DELIBERATE DIVERGENCE FROM HECKS, recorded where it is visible : hecks
-# runs an entity command against the PARENT record ("entities live within the
-# parent's record"), which would write Reverse's narrative onto the Account
-# itself. Undoing ONE movement is what the domain declares, so here the
-# command addresses the element by the entity's own identified_by.
-#
-# The guard, the lifecycle rule, sourcing, arithmetic and emit come from
-# CommandRules — the rules a command obeys whatever it acts on. This room is a
-# PEER of CommandInterpreter, not a reuser of it : "the exact machinery of
-# dispatch" stops being true the moment there are two copies of it, and it was
-# briefly untrue — the element path carried its own copy of the
-# Integer-or-nothing rule, error strings and all.
-#
-#   EntityInterpreter.new(registry, rules: rules).call(domain, aggregate, dotted, args)
-#   # => [parent_instance, events]
 
 module Hecksagain
   module Runtime
@@ -78,11 +51,6 @@ module Hecksagain
           raise(NotFound, "no #{entity_name} with #{key} #{want.inspect} on #{aggregate.name} #{instance.id.inspect}")
       end
 
-      # then_set on an element. Values store RAW — the append path stores an
-      # element's fields as they arrive, and one entry VO-wrapped by a later
-      # Reverse beside ten raw siblings would be two shapes for one column.
-      # (VO construction for elements, both paths at once, is a named
-      # follow-up on DESIGN-banking-exact.)
       def apply_to_element(element, mutation, args)
         case mutation.op
         when :set

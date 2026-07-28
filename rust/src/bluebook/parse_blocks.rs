@@ -1,40 +1,7 @@
-//! Block parsers — parse command, value_object, policy, lifecycle, attribute, mutation
-//!
-//! Each function takes a slice of lines starting at the block opener
-//! and returns the parsed structure plus lines consumed.
-//!
-//! [antibody-exempt: i106 dsl-mutation-primitives — kernel-surface
-//!  parser extension that recognizes `multiply:`, `clamp:`, and `decay:`
-//!  on `then_set`. Same retirement contract as ir.rs : the .rs surface
-//!  exists to enable pulse_organs.bluebook + consolidate retirement
-//!  (i80 cli-routing-as-bluebook).]
-//!
-//! [antibody-exempt: i226 parse-where-comparator-hash-form — kernel-surface
-//!  parser extension that recognizes `where(field: { lt|lte|gt|gte|ne: value })`
-//!  hash-form comparators. The IR's WhereOp already carries every variant ;
-//!  this is the parser side wiring that makes them reachable from .bluebook.
-//!  Without it, queries like `Synapse.cold` (where last_fired_at < cutoff)
-//!  cannot be expressed as first-class queries, and consolidate.sh /
-//!  rem_branch.sh cannot retire (i221 / i222). Same retirement contract.]
 
 use crate::ir::*;
 use crate::parser_helpers::*;
 
-/// Parse a top-level `section "Title" do … end` block from a capability
-/// bluebook. Each `row "label", :field` line inside becomes one
-/// SectionRow. Lines that aren't recognised are silently skipped so
-/// authors can intersperse comments. Returns the parsed Section plus
-/// the number of source lines consumed (including the closing `end`).
-///
-/// Form:
-///   section "Identity" do
-///     row "name",      :identity_name
-///     row "born",      :born_at
-///     row "age",       :age_str
-///   end
-///
-/// `field` accepts both bare-symbol (`:foo`) and quoted string
-/// (`"foo"`) tails so author intent reads naturally.
 pub fn parse_section(lines: &[&str]) -> (Section, usize) {
     let first = lines[0].trim();
     let title = extract_string(first).unwrap_or_default();
@@ -61,9 +28,6 @@ pub fn parse_section(lines: &[&str]) -> (Section, usize) {
     (Section { title, rows }, i + 1)
 }
 
-/// Parse one `row "label", :field` line. Field tail may be a bare
-/// symbol (`:awareness_carrying`), a quoted string (`"awareness_carrying"`),
-/// or a bare identifier. Returns None when the line shape is unparseable.
 pub fn parse_section_row(line: &str) -> Option<SectionRow> {
     let label = extract_string(line)?;
     let after_label_close = {
@@ -78,7 +42,6 @@ pub fn parse_section_row(line: &str) -> Option<SectionRow> {
     } else if tail.starts_with(':') {
         extract_symbol(tail)?
     } else {
-        // bare identifier — first contiguous run
         let end = tail.find(|c: char| !c.is_alphanumeric() && c != '_')
             .unwrap_or(tail.len());
         let f = tail[..end].trim();
@@ -91,7 +54,6 @@ pub fn parse_section_row(line: &str) -> Option<SectionRow> {
 pub fn parse_command(lines: &[&str]) -> (Command, usize) {
     let first = lines[0].trim();
     let name = extract_string(first).unwrap_or_else(|| {
-        // Shorthand: bare PascalCase like `CreatePizza do`
         first.split_whitespace().next().unwrap_or("").to_string()
     });
 
@@ -106,11 +68,6 @@ pub fn parse_command(lines: &[&str]) -> (Command, usize) {
         return (cmd, 1);
     }
 
-    // Bare `command "Reset"` form — no `do` block, no body. Consume
-    // just the single declaration line. Without this guard the loop
-    // below walks past the closing `end` of the enclosing aggregate
-    // and eats subsequent siblings, since the parser thinks it's
-    // looking for a matching `end` that doesn't exist.
     if !ends_with_do_block(first) {
         return (cmd, 1);
     }
@@ -154,29 +111,12 @@ pub fn parse_command(lines: &[&str]) -> (Command, usize) {
                 cmd.description = extract_string(line);
             } else if line.starts_with("emits") {
                 cmd.emits = extract_string(line);
-                // i250 — events have identity. `emits "X", identified_by: :foo`
-                // carries the event-identity attribute name. Same word
-                // aggregates use for primary keys ; reused on the emit
-                // side to dedupe two reports of the same event.
                 cmd.emits_identified_by = extract_kwarg_symbol(line, "identified_by");
             } else if line.starts_with("redirects_native") {
-                // This command is the governed door for one or more native
-                // harness tools — `redirects_native "Edit", "MultiEdit"`. The
-                // macrophage's governed-channel rule PROJECTS the native-tool
-                // -> door map from every command carrying this ; door_args
-                // derives from the command's attributes. A LIST : the quoted
-                // tool names are the odd-indexed split-on-quote pieces.
                 cmd.redirects_native = line.split('"').skip(1).step_by(2)
                     .map(|s| s.to_string()).collect();
             } else if line.starts_with("reference_to") {
                 if let Some(target) = extract_word_after(line, "reference_to") {
-                    // i526 : honour `, as: :name` and `, role: :name`
-                    // qualifiers at the COMMAND level, the same way the
-                    // aggregate-level `absorb_reference_to` does. Without
-                    // this, transfer-style commands declaring two refs to
-                    // the same aggregate (source + destination) collapse
-                    // both names to the bare aggregate snake_case — making
-                    // the IR ambiguous.
                     let name = if let Some(pos) = line.find(", as:") {
                         let after = &line[pos + ", as:".len()..];
                         extract_symbol(after).unwrap_or_else(|| crate::naming::snake(&target))
@@ -186,14 +126,9 @@ pub fn parse_command(lines: &[&str]) -> (Command, usize) {
                     } else {
                         crate::naming::snake(&target)
                     };
-                    // Reference::single defaults to LegacyReferenceTo + single
-                    // cardinality ; cardinality + kind ride into the IR via
-                    // the impl helpers added by ImplReference fixture.
                     cmd.references.push(Reference::single(name, target, None));
                 }
             } else if line.starts_with("given") && line.contains(" do ") && line.ends_with("end") {
-                // INLINE one-liner : given("msg") do expr end
-                // Mirrors the invariant arm of the same shape.
                 let msg = extract_string(line);
                 if let (Some(do_pos), Some(stripped)) = (inline_do_pos(line), line.strip_suffix("end")) {
                     let expr = stripped[do_pos + " do ".len()..].trim().to_string();
@@ -202,22 +137,6 @@ pub fn parse_command(lines: &[&str]) -> (Command, usize) {
                     }
                 }
             } else if line.starts_with("given") && ends_with_do_block(line) {
-                // MULTI-LINE : given("msg") do
-                //                expr
-                //              end
-                //
-                // Ruby takes a block either way — `do … end` and `{ … }` are
-                // the same construct — so a parser that reads only one accepts
-                // a NARROWER language than the DSL does, and a bluebook can
-                // then be valid Ruby and invisible here. The invariant parser
-                // already carries this exact scar ("Rust silently read 2 of
-                // its 6 invariants while Ruby read all six") ; givens had the
-                // same hole and nothing caught it, because no corpus domain
-                // wrote a given this way.
-                //
-                // Worse than dropping it : the block's `end` fell through to
-                // the depth tracker and closed the COMMAND early, so `emits`
-                // and every later clause vanished too.
                 let msg = extract_string(line);
                 let mut body: Vec<&str> = Vec::new();
                 let mut j = i + 1;
@@ -239,12 +158,6 @@ pub fn parse_command(lines: &[&str]) -> (Command, usize) {
                 i = j + 1;
                 continue;
             } else if line.starts_with("given") {
-                // Two forms:
-                //   given "msg"         → expression = "msg", message = "msg"
-                //   given { expr }      → expression = "expr", message = None
-                //   given "msg" { expr }→ expression = "expr", message = "msg"
-                // Strip the block first so quoted strings INSIDE the block
-                // don't get picked up as the message argument.
                 let block = extract_block(line);
                 let line_no_block = match line.find('{') {
                     Some(open) => &line[..open],
@@ -260,8 +173,6 @@ pub fn parse_command(lines: &[&str]) -> (Command, usize) {
                     cmd.mutations.push(Mutation { field, operation: MutationOp::Toggle, value: String::new(), invalid_op: None });
                 }
             } else if line.starts_with("then_delete") {
-                // Record-level deletion. No field, no value — the op
-                // alone says "remove this aggregate after dispatch".
                 cmd.mutations.push(Mutation {
                     field: String::new(),
                     operation: MutationOp::Delete,
@@ -275,26 +186,11 @@ pub fn parse_command(lines: &[&str]) -> (Command, usize) {
     (cmd, i + 1)
 }
 
-/// Extract the role/actor name from a `role …` line. Two forms accepted :
-///
-///   role "Customer"
-///     Legacy quoted form — name is the literal string.
-///
-///   role Role[, as: Agent[, kind: "system"]]
-///     i483 typed form — name is the bare identifier immediately after
-///     `role`. The `as:` / `kind:` kwargs are accepted-and-ignored on
-///     both Rust and Ruby sides until the parser-support follow-up
-///     lifts them into the IR. Critically : the bareword form must
-///     NOT fall back to extract_string, which would pick up the
-///     quoted "system" inside a trailing `kind:` clause and silently
-///     misidentify the role name.
 fn parse_role_arg(line: &str) -> Option<String> {
     let after = line.trim_start_matches("role").trim_start();
     if after.starts_with('"') {
         return extract_string(after);
     }
-    // Bareword form — read up to the first comma, whitespace, or
-    // line end, and return the leading identifier.
     let end = after
         .find(|c: char| c == ',' || c.is_whitespace())
         .unwrap_or(after.len());
@@ -302,13 +198,6 @@ fn parse_role_arg(line: &str) -> Option<String> {
     if token.is_empty() { None } else { Some(token.to_string()) }
 }
 
-/// Parse a `factory "X"[, produces: Y] do … end` block — a BIRTH
-/// (2026-06-12 first-class-factories design). The body grammar is
-/// identical to a command's (role, attributes, givens, emits,
-/// then_set …), so the body is read by parse_command and lifted into
-/// the Factory node. `produces:` names the aggregate this factory
-/// mints ; None = the enclosing aggregate. The transitional `create`
-/// keyword (#729) parses through here too until the phase-4 sweep.
 pub fn parse_factory(lines: &[&str]) -> (Factory, usize) {
     let first = lines[0].trim();
     let produces = extract_produces(first);
@@ -328,9 +217,6 @@ pub fn parse_factory(lines: &[&str]) -> (Factory, usize) {
     (factory, consumed)
 }
 
-/// Extract the bare-constant target of a `produces:` kwarg —
-/// `factory "DraftStory", produces: Story do` → Some("Story").
-/// Bare PascalCase ident ; trailing `do` / `,` / `{` delimiters end it.
 fn extract_produces(first: &str) -> Option<String> {
     let pos = first.find("produces:")?;
     let after = first[pos + "produces:".len()..].trim_start();
@@ -355,11 +241,6 @@ fn parse_inline_command(line: &str, cmd: &mut Command) {
             } else if part.starts_with("reference_to") {
                 if let Some(target) = extract_word_after(part, "reference_to") {
                     let snake = crate::naming::snake(&target);
-                    // Reference gained `cardinality` + `kind` for the
-                    // Sprint 7 relationship DSL ; the inline command
-                    // path constructs via Reference::single (LegacyReferenceTo
-                    // + single cardinality defaults) so the new fields
-                    // are populated without per-callsite repetition.
                     cmd.references.push(Reference::single(snake, target, None));
                 }
             } else if is_shorthand_line(part) {
@@ -373,26 +254,8 @@ fn parse_inline_command(line: &str, cmd: &mut Command) {
     }
 }
 
-/// Parse a `query "Name" do ... end` block — i101 first-class query IR.
-///
-/// Body lines recognized:
-///   - `description "..."`     — human-readable goal
-///   - `attribute :name, Type` — input parameter (kwarg at dispatch)
-///   - `where field: value`    — filter clause (eq op default)
-///   - `where(field: value)`   — same, parenthesized form
-///   - `order_by :field`       — sort ascending
-///   - `order_by :field, :desc`— sort descending
-///   - `limit 10`              — record cap (literal)
-///   - `limit :max`            — record cap (kwarg-ref)
-///
-/// The block opener may carry a `|param|` argument list for the legacy
-/// `query "ByX" do |x| where(field: x) end` form ; the parser maps the
-/// param to an implicit String attribute so `where` can resolve `:x`.
 pub fn parse_query(lines: &[&str]) -> (Query, usize) {
     let first = lines[0].trim();
-    // `query "Foo"` (quoted) vs `query Foo` (bare PascalCase) — the
-    // bare form falls through to the second whitespace-split token,
-    // matching push_query's legacy behavior.
     let name = extract_string(first).unwrap_or_else(|| {
         first.split_whitespace().nth(1).unwrap_or("").trim_matches('"').to_string()
     });
@@ -409,10 +272,6 @@ pub fn parse_query(lines: &[&str]) -> (Query, usize) {
         scope_to: None,
     };
 
-    // Capture `do |arg, ...|` block params as implicit String attributes.
-    // The legacy `query "ByX" do |x| where(field: x) end` form binds `x`
-    // as a positional kwarg ; the runtime resolves `:x` via attrs at
-    // dispatch time, same as named-attribute kwargs.
     if let Some(open) = first.rfind('|') {
         if let Some(prev) = first[..open].rfind('|') {
             let inside = &first[prev + 1..open];
@@ -459,8 +318,6 @@ pub fn parse_query(lines: &[&str]) -> (Query, usize) {
             } else if line.starts_with("limit") {
                 if let Some(ls) = parse_limit_line(line) { q.limit = Some(ls); }
             } else if line == "count" || line.starts_with("count ") || line.starts_with("count\t") {
-                // deciderate Layer 0a — scalar reductions. `count` needs no
-                // field ; sum/max/min/median fold the named numeric field.
                 q.reduction = Some(Reduction::Count);
             } else if line.starts_with("sum") {
                 if let Some(f) = extract_symbol(line) { q.reduction = Some(Reduction::Sum(f)); }
@@ -471,10 +328,8 @@ pub fn parse_query(lines: &[&str]) -> (Query, usize) {
             } else if line.starts_with("min") {
                 if let Some(f) = extract_symbol(line) { q.reduction = Some(Reduction::Min(f)); }
             } else if line.starts_with("group_by") {
-                // partition the matched set by this field's value
                 if let Some(f) = extract_symbol(line) { q.group_by = Some(f); }
             } else if line.starts_with("scope_to") {
-                // read-authZ row-scope : inject where(field == :actor) at run time
                 if let Some(f) = extract_symbol(line) { q.scope_to = Some(f); }
             } else if ends_with_do_block(line) {
                 depth += 1;
@@ -487,28 +342,7 @@ pub fn parse_query(lines: &[&str]) -> (Query, usize) {
     (q, i + 1)
 }
 
-/// Parse one `where ...` line into one or more WhereClauses.
-///
-/// Forms recognized :
-///   where field: value                  (hash form, eq)
-///   where(field: value)                 (parenthesized hash form, eq)
-///   where field1: v1, field2: v2        (multi-pair, all eq)
-///   where(field: { lt: value })         (comparator hash form — i226)
-///   where(field: { lte: value })
-///   where(field: { gt: value })
-///   where(field: { gte: value })
-///   where(field: { ne: value })
-///
-/// Values are captured as canonical source tokens : `"available"` keeps
-/// its quotes stripped → "available" ; `:author` keeps its colon prefix
-/// → ":author" so the runtime can detect the kwarg-ref form. Bare
-/// identifiers that match a known query parameter name (passed in
-/// `param_names`) are also rendered with a leading colon — the legacy
-/// `query "ByX" do |x| where(field: x) end` form binds `x` as a
-/// kwarg-ref the same way `:x` would.
 pub fn parse_where_line(line: &str, param_names: &[String]) -> Vec<WhereClause> {
-    // Strip leading `where(` or `where ` ; if parenthesized, drop the
-    // matching close paren too.
     let mut body = line.trim_start_matches("where").trim_start();
     let parenthesized = body.starts_with('(');
     if parenthesized {
@@ -525,8 +359,6 @@ pub fn parse_where_line(line: &str, param_names: &[String]) -> Vec<WhereClause> 
             let field = part[..colon].trim().to_string();
             let raw = part[colon + 1..].trim();
             if field.is_empty() { continue; }
-            // Comparator hash form: `field: { op: value }`. Recognize
-            // op key, recurse into value extraction.
             if raw.starts_with('{') {
                 if let Some((op, inner)) = parse_comparator_hash(raw) {
                     let value = extract_where_value(inner, param_names);
@@ -545,27 +377,15 @@ pub fn parse_where_line(line: &str, param_names: &[String]) -> Vec<WhereClause> 
     out
 }
 
-/// Extract the canonical value token from a where-clause RHS, applying
-/// the kwarg-ref convention (bare identifiers that match a query param
-/// name get a leading colon).
 fn extract_where_value(raw: &str, param_names: &[String]) -> String {
     let raw = raw.trim();
     if raw.starts_with('"') {
         extract_string(raw).unwrap_or_default()
     } else if raw.starts_with('\'') {
-        // Single-quoted string literal — strip enclosing quotes.
-        // Used in multi-key where conditions that mix a runtime-param key
-        // with a literal value, e.g. `where person: :person, status: 'drafting'`.
-        // Without this branch the quotes are carried into the IR and the
-        // runtime comparison `"drafting" == "'drafting'"` always fails.
         let inner = raw.trim_start_matches('\'');
         let close = inner.rfind('\'').unwrap_or(inner.len());
         inner[..close].to_string()
     } else if raw.starts_with('[') {
-        // List literal for the `in:` operator. Normalize to a clean CSV of
-        // items (quotes + whitespace stripped) ; where_matches splits on
-        // ',' for membership. Inner commas are elements, already protected
-        // by split_top_level_commas' bracket-depth tracking.
         let inner = raw.trim_start_matches('[');
         let close = inner.rfind(']').unwrap_or(inner.len());
         split_top_level_commas(&inner[..close])
@@ -588,9 +408,6 @@ fn extract_where_value(raw: &str, param_names: &[String]) -> String {
     }
 }
 
-/// Parse a comparator hash like `{ lt: "2026-05-01T00:00:00Z" }` into
-/// the matching WhereOp variant plus the inner value source. Returns
-/// None if the brace form is malformed or the op key is unrecognized.
 fn parse_comparator_hash(raw: &str) -> Option<(WhereOp, &str)> {
     let raw = raw.trim_start_matches('{');
     let close = raw.rfind('}')?;
@@ -614,7 +431,6 @@ fn parse_comparator_hash(raw: &str) -> Option<(WhereOp, &str)> {
 }
 
 
-/// Parse `order_by :field` or `order_by :field, :desc` into an OrderBy.
 pub fn parse_order_by_line(line: &str) -> Option<OrderBy> {
     let body = line.trim_start_matches("order_by").trim();
     let body = body.trim_start_matches('(').trim_end_matches(')');
@@ -629,7 +445,6 @@ pub fn parse_order_by_line(line: &str) -> Option<OrderBy> {
     Some(OrderBy { field, direction })
 }
 
-/// Parse `limit 10` or `limit :max_results` into a LimitSpec.
 pub fn parse_limit_line(line: &str) -> Option<LimitSpec> {
     let body = line.trim_start_matches("limit").trim();
     let body = body.trim_start_matches('(').trim_end_matches(')');
@@ -640,9 +455,6 @@ pub fn parse_limit_line(line: &str) -> Option<LimitSpec> {
     Some(LimitSpec { value: token.to_string() })
 }
 
-/// Split a member line's body on top-level commas, quote-aware —
-/// `code: "USD", symbol: "C$", minor_units: 2` → three pairs even when a
-/// quoted value contains a comma.
 fn split_member_pairs(s: &str) -> Vec<&str> {
     let mut pairs = Vec::new();
     let mut in_quotes = false;
@@ -663,9 +475,6 @@ fn split_member_pairs(s: &str) -> Vec<&str> {
     pairs
 }
 
-/// Parse a `derive :name, ReturnType` header (the text between `derive` and
-/// ` do`) into (name, return_type). The leading `:` on the name is stripped.
-/// Returns None when either the name or the return type is missing.
 fn parse_derive_signature(header: &str) -> Option<(String, String)> {
     let sig = header.trim();
     let comma = sig.find(',')?;
@@ -675,19 +484,6 @@ fn parse_derive_signature(header: &str) -> Option<(String, String)> {
     Some((name, rtype))
 }
 
-/// Byte offset of the ` do ` that OPENS a one-line block body, for the forms
-/// that carry a quoted message first (`given("…") do … end`,
-/// `invariant("…") do … end`).
-///
-/// Naively taking the FIRST ` do ` picks up one sitting inside the message :
-/// `given("inline do given") do size < 100 end` split at the message's own
-/// ` do `, yielding the predicate `given") do size < 100`. The message is
-/// author-supplied prose and may contain anything ; the body always begins
-/// after it closes.
-///
-/// NOT for `derive :name, Type do … end`, which carries no quoted message —
-/// there the first quote would be in the BODY and skipping past it would break
-/// a form that works today.
 fn inline_do_pos(line: &str) -> Option<usize> {
     let after_message = match line.find('"') {
         Some(open) => line[open + 1..]
@@ -699,9 +495,6 @@ fn inline_do_pos(line: &str) -> Option<usize> {
     line[after_message..].find(" do ").map(|at| after_message + at)
 }
 
-/// Split a `|a, b| rest` block body into its parameter NAMES and the
-/// remaining expression text. A body with no `|params|` prefix returns
-/// (empty, whole body).
 fn split_block_params(body: &str) -> (Vec<String>, &str) {
     let body = body.trim();
     if let Some(rest) = body.strip_prefix('|') {
@@ -730,21 +523,10 @@ pub fn parse_value_object(lines: &[&str]) -> (ValueObject, usize) {
             depth -= 1;
             if depth == 0 { break; }
         } else if depth == 1 && (line.starts_with("rule ") || line.starts_with("rule\t")) {
-            // i259 — `rule "..." do ... end` on a value_object delegates
-            // to consume_rule_block so a multi-statement `requires` body
-            // can't decrement the surrounding depth.
             let consumed = consume_rule_block(&lines[i..]);
             i += consumed;
             continue;
         } else if depth == 1 && (line == "one_of do" || line.starts_with("one_of do")) {
-            // Closed whole-value set (GRAMMAR-one-of, 2026-07-19) :
-            //   one_of do
-            //     member code: "USD", symbol: "$", minor_units: 2
-            //   end
-            // Each member line's ordered key:value pairs become one member ;
-            // declaration order is the parity contract (Ruby kwargs preserve
-            // insertion order). Values : quoted strings verbatim, bare
-            // tokens (numbers) stringified.
             let mut j = i + 1;
             let mut d = 1;
             while j < lines.len() && d > 0 {
@@ -764,13 +546,6 @@ pub fn parse_value_object(lines: &[&str]) -> (ValueObject, usize) {
                             let bare = raw_val.trim_matches(',').trim();
                             let val = extract_string(raw_val)
                                 .unwrap_or_else(|| bare.to_string());
-                            // A DECLARED empty string is a value, not an absence.
-                            // `source_token: ""` says this rule takes no operand,
-                            // and dropping the pair makes the member one field
-                            // shorter than the one the author wrote — which the
-                            // Ruby side keeps, so the two members stop matching.
-                            // Only a missing key or an unparseable bare token is
-                            // nothing.
                             let declared = bare.starts_with('"') || !val.is_empty();
                             if !key.is_empty() && declared {
                                 fields.push((key, val));
@@ -790,17 +565,6 @@ pub fn parse_value_object(lines: &[&str]) -> (ValueObject, usize) {
             && line.contains('{')
             && line.ends_with('}')
         {
-            // VO-level invariant, BRACE form :
-            //   invariant("an address routes somewhere") { address.include?("@") }
-            //
-            // Ruby takes a block either way — `do … end` and `{ … }` are the
-            // same construct — so a parser that reads only one accepts a
-            // NARROWER language than the DSL does, and a bluebook can then be
-            // valid Ruby and invisible here. That is what happened : the
-            // library's own grammar/expression.bluebook is written in this form,
-            // and Rust silently read 2 of its 6 invariants while Ruby read all
-            // six. Nothing failed, because an invariant nobody parses looks
-            // exactly like an invariant that holds.
             let inv_name = extract_string(line).unwrap_or_default();
             if let (Some(open), Some(stripped)) = (line.find('{'), line.strip_suffix('}')) {
                 let expr = stripped[open + 1..].trim();
@@ -809,12 +573,6 @@ pub fn parse_value_object(lines: &[&str]) -> (ValueObject, usize) {
                 }
             }
         } else if depth == 1 && line.starts_with("invariant") && line.contains(" do ") && line.ends_with("end") {
-            // VO-level invariant, INLINE one-liner form (inbox.bluebook's
-            // CommitSha) : invariant "non-empty" do value.length > 0 end
-            // The whole block sits on one line, so ends_with_do_block is
-            // false and the multi-line arm below never fires — the parity
-            // contract caught this gap the same day the field joined the
-            // canonical IR.
             let inv_name = extract_string(line).unwrap_or_default();
             if let (Some(do_pos), Some(stripped)) = (inline_do_pos(line), line.strip_suffix("end")) {
                 let expr = stripped[do_pos + " do ".len()..].trim();
@@ -823,15 +581,6 @@ pub fn parse_value_object(lines: &[&str]) -> (ValueObject, usize) {
                 }
             }
         } else if depth == 1 && line.starts_with("invariant") && ends_with_do_block(line) {
-            // VO-level invariant — the Pizzas-canon direct-predicate form :
-            //   invariant "must be non-negative" do
-            //     cents >= 0
-            //   end
-            // (Aggregate-level invariants use the separate `holds_when` form ;
-            // this one's body IS the predicate.) Body lines join with ` && `
-            // for the rare multi-line predicate. Before 2026-07-18 this arm
-            // was missing and the block fell through to the generic do-block
-            // depth tracking — parsed to nowhere, silently dropped.
             let inv_name = extract_string(line).unwrap_or_default();
             let mut body: Vec<&str> = Vec::new();
             let mut j = i + 1;
@@ -855,9 +604,6 @@ pub fn parse_value_object(lines: &[&str]) -> (ValueObject, usize) {
             i = j + 1;
             continue;
         } else if depth == 1 && line.starts_with("derive") && line.contains(" do ") && line.ends_with("end") {
-            // Pure derivation, INLINE one-liner (rich-VO behaviour half) :
-            //   derive :zero?,   Boolean do cents == 0 end
-            //   derive :covers?, Boolean do |other| cents >= other.cents end
             if let (Some(do_pos), Some(stripped)) = (line.find(" do "), line.strip_suffix("end")) {
                 let header = &line["derive".len()..do_pos];
                 if let Some((name, rtype)) = parse_derive_signature(header) {
@@ -869,10 +615,6 @@ pub fn parse_value_object(lines: &[&str]) -> (ValueObject, usize) {
                 }
             }
         } else if depth == 1 && line.starts_with("derive") && ends_with_do_block(line) {
-            // Pure derivation, multi-line form :
-            //   derive :covers?, Boolean do |other|
-            //     cents >= other.cents
-            //   end
             let do_pos = line.find(" do").unwrap_or(line.len());
             let header = &line["derive".len()..do_pos];
             let after_do = line[do_pos + " do".len()..].trim();
@@ -916,19 +658,6 @@ pub fn parse_value_object(lines: &[&str]) -> (ValueObject, usize) {
     (vo, i + 1)
 }
 
-/// Parse a non-root entity block — DDD entity owned by its parent
-/// aggregate. Entities have identity within the parent boundary and
-/// can mutate (unlike value_objects which are immutable and replaced
-/// wholesale). Distinct from a top-level aggregate : reachable only
-/// through the parent root, lifecycle bounded by the parent.
-///
-/// i111-J — entity blocks now accept `command`, `query`, and
-/// `lifecycle` declarations the same way aggregates do. The runtime
-/// dispatches them as `Aggregate.Entity.Command` (3-part) or
-/// `Aggregate.Command` when the bare name is unique among the
-/// parent's entities. This closes the DDD-depth gap : authors who
-/// collapse an aggregate into an entity no longer have to flatten
-/// behaviors `on:` clauses to the parent root.
 pub fn parse_entity(lines: &[&str]) -> (Entity, usize) {
     let first = lines[0].trim();
     let name = extract_string(first).unwrap_or_default();
@@ -961,9 +690,6 @@ pub fn parse_entity(lines: &[&str]) -> (Entity, usize) {
                 i += consumed;
                 continue;
             } else if line.starts_with("query") {
-                // i101 — block-form queries delegate to parse_query so
-                // entity-scoped queries get the same structured IR as
-                // aggregate-scoped ones.
                 if ends_with_do_block(line) {
                     let (q, consumed) = parse_query(&lines[i..]);
                     ent.queries.push(q);
@@ -997,9 +723,6 @@ pub fn parse_entity(lines: &[&str]) -> (Entity, usize) {
             } else if line.starts_with("attribute") {
                 if let Some(attr) = parse_attribute(line) { ent.attributes.push(attr); }
                 if ends_with_do_block(line) {
-                    // attribute-with-lifecycle sugar (same shape as on
-                    // aggregate) — parse_lifecycle reads symbol + default
-                    // off the same first line.
                     let (lc, consumed) = parse_lifecycle(&lines[i..]);
                     if !lc.transitions.is_empty() { ent.lifecycle = Some(lc); }
                     i += consumed;
@@ -1008,9 +731,6 @@ pub fn parse_entity(lines: &[&str]) -> (Entity, usize) {
             } else if is_shorthand_line(line) && !line.starts_with("reference_to(") {
                 if let Some(attr) = parse_shorthand_attribute(line) { ent.attributes.push(attr); }
             } else if line.starts_with("rule ") || line.starts_with("rule\t") {
-                // i259 — `rule "..." do ... end` on an entity delegates
-                // to consume_rule_block so a multi-statement `requires`
-                // body can't decrement the surrounding depth.
                 let consumed = consume_rule_block(&lines[i..]);
                 i += consumed;
                 continue;
@@ -1032,16 +752,7 @@ pub fn parse_policy(lines: &[&str]) -> (Policy, usize) {
     let mut on_event = String::new();
     let mut trigger = String::new();
     let mut target_domain = None;
-    // Gap #1 of the adapters-as-bluebook arc — literal args the policy
-    // passes to its triggered command. `with "key", "value"` parses to
-    // (key, ValueSpec::Literal { value }). One key per line, ordered.
-    // This is the minimal extension that lets a policy fire
-    // `Primitive::Process.Spawn cmd="…" result_into="Cascade.RecordResult"`
-    // — the data the retired :exec resolver used to inline. Only the
-    // two-string literal form is parsed here ; the state-aware specs
-    // (from_state/templating) are deferred to later families.
     let mut with: Vec<(String, crate::ir::ValueSpec)> = vec![];
-    // deciderate Layer 0b — the grown policy : data guard, fan-out, extra reactions.
     let mut wheres: Vec<crate::ir::WhereClause> = vec![];
     let mut for_each: Option<crate::ir::ForEachSpec> = None;
     let mut extra_dispatches: Vec<crate::ir::DispatchSpec> = vec![];
@@ -1060,15 +771,6 @@ pub fn parse_policy(lines: &[&str]) -> (Policy, usize) {
                 with.push((key, crate::ir::ValueSpec::Literal { value }));
             }
         }
-        // Cross-field payload map — `map key: :event_field, key2: "literal"`.
-        // Routes the triggering event's data (+ static literals) INTO the
-        // TRIGGERED command's attributes, renaming as declared. This is what
-        // makes a cascade route : `map account: :destination` sends the
-        // triggered Deposit to the DESTINATION account, not the upstream
-        // aggregate. Reuses `with` (both are (command_attr, ValueSpec) args) :
-        // a `:symbol` value is a FromEvent rename, a "string"/number a Literal.
-        // Before 2026-07-21 the parser dropped `map` entirely, so every
-        // cross-aggregate cascade mis-routed (the transfer saga's root bug).
         if line.starts_with("map ") {
             let body = line.strip_prefix("map").unwrap_or("").trim();
             for pair in split_member_pairs(body) {
@@ -1087,17 +789,12 @@ pub fn parse_policy(lines: &[&str]) -> (Policy, usize) {
                 }
             }
         }
-        // 0b guard — `where field: value` reuses the query WhereClause grammar.
         if line.starts_with("where") {
             for w in parse_where_line(line, &[]) { wheres.push(w); }
         }
-        // 0b fan-out — standalone `for_each: { from: "Agg.query" }` sweeps the
-        // primary trigger (reuses the i221-A clause parser).
         if line.starts_with("for_each") {
             if let Some(fe) = parse_for_each_clause(line) { for_each = Some(fe); }
         }
-        // 0b multi-reaction — each `dispatch "Cmd", with: {..}, for_each: {..}`
-        // adds a reaction beyond the primary trigger.
         if is_dispatch_start(line) {
             if let Some(ds) = parse_dispatch_statement(line) { extra_dispatches.push(ds); }
         }
@@ -1109,8 +806,6 @@ pub fn parse_policy(lines: &[&str]) -> (Policy, usize) {
 pub fn parse_lifecycle(lines: &[&str]) -> (Lifecycle, usize) {
     let first = lines[0].trim();
     let field = extract_symbol(first).unwrap_or_default();
-    // `default:` accepts a quoted string OR a bare token (`true`, `false`,
-    // `:symbol`) — match the Ruby DSL which stringifies any of these.
     let default = if first.contains("default:") {
         let after = extract_after(first, "default:").unwrap_or_default();
         extract_state_token(&after).unwrap_or_default()
@@ -1123,19 +818,13 @@ pub fn parse_lifecycle(lines: &[&str]) -> (Lifecycle, usize) {
         if line == "end" { break; }
         if line.starts_with("transition") {
             if let Some(cmd) = extract_string(line) {
-                // to_state: token after `=>` — quoted, bare, or `:symbol`.
                 let to_state = line
                     .find("=>")
                     .and_then(|arrow| extract_state_token(&line[arrow + 2..]));
-                // Collect ALL from states. `from: "a"` → [Some("a")];
-                // `from: ["a", "b"]` → [Some("a"), Some("b")]; absent → [None].
-                // Bare tokens (`true`/`false`/`:sym`) also accepted.
                 let from_states: Vec<Option<String>> = if line.contains("from:") {
                     let after = extract_after(line, "from:").unwrap_or_default();
                     let trimmed = after.trim_start();
                     if trimmed.starts_with('[') {
-                        // Array form — split on commas inside the brackets and
-                        // extract a state token from each element.
                         let close = trimmed.find(']').unwrap_or(trimmed.len());
                         let inner = &trimmed[1..close];
                         let found: Vec<Option<String>> = inner
@@ -1162,34 +851,10 @@ pub fn parse_lifecycle(lines: &[&str]) -> (Lifecycle, usize) {
 }
 
 pub fn parse_attribute(line: &str) -> Option<Attribute> {
-    // Ruby's lexer drops trailing `# …` comments before `attribute` runs,
-    // so the positional type / default never see them. Strip here too
-    // (comment-aware : a `#` inside a quoted default is preserved) or the
-    // comment leaks into attr_type — the harry_wingate parity drift.
     let line = strip_trailing_comment(line);
     let parts: Vec<&str> = line.splitn(3, ',').collect();
     let first = parts.first()?.trim();
 
-    // Two declaration shapes resolve to the same Attribute IR :
-    //
-    //   1. Primitive / explicit-name form
-    //        attribute :role, String
-    //        attribute :role, String, default: "owner"
-    //      The first part carries `:name`; extract_symbol picks it up
-    //      and parts[1] (if present) is the positional type.
-    //
-    //   2. i255 bare-VO form (PascalCase value-object as the type-and-
-    //      identity)
-    //        attribute Role                 → name = "role" (snake_case VO)
-    //        attribute Role, as: :role      → name = "role" (explicit alias)
-    //      Here the first part has no leading `:` ; the VO name is the
-    //      type, and the alias either falls out of `as: :alias` in
-    //      parts[1] or defaults to crate::naming::snake(VO).
-    //
-    // i479 — without the bare-VO branch, the parser silently drops
-    // every `attribute Role, as: :role` line, so any `then_set :role`
-    // referencing it tripped check-lifecycle's mutation-reference
-    // gate as if the attribute didn't exist.
     let (name, attr_type) = if let Some(sym) = extract_symbol(first) {
         (sym, None)
     } else {
@@ -1201,22 +866,9 @@ pub fn parse_attribute(line: &str) -> Option<Attribute> {
         (alias, Some(vo_name))
     };
 
-    // Resolve the type from parts[1]. Three cases:
-    //   - `list_of(X)`     → extract X, set list=true
-    //   - `default: ...`   (or any kwarg) → no positional type, default to "String"
-    //   - bare token       → use it as the type (String, Integer, MyValueObject, …)
     let raw = parts.get(1).map(|s| s.trim()).unwrap_or("");
-    // Retired 2026-05-12 : Array / Hash bare-types USED to auto-flag
-    // list=true (mirroring an old Ruby heuristic). Both heuristics
-    // retired together so the parsers agree : collection shape MUST
-    // come from `list_of(X)` explicitly. Bluebooks that used bare
-    // Array / Hash and meant "scalar collection-shaped attr" stay
-    // scalar ; if they meant a list, they now must say `list_of(...)`.
-    // `:list_ofs` (substring of "list_of") must NOT register — only
-    // `list_of(` with the paren counts.
     let list = line.contains("list_of(");
     let attr_type = if let Some(t) = attr_type {
-        // Bare-VO form already pinned the type to the value-object name.
         t
     } else if raw.starts_with("list_of(") {
         let open = raw.find('(')? + 1;
@@ -1235,11 +887,6 @@ pub fn parse_attribute(line: &str) -> Option<Attribute> {
         if after.contains('"') { extract_string(&after) }
         else { Some(after.split_whitespace().next().unwrap_or(&after).to_string()) }
     } else { None };
-    // one_of scalar sugar (GRAMMAR-one-of, 2026-07-19) :
-    //   attribute :standing, one_of("good", "suspended"), default: "good"
-    // The quoted values inside the parens are the closed vocabulary ; the
-    // storage type is String (mirrors the Ruby collector routing the
-    // enum-hash to Structure::Attribute#enum).
     let (attr_type, enum_values) = if let Some(start) = line.find("one_of(") {
         let inner = &line[start + "one_of(".len()..];
         let close = inner.find(')').unwrap_or(inner.len());
@@ -1249,25 +896,10 @@ pub fn parse_attribute(line: &str) -> Option<Attribute> {
             .collect();
         ("String".to_string(), vals)
     } else {
-        // The legacy `enum: [...]` kwarg spelling is RETIRED ("enum is too
-        // codey" — Chris, 2026-07-19) : all 20 corpus files migrated to
-        // one_of the same day. Deliberately NOT parsed here — the Ruby DSL
-        // still collects it, so any straggler drifts loudly in parity
-        // instead of silently working. The ledger is the guard.
         (attr_type, vec![])
     };
-    // `pattern: '<regex>'` — the scalar SHAPE constraint, sibling of one_of's
-    // closed vocabulary. Refused here if it uses a construct Ruby and Rust
-    // would treat differently, so the divergence never reaches the IR.
     let pattern = parse_pattern_kwarg(line);
-    // `hint: "..."` — human guidance surfaced by the form on a shape mismatch.
-    // Pure presentation, so it takes no subset check ; it is never a regex.
     let hint = parse_hint_kwarg(line);
-    // `logged: false` — keep this attribute's VALUE out of the event Log. Default
-    // true : the Log records what happened, so silence is the exception and must
-    // be declared. Only the explicit literal `false` excludes ; anything else
-    // (including a malformed value) leaves the attribute logged, so a typo fails
-    // SAFE — toward recording rather than toward silence.
     let logged = !(line.contains("logged:")
         && extract_after(line, "logged:")
             .map(|a| a.trim_start().starts_with("false"))
@@ -1275,13 +907,6 @@ pub fn parse_attribute(line: &str) -> Option<Attribute> {
     Some(Attribute { name, attr_type, default, list, required, enum_values, pattern, hint, logged })
 }
 
-/// Pull `pattern: '<regex>'` (or "double-quoted") off an attribute line.
-///
-/// A pattern using a construct Ruby and Rust would treat differently is
-/// REFUSED here rather than stored — the IR never carries a declaration the
-/// two engines would disagree about. The rejection is loud on stderr and the
-/// attribute keeps `None`, so a bad pattern fails open (any string) rather
-/// than silently enforcing something only one engine understands.
 fn parse_pattern_kwarg(line: &str) -> Option<String> {
     let after = line.split("pattern:").nth(1)?.trim_start();
     let quote = after.chars().next().filter(|c| *c == '\'' || *c == '"')?;
@@ -1301,9 +926,6 @@ fn parse_pattern_kwarg(line: &str) -> Option<String> {
     }
 }
 
-/// Pull `hint: "..."` (or 'single-quoted') off an attribute line — the human
-/// guidance the form shows when a value fails its shape. Unlike `pattern`, this
-/// is prose, never a regex, so it needs no subset check ; it is stored verbatim.
 fn parse_hint_kwarg(line: &str) -> Option<String> {
     let after = line.split("hint:").nth(1)?.trim_start();
     let quote = after.chars().next().filter(|c| *c == '"' || *c == '\'')?;
@@ -1314,10 +936,6 @@ fn parse_hint_kwarg(line: &str) -> Option<String> {
     if body.is_empty() { None } else { Some(body) }
 }
 
-/// Pull the PascalCase value-object name from the first segment of a
-/// bare-VO `attribute Role` / `attribute Role, as: :alias` line.
-/// Returns None for primitive forms (which extract_symbol handles)
-/// and for leading tokens that aren't PascalCase.
 fn bare_vo_type(first: &str) -> Option<String> {
     let after_kw = first.strip_prefix("attribute")?.trim_start();
     let token: String = after_kw.chars()
@@ -1330,8 +948,6 @@ fn bare_vo_type(first: &str) -> Option<String> {
     Some(token)
 }
 
-// A kwarg looks like `key: value` where `key` is a lowercase identifier.
-// Distinguishes `default: true` (kwarg) from `String` or `MyVO` (positional type).
 fn is_kwarg(s: &str) -> bool {
     let Some(colon_pos) = s.find(':') else { return false; };
     let before = &s[..colon_pos];
@@ -1344,10 +960,6 @@ pub fn parse_fixture(line: &str) -> Fixture {
     let aggregate_name = extract_string(line).unwrap_or_default();
     let mut attributes = vec![];
 
-    // Parse key: <value> pairs after the aggregate name. Values may be
-    // strings (with commas inside), arrays, hashes, or numbers — so we
-    // split on commas only at the top level (outside "...", [...], {...}).
-    //   fixture "Vow", name: "Hi, world", words: "Be transparent."
     if let Some(comma_pos) = line.find(',') {
         let rest = &line[comma_pos + 1..];
         for part in split_top_level_commas(rest) {
@@ -1355,8 +967,6 @@ pub fn parse_fixture(line: &str) -> Fixture {
             if let Some(colon) = part.find(':') {
                 let key = part[..colon].trim().to_string();
                 let raw = part[colon + 1..].trim();
-                // For string-literal values, unwrap the quotes; otherwise
-                // keep the raw source token (numbers, arrays, hashes, bare).
                 let val = if raw.starts_with('"') {
                     extract_string(raw).unwrap_or_else(|| raw.to_string())
                 } else {
@@ -1370,11 +980,6 @@ pub fn parse_fixture(line: &str) -> Fixture {
     Fixture { name: None, aggregate_name, attributes }
 }
 
-/// Parse the body of a block-form fixture. `lines` starts at the line AFTER
-/// `fixture "X" do`; parsing stops at the matching `end`. Inside, the
-/// `aggregate "X"` line sets the aggregate name; every other `key "value"`
-/// line becomes an attribute (string-typed, unwrapped). Returns the parsed
-/// fields and the number of lines consumed (including the closing `end`).
 pub fn parse_fixture_block_body(lines: &[&str]) -> (String, Vec<(String, String)>, usize) {
     let mut aggregate_name = String::new();
     let mut attributes: Vec<(String, String)> = vec![];
@@ -1388,8 +993,6 @@ pub fn parse_fixture_block_body(lines: &[&str]) -> (String, Vec<(String, String)
         } else if ends_with_do_block(l) {
             depth += 1;
         } else if depth == 1 && !l.is_empty() && !l.starts_with('#') {
-            // First-token dispatch: `aggregate "X"` sets the type; any other
-            // identifier `key "value"` (or bare value) becomes an attribute.
             let token_end = l.find(|c: char| c.is_whitespace()).unwrap_or(l.len());
             let key = &l[..token_end];
             let rest = l[token_end..].trim();
@@ -1409,9 +1012,6 @@ pub fn parse_fixture_block_body(lines: &[&str]) -> (String, Vec<(String, String)
     (aggregate_name, attributes, i)
 }
 
-// Split on `,` at depth 0 — ignoring commas inside strings, brackets,
-// parens, and braces. Used for fixture kwargs and similar comma-separated
-// expressions where values can themselves contain commas.
 fn split_top_level_commas(s: &str) -> Vec<&str> {
     let mut parts = Vec::new();
     let mut depth = 0i32;
@@ -1441,15 +1041,6 @@ fn escaped_at(s: &str, i: usize) -> bool {
 
 pub fn parse_mutation(line: &str) -> Option<Mutation> {
     let field = extract_symbol(line)?;
-    // THE LANGUAGE IS WHAT RUBY ADMITS. This file arrived as a Hecks
-    // cherry-pick carrying Hecks's whole mutation zoo — append_unique, remove,
-    // multiply, clamp, decay, from: — none of which the Ruby DSL (the source
-    // of truth) accepts. A keyword one parser reads and the other raises on is
-    // a document that means something in exactly one runtime, and the corpus
-    // never exercised any of them, so stage one never noticed. Narrowed to the
-    // Ruby surface : to / append / increment / decrement. Anything else falls
-    // to the unknown-op path below and is refused with a hint, which is what
-    // Ruby's ArgumentError does with an unknown keyword.
     let (op, value) = if line.contains("append:") {
         (MutationOp::Append, extract_after(line, "append:")?)
     } else if line.contains("increment:") {
@@ -1459,33 +1050,16 @@ pub fn parse_mutation(line: &str) -> Option<Mutation> {
     } else if line.contains("to:") {
         (MutationOp::Set, extract_after(line, "to:")?)
     } else {
-        // Positional form: `then_set :field, <value>` — value is the
-        // token after the field's symbol, separated by a comma.
         let sym_start = line.find(':')? + 1;
         let after_field = &line[sym_start + field.len()..];
         let comma = after_field.find(',')?;
         let raw = after_field[comma + 1..].trim();
-        // A bare `<word>:` in the value position is an UNKNOWN mutation op — the
-        // known ops are all matched by the `line.contains("<op>:")` branches
-        // above, so reaching the positional fallback with a keyword token means
-        // a typo (e.g. `upsert:`). Reject it loudly with a hint rather than
-        // silently storing the keyword as a Set literal — mirrors the rule-body
-        // parser's panic-with-hint rejection, and matches the Ruby DSL's
-        // `unknown keyword:` ArgumentError (parity : both runtimes reject it).
         let rb = raw.as_bytes();
         if rb.first().is_some_and(|b| b.is_ascii_lowercase() || *b == b'_') {
             let end = rb.iter()
                 .take_while(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || **b == b'_')
                 .count();
             if raw[end..].starts_with(':') {
-                // Unknown op. DON'T panic — a crash on a typo'd bluebook
-                // is a terrible newcomer experience and aborts every
-                // reader (CLI validate, dispatch, behaviors). Record the
-                // bad op on the Mutation and let the parse complete ;
-                // validator_mutations::invalid_mutation_op_errors reports
-                // it as a graceful INVALID and interpreter::check_givens
-                // refuses to dispatch it. "Reject loudly" is preserved —
-                // as a diagnostic, not a stack trace.
                 return Some(Mutation {
                     field,
                     operation: MutationOp::Set,
@@ -1495,11 +1069,9 @@ pub fn parse_mutation(line: &str) -> Option<Mutation> {
             }
         }
         let value = if let Some(rest) = raw.strip_prefix('"') {
-            // Quoted string — strip surrounding quotes.
             let end = rest.find('"')?;
             rest[..end].to_string()
         } else {
-            // Bare token — number, true, false, or :symbol.
             raw.split(|c: char| c == ',' || c.is_whitespace())
                 .next().unwrap_or("").to_string()
         };
@@ -1509,28 +1081,6 @@ pub fn parse_mutation(line: &str) -> Option<Mutation> {
     Some(Mutation { field, operation: op, value, invalid_op: None })
 }
 
-/// Parse a `process_manager "Name" do … end` block.
-///
-/// Captures the static shape of the PM (name, correlates_by, starts_on,
-/// ends_on, declared states, and per-event handlers with their from→to
-/// transition). The action body inside `on "Event", transition: { x: :y }
-/// do |event, pm| … end` is intentionally consumed-and-discarded — that
-/// proc is Ruby-side execution, not part of the parity contract.
-///
-/// Form:
-///   process_manager "SleepCycle" do
-///     correlates_by :body_id
-///     starts_on    "SleepStarted"
-///     ends_on      "WakeFinished"
-///     state "light"
-///     state "rem"
-///     on "PhaseElapsed", transition: { light: :light } do |event, pm|
-///       { commands: ["AdvancePhase"] }
-///     end
-///   end
-///
-/// Returns the parsed ProcessManager plus the number of source lines
-/// consumed (including the closing `end`).
 pub fn parse_process_manager(lines: &[&str]) -> (ProcessManager, usize) {
     let first = lines[0].trim();
     let name = extract_string(first).unwrap_or_default();
@@ -1566,15 +1116,6 @@ pub fn parse_process_manager(lines: &[&str]) -> (ProcessManager, usize) {
             } else if line.starts_with("on ") || line.starts_with("on\t") {
                 let mut handler = parse_pm_handler(line);
                 if ends_with_do_block(line) {
-                    // Walk the body to its indent-matched closing `end`.
-                    // Capture `dispatch "Cmd"` lines as declarative
-                    // dispatches ; other body lines (Ruby-proc form,
-                    // conditionals, etc.) are still consumed-and-discarded
-                    // (opaque to Rust). Phase 2.b
-                    // (pm-dispatch-enrichment) glues continuation lines
-                    // when a `dispatch ..., with: {` hash spans multiple
-                    // lines, so the parser sees one logical dispatch
-                    // statement at a time.
                     let on_indent = lines[i].len() - lines[i].trim_start().len();
                     while i + 1 < lines.len() {
                         i += 1;
@@ -1587,9 +1128,6 @@ pub fn parse_process_manager(lines: &[&str]) -> (ProcessManager, usize) {
                         if !is_dispatch_start(trimmed) && !is_set_start(trimmed) {
                             continue;
                         }
-                        // Glue continuation lines until braces +
-                        // parens are balanced (with: hash + sentinel
-                        // calls can wrap across multiple lines).
                         let mut joined = trimmed.to_string();
                         while !is_balanced(&joined) && i + 1 < lines.len() {
                             i += 1;
@@ -1622,30 +1160,13 @@ pub fn parse_process_manager(lines: &[&str]) -> (ProcessManager, usize) {
     (pm, i + 1)
 }
 
-/// Parse one `on "Event", transition: { from: :to } do |event, pm|` line
-/// into a ProcessManagerHandler. Returns None if the shape is unparseable.
-///
-/// Source forms recognized :
-///   on "Event", transition: { light: :light } do |event, pm|
-///   on "Event", transition: { :light => :rem } do |event, pm|
 fn parse_pm_handler(line: &str) -> Option<ProcessManagerHandler> {
     let event_type = extract_string(line)?;
-    // Pull the `{ … }` after `transition:`. The action's `do |event, pm|`
-    // tail comes AFTER the transition hash, so we look for the first
-    // `{` and its matching `}` to bound the hash.
     let trans_pos = line.find("transition:")?;
     let after = &line[trans_pos + "transition:".len()..];
     let open = after.find('{')?;
     let close = after[open..].find('}')? + open;
     let body = after[open + 1..close].trim();
-    // Body is one of :
-    //   `from: :to`        — symbol-rocket sugar
-    //   `:from => :to`     — explicit hash-rocket
-    // A state may be written as a symbol (`:paid`) or a string (`"paid"`).
-    // Both name the SAME state, so both must reduce to the same token —
-    // leaving the quotes on would carry source syntax into the IR and make
-    // `"paid"` a different state from `:paid`, which is the shape of every
-    // parser drift ever retired here.
     let state_token = |raw: &str| {
         raw.trim()
             .trim_end_matches(',')
@@ -1679,40 +1200,20 @@ fn parse_pm_handler(line: &str) -> Option<ProcessManagerHandler> {
     })
 }
 
-/// Returns true when `trimmed` starts a `dispatch` statement (used by
-/// the on-block walker before it joins continuation lines).
 fn is_dispatch_start(trimmed: &str) -> bool {
     trimmed.starts_with("dispatch ")
         || trimmed.starts_with("dispatch\t")
         || trimmed.starts_with("dispatch\"")
 }
 
-/// Phase 2.c — returns true when `trimmed` starts a `set` statement
-/// inside an on-block. Matches `set :attr, ...` (the Ruby positional
-/// form with a Symbol literal) and `set "attr", ...` (string form).
-/// The DSL surface today is `set :attr, value_spec` ; the string form
-/// is supported defensively. Care taken not to false-match other
-/// keywords starting with "set" (e.g. `set_inventory`) by requiring
-/// whitespace after.
 fn is_set_start(trimmed: &str) -> bool {
     trimmed.starts_with("set ") || trimmed.starts_with("set\t")
 }
 
-/// Parse one (possibly glued-multi-line) `set :attr, value_spec` line
-/// into an `(attr, ValueSpec)` pair. Three forms recognized for the
-/// value : same as the with-spec evaluator (literal / from_event /
-/// from_pm). Returns None when the shape is unparseable.
-///
-///   set :steering_target, from_event(:target)
-///   set :carrying, "body"
-///   set :tick, from_pm(:tick, default: "0")
 fn parse_set_statement(line: &str) -> Option<(String, ValueSpec)> {
     let trimmed = line.trim();
     if !is_set_start(trimmed) { return None; }
-    // Drop the leading `set` keyword + whitespace.
     let rest = trimmed[3..].trim_start();
-    // Find the first comma at top-level (parens not respected — there
-    // shouldn't be any in the attr name).
     let comma = rest.find(',')?;
     let attr_raw = rest[..comma].trim();
     let attr = attr_raw
@@ -1724,12 +1225,6 @@ fn parse_set_statement(line: &str) -> Option<(String, ValueSpec)> {
     Some((attr, spec))
 }
 
-/// Returns true when every `(`/`)` and `{`/`}` pair in `s` is matched.
-/// Used to detect the end of a multi-line `dispatch ..., with: { ... }`
-/// statement. Quotes are not respected — a `{` or `(` inside a string
-/// would mis-balance. The DSL surface today doesn't put braces in
-/// string literals, so this approximation holds ; sources that do
-/// would be surfaced as parser drift in parity tests.
 fn is_balanced(s: &str) -> bool {
     let mut paren = 0i32;
     let mut brace = 0i32;
@@ -1745,29 +1240,11 @@ fn is_balanced(s: &str) -> bool {
     paren == 0 && brace == 0
 }
 
-/// Parse one (possibly glued-multi-line) `dispatch "Cmd"` statement
-/// into a structured DispatchSpec. Three source forms recognized :
-///
-///   dispatch "Aggregate.Command"
-///   dispatch "Aggregate.Command", with: { foo: from_event(:bar),
-///                                         baz: "lit",
-///                                         qux: from_pm(:n, default: "—") }
-///   dispatch "Aggregate.Command",
-///     for_each: { from: "Aggregate.query_name" },
-///     with: { id: from_iter(:id) }
-///
-/// Returns None when the shape is unparseable. The caller's outer
-/// walk skips non-dispatch lines via `is_dispatch_start`, so this
-/// function is called only on confirmed dispatch statements.
 fn parse_dispatch_statement(line: &str) -> Option<DispatchSpec> {
     let trimmed = line.trim();
     if !is_dispatch_start(trimmed) { return None; }
     let command_name = extract_string(trimmed)?;
 
-    // Find the `with:` and `for_each:` keywords. Tolerant of variable
-    // whitespace around the comma (e.g. `dispatch "X",   with: {...}`).
-    // The search starts after the closing quote of the command name so
-    // a stray `with:` inside the command string can't false-match.
     let cmd_end = match trimmed.match_indices('"').nth(1) {
         Some((idx, _)) => idx + 1,
         None => trimmed.len(),
@@ -1779,18 +1256,12 @@ fn parse_dispatch_statement(line: &str) -> Option<DispatchSpec> {
         Some(pos) => {
             let after = &tail[pos + "with:".len()..];
             let open = after.find('{')?;
-            // The matching close brace bounds the with hash. Use a
-            // depth counter so nested `from_event(:foo)` parens or any
-            // future nested hash don't trip the search.
             let close = match_close_brace(&after[open..])? + open;
             let body = after[open + 1..close].trim();
             parse_with_hash(body)
         }
     };
 
-    // i221-A — sweep dispatch. `for_each: { from: "Aggregate.query" }`
-    // splits on the first dot into the two structured halves. Absent
-    // `for_each:` leaves `for_each = None` (the back-compat default).
     let for_each = parse_for_each_clause(tail);
 
     Some(DispatchSpec {
@@ -1800,28 +1271,12 @@ fn parse_dispatch_statement(line: &str) -> Option<DispatchSpec> {
     })
 }
 
-/// i221-A — locate the `for_each: { from: "Aggregate.query_name" }`
-/// clause in a dispatch line and lift it to a `ForEachSpec`. Returns
-/// `None` when the clause is absent (the common back-compat case) or
-/// malformed (no `from:` literal, malformed dotted path, empty parts).
-///
-/// Two qualified forms accepted :
-///   "Aggregate.query_name"            — 2-part (back-compat)
-///   "Context.Aggregate.query_name"    — 3-part, disambiguates when
-///                                       multiple bluebooks declare
-///                                       the same aggregate name (i142
-///                                       Context.Aggregate.Command
-///                                       resolution applied to query
-///                                       lookups too)
 pub(crate) fn parse_for_each_clause(tail: &str) -> Option<ForEachSpec> {
     let pos = tail.find("for_each:")?;
     let after = &tail[pos + "for_each:".len()..];
     let open = after.find('{')?;
     let close = match_close_brace(&after[open..])? + open;
     let body = after[open + 1..close].trim();
-    // Body shape : `from: "Aggregate.query_name"` (kwarg-shorthand).
-    // Hash-rocket form (`:from => "..."`) is not used in the corpus
-    // and would be filed as a follow-on.
     let from_pos = body.find("from:")?;
     let value_raw = body[from_pos + "from:".len()..].trim();
     let literal = extract_string(value_raw)?;
@@ -1835,14 +1290,6 @@ pub(crate) fn parse_for_each_clause(tail: &str) -> Option<ForEachSpec> {
         }
         _ => return None,
     };
-    // i221-C + realm-qualified : accept the dispatch-FQN
-    // `[Realm::Context::]Bluebook::Aggregate.query` form (VARIABLE depth) in
-    // the aggregate slot. The aggregate is the LAST :: segment, the bluebook
-    // context the second-to-last ; the realm / context-folder prefix is
-    // matched at resolve time, not here. (The old split_once took the FIRST
-    // ::, which mis-parsed a canonical 4-seg ref into a non-existent
-    // aggregate — has_query went false and the sweep fell through to the
-    // UNFILTERED enumerate-all path, decrementing unrelated records.)
     if source_aggregate.contains("::") {
         let full = source_aggregate.clone();
         let segs: Vec<&str> = full.split("::").collect();
@@ -1850,8 +1297,6 @@ pub(crate) fn parse_for_each_clause(tail: &str) -> Option<ForEachSpec> {
         source_aggregate = segs[n - 1].to_string();
         source_context = Some(segs[n - 2].to_string());
     }
-    // i221-C — optional `where: { input: from_event(:x) }` sub-hash binds
-    // the swept query's inputs from the event. Absent = parameterless.
     let query_inputs = match body.find("where:") {
         Some(wp) => {
             let after_w = &body[wp + "where:".len()..];
@@ -1868,9 +1313,6 @@ pub(crate) fn parse_for_each_clause(tail: &str) -> Option<ForEachSpec> {
     Some(ForEachSpec { source_context, source_aggregate, query_name, query_inputs })
 }
 
-/// Given a slice that starts at `{`, return the index of the matching
-/// `}` (counting depth). Returns None when unmatched. Quotes are not
-/// respected — same approximation as `is_balanced`.
 fn match_close_brace(s: &str) -> Option<usize> {
     let mut depth = 0i32;
     for (i, c) in s.char_indices() {
@@ -1886,29 +1328,15 @@ fn match_close_brace(s: &str) -> Option<usize> {
     None
 }
 
-/// Parse the inside of a `with: { ... }` hash into an ordered Vec of
-/// `(key, ValueSpec)` pairs. Splitting respects nested parens (so
-/// `default: "—,"` inside `from_pm(...)` doesn't split), at the cost
-/// of not respecting string literals (matches the wider parser
-/// surface : an author-supplied literal containing a comma would be
-/// surfaced as parity drift).
 fn parse_with_hash(body: &str) -> Vec<(String, ValueSpec)> {
     let mut out: Vec<(String, ValueSpec)> = Vec::new();
     for raw_entry in split_top_level_commas(body) {
         let entry = raw_entry.trim().trim_end_matches(',').trim();
         if entry.is_empty() { continue; }
-        // `key: value` where key is a bare ident or a quoted string,
-        // and value is a literal (string / number) or a sentinel call
-        // `from_event(...)` / `from_pm(...)`. A trailing comma after
-        // the last entry is tolerated.
         let colon = match entry.find(':') {
             Some(p) => p,
             None => continue,
         };
-        // Skip cases where the `:` is part of `=>` or starts a Symbol
-        // literal value — for now we only accept the kwarg-shorthand
-        // form `key: value`. Hash-rocket form is filed as a follow-up
-        // (no PM in the corpus uses it for `with:`).
         let key_raw = entry[..colon].trim();
         let val_raw = entry[colon + 1..].trim();
         let key = key_raw
@@ -1922,18 +1350,6 @@ fn parse_with_hash(body: &str) -> Vec<(String, ValueSpec)> {
     out
 }
 
-/// Parse one with-value into a ValueSpec. Four forms :
-///
-///   "literal"                              → ValueSpec::Literal
-///   from_event(:name)                       → FromEvent { default: None }
-///   from_event(:name, default: "x")         → FromEvent { default: Some("x") }
-///   from_pm(:name)                          → FromPm   { default: None }
-///   from_pm(:name, default: "—")            → FromPm   { default: Some("—") }
-///   from_iter(:field)                       → FromIter { field } (i221-A)
-///
-/// Numeric / bare-ident literals are accepted and stringified ; that
-/// matches the wider parser convention (canonical IR carries scalars
-/// as strings). Returns None on malformed input.
 fn parse_value_spec(raw: &str) -> Option<ValueSpec> {
     let s = raw.trim();
     if s.starts_with("from_event") {
@@ -1943,17 +1359,12 @@ fn parse_value_spec(raw: &str) -> Option<ValueSpec> {
         let (name, default) = parse_sentinel_args(s, "from_pm")?;
         Some(ValueSpec::FromPm { name, default })
     } else if s.starts_with("from_iter") {
-        // i221-A — sweep-iteration sentinel. Reuses parse_sentinel_args
-        // for the (name, default) extraction ; the default slot is
-        // ignored (FromIter has no default field — sweeps either find
-        // the iter record's attribute or the runtime surfaces the miss).
         let (name, _default) = parse_sentinel_args(s, "from_iter")?;
         Some(ValueSpec::FromIter { field: name })
     } else if s.starts_with('"') || s.starts_with('\'') {
         let value = extract_string(s).unwrap_or_default();
         Some(ValueSpec::Literal { value })
     } else {
-        // Bare ident / number / symbol — stringify the trimmed token.
         let token = s.trim_end_matches(',').trim().to_string();
         if token.is_empty() {
             return None;
@@ -1962,10 +1373,6 @@ fn parse_value_spec(raw: &str) -> Option<ValueSpec> {
     }
 }
 
-/// Parse the `(...)` arglist of a sentinel call into (name, default).
-/// `name` is required and arrives as `:foo` or `"foo"` ; `default`
-/// is optional and named (`default: "..."` form only ; positional
-/// not supported).
 fn parse_sentinel_args(s: &str, fname: &str) -> Option<(String, Option<String>)> {
     let after = &s[fname.len()..];
     let open = after.find('(')?;
@@ -1997,15 +1404,6 @@ fn parse_sentinel_args(s: &str, fname: &str) -> Option<(String, Option<String>)>
     Some((name, default))
 }
 
-/// Parse a `cadence "Name" do … end` block declaring scheduled
-/// dispatch. i218 — invoked via the block_grammar registry.
-///
-/// Form :
-///   cadence "BodyTick" do
-///     every "1s"
-///     dispatch "Consciousness.ElapsePhase", name: "consciousness"
-///     dispatch "Tick.MindstreamTick",       name: "tick"
-///   end
 pub fn parse_cadence(lines: &[&str]) -> (Cadence, usize) {
     let first = lines[0].trim();
     let name = extract_string(first).unwrap_or_default();
@@ -2048,10 +1446,6 @@ pub fn parse_cadence(lines: &[&str]) -> (Cadence, usize) {
     (cad, i + 1)
 }
 
-/// Parse one `dispatch "Aggregate.Command", k1: v1, k2: v2` line into
-/// a CadenceDispatch. Captures the qualified command name and an
-/// ordered (key, source-text-value) attribute list. Returns None when
-/// the line isn't a dispatch line.
 pub fn parse_cadence_dispatch_line(line: &str) -> Option<CadenceDispatch> {
     let trimmed = line.trim();
     let command_name = extract_string(trimmed)?;
@@ -2075,8 +1469,6 @@ pub fn parse_cadence_dispatch_line(line: &str) -> Option<CadenceDispatch> {
     Some(CadenceDispatch { command_name, attrs })
 }
 
-/// Split a kwarg list on top-level commas only — bracket / brace /
-/// paren / string contents are protected. Cadence-local helper.
 fn split_top_level_cadence(s: &str) -> Vec<String> {
     let mut out: Vec<String> = Vec::new();
     let mut buf = String::new();
@@ -2099,46 +1491,10 @@ fn split_top_level_cadence(s: &str) -> Vec<String> {
     if !buf.trim().is_empty() { out.push(buf.trim().to_string()); }
     out
 }
-/// Consume a `rule "..." do ... end` block on an aggregate / value_object /
-/// entity. Tracks Ruby block-opener nesting through the body so multi-
-/// statement constructs inside a `requires { ... }` (an `if/end`,
-/// `case/end`, etc.) don't trip the surrounding parser's naive `end`
-/// counter. Returns the number of source lines consumed (including the
-/// closing `end`).
-///
-/// i259 — before this consumer existed, a multi-statement requires
-/// body's inner `end` decremented the surrounding aggregate's depth,
-/// silently truncating every command declared after the rule. That
-/// dropped commands silently from the IR ; downstream dispatch fired
-/// `unknown command : Aggregate.Command` far from the cause.
-///
-/// The consumer also validates the requires body shape : single boolean
-/// expression only. Multi-statement bodies (an `if/else/end`, a `case`,
-/// a `;`-separated sequence, etc.) panic with a structured RuleBodyError
-/// message so the bluebook author sees file + line + body excerpt
-/// instead of silent truncation.
-///
-/// Form recognised :
-///   rule "name" do
-///     requires { expr }                             — single line
-///     requires { expr1 && expr2 ||                  — multi-line, single-expression
-///                expr3 }
-///     requires { if cond then a else b end }        — REJECTED (panic with hint)
-///   end
-///
-/// Aggregate rules are not yet first-class IR — i246 lifts them. Until
-/// then, this consumer's only job is to (a) consume the block cleanly
-/// and (b) error loudly on multi-statement bodies. No IR is emitted ;
-/// the rule is silently dropped (consistent with the Ruby DSL's
-/// no-op `rule` method), but never silently drops surrounding siblings.
 pub fn consume_rule_block(lines: &[&str]) -> usize {
     let first = lines[0].trim();
     let rule_name = extract_string(first).unwrap_or_default();
 
-    // Single-line `rule "..." do ... end` form — rare but legal Ruby.
-    // Body is whatever sits between ` do ` and the trailing ` end`.
-    // We don't dig into it ; if a single-line rule contains a multi-
-    // statement requires that's syntactically impossible anyway.
     if !ends_with_do_block(first) {
         return 1;
     }
@@ -2148,9 +1504,6 @@ pub fn consume_rule_block(lines: &[&str]) -> usize {
     while i < lines.len() && depth > 0 {
         let line = lines[i].trim();
 
-        // Recognise `requires { ... }` first — its body is what we
-        // validate. Single-line and multi-line brace forms both flow
-        // through the same body collector.
         if let Some(tail) = line.strip_prefix("requires") {
             let after = &tail.trim_start();
             if after.starts_with('{') {
@@ -2161,10 +1514,6 @@ pub fn consume_rule_block(lines: &[&str]) -> usize {
             }
         }
 
-        // Ruby-opener tracking. Every leading-keyword opener increments
-        // depth ; every standalone `end` decrements. This is the surface
-        // i259 added — without it, a bare `end` line inside a multi-
-        // line `requires` body would close the rule prematurely.
         depth += count_rule_openers(line);
         if line == "end" {
             depth -= 1;
@@ -2175,16 +1524,9 @@ pub fn consume_rule_block(lines: &[&str]) -> usize {
         i += 1;
     }
 
-    // EOF without close — return what we walked. The surrounding
-    // parser will surface its own structural error downstream.
     i
 }
 
-/// Read a `requires { ... }` body starting on `lines[start]`. Returns
-/// the body text (without the outer braces) and the index of the last
-/// line consumed (inclusive). Single-line and multi-line forms are
-/// both supported ; brace balance respects nested `{`/`}` inside the
-/// body so a hash literal inside requires doesn't terminate early.
 fn read_requires_brace_body(lines: &[&str], start: usize) -> (String, usize) {
     let first = lines[start];
     let open_idx = match first.find('{') {
@@ -2193,7 +1535,6 @@ fn read_requires_brace_body(lines: &[&str], start: usize) -> (String, usize) {
     };
     let after_open = &first[open_idx + 1..];
 
-    // Single-line case : the matching `}` lives on the same line.
     let mut depth: i32 = 1;
     for (idx, c) in after_open.char_indices() {
         match c {
@@ -2208,7 +1549,6 @@ fn read_requires_brace_body(lines: &[&str], start: usize) -> (String, usize) {
         }
     }
 
-    // Multi-line case : accumulate until depth returns to 0.
     let mut body = String::new();
     body.push_str(after_open);
     body.push('\n');
@@ -2237,11 +1577,6 @@ fn read_requires_brace_body(lines: &[&str], start: usize) -> (String, usize) {
     (body.trim_end().to_string(), i.saturating_sub(1))
 }
 
-/// Validate the requires-block body is a single boolean expression.
-/// Multi-statement bodies (`if/else/end`, `case/end`, semicolon-
-/// separated statements, etc.) panic with the structured RuleBodyError
-/// message named in i259 so authors see file + line + excerpt before
-/// any IR truncation can hide the cause.
 fn check_requires_body(rule_name: &str, body: &str, start_line: usize, end_line: usize) {
     let trimmed = body.trim();
     if trimmed.is_empty() {
@@ -2267,7 +1602,6 @@ fn check_requires_body(rule_name: &str, body: &str, start_line: usize, end_line:
         if has_multi { break; }
     }
 
-    // Top-level semicolon = explicit multi-statement.
     if !has_multi {
         let mut paren_depth: i32 = 0;
         for c in trimmed.chars() {
@@ -2300,10 +1634,6 @@ fn check_requires_body(rule_name: &str, body: &str, start_line: usize, end_line:
     );
 }
 
-/// Best-effort hint : if the body looks like a simple `if cond /
-/// then_expr / else / else_expr / end`, propose the equivalent
-/// boolean expression so the author can cut-and-paste. Returns None
-/// when the shape isn't recognisable.
 fn derive_requires_hint(body: &str) -> Option<String> {
     let mut iter = body.lines()
         .map(str::trim)
@@ -2323,11 +1653,6 @@ fn derive_requires_hint(body: &str) -> Option<String> {
     ))
 }
 
-/// Count Ruby block-opener delta on a line. Recognises the leading-
-/// keyword openers (`if`, `unless`, `case`, `while`, `until`, `for`,
-/// `begin`, `def`, `class`, `module`) and the trailing ` do` (with
-/// optional `|args|`). Modifier-form `x if y` doesn't open a block
-/// and is excluded by the leading-position check.
 fn count_rule_openers(line: &str) -> i32 {
     let mut count: i32 = 0;
     let trimmed = line.trim();
@@ -2351,18 +1676,6 @@ fn count_rule_openers(line: &str) -> i32 {
     count
 }
 
-/// Parse a `view "name" do ... end` block at aggregate scope (i254).
-///
-/// Lines inside the block are recognized as :
-///
-///   * `show :a, :b, :c`  — append the listed symbols to `fields`
-///   * `show_all`         — set `show_all = true` (admin-style projection)
-///   * `plus :x, :y`      — append the listed symbols to `fields`
-///                          (typically used after `show_all`)
-///
-/// Other lines are absorbed silently so that future view sub-DSL (e.g.
-/// `show ServiceAddress.gate_code, as: :gate_code` from i254's full
-/// proposal) doesn't crash the parser before we wire it into the IR.
 pub fn parse_view(lines: &[&str]) -> (View, usize) {
     let first = lines[0].trim();
     let name = extract_string(first).unwrap_or_default();
@@ -2382,14 +1695,7 @@ pub fn parse_view(lines: &[&str]) -> (View, usize) {
             if line == "show_all" || line.starts_with("show_all ") {
                 v.show_all = true;
             } else if line.starts_with("show") || line.starts_with("plus") {
-                // Glue continuation lines : `show :a,\n     :b,\n     :c` is
-                // one logical statement. Walk forward while the current line
-                // ends with a comma, joining tails into one buffer before
-                // splitting. The keyword prefix is stripped once at the head.
                 let mut buf = String::new();
-                // `show` and `plus` are both four characters, so ONE strip
-                // length serves either head — this was a two-armed `if` whose
-                // arms both returned 4, which read like a bug and is not one.
                 let head_keyword_len = 4;
                 buf.push_str(&line[head_keyword_len..]);
                 while buf.trim_end().ends_with(',') && i + 1 < lines.len() {
@@ -2409,20 +1715,11 @@ pub fn parse_view(lines: &[&str]) -> (View, usize) {
     (v, i + 1)
 }
 
-/// Pull `:sym, :sym, :sym` off a tail fragment from a `show` / `plus`
-/// line, appending each symbol-name as a string into `fields`. Only
-/// `:symbol` tokens are captured ; cross-aggregate join tokens like
-/// `ServiceAddress.gate_code` (i249-tied) are ignored at the IR level
-/// pending the references-in-views card. Tolerates trailing commas +
-/// whitespace.
 fn absorb_view_fields(tail: &str, fields: &mut Vec<String>) {
     for raw in tail.split(',') {
         let part = raw.trim().trim_end_matches(',').trim();
         if part.is_empty() { continue; }
-        // Skip kwarg-style tail tokens like `as: :foo` — first segment
-        // ends with `:` so we treat that whole segment as non-field.
         if part.ends_with(':') { continue; }
-        // Only `:symbol` tokens are first-class own-field projections.
         if !part.starts_with(':') { continue; }
         let name = part.trim_start_matches(':').to_string();
         if !name.is_empty() {
@@ -2431,20 +1728,6 @@ fn absorb_view_fields(tail: &str, fields: &mut Vec<String>) {
     }
 }
 
-/// Parse an aggregate-level `invariant "name" do holds_when { <pred> } end`
-/// block (f4). The first line carries the rule name (a quoted string) ; the
-/// `holds_when { ... }` line inside carries the predicate, extracted with the
-/// same `{ ... }` block grammar a single-line `given` uses. Returns the
-/// parsed Invariant (None when the name or predicate is missing/unparseable)
-/// plus the number of source lines consumed including the closing `end`.
-///
-/// Form:
-///   invariant "ready_means_verified" do
-///     holds_when { state != "done" || verified == true }
-///   end
-///
-/// Predicates are single-line — the same constraint a `given` carries, since
-/// both flow through the same line-scanning expression grammar.
 pub fn parse_invariant(lines: &[&str]) -> (Option<Invariant>, usize) {
     let first = lines[0].trim();
     let name = extract_string(first).unwrap_or_default();
@@ -2526,16 +1809,13 @@ mod dispatch_tests {
         assert_eq!(s.with_spec.iter().map(|(k, _)| k.as_str()).collect::<Vec<_>>(), vec!["a", "b", "c"]);
     }
 
-    // ---- Phase 2.c — `set :attr, value_spec` parser tests ----------
 
     #[test]
     fn is_set_start_distinguishes_set_directive() {
         assert!(is_set_start("set :carrying, \"body\""));
         assert!(is_set_start("set\t:tick, from_event(:tick)"));
-        // Don't match other identifiers that happen to begin with "set".
         assert!(!is_set_start("set_inventory :foo"));
         assert!(!is_set_start("settings :foo"));
-        // Don't match dispatch (the existing keyword).
         assert!(!is_set_start("dispatch \"X.Y\""));
     }
 
@@ -2575,8 +1855,6 @@ mod dispatch_tests {
 
     #[test]
     fn parses_set_with_string_attr_form() {
-        // Defensive : the DSL surface is :attr (Symbol) but the parser
-        // also tolerates the string form for hand-built fixtures.
         let (attr, spec) = parse_set_statement(r#"set "carrying", "body""#).unwrap();
         assert_eq!(attr, "carrying");
         assert!(matches!(spec, ValueSpec::Literal { ref value } if value == "body"));
@@ -2584,15 +1862,11 @@ mod dispatch_tests {
 
     #[test]
     fn rejects_malformed_set_lines() {
-        // No comma — can't tell attr from value.
         assert!(parse_set_statement("set :carrying").is_none());
-        // Empty attribute name after stripping :,",'
         assert!(parse_set_statement(r#"set :, "body""#).is_none());
-        // Not a set line at all.
         assert!(parse_set_statement(r#"dispatch "X.Y""#).is_none());
     }
 
-    // ---- i221-A — `for_each:` + `from_iter(:field)` parser tests ----
 
     #[test]
     fn parses_bare_dispatch_carries_no_for_each() {
@@ -2629,8 +1903,6 @@ mod dispatch_tests {
 
     #[test]
     fn parses_for_each_where_binds_query_inputs_from_event() {
-        // i221-C where-fan-out : the swept query is parameterised by the
-        // triggering event so it filters (leases held by THIS worker).
         let line = r#"dispatch "Conductor::Lease.Reclaim", for_each: { from: "Conductor::Lease.HeldByWorker", where: { worker: from_event(:worker) } }, with: { id: from_iter(:worktree_path) }"#;
         let s = parse_dispatch_statement(line).unwrap();
         let fe = s.for_each.as_ref().expect("for_each parsed");
@@ -2661,11 +1933,8 @@ mod dispatch_tests {
 
     #[test]
     fn for_each_clause_rejects_unqualified_literal() {
-        // No dot — can't split into source_aggregate / query_name.
         let line = r#"dispatch "X.Y", for_each: { from: "cold" }"#;
         let s = parse_dispatch_statement(line).unwrap();
-        // Malformed for_each is filtered to None, dispatch still parses
-        // (the receiving aggregate command name is still valid).
         assert!(s.for_each.is_none());
     }
 
@@ -2693,9 +1962,6 @@ end
 
     #[test]
     fn parse_process_manager_captures_set_specs_in_declaration_order() {
-        // Block-shape mirrors the synthetic 20_process_manager fixture's
-        // `on "TargetSighted"` handler. The parser must collect three
-        // set entries in source order, all on the same handler.
         let src = r#"process_manager "P" do
   correlates_by :id
   starts_on "Started"
@@ -2717,7 +1983,6 @@ end
             h.set_specs.iter().map(|(k, _)| k.as_str()).collect::<Vec<_>>(),
             vec!["steering_target", "carrying", "tick"]
         );
-        // The third entry is the from_pm(:tick, default: "0") form.
         match &h.set_specs[2].1 {
             ValueSpec::FromPm { name, default } => {
                 assert_eq!(name, "tick");
@@ -2725,7 +1990,6 @@ end
             }
             other => panic!("expected FromPm, got {:?}", other),
         }
-        // Dispatches still parsed alongside set_specs on the same handler.
         assert_eq!(h.dispatches.len(), 1);
         assert_eq!(h.dispatches[0].command_name, "Body.Steer");
     }

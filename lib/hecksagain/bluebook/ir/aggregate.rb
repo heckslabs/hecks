@@ -1,11 +1,3 @@
-# Aggregate — a consistency boundary and, in this architecture, a PORT: its
-# commands-in and events-out are the whole contract. Nothing else about it is
-# addressable from outside.
-#
-# Value objects it uses are declared inside it. Its identity attribute defaults
-# to :id ; `identified_by` overrides for singletons keyed by name.
-#
-#   Aggregate.new(name: "Pizza", attributes: [...], commands: [...])
 module Hecksagain
   module Bluebook
     module IR
@@ -13,9 +5,6 @@ module Hecksagain
         attr_reader :name, :description, :attributes, :value_objects, :commands,
                     :identified_by, :lifecycle, :entities, :queries, :policies
 
-        # The Ruby class built alongside this IR, in the same pass. The pairing
-        # is recorded here so boot can bind a runtime to it ; nothing reads the
-        # IR to CREATE the class.
         attr_accessor :ruby_class
 
         def initialize(name:, description: nil, attributes: [], value_objects: [],
@@ -37,8 +26,6 @@ module Hecksagain
         def value_object(named) = @value_objects.find { |v| v.name == named.to_s }
         def command(named)      = @commands.find { |c| c.name == named.to_s }
 
-        # snake_case form used for storage keys and table names — the same rule
-        # that turns a command name into a Ruby method.
         def storage_name = Naming.snake(@name)
 
         def to_h

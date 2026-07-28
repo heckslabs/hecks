@@ -1,10 +1,3 @@
-# The expression sublanguage — the subset of Ruby a predicate may be.
-#
-# These examples pin the SPEC, not one runtime's reading of it. Every rule here
-# has a twin in rust/src/bluebook/expression/, and bin/parity is
-# what proves the twin agrees. When one of these changes, the Rust side changes
-# with it in the same commit — an operator that only one runtime understands is
-# not an operator.
 require "hecksagain"
 
 RSpec.describe "the expression sublanguage" do
@@ -64,10 +57,6 @@ RSpec.describe "the expression sublanguage" do
       expect(evaluate("toppings.size.positive?", { toppings: [] })).to be(false)
     end
 
-    # This once answered FALSE for all three, which was the bug wearing the
-    # costume of a guard: a missing attribute coerced to 0, so `.zero?` would
-    # have reported TRUE and quietly satisfied the rule it was meant to
-    # enforce. Ruby raises on nil.positive? and so does this.
     it "raises rather than answering for a name it cannot resolve" do
       %w[positive? negative? zero?].each do |test|
         expect { evaluate("missing.#{test}") }
@@ -76,9 +65,6 @@ RSpec.describe "the expression sublanguage" do
     end
   end
 
-  # `!`, `.empty?` and `.to_s` — admitted together because the shape the grammar
-  # chapters actually use is `!name.to_s.empty?`, and admitting two of the three
-  # leaves that sentence unevaluable.
   describe "emptiness" do
     it "answers for a string, a list, and a map" do
       expect(evaluate("label.empty?", { label: "" })).to be true
@@ -87,9 +73,6 @@ RSpec.describe "the expression sublanguage" do
       expect(evaluate("toppings.empty?", { toppings: ["Basil"] })).to be false
     end
 
-    # `.empty?` is computed DIRECTLY, never rewritten to `.size == 0`. Hecks
-    # takes the rewrite route, so wherever `.size` misreads its receiver
-    # `.empty?` reports TRUE for a value that is plainly not empty.
     it "reads a string attribute rather than folding through size" do
       expect(evaluate("label.empty?", {}, { label: "Hello" })).to be false
     end
@@ -106,19 +89,12 @@ RSpec.describe "the expression sublanguage" do
       expect(evaluate("!ready", { ready: true })).to be false
     end
 
-    # Ruby's truthiness survives the `!`: only nil and false are falsy, so
-    # `!0` and `!""` are both FALSE.
     it "negates Ruby's truthiness, not a convenient approximation of it" do
       expect(evaluate("!count", { count: 0 })).to be false
       expect(evaluate("!label", { label: "" })).to be false
       expect(evaluate("!missing", { missing: nil })).to be true
     end
 
-    # THE REGRESSION. A predicate and its exact negation must disagree. Both
-    # runtimes once answered TRUE to both of these — the `!` was swallowed by
-    # the `.empty?` suffix match, which stripped it off `!label` instead of
-    # `label`, so the rule returned the opposite of what it said and nothing
-    # failed. This example is the reason the branch exists.
     it "disagrees with the predicate it negates" do
       state = { label: "Hello" }
 
@@ -140,9 +116,6 @@ RSpec.describe "the expression sublanguage" do
       expect(evaluate('missing.to_s == ""',   { missing: nil })).to be true
     end
 
-    # The exact sentence every grammar chapter uses in its invariants. Before
-    # the three operators were admitted this raised, which made
-    # Expression::Operator.Render impossible to dispatch at all.
     it "composes with emptiness and negation, the shape the chapters use" do
       expect(evaluate("!target.to_s.empty?", { target: "ruby" })).to be true
       expect(evaluate("!target.to_s.empty?", { target: nil })).to be false
@@ -155,9 +128,6 @@ RSpec.describe "the expression sublanguage" do
   end
 
   describe "precedence" do
-    # This is the rule that most needs pinning. `a || b && c` means
-    # `a || (b && c)` ONLY because || splits first. A runtime that split &&
-    # first would answer differently and look correct in isolation.
     it "binds || looser than &&" do
       expect(evaluate("true || false && false")).to be(true)
       expect(evaluate("(true || false) && false")).to be(false)
@@ -168,8 +138,6 @@ RSpec.describe "the expression sublanguage" do
       expect(evaluate("(1 < 2) && (4 < 3)")).to be(false)
     end
 
-    # A splitter that matched > inside >= would cut the text mid-comparison
-    # and invert the verdict.
     it "does not mistake >= for >" do
       expect(evaluate("2 >= 2")).to be(true)
       expect(evaluate("2 > 2")).to be(false)
@@ -187,14 +155,6 @@ RSpec.describe "the expression sublanguage" do
     end
   end
 
-  # THE CLAIM THE WORD "SUBLANGUAGE" MAKES.
-  #
-  # A sublanguage of Ruby must MEAN what Ruby means. Each case below is
-  # evaluated twice — once by the sublanguage, once by Ruby itself — and the
-  # two must land in the same place. An earlier reading of this file agreed
-  # with Ruby on one case out of six: 0 was falsy, "" was falsy, and 1 == "1"
-  # was true, so `given { count }` read as "when there are some" and fired when
-  # there were none.
   describe "agreeing with Ruby itself" do
     def agrees?(expression, bindings)
       mine = begin
@@ -205,12 +165,11 @@ RSpec.describe "the expression sublanguage" do
 
       theirs = begin
         locals = bindings.map { |name, value| "#{name} = #{value.inspect}; " }.join
-        eval("#{locals}#{expression}") # rubocop:disable Security/Eval
+        eval("#{locals}#{expression}") 
       rescue StandardError
         :raised
       end
 
-      # Ruby yields a value ; the sublanguage yields that value's truth.
       mine == theirs || (mine != :raised && theirs != :raised && mine == !!theirs)
     end
 
@@ -245,9 +204,6 @@ RSpec.describe "the expression sublanguage" do
     end
   end
 
-  # A predicate that cannot be evaluated is a defect, not a false. Answering
-  # nil would let a typo coerce to 0 and quietly satisfy the very rule it was
-  # meant to enforce.
   describe "refusing what it cannot evaluate" do
     it "raises on a name it cannot resolve" do
       expect { evaluate("mispelled_attribute > 0") }

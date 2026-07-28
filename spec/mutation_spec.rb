@@ -1,14 +1,6 @@
-# frozen_string_literal: true
 
 require "spec_helper"
 
-# ARITHMETIC IS IN THE LANGUAGE NOW.
-#
-# Banking wrote `then_set :balance, to: :amount` for a credit — the balance
-# REPLACED by the deposit — because then_set only knew to: and append:. Both
-# runtimes executed that faithfully, parity agreed, and the ledger was wrong
-# on both sides at once. These examples pin what the Ruby runtime (the truth)
-# means by increment:/decrement:, and what an appended LITERAL writes.
 RSpec.describe "then_set arithmetic" do
   TILL_BLUEBOOK = File.join(InMemoryDomain::ROOT, "spec/fixtures/till.bluebook")
 
@@ -53,9 +45,6 @@ RSpec.describe "then_set arithmetic" do
     expect(TillRoom::Till.find("till-1").balance).to eq(500)
   end
 
-  # Integer cents or nothing. Hecks's runtime falls back to ±1 when an amount
-  # will not read as a number — a balance moving by one cent because the caller
-  # sent "lots" is the silent wrongness this refuses to inherit.
   it "refuses a non-Integer amount loudly, leaving the balance untouched" do
     runtime = boot_till
     runtime.dispatch("TillRoom::Till.OpenTill", id: "till-1")
@@ -68,9 +57,6 @@ RSpec.describe "then_set arithmetic" do
     expect(TillRoom::Till.find("till-1").balance).to eq(10_000)
   end
 
-  # The appended-literal rule. Every ledger entry in the corpus carried
-  # `direction: null` because the append path read LITERALS as argument
-  # lookups — in both runtimes, so parity never said a word.
   it "writes an appended literal as itself, beside the argument fields" do
     runtime = boot_till
     runtime.dispatch("TillRoom::Till.OpenTill", id: "till-1")

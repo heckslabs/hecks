@@ -1,16 +1,3 @@
-# QueryInterpreter — the questions, answered.
-#
-# Seven queries in banking alone — where / order_by / desc / limit / a
-# caller-supplied :floor — parsed, reached the IR, agreed byte-for-byte… and
-# neither runtime could RUN one. The fourth construct in the same silence
-# (policies, sagas, lifecycles before it).
-#
-# A query filters the store through the port, orders, caps, and answers full
-# records — id first, then state. It never writes, so it is the one room with
-# no consequences to sequence : the door hands it a resolved aggregate and
-# takes back rows.
-#
-#   QueryInterpreter.new(registry).call(domain, aggregate, "in_flight", args)
 
 module Hecksagain
   module Runtime
@@ -37,11 +24,6 @@ module Hecksagain
 
       private
 
-      # An entity query reads ELEMENTS across every parent record : each row
-      # is the element plus the parent's id under the parent's snake_case
-      # name — `account: "acct-1"` — because an element's address outside
-      # the boundary always includes whose boundary it is. Same eq/lt
-      # vocabulary, same ordering rules, one level down.
       def entity_rows(domain, aggregate, dotted, args)
         entity_name, query_name = Naming.split_dotted(dotted)
         entity = aggregate.entities.find { |e| e.name == entity_name } ||
@@ -79,14 +61,6 @@ module Hecksagain
         holds?(clause, record[clause.field], args)
       end
 
-      # eq and lt are the whole vocabulary the DSL admits today. A clause
-      # value is a literal, or a :symbol naming one of the query's own
-      # attributes, resolved from the caller.
-      #
-      # A record reads its field by name and an element by symbol, which is the
-      # ONLY difference between the two — so the comparison itself is written
-      # once. `lt` demands both sides be numbers rather than coercing, for the
-      # same reason arithmetic does : a silent comparison is worse than none.
       def holds?(clause, held, args)
         want = resolve_query_value(clause.value, args)
 
@@ -100,9 +74,6 @@ module Hecksagain
         value.is_a?(Symbol) ? args[value] : value
       end
 
-      # Numeric fields sort as numbers, everything else as text, ties break
-      # on id — spelled out because BOTH runtimes must sort identically or
-      # the harness drowns in ordering noise that means nothing.
       def ordered(records, order_by)
         return records unless order_by
 

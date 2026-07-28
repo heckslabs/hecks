@@ -1,10 +1,3 @@
-# Pizzas — the canonical example. Everything hecksagain grows should reference
-# this domain, and when it lacks a shape, this domain gets extended.
-#
-# Deliberately small: a pizza gathers toppings and is eventually sold. The
-# interesting parts are the ones that carry weight — `toppings` is a list of
-# Topping value objects with an invariant, and Purchase is guarded by givens
-# that make a sale impossible before the pizza is ready.
 Hecks.bluebook "Pizzas" do
   vision "Put toppings on a pizza and sell it to a customer."
   supporting
@@ -18,9 +11,6 @@ Hecks.bluebook "Pizzas" do
     attribute :status,        String, default: "available"
     attribute :customer_name, String
 
-    # A topping has no identity of its own — two basils in the same amount are
-    # the same topping. Its invariant is enforced before it ever reaches the
-    # pizza.
     value_object "Topping" do
       attribute :name,   String
       attribute :amount, Integer
@@ -30,27 +20,16 @@ Hecks.bluebook "Pizzas" do
       end
     end
 
-    # The same movement `Purchase` already spells with `then_set :status`,
-    # said once as a MACHINE : where a new pizza starts, and which command
-    # moves it where. `from:` names the states a move is legal from — a sold
-    # pizza cannot be sold twice, and the rule lives here rather than in
-    # every command that might forget it.
     lifecycle :status, default: "available" do
       transition "Purchase" => "sold", from: "available"
     end
 
-    # An identity-bearing member INSIDE the boundary. A topping is a value —
-    # two basils are the same basil — but a line on the order is not : it keeps
-    # its identity while its quantity changes, so it is an entity and carries a
-    # key of its own.
     entity "OrderLine" do
       identified_by :sku
       attribute :sku,      String
       attribute :quantity, Integer
     end
 
-    # The read side. `where` filters, `order_by` sorts, and a :symbol names one
-    # of the query's own inputs — resolved from the caller's kwargs at dispatch.
     query "Available" do
       where(status: "available")
       order_by :name
@@ -61,9 +40,6 @@ Hecks.bluebook "Pizzas" do
       where(price_cents: { lt: :ceiling })
     end
 
-    # The domain's reflex : the sale happened, so someone should be told. The
-    # rule is declared where the causality was noticed and kept at domain level,
-    # because the command it fires belongs to another boundary.
     policy "NotifyOnPurchase" do
       on      "PizzaPurchased"
       trigger "Notifications.Send"
@@ -113,13 +89,6 @@ Hecks.bluebook "Pizzas" do
     end
   end
 
-  # A conversation that outlives any one command. A policy is a reflex with no
-  # memory ; this REMEMBERS — it starts on an event, ties every later event to
-  # the same instance by a shared field, and moves through states it declares
-  # up front. Always domain-level : no single aggregate is its subject.
-  #
-  # Its validations refuse a machine that would load and then never advance —
-  # no correlation, no states, or a transition through a state never declared.
   process_manager "Checkout" do
     correlates_by :pizza_id
     starts_on "PizzaPurchased"

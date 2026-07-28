@@ -1,9 +1,4 @@
-# frozen_string_literal: true
 
-# Banking's moving parts in miniature, bound to Memory — the fixture
-# saga_spec drives to pin what the RUBY runtime (the truth) means by a
-# process manager : born with memory, advanced transition-first, refused
-# legs recorded, compensated, ended. Every number in the spec is exact.
 Hecks.bluebook "Wire" do
   vision "Money leaves one drawer for another, and something remembers which half happened."
   core

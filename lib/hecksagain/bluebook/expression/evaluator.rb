@@ -1,21 +1,3 @@
-# Evaluator — one canonical expression string to one verdict.
-#
-# Mirrors rust/src/bluebook/expression/evaluator.rs, including its SPLIT ORDER, which
-# is the part that actually matters. Precedence here is not a detail of how the
-# code happens to be written — it IS the semantics. `a || b && c` means
-# `a || (b && c)` only because the splitter takes `||` first, so a runtime that
-# split `&&` first would reach a different verdict on the same text and both
-# would look correct in isolation.
-#
-# Lowest precedence outward :
-#
-#   ||   →   &&   →   .include?   →   >=  <=  <  >  ==  !=   →   !   →   leaves
-#
-# `!` sits second-from-last because it binds TIGHTER than every binary operator
-# — reaching it earlier would read `!a && b` as `!(a && b)` and invert the
-# verdict on a sentence that looks unambiguous.
-#
-#   Evaluator.call("toppings.size < 10", state, attrs)   # => true
 module Hecksagain
   module Bluebook
     module Expression
@@ -41,17 +23,6 @@ module Hecksagain
             return compare(operator, left, right, state, attrs) if left
           end
 
-          # NEGATION binds tighter than every binary operator above, so it is
-          # reached only after they have all split — `!a && b` arrives here as
-          # `!a`, already separated. Ruby's rule, not a convenience : only nil
-          # and false are falsy, so `!0` is false and `!""` is false.
-          #
-          # `!a == b` is left to RAISE rather than guessed at. Ruby reads it as
-          # `(!a) == b`, so the comparison split above hands `!a` to the
-          # resolver, which has no such name and says so. Guessing the other
-          # reading — `!(a == b)` — would silently inverse the verdict, and a
-          # predicate that cannot be evaluated is a defect, not a false. Write
-          # `a != b`, or parenthesise.
           return !call(Regexp.last_match(1), state, attrs) if expr =~ /\A!(.+)\z/
 
           truthy?(Resolver.resolve(expr, state, attrs))
@@ -71,10 +42,6 @@ module Hecksagain
           end
         end
 
-        # Ruby's rule, not a convenient approximation of it. Numbers order
-        # against numbers and strings against strings ; anything else RAISES,
-        # exactly as `"abc" < 3` raises in Ruby. Coercing through to_s would have
-        # made "10" < "9" true and called it a comparison.
         def less_than(lhs, rhs)
           left  = Resolver.numeric(lhs)
           right = Resolver.numeric(rhs)
@@ -85,9 +52,6 @@ module Hecksagain
                 "comparison of #{class_of(lhs)} with #{Resolver.describe(rhs)} failed"
         end
 
-        # Ruby's equality: 1 == 1.0 is true, 1 == "1" is false. Comparing to_s
-        # would have made the second one true — the kind of agreement between
-        # runtimes that is worse than a disagreement, because both are wrong.
         def equal?(lhs, rhs)
           left  = Resolver.numeric(lhs)
           right = Resolver.numeric(rhs)
@@ -96,10 +60,6 @@ module Hecksagain
           lhs == rhs
         end
 
-        # Ruby's truthiness: ONLY nil and false are falsy. 0 is true. "" is true.
-        # An earlier reading of this treated both as false, so
-        # `given { count }` fired when there were none — a predicate that read as
-        # "when there are some" and meant the opposite.
         def truthy?(value)
           !value.nil? && value != false
         end
@@ -108,8 +68,6 @@ module Hecksagain
           value.nil? ? "nil" : value.class.name
         end
 
-        # `toppings.include?("Basil")` — membership over a list, or over a
-        # comma-separated string, matching the Rust branch.
         def match_include(expr)
           index = expr.rindex(".include?(")
           return nil unless index && expr.end_with?(")")
@@ -123,23 +81,11 @@ module Hecksagain
 
           case (found = Resolver.resolve(haystack, state, attrs))
           when Array then found.any? { |item| item.to_s == wanted }
-          # RUBY'S MEANING, which is SUBSTRING. This read comma-separated
-          # fields and asked whether any whole one equalled the needle, so
-          # `address.include?("@")` split "ada@example.com" on commas, found
-          # no field equal to "@", and answered false — refusing every
-          # address that was in fact an address.
-          #
-          # The sublanguage's whole claim is that an expression means here
-          # what it means in Ruby. A list that happens to be stored as text
-          # is a LIST ; making String#include? mean membership to serve that
-          # storage choice broke the claim for every genuine string.
           when String then found.include?(wanted)
           else false
           end
         end
 
-        # Drop parens only when they wrap the WHOLE expression — `(a) && (b)`
-        # must keep them or the split would lose a branch.
         def strip_parens(expr)
           return expr unless expr.start_with?("(") && expr.end_with?(")")
 
@@ -152,7 +98,6 @@ module Hecksagain
           strip_parens(expr[1..-2].strip)
         end
 
-        # Split on an operator that sits outside every paren and quote.
         def split_top_level(expr, operator)
           index = top_level_index(expr, operator)
           return nil unless index
@@ -160,9 +105,6 @@ module Hecksagain
           [expr[0...index].strip, expr[(index + operator.length)..].strip]
         end
 
-        # As above, but refuses a match that is really part of a longer operator
-        # (`>` inside `>=`, `=` inside `==`), which would split the text in the
-        # middle of a comparison and silently invert the verdict.
         def split_comparison(expr, operator)
           index = top_level_index(expr, operator) { |at| !part_of_longer?(expr, at, operator) }
           return nil unless index

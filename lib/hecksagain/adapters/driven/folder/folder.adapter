@@ -1,25 +1,3 @@
-# Folder — the loading adapter that reads declarations off a disk.
-#
-# The contract : it DECLARES the port it implements (the inverted arrow) ; the
-# port never names it. `loaded_by("Folder")` resolves if and only if the loading
-# port carries the `loaded_by` verb.
-#
-# It implements ONE convention, and naming it as an adapter is what makes it a
-# convention rather than a law : a domain is a directory holding a `bluebook/`
-# folder, its declarations are the files in there, and load order is DEPENDENCY
-# order — ports declare the verb, an adapter declares a port, the hecksagon names
-# both, the world supplies values. Alphabetical order would boot a hecksagon
-# before the adapter it binds.
-#
-# A different loading adapter would be a different convention entirely : a gem
-# that ships its declarations as constants, a manifest listing paths, a database
-# of domains. Each is additive against this port ; none requires touching boot.
-#
-# It is a DRIVEN adapter — boot asks it for declarations and it answers. The
-# filesystem does not reach in and start anything.
-#
-# It declares NO fields : which path to read is an argument to boot, not a
-# per-deployment value.
 Hecks.adapter "Folder" do
   port "loading"
 end

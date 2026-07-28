@@ -1,22 +1,3 @@
-# EntityBuilder — evaluates an `entity "OrderLine" do ... end` block.
-#
-# Brought over from Hecks's DSL::EntityBuilder : same keywords, same nesting, so
-# an entity written there reads here. It reuses the very builders the aggregate
-# uses — CommandBuilder, QueryBuilder, LifecycleBuilder — because an entity
-# declares the same things a root does, minus the boundary.
-#
-#   entity "OrderLine" do
-#     identified_by :sku
-#     attribute :sku,      String
-#     attribute :quantity, Integer
-#     lifecycle :state, default: "open" do
-#       transition "Fulfil" => "fulfilled"
-#     end
-#   end
-#
-# `invariant` is deliberately ABSENT — see ir/entity.rb. Hecks collects them into
-# a field the interpreter has no slot for, so authoring one here would look like
-# a rule and enforce nothing.
 module Hecksagain
   module Bluebook
     module DSL

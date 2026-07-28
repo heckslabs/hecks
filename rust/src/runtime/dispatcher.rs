@@ -1,18 +1,3 @@
-//! dispatcher - the door, in Rust.
-//!
-//! The same six steps the Ruby dispatcher runs, in the same order, driven by
-//! the same IR:
-//!
-//!   1. resolve   verb -> bluebook -> aggregate -> command
-//!   2. hydrate   load by id, or mint a fresh instance for a creating command
-//!   3. guard     every given must hold, or the command is refused untouched
-//!   4. mutate    creation attributes, then each then_set
-//!   5. persist   store the instance
-//!   6. emit      announce, only after the state is stored
-//!
-//! There is no handler body here either. This file knows nothing about pizzas -
-//! it knows how to read an IR. That is what makes it a runtime rather than an
-//! implementation.
 
 use crate::heki::WriteContext;
 use crate::interp_expr::State;
@@ -25,52 +10,19 @@ use std::collections::BTreeMap;
 
 pub struct Runtime {
     ir: Value,
-    /// Used only when NO persistence adapter is attached. When one is, the
-    /// adapter is the store - a cache alongside it would let the runtime
-    /// appear to work while the adapter silently did nothing.
     store: BTreeMap<String, State>,
-    /// One adapter per aggregate, keyed by aggregate name.
-    ///
-    /// The PORT, never a concrete type. This library must not know that SQLite
-    /// exists - the adapter depends on the port, and Cargo enforces it as a
-    /// dependency cycle if you get it backwards. cli/ is where the two are
-    /// named together.
     adapters: BTreeMap<String, Box<dyn PersistenceAdapter>>,
     pub events: Vec<Value>,
-    /// Every policy that FIRED, and whether its command was delivered. The
-    /// counterpart of Ruby's `registry.reaction_log`. A reaction nobody records
-    /// is a reaction nobody misses — which is how four declared policies ran
-    /// nowhere in BOTH runtimes while parity stayed green.
     pub reactions: Vec<Value>,
-    /// Every process-manager step — born, advanced, refused, ended. The
-    /// counterpart of Ruby's `registry.saga_log` : Settlement parsed, both
-    /// parsers agreed on it byte-for-byte, and it ran NOWHERE. A saga the
-    /// contract does not compare is a saga that can silently stop again.
     pub sagas: Vec<Value>,
-    /// Live conversations : pm name → correlation → (state, remembered opening
-    /// payload). Memory is the STARTING event's payload — a saga exists because
-    /// something has to remember which half is done.
     saga_instances: BTreeMap<String, BTreeMap<String, (String, Map<String, Value>)>>,
     minted: usize,
-    /// How deep the current reaction chain is. A policy whose command emits the
-    /// event it waits for would react for ever ; bounded rather than detected,
-    /// because the cycle is a modelling error and the runtime's job is to stop
-    /// rather than to diagnose.
     reaction_depth: usize,
 }
 
-/// Mirrors Ruby's MAX_REACTION_DEPTH.
 const MAX_REACTION_DEPTH: usize = 5;
 
-// The reference-key spelling used by correlation fallback, hydrate, and
-// entity-query parent keys alike lives in `crate::naming::reference_key`. It
-// was declared here once and then open-coded twice MORE in this same file —
-// the doc comment claimed all three call sites shared it, and none of them
-// did. All three now call the one function.
 
-/// A query-clause value : ":symbol" reads the caller's argument of that
-/// name ; anything else is the literal itself. The counterpart of Ruby's
-/// `resolve_query_value`.
 fn resolve_query_value(value: Option<&Value>, args: &State) -> Value {
     let Some(value) = value else { return Value::Null };
     if let Some(name) = value.as_str().and_then(|s| s.strip_prefix(':')) {
@@ -79,11 +31,6 @@ fn resolve_query_value(value: Option<&Value>, args: &State) -> Value {
     value.clone()
 }
 
-/// The lifecycle's admission rule — the counterpart of Ruby's
-/// `admissible_transition`. None when the command is not part of the machine ;
-/// Some((field, to_state)) when admitted ; Err when the machine says no. A
-/// transition whose from_state is null admits any state. The canonical IR is
-/// already flat — one record per (command, to, from) — so admission is a scan.
 fn admissible_transition(
     aggregate: &Map<String, Value>,
     command_name: &str,
@@ -152,12 +99,10 @@ impl Runtime {
         }
     }
 
-    /// Attach the adapter the hecksagon bound, for one aggregate.
     pub fn attach(&mut self, aggregate: &str, adapter: Box<dyn PersistenceAdapter>) {
         self.adapters.insert(aggregate.to_string(), adapter);
     }
 
-    /// Every aggregate the loaded IR declares, as (name, declaration).
     pub fn aggregates(&self) -> Vec<(String, Map<String, Value>)> {
         let mut found = vec![];
         for domain in self.ir.as_object().cloned().unwrap_or_default().values() {
@@ -171,9 +116,6 @@ impl Runtime {
         found
     }
 
-    /// What the STORE holds, keyed Domain::Aggregate#id. When an adapter is
-    /// bound the answer comes from the adapter, so this reports what was really
-    /// written rather than what the runtime believes it wrote.
     pub fn instances(&self) -> BTreeMap<String, State> {
         if self.adapters.is_empty() {
             return self.store.clone();
@@ -197,16 +139,6 @@ impl Runtime {
         found
     }
 
-    /// An entity command — the counterpart of Ruby's `dispatch_entity` :
-    /// hydrate the PARENT, address ONE element of the list holding this
-    /// entity's records by the entity's own identified_by, gate its
-    /// lifecycle, mutate THAT element, save the parent, announce
-    /// parent-tagged. DELIBERATE DIVERGENCE FROM HECKS, noted where it is
-    /// visible : hecks runs an entity command against the parent record
-    /// itself ("entities live within the parent's record"), which would
-    /// write Reverse's narrative onto the Account — runnable, but not what
-    /// "undo ONE movement" declares. Addressing the element is what the
-    /// Entity IR's own docstring promises (`Order.OrderLine.Restock`).
     fn dispatch_entity(
         &mut self,
         domain: &str,
@@ -241,7 +173,6 @@ impl Runtime {
                 format!("{command_name} acts on a {aggregate_name}'s {entity_name} — pass {identity}:")
             })?;
 
-        // The parent, through the bound adapter — same wording as hydrate.
         let mut state = if let Some(adapter) = self.adapters.get(aggregate_name) {
             adapter
                 .find(&parent_id)
@@ -294,8 +225,6 @@ impl Runtime {
             .cloned()
             .unwrap_or_default();
 
-        // Givens, the state machine, then the mutations — the exact pipeline,
-        // one element deep. Wordings shared with the aggregate path.
         for given in array(&command, "givens") {
             let canonical = given.get("canonical").and_then(Value::as_str).unwrap_or("");
             if !evaluate_given(canonical, &element, args)? {
@@ -318,10 +247,6 @@ impl Runtime {
                     element.insert(target, updated);
                 }
                 _ => {
-                    // Values store RAW — the append path stores an element's
-                    // fields as they arrive, and one entry VO-wrapped by a
-                    // later Reverse beside ten raw siblings would be two
-                    // shapes for one column. Mirrors Ruby's apply_to_element.
                     element.insert(target, resolve_source(&mutation, args));
                 }
             }
@@ -333,7 +258,6 @@ impl Runtime {
         elements[position] = Value::Object(element);
         state.insert(list_attr, Value::Array(elements));
 
-        // PERSIST, then announce — the same order and the same reasons.
         match self.adapters.get_mut(aggregate_name) {
             Some(adapter) => adapter.save(
                 value_bridge::to_state(&parent_id, &state),
@@ -370,13 +294,6 @@ impl Runtime {
         Ok(result)
     }
 
-    /// THE QUESTIONS, finally answered — the counterpart of Ruby's `query`.
-    /// eq and lt are the whole vocabulary ; a clause value is a literal or a
-    /// ":symbol" naming one of the query's own attributes, resolved from the
-    /// caller. Numeric fields sort as numbers, everything else as text, ties
-    /// break on id, `desc` reverses whole — spelled identically to Ruby's
-    /// `ordered`, because two runtimes sorting differently is ordering noise
-    /// the harness would drown in.
     pub fn query(&mut self, verb: &str, args: &State) -> Result<Vec<Value>, String> {
         let (domain, aggregate_name, query_name) = parse_verb(verb)?;
         let aggregate = self.find_aggregate(&domain, &aggregate_name, verb)?;
@@ -455,10 +372,6 @@ impl Runtime {
             .collect())
     }
 
-    /// An entity query — the counterpart of Ruby's `query_entity` : elements
-    /// across every parent record, each row the element plus the parent's id
-    /// under the parent's snake_case name, because an element's address
-    /// outside the boundary always includes whose boundary it is.
     fn query_entity(
         &mut self,
         domain: &str,
@@ -543,8 +456,6 @@ impl Runtime {
         Ok(rows)
     }
 
-    /// Every stored record of one aggregate, as (bare id, state) — through
-    /// the bound adapter when there is one, same as `instances`.
     fn all_records(
         &mut self,
         domain: &str,
@@ -568,8 +479,6 @@ impl Runtime {
 
     pub fn dispatch(&mut self, verb: &str, args: &State) -> Result<State, String> {
         let (domain, aggregate_name, command_name) = parse_verb(verb)?;
-        // `Order.OrderLine.Restock` — an entity is addressed THROUGH the
-        // parent, never around it. The counterpart of Ruby's dispatch_entity.
         if command_name.contains('.') {
             return self.dispatch_entity(&domain, &aggregate_name, &command_name, args);
         }
@@ -586,7 +495,6 @@ impl Runtime {
 
         let (id, mut state) = self.hydrate(&aggregate, &command, args, &identity, creates)?;
 
-        // Guard before anything is written, so a refused command leaves no trace.
         for given in array(&command, "givens") {
             let canonical = given.get("canonical").and_then(Value::as_str).unwrap_or("");
             if !evaluate_given(canonical, &state, args)? {
@@ -595,10 +503,6 @@ impl Runtime {
             }
         }
 
-        // The state machine gates BEFORE anything is written and moves AFTER
-        // the mutations land. The counterpart of Ruby's `admissible_transition` —
-        // wording to the character, because a refusal the two runtimes phrase
-        // differently is a diff the harness has to explain away.
         let transition_to = admissible_transition(&aggregate, &command_name, &state)?;
 
         if creates {
@@ -611,7 +515,6 @@ impl Runtime {
             state.insert(field, Value::String(to_state));
         }
 
-        // PERSIST through the adapter the hecksagon bound.
         match self.adapters.get_mut(&aggregate_name) {
             Some(adapter) => adapter.save(
                 value_bridge::to_state(&id, &state),
@@ -623,7 +526,6 @@ impl Runtime {
             }
         }
 
-        // Emitting last: an event is a promise that the state behind it survived.
         let mut announced: Vec<Value> = Vec::new();
         for emitted in array(&command, "emits") {
             if let Some(name) = emitted.as_str() {
@@ -634,28 +536,15 @@ impl Runtime {
                     "payload": Value::Object(args.clone()),
                 });
 
-                // Events live in the runtime log, not in the persistence port.
-                // Hecks keeps them in event_log.rs, which is a separate concern
-                // and not part of PersistenceAdapter - an adapter stores
-                // aggregates. Both runtimes report this log, so the harness
-                // still compares every emission.
                 self.events.push(event.clone());
                 announced.push(event);
             }
         }
 
-        // REACT - a policy is a standing instruction that something else should
-        // follow, so the reflex fires after the event it waits for. After emit,
-        // for the same reason emit is last: a reaction is a promise the state
-        // behind it survived.
         for event in &announced {
             self.react_to(event, &domain);
         }
 
-        // REMEMBER - a process manager is the conversation that outlives any
-        // one command. After the reflexes, and after react_to, so a policy's
-        // reaction and a saga's advance read the same event in a fixed order
-        // on both runtimes. The counterpart of Ruby's `advance_sagas`.
         for event in &announced {
             self.advance_sagas(event, &domain);
         }
@@ -688,13 +577,6 @@ impl Runtime {
             return Ok((id, defaults_for(aggregate)));
         }
 
-        // Three spellings address a record, in order : the natural key
-        // (identified_by), the universal `id:`, and the REFERENCE KEY — the
-        // snake_case of the aggregate `reference_to` names, so Reverse takes
-        // `transfer:`. The counterpart of Ruby's hydrate ; only the first
-        // spelling resolved before, and the whole saga surface refused with
-        // "pass id:" in both runtimes — 21 agreeing refusals that looked like
-        // a passing suite.
         let reference_key = command
             .get("references")
             .and_then(Value::as_str)
@@ -708,8 +590,6 @@ impl Runtime {
             .ok_or_else(|| format!("{} acts on an existing {} — pass {}:", command_name, aggregate_name, identity))?
             .to_string();
 
-        // The bound adapter is the store. Reading from a cache instead would
-        // let the adapter be silently broken while everything looked fine.
         if let Some(adapter) = self.adapters.get(&aggregate_name) {
             let state = adapter
                 .find(&id)
@@ -728,16 +608,7 @@ impl Runtime {
         Ok((id, self.store[&key].clone()))
     }
 
-    /// The domain's reflex. The counterpart of Ruby's `react_to` in
-    /// lib/hecksagain/runtime/dispatcher.rb, which holds the semantics.
-    ///
-    /// EVERY reaction is recorded, delivered or not. A policy pointing at a
-    /// domain nobody loaded (pizzas' Notifications.Send) is a real thing to know
-    /// about, and swallowing it would rebuild the silence this fixes.
     fn react_to(&mut self, event: &Value, domain: &str) {
-        // Matches are collected as OWNED data before dispatching : the nested
-        // dispatch takes `&mut self`, so a borrow of `self.ir` cannot still be
-        // live when it runs.
         let matched = self.policies_for(event, domain);
 
         for (name, target) in matched {
@@ -767,9 +638,6 @@ impl Runtime {
                 Ok(()) => {
                     entry.insert("delivered".into(), Value::Bool(true));
                 }
-                // Recorded rather than propagated. The triggering command already
-                // succeeded and its state is saved ; a consequence that cannot be
-                // delivered does not retract it. What it must not do is vanish.
                 Err(reason) => {
                     entry.insert("delivered".into(), Value::Bool(false));
                     entry.insert("reason".into(), Value::String(reason));
@@ -780,22 +648,6 @@ impl Runtime {
         }
     }
 
-    /// The policies watching for this event, as (policy name, target verb).
-    ///
-    /// DOMAIN-LEVEL ONLY. An aggregate-nested policy BUBBLES to the domain at
-    /// build time and the aggregate keeps a copy for its own IR ; reading both
-    /// lists fires every nested policy twice.
-    ///
-    /// A policy matches on the event NAME, and when its subscription is
-    /// qualified (`on "Order.Placed"`) on the emitting aggregate too.
-    // ======================================================================
-    // THE CONVERSATION THAT OUTLIVES A COMMAND — the counterpart of Ruby's
-    // saga engine (lib/hecksagain/runtime/dispatcher.rb holds the semantics
-    // and the doctrine comment ; this is the mirror, step for step) :
-    // born → advanced (transition FIRST, then dispatches ; `with:` symbols
-    // read the event payload first, the remembered opening payload second)
-    // → refused dispatches recorded, never propagated → ended on ends_on.
-    // ======================================================================
     fn advance_sagas(&mut self, event: &Value, domain: &str) {
         let pms = self
             .ir
@@ -812,17 +664,9 @@ impl Runtime {
         }
     }
 
-    /// The counterpart of Ruby's `saga_correlation` : the payload's
-    /// correlates_by field when it rides there — and when the field NAMES THE
-    /// EMITTING AGGREGATE (correlates_by :transfer, event from Transfer), the
-    /// event's own id IS that value, because `transfer` is the reference-key
-    /// spelling of a Transfer's identity everywhere else in the language.
     fn correlation(pm: &Value, event: &Value) -> Option<String> {
         let field = pm.get("correlates_by").and_then(Value::as_str)?;
         if let Some(value) = event.get("payload").and_then(|p| p.get(field)) {
-            // Null is ABSENT, not the four-letter string "null" — Ruby's nil
-            // reads as no-correlation, and a saga keyed by "null" would be a
-            // conversation with a ghost.
             if !value.is_null() {
                 let text = value.as_str().map(str::to_string).unwrap_or_else(|| value.to_string());
                 if !text.is_empty() {
@@ -831,10 +675,6 @@ impl Runtime {
             }
         }
 
-        // Whether the event's correlation field names its OWN emitter. The
-        // counterpart of Ruby's `Naming.reference_key(event.aggregate)` — one
-        // call doing the demodulise and the snake together, because they are
-        // one question.
         let own_key = event
             .get("aggregate")
             .and_then(Value::as_str)
@@ -928,9 +768,6 @@ impl Runtime {
             return;
         }
 
-        // Transition FIRST — a dispatch below can cascade back into this saga
-        // (Credit → AccountCredited), and the nested advance must see the new
-        // state, not the one it is leaving.
         if let Some(instance) = self
             .saga_instances
             .get_mut(&pm_name)
@@ -969,12 +806,6 @@ impl Runtime {
             .cloned()
             .unwrap_or_default();
 
-        // `with:` values ride the canonical IR spelling : a leading ':' names a
-        // key to READ — the conversation's own name when it IS the
-        // correlates_by field (inside this saga `:transfer` means exactly the
-        // correlation), then the triggering event's payload, then the
-        // remembered opening payload — and anything else is a literal to write.
-        // The counterpart of Ruby's resolution order, exactly.
         let correlates_by = self
             .ir
             .get(domain)
@@ -1108,12 +939,6 @@ impl Runtime {
             .collect()
     }
 
-    /// The verb rides along ONLY for the not-found message. Ruby says "no domain
-    /// X loaded (verb ...)" and this said "no domain X in the IR" — the same
-    /// failure phrased two ways, unnoticed because the only refusals the corpus
-    /// exercised were GivenNotMet. Adding reactions to the parity contract is
-    /// what surfaced it : a policy pointing at an unloaded domain fails here, and
-    /// its reason is compared.
     fn find_aggregate(&self, domain: &str, name: &str, verb: &str) -> Result<Map<String, Value>, String> {
         let bluebook = self
             .ir
@@ -1134,8 +959,6 @@ impl Runtime {
     }
 }
 
-// The SHAPE of a verb is naming's to know ; the REFUSAL is the door's, because
-// only the door knows what it was asked for.
 fn parse_verb(verb: &str) -> Result<(String, String, String), String> {
     let (domain, aggregate, command) = crate::naming::split_verb(verb)
         .ok_or_else(|| format!("{:?} is not a fully-qualified verb", verb))?;
@@ -1160,6 +983,3 @@ pub fn array(node: &Map<String, Value>, key: &str) -> Vec<Value> {
         .unwrap_or_default()
 }
 
-// `storage_name` lived here as a third spelling of the same rule — identical
-// in behaviour to `util::snake_case`, written differently, and disagreeing
-// with the parser about acronyms. Use `crate::naming::snake`.

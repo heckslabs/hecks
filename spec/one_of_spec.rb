@@ -1,18 +1,6 @@
-# frozen_string_literal: true
 
 require "spec_helper"
 
-# THE CLOSED SET, pinned against the REAL banking bluebook — loaded without
-# its hecksagon, so every aggregate takes the Memory default and the spec does
-# no IO. `one_of` came over from Hecks and rode the IR as a declared SHAPE
-# without ever being a GATE — member rows nobody judged, in both runtimes.
-# Construction now judges the DISCRIMINANT (the first declared attribute)
-# against the member rows before the invariants get a word, and the same door
-# judges an OBJECT payload's invariants — the path Rust used to wave through
-# unexamined while Ruby refused.
-#
-# The wordings here are the parity contract : Rust must refuse in exactly
-# these characters or stage 2 splits.
 RSpec.describe "one_of" do
   ONE_OF_BANKING = File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/banking.bluebook")
 

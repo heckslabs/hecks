@@ -1,18 +1,7 @@
-# AttributeCollector — the `attribute` / `list_of` pair, shared by every builder
-# that can hold fields: aggregates, value objects, and commands.
-#
-# List shape is EXPLICIT. `list_of(X)` wraps the type in a marker the collector
-# unwraps ; a bare type is always scalar. Nothing is inferred from the
-# attribute's name.
-#
-#   attribute :name,     Name                 # scalar
-#   attribute :toppings, list_of(Topping)     # list
-#   attribute :currency, String, default: "USD"
 module Hecksagain
   module Bluebook
     module DSL
       module AttributeCollector
-        # Marker returned by list_of — unwrapped immediately by `attribute`.
         ListOf = Struct.new(:type)
 
         def attributes = @attributes ||= []

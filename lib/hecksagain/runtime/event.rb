@@ -1,11 +1,3 @@
-# Event — something the domain announced after a command landed.
-#
-# An event is a FACT: it names what happened, which aggregate instance it
-# happened to, and the payload that caused it. It is emitted after the
-# mutations are applied and after the instance is saved, so an event is never
-# observed for a state that was not persisted.
-#
-#   Event.new(name: "PizzaPurchased", aggregate: "Pizzas::Pizza", id: "pizza-1a2b")
 require "time"
 
 module Hecksagain

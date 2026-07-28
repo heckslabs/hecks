@@ -1,11 +1,3 @@
-# Reflex — the smallest domain where a policy can actually LAND.
-#
-# The corpus's four policies all reach ACROSS to a domain nobody loads
-# (Notifications, Compliance), so they can only ever be recorded as
-# undelivered. That proves the reflex is observed ; it does not prove it
-# arrives. This one stays inside its own boundary and needs nothing the
-# triggering event does not already carry, so the reaction completes and the
-# second command's state change is visible.
 Hecks.bluebook "Reflex" do
   vision "An event arrives and a command fires — the whole of a policy, in one aggregate."
   core
@@ -25,10 +17,6 @@ Hecks.bluebook "Reflex" do
       emits "Flipped"
     end
 
-    # The reaction's target. It needs only the id, which the Flipped payload
-    # carries — hecksagain's policy has no `with` / `map`, so the event payload
-    # is the whole of the reaction's input and a command needing more than it
-    # holds cannot complete.
     command "Log" do
       role "System"
       goal "Record that the flip was noticed"
@@ -43,13 +31,6 @@ Hecks.bluebook "Reflex" do
     end
   end
 
-  # A REACTION THAT FEEDS ITSELF. Echo.Ring emits Rang, and the policy answers
-  # Rang by ringing again — a cycle that would react for ever.
-  #
-  # It exists because the depth guard was written and nothing exercised it, which
-  # is the exact shape of every bug found the day this was added : a construct
-  # legal, unexercised, and unverified. A bound nobody reaches is a bound nobody
-  # knows is there.
   aggregate "Echo" do
     description "A bell whose ring makes it ring"
 

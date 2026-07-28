@@ -1,23 +1,3 @@
-//! interp_givens - one canonical expression to one verdict.
-//!
-//! Mirrors lib/hecksagain/expression/evaluator.rb, including its SPLIT ORDER,
-//! which is the part that carries meaning:
-//!
-//!   ||  ->  &&  ->  .include?  ->  >= <= < > == !=  ->  !  ->  leaves
-//!
-//! `!` sits second-from-last because it binds TIGHTER than every binary
-//! operator - reaching it earlier would read `!a && b` as `!(a && b)` and invert
-//! the verdict on a sentence that looks unambiguous.
-//!
-//! `a || b && c` means `a || (b && c)` only because || is split first. A
-//! runtime that split && first would reach a different verdict on the same text
-//! and look perfectly correct in isolation.
-//!
-//! Truthiness, equality and ordering are RUBY'S, not a convenient
-//! approximation. An earlier reading treated 0 and "" as false and compared
-//! everything through to_s, so `given { count }` fired when there were none and
-//! `count == "1"` was true. Both runtimes shared that reading, which made them
-//! agree and both be wrong - the worst outcome a parity harness can bless.
 
 use crate::interp_expr::{
     class_of, describe, match_call, numeric_value, resolve_expr, Eval, State,
@@ -47,16 +27,6 @@ pub fn evaluate_given(expr: &str, state: &State, attrs: &State) -> Eval<bool> {
         }
     }
 
-    // NEGATION binds tighter than every binary operator above, so it is reached
-    // only after they have all split: `!a && b` arrives here as `!a`, already
-    // separated. Ruby's rule, not a convenience: only nil and false are falsy, so
-    // `!0` is false and `!""` is false.
-    //
-    // `!a == b` is left to RAISE rather than guessed at. Ruby reads it as
-    // `(!a) == b`, so the comparison split above hands `!a` to the resolver, which
-    // has no such name and says so. Guessing the other reading - `!(a == b)` -
-    // would silently inverse the verdict, and a predicate that cannot be evaluated
-    // is a defect, not a false. Write `a != b`, or parenthesise.
     if let Some(inner) = expr.strip_prefix('!') {
         return Ok(!evaluate_given(inner, state, attrs)?);
     }
@@ -79,9 +49,6 @@ fn compare(operator: &str, left: &str, right: &str, state: &State, attrs: &State
     })
 }
 
-/// Ruby's rule: numbers order against numbers and strings against strings.
-/// Anything else RAISES, exactly as `"abc" < 3` raises in Ruby. Coercing
-/// through to_s would have made "10" < "9" true and called it a comparison.
 fn less_than(lhs: &Value, rhs: &Value) -> Eval<bool> {
     if let (Some(left), Some(right)) = (numeric_value(lhs), numeric_value(rhs)) {
         return Ok(left < right);
@@ -96,7 +63,6 @@ fn less_than(lhs: &Value, rhs: &Value) -> Eval<bool> {
     ))
 }
 
-/// Ruby's equality: 1 == 1.0 is true, 1 == "1" is false.
 pub fn values_equal(lhs: &Value, rhs: &Value) -> bool {
     match (numeric_value(lhs), numeric_value(rhs)) {
         (Some(left), Some(right)) => left == right,
@@ -104,7 +70,6 @@ pub fn values_equal(lhs: &Value, rhs: &Value) -> bool {
     }
 }
 
-/// Ruby's truthiness: ONLY nil and false are falsy. 0 is true. "" is true.
 fn truthy(value: &Value) -> bool {
     !matches!(value, Value::Null | Value::Bool(false))
 }
@@ -122,8 +87,6 @@ fn includes(haystack: &str, needle: &str, state: &State, attrs: &State) -> Eval<
     })
 }
 
-/// Drop parens only when they wrap the WHOLE expression - `(a) && (b)` must
-/// keep them or the split would lose a branch.
 fn strip_parens(expr: &str) -> String {
     if !(expr.starts_with('(') && expr.ends_with(')')) {
         return expr.to_string();
@@ -147,8 +110,6 @@ pub fn split_top_level(expr: &str, operator: &str) -> Option<(String, String)> {
     top_level_index(expr, operator, false).map(|index| halves(expr, index, operator))
 }
 
-/// As above, but refuses a match that is really part of a longer operator
-/// (`>` inside `>=`), which would split mid-comparison and invert the verdict.
 pub fn split_comparison(expr: &str, operator: &str) -> Option<(String, String)> {
     top_level_index(expr, operator, true).map(|index| halves(expr, index, operator))
 }

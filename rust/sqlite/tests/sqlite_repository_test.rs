@@ -1,5 +1,3 @@
-//! SqliteRepository tests — typed columns from the IR, round-trip
-//! save/find, cold-reopen durability, and the Ruby-parity SQL type map.
 
 use storehouse::heki::WriteContext;
 use storehouse_sqlite::sql_type;
@@ -15,14 +13,12 @@ fn tmp_db(name: &str) -> String {
 
 #[test]
 fn sql_type_map_mirrors_ruby() {
-    // Verbatim parity with ruby/hecks_persist sql_type.
     assert_eq!(sql_type("String"), "VARCHAR(255)");
     assert_eq!(sql_type("Integer"), "INTEGER");
     assert_eq!(sql_type("Float"), "REAL");
     assert_eq!(sql_type("Boolean"), "BOOLEAN");
     assert_eq!(sql_type("TrueClass"), "BOOLEAN");
     assert_eq!(sql_type("FalseClass"), "BOOLEAN");
-    // Value-object / unknown types fall to TEXT (Ruby's `else`).
     assert_eq!(sql_type("Title"), "TEXT");
     assert_eq!(sql_type("PublishedAt"), "TEXT");
 }
@@ -56,11 +52,9 @@ fn cold_reopen_sees_persisted_rows_and_advances_next_id() {
         s.set("title", Value::Str("First".into()));
         repo.save(s, WriteContext::OutOfBand { reason: "test" });
     }
-    // Fresh process equivalent : re-open the same db.
     let mut repo2 = SqliteRepository::new("BlogEntry", &db, None, cols).unwrap();
     assert_eq!(repo2.count(), 1, "reopened repo must see the persisted row");
     assert_eq!(repo2.find("1").unwrap().get("title").to_string(), "First");
-    // next_id walked past the existing id : a counter-mint yields "2".
     let minted = repo2.id_for_command(&HashMap::new());
     assert_eq!(minted, "2");
 }

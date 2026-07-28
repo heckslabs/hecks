@@ -1,20 +1,6 @@
-# EVERY method a bluebook author can call.
-#
-# The DSL is the surface a domain expert actually touches, so an untested
-# method here is a sentence someone can write that nothing has ever checked.
-# Each example exercises ONE method and asserts what it put in the IR — not
-# that it ran without raising, which is the test that always passes.
-#
-# When a method is added to a builder, it gets an example here in the same
-# commit. The count at the bottom of this file is the whole surface.
 require "hecksagain"
 
 RSpec.describe "the DSL surface" do
-  # Declarations land in whichever registry is booting, so tests supply one
-  # rather than booting a whole domain from disk.
-  # Extraction is loaded because reading a `given` or an `invariant` resolves
-  # that port : recovering a predicate's source is an impure edge like any
-  # other, and an unbound one refuses rather than silently returning empty text.
   def in_registry
     registry = Hecksagain::Runtime::Registry.new
     Hecks.with_registry(registry) do
@@ -25,8 +11,6 @@ RSpec.describe "the DSL surface" do
     registry
   end
 
-  # Unique domain names keep the top-level constants each build installs from
-  # colliding between examples.
   def build_bluebook(name, &block)
     in_registry { Hecks.bluebook(name, &block) }.bluebook(name)
   end
@@ -39,9 +23,6 @@ RSpec.describe "the DSL surface" do
     build_aggregate(domain) { command("Do", &block) }.command("Do")
   end
 
-  # ==========================================================================
-  # Hecks — the module surface
-  # ==========================================================================
   describe "Hecks" do
     it ".with_registry collects declarations, and restores the previous one" do
       registry = in_registry { Hecks.bluebook("WithReg") { vision "v" } }
@@ -88,15 +69,6 @@ RSpec.describe "the DSL surface" do
     end
   end
 
-  # ==========================================================================
-  # BluebookBuilder
-  # ==========================================================================
-  # ==========================================================================
-  # These rules were DECLARED in grammar/bluebook.bluebook and enforced by
-  # nothing — a self-description executing against its own toy state while the
-  # real builders accepted anything. They live in the builders now, and these
-  # examples are the difference between a rule and a sentence about a rule.
-  # ==========================================================================
   describe "declarations that cannot mean what they say" do
     Malformed = Hecksagain::Bluebook::DSL::Malformed
 
@@ -130,15 +102,11 @@ RSpec.describe "the DSL surface" do
         .to raise_error(Malformed, /names no operation/)
     end
 
-    # One mutation, one meaning. A then_set that both sets and increments
-    # would apply in SOME order, and the order would be the semantics.
     it "refuses a mutation that names two operations" do
       expect { build_command("Torn") { then_set :balance, to: 5, increment: :amount } }
         .to raise_error(Malformed, /one mutation, one meaning/)
     end
 
-    # A command acts on ONE root. A second SELF reference would silently win and
-    # the first would still read as declared.
     it "refuses a command that names its own root twice" do
       expect do
         build_command("Confused") do
@@ -148,9 +116,6 @@ RSpec.describe "the DSL surface" do
       end.to raise_error(Malformed, /acts on ONE/)
     end
 
-    # THE ONE THAT CLOSED HECKS'S PARITY HOLE. A predicate whose source cannot
-    # be recovered is not a lenient rule — it is a rule no other runtime can
-    # ever evaluate. An eval'd block has no file, so nothing to read.
     it "refuses a given whose source could not be read" do
       expect do
         in_registry do
@@ -175,12 +140,6 @@ RSpec.describe "the DSL surface" do
       end.to raise_error(Malformed, /did not survive extraction/)
     end
 
-    # A bluebook could declare a SHAPE but not a FACT, so the Expression
-    # chapter's own admitted operators had to live in a parity script — test
-    # data standing in for language truth. The Rust parser has read this block
-    # since it was lifted from Hecks ; this side raised NoMethodError on it, so
-    # the construct was readable by one runtime and fatal to the other, and
-    # nothing noticed because no domain used it.
     it "one_of declares a closed set of members, in declaration order" do
       registry = in_registry do
         Hecks.bluebook("Coins") do
@@ -218,10 +177,6 @@ RSpec.describe "the DSL surface" do
       end.to raise_error(Malformed, /empty member/)
     end
 
-    # The scalar spelling (`attribute :x, one_of("a", "b")`) is read by the Rust
-    # parser and not by this side. Refusing it loudly is the point : accepting
-    # and dropping it would leave exactly the half-present construct that made
-    # one_of worth fixing.
     it "refuses the scalar one_of spelling rather than dropping it" do
       expect do
         in_registry do
@@ -235,13 +190,6 @@ RSpec.describe "the DSL surface" do
     end
   end
 
-  # ==========================================================================
-  # A value-object-typed SCALAR attribute is constructed and validated, not
-  # stored raw. Value.build was only ever reached from the append path, so a
-  # scalar declared as a value object was assigned whatever arrived — and a
-  # dotted read of it answered nil, in both runtimes, over a value object that
-  # never existed.
-  # ==========================================================================
   describe "value-object-typed attributes" do
     def account_domain
       in_registry do
@@ -282,7 +230,6 @@ RSpec.describe "the DSL surface" do
 
       state = runtime.dispatch("Coerced::Holding.Open", id: "h1", kind: "current").state
 
-      # Constructed, so a dotted read finds the field — and the invariant ran.
       expect(state[:kind]).to eq(name: "current")
     end
 
@@ -296,8 +243,6 @@ RSpec.describe "the DSL surface" do
         .to raise_error(Hecksagain::Runtime::InvariantViolation, /current or savings/)
     end
 
-    # Guessing which of several fields a scalar meant is how a currency ends up
-    # in a cents column.
     it "refuses a scalar for a value object with more than one field" do
       registry = account_domain
       runtime  = Hecksagain::Runtime::Loader.bind_runtime(
@@ -347,14 +292,10 @@ RSpec.describe "the DSL surface" do
 
       handler = checkout.handler_for("PaymentAuthorized")
       expect([handler.from_state, handler.to_state]).to eq(["awaiting_payment", "paid"])
-      # The :symbol KEEPS its colon — it names a value carried by the
-      # correlated instance, not the literal string "order_id".
       expect(handler.dispatches.first.to_h)
         .to eq({ command_name: "Order.Confirm", with: [["order", ":order_id"]] })
     end
 
-    # Each of these describes a machine that would LOAD and then never advance.
-    # Refusing at build time is the whole reason the validations came over.
     it "process_manager refuses a machine that could never advance" do
       expect do
         build_bluebook("Stateless") do
@@ -388,8 +329,6 @@ RSpec.describe "the DSL surface" do
       expect(build_bluebook("Agged") { aggregate("Thing") }.aggregates.map(&:name)).to eq(["Thing"])
     end
 
-    # Strategic classification is recorded, not enforced — it tells a reader
-    # where to spend attention.
     it "core, supporting and generic each record a classification" do
       %i[core supporting generic].each_with_index do |keyword, index|
         builder = Hecksagain::Bluebook::DSL::BluebookBuilder.new("Classified#{index}")
@@ -404,9 +343,6 @@ RSpec.describe "the DSL surface" do
     end
   end
 
-  # ==========================================================================
-  # AggregateBuilder
-  # ==========================================================================
   describe "an aggregate" do
     it "description records what it is" do
       expect(build_aggregate("Described") { description "a thing" }.description).to eq("a thing")
@@ -438,11 +374,9 @@ RSpec.describe "the DSL surface" do
         end
       end.lifecycle
 
-      # As authored : one transition holding both sources.
       expect(machine.transitions.size).to eq(1)
       expect(machine.transitions.first.last.from).to eq(["sold", "draft"])
 
-      # As dumped : one record per source, which is what the interpreter reads.
       expect(machine.to_h[:transitions]).to eq([
         { command: "Archive", to_state: "archived", from_state: "sold" },
         { command: "Archive", to_state: "archived", from_state: "draft" }
@@ -510,11 +444,6 @@ RSpec.describe "the DSL surface" do
       end.to raise_error(ArgumentError, /unknown comparator/)
     end
 
-    # THE RULE THE BANKING CORPUS FOUND. A reference to ANOTHER root is not
-    # "act on an existing one" — it says which one this belongs to, and that is
-    # an attribute carried by identity. Reading both alike made every
-    # Account.Open refuse with "no Account with id …" : a creating command
-    # asked to load the thing it was about to create.
     it "reference_to another root is an attribute, and leaves the command creating" do
       command = build_command("Open") { reference_to "Customer" }
 
@@ -539,7 +468,6 @@ RSpec.describe "the DSL surface" do
 
       expect(reaction.on_event).to eq("Order.Placed")
       expect(reaction.trigger_command).to eq("Payment.Charge")
-      # A qualified subscription names its aggregate ; the bare event survives.
       expect([reaction.event_qualifier, reaction.event_name]).to eq(["Order", "Placed"])
     end
 
@@ -554,7 +482,6 @@ RSpec.describe "the DSL surface" do
       expect(aggregate.attribute(:status).default).to eq("open")
     end
 
-    # List shape is EXPLICIT. Nothing is inferred from the name.
     it "list_of marks an attribute as a list" do
       aggregate = build_aggregate("Listed") { attribute :parts, list_of(Part) }
       expect([aggregate.attribute(:parts).type, aggregate.attribute(:parts).list?]).to eq(["Part", true])
@@ -579,9 +506,6 @@ RSpec.describe "the DSL surface" do
     end
   end
 
-  # ==========================================================================
-  # ValueObjectBuilder
-  # ==========================================================================
   describe "a value object" do
     def build_value_object(domain, &block)
       build_aggregate(domain) { value_object("Part", &block) }.value_object("Part")
@@ -609,9 +533,6 @@ RSpec.describe "the DSL surface" do
     end
   end
 
-  # ==========================================================================
-  # CommandBuilder
-  # ==========================================================================
   describe "a command" do
     it "role records who says it" do
       expect(build_command("CmdRole") { role "Chef" }.role).to eq("Chef")
@@ -629,8 +550,6 @@ RSpec.describe "the DSL surface" do
       expect(build_command("CmdList") { attribute :tags, list_of(Tag) }.attribute(:tags).list?).to be(true)
     end
 
-    # reference_to is what separates an update from a create — there is no
-    # separate create keyword.
     it "reference_to marks the command as acting on an existing instance" do
       command = build_command("CmdRef") { reference_to Thing }
       expect([command.references, command.creates?]).to eq(["Thing", false])
@@ -666,16 +585,9 @@ RSpec.describe "the DSL surface" do
       mutation = build_command("CmdAppend") { then_set :parts, append: { size: :size } }.mutations.first
 
       expect([mutation.target, mutation.op]).to eq([:parts, :append])
-      # An appended field says WHICH it is : a :symbol renders as the bare
-      # argument name, a String literal keeps its quotes. Rendering both alike
-      # would make `{ direction: :direction }` and `{ direction: "direction" }`
-      # the same document.
       expect(mutation.to_h[:fields]).to eq(size: "size")
     end
 
-    # The arithmetic pair. A ledger is addition ; before these, banking wrote
-    # `then_set :balance, to: :amount` and a credit REPLACED the balance —
-    # both runtimes agreed, because both did the same wrong ledger.
     it "then_set increment: reads a command argument to add" do
       mutation = build_command("CmdInc") { then_set :balance, increment: :amount }.mutations.first
 
@@ -695,9 +607,6 @@ RSpec.describe "the DSL surface" do
     end
   end
 
-  # ==========================================================================
-  # PortBuilder / AdapterBuilder — the impure boundary
-  # ==========================================================================
   describe "a port" do
     def build_port(&block)
       in_registry { Hecks.port("post", &block) }.ports["post"]
@@ -723,21 +632,14 @@ RSpec.describe "the DSL surface" do
       in_registry { Hecks.adapter("Carrier", &block) }.adapters["Carrier"]
     end
 
-    # The INVERTED ARROW: the adapter declares its family, never the reverse,
-    # so a new backend is purely additive.
     it "port declares which port it implements" do
       expect(build_adapter { port "post" }.port).to eq("post")
     end
 
-    # Fields belong to the ADAPTER, not the family. Adapters in one family
-    # genuinely differ - Sqlite needs a database, Memory nothing - and a field
-    # list on the family would force one shape onto both.
     it "field names a config value this adapter needs" do
       expect(build_adapter { field :office }.fields).to eq([:office])
     end
 
-    # A secret is a field whose VALUE never lives in a bluebook - only the name
-    # of the environment variable holding it.
     it "secret names one too, kept apart from plain fields" do
       adapter = build_adapter { secret :token }
 
@@ -761,9 +663,6 @@ RSpec.describe "the DSL surface" do
     end
   end
 
-  # ==========================================================================
-  # WorldBuilder — values, never wiring
-  # ==========================================================================
   describe "a world" do
     it "any how-verb collects the values under it" do
       registry = in_registry do
@@ -785,10 +684,6 @@ RSpec.describe "the DSL surface" do
     end
   end
 
-  # ==========================================================================
-  # BindingProxy — what makes Pizzas::Pizza.persisted_by("Sqlite") legal
-  # before Pizzas::Pizza is a real class
-  # ==========================================================================
   describe "the binding proxy" do
     let(:collector) { [] }
 
@@ -797,8 +692,6 @@ RSpec.describe "the DSL surface" do
       expect(namespace::Anything).to be_a(Hecksagain::Bluebook::DSL::BindingProxy)
     end
 
-    # ANY how-verb is accepted, because the vocabulary belongs to the families.
-    # Declaring a new family must never mean editing this class.
     it "method_missing records a bind for any how-verb" do
       namespace = Hecksagain::Bluebook::DSL::BindingProxy.namespace("Dom", collector)
       namespace::Thing.invented_by("Someone")
@@ -839,9 +732,6 @@ RSpec.describe "the DSL surface" do
     end
   end
 
-  # ==========================================================================
-  # ConstShim — what lets a bluebook name a type that does not exist yet
-  # ==========================================================================
   describe "the const shim" do
     it "is inert outside a load, so an ordinary typo still raises" do
       expect(Hecksagain::Bluebook::DSL::ConstShim).not_to be_active

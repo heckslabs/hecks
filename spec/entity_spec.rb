@@ -1,21 +1,6 @@
-# frozen_string_literal: true
 
 require "spec_helper"
 
-# THE ELEMENT LAYER, pinned against the REAL banking bluebook — loaded
-# WITHOUT its hecksagon, so every aggregate takes the Memory default and the
-# spec does no IO. An entity is addressed through the parent
-# (`Account.LedgerEntry.Reverse`), exactly as the Entity IR's docstring
-# promised from the day it was written.
-#
-# ONE DELIBERATE DIVERGENCE FROM HECKS, recorded here because this is where
-# it is visible : hecks runs an entity command against the PARENT record
-# ("entities live within the parent's record"), which would write Reverse's
-# narrative onto the Account itself. Undoing ONE movement is what the domain
-# declares, so here the command addresses the element by the entity's own
-# identified_by — and an appended element is BORN with that identity
-# (1-based position — append order is the order it was posted) and with its
-# lifecycle's default state.
 RSpec.describe "an entity" do
   BANKING_BLUEBOOK = File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/banking.bluebook")
 

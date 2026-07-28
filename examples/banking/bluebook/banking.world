@@ -1,7 +1,3 @@
-# The per-deployment VALUES the bound adapters need — and only values.
-#
-# Mirrors the hecksagon's shape : the same how-verb selector, carrying values
-# instead of wiring. Read one line in each and you know the whole edge.
 Hecks.world "Banking" do
   persisted_by("Heki") do
     dir "data"

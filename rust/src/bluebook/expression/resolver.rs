@@ -1,23 +1,8 @@
-//! interp_expr - the leaves of the sublanguage: one expression string to one
-//! value.
-//!
-//! The word SUBLANGUAGE is a claim, and the claim is that these expressions
-//! mean what they mean in Ruby. So the rules here are Ruby's, not a convenient
-//! approximation: an unresolvable name RAISES rather than answering nil, a sign
-//! predicate on a non-number RAISES, and .size on something with no size
-//! RAISES.
-//!
-//! Every rule has a twin in lib/hecksagain/expression/resolver.rb, DOWN TO THE
-//! WORDING OF THE ERRORS - the parity harness compares refusals as carefully as
-//! successes, so a message that differs between runtimes is a difference
-//! someone has to explain away, and an explained-away difference is where a
-//! real one hides.
 
 use serde_json::{Map, Value};
 
 pub type State = Map<String, Value>;
 
-/// A predicate that cannot be evaluated is a defect, not a false.
 pub type Eval<T> = Result<T, String>;
 
 const SIGN_TESTS: [&str; 3] = ["positive?", "negative?", "zero?"];
@@ -25,7 +10,6 @@ const SIGN_TESTS: [&str; 3] = ["positive?", "negative?", "zero?"];
 pub fn resolve_expr(expr: &str, state: &State, attrs: &State) -> Eval<Value> {
     let expr = expr.trim();
 
-    // .length is the Ruby-flavoured alias for .size - one operation.
     if let Some(field) = expr.strip_suffix(".length") {
         return resolve_expr(&format!("{}.size", field.trim()), state, attrs);
     }
@@ -33,9 +17,6 @@ pub fn resolve_expr(expr: &str, state: &State, attrs: &State) -> Eval<Value> {
     if let Ok(n) = expr.parse::<i64>() {
         return Ok(Value::from(n));
     }
-    // A float literal is a NUMBER, not a string that looks like one. Carrying
-    // it as text would have made `count == 1.0` compare a number with a string
-    // and answer false.
     if let Ok(f) = expr.parse::<f64>() {
         return Ok(Value::from(f));
     }
@@ -83,8 +64,6 @@ pub fn is_quoted(expr: &str) -> bool {
     (first == b'"' && last == b'"') || (first == b'\'' && last == b'\'')
 }
 
-/// Ruby raises NoMethodError for nil.size and returns a byte count for 3.size.
-/// Neither is a thing a predicate should be doing, so both are refused by name.
 fn size_of(receiver: &str, state: &State, attrs: &State) -> Eval<Value> {
     let value = resolve_expr(receiver, state, attrs)?;
 
@@ -96,13 +75,6 @@ fn size_of(receiver: &str, state: &State, attrs: &State) -> Eval<Value> {
     }
 }
 
-/// Ruby's `empty?` lives on String, Array and Hash and nowhere else, so anything
-/// else RAISES rather than answering true.
-///
-/// Computed DIRECTLY, never rewritten to `.size == 0`. Hecks takes the rewrite
-/// route and inherits every weakness of `.size` through it: where `.size`
-/// misreads a receiver, `.empty?` silently reports true and the predicate
-/// returns the opposite of what it says.
 fn emptiness_of(receiver: &str, state: &State, attrs: &State) -> Eval<Value> {
     let value = resolve_expr(receiver, state, attrs)?;
 
@@ -117,10 +89,6 @@ fn emptiness_of(receiver: &str, state: &State, attrs: &State) -> Eval<Value> {
     }
 }
 
-/// Ruby's `to_s` over the scalars a predicate can hold. A list or map has a to_s
-/// in Ruby (it is `inspect`), but a predicate comparing against the printed form
-/// of a collection is asking a question it should be asking of the collection,
-/// so those RAISE.
 fn string_of(receiver: &str, state: &State, attrs: &State) -> Eval<Value> {
     let value = resolve_expr(receiver, state, attrs)?;
 
@@ -153,7 +121,6 @@ fn apply_sign_test(receiver: &str, test: &str, state: &State, attrs: &State) -> 
     }))
 }
 
-/// `receiver.call(argument)` split into its two halves.
 pub fn match_call(expr: &str, marker: &str) -> Option<(String, String)> {
     if !expr.ends_with(')') {
         return None;
@@ -175,7 +142,6 @@ fn apply_modulo(receiver: &str, argument: &str, state: &State, attrs: &State) ->
     Ok(Value::from((left as i64).rem_euclid(divisor as i64)))
 }
 
-/// A flat name, or a dotted path stepping into value-object maps.
 fn lookup(expr: &str, state: &State, attrs: &State) -> Eval<Value> {
     if !expr.contains('.') {
         return fetch(expr, state, attrs);
@@ -194,11 +160,6 @@ fn lookup(expr: &str, state: &State, attrs: &State) -> Eval<Value> {
     Ok(current)
 }
 
-/// An unknown name RAISES. In Ruby an undefined name is a NameError, not a nil;
-/// a predicate reading a misspelled attribute must fail loudly rather than
-/// resolve to nothing and quietly refuse every valid command.
-///
-/// Input shadows state, so a command argument wins over the stored value.
 fn fetch(name: &str, state: &State, attrs: &State) -> Eval<Value> {
     if let Some(value) = attrs.get(name) {
         return Ok(value.clone());
@@ -212,9 +173,6 @@ fn fetch(name: &str, state: &State, attrs: &State) -> Eval<Value> {
     ))
 }
 
-/// The numeric reading of a value, or None when it has none. Ruby compares 1
-/// and 1.0 as equal, so both are numbers; a STRING is not, because in Ruby
-/// 1 == "1" is false and this must agree.
 pub fn numeric_value(value: &Value) -> Option<f64> {
     match value {
         Value::Number(n) => n.as_f64(),
@@ -227,8 +185,6 @@ pub fn require_number(value: &Value, operation: &str) -> Eval<f64> {
         .ok_or_else(|| format!("{} expects a number, got {}", operation, describe(value)))
 }
 
-/// Ruby's `inspect`, close enough that error messages match: strings quoted,
-/// nil spelled nil, and a whole float keeping its .0 the way Ruby prints it.
 pub fn describe(value: &Value) -> String {
     match value {
         Value::Null => "nil".to_string(),
@@ -241,7 +197,6 @@ pub fn describe(value: &Value) -> String {
     }
 }
 
-/// Ruby's class names, for the comparison error.
 pub fn class_of(value: &Value) -> String {
     match value {
         Value::Null => "nil".to_string(),

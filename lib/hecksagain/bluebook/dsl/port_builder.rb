@@ -1,17 +1,3 @@
-# PortBuilder — evaluates a `Hecks.port "persistence" do ... end` block.
-#
-# A family declares the HOW-VERB a bind hangs off an aggregate, the SIGNAL that
-# says whether the domain gets a value back (:reply) or announces an event and
-# waits for a verdict (:effect), and the config FIELD NAMES its adapters need.
-#
-# A family NEVER names its adapters — the adapter declares the family. That
-# inversion is what makes a new backend purely additive.
-#
-#   Hecks.port "persistence" do
-#     verb   "persisted_by"
-#     signal :reply
-#     field  :database
-#   end
 module Hecksagain
   module Bluebook
     module DSL

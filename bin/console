@@ -1,13 +1,5 @@
 #!/usr/bin/env ruby
-# frozen_string_literal: true
 
-# An IRB session with a domain booted and answering to its own names.
-#
-#   bin/console                    # boots examples/pizzas
-#   bin/console path/to/domain     # boots any domain directory
-#
-# Booting constructs the classes, so the domain is just Ruby at the prompt:
-# Pizza, not Pizzas::Pizza, and create_pizza, not a dispatch string.
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
@@ -17,8 +9,6 @@ require "irb"
 DOMAIN  = ARGV.shift || File.expand_path("../examples/pizzas", __dir__)
 RUNTIME = Hecks.boot(DOMAIN)
 
-# Ask the runtime what it loaded rather than guessing from the directory name —
-# a folder and the domain inside it need not share a name.
 RUNTIME.registry.bluebooks.each_value do |bluebook|
   aggregates = bluebook.aggregates.map do |aggregate|
     "    #{aggregate.name}: #{aggregate.ruby_class.commands.join(', ')}"

@@ -1,26 +1,3 @@
-# Entity — an identity-bearing member inside an aggregate's boundary.
-#
-# The distinction Evans draws and most codebases lose : a VALUE OBJECT is its
-# values (two Toppings with the same name and amount ARE the same topping), an
-# ENTITY has identity that outlives its values (an OrderLine stays the same line
-# when its quantity changes). Both live inside the root ; only the entity needs
-# a key of its own.
-#
-#   entity "OrderLine" do
-#     identified_by :sku
-#     attribute :sku,      String
-#     attribute :quantity, Integer
-#     command "Restock" do ... end
-#   end
-#
-# It may carry its own commands, queries and lifecycle — addressed through the
-# parent (`Order.OrderLine.Restock`) because the root owns the boundary and the
-# entity is reached through it, never around it.
-#
-# NO INVARIANTS. Hecks's entity builder collects them ; the interpreter's Entity
-# has no field for them, so they would be authored and then silently dropped.
-# Rules on an entity's values belong on a value object it holds, where they are
-# actually enforced.
 module Hecksagain
   module Bluebook
     module IR

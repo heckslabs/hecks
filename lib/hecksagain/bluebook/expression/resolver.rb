@@ -1,25 +1,6 @@
-# Resolver — the leaves of the sublanguage : one expression string to one value.
-#
-# The word SUBLANGUAGE is a claim, and the claim is that these expressions mean
-# in the runtime exactly what they mean in Ruby. So the rules here are Ruby's,
-# not a convenient approximation of them :
-#
-#   * a name that resolves to nothing RAISES, as an undefined name does in Ruby.
-#     Answering nil would let a typo coerce to 0 and quietly satisfy a
-#     predicate that should have failed loudly.
-#   * `.positive?` on something that is not a number RAISES, as it does in Ruby.
-#   * `.size` on something with no size RAISES, as it does in Ruby.
-#
-# Every rule has a twin in rust/src/bluebook/expression/resolver.rs, down to the wording of the
-# errors — the parity harness compares refusals as carefully as successes, so a
-# message that differs between runtimes is a difference someone has to explain
-# away, and an explained-away difference is where a real one hides.
-#
-#   Resolver.resolve("toppings.size", state, attrs)   # => 2
 module Hecksagain
   module Bluebook
     module Expression
-      # A predicate that cannot be evaluated is a defect, not a false.
       class EvaluationError < StandardError; end
 
       module Resolver
@@ -30,7 +11,6 @@ module Hecksagain
         def resolve(expr, state, attrs)
           expr = expr.to_s.strip
 
-          # `.length` is the Ruby-flavoured alias for `.size` — one operation.
           return resolve("#{Regexp.last_match(1)}.size", state, attrs) if expr =~ /\A(.+)\.length\z/
 
           return Integer(expr, 10) if expr.match?(/\A-?\d+\z/)
@@ -61,9 +41,6 @@ module Hecksagain
             (expr.start_with?("'") && expr.end_with?("'"))
         end
 
-        # Ruby raises NoMethodError for `nil.size` and returns a byte count for
-        # `3.size`. Neither is a thing a predicate should be doing, so both are
-        # refused by name.
         def size_of(receiver, state, attrs)
           value = resolve(receiver, state, attrs)
           return value.size if value.is_a?(Array) || value.is_a?(String) || value.is_a?(Hash)
@@ -71,13 +48,6 @@ module Hecksagain
           raise EvaluationError, "size expects a list or string, got #{describe(value)}"
         end
 
-        # Ruby's `empty?` lives on String, Array and Hash and nowhere else, so
-        # anything else RAISES rather than answering true.
-        #
-        # It is computed DIRECTLY, never rewritten to `.size == 0`. Hecks takes
-        # the rewrite route and inherits every weakness of `.size` through it :
-        # where `.size` misreads a receiver, `.empty?` silently reports true and
-        # the predicate returns the opposite of what it says.
         def emptiness_of(receiver, state, attrs)
           value = resolve(receiver, state, attrs)
           return value.empty? if value.is_a?(Array) || value.is_a?(String) || value.is_a?(Hash)
@@ -85,10 +55,6 @@ module Hecksagain
           raise EvaluationError, "empty? expects a list or string, got #{describe(value)}"
         end
 
-        # Ruby's `to_s` over the scalars a predicate can hold. A list or map has
-        # a to_s in Ruby (it is `inspect`), but a predicate comparing against
-        # the printed form of a collection is asking a question it should be
-        # asking of the collection, so those RAISE.
         def string_of(receiver, state, attrs)
           value = resolve(receiver, state, attrs)
 
@@ -123,7 +89,6 @@ module Hecksagain
           end
         end
 
-        # `receiver.call(argument)` split into its two halves.
         def match_call(expr, marker)
           index = expr.rindex(marker)
           return nil unless index && expr.end_with?(")")
@@ -139,7 +104,6 @@ module Hecksagain
           require_number(resolve(receiver, state, attrs), "modulo").to_i % divisor.to_i
         end
 
-        # A flat name, or a dotted path stepping into value-object maps.
         def lookup(expr, state, attrs)
           return fetch(expr, state, attrs) unless expr.include?(".")
 
@@ -151,9 +115,6 @@ module Hecksagain
           end
         end
 
-        # An unknown name RAISES. In Ruby an undefined name is a NameError, not a
-        # nil ; a predicate that reads a misspelled attribute must fail loudly
-        # rather than resolve to nothing and quietly refuse every valid command.
         def fetch(name, state, attrs)
           key = name.to_sym
           return attrs[key] if attrs.key?(key)
@@ -168,9 +129,6 @@ module Hecksagain
           !state[key].nil?
         end
 
-        # The numeric reading of a value, or nil when it has none. Ruby compares
-        # 1 and 1.0 as equal, so both are numbers here ; a STRING is not, because
-        # in Ruby 1 == "1" is false and this must agree.
         def numeric(value)
           value if value.is_a?(Integer) || value.is_a?(Float)
         end

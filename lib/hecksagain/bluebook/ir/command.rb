@@ -1,38 +1,8 @@
-# Command — one thing a role can say to an aggregate, and what happens when
-# they say it. The whole behaviour is DECLARED, never scripted:
-#
-#   given     — a guard ; all must hold or the command is refused
-#   then_set  — a mutation ; `to:` replaces, `append:` pushes onto a list
-#   emits     — the event announced after the mutations land
-#
-# `reference_to` marks a command as acting on an EXISTING instance (loaded by
-# id) rather than minting a new one. That single flag is what separates a
-# create from an update — there is no separate create keyword.
-#
-#   Command.new(name: "AddTopping", references: "Pizza", mutations: [...])
 module Hecksagain
   module Bluebook
     module IR
-      # description — the sentence from the bluebook ("max 10 toppings")
-      # canonical   — the expression as text ("toppings.size < 10"), extracted
-      #               from the real Ruby by Prism. THIS is what runtimes
-      #               evaluate ; it is the only form that crosses a language
-      #               boundary.
-      # predicate   — the original block, kept for source-of-truth reference and
-      #               for the agreement test that proves the text still means
-      #               what the Ruby meant. Never the evaluation path.
       Given = Struct.new(:description, :canonical, :predicate, keyword_init: true)
 
-      # target — attribute being written
-      # op     — :set (replace) or :append (push onto a list)
-      # source — for :set, a Symbol naming a command attribute OR a literal ;
-      #          for :append, a hash of { vo_field => command_attribute }
-      #
-      # In Ruby the Symbol/String distinction carries the meaning : `to: :status`
-      # reads an argument, `to: "sold"` is a literal. JSON has no symbols, so the
-      # export must say WHICH it is — otherwise a runtime reading the IR sees two
-      # identical strings and has to guess, and it will guess wrong exactly when
-      # an argument happens to share a name with a plausible literal.
       Mutation = Struct.new(:target, :op, :source, keyword_init: true) do
         def to_h
           base = { target: target, op: op }
@@ -41,12 +11,6 @@ module Hecksagain
           base.merge(source: classified_source)
         end
 
-        # An appended field is either an ARGUMENT to read or a LITERAL to
-        # write : `{ amount: :amount, direction: "credit" }` means take the
-        # amount the caller passed, and write the word credit. JSON has no
-        # symbols, so the literal keeps its quotes and the argument goes
-        # bare — the same distinction `classified_source` makes for `to:`,
-        # carried the way the interpreter already spells it.
         def appended_fields
           source.transform_values do |value|
             value.is_a?(Symbol) ? value.to_s : value.inspect
@@ -77,8 +41,6 @@ module Hecksagain
           @references = references&.to_s
         end
 
-        # A command that references its own aggregate acts on an existing
-        # instance ; one that does not mints a fresh one.
         def creates? = @references.nil?
 
         def attribute(named) = @attributes.find { |a| a.name == named.to_sym }

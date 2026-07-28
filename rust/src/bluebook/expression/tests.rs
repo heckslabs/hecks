@@ -1,10 +1,3 @@
-//! The Rust half of the sublanguage contract.
-//!
-//! Every example here has a twin in spec/expression_spec.rb, asserting the same
-//! rule with the same inputs. The sublanguage is specified once
-//! (lib/hecksagain/grammar/expression.bluebook) and implemented twice, so each
-//! implementation needs its own tests or the second is only believed rather
-//! than known. bin/parity then proves the two agree end to end.
 
 use crate::interp_expr::State;
 use crate::interp_givens::evaluate_given;
@@ -14,13 +7,11 @@ fn state(fields: serde_json::Value) -> State {
     fields.as_object().cloned().unwrap_or_default()
 }
 
-/// The verdict, where one is expected.
 fn check(expression: &str, fields: serde_json::Value) -> bool {
     evaluate_given(expression, &state(fields), &State::new())
         .unwrap_or_else(|error| panic!("{} should have evaluated: {}", expression, error))
 }
 
-/// The refusal, where one is expected.
 fn refusal(expression: &str, fields: serde_json::Value) -> String {
     match evaluate_given(expression, &state(fields), &State::new()) {
         Err(message) => message,
@@ -28,9 +19,6 @@ fn refusal(expression: &str, fields: serde_json::Value) -> String {
     }
 }
 
-// `!`, `.empty?` and `.to_s` - admitted together because the shape the grammar
-// chapters actually use is `!name.to_s.empty?`, and admitting two of the three
-// leaves that sentence unevaluable. Twins of spec/expression_spec.rb.
 
 #[test]
 fn answers_emptiness_for_string_list_and_map() {
@@ -40,9 +28,6 @@ fn answers_emptiness_for_string_list_and_map() {
     assert!(!check("toppings.empty?", json!({ "toppings": ["Basil"] })));
 }
 
-/// `.empty?` is computed DIRECTLY, never rewritten to `.size == 0`. Hecks takes
-/// the rewrite route, so wherever `.size` misreads its receiver `.empty?`
-/// reports TRUE for a value that is plainly not empty.
 #[test]
 fn emptiness_reads_an_argument_rather_than_folding_through_size() {
     let passed = state(json!({ "label": "Hello" }));
@@ -66,8 +51,6 @@ fn negation_inverts_a_verdict() {
     assert!(!check("!ready", json!({ "ready": true })));
 }
 
-/// Ruby's truthiness survives the `!`: only nil and false are falsy, so `!0`
-/// and `!""` are both FALSE.
 #[test]
 fn negation_uses_rubys_truthiness() {
     assert!(!check("!count", json!({ "count": 0 })));
@@ -75,10 +58,6 @@ fn negation_uses_rubys_truthiness() {
     assert!(check("!missing", json!({ "missing": null })));
 }
 
-/// THE REGRESSION. A predicate and its exact negation must disagree. Both
-/// runtimes once answered TRUE to both of these - the `!` was swallowed by the
-/// `.empty?` suffix match, which stripped it off `!label` instead of `label`,
-/// so the rule returned the opposite of what it said and nothing failed.
 #[test]
 fn negation_disagrees_with_the_predicate_it_negates() {
     let fields = json!({ "label": "Hello" });
@@ -100,9 +79,6 @@ fn renders_scalars_with_to_s_as_ruby_renders_them() {
     assert!(check("missing.to_s == \"\"", json!({ "missing": null })));
 }
 
-/// The exact sentence every grammar chapter uses in its invariants. Before the
-/// three operators were admitted this raised, which made
-/// Expression::Operator.Render impossible to dispatch at all.
 #[test]
 fn to_s_composes_with_emptiness_and_negation() {
     assert!(check("!target.to_s.empty?", json!({ "target": "ruby" })));
@@ -139,15 +115,6 @@ fn argument_shadows_state() {
     );
 }
 
-/// Both spellings of a block must parse to the same rule. Ruby takes a block
-/// either way, so a parser that reads only one accepts a NARROWER language than
-/// the DSL does — and a bluebook is then valid Ruby that means something else
-/// here.
-///
-/// Before the multi-line arm existed, `given("msg") do … end` fell back to the
-/// MESSAGE as its expression : a non-empty string compared against nothing,
-/// permanently truthy. Worse, the block's `end` closed the COMMAND early, so
-/// `emits` and every later clause vanished with it.
 #[test]
 fn every_given_spelling_yields_its_predicate() {
     let src = r##"Hecks.bluebook "GivenForms" do
@@ -190,12 +157,10 @@ end"##;
         ]
     );
 
-    // A predicate equal to its own message is a rule that can only answer true.
     for given in &cmd.givens {
         assert_ne!(given.expression, given.message.clone().unwrap_or_default());
     }
 
-    // And the block must not swallow what follows it.
     assert_eq!(cmd.emits.as_deref(), Some("ThingRegistered"));
 }
 
@@ -207,13 +172,7 @@ fn counts_with_size_and_folds_length() {
     assert!(check("toppings.size == 2", fields));
 }
 
-// ---------------------------------------------------------------------------
-// The claim the word SUBLANGUAGE makes: these mean what Ruby means.
-// ---------------------------------------------------------------------------
 
-/// Ruby's truthiness. An earlier reading treated 0 and "" as false, so
-/// `given { count }` read as "when there are some" and fired when there were
-/// none. Both runtimes shared that reading, so parity blessed it.
 #[test]
 fn zero_and_empty_string_are_true_as_in_ruby() {
     assert!(check("count", json!({ "count": 0 })));
@@ -226,7 +185,6 @@ fn only_nil_and_false_are_falsy_as_in_ruby() {
     assert!(!check("flag", json!({ "flag": null })));
 }
 
-/// Ruby: 1 == 1.0 is true, 1 == "1" is false.
 #[test]
 fn a_number_does_not_equal_its_string_as_in_ruby() {
     assert!(!check("count == \"1\"", json!({ "count": 1 })));
@@ -265,9 +223,6 @@ fn sign_predicates_compose_with_size() {
     assert!(!check("toppings.size.positive?", json!({ "toppings": [] })));
 }
 
-/// This once answered FALSE, which was the bug wearing the costume of a guard:
-/// a missing attribute coerced to 0, so .zero? reported TRUE and quietly
-/// satisfied the rule it was meant to enforce.
 #[test]
 fn refuses_a_name_it_cannot_resolve() {
     for test in ["positive?", "negative?", "zero?"] {
@@ -303,8 +258,6 @@ fn resolves_a_declared_attribute_that_is_nil() {
     assert!(check("customer_name == nil", json!({ "customer_name": null })));
 }
 
-/// The rule that most needs pinning: a || b && c means a || (b && c) ONLY
-/// because || splits first.
 #[test]
 fn binds_or_looser_than_and() {
     assert!(check("true || false && false", json!({})));

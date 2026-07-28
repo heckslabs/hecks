@@ -1,53 +1,15 @@
 #!/bin/sh
-# parity — run every example through both runtimes and diff the answers.
-#
-#   bin/parity                      every domain in examples/
-#   bin/parity <domain> [script]    just one
-#
-# BOTH RUNTIMES READ THE SAME SOURCE FILE. Neither is handed the other's
-# output, so this compares two PARSERS and two INTERPRETERS.
-#
-# BOTH PARSERS ARE AUTHORED BY HAND. That is the design, not a waypoint on the
-# way to one generating the other. Parity here is therefore a claim about OUTPUT
-# — two independent authors reading the same source must produce the same answer
-# — and this harness is what makes the claim real : drift shows up as a wrong
-# answer, not as a diff nobody reads.
-#
-# THE GUARANTEE IS ONLY AS WIDE AS THE CORPUS. Green here means the two runtimes
-# agree about the documents in examples/ — and says NOTHING about a construct no
-# example uses. That is why banking exists : every keyword the DSL admits gets
-# exercised by a domain, so "parity green" is a coverage claim rather than a
-# spot check. It is also why a domain with no script is a FAILURE below and not
-# a skip. An example nobody runs looks exactly like an example that passes.
-#
-# Object key ORDER is normalised before diffing (Rust sorts, Ruby preserves
-# insertion order) because key order is not semantics. Nothing else is.
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 BINARY="$ROOT/rust/target/release/hecksagain"
 
-# ALWAYS rebuild, ONCE, before any domain runs. An earlier version built only
-# when the binary was missing, so editing the Rust side and re-running compared
-# fresh Ruby against a stale binary — a harness that can report AGREED about code
-# that no longer exists is worse than no harness at all.
-#
-# --workspace, not plain build. The binary lives in the cli member (the
-# composition root that links the sqlite adapter) ; a workspace with a root
-# package builds ONLY that package by default, so without this the harness
-# silently compares against a stale binary — which it did, once.
 (cd "$ROOT/rust" && cargo build --release --workspace --quiet) || exit 1
 
-# ---------------------------------------------------------------------------
-# One domain, three stages.
-# ---------------------------------------------------------------------------
 run_domain() {
   domain=$1
   script=$2
   name=$(basename "$domain")
 
-  # Two layouts. An EXAMPLE keeps its declarations in a bluebook/ folder beside
-  # its data ; a GRAMMAR CHAPTER ships inside the library and is just the files.
-  # Both are domains, and the corpus should not care which shape a domain wears.
   bluebook=$(ls "$domain"/bluebook/*.bluebook 2>/dev/null | head -1)
   [ -z "$bluebook" ] && bluebook=$(ls "$domain"/*.bluebook 2>/dev/null | head -1)
 
@@ -58,22 +20,10 @@ run_domain() {
     return 1
   fi
 
-  # A stale store would make the second run disagree with the first for reasons
-  # that have nothing to do with either runtime.
   rm -rf "$domain/data"
 
-  # AND THE TEMP FILES FROM LAST TIME. Stage three copies whatever store the
-  # domain wrote into /tmp and diffs the pair ; those files outlive the run. A
-  # domain switched from Sqlite to Heki stops writing .db entirely, and the
-  # stage happily compared the PREVIOUS run's databases and reported that the
-  # records agreed — a check passing on data neither runtime had just written.
   rm -f "/tmp/parity.$name."*
 
-  # STAGE ONE — did the two parsers UNDERSTAND the same document?
-  #
-  # Agreeing on behaviour is good ; agreeing on the IR is stronger, because two
-  # parsers can read two DIFFERENT documents that happen to run the same way. If
-  # this passes, any later disagreement is in the interpreters and nowhere else.
   "$ROOT/bin/ir" "$domain"     > "/tmp/parity.$name.ruby.ir.json" || return 1
   "$BINARY" --dump "$bluebook" > "/tmp/parity.$name.rust.ir.json" || return 1
 
@@ -89,14 +39,6 @@ run_domain() {
   fi
   echo "   parsers agree — same IR from $(basename "$bluebook")"
 
-  # STAGE TWO — do the two interpreters DO the same thing?
-  #
-  # Successes and every refusal path. A runtime that ACCEPTS what the other
-  # refuses is the failure most worth catching.
-  #
-  # Both runtimes call the adapter the hecksagon bound, so both write to the
-  # SAME database. Each gets a clean one : sharing it would let the second run
-  # read the first's rows and agree with itself.
   rm -rf "$domain/data"
   "$ROOT/bin/run" "$domain" "$script" > "/tmp/parity.$name.ruby.raw.json" || return 1
   "$ROOT/bin/stores" "$domain" > "/tmp/parity.$name.ruby.rows" 2>/dev/null || true
@@ -119,21 +61,6 @@ run_domain() {
   fi
   echo "   runtimes agree — same answer for every step"
 
-# STAGE THREE — did they write the same RECORDS?
-#
-# Agreeing in memory is not the same as agreeing on disk. Both runtimes bind
-# the adapter the hecksagon names, so the stores are the final word on
-# whether the domain really happened.
-#
-# bin/stores ASKS THROUGH THE PORT rather than reading files. The adapter the
-# hecksagon bound reads its own store, in its own format, and answers count —
-# so nothing in this harness knows what a .db or a .heki is, and a third
-# backend needs no change here.
-#
-# It reads whatever is on disk after each run, which means the second call
-# reads the store RUST wrote, through RUBY's adapter. A format one side
-# writes and the other cannot read shows up as a wrong count, which is the
-# question worth asking.
 if [ -s "/tmp/parity.$name.ruby.rows" ] || [ -s "/tmp/parity.$name.rust.rows" ]; then
   if ! diff -u "/tmp/parity.$name.ruby.rows" "/tmp/parity.$name.rust.rows"; then
     echo
@@ -141,9 +68,6 @@ if [ -s "/tmp/parity.$name.ruby.rows" ] || [ -s "/tmp/parity.$name.rust.rows" ];
     return 1
   fi
 
-  # A store that cannot be read back needs no special check now : asking
-  # through the port means an adapter that cannot read its own writing fails
-  # where it would fail in production, and the count comes out wrong.
 
   echo "   stores agree — $(tr "\n" " " < "/tmp/parity.$name.ruby.rows")"
 fi
@@ -152,9 +76,6 @@ fi
   return 0
 }
 
-# ---------------------------------------------------------------------------
-# One domain, or the whole corpus.
-# ---------------------------------------------------------------------------
 failed=0
 
 if [ $# -ge 1 ]; then
@@ -162,19 +83,11 @@ if [ $# -ge 1 ]; then
   script=${2:-"$ROOT/spec/parity/$(basename "$1").json"}
   run_domain "$domain" "$script" || failed=1
 else
-  # THE CORPUS. examples/ are the domains written to exercise the language ;
-  # the grammar chapters are domains too, and leaving them out is how the
-  # library's own expression.bluebook came to be written in a form Rust could
-  # only half-read — six invariants in Ruby, two in Rust, shipped and unseen.
-  # A chapter that describes the language is exactly the document you least
-  # want the two parsers disagreeing about.
   for domain in "$ROOT"/examples/*/ "$ROOT"/lib/hecksagain/grammar/; do
     domain=${domain%/}
     name=$(basename "$domain")
     script="$ROOT/spec/parity/$name.json"
 
-    # NOT a skip. An example with no script is an example nobody checks, and it
-    # would sit in the tree looking exactly like one that passes.
     if [ ! -f "$script" ]; then
       echo "── $name"
       echo "   NO SCRIPT at spec/parity/$name.json — write one, or remove the example."

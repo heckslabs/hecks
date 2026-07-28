@@ -1,8 +1,3 @@
-//! The wiring: which adapter the hecksagon binds, and where the world points it.
-//!
-//! A runtime that cannot read its own wiring and silently falls back to memory
-//! is a runtime that lies — the domain looks correct while nothing is written.
-//! These pin each step separately so a failure says WHICH step lost it.
 
 use crate::hecksagon_parser;
 use crate::world::parser as world_parser;
@@ -51,10 +46,6 @@ fn the_hecksagon_yields_a_persisted_by_binding() {
 fn the_world_yields_the_database_location() {
     let world = world_parser::parse(WORLD);
 
-    // A verb-call block lands in `configs`, keyed by the adapter name
-    // lowercased - NOT in `adapter_bindings`, which is the `adapter "Name" do
-    // ... end` shape. Looking in the wrong collection is what made the runtime
-    // silently fall back to memory while every parse was working.
     let found = world
         .configs
         .iter()

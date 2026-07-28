@@ -1,22 +1,8 @@
-# THE RULE, ENFORCED.
-#
-# "A test for every method in the DSL" is worth nothing as an intention. This
-# discovers the DSL surface BY REFLECTION and fails when a method exists that
-# has not been declared as covered — so adding one without a test breaks the
-# suite in the same commit, rather than a month later when nobody remembers.
-#
-# Declaring a method here is a promise that spec/dsl_spec.rb exercises it. The
-# list is deliberately hand-maintained: an automatic "it appears somewhere in
-# the spec file" check passes on a mention in a comment, which is how coverage
-# gates come to mean nothing.
 require "hecksagain"
 
 RSpec.describe "the DSL surface is fully covered" do
-  # Constructors and terminals — exercised by every single example, never
-  # interesting on their own.
   PLUMBING = %i[initialize build].freeze
 
-  # Each entry: the class or module, and the methods spec/dsl_spec.rb exercises.
   COVERED = {
     "Hecksagain (module surface)" => [
       Hecksagain.singleton_class,
@@ -67,9 +53,8 @@ RSpec.describe "the DSL surface is fully covered" do
 
   COVERED.each do |label, (subject, declared)|
     it "#{label} has no method without a test" do
-      # Public instance methods defined ON this class, not inherited.
       actual = subject.public_instance_methods(false) - PLUMBING
-      actual -= %i[collector collector=] # class-level state, exercised via hecksagon
+      actual -= %i[collector collector=] 
 
       undeclared = actual - declared
 
@@ -87,9 +72,6 @@ RSpec.describe "the DSL surface is fully covered" do
     end
   end
 
-  # AttributeCollector is mixed in rather than inherited, so its methods show up
-  # on the three builders that include it — checked there. This asserts the
-  # mixin itself has not grown a fourth method nobody noticed.
   it "AttributeCollector has no method without a test" do
     actual = Hecksagain::Bluebook::DSL::AttributeCollector.public_instance_methods(false)
     expect(actual.sort).to eq(%i[attribute attributes list_of].sort)
@@ -100,10 +82,6 @@ RSpec.describe "the DSL surface is fully covered" do
     expect(actual).to eq(%i[active? resolver resolver= with].sort)
   end
 
-  # Ruby makes respond_to_missing? PRIVATE automatically, the way it does
-  # initialize — so it is not public surface and cannot be declared above. It is
-  # still behaviour worth pinning: every method_missing needs its matching
-  # respond_to_missing?, or the object lies to respond_to?.
   it "every method_missing has a matching respond_to_missing?" do
     [
       Hecksagain::Bluebook::DSL::WorldBuilder,
@@ -117,8 +95,6 @@ RSpec.describe "the DSL surface is fully covered" do
     end
   end
 
-  # The private helpers that construct the Ruby class are implementation, not
-  # surface — asserted private so they cannot quietly become part of the DSL.
   it "class construction stays private" do
     builder = Hecksagain::Bluebook::DSL::AggregateBuilder
 

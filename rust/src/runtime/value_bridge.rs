@@ -1,13 +1,3 @@
-//! value_bridge - serde_json::Value <-> storehouse::runtime::Value.
-//!
-//! GLUE, not knowledge. This runtime's interpreters carry state as
-//! serde_json::Value ; the adapters cherry-picked from Hecks speak
-//! runtime::Value and AggregateState. Rather than edit either side, the
-//! conversion lives here — one file, no domain logic, easy to delete when the
-//! interpreters move onto runtime::Value directly.
-//!
-//! Null has no runtime::Value case: Hecks models absence as `Value::Null`,
-//! which IS a variant there, so the mapping is total in both directions.
 
 use crate::runtime::{AggregateState, Value as RtValue};
 use serde_json::{Map, Value as JsonValue};
@@ -18,8 +8,6 @@ pub fn to_runtime(value: &JsonValue) -> RtValue {
         JsonValue::Bool(b) => RtValue::Bool(*b),
         JsonValue::Number(n) => match n.as_i64() {
             Some(i) => RtValue::Int(i),
-            // No Float case in runtime::Value - a non-integer rides as text,
-            // the same way the heki backend stores it.
             None => RtValue::Str(n.to_string()),
         },
         JsonValue::String(s) => RtValue::Str(s.clone()),
@@ -49,7 +37,6 @@ pub fn to_json(value: &RtValue) -> JsonValue {
     }
 }
 
-/// One dispatched instance, as the adapters expect it.
 pub fn to_state(id: &str, fields: &Map<String, JsonValue>) -> AggregateState {
     let mut state = AggregateState::new(id);
     for (key, value) in fields {
@@ -58,7 +45,6 @@ pub fn to_state(id: &str, fields: &Map<String, JsonValue>) -> AggregateState {
     state
 }
 
-/// And back, for the interpreters.
 pub fn from_state(state: &AggregateState) -> Map<String, JsonValue> {
     let mut fields = Map::new();
     for (key, value) in &state.fields {

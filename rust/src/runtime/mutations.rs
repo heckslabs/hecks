@@ -1,23 +1,9 @@
-//! interp_mutations - the then_set executor and the value-object gate.
-//!
-//! Ported from rust/src/runtime/interp_mutations.rs in the Hecks runtime. Two
-//! operations only:
-//!
-//!   set     replace an attribute, from a command argument or a literal
-//!   append  build a value object from the payload and push it onto a list
-//!
-//! The argument-vs-literal distinction rides in the IR rather than being
-//! guessed from the text: Ruby knows it by Symbol-vs-String, and the exporter
-//! writes it explicitly so this side never has to guess.
 
 use crate::dispatcher::array;
 use crate::interp_expr::State;
 use crate::interp_givens::evaluate_given;
 use serde_json::{Map, Value};
 
-/// Starting state straight from the IR: empty list for a list attribute, the
-/// declared default otherwise. The runtime never invents a shape the bluebook
-/// did not declare.
 pub fn defaults_for(aggregate: &Map<String, Value>) -> State {
     let mut state = Map::new();
 
@@ -37,11 +23,6 @@ pub fn defaults_for(aggregate: &Map<String, Value>) -> State {
         state.insert(name, value);
     }
 
-    // The lifecycle's field is born at the lifecycle's default —
-    // `lifecycle :status, default: "open"` DECLARES an attribute as surely as
-    // `attribute` does. Until this block it declared nothing, every status in
-    // the corpus was absent from state, and Freeze froze nothing in either
-    // runtime. Mirrors Ruby's Instance.defaults.
     if let Some(lifecycle) = aggregate.get("lifecycle").and_then(Value::as_object) {
         if let (Some(field), Some(default)) = (
             lifecycle.get("field").and_then(Value::as_str),
@@ -53,8 +34,6 @@ pub fn defaults_for(aggregate: &Map<String, Value>) -> State {
     state
 }
 
-/// On creation, a command attribute sharing a name with an aggregate attribute
-/// lands on it. No then_set needed for the obvious case.
 pub fn assign_creation_attributes(
     state: &mut State,
     aggregate: &Map<String, Value>,
@@ -82,21 +61,6 @@ pub fn assign_creation_attributes(
     Ok(())
 }
 
-/// A VALUE-OBJECT-TYPED FIELD IS CONSTRUCTED, NOT STORED RAW.
-///
-/// A scalar attribute declared as a value object used to be assigned whatever
-/// arrived: `amount: 2500` on an attribute typed Money sat there as a number,
-/// and `amount.cents` — a dotted read into what the domain says is a Money —
-/// walked into a non-object and answered Null. Ruby did exactly the same, so
-/// parity was green over a value object that never existed.
-///
-/// A SINGLE-ATTRIBUTE value object accepts a bare scalar, because `kind:
-/// "current"` is unambiguous. Anything richer must arrive as its fields —
-/// guessing which of several a scalar meant is how a currency ends up in a
-/// cents column.
-///
-/// The refusal wording is Ruby's, to the character. A message that differs
-/// between runtimes is a difference the harness has to explain away.
 fn coerce(aggregate: &Map<String, Value>, name: &str, value: &Value) -> Result<Value, String> {
     if is_list_attribute(aggregate, name) {
         return Ok(value.clone());
@@ -107,10 +71,6 @@ fn coerce(aggregate: &Map<String, Value>, name: &str, value: &Value) -> Result<V
     if value.is_null() {
         return Ok(value.clone());
     }
-    // An OBJECT payload used to pass through here untouched — Ruby built and
-    // judged it, Rust stored it raw, and a value that broke its own rule would
-    // have split the runtimes the first time anyone sent one. Every
-    // construction now walks the same door : members first, invariants second.
     if let Some(object) = value.as_object() {
         admit_member(&value_object, object)?;
         enforce_invariants(&value_object, object)?;
@@ -141,7 +101,6 @@ fn coerce(aggregate: &Map<String, Value>, name: &str, value: &Value) -> Result<V
     ))
 }
 
-/// A list attribute is built element by element on append, never coerced whole.
 fn is_list_attribute(aggregate: &Map<String, Value>, name: &str) -> bool {
     array(aggregate, "attributes")
         .iter()
@@ -180,10 +139,6 @@ pub fn apply_mutation(
             state.insert(target, updated);
         }
         _ => {
-            // Coerced here too, not only on creation : `then_set :kind, to: :kind`
-            // assigns a value-object-typed field just as directly as a creation
-            // attribute does, and a Money that is a value object on one path and
-            // a bare scalar on the other is two different records.
             let value = resolve_source(mutation, args);
             let coerced = coerce(aggregate, &target, &value)?;
             state.insert(target, coerced);
@@ -192,15 +147,6 @@ pub fn apply_mutation(
     Ok(())
 }
 
-/// Integer cents or nothing — the wording is Ruby's `arithmetic`, to the
-/// character. Hecks's runtime falls back to ±1 when an amount will not read
-/// as a number ; a balance moving by one cent because the caller sent "lots"
-/// is exactly the silent wrongness this refuses to inherit.
-///
-/// A MISSING argument renders the way Ruby sees it : resolve_source there
-/// returns the Symbol itself, so the refusal says `got :amount` — mirrored
-/// here from the source descriptor, because a runtime that words the same
-/// refusal differently is a diff the harness has to explain away.
 pub fn arithmetic(
     state: &State,
     target: &str,
@@ -252,8 +198,6 @@ pub fn arithmetic(
     Ok(Value::from(current_int + sign * amount_int))
 }
 
-/// A source is either a named command argument or a literal, and the IR says
-/// which. Guessing from the text is exactly the bug this avoids.
 pub fn resolve_source(mutation: &Value, args: &State) -> Value {
     let source = match mutation.get("source") {
         Some(source) => source,
@@ -269,9 +213,6 @@ pub fn resolve_source(mutation: &Value, args: &State) -> Value {
     }
 }
 
-/// Build the value object being appended, and enforce its invariants BEFORE it
-/// reaches the aggregate. An aggregate never holds a value that broke its own
-/// rule.
 fn build_element(
     aggregate: &Map<String, Value>,
     target: &str,
@@ -284,13 +225,6 @@ fn build_element(
     if let Some(mapping) = mutation.get("fields").and_then(Value::as_object) {
         for (field, token) in mapping {
             let token = token.as_str().unwrap_or_default();
-            // An appended field is either an ARGUMENT to read or a LITERAL to
-            // write, and the IR spells which : arguments bare, string literals
-            // with their quotes, numbers as digits. This used to read EVERY
-            // field as an argument lookup, so `direction: "credit"` looked up
-            // an argument called `"credit"`, found nothing, and every ledger
-            // entry in the corpus carried `direction: null` — in BOTH runtimes,
-            // which is why parity never said a word.
             let value = if token.len() >= 2 && token.starts_with('"') && token.ends_with('"') {
                 Value::String(token[1..token.len() - 1].to_string())
             } else if let Ok(number) = token.parse::<i64>() {
@@ -302,10 +236,6 @@ fn build_element(
         }
     }
 
-    // An ENTITY element is born WITH its identity and its lifecycle state —
-    // the counterpart of Ruby's `entity_element`. Identity defaults to its
-    // 1-based position (append order IS the order it was posted) unless the
-    // append names it ; the lifecycle field starts at the declared default.
     if let Some(entity) = entity_for(aggregate, target) {
         if let Some(key) = entity.get("identified_by").and_then(Value::as_str) {
             fields
@@ -330,10 +260,6 @@ fn build_element(
     Ok(Value::Object(fields))
 }
 
-/// `one_of` declares the CLOSED SET of values this object may take. The
-/// judgment falls on the DISCRIMINANT — the first declared attribute, the
-/// value a caller actually offers. Member rows ride the canonical IR as
-/// strings, so both runtimes compare and render the seam's spelling.
 fn admit_member(value_object: &Map<String, Value>, fields: &Map<String, Value>) -> Result<(), String> {
     let members = array(value_object, "members");
     if members.is_empty() {
@@ -375,8 +301,6 @@ fn admit_member(value_object: &Map<String, Value>, fields: &Map<String, Value>) 
     Err(format!("{} admits {} — got {}", name, rendered.join(", "), got))
 }
 
-/// A violated invariant refuses BEFORE the value reaches the aggregate — an
-/// aggregate never holds a value that broke its own rule.
 fn enforce_invariants(value_object: &Map<String, Value>, fields: &Map<String, Value>) -> Result<(), String> {
     let empty = Map::new();
     for invariant in array(value_object, "invariants") {
@@ -399,7 +323,6 @@ fn enforce_invariants(value_object: &Map<String, Value>, fields: &Map<String, Va
     Ok(())
 }
 
-/// The ENTITY a list attribute holds, when its element type names one.
 pub fn entity_for(aggregate: &Map<String, Value>, target: &str) -> Option<Map<String, Value>> {
     let element_type = array(aggregate, "attributes")
         .iter()
@@ -414,8 +337,6 @@ pub fn entity_for(aggregate: &Map<String, Value>, target: &str) -> Option<Map<St
         .and_then(|e| e.as_object().cloned())
 }
 
-/// The value object a list attribute holds, found through the attribute's
-/// declared element type.
 fn value_object_for(aggregate: &Map<String, Value>, target: &str) -> Option<Map<String, Value>> {
     let element_type = array(aggregate, "attributes")
         .iter()

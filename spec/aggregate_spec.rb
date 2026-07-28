@@ -1,14 +1,8 @@
-# The constructed classes — a domain used as ordinary Ruby.
-#
-# `aggregate "Pizza"` builds a real class while it reads the bluebook, so these
-# examples never mention dispatch. That is the point: dispatch is plumbing, and
-# a domain author should never type it.
 require "hecksagain"
 require "tmpdir"
 require "fileutils"
 
 RSpec.describe "a constructed aggregate" do
-  # No disk - see spec/spec_helper.rb.
   before { boot_in_memory }
 
 
@@ -39,7 +33,6 @@ RSpec.describe "a constructed aggregate" do
   end
 
   describe "a command that references its aggregate" do
-    # Identity is already known, so it is never passed by hand.
     it "is an instance method that never asks for an id" do
       pizza = Pizza.create_pizza(name: "Margherita", price_cents: 1200)
       pizza.add_topping(name: "Basil", amount: 3)
@@ -95,8 +88,6 @@ RSpec.describe "a constructed aggregate" do
     end
   end
 
-  # The how-verb method_missing is live only while a hecksagon is being read.
-  # Everywhere else a typo must fail the way Ruby should.
   it "raises NoMethodError for an unknown method outside a hecksagon" do
     expect { Pizza.persisted_by("Memory") }.to raise_error(NoMethodError)
     expect { Pizza.create_pizza(name: "X", price_cents: 1).nonsense }.to raise_error(NoMethodError)

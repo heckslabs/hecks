@@ -1,9 +1,4 @@
-# frozen_string_literal: true
 
-# The smallest domain that COUNTS. Exists for mutation_spec : increment and
-# decrement are the ledger primitives (banking's Credit replaced the balance
-# before the language could say "add"), and the literal-vs-argument rule for
-# appended fields is pinned here where it is cheap to see.
 Hecks.bluebook "TillRoom" do
   vision "A till takes money in and gives money out, and the drawer count is arithmetic — never a guess."
   core

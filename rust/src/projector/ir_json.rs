@@ -1,22 +1,3 @@
-//! ir_json - the Hecks IR, rendered in the shape this runtime's interpreter
-//! reads.
-//!
-//! The parser (parser.rs, parse_blocks.rs, parser_helpers.rs, ir.rs,
-//! pattern_subset.rs) came over from Hecks WHOLE and unedited. It produces
-//! `ir::Domain`, a typed IR far richer than this runtime uses - policies,
-//! fixtures, process managers, cadences, queries, views. That richness is not a
-//! problem to be trimmed: it is the parser's knowledge, and trimming it would
-//! fork it.
-//!
-//! So nothing upstream is touched. This module is the ONE seam: it reads the
-//! typed IR and emits the subset this interpreter understands, which is also
-//! exactly the shape the Ruby exporter emits - so bin/parity can diff the two
-//! parsers' readings of the same file.
-//!
-//! This is the ONE SEAM where the two hand-written parsers are made
-//! comparable. Neither generates the other, so agreement is not structural —
-//! it is checked here, and a divergence surfaces as a diff rather than as a
-//! silent difference of opinion.
 
 use crate::ir::{
     Aggregate, Attribute, Command, Direction, Domain, Entity, Lifecycle, MutationOp, Policy,
@@ -39,14 +20,6 @@ pub fn domain_to_value(domain: &Domain) -> Value {
             "policies": domain.policies.iter().map(policy_to_value).collect::<Vec<_>>(),
             "process_managers": domain.process_managers.iter()
                 .map(process_manager_to_value).collect::<Vec<_>>(),
-            // THE NORMALISATION TABLE THIS RUNTIME USED, carried in the
-            // contract rather than left in code for someone to compare by eye.
-            // Every `canonical` field above was produced by these rows, so a
-            // table that disagrees with the other runtime's is a SPLIT on the
-            // very next parity run — which is what "agree by construction"
-            // buys that "agree by care" does not. The fold's word-boundary
-            // divergence lived for as long as it did because nothing diffed
-            // this.
             "canonical_form": canonical_form_table()
         }),
     );
@@ -68,15 +41,6 @@ fn aggregate_to_value(aggregate: &Aggregate) -> Value {
     })
 }
 
-/// An aggregate's fields, INCLUDING the ones its references imply.
-///
-/// `reference_to Customer` on an aggregate means "this record carries the
-/// customer it belongs to, by identity". The Ruby DSL says that by declaring a
-/// plain `customer_id` String — a reference IS an attribute, and Evans is
-/// explicit that you point at another root by its identity rather than embedding
-/// it. The parser keeps references in a separate list, which is a fine internal
-/// shape but a different DOCUMENT, so the seam folds them back in where Ruby
-/// puts them.
 fn aggregate_attributes(aggregate: &Aggregate) -> Vec<Value> {
     let declared = aggregate.attributes.iter().map(attribute_to_value);
 
@@ -92,9 +56,6 @@ fn aggregate_attributes(aggregate: &Aggregate) -> Vec<Value> {
     implied.chain(declared).collect()
 }
 
-/// An identity-bearing member inside the boundary. It declares the same things
-/// a root does, minus the boundary itself — so it renders through the same
-/// helpers, and gains whatever they gain.
 fn entity_to_value(entity: &Entity) -> Value {
     json!({
         "name": entity.name,
@@ -107,9 +68,6 @@ fn entity_to_value(entity: &Entity) -> Value {
     })
 }
 
-/// A named read. The Ruby side evaluates its block ONCE against a recorder and
-/// keeps data ; the parser here reads the same clauses out of the source text.
-/// Neither carries a closure, which is the property that lets both exist.
 fn query_to_value(query: &Query) -> Value {
     json!({
         "name": query.name,
@@ -142,10 +100,6 @@ fn where_to_value(clause: &WhereClause) -> Value {
     })
 }
 
-/// An event arrives, a command fires. The richer reaction shapes the parser can
-/// read (with-specs, data guards, fan-out) are NOT rendered : the Ruby side
-/// cannot author them, and emitting a field one runtime can never produce would
-/// make parity assert agreement about something only one side can say.
 fn policy_to_value(policy: &Policy) -> Value {
     json!({
         "name": policy.name,
@@ -180,8 +134,6 @@ fn pm_handler_to_value(handler: &ProcessManagerHandler) -> Value {
     })
 }
 
-/// Only the literal/reference text survives — the Ruby recorder stores exactly
-/// that, so anything richer would be a field only one runtime can fill.
 fn value_spec_text(spec: &ValueSpec) -> String {
     match spec {
         ValueSpec::Literal { value } => value.clone(),
@@ -191,12 +143,6 @@ fn value_spec_text(spec: &ValueSpec) -> String {
     }
 }
 
-/// A state machine on one field.
-///
-/// The Ruby side keeps `from:` exactly as it was written — a list stays a list —
-/// and flattens to one record per (command, to, from) only when it dumps. The
-/// parser here already produces the flat form, so nothing needs expanding: this
-/// is the shape both sides agree to speak, reached from opposite directions.
 fn lifecycle_to_value(lifecycle: &Lifecycle) -> Value {
     json!({
         "field": lifecycle.field,
@@ -234,13 +180,6 @@ fn value_object_to_value(value_object: &ValueObject) -> Value {
         })
         .collect();
 
-    // The CLOSED SET, when one is declared (`one_of do member ... end`).
-    //
-    // The parser has read these since it was lifted from Hecks, but the seam
-    // dropped them, so they never reached the parity contract — a fact declared
-    // in a bluebook that no diff could see. Declaration order is preserved on
-    // both sides : a reordered member is not a changed member, and sorting here
-    // would hide a real reordering instead.
     let members: Vec<Value> = value_object
         .members
         .iter()
@@ -273,14 +212,6 @@ fn command_to_value(command: &Command, owner: &str) -> Value {
         })
         .collect();
 
-    // A command acting on an existing instance names ITS OWN aggregate ; a
-    // creating command names nothing.
-    //
-    // A reference to a DIFFERENT root is not "act on this" — it is "belongs to
-    // that", carried by identity, which is an attribute. Reading both alike is
-    // what made Account.Open refuse with "no Account with id …" : a creating
-    // command asked to load the thing it was about to create, because it said
-    // which customer it was for.
     let references = command
         .references
         .iter()
@@ -288,8 +219,6 @@ fn command_to_value(command: &Command, owner: &str) -> Value {
         .map(|reference| Value::String(reference.target.clone()))
         .unwrap_or(Value::Null);
 
-    // Hecks carries a single `emits` ; this runtime carries a list, because a
-    // command announcing two facts is a shape worth leaving room for.
     let emits: Vec<Value> = command
         .emits
         .iter()
@@ -308,13 +237,6 @@ fn command_to_value(command: &Command, owner: &str) -> Value {
     })
 }
 
-/// A command's inputs, INCLUDING the ones its cross-references imply.
-///
-/// `reference_to Customer` on `Account.Open` is a value the caller supplies —
-/// which customer this account is for — so the Ruby DSL declares it as a plain
-/// `customer_id` String. Only a reference to the command's OWN aggregate is
-/// the thing it acts on, and that one is carried in `references` rather than
-/// here.
 fn command_attributes(command: &Command, owner: &str) -> Vec<Value> {
     let implied = command
         .references
@@ -334,9 +256,6 @@ fn command_attributes(command: &Command, owner: &str) -> Vec<Value> {
         .collect()
 }
 
-/// The Hecks IR keeps a mutation's value as SOURCE TEXT, which is what makes
-/// the argument-vs-literal distinction survive: a leading `:` is a command
-/// argument, a quoted string is a literal. Nothing has to be guessed.
 fn mutation_to_value(mutation: &crate::ir::Mutation) -> Value {
     let target = mutation.field.clone();
 
@@ -366,8 +285,6 @@ fn mutation_to_value(mutation: &crate::ir::Mutation) -> Value {
         json!({ "kind": "literal", "value": literal(Some(text)) })
     };
 
-    // The op rides the same classified source — increment/decrement are set's
-    // arithmetic siblings, not a different shape.
     let op = match mutation.operation {
         MutationOp::Increment => "increment",
         MutationOp::Decrement => "decrement",
@@ -376,10 +293,6 @@ fn mutation_to_value(mutation: &crate::ir::Mutation) -> Value {
     json!({ "target": target, "op": op, "source": source })
 }
 
-/// One meaning, one text — by the declared table below, which must equal the
-/// Ruby extractor's (bluebook/expression/canonical_form.rb) row for row.
-/// Both are emitted into the IR this runtime is diffed on, so a divergence is
-/// a parity SPLIT rather than something found by probing.
 fn canonicalise(source: &str) -> String {
     let mut rules: Vec<&Rule> = RULES.iter().collect();
     rules.sort_by_key(|rule| rule.position);
@@ -389,20 +302,6 @@ fn canonicalise(source: &str) -> String {
     ruby_strip(&folded).to_string()
 }
 
-/// A normalisation rule : a named strategy plus its operands, applied in
-/// `position` order.
-///
-/// The shape is borrowed, not invented. Hecks states a parse rule twice and
-/// both times the same way — `BlockGrammarEntry (keyword, parser)` for routing,
-/// `FieldRule (field, strategy, source_token)` for extraction. Prose was the
-/// mistake : the fold used to live as a comment saying "`.length` folded to
-/// `.size`", which each side then implemented honestly and differently.
-///
-/// The bootstrap is deliberate, for the reason Hecks gives in
-/// `BlockGrammar::canonical_bluebook` — "the parser of bluebook can't itself
-/// require a parsed bluebook to run". `expression.bluebook` declares this same
-/// table as `one_of` members and is the canonical source ; regenerating this
-/// from it is specializer work.
 struct Rule {
     strategy: &'static str,
     source_token: &'static str,
@@ -416,9 +315,6 @@ const RULES: &[Rule] = &[
     Rule { strategy: "replace", source_token: ".length", replacement: ".size", boundary: "word", position: 2 },
 ];
 
-/// The table as the parity contract carries it — ordered, all strings, so the
-/// two runtimes' tables diff directly rather than through each language's idea
-/// of a number.
 pub fn canonical_form_table() -> Value {
     let mut rules: Vec<&Rule> = RULES.iter().collect();
     rules.sort_by_key(|rule| rule.position);
@@ -442,30 +338,10 @@ fn step(text: &str, rule: &Rule) -> String {
     match rule.strategy {
         "collapse_whitespace" => collapse_whitespace(text),
         "replace" => replace(text, rule),
-        // Unreachable through the declared table, and loud if it ever is.
-        // Returning the text unchanged would be the fail-open this chapter
-        // exists to refuse.
         other => panic!("{other:?} is not a linked normalisation strategy"),
     }
 }
 
-/// WHAT COUNTS AS WHITESPACE — and it is not what this side would pick alone.
-///
-/// Ruby's `\s` matches ASCII only : space, tab, newline, carriage return,
-/// vertical tab, form feed. `String#strip` trims that same set. This side
-/// reached for `split_whitespace()` and `trim()`, both of which are UNICODE
-/// aware, so a predicate carrying a non-breaking space (U+00A0) — the thing you
-/// get pasting a condition out of a document — collapsed to a plain space here
-/// and stayed a non-breaking space there.
-///
-/// The canonical text is what gets hashed and diffed, so that is a parity SPLIT
-/// waiting for the first author who copies a predicate out of a spec. It is the
-/// same shape as the `.length_cm` bug the table was built to end: the RULE was
-/// shared, the STRATEGY behind it was written twice and honestly differed.
-///
-/// Ruby holds the semantics, so this matches Ruby rather than the other way
-/// round — an ASCII run collapses, and anything else is a character like any
-/// other.
 const RUBY_ASCII_SPACE: [char; 6] = [' ', '\t', '\n', '\r', '\u{0B}', '\u{0C}'];
 
 fn collapse_whitespace(text: &str) -> String {
@@ -485,38 +361,16 @@ fn collapse_whitespace(text: &str) -> String {
     out
 }
 
-/// Ruby's `String#strip`, which trims the ASCII set above (and NUL) — not
-/// Rust's `trim`, which would also take a non-breaking space.
 fn ruby_strip(text: &str) -> &str {
     text.trim_matches(|c: char| RUBY_ASCII_SPACE.contains(&c) || c == '\0')
 }
 
-/// `.length` to `.size`, folded ONLY at a word boundary.
-///
-/// The Ruby extractor folds with a boundary-anchored pattern, so it rewrites
-/// `.length` and leaves `.length_cm` alone: the trailing underscore is a word
-/// character, so there is no boundary there. This side used a plain substring
-/// replace, which has no such notion and rewrote any name merely STARTING with
-/// length. `dims.length_cm > 0` was read as `dims.size_cm > 0`, renaming a
-/// member that exists to one that does not.
-///
-/// Two parsers then read the same document differently, which is the split
-/// stage one exists to catch. It went unseen because no corpus domain names a
-/// member `length_*` -- the corpus guarantee stated exactly: green covers the
-/// documents we wrote and is silent about a construct none of them uses.
-///
-/// Ruby is the source of truth, so this adopts Ruby's boundary rather than
-/// loosening the extractor to match.
 fn replace(source: &str, rule: &Rule) -> String {
     let mut out = String::with_capacity(source.len());
     let mut rest = source;
 
     while let Some(at) = rest.find(rule.source_token) {
         let after = &rest[at + rule.source_token.len()..];
-        // `boundary: "word"` means the token only folds when what follows is
-        // not a word character — so `.length` folds and `.length_cm` does not.
-        // That sentence is the one that was missing, and the one both sides now
-        // read from the same row.
         let applies = rule.boundary == "none"
             || after
                 .chars()
@@ -533,8 +387,6 @@ fn replace(source: &str, rule: &Rule) -> String {
     out
 }
 
-/// Source text to a typed JSON value: quotes stripped, whole numbers as
-/// numbers, true/false as booleans.
 fn literal(text: Option<&str>) -> Value {
     let text = match text {
         Some(text) => text.trim(),
@@ -566,9 +418,6 @@ fn optional(text: &Option<String>) -> Value {
 mod tests {
     use super::canonicalise;
 
-    // The canonical text is what BOTH runtimes evaluate, so a rule this side
-    // applies and the Ruby extractor does not is two parsers reading one
-    // document differently. These pin the fold against Ruby's boundary.
 
     #[test]
     fn folds_the_length_alias() {
@@ -578,10 +427,6 @@ mod tests {
 
     #[test]
     fn leaves_a_length_prefixed_member_alone() {
-        // The regression. A plain substring replace rewrote these, renaming a
-        // member that exists to one that does not; Ruby's boundary anchor never
-        // touched them. No corpus domain names a member `length_*`, so nothing
-        // in the suite could see the split.
         assert_eq!(canonicalise("dims.length_cm > 0"), "dims.length_cm > 0");
         assert_eq!(canonicalise("a.lengthy"), "a.lengthy");
         assert_eq!(canonicalise("box.length2"), "box.length2");
@@ -605,11 +450,6 @@ mod tests {
         assert_eq!(canonicalise("a\t<\n\nb"), "a < b");
     }
 
-    // WHAT COUNTS AS WHITESPACE. Mirrors spec/canonical_form_spec.rb. Ruby's
-    // `\s` and `String#strip` are ASCII-only ; `split_whitespace` and `trim`
-    // are not, so a non-breaking space collapsed here and survived there. The
-    // canonical text is what gets hashed and diffed, so the two runtimes would
-    // have read the same predicate as two different programs.
     #[test]
     fn leaves_a_non_breaking_space_alone() {
         assert_eq!(canonicalise("a\u{A0}<\u{A0}b"), "a\u{A0}<\u{A0}b");

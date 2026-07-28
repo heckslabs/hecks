@@ -1,23 +1,3 @@
-# Prism — the extraction adapter's implementation : real Ruby source in,
-# canonical expression text out.
-#
-# The predicate a developer writes is ordinary Ruby and stays ordinary Ruby :
-#
-#   given("at most 10 toppings") { toppings.size < 10 }
-#
-# Ruby 3.3 ships Prism, so that source is parsed by Ruby's OWN parser — not by a
-# hand-rolled reader, and not by a proxy object pretending to be a list. The
-# block knows where it was written (source_location) ; Prism turns that file into
-# a tree ; the block body at that position is the expression.
-#
-# The arrow only runs this way. Ruby is read to produce IR ; IR is never read to
-# produce Ruby.
-#
-# The gem's own constant is reached as `::Prism` throughout. This module shares
-# its name deliberately — an adapter is named for what it IS — and the leading
-# `::` is what keeps `::Prism.parse_file` from resolving to this module instead.
-#
-#   Adapters::Prism.canonical(block)  # => "toppings.size < 10"
 require "prism"
 
 module Hecksagain
@@ -25,14 +5,10 @@ module Hecksagain
     class NotExtractable < StandardError; end
 
     module Prism
-      # Parsed files, keyed by path — a bluebook holds many predicates and
-      # re-parsing the file for each one would be silly.
       TREES = {}
 
       module_function
 
-      # The canonical text of a block, or nil when it has no readable source
-      # (an eval'd or C-defined block has no file to read).
       def canonical(block)
         body = body_source(block)
         body && canonicalise(body)
@@ -46,8 +22,6 @@ module Hecksagain
         node&.body&.slice
       end
 
-      # The block written at this line. Prism gives every node its exact
-      # location, so the match is positional rather than a guess from text.
       def block_node_at(file, line)
         found = nil
         walk(tree_for(file)) do |node|
@@ -70,12 +44,6 @@ module Hecksagain
         node.compact_child_nodes.each { |child| walk(child, &visit) }
       end
 
-      # One meaning, one text — by the declared table, not by a line written
-      # here and a matching line written in Rust. Those two were written by
-      # different hands and did not match : this side anchored `.length` at a
-      # word boundary, the other replaced the bare substring, and
-      # `dims.length_cm` came out differently in each. See
-      # bluebook/expression/canonical_form.rb.
       def canonicalise(source)
         Bluebook::Expression::CanonicalForm.apply(source)
       end

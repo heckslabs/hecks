@@ -1,29 +1,4 @@
-# loading — a path in, a set of declarations out.
-#
-# The largest impure edge in the system, and the one that hid longest because it
-# runs before anything else exists. Booting a domain means asking the FILESYSTEM
-# what is there : globbing a directory, testing whether a path is a directory,
-# walking up a tree looking for a project's own ports, and evaluating each file
-# it finds. All of it IO, none of it previously declared.
-#
-# Signal is REPLY : boot asks for a domain's declarations and gets them back.
-#
-# THE BOOTSTRAP. This port cannot be resolved the way the others are, because
-# resolving it would mean reading the file that declares it — and reading files
-# is the thing it does. So the loader keeps a deliberately minimal bootstrap :
-# it reaches for the library's own ports and adapters directly, once, and
-# everything after that goes through the bound adapter. That circularity is real
-# and cannot be argued away ; what it CAN be is small, named, and confined to
-# one method, rather than spread through boot as unexamined `Dir[]` calls.
-#
-# Declaring it anyway is the point. A port that exists only to describe an edge
-# already taken is still worth having : it says what the edge IS, and it is what
-# lets a second implementation — a gem that ships declarations, a manifest, a
-# database of domains — be additive rather than a rewrite of boot.
-#
-# It declares NO fields : which paths to read is an argument to boot, not a
-# per-deployment value.
 Hecks.port "loading" do
-  verb   "loaded_by"   # the how-verb a bind hangs off
-  signal :reply        # returns declarations to boot
+  verb   "loaded_by"   
+  signal :reply        
 end

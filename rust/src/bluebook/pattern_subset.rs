@@ -1,29 +1,4 @@
-// [antibody-exempt: rust/src/pattern_subset.rs — kernel-floor grammar guard.
-//  Decides which regex constructs a bluebook may declare, so the Ruby and Rust
-//  engines cannot disagree. A rule about what the LANGUAGE admits cannot itself
-//  be expressed in that language without circularity.]
-//! The regex subset a `pattern:` may use — the intersection of Ruby's `Regexp`
-//! and Rust's `regex` crate.
-//!
-//! A bluebook is executed by TWO engines : the Rust runtime and the Ruby
-//! behaviors runner. They must agree, and their regex dialects do not.
-//! Rust's `regex` crate omits lookaround and backreferences BY DESIGN — they
-//! cannot be matched in guaranteed linear time. Ruby's `Regexp` has both.
-//!
-//! So `^(?=.*[A-Z])` — an ordinary password rule — compiles in Ruby and FAILS
-//! in Rust. One declaration, two behaviours. That is the drift this codebase
-//! has paid for repeatedly (a fixtures file that said `shrink` while the gate
-//! did `grow` ; a query shape that differed between the two targets ; an
-//! auto-list heuristic retired from the parsers and still live in the runtime).
-//!
-//! The answer is not to test for it. It is to REFUSE the constructs that could
-//! diverge, at authoring time, so a bluebook cannot express them. What remains
-//! — anchors, classes, quantifiers, alternation, plain groups — is identical
-//! under both engines, which is exactly what a domain needs for an SKU, a
-//! postal code or a phone number.
 
-/// Why a pattern was refused. Carries the offending construct so the message
-/// can name it rather than say "invalid".
 #[derive(Debug, Clone, PartialEq)]
 pub struct PatternRejection {
     pub construct: &'static str,
@@ -36,21 +11,12 @@ impl PatternRejection {
     }
 }
 
-/// Refuse any construct whose meaning differs between Ruby and Rust.
-///
-/// Returns `Ok(())` for a pattern both engines treat identically. The check is
-/// SYNTACTIC — it inspects the pattern text rather than compiling it — so it
-/// gives the same verdict in the parser, the validator and the Ruby side, and
-/// needs no engine to run.
 pub fn validate_pattern_subset(pattern: &str) -> Result<(), PatternRejection> {
     let bytes = pattern.as_bytes();
     let mut i = 0;
     while i < bytes.len() {
-        // An escape consumes its next char : `\(` is a literal paren, not a
-        // group, and `\1` inside a character class is not a backreference.
         if bytes[i] == b'\\' {
             if let Some(next) = bytes.get(i + 1) {
-                // A backreference is \1..\9 OUTSIDE an escape of a digit class.
                 if next.is_ascii_digit() && *next != b'0' {
                     return Err(PatternRejection::new(
                         "backreference",
@@ -71,7 +37,6 @@ pub fn validate_pattern_subset(pattern: &str) -> Result<(), PatternRejection> {
             i += 1;
             continue;
         }
-        // Group openers : `(?=`, `(?!`, `(?<=`, `(?<!` are lookaround.
         if bytes[i] == b'(' && bytes.get(i + 1) == Some(&b'?') {
             match bytes.get(i + 2) {
                 Some(b'=') | Some(b'!') => {
@@ -91,15 +56,12 @@ pub fn validate_pattern_subset(pattern: &str) -> Result<(), PatternRejection> {
                 _ => {}
             }
         }
-        // Ruby's \A \z \Z and (?<name>) are fine ; possessive / atomic groups
-        // are Ruby-only and would be a syntax error in Rust.
         if bytes[i] == b'(' && bytes.get(i + 1) == Some(&b'?') && bytes.get(i + 2) == Some(&b'>') {
             return Err(PatternRejection::new(
                 "atomic group",
                 "Ruby-only : Rust's regex crate rejects `(?>` as a syntax error",
             ));
         }
-        // Possessive quantifiers (`a*+`, `a++`, `a?+`) are Ruby-only.
         if matches!(bytes[i], b'*' | b'+' | b'?') && bytes.get(i + 1) == Some(&b'+') {
             return Err(PatternRejection::new(
                 "possessive quantifier",
@@ -121,15 +83,14 @@ mod tests {
 
     #[test]
     fn the_shapes_a_domain_actually_needs_are_admitted() {
-        // Every one of these means the same thing in Ruby and Rust.
         for p in [
-            r"^[A-Z]{3}-\d{4}$",                    // SKU
-            r"^\d{5}(-\d{4})?$",                    // US postal
-            r"^\+?[0-9 ()-]{7,20}$",                // phone
-            r"^[^@\s]+@[^@\s]+\.[^@\s]+$",          // email
-            r"^(red|green|blue)$",                  // alternation
-            r"^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$", // uuid
-            r"",                                    // empty is permissive, not invalid
+            r"^[A-Z]{3}-\d{4}$",                    
+            r"^\d{5}(-\d{4})?$",                    
+            r"^\+?[0-9 ()-]{7,20}$",                
+            r"^[^@\s]+@[^@\s]+\.[^@\s]+$",          
+            r"^(red|green|blue)$",                  
+            r"^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$", 
+            r"",                                    
         ] {
             assert!(
                 validate_pattern_subset(p).is_ok(),
@@ -153,12 +114,8 @@ mod tests {
 
     #[test]
     fn an_escaped_construct_is_a_literal_not_a_violation() {
-        // `\(` is a literal paren — refusing it would reject a legitimate
-        // pattern for text that CONTAINS "(?=".
         assert!(validate_pattern_subset(r"\(\?=").is_ok());
-        // A named GROUP is fine ; only a named BACKreference is not.
         assert!(validate_pattern_subset(r"(?<year>\d{4})").is_ok());
-        // `\0` is a null escape, not a backreference.
         assert!(validate_pattern_subset(r"\0").is_ok());
     }
 

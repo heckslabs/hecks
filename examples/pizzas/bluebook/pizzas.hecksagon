@@ -1,16 +1,3 @@
-# The Pizzas hexagon — the ports-and-adapters ring around a synchronous domain.
-#
-# An aggregate IS the port : its commands-in and events-out are the contract,
-# so a port is never re-declared here. This file wires only the edges that
-# LEAVE the domain.
-#
-# One line decomposes as  aggregate . how-verb ( adapter ) :
-#
-#     Pizzas::Pizza . persisted_by ( "Sqlite" )
-#        aggregate       how-verb      adapter
-#
-# Swap "Sqlite" for "Memory" and the domain never notices — same family, same
-# verb, different backing.
 Hecks.hecksagon "Pizzas" do
   Pizzas::Pizza.persisted_by("Sqlite")
 end

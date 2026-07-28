@@ -1,17 +1,5 @@
 #!/usr/bin/env ruby
-# frozen_string_literal: true
 
-# Run a script of commands against a domain and print the result as JSON.
-#
-#   bin/run examples/pizzas examples/pizzas/parity/script.json
-#
-# The Rust binary takes the exported IR and the SAME script and prints the SAME
-# shape, so the two outputs diff directly. That diff is the whole proof: one
-# bluebook, two runtimes, one answer.
-#
-# Refusals are printed as results rather than raised, because a runtime that
-# ACCEPTS what the other refuses is the failure most worth catching — and a
-# crash would hide it.
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
@@ -30,10 +18,6 @@ queries = []
 steps.each do |step|
   args = (step["args"] || {}).transform_keys(&:to_sym)
 
-  # A step ASKS (`query`) or ACTS (`verb`). Reads are in the contract for
-  # the same reason reactions and sagas are : seven query declarations —
-  # where / order_by / desc / limit / a caller-supplied floor — sat in the
-  # corpus with no step ever running one, on either side.
   if (question = step["query"])
     begin
       rows = runtime.query(question, **args)
@@ -52,13 +36,6 @@ steps.each do |step|
   end
 end
 
-# INSTANCES ARE READ FROM THE STORE, AFTER EVERYTHING RAN — not snapshotted
-# per step. A step's Result holds the OUTER instance as that dispatch left
-# it ; a saga leg that settled the transfer afterwards mutated a fresh
-# hydration, and the snapshot kept reporting "requested" while the store
-# held "settled". Rust read the store and told the truth, the diff caught
-# it, and this is the fix : the adapter the hecksagon bound answers, same
-# as stage three.
 instances = {}
 runtime.registry.bluebooks.each do |domain_name, bluebook|
   bluebook.aggregates.each do |aggregate|
@@ -68,22 +45,12 @@ runtime.registry.bluebooks.each do |domain_name, bluebook|
   end
 end
 
-# occurred_at is deliberately dropped — two runtimes cannot agree on a clock,
-# and asking them to would test the wrong thing.
 events = runtime.events.map do |event|
   { name: event.name, aggregate: event.aggregate, id: event.id, payload: event.payload }
 end
 
-# REACTIONS ARE IN THE CONTRACT. Four policies were declared, ran nowhere, and
-# parity stayed green BECAUSE both runtimes discarded them equally — stage one
-# cannot tell "both understood it" from "both threw it away". A reaction the
-# harness does not compare is a reaction that can silently stop happening again.
 reactions = runtime.reactions
 
-# AND SO ARE SAGAS, for the same reason one construct later : Settlement parsed,
-# both parsers agreed on it byte-for-byte, and it ran nowhere. Every born /
-# advanced / refused / ended step is compared, so a conversation that stops
-# happening shows up as a diff rather than as silence.
 sagas = runtime.sagas
 
 puts JSON.pretty_generate(

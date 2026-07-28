@@ -1,25 +1,3 @@
-//! Canonical IR dump — JSON shape that both Ruby and Rust must agree on.
-//!
-//! Hand-written framework source. Was generated from codegen/dump_shape until
-//! 2026-06-27, when the self-projection codegen was retired — a .bluebook whose
-//! only job is to re-emit imperative Rust captures no domain.
-//!
-//! This is the parity contract. Hand-written so the JSON shape is chosen
-//! explicitly, not accidentally derived from Rust struct field names or
-//! serde defaults. When the Ruby BluebookModel serializer (canonical_ir.rb)
-//! produces the same shape, both parsers can be diffed deterministically.
-//!
-//! Shape:
-//!   { name, category, vision, aggregates[], policies[], fixtures[], vows[] }
-//!
-//! Each Aggregate, Command, Attribute, etc. has a fixed key order and
-//! omits no fields (uses null where absent). Stable field naming —
-//! `attributes[*].type` (not Rust's internal `attr_type`),
-//! `references[*].target`, etc. — so the contract reads naturally.
-//!
-//! Usage:
-//!   storehouse dump path/to/foo.bluebook
-//!   # → JSON to stdout, exit 0
 
 use crate::ir::{
     Aggregate, Attribute, Cardinality, Command, Direction, Domain, Entity, Factory, Fixture, Given,
@@ -68,10 +46,6 @@ fn dump_pm_handler(h: &ProcessManagerHandler) -> Value {
     })
 }
 
-/// Mirror Ruby's CanonicalIR.dump_dispatch. Phase 2.b
-/// (pm-dispatch-enrichment) — dispatches carry a structured
-/// command_name + ordered with-spec map. i221-A — also emit a
-/// `for_each` key (Some sweep → object, None → null).
 fn dump_dispatch(d: &DispatchSpec) -> Value {
     let with_pairs: Vec<Value> = d
         .with_spec
@@ -96,9 +70,6 @@ fn dump_dispatch(d: &DispatchSpec) -> Value {
     })
 }
 
-/// Mirror Ruby's CanonicalIR.dump_value_spec. Four kinds : literal,
-/// from_event, from_pm, from_iter (i221-A). Defaults serialise as
-/// JSON null when absent.
 fn dump_value_spec(spec: &ValueSpec) -> Value {
     match spec {
         ValueSpec::Literal { value } => json!({
@@ -127,9 +98,6 @@ fn dump_aggregate(agg: &Aggregate) -> Value {
         "name": agg.name,
         "context": agg.context,
         "description": agg.description,
-        // 2026-07-18 — aggregate identified_by joins the canonical IR
-        // (it was un-guarded by parity until the payload-gate arc).
-        // Same slot as dump_entity's : after description, before attributes.
         "identified_by": agg.identified_by,
         "attributes": agg.attributes.iter().map(dump_attribute).collect::<Vec<_>>(),
         "value_objects": agg.value_objects.iter().map(dump_value_object).collect::<Vec<_>>(),
@@ -150,22 +118,9 @@ fn dump_attribute(attr: &Attribute) -> Value {
         "type": attr.attr_type,
         "list": attr.list,
         "default": attr.default,
-        // 2026-07-18 — the payload gate enforces `required: true`, so the
-        // flag joins the canonical IR (both parsers already carried it).
         "required": attr.required,
-        // one_of scalar vocabulary (2026-07-19). Key named `one_of` — the
-        // canonical IR reads as words, not code ("enum is too codey" —
-        // Chris, same session ; the `enum:` kwarg spelling was migrated
-        // out of all 20 corpus files and is retired : any future usage
-        // drifts loudly because only the Ruby side would collect it).
         "one_of": attr.enum_values,
-        // pattern scalar SHAPE (GRAMMAR-pattern) — the closed-shape sibling of
-        // one_of's closed vocabulary. Both parsers carry it, so a pattern that
-        // only one side collected drifts loudly here rather than silently
-        // enforcing on one target and not the other.
         "pattern": attr.pattern,
-        // hint (GRAMMAR-pattern) — human guidance for a shape mismatch. Both
-        // parsers carry it so it round-trips through the canonical IR.
         "hint": attr.hint,
     })
 }
@@ -175,24 +130,12 @@ fn dump_value_object(vo: &ValueObject) -> Value {
         "name": vo.name,
         "description": vo.description,
         "attributes": vo.attributes.iter().map(dump_attribute).collect::<Vec<_>>(),
-        // 2026-07-18 — VO invariants, NAMES ONLY : the Ruby side holds the
-        // predicate as a Proc (source unrecoverable), so the shared canonical
-        // contract is the invariant's name ; each runtime enforces the
-        // predicate from its own parse. The Rust IR keeps the expression
-        // internally (payload_gate) — it just isn't part of the parity
-        // contract.
         "invariants": vo.invariants.iter().map(|i| json!({"name": i.name})).collect::<Vec<_>>(),
-        // 2026-07-21 — VO derivations, SIGNATURE ONLY (name + return_type +
-        // param names) : the body is a Ruby Proc on the Ruby side, so the
-        // shared contract excludes the expression, exactly like invariants.
-        // Each runtime evaluates its own parse of the body.
         "derivations": vo.derivations.iter().map(|d| json!({
             "name": d.name,
             "return_type": d.return_type,
             "params": d.params,
         })).collect::<Vec<_>>(),
-        // one_of members (2026-07-19) — ordered objects, declaration order
-        // on both sides (Ruby kwargs preserve insertion order).
         "members": vo.members.iter().map(|m| {
             let mut obj = serde_json::Map::new();
             for (k, v) in m {
@@ -254,9 +197,6 @@ fn dump_mutation(m: &Mutation) -> Value {
     })
 }
 
-// Strip whitespace adjacent to brackets/braces/parens. Source representations
-// differ ("[ a, b ]" vs "[a, b]") even when semantically identical; both
-// runtimes normalize so the canonical output agrees.
 fn normalize_value(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     let mut in_str = false;
@@ -331,7 +271,6 @@ fn dump_policy(p: &Policy) -> Value {
 }
 
 fn dump_fixture(f: &Fixture) -> Value {
-    // Use array of [key, value] pairs to preserve order — same shape Ruby will emit.
     let pairs: Vec<Value> = f.attributes.iter()
         .map(|(k, v)| json!([k, normalize_value(v)]))
         .collect();

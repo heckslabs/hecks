@@ -1,18 +1,3 @@
-# The Heki adapter, tested AS AN ADAPTER — and as a FORMAT.
-#
-# Two different subjects live here, and only one of them is the usual one.
-#
-# The first is the adapter's own contract : save, find, all, count, delete. That
-# is the same contract Sqlite and Memory answer, and the reason a domain can say
-# `persisted_by("Heki")` and learn nothing else.
-#
-# The second is the FILE FORMAT, and it matters more. Heki's bytes are Hecks's :
-# magic, count, zlib-compressed JSON. The Rust side implements the same reader,
-# so a store written here must be readable there — and the only way to keep that
-# true is to assert the bytes rather than the round-trip. A format that only
-# round-trips through ITSELF is two formats wearing one extension, and the day
-# that surfaces is the day someone switches runtimes on a directory that already
-# has data in it.
 require "hecksagain"
 require "tmpdir"
 require "zlib"
@@ -26,9 +11,6 @@ RSpec.describe Hecksagain::Adapters::Heki do
     FileUtils.remove_entry(@dir) if @dir
   end
 
-  # The Pizza aggregate, exactly as examples/pizzas declares it. An adapter that
-  # only works against a hand-made IR has not been tested against anything
-  # anyone will actually declare.
   let(:aggregate) do
     boot_in_memory.registry.bluebook("Pizzas").aggregate("Pizza")
   end
@@ -85,8 +67,6 @@ RSpec.describe Hecksagain::Adapters::Heki do
       expect(reopened.find("p1")[:name]).to eq("Persisted")
     end
 
-    # One store per aggregate, named by the same snake_case rule that names a
-    # table — so two adapters agree about what a thing is called.
     it "writes one store per aggregate, named for it" do
       adapter.save(instance("p1", name: "Named"))
 
@@ -94,10 +74,6 @@ RSpec.describe Hecksagain::Adapters::Heki do
     end
   end
 
-  # ==========================================================================
-  # THE FORMAT. These assert the bytes Rust's reader expects, because that is
-  # the actual cross-runtime contract — not that Ruby can read Ruby.
-  # ==========================================================================
   describe "the file format" do
     let(:bytes) do
       adapter.save(instance("p1", name: "Margherita"))
@@ -120,9 +96,6 @@ RSpec.describe Hecksagain::Adapters::Heki do
       expect(store["p1"]["name"]).to eq("Margherita")
     end
 
-    # Rust's Store is a HashMap, so ITS key order is whatever the map iterates —
-    # two Rust runs need not agree byte for byte. This side sorts, which is the
-    # most determinism available and belongs on the side that can offer it.
     it "writes ids in sorted order, so the same records give the same bytes" do
       first = bytes
 
@@ -151,14 +124,11 @@ RSpec.describe Hecksagain::Adapters::Heki do
         .to raise_error(described_class::Malformed, /too short/)
     end
 
-    # A damaged payload is a DEFECT, not an empty store. Answering "no records"
-    # for a file that is actually corrupt is how a runtime silently starts over.
     it "refuses a payload that is not zlib" do
       expect { write_raw("HEKI" + [1].pack("N") + "not compressed").count }
         .to raise_error(described_class::Malformed, /zlib error/)
     end
 
-    # An ABSENT file is not damage — it is a store nobody has written yet.
     it "reads an absent file as an empty store" do
       expect(adapter.count).to eq(0)
     end

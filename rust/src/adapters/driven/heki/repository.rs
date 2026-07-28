@@ -1,21 +1,3 @@
-//! HekiRepository — the append-log store as a persistence PORT.
-//!
-//! The twin of lib/hecksagain/adapters/driven/heki/heki.rb, and the second
-//! adapter this runtime can bind. Until it existed the composition root asked
-//! `if persistence.adapter == "Sqlite"` — a name check standing exactly where
-//! the port abstraction was supposed to remove one, invisible while there was
-//! only one name to check for.
-//!
-//! THE WHOLE STORE LIVES IN MEMORY, by trait contract rather than choice : the
-//! port returns BORROWS into the adapter's own storage (`find(&self) ->
-//! Option<&AggregateState>`), so an adapter cannot answer from a file it re-reads
-//! per lookup. Heki suits that shape better than most — a .heki file IS the whole
-//! store, one compressed map, so it is read once at bind and rewritten whole on
-//! each save. That is the honest cost of the format, not a caching trick :
-//! decompressing an aggregate to answer one find would be worse.
-//!
-//! One store per aggregate, named by the same snake_case rule Sqlite names a
-//! table with, so the two adapters agree about what a thing is called.
 
 use super::heki;
 use crate::runtime::{value_bridge, AggregateState, PersistenceAdapter, Value};
@@ -29,11 +11,6 @@ pub struct HekiRepository {
 }
 
 impl HekiRepository {
-    /// Bind a store, reading whatever is already on disk.
-    ///
-    /// An ABSENT file is an empty store — nobody has written yet. A DAMAGED one
-    /// is an error, because answering "no records" for a corrupt file is how a
-    /// runtime silently starts over on data it should have refused to lose.
     pub fn new(
         aggregate: &str,
         dir: &str,
@@ -50,8 +27,6 @@ impl HekiRepository {
         let mut next_id = 1u64;
 
         for (id, record) in raw {
-            // value_bridge is the one place JSON and the runtime Value meet.
-            // Converting by hand here would be a second author for that mapping.
             let fields: serde_json::Map<String, serde_json::Value> = record.into_iter().collect();
             if let Ok(n) = id.parse::<u64>() {
                 if n >= next_id {
@@ -64,8 +39,6 @@ impl HekiRepository {
         Ok(Self { path, identified_by, store, next_id })
     }
 
-    /// The whole store, rewritten. A heki file is one compressed map, so there
-    /// is no such thing as writing one record into it.
     fn flush(&self) {
         let records: heki::Store = self
             .store
@@ -77,11 +50,6 @@ impl HekiRepository {
     }
 }
 
-// The rule that turns an aggregate into a file name is the same rule that
-// turns it into a table name — so it is ONE function, `crate::naming::snake`,
-// and not a private copy here. The copy that used to live here said it existed
-// "so Sqlite and Heki agree about what a thing is called", while quietly
-// disagreeing with both the parser and Ruby about acronyms.
 
 impl PersistenceAdapter for HekiRepository {
     fn find(&self, id: &str) -> Option<&AggregateState> {
@@ -131,14 +99,6 @@ impl PersistenceAdapter for HekiRepository {
         self.flush();
     }
 
-    /// NO PUSHDOWN. Sqlite can prefilter in the connection, injection-safe and
-    /// indexed ; a heki store is one decompressed map with no index to push a
-    /// clause into, so filtering here would be the caller's own loop wearing an
-    /// adapter's name.
-    ///
-    /// `None` means the runtime keeps its `all()` + oracle path, and the oracle
-    /// re-applies every clause regardless — so declining costs correctness
-    /// nothing. A pushdown can only ever NARROW ; parity holds by construction.
     fn query(
         &self,
         _wheres: &[crate::ir::WhereClause],

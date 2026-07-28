@@ -1,47 +1,4 @@
-//! hecksagain - the Rust runtime.
-//!
-//!   hecksagain <domain.bluebook> <script.json>
-//!
-//! Reads an IR and a script of commands, runs them, and prints the result as
-//! JSON. Its Ruby counterpart (bin/run) takes the same inputs and prints the
-//! same shape, so the two outputs can be diffed directly.
-//!
-//! This binary contains no knowledge of any particular domain.
-//!
-//! STANDING GAP: it cannot yet parse a .bluebook file. It should. Both
-//! runtimes are meant to read the NATIVE format - a JSON IR handed over from
-//! Ruby is a stepping stone, not the architecture, and it exists here only
-//! because it made semantic parity provable early.
-//!
-//! The mistake hecksagain exists to avoid is not "two parsers". It is two
-//! parsers whose agreement nobody CHECKS. Both parsers here are authored by
-//! hand — this one is not generated from the Ruby one — so the whole burden
-//! falls on bin/parity, which compares what the two runtimes DO rather than
-//! where they came from.
-//!
-//! Note that a .bluebook file is already Ruby, so the parseable subset and the
-//! evaluable subset are the same question - see
-//! lib/hecksagain/grammar/expression.bluebook.
 
-// THE PARSER CAME OVER FROM HECKS WHOLE AND UNEDITED.
-//
-// ir.rs, parser.rs, parse_blocks.rs, parser_helpers.rs, pattern_subset.rs. It
-// knows far more of the grammar than this runtime uses — policies, fixtures,
-// cadences, queries, views, process managers — and that surplus is dead code
-// HERE while being load-bearing THERE.
-//
-// Trimming it to silence the warnings would FORK it, which is the one thing
-// this cherry-pick exists to avoid: a parser edited on its way over is a
-// parser that has to be maintained twice. So the dead code is allowed by name,
-// on exactly these modules and nowhere else. Every other file in this crate
-// still builds clean.
-//
-// ir_json.rs is the one seam we wrote: it renders the typed IR in the shape
-// this interpreter reads, and in the shape the Ruby exporter emits, so the two
-// readings of one file can be diffed.
-// Those modules live in the LIBRARY (src/lib.rs), which is named `storehouse`
-// so the adapters cherry-picked from Hecks import it unedited. This binary is
-// a thin driver over it.
 use storehouse::ports::persistence;
 use storehouse::{dispatcher, dump, ir_json, parser};
 
@@ -54,40 +11,12 @@ use std::fs;
 fn main() {
     let arguments: Vec<String> = std::env::args().collect();
 
-    // `--dump <bluebook>` prints the IR this parser read, so it can be diffed
-    // against the IR Ruby's parser read. Agreeing on BEHAVIOUR is good ;
-    // agreeing on the IR itself is the stronger claim, because it shows the
-    // two parsers understood the same document rather than two documents that
-    // happened to run the same.
     if arguments.len() == 3 && arguments[1] == "--dump" {
         println!("{}", serde_json::to_string_pretty(&read_bluebook(&arguments[2])).unwrap());
         return;
     }
 
-    // `--canonical` prints the CANONICAL IR — the parity contract Hecks holds
-    // its two implementations to, brought over in dump.rs unedited. Hecks
-    // measures its agreement against THIS shape (113/113, zero active drift),
-    // so it is the contract worth answering to rather than one invented here.
-    //
-    // Only half of it is present so far: its Ruby counterpart, canonical_ir.rb,
-    // walks Hecks's BluebookModel, which this project does not have yet — so
-    // nothing can be diffed against this output until the Ruby model comes over
-    // too. Wired now because the Rust half is a clean lift, and because it
-    // proves the parsed Domain is rich enough to satisfy the real contract
-    // rather than only the subset this interpreter happens to read.
-    // `--wiring` reports which adapter the hecksagon bound and where the world
-    // points it. A runtime that silently falls back to memory when it cannot
-    // read its own wiring is a runtime that lies, so this makes the resolution
-    // inspectable rather than something to be inferred from whether a file
-    // appeared.
     if arguments.len() == 3 && arguments[1] == "--wiring" {
-        // PER AGGREGATE, because that is how persistence binds. Reporting one
-        // adapter for the whole domain was not merely incomplete : on a domain
-        // binding two different adapters it named one and read as the whole truth.
-        //
-        // Every aggregate appears, including the ones nobody wired — those report
-        // the Memory default, which is the honest answer to "where does this
-        // store" and the one a reader most needs when they expected a database.
         let source = fs::read_to_string(&arguments[2]).unwrap_or_else(|error| {
             eprintln!("cannot read {}: {}", arguments[2], error);
             std::process::exit(1);
@@ -95,20 +24,11 @@ fn main() {
         for aggregate in parser::parse(&source).aggregates.iter() {
             let persistence = match persistence::resolve_for(&arguments[2], &aggregate.name) {
                 Ok(persistence) => persistence,
-                // The report's job is to show the wiring as it stands, including
-                // that an aggregate has none.
                 Err(reason) => {
                     println!("{}: UNBOUND — {}", aggregate.name, reason);
                     continue;
                 }
             };
-            // WHICH ADAPTER ANSWERS — and only that. Printing the settings
-            // alongside read as a claim about storage : a Memory bind showed
-            // `database data/mix.db` because the world block is handed over
-            // whole and Memory simply ignores it. The port cannot say which
-            // settings an adapter reads (that is the adapter's business, and the
-            // reason the port stopped resolving a path at all), so it should not
-            // imply an answer it does not have.
             println!("{}: {}", aggregate.name, persistence.adapter);
         }
         return;
@@ -137,21 +57,6 @@ fn main() {
 
     let mut runtime = Runtime::new(ir);
 
-    // CALL THE ADAPTER THE HECKSAGON BOUND. Without this the runtime keeps its
-    // state in a HashMap and only APPEARS to persist — the domain would look
-    // entirely correct while nothing was ever written.
-    // THIS IS THE COMPOSITION ROOT — the one place the port and a concrete
-    // adapter may be named together. The library knows only
-    // PersistenceAdapter ; storehouse-sqlite is linked here and nowhere else.
-    // PERSISTENCE BINDS PER AGGREGATE, so the bind is resolved INSIDE this loop.
-    // It used to be resolved once for the whole domain and the first
-    // `persisted_by` in the hecksagon handed to every aggregate — so a bluebook
-    // wiring Pizza to Sqlite beside Cart to Memory bound EVERYTHING to whichever
-    // the parser saw first, silently, with a domain that looked entirely correct.
-    //
-    // And an aggregate that declares NOTHING gets Memory rather than an error :
-    // wiring is override, not substrate. Both behaviours are the counterpart of
-    // lib/hecksagain/ports/persistence/persistence.rb, which holds the semantics.
     for (name, aggregate) in runtime.aggregates() {
         let persistence = match persistence::resolve_for(&arguments[1], &name) {
             Ok(persistence) => persistence,
@@ -161,9 +66,6 @@ fn main() {
             }
         };
 
-        // EACH ADAPTER READS ITS OWN FIELD. The port carries the world block
-        // verbatim ; what `database` or `dir` means is the adapter's business,
-        // and Memory reads neither, which is why it needs no world block at all.
         let stored_at = |field: &str| -> String {
             match persistence.path(&arguments[1], field) {
                 Some(location) => location.to_string_lossy().to_string(),
@@ -177,11 +79,6 @@ fn main() {
             }
         };
 
-        // A BIND THAT DOES NOT RESOLVE IS AN ERROR, not a silent fallback. This
-        // was `if adapter == "Sqlite"` with no else, so a domain bound to anything
-        // else kept its state in a HashMap and looked entirely correct while
-        // nothing was written. A store nobody can find is the failure a
-        // persistence port exists to make impossible.
         match persistence.adapter.as_str() {
             "Heki" => {
                 let path = stored_at("dir");
@@ -203,15 +100,10 @@ fn main() {
                 }
             }
             "Memory" => {
-                // The runtime's own in-process store IS the memory adapter, and
-                // it is what an aggregate gets when nobody wired it.
             }
             "Sqlite" => {
                 let path = stored_at("database");
 
-                // The columns ARE the IR: one per declared attribute, its SQL type
-                // from storehouse_sqlite::sql_type, which mirrors Ruby's migration
-                // generator verbatim. Nothing here chooses a type.
                 let columns: Vec<(String, String)> = aggregate
                     .get("attributes")
                     .and_then(Value::as_array)
@@ -267,10 +159,6 @@ fn main() {
             .cloned()
             .unwrap_or_default();
 
-        // A step ASKS (`query`) or ACTS (`verb`). Reads are in the contract
-        // for the same reason reactions and sagas are : seven query
-        // declarations sat in the corpus with no step ever running one, on
-        // either side.
         if let Some(question) = step.get("query").and_then(Value::as_str) {
             match runtime.query(question, &args) {
                 Ok(rows) => queries.push(json!({ "query": question, "args": args, "rows": rows })),
@@ -280,9 +168,6 @@ fn main() {
         }
 
         let verb = step.get("verb").and_then(Value::as_str).unwrap_or_default();
-        // A refusal is a RESULT, not a crash - the parity harness compares
-        // refusals as carefully as it compares successes, because a runtime
-        // that accepts what the other refuses is the failure worth catching.
         if let Err(message) = runtime.dispatch(verb, &args) {
             refusals.push(json!({ "verb": verb, "error": message }));
         }
@@ -297,30 +182,14 @@ fn main() {
         "instances": Value::Object(instances),
         "events": runtime.events,
         "refusals": refusals,
-        // REACTIONS ARE IN THE CONTRACT. Four policies were declared, ran
-        // nowhere, and parity stayed green BECAUSE both runtimes discarded
-        // them equally — stage one cannot tell "both understood it" from
-        // "both threw it away". A reaction the harness does not compare is a
-        // reaction that can silently stop happening again.
         "reactions": runtime.reactions,
-        // AND SO ARE SAGAS, one construct later : Settlement parsed, both
-        // parsers agreed byte-for-byte, and it ran nowhere. Every born /
-        // advanced / refused / ended step is compared.
         "sagas": runtime.sagas,
-        // AND THE READS — the fourth construct in the same silence.
         "queries": queries,
     });
 
     println!("{}", serde_json::to_string_pretty(&output).unwrap());
 }
 
-/// A .bluebook is PARSED. There is no other way in.
-///
-/// This runtime once accepted a pre-parsed JSON IR as well. That path is gone
-/// on purpose: while it existed, Rust could appear to work without its parser
-/// being exercised at all, and an unexercised parser is one that quietly rots
-/// while the harness reports success. Reading the native format is not a
-/// feature of this runtime, it is the only thing it does.
 fn read_bluebook(path: &str) -> Value {
     if !path.ends_with(".bluebook") {
         eprintln!("{} is not a .bluebook — this runtime parses the native format", path);
@@ -332,9 +201,6 @@ fn read_bluebook(path: &str) -> Value {
         std::process::exit(1);
     });
 
-    // The parser came over from Hecks whole. It is infallible by design — an
-    // unreadable construct is recorded in the IR (unknown_keywords) rather
-    // than thrown, so a domain is never half-parsed behind an early return.
     ir_json::domain_to_value(&parser::parse(&source))
 }
 

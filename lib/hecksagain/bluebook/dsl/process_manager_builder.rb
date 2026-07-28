@@ -1,27 +1,3 @@
-# ProcessManagerBuilder — evaluates a `process_manager "Checkout" do ... end`
-# block.
-#
-# Brought over from Hecks's DSL::ProcessManagerBuilder — same keywords
-# (`correlates_by`, `starts_on`, `ends_on`, `state`, `on ... transition:`) and
-# the same nested handler surface (`dispatch`, `set`).
-#
-# ITS VALIDATIONS COME WITH IT, and they are the reason this builder is worth
-# bringing rather than writing. A process manager that declares no states, or
-# transitions to a state it never declared, or correlates by nothing, is not a
-# slightly-wrong process manager — it is one that will wait forever for an event
-# it can never match. Hecks learned each of those the hard way ; they are
-# enforced at BUILD time here, so the bluebook refuses to load rather than
-# running as a machine that silently never advances.
-#
-#   process_manager "Checkout" do
-#     correlates_by :order_id
-#     starts_on "OrderPlaced"
-#     state "awaiting_payment"
-#     state "paid"
-#     on "PaymentAuthorized", transition: { "awaiting_payment" => "paid" } do
-#       dispatch "Order.Confirm", with: { order: :order_id }
-#     end
-#   end
 module Hecksagain
   module Bluebook
     module DSL
@@ -39,7 +15,6 @@ module Hecksagain
         def ends_on(event)       = @ends_on = event.to_s
         def state(name)          = @states << name.to_s
 
-        # One reaction. `transition:` is single-entry — one from, one to.
         def on(event_type, transition:, &block)
           from, to = single_transition(event_type, transition)
           handler  = HandlerBuilder.new
@@ -85,8 +60,6 @@ module Hecksagain
           [from.to_s, to.to_s]
         end
 
-        # Every rule here describes a machine that would LOAD and then never
-        # advance. Refusing at build time is the whole point.
         def validate!
           raise InvalidProcessManager, "#{@name} declares no correlates_by — " \
             "nothing would tie its events to one instance" unless @correlates_by
@@ -109,15 +82,11 @@ module Hecksagain
                 "which #{undeclared.size == 1 ? 'is' : 'are'} never declared as a state"
         end
 
-        # The body of an `on ... do ... end` block.
         class HandlerBuilder
           attr_reader :dispatches
 
           def initialize = @dispatches = []
 
-          # `with:` carries literal values and :symbol references, in
-          # DECLARATION ORDER — a hash would lose it, and order is part of the
-          # canonical shape.
           def dispatch(command_name, with: nil)
             @dispatches << IR::DispatchSpec.new(
               command_name: command_name,

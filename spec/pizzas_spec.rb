@@ -1,18 +1,6 @@
-# The Pizzas vertical slice, end to end.
-#
-# Every example boots a real domain from the folder convention and drives it
-# through the door — no test doubles, no reaching past the aggregate. If a rule
-# is declared in the bluebook, it is verified here through a dispatch, because
-# that is the only way a caller can reach it.
-#
-# Persistence is bound to Memory for speed ; the Sqlite binding is exercised in
-# its own example so the durable path is not left unproven.
 require "hecksagain"
 
 RSpec.describe "Pizzas" do
-  # No disk. See spec/spec_helper.rb — the domain is composed straight into a
-  # registry and bound to Memory, because none of what these examples verify
-  # has anything to do with a filesystem.
   let(:runtime) { boot_in_memory }
 
   def create(name: "Margherita", price_cents: 1200)
@@ -103,7 +91,6 @@ RSpec.describe "Pizzas" do
       begin
         runtime.dispatch("Pizzas::Pizza.AddTopping", id: pizza.id, name: "Air", amount: -5)
       rescue Hecksagain::Runtime::InvariantViolation
-        # expected
       end
 
       repository = runtime.registry.repository("Pizzas", runtime.registry.bluebook("Pizzas").aggregate("Pizza"))
@@ -134,15 +121,6 @@ RSpec.describe "Pizzas" do
   end
 
   describe "the persistence binding" do
-    # No disk: a bad bind is refused while the registry is being composed, so
-    # there is nothing to write and nowhere to write it.
-    #
-    # This asserted /no persisted_by bind/ and so passed on the wrong error —
-    # the ABSENCE of a persistence bind, never the verb mismatch it is named
-    # for. `verify!` resolved each bind by calling `repository`, which looks up
-    # the aggregate's persisted_by bind and ignores the bind being iterated, so
-    # a charged_by bind was never verb-checked. Giving an unbound aggregate the
-    # Memory default removed the accident and left the gap visible.
     it "refuses a bind whose adapter cannot satisfy the verb" do
       registry = Hecksagain::Runtime::Registry.new
 
@@ -162,17 +140,6 @@ RSpec.describe "Pizzas" do
       )
     end
 
-    # WIRING IS OVERRIDE, NOT SUBSTRATE. A hecksagon bind changes which adapter
-    # answers ; it is not what makes persistence exist. Memory is an ordinary
-    # adapter — it declares the persistence port in memory.adapter and
-    # implements the same contract — that the runtime always carries, so an
-    # aggregate nobody wired still gets a real repository.
-    # The default is the one bind nobody declares, so it is the one bind nobody
-    # would think to look at. It is reached by NAME from the port, matched
-    # against a declaration that arrives by a glob and a class that arrives by a
-    # require — all reliable until one is renamed, and unchecked until now the
-    # break would have surfaced as `unknown adapter` at first save, on a path the
-    # author never wrote.
     it "refuses to boot when the default adapter is not loaded" do
       registry = Hecksagain::Runtime::Registry.new
 
@@ -181,7 +148,6 @@ RSpec.describe "Pizzas" do
           Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
           Kernel.load(InMemoryDomain::EXTRACTION_PORT)
           Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-          # MEMORY_ADAPTER deliberately not loaded.
           Kernel.load(InMemoryDomain::PIZZAS_BLUEBOOK)
         end
         registry.verify!
@@ -206,16 +172,10 @@ RSpec.describe "Pizzas" do
       pizza = registry.bluebook("Pizzas").aggregate("Pizza")
       expect(registry.repository("Pizzas", pizza)).to be_a(Hecksagain::Adapters::Memory)
 
-      # And it is a REAL repository, not a stub that swallows writes.
       runtime.dispatch("Pizzas::Pizza.CreatePizza", name: "Margherita", price_cents: 900)
       expect(registry.repository("Pizzas", pizza).count).to eq(1)
     end
 
-    # A HECKSAGON IS EVIDENCE OF INTENT. Writing one says the wiring is being
-    # decided, so an aggregate left out is a FORGOTTEN decision — and
-    # defaulting there would be the silence this port exists to refuse : a
-    # domain that meant to persist, looking entirely correct while nothing was
-    # written for the root nobody remembered.
     it "refuses an unbound aggregate when the domain declares a hecksagon" do
       registry = Hecksagain::Runtime::Registry.new
 
@@ -226,7 +186,6 @@ RSpec.describe "Pizzas" do
           Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
           Kernel.load(InMemoryDomain::PRISM_ADAPTER)
           Kernel.load(InMemoryDomain::PIZZAS_BLUEBOOK)
-          # A hecksagon that decides something — but not where Pizza is stored.
           Hecks.hecksagon("Pizzas") { Pizzas::Pizza.charged_by("Memory") }
         end
 
@@ -238,7 +197,6 @@ RSpec.describe "Pizzas" do
       )
     end
 
-    # … and in-memory ON PURPOSE is a decision, which reads as one.
     it "accepts an aggregate the hecksagon binds to Memory explicitly" do
       registry = Hecksagain::Runtime::Registry.new
 

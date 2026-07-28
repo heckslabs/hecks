@@ -1,25 +1,7 @@
-# BANKING — the domain that exercises every word of the language.
-#
-# Pizzas taught the shape ; this one is the coverage. Every keyword the DSL
-# admits appears here at least once, doing something a banker would recognise —
-# because a construct that cannot be motivated in a real domain is telling you
-# something about the construct.
-#
-# It is also the parity corpus. `bin/parity` diffs the two runtimes' reading of
-# this file byte for byte, so every keyword below is a keyword both parsers are
-# proven to agree on. Anything NOT here is unverified, however green the suite
-# looks — which is why the coverage gate refuses a DSL method with no exercise.
-#
-# Money is integer cents with a currency. Never a Float : IEEE 754 rounding has
-# no place in a ledger, and "0.1 + 0.2" is not a rounding detail when it is
-# someone's overdraft.
 Hecks.bluebook "Banking" do
   vision "Customers hold accounts, accounts move money, and every movement is a transfer that can fail halfway. The domain that has to get it right twice — once in the rules, once in the recovery."
   core
 
-  # ============================================================
-  # CUSTOMER — who the bank is talking to
-  # ============================================================
   aggregate "Customer" do
     description "A person the bank holds a relationship with. Suspended rather than deleted — a bank forgets nothing."
 
@@ -44,9 +26,6 @@ Hecks.bluebook "Banking" do
       invariant("an address routes somewhere") { address.include?("@") }
     end
 
-    # Suspension is a STATE, not a flag someone remembers to check. `from:`
-    # names the states each move is legal from, so a suspended customer cannot
-    # be suspended twice and a closed one cannot be reinstated.
     lifecycle :status, default: "active" do
       transition "Suspend"   => "suspended", from: "active"
       transition "Reinstate" => "active",    from: "suspended"
@@ -116,9 +95,6 @@ Hecks.bluebook "Banking" do
     end
   end
 
-  # ============================================================
-  # ACCOUNT — where the money actually sits
-  # ============================================================
   aggregate "Account" do
     description "A balance belonging to one customer, and the ledger that explains how it got there."
 
@@ -127,17 +103,9 @@ Hecks.bluebook "Banking" do
     attribute :number,       String
     attribute :balance,      Integer, default: 0
     attribute :kind,         AccountKind
-    # Cents, not Money. A limit that arrives as one number IS one number — and
-    # a VO-typed attribute assigned at creation does not survive the sqlite
-    # round-trip identically in both runtimes (Ruby reads back "50000", Rust
-    # 50000). That is an adapter type-fidelity defect, recorded rather than
-    # ridden on : the corpus should fail for drift in the DSL, not for a
-    # mapping bug three layers below it.
     attribute :daily_limit,  Integer, default: 0
     attribute :ledger,       list_of(LedgerEntry)
 
-    # Integer cents and a currency, together. A balance without its currency is
-    # a number pretending to be money.
     value_object "Money" do
       attribute :cents,    Integer, default: 0
       attribute :currency, String,  default: "USD"
@@ -146,9 +114,6 @@ Hecks.bluebook "Banking" do
       invariant("a currency is a three-letter code") { currency.to_s.size == 3 }
     end
 
-    # The kinds an account may be form a CLOSED SET, so the set is declared as
-    # one, not hand-spelled as a chain of ==s in an invariant. `one_of` is the
-    # FACT ; the runtime refuses anything outside it by name.
     value_object "AccountKind" do
       attribute :name, String
 
@@ -165,9 +130,6 @@ Hecks.bluebook "Banking" do
       invariant("a movement explains itself") { !text.to_s.empty? }
     end
 
-    # An entry has identity that outlives its values — a correction changes what
-    # it says without making it a different entry. That is what makes it an
-    # ENTITY and the Money it carries a value object.
     entity "LedgerEntry" do
       description "One movement across the account, in the order it was posted."
 
@@ -180,17 +142,9 @@ Hecks.bluebook "Banking" do
 
       lifecycle :state, default: "posted" do
         transition "Reverse" => "reversed", from: "posted"
-        # Amending leaves an entry posted — a self-loop, because a correction
-        # is not a new state, and a reversed entry is past correcting.
         transition "Amend"   => "posted",   from: "posted"
       end
 
-      # THE CORRECTION THE COMMENT ABOVE PROMISES. "Identity that outlives its
-      # values" is a claim about what can happen to an entry, and until this
-      # command existed nothing in the domain could change what one SAYS. It is
-      # also the corpus's only element arithmetic : the Integer-or-nothing rule
-      # was enforced on the element path by nobody, in either runtime, so a
-      # divergence there could not have surfaced.
       command "Amend" do
         role "Back office"
         goal "Correct a movement posted for the wrong amount"
@@ -252,18 +206,9 @@ Hecks.bluebook "Banking" do
       attribute :amount,    Integer
       attribute :narrative, Narrative
 
-      # "Stop an account moving" is Freeze's stated goal, and until this line
-      # it stopped nothing : Credit and Debit are not lifecycle transitions,
-      # so the frozen state never gated them — a frozen account transacted
-      # freely in both runtimes. The machine holds the state ; the GIVEN is
-      # what makes the state mean something to the money.
       given("the account is open")      { status == "open" }
       given("a credit moves something") { amount.positive? }
 
-      # increment, not to:. A credit ADDS — `to: :amount` REPLACED the balance
-      # with the deposit, both runtimes executed it faithfully, and parity
-      # agreed about a ledger that was wrong on both sides at once. The
-      # language grew the arithmetic pair so the domain could stop bending.
       then_set :balance, increment: :amount
       then_set :ledger,  append: { amount: :amount, narrative: :narrative, direction: "credit" }
 
@@ -278,8 +223,6 @@ Hecks.bluebook "Banking" do
       attribute :amount,    Integer
       attribute :narrative, Narrative
 
-      # The four gates a debit has to pass. Each is a sentence a banker would
-      # say out loud, which is the test of whether the rule belongs here.
       given("the account is open")       { status == "open" }
       given("a debit moves something")   { amount.positive? }
       given("the balance covers it")     { balance >= amount }
@@ -332,9 +275,6 @@ Hecks.bluebook "Banking" do
       limit 100
     end
 
-    # A frozen account is a compliance event, not just a state change. Declared
-    # HERE because this is where the causality was noticed ; it is kept at
-    # domain level because the command it fires belongs elsewhere.
     policy "ReviewOnFreeze" do
       on      "Account.AccountFrozen"
       trigger "Compliance.OpenReview"
@@ -342,24 +282,11 @@ Hecks.bluebook "Banking" do
     end
   end
 
-  # ============================================================
-  # TRANSFER — the thing that can fail halfway
-  # ============================================================
   aggregate "Transfer" do
     description "Money leaving one account for another. Two movements that must both happen, or neither."
 
-    # Cents, like the account it moves between. A transfer whose amount is a
-    # Money while the account's balance is an Integer is two currencies of one
-    # currency — and the runtime would refuse the scalar the caller sends,
-    # correctly, forever.
     attribute :amount,    Integer, default: 0
     attribute :narrative, Narrative
-    # The two ends of the movement, by account id. A transfer that does not
-    # say WHERE FROM and WHERE TO is not a transfer — Settlement was declared
-    # against a Transfer that named neither, so its Debit and Credit legs had
-    # nothing to say and the saga could never have moved money even if the
-    # runtime had run it. (`reference_to Account` twice needs an as: the DSL
-    # does not have yet ; two plain ids carry the meaning until it does.)
     attribute :source,      String
     attribute :destination, String
 
@@ -437,12 +364,7 @@ Hecks.bluebook "Banking" do
     end
   end
 
-  # ============================================================
-  # THE REACTIONS
-  # ============================================================
 
-  # Domain-level because neither aggregate owns the rule : the event belongs to
-  # Customer and the command belongs to Account.
   policy "FreezeAccountsOnSuspension" do
     on      "CustomerSuspended"
     trigger "Account.Freeze"
@@ -454,26 +376,6 @@ Hecks.bluebook "Banking" do
     across  "Notifications"
   end
 
-  # A transfer is the case a policy cannot express : it takes several steps, it
-  # can be half-done, and something has to REMEMBER which half. Correlated by
-  # the transfer, remembering the payload it started with (source, destination,
-  # amount), moving through states it declares up front.
-  #
-  # HOW CORRELATION RIDES : a saga dispatch may carry keys beyond the command's
-  # declared attributes (Debit takes no :transfer), and an event's payload
-  # echoes every argument its dispatch received — so the transfer id threads
-  # Debit → AccountDebited → the next handler, and a MANUAL debit, carrying no
-  # transfer, is invisible to the saga. `with:` symbols read the triggering
-  # event's payload first and the remembered opening payload second, which is
-  # how the credit leg knows the destination the debit event never carried.
-  #
-  # THE COMPENSATING LEG rides TransferReversed, not AccountFrozen — a freeze
-  # names an account and cannot carry the transfer, so no conversation could
-  # ever correlate it. When the credit leg is REFUSED (destination frozen
-  # between the two movements), the refusal is on the saga log, the transfer
-  # sits in InFlight — "the list that must always empty" — and the back office
-  # dispatches Transfer.Reverse ; the saga hears TransferReversed and puts the
-  # money back where it took it from.
   process_manager "Settlement" do
     correlates_by :transfer
     starts_on "TransferRequested"
@@ -484,8 +386,6 @@ Hecks.bluebook "Banking" do
     state "settled"
     state "reversed"
 
-    # The first leg : the money leaves the source. The transfer id and the
-    # destination ride the dispatch so the debit's event can carry them on.
     on "TransferRequested", transition: { "requested" => "requested" } do
       dispatch "Banking::Account.Debit", with: { id: :source, amount: :amount, narrative: "transfer out", transfer: :transfer, destination: :destination }
     end
@@ -499,9 +399,6 @@ Hecks.bluebook "Banking" do
       dispatch "Banking::Transfer.Settle", with: { transfer: :transfer }
     end
 
-    # The money goes back where it came from. TransferReversed's payload is
-    # the transfer reference ; source and amount come from the remembered
-    # opening payload.
     on "TransferReversed", transition: { "awaiting_credit" => "reversed" } do
       dispatch "Banking::Account.Credit", with: { id: :source, amount: :amount, narrative: "transfer reversed" }
     end

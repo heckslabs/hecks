@@ -1,7 +1,4 @@
-//! Hecksagon parser helpers — tiny pure functions pulled out of the
-//! main parser so each file stays under the 200-line code budget.
 
-/// The first quoted string in a line (`"foo"` → `foo`).
 pub fn between_quotes(s: &str) -> Option<String> {
     let start = s.find('"')?;
     let tail = &s[start + 1..];
@@ -9,25 +6,12 @@ pub fn between_quotes(s: &str) -> Option<String> {
     Some(tail[..end].to_string())
 }
 
-/// Drop surrounding double quotes if both present.
 pub fn strip_quotes(s: &str) -> String {
     let t = s.trim();
     if t.starts_with('"') && t.ends_with('"') && t.len() >= 2 { t[1..t.len() - 1].to_string() }
     else { t.to_string() }
 }
 
-/// Strip outer quotes AND interpret Ruby-style escape sequences inside
-/// the string body. Ruby's double-quoted strings unescape `\n`, `\t`,
-/// `\\`, `\"`, `\r`, `\0` to their byte values ; `strip_quotes` alone
-/// preserves them as literal backslash sequences, which produces the
-/// Ruby-vs-Rust parity drift we hit in :llm adapter prompt templates
-/// (Ruby canonical_ir emits one-level JSON-escaped `\\n` while Rust
-/// emits double-escaped `\\\\n` because the backslash was kept
-/// literal).
-///
-/// Use this for any source field that's typed as a Ruby string
-/// literal — :llm prompt_template is the canonical case ; long
-/// description strings on commands / aggregates qualify too.
 pub fn strip_quotes_unescape(s: &str) -> String {
     let inner = strip_quotes(s);
     let mut out = String::with_capacity(inner.len());
@@ -45,8 +29,6 @@ pub fn strip_quotes_unescape(s: &str) -> String {
             Some('\\') => out.push('\\'),
             Some('"')  => out.push('"'),
             Some('\'') => out.push('\''),
-            // Unknown escape — preserve verbatim so we don't silently
-            // mutate strings the parser doesn't yet model.
             Some(other) => { out.push('\\'); out.push(other); }
             None => out.push('\\'),
         }
@@ -54,12 +36,10 @@ pub fn strip_quotes_unescape(s: &str) -> String {
     out
 }
 
-/// Drop leading `:` and trailing commas from a `:symbol` token.
 pub fn strip_symbol(s: &str) -> String {
     s.trim().trim_start_matches(':').trim_end_matches(',').trim().to_string()
 }
 
-/// Return (first_symbol, rest). Handles `:shell, name: :foo, ...`.
 pub fn split_first_symbol(s: &str) -> (String, &str) {
     let t = s.trim_start();
     if !t.starts_with(':') { return (String::new(), t); }
@@ -71,8 +51,6 @@ pub fn split_first_symbol(s: &str) -> (String, &str) {
     (kind, after)
 }
 
-/// `a, b, c` → `[a, b, c]` — commas inside brackets/parens/quotes do
-/// not split.
 pub fn split_top_level_commas(s: &str) -> Vec<String> {
     let mut out = Vec::new();
     let mut depth = 0i32;
@@ -95,8 +73,6 @@ pub fn split_top_level_commas(s: &str) -> Vec<String> {
     out
 }
 
-/// First `:` that separates a key from a value at the top level —
-/// skipping `:symbol` tokens where the colon starts an identifier.
 pub fn find_top_level_colon(s: &str) -> Option<usize> {
     let chars: Vec<char> = s.chars().collect();
     let mut depth = 0i32;
@@ -120,7 +96,6 @@ pub fn find_top_level_colon(s: &str) -> Option<usize> {
     None
 }
 
-/// Parse `key: value` pairs from a comma-separated options tail.
 pub fn parse_options(s: &str) -> Vec<(String, String)> {
     let mut out: Vec<(String, String)> = Vec::new();
     for tok in split_top_level_commas(s) {
@@ -135,7 +110,6 @@ pub fn parse_options(s: &str) -> Vec<(String, String)> {
     out
 }
 
-/// Parse `["a", "b"]` → `vec!["a", "b"]`.
 pub fn parse_string_array(s: &str) -> Vec<String> {
     let t = s.trim().trim_start_matches('[').trim_end_matches(']').trim_end_matches(',');
     let mut out = Vec::new();
@@ -146,8 +120,6 @@ pub fn parse_string_array(s: &str) -> Vec<String> {
     out
 }
 
-/// Parse `{ "K" => "v", "K2" => "v2" }` → vec of pairs. Supports hash-
-/// rocket and colon forms.
 pub fn parse_hash_pairs(s: &str) -> Vec<(String, String)> {
     let t = s.trim().trim_start_matches('{').trim_end_matches('}');
     let mut out = Vec::new();
@@ -166,7 +138,6 @@ pub fn parse_hash_pairs(s: &str) -> Vec<(String, String)> {
     out
 }
 
-/// Pick out `on :EventName` tokens from a joined adapter body.
 pub fn extract_on_events(s: &str) -> Vec<String> {
     let mut out = Vec::new();
     let mut idx = 0;

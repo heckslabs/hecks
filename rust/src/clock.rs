@@ -1,27 +1,7 @@
-//! Clock — the single wall-clock seam.
-//!
-//! The one place the system reads "now". Pinnable via `HECKS_NOW=<unix-secs>`
-//! for deterministic fixtures / goldens / parity (mirrors HECKS_RAND_SEED).
-//! wasm-safe : the CF Worker has no `SystemTime`, so the wasm path routes
-//! through `worker::Date::now()`. Extracted out of `heki.rs` (i-clock-port) so
-//! persistence and time are no longer the same junk drawer — the clock sits
-//! BELOW storage, not inside it, and nothing reaches a module called `heki`
-//! merely to ask the time.
-//!
-//! Usage:
-//!   let secs = clock::now_duration().as_secs();
-//!   let ts   = clock::now_iso();              // "2026-06-10T15:00:00Z"
-//!   let age  = clock::seconds_since_iso(&ts);
 
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::SystemTime;
 
-/// Current wall-clock as a Duration since the Unix epoch — the one place
-/// "now" is read. `HECKS_NOW=<unix-epoch-seconds>` pins it so any now-bearing
-/// dispatch in a fixture / golden / parity run stays byte-stable. Every ISO
-/// formatter (now_iso, now_iso8601_internal, the `{now}` token resolver)
-/// routes through here, so a single env var freezes them all. Non-numeric /
-/// unset = live clock.
 pub fn now_duration() -> std::time::Duration {
     if let Ok(pin) = std::env::var("HECKS_NOW") {
         if let Ok(secs) = pin.trim().parse::<u64>() {
@@ -36,14 +16,11 @@ pub fn now_duration() -> std::time::Duration {
     }
     #[cfg(target_arch = "wasm32")]
     {
-        // worker::Date::now().as_millis() returns u64 milliseconds since the
-        // JS epoch (1970-01-01 UTC) inside the Worker runtime.
         let ms = worker::Date::now().as_millis();
         std::time::Duration::from_millis(ms)
     }
 }
 
-/// ISO 8601 timestamp without external dependencies.
 pub fn now_iso8601_internal() -> String {
     let dur = now_duration();
     let secs = dur.as_secs();
@@ -54,7 +31,6 @@ pub fn now_iso8601_internal() -> String {
     let mins = (day_secs % 3600) / 60;
     let s = day_secs % 60;
 
-    // Civil date from days since 1970-01-01 (Euclidean affine algorithm)
     days += 719468;
     let era = if days >= 0 { days } else { days - 146096 } / 146097;
     let doe = (days - era * 146097) as u32;
@@ -69,12 +45,10 @@ pub fn now_iso8601_internal() -> String {
     format!("{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z", y, m, d, hours, mins, s)
 }
 
-/// Public alias for now_iso8601_internal.
 pub fn now_iso() -> String {
     now_iso8601_internal()
 }
 
-/// Seconds elapsed since an ISO 8601 timestamp.
 pub fn seconds_since_iso(ts: &str) -> f64 {
     let now = now_duration().as_secs_f64();
     let epoch = parse_iso_to_epoch(ts);
