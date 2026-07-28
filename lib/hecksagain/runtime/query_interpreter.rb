@@ -63,13 +63,7 @@ module Hecksagain
       end
 
       def element_where_holds?(clause, element, args)
-        held = element[clause.field.to_sym]
-        want = resolve_query_value(clause.value, args)
-
-        case clause.op.to_s
-        when "lt" then held.is_a?(Numeric) && want.is_a?(Numeric) && held < want
-        else           held == want
-        end
+        holds?(clause, element[clause.field.to_sym], args)
       end
 
       def ordered_elements(rows, order_by)
@@ -81,11 +75,19 @@ module Hecksagain
         order_by.direction.to_s == "desc" ? sorted.reverse : sorted
       end
 
+      def where_holds?(clause, record, args)
+        holds?(clause, record[clause.field], args)
+      end
+
       # eq and lt are the whole vocabulary the DSL admits today. A clause
       # value is a literal, or a :symbol naming one of the query's own
       # attributes, resolved from the caller.
-      def where_holds?(clause, record, args)
-        held = record[clause.field]
+      #
+      # A record reads its field by name and an element by symbol, which is the
+      # ONLY difference between the two — so the comparison itself is written
+      # once. `lt` demands both sides be numbers rather than coercing, for the
+      # same reason arithmetic does : a silent comparison is worse than none.
+      def holds?(clause, held, args)
         want = resolve_query_value(clause.value, args)
 
         case clause.op.to_s
