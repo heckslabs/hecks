@@ -62,22 +62,11 @@ pub struct Runtime {
 /// Mirrors Ruby's MAX_REACTION_DEPTH.
 const MAX_REACTION_DEPTH: usize = 5;
 
-/// "LedgerEntry" → "ledger_entry" — the reference-key spelling used by
-/// correlation fallback, hydrate, and entity-query parent keys alike.
-fn snake_case(name: &str) -> String {
-    let mut key = String::new();
-    for (i, c) in name.chars().enumerate() {
-        if c.is_ascii_uppercase() {
-            if i > 0 {
-                key.push('_');
-            }
-            key.push(c.to_ascii_lowercase());
-        } else {
-            key.push(c);
-        }
-    }
-    key
-}
+// The reference-key spelling used by correlation fallback, hydrate, and
+// entity-query parent keys alike lives in `crate::naming::reference_key`. It
+// was declared here once and then open-coded twice MORE in this same file —
+// the doc comment claimed all three call sites shared it, and none of them
+// did. All three now call the one function.
 
 /// A query-clause value : ":symbol" reads the caller's argument of that
 /// name ; anything else is the literal itself. The counterpart of Ruby's
@@ -499,7 +488,7 @@ impl Runtime {
             .and_then(|a| a.get("name").and_then(Value::as_str).map(str::to_string))
             .ok_or_else(|| format!("{} holds no list of {}", aggregate_name, entity_name))?;
 
-        let parent_key = snake_case(aggregate_name);
+        let parent_key = crate::naming::reference_key(aggregate_name);
         let mut rows: Vec<Value> = Vec::new();
         for (parent_id, state) in self.all_records(domain, aggregate_name, aggregate) {
             for element in state.get(&list_attr).and_then(Value::as_array).cloned().unwrap_or_default() {
@@ -694,7 +683,7 @@ impl Runtime {
                 .map(str::to_string)
                 .unwrap_or_else(|| {
                     self.minted += 1;
-                    format!("{}-{}", storage_name(&aggregate_name), self.minted)
+                    format!("{}-{}", crate::naming::snake(&aggregate_name), self.minted)
                 });
             return Ok((id, defaults_for(aggregate)));
         }
@@ -709,20 +698,7 @@ impl Runtime {
         let reference_key = command
             .get("references")
             .and_then(Value::as_str)
-            .map(|target| {
-                let mut key = String::new();
-                for (i, c) in target.chars().enumerate() {
-                    if c.is_ascii_uppercase() {
-                        if i > 0 {
-                            key.push('_');
-                        }
-                        key.push(c.to_ascii_lowercase());
-                    } else {
-                        key.push(c);
-                    }
-                }
-                key
-            })
+            .map(crate::naming::reference_key)
             .unwrap_or_default();
         let id = args
             .get(identity)
@@ -855,22 +831,15 @@ impl Runtime {
             }
         }
 
-        let emitting = event
+        // Whether the event's correlation field names its OWN emitter. The
+        // counterpart of Ruby's `Naming.reference_key(event.aggregate)` — one
+        // call doing the demodulise and the snake together, because they are
+        // one question.
+        let own_key = event
             .get("aggregate")
             .and_then(Value::as_str)
-            .and_then(|fqn| fqn.rsplit("::").next())
+            .map(crate::naming::reference_key)
             .unwrap_or_default();
-        let mut own_key = String::new();
-        for (i, c) in emitting.chars().enumerate() {
-            if c.is_ascii_uppercase() {
-                if i > 0 {
-                    own_key.push('_');
-                }
-                own_key.push(c.to_ascii_lowercase());
-            } else {
-                own_key.push(c);
-            }
-        }
         if own_key != field {
             return None;
         }
@@ -1099,7 +1068,7 @@ impl Runtime {
         let emitting = event
             .get("aggregate")
             .and_then(Value::as_str)
-            .and_then(|fqn| fqn.rsplit("::").next())
+            .map(crate::naming::demodulise)
             .unwrap_or_default();
 
         let Some(policies) = self
@@ -1195,13 +1164,6 @@ pub fn array(node: &Map<String, Value>, key: &str) -> Vec<Value> {
         .unwrap_or_default()
 }
 
-pub fn storage_name(name: &str) -> String {
-    let mut out = String::new();
-    for (index, character) in name.char_indices() {
-        if character.is_uppercase() && index > 0 {
-            out.push('_');
-        }
-        out.extend(character.to_lowercase());
-    }
-    out
-}
+// `storage_name` lived here as a third spelling of the same rule — identical
+// in behaviour to `util::snake_case`, written differently, and disagreeing
+// with the parser about acronyms. Use `crate::naming::snake`.

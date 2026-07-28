@@ -17,16 +17,13 @@ use std::fs;
 #[cfg(not(target_arch = "wasm32"))]
 use std::io::Read as IoRead;
 
-/// Convert PascalCase / camelCase to snake_case for filesystem-friendly
-/// path segments. "MietteBody" → "miette_body" ; "mood" → "mood".
-pub fn snake_case(s: &str) -> String {
-    let mut out = String::new();
-    for (i, c) in s.chars().enumerate() {
-        if c.is_uppercase() && i > 0 { out.push('_'); }
-        out.push(c.to_lowercase().next().unwrap_or(c));
-    }
-    out
-}
+// `snake_case` lived here until it turned out to be one of SEVEN spellings of
+// the same rule, under three different semantics. It was the naive one — an
+// underscore before every capital, so `ATMCard` came out `a_t_m_card` while
+// the parser and Ruby both said `atm_card`, and an aggregate was therefore
+// stored at one path and addressed at another. The rule now lives in
+// `crate::naming`, which is a DOMAIN concern and not a utility one: see
+// naming.rs.
 
 /// Generate a UUID v4 (random) without external dependencies.
 pub fn uuid_v4() -> String {
@@ -79,13 +76,11 @@ pub fn uuid_v4() -> String {
 mod tests {
     use super::*;
 
-    #[test]
-    fn snake_case_handles_pascal_camel_and_lower() {
-        assert_eq!(snake_case("Mood"),       "mood");
-        assert_eq!(snake_case("MietteBody"), "miette_body");
-        assert_eq!(snake_case("mood"),       "mood");
-        assert_eq!(snake_case("ABCD"),       "a_b_c_d");
-    }
+    // The snake_case tests moved to naming.rs with the rule. One of them —
+    // `assert_eq!(snake_case("ABCD"), "a_b_c_d")` — was PINNING the divergence
+    // as though it were intended behaviour, which is how the disagreement with
+    // Ruby survived a green suite for as long as it did. It is not carried
+    // over: Ruby answers "abcd", and Ruby holds the semantics.
 
     #[test]
     fn uuid_v4_is_well_formed() {

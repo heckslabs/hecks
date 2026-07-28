@@ -44,6 +44,10 @@ pub mod runtime;
 
 #[allow(dead_code)]
 pub mod clock;
+// The naming rule, at the kernel floor beside clock and util because every
+// layer above needs it — the parser to name an attribute, the runtime to key a
+// reference, the adapters to name a file and a table. One rule, one module.
+pub mod naming;
 #[allow(dead_code)]
 pub mod util;
 

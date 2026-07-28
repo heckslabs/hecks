@@ -179,12 +179,12 @@ pub fn parse_command(lines: &[&str]) -> (Command, usize) {
                     // the IR ambiguous.
                     let name = if let Some(pos) = line.find(", as:") {
                         let after = &line[pos + ", as:".len()..];
-                        extract_symbol(after).unwrap_or_else(|| to_snake_case(&target))
+                        extract_symbol(after).unwrap_or_else(|| crate::naming::snake(&target))
                     } else if let Some(pos) = line.find(", role:") {
                         let after = &line[pos + ", role:".len()..];
-                        extract_symbol(after).unwrap_or_else(|| to_snake_case(&target))
+                        extract_symbol(after).unwrap_or_else(|| crate::naming::snake(&target))
                     } else {
-                        to_snake_case(&target)
+                        crate::naming::snake(&target)
                     };
                     // Reference::single defaults to LegacyReferenceTo + single
                     // cardinality ; cardinality + kind ride into the IR via
@@ -354,7 +354,7 @@ fn parse_inline_command(line: &str, cmd: &mut Command) {
                 if let Some(attr) = parse_attribute(part) { cmd.attributes.push(attr); }
             } else if part.starts_with("reference_to") {
                 if let Some(target) = extract_word_after(part, "reference_to") {
-                    let snake = to_snake_case(&target);
+                    let snake = crate::naming::snake(&target);
                     // Reference gained `cardinality` + `kind` for the
                     // Sprint 7 relationship DSL ; the inline command
                     // path constructs via Reference::single (LegacyReferenceTo
@@ -1184,7 +1184,7 @@ pub fn parse_attribute(line: &str) -> Option<Attribute> {
     //        attribute Role, as: :role      → name = "role" (explicit alias)
     //      Here the first part has no leading `:` ; the VO name is the
     //      type, and the alias either falls out of `as: :alias` in
-    //      parts[1] or defaults to to_snake_case(VO).
+    //      parts[1] or defaults to crate::naming::snake(VO).
     //
     // i479 — without the bare-VO branch, the parser silently drops
     // every `attribute Role, as: :role` line, so any `then_set :role`
@@ -1197,7 +1197,7 @@ pub fn parse_attribute(line: &str) -> Option<Attribute> {
         let alias = parts.get(1)
             .and_then(|p| p.find("as:").map(|pos| &p[pos + "as:".len()..]))
             .and_then(extract_symbol)
-            .unwrap_or_else(|| to_snake_case(&vo_name));
+            .unwrap_or_else(|| crate::naming::snake(&vo_name));
         (alias, Some(vo_name))
     };
 

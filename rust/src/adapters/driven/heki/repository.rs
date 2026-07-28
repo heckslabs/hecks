@@ -39,7 +39,7 @@ impl HekiRepository {
         dir: &str,
         identified_by: Option<String>,
     ) -> Result<Self, String> {
-        let path = format!("{}/{}.heki", dir.trim_end_matches('/'), storage_name(aggregate));
+        let path = format!("{}/{}.heki", dir.trim_end_matches('/'), crate::naming::snake(aggregate));
 
         if let Some(parent) = std::path::Path::new(&path).parent() {
             std::fs::create_dir_all(parent).map_err(|e| format!("cannot create {:?}: {}", parent, e))?;
@@ -77,18 +77,11 @@ impl HekiRepository {
     }
 }
 
-/// PascalCase to snake_case — the same rule that turns an aggregate into a
-/// table name, so Sqlite and Heki agree about what a thing is called.
-fn storage_name(name: &str) -> String {
-    let mut out = String::new();
-    for (index, character) in name.chars().enumerate() {
-        if character.is_uppercase() && index > 0 {
-            out.push('_');
-        }
-        out.extend(character.to_lowercase());
-    }
-    out
-}
+// The rule that turns an aggregate into a file name is the same rule that
+// turns it into a table name — so it is ONE function, `crate::naming::snake`,
+// and not a private copy here. The copy that used to live here said it existed
+// "so Sqlite and Heki agree about what a thing is called", while quietly
+// disagreeing with both the parser and Ruby about acronyms.
 
 impl PersistenceAdapter for HekiRepository {
     fn find(&self, id: &str) -> Option<&AggregateState> {

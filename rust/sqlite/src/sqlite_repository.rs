@@ -77,7 +77,7 @@ impl SqliteRepository {
             let _ = std::fs::create_dir_all(parent);
         }
         let conn = Connection::open(db_path)?;
-        let table = storehouse::util::snake_case(aggregate_type);
+        let table = storehouse::naming::snake(aggregate_type);
         let col_names: Vec<String> = columns.iter().map(|(n, _)| n.clone()).collect();
         let numeric_columns: Vec<String> = columns.iter()
             .filter(|(_, ty)| ty.to_uppercase().starts_with("INTEGER"))

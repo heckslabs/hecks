@@ -540,12 +540,12 @@ fn absorb_reference_to(line: &str, agg: &mut Aggregate) {
     } else if let Some(target) = extract_word_after(line, "reference_to") {
         let name = if let Some(pos) = line.find(", as:") {
             let after = &line[pos + ", as:".len()..];
-            extract_symbol(after).unwrap_or_else(|| to_snake_case(&target))
+            extract_symbol(after).unwrap_or_else(|| crate::naming::snake(&target))
         } else if let Some(pos) = line.find(", role:") {
             let after = &line[pos + ", role:".len()..];
-            extract_symbol(after).unwrap_or_else(|| to_snake_case(&target))
+            extract_symbol(after).unwrap_or_else(|| crate::naming::snake(&target))
         } else {
-            to_snake_case(&target)
+            crate::naming::snake(&target)
         };
         // Reference::single defaults to LegacyReferenceTo + single
         // cardinality ; cardinality + kind ride into the IR via the
@@ -617,7 +617,7 @@ fn absorb_has_many(line: &str, agg: &mut Aggregate) {
         let (split_domain, plural) = split_qualified_type(&token);
         let domain = parse_from_context(line).or(split_domain);
         let target = singularize(&plural);
-        let name = parse_as_alias(line).unwrap_or_else(|| to_snake_case(&plural));
+        let name = parse_as_alias(line).unwrap_or_else(|| crate::naming::snake(&plural));
         agg.references.push(Reference::many(name, target, domain));
     }
 }
@@ -629,7 +629,7 @@ fn absorb_has_one(line: &str, agg: &mut Aggregate) {
     if let Some(token) = extract_word_after(line, "has_one") {
         let (split_domain, target) = split_qualified_type(&token);
         let domain = parse_from_context(line).or(split_domain);
-        let name = parse_as_alias(line).unwrap_or_else(|| to_snake_case(&target));
+        let name = parse_as_alias(line).unwrap_or_else(|| crate::naming::snake(&target));
         agg.references.push(Reference::has_one(name.clone(), target.clone(), domain));
         // references-not-ids : synthesise a stored FK attribute (the target
         // aggregate name, not a primitive) at declaration order, if absent.
@@ -654,7 +654,7 @@ fn absorb_belongs_to(line: &str, agg: &mut Aggregate) {
     if let Some(token) = extract_word_after(line, "belongs_to") {
         let (split_domain, target) = split_qualified_type(&token);
         let domain = parse_from_context(line).or(split_domain);
-        let name = parse_as_alias(line).unwrap_or_else(|| to_snake_case(&target));
+        let name = parse_as_alias(line).unwrap_or_else(|| crate::naming::snake(&target));
         agg.references.push(Reference::belongs_to(name.clone(), target.clone(), domain));
         // references-not-ids : synthesise a stored FK attribute (the target
         // aggregate name, not a primitive) at declaration order, if absent.

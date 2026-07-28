@@ -413,10 +413,10 @@ pub fn store_path(dir: &str, name: &str) -> String {
 ///
 /// Used by Repository::heki_path_self.
 pub fn path_for(dir: &str, aggregate: &str, context: Option<&str>) -> String {
-    let agg_snake = crate::util::snake_case(aggregate);
+    let agg_snake = crate::naming::snake(aggregate);
     match context {
         Some(ctx) if !ctx.is_empty() => {
-            let ctx_snake = crate::util::snake_case(ctx);
+            let ctx_snake = crate::naming::snake(ctx);
             format!("{}/{}/{}.heki", dir, ctx_snake, agg_snake)
         }
         _ => format!("{}/{}.heki", dir, agg_snake),
@@ -862,7 +862,7 @@ pub fn resolve_realm_dir(aggregates_path: &str) -> Option<String> {
                 Some(d) => d, None => continue,
             };
             let root = Path::new(&expand_tilde(dir_value))
-                .join(crate::util::snake_case(realm));
+                .join(crate::naming::snake(realm));
             std::fs::create_dir_all(&root).ok()?;
             return Some(root.to_string_lossy().into_owned());
         }
@@ -1090,9 +1090,9 @@ pub fn fqn_realm_context(command_name: &str) -> (Option<String>, Option<String>)
     if n < 3 {
         return (None, None);
     }
-    let realm = Some(crate::parser_helpers::to_snake_case(segs[0]));
+    let realm = Some(crate::naming::snake(segs[0]));
     let context = if n >= 4 {
-        Some(segs[1..n - 2].iter().map(|s| crate::parser_helpers::to_snake_case(s)).collect::<Vec<_>>().join("/"))
+        Some(segs[1..n - 2].iter().map(|s| crate::naming::snake(s)).collect::<Vec<_>>().join("/"))
     } else {
         None
     };

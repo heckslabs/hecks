@@ -17,9 +17,12 @@
 use std::path::PathBuf;
 
 fn fixture() -> String {
+    // ONE parent : this crate is at <repo>/rust. It was <repo>/projection/rust
+    // until the folder stopped claiming to be a projection, and this walk went
+    // up two — which silently resolved ABOVE the repo and failed on a missing
+    // fixture rather than on anything to do with the format.
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()
-        .and_then(|p| p.parent())
         .expect("repo root above rust/")
         .join("spec/parity/fixtures/ruby_written.heki");
 
