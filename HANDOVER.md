@@ -14,10 +14,17 @@ by a parity suite. Every drift retired there was a disagreement between those
 two authors. Here, **both runtimes are still hand-written — but Ruby holds the
 semantics.** When they disagree, Ruby is right and Rust is the bug.
 
-Do not call Rust a projection. It is not generated from anything, and saying so
-hides real divergence (the Rust parser has `has_many` / `has_one` / `belongs_to`
-/ `singularize`, none of which exist in the Ruby DSL). Parity is a claim about
-OUTPUT: same source file in, same answers out.
+Do not call Rust a projection. Nothing generates it — it is hand-written, and
+saying otherwise claims agreement BY CONSTRUCTION where what we actually have is
+agreement BY CHECKING. Parity is a claim about OUTPUT: same source file in, same
+answers out, as far as the corpus reaches.
+
+When reading the Rust, note it was cherry-picked from Hecks ahead of the Ruby
+here, so it can carry vocabulary this Ruby has not grown yet — `has_many` /
+`has_one` / `belongs_to` / `singularize` are in Hecks's Ruby DSL
+(`ruby/hecks/dsl/aggregate_builder.rb`) and in the Rust, but not in
+`lib/hecksagain/`. Unported, not drifted. Until the Ruby lands them, a bluebook
+using one parses on the Rust side only.
 
 ## Standing rules — these are not negotiable
 

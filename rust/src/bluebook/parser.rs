@@ -554,7 +554,14 @@ fn absorb_reference_to(line: &str, agg: &mut Aggregate) {
     }
 }
 
-/// Simple English singularization mirroring the Ruby DSL `singularize` :
+/// Simple English singularization mirroring HECKS's Ruby DSL `singularize`
+/// (`ruby/hecks/dsl/aggregate_builder.rb`) — NOT `lib/hecksagain/`, which has
+/// no such method. This arm and its `has_many` / `has_one` / `belongs_to`
+/// callers were cherry-picked from Hecks ahead of the Ruby here, so the
+/// vocabulary is UNPORTED rather than drifted. Until hecksagain's DSL grows it,
+/// a bluebook saying `has_many Xs` parses on this side and raises on the other,
+/// so nothing in examples/ may use it.
+///
 /// `ies` -> `y` (len > 3) ; a trailing `s` is dropped (len > 1) ; otherwise
 /// unchanged. Used by `has_many Xs` so the collection target aggregate is the
 /// singular (Stories -> Story) while the attribute name stays the snake_case

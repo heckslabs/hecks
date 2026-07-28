@@ -29,11 +29,24 @@ for inspection and diffing ; Ruby is never generated from it, and neither is
 Rust.
 
 > **A note on the word "projection."** An earlier framing called Rust a
-> projection of Ruby. It never was one, and the code says so plainly: the Rust
-> parser carries a whole relationship vocabulary (`has_many`, `has_one`,
-> `belongs_to`, `singularize`) that has no counterpart in the Ruby DSL. A
-> projection cannot have features its source lacks. Calling it one hid real
-> divergence behind a word.
+> projection of Ruby, with the interpreter as the one exception. It is not one:
+> nothing here generates the Rust parser, and no step in any build produces it.
+> It is written by hand, like the Ruby, and the two are kept together by
+> `bin/parity` comparing what they DO.
+>
+> The word mattered because it described the wrong kind of safety. "Projection"
+> promises agreement BY CONSTRUCTION — one author, so nothing to drift. What
+> actually holds here is agreement BY CHECKING, which is a weaker promise and a
+> real one, and which is only as wide as the corpus. Every divergence this
+> project has found — `dims.length_cm`, the acronym snake rule, an aggregate
+> named `Order` — hid in exactly the gap between those two claims.
+>
+> A related thing to know when reading this tree: parts of the Rust side were
+> cherry-picked from Hecks ahead of the Ruby here, so it can carry vocabulary
+> the Ruby has not yet grown. `has_many` / `has_one` / `belongs_to` are the
+> current example — the Rust parser reads them, Hecks's Ruby DSL has them, and
+> hecksagain's Ruby does not yet. Those are unported features, not drift, but
+> until the Ruby lands them a bluebook using one parses on one side only.
 
 ## Try it
 
