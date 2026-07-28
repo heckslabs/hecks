@@ -1,3 +1,5 @@
+require "json"
+
 module Hecksagain
   module Bluebook
     module Expression
@@ -139,7 +141,11 @@ module Hecksagain
         end
 
         def describe(value)
-          value.nil? ? "nil" : value.inspect
+          case value
+          when nil then "nil"
+          when Hash, Array then JSON.generate(value)
+          else value.inspect
+          end
         end
       end
     end

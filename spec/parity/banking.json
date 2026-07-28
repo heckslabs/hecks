@@ -1,6 +1,6 @@
 {
   "name": "banking-parity",
-  "note": "Every operation the domain declares, walked to an EXACT ledger. Commands happy and refused (each debit gate one at a time, each lifecycle wall, each payload shape) ; the Settlement saga end to end - request, debit leg, credit leg, settle, retire - and its compensating leg : destination frozen mid-flight, credit refused ON THE SAGA LOG, back office reverses off the InFlight queue, money back where it started. Running balances are arithmetic all the way down : acct-1 ends at 60000 (the 1000 came back), acct-2 at 0 and closed, and any runtime that disagrees by one cent is the bug this file exists to catch. The last steps pass a non-numeric amount and a scalar where a two-field value object is declared, so the comparison proves the two runtimes word an EVALUATION failure identically, not just a rule failure. Reads ride the same steps : InFlight shows the stuck transfer mid-story and empties by the end ; the compliance queue fills and drains ; Overdrawn takes its floor from the caller. The ledger itself is addressable : entry 2 is reversed once (twice refuses — the entity has its own machine), and the Reversed audit query answers it with its account. Every command runs : a transfer out of the closed account fails its first leg and is Rejected from \"requested\", and the relationship itself Closes last. The closed set has teeth : a gold account and an email that routes nowhere are both refused at construction, worded to the character. The ledger corrects itself too : entry 1 is amended by 500 (element arithmetic, the one path the Integer-or-nothing rule was never driven on), a non-Integer adjustment is refused in those words, and amending the reversed entry 2 is refused by the entity's own machine.",
+  "note": "Every operation the domain declares, walked to an EXACT ledger. Commands happy and refused (each debit gate one at a time, each lifecycle wall, each payload shape) ; the Settlement saga end to end - request, debit leg, credit leg, settle, retire - and its compensating leg : destination frozen mid-flight, credit refused ON THE SAGA LOG, back office reverses off the InFlight queue, money back where it started. Running balances are arithmetic all the way down : acct-1 ends at 60000 (the 1000 came back), acct-2 at 0 and closed, and any runtime that disagrees by one cent is the bug this file exists to catch. The last steps pass a non-numeric amount and a scalar where a two-field value object is declared, so the comparison proves the two runtimes word an EVALUATION failure identically, not just a rule failure. Reads ride the same steps : InFlight shows the stuck transfer mid-story and empties by the end ; the compliance queue fills and drains ; Overdrawn takes its floor from the caller. The ledger itself is addressable : entry 2 is reversed once (twice refuses — the entity has its own machine), and the Reversed audit query answers it with its account. Every command runs : a transfer out of the closed account fails its first leg and is Rejected from \"requested\", and the relationship itself Closes last. The closed set has teeth : a gold account and an email that routes nowhere are both refused at construction, worded to the character. The ledger corrects itself too : entry 1 is amended by 500 (element arithmetic, the one path the Integer-or-nothing rule was never driven on), a non-Integer adjustment is refused in those words, and amending the reversed entry 2 is refused by the entity's own machine. Then the adversarial half, sixty-nine steps that go looking for the places where agreement is cheap. Every invariant the domain declares is driven to its failing side : a name with no given part, a name with no family part, a transfer that explains nothing. Every gate that was only ever satisfied is refused at least once : a suspension that says why, a transfer that names its source, a transfer that goes somewhere. The arithmetic is walked to its boundaries rather than past them, so a debit of exactly the balance and exactly the limit is allowed and one more is refused, and every amount is also passed negative, because a negative debit that slipped a positive gate would be a credit nobody asked for. The lifecycle branches nobody took are taken : an account closed FROM FROZEN, a card retired FROM ISSUED, a customer closed FROM SUSPENDED, and then the far side of each wall, unfreezing an open account, freezing a closed one, activating a retired card, rejecting a transfer that already moved. Payload shapes are wrong in every direction : a Float where an Integer is declared, a numeral wearing quotes, a value object where a scalar belongs (the inverse of the scalar-for-value-object case above), an attribute missing entirely, an attribute the command never declared, and no id at all. Reads are pushed the same way, with a floor that is not a number and a floor that was never passed. FOUR STEPS DOCUMENT HOLES RATHER THAN RULES, and they are here so the holes cannot close by accident. A ledger append does not construct its declared Narrative, so an empty narrative is stored raw and the invariant that says a movement explains itself never runs, while the same empty narrative on Transfer.Request, which sets rather than appends, IS refused : the two steps sit near each other so the difference is legible. Opening an account on an id that already exists WIPES it, and registering a reference that already exists RESURRECTS a closed customer under a new name. Amending a ledger entry by -999999 drives it to -994999, because the balance-is-never-negative invariant lives on a Money value object that no attribute uses. And xfer-4 ends SETTLED with its money still in the source account : the destination was frozen, the credit leg was refused on the saga log, and Settle was allowed from debited anyway. Every one of these reads the same in both runtimes, which is exactly the point. Parity proves the two agree ; only a step that names the wrong answer proves the answer is wrong.",
   "steps": [
     {
       "verb": "Banking::Customer.Register",
@@ -564,6 +564,530 @@
     },
     {
       "query": "Banking::ATMCard.Active"
+    },
+    {
+      "verb": "Banking::Customer.Register",
+      "args": {
+        "reference": "CUST-0002",
+        "name": {
+          "given": "Grace",
+          "family": "Hopper"
+        },
+        "email": {
+          "address": "grace@example.com"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Customer.Suspend",
+      "args": {
+        "customer": "CUST-0002",
+        "standing": ""
+      }
+    },
+    {
+      "verb": "Banking::Customer.Suspend",
+      "args": {
+        "customer": "CUST-0002",
+        "standing": "under review"
+      }
+    },
+    {
+      "verb": "Banking::Customer.Close",
+      "args": {
+        "customer": "CUST-0002"
+      }
+    },
+    {
+      "verb": "Banking::Customer.Close",
+      "args": {
+        "customer": "CUST-0002"
+      }
+    },
+    {
+      "verb": "Banking::Customer.Suspend",
+      "args": {
+        "customer": "CUST-0001",
+        "standing": "after the relationship ended"
+      }
+    },
+    {
+      "verb": "Banking::Customer.Reinstate",
+      "args": {
+        "customer": "CUST-0001"
+      }
+    },
+    {
+      "verb": "Banking::Customer.Register",
+      "args": {
+        "reference": "CUST-0003",
+        "name": {
+          "given": "",
+          "family": "Nameless"
+        },
+        "email": {
+          "address": "nameless@example.com"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Customer.Register",
+      "args": {
+        "reference": "CUST-0004",
+        "name": {
+          "given": "Only",
+          "family": ""
+        },
+        "email": {
+          "address": "only@example.com"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Customer.Register",
+      "args": {
+        "reference": "CUST-0001",
+        "name": {
+          "given": "Someone",
+          "family": "Else"
+        },
+        "email": {
+          "address": "else@example.com"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.Open",
+      "args": {
+        "id": "acct-3",
+        "customer": "CUST-0002",
+        "number": "ACC-3",
+        "kind": {
+          "name": "current"
+        },
+        "daily_limit": 1000
+      }
+    },
+    {
+      "verb": "Banking::Account.Credit",
+      "args": {
+        "id": "acct-3",
+        "amount": 1000,
+        "narrative": "Opening deposit"
+      }
+    },
+    {
+      "verb": "Banking::Account.Debit",
+      "args": {
+        "id": "acct-3",
+        "amount": 1000,
+        "narrative": "Exactly the balance and exactly the limit"
+      }
+    },
+    {
+      "verb": "Banking::Account.Debit",
+      "args": {
+        "id": "acct-3",
+        "amount": 1,
+        "narrative": "One past empty"
+      }
+    },
+    {
+      "verb": "Banking::Account.Credit",
+      "args": {
+        "id": "acct-3",
+        "amount": -5000,
+        "narrative": "A credit that takes money away"
+      }
+    },
+    {
+      "verb": "Banking::Account.Debit",
+      "args": {
+        "id": "acct-3",
+        "amount": -5000,
+        "narrative": "A debit that puts money in"
+      }
+    },
+    {
+      "verb": "Banking::Account.Credit",
+      "args": {
+        "id": "acct-3",
+        "amount": 100,
+        "narrative": ""
+      }
+    },
+    {
+      "verb": "Banking::Account.Unfreeze",
+      "args": {
+        "id": "acct-3"
+      }
+    },
+    {
+      "verb": "Banking::Account.Credit",
+      "args": {
+        "id": "acct-3",
+        "amount": 25.5,
+        "narrative": "Half of one"
+      }
+    },
+    {
+      "verb": "Banking::Account.Credit",
+      "args": {
+        "id": "acct-3",
+        "amount": "100",
+        "narrative": "A numeral wearing quotes"
+      }
+    },
+    {
+      "verb": "Banking::Account.Credit",
+      "args": {
+        "id": "acct-3",
+        "amount": {
+          "cents": 100
+        },
+        "narrative": "A value object where an Integer is declared"
+      }
+    },
+    {
+      "verb": "Banking::Account.Credit",
+      "args": {
+        "id": "acct-3",
+        "narrative": "No amount at all"
+      }
+    },
+    {
+      "verb": "Banking::Account.Credit",
+      "args": {
+        "id": "acct-3",
+        "amount": 100,
+        "narrative": "An attribute the command never declared",
+        "colour": "red"
+      }
+    },
+    {
+      "verb": "Banking::Account.Credit",
+      "args": {
+        "amount": 100,
+        "narrative": "No account named at all"
+      }
+    },
+    {
+      "verb": "Banking::Account.Open",
+      "args": {
+        "id": "acct-3",
+        "customer": "CUST-0002",
+        "number": "ACC-3-AGAIN",
+        "kind": "savings",
+        "daily_limit": 99
+      }
+    },
+    {
+      "verb": "Banking::Account.Open",
+      "args": {
+        "id": "acct-4",
+        "customer": "CUST-0002",
+        "number": "ACC-4",
+        "kind": "current",
+        "daily_limit": 100
+      }
+    },
+    {
+      "verb": "Banking::Account.Freeze",
+      "args": {
+        "id": "acct-4"
+      }
+    },
+    {
+      "verb": "Banking::Account.CloseAccount",
+      "args": {
+        "id": "acct-4"
+      }
+    },
+    {
+      "verb": "Banking::Account.Freeze",
+      "args": {
+        "id": "acct-4"
+      }
+    },
+    {
+      "verb": "Banking::Account.Open",
+      "args": {
+        "id": "acct-5",
+        "customer": "CUST-0002",
+        "number": "ACC-5",
+        "kind": "savings",
+        "daily_limit": -1
+      }
+    },
+    {
+      "verb": "Banking::Account.Credit",
+      "args": {
+        "id": "acct-5",
+        "amount": 500,
+        "narrative": "Funded, and unspendable"
+      }
+    },
+    {
+      "verb": "Banking::Account.Debit",
+      "args": {
+        "id": "acct-5",
+        "amount": 1,
+        "narrative": "A limit below every amount there is"
+      }
+    },
+    {
+      "verb": "Banking::Account.Open",
+      "args": {
+        "id": "acct-6",
+        "customer": "CUST-0002",
+        "number": "ACC-6",
+        "kind": "current",
+        "daily_limit": "lots"
+      }
+    },
+    {
+      "verb": "Banking::Account.Open",
+      "args": {
+        "id": "acct-7",
+        "customer": "CUST-0002",
+        "number": "ACC-7",
+        "kind": "current",
+        "daily_limit": 10000
+      }
+    },
+    {
+      "verb": "Banking::Account.Open",
+      "args": {
+        "id": "acct-8",
+        "customer": "CUST-0002",
+        "number": "ACC-8",
+        "kind": "current",
+        "daily_limit": 10000
+      }
+    },
+    {
+      "verb": "Banking::Account.Credit",
+      "args": {
+        "id": "acct-8",
+        "amount": 5000,
+        "narrative": "Funding the source"
+      }
+    },
+    {
+      "verb": "Banking::Transfer.Request",
+      "args": {
+        "id": "xfer-nosource",
+        "source": "",
+        "destination": "acct-7",
+        "amount": 100,
+        "narrative": "From nowhere named"
+      }
+    },
+    {
+      "verb": "Banking::Transfer.Request",
+      "args": {
+        "id": "xfer-nodest",
+        "source": "acct-8",
+        "destination": "",
+        "amount": 100,
+        "narrative": "To nowhere named"
+      }
+    },
+    {
+      "verb": "Banking::Transfer.Request",
+      "args": {
+        "id": "xfer-neg",
+        "source": "acct-8",
+        "destination": "acct-7",
+        "amount": -100,
+        "narrative": "A transfer that runs backwards"
+      }
+    },
+    {
+      "verb": "Banking::Transfer.Request",
+      "args": {
+        "id": "xfer-nonarr",
+        "source": "acct-8",
+        "destination": "acct-7",
+        "amount": 100,
+        "narrative": ""
+      }
+    },
+    {
+      "verb": "Banking::Account.Freeze",
+      "args": {
+        "id": "acct-7"
+      }
+    },
+    {
+      "verb": "Banking::Transfer.Request",
+      "args": {
+        "id": "xfer-4",
+        "source": "acct-8",
+        "destination": "acct-7",
+        "amount": 1000,
+        "narrative": "Into a frozen destination"
+      }
+    },
+    {
+      "query": "Banking::Transfer.InFlight"
+    },
+    {
+      "verb": "Banking::Transfer.Reject",
+      "args": {
+        "transfer": "xfer-4"
+      }
+    },
+    {
+      "verb": "Banking::Transfer.Debited",
+      "args": {
+        "transfer": "xfer-4"
+      }
+    },
+    {
+      "verb": "Banking::Transfer.Settle",
+      "args": {
+        "transfer": "xfer-4"
+      }
+    },
+    {
+      "query": "Banking::Transfer.InFlight"
+    },
+    {
+      "verb": "Banking::Transfer.Request",
+      "args": {
+        "id": "xfer-5",
+        "source": "acct-ghost",
+        "destination": "acct-7",
+        "amount": 100,
+        "narrative": "Out of an account that never existed"
+      }
+    },
+    {
+      "verb": "Banking::Transfer.Reverse",
+      "args": {
+        "transfer": "xfer-5"
+      }
+    },
+    {
+      "verb": "Banking::Transfer.Reject",
+      "args": {
+        "transfer": "xfer-5"
+      }
+    },
+    {
+      "verb": "Banking::ATMCard.Issue",
+      "args": {
+        "serial": "CARD-5",
+        "account": "acct-8",
+        "daily_fee": 3.25
+      }
+    },
+    {
+      "verb": "Banking::ATMCard.Retire",
+      "args": {
+        "serial": "CARD-5"
+      }
+    },
+    {
+      "verb": "Banking::ATMCard.Retire",
+      "args": {
+        "serial": "CARD-5"
+      }
+    },
+    {
+      "verb": "Banking::ATMCard.Activate",
+      "args": {
+        "serial": "CARD-5"
+      }
+    },
+    {
+      "verb": "Banking::ATMCard.Issue",
+      "args": {
+        "serial": "CARD-1",
+        "account": "acct-8",
+        "daily_fee": 9.99
+      }
+    },
+    {
+      "verb": "Banking::ATMCard.Withdraw",
+      "args": {
+        "serial": "CARD-3",
+        "cents": 500,
+        "narrative": "Cash from a card taken out of service"
+      }
+    },
+    {
+      "verb": "Banking::ATMCard.Rename",
+      "args": {
+        "serial": "CARD-3",
+        "nickname": "Renamed after retirement"
+      }
+    },
+    {
+      "verb": "Banking::ATMCard.Withdraw",
+      "args": {
+        "serial": "CARD-1",
+        "cents": -100,
+        "narrative": "A handful that puts cash back"
+      }
+    },
+    {
+      "verb": "Banking::ATMCard.Withdrawal.Dispute",
+      "args": {
+        "serial": "CARD-1",
+        "sequence": 99,
+        "narrative": "No such handful"
+      }
+    },
+    {
+      "verb": "Banking::Account.LedgerEntry.Reverse",
+      "args": {
+        "id": "acct-ghost",
+        "sequence": 1,
+        "narrative": "No such account to reverse on"
+      }
+    },
+    {
+      "verb": "Banking::Account.LedgerEntry.Amend",
+      "args": {
+        "id": "acct-8",
+        "sequence": 1,
+        "adjustment": -999999,
+        "narrative": {
+          "text": "Amended to below nothing"
+        }
+      }
+    },
+    {
+      "query": "Banking::Account.Overdrawn",
+      "args": {
+        "floor": 0
+      }
+    },
+    {
+      "query": "Banking::Account.Overdrawn",
+      "args": {
+        "floor": "lots"
+      }
+    },
+    {
+      "query": "Banking::Account.Overdrawn"
+    },
+    {
+      "query": "Banking::Account.Open"
+    },
+    {
+      "query": "Banking::Customer.InGoodStanding"
+    },
+    {
+      "query": "Banking::ATMCard.Active"
+    },
+    {
+      "query": "Banking::ATMCard.ByFee"
+    },
+    {
+      "query": "Banking::Transfer.InFlight"
     }
   ]
 }
