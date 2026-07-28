@@ -1,9 +1,9 @@
 # Sqlite — a persistence adapter backed by a real SQLite database.
 #
-# The SCHEMA IS A PROJECTION of the aggregate IR: one column per declared
+# The SCHEMA IS PROJECTED from the aggregate IR: one column per declared
 # attribute, its SQL type derived from the declared Ruby type, list attributes
-# stored as JSON. Nothing about the table is hand-written, which is the same
-# move that will later emit Rust — the bluebook is the single author.
+# stored as JSON. Nothing about the table is hand-written — the bluebook is the
+# single author, and a target that wants data rather than source reads the IR.
 #
 # The domain never learns any of this. It says `persisted_by("Sqlite")` in the
 # hecksagon and the adapter does the rest.
@@ -32,30 +32,32 @@ module Hecksagain
         create_event_table!
       end
 
+      # The aggregate's table name, unquoted — this is also the .db filename
+      # stem, so it stays a bare word. SQL wants `quoted_table`.
       def table = @aggregate.storage_name
 
       def find(id)
-        row = @db.get_first_row("SELECT * FROM #{table} WHERE id = ?", [id.to_s])
+        row = @db.get_first_row("SELECT * FROM #{quoted_table} WHERE id = ?", [id.to_s])
         return nil unless row
 
         Runtime::Instance.new(aggregate: @aggregate, id: row["id"], state: decode(row))
       end
 
       def all
-        @db.execute("SELECT * FROM #{table} ORDER BY id").map do |row|
+        @db.execute("SELECT * FROM #{quoted_table} ORDER BY id").map do |row|
           Runtime::Instance.new(aggregate: @aggregate, id: row["id"], state: decode(row))
         end
       end
 
-      def count = @db.get_first_value("SELECT COUNT(*) FROM #{table}").to_i
+      def count = @db.get_first_value("SELECT COUNT(*) FROM #{quoted_table}").to_i
 
       def save(instance)
-        columns = ["id"] + @aggregate.attributes.map { |a| a.name.to_s }
+        columns = (["id"] + @aggregate.attributes.map { |a| a.name.to_s }).map { |c| quote_ident(c) }
         values  = [instance.id.to_s] + @aggregate.attributes.map { |a| encode(a, instance[a.name]) }
         slots   = Array.new(columns.size, "?").join(", ")
 
         @db.execute(
-          "INSERT OR REPLACE INTO #{table} (#{columns.join(', ')}) VALUES (#{slots})",
+          "INSERT OR REPLACE INTO #{quoted_table} (#{columns.join(', ')}) VALUES (#{slots})",
           values
         )
         instance
@@ -84,6 +86,27 @@ module Hecksagain
 
       private
 
+      # Quote a SQL identifier (table or column name) so a reserved word —
+      # `order`, `group`, `select`, `user` — is a legal identifier instead of
+      # a syntax error. SQLite's standard double-quote form, with any embedded
+      # quote doubled per the SQL spec.
+      #
+      # THE COUNTERPART OF rust/sqlite/src/sqlite_mapping.rs `quote_ident`,
+      # which had it and this side did not. An aggregate named `Order` — the
+      # likeliest name in any shop domain, and one the canonical Pizzas
+      # example uses — snakes to the table `order`, which Rust created happily
+      # and Ruby refused with a syntax error at boot. Nothing caught it because
+      # no aggregate in the corpus is named after a keyword.
+      #
+      # The identifiers reaching here are internal (a snake_cased aggregate
+      # name, or an IR-declared column), so this is a keyword-collision guard,
+      # not the injection boundary — that is the `?` bind params.
+      def quote_ident(name)
+        %("#{name.to_s.gsub('"', '""')}")
+      end
+
+      def quoted_table = quote_ident(table)
+
       def resolve_path(settings, root)
         declared = settings[:database] || settings["database"] || "data/#{table}.db"
         return declared if declared.start_with?("/")
@@ -93,9 +116,9 @@ module Hecksagain
 
       # One column per declared attribute — the schema follows the IR.
       def create_aggregate_table!
-        columns = @aggregate.attributes.map { |attr| "#{attr.name} #{sql_type(attr)}" }
+        columns = @aggregate.attributes.map { |attr| "#{quote_ident(attr.name)} #{sql_type(attr)}" }
         @db.execute(
-          "CREATE TABLE IF NOT EXISTS #{table} (id TEXT PRIMARY KEY#{columns.empty? ? '' : ', '}#{columns.join(', ')})"
+          "CREATE TABLE IF NOT EXISTS #{quoted_table} (id TEXT PRIMARY KEY#{columns.empty? ? '' : ', '}#{columns.join(', ')})"
         )
       end
 

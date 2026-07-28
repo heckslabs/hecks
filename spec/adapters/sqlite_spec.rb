@@ -49,10 +49,32 @@ RSpec.describe Hecksagain::Adapters::Sqlite do
     adapter
     schema = `sqlite3 #{File.join(@dir, 'pizzas.db')} ".schema pizza"`
 
-    expect(schema).to include("price_cents INTEGER") # declared Integer
-    expect(schema).to include("name TEXT")           # declared String
-    expect(schema).to include("toppings TEXT")       # a list, as JSON
+    # Identifiers are QUOTED — see the reserved-word example below for why.
+    expect(schema).to include(%("price_cents" INTEGER)) # declared Integer
+    expect(schema).to include(%("name" TEXT))           # declared String
+    expect(schema).to include(%("toppings" TEXT))       # a list, as JSON
     expect(schema).to include("id TEXT PRIMARY KEY")
+  end
+
+  # A KEYWORD IS A NAME LIKE ANY OTHER. `Order` is the likeliest aggregate in
+  # any shop domain and it snakes to `order`, which is SQL for something else.
+  # Rust quoted its identifiers and this side did not, so the same bluebook
+  # booted there and refused here with a syntax error — a divergence no example
+  # could surface, because nothing in the corpus is named after a keyword.
+  it "stores an aggregate whose name is a SQL reserved word" do
+    reserved = boot_in_memory.registry.bluebook("Pizzas").aggregate("Pizza").dup
+    def reserved.storage_name = "order"
+
+    adapter = described_class.new(
+      aggregate: reserved, settings: { database: "reserved.db" }, root: @dir
+    )
+
+    built = Hecksagain::Runtime::Instance.new(aggregate: reserved, id: "o1")
+    built[:name] = "Margherita"
+    adapter.save(built)
+
+    expect(adapter.find("o1").name).to eq("Margherita")
+    expect(adapter.count).to eq(1)
   end
 
   it "saves and finds one back" do
