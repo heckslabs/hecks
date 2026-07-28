@@ -1,6 +1,6 @@
 {
   "name": "banking-parity",
-  "note": "Every operation the domain declares, walked to an EXACT ledger. Commands happy and refused (each debit gate one at a time, each lifecycle wall, each payload shape) ; the Settlement saga end to end - request, debit leg, credit leg, settle, retire - and its compensating leg : destination frozen mid-flight, credit refused ON THE SAGA LOG, back office reverses off the InFlight queue, money back where it started. Running balances are arithmetic all the way down : acct-1 ends at 60000 (the 1000 came back), acct-2 at 0 and closed, and any runtime that disagrees by one cent is the bug this file exists to catch. The last steps pass a non-numeric amount and a scalar where a two-field value object is declared, so the comparison proves the two runtimes word an EVALUATION failure identically, not just a rule failure. Reads ride the same steps : InFlight shows the stuck transfer mid-story and empties by the end ; the compliance queue fills and drains ; Overdrawn takes its floor from the caller. The ledger itself is addressable : entry 2 is reversed once (twice refuses \u2014 the entity has its own machine), and the Reversed audit query answers it with its account. Every command runs : a transfer out of the closed account fails its first leg and is Rejected from \"requested\", and the relationship itself Closes last. The closed set has teeth : a gold account and an email that routes nowhere are both refused at construction, worded to the character.",
+  "note": "Every operation the domain declares, walked to an EXACT ledger. Commands happy and refused (each debit gate one at a time, each lifecycle wall, each payload shape) ; the Settlement saga end to end - request, debit leg, credit leg, settle, retire - and its compensating leg : destination frozen mid-flight, credit refused ON THE SAGA LOG, back office reverses off the InFlight queue, money back where it started. Running balances are arithmetic all the way down : acct-1 ends at 60000 (the 1000 came back), acct-2 at 0 and closed, and any runtime that disagrees by one cent is the bug this file exists to catch. The last steps pass a non-numeric amount and a scalar where a two-field value object is declared, so the comparison proves the two runtimes word an EVALUATION failure identically, not just a rule failure. Reads ride the same steps : InFlight shows the stuck transfer mid-story and empties by the end ; the compliance queue fills and drains ; Overdrawn takes its floor from the caller. The ledger itself is addressable : entry 2 is reversed once (twice refuses \u2014 the entity has its own machine), and the Reversed audit query answers it with its account. Every command runs : a transfer out of the closed account fails its first leg and is Rejected from \"requested\", and the relationship itself Closes last. The closed set has teeth : a gold account and an email that routes nowhere are both refused at construction, worded to the character. The ledger corrects itself too : entry 1 is amended by 500 (element arithmetic, the one path the Integer-or-nothing rule was never driven on), a non-Integer adjustment is refused in those words, and amending the reversed entry 2 is refused by the entity's own machine.",
   "steps": [
     {
       "verb": "Banking::Customer.Register",
@@ -344,6 +344,39 @@
         "name": "Ada",
         "email": {
           "address": "a@b.c"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.LedgerEntry.Amend",
+      "args": {
+        "id": "acct-1",
+        "sequence": 1,
+        "adjustment": 500,
+        "narrative": {
+          "text": "Corrected \u2014 posted for the wrong amount"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.LedgerEntry.Amend",
+      "args": {
+        "id": "acct-1",
+        "sequence": 1,
+        "adjustment": "a lot",
+        "narrative": {
+          "text": "Corrected \u2014 posted for the wrong amount"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.LedgerEntry.Amend",
+      "args": {
+        "id": "acct-1",
+        "sequence": 2,
+        "adjustment": 100,
+        "narrative": {
+          "text": "Corrected \u2014 posted for the wrong amount"
         }
       }
     },

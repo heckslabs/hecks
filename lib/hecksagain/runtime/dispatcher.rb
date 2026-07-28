@@ -29,6 +29,7 @@
 # wakes a saga that dispatches again is ONE chain ; a counter per interpreter
 # would count it as two shallow ones and the bound would not hold.
 require_relative "errors"
+require_relative "command_rules"
 require_relative "command_interpreter"
 require_relative "entity_interpreter"
 require_relative "query_interpreter"
@@ -61,8 +62,11 @@ module Hecksagain
 
       def initialize(registry)
         @registry = registry
-        @commands = CommandInterpreter.new(registry)
-        @entities = EntityInterpreter.new(registry, commands: @commands)
+        # The rules a command obeys whatever it acts on — held once, so the
+        # record path and the element path cannot drift apart.
+        rules     = CommandRules.new(registry)
+        @commands = CommandInterpreter.new(registry, rules: rules)
+        @entities = EntityInterpreter.new(registry, rules: rules)
         @queries  = QueryInterpreter.new(registry)
         @policies = PolicyInterpreter.new(registry, door: self)
         @sagas    = SagaInterpreter.new(registry, door: self)

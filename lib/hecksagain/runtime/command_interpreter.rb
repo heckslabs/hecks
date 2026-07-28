@@ -17,13 +17,12 @@
 # whoever called it — this answers only "what did this command do to this
 # aggregate, and what did it announce".
 #
-# FOUR METHODS ARE PUBLIC ON PURPOSE — guard, transition, mutation sourcing and
-# emit. The entity path is "the exact machinery of dispatch, one element deep",
-# and the way to keep it that way is for it to CALL these rules rather than to
-# keep its own copy that drifts. Everything below `private` is this room's own
-# business.
+# ONE PUBLIC METHOD. The rules a command obeys whatever it acts on — guard,
+# lifecycle, sourcing, arithmetic, emit — live in CommandRules, which the
+# element path calls too. Publishing them from here instead would make that
+# path a reuser of this one's guts rather than its peer.
 #
-#   CommandInterpreter.new(registry).call(domain, aggregate, command, args)
+#   CommandInterpreter.new(registry, rules: rules).call(domain, aggregate, command, args)
 #   # => [instance, events]
 require "securerandom"
 
@@ -32,8 +31,9 @@ module Hecksagain
     class CommandInterpreter
       attr_reader :registry
 
-      def initialize(registry)
+      def initialize(registry, rules:)
         @registry = registry
+        @rules    = rules
       end
 
       # The instance as it now stands, and whatever it announced.
@@ -41,75 +41,18 @@ module Hecksagain
         repository = @registry.repository(domain, aggregate)
         instance   = hydrate(repository, aggregate, command, args)
 
-        enforce_givens(instance, command, args)
+        @rules.enforce_givens(instance, command, args)
         # The state machine gates BEFORE anything is written and moves AFTER
         # the mutations land — a refused Freeze touches nothing, and a legal
         # one changes state exactly once, beside the fields the command set.
-        transition = admissible_transition(aggregate, command, instance)
+        transition = @rules.admissible_transition(aggregate, command, instance)
         assign_creation_attributes(instance, aggregate, command, args) if command.creates?
         command.mutations.each { |mutation| apply(instance, aggregate, mutation, args) }
         instance[aggregate.lifecycle.field] = transition.target if transition
 
         repository.save(instance)
 
-        [instance, emit(command, domain, aggregate, instance, args, repository)]
-      end
-
-      # All givens must hold. A refused command leaves the instance untouched
-      # because nothing has been written yet.
-      def enforce_givens(instance, command, args)
-        command.givens.each do |given|
-          next if Bluebook::Expression::Evaluator.call(given.canonical, instance, args)
-
-          raise GivenNotMet, "#{command.name} refused — #{given.description}"
-        end
-      end
-
-      # The lifecycle's admission rule. Nil when the command is not part of
-      # the machine ; the admitted StateTransition when it is and the current
-      # state allows it ; LifecycleRefused when the machine says no. A
-      # transition with no `from:` admits any state. The helpers this walks
-      # (transitions_for, constrained?) sat on IR::Lifecycle from the day it
-      # was written, called by nothing — the same shelf IR::Policy's matchers
-      # waited on.
-      def admissible_transition(aggregate, command, instance)
-        lifecycle = aggregate.lifecycle
-        return nil unless lifecycle
-
-        candidates = lifecycle.transitions_for(command.name)
-        return nil if candidates.empty?
-
-        current  = instance[lifecycle.field].to_s
-        admitted = candidates.find { |t| !t.constrained? || Array(t.from).include?(current) }
-        return admitted if admitted
-
-        allowed = candidates.flat_map { |t| Array(t.from) }.uniq
-        raise LifecycleRefused,
-              "#{command.name} refused — #{lifecycle.field} is #{current.inspect}, and " \
-              "#{command.name} moves it only from #{allowed.map(&:inspect).join(' or ')}"
-      end
-
-      # A Symbol naming a command attribute reads that argument ; anything else
-      # is a literal.
-      def resolve_source(source, args)
-        return args[source] if source.is_a?(Symbol) && args.key?(source)
-
-        source
-      end
-
-      def emit(command, domain, aggregate, instance, args, repository)
-        command.emits.map do |event_name|
-          event = Event.new(
-            name:        event_name,
-            aggregate:   "#{domain}::#{aggregate.name}",
-            id:          instance.id,
-            payload:     args,
-            occurred_at: Time.now.utc.iso8601
-          )
-          @registry.event_log << event
-          repository.record_event(event) if repository.respond_to?(:record_event)
-          event
-        end
+        [instance, @rules.emit(command, domain, aggregate, instance, args, repository)]
       end
 
       private
@@ -161,35 +104,18 @@ module Hecksagain
       def apply(instance, aggregate, mutation, args)
         case mutation.op
         when :set
-          value = resolve_source(mutation.source, args)
+          value = @rules.resolve_source(mutation.source, args)
           instance[mutation.target] = Value.for(aggregate, mutation.target, value)
         when :append
           instance[mutation.target] = appended(instance, aggregate, mutation, args)
-        when :increment
-          instance[mutation.target] = arithmetic(instance, mutation, args, 1)
-        when :decrement
-          instance[mutation.target] = arithmetic(instance, mutation, args, -1)
+        when :increment, :decrement
+          instance[mutation.target] = @rules.arithmetic(
+            instance[mutation.target],
+            @rules.resolve_source(mutation.source, args),
+            mutation.target,
+            @rules.sign_of(mutation.op)
+          )
         end
-      end
-
-      # Integer cents or nothing. Money is the reason these ops exist, and
-      # IEEE 754 has no place in a ledger — so a non-Integer amount is refused
-      # LOUDLY rather than coerced. (Hecks's runtime falls back to ±1 when the
-      # amount will not read as a number ; a balance moving by one cent because
-      # the caller sent "lots" is exactly the silent wrongness this refuses.)
-      def arithmetic(instance, mutation, args, sign)
-        amount  = resolve_source(mutation.source, args)
-        current = instance[mutation.target] || 0
-        op      = sign.positive? ? "increment" : "decrement"
-
-        unless amount.is_a?(Integer)
-          raise TypeMismatch, "#{op} of #{mutation.target} needs an Integer, got #{amount.inspect}"
-        end
-        unless current.is_a?(Integer)
-          raise TypeMismatch, "#{op} of #{mutation.target} needs an Integer #{mutation.target}, got #{current.inspect}"
-        end
-
-        current + (sign * amount)
       end
 
       # An appended field is either an ARGUMENT to read or a LITERAL to write —

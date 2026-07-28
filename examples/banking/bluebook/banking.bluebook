@@ -180,6 +180,28 @@ Hecks.bluebook "Banking" do
 
       lifecycle :state, default: "posted" do
         transition "Reverse" => "reversed", from: "posted"
+        # Amending leaves an entry posted — a self-loop, because a correction
+        # is not a new state, and a reversed entry is past correcting.
+        transition "Amend"   => "posted",   from: "posted"
+      end
+
+      # THE CORRECTION THE COMMENT ABOVE PROMISES. "Identity that outlives its
+      # values" is a claim about what can happen to an entry, and until this
+      # command existed nothing in the domain could change what one SAYS. It is
+      # also the corpus's only element arithmetic : the Integer-or-nothing rule
+      # was enforced on the element path by nobody, in either runtime, so a
+      # divergence there could not have surfaced.
+      command "Amend" do
+        role "Back office"
+        goal "Correct a movement posted for the wrong amount"
+
+        attribute :adjustment, Integer
+        attribute :narrative,  Narrative
+
+        then_set :amount,    increment: :adjustment
+        then_set :narrative, to: :narrative
+
+        emits "LedgerEntryAmended"
       end
 
       command "Reverse" do

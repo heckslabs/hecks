@@ -16,11 +16,14 @@
 # itself. Undoing ONE movement is what the domain declares, so here the
 # command addresses the element by the entity's own identified_by.
 #
-# The guard, the lifecycle rule and emit are CALLED on the CommandInterpreter
-# rather than copied : "the exact machinery of dispatch" stops being true the
-# moment there are two copies of it.
+# The guard, the lifecycle rule, sourcing, arithmetic and emit come from
+# CommandRules — the rules a command obeys whatever it acts on. This room is a
+# PEER of CommandInterpreter, not a reuser of it : "the exact machinery of
+# dispatch" stops being true the moment there are two copies of it, and it was
+# briefly untrue — the element path carried its own copy of the
+# Integer-or-nothing rule, error strings and all.
 #
-#   EntityInterpreter.new(registry, commands: ci).call(domain, aggregate, dotted, args)
+#   EntityInterpreter.new(registry, rules: rules).call(domain, aggregate, dotted, args)
 #   # => [parent_instance, events]
 
 module Hecksagain
@@ -28,9 +31,9 @@ module Hecksagain
     class EntityInterpreter
       attr_reader :registry
 
-      def initialize(registry, commands:)
+      def initialize(registry, rules:)
         @registry = registry
-        @commands = commands
+        @rules    = rules
       end
 
       def call(domain, aggregate, dotted, args)
@@ -45,14 +48,14 @@ module Hecksagain
         element    = element_of(aggregate, entity, entity_name, command_name, instance, args)
 
         view = Instance.new(aggregate: entity, id: element[entity.identified_by].to_s, state: element)
-        @commands.enforce_givens(view, command, args)
-        transition = @commands.admissible_transition(entity, command, view)
+        @rules.enforce_givens(view, command, args)
+        transition = @rules.admissible_transition(entity, command, view)
         command.mutations.each { |mutation| apply_to_element(element, mutation, args) }
         element[entity.lifecycle.field] = transition.target if transition
 
         repository.save(instance)
 
-        [instance, @commands.emit(command, domain, aggregate, instance, args, repository)]
+        [instance, @rules.emit(command, domain, aggregate, instance, args, repository)]
       end
 
       private
@@ -83,18 +86,14 @@ module Hecksagain
       def apply_to_element(element, mutation, args)
         case mutation.op
         when :set
-          element[mutation.target] = @commands.resolve_source(mutation.source, args)
+          element[mutation.target] = @rules.resolve_source(mutation.source, args)
         when :increment, :decrement
-          # The same Integer-or-nothing rule as `arithmetic` — an element's
-          # count drifting on a coerced word is the same disease one level
-          # down.
-          amount  = @commands.resolve_source(mutation.source, args)
-          op      = mutation.op.to_s
-          current = element[mutation.target] || 0
-          raise TypeMismatch, "#{op} of #{mutation.target} needs an Integer, got #{amount.inspect}" unless amount.is_a?(Integer)
-          raise TypeMismatch, "#{op} of #{mutation.target} needs an Integer #{mutation.target}, got #{current.inspect}" unless current.is_a?(Integer)
-
-          element[mutation.target] = current + (mutation.op == :increment ? amount : -amount)
+          element[mutation.target] = @rules.arithmetic(
+            element[mutation.target],
+            @rules.resolve_source(mutation.source, args),
+            mutation.target,
+            @rules.sign_of(mutation.op)
+          )
         end
       end
     end
