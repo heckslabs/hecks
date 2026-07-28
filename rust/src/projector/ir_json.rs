@@ -383,11 +383,10 @@ fn mutation_to_value(mutation: &crate::ir::Mutation) -> Value {
 fn canonicalise(source: &str) -> String {
     let mut rules: Vec<&Rule> = RULES.iter().collect();
     rules.sort_by_key(|rule| rule.position);
-    rules
+    let folded = rules
         .iter()
-        .fold(source.to_string(), |text, rule| step(&text, rule))
-        .trim()
-        .to_string()
+        .fold(source.to_string(), |text, rule| step(&text, rule));
+    ruby_strip(&folded).to_string()
 }
 
 /// A normalisation rule : a named strategy plus its operands, applied in
@@ -441,13 +440,55 @@ pub fn canonical_form_table() -> Value {
 
 fn step(text: &str, rule: &Rule) -> String {
     match rule.strategy {
-        "collapse_whitespace" => text.split_whitespace().collect::<Vec<_>>().join(" "),
+        "collapse_whitespace" => collapse_whitespace(text),
         "replace" => replace(text, rule),
         // Unreachable through the declared table, and loud if it ever is.
         // Returning the text unchanged would be the fail-open this chapter
         // exists to refuse.
         other => panic!("{other:?} is not a linked normalisation strategy"),
     }
+}
+
+/// WHAT COUNTS AS WHITESPACE — and it is not what this side would pick alone.
+///
+/// Ruby's `\s` matches ASCII only : space, tab, newline, carriage return,
+/// vertical tab, form feed. `String#strip` trims that same set. This side
+/// reached for `split_whitespace()` and `trim()`, both of which are UNICODE
+/// aware, so a predicate carrying a non-breaking space (U+00A0) — the thing you
+/// get pasting a condition out of a document — collapsed to a plain space here
+/// and stayed a non-breaking space there.
+///
+/// The canonical text is what gets hashed and diffed, so that is a parity SPLIT
+/// waiting for the first author who copies a predicate out of a spec. It is the
+/// same shape as the `.length_cm` bug the table was built to end: the RULE was
+/// shared, the STRATEGY behind it was written twice and honestly differed.
+///
+/// Ruby holds the semantics, so this matches Ruby rather than the other way
+/// round — an ASCII run collapses, and anything else is a character like any
+/// other.
+const RUBY_ASCII_SPACE: [char; 6] = [' ', '\t', '\n', '\r', '\u{0B}', '\u{0C}'];
+
+fn collapse_whitespace(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut in_run = false;
+    for character in text.chars() {
+        if RUBY_ASCII_SPACE.contains(&character) {
+            if !in_run {
+                out.push(' ');
+                in_run = true;
+            }
+        } else {
+            out.push(character);
+            in_run = false;
+        }
+    }
+    out
+}
+
+/// Ruby's `String#strip`, which trims the ASCII set above (and NUL) — not
+/// Rust's `trim`, which would also take a non-breaking space.
+fn ruby_strip(text: &str) -> &str {
+    text.trim_matches(|c: char| RUBY_ASCII_SPACE.contains(&c) || c == '\0')
 }
 
 /// `.length` to `.size`, folded ONLY at a word boundary.
@@ -557,5 +598,25 @@ mod tests {
     #[test]
     fn still_collapses_whitespace() {
         assert_eq!(canonicalise("  a.length   >   0  "), "a.size > 0");
+    }
+
+    #[test]
+    fn collapses_tabs_and_newlines_the_same_way() {
+        assert_eq!(canonicalise("a\t<\n\nb"), "a < b");
+    }
+
+    // WHAT COUNTS AS WHITESPACE. Mirrors spec/canonical_form_spec.rb. Ruby's
+    // `\s` and `String#strip` are ASCII-only ; `split_whitespace` and `trim`
+    // are not, so a non-breaking space collapsed here and survived there. The
+    // canonical text is what gets hashed and diffed, so the two runtimes would
+    // have read the same predicate as two different programs.
+    #[test]
+    fn leaves_a_non_breaking_space_alone() {
+        assert_eq!(canonicalise("a\u{A0}<\u{A0}b"), "a\u{A0}<\u{A0}b");
+    }
+
+    #[test]
+    fn does_not_strip_a_leading_non_breaking_space() {
+        assert_eq!(canonicalise("\u{A0}a < b"), "\u{A0}a < b");
     }
 }

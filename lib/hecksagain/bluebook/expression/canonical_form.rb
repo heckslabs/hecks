@@ -73,6 +73,16 @@ module Hecksagain
           RULES.sort_by(&:position).reduce(source.to_s) { |text, rule| step(text, rule) }.strip
         end
 
+        # WHITESPACE IS ASCII HERE, and that is a decision, not an accident.
+        # `\s` matches space, tab, newline, carriage return, vertical tab and
+        # form feed — and `.strip` in `apply` trims the same set. A non-breaking
+        # space is a CHARACTER, not whitespace, so it survives canonicalisation.
+        #
+        # Rust reached for `split_whitespace` and `trim`, which are Unicode
+        # aware, and so collapsed one where this side kept it. The table said
+        # `collapse_whitespace` on both sides and the strategy behind it still
+        # differed — the same shape as the `.length_cm` split, one rule down.
+        # See rust/src/projector/ir_json.rs `collapse_whitespace` / `ruby_strip`.
         def step(text, rule)
           case rule.strategy
           when "collapse_whitespace" then text.gsub(/\s+/, " ")
