@@ -8,7 +8,7 @@ pub(super) fn parse_payload_attrs(json: &str) -> HashMap<String, Value> {
             let val = match v {
                 serde_json::Value::String(s) => Value::Str(s),
                 serde_json::Value::Bool(b) => Value::Bool(b),
-                serde_json::Value::Number(n) => n.as_i64().map(Value::Int).unwrap_or(Value::Null),
+                serde_json::Value::Number(n) => number_to_value(&n),
                 serde_json::Value::Null => Value::Null,
                 other => Value::Str(other.to_string()),
             };
@@ -23,6 +23,7 @@ pub(crate) fn value_to_json(v: &Value) -> serde_json::Value {
     match v {
         Value::Str(s) => serde_json::json!(s),
         Value::Int(n) => serde_json::json!(n),
+        Value::Float(n) => serde_json::json!(n),
         Value::Bool(b) => serde_json::json!(b),
         Value::List(items) => serde_json::Value::Array(items.iter().map(value_to_json).collect()),
         Value::Map(m) => {
@@ -57,14 +58,21 @@ pub fn attr_value_from_str(raw: &str) -> Value {
     Value::Str(raw.to_string())
 }
 
+pub(super) fn number_to_value(n: &serde_json::Number) -> Value {
+    match n.as_i64() {
+        Some(i) => Value::Int(i),
+        None => match n.as_f64() {
+            Some(f) => Value::Float(f),
+            None => Value::Str(n.to_string()),
+        },
+    }
+}
+
 pub(super) fn json_to_value_recursive(v: &serde_json::Value) -> Value {
     match v {
         serde_json::Value::String(s) => Value::Str(s.clone()),
         serde_json::Value::Bool(b) => Value::Bool(*b),
-        serde_json::Value::Number(n) => match n.as_i64() {
-            Some(i) => Value::Int(i),
-            None => Value::Str(n.to_string()),
-        },
+        serde_json::Value::Number(n) => number_to_value(n),
         serde_json::Value::Null => Value::Null,
         serde_json::Value::Array(a) => {
             Value::List(a.iter().map(json_to_value_recursive).collect())
@@ -110,6 +118,7 @@ impl std::fmt::Display for Value {
         match self {
             Value::Str(s) => write!(f, "{}", s),
             Value::Int(n) => write!(f, "{}", n),
+            Value::Float(n) => write!(f, "{}", n),
             Value::Bool(b) => write!(f, "{}", b),
             Value::List(v) => write!(f, "[{} items]", v.len()),
             Value::Map(m) => write!(f, "{{{} fields}}", m.len()),
@@ -125,9 +134,7 @@ pub(super) fn json_obj_to_value_map(map: serde_json::Map<String, serde_json::Val
         let value = match v {
             serde_json::Value::String(s) => Value::Str(s),
             serde_json::Value::Bool(b)   => Value::Bool(b),
-            serde_json::Value::Number(n) => {
-                if let Some(i) = n.as_i64() { Value::Int(i) } else { Value::Str(n.to_string()) }
-            }
+            serde_json::Value::Number(n) => number_to_value(&n),
             serde_json::Value::Null      => Value::Null,
             other                        => Value::Str(other.to_string()),
         };

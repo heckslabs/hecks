@@ -2,4 +2,5 @@ Hecks.hecksagon "Banking" do
   Banking::Customer.persisted_by("Heki")
   Banking::Account.persisted_by("Heki")
   Banking::Transfer.persisted_by("Heki")
+  Banking::ATMCard.persisted_by("Heki")
 end

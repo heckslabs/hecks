@@ -8,7 +8,10 @@ pub fn to_runtime(value: &JsonValue) -> RtValue {
         JsonValue::Bool(b) => RtValue::Bool(*b),
         JsonValue::Number(n) => match n.as_i64() {
             Some(i) => RtValue::Int(i),
-            None => RtValue::Str(n.to_string()),
+            None => match n.as_f64() {
+                Some(f) => RtValue::Float(f),
+                None => RtValue::Str(n.to_string()),
+            },
         },
         JsonValue::String(s) => RtValue::Str(s.clone()),
         JsonValue::Array(items) => RtValue::List(items.iter().map(to_runtime).collect()),
@@ -25,6 +28,7 @@ pub fn to_json(value: &RtValue) -> JsonValue {
         RtValue::Null => JsonValue::Null,
         RtValue::Bool(b) => JsonValue::Bool(*b),
         RtValue::Int(i) => JsonValue::from(*i),
+        RtValue::Float(f) => JsonValue::from(*f),
         RtValue::Str(s) => JsonValue::String(s.clone()),
         RtValue::List(items) => JsonValue::Array(items.iter().map(to_json).collect()),
         RtValue::Map(map) => {

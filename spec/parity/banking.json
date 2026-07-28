@@ -1,6 +1,6 @@
 {
   "name": "banking-parity",
-  "note": "Every operation the domain declares, walked to an EXACT ledger. Commands happy and refused (each debit gate one at a time, each lifecycle wall, each payload shape) ; the Settlement saga end to end - request, debit leg, credit leg, settle, retire - and its compensating leg : destination frozen mid-flight, credit refused ON THE SAGA LOG, back office reverses off the InFlight queue, money back where it started. Running balances are arithmetic all the way down : acct-1 ends at 60000 (the 1000 came back), acct-2 at 0 and closed, and any runtime that disagrees by one cent is the bug this file exists to catch. The last steps pass a non-numeric amount and a scalar where a two-field value object is declared, so the comparison proves the two runtimes word an EVALUATION failure identically, not just a rule failure. Reads ride the same steps : InFlight shows the stuck transfer mid-story and empties by the end ; the compliance queue fills and drains ; Overdrawn takes its floor from the caller. The ledger itself is addressable : entry 2 is reversed once (twice refuses \u2014 the entity has its own machine), and the Reversed audit query answers it with its account. Every command runs : a transfer out of the closed account fails its first leg and is Rejected from \"requested\", and the relationship itself Closes last. The closed set has teeth : a gold account and an email that routes nowhere are both refused at construction, worded to the character. The ledger corrects itself too : entry 1 is amended by 500 (element arithmetic, the one path the Integer-or-nothing rule was never driven on), a non-Integer adjustment is refused in those words, and amending the reversed entry 2 is refused by the entity's own machine.",
+  "note": "Every operation the domain declares, walked to an EXACT ledger. Commands happy and refused (each debit gate one at a time, each lifecycle wall, each payload shape) ; the Settlement saga end to end - request, debit leg, credit leg, settle, retire - and its compensating leg : destination frozen mid-flight, credit refused ON THE SAGA LOG, back office reverses off the InFlight queue, money back where it started. Running balances are arithmetic all the way down : acct-1 ends at 60000 (the 1000 came back), acct-2 at 0 and closed, and any runtime that disagrees by one cent is the bug this file exists to catch. The last steps pass a non-numeric amount and a scalar where a two-field value object is declared, so the comparison proves the two runtimes word an EVALUATION failure identically, not just a rule failure. Reads ride the same steps : InFlight shows the stuck transfer mid-story and empties by the end ; the compliance queue fills and drains ; Overdrawn takes its floor from the caller. The ledger itself is addressable : entry 2 is reversed once (twice refuses — the entity has its own machine), and the Reversed audit query answers it with its account. Every command runs : a transfer out of the closed account fails its first leg and is Rejected from \"requested\", and the relationship itself Closes last. The closed set has teeth : a gold account and an email that routes nowhere are both refused at construction, worded to the character. The ledger corrects itself too : entry 1 is amended by 500 (element arithmetic, the one path the Integer-or-nothing rule was never driven on), a non-Integer adjustment is refused in those words, and amending the reversed entry 2 is refused by the entity's own machine.",
   "steps": [
     {
       "verb": "Banking::Customer.Register",
@@ -142,7 +142,7 @@
       "args": {
         "id": "acct-1",
         "sequence": 2,
-        "narrative": "Posted in error \u2014 reversed"
+        "narrative": "Posted in error — reversed"
       }
     },
     {
@@ -354,7 +354,7 @@
         "sequence": 1,
         "adjustment": 500,
         "narrative": {
-          "text": "Corrected \u2014 posted for the wrong amount"
+          "text": "Corrected — posted for the wrong amount"
         }
       }
     },
@@ -365,7 +365,7 @@
         "sequence": 1,
         "adjustment": "a lot",
         "narrative": {
-          "text": "Corrected \u2014 posted for the wrong amount"
+          "text": "Corrected — posted for the wrong amount"
         }
       }
     },
@@ -376,7 +376,7 @@
         "sequence": 2,
         "adjustment": 100,
         "narrative": {
-          "text": "Corrected \u2014 posted for the wrong amount"
+          "text": "Corrected — posted for the wrong amount"
         }
       }
     },
@@ -406,6 +406,164 @@
       "args": {
         "customer": "CUST-0001"
       }
+    },
+    {
+      "verb": "Banking::ATMCard.Issue",
+      "args": {
+        "serial": "CARD-1",
+        "account": "acct-1",
+        "daily_fee": 2.5
+      }
+    },
+    {
+      "verb": "Banking::ATMCard.Issue",
+      "args": {
+        "serial": "CARD-2",
+        "account": "acct-1",
+        "daily_fee": 0.75
+      }
+    },
+    {
+      "verb": "Banking::ATMCard.Issue",
+      "args": {
+        "serial": "CARD-3",
+        "account": "acct-1",
+        "daily_fee": 10
+      }
+    },
+    {
+      "verb": "Banking::ATMCard.Issue",
+      "args": {
+        "serial": "CARD-4",
+        "account": "acct-1",
+        "daily_fee": 1.5
+      }
+    },
+    {
+      "verb": "Banking::ATMCard.Issue",
+      "args": {
+        "serial": "",
+        "account": "acct-1",
+        "daily_fee": 1
+      }
+    },
+    {
+      "verb": "Banking::ATMCard.Activate",
+      "args": {
+        "serial": "CARD-1"
+      }
+    },
+    {
+      "verb": "Banking::ATMCard.Activate",
+      "args": {
+        "serial": "CARD-2"
+      }
+    },
+    {
+      "verb": "Banking::ATMCard.Activate",
+      "args": {
+        "serial": "CARD-3"
+      }
+    },
+    {
+      "verb": "Banking::ATMCard.Activate",
+      "args": {
+        "serial": "CARD-4"
+      }
+    },
+    {
+      "verb": "Banking::ATMCard.Activate",
+      "args": {
+        "serial": "CARD-1"
+      }
+    },
+    {
+      "verb": "Banking::ATMCard.Rename",
+      "args": {
+        "serial": "CARD-2",
+        "nickname": "Travel"
+      }
+    },
+    {
+      "verb": "Banking::ATMCard.Rename",
+      "args": {
+        "serial": "CARD-3",
+        "nickname": "Groceries"
+      }
+    },
+    {
+      "verb": "Banking::ATMCard.Rename",
+      "args": {
+        "serial": null,
+        "id": "CARD-4",
+        "nickname": "Backup"
+      }
+    },
+    {
+      "verb": "Banking::ATMCard.Withdraw",
+      "args": {
+        "serial": "CARD-1",
+        "cents": 4000,
+        "narrative": "Airport cash"
+      }
+    },
+    {
+      "verb": "Banking::ATMCard.Withdraw",
+      "args": {
+        "serial": "CARD-1",
+        "cents": 1500,
+        "narrative": "Market"
+      }
+    },
+    {
+      "verb": "Banking::ATMCard.Withdraw",
+      "args": {
+        "serial": "CARD-1",
+        "cents": 9000,
+        "narrative": "Deposit for the flat"
+      }
+    },
+    {
+      "verb": "Banking::ATMCard.Withdraw",
+      "args": {
+        "serial": "CARD-1",
+        "cents": 0,
+        "narrative": "Nothing at all"
+      }
+    },
+    {
+      "verb": "Banking::ATMCard.Withdrawal.Dispute",
+      "args": {
+        "serial": "CARD-1",
+        "sequence": 2,
+        "narrative": "Not mine"
+      }
+    },
+    {
+      "verb": "Banking::ATMCard.Withdrawal.Dispute",
+      "args": {
+        "serial": "CARD-1",
+        "sequence": 2,
+        "narrative": "Twice over"
+      }
+    },
+    {
+      "query": "Banking::ATMCard.Active"
+    },
+    {
+      "query": "Banking::ATMCard.ByFee"
+    },
+    {
+      "query": "Banking::ATMCard.Withdrawal.Recent"
+    },
+    {
+      "verb": "Banking::ATMCard.Retire",
+      "args": {
+        "serial": "CARD-3"
+      }
+    },
+    {
+      "query": "Banking::ATMCard.Active"
     }
   ]
 }

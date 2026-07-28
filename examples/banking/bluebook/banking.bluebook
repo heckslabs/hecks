@@ -282,6 +282,131 @@ Hecks.bluebook "Banking" do
     end
   end
 
+  aggregate "ATMCard" do
+    description "A card issued against an account, and the cash taken with it."
+
+    identified_by :serial
+
+    reference_to Account
+
+    attribute :serial,      String
+    attribute :nickname,    String
+    attribute :daily_fee,   Float, default: 0
+    attribute :withdrawals, list_of(Withdrawal)
+
+    value_object "Narrative" do
+      attribute :text, String
+
+      invariant("a withdrawal explains itself") { !text.to_s.empty? }
+    end
+
+    entity "Withdrawal" do
+      description "One handful of cash, in the order it was taken."
+
+      identified_by :sequence
+
+      attribute :sequence,  Integer
+      attribute :cents,     Integer
+      attribute :narrative, Narrative
+
+      lifecycle :state, default: "taken" do
+        transition "Dispute" => "disputed", from: "taken"
+      end
+
+      command "Dispute" do
+        role "Customer"
+        goal "Challenge a withdrawal that was not mine"
+
+        attribute :narrative, Narrative
+        then_set :narrative, to: :narrative
+
+        emits "WithdrawalDisputed"
+      end
+
+      query "Recent" do
+        description "The first two withdrawals still standing, whatever else was taken."
+        where(state: "taken")
+        limit 2
+      end
+    end
+
+    lifecycle :status, default: "issued" do
+      transition "Activate" => "active",  from: "issued"
+      transition "Retire"   => "retired", from: ["issued", "active"]
+    end
+
+    command "Issue" do
+      role "Branch clerk"
+      goal "Put a card in a customer's hand"
+
+      reference_to Account
+      attribute :serial,    String
+      attribute :daily_fee, Float
+
+      given("a card has a serial") { !serial.to_s.empty? }
+
+      then_set :serial,    to: :serial
+      then_set :daily_fee, to: :daily_fee
+
+      emits "ATMCardIssued"
+    end
+
+    command "Rename" do
+      role "Customer"
+      goal "Name a card so it is recognisable"
+
+      reference_to ATMCard
+      attribute :nickname, String
+      then_set :nickname, to: :nickname
+
+      emits "ATMCardRenamed"
+    end
+
+    command "Withdraw" do
+      role "Customer"
+      goal "Take cash out at a machine"
+
+      reference_to ATMCard
+      attribute :cents,     Integer
+      attribute :narrative, Narrative
+
+      given("a withdrawal moves something") { cents.positive? }
+
+      then_set :withdrawals, append: { cents: :cents, narrative: :narrative }
+
+      emits "CashWithdrawn"
+    end
+
+    command "Activate" do
+      role "Customer"
+      goal "Start using a card"
+
+      reference_to ATMCard
+      emits "ATMCardActivated"
+    end
+
+    command "Retire" do
+      role "Back office"
+      goal "Take a card out of service"
+
+      reference_to ATMCard
+      emits "ATMCardRetired"
+    end
+
+    query "Active" do
+      description "Live cards in nickname order — a card nobody named sorts before every card that has one."
+      where(status: "active")
+      order_by :nickname
+    end
+
+    query "ByFee" do
+      description "Live cards by what they cost to hold, cheapest first — a fee is a Float, so the order is numeric and not alphabetical."
+      where(status: "active")
+      order_by :daily_fee
+      limit 3
+    end
+  end
+
   aggregate "Transfer" do
     description "Money leaving one account for another. Two movements that must both happen, or neither."
 
