@@ -40,7 +40,13 @@ module Hecksagain
 
         @door.reenter(target, **event.payload.transform_keys(&:to_sym))
         record.merge(delivered: true)
-      rescue StandardError => error
+      rescue *DOMAIN_REFUSALS => error
+        # The target refused — a fact about the domain, recorded and not
+        # fatal to the command that emitted the event. Anything else (a
+        # NoMethodError in an interpreter, an unknown verb in the policy's
+        # own declaration) is a DEFECT and flies : it used to land here too,
+        # as `delivered: false` beside every legitimate refusal, which made
+        # a crashed runtime read as normal operation.
         record.merge(delivered: false, reason: error.message)
       end
     end

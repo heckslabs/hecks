@@ -87,7 +87,11 @@ module Hecksagain
         begin
           @door.reenter(qualified(spec.command_name, domain), **args)
           @registry.saga_log << record.merge(delivered: true)
-        rescue StandardError => error
+        rescue *DOMAIN_REFUSALS => error
+          # Same rule as the policy interpreter : a refusal by the target is
+          # a recorded outcome ; a defect in the runtime is not, and now
+          # flies instead of being written into the saga log as though the
+          # step had simply been declined.
           @registry.saga_log << record.merge(delivered: false, reason: error.message)
         end
       end
