@@ -50,10 +50,10 @@ module Hecksagain
 
       def ordered_elements(rows, order_by)
         field  = order_by.field.to_sym
-        sorted = rows.sort_by do |row|
+        sorted = rows.each_with_index.sort_by do |row, index|
           value = row[field]
-          value.is_a?(Numeric) ? [0, value, ""] : [1, 0, value.to_s]
-        end
+          value.is_a?(Numeric) ? [0, value, "", index] : [1, 0, value.to_s, index]
+        end.map(&:first)
         order_by.direction.to_s == "desc" ? sorted.reverse : sorted
       end
 

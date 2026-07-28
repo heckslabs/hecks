@@ -77,11 +77,16 @@ module Hecksagain
 
         def includes?(parts, state, attrs)
           haystack, needle = parts
-          wanted = Resolver.resolve(needle, state, attrs).to_s
+          wanted = Resolver.resolve(needle, state, attrs)
 
           case (found = Resolver.resolve(haystack, state, attrs))
-          when Array then found.any? { |item| item.to_s == wanted }
-          when String then found.include?(wanted)
+          when Array then found.any? { |item| equal?(item, wanted) }
+          when String
+            unless wanted.is_a?(String)
+              raise EvaluationError, "no implicit conversion of #{class_of(wanted)} into String"
+            end
+
+            found.include?(wanted)
           else false
           end
         end

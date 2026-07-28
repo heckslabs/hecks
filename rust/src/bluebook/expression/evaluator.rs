@@ -81,7 +81,12 @@ fn includes(haystack: &str, needle: &str, state: &State, attrs: &State) -> Eval<
         Value::Array(items) => items.iter().any(|item| values_equal(item, &wanted)),
         Value::String(text) => match &wanted {
             Value::String(part) => text.contains(part.as_str()),
-            _ => false,
+            other => {
+                return Err(format!(
+                    "no implicit conversion of {} into String",
+                    class_of(other)
+                ))
+            }
         },
         _ => false,
     })
@@ -165,4 +170,46 @@ fn part_of_longer(expr: &str, index: usize, operator: &str) -> bool {
         return true;
     }
     false
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    fn state(pairs: Value) -> State {
+        pairs.as_object().expect("object").clone()
+    }
+
+    fn given(expr: &str, bindings: Value) -> Eval<bool> {
+        evaluate_given(expr, &state(bindings), &State::new())
+    }
+
+    #[test]
+    fn a_list_member_is_not_its_string() {
+        assert_eq!(given("sizes.include?(10)", json!({"sizes": ["10"]})), Ok(false));
+        assert_eq!(given("sizes.include?(\"10\")", json!({"sizes": [10]})), Ok(false));
+    }
+
+    #[test]
+    fn a_list_member_equates_across_numeric_kinds() {
+        assert_eq!(given("scores.include?(1.0)", json!({"scores": [1]})), Ok(true));
+        assert_eq!(given("scores.include?(1)", json!({"scores": [1.0]})), Ok(true));
+    }
+
+    #[test]
+    fn a_non_string_needle_in_a_string_refuses() {
+        assert_eq!(
+            given("code.include?(5)", json!({"code": "a5b"})),
+            Err("no implicit conversion of Integer into String".to_string())
+        );
+    }
+
+    #[test]
+    fn a_string_needle_still_reads_a_substring() {
+        assert_eq!(
+            given("address.include?(\"@\")", json!({"address": "ada@example.com"})),
+            Ok(true)
+        );
+    }
 }

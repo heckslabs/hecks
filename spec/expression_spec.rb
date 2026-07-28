@@ -192,6 +192,31 @@ RSpec.describe "the expression sublanguage" do
       expect(evaluate("count == 1.0", count: 1)).to be(true)
     end
 
+    it "does not equate a list member with its string, exactly as Ruby does" do
+      expect(agrees?("sizes.include?(10)", sizes: ["10"])).to be(true)
+      expect(evaluate("sizes.include?(10)", sizes: ["10"])).to be(false)
+      expect(agrees?('sizes.include?("10")', sizes: [10])).to be(true)
+      expect(evaluate('sizes.include?("10")', sizes: [10])).to be(false)
+    end
+
+    it "equates a list member across numeric kinds, exactly as Ruby does" do
+      expect(agrees?("scores.include?(1.0)", scores: [1])).to be(true)
+      expect(evaluate("scores.include?(1.0)", scores: [1])).to be(true)
+      expect(evaluate("scores.include?(1)", scores: [1.0])).to be(true)
+    end
+
+    it "refuses a non-string needle in a string, exactly as Ruby does" do
+      expect(agrees?("code.include?(5)", code: "a5b")).to be(true)
+      expect { evaluate("code.include?(5)", code: "a5b") }
+        .to raise_error(Hecksagain::Bluebook::Expression::EvaluationError,
+                        /no implicit conversion of Integer into String/)
+    end
+
+    it "still reads a substring when the needle is a string" do
+      expect(agrees?('address.include?("@")', address: "ada@example.com")).to be(true)
+      expect(evaluate('address.include?("@")', address: "ada@example.com")).to be(true)
+    end
+
     it "refuses an incomparable ordering, exactly as Ruby does" do
       expect(agrees?("label < 3", label: "abc")).to be(true)
       expect { evaluate("label < 3", label: "abc") }

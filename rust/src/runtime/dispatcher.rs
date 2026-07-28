@@ -31,6 +31,57 @@ fn resolve_query_value(value: Option<&Value>, args: &State) -> Value {
     value.clone()
 }
 
+fn query_number(value: &Value) -> Option<f64> {
+    match value {
+        Value::Number(_) => value.as_f64(),
+        _ => None,
+    }
+}
+
+fn query_truthy(value: &Value) -> bool {
+    !matches!(value, Value::Null | Value::Bool(false))
+}
+
+fn query_text(value: &Value) -> String {
+    match value {
+        Value::Null => String::new(),
+        Value::String(text) => text.clone(),
+        Value::Bool(flag) => flag.to_string(),
+        other => other.to_string(),
+    }
+}
+
+fn query_less_than(held: &Value, want: &Value) -> bool {
+    match (query_number(held), query_number(want)) {
+        (Some(h), Some(w)) => h < w,
+        _ => false,
+    }
+}
+
+fn query_limit(value: &Value) -> usize {
+    match value {
+        Value::Number(_) => value
+            .as_f64()
+            .map(|n| if n < 0.0 { 0 } else { n.trunc() as usize })
+            .unwrap_or(0),
+        Value::String(text) => {
+            let trimmed = text.trim_start();
+            let digits: String = trimmed.chars().take_while(char::is_ascii_digit).collect();
+            digits.parse::<usize>().unwrap_or(0)
+        }
+        _ => 0,
+    }
+}
+
+fn query_order(left: &Value, right: &Value) -> std::cmp::Ordering {
+    match (query_number(left), query_number(right)) {
+        (Some(a), Some(b)) => a.total_cmp(&b),
+        (Some(_), None) => std::cmp::Ordering::Less,
+        (None, Some(_)) => std::cmp::Ordering::Greater,
+        (None, None) => query_text(left).cmp(&query_text(right)),
+    }
+}
+
 fn admissible_transition(
     aggregate: &Map<String, Value>,
     command_name: &str,
@@ -313,10 +364,7 @@ impl Runtime {
                 let held = state.get(field).cloned().unwrap_or(Value::Null);
                 let want = resolve_query_value(clause.get("value"), args);
                 match clause.get("op").and_then(Value::as_str) {
-                    Some("lt") => match (held.as_i64(), want.as_i64()) {
-                        (Some(h), Some(w)) => h < w,
-                        _ => false,
-                    },
+                    Some("lt") => query_less_than(&held, &want),
                     _ => held == want,
                 }
             });
@@ -328,19 +376,9 @@ impl Runtime {
         if let Some(order) = declared.get("order_by").and_then(Value::as_object) {
             let field = order.get("field").and_then(Value::as_str).unwrap_or_default().to_string();
             matched.sort_by(|(a_id, a), (b_id, b)| {
-                let rank = |s: &State, id: &String| {
-                    let v = s.get(&field).cloned().unwrap_or(Value::Null);
-                    match v.as_i64() {
-                        Some(n) => (0i64, n, String::new(), id.clone()),
-                        None => (
-                            1i64,
-                            0,
-                            v.as_str().map(str::to_string).unwrap_or_else(|| v.to_string()),
-                            id.clone(),
-                        ),
-                    }
-                };
-                rank(a, a_id).cmp(&rank(b, b_id))
+                let left = a.get(&field).cloned().unwrap_or(Value::Null);
+                let right = b.get(&field).cloned().unwrap_or(Value::Null);
+                query_order(&left, &right).then_with(|| a_id.cmp(b_id))
             });
             if order.get("direction").and_then(Value::as_str) == Some("desc") {
                 matched.reverse();
@@ -349,11 +387,7 @@ impl Runtime {
 
         let capped: Vec<(String, State)> = match declared.get("limit").and_then(|l| l.get("value")) {
             Some(limit) => {
-                let n = resolve_query_value(Some(limit), args)
-                    .as_str()
-                    .and_then(|s| s.parse::<usize>().ok())
-                    .or_else(|| resolve_query_value(Some(limit), args).as_u64().map(|v| v as usize))
-                    .unwrap_or(usize::MAX);
+                let n = query_limit(&resolve_query_value(Some(limit), args));
                 matched.into_iter().take(n).collect()
             }
             None => matched,
@@ -411,10 +445,7 @@ impl Runtime {
                     let held = element.get(field).cloned().unwrap_or(Value::Null);
                     let want = resolve_query_value(clause.get("value"), args);
                     match clause.get("op").and_then(Value::as_str) {
-                        Some("lt") => match (held.as_i64(), want.as_i64()) {
-                            (Some(h), Some(w)) => h < w,
-                            _ => false,
-                        },
+                        Some("lt") => query_less_than(&held, &want),
                         _ => held == want,
                     }
                 });
@@ -432,26 +463,16 @@ impl Runtime {
         if let Some(order) = declared.get("order_by").and_then(Value::as_object) {
             let field = order.get("field").and_then(Value::as_str).unwrap_or_default().to_string();
             rows.sort_by(|a, b| {
-                let rank = |row: &Value| {
-                    let v = row.get(&field).cloned().unwrap_or(Value::Null);
-                    match v.as_i64() {
-                        Some(n) => (0i64, n, String::new()),
-                        None => (1i64, 0, v.as_str().map(str::to_string).unwrap_or_else(|| v.to_string())),
-                    }
-                };
-                rank(a).cmp(&rank(b))
+                let left = a.get(&field).cloned().unwrap_or(Value::Null);
+                let right = b.get(&field).cloned().unwrap_or(Value::Null);
+                query_order(&left, &right)
             });
             if order.get("direction").and_then(Value::as_str) == Some("desc") {
                 rows.reverse();
             }
         }
         if let Some(limit) = declared.get("limit").and_then(|l| l.get("value")) {
-            if let Some(n) = resolve_query_value(Some(limit), args)
-                .as_str()
-                .and_then(|s| s.parse::<usize>().ok())
-            {
-                rows.truncate(n);
-            }
+            rows.truncate(query_limit(&resolve_query_value(Some(limit), args)));
         }
         Ok(rows)
     }
@@ -568,8 +589,8 @@ impl Runtime {
         if creates {
             let id = args
                 .get(identity)
-                .and_then(Value::as_str)
-                .map(str::to_string)
+                .filter(|value| query_truthy(value))
+                .map(query_text)
                 .unwrap_or_else(|| {
                     self.minted += 1;
                     format!("{}-{}", crate::naming::snake(&aggregate_name), self.minted)
@@ -582,13 +603,12 @@ impl Runtime {
             .and_then(Value::as_str)
             .map(crate::naming::reference_key)
             .unwrap_or_default();
-        let id = args
-            .get(identity)
-            .or_else(|| args.get("id"))
-            .or_else(|| args.get(&reference_key))
-            .and_then(Value::as_str)
-            .ok_or_else(|| format!("{} acts on an existing {} — pass {}:", command_name, aggregate_name, identity))?
-            .to_string();
+        let id = [identity, "id", reference_key.as_str()]
+            .into_iter()
+            .filter_map(|key| args.get(key))
+            .find(|value| query_truthy(value))
+            .map(query_text)
+            .ok_or_else(|| format!("{} acts on an existing {} — pass {}:", command_name, aggregate_name, identity))?;
 
         if let Some(adapter) = self.adapters.get(&aggregate_name) {
             let state = adapter
@@ -983,3 +1003,65 @@ pub fn array(node: &Map<String, Value>, key: &str) -> Vec<Value> {
         .unwrap_or_default()
 }
 
+
+#[cfg(test)]
+mod query_semantics_tests {
+    use super::*;
+    use serde_json::json;
+    use std::cmp::Ordering;
+
+    #[test]
+    fn text_of_nothing_is_empty_not_the_word_null() {
+        assert_eq!(query_text(&Value::Null), "");
+        assert_eq!(query_text(&json!("abc")), "abc");
+        assert_eq!(query_text(&json!(true)), "true");
+        assert_eq!(query_text(&json!(false)), "false");
+    }
+
+    #[test]
+    fn numbers_sort_before_everything_else() {
+        assert_eq!(query_order(&json!(1), &json!("a")), Ordering::Less);
+        assert_eq!(query_order(&json!("a"), &json!(1)), Ordering::Greater);
+    }
+
+    #[test]
+    fn floats_are_numbers_too() {
+        assert_eq!(query_order(&json!(9.5), &json!(10.0)), Ordering::Less);
+        assert_eq!(query_order(&json!(10.0), &json!(9.5)), Ordering::Greater);
+        assert_eq!(query_order(&json!(2), &json!(10.0)), Ordering::Less);
+    }
+
+    #[test]
+    fn a_missing_field_sorts_as_empty_text() {
+        assert_eq!(query_order(&Value::Null, &json!("a")), Ordering::Less);
+        assert_eq!(query_order(&Value::Null, &Value::Null), Ordering::Equal);
+    }
+
+    #[test]
+    fn less_than_needs_two_numbers() {
+        assert!(query_less_than(&json!(1), &json!(2)));
+        assert!(query_less_than(&json!(9.5), &json!(10)));
+        assert!(!query_less_than(&json!("a"), &json!("b")));
+        assert!(!query_less_than(&json!(1), &json!("2")));
+        assert!(!query_less_than(&Value::Null, &json!(1)));
+    }
+
+    #[test]
+    fn a_limit_reads_as_ruby_to_i() {
+        assert_eq!(query_limit(&Value::Null), 0);
+        assert_eq!(query_limit(&json!(5)), 5);
+        assert_eq!(query_limit(&json!("5")), 5);
+        assert_eq!(query_limit(&json!("abc")), 0);
+        assert_eq!(query_limit(&json!(5.9)), 5);
+        assert_eq!(query_limit(&json!(true)), 0);
+    }
+
+    #[test]
+    fn only_nothing_and_false_are_falsy() {
+        assert!(!query_truthy(&Value::Null));
+        assert!(!query_truthy(&json!(false)));
+        assert!(query_truthy(&json!(0)));
+        assert!(query_truthy(&json!("")));
+        assert!(query_truthy(&json!(true)));
+    }
+}
