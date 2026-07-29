@@ -3,28 +3,15 @@ module Hecksagain
     module DSL
       class QueryBuilder
         include AttributeCollector
-
-        COMPARATORS = %i[eq ne gt gte lt lte in contains].freeze
+        include QuerySpecification::Common::DSL
 
         def initialize(name)
           @name   = name
           @wheres = []
+          @index_hints = []
         end
 
         def description(value) = @description = value
-
-        def where(clauses)
-          clauses.each do |field, value|
-            op, operand = split_comparator(value)
-            @wheres << IR::WhereClause.new(field: field, op: op, value: operand)
-          end
-        end
-
-        def order_by(field, direction = :asc)
-          @order_by = IR::OrderBy.new(field: field, direction: direction)
-        end
-
-        def limit(value) = @limit = IR::LimitSpec.new(value: value)
 
         def build
           IR::Query.new(
@@ -33,7 +20,15 @@ module Hecksagain
             attributes:  attributes,
             wheres:      @wheres,
             order_by:    @order_by,
-            limit:       @limit
+            limit:       @limit,
+            offset:      @offset,
+            cursor:      @cursor,
+            consistency: @consistency,
+            freshness: @freshness,
+            authorization: @authorization,
+            null_semantics: @null_semantics,
+            inspection: @inspection,
+            index_hints: @index_hints || []
           )
         end
 
@@ -43,20 +38,6 @@ module Hecksagain
           builder.build
         end
 
-        private
-
-        def split_comparator(value)
-          return [:eq, value] unless value.is_a?(Hash)
-
-          op, operand = value.first
-          unless value.size == 1 && COMPARATORS.include?(op.to_sym)
-            raise ArgumentError,
-                  "unknown comparator #{value.inspect} — expected one of " \
-                  "#{COMPARATORS.join(', ')}"
-          end
-
-          [op.to_sym, operand]
-        end
       end
     end
   end

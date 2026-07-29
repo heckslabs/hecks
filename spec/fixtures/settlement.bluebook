@@ -4,7 +4,11 @@ Hecks.bluebook "Wire" do
   core
 
   aggregate "Drawer" do
-    attribute :cents, Integer, default: 0
+    attribute :cents, Money, default: { cents: 0 }
+
+    value_object "Money" do
+      attribute :cents, Integer
+    end
 
     lifecycle :status, default: "open" do
       transition "Shut" => "shut", from: "open"
@@ -21,7 +25,7 @@ Hecks.bluebook "Wire" do
       role "Clerk"
       goal "Money in"
       reference_to Drawer
-      attribute :amount, Integer
+      attribute :amount, Money
       given("the drawer is open") { status == "open" }
       then_set :cents, increment: :amount
       emits "PutIn"
@@ -31,9 +35,9 @@ Hecks.bluebook "Wire" do
       role "Clerk"
       goal "Money out"
       reference_to Drawer
-      attribute :amount, Integer
+      attribute :amount, Money
       given("the drawer is open")  { status == "open" }
-      given("the cents cover it")  { cents >= amount }
+      given("the cents cover it")  { cents.cents >= amount.cents }
       then_set :cents, decrement: :amount
       emits "Taken"
     end
@@ -54,9 +58,13 @@ Hecks.bluebook "Wire" do
   end
 
   aggregate "Wire" do
-    attribute :amount,      Integer, default: 0
-    attribute :source,      String
-    attribute :destination, String
+    attribute :amount,      Money, default: { cents: 0 }
+    reference_to Drawer, as: :source
+    reference_to Drawer, as: :destination
+
+    value_object "Money" do
+      attribute :cents, Integer
+    end
 
     lifecycle :status, default: "asked" do
       transition "Moved"    => "moved",    from: "asked"
@@ -67,10 +75,10 @@ Hecks.bluebook "Wire" do
     command "Ask" do
       role "Customer"
       goal "Move money between drawers"
-      attribute :amount,      Integer
-      attribute :source,      String
-      attribute :destination, String
-      given("a wire moves something") { amount.positive? }
+      attribute :amount,      Money
+      reference_to Drawer, as: :source
+      reference_to Drawer, as: :destination
+      given("a wire moves something") { amount.cents.positive? }
       then_set :amount,      to: :amount
       then_set :source,      to: :source
       then_set :destination, to: :destination

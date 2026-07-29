@@ -1,6 +1,6 @@
-
 use crate::hecksagon_parser;
 use crate::world::parser as world_parser;
+use super::persistence::persisted_by;
 
 const HECKSAGON: &str = r#"
 # The Pizzas hexagon.
@@ -57,6 +57,38 @@ fn the_world_yields_the_database_location() {
         found,
         Some("data/pizzas.db".to_string()),
         "configs={:?}",
-        world.configs.iter().map(|c| (c.name.clone(), c.values.clone())).collect::<Vec<_>>()
+        world
+            .configs
+            .iter()
+            .map(|c| (c.name.clone(), c.values.clone()))
+            .collect::<Vec<_>>()
     );
+}
+
+#[test]
+fn a_second_unmarked_persistence_adapter_is_rejected() {
+    let error = persisted_by(
+        &[
+            ("Pizzas::Pizza".to_string(), "Heki".to_string(), String::new()),
+            ("Pizzas::Pizza".to_string(), "Sqlite".to_string(), String::new()),
+        ],
+        "Pizza",
+    )
+    .expect_err("two unmarked adapters must be ambiguous");
+
+    assert!(error.contains("2 authoritative persisted_by bindings"));
+}
+
+#[test]
+fn a_mirror_role_is_rejected_from_persistence() {
+    let error = persisted_by(
+        &[
+            ("Pizzas::Pizza".to_string(), "Heki".to_string(), String::new()),
+            ("Pizzas::Pizza".to_string(), "Sqlite".to_string(), "mirror".to_string()),
+        ],
+        "Pizza",
+    )
+    .expect_err("mirrors bind through mirrored_by");
+
+    assert!(error.contains("use mirrored_by for replicas"));
 }

@@ -1,8 +1,5 @@
-
 use storehouse::ports::persistence;
 use storehouse::{dispatcher, dump, ir_json, parser};
-
-
 
 use dispatcher::Runtime;
 use serde_json::{json, Map, Value};
@@ -12,7 +9,10 @@ fn main() {
     let arguments: Vec<String> = std::env::args().collect();
 
     if arguments.len() == 3 && arguments[1] == "--dump" {
-        println!("{}", serde_json::to_string_pretty(&read_bluebook(&arguments[2])).unwrap());
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&read_bluebook(&arguments[2])).unwrap()
+        );
         return;
     }
 
@@ -52,97 +52,12 @@ fn main() {
         std::process::exit(2);
     }
 
-    let ir = read_bluebook(&arguments[1]);
     let script = read_json(&arguments[2]);
-
-    let mut runtime = Runtime::new(ir);
-
-    for (name, aggregate) in runtime.aggregates() {
-        let persistence = match persistence::resolve_for(&arguments[1], &name) {
-            Ok(persistence) => persistence,
-            Err(reason) => {
-                eprintln!("{reason}");
-                std::process::exit(1);
-            }
-        };
-
-        let stored_at = |field: &str| -> String {
-            match persistence.path(&arguments[1], field) {
-                Some(location) => location.to_string_lossy().to_string(),
-                None => {
-                    eprintln!(
-                        "{} binds {}, which stores somewhere, but its world declares no {:?}.",
-                        name, persistence.adapter, field
-                    );
-                    std::process::exit(1);
-                }
-            }
-        };
-
-        match persistence.adapter.as_str() {
-            "Heki" => {
-                let path = stored_at("dir");
-                let identified_by = aggregate
-                    .get("identified_by")
-                    .and_then(Value::as_str)
-                    .map(str::to_string);
-
-                match storehouse::adapters::driven::heki::HekiRepository::new(
-                    &name,
-                    &path,
-                    identified_by,
-                ) {
-                    Ok(adapter) => runtime.attach(&name, Box::new(adapter)),
-                    Err(error) => {
-                        eprintln!("cannot bind Heki at {} for {}: {}", path, name, error);
-                        std::process::exit(1);
-                    }
-                }
-            }
-            "Memory" => {
-            }
-            "Sqlite" => {
-                let path = stored_at("database");
-
-                let columns: Vec<(String, String)> = aggregate
-                    .get("attributes")
-                    .and_then(Value::as_array)
-                    .cloned()
-                    .unwrap_or_default()
-                    .iter()
-                    .filter_map(|attribute| {
-                        let column = attribute.get("name").and_then(Value::as_str)?;
-                        let declared = attribute.get("type").and_then(Value::as_str).unwrap_or("String");
-                        let is_list = attribute.get("list").and_then(Value::as_bool).unwrap_or(false);
-                        let sql = if is_list { "TEXT" } else { storehouse_sqlite::sql_type(declared) };
-                        Some((column.to_string(), sql.to_string()))
-                    })
-                    .collect();
-
-                let identified_by = aggregate
-                    .get("identified_by")
-                    .and_then(Value::as_str)
-                    .map(str::to_string);
-
-                match storehouse_sqlite::SqliteRepository::new(&name, &path, identified_by, columns) {
-                    Ok(adapter) => runtime.attach(&name, Box::new(adapter)),
-                    Err(error) => {
-                        eprintln!("cannot bind Sqlite at {} for {}: {}", path, name, error);
-                        std::process::exit(1);
-                    }
-                }
-            }
-            other => {
-                eprintln!(
-                    "cannot bind {}: this runtime links Sqlite, Heki and Memory. \
-                     An unbound adapter would keep state in a HashMap and look \
-                     entirely correct while nothing was written.",
-                    other
-                );
-                std::process::exit(1);
-            }
-        }
-    }
+    storehouse_sqlite::register();
+    let mut runtime = Runtime::boot(&arguments[1]).unwrap_or_else(|reason| {
+        eprintln!("{reason}");
+        std::process::exit(1);
+    });
     let mut refusals: Vec<Value> = Vec::new();
     let mut queries: Vec<Value> = Vec::new();
 
@@ -162,7 +77,9 @@ fn main() {
         if let Some(question) = step.get("query").and_then(Value::as_str) {
             match runtime.query(question, &args) {
                 Ok(rows) => queries.push(json!({ "query": question, "args": args, "rows": rows })),
-                Err(message) => queries.push(json!({ "query": question, "args": args, "error": message })),
+                Err(message) => {
+                    queries.push(json!({ "query": question, "args": args, "error": message }))
+                }
             }
             continue;
         }
@@ -187,12 +104,104 @@ fn main() {
         "queries": queries,
     });
 
+    if let Err(reason) = enforce_expectations(&script, &output) {
+        eprintln!("matrix expectation failed: {reason}");
+        std::process::exit(1);
+    }
+
     println!("{}", serde_json::to_string_pretty(&output).unwrap());
+}
+
+fn enforce_expectations(script: &Value, output: &Value) -> Result<(), String> {
+    let Some(expectations) = script.get("expectations").and_then(Value::as_object) else {
+        return Ok(());
+    };
+
+    let events = output
+        .get("events")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    for wanted in expectations
+        .get("event_names")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+    {
+        let Some(name) = wanted.as_str() else {
+            continue;
+        };
+        if !events
+            .iter()
+            .any(|event| event.get("name").and_then(Value::as_str) == Some(name))
+        {
+            return Err(format!("event {:?} is missing", name));
+        }
+    }
+
+    let refusals = output
+        .get("refusals")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    for expected in expectations
+        .get("refusals")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+    {
+        let verb = expected
+            .get("verb")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        let includes = expected
+            .get("includes")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        if !refusals.iter().any(|refusal| {
+            refusal.get("verb").and_then(Value::as_str) == Some(verb)
+                && refusal
+                    .get("error")
+                    .and_then(Value::as_str)
+                    .is_some_and(|error| error.contains(includes))
+        }) {
+            return Err(format!(
+                "refusal {:?} containing {:?} is missing",
+                verb, includes
+            ));
+        }
+    }
+
+    let instances = output
+        .get("instances")
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
+    for (key, fields) in expectations
+        .get("instances")
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default()
+    {
+        let actual = instances
+            .get(&key)
+            .and_then(Value::as_object)
+            .ok_or_else(|| format!("instance {:?} is missing", key))?;
+        for (field, expected) in fields.as_object().cloned().unwrap_or_default() {
+            if actual.get(&field) != Some(&expected) {
+                return Err(format!("{}.{} is not {}", key, field, expected));
+            }
+        }
+    }
+    Ok(())
 }
 
 fn read_bluebook(path: &str) -> Value {
     if !path.ends_with(".bluebook") {
-        eprintln!("{} is not a .bluebook — this runtime parses the native format", path);
+        eprintln!(
+            "{} is not a .bluebook — this runtime parses the native format",
+            path
+        );
         std::process::exit(2);
     }
 

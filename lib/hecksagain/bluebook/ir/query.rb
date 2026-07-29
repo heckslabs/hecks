@@ -1,33 +1,22 @@
 module Hecksagain
   module Bluebook
     module IR
-      def self.render_value(value)
-        value.is_a?(Symbol) ? ":#{value}" : value.to_s
-      end
+      def self.render_value(value) = QuerySpecification.render_value(value)
 
-      WhereClause = Struct.new(:field, :op, :value, keyword_init: true) do
-        def to_h = { field: field.to_s, op: op.to_s, value: IR.render_value(value) }
-      end
-
-      OrderBy = Struct.new(:field, :direction, keyword_init: true) do
-        def to_h = { field: field.to_s, direction: direction.to_s }
-      end
-
-      LimitSpec = Struct.new(:value, keyword_init: true) do
-        def to_h = { value: IR.render_value(value) }
-      end
-
-      class Query
-        attr_reader :name, :description, :attributes, :wheres, :order_by, :limit
+      class Query < QuerySpecification::Common::Options
+        attr_reader :name, :description, :attributes
 
         def initialize(name:, description: nil, attributes: [], wheres: [],
-                       order_by: nil, limit: nil)
+                       order_by: nil, limit: nil, offset: nil, cursor: nil,
+                       consistency: nil, freshness: nil, authorization: nil, null_semantics: nil,
+                       inspection: nil, index_hints: [])
+          null_semantics ||= QuerySpecification::Common::NullSemantics.default
+          super(wheres: wheres, order_by: order_by, limit: limit, offset: offset, cursor: cursor,
+                consistency: consistency, freshness: freshness, authorization: authorization,
+                null_semantics: null_semantics, inspection: inspection, index_hints: index_hints)
           @name        = name.to_s
           @description = description
           @attributes  = attributes
-          @wheres      = wheres
-          @order_by    = order_by
-          @limit       = limit
         end
 
         def attribute(named) = @attributes.find { |a| a.name == named.to_sym }
@@ -40,7 +29,7 @@ module Hecksagain
             wheres:      @wheres.map(&:to_h),
             order_by:    @order_by&.to_h,
             limit:       @limit&.to_h
-          }
+          }.merge(extra_options_to_h)
         end
       end
     end

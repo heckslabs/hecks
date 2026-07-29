@@ -1,4 +1,3 @@
-
 use super::*;
 
 pub(super) fn parse_payload_attrs(json: &str) -> HashMap<String, Value> {
@@ -17,7 +16,6 @@ pub(super) fn parse_payload_attrs(json: &str) -> HashMap<String, Value> {
     }
     out
 }
-
 
 pub(crate) fn value_to_json(v: &Value) -> serde_json::Value {
     match v {
@@ -74,12 +72,12 @@ pub(super) fn json_to_value_recursive(v: &serde_json::Value) -> Value {
         serde_json::Value::Bool(b) => Value::Bool(*b),
         serde_json::Value::Number(n) => number_to_value(n),
         serde_json::Value::Null => Value::Null,
-        serde_json::Value::Array(a) => {
-            Value::List(a.iter().map(json_to_value_recursive).collect())
-        }
-        serde_json::Value::Object(m) => {
-            Value::Map(m.iter().map(|(k, v)| (k.clone(), json_to_value_recursive(v))).collect())
-        }
+        serde_json::Value::Array(a) => Value::List(a.iter().map(json_to_value_recursive).collect()),
+        serde_json::Value::Object(m) => Value::Map(
+            m.iter()
+                .map(|(k, v)| (k.clone(), json_to_value_recursive(v)))
+                .collect(),
+        ),
     }
 }
 
@@ -127,16 +125,17 @@ impl std::fmt::Display for Value {
     }
 }
 
-
-pub(super) fn json_obj_to_value_map(map: serde_json::Map<String, serde_json::Value>) -> HashMap<String, Value> {
+pub(super) fn json_obj_to_value_map(
+    map: serde_json::Map<String, serde_json::Value>,
+) -> HashMap<String, Value> {
     let mut out = HashMap::new();
     for (k, v) in map {
         let value = match v {
             serde_json::Value::String(s) => Value::Str(s),
-            serde_json::Value::Bool(b)   => Value::Bool(b),
+            serde_json::Value::Bool(b) => Value::Bool(b),
             serde_json::Value::Number(n) => number_to_value(&n),
-            serde_json::Value::Null      => Value::Null,
-            other                        => Value::Str(other.to_string()),
+            serde_json::Value::Null => Value::Null,
+            other => Value::Str(other.to_string()),
         };
         out.insert(k, value);
     }

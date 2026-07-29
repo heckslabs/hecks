@@ -20,7 +20,11 @@ RSpec.describe "the DSL surface" do
   end
 
   def build_command(domain, &block)
-    build_aggregate(domain) { command("Do", &block) }.command("Do")
+    build_aggregate(domain) do
+      value_object("Size") { attribute :value, Integer }
+      value_object("Tag") { attribute :value, String }
+      command("Do", &block)
+    end.command("Do")
   end
 
   describe "Hecks" do
@@ -33,6 +37,11 @@ RSpec.describe "the DSL surface" do
 
     it ".bluebook registers a domain" do
       expect(build_bluebook("Registered").name).to eq("Registered")
+    end
+
+    it ".bluebook records an optional domain version" do
+      registry = in_registry { Hecks.bluebook("Registered", version: "v2") {} }
+      expect(registry.bluebook("Registered").version).to eq("v2")
     end
 
     it ".family registers a family" do
@@ -90,6 +99,38 @@ RSpec.describe "the DSL surface" do
     it "refuses an unnamed attribute" do
       expect { build_aggregate("Nameless") { attribute "", String } }
         .to raise_error(Malformed, /must be named/)
+    end
+
+    it "refuses an aggregate attribute that is not a value object" do
+      expect { build_aggregate("Primitive") { attribute :code, String } }
+        .to raise_error(Malformed, /Thing#code is String, not a value object/)
+    end
+
+    it "refuses a reference to an entity rather than an aggregate head" do
+      expect do
+        build_bluebook("HeadOnly") do
+          aggregate "Root" do
+            attribute :key, Key
+            value_object("Key") { attribute :value, String }
+
+            entity "Child" do
+              command("Change") { reference_to Child }
+            end
+          end
+        end
+      end.to raise_error(Malformed, /Root\.Child\.Change references Child; references may only target aggregate heads/)
+    end
+
+    it "refuses a reference to a value object rather than an aggregate head" do
+      expect do
+        build_bluebook("HeadOnly") do
+          aggregate "Root" do
+            value_object("Code") { attribute :value, String }
+
+            command("UseCode") { reference_to Code }
+          end
+        end
+      end.to raise_error(Malformed, /Root\.UseCode references Code; references may only target aggregate heads/)
     end
 
     it "refuses an unnamed event" do
@@ -222,39 +263,138 @@ RSpec.describe "the DSL surface" do
       end
     end
 
-    it "lets a scalar stand in for a value object with exactly one field" do
+    it "materializes a declared value object rather than a hash" do
       registry = account_domain
       runtime  = Hecksagain::Runtime::Loader.bind_runtime(
         Hecksagain::Runtime::Dispatcher.new(registry.tap(&:verify!))
       )
 
-      state = runtime.dispatch("Coerced::Holding.Open", id: "h1", kind: "current").state
+      state = runtime.dispatch("Coerced::Holding.Open", id: "h1", kind: { name: "current" }).state
 
-      expect(state[:kind]).to eq(name: "current")
+      expect(state[:kind]).to be_a(Hecksagain::Runtime::Value)
+      expect(state[:kind].type_name).to eq("Kind")
+      expect(state[:kind][:name]).to eq("current")
     end
 
-    it "enforces the invariant on a coerced scalar" do
+    it "identifies a value object by its declared state" do
       registry = account_domain
       runtime  = Hecksagain::Runtime::Loader.bind_runtime(
         Hecksagain::Runtime::Dispatcher.new(registry.tap(&:verify!))
       )
 
-      expect { runtime.dispatch("Coerced::Holding.Open", id: "h2", kind: "offshore") }
+      first  = runtime.dispatch("Coerced::Holding.Open", id: "h1", kind: { name: "current" }).state[:kind]
+      second = runtime.dispatch("Coerced::Holding.Open", id: "h2", kind: { name: "current" }).state[:kind]
+
+      expect(first).to eq(second)
+      expect(first.to_h).to eq(name: "current")
+    end
+
+    it "enforces the invariant on a value object" do
+      registry = account_domain
+      runtime  = Hecksagain::Runtime::Loader.bind_runtime(
+        Hecksagain::Runtime::Dispatcher.new(registry.tap(&:verify!))
+      )
+
+      expect { runtime.dispatch("Coerced::Holding.Open", id: "h2", kind: { name: "offshore" }) }
         .to raise_error(Hecksagain::Runtime::InvariantViolation, /current or savings/)
     end
 
-    it "refuses a scalar for a value object with more than one field" do
+    it "refuses a scalar for every value object" do
       registry = account_domain
       runtime  = Hecksagain::Runtime::Loader.bind_runtime(
         Hecksagain::Runtime::Dispatcher.new(registry.tap(&:verify!))
       )
 
-      expect { runtime.dispatch("Coerced::Holding.Open", id: "h3", amount: 2500) }
-        .to raise_error(Hecksagain::Runtime::TypeMismatch, /cents, currency/)
+      expect { runtime.dispatch("Coerced::Holding.Open", id: "h3", kind: "current") }
+        .to raise_error(Hecksagain::Runtime::TypeMismatch, /pass its fields as an object/)
     end
   end
 
   describe "a bluebook" do
+    it "read_model declares a domain-level projection" do
+      model = build_bluebook("Portfolio") do
+        aggregate "Customer" do
+          attribute :reference, CustomerNumber
+          value_object "CustomerNumber" do
+            attribute :value, String
+          end
+        end
+        read_model "CustomerPortfolio" do
+          reference_to Customer, as: :reference
+          include Customer
+          include Account
+        end
+      end.read_models.first
+
+      expect([model.name, model.query_name, model.reference_name, model.reference_target])
+        .to eq(["CustomerPortfolio", "customer_portfolio", :reference, "Customer"])
+      expect(model.aggregate_heads).to eq([
+        { aggregate: "Customer", as: :customer, many: false },
+        { aggregate: "Account", as: :accounts, many: true }
+      ])
+    end
+
+    it "validates read-model reference ordering, uniqueness, and descriptions" do
+      expect {
+        build_bluebook("BadModel") do
+          read_model("Portfolio") { include Customer }
+        end
+      }.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /before its aggregate-head reference/)
+
+      expect {
+        build_bluebook("BadModel") do
+          read_model("Portfolio") do
+            description ""
+          end
+        end
+      }.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /description says nothing/)
+
+      expect {
+        build_bluebook("BadModel") do
+          read_model("Portfolio") do
+            reference_to Customer
+            reference_to Account
+          end
+        end
+      }.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /already has a projection reference/)
+
+      expect {
+        build_bluebook("BadModel") do
+          read_model("Portfolio") do
+            reference_to Customer
+            include Customer, as: :customer
+            include Customer, as: :customer
+          end
+        end
+      }.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /already projects customer/)
+    end
+
+    it "lets read models combine common query options with aggregate-head joins" do
+      model = build_bluebook("QueryablePortfolio") do
+        read_model "Portfolio" do
+          reference_to Customer
+          include Account
+          where(status: "active")
+          order_by :id, :desc
+          limit 20
+          offset 5
+          cursor :after
+          nulls :last
+          authorize :portfolio_access, tenant: :customer_id
+          consistency :snapshot
+          freshness :bounded, max_age: 60
+          inspect_query :sql
+          use_index :customer_status
+        end
+      end.read_models.first
+
+      expect(model.wheres.first.to_h).to eq(field: "status", op: "eq", value: "active")
+      expect(model.aggregate_heads).to eq([{ aggregate: "Account", as: :accounts, many: true }])
+      expect(model.offset.to_h).to eq(value: "5")
+      expect(model.authorization.to_h).to eq(policy: "portfolio_access", tenant: "customer_id")
+      expect(model.freshness.to_h).to eq(mode: "bounded", max_age: "60")
+    end
+
     it "vision records the domain's sentence" do
       expect(build_bluebook("Visioned") { vision "sell pizza" }.vision).to eq("sell pizza")
     end
@@ -400,13 +540,15 @@ RSpec.describe "the DSL surface" do
       line = build_aggregate("Ordered") do
         entity "OrderLine" do
           identified_by :sku
-          attribute :sku,      String
-          attribute :quantity, Integer
+          attribute :sku,      Sku
+          attribute :quantity, Quantity
         end
+        value_object("Sku") { attribute :value, String }
+        value_object("Quantity") { attribute :value, Integer }
       end.entities.first
 
       expect([line.name, line.identified_by]).to eq(["OrderLine", :sku])
-      expect(line.attribute(:quantity).type).to eq("Integer")
+      expect(line.attribute(:quantity).type).to eq("Quantity")
     end
 
     it "query records filters, ordering and a cap as DATA, never a proc" do
@@ -415,6 +557,14 @@ RSpec.describe "the DSL surface" do
           where(status: "available")
           order_by :name, :desc
           limit 10
+          offset 5
+          cursor :after
+          nulls :last
+          authorize :customer_access, tenant: :account_id
+          consistency :snapshot, timeout: 2
+          freshness :eventual, max_age: 30
+          inspect_query :sql
+          use_index :status_name
         end
       end.queries.first
 
@@ -422,6 +572,14 @@ RSpec.describe "the DSL surface" do
       expect(found.wheres.map(&:to_h)).to eq([{ field: "status", op: "eq", value: "available" }])
       expect(found.order_by.to_h).to eq({ field: "name", direction: "desc" })
       expect(found.limit.to_h).to eq({ value: "10" })
+      expect(found.offset.to_h).to eq({ value: "5" })
+      expect(found.cursor.to_h).to eq({ value: ":after" })
+      expect(found.null_semantics.to_h).to eq({ mode: "last" })
+      expect(found.authorization.to_h).to eq({ policy: "customer_access", tenant: "account_id" })
+      expect(found.consistency.to_h).to eq({ mode: "snapshot", timeout: "2" })
+      expect(found.freshness.to_h).to eq({ mode: "eventual", max_age: "30" })
+      expect(found.inspection.to_h).to eq({ mode: "sql" })
+      expect(found.index_hints.map(&:to_h)).to eq([{ name: "status_name" }])
     end
 
     it "query reads a comparator from the hash form" do
@@ -445,10 +603,13 @@ RSpec.describe "the DSL surface" do
     end
 
     it "reference_to another root is an attribute, and leaves the command creating" do
-      command = build_command("Open") { reference_to "Customer" }
+      command = build_bluebook("Open") do
+        aggregate("Customer") { description "A customer" }
+        aggregate("Thing") { command("Do") { reference_to "Customer" } }
+      end.aggregate("Thing").command("Do")
 
       expect(command.creates?).to be true
-      expect(command.attribute(:customer_id).type).to eq("String")
+      expect(command.attribute(:customer_id).type).to eq("Reference<Customer>")
     end
 
     it "reference_to its OWN root makes the command act on an existing one" do
@@ -471,25 +632,37 @@ RSpec.describe "the DSL surface" do
       expect([reaction.event_qualifier, reaction.event_name]).to eq(["Order", "Placed"])
     end
 
-    it "attribute adds a scalar field" do
-      declared = build_aggregate("Attributed") { attribute :size, String }.attribute(:size)
+    it "attribute adds a value-object field" do
+      declared = build_aggregate("Attributed") do
+        value_object("Size") { attribute :value, String }
+        attribute :size, Size
+      end.attribute(:size)
 
-      expect([declared.type, declared.list?, declared.scalar?]).to eq(["String", false, true])
+      expect([declared.type, declared.list?, declared.scalar?]).to eq(["Size", false, true])
     end
 
     it "attribute takes a default" do
-      aggregate = build_aggregate("Defaulting") { attribute :status, String, default: "open" }
-      expect(aggregate.attribute(:status).default).to eq("open")
+      aggregate = build_aggregate("Defaulting") do
+        value_object("Status") { attribute :value, String }
+        attribute :status, Status, default: { value: "open" }
+      end
+      expect(aggregate.attribute(:status).default).to eq(value: "open")
     end
 
     it "list_of marks an attribute as a list" do
-      aggregate = build_aggregate("Listed") { attribute :parts, list_of(Part) }
+      aggregate = build_aggregate("Listed") do
+        value_object("Part") { attribute :value, String }
+        attribute :parts, list_of(Part)
+      end
       expect([aggregate.attribute(:parts).type, aggregate.attribute(:parts).list?]).to eq(["Part", true])
     end
 
     it "reference_to points at another root by its identity" do
-      aggregate = build_aggregate("Referring") { reference_to Pizza }
-      expect(aggregate.attribute(:pizza_id).type).to eq("String")
+      aggregate = build_bluebook("Referring") do
+        aggregate("Pizza") { description "A pizza" }
+        aggregate("Thing") { reference_to Pizza }
+      end.aggregate("Thing")
+      expect(aggregate.attribute(:pizza_id).type).to eq("Reference<Pizza>")
     end
 
     it "value_object declares a VO inside the aggregate that uses it" do
@@ -543,7 +716,7 @@ RSpec.describe "the DSL surface" do
     end
 
     it "attribute adds a payload field" do
-      expect(build_command("CmdAttr") { attribute :size, Integer }.attribute(:size).type).to eq("Integer")
+      expect(build_command("CmdAttr") { attribute :size, Size }.attribute(:size).type).to eq("Size")
     end
 
     it "list_of works in a command payload" do
@@ -664,6 +837,17 @@ RSpec.describe "the DSL surface" do
   end
 
   describe "a world" do
+    it "declares the realm and active version for this deployment" do
+      registry = in_registry do
+        Hecks.world("Valued") do
+          realm "Acme"
+          latest "v2"
+        end
+      end
+
+      expect(registry.world("Valued").to_h).to include(realm: "Acme", latest: "v2")
+    end
+
     it "any how-verb collects the values under it" do
       registry = in_registry do
         Hecks.world("Valued") do

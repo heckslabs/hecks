@@ -1,4 +1,3 @@
-
 pub use std::collections::HashMap;
 
 pub mod dispatcher;
@@ -17,11 +16,11 @@ pub mod value;
 pub mod value_convert;
 
 #[allow(unused_imports)]
-pub use aggregate_state::AggregateState;
-#[allow(unused_imports)]
 pub use crate::ports::persistence::persistence_adapter::{
     register_persistence_adapter, PersistenceAdapter, PersistenceSpec,
 };
+#[allow(unused_imports)]
+pub use aggregate_state::AggregateState;
 #[allow(unused_imports)]
 pub use query_match::where_matches;
 #[allow(unused_imports)]

@@ -1,4 +1,3 @@
-
 use crate::ir::{
     Aggregate, Attribute, Command, Direction, Domain, Entity, Lifecycle, MutationOp, Policy,
     ProcessManager, ProcessManagerHandler, Query, Transition, ValueObject, ValueSpec, WhereClause,
@@ -8,15 +7,25 @@ use serde_json::{json, Map, Value};
 
 pub fn domain_to_value(domain: &Domain) -> Value {
     let aggregates: Vec<Value> = domain.aggregates.iter().map(aggregate_to_value).collect();
+    let read_models: Vec<Value> = domain.read_models.iter().map(|model| json!({
+        "name": model.name, "description": optional(&model.description),
+        "reference_name": model.reference_name, "reference_target": model.reference_target,
+        "aggregate_heads": model.aggregate_heads.iter().map(|head| json!({
+            "aggregate": head.aggregate, "as": head.name, "many": head.many
+        })).collect::<Vec<_>>(),
+        "query_name": crate::naming::snake(&model.name)
+    })).collect();
 
     let mut domains = Map::new();
     domains.insert(
         domain.name.clone(),
         json!({
             "name": domain.name,
+            "version": optional(&domain.version),
             "vision": optional(&domain.vision),
             "classification": optional(&domain.classification),
             "aggregates": aggregates,
+            "read_models": read_models,
             "policies": domain.policies.iter().map(policy_to_value).collect::<Vec<_>>(),
             "process_managers": domain.process_managers.iter()
                 .map(process_manager_to_value).collect::<Vec<_>>(),
@@ -46,8 +55,8 @@ fn aggregate_attributes(aggregate: &Aggregate) -> Vec<Value> {
 
     let implied = aggregate.references.iter().map(|reference| {
         json!({
-            "name": format!("{}_id", reference.name),
-            "type": "String",
+            "name": reference.name,
+            "type": format!("Reference<{}>", reference.target),
             "list": false,
             "default": Value::Null
         })
@@ -136,10 +145,10 @@ fn pm_handler_to_value(handler: &ProcessManagerHandler) -> Value {
 
 fn value_spec_text(spec: &ValueSpec) -> String {
     match spec {
-        ValueSpec::Literal { value } => value.clone(),
+        ValueSpec::Literal { value } => ruby_literal(value),
         ValueSpec::FromEvent { name, .. } => name.clone(),
         ValueSpec::FromPm { name, .. } => name.clone(),
-        ValueSpec::FromIter { field } => field.clone()
+        ValueSpec::FromIter { field } => field.clone(),
     }
 }
 
@@ -244,8 +253,8 @@ fn command_attributes(command: &Command, owner: &str) -> Vec<Value> {
         .filter(|reference| reference.target != owner)
         .map(|reference| {
             json!({
-                "name": format!("{}_id", reference.name),
-                "type": "String",
+                "name": reference.name,
+                "type": format!("Reference<{}>", reference.target),
                 "list": false,
                 "default": Value::Null
             })
@@ -259,7 +268,10 @@ fn command_attributes(command: &Command, owner: &str) -> Vec<Value> {
 fn mutation_to_value(mutation: &crate::ir::Mutation) -> Value {
     let target = mutation.field.clone();
 
-    if matches!(mutation.operation, MutationOp::Append | MutationOp::AppendUnique) {
+    if matches!(
+        mutation.operation,
+        MutationOp::Append | MutationOp::AppendUnique
+    ) {
         let mut fields = Map::new();
         let body = mutation
             .value
@@ -271,7 +283,10 @@ fn mutation_to_value(mutation: &crate::ir::Mutation) -> Value {
             if let Some((field, argument)) = pair.split_once(':') {
                 let argument = argument.trim().trim_start_matches(':').trim();
                 if !argument.is_empty() {
-                    fields.insert(field.trim().to_string(), Value::String(argument.to_string()));
+                    fields.insert(
+                        field.trim().to_string(),
+                        Value::String(ruby_literal(argument)),
+                    );
                 }
             }
         }
@@ -311,8 +326,20 @@ struct Rule {
 }
 
 const RULES: &[Rule] = &[
-    Rule { strategy: "collapse_whitespace", source_token: "", replacement: "", boundary: "none", position: 1 },
-    Rule { strategy: "replace", source_token: ".length", replacement: ".size", boundary: "word", position: 2 },
+    Rule {
+        strategy: "collapse_whitespace",
+        source_token: "",
+        replacement: "",
+        boundary: "none",
+        position: 1,
+    },
+    Rule {
+        strategy: "replace",
+        source_token: ".length",
+        replacement: ".size",
+        boundary: "word",
+        position: 2,
+    },
 ];
 
 pub fn canonical_form_table() -> Value {
@@ -379,7 +406,11 @@ fn replace(source: &str, rule: &Rule) -> String {
                 .unwrap_or(true);
 
         out.push_str(&rest[..at]);
-        out.push_str(if applies { rule.replacement } else { rule.source_token });
+        out.push_str(if applies {
+            rule.replacement
+        } else {
+            rule.source_token
+        });
         rest = after;
     }
 
@@ -396,7 +427,21 @@ fn literal(text: Option<&str>) -> Value {
     if text.len() >= 2 && text.starts_with('"') && text.ends_with('"') {
         return Value::String(text[1..text.len() - 1].to_string());
     }
+    if text.starts_with('{') && text.ends_with('}') {
+        let mut map = Map::new();
+        for entry in text[1..text.len() - 1].split(',') {
+            let Some((key, value)) = entry.split_once(':') else { continue };
+            let key = key.trim().trim_start_matches(':').trim_matches('"');
+            if !key.is_empty() {
+                map.insert(key.to_string(), literal(Some(value.trim())));
+            }
+        }
+        return Value::Object(map);
+    }
     if let Ok(number) = text.parse::<i64>() {
+        return Value::from(number);
+    }
+    if let Ok(number) = text.parse::<f64>() {
         return Value::from(number);
     }
     match text {
@@ -405,6 +450,20 @@ fn literal(text: Option<&str>) -> Value {
         "nil" | "null" | "" => Value::Null,
         other => Value::String(other.to_string()),
     }
+}
+
+fn ruby_literal(text: &str) -> String {
+    let text = text.trim();
+    if !text.starts_with('{') || !text.ends_with('}') {
+        return text.to_string();
+    }
+
+    let pairs = text[1..text.len() - 1]
+        .split(',')
+        .filter_map(|entry| entry.split_once(':'))
+        .map(|(key, value)| format!(":{}=>{}", key.trim(), value.trim()))
+        .collect::<Vec<_>>();
+    format!("{{{}}}", pairs.join(", "))
 }
 
 fn optional(text: &Option<String>) -> Value {
@@ -417,7 +476,6 @@ fn optional(text: &Option<String>) -> Value {
 #[cfg(test)]
 mod tests {
     use super::canonicalise;
-
 
     #[test]
     fn folds_the_length_alias() {

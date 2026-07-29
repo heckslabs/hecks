@@ -5,34 +5,42 @@ module Hecksagain
 
     class Value
       def self.for(aggregate, name, value)
-        value_object = declared_by(aggregate, name)
-        return value unless value_object
-        return value if value.nil?
+        attribute = aggregate.attribute(name)
+        return value unless attribute
 
-        build(value_object, fields_for(value_object, name, value))
+        for_attribute(aggregate, attribute, value)
       end
 
-      def self.declared_by(aggregate, name)
-        attribute = aggregate.attribute(name)
-        return nil unless attribute&.scalar?
+      def self.for_attribute(aggregate, attribute, value)
+        return value if attribute.nil? || value.nil?
+        return hydrate_entity_list(aggregate, attribute, value) if attribute.list?
+        return value unless aggregate.respond_to?(:value_object)
 
         aggregate.value_object(attribute.type)
+          .then do |value_object|
+            return value if value.is_a?(self) && value.type_name == value_object&.name
+
+            value_object ? build(value_object, fields_for(value_object, attribute.name, value)) : value
+          end
       end
 
       def self.fields_for(value_object, name, value)
         return value.transform_keys(&:to_sym) if value.is_a?(Hash)
-
-        only = value_object.attributes
-        return { only.first.name => value } if only.size == 1
+        # Mutations may legitimately carry a value object into a differently
+        # named value-object slot with the same declared fields (for example,
+        # PositiveMoney into an Account's Money balance).  Rebuild the target
+        # type from its state; callers at the public boundary still have to
+        # supply an object rather than a scalar.
+        return value.to_h if value.is_a?(self)
 
         raise TypeMismatch,
-              "#{name} is a #{value_object.name}, which has " \
-              "#{only.map { |a| a.name }.join(', ')} — pass those fields, not " \
-              "#{value.inspect}. A scalar can only stand in for a value " \
-              "object with exactly one field."
+              "#{name} is a #{value_object.name} — pass its fields as an object, not #{value.inspect}"
       end
 
       def self.build(value_object, fields)
+        fields = value_object.attributes.each_with_object(fields.transform_keys(&:to_sym)) do |attribute, completed|
+          completed[attribute.name] = attribute.default unless completed.key?(attribute.name) || attribute.default.nil?
+        end
         admit_member(value_object, fields)
         value_object.invariants.each do |invariant|
           next if Bluebook::Expression::Evaluator.call(invariant.canonical, fields)
@@ -41,7 +49,58 @@ module Hecksagain
                 "#{value_object.name} invariant violated — #{invariant.description} " \
                 "(given #{canonical_fields(fields)})"
         end
-        fields
+        new(value_object, fields)
+      end
+
+      def self.hydrate(aggregate, state)
+        state.each_with_object({}) do |(name, value), hydrated|
+          key       = name.to_sym
+          attribute = aggregate.attribute(key)
+          hydrated[key] = attribute ? for_attribute(aggregate, attribute, value) : value
+        end
+      end
+
+      def self.hydrate_entity_list(aggregate, attribute, value)
+        entity = aggregate.entities.find { |candidate| candidate.name == attribute.type.to_s }
+        return value unless entity
+
+        Array(value).map do |element|
+          next element unless element.is_a?(Hash)
+
+          element.each_with_object({}) do |(name, field_value), hydrated|
+            key = name.to_sym
+            field = entity.attribute(key)
+            hydrated[key] = field ? for_attribute(aggregate, field, field_value) : field_value
+          end
+        end
+      end
+
+      def self.identifier(value)
+        return value.values.first if value.is_a?(Hash) && value.size == 1
+        return value unless value.is_a?(self)
+
+        return scalar(value) if value.is_a?(self)
+
+        raise TypeMismatch, "#{value.type_name} is a composite identity — an identity must have exactly one field"
+      end
+
+      def self.scalar(value)
+        return value unless value.is_a?(self)
+
+        fields = value.to_h
+        return fields.values.first if fields.size == 1
+
+        raise TypeMismatch, "#{value.type_name} has multiple fields and cannot stand in for a scalar"
+      end
+
+      def self.from_identifier(aggregate, attribute, identifier)
+        value_object = aggregate.value_object(attribute.type)
+        return identifier unless value_object
+
+        fields = value_object.attributes
+        return build(value_object, { fields.first.name => identifier }) if fields.size == 1
+
+        raise TypeMismatch, "#{value_object.name} is a composite identity — an identity must have exactly one field"
       end
 
       def self.admit_member(value_object, fields)
@@ -60,9 +119,34 @@ module Hecksagain
         JSON.generate(fields.sort_by { |name, _| name.to_s }.to_h)
       end
 
+      attr_reader :value_object
+
       def initialize(value_object, fields)
         @value_object = value_object
-        @fields       = fields
+        @fields       = fields.transform_keys(&:to_sym).freeze
+      end
+
+      def type_name = @value_object.name
+      def [](field) = @fields[field.to_sym]
+      def key?(field) = @fields.key?(field.to_sym)
+      def to_h = @fields.transform_values { |value| self.class.materialize(value) }
+      def to_json(*) = JSON.generate(to_h)
+
+      def ==(other)
+        other.is_a?(self.class) && other.type_name == type_name && other.to_h == to_h
+      end
+
+      def with(field, value)
+        self.class.build(@value_object, @fields.merge(field.to_sym => value))
+      end
+
+      def self.materialize(value)
+        case value
+        when self then value.to_h
+        when Array then value.map { |item| materialize(item) }
+        when Hash then value.transform_values { |item| materialize(item) }
+        else value
+        end
       end
 
       def method_missing(name, *args)

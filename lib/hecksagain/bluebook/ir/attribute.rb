@@ -13,6 +13,7 @@ module Hecksagain
 
         def list?   = @list
         def scalar? = !@list
+        def reference? = @type.start_with?("Reference<")
 
         PRIMITIVES = %w[String Integer Float TrueClass FalseClass].freeze
         def primitive? = PRIMITIVES.include?(@type)

@@ -19,7 +19,7 @@ RSpec.describe Hecksagain::Adapters::Sqlite do
 
   def instance(id, **fields)
     built = Hecksagain::Runtime::Instance.new(aggregate: aggregate, id: id)
-    fields.each { |name, value| built[name] = value }
+    fields.each { |name, value| built[name] = Hecksagain::Runtime::Value.for(aggregate, name, value) }
     built
   end
 
@@ -32,8 +32,8 @@ RSpec.describe Hecksagain::Adapters::Sqlite do
     adapter
     schema = `sqlite3 #{File.join(@dir, 'pizzas.db')} ".schema pizza"`
 
-    expect(schema).to include(%("price_cents" INTEGER)) 
-    expect(schema).to include(%("name" TEXT))           
+    expect(schema).to include(%("price_cents" TEXT))
+    expect(schema).to include(%("name" TEXT))
     expect(schema).to include(%("toppings" TEXT))       
     expect(schema).to include("id TEXT PRIMARY KEY")
   end
@@ -47,19 +47,19 @@ RSpec.describe Hecksagain::Adapters::Sqlite do
     )
 
     built = Hecksagain::Runtime::Instance.new(aggregate: reserved, id: "o1")
-    built[:name] = "Margherita"
+    built[:name] = Hecksagain::Runtime::Value.for(reserved, :name, { value: "Margherita" })
     adapter.save(built)
 
-    expect(adapter.find("o1").name).to eq("Margherita")
+    expect(adapter.find("o1").name.to_h).to eq(value: "Margherita")
     expect(adapter.count).to eq(1)
   end
 
   it "saves and finds one back" do
-    adapter.save(instance("p1", name: "Margherita", price_cents: 1200, status: "available"))
+    adapter.save(instance("p1", name: { value: "Margherita" }, price_cents: { cents: 1200 }, status: "available"))
 
     found = adapter.find("p1")
-    expect(found.name).to eq("Margherita")
-    expect(found.price_cents).to eq(1200)
+    expect(found.name.to_h).to eq(value: "Margherita")
+    expect(found.price_cents.to_h).to eq(cents: 1200)
     expect(found.status).to eq("available")
   end
 
@@ -73,24 +73,59 @@ RSpec.describe Hecksagain::Adapters::Sqlite do
     expect(adapter.find("nope")).to be_nil
   end
 
-  it "upserts rather than duplicating" do
+  it "keeps every write and reads the last entry" do
     adapter.save(instance("p1", status: "available"))
     adapter.save(instance("p1", status: "sold"))
 
     expect(adapter.count).to eq(1)
     expect(adapter.find("p1").status).to eq("sold")
+    entries = adapter.instance_variable_get(:@db).execute('SELECT state FROM "pizza_entries" ORDER BY sequence')
+    expect(entries.map { |entry| JSON.parse(entry["state"]).fetch("status") }).to eq(%w[available sold])
   end
 
   it "lists everything it holds" do
-    adapter.save(instance("p1", name: "Margherita"))
-    adapter.save(instance("p2", name: "Bare"))
+    adapter.save(instance("p1", name: { value: "Margherita" }))
+    adapter.save(instance("p2", name: { value: "Bare" }))
 
     expect(adapter.all.map(&:id)).to contain_exactly("p1", "p2")
     expect(adapter.count).to eq(2)
   end
 
+  it "deletes through the append-only log and materialized table" do
+    adapter.save(instance("p1", name: { value: "Temporary" }))
+
+    expect(adapter.delete("p1")).to be(true)
+    expect(adapter.find("p1")).to be_nil
+    expect(adapter.entries.last.operation).to eq("delete")
+    expect(adapter.delete("missing")).to be(true)
+  end
+
+  it "records and reloads domain events" do
+    event = Hecksagain::Runtime::Event.new(
+      name: "PizzaPurchased", aggregate: "Pizza", id: "p1",
+      payload: { customer: "c1" }, occurred_at: "2026-01-01T00:00:00Z"
+    )
+    adapter.record_event(event)
+
+    expect(adapter.events.map { |item| [item.name, item.id, item.payload] })
+      .to eq([["PizzaPurchased", "p1", { customer: "c1" }]])
+  end
+
+  it "upgrades an entry table created before operation and mirror columns" do
+    path = File.join(@dir, "legacy.db")
+    described_class.new(aggregate: aggregate, settings: { database: "legacy.db" }, root: @dir)
+    db = SQLite3::Database.new(path)
+    db.execute('DROP TABLE "pizza_entries"')
+    db.execute('CREATE TABLE "pizza_entries" (sequence INTEGER PRIMARY KEY AUTOINCREMENT, aggregate_id TEXT NOT NULL, state TEXT NOT NULL)')
+    db.close
+
+    upgraded = described_class.new(aggregate: aggregate, settings: { database: "legacy.db" }, root: @dir)
+    upgraded.save(instance("p1", name: { value: "Legacy" }))
+    expect(upgraded.entries.last.operation).to eq("save")
+  end
+
   it "outlives the adapter that wrote it" do
-    adapter.save(instance("p1", name: "Margherita", status: "sold"))
+    adapter.save(instance("p1", name: { value: "Margherita" }, status: "sold"))
 
     reopened = described_class.new(
       aggregate: aggregate, settings: { database: "pizzas.db" }, root: @dir

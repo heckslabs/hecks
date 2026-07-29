@@ -21,7 +21,7 @@ RSpec.describe Hecksagain::Adapters::Heki do
 
   def instance(id, **fields)
     built = Hecksagain::Runtime::Instance.new(aggregate: aggregate, id: id)
-    fields.each { |name, value| built[name] = value }
+    fields.each { |name, value| built[name] = Hecksagain::Runtime::Value.for(aggregate, name, value) }
     built
   end
 
@@ -31,29 +31,31 @@ RSpec.describe Hecksagain::Adapters::Heki do
     end
 
     it "saves and finds" do
-      adapter.save(instance("p1", name: "Margherita", price_cents: 1200))
+      adapter.save(instance("p1", name: { value: "Margherita" }, price_cents: { cents: 1200 }))
 
       found = adapter.find("p1")
-      expect([found.id, found[:name], found[:price_cents]]).to eq(["p1", "Margherita", 1200])
+      expect([found.id, found[:name].to_h, found[:price_cents].to_h]).to eq(["p1", { value: "Margherita" }, { cents: 1200 }])
     end
 
-    it "upserts rather than duplicating" do
-      adapter.save(instance("p1", name: "First"))
-      adapter.save(instance("p1", name: "Second"))
+    it "keeps every write and reads the last entry" do
+      adapter.save(instance("p1", name: { value: "First" }))
+      adapter.save(instance("p1", name: { value: "Second" }))
 
       expect(adapter.count).to eq(1)
-      expect(adapter.find("p1")[:name]).to eq("Second")
+      expect(adapter.find("p1")[:name].to_h).to eq(value: "Second")
+      entries = File.readlines("#{adapter.path}.journal", chomp: true).map { |line| JSON.parse(line) }
+      expect(entries.map { |entry| entry.fetch("state").fetch("name").fetch("value") }).to eq(%w[First Second])
     end
 
     it "lists what it holds, in id order" do
-      adapter.save(instance("p2", name: "Second"))
-      adapter.save(instance("p1", name: "First"))
+      adapter.save(instance("p2", name: { value: "Second" }))
+      adapter.save(instance("p1", name: { value: "First" }))
 
       expect(adapter.all.map(&:id)).to eq(["p1", "p2"])
     end
 
     it "deletes, and says whether there was anything to delete" do
-      adapter.save(instance("p1", name: "Doomed"))
+      adapter.save(instance("p1", name: { value: "Doomed" }))
 
       expect(adapter.delete("p1")).to be true
       expect(adapter.delete("p1")).to be false
@@ -61,14 +63,23 @@ RSpec.describe Hecksagain::Adapters::Heki do
     end
 
     it "outlives the adapter that wrote it" do
-      adapter.save(instance("p1", name: "Persisted"))
+      adapter.save(instance("p1", name: { value: "Persisted" }))
 
       reopened = described_class.new(aggregate: aggregate, settings: { dir: "." }, root: @dir)
-      expect(reopened.find("p1")[:name]).to eq("Persisted")
+      expect(reopened.find("p1")[:name].to_h).to eq(value: "Persisted")
+    end
+
+    it "replays its journal when a crash leaves no current snapshot" do
+      adapter.save(instance("p1", name: { value: "First" }))
+      adapter.save(instance("p1", name: { value: "Recovered" }))
+      FileUtils.rm_f(adapter.path)
+
+      reopened = described_class.new(aggregate: aggregate, settings: { dir: "." }, root: @dir)
+      expect(reopened.find("p1")[:name].to_h).to eq(value: "Recovered")
     end
 
     it "writes one store per aggregate, named for it" do
-      adapter.save(instance("p1", name: "Named"))
+      adapter.save(instance("p1", name: { value: "Named" }))
 
       expect(File.exist?(File.join(@dir, "pizza.heki"))).to be true
     end
@@ -76,8 +87,8 @@ RSpec.describe Hecksagain::Adapters::Heki do
 
   describe "the file format" do
     let(:bytes) do
-      adapter.save(instance("p1", name: "Margherita"))
-      adapter.save(instance("p2", name: "Marinara"))
+      adapter.save(instance("p1", name: { value: "Margherita" }))
+      adapter.save(instance("p2", name: { value: "Marinara" }))
       File.binread(File.join(@dir, "pizza.heki"))
     end
 
@@ -93,16 +104,17 @@ RSpec.describe Hecksagain::Adapters::Heki do
       store = JSON.parse(Zlib::Inflate.inflate(bytes[8..]))
 
       expect(store.keys).to eq(%w[p1 p2])
-      expect(store["p1"]["name"]).to eq("Margherita")
+      expect(store["p1"]["name"]).to eq({ "value" => "Margherita" })
     end
 
     it "writes ids in sorted order, so the same records give the same bytes" do
       first = bytes
 
       FileUtils.rm_f(File.join(@dir, "pizza.heki"))
+      FileUtils.rm_f(File.join(@dir, "pizza.heki.journal"))
       rewritten = described_class.new(aggregate: aggregate, settings: { dir: "." }, root: @dir)
-      rewritten.save(instance("p2", name: "Marinara"))
-      rewritten.save(instance("p1", name: "Margherita"))
+      rewritten.save(instance("p2", name: { value: "Marinara" }))
+      rewritten.save(instance("p1", name: { value: "Margherita" }))
 
       expect(File.binread(File.join(@dir, "pizza.heki"))).to eq(first)
     end

@@ -1,4 +1,3 @@
-
 #[derive(Debug, Clone, Default)]
 pub struct Hecksagon {
     pub name: String,
@@ -45,6 +44,7 @@ pub struct Binding {
     pub aggregate: String,
     pub verb: String,
     pub adapter: String,
+    pub role: String,
     pub on: String,
     pub success: String,
     pub failure: String,
@@ -75,7 +75,8 @@ pub struct DrivenHandler {
     pub canned: Option<CannedResponse>,
     pub dispatches: Vec<DrivenDispatch>,
     pub runs: Vec<String>,
-    pub checks: Vec<CheckLeaf>,}
+    pub checks: Vec<CheckLeaf>,
+}
 
 #[derive(Debug, Clone, Default)]
 pub struct CheckLeaf {
@@ -123,7 +124,9 @@ impl ShellAdapter {
                 if bytes[i] == b'{' && bytes[i + 1] == b'{' {
                     if let Some(close) = arg[i + 2..].find("}}") {
                         let name = arg[i + 2..i + 2 + close].to_string();
-                        if !seen.contains(&name) { seen.push(name); }
+                        if !seen.contains(&name) {
+                            seen.push(name);
+                        }
                         i += 2 + close + 2;
                         continue;
                     }
@@ -156,7 +159,9 @@ pub struct LlmAdapter {
 
 impl LlmAdapter {
     pub fn effective_trigger(&self) -> Option<&str> {
-        self.trigger_on.as_deref().or(self.response_into_target.as_deref())
+        self.trigger_on
+            .as_deref()
+            .or(self.response_into_target.as_deref())
     }
 }
 
@@ -171,7 +176,9 @@ pub struct ComputeAdapter {
 
 impl ComputeAdapter {
     pub fn effective_trigger(&self) -> Option<&str> {
-        self.trigger_on.as_deref().or(self.response_into_target.as_deref())
+        self.trigger_on
+            .as_deref()
+            .or(self.response_into_target.as_deref())
     }
 }
 
@@ -189,11 +196,15 @@ impl Hecksagon {
     }
 
     pub fn compute_adapter(&self, adapter_name: &str) -> Option<&ComputeAdapter> {
-        self.compute_adapters.iter().find(|a| a.name == adapter_name)
+        self.compute_adapters
+            .iter()
+            .find(|a| a.name == adapter_name)
     }
 
     pub fn gate_for(&self, aggregate: &str, role: &str) -> Option<&Gate> {
-        self.gates.iter().find(|g| g.aggregate == aggregate && g.role == role)
+        self.gates
+            .iter()
+            .find(|g| g.aggregate == aggregate && g.role == role)
     }
 
     pub fn persistence_option(&self, key: &str) -> Option<&str> {

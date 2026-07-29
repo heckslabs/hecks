@@ -1,4 +1,3 @@
-
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::SystemTime;
 
@@ -42,7 +41,10 @@ pub fn now_iso8601_internal() -> String {
     let m = if mp < 10 { mp + 3 } else { mp - 9 };
     let y = if m <= 2 { y + 1 } else { y };
 
-    format!("{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z", y, m, d, hours, mins, s)
+    format!(
+        "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z",
+        y, m, d, hours, mins, s
+    )
 }
 
 pub fn now_iso() -> String {
@@ -52,11 +54,17 @@ pub fn now_iso() -> String {
 pub fn seconds_since_iso(ts: &str) -> f64 {
     let now = now_duration().as_secs_f64();
     let epoch = parse_iso_to_epoch(ts);
-    if epoch > 0.0 { now - epoch } else { 0.0 }
+    if epoch > 0.0 {
+        now - epoch
+    } else {
+        0.0
+    }
 }
 
 fn parse_iso_to_epoch(ts: &str) -> f64 {
-    if ts.len() < 19 { return 0.0; }
+    if ts.len() < 19 {
+        return 0.0;
+    }
     let y: i64 = ts[0..4].parse().unwrap_or(0);
     let m: u32 = ts[5..7].parse().unwrap_or(0);
     let d: u32 = ts[8..10].parse().unwrap_or(0);
@@ -74,7 +82,11 @@ fn parse_iso_to_epoch(ts: &str) -> f64 {
     if tz_part.starts_with('+') || tz_part.starts_with('-') {
         let sign: f64 = if tz_part.starts_with('-') { 1.0 } else { -1.0 };
         let tz_h: f64 = tz_part[1..3].parse().unwrap_or(0.0);
-        let tz_m: f64 = if tz_part.len() >= 6 { tz_part[4..6].parse().unwrap_or(0.0) } else { 0.0 };
+        let tz_m: f64 = if tz_part.len() >= 6 {
+            tz_part[4..6].parse().unwrap_or(0.0)
+        } else {
+            0.0
+        };
         epoch += sign * (tz_h * 3600.0 + tz_m * 60.0);
     }
     epoch

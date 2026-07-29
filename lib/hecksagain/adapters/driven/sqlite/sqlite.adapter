@@ -1,4 +1,9 @@
-Hecks.adapter "Sqlite" do
+Hecks.adapter "SqlitePersistence" do
   port   "persistence"
   field  :database        
+end
+
+Hecks.adapter "SqliteProjection" do
+  port  "projection"
+  field :database
 end

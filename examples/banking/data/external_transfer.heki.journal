@@ -1,0 +1,12 @@
+{"operation":"save","id":"ext-recall","state":{"account_id":{"value":"acct-8"},"id":{"value":"ext-recall"},"amount":{"cents":200},"beneficiary":{"value":"Other Bank"},"status":"requested"},"mirrors":["Sqlite"]}
+{"operation":"save","id":"ext-recall","state":{"account_id":{"value":"acct-8"},"id":{"value":"ext-recall"},"amount":{"cents":200},"beneficiary":{"value":"Other Bank"},"status":"sent"},"mirrors":["Sqlite"]}
+{"operation":"save","id":"ext-recall","state":{"account_id":{"value":"acct-8"},"id":{"value":"ext-recall"},"amount":{"cents":200},"beneficiary":{"value":"Other Bank"},"status":"recalled"},"mirrors":["Sqlite"]}
+{"operation":"save","id":"ext-return","state":{"account_id":{"value":"acct-8"},"id":{"value":"ext-return"},"amount":{"cents":200},"beneficiary":{"value":"Closed destination"},"status":"requested"},"mirrors":["Sqlite"]}
+{"operation":"save","id":"ext-return","state":{"account_id":{"value":"acct-8"},"id":{"value":"ext-return"},"amount":{"cents":200},"beneficiary":{"value":"Closed destination"},"status":"sent"},"mirrors":["Sqlite"]}
+{"operation":"save","id":"ext-return","state":{"account_id":{"value":"acct-8"},"id":{"value":"ext-return"},"amount":{"cents":200},"beneficiary":{"value":"Closed destination"},"status":"returned"},"mirrors":["Sqlite"]}
+{"operation":"save","id":"ext-recall","state":{"account_id":{"value":"acct-8"},"id":{"value":"ext-recall"},"amount":{"cents":200},"beneficiary":{"value":"Other Bank"},"status":"requested"},"mirrors":["Sqlite"]}
+{"operation":"save","id":"ext-recall","state":{"account_id":{"value":"acct-8"},"id":{"value":"ext-recall"},"amount":{"cents":200},"beneficiary":{"value":"Other Bank"},"status":"sent"},"mirrors":["Sqlite"]}
+{"operation":"save","id":"ext-recall","state":{"account_id":{"value":"acct-8"},"id":{"value":"ext-recall"},"amount":{"cents":200},"beneficiary":{"value":"Other Bank"},"status":"recalled"},"mirrors":["Sqlite"]}
+{"operation":"save","id":"ext-return","state":{"account_id":{"value":"acct-8"},"id":{"value":"ext-return"},"amount":{"cents":200},"beneficiary":{"value":"Closed destination"},"status":"requested"},"mirrors":["Sqlite"]}
+{"operation":"save","id":"ext-return","state":{"account_id":{"value":"acct-8"},"id":{"value":"ext-return"},"amount":{"cents":200},"beneficiary":{"value":"Closed destination"},"status":"sent"},"mirrors":["Sqlite"]}
+{"operation":"save","id":"ext-return","state":{"account_id":{"value":"acct-8"},"id":{"value":"ext-return"},"amount":{"cents":200},"beneficiary":{"value":"Closed destination"},"status":"returned"},"mirrors":["Sqlite"]}

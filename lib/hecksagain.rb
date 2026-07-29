@@ -1,9 +1,16 @@
 
 require_relative "hecksagain/naming"
+require_relative "hecksagain/fqn"
 require_relative "hecksagain/aggregate"
+require_relative "hecksagain/query_specification/common/specification"
+require_relative "hecksagain/query_specification/common/null_policy"
+require_relative "hecksagain/query_specification/common/dsl"
+require_relative "hecksagain/query_specification/read_model/specification"
 
 require_relative "hecksagain/ports/loading/loading"
 require_relative "hecksagain/ports/persistence/persistence"
+require_relative "hecksagain/ports/query/query"
+require_relative "hecksagain/ports/projection/projection"
 require_relative "hecksagain/ports/extraction/extraction"
 require_relative "hecksagain/bluebook/expression/canonical_form"
 require_relative "hecksagain/bluebook/expression/resolver"
@@ -15,12 +22,15 @@ require_relative "hecksagain/bluebook/ir/value_object"
 require_relative "hecksagain/bluebook/ir/command"
 require_relative "hecksagain/bluebook/ir/lifecycle"
 require_relative "hecksagain/bluebook/ir/query"
+require_relative "hecksagain/bluebook/ir/read_model"
 require_relative "hecksagain/bluebook/ir/entity"
 require_relative "hecksagain/bluebook/ir/policy"
 require_relative "hecksagain/bluebook/ir/process_manager"
 require_relative "hecksagain/bluebook/ir/aggregate"
 require_relative "hecksagain/bluebook/ir/bluebook"
 require_relative "hecksagain/bluebook/ir/hexagon"
+require_relative "hecksagain/bluebook/project_loader"
+require_relative "hecksagain/router"
 
 require_relative "hecksagain/bluebook/dsl/malformed"
 require_relative "hecksagain/bluebook/dsl/const_shim"
@@ -29,6 +39,7 @@ require_relative "hecksagain/bluebook/dsl/value_object_builder"
 require_relative "hecksagain/bluebook/dsl/command_builder"
 require_relative "hecksagain/bluebook/dsl/lifecycle_builder"
 require_relative "hecksagain/bluebook/dsl/query_builder"
+require_relative "hecksagain/bluebook/dsl/read_model_builder"
 require_relative "hecksagain/bluebook/dsl/entity_builder"
 require_relative "hecksagain/bluebook/dsl/policy_builder"
 require_relative "hecksagain/bluebook/dsl/process_manager_builder"
@@ -68,7 +79,7 @@ module Hecksagain
 
     def current_registry = Runtime.current_registry
 
-    def bluebook(name, &block)  = collect(:add_bluebook,  Bluebook::DSL::BluebookBuilder.build(name, &block))
+    def bluebook(name, version: nil, &block) = collect(:add_bluebook, Bluebook::DSL::BluebookBuilder.build(name, version: version, &block))
     def hecksagon(name, &block) = collect(:add_hecksagon, Bluebook::DSL::HecksagonBuilder.build(name, &block))
     def port(name, &block)    = collect(:add_port,    Bluebook::DSL::PortBuilder.build(name, &block))
     def adapter(name, &block)   = collect(:add_adapter,   Bluebook::DSL::AdapterBuilder.build(name, &block))

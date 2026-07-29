@@ -1,4 +1,3 @@
-
 #[derive(Debug, Clone, PartialEq)]
 pub struct PatternRejection {
     pub construct: &'static str,
@@ -78,19 +77,21 @@ mod tests {
     use super::*;
 
     fn rejected(p: &str) -> &'static str {
-        validate_pattern_subset(p).expect_err("should be refused").construct
+        validate_pattern_subset(p)
+            .expect_err("should be refused")
+            .construct
     }
 
     #[test]
     fn the_shapes_a_domain_actually_needs_are_admitted() {
         for p in [
-            r"^[A-Z]{3}-\d{4}$",                    
-            r"^\d{5}(-\d{4})?$",                    
-            r"^\+?[0-9 ()-]{7,20}$",                
-            r"^[^@\s]+@[^@\s]+\.[^@\s]+$",          
-            r"^(red|green|blue)$",                  
-            r"^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$", 
-            r"",                                    
+            r"^[A-Z]{3}-\d{4}$",
+            r"^\d{5}(-\d{4})?$",
+            r"^\+?[0-9 ()-]{7,20}$",
+            r"^[^@\s]+@[^@\s]+\.[^@\s]+$",
+            r"^(red|green|blue)$",
+            r"^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+            r"",
         ] {
             assert!(
                 validate_pattern_subset(p).is_ok(),

@@ -3,46 +3,33 @@ module Hecksagain
     module Persistence
       NAME = "persistence"
       VERB = "persisted_by"
-
       DEFAULT_ADAPTER = "Memory"
+    end
+  end
+end
 
+require_relative "binding_policy"
+require_relative "repository_factory"
+require_relative "append_only"
+
+module Hecksagain
+  module Ports
+    module Persistence
       module_function
 
+      # The public persistence port owns only authoritative aggregate heads.
       def repository(registry, domain, aggregate)
-        bind = bind_for(registry, domain, aggregate)
+        authoritative = BindingPolicy.resolve(registry, domain, aggregate)
+        RepositoryFactory.build(registry, domain, aggregate, authoritative)
+      end
 
-        registry.check_verb(bind)
-
-        settings = registry.world(domain)&.for_verb(bind.verb) || {}
-        registry.check_settings(bind, settings)
-
-        registry.adapter_class(bind.adapter)
-                .new(aggregate: aggregate, settings: settings, root: registry.root)
+      def binds_for(registry, domain, aggregate)
+        [BindingPolicy.resolve(registry, domain, aggregate), []]
       end
 
       def bind_for(registry, domain, aggregate)
-        hexagon = registry.hecksagon(domain)
-        return default_bind(aggregate) unless hexagon
-
-        hexagon.bind_for(aggregate.name, VERB) || raise(
-          Runtime::WiringError,
-          "#{domain}::#{aggregate.name} has no #{VERB} bind. #{domain} declares a " \
-          "hecksagon, so its wiring is being decided explicitly and an aggregate " \
-          "left out is a forgotten decision. Bind it, or say " \
-          "#{aggregate.name}.#{VERB}(#{DEFAULT_ADAPTER.inspect}) to keep it in " \
-          "memory on purpose."
-        )
+        binds_for(registry, domain, aggregate).first
       end
-
-      def default_bind(aggregate)
-        Bluebook::IR::Bind.new(
-          aggregate: aggregate.name,
-          verb:      VERB,
-          adapter:   DEFAULT_ADAPTER
-        )
-      end
-
-
     end
   end
 end

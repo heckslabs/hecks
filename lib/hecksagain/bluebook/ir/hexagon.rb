@@ -12,7 +12,7 @@ module Hecksagain
         def all_fields = (fields || []) + (secrets || [])
       end
 
-      Bind = Struct.new(:aggregate, :verb, :adapter, keyword_init: true) do
+      Bind = Struct.new(:aggregate, :verb, :adapter, :role, keyword_init: true) do
         def aggregate_name = Naming.demodulise(aggregate)
       end
 
@@ -30,20 +30,32 @@ module Hecksagain
           end
         end
 
+        def binds_for(aggregate_name, verb)
+          @binds.select do |b|
+            b.aggregate_name == aggregate_name.to_s && b.verb.to_s == verb.to_s
+          end
+        end
+
         def to_h = { domain: @domain, binds: @binds.map(&:to_h) }
       end
 
       class World
-        attr_reader :domain, :settings
+        attr_reader :domain, :realm, :latest, :settings
 
-        def initialize(domain:, settings: {})
+        def initialize(domain:, realm: nil, latest: nil, settings: {})
           @domain   = domain.to_s
+          @realm    = realm&.to_s
+          @latest   = latest&.to_s
           @settings = settings
         end
 
         def for_verb(verb) = @settings.fetch(verb.to_s, {})
 
-        def to_h = { domain: @domain, settings: @settings }
+        def for_binding(verb, adapter)
+          @settings.fetch("#{verb}:#{adapter.to_s.downcase}", for_verb(verb))
+        end
+
+        def to_h = { domain: @domain, realm: @realm, latest: @latest, settings: @settings }
       end
     end
   end

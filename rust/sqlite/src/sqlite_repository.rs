@@ -1,16 +1,19 @@
-
 use crate::sqlite_mapping::{quote_ident, value_from_sql, value_to_sql};
+use rusqlite::Connection;
+use serde_json;
+use std::collections::HashMap;
+use storehouse::heki;
 use storehouse::runtime::AggregateState;
 use storehouse::runtime::Value;
-use storehouse::heki;
-use rusqlite::Connection;
-use std::collections::HashMap;
+use storehouse::value_bridge;
+use storehouse::ports::persistence::ReplicationEntry;
 
 pub struct SqliteRepository {
     pub(super) conn: Connection,
     pub(super) table: String,
     pub(super) columns: Vec<String>,
     pub(super) numeric_columns: Vec<String>,
+    float_columns: Vec<String>,
     pub(super) store: HashMap<String, AggregateState>,
     next_id: u64,
     identified_by: Option<String>,
@@ -29,16 +32,25 @@ impl SqliteRepository {
         let conn = Connection::open(db_path)?;
         let table = storehouse::naming::snake(aggregate_type);
         let col_names: Vec<String> = columns.iter().map(|(n, _)| n.clone()).collect();
-        let numeric_columns: Vec<String> = columns.iter()
+        let numeric_columns: Vec<String> = columns
+            .iter()
             .filter(|(_, ty)| ty.to_uppercase().starts_with("INTEGER"))
             .map(|(n, _)| n.clone())
             .collect();
+        let float_columns: Vec<String> = columns
+            .iter()
+            .filter(|(_, ty)| ty.to_uppercase().starts_with("REAL"))
+            .map(|(n, _)| n.clone())
+            .collect();
         Self::create_table(&conn, &table, &columns)?;
+        Self::create_entry_table(&conn, &table)?;
+        Self::ensure_entry_columns(&conn, &table)?;
         let mut repo = SqliteRepository {
             conn,
             table,
             columns: col_names,
             numeric_columns,
+            float_columns,
             store: HashMap::new(),
             next_id: 1,
             identified_by,
@@ -67,6 +79,27 @@ impl SqliteRepository {
         Ok(())
     }
 
+    fn create_entry_table(conn: &Connection, table: &str) -> Result<(), rusqlite::Error> {
+        conn.execute_batch(&format!(
+            "CREATE TABLE IF NOT EXISTS {} (sequence INTEGER PRIMARY KEY AUTOINCREMENT, aggregate_id TEXT NOT NULL, operation TEXT NOT NULL DEFAULT 'save', state TEXT, mirrors TEXT)",
+            quote_ident(&format!("{}_entries", table)),
+        ))
+    }
+
+    fn ensure_entry_columns(conn: &Connection, table: &str) -> Result<(), rusqlite::Error> {
+        let entry_table = quote_ident(&format!("{}_entries", table));
+        let mut statement = conn.prepare(&format!("PRAGMA table_info({entry_table})"))?;
+        let columns: Vec<String> = statement.query_map([], |row| row.get(1))?
+            .collect::<Result<_, _>>()?;
+        if !columns.iter().any(|column| column == "operation") {
+            conn.execute(&format!("ALTER TABLE {entry_table} ADD COLUMN operation TEXT NOT NULL DEFAULT 'save'"), [])?;
+        }
+        if !columns.iter().any(|column| column == "mirrors") {
+            conn.execute(&format!("ALTER TABLE {entry_table} ADD COLUMN mirrors TEXT"), [])?;
+        }
+        Ok(())
+    }
+
     fn load_persisted(&mut self) {
         let quoted_cols: Vec<String> = self.columns.iter().map(|c| quote_ident(c)).collect();
         let select = format!(
@@ -90,7 +123,9 @@ impl SqliteRepository {
         if let Ok(mapped) = rows {
             for state in mapped.flatten() {
                 if let Ok(n) = state.id.parse::<u64>() {
-                    if n >= self.next_id { self.next_id = n + 1; }
+                    if n >= self.next_id {
+                        self.next_id = n + 1;
+                    }
                 }
                 self.store.insert(state.id.clone(), state);
             }
@@ -113,21 +148,42 @@ impl SqliteRepository {
         id.to_string()
     }
 
-    pub fn save(&mut self, state: AggregateState, _ctx: heki::WriteContext<'_>) {
+    pub fn save_with_mirrors(&mut self, mut state: AggregateState, mirrors: Vec<String>, _ctx: heki::WriteContext<'_>) -> Result<(), String> {
+        // The append-only entry records the command's submitted state. The
+        // current projection below then applies SQLite's declared column type.
+        let state_json =
+            serde_json::to_string(&value_bridge::from_state(&state)).unwrap_or_default();
+        for column in &self.float_columns {
+            if let Value::Int(value) = state.get(column) {
+                state.set(column, Value::Float(*value as f64));
+            }
+        }
+        let entry_table = quote_ident(&format!("{}_entries", self.table));
+        self.conn.execute(
+            &format!(
+                "INSERT INTO {} (aggregate_id, operation, state, mirrors) VALUES (?1, 'save', ?2, ?3)",
+                entry_table
+            ),
+            rusqlite::params![&state.id, &state_json, serde_json::to_string(&mirrors).unwrap_or_default()],
+        ).map_err(|error| format!("cannot append {} history: {error}", self.table))?;
         let mut col_list = vec!["id".to_string()];
         col_list.extend(self.columns.iter().cloned());
-        let placeholders: Vec<String> =
-            (1..=col_list.len()).map(|i| format!("?{i}")).collect();
+        let placeholders: Vec<String> = (1..=col_list.len()).map(|i| format!("?{i}")).collect();
         let quoted_cols: Vec<String> = col_list.iter().map(|c| quote_ident(c)).collect();
         let upsert = format!(
-            "INSERT INTO {t} ({cols}) VALUES ({ph}) ON CONFLICT(id) DO UPDATE SET {set}, updated_at = CURRENT_TIMESTAMP",
+            "INSERT INTO {t} ({cols}) VALUES ({ph}) ON CONFLICT(id) DO UPDATE SET {set}",
             t = quote_ident(&self.table),
             cols = quoted_cols.join(", "),
             ph = placeholders.join(", "),
-            set = self.columns.iter().map(|c| {
-                let q = quote_ident(c);
-                format!("{q} = excluded.{q}")
-            }).collect::<Vec<_>>().join(", "),
+            set = self
+                .columns
+                .iter()
+                .map(|c| {
+                    let q = quote_ident(c);
+                    format!("{q} = excluded.{q}")
+                })
+                .collect::<Vec<_>>()
+                .join(", "),
         );
         let mut params: Vec<rusqlite::types::Value> = vec![state.id.clone().into()];
         for c in &self.columns {
@@ -135,16 +191,52 @@ impl SqliteRepository {
         }
         let refs: Vec<&dyn rusqlite::ToSql> =
             params.iter().map(|p| p as &dyn rusqlite::ToSql).collect();
-        let _ = self.conn.execute(&upsert, refs.as_slice());
+        self.conn.execute(&upsert, refs.as_slice())
+            .map_err(|error| format!("cannot save {}: {error}", self.table))?;
         self.store.insert(state.id.clone(), state);
+        Ok(())
     }
 
-    pub fn delete(&mut self, id: &str, _ctx: heki::WriteContext<'_>) {
-        self.store.remove(id);
-        let _ = self.conn.execute(
+    pub fn save(&mut self, state: AggregateState, ctx: heki::WriteContext<'_>) -> Result<(), String> {
+        self.save_with_mirrors(state, vec![], ctx)
+    }
+
+    pub fn delete_with_mirrors(&mut self, id: &str, mirrors: Vec<String>, _ctx: heki::WriteContext<'_>) -> Result<(), String> {
+        let entry_table = quote_ident(&format!("{}_entries", self.table));
+        self.conn.execute(
+            &format!("INSERT INTO {} (aggregate_id, operation, state, mirrors) VALUES (?1, 'delete', NULL, ?2)", entry_table),
+            rusqlite::params![id, serde_json::to_string(&mirrors).unwrap_or_default()],
+        ).map_err(|error| format!("cannot append {} history: {error}", self.table))?;
+        self.conn.execute(
             &format!("DELETE FROM {} WHERE id = ?1", quote_ident(&self.table)),
             [id],
-        );
+        ).map_err(|error| format!("cannot delete {}: {error}", self.table))?;
+        self.store.remove(id);
+        Ok(())
+    }
+
+    pub fn delete(&mut self, id: &str, ctx: heki::WriteContext<'_>) -> Result<(), String> {
+        self.delete_with_mirrors(id, vec![], ctx)
+    }
+
+    pub fn replication_entries(&self) -> Result<Vec<ReplicationEntry>, String> {
+        let entry_table = quote_ident(&format!("{}_entries", self.table));
+        let mut statement = self.conn.prepare(&format!("SELECT aggregate_id, operation, state, mirrors FROM {entry_table} ORDER BY sequence"))
+            .map_err(|error| format!("cannot read {} history: {error}", self.table))?;
+        let rows = statement.query_map([], |row| {
+            let operation: String = row.get(1)?;
+            let id: String = row.get(0)?;
+            let state_json: Option<String> = row.get(2)?;
+            let mirrors_json: Option<String> = row.get(3)?;
+            let state = state_json.map(|json| {
+                let fields: serde_json::Map<String, serde_json::Value> = serde_json::from_str(&json).map_err(|error| rusqlite::Error::ToSqlConversionFailure(Box::new(error)))?;
+                Ok::<AggregateState, rusqlite::Error>(value_bridge::to_state(&id, &fields))
+            }).transpose()?;
+            let mirrors = mirrors_json.map(|json| serde_json::from_str(&json).unwrap_or_default()).unwrap_or_default();
+            Ok(ReplicationEntry { operation, id, state, mirrors })
+        }).map_err(|error| format!("cannot read {} history: {error}", self.table))?;
+        rows.collect::<Result<Vec<_>, _>>()
+            .map_err(|error| format!("cannot read {} history: {error}", self.table))
     }
 
     pub fn find(&self, id: &str) -> Option<&AggregateState> {
@@ -165,7 +257,9 @@ impl SqliteRepository {
 
     pub fn seed_record(&mut self, state: AggregateState) {
         if let Ok(n) = state.id.parse::<u64>() {
-            if n >= self.next_id { self.next_id = n + 1; }
+            if n >= self.next_id {
+                self.next_id = n + 1;
+            }
         }
         self.store.insert(state.id.clone(), state);
     }
@@ -175,19 +269,44 @@ impl SqliteRepository {
     }
 
     pub fn set_next_id(&mut self, value: u64) {
-        if value > self.next_id { self.next_id = value; }
+        if value > self.next_id {
+            self.next_id = value;
+        }
     }
 }
 
 impl storehouse::runtime::PersistenceAdapter for SqliteRepository {
-    fn find(&self, id: &str) -> Option<&AggregateState> { self.find(id) }
-    fn find_mut(&mut self, id: &str) -> Option<&mut AggregateState> { self.find_mut(id) }
-    fn all(&self) -> Vec<&AggregateState> { self.all() }
-    fn count(&self) -> usize { self.count() }
-    fn next_id_value(&self) -> u64 { self.next_id_value() }
-    fn id_for_command(&mut self, attrs: &HashMap<String, Value>) -> String { self.id_for_command(attrs) }
-    fn save(&mut self, state: AggregateState, ctx: heki::WriteContext<'_>) { self.save(state, ctx) }
-    fn delete(&mut self, id: &str, ctx: heki::WriteContext<'_>) { self.delete(id, ctx) }
+    fn find(&self, id: &str) -> Option<&AggregateState> {
+        self.find(id)
+    }
+    fn find_mut(&mut self, id: &str) -> Option<&mut AggregateState> {
+        self.find_mut(id)
+    }
+    fn all(&self) -> Vec<&AggregateState> {
+        self.all()
+    }
+    fn count(&self) -> usize {
+        self.count()
+    }
+    fn next_id_value(&self) -> u64 {
+        self.next_id_value()
+    }
+    fn id_for_command(&mut self, attrs: &HashMap<String, Value>) -> String {
+        self.id_for_command(attrs)
+    }
+    fn save(&mut self, state: AggregateState, ctx: heki::WriteContext<'_>) -> Result<(), String> {
+        self.save(state, ctx)
+    }
+    fn save_with_mirrors(&mut self, state: AggregateState, mirrors: Vec<String>, ctx: heki::WriteContext<'_>) -> Result<(), String> {
+        self.save_with_mirrors(state, mirrors, ctx)
+    }
+    fn delete(&mut self, id: &str, ctx: heki::WriteContext<'_>) -> Result<(), String> {
+        self.delete(id, ctx)
+    }
+    fn delete_with_mirrors(&mut self, id: &str, mirrors: Vec<String>, ctx: heki::WriteContext<'_>) -> Result<(), String> {
+        self.delete_with_mirrors(id, mirrors, ctx)
+    }
+    fn replication_entries(&self) -> Result<Vec<ReplicationEntry>, String> { self.replication_entries() }
     fn query(
         &self,
         wheres: &[storehouse::ir::WhereClause],
@@ -195,23 +314,46 @@ impl storehouse::runtime::PersistenceAdapter for SqliteRepository {
     ) -> Option<Vec<AggregateState>> {
         Some(self.query(wheres, attrs))
     }
-    fn seed_record(&mut self, state: AggregateState) { self.seed_record(state) }
-    fn set_next_id(&mut self, value: u64) { self.set_next_id(value) }
+    fn seed_record(&mut self, state: AggregateState) {
+        self.seed_record(state)
+    }
+    fn set_next_id(&mut self, value: u64) {
+        self.set_next_id(value)
+    }
 }
 
 pub fn sqlite_factory(
     spec: &storehouse::runtime::PersistenceSpec,
 ) -> Result<Box<dyn storehouse::runtime::PersistenceAdapter>, String> {
     let agg = &spec.aggregate;
-    let db_path = spec
-        .option("db")
-        .ok_or_else(|| format!("sqlite adapter for `{}` is missing its `db:` option", agg.name))?;
+    let db_path = spec.option("db").ok_or_else(|| {
+        format!(
+            "sqlite adapter for `{}` is missing its `db:` option",
+            agg.name
+        )
+    })?;
     let mut columns: Vec<(String, String)> = agg
         .attributes
         .iter()
-        .filter(|a| !a.list && !matches!(a.name.as_str(), "id" | "created_at" | "updated_at"))
-        .map(|a| (a.name.clone(), crate::sqlite_mapping::sql_type(&a.attr_type).to_string()))
+        .filter(|a| !matches!(a.name.as_str(), "id" | "created_at" | "updated_at"))
+        .map(|a| {
+            (
+                a.name.clone(),
+                if a.list { "TEXT".to_string() } else { crate::sqlite_mapping::sql_type(&a.attr_type).to_string() },
+            )
+        })
         .collect();
+    // `reference_to` declares an aggregate attribute in its own right.  Its
+    // value is the referenced aggregate head, so persistence uses that
+    // attribute's declared name (for example `customer_id`), just as the Ruby
+    // adapter does.  Do not synthesize a second `*_id` column: it would never
+    // receive the state value and makes a mirrored store diverge on reload.
+    for reference in &agg.references {
+        let name = reference.name.clone();
+        if !columns.iter().any(|(column, _)| column == &name) {
+            columns.push((name, "TEXT".to_string()));
+        }
+    }
     if let Some(lc) = &agg.lifecycle {
         if !columns.iter().any(|(n, _)| n == &lc.field) {
             columns.push((lc.field.clone(), "TEXT".to_string()));
@@ -237,5 +379,6 @@ pub fn sqlite_factory(
 }
 
 pub fn register() {
-    storehouse::runtime::register_persistence_adapter("sqlite", sqlite_factory);
+    storehouse::runtime::register_persistence_adapter("sqlitepersistence", sqlite_factory);
+    storehouse::runtime::register_persistence_adapter("sqlitemirror", sqlite_factory);
 }

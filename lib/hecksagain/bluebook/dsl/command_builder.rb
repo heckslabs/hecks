@@ -15,11 +15,11 @@ module Hecksagain
         def role(value) = @role = value
         def goal(value) = @goal = value
 
-        def reference_to(type)
+        def reference_to(type, as: nil)
           demodulised = Naming.demodulise(type)
           raise Malformed, "#{@name}.reference_to names nothing" if demodulised.to_s.empty?
 
-          return cross_reference(demodulised) unless demodulised.to_s == @owner.to_s
+          return cross_reference(demodulised, as) unless demodulised.to_s == @owner.to_s
 
           if @references
             raise Malformed,
@@ -33,8 +33,8 @@ module Hecksagain
 
         private
 
-        def cross_reference(target)
-          attribute(:"#{Naming.snake(target)}_id", String)
+        def cross_reference(target, as)
+          attribute(as || :"#{Naming.snake(target)}_id", "Reference<#{target}>")
         end
 
         public

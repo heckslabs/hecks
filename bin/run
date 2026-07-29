@@ -53,6 +53,25 @@ reactions = runtime.reactions
 
 sagas = runtime.sagas
 
+expectations = JSON.parse(File.read(script))["expectations"] || {}
+expected_events = Array(expectations["event_names"])
+missing_events = expected_events - events.map { |event| event[:name] }
+abort "matrix expected events missing: #{missing_events.join(', ')}" unless missing_events.empty?
+
+Array(expectations["refusals"]).each do |expected|
+  matched = refusals.any? do |refusal|
+    refusal[:verb] == expected.fetch("verb") && refusal[:error].include?(expected.fetch("includes"))
+  end
+  abort "matrix expected refusal missing: #{expected}" unless matched
+end
+
+(expectations["instances"] || {}).each do |key, fields|
+  actual = instances[key] || {}
+  fields.each do |field, value|
+    abort "matrix expected #{key}.#{field}=#{value.inspect}, got #{actual[field.to_sym].inspect}" unless actual[field.to_sym] == value
+  end
+end
+
 puts JSON.pretty_generate(
   instances: instances, events: events, refusals: refusals, reactions: reactions,
   sagas: sagas, queries: queries

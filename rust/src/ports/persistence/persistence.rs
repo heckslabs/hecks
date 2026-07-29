@@ -1,4 +1,3 @@
-
 use crate::hecksagon_parser;
 use crate::ports::loading;
 use crate::world::parser as world_parser;
@@ -8,6 +7,11 @@ use std::path::{Path, PathBuf};
 pub struct Persistence {
     pub adapter: String,
     pub settings: HashMap<String, String>,
+}
+
+pub struct PersistenceBindings {
+    pub authoritative: Persistence,
+    pub mirrors: Vec<Persistence>,
 }
 
 impl Persistence {
@@ -20,13 +24,17 @@ impl Persistence {
 pub const DEFAULT_ADAPTER: &str = "Memory";
 
 pub fn resolve_for(bluebook_path: &str, aggregate: &str) -> Result<Persistence, String> {
+    Ok(resolve_all_for(bluebook_path, aggregate)?.authoritative)
+}
+
+pub fn resolve_all_for(bluebook_path: &str, aggregate: &str) -> Result<PersistenceBindings, String> {
     let bluebook_dir = Path::new(bluebook_path).parent();
     let declared = bluebook_dir.map(binds).unwrap_or_default();
 
-    let adapter = match persisted_by(&declared, aggregate) {
-        Some(adapter) => adapter,
+    let (authoritative, legacy_mirrors) = match persisted_by(&declared, aggregate)? {
+        Some(bindings) => bindings,
         None if declared.is_empty() && !has_hecksagon(bluebook_dir) => {
-            DEFAULT_ADAPTER.to_string()
+            (DEFAULT_ADAPTER.to_string(), vec![])
         }
         None => {
             return Err(format!(
@@ -37,10 +45,16 @@ pub fn resolve_for(bluebook_path: &str, aggregate: &str) -> Result<Persistence, 
             ))
         }
     };
+    debug_assert!(legacy_mirrors.is_empty());
 
-    Ok(Persistence {
-        settings: settings_for(bluebook_path, &adapter),
-        adapter,
+    let authoritative = Persistence {
+        settings: settings_for(bluebook_path, &authoritative),
+        adapter: authoritative,
+    };
+
+    Ok(PersistenceBindings {
+        authoritative,
+        mirrors: vec![],
     })
 }
 
@@ -50,27 +64,59 @@ fn has_hecksagon(bluebook_dir: Option<&Path>) -> bool {
         .unwrap_or(false)
 }
 
-fn binds(bluebook_dir: &Path) -> Vec<(String, String)> {
+fn binds(bluebook_dir: &Path) -> Vec<(String, String, String)> {
     let mut found = Vec::new();
     for source in loading::declarations(bluebook_dir, "hecksagon") {
         let hexagon = hecksagon_parser::parse(&source);
 
         for binding in hexagon.bindings.iter().filter(|b| b.verb == "persisted_by") {
-            found.push((binding.aggregate.clone(), binding.adapter.clone()));
+            found.push((binding.aggregate.clone(), binding.adapter.clone(), binding.role.clone()));
         }
         if let Some(persistence) = hexagon.persistence.clone() {
-            found.push((String::new(), persistence));
+            found.push((String::new(), persistence, String::new()));
         }
     }
     found
 }
 
-fn persisted_by(declared: &[(String, String)], aggregate: &str) -> Option<String> {
-    declared
+pub(crate) fn persisted_by(
+    declared: &[(String, String, String)],
+    aggregate: &str,
+) -> Result<Option<(String, Vec<String>)>, String> {
+    let matching: Vec<_> = declared
         .iter()
-        .find(|(named, _)| named.rsplit("::").next().unwrap_or(named) == aggregate)
-        .or_else(|| declared.iter().find(|(named, _)| named.is_empty()))
-        .map(|(_, adapter)| adapter.clone())
+        .filter(|(named, _, _)| named.rsplit("::").next().unwrap_or(named) == aggregate)
+        .collect();
+    let matching = if matching.is_empty() {
+        declared.iter().filter(|(named, _, _)| named.is_empty()).collect()
+    } else {
+        matching
+    };
+    if matching.is_empty() {
+        return Ok(None);
+    }
+
+    let authoritative: Vec<_> = matching
+        .iter()
+        .filter(|(_, _, role)| role.is_empty())
+        .collect();
+    if authoritative.len() != 1 {
+        return Err(format!(
+            "{aggregate} has {} authoritative persisted_by bindings. Declare exactly one adapter without a role. Mirrors bind separately with mirrored_by.",
+            authoritative.len()
+        ));
+    }
+    let roles: Vec<_> = matching.iter().filter(|(_, _, role)| !role.is_empty()).collect();
+    if !roles.is_empty() {
+        return Err(format!(
+            "{aggregate} uses persistence role(s) {}. Persistence is authoritative; use mirrored_by for replicas.",
+            roles.iter().map(|(_, _, role)| role.as_str()).collect::<Vec<_>>().join(", ")
+        ));
+    }
+    Ok(Some((
+        authoritative[0].1.clone(),
+        vec![],
+    )))
 }
 
 fn settings_for(bluebook_path: &str, adapter: &str) -> HashMap<String, String> {

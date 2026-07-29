@@ -1,4 +1,3 @@
-
 use serde_json::{Map, Value};
 
 pub type State = Map<String, Value>;
@@ -30,6 +29,12 @@ pub fn resolve_expr(expr: &str, state: &State, attrs: &State) -> Eval<Value> {
         _ => {}
     }
 
+    if let Some((left, right)) = split_addition(expr) {
+        let left = require_number(&resolve_expr(&left, state, attrs)?, "addition")?;
+        let right = require_number(&resolve_expr(&right, state, attrs)?, "addition")?;
+        return Ok(Value::from(left + right));
+    }
+
     for test in SIGN_TESTS {
         if let Some(receiver) = expr.strip_suffix(&format!(".{}", test)) {
             return apply_sign_test(receiver, test, state, attrs);
@@ -55,6 +60,34 @@ pub fn resolve_expr(expr: &str, state: &State, attrs: &State) -> Eval<Value> {
     lookup(expr, state, attrs)
 }
 
+fn split_addition(expr: &str) -> Option<(String, String)> {
+    let mut depth = 0i32;
+    let mut quote: Option<char> = None;
+
+    for (index, character) in expr.char_indices() {
+        if let Some(open) = quote {
+            if character == open {
+                quote = None;
+            }
+            continue;
+        }
+
+        match character {
+            '\'' | '"' => quote = Some(character),
+            '(' => depth += 1,
+            ')' => depth -= 1,
+            '+' if depth == 0 => {
+                return Some((
+                    expr[..index].trim().to_string(),
+                    expr[index + 1..].trim().to_string(),
+                ));
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
 pub fn is_quoted(expr: &str) -> bool {
     let bytes = expr.as_bytes();
     if bytes.len() < 2 {
@@ -71,7 +104,10 @@ fn size_of(receiver: &str, state: &State, attrs: &State) -> Eval<Value> {
         Value::Array(items) => Ok(Value::from(items.len() as i64)),
         Value::String(text) => Ok(Value::from(text.chars().count() as i64)),
         Value::Object(map) => Ok(Value::from(map.len() as i64)),
-        other => Err(format!("size expects a list or string, got {}", describe(other))),
+        other => Err(format!(
+            "size expects a list or string, got {}",
+            describe(other)
+        )),
     }
 }
 
@@ -100,12 +136,7 @@ fn string_of(receiver: &str, state: &State, attrs: &State) -> Eval<Value> {
             Some(i) => i.to_string(),
             None => format_float(n.as_f64().unwrap_or(0.0)),
         },
-        other => {
-            return Err(format!(
-                "to_s expects a scalar, got {}",
-                describe(other)
-            ))
-        }
+        other => return Err(format!("to_s expects a scalar, got {}", describe(other))),
     }))
 }
 

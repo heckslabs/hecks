@@ -14,6 +14,7 @@ module Hecksagain
           @entities      = []
           @queries       = []
           @policies      = []
+          @reference_targets = []
           @klass         = Class.new(Aggregate)
         end
 
@@ -29,8 +30,10 @@ module Hecksagain
           @identified_by = field.to_sym
         end
 
-        def reference_to(type)
-          attribute(:"#{Naming.snake(Naming.demodulise(type))}_id", String)
+        def reference_to(type, as: nil)
+          target = Naming.demodulise(type)
+          @reference_targets << target
+          attribute(as || :"#{Naming.snake(target)}_id", "Reference<#{target}>")
         end
 
         def lifecycle(field, default:, &block)
@@ -70,7 +73,8 @@ module Hecksagain
             lifecycle:     @lifecycle,
             entities:      @entities,
             queries:       @queries,
-            policies:      @policies
+            policies:      @policies,
+            reference_targets: @reference_targets
           )
 
           @klass.ir     = ir

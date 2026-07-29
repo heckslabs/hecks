@@ -1,4 +1,3 @@
-
 use crate::runtime::{AggregateState, Value as RtValue};
 use serde_json::{Map, Value as JsonValue};
 
@@ -6,13 +5,15 @@ pub fn to_runtime(value: &JsonValue) -> RtValue {
     match value {
         JsonValue::Null => RtValue::Null,
         JsonValue::Bool(b) => RtValue::Bool(*b),
-        JsonValue::Number(n) => match n.as_i64() {
-            Some(i) => RtValue::Int(i),
-            None => match n.as_f64() {
-                Some(f) => RtValue::Float(f),
-                None => RtValue::Str(n.to_string()),
-            },
-        },
+        JsonValue::Number(n) if n.to_string().contains(['.', 'e', 'E']) => n
+            .as_f64()
+            .map(RtValue::Float)
+            .unwrap_or_else(|| RtValue::Str(n.to_string())),
+        JsonValue::Number(n) => n
+            .as_i64()
+            .map(RtValue::Int)
+            .or_else(|| n.as_f64().map(RtValue::Float))
+            .unwrap_or_else(|| RtValue::Str(n.to_string())),
         JsonValue::String(s) => RtValue::Str(s.clone()),
         JsonValue::Array(items) => RtValue::List(items.iter().map(to_runtime).collect()),
         JsonValue::Object(map) => RtValue::Map(

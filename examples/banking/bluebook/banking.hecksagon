@@ -1,6 +1,16 @@
 Hecks.hecksagon "Banking" do
   Banking::Customer.persisted_by("Heki")
+  Banking::Customer.projected_by("SqliteProjection")
   Banking::Account.persisted_by("Heki")
+  Banking::Account.projected_by("SqliteProjection")
   Banking::Transfer.persisted_by("Heki")
+  Banking::Transfer.projected_by("SqliteProjection")
   Banking::ATMCard.persisted_by("Heki")
+  Banking::ATMCard.projected_by("SqliteProjection")
+  Banking::CardPayment.persisted_by("Heki")
+  Banking::CardPayment.projected_by("SqliteProjection")
+  Banking::ExternalTransfer.persisted_by("Heki")
+  Banking::ExternalTransfer.projected_by("SqliteProjection")
+  Banking::ScheduledPayment.persisted_by("Heki")
+  Banking::ScheduledPayment.projected_by("SqliteProjection")
 end

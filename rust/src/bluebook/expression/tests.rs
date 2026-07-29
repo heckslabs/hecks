@@ -1,4 +1,3 @@
-
 use crate::interp_expr::State;
 use crate::interp_givens::evaluate_given;
 use serde_json::json;
@@ -15,10 +14,12 @@ fn check(expression: &str, fields: serde_json::Value) -> bool {
 fn refusal(expression: &str, fields: serde_json::Value) -> String {
     match evaluate_given(expression, &state(fields), &State::new()) {
         Err(message) => message,
-        Ok(value) => panic!("{} should have been refused, answered {}", expression, value),
+        Ok(value) => panic!(
+            "{} should have been refused, answered {}",
+            expression, value
+        ),
     }
 }
-
 
 #[test]
 fn answers_emptiness_for_string_list_and_map() {
@@ -67,8 +68,14 @@ fn negation_disagrees_with_the_predicate_it_negates() {
 
 #[test]
 fn negation_binds_tighter_than_the_binary_operators() {
-    assert!(check("!ready && open", json!({ "ready": false, "open": true })));
-    assert!(!check("!ready && open", json!({ "ready": true, "open": true })));
+    assert!(check(
+        "!ready && open",
+        json!({ "ready": false, "open": true })
+    ));
+    assert!(!check(
+        "!ready && open",
+        json!({ "ready": true, "open": true })
+    ));
     assert!(check("!(a && b)", json!({ "a": true, "b": false })));
 }
 
@@ -100,9 +107,31 @@ fn reads_literals() {
 }
 
 #[test]
+fn adds_numeric_attributes_before_comparing_them() {
+    let stored = state(json!({ "amount": 10 }));
+    let allowed = state(json!({ "adjustment": -10 }));
+    let refused = state(json!({ "adjustment": -11 }));
+
+    assert_eq!(
+        evaluate_given("amount + adjustment >= 0", &stored, &allowed),
+        Ok(true)
+    );
+    assert_eq!(
+        evaluate_given("amount + adjustment >= 0", &stored, &refused),
+        Ok(false)
+    );
+}
+
+#[test]
 fn binds_attributes_and_dotted_paths() {
-    assert!(check("status == \"available\"", json!({ "status": "available" })));
-    assert!(check("price.cents > 1000", json!({ "price": { "cents": 1200 } })));
+    assert!(check(
+        "status == \"available\"",
+        json!({ "status": "available" })
+    ));
+    assert!(check(
+        "price.cents > 1000",
+        json!({ "price": { "cents": 1200 } })
+    ));
 }
 
 #[test]
@@ -171,7 +200,6 @@ fn counts_with_size_and_folds_length() {
     assert!(check("toppings.length < 10", fields.clone()));
     assert!(check("toppings.size == 2", fields));
 }
-
 
 #[test]
 fn zero_and_empty_string_are_true_as_in_ruby() {
@@ -255,7 +283,10 @@ fn refuses_size_on_something_with_no_size() {
 
 #[test]
 fn resolves_a_declared_attribute_that_is_nil() {
-    assert!(check("customer_name == nil", json!({ "customer_name": null })));
+    assert!(check(
+        "customer_name == nil",
+        json!({ "customer_name": null })
+    ));
 }
 
 #[test]

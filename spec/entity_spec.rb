@@ -20,10 +20,10 @@ RSpec.describe "an entity" do
   end
 
   def funded_account(runtime)
-    runtime.dispatch("Banking::Account.Open", id: "a1", customer: "c", number: "ACC-1",
-                                              kind: "current", daily_limit: 50_000)
-    runtime.dispatch("Banking::Account.Credit", id: "a1", amount: 10_000, narrative: "Opening")
-    runtime.dispatch("Banking::Account.Debit",  id: "a1", amount: 2_500,  narrative: "Groceries")
+    runtime.dispatch("Banking::Account.Open", id: "a1", customer_id: { value: "c" }, number: { value: "ACC-1" },
+                                              kind: { name: "current" }, daily_limit: { cents: 50_000 })
+    runtime.dispatch("Banking::Account.Credit", id: "a1", amount: { cents: 10_000, currency: "USD" }, narrative: { text: "Opening" })
+    runtime.dispatch("Banking::Account.Debit",  id: "a1", amount: { cents: 2_500, currency: "USD" },  narrative: { text: "Groceries" })
   end
 
   it "is born with its declared identity and its lifecycle's default" do
@@ -31,32 +31,43 @@ RSpec.describe "an entity" do
     funded_account(runtime)
 
     ledger = Banking::Account.find("a1").ledger
-    expect(ledger.map { |e| e[:sequence] }).to eq([1, 2])
+    expect(ledger.map { |e| e[:sequence].to_h }).to eq([{ value: 1 }, { value: 2 }])
     expect(ledger.map { |e| e[:state] }).to eq(%w[posted posted])
+  end
+
+  it "validates a nested value object before appending an entity" do
+    runtime = boot_banking
+    runtime.dispatch("Banking::Account.Open", id: "a1", customer_id: { value: "c" }, number: { value: "ACC-1" },
+                                              kind: { name: "current" }, daily_limit: { cents: 50_000 })
+
+    expect do
+      runtime.dispatch("Banking::Account.Credit", id: "a1", amount: { cents: 100, currency: "USD" }, narrative: { text: "" })
+    end.to raise_error(Hecksagain::Runtime::InvariantViolation,
+                       'Narrative invariant violated — a movement explains itself (given {"text":""})')
   end
 
   it "is addressed through the parent, and only that element changes" do
     runtime = boot_banking
     funded_account(runtime)
     runtime.dispatch("Banking::Account.LedgerEntry.Reverse",
-                     id: "a1", sequence: 2, narrative: "Posted in error")
+                     id: "a1", sequence: { value: 2 }, narrative: { text: "Posted in error" })
 
     ledger = Banking::Account.find("a1").ledger
     expect(ledger[1][:state]).to     eq("reversed")
-    expect(ledger[1][:narrative]).to eq("Posted in error")
+    expect(ledger[1][:narrative].to_h).to eq(text: "Posted in error")
     expect(ledger[0][:state]).to     eq("posted")
-    expect(ledger[0][:narrative]).to eq("Opening")
+    expect(ledger[0][:narrative].to_h).to eq(text: "Opening")
   end
 
   it "has its own state machine, refusing in so many words" do
     runtime = boot_banking
     funded_account(runtime)
     runtime.dispatch("Banking::Account.LedgerEntry.Reverse",
-                     id: "a1", sequence: 2, narrative: "Once")
+                     id: "a1", sequence: { value: 2 }, narrative: { text: "Once" })
 
     expect do
       runtime.dispatch("Banking::Account.LedgerEntry.Reverse",
-                       id: "a1", sequence: 2, narrative: "Twice")
+                       id: "a1", sequence: { value: 2 }, narrative: { text: "Twice" })
     end.to raise_error(Hecksagain::Runtime::LifecycleRefused,
                        'Reverse refused — state is "reversed", and Reverse moves it only from "posted"')
   end
@@ -67,21 +78,22 @@ RSpec.describe "an entity" do
 
     expect do
       runtime.dispatch("Banking::Account.LedgerEntry.Reverse",
-                       id: "a1", sequence: 99, narrative: "Ghost")
+                       id: "a1", sequence: { value: 99 }, narrative: { text: "Ghost" })
     end.to raise_error(Hecksagain::Runtime::NotFound,
-                       'no LedgerEntry with sequence 99 on Account "a1"')
+                       'no LedgerEntry with sequence {"value":99} on Account "a1"')
   end
 
   it "answers its query with the element AND whose boundary it is" do
     runtime = boot_banking
     funded_account(runtime)
     runtime.dispatch("Banking::Account.LedgerEntry.Reverse",
-                     id: "a1", sequence: 2, narrative: "Posted in error")
+                     id: "a1", sequence: { value: 2 }, narrative: { text: "Posted in error" })
 
     rows = runtime.query("Banking::Account.LedgerEntry.Reversed")
-    expect(rows).to eq([
-      { account: "a1", sequence: 2, amount: 2_500, narrative: "Posted in error",
-        direction: "debit", state: "reversed" }
+    materialized = rows.map { |row| row.transform_values { |value| Hecksagain::Runtime::Value.materialize(value) } }
+    expect(materialized).to eq([
+      { account: "a1", sequence: { value: 2 }, amount: { cents: 2_500, currency: "USD" }, narrative: { text: "Posted in error" },
+        direction: { value: "debit" }, state: "reversed" }
     ])
   end
 end

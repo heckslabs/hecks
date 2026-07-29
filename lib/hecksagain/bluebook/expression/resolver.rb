@@ -18,9 +18,12 @@ module Hecksagain
           return Integer(expr, 10) if expr.match?(/\A-?\d+\z/)
           return Float(expr)       if expr.match?(/\A-?\d*\.\d+\z/)
           return expr[1..-2]       if quoted?(expr)
-          return true              if expr == "true"
-          return false             if expr == "false"
-          return nil               if expr == "nil"
+        return true              if expr == "true"
+        return false             if expr == "false"
+        return nil               if expr == "nil"
+
+        arithmetic = split_addition(expr)
+        return add(arithmetic, state, attrs) if arithmetic
 
           sign = match_suffix(expr, SIGN_TESTS)
           return apply_sign_test(sign, state, attrs) if sign
@@ -33,8 +36,34 @@ module Hecksagain
 
           return size_of(Regexp.last_match(1), state, attrs) if expr =~ /\A(.+)\.size\z/
 
-          lookup(expr, state, attrs)
+        lookup(expr, state, attrs)
+      end
+
+      def split_addition(expr)
+        depth = 0
+        quote = nil
+
+        expr.each_char.with_index do |char, index|
+          if quote
+            quote = nil if char == quote
+          elsif ['"', "'"].include?(char)
+            quote = char
+          elsif char == "("
+            depth += 1
+          elsif char == ")"
+            depth -= 1
+          elsif char == "+" && depth.zero?
+            return [expr[0...index].strip, expr[(index + 1)..].strip]
+          end
         end
+        nil
+      end
+
+      def add(parts, state, attrs)
+        left, right = parts
+        require_number(resolve(left, state, attrs), "addition") +
+          require_number(resolve(right, state, attrs), "addition")
+      end
 
         def quoted?(expr)
           return false if expr.length < 2
@@ -111,7 +140,7 @@ module Hecksagain
 
           head, *rest = expr.split(".")
           rest.reduce(fetch(head, state, attrs)) do |value, segment|
-            break nil unless value.is_a?(Hash)
+            break nil unless value.respond_to?(:[])
 
             value[segment.to_sym] || value[segment]
           end

@@ -1,4 +1,3 @@
-
 use std::fmt;
 
 #[derive(Debug, Clone)]
@@ -9,6 +8,7 @@ pub struct Domain {
     pub vision: Option<String>,
     pub classification: Option<String>,
     pub aggregates: Vec<Aggregate>,
+    pub read_models: Vec<ReadModel>,
     pub policies: Vec<Policy>,
     pub fixtures: Vec<Fixture>,
     pub entrypoint: Option<String>,
@@ -46,6 +46,7 @@ pub struct BlockGrammarEntry {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BlockParser {
     Aggregate,
+    ReadModel,
     Policy,
     ProcessManager,
     Cadence,
@@ -57,6 +58,7 @@ impl BlockParser {
     pub fn from_name(name: &str) -> Option<Self> {
         match name {
             "parse_aggregate" => Some(Self::Aggregate),
+            "parse_read_model" => Some(Self::ReadModel),
             "parse_policy" => Some(Self::Policy),
             "parse_process_manager" => Some(Self::ProcessManager),
             "parse_cadence" => Some(Self::Cadence),
@@ -69,6 +71,7 @@ impl BlockParser {
     pub fn name(&self) -> &'static str {
         match self {
             Self::Aggregate => "parse_aggregate",
+            Self::ReadModel => "parse_read_model",
             Self::Policy => "parse_policy",
             Self::ProcessManager => "parse_process_manager",
             Self::Cadence => "parse_cadence",
@@ -84,6 +87,7 @@ impl BlockGrammar {
             name: "Bluebook".into(),
             blocks: vec![
                 entry("aggregate", BlockParser::Aggregate),
+                entry("read_model", BlockParser::ReadModel),
                 entry("section", BlockParser::Section),
                 entry("policy", BlockParser::Policy),
                 entry("process_manager", BlockParser::ProcessManager),
@@ -95,7 +99,10 @@ impl BlockGrammar {
 }
 
 fn entry(keyword: &str, parser: BlockParser) -> BlockGrammarEntry {
-    BlockGrammarEntry { keyword: keyword.into(), parser }
+    BlockGrammarEntry {
+        keyword: keyword.into(),
+        parser,
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -134,10 +141,20 @@ pub struct ForEachSpec {
 
 #[derive(Debug, Clone)]
 pub enum ValueSpec {
-    Literal { value: String },
-    FromEvent { name: String, default: Option<String> },
-    FromPm { name: String, default: Option<String> },
-    FromIter { field: String },
+    Literal {
+        value: String,
+    },
+    FromEvent {
+        name: String,
+        default: Option<String>,
+    },
+    FromPm {
+        name: String,
+        default: Option<String>,
+    },
+    FromIter {
+        field: String,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -178,6 +195,22 @@ pub struct Aggregate {
     pub views: Vec<View>,
     pub unknown_keywords: Vec<UnknownKeyword>,
     pub realm_path: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ReadModel {
+    pub name: String,
+    pub description: Option<String>,
+    pub reference_name: String,
+    pub reference_target: String,
+    pub aggregate_heads: Vec<AggregateHead>,
+}
+
+#[derive(Debug, Clone)]
+pub struct AggregateHead {
+    pub aggregate: String,
+    pub name: String,
+    pub many: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -381,12 +414,26 @@ impl fmt::Display for Domain {
         let agg_count = self.aggregates.len();
         for (ai, agg) in self.aggregates.iter().enumerate() {
             let is_last_agg = ai == agg_count - 1;
-            let prefix = if is_last_agg { "└──" } else { "├──" };
+            let prefix = if is_last_agg {
+                "└──"
+            } else {
+                "├──"
+            };
             let cont = if is_last_agg { "    " } else { "│   " };
-            writeln!(f, "{} {} — {}", prefix, agg.name, agg.description.as_deref().unwrap_or(""))?;
+            writeln!(
+                f,
+                "{} {} — {}",
+                prefix,
+                agg.name,
+                agg.description.as_deref().unwrap_or("")
+            )?;
             let cmd_count = agg.commands.len();
             for (ci, cmd) in agg.commands.iter().enumerate() {
-                let cmd_prefix = if ci == cmd_count - 1 { "└──" } else { "├──" };
+                let cmd_prefix = if ci == cmd_count - 1 {
+                    "└──"
+                } else {
+                    "├──"
+                };
                 write!(f, "{}{} {}", cont, cmd_prefix, cmd.name)?;
                 if let Some(ref emits) = cmd.emits {
                     write!(f, " -> {}", emits)?;
@@ -396,7 +443,11 @@ impl fmt::Display for Domain {
         }
         if !self.policies.is_empty() {
             for pol in &self.policies {
-                writeln!(f, "  {} : {} -> {}", pol.name, pol.on_event, pol.trigger_command)?;
+                writeln!(
+                    f,
+                    "  {} : {} -> {}",
+                    pol.name, pol.on_event, pol.trigger_command
+                )?;
             }
         }
         Ok(())
@@ -445,31 +496,48 @@ impl ReferenceKind {
 impl Reference {
     pub fn single(name: String, target: String, domain: Option<String>) -> Self {
         Reference {
-            name, target, domain,
-            cardinality: Cardinality { min: 0, max: Some(1) },
+            name,
+            target,
+            domain,
+            cardinality: Cardinality {
+                min: 0,
+                max: Some(1),
+            },
             kind: ReferenceKind::LegacyReferenceTo,
         }
     }
 
     pub fn belongs_to(name: String, target: String, domain: Option<String>) -> Self {
         Reference {
-            name, target, domain,
-            cardinality: Cardinality { min: 0, max: Some(1) },
+            name,
+            target,
+            domain,
+            cardinality: Cardinality {
+                min: 0,
+                max: Some(1),
+            },
             kind: ReferenceKind::BelongsTo,
         }
     }
 
     pub fn has_one(name: String, target: String, domain: Option<String>) -> Self {
         Reference {
-            name, target, domain,
-            cardinality: Cardinality { min: 0, max: Some(1) },
+            name,
+            target,
+            domain,
+            cardinality: Cardinality {
+                min: 0,
+                max: Some(1),
+            },
             kind: ReferenceKind::HasOne,
         }
     }
 
     pub fn many(name: String, target: String, domain: Option<String>) -> Self {
         Reference {
-            name, target, domain,
+            name,
+            target,
+            domain,
             cardinality: Cardinality { min: 0, max: None },
             kind: ReferenceKind::HasMany,
         }
@@ -477,8 +545,13 @@ impl Reference {
 
     pub fn many_with_max(name: String, target: String, domain: Option<String>, max: usize) -> Self {
         Reference {
-            name, target, domain,
-            cardinality: Cardinality { min: 0, max: Some(max) },
+            name,
+            target,
+            domain,
+            cardinality: Cardinality {
+                min: 0,
+                max: Some(max),
+            },
             kind: ReferenceKind::HasMany,
         }
     }

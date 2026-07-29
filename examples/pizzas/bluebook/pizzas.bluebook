@@ -5,11 +5,38 @@ Hecks.bluebook "Pizzas" do
   aggregate "Pizza" do
     description "A pizza that gathers toppings and is eventually sold to a customer."
 
-    attribute :name,          String
+    attribute :name,          PizzaName
     attribute :toppings,      list_of(Topping)
-    attribute :price_cents,   Integer
-    attribute :status,        String, default: "available"
-    attribute :customer_name, String
+    attribute :price_cents,   Price
+    attribute :customer_name, CustomerName
+
+    value_object "PizzaName" do
+      attribute :value, String
+    end
+
+    value_object "Price" do
+      attribute :cents, Integer
+    end
+
+    value_object "CustomerName" do
+      attribute :value, String
+    end
+
+    value_object "ToppingName" do
+      attribute :value, String
+    end
+
+    value_object "ToppingAmount" do
+      attribute :value, Integer
+    end
+
+    value_object "LineSku" do
+      attribute :value, String
+    end
+
+    value_object "LineQuantity" do
+      attribute :value, Integer
+    end
 
     value_object "Topping" do
       attribute :name,   String
@@ -26,8 +53,8 @@ Hecks.bluebook "Pizzas" do
 
     entity "OrderLine" do
       identified_by :sku
-      attribute :sku,      String
-      attribute :quantity, Integer
+      attribute :sku,      LineSku
+      attribute :quantity, LineQuantity
     end
 
     query "Available" do
@@ -36,7 +63,7 @@ Hecks.bluebook "Pizzas" do
     end
 
     query "CostingLessThan" do
-      attribute :ceiling, Integer
+      attribute :ceiling, Price
       where(price_cents: { lt: :ceiling })
     end
 
@@ -50,8 +77,8 @@ Hecks.bluebook "Pizzas" do
       role "Chef"
       goal "Put a new pizza on the menu"
 
-      attribute :name,        String
-      attribute :price_cents, Integer
+      attribute :name,        PizzaName
+      attribute :price_cents, Price
 
       emits "PizzaCreated"
     end
@@ -61,8 +88,8 @@ Hecks.bluebook "Pizzas" do
       goal "Customize a pizza with an ingredient"
 
       reference_to Pizza
-      attribute :name,   String
-      attribute :amount, Integer
+      attribute :name,   ToppingName
+      attribute :amount, ToppingAmount
 
       given("a sold pizza cannot be changed") { status == "available" }
       given("at most 10 toppings")            { toppings.size < 10 }
@@ -77,7 +104,7 @@ Hecks.bluebook "Pizzas" do
       goal "Buy the pizza"
 
       reference_to Pizza
-      attribute :customer_name, String
+      attribute :customer_name, CustomerName
 
       given("a pizza needs at least one topping") { toppings.size.positive? }
       given("it must still be available")         { status == "available" }

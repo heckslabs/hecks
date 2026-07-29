@@ -1,0 +1,4 @@
+Hecks.adapter "SqlitePersistence" do
+  port  "persistence"
+  field :database
+end

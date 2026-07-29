@@ -1,0 +1,28 @@
+#!/usr/bin/env ruby
+
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+
+require "hecksagain"
+require "json"
+
+domain = ARGV.fetch(0)
+runtime = Hecks.boot(domain)
+
+def entries_for(repository, aggregate)
+  case repository
+  when Hecksagain::Ports::Persistence::AppendOnly
+    repository.entries.map { |entry| { "operation" => entry.operation, "id" => entry.id, "state" => entry.state } }
+  else
+    []
+  end
+end
+
+history = runtime.registry.bluebooks.each_with_object({}) do |(domain_name, bluebook), all|
+  bluebook.aggregates.each do |aggregate|
+    repository = runtime.registry.repository(domain_name, aggregate)
+    entries = entries_for(repository, aggregate)
+    all[aggregate.storage_name] = entries
+  end
+end
+
+puts JSON.generate(history)

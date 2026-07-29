@@ -1,7 +1,6 @@
-
 use crate::ir::*;
-use crate::parser_helpers::*;
 use crate::parse_blocks::*;
+use crate::parser_helpers::*;
 
 pub fn parse(source: &str) -> Domain {
     let mut domain = Domain {
@@ -11,6 +10,7 @@ pub fn parse(source: &str) -> Domain {
         vision: None,
         classification: None,
         aggregates: vec![],
+        read_models: vec![],
         policies: vec![],
         fixtures: vec![],
         entrypoint: None,
@@ -125,6 +125,11 @@ fn invoke(parser: BlockParser, slice: &[&str], domain: &mut Domain) -> usize {
             domain.policies.extend(nested_policies);
             consumed
         }
+        BlockParser::ReadModel => {
+            let (model, consumed) = parse_read_model(slice);
+            domain.read_models.push(model);
+            consumed
+        }
         BlockParser::Section => {
             let (sec, consumed) = parse_section(slice);
             domain.sections.push(sec);
@@ -145,9 +150,7 @@ fn invoke(parser: BlockParser, slice: &[&str], domain: &mut Domain) -> usize {
             domain.cadences.push(cad);
             consumed
         }
-        BlockParser::Fixture => {
-            consume_do_block(slice)
-        }
+        BlockParser::Fixture => consume_do_block(slice),
     }
 }
 
@@ -173,7 +176,10 @@ fn consume_do_block(lines: &[&str]) -> usize {
 pub fn parse_block_grammar(lines: &[&str]) -> (BlockGrammar, usize) {
     let first = lines[0].trim();
     let name = extract_string(first).unwrap_or_default();
-    let mut bg = BlockGrammar { name, blocks: vec![] };
+    let mut bg = BlockGrammar {
+        name,
+        blocks: vec![],
+    };
 
     let mut i = 1;
     let mut depth = 1usize;
@@ -181,7 +187,9 @@ pub fn parse_block_grammar(lines: &[&str]) -> (BlockGrammar, usize) {
         let line = lines[i].trim();
         if line == "end" {
             depth -= 1;
-            if depth == 0 { break; }
+            if depth == 0 {
+                break;
+            }
             i += 1;
             continue;
         }
@@ -202,14 +210,20 @@ fn parse_block_grammar_line(line: &str) -> Option<BlockGrammarEntry> {
     let pos = line.find("parser:")?;
     let after = line[pos + "parser:".len()..].trim();
     let parser_name = if after.starts_with(':') {
-        after.trim_start_matches(':')
+        after
+            .trim_start_matches(':')
             .split(|c: char| c == ',' || c.is_whitespace())
-            .next().unwrap_or("").to_string()
+            .next()
+            .unwrap_or("")
+            .to_string()
     } else if after.starts_with('"') {
         extract_string(after)?
     } else {
-        after.split(|c: char| c == ',' || c.is_whitespace())
-            .next().unwrap_or("").to_string()
+        after
+            .split(|c: char| c == ',' || c.is_whitespace())
+            .next()
+            .unwrap_or("")
+            .to_string()
     };
     let parser = BlockParser::from_name(&parser_name)?;
     Some(BlockGrammarEntry { keyword, parser })
@@ -231,16 +245,21 @@ fn parse_aggregate(lines: &[&str]) -> (Aggregate, Vec<Policy>, usize) {
     let desc = extract_second_string(first);
 
     let mut agg = Aggregate {
-        name, description: desc,
-        context: None, 
-        category: None, 
-        bluebook_version: None, 
-        realm_path: None, 
+        name,
+        description: desc,
+        context: None,
+        category: None,
+        bluebook_version: None,
+        realm_path: None,
         attributes: vec![],
-        factories: vec![], 
-        commands: vec![], queries: vec![], value_objects: vec![],
+        factories: vec![],
+        commands: vec![],
+        queries: vec![],
+        value_objects: vec![],
         entities: vec![],
-        references: vec![], lifecycle: None, identified_by: None,
+        references: vec![],
+        lifecycle: None,
+        identified_by: None,
         invariants: vec![],
         views: vec![],
         unknown_keywords: vec![],
@@ -256,7 +275,9 @@ fn parse_aggregate(lines: &[&str]) -> (Aggregate, Vec<Policy>, usize) {
 
         if line == "end" {
             depth -= 1;
-            if depth == 0 { break; }
+            if depth == 0 {
+                break;
+            }
             i += 1;
             continue;
         }
@@ -283,7 +304,9 @@ fn parse_aggregate(lines: &[&str]) -> (Aggregate, Vec<Policy>, usize) {
                 i += consumed;
                 continue;
             } else if line.starts_with("attribute") {
-                if let Some(attr) = parse_attribute(line) { agg.attributes.push(attr); }
+                if let Some(attr) = parse_attribute(line) {
+                    agg.attributes.push(attr);
+                }
                 if ends_with_do_block(line) {
                     let (lc, consumed) = parse_lifecycle(&lines[i..]);
                     if !lc.transitions.is_empty() {
@@ -309,7 +332,9 @@ fn parse_aggregate(lines: &[&str]) -> (Aggregate, Vec<Policy>, usize) {
                 continue;
             } else if line.starts_with("invariant") {
                 let (inv, consumed) = parse_invariant(&lines[i..]);
-                if let Some(inv) = inv { agg.invariants.push(inv); }
+                if let Some(inv) = inv {
+                    agg.invariants.push(inv);
+                }
                 i += consumed;
                 continue;
             } else if line.starts_with("identified_by") {
@@ -359,8 +384,17 @@ fn parse_aggregate(lines: &[&str]) -> (Aggregate, Vec<Policy>, usize) {
 }
 
 const BLOCK_KEYWORDS: &[&str] = &[
-    "command", "query", "value_object", "entity", "invariant",
-    "view", "rule", "policy", "factory", "lifecycle", "create",
+    "command",
+    "query",
+    "value_object",
+    "entity",
+    "invariant",
+    "view",
+    "rule",
+    "policy",
+    "factory",
+    "lifecycle",
+    "create",
 ];
 
 fn suggest_block_keyword(word: &str) -> Option<String> {
@@ -399,12 +433,12 @@ fn absorb_reference_to(line: &str, agg: &mut Aggregate) {
     } else if let Some(target) = extract_word_after(line, "reference_to") {
         let name = if let Some(pos) = line.find(", as:") {
             let after = &line[pos + ", as:".len()..];
-            extract_symbol(after).unwrap_or_else(|| crate::naming::snake(&target))
+            extract_symbol(after).unwrap_or_else(|| format!("{}_id", crate::naming::snake(&target)))
         } else if let Some(pos) = line.find(", role:") {
             let after = &line[pos + ", role:".len()..];
-            extract_symbol(after).unwrap_or_else(|| crate::naming::snake(&target))
+            extract_symbol(after).unwrap_or_else(|| format!("{}_id", crate::naming::snake(&target)))
         } else {
-            crate::naming::snake(&target)
+            format!("{}_id", crate::naming::snake(&target))
         };
         agg.references.push(Reference::single(name, target, None));
     }
@@ -428,7 +462,8 @@ fn split_qualified_type(token: &str) -> (Option<String>, String) {
 }
 
 fn parse_as_alias(line: &str) -> Option<String> {
-    line.find(", as:").and_then(|pos| extract_symbol(&line[pos + ", as:".len()..]))
+    line.find(", as:")
+        .and_then(|pos| extract_symbol(&line[pos + ", as:".len()..]))
 }
 
 fn parse_from_context(line: &str) -> Option<String> {
@@ -456,7 +491,8 @@ fn absorb_has_one(line: &str, agg: &mut Aggregate) {
         let (split_domain, target) = split_qualified_type(&token);
         let domain = parse_from_context(line).or(split_domain);
         let name = parse_as_alias(line).unwrap_or_else(|| crate::naming::snake(&target));
-        agg.references.push(Reference::has_one(name.clone(), target.clone(), domain));
+        agg.references
+            .push(Reference::has_one(name.clone(), target.clone(), domain));
         if !agg.attributes.iter().any(|a| a.name == name) {
             agg.attributes.push(Attribute {
                 name,
@@ -465,7 +501,9 @@ fn absorb_has_one(line: &str, agg: &mut Aggregate) {
                 list: false,
                 required: false,
                 enum_values: vec![],
-                pattern: None, hint: None, logged: true,
+                pattern: None,
+                hint: None,
+                logged: true,
             });
         }
     }
@@ -476,7 +514,8 @@ fn absorb_belongs_to(line: &str, agg: &mut Aggregate) {
         let (split_domain, target) = split_qualified_type(&token);
         let domain = parse_from_context(line).or(split_domain);
         let name = parse_as_alias(line).unwrap_or_else(|| crate::naming::snake(&target));
-        agg.references.push(Reference::belongs_to(name.clone(), target.clone(), domain));
+        agg.references
+            .push(Reference::belongs_to(name.clone(), target.clone(), domain));
         if !agg.attributes.iter().any(|a| a.name == name) {
             agg.attributes.push(Attribute {
                 name,
@@ -485,7 +524,9 @@ fn absorb_belongs_to(line: &str, agg: &mut Aggregate) {
                 list: false,
                 required: false,
                 enum_values: vec![],
-                pattern: None, hint: None, logged: true,
+                pattern: None,
+                hint: None,
+                logged: true,
             });
         }
     }
@@ -500,7 +541,11 @@ fn absorb_shorthand(line: &str, agg: &mut Aggregate) {
 
 fn push_query(line: &str, agg: &mut Aggregate, depth: &mut usize) {
     let name = extract_string(line).unwrap_or_else(|| {
-        line.split_whitespace().nth(1).unwrap_or("").trim_matches('"').to_string()
+        line.split_whitespace()
+            .nth(1)
+            .unwrap_or("")
+            .trim_matches('"')
+            .to_string()
     });
     let desc = extract_second_string(line);
     agg.queries.push(Query {
@@ -514,13 +559,17 @@ fn push_query(line: &str, agg: &mut Aggregate, depth: &mut usize) {
         group_by: None,
         scope_to: None,
     });
-    if ends_with_do_block(line) { *depth += 1; }
+    if ends_with_do_block(line) {
+        *depth += 1;
+    }
 }
 
 #[allow(dead_code)]
 fn needs_continuation(s: &str) -> bool {
     let trimmed = s.trim_end();
-    if trimmed.ends_with(',') { return true; }
+    if trimmed.ends_with(',') {
+        return true;
+    }
     let mut depth = 0i32;
     let mut in_str = false;
     let mut prev = '\0';

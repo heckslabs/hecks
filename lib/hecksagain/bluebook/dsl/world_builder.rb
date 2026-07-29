@@ -19,20 +19,38 @@ module Hecksagain
           @settings = {}
         end
 
-        def method_missing(verb, *args, &block)
+        def realm(value)
+          @realm = required(value, "realm")
+        end
+
+        def latest(value)
+          @latest = required(value, "latest version")
+        end
+
+        def method_missing(verb, *args, **kwargs, &block)
           collector = SettingsCollector.new
           collector.instance_eval(&block) if block
-          @settings[verb.to_s] = { adapter: args.first.to_s }.merge(collector.to_h)
+          value = { adapter: args.first.to_s }.merge(kwargs).merge(collector.to_h)
+          @settings[verb.to_s] = value
+          @settings["#{verb}:#{args.first.to_s.downcase}"] = value
         end
 
         def respond_to_missing?(_name, _include_private = false) = true
 
-        def build = IR::World.new(domain: @domain, settings: @settings)
+        def build = IR::World.new(domain: @domain, realm: @realm, latest: @latest, settings: @settings)
 
         def self.build(domain, &block)
           builder = new(domain)
           builder.instance_eval(&block) if block
           builder.build
+        end
+
+        private
+
+        def required(value, label)
+          raise Malformed, "#{@domain}'s #{label} says nothing" if value.to_s.empty?
+
+          value.to_s
         end
       end
     end

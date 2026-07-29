@@ -103,7 +103,11 @@ module Hecksagain
                      elsif event.payload.key?(value) then event.payload[value]
                      else instance[:memory][value]
                      end
-          [key.to_sym, resolved]
+          # A process manager carries facts between aggregate boundaries.  It
+          # must carry a value object's state, not its source aggregate's
+          # runtime type: TransferMoney and Account::Money may share fields
+          # without being the same domain object.
+          [key.to_sym, Value.materialize(resolved)]
         end
       end
 

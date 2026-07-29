@@ -1,4 +1,3 @@
-
 pub fn between_quotes(s: &str) -> Option<String> {
     let start = s.find('"')?;
     let tail = &s[start + 1..];
@@ -8,8 +7,11 @@ pub fn between_quotes(s: &str) -> Option<String> {
 
 pub fn strip_quotes(s: &str) -> String {
     let t = s.trim();
-    if t.starts_with('"') && t.ends_with('"') && t.len() >= 2 { t[1..t.len() - 1].to_string() }
-    else { t.to_string() }
+    if t.starts_with('"') && t.ends_with('"') && t.len() >= 2 {
+        t[1..t.len() - 1].to_string()
+    } else {
+        t.to_string()
+    }
 }
 
 pub fn strip_quotes_unescape(s: &str) -> String {
@@ -22,14 +24,17 @@ pub fn strip_quotes_unescape(s: &str) -> String {
             continue;
         }
         match chars.next() {
-            Some('n')  => out.push('\n'),
-            Some('t')  => out.push('\t'),
-            Some('r')  => out.push('\r'),
-            Some('0')  => out.push('\0'),
+            Some('n') => out.push('\n'),
+            Some('t') => out.push('\t'),
+            Some('r') => out.push('\r'),
+            Some('0') => out.push('\0'),
             Some('\\') => out.push('\\'),
-            Some('"')  => out.push('"'),
+            Some('"') => out.push('"'),
             Some('\'') => out.push('\''),
-            Some(other) => { out.push('\\'); out.push(other); }
+            Some(other) => {
+                out.push('\\');
+                out.push(other);
+            }
             None => out.push('\\'),
         }
     }
@@ -37,14 +42,21 @@ pub fn strip_quotes_unescape(s: &str) -> String {
 }
 
 pub fn strip_symbol(s: &str) -> String {
-    s.trim().trim_start_matches(':').trim_end_matches(',').trim().to_string()
+    s.trim()
+        .trim_start_matches(':')
+        .trim_end_matches(',')
+        .trim()
+        .to_string()
 }
 
 pub fn split_first_symbol(s: &str) -> (String, &str) {
     let t = s.trim_start();
-    if !t.starts_with(':') { return (String::new(), t); }
+    if !t.starts_with(':') {
+        return (String::new(), t);
+    }
     let rest = &t[1..];
-    let end = rest.find(|c: char| c == ',' || c.is_whitespace())
+    let end = rest
+        .find(|c: char| c == ',' || c.is_whitespace())
         .unwrap_or(rest.len());
     let kind = rest[..end].trim().to_string();
     let after = rest[end..].trim_start_matches(|c: char| c.is_whitespace() || c == ',');
@@ -59,9 +71,18 @@ pub fn split_top_level_commas(s: &str) -> Vec<String> {
     let mut prev = '\0';
     for c in s.chars() {
         match c {
-            '"' if prev != '\\' => { in_str = !in_str; current.push(c); }
-            '[' | '{' | '(' if !in_str => { depth += 1; current.push(c); }
-            ']' | '}' | ')' if !in_str => { depth -= 1; current.push(c); }
+            '"' if prev != '\\' => {
+                in_str = !in_str;
+                current.push(c);
+            }
+            '[' | '{' | '(' if !in_str => {
+                depth += 1;
+                current.push(c);
+            }
+            ']' | '}' | ')' if !in_str => {
+                depth -= 1;
+                current.push(c);
+            }
             ',' if !in_str && depth == 0 => {
                 out.push(std::mem::take(&mut current));
             }
@@ -69,7 +90,9 @@ pub fn split_top_level_commas(s: &str) -> Vec<String> {
         }
         prev = c;
     }
-    if !current.trim().is_empty() { out.push(current); }
+    if !current.trim().is_empty() {
+        out.push(current);
+    }
     out
 }
 
@@ -86,8 +109,11 @@ pub fn find_top_level_colon(s: &str) -> Option<usize> {
             ']' | '}' | ')' if !in_str => depth -= 1,
             ':' if !in_str && depth == 0 => {
                 let prev = if i == 0 { ' ' } else { chars[i - 1] };
-                let is_symbol_start = prev == ' ' || prev == ',' || prev == '(' || prev == '[' || i == 0;
-                if !is_symbol_start { return Some(i); }
+                let is_symbol_start =
+                    prev == ' ' || prev == ',' || prev == '(' || prev == '[' || i == 0;
+                if !is_symbol_start {
+                    return Some(i);
+                }
             }
             _ => {}
         }
@@ -100,10 +126,16 @@ pub fn parse_options(s: &str) -> Vec<(String, String)> {
     let mut out: Vec<(String, String)> = Vec::new();
     for tok in split_top_level_commas(s) {
         let t = tok.trim();
-        if t.is_empty() || t == "do" || t == "end" { continue; }
+        if t.is_empty() || t == "do" || t == "end" {
+            continue;
+        }
         if let Some(colon) = find_top_level_colon(t) {
             let key = t[..colon].trim().trim_end_matches(':').to_string();
-            let val = t[colon + 1..].trim().trim_end_matches(')').trim().to_string();
+            let val = t[colon + 1..]
+                .trim()
+                .trim_end_matches(')')
+                .trim()
+                .to_string();
             out.push((key, val));
         }
     }
@@ -111,11 +143,17 @@ pub fn parse_options(s: &str) -> Vec<(String, String)> {
 }
 
 pub fn parse_string_array(s: &str) -> Vec<String> {
-    let t = s.trim().trim_start_matches('[').trim_end_matches(']').trim_end_matches(',');
+    let t = s
+        .trim()
+        .trim_start_matches('[')
+        .trim_end_matches(']')
+        .trim_end_matches(',');
     let mut out = Vec::new();
     for part in split_top_level_commas(t) {
         let v = strip_quotes(part.trim());
-        if !v.is_empty() { out.push(v); }
+        if !v.is_empty() {
+            out.push(v);
+        }
     }
     out
 }
@@ -144,11 +182,17 @@ pub fn extract_on_events(s: &str) -> Vec<String> {
     while idx < s.len() {
         if let Some(pos) = s[idx..].find("on :") {
             let start = idx + pos + 4;
-            let end = s[start..].find(|c: char| !c.is_alphanumeric() && c != '_').unwrap_or(s.len() - start);
+            let end = s[start..]
+                .find(|c: char| !c.is_alphanumeric() && c != '_')
+                .unwrap_or(s.len() - start);
             let name = s[start..start + end].to_string();
-            if !name.is_empty() { out.push(name); }
+            if !name.is_empty() {
+                out.push(name);
+            }
             idx = start + end;
-        } else { break; }
+        } else {
+            break;
+        }
     }
     out
 }

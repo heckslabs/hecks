@@ -1,9 +1,8 @@
-
+use std::collections::HashMap;
 use storehouse::heki::WriteContext;
+use storehouse::runtime::{AggregateState, Value};
 use storehouse_sqlite::sql_type;
 use storehouse_sqlite::SqliteRepository;
-use storehouse::runtime::{AggregateState, Value};
-use std::collections::HashMap;
 
 fn tmp_db(name: &str) -> String {
     let p = std::env::temp_dir().join(format!("hecks_sqlite_test_{name}.db"));
@@ -34,7 +33,7 @@ fn save_then_find_round_trips_typed_columns() {
     let mut state = AggregateState::new("1");
     state.set("title", Value::Str("First Light".into()));
     state.set("status", Value::Str("published".into()));
-    repo.save(state, WriteContext::OutOfBand { reason: "test" });
+    repo.save(state, WriteContext::OutOfBand { reason: "test" }).unwrap();
 
     let found = repo.find("1").expect("row should be found");
     assert_eq!(found.get("title").to_string(), "First Light");
@@ -50,11 +49,36 @@ fn cold_reopen_sees_persisted_rows_and_advances_next_id() {
         let mut repo = SqliteRepository::new("BlogEntry", &db, None, cols.clone()).unwrap();
         let mut s = AggregateState::new("1");
         s.set("title", Value::Str("First".into()));
-        repo.save(s, WriteContext::OutOfBand { reason: "test" });
+        repo.save(s, WriteContext::OutOfBand { reason: "test" }).unwrap();
     }
     let mut repo2 = SqliteRepository::new("BlogEntry", &db, None, cols).unwrap();
     assert_eq!(repo2.count(), 1, "reopened repo must see the persisted row");
     assert_eq!(repo2.find("1").unwrap().get("title").to_string(), "First");
     let minted = repo2.id_for_command(&HashMap::new());
     assert_eq!(minted, "2");
+}
+
+#[test]
+fn update_replaces_the_current_row_and_keeps_a_real_as_a_float() {
+    let db = tmp_db("update-current-row");
+    let cols = vec![
+        ("fee".to_string(), "REAL".to_string()),
+        ("status".to_string(), "TEXT".to_string()),
+    ];
+    let mut repo = SqliteRepository::new("Card", &db, None, cols.clone()).unwrap();
+    let mut first = AggregateState::new("card-1");
+    first.set("fee", Value::Float(10.0));
+    first.set("status", Value::Str("issued".into()));
+    repo.save(first, WriteContext::OutOfBand { reason: "test" }).unwrap();
+
+    let mut replacement = AggregateState::new("card-1");
+    replacement.set("fee", Value::Float(10.0));
+    replacement.set("status", Value::Str("retired".into()));
+    repo.save(replacement, WriteContext::OutOfBand { reason: "test" }).unwrap();
+    drop(repo);
+
+    let reopened = SqliteRepository::new("Card", &db, None, cols).unwrap();
+    let row = reopened.find("card-1").unwrap();
+    assert_eq!(row.get("fee"), &Value::Float(10.0));
+    assert_eq!(row.get("status"), &Value::Str("retired".into()));
 }

@@ -1,4 +1,3 @@
-
 use super::Value;
 use std::collections::HashMap;
 
@@ -72,8 +71,7 @@ impl AggregateState {
             Some(Value::Bool(b)) => *b,
             _ => false,
         };
-        self.fields
-            .insert(field.to_string(), Value::Bool(!current));
+        self.fields.insert(field.to_string(), Value::Bool(!current));
     }
 
     pub fn remove(&mut self, field: &str, value: Value) {
@@ -99,7 +97,10 @@ fn current_numeric(v: Option<&Value>) -> f64 {
     match v {
         Some(Value::Int(n)) => *n as f64,
         Some(Value::Str(s)) => s.parse::<f64>().unwrap_or(0.0),
-        Some(Value::Map(m)) => m.get("value").map(|inner| current_numeric(Some(inner))).unwrap_or(0.0),
+        Some(Value::Map(m)) => m
+            .get("value")
+            .map(|inner| current_numeric(Some(inner)))
+            .unwrap_or(0.0),
         _ => 0.0,
     }
 }

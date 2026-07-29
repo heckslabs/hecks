@@ -1,9 +1,9 @@
-
 pub use crate::runtime::aggregate_state::AggregateState;
 pub use crate::runtime::value::Value;
+pub use persistence_adapter::ReplicationEntry;
 
 mod persistence;
-pub use persistence::{resolve_for, Persistence, DEFAULT_ADAPTER};
+pub use persistence::{resolve_all_for, resolve_for, Persistence, PersistenceBindings, DEFAULT_ADAPTER};
 
 #[allow(dead_code)]
 pub mod persistence_adapter;

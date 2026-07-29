@@ -1,5 +1,10 @@
 Hecks.world "Banking" do
+  realm "Examples"
   persisted_by("Heki") do
     dir "data"
+  end
+
+  projected_by("SqliteProjection") do
+    database "data/banking_projection.sqlite3"
   end
 end

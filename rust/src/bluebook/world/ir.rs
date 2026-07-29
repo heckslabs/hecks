@@ -1,4 +1,3 @@
-
 #[derive(Debug, Default, Clone)]
 pub struct World {
     pub name: String,
@@ -6,6 +5,7 @@ pub struct World {
     pub vision: Option<String>,
     pub audience: Option<String>,
     pub realm: Option<String>,
+    pub latest: Option<String>,
     pub concerns: Vec<Concern>,
     pub configs: Vec<ExtensionConfig>,
     pub servers: Vec<McpServer>,
@@ -61,12 +61,18 @@ impl World {
 
 impl AdapterBinding {
     pub fn get(&self, key: &str) -> Option<&str> {
-        self.values.iter().find(|(k, _)| k == key).map(|(_, v)| v.as_str())
+        self.values
+            .iter()
+            .find(|(k, _)| k == key)
+            .map(|(_, v)| v.as_str())
     }
 }
 
 impl ExtensionConfig {
     pub fn get(&self, key: &str) -> Option<&str> {
-        self.values.iter().find(|(k, _)| k == key).map(|(_, v)| v.as_str())
+        self.values
+            .iter()
+            .find(|(k, _)| k == key)
+            .map(|(_, v)| v.as_str())
     }
 }

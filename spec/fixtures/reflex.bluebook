@@ -5,14 +5,17 @@ Hecks.bluebook "Reflex" do
   aggregate "Light" do
     description "A light that logs its own flip"
 
-    attribute :condition, String
+    attribute :condition, LightCondition
+
+    value_object "LightCondition" do
+      attribute :value, String
+    end
 
     command "Flip" do
       role "Operator"
       goal "Turn the light on"
-      attribute :id, String
 
-      then_set :condition, to: "on"
+      then_set :condition, to: { value: "on" }
 
       emits "Flipped"
     end
@@ -20,9 +23,8 @@ Hecks.bluebook "Reflex" do
     command "Log" do
       role "System"
       goal "Record that the flip was noticed"
-      attribute :id, String
 
-      then_set :condition, to: "logged"
+      then_set :condition, to: { value: "logged" }
     end
 
     policy "LogOnFlip" do
@@ -34,12 +36,15 @@ Hecks.bluebook "Reflex" do
   aggregate "Echo" do
     description "A bell whose ring makes it ring"
 
-    attribute :rings, Integer
+    attribute :rings, RingCount
+
+    value_object "RingCount" do
+      attribute :value, Integer
+    end
 
     command "Ring" do
       role "Operator"
       goal "Ring the bell, which rings the bell"
-      attribute :id, String
 
       emits "Rang"
     end

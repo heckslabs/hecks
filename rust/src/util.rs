@@ -1,9 +1,7 @@
-
 #[cfg(not(target_arch = "wasm32"))]
 use std::fs;
 #[cfg(not(target_arch = "wasm32"))]
 use std::io::Read as IoRead;
-
 
 pub fn uuid_v4() -> String {
     let mut bytes = [0u8; 16];
@@ -43,7 +41,6 @@ pub fn uuid_v4() -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-
 
     #[test]
     fn uuid_v4_is_well_formed() {

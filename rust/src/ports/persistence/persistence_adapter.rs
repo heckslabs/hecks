@@ -1,9 +1,16 @@
-
 use super::AggregateState;
 use super::Value;
 use crate::heki;
 use crate::ir;
 use std::collections::HashMap;
+
+#[derive(Clone, Debug)]
+pub struct ReplicationEntry {
+    pub operation: String,
+    pub id: String,
+    pub state: Option<AggregateState>,
+    pub mirrors: Vec<String>,
+}
 
 pub trait PersistenceAdapter: Send {
     fn find(&self, id: &str) -> Option<&AggregateState>;
@@ -18,9 +25,31 @@ pub trait PersistenceAdapter: Send {
 
     fn id_for_command(&mut self, attrs: &HashMap<String, Value>) -> String;
 
-    fn save(&mut self, state: AggregateState, ctx: heki::WriteContext<'_>);
+    fn save(&mut self, state: AggregateState, ctx: heki::WriteContext<'_>) -> Result<(), String>;
 
-    fn delete(&mut self, id: &str, ctx: heki::WriteContext<'_>);
+    fn save_with_mirrors(
+        &mut self,
+        state: AggregateState,
+        _mirrors: Vec<String>,
+        ctx: heki::WriteContext<'_>,
+    ) -> Result<(), String> {
+        self.save(state, ctx)
+    }
+
+    fn delete(&mut self, id: &str, ctx: heki::WriteContext<'_>) -> Result<(), String>;
+
+    fn delete_with_mirrors(
+        &mut self,
+        id: &str,
+        _mirrors: Vec<String>,
+        ctx: heki::WriteContext<'_>,
+    ) -> Result<(), String> {
+        self.delete(id, ctx)
+    }
+
+    fn replication_entries(&self) -> Result<Vec<ReplicationEntry>, String> {
+        Ok(vec![])
+    }
 
     fn query(
         &self,
@@ -32,7 +61,6 @@ pub trait PersistenceAdapter: Send {
 
     fn set_next_id(&mut self, value: u64);
 }
-
 
 use crate::ir::Aggregate;
 use std::sync::{Mutex, OnceLock};

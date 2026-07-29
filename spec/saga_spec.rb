@@ -1,9 +1,9 @@
 
 require "spec_helper"
 
-RSpec.describe "a process manager" do
-  WIRE_BLUEBOOK = File.join(InMemoryDomain::ROOT, "spec/fixtures/settlement.bluebook")
+WIRE_BLUEBOOK = File.join(InMemoryDomain::ROOT, "spec/fixtures/settlement.bluebook")
 
+RSpec.describe "a process manager" do
   def boot_wire
     registry = Hecksagain::Runtime::Registry.new
 
@@ -22,17 +22,17 @@ RSpec.describe "a process manager" do
   def funded(runtime = boot_wire)
     runtime.dispatch("Wire::Drawer.Open", id: "left")
     runtime.dispatch("Wire::Drawer.Open", id: "right")
-    runtime.dispatch("Wire::Drawer.Put",  id: "left", amount: 10_000)
+    runtime.dispatch("Wire::Drawer.Put",  id: "left", amount: { cents: 10_000 })
     runtime
   end
 
   it "carries a wire end to end — exact cents, exact states — and retires" do
     runtime = funded
     runtime.dispatch("Wire::Wire.Ask",
-                     id: "wire-1", amount: 2_500, source: "left", destination: "right")
+                     id: "wire-1", amount: { cents: 2_500 }, source: { value: "left" }, destination: { value: "right" })
 
-    expect(Wire::Drawer.find("left").cents).to  eq(7_500)
-    expect(Wire::Drawer.find("right").cents).to eq(2_500)
+    expect(Wire::Drawer.find("left").cents.to_h).to  eq(cents: 7_500)
+    expect(Wire::Drawer.find("right").cents.to_h).to eq(cents: 2_500)
     expect(Wire::Wire.find("wire-1").status).to eq("landed")
 
     expect(runtime.sagas.select { |s| s[:ended] }).to contain_exactly(
@@ -44,41 +44,41 @@ RSpec.describe "a process manager" do
   it "remembers the opening payload — the credit leg reads a destination no event carried" do
     runtime = funded
     runtime.dispatch("Wire::Wire.Ask",
-                     id: "wire-1", amount: 100, source: "left", destination: "right")
+                     id: "wire-1", amount: { cents: 100 }, source: { value: "left" }, destination: { value: "right" })
 
-    expect(Wire::Drawer.find("right").cents).to eq(100)
+    expect(Wire::Drawer.find("right").cents.to_h).to eq(cents: 100)
   end
 
   it "records a refused leg, and the compensation puts the money back" do
     runtime = funded
     runtime.dispatch("Wire::Drawer.Shut", id: "right")
     runtime.dispatch("Wire::Wire.Ask",
-                     id: "wire-2", amount: 1_000, source: "left", destination: "right")
+                     id: "wire-2", amount: { cents: 1_000 }, source: { value: "left" }, destination: { value: "right" })
 
-    expect(Wire::Drawer.find("left").cents).to eq(9_000)
+    expect(Wire::Drawer.find("left").cents.to_h).to eq(cents: 9_000)
     expect(runtime.sagas).to include(
       hash_including(dispatch: "Wire::Drawer.Put", delivered: false,
                      reason: "Put refused — the drawer is open")
     )
 
     runtime.dispatch("Wire::Wire.Returned", wire: "wire-2")
-    expect(Wire::Drawer.find("left").cents).to eq(10_000)
+    expect(Wire::Drawer.find("left").cents.to_h).to eq(cents: 10_000)
     expect(Wire::Wire.find("wire-2").status).to eq("returned")
   end
 
   it "ignores an uncorrelated event — a manual Take is just a take" do
     runtime = funded
-    runtime.dispatch("Wire::Drawer.Take", id: "left", amount: 500)
+    runtime.dispatch("Wire::Drawer.Take", id: "left", amount: { cents: 500 })
 
     expect(runtime.sagas).to be_empty
-    expect(Wire::Drawer.find("left").cents).to eq(9_500)
+    expect(Wire::Drawer.find("left").cents.to_h).to eq(cents: 9_500)
   end
 
   it "records an event that arrives in the wrong phase, and does not advance" do
     runtime = funded
     runtime.dispatch("Wire::Drawer.Shut", id: "right")
     runtime.dispatch("Wire::Wire.Ask",
-                     id: "wire-3", amount: 100, source: "left", destination: "right")
+                     id: "wire-3", amount: { cents: 100 }, source: { value: "left" }, destination: { value: "right" })
     runtime.dispatch("Wire::Wire.Returned", wire: "wire-3")
 
     expect(runtime.sagas).to include(
@@ -89,8 +89,6 @@ RSpec.describe "a process manager" do
 end
 
 RSpec.describe "a lifecycle" do
-  WIRE_BLUEBOOK = File.join(InMemoryDomain::ROOT, "spec/fixtures/settlement.bluebook")
-
   def boot_wire
     registry = Hecksagain::Runtime::Registry.new
 
@@ -133,7 +131,7 @@ RSpec.describe "a lifecycle" do
 
   it "addresses a record by its reference key, like every saga leg must" do
     runtime = boot_wire
-    runtime.dispatch("Wire::Wire.Ask", id: "w", amount: 1, source: "a", destination: "b")
+    runtime.dispatch("Wire::Wire.Ask", id: "w", amount: { cents: 1 }, source: { value: "a" }, destination: { value: "b" })
 
     expect { runtime.dispatch("Wire::Wire.Returned", wire: "missing") }
       .to raise_error(Hecksagain::Runtime::NotFound, /no Wire with id "missing"/)

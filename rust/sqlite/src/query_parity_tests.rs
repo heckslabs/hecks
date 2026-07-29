@@ -37,7 +37,7 @@ fn seeded(name: &str) -> SqliteRepository {
         let mut s = AggregateState::new(id);
         s.set("status", Value::Str(status.into()));
         s.set("priority", Value::Int(priority));
-        repo.save(s, heki::WriteContext::OutOfBand { reason: "test" });
+        repo.save(s, heki::WriteContext::OutOfBand { reason: "test" }).unwrap();
     }
     repo
 }
@@ -151,14 +151,14 @@ fn numeric_range_null_priority_matches_oracle() {
     let mut a = AggregateState::new("1");
     a.set("status", Value::Str("x".into()));
     a.set("priority", Value::Int(3));
-    repo.save(a, heki::WriteContext::OutOfBand { reason: "test" });
+    repo.save(a, heki::WriteContext::OutOfBand { reason: "test" }).unwrap();
     let mut b = AggregateState::new("2");
     b.set("status", Value::Str("x".into()));
     b.set("priority", Value::Int(8));
-    repo.save(b, heki::WriteContext::OutOfBand { reason: "test" });
+    repo.save(b, heki::WriteContext::OutOfBand { reason: "test" }).unwrap();
     let mut c = AggregateState::new("3"); 
     c.set("status", Value::Str("x".into()));
-    repo.save(c, heki::WriteContext::OutOfBand { reason: "test" });
+    repo.save(c, heki::WriteContext::OutOfBand { reason: "test" }).unwrap();
     let attrs = HashMap::new();
     for op in [WhereOp::Gt, WhereOp::Gte, WhereOp::Lt, WhereOp::Lte] {
         assert_parity(&repo, &[clause("priority", op, "5")], &attrs);

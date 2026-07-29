@@ -22,19 +22,19 @@ RSpec.describe "then_set arithmetic" do
   it "increments from the declared default, and keeps counting" do
     runtime = boot_till
     runtime.dispatch("TillRoom::Till.OpenTill", id: "till-1")
-    runtime.dispatch("TillRoom::Till.TakeIn", id: "till-1", amount: 10_000)
-    runtime.dispatch("TillRoom::Till.TakeIn", id: "till-1", amount: 2_500)
+    runtime.dispatch("TillRoom::Till.TakeIn", id: "till-1", amount: { cents: 10_000 })
+    runtime.dispatch("TillRoom::Till.TakeIn", id: "till-1", amount: { cents: 2_500 })
 
-    expect(TillRoom::Till.find("till-1").balance).to eq(12_500)
+    expect(TillRoom::Till.find("till-1").balance.to_h).to eq(cents: 12_500)
   end
 
   it "decrements, and the running balance is exact" do
     runtime = boot_till
     runtime.dispatch("TillRoom::Till.OpenTill", id: "till-1")
-    runtime.dispatch("TillRoom::Till.TakeIn", id: "till-1", amount: 10_000)
-    runtime.dispatch("TillRoom::Till.PayOut", id: "till-1", amount: 2_500)
+    runtime.dispatch("TillRoom::Till.TakeIn", id: "till-1", amount: { cents: 10_000 })
+    runtime.dispatch("TillRoom::Till.PayOut", id: "till-1", amount: { cents: 2_500 })
 
-    expect(TillRoom::Till.find("till-1").balance).to eq(7_500)
+    expect(TillRoom::Till.find("till-1").balance.to_h).to eq(cents: 7_500)
   end
 
   it "increments by a literal when the bluebook says a number" do
@@ -42,28 +42,28 @@ RSpec.describe "then_set arithmetic" do
     runtime.dispatch("TillRoom::Till.OpenTill", id: "till-1")
     runtime.dispatch("TillRoom::Till.Bump", id: "till-1")
 
-    expect(TillRoom::Till.find("till-1").balance).to eq(500)
+    expect(TillRoom::Till.find("till-1").balance.to_h).to eq(cents: 500)
   end
 
   it "refuses a non-Integer amount loudly, leaving the balance untouched" do
     runtime = boot_till
     runtime.dispatch("TillRoom::Till.OpenTill", id: "till-1")
-    runtime.dispatch("TillRoom::Till.TakeIn", id: "till-1", amount: 10_000)
+    runtime.dispatch("TillRoom::Till.TakeIn", id: "till-1", amount: { cents: 10_000 })
 
-    expect { runtime.dispatch("TillRoom::Till.TakeIn", id: "till-1", amount: "lots") }
-      .to raise_error(Hecksagain::Runtime::TypeMismatch,
-                      'increment of balance needs an Integer, got "lots"')
+    expect { runtime.dispatch("TillRoom::Till.TakeIn", id: "till-1", amount: { cents: "lots" }) }
+      .to raise_error(Hecksagain::Bluebook::Expression::EvaluationError,
+                      /comparison of String with 0 failed/)
 
-    expect(TillRoom::Till.find("till-1").balance).to eq(10_000)
+    expect(TillRoom::Till.find("till-1").balance.to_h).to eq(cents: 10_000)
   end
 
   it "writes an appended literal as itself, beside the argument fields" do
     runtime = boot_till
     runtime.dispatch("TillRoom::Till.OpenTill", id: "till-1")
-    runtime.dispatch("TillRoom::Till.TakeIn", id: "till-1", amount: 10_000)
-    runtime.dispatch("TillRoom::Till.PayOut", id: "till-1", amount: 2_500)
+    runtime.dispatch("TillRoom::Till.TakeIn", id: "till-1", amount: { cents: 10_000 })
+    runtime.dispatch("TillRoom::Till.PayOut", id: "till-1", amount: { cents: 2_500 })
 
-    expect(TillRoom::Till.find("till-1").marks).to eq([
+    expect(TillRoom::Till.find("till-1").marks.map(&:to_h)).to eq([
       { amount: 10_000, direction: "in" },
       { amount: 2_500,  direction: "out" }
     ])

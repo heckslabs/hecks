@@ -13,10 +13,17 @@ module Hecksagain
 
         declared = aggregate.queries.find { |q| q.name == query_name } ||
                    raise(UnknownVerb, "#{aggregate.name} has no query #{query_name.inspect}")
+        args = normalize_args(aggregate, declared, args)
 
-        records = @registry.repository(domain, aggregate).all
+        repository = @registry.repository(domain, aggregate)
+        if (native = Ports::Query.execute(repository, declared, args, context: { domain: domain, aggregate: aggregate }))
+          records = native
+          return records.map { |record| { id: record.id }.merge(record.state) }
+        end
+
+        records = repository.all
         matched = records.select { |r| declared.wheres.all? { |w| where_holds?(w, r, args) } }
-        ordered = ordered(matched, declared.order_by)
+        ordered = ordered(matched, declared.order_by, declared.null_semantics)
         capped  = declared.limit ? ordered.first(resolve_query_value(declared.limit.value, args).to_i) : ordered
 
         capped.map { |r| { id: r.id }.merge(r.state) }
@@ -40,7 +47,7 @@ module Hecksagain
             .map    { |el| { parent_key => record.id }.merge(el) }
         end
 
-        ordered = declared.order_by ? ordered_elements(rows, declared.order_by) : rows
+        ordered = declared.order_by ? ordered_elements(rows, declared.order_by, declared.null_semantics) : rows
         declared.limit ? ordered.first(resolve_query_value(declared.limit.value, args).to_i) : ordered
       end
 
@@ -48,13 +55,11 @@ module Hecksagain
         holds?(clause, element[clause.field.to_sym], args)
       end
 
-      def ordered_elements(rows, order_by)
+      def ordered_elements(rows, order_by, null_semantics = nil)
         field  = order_by.field.to_sym
-        sorted = rows.each_with_index.sort_by do |row, index|
-          value = row[field]
-          value.is_a?(Numeric) ? [0, value, "", index] : [1, 0, value.to_s, index]
-        end.map(&:first)
-        order_by.direction.to_s == "desc" ? sorted.reverse : sorted
+        rows = QuerySpecification::Common::NullPolicy.order(rows, direction: order_by.direction,
+                                                             policy: null_semantics) { |row| comparable(row[field]) }
+        rows
       end
 
       def where_holds?(clause, record, args)
@@ -62,7 +67,8 @@ module Hecksagain
       end
 
       def holds?(clause, held, args)
-        want = resolve_query_value(clause.value, args)
+        held = comparable(held)
+        want = comparable(resolve_query_value(clause.value, args))
 
         case clause.op.to_s
         when "lt" then held.is_a?(Numeric) && want.is_a?(Numeric) && held < want
@@ -74,15 +80,31 @@ module Hecksagain
         value.is_a?(Symbol) ? args[value] : value
       end
 
-      def ordered(records, order_by)
+      def normalize_args(aggregate, declared, args)
+        declared.attributes.each_with_object(args.dup) do |attribute, normalized|
+          next unless normalized.key?(attribute.name)
+
+          normalized[attribute.name] = Value.for_attribute(aggregate, attribute, normalized[attribute.name])
+        end
+      end
+
+      def comparable(value)
+        value = value.to_h if value.is_a?(Value)
+        if value.is_a?(Hash)
+          scalars = value.values.select { |field| field.is_a?(Numeric) }
+          return scalars.first if scalars.size == 1
+          return value.values.first if value.size == 1
+        end
+
+        value
+      end
+
+      def ordered(records, order_by, null_semantics = nil)
         return records unless order_by
 
         field  = order_by.field
-        sorted = records.sort_by do |r|
-          value = r[field]
-          value.is_a?(Numeric) ? [0, value, 0, r.id.to_s] : [1, 0, value.to_s, r.id.to_s]
-        end
-        order_by.direction.to_s == "desc" ? sorted.reverse : sorted
+        QuerySpecification::Common::NullPolicy.order(records, direction: order_by.direction,
+                                                     policy: null_semantics) { |record| comparable(record[field]) }
       end
     end
   end

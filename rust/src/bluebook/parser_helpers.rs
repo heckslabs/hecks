@@ -1,4 +1,3 @@
-
 pub fn extract_string(line: &str) -> Option<String> {
     let start = line.find('"')? + 1;
     let mut out = String::new();
@@ -6,12 +5,12 @@ pub fn extract_string(line: &str) -> Option<String> {
     while let Some(c) = chars.next() {
         if c == '\\' {
             match chars.next() {
-                Some('"')  => out.push('"'),
+                Some('"') => out.push('"'),
                 Some('\\') => out.push('\\'),
-                Some('n')  => out.push('\n'),
-                Some('t')  => out.push('\t'),
-                Some('r')  => out.push('\r'),
-                Some('0')  => out.push('\0'),
+                Some('n') => out.push('\n'),
+                Some('t') => out.push('\t'),
+                Some('r') => out.push('\r'),
+                Some('0') => out.push('\0'),
                 Some(other) => out.push(other),
                 None => return None,
             }
@@ -46,12 +45,12 @@ pub fn extract_string_spanning(lines: &[&str], start: usize) -> (Option<String>,
         while let Some(c) = chars.next() {
             if c == '\\' {
                 match chars.next() {
-                    Some('"')  => out.push('"'),
+                    Some('"') => out.push('"'),
                     Some('\\') => out.push('\\'),
-                    Some('n')  => out.push('\n'),
-                    Some('t')  => out.push('\t'),
-                    Some('r')  => out.push('\r'),
-                    Some('0')  => out.push('\0'),
+                    Some('n') => out.push('\n'),
+                    Some('t') => out.push('\t'),
+                    Some('r') => out.push('\r'),
+                    Some('0') => out.push('\0'),
                     Some(other) => out.push(other),
                     None => break,
                 }
@@ -113,12 +112,12 @@ pub fn extract_second_string(line: &str) -> Option<String> {
     while let Some(c) = chars.next() {
         if c == '\\' {
             match chars.next() {
-                Some('"')  => out.push('"'),
+                Some('"') => out.push('"'),
                 Some('\\') => out.push('\\'),
-                Some('n')  => out.push('\n'),
-                Some('t')  => out.push('\t'),
-                Some('r')  => out.push('\r'),
-                Some('0')  => out.push('\0'),
+                Some('n') => out.push('\n'),
+                Some('t') => out.push('\t'),
+                Some('r') => out.push('\r'),
+                Some('0') => out.push('\0'),
                 Some(other) => out.push(other),
                 None => return None,
             }
@@ -139,7 +138,11 @@ pub fn extract_symbol(line: &str) -> Option<String> {
         .find(|c: char| !c.is_alphanumeric() && c != '_')
         .unwrap_or(rest.len());
     let sym = rest[..end].trim().to_string();
-    if sym.is_empty() { None } else { Some(sym) }
+    if sym.is_empty() {
+        None
+    } else {
+        Some(sym)
+    }
 }
 
 pub fn extract_word_after(line: &str, keyword: &str) -> Option<String> {
@@ -149,7 +152,11 @@ pub fn extract_word_after(line: &str, keyword: &str) -> Option<String> {
         .find(|c: char| !c.is_alphanumeric() && c != '_' && c != ':')
         .unwrap_or(rest.len());
     let word = rest[..end].trim().to_string();
-    if word.is_empty() { None } else { Some(word) }
+    if word.is_empty() {
+        None
+    } else {
+        Some(word)
+    }
 }
 
 pub fn extract_block(line: &str) -> Option<String> {
@@ -174,12 +181,18 @@ pub fn extract_state_token(text: &str) -> Option<String> {
         .find(|c: char| !c.is_alphanumeric() && c != '_')
         .unwrap_or(body.len());
     let tok = body[..end].trim().to_string();
-    if tok.is_empty() { None } else { Some(tok) }
+    if tok.is_empty() {
+        None
+    } else {
+        Some(tok)
+    }
 }
 
 pub fn ends_with_do_block(line: &str) -> bool {
     let trimmed = line.trim();
-    if trimmed.starts_with('#') { return false; }
+    if trimmed.starts_with('#') {
+        return false;
+    }
     if trimmed.ends_with(" do") || trimmed == "do" {
         return true;
     }
@@ -201,36 +214,53 @@ pub fn extract_kwarg_symbol(line: &str, kwarg: &str) -> Option<String> {
         .find(|c: char| !c.is_alphanumeric() && c != '_')
         .unwrap_or(rest.len());
     let sym = rest[..end].trim().to_string();
-    if sym.is_empty() { None } else { Some(sym) }
+    if sym.is_empty() {
+        None
+    } else {
+        Some(sym)
+    }
 }
-
-
 
 const SHORTHAND_TYPES: &[&str] = &[
     "String", "Integer", "Float", "Boolean", "JSON", "Date", "DateTime",
 ];
 
 const KEYWORDS: &[&str] = &[
-    "aggregate", "policy", "lifecycle", "value_object", "vow",
-    "fixture", "category", "vision", "description", "Hecks",
-    "String", "Integer", "Float", "Boolean", "JSON", "Date", "DateTime",
+    "aggregate",
+    "policy",
+    "lifecycle",
+    "value_object",
+    "vow",
+    "fixture",
+    "category",
+    "vision",
+    "description",
+    "Hecks",
+    "String",
+    "Integer",
+    "Float",
+    "Boolean",
+    "JSON",
+    "Date",
+    "DateTime",
 ];
 
 pub fn is_shorthand_line(line: &str) -> bool {
-    SHORTHAND_TYPES.iter().any(|t| {
-        line.starts_with(t) && line[t.len()..].starts_with([' ', '\t'])
-    }) || line.starts_with("list_of(")
-       || line.starts_with("reference_to(")
+    SHORTHAND_TYPES
+        .iter()
+        .any(|t| line.starts_with(t) && line[t.len()..].starts_with([' ', '\t']))
+        || line.starts_with("list_of(")
+        || line.starts_with("reference_to(")
 }
 
 pub fn is_shorthand_command(line: &str) -> bool {
     let first_word = line.split_whitespace().next().unwrap_or("");
-    if first_word.len() < 2 { return false; }
+    if first_word.len() < 2 {
+        return false;
+    }
     let chars: Vec<char> = first_word.chars().collect();
     let is_pascal = chars[0].is_uppercase() && chars[1..].iter().any(|c| c.is_lowercase());
-    is_pascal
-        && (line.ends_with(" do") || line.contains('{'))
-        && !KEYWORDS.contains(&first_word)
+    is_pascal && (line.ends_with(" do") || line.contains('{')) && !KEYWORDS.contains(&first_word)
 }
 
 pub fn parse_shorthand_attribute(line: &str) -> Option<crate::ir::Attribute> {
@@ -251,14 +281,37 @@ pub fn parse_shorthand_attribute(line: &str) -> Option<crate::ir::Attribute> {
             let end = rest.find('"')?;
             Some(rest[..end].to_string())
         } else {
-            let token = after.split(|c: char| c == ',' || c.is_whitespace())
-                .next().unwrap_or("").to_string();
-            if token.is_empty() { None } else { Some(token) }
+            let token = after
+                .split(|c: char| c == ',' || c.is_whitespace())
+                .next()
+                .unwrap_or("")
+                .to_string();
+            if token.is_empty() {
+                None
+            } else {
+                Some(token)
+            }
         }
-    } else { None };
+    } else {
+        None
+    };
     let required = line.contains("required:")
-        && line.split("required:").nth(1).map(|a| a.trim_start().starts_with("true")).unwrap_or(false);
-    Some(crate::ir::Attribute { name, attr_type, default, list, required, enum_values: vec![], pattern: None, hint: None, logged: true })
+        && line
+            .split("required:")
+            .nth(1)
+            .map(|a| a.trim_start().starts_with("true"))
+            .unwrap_or(false);
+    Some(crate::ir::Attribute {
+        name,
+        attr_type,
+        default,
+        list,
+        required,
+        enum_values: vec![],
+        pattern: None,
+        hint: None,
+        logged: true,
+    })
 }
 
 pub fn parse_shorthand_reference(line: &str) -> Option<crate::ir::Reference> {
@@ -302,7 +355,9 @@ pub enum ShorthandResult {
 }
 
 pub fn parse_shorthand(line: &str) -> ShorthandResult {
-    if !is_shorthand_line(line) { return ShorthandResult::None; }
+    if !is_shorthand_line(line) {
+        return ShorthandResult::None;
+    }
     if line.starts_with("reference_to(") {
         parse_shorthand_reference(line)
             .map(ShorthandResult::Reference)

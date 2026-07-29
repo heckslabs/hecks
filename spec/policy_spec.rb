@@ -20,8 +20,8 @@ RSpec.describe "a policy" do
   end
 
   def topped_pizza(runtime)
-    pizza = runtime.dispatch("Pizzas::Pizza.CreatePizza", name: "Margherita", price_cents: 900)
-    runtime.dispatch("Pizzas::Pizza.AddTopping", id: pizza.id, name: "Basil", amount: 3)
+    pizza = runtime.dispatch("Pizzas::Pizza.CreatePizza", name: { value: "Margherita" }, price_cents: { cents: 900 })
+    runtime.dispatch("Pizzas::Pizza.AddTopping", id: pizza.id, name: { value: "Basil" }, amount: { value: 3 })
     pizza
   end
 
@@ -29,7 +29,7 @@ RSpec.describe "a policy" do
     runtime = boot_reflex
     runtime.dispatch("Reflex::Light.Flip", id: "light-1")
 
-    expect(Reflex::Light.find("light-1").condition).to eq("logged")
+    expect(Reflex::Light.find("light-1").condition.to_h).to eq(value: "logged")
 
     expect(runtime.reactions).to contain_exactly(
       hash_including(policy: "LogOnFlip", on: "Flipped",
@@ -59,7 +59,7 @@ RSpec.describe "a policy" do
   it "records a reaction it cannot deliver rather than swallowing it" do
     runtime = boot_in_memory
     pizza   = topped_pizza(runtime)
-    runtime.dispatch("Pizzas::Pizza.Purchase", id: pizza.id, customer_name: "Chris")
+    runtime.dispatch("Pizzas::Pizza.Purchase", id: pizza.id, customer_name: { value: "Chris" })
 
     expect(runtime.reactions).to contain_exactly(
       hash_including(
@@ -75,7 +75,7 @@ RSpec.describe "a policy" do
   it "leaves the triggering command's own state committed" do
     runtime = boot_in_memory
     pizza   = topped_pizza(runtime)
-    runtime.dispatch("Pizzas::Pizza.Purchase", id: pizza.id, customer_name: "Chris")
+    runtime.dispatch("Pizzas::Pizza.Purchase", id: pizza.id, customer_name: { value: "Chris" })
 
     expect(Pizzas::Pizza.find(pizza.id).status).to eq("sold")
   end

@@ -1,4 +1,3 @@
-
 use crate::interp_expr::{
     class_of, describe, match_call, numeric_value, resolve_expr, Eval, State,
 };
@@ -159,7 +158,11 @@ fn top_level_index(expr: &str, operator: &str, guard_longer: bool) -> Option<usi
 fn part_of_longer(expr: &str, index: usize, operator: &str) -> bool {
     let bytes = expr.as_bytes();
     let after = bytes.get(index + operator.len()).copied();
-    let before = if index > 0 { bytes.get(index - 1).copied() } else { None };
+    let before = if index > 0 {
+        bytes.get(index - 1).copied()
+    } else {
+        None
+    };
 
     if after == Some(b'=') && !operator.ends_with('=') {
         return true;
@@ -187,14 +190,26 @@ mod tests {
 
     #[test]
     fn a_list_member_is_not_its_string() {
-        assert_eq!(given("sizes.include?(10)", json!({"sizes": ["10"]})), Ok(false));
-        assert_eq!(given("sizes.include?(\"10\")", json!({"sizes": [10]})), Ok(false));
+        assert_eq!(
+            given("sizes.include?(10)", json!({"sizes": ["10"]})),
+            Ok(false)
+        );
+        assert_eq!(
+            given("sizes.include?(\"10\")", json!({"sizes": [10]})),
+            Ok(false)
+        );
     }
 
     #[test]
     fn a_list_member_equates_across_numeric_kinds() {
-        assert_eq!(given("scores.include?(1.0)", json!({"scores": [1]})), Ok(true));
-        assert_eq!(given("scores.include?(1)", json!({"scores": [1.0]})), Ok(true));
+        assert_eq!(
+            given("scores.include?(1.0)", json!({"scores": [1]})),
+            Ok(true)
+        );
+        assert_eq!(
+            given("scores.include?(1)", json!({"scores": [1.0]})),
+            Ok(true)
+        );
     }
 
     #[test]
@@ -208,7 +223,10 @@ mod tests {
     #[test]
     fn a_string_needle_still_reads_a_substring() {
         assert_eq!(
-            given("address.include?(\"@\")", json!({"address": "ada@example.com"})),
+            given(
+                "address.include?(\"@\")",
+                json!({"address": "ada@example.com"})
+            ),
             Ok(true)
         );
     }

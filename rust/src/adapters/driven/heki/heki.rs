@@ -1,10 +1,9 @@
-
+use flate2::Compression;
 use std::collections::HashMap;
 use std::fs;
 use std::io::Read as IoRead;
 use std::io::Write as IoWrite;
 use std::path::Path;
-use flate2::Compression;
 
 pub type Record = HashMap<String, serde_json::Value>;
 
@@ -12,18 +11,23 @@ pub type Store = HashMap<String, Record>;
 
 #[derive(Debug, Clone, Copy)]
 pub enum WriteContext<'a> {
-    Dispatch { aggregate: &'a str, command: &'a str },
+    Dispatch {
+        aggregate: &'a str,
+        command: &'a str,
+    },
 
-    OutOfBand { reason: &'a str },
+    OutOfBand {
+        reason: &'a str,
+    },
 }
 
 impl<'a> WriteContext<'a> {
     fn audit_tag(&self) -> String {
         match self {
-            WriteContext::Dispatch { aggregate, command } =>
-                format!("dispatch:{}.{}", aggregate, command),
-            WriteContext::OutOfBand { reason } =>
-                format!("out-of-band:{}", reason),
+            WriteContext::Dispatch { aggregate, command } => {
+                format!("dispatch:{}.{}", aggregate, command)
+            }
+            WriteContext::OutOfBand { reason } => format!("out-of-band:{}", reason),
         }
     }
 }
@@ -36,16 +40,17 @@ fn audit_write(ctx: &WriteContext, path: &str, op: &str) {
     }
 }
 
-
 pub fn snapshot(path: &str) -> Result<Option<String>, String> {
     let src = Path::new(path);
     if !src.exists() {
         return Ok(None);
     }
 
-    let parent = src.parent()
+    let parent = src
+        .parent()
         .ok_or_else(|| format!("snapshot: cannot determine parent dir of {}", path))?;
-    let basename = src.file_stem()
+    let basename = src
+        .file_stem()
         .and_then(|s| s.to_str())
         .ok_or_else(|| format!("snapshot: cannot determine basename of {}", path))?;
 
@@ -62,12 +67,10 @@ pub fn snapshot(path: &str) -> Result<Option<String>, String> {
     }
 
     fs::copy(src, &snap_path)
-        .map_err(|e| format!("snapshot: copy {} → {}: {}",
-            path, snap_path.display(), e))?;
+        .map_err(|e| format!("snapshot: copy {} → {}: {}", path, snap_path.display(), e))?;
 
     Ok(Some(snap_path.to_string_lossy().into_owned()))
 }
-
 
 pub fn read(path: &str) -> Result<Store, String> {
     if !Path::new(path).exists() {
@@ -85,11 +88,12 @@ pub fn read(path: &str) -> Result<Store, String> {
     let compressed = &data[8..];
     let mut decoder = flate2::read::ZlibDecoder::new(compressed);
     let mut json_str = String::new();
-    decoder.read_to_string(&mut json_str)
+    decoder
+        .read_to_string(&mut json_str)
         .map_err(|e| format!("{}: zlib error: {}", path, e))?;
 
-    let store: Store = serde_json::from_str(&json_str)
-        .map_err(|e| format!("{}: json error: {}", path, e))?;
+    let store: Store =
+        serde_json::from_str(&json_str).map_err(|e| format!("{}: json error: {}", path, e))?;
 
     Ok(store)
 }
@@ -110,12 +114,15 @@ pub fn read_dir(dir: &str) -> Result<HashMap<String, Store>, String> {
 
     for entry in entries {
         let file_path = entry.path();
-        let name = file_path.file_stem()
+        let name = file_path
+            .file_stem()
             .and_then(|s| s.to_str())
             .unwrap_or("unknown")
             .to_string();
         match read(file_path.to_str().unwrap_or("")) {
-            Ok(store) => { all.insert(name, store); }
+            Ok(store) => {
+                all.insert(name, store);
+            }
             Err(e) => eprintln!("  skip: {}", e),
         }
     }
@@ -123,22 +130,26 @@ pub fn read_dir(dir: &str) -> Result<HashMap<String, Store>, String> {
     Ok(all)
 }
 
-
-const REDACTED_FIELDS: &[(&str, &[&str])] = &[
-    ("creator_auth", &["passcode"]),
-];
+const REDACTED_FIELDS: &[(&str, &[&str])] = &[("creator_auth", &["passcode"])];
 
 fn sanitize(path: &str, store: &Store) -> Store {
-    let name = Path::new(path).file_stem()
-        .and_then(|s| s.to_str()).unwrap_or("");
-    let fields: Vec<&str> = REDACTED_FIELDS.iter()
+    let name = Path::new(path)
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("");
+    let fields: Vec<&str> = REDACTED_FIELDS
+        .iter()
         .filter(|(n, _)| *n == name)
         .flat_map(|(_, fs)| fs.iter().copied())
         .collect();
-    if fields.is_empty() { return store.clone(); }
+    if fields.is_empty() {
+        return store.clone();
+    }
     let mut clean = store.clone();
     for rec in clean.values_mut() {
-        for f in &fields { rec.remove(*f); }
+        for f in &fields {
+            rec.remove(*f);
+        }
     }
     clean
 }
@@ -150,13 +161,14 @@ pub fn write(path: &str, store: &Store, ctx: WriteContext<'_>) -> Result<(), Str
 
 fn write_raw(path: &str, store: &Store) -> Result<(), String> {
     let store = sanitize(path, store);
-    let json = serde_json::to_string(&store)
-        .map_err(|e| format!("json serialize: {}", e))?;
+    let json = serde_json::to_string(&store).map_err(|e| format!("json serialize: {}", e))?;
 
     let mut encoder = flate2::write::ZlibEncoder::new(Vec::new(), Compression::best());
-    encoder.write_all(json.as_bytes())
+    encoder
+        .write_all(json.as_bytes())
         .map_err(|e| format!("zlib compress: {}", e))?;
-    let compressed = encoder.finish()
+    let compressed = encoder
+        .finish()
         .map_err(|e| format!("zlib finish: {}", e))?;
 
     let count = store.len() as u32;
@@ -243,15 +255,30 @@ pub fn delete(path: &str, id: &str, ctx: WriteContext<'_>) -> Result<bool, Strin
     Ok(removed)
 }
 
-pub fn archive(source_path: &str, archive_path: &str, id: &str, reason: &str, ctx: WriteContext<'_>) -> Result<bool, String> {
+pub fn archive(
+    source_path: &str,
+    archive_path: &str,
+    id: &str,
+    reason: &str,
+    ctx: WriteContext<'_>,
+) -> Result<bool, String> {
     audit_write(&ctx, source_path, "archive");
     let mut store = read(source_path)?;
     if let Some(mut rec) = store.remove(id) {
-        rec.insert("archived_reason".into(), serde_json::Value::String(reason.into()));
-        rec.insert("archived_at".into(), serde_json::Value::String(crate::clock::now_iso8601_internal()));
+        rec.insert(
+            "archived_reason".into(),
+            serde_json::Value::String(reason.into()),
+        );
+        rec.insert(
+            "archived_at".into(),
+            serde_json::Value::String(crate::clock::now_iso8601_internal()),
+        );
         write_raw(source_path, &store)?;
         let mut store = read(archive_path)?;
-        let id_val = rec.get("id").and_then(|v| v.as_str()).map(|s| s.to_string())
+        let id_val = rec
+            .get("id")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string())
             .unwrap_or_else(crate::util::uuid_v4);
         store.insert(id_val, rec);
         write_raw(archive_path, &store)?;
@@ -261,11 +288,12 @@ pub fn archive(source_path: &str, archive_path: &str, id: &str, reason: &str, ct
     }
 }
 
-
 pub fn store_path(dir: &str, name: &str) -> String {
-    Path::new(dir).join(format!("{}.heki", name)).to_string_lossy().into_owned()
+    Path::new(dir)
+        .join(format!("{}.heki", name))
+        .to_string_lossy()
+        .into_owned()
 }
-
 
 pub fn path_for(dir: &str, aggregate: &str, context: Option<&str>) -> String {
     let agg_snake = crate::naming::snake(aggregate);
@@ -306,7 +334,10 @@ mod path_tests {
     fn tempdir() -> std::path::PathBuf {
         use std::sync::atomic::{AtomicU64, Ordering};
         static SEQ: AtomicU64 = AtomicU64::new(0);
-        let nanos = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
         let seq = SEQ.fetch_add(1, Ordering::Relaxed);
         let p = std::env::temp_dir().join(format!("heki_path_test_{}_{}", nanos, seq));
         fs::create_dir_all(&p).unwrap();
@@ -355,7 +386,9 @@ mod path_tests {
         );
         assert_eq!(
             config_conception_path_from(Some(String::new()), Some("/home/u".into())),
-            Some(std::path::PathBuf::from("/home/u/.config/storehouse/conception"))
+            Some(std::path::PathBuf::from(
+                "/home/u/.config/storehouse/conception"
+            ))
         );
         assert_eq!(config_conception_path_from(None, None), None);
     }
@@ -437,8 +470,10 @@ mod path_tests {
         fs::write(&writer_path, "{}").unwrap();
 
         let reader_path = path_for_lookup(&dir.to_string_lossy(), "mood");
-        assert_eq!(writer_path, reader_path,
-            "writer (path_for) and reader (path_for_lookup) must agree");
+        assert_eq!(
+            writer_path, reader_path,
+            "writer (path_for) and reader (path_for_lookup) must agree"
+        );
         let _ = fs::remove_dir_all(&dir);
     }
 
@@ -449,8 +484,10 @@ mod path_tests {
         fs::write(&writer_path, "{}").unwrap();
 
         let reader_path = path_for_lookup(&dir.to_string_lossy(), "mood");
-        assert_eq!(writer_path, reader_path,
-            "writer (no context) and reader must both pick flat");
+        assert_eq!(
+            writer_path, reader_path,
+            "writer (no context) and reader must both pick flat"
+        );
         let _ = fs::remove_dir_all(&dir);
     }
 }
@@ -522,12 +559,13 @@ fn walk_up_from(start: &std::path::Path) -> Option<std::path::PathBuf> {
             }
         }
         let parent = cur.parent()?.to_path_buf();
-        if parent == cur { break; }
+        if parent == cur {
+            break;
+        }
         cur = parent;
     }
     None
 }
-
 
 pub fn expand_tilde(p: &str) -> String {
     if p == "~" {
@@ -542,7 +580,9 @@ pub fn expand_tilde(p: &str) -> String {
 }
 
 #[cfg(target_arch = "wasm32")]
-pub fn resolve_realm_dir(_aggregates_path: &str) -> Option<String> { None }
+pub fn resolve_realm_dir(_aggregates_path: &str) -> Option<String> {
+    None
+}
 
 #[cfg(not(target_arch = "wasm32"))]
 pub fn resolve_realm_dir(aggregates_path: &str) -> Option<String> {
@@ -550,7 +590,10 @@ pub fn resolve_realm_dir(aggregates_path: &str) -> Option<String> {
     let agg = Path::new(aggregates_path);
     let base = if agg.is_dir() { agg } else { agg.parent()? };
     for dir in [Some(base), base.parent()].into_iter().flatten() {
-        let entries = match std::fs::read_dir(dir) { Ok(e) => e, Err(_) => continue };
+        let entries = match std::fs::read_dir(dir) {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
         let mut worlds: Vec<PathBuf> = entries
             .filter_map(|e| e.ok())
             .map(|e| e.path())
@@ -558,14 +601,20 @@ pub fn resolve_realm_dir(aggregates_path: &str) -> Option<String> {
             .collect();
         worlds.sort();
         for wf in worlds {
-            let source = match std::fs::read_to_string(&wf) { Ok(s) => s, Err(_) => continue };
-            let world = crate::world::parser::parse(&source);
-            let realm = match &world.realm { Some(r) if !r.is_empty() => r, _ => continue };
-            let dir_value = match world.config_for("heki").and_then(|c| c.get("dir")) {
-                Some(d) => d, None => continue,
+            let source = match std::fs::read_to_string(&wf) {
+                Ok(s) => s,
+                Err(_) => continue,
             };
-            let root = Path::new(&expand_tilde(dir_value))
-                .join(crate::naming::snake(realm));
+            let world = crate::world::parser::parse(&source);
+            let realm = match &world.realm {
+                Some(r) if !r.is_empty() => r,
+                _ => continue,
+            };
+            let dir_value = match world.config_for("heki").and_then(|c| c.get("dir")) {
+                Some(d) => d,
+                None => continue,
+            };
+            let root = Path::new(&expand_tilde(dir_value)).join(crate::naming::snake(realm));
             std::fs::create_dir_all(&root).ok()?;
             return Some(root.to_string_lossy().into_owned());
         }
@@ -576,15 +625,24 @@ pub fn resolve_realm_dir(aggregates_path: &str) -> Option<String> {
 pub fn data_root() -> std::path::PathBuf {
     use std::path::PathBuf;
     let base: PathBuf = if cfg!(target_os = "macos") {
-        std::env::var("HOME").ok()
+        std::env::var("HOME")
+            .ok()
             .map(|h| PathBuf::from(h).join("Library/Application Support"))
             .unwrap_or_else(|| PathBuf::from(expand_tilde("~/.local/share")))
     } else if cfg!(target_os = "windows") {
-        std::env::var("APPDATA").ok().map(PathBuf::from)
+        std::env::var("APPDATA")
+            .ok()
+            .map(PathBuf::from)
             .unwrap_or_else(|| PathBuf::from(expand_tilde("~/AppData/Roaming")))
     } else {
-        std::env::var("XDG_DATA_HOME").ok().map(PathBuf::from)
-            .or_else(|| std::env::var("HOME").ok().map(|h| PathBuf::from(h).join(".local/share")))
+        std::env::var("XDG_DATA_HOME")
+            .ok()
+            .map(PathBuf::from)
+            .or_else(|| {
+                std::env::var("HOME")
+                    .ok()
+                    .map(|h| PathBuf::from(h).join(".local/share"))
+            })
             .unwrap_or_else(|| PathBuf::from(expand_tilde("~/.local/share")))
     };
     base.join("Hecks")
@@ -604,7 +662,9 @@ pub fn realm_store_dir(realm_path: Option<&str>, global: Option<&str>) -> Option
 }
 
 #[cfg(target_arch = "wasm32")]
-pub fn resolve_default_dir(_aggregates_path: &str) -> Option<String> { None }
+pub fn resolve_default_dir(_aggregates_path: &str) -> Option<String> {
+    None
+}
 
 #[cfg(not(target_arch = "wasm32"))]
 pub fn resolve_default_dir(aggregates_path: &str) -> Option<String> {
@@ -613,7 +673,9 @@ pub fn resolve_default_dir(aggregates_path: &str) -> Option<String> {
     let base = if agg.is_dir() { agg } else { agg.parent()? };
     let mut opts_in = false;
     for dir in [Some(base), base.parent()].into_iter().flatten() {
-        let Ok(entries) = std::fs::read_dir(dir) else { continue };
+        let Ok(entries) = std::fs::read_dir(dir) else {
+            continue;
+        };
         let mut worlds: Vec<PathBuf> = entries
             .filter_map(|e| e.ok())
             .map(|e| e.path())
@@ -621,16 +683,22 @@ pub fn resolve_default_dir(aggregates_path: &str) -> Option<String> {
             .collect();
         worlds.sort();
         for wf in worlds {
-            let Ok(src) = std::fs::read_to_string(&wf) else { continue };
+            let Ok(src) = std::fs::read_to_string(&wf) else {
+                continue;
+            };
             let world = crate::world::parser::parse(&src);
             if world.config_for("heki").and_then(|c| c.get("dir")) == Some("default") {
                 opts_in = true;
                 break;
             }
         }
-        if opts_in { break; }
+        if opts_in {
+            break;
+        }
     }
-    if !opts_in { return None; }
+    if !opts_in {
+        return None;
+    }
     let root = match default_chain(aggregates_path) {
         Some(chain) => data_root().join(chain),
         None => {
@@ -651,7 +719,8 @@ pub fn default_chain(aggregates_path: &str) -> Option<String> {
     let projects = std::fs::canonicalize(&projects_raw)
         .unwrap_or_else(|_| Path::new(&projects_raw).to_path_buf());
     let rel = abs.strip_prefix(&projects).ok()?;
-    let segs: Vec<String> = rel.components()
+    let segs: Vec<String> = rel
+        .components()
         .filter_map(|c| match c {
             Component::Normal(s) => s.to_str().map(|x| x.to_string()),
             _ => None,
@@ -665,26 +734,31 @@ pub fn strip_chain_segments(mut segs: Vec<String>) -> Option<String> {
         segs.pop();
     }
     segs.retain(|s| s != "aggregates" && s != "bluebook");
-    segs.pop(); 
-    if segs.is_empty() { return None; }
+    segs.pop();
+    if segs.is_empty() {
+        return None;
+    }
     Some(segs.join("/"))
 }
 
 pub fn folder_address(file_path: &str) -> (Option<String>, Option<String>) {
-use std::path::{Component, Path};
-let abs = std::fs::canonicalize(file_path)
-    .unwrap_or_else(|_| Path::new(file_path).to_path_buf());
-let projects_raw = expand_tilde("~/Projects");
-let projects = std::fs::canonicalize(&projects_raw)
-    .unwrap_or_else(|_| Path::new(&projects_raw).to_path_buf());
-let Ok(rel) = abs.strip_prefix(&projects) else { return (None, None); };
-let segs: Vec<String> = rel.components()
-    .filter_map(|c| match c {
-        Component::Normal(s) => s.to_str().map(|x| x.to_string()),
-        _ => None,
-    })
-    .collect();
-folder_address_segments(segs)
+    use std::path::{Component, Path};
+    let abs =
+        std::fs::canonicalize(file_path).unwrap_or_else(|_| Path::new(file_path).to_path_buf());
+    let projects_raw = expand_tilde("~/Projects");
+    let projects = std::fs::canonicalize(&projects_raw)
+        .unwrap_or_else(|_| Path::new(&projects_raw).to_path_buf());
+    let Ok(rel) = abs.strip_prefix(&projects) else {
+        return (None, None);
+    };
+    let segs: Vec<String> = rel
+        .components()
+        .filter_map(|c| match c {
+            Component::Normal(s) => s.to_str().map(|x| x.to_string()),
+            _ => None,
+        })
+        .collect();
+    folder_address_segments(segs)
 }
 
 pub fn folder_address_segments(mut segs: Vec<String>) -> (Option<String>, Option<String>) {
@@ -704,9 +778,15 @@ pub fn folder_address_segments(mut segs: Vec<String>) -> (Option<String>, Option
         }
     }
     segs.retain(|s| s != "hecks_conception" && s != "aggregates" && s != "bluebook");
-    if segs.is_empty() { return (None, None); }
+    if segs.is_empty() {
+        return (None, None);
+    }
     let realm = segs.remove(0);
-    let context = if segs.is_empty() { None } else { Some(segs.join("/")) };
+    let context = if segs.is_empty() {
+        None
+    } else {
+        Some(segs.join("/"))
+    };
     (Some(realm), context)
 }
 
@@ -722,7 +802,13 @@ pub fn fqn_realm_context(command_name: &str) -> (Option<String>, Option<String>)
     }
     let realm = Some(crate::naming::snake(segs[0]));
     let context = if n >= 4 {
-        Some(segs[1..n - 2].iter().map(|s| crate::naming::snake(s)).collect::<Vec<_>>().join("/"))
+        Some(
+            segs[1..n - 2]
+                .iter()
+                .map(|s| crate::naming::snake(s))
+                .collect::<Vec<_>>()
+                .join("/"),
+        )
     } else {
         None
     };
@@ -734,13 +820,19 @@ pub fn realm_context_matches(
     fqn_realm: Option<&str>,
     fqn_context: Option<&str>,
 ) -> bool {
-    let Some(fqn_realm) = fqn_realm else { return true; };
-    let Some(rp) = realm_path else { return true; };
+    let Some(fqn_realm) = fqn_realm else {
+        return true;
+    };
+    let Some(rp) = realm_path else {
+        return true;
+    };
     let (agg_realm, agg_context) = match rp.split_once('/') {
         Some((r, c)) => (r, Some(c)),
         None => (rp, None),
     };
-    if fqn_realm != agg_realm { return false; }
+    if fqn_realm != agg_realm {
+        return false;
+    }
     if let Some(fqn_ctx) = fqn_context {
         return agg_context == Some(fqn_ctx);
     }
@@ -792,7 +884,10 @@ mod resolve_tests {
     use std::time::{SystemTime, UNIX_EPOCH};
 
     fn tempdir() -> std::path::PathBuf {
-        let nanos = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
         let p = std::env::temp_dir().join(format!("heki_resolve_test_{}", nanos));
         fs::create_dir_all(&p).unwrap();
         p
@@ -814,7 +909,7 @@ mod resolve_tests {
             super::cwd_anchored_info_dir(cwd),
             std::path::PathBuf::from("/Users/me/Projects/hecks/hecks_conception/information")
         );
-        let _ = tempdir(); 
+        let _ = tempdir();
     }
 }
 
@@ -839,7 +934,7 @@ pub fn parse_attrs(pairs: &[String]) -> Record {
     for pair in pairs {
         if let Some(eq) = pair.find('=') {
             let key = pair[..eq].to_string();
-            let val_str = &pair[eq+1..];
+            let val_str = &pair[eq + 1..];
             let val = if let Ok(n) = val_str.parse::<i64>() {
                 serde_json::Value::Number(n.into())
             } else if let Ok(f) = val_str.parse::<f64>() {
@@ -857,10 +952,6 @@ pub fn parse_attrs(pairs: &[String]) -> Record {
     attrs
 }
 
-
-
-
-
 pub fn print_summary(stores: &HashMap<String, Store>) {
     let total: usize = stores.values().map(|s| s.len()).sum();
 
@@ -872,17 +963,22 @@ pub fn print_summary(stores: &HashMap<String, Store>) {
     let identity = stores.get("identity").and_then(|s| latest(s));
 
     let domains = census.map_or("?".to_string(), |r| {
-        r.get("total_domains").map_or("?".to_string(), |v| v.to_string())
+        r.get("total_domains")
+            .map_or("?".to_string(), |v| v.to_string())
     });
     let aggs = census.map_or("?".to_string(), |r| {
-        r.get("total_aggregates").map_or("?".to_string(), |v| v.to_string())
+        r.get("total_aggregates")
+            .map_or("?".to_string(), |v| v.to_string())
     });
     let sectors = census.map_or("?".to_string(), |r| {
-        r.get("sector_count").map_or("?".to_string(), |v| v.to_string())
+        r.get("sector_count")
+            .map_or("?".to_string(), |v| v.to_string())
     });
 
-    println!("  \x1b[96m❄\x1b[0m  {} records, {} domains, {} aggregates, {} sectors",
-        total, domains, aggs, sectors);
+    println!(
+        "  \x1b[96m❄\x1b[0m  {} records, {} domains, {} aggregates, {} sectors",
+        total, domains, aggs, sectors
+    );
 
     let mood_state = mood.map_or("—", |r| field_str(r, "current_state"));
     let flow = pulse.map_or("—", |r| field_str(r, "flow_rate"));
@@ -894,204 +990,302 @@ pub fn print_summary(stores: &HashMap<String, Store>) {
         r.get("sessions").map_or("?".to_string(), |v| v.to_string())
     });
 
-    let fatigue = pulse.and_then(|r| r.get("fatigue").and_then(|v| v.as_f64())).unwrap_or(0.0);
+    let fatigue = pulse
+        .and_then(|r| r.get("fatigue").and_then(|v| v.as_f64()))
+        .unwrap_or(0.0);
     let fatigue_state = pulse.map_or("—", |r| field_str(r, "fatigue_state"));
     let carrying = pulse.map_or("—", |r| field_str(r, "carrying"));
-    let pss = pulse.and_then(|r| r.get("pulses_since_sleep").and_then(|v| v.as_i64())).unwrap_or(0);
+    let pss = pulse
+        .and_then(|r| r.get("pulses_since_sleep").and_then(|v| v.as_i64()))
+        .unwrap_or(0);
 
-    let creativity = mood.and_then(|r| r.get("creativity_level").and_then(|v| v.as_f64())).unwrap_or(0.0);
-    let precision = mood.and_then(|r| r.get("precision_level").and_then(|v| v.as_f64())).unwrap_or(0.0);
+    let creativity = mood
+        .and_then(|r| r.get("creativity_level").and_then(|v| v.as_f64()))
+        .unwrap_or(0.0);
+    let precision = mood
+        .and_then(|r| r.get("precision_level").and_then(|v| v.as_f64()))
+        .unwrap_or(0.0);
 
     let consciousness = stores.get("consciousness").and_then(|s| latest(s));
     let conscious_state = consciousness.map_or("—", |r| field_str(r, "state"));
 
     let awareness = stores.get("awareness").and_then(|s| latest(s));
-    let age_days = awareness.and_then(|r| r.get("age_days").and_then(|v| v.as_f64())).unwrap_or(0.0);
+    let age_days = awareness
+        .and_then(|r| r.get("age_days").and_then(|v| v.as_f64()))
+        .unwrap_or(0.0);
 
     if mood_state != "—" || flow != "—" {
-        println!("  mood: {}  pulse: {}  beats: {}  person: {}  sessions: {}",
-            mood_state, flow, beats, person, sessions);
+        println!(
+            "  mood: {}  pulse: {}  beats: {}  person: {}  sessions: {}",
+            mood_state, flow, beats, person, sessions
+        );
     }
-    println!("  fatigue: {} ({})  carrying: \"{}\"  pulses since sleep: {}",
-        fatigue, fatigue_state, carrying, pss);
-    println!("  creativity: {:.1}  precision: {:.1}  consciousness: {}  age: {:.1} days",
-        creativity, precision, conscious_state, age_days);
+    println!(
+        "  fatigue: {} ({})  carrying: \"{}\"  pulses since sleep: {}",
+        fatigue, fatigue_state, carrying, pss
+    );
+    println!(
+        "  creativity: {:.1}  precision: {:.1}  consciousness: {}  age: {:.1} days",
+        creativity, precision, conscious_state, age_days
+    );
 
     println!("  {} stores, {} total records", stores.len(), total);
 }
 
 #[cfg(test)]
 mod world_resolution_tests {
-use super::{data_root, expand_tilde, folder_address_segments, fqn_realm_context, realm_store_dir, resolve_realm_dir, strip_chain_segments};
-use std::fs;
-use std::time::{SystemTime, UNIX_EPOCH};
+    use super::{
+        data_root, expand_tilde, folder_address_segments, fqn_realm_context, realm_store_dir,
+        resolve_realm_dir, strip_chain_segments,
+    };
+    use std::fs;
+    use std::time::{SystemTime, UNIX_EPOCH};
 
-fn segs(parts: &[&str]) -> Vec<String> {
-    parts.iter().map(|s| s.to_string()).collect()
-}
+    fn segs(parts: &[&str]) -> Vec<String> {
+        parts.iter().map(|s| s.to_string()).collect()
+    }
 
-#[test]
-fn default_chain_pizzas_strips_bluebook_and_trailing_domain() {
-    assert_eq!(
-        strip_chain_segments(segs(&["hecks", "examples", "pizzas", "bluebook"])),
-        Some("hecks/examples".to_string())
-    );
-}
+    #[test]
+    fn default_chain_pizzas_strips_bluebook_and_trailing_domain() {
+        assert_eq!(
+            strip_chain_segments(segs(&["hecks", "examples", "pizzas", "bluebook"])),
+            Some("hecks/examples".to_string())
+        );
+    }
 
-#[test]
-fn default_chain_strips_aggregates_and_drops_bluebook_filename() {
-    assert_eq!(
-        strip_chain_segments(segs(&["hecks", "hecks_conception", "aggregates", "framework", "tools", "git.bluebook"])),
-        Some("hecks/hecks_conception/framework".to_string())
-    );
-}
+    #[test]
+    fn default_chain_strips_aggregates_and_drops_bluebook_filename() {
+        assert_eq!(
+            strip_chain_segments(segs(&[
+                "hecks",
+                "hecks_conception",
+                "aggregates",
+                "framework",
+                "tools",
+                "git.bluebook"
+            ])),
+            Some("hecks/hecks_conception/framework".to_string())
+        );
+    }
 
-#[test]
-fn default_chain_too_shallow_is_none() {
-    assert_eq!(strip_chain_segments(segs(&["hecks"])), None);
-    assert_eq!(strip_chain_segments(segs(&["aggregates", "bluebook"])), None);
-}
+    #[test]
+    fn default_chain_too_shallow_is_none() {
+        assert_eq!(strip_chain_segments(segs(&["hecks"])), None);
+        assert_eq!(
+            strip_chain_segments(segs(&["aggregates", "bluebook"])),
+            None
+        );
+    }
 
+    #[test]
+    fn folder_address_realm_plus_context() {
+        assert_eq!(
+            folder_address_segments(segs(&[
+                "hecks",
+                "hecks_conception",
+                "aggregates",
+                "language",
+                "grammar",
+                "sentence.bluebook"
+            ])),
+            (
+                Some("hecks".to_string()),
+                Some("language/grammar".to_string())
+            )
+        );
+    }
 
-#[test]
-fn folder_address_realm_plus_context() {
-    assert_eq!(
-        folder_address_segments(segs(&["hecks", "hecks_conception", "aggregates", "language", "grammar", "sentence.bluebook"])),
-        (Some("hecks".to_string()), Some("language/grammar".to_string()))
-    );
-}
+    #[test]
+    fn folder_address_strips_worktree_path_segments() {
+        assert_eq!(
+            folder_address_segments(segs(&[
+                "hecks",
+                ".claude",
+                "worktrees",
+                "governance-barrier-rehome",
+                "hecks_conception",
+                "aggregates",
+                "world",
+                "conception",
+                "corpus.bluebook"
+            ])),
+            (
+                Some("hecks".to_string()),
+                Some("world/conception".to_string())
+            )
+        );
+    }
 
-#[test]
-fn folder_address_strips_worktree_path_segments() {
-    assert_eq!(
-        folder_address_segments(segs(&["hecks", ".claude", "worktrees", "governance-barrier-rehome", "hecks_conception", "aggregates", "world", "conception", "corpus.bluebook"])),
-        (Some("hecks".to_string()), Some("world/conception".to_string()))
-    );
-}
+    #[test]
+    fn folder_address_drops_the_bluebooks_own_folder() {
+        assert_eq!(
+            folder_address_segments(segs(&[
+                "hecks",
+                "hecks_conception",
+                "aggregates",
+                "discipline",
+                "immune_system",
+                "repair_cell",
+                "fibroblast",
+                "fibroblast.bluebook"
+            ])),
+            (
+                Some("hecks".to_string()),
+                Some("discipline/immune_system/repair_cell".to_string())
+            )
+        );
+    }
 
-#[test]
-fn folder_address_drops_the_bluebooks_own_folder() {
-    assert_eq!(
-        folder_address_segments(segs(&["hecks", "hecks_conception", "aggregates", "discipline", "immune_system", "repair_cell", "fibroblast", "fibroblast.bluebook"])),
-        (Some("hecks".to_string()), Some("discipline/immune_system/repair_cell".to_string()))
-    );
-}
+    #[test]
+    fn folder_address_keeps_folder_when_not_named_after_bluebook() {
+        assert_eq!(
+            folder_address_segments(segs(&[
+                "hecks",
+                "hecks_conception",
+                "aggregates",
+                "language",
+                "grammar",
+                "sentence.bluebook"
+            ])),
+            (
+                Some("hecks".to_string()),
+                Some("language/grammar".to_string())
+            )
+        );
+    }
 
-#[test]
-fn folder_address_keeps_folder_when_not_named_after_bluebook() {
-    assert_eq!(
-        folder_address_segments(segs(&["hecks", "hecks_conception", "aggregates", "language", "grammar", "sentence.bluebook"])),
-        (Some("hecks".to_string()), Some("language/grammar".to_string()))
-    );
-}
+    #[test]
+    fn folder_address_miette_is_its_own_realm() {
+        assert_eq!(
+            folder_address_segments(segs(&["miette", "body", "cycles", "heartbeat.bluebook"])),
+            (Some("miette".to_string()), Some("body/cycles".to_string()))
+        );
+    }
 
-#[test]
-fn folder_address_miette_is_its_own_realm() {
-    assert_eq!(
-        folder_address_segments(segs(&["miette", "body", "cycles", "heartbeat.bluebook"])),
-        (Some("miette".to_string()), Some("body/cycles".to_string()))
-    );
-}
+    #[test]
+    fn folder_address_no_context_directly_under_realm() {
+        assert_eq!(
+            folder_address_segments(segs(&[
+                "hecks",
+                "hecks_conception",
+                "aggregates",
+                "pizzas.bluebook"
+            ])),
+            (Some("hecks".to_string()), None)
+        );
+    }
 
-#[test]
-fn folder_address_no_context_directly_under_realm() {
-    assert_eq!(
-        folder_address_segments(segs(&["hecks", "hecks_conception", "aggregates", "pizzas.bluebook"])),
-        (Some("hecks".to_string()), None)
-    );
-}
+    #[test]
+    fn folder_address_empty_is_none() {
+        assert_eq!(
+            folder_address_segments(segs(&["aggregates", "bluebook"])),
+            (None, None)
+        );
+        assert_eq!(folder_address_segments(segs(&[])), (None, None));
+    }
 
-#[test]
-fn folder_address_empty_is_none() {
-    assert_eq!(folder_address_segments(segs(&["aggregates", "bluebook"])), (None, None));
-    assert_eq!(folder_address_segments(segs(&[])), (None, None));
-}
+    #[test]
+    fn fqn_realm_context_extracts_and_snake_cases() {
+        assert_eq!(
+            fqn_realm_context("AgentInbox::AgentMessage.AllUnread"),
+            (None, None)
+        );
+        assert_eq!(
+            fqn_realm_context("Hecks::AgentInbox::AgentMessage.all_unread"),
+            (Some("hecks".to_string()), None)
+        );
+        assert_eq!(
+            fqn_realm_context("Hecks::Framework::AgentInbox::AgentMessage.all_unread"),
+            (Some("hecks".to_string()), Some("framework".to_string()))
+        );
+        assert_eq!(
+            fqn_realm_context("Miette::Body::Organs::Heart::Heart.Beat"),
+            (Some("miette".to_string()), Some("body/organs".to_string()))
+        );
+        assert_eq!(
+            fqn_realm_context("Hecks::ImmuneSystem::Macrophage::Macrophage.Run"),
+            (Some("hecks".to_string()), Some("immune_system".to_string()))
+        );
+    }
 
+    fn tempdir(tag: &str) -> std::path::PathBuf {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let p = std::env::temp_dir().join(format!("world_res_test_{}_{}", tag, nanos));
+        fs::create_dir_all(&p).unwrap();
+        p
+    }
 
-#[test]
-fn fqn_realm_context_extracts_and_snake_cases() {
-    assert_eq!(fqn_realm_context("AgentInbox::AgentMessage.AllUnread"), (None, None));
-    assert_eq!(fqn_realm_context("Hecks::AgentInbox::AgentMessage.all_unread"),
-        (Some("hecks".to_string()), None));
-    assert_eq!(fqn_realm_context("Hecks::Framework::AgentInbox::AgentMessage.all_unread"),
-        (Some("hecks".to_string()), Some("framework".to_string())));
-    assert_eq!(fqn_realm_context("Miette::Body::Organs::Heart::Heart.Beat"),
-        (Some("miette".to_string()), Some("body/organs".to_string())));
-    assert_eq!(fqn_realm_context("Hecks::ImmuneSystem::Macrophage::Macrophage.Run"),
-        (Some("hecks".to_string()), Some("immune_system".to_string())));
-}
+    #[test]
+    fn expand_tilde_expands_home_prefix() {
+        let home = std::env::var("HOME").expect("HOME set in test env");
+        assert_eq!(
+            expand_tilde("~/data"),
+            format!("{}/data", home.trim_end_matches('/'))
+        );
+        assert_eq!(expand_tilde("~"), home);
+    }
 
-fn tempdir(tag: &str) -> std::path::PathBuf {
-    let nanos = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
-    let p = std::env::temp_dir().join(format!("world_res_test_{}_{}", tag, nanos));
-    fs::create_dir_all(&p).unwrap();
-    p
-}
+    #[test]
+    fn expand_tilde_passes_through_absolute_and_relative() {
+        assert_eq!(expand_tilde("/abs/path"), "/abs/path");
+        assert_eq!(expand_tilde("rel/path"), "rel/path");
+    }
 
-#[test]
-fn expand_tilde_expands_home_prefix() {
-    let home = std::env::var("HOME").expect("HOME set in test env");
-    assert_eq!(expand_tilde("~/data"), format!("{}/data", home.trim_end_matches('/')));
-    assert_eq!(expand_tilde("~"), home);
-}
+    #[test]
+    fn realm_world_nests_snake_realm_and_creates_dir() {
+        let dir = tempdir("present");
+        let store = dir.join("store");
+        let world = format!(
+            "Hecks.world \"Demo\" do\n  realm \"MyRealm\"\n  heki do\n    dir \"{}\"\n  end\nend\n",
+            store.to_string_lossy()
+        );
+        fs::write(dir.join("demo.world"), world).unwrap();
 
-#[test]
-fn expand_tilde_passes_through_absolute_and_relative() {
-    assert_eq!(expand_tilde("/abs/path"), "/abs/path");
-    assert_eq!(expand_tilde("rel/path"), "rel/path");
-}
+        let resolved =
+            resolve_realm_dir(dir.to_str().unwrap()).expect("realm-bearing world resolves");
+        let expected = store.join("my_realm");
+        assert_eq!(resolved, expected.to_string_lossy());
+        assert!(expected.is_dir(), "realm dir is created on resolution");
+    }
 
-#[test]
-fn realm_world_nests_snake_realm_and_creates_dir() {
-    let dir = tempdir("present");
-    let store = dir.join("store");
-    let world = format!(
-        "Hecks.world \"Demo\" do\n  realm \"MyRealm\"\n  heki do\n    dir \"{}\"\n  end\nend\n",
-        store.to_string_lossy()
-    );
-    fs::write(dir.join("demo.world"), world).unwrap();
+    #[test]
+    fn realm_less_world_declines_so_legacy_path_is_untouched() {
+        let root = tempdir("absent");
+        let agg = root.join("agg");
+        fs::create_dir_all(&agg).unwrap();
+        let world =
+            "Hecks.world \"Demo\" do\n  heki do\n    dir \"/tmp/legacy-store\"\n  end\nend\n";
+        fs::write(agg.join("demo.world"), world).unwrap();
+        assert!(resolve_realm_dir(agg.to_str().unwrap()).is_none());
+    }
 
-    let resolved = resolve_realm_dir(dir.to_str().unwrap())
-        .expect("realm-bearing world resolves");
-    let expected = store.join("my_realm");
-    assert_eq!(resolved, expected.to_string_lossy());
-    assert!(expected.is_dir(), "realm dir is created on resolution");
-}
+    #[test]
+    fn realm_store_dir_anchors_on_aggregate_realm_under_data_root() {
+        let root = data_root();
+        let global = root.join("hecks");
+        assert_eq!(
+            realm_store_dir(Some("miette/transparency"), global.to_str()),
+            Some(root.join("miette").to_string_lossy().into_owned())
+        );
+        assert_eq!(
+            realm_store_dir(Some("hecks"), global.to_str()),
+            Some(root.join("hecks").to_string_lossy().into_owned())
+        );
+    }
 
-#[test]
-fn realm_less_world_declines_so_legacy_path_is_untouched() {
-    let root = tempdir("absent");
-    let agg = root.join("agg");
-    fs::create_dir_all(&agg).unwrap();
-    let world = "Hecks.world \"Demo\" do\n  heki do\n    dir \"/tmp/legacy-store\"\n  end\nend\n";
-    fs::write(agg.join("demo.world"), world).unwrap();
-    assert!(resolve_realm_dir(agg.to_str().unwrap()).is_none());
-}
-
-#[test]
-fn realm_store_dir_anchors_on_aggregate_realm_under_data_root() {
-    let root = data_root();
-    let global = root.join("hecks");
-    assert_eq!(
-        realm_store_dir(Some("miette/transparency"), global.to_str()),
-        Some(root.join("miette").to_string_lossy().into_owned())
-    );
-    assert_eq!(
-        realm_store_dir(Some("hecks"), global.to_str()),
-        Some(root.join("hecks").to_string_lossy().into_owned())
-    );
-}
-
-#[test]
-fn realm_store_dir_preserves_explicit_test_dir() {
-    assert_eq!(
-        realm_store_dir(Some("miette/body"), Some("/tmp/iso/.heki")),
-        Some("/tmp/iso/.heki".to_string())
-    );
-    assert_eq!(
-        realm_store_dir(None, Some("/tmp/iso/.heki")),
-        Some("/tmp/iso/.heki".to_string())
-    );
-    assert_eq!(realm_store_dir(Some("miette"), None), None);
-}
+    #[test]
+    fn realm_store_dir_preserves_explicit_test_dir() {
+        assert_eq!(
+            realm_store_dir(Some("miette/body"), Some("/tmp/iso/.heki")),
+            Some("/tmp/iso/.heki".to_string())
+        );
+        assert_eq!(
+            realm_store_dir(None, Some("/tmp/iso/.heki")),
+            Some("/tmp/iso/.heki".to_string())
+        );
+        assert_eq!(realm_store_dir(Some("miette"), None), None);
+    }
 }

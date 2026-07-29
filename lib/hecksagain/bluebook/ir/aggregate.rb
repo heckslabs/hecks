@@ -3,13 +3,13 @@ module Hecksagain
     module IR
       class Aggregate
         attr_reader :name, :description, :attributes, :value_objects, :commands,
-                    :identified_by, :lifecycle, :entities, :queries, :policies
+                    :identified_by, :lifecycle, :entities, :queries, :policies, :reference_targets
 
         attr_accessor :ruby_class
 
         def initialize(name:, description: nil, attributes: [], value_objects: [],
                        commands: [], identified_by: :id, lifecycle: nil,
-                       entities: [], queries: [], policies: [])
+                       entities: [], queries: [], policies: [], reference_targets: [])
           @entities      = entities
           @queries       = queries
           @policies      = policies
@@ -20,6 +20,7 @@ module Hecksagain
           @commands      = commands
           @identified_by = identified_by.to_sym
           @lifecycle     = lifecycle
+          @reference_targets = reference_targets
         end
 
         def attribute(named)    = @attributes.find { |a| a.name == named.to_sym }

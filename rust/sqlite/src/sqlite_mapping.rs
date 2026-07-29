@@ -33,7 +33,16 @@ pub(super) fn value_from_sql(row: &rusqlite::Row<'_>, idx: usize) -> Value {
         Ok(ValueRef::Null) => Value::Null,
         Ok(ValueRef::Integer(n)) => Value::Int(n),
         Ok(ValueRef::Real(f)) => Value::Float(f),
-        Ok(ValueRef::Text(t)) => Value::Str(String::from_utf8_lossy(t).into_owned()),
+        Ok(ValueRef::Text(t)) => {
+            let text = String::from_utf8_lossy(t).into_owned();
+            if matches!(text.as_bytes().first(), Some(b'{' | b'[')) {
+                serde_json::from_str(&text)
+                    .map(|value| storehouse::value_bridge::to_runtime(&value))
+                    .unwrap_or(Value::Str(text))
+            } else {
+                Value::Str(text)
+            }
+        }
         Ok(ValueRef::Blob(b)) => Value::Str(String::from_utf8_lossy(b).into_owned()),
         Err(_) => Value::Null,
     }

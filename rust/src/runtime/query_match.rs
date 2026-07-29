@@ -1,4 +1,3 @@
-
 use super::*;
 
 pub fn repo_key(context: Option<&str>, name: &str) -> String {
@@ -8,7 +7,6 @@ pub fn repo_key(context: Option<&str>, name: &str) -> String {
     }
 }
 
-
 pub fn where_matches(
     state: &AggregateState,
     clause: &crate::ir::WhereClause,
@@ -17,18 +15,18 @@ pub fn where_matches(
     let target = resolve_where_value(&clause.value, attrs);
     let actual = resolve_state_field(state, &clause.field);
     match clause.op {
-        crate::ir::WhereOp::Eq  => actual == target,
-        crate::ir::WhereOp::Ne  => actual != target,
-        crate::ir::WhereOp::Gt  => compare_strings(&actual, &target).is_gt(),
+        crate::ir::WhereOp::Eq => actual == target,
+        crate::ir::WhereOp::Ne => actual != target,
+        crate::ir::WhereOp::Gt => compare_strings(&actual, &target).is_gt(),
         crate::ir::WhereOp::Gte => !compare_strings(&actual, &target).is_lt(),
-        crate::ir::WhereOp::Lt  => compare_strings(&actual, &target).is_lt(),
+        crate::ir::WhereOp::Lt => compare_strings(&actual, &target).is_lt(),
         crate::ir::WhereOp::Lte => !compare_strings(&actual, &target).is_gt(),
-        crate::ir::WhereOp::In  => target.split(',').any(|item| item.trim() == actual),
-            crate::ir::WhereOp::Contains => match state.fields.get(&clause.field) {
-                Some(Value::List(items)) => items.iter().any(|v| v.to_string() == target),
-                Some(Value::Str(csv)) => csv.split(',').any(|x| x.trim() == target),
-                _ => false,
-            },
+        crate::ir::WhereOp::In => target.split(',').any(|item| item.trim() == actual),
+        crate::ir::WhereOp::Contains => match state.fields.get(&clause.field) {
+            Some(Value::List(items)) => items.iter().any(|v| v.to_string() == target),
+            Some(Value::Str(csv)) => csv.split(',').any(|x| x.trim() == target),
+            _ => false,
+        },
         crate::ir::WhereOp::NoneInState => true,
     }
 }
@@ -61,9 +59,10 @@ pub(super) fn resolve_state_field(state: &AggregateState, field: &str) -> String
     }
     match cur {
         Value::Null => String::new(),
-        Value::Map(m) if m.len() == 1 => {
-            m.get("value").map(|v| v.to_string()).unwrap_or_else(|| cur.to_string())
-        }
+        Value::Map(m) if m.len() == 1 => m
+            .get("value")
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| cur.to_string()),
         _ => cur.to_string(),
     }
 }

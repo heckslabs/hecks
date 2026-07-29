@@ -23,11 +23,16 @@ module Hecksagain
         runtime.dispatch("#{fqn}.#{command_name}", **args)
       end
 
-      def method_missing(verb, *args, &block)
+      def method_missing(verb, *args, **kwargs, &block)
         collector = Bluebook::DSL::HecksagonBuilder.collector
         return super unless collector
 
-        collector << Bluebook::IR::Bind.new(aggregate: fqn, verb: verb.to_s, adapter: args.first.to_s)
+        collector << Bluebook::IR::Bind.new(
+          aggregate: fqn,
+          verb:      verb.to_s,
+          adapter:   args.first.to_s,
+          role:      kwargs[:role]&.to_s
+        )
         block&.call
         self
       end

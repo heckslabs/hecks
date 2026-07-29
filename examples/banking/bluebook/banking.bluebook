@@ -2,15 +2,37 @@ Hecks.bluebook "Banking" do
   vision "Customers hold accounts, accounts move money, and every movement is a transfer that can fail halfway. The domain that has to get it right twice — once in the rules, once in the recovery."
   core
 
+  read_model "CustomerPortfolio" do
+    description "A customer's cross-account position, rebuilt from aggregate heads."
+    reference_to Customer
+    include Customer
+    include Account
+    include ATMCard
+    include Transfer
+    include CardPayment
+    include ExternalTransfer
+    include ScheduledPayment
+  end
+
   aggregate "Customer" do
     description "A person the bank holds a relationship with. Suspended rather than deleted — a bank forgets nothing."
 
     identified_by :reference
 
-    attribute :reference, String
+    attribute :reference, CustomerNumber
     attribute :name,      PersonName
     attribute :email,     EmailAddress
-    attribute :standing,  String, default: "good"
+    attribute :standing,  CustomerStanding
+
+    value_object "CustomerNumber" do
+      attribute :value, String
+      invariant("a customer reference is present") { !value.to_s.empty? }
+    end
+
+    value_object "CustomerStanding" do
+      attribute :value, String, default: "good"
+      invariant("a standing is named") { !value.to_s.empty? }
+    end
 
     value_object "PersonName" do
       attribute :given,  String
@@ -36,11 +58,9 @@ Hecks.bluebook "Banking" do
       role "Branch clerk"
       goal "Take on a new customer"
 
-      attribute :reference, String
+      attribute :reference, CustomerNumber
       attribute :name,      PersonName
       attribute :email,     EmailAddress
-
-      given("a customer reference is given") { !reference.to_s.empty? }
 
       then_set :reference, to: :reference
       then_set :name,      to: :name
@@ -54,9 +74,7 @@ Hecks.bluebook "Banking" do
       goal "Stop a customer transacting while something is investigated"
 
       reference_to Customer
-      attribute :standing, String
-
-      given("a suspension says why") { !standing.to_s.empty? }
+      attribute :standing, CustomerStanding
 
       then_set :standing, to: :standing
 
@@ -68,7 +86,7 @@ Hecks.bluebook "Banking" do
       goal "Let a cleared customer transact again"
 
       reference_to Customer
-      then_set :standing, to: "good"
+      then_set :standing, to: { value: "good" }
 
       emits "CustomerReinstated"
     end
@@ -100,17 +118,50 @@ Hecks.bluebook "Banking" do
 
     reference_to Customer
 
-    attribute :number,       String
-    attribute :balance,      Integer, default: 0
+    attribute :number,       AccountNumber
+    attribute :balance,      Money
     attribute :kind,         AccountKind
-    attribute :daily_limit,  Integer, default: 0
+    attribute :daily_limit,  DailyLimit
     attribute :ledger,       list_of(LedgerEntry)
+    attribute :fees_cents,   Money
+    attribute :interest_cents, Money
+
+    value_object "AccountNumber" do
+      attribute :value, String
+      invariant("an account number is present") { !value.to_s.empty? }
+    end
+
+    value_object "DailyLimit" do
+      attribute :cents, Integer, default: 0
+      invariant("a daily limit is non-negative") { cents >= 0 }
+    end
+
+    value_object "LedgerSequence" do
+      attribute :value, Integer
+      invariant("a ledger sequence is positive") { value.positive? }
+    end
+
+    value_object "LedgerDirection" do
+      attribute :value, String
+
+      one_of do
+        member value: "credit"
+        member value: "debit"
+      end
+    end
 
     value_object "Money" do
       attribute :cents,    Integer, default: 0
       attribute :currency, String,  default: "USD"
 
-      invariant("a balance is never negative")      { cents >= 0 }
+      invariant("a currency is a three-letter code") { currency.to_s.size == 3 }
+    end
+
+    value_object "PositiveMoney" do
+      attribute :cents,    Integer
+      attribute :currency, String, default: "USD"
+
+      invariant("an amount is positive") { cents.positive? }
       invariant("a currency is a three-letter code") { currency.to_s.size == 3 }
     end
 
@@ -135,10 +186,10 @@ Hecks.bluebook "Banking" do
 
       identified_by :sequence
 
-      attribute :sequence,  Integer
-      attribute :amount,    Integer
+      attribute :sequence,  LedgerSequence
+      attribute :amount,    Money
       attribute :narrative, Narrative
-      attribute :direction, String
+      attribute :direction, LedgerDirection
 
       lifecycle :state, default: "posted" do
         transition "Reverse" => "reversed", from: "posted"
@@ -149,8 +200,10 @@ Hecks.bluebook "Banking" do
         role "Back office"
         goal "Correct a movement posted for the wrong amount"
 
-        attribute :adjustment, Integer
+        attribute :adjustment, Money
         attribute :narrative,  Narrative
+
+        given("an amendment leaves a non-negative amount") { amount.cents + adjustment.cents >= 0 }
 
         then_set :amount,    increment: :adjustment
         then_set :narrative, to: :narrative
@@ -185,11 +238,9 @@ Hecks.bluebook "Banking" do
       goal "Give a customer somewhere to keep money"
 
       reference_to Customer
-      attribute :number,      String
+      attribute :number,      AccountNumber
       attribute :kind,        AccountKind
-      attribute :daily_limit, Integer
-
-      given("an account has a number") { !number.to_s.empty? }
+      attribute :daily_limit, DailyLimit
 
       then_set :number,      to: :number
       then_set :kind,        to: :kind
@@ -203,14 +254,12 @@ Hecks.bluebook "Banking" do
       goal "Put money in"
 
       reference_to Account
-      attribute :amount,    Integer
+      attribute :amount,    PositiveMoney
       attribute :narrative, Narrative
 
       given("the account is open")      { status == "open" }
-      given("a credit moves something") { amount.positive? }
-
       then_set :balance, increment: :amount
-      then_set :ledger,  append: { amount: :amount, narrative: :narrative, direction: "credit" }
+      then_set :ledger,  append: { amount: :amount, narrative: :narrative, direction: { value: "credit" } }
 
       emits "AccountCredited"
     end
@@ -220,16 +269,15 @@ Hecks.bluebook "Banking" do
       goal "Take money out, if it is there to take"
 
       reference_to Account
-      attribute :amount,    Integer
+      attribute :amount,    PositiveMoney
       attribute :narrative, Narrative
 
       given("the account is open")       { status == "open" }
-      given("a debit moves something")   { amount.positive? }
-      given("the balance covers it")     { balance >= amount }
-      given("the daily limit allows it") { daily_limit >= amount }
+      given("the balance covers it")     { balance.cents >= amount.cents }
+      given("the daily limit allows it") { daily_limit.cents >= amount.cents }
 
       then_set :balance, decrement: :amount
-      then_set :ledger,  append: { amount: :amount, narrative: :narrative, direction: "debit" }
+      then_set :ledger,  append: { amount: :amount, narrative: :narrative, direction: { value: "debit" } }
 
       emits "AccountDebited"
     end
@@ -256,9 +304,46 @@ Hecks.bluebook "Banking" do
 
       reference_to Account
 
-      given("an account closes empty") { balance.zero? }
+      given("an account closes empty") { balance.cents.zero? }
 
       emits "AccountClosed"
+    end
+
+    command "ApplyFee" do
+      reference_to Account
+      attribute :amount, PositiveMoney
+      attribute :narrative, Narrative
+      given("the balance covers a fee") { balance.cents >= amount.cents }
+      then_set :balance, decrement: :amount
+      then_set :fees_cents, increment: :amount
+      emits "FeeApplied"
+    end
+
+    command "CorrectFee" do
+      reference_to Account
+      attribute :amount, PositiveMoney
+      given("a correction cannot exceed collected fees") { fees_cents.cents >= amount.cents }
+      then_set :balance, increment: :amount
+      then_set :fees_cents, decrement: :amount
+      emits "FeeCorrected"
+    end
+
+    command "AccrueInterest" do
+      reference_to Account
+      attribute :amount, PositiveMoney
+      then_set :balance, increment: :amount
+      then_set :interest_cents, increment: :amount
+      emits "InterestAccrued"
+    end
+
+    command "CorrectInterest" do
+      reference_to Account
+      attribute :amount, PositiveMoney
+      given("a correction cannot exceed accrued interest") { interest_cents.cents >= amount.cents }
+      given("the balance covers an interest correction") { balance.cents >= amount.cents }
+      then_set :balance, decrement: :amount
+      then_set :interest_cents, decrement: :amount
+      emits "InterestCorrected"
     end
 
     query "Open" do
@@ -269,7 +354,7 @@ Hecks.bluebook "Banking" do
 
     query "Overdrawn" do
       description "Accounts below a floor the caller supplies — the morning risk report."
-      attribute :floor, Integer
+      attribute :floor, Money
       where(balance: { lt: :floor })
       order_by :balance
       limit 100
@@ -289,10 +374,34 @@ Hecks.bluebook "Banking" do
 
     reference_to Account
 
-    attribute :serial,      String
-    attribute :nickname,    String
-    attribute :daily_fee,   Float, default: 0
+    attribute :serial,      CardSerial
+    attribute :nickname,    CardNickname
+    attribute :daily_fee,   DailyFee
     attribute :withdrawals, list_of(Withdrawal)
+
+    value_object "CardSerial" do
+      attribute :value, String
+      invariant("a card serial is present") { !value.to_s.empty? }
+    end
+
+    value_object "CardNickname" do
+      attribute :value, String
+    end
+
+    value_object "DailyFee" do
+      attribute :amount, Float, default: 0.0
+      invariant("a daily fee is non-negative") { amount >= 0 }
+    end
+
+    value_object "WithdrawalSequence" do
+      attribute :value, Integer
+      invariant("a withdrawal sequence is positive") { value.positive? }
+    end
+
+    value_object "WithdrawalAmount" do
+      attribute :cents, Integer
+      invariant("a withdrawal amount is positive") { cents.positive? }
+    end
 
     value_object "Narrative" do
       attribute :text, String
@@ -305,8 +414,8 @@ Hecks.bluebook "Banking" do
 
       identified_by :sequence
 
-      attribute :sequence,  Integer
-      attribute :cents,     Integer
+      attribute :sequence,  WithdrawalSequence
+      attribute :cents,     WithdrawalAmount
       attribute :narrative, Narrative
 
       lifecycle :state, default: "taken" do
@@ -340,10 +449,8 @@ Hecks.bluebook "Banking" do
       goal "Put a card in a customer's hand"
 
       reference_to Account
-      attribute :serial,    String
-      attribute :daily_fee, Float
-
-      given("a card has a serial") { !serial.to_s.empty? }
+      attribute :serial,    CardSerial
+      attribute :daily_fee, DailyFee
 
       then_set :serial,    to: :serial
       then_set :daily_fee, to: :daily_fee
@@ -356,7 +463,7 @@ Hecks.bluebook "Banking" do
       goal "Name a card so it is recognisable"
 
       reference_to ATMCard
-      attribute :nickname, String
+      attribute :nickname, CardNickname
       then_set :nickname, to: :nickname
 
       emits "ATMCardRenamed"
@@ -367,10 +474,8 @@ Hecks.bluebook "Banking" do
       goal "Take cash out at a machine"
 
       reference_to ATMCard
-      attribute :cents,     Integer
+      attribute :cents,     WithdrawalAmount
       attribute :narrative, Narrative
-
-      given("a withdrawal moves something") { cents.positive? }
 
       then_set :withdrawals, append: { cents: :cents, narrative: :narrative }
 
@@ -410,10 +515,15 @@ Hecks.bluebook "Banking" do
   aggregate "Transfer" do
     description "Money leaving one account for another. Two movements that must both happen, or neither."
 
-    attribute :amount,    Integer, default: 0
+    reference_to Account, as: :source
+    reference_to Account, as: :destination
+    attribute :amount,    TransferMoney
     attribute :narrative, Narrative
-    attribute :source,      String
-    attribute :destination, String
+
+    value_object "TransferMoney" do
+      attribute :cents, Integer
+      invariant("a transfer amount is positive") { cents.positive? }
+    end
 
     value_object "Narrative" do
       attribute :text, String
@@ -423,7 +533,8 @@ Hecks.bluebook "Banking" do
 
     lifecycle :status, default: "requested" do
       transition "Debited"  => "debited",   from: "requested"
-      transition "Settle"   => "settled",   from: "debited"
+      transition "Credited" => "credited",  from: "debited"
+      transition "Settle"   => "settled",   from: "credited"
       transition "Reverse"  => "reversed",  from: "debited"
       transition "Reject"   => "rejected",  from: "requested"
     end
@@ -432,15 +543,14 @@ Hecks.bluebook "Banking" do
       role "Customer"
       goal "Send money to another account"
 
-      attribute :amount,      Integer
+      reference_to Account, as: :source
+      reference_to Account, as: :destination
+      attribute :amount,      TransferMoney
       attribute :narrative,   Narrative
-      attribute :source,      String
-      attribute :destination, String
 
-      given("a transfer moves something")   { amount.positive? }
-      given("a transfer names its source")  { !source.to_s.empty? }
-      given("a transfer goes somewhere")    { !destination.to_s.empty? }
-      given("a transfer moves BETWEEN accounts") { source != destination }
+      given("a transfer names its source")  { !source.value.to_s.empty? }
+      given("a transfer goes somewhere")    { !destination.value.to_s.empty? }
+      given("a transfer moves BETWEEN accounts") { source.value != destination.value }
 
       then_set :amount,      to: :amount
       then_set :narrative,   to: :narrative
@@ -466,6 +576,14 @@ Hecks.bluebook "Banking" do
       emits "TransferSettled"
     end
 
+    command "Credited" do
+      role "System"
+      goal "Record that the destination credit committed"
+
+      reference_to Transfer
+      emits "TransferCredited"
+    end
+
     command "Reverse" do
       role "System"
       goal "Put the money back when the credit could not be made"
@@ -486,6 +604,193 @@ Hecks.bluebook "Banking" do
       description "Transfers that have left one account and not arrived at the other. The list that must always empty."
       where(status: "debited")
       order_by :status
+    end
+  end
+
+  aggregate "CardPayment" do
+    description "A card authorisation that either settles, is voided before settlement, or becomes a post-settlement dispute."
+
+    reference_to Account
+    attribute :amount,   PaymentAmount
+    attribute :merchant, MerchantName
+
+    value_object "PaymentAmount" do
+      attribute :cents, Integer
+      invariant("a payment amount is positive") { cents.positive? }
+    end
+
+    value_object "MerchantName" do
+      attribute :value, String
+      invariant("a merchant name is present") { !value.to_s.empty? }
+    end
+
+    lifecycle :status, default: "authorized" do
+      transition "Capture" => "captured", from: "authorized"
+      transition "Void" => "voided", from: "authorized"
+      transition "Refund" => "refunded", from: "captured"
+      transition "Reverse" => "reversed", from: "captured"
+      transition "Dispute" => "disputed", from: ["captured", "refunded"]
+      transition "Chargeback" => "charged_back", from: "disputed"
+      transition "RejectDispute" => "captured", from: "disputed"
+    end
+
+    command "Authorize" do
+      reference_to Account
+      attribute :amount, PaymentAmount
+      attribute :merchant, MerchantName
+      then_set :amount, to: :amount
+      then_set :merchant, to: :merchant
+      emits "CardAuthorized"
+    end
+
+    command "Capture" do
+      reference_to CardPayment
+      emits "CardCaptured"
+    end
+
+    command "Void" do
+      reference_to CardPayment
+      emits "CardVoided"
+    end
+
+    command "Refund" do
+      reference_to CardPayment
+      emits "CardRefunded"
+    end
+
+    command "Reverse" do
+      reference_to CardPayment
+      emits "CardReversed"
+    end
+
+    command "Dispute" do
+      reference_to CardPayment
+      emits "CardDisputed"
+    end
+
+    command "Chargeback" do
+      reference_to CardPayment
+      emits "CardChargedBack"
+    end
+
+    command "RejectDispute" do
+      reference_to CardPayment
+      emits "CardDisputeRejected"
+    end
+
+    query "Pending" do
+      where(status: "authorized")
+    end
+
+    query "Disputed" do
+      where(status: "disputed")
+    end
+  end
+
+  aggregate "ExternalTransfer" do
+    description "A transfer sent beyond the bank, where a recall is an instruction and a return is the external network's outcome."
+
+    reference_to Account
+    attribute :amount,      ExternalAmount
+    attribute :beneficiary, BeneficiaryName
+
+    value_object "ExternalAmount" do
+      attribute :cents, Integer
+      invariant("an external transfer amount is positive") { cents.positive? }
+    end
+
+    value_object "BeneficiaryName" do
+      attribute :value, String
+      invariant("a beneficiary name is present") { !value.to_s.empty? }
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "Send" => "sent", from: "requested"
+      transition "Recall" => "recalled", from: "sent"
+      transition "Return" => "returned", from: "sent"
+    end
+
+    command "Request" do
+      reference_to Account
+      attribute :amount, ExternalAmount
+      attribute :beneficiary, BeneficiaryName
+      then_set :amount, to: :amount
+      then_set :beneficiary, to: :beneficiary
+      emits "ExternalTransferRequested"
+    end
+
+    command "Send" do
+      reference_to ExternalTransfer
+      emits "ExternalTransferSent"
+    end
+
+    command "Recall" do
+      reference_to ExternalTransfer
+      emits "ExternalTransferRecalled"
+    end
+
+    command "Return" do
+      reference_to ExternalTransfer
+      emits "ExternalTransferReturned"
+    end
+
+    query "Sent" do
+      where(status: "sent")
+    end
+  end
+
+  aggregate "ScheduledPayment" do
+    description "An instruction held for a future date, which may execute once or be cancelled before it does."
+
+    reference_to Account
+    attribute :amount,    ScheduledAmount
+    attribute :recipient, PaymentRecipient
+    attribute :due_on,    PaymentDueDate
+
+    value_object "ScheduledAmount" do
+      attribute :cents, Integer
+      invariant("a scheduled payment amount is positive") { cents.positive? }
+    end
+
+    value_object "PaymentRecipient" do
+      attribute :value, String
+      invariant("a payment recipient is present") { !value.to_s.empty? }
+    end
+
+    value_object "PaymentDueDate" do
+      attribute :value, String
+      invariant("a payment due date is present") { !value.to_s.empty? }
+    end
+
+    lifecycle :status, default: "scheduled" do
+      transition "Execute" => "executed", from: "scheduled"
+      transition "Cancel" => "cancelled", from: "scheduled"
+    end
+
+    command "Schedule" do
+      reference_to Account
+      attribute :amount, ScheduledAmount
+      attribute :recipient, PaymentRecipient
+      attribute :due_on, PaymentDueDate
+      then_set :amount, to: :amount
+      then_set :recipient, to: :recipient
+      then_set :due_on, to: :due_on
+      emits "PaymentScheduled"
+    end
+
+    command "Execute" do
+      reference_to ScheduledPayment
+      emits "ScheduledPaymentExecuted"
+    end
+
+    command "Cancel" do
+      reference_to ScheduledPayment
+      emits "ScheduledPaymentCancelled"
+    end
+
+    query "Due" do
+      where(status: "scheduled")
+      order_by :due_on
     end
   end
 
@@ -512,20 +817,24 @@ Hecks.bluebook "Banking" do
     state "reversed"
 
     on "TransferRequested", transition: { "requested" => "requested" } do
-      dispatch "Banking::Account.Debit", with: { id: :source, amount: :amount, narrative: "transfer out", transfer: :transfer, destination: :destination }
+      dispatch "Banking::Account.Debit", with: { id: :source, amount: :amount, narrative: { text: "transfer out" }, transfer: :transfer, destination: :destination }
     end
 
     on "AccountDebited", transition: { "requested" => "awaiting_credit" } do
       dispatch "Banking::Transfer.Debited", with: { transfer: :transfer }
-      dispatch "Banking::Account.Credit", with: { id: :destination, amount: :amount, narrative: "transfer in", transfer: :transfer }
+      dispatch "Banking::Account.Credit", with: { id: :destination, amount: :amount, narrative: { text: "transfer in" }, transfer: :transfer }
     end
 
-    on "AccountCredited", transition: { "awaiting_credit" => "settled" } do
+    on "AccountCredited", transition: { "awaiting_credit" => "awaiting_credit" } do
+      dispatch "Banking::Transfer.Credited", with: { transfer: :transfer }
+    end
+
+    on "TransferCredited", transition: { "awaiting_credit" => "settled" } do
       dispatch "Banking::Transfer.Settle", with: { transfer: :transfer }
     end
 
     on "TransferReversed", transition: { "awaiting_credit" => "reversed" } do
-      dispatch "Banking::Account.Credit", with: { id: :source, amount: :amount, narrative: "transfer reversed" }
+      dispatch "Banking::Account.Credit", with: { id: :source, amount: :amount, narrative: { text: "transfer reversed" } }
     end
   end
 end

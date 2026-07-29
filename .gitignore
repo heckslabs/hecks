@@ -8,3 +8,4 @@ projection/rust/target/
 target/
 tmp/
 vendor/bundle/
+coverage/

@@ -1,4 +1,3 @@
-
 pub fn snake(s: &str) -> String {
     let chars: Vec<char> = s.chars().collect();
     let mut result = String::with_capacity(s.len() + 4);
@@ -8,7 +7,8 @@ pub fn snake(s: &str) -> String {
             let prev = chars[i - 1];
             let next = chars.get(i + 1).copied();
             let prev_lower = prev.is_lowercase() || prev.is_ascii_digit();
-            let acronym_end = prev.is_uppercase() && next.map(|n| n.is_lowercase()).unwrap_or(false);
+            let acronym_end =
+                prev.is_uppercase() && next.map(|n| n.is_lowercase()).unwrap_or(false);
             if prev_lower || acronym_end {
                 result.push('_');
             }
@@ -25,7 +25,6 @@ pub fn demodulise(type_name: &str) -> &str {
 pub fn reference_key(type_name: &str) -> String {
     snake(demodulise(type_name))
 }
-
 
 pub fn split_dotted(dotted: &str) -> (&str, &str) {
     dotted.split_once('.').unwrap_or((dotted, ""))
@@ -48,7 +47,6 @@ pub fn split_verb(verb: &str) -> Option<(&str, &str, &str)> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
 
     #[test]
     fn snake_lowercases_a_single_word() {

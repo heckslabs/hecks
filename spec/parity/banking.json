@@ -1,11 +1,81 @@
 {
   "name": "banking-parity",
-  "note": "Every operation the domain declares, walked to an EXACT ledger. Commands happy and refused (each debit gate one at a time, each lifecycle wall, each payload shape) ; the Settlement saga end to end - request, debit leg, credit leg, settle, retire - and its compensating leg : destination frozen mid-flight, credit refused ON THE SAGA LOG, back office reverses off the InFlight queue, money back where it started. Running balances are arithmetic all the way down : acct-1 ends at 60000 (the 1000 came back), acct-2 at 0 and closed, and any runtime that disagrees by one cent is the bug this file exists to catch. The last steps pass a non-numeric amount and a scalar where a two-field value object is declared, so the comparison proves the two runtimes word an EVALUATION failure identically, not just a rule failure. Reads ride the same steps : InFlight shows the stuck transfer mid-story and empties by the end ; the compliance queue fills and drains ; Overdrawn takes its floor from the caller. The ledger itself is addressable : entry 2 is reversed once (twice refuses — the entity has its own machine), and the Reversed audit query answers it with its account. Every command runs : a transfer out of the closed account fails its first leg and is Rejected from \"requested\", and the relationship itself Closes last. The closed set has teeth : a gold account and an email that routes nowhere are both refused at construction, worded to the character. The ledger corrects itself too : entry 1 is amended by 500 (element arithmetic, the one path the Integer-or-nothing rule was never driven on), a non-Integer adjustment is refused in those words, and amending the reversed entry 2 is refused by the entity's own machine. Then the adversarial half, sixty-nine steps that go looking for the places where agreement is cheap. Every invariant the domain declares is driven to its failing side : a name with no given part, a name with no family part, a transfer that explains nothing. Every gate that was only ever satisfied is refused at least once : a suspension that says why, a transfer that names its source, a transfer that goes somewhere. The arithmetic is walked to its boundaries rather than past them, so a debit of exactly the balance and exactly the limit is allowed and one more is refused, and every amount is also passed negative, because a negative debit that slipped a positive gate would be a credit nobody asked for. The lifecycle branches nobody took are taken : an account closed FROM FROZEN, a card retired FROM ISSUED, a customer closed FROM SUSPENDED, and then the far side of each wall, unfreezing an open account, freezing a closed one, activating a retired card, rejecting a transfer that already moved. Payload shapes are wrong in every direction : a Float where an Integer is declared, a numeral wearing quotes, a value object where a scalar belongs (the inverse of the scalar-for-value-object case above), an attribute missing entirely, an attribute the command never declared, and no id at all. Reads are pushed the same way, with a floor that is not a number and a floor that was never passed. FOUR STEPS DOCUMENT HOLES RATHER THAN RULES, and they are here so the holes cannot close by accident. A ledger append does not construct its declared Narrative, so an empty narrative is stored raw and the invariant that says a movement explains itself never runs, while the same empty narrative on Transfer.Request, which sets rather than appends, IS refused : the two steps sit near each other so the difference is legible. Opening an account on an id that already exists WIPES it, and registering a reference that already exists RESURRECTS a closed customer under a new name. Amending a ledger entry by -999999 drives it to -994999, because the balance-is-never-negative invariant lives on a Money value object that no attribute uses. And xfer-4 ends SETTLED with its money still in the source account : the destination was frozen, the credit leg was refused on the saga log, and Settle was allowed from debited anyway. Every one of these reads the same in both runtimes, which is exactly the point. Parity proves the two agree ; only a step that names the wrong answer proves the answer is wrong.",
+  "note": "Every declared banking command and query is exercised in both runtimes, including refusal paths. The adversarial cases assert that nested Narrative values are validated before an entity is appended, an amendment cannot reduce a ledger entry below zero, and a transfer cannot settle until a destination credit produced TransferCredited. Persistence retains every write as an append-only version entry while reads materialize the last entry for each identity.",
+  "expectations": {
+    "event_names": [
+      "TransferCredited"
+    ],
+    "refusals": [
+      {
+        "verb": "Banking::Account.Credit",
+        "includes": "a movement explains itself"
+      },
+      {
+        "verb": "Banking::Account.LedgerEntry.Amend",
+        "includes": "non-negative amount"
+      },
+      {
+        "verb": "Banking::Transfer.Settle",
+        "includes": "only from \"credited\""
+      },
+      {
+        "verb": "Banking::Account.ApplyFee",
+        "includes": "an amount is positive"
+      },
+      {
+        "verb": "Banking::Account.CorrectInterest",
+        "includes": "cannot exceed accrued interest"
+      },
+      {
+        "verb": "Banking::CardPayment.Authorize",
+        "includes": "a payment amount is positive"
+      },
+      {
+        "verb": "Banking::ExternalTransfer.Request",
+        "includes": "an external transfer amount is positive"
+      },
+      {
+        "verb": "Banking::ScheduledPayment.Schedule",
+        "includes": "a scheduled payment amount is positive"
+      }
+    ],
+    "instances": {
+      "Banking::Transfer#xfer-4": {
+        "status": "settled"
+      },
+      "Banking::CardPayment#pay-refund": {
+        "status": "refunded"
+      },
+      "Banking::CardPayment#pay-void": {
+        "status": "voided"
+      },
+      "Banking::CardPayment#pay-chargeback": {
+        "status": "charged_back"
+      },
+      "Banking::CardPayment#pay-reversal": {
+        "status": "reversed"
+      },
+      "Banking::ExternalTransfer#ext-recall": {
+        "status": "recalled"
+      },
+      "Banking::ExternalTransfer#ext-return": {
+        "status": "returned"
+      },
+      "Banking::ScheduledPayment#schedule-execute": {
+        "status": "executed"
+      },
+      "Banking::ScheduledPayment#schedule-cancel": {
+        "status": "cancelled"
+      }
+    }
+  },
   "steps": [
     {
       "verb": "Banking::Customer.Register",
       "args": {
-        "reference": "CUST-0001",
+        "reference": {
+          "value": "CUST-0001"
+        },
         "name": {
           "given": "Ada",
           "family": "Lovelace"
@@ -18,7 +88,9 @@
     {
       "verb": "Banking::Customer.Register",
       "args": {
-        "reference": "",
+        "reference": {
+          "value": ""
+        },
         "name": {
           "given": "No",
           "family": "Body"
@@ -32,36 +104,62 @@
       "verb": "Banking::Account.Open",
       "args": {
         "id": "acct-1",
-        "customer": "CUST-0001",
-        "number": "ACC-1",
-        "kind": "current",
-        "daily_limit": 50000
+        "number": {
+          "value": "ACC-1"
+        },
+        "kind": {
+          "name": "current"
+        },
+        "daily_limit": {
+          "cents": 50000
+        },
+        "customer_id": {
+          "value": "CUST-0001"
+        }
       }
     },
     {
       "verb": "Banking::Account.Open",
       "args": {
         "id": "acct-2",
-        "customer": "CUST-0001",
-        "number": "ACC-2",
-        "kind": "savings",
-        "daily_limit": 10000
+        "number": {
+          "value": "ACC-2"
+        },
+        "kind": {
+          "name": "savings"
+        },
+        "daily_limit": {
+          "cents": 10000
+        },
+        "customer_id": {
+          "value": "CUST-0001"
+        }
       }
     },
     {
       "verb": "Banking::Account.Open",
       "args": {
         "id": "acct-9",
-        "customer": "CUST-0001",
-        "number": "ACC-9",
-        "kind": "gold",
-        "daily_limit": 10000
+        "number": {
+          "value": "ACC-9"
+        },
+        "kind": {
+          "name": "gold"
+        },
+        "daily_limit": {
+          "cents": 10000
+        },
+        "customer_id": {
+          "value": "CUST-0001"
+        }
       }
     },
     {
       "verb": "Banking::Customer.Register",
       "args": {
-        "reference": "CUST-0009",
+        "reference": {
+          "value": "CUST-0009"
+        },
         "name": {
           "given": "No",
           "family": "Route"
@@ -75,120 +173,199 @@
       "verb": "Banking::Account.Open",
       "args": {
         "id": "acct-noname",
-        "customer": "CUST-0001",
-        "number": "",
-        "kind": "savings",
-        "daily_limit": 10000
+        "number": {
+          "value": ""
+        },
+        "kind": {
+          "name": "savings"
+        },
+        "daily_limit": {
+          "cents": 10000
+        },
+        "customer_id": {
+          "value": "CUST-0001"
+        }
       }
     },
     {
       "verb": "Banking::Account.Credit",
       "args": {
         "id": "acct-1",
-        "amount": 10000,
-        "narrative": "Opening deposit"
+        "amount": {
+          "cents": 10000,
+          "currency": "USD"
+        },
+        "narrative": {
+          "text": "Opening deposit"
+        }
       }
     },
     {
       "verb": "Banking::Account.Credit",
       "args": {
         "id": "acct-1",
-        "amount": 0,
-        "narrative": "Nothing at all"
+        "amount": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "narrative": {
+          "text": "Nothing at all"
+        }
       }
     },
     {
       "verb": "Banking::Account.Debit",
       "args": {
         "id": "acct-1",
-        "amount": 2500,
-        "narrative": "Groceries"
+        "amount": {
+          "cents": 2500,
+          "currency": "USD"
+        },
+        "narrative": {
+          "text": "Groceries"
+        }
       }
     },
     {
       "verb": "Banking::Account.Debit",
       "args": {
         "id": "acct-1",
-        "amount": 999999,
-        "narrative": "More than is there"
+        "amount": {
+          "cents": 999999,
+          "currency": "USD"
+        },
+        "narrative": {
+          "text": "More than is there"
+        }
       }
     },
     {
       "verb": "Banking::Account.Debit",
       "args": {
         "id": "acct-1",
-        "amount": 0,
-        "narrative": "Nothing at all"
+        "amount": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "narrative": {
+          "text": "Nothing at all"
+        }
       }
     },
     {
       "verb": "Banking::Account.Credit",
       "args": {
         "id": "acct-1",
-        "amount": 55000,
-        "narrative": "Salary"
+        "amount": {
+          "cents": 55000,
+          "currency": "USD"
+        },
+        "narrative": {
+          "text": "Salary"
+        }
       }
     },
     {
       "verb": "Banking::Account.Debit",
       "args": {
         "id": "acct-1",
-        "amount": 52000,
-        "narrative": "Covered, but over the daily limit"
+        "amount": {
+          "cents": 52000,
+          "currency": "USD"
+        },
+        "narrative": {
+          "text": "Covered, but over the daily limit"
+        }
       }
     },
     {
       "verb": "Banking::Account.LedgerEntry.Reverse",
       "args": {
         "id": "acct-1",
-        "sequence": 2,
-        "narrative": "Posted in error — reversed"
+        "sequence": {
+          "value": 2
+        },
+        "narrative": {
+          "text": "Posted in error — reversed"
+        }
       }
     },
     {
       "verb": "Banking::Account.LedgerEntry.Reverse",
       "args": {
         "id": "acct-1",
-        "sequence": 2,
-        "narrative": "Twice over"
+        "sequence": {
+          "value": 2
+        },
+        "narrative": {
+          "text": "Twice over"
+        }
       }
     },
     {
       "verb": "Banking::Account.LedgerEntry.Reverse",
       "args": {
         "id": "acct-1",
-        "sequence": 99,
-        "narrative": "No such movement"
+        "sequence": {
+          "value": 99
+        },
+        "narrative": {
+          "text": "No such movement"
+        }
       }
     },
     {
       "verb": "Banking::Transfer.Request",
       "args": {
         "id": "xfer-1",
-        "source": "acct-1",
-        "destination": "acct-2",
-        "amount": 2500,
-        "narrative": "Rent"
+        "source": {
+          "value": "acct-1"
+        },
+        "destination": {
+          "value": "acct-2"
+        },
+        "amount": {
+          "cents": 2500
+        },
+        "narrative": {
+          "text": "Rent"
+        }
       }
     },
     {
       "verb": "Banking::Transfer.Request",
       "args": {
         "id": "xfer-zero",
-        "source": "acct-1",
-        "destination": "acct-2",
-        "amount": 0,
-        "narrative": "Nothing"
+        "source": {
+          "value": "acct-1"
+        },
+        "destination": {
+          "value": "acct-2"
+        },
+        "amount": {
+          "cents": 0
+        },
+        "narrative": {
+          "text": "Nothing"
+        }
       }
     },
     {
       "verb": "Banking::Transfer.Request",
       "args": {
         "id": "xfer-self",
-        "source": "acct-1",
-        "destination": "acct-1",
-        "amount": 100,
-        "narrative": "To myself"
+        "source": {
+          "value": "acct-1"
+        },
+        "destination": {
+          "value": "acct-1"
+        },
+        "amount": {
+          "cents": 100
+        },
+        "narrative": {
+          "text": "To myself"
+        }
       }
     },
     {
@@ -201,19 +378,29 @@
       "verb": "Banking::Transfer.Request",
       "args": {
         "id": "xfer-2",
-        "source": "acct-1",
-        "destination": "acct-2",
-        "amount": 1000,
-        "narrative": "Into the frozen account"
+        "source": {
+          "value": "acct-1"
+        },
+        "destination": {
+          "value": "acct-2"
+        },
+        "amount": {
+          "cents": 1000
+        },
+        "narrative": {
+          "text": "Into the frozen account"
+        }
       }
     },
     {
-      "query": "Banking::Transfer.InFlight"
+      "query": "Banking::Transfer.InFlight",
+      "args": {
+      }
     },
     {
       "verb": "Banking::Transfer.Reverse",
       "args": {
-        "transfer": "xfer-2"
+        "id": "xfer-2"
       }
     },
     {
@@ -238,8 +425,13 @@
       "verb": "Banking::Account.Debit",
       "args": {
         "id": "acct-1",
-        "amount": 100,
-        "narrative": "From a frozen account"
+        "amount": {
+          "cents": 100,
+          "currency": "USD"
+        },
+        "narrative": {
+          "text": "From a frozen account"
+        }
       }
     },
     {
@@ -251,30 +443,44 @@
     {
       "verb": "Banking::Customer.Suspend",
       "args": {
-        "customer": "CUST-0001",
-        "standing": "chargeback investigation"
+        "standing": {
+          "value": "chargeback investigation"
+        },
+        "reference": {
+          "value": "CUST-0001"
+        }
       }
     },
     {
       "verb": "Banking::Customer.Suspend",
       "args": {
-        "customer": "CUST-0001",
-        "standing": "twice over"
+        "standing": {
+          "value": "twice over"
+        },
+        "reference": {
+          "value": "CUST-0001"
+        }
       }
     },
     {
-      "query": "Banking::Customer.Suspended"
+      "query": "Banking::Customer.Suspended",
+      "args": {
+      }
     },
     {
       "verb": "Banking::Customer.Reinstate",
       "args": {
-        "customer": "CUST-0001"
+        "reference": {
+          "value": "CUST-0001"
+        }
       }
     },
     {
       "verb": "Banking::Customer.Reinstate",
       "args": {
-        "customer": "CUST-0001"
+        "reference": {
+          "value": "CUST-0001"
+        }
       }
     },
     {
@@ -287,8 +493,13 @@
       "verb": "Banking::Account.Debit",
       "args": {
         "id": "acct-2",
-        "amount": 2500,
-        "narrative": "Emptying before close"
+        "amount": {
+          "cents": 2500,
+          "currency": "USD"
+        },
+        "narrative": {
+          "text": "Emptying before close"
+        }
       }
     },
     {
@@ -301,46 +512,71 @@
       "verb": "Banking::Account.Credit",
       "args": {
         "id": "acct-2",
-        "amount": 100,
-        "narrative": "Into a closed account"
+        "amount": {
+          "cents": 100,
+          "currency": "USD"
+        },
+        "narrative": {
+          "text": "Into a closed account"
+        }
       }
     },
     {
       "verb": "Banking::Transfer.Request",
       "args": {
         "id": "xfer-3",
-        "source": "acct-2",
-        "destination": "acct-1",
-        "amount": 100,
-        "narrative": "Out of a closed account"
+        "source": {
+          "value": "acct-2"
+        },
+        "destination": {
+          "value": "acct-1"
+        },
+        "amount": {
+          "cents": 100
+        },
+        "narrative": {
+          "text": "Out of a closed account"
+        }
       }
     },
     {
       "verb": "Banking::Transfer.Reject",
       "args": {
-        "transfer": "xfer-3"
+        "id": "xfer-3"
       }
     },
     {
       "verb": "Banking::Account.Debit",
       "args": {
         "id": "acct-ghost",
-        "amount": 100,
-        "narrative": "No such account"
+        "amount": {
+          "cents": 100,
+          "currency": "USD"
+        },
+        "narrative": {
+          "text": "No such account"
+        }
       }
     },
     {
       "verb": "Banking::Account.Debit",
       "args": {
         "id": "acct-1",
-        "amount": "lots",
-        "narrative": "Not a number"
+        "amount": {
+          "cents": "lots",
+          "currency": "USD"
+        },
+        "narrative": {
+          "text": "Not a number"
+        }
       }
     },
     {
       "verb": "Banking::Customer.Register",
       "args": {
-        "reference": "CUST-9",
+        "reference": {
+          "value": "CUST-9"
+        },
         "name": "Ada",
         "email": {
           "address": "a@b.c"
@@ -351,8 +587,13 @@
       "verb": "Banking::Account.LedgerEntry.Amend",
       "args": {
         "id": "acct-1",
-        "sequence": 1,
-        "adjustment": 500,
+        "sequence": {
+          "value": 1
+        },
+        "adjustment": {
+          "cents": 500,
+          "currency": "USD"
+        },
         "narrative": {
           "text": "Corrected — posted for the wrong amount"
         }
@@ -362,8 +603,13 @@
       "verb": "Banking::Account.LedgerEntry.Amend",
       "args": {
         "id": "acct-1",
-        "sequence": 1,
-        "adjustment": "a lot",
+        "sequence": {
+          "value": 1
+        },
+        "adjustment": {
+          "cents": "a lot",
+          "currency": "USD"
+        },
         "narrative": {
           "text": "Corrected — posted for the wrong amount"
         }
@@ -373,202 +619,322 @@
       "verb": "Banking::Account.LedgerEntry.Amend",
       "args": {
         "id": "acct-1",
-        "sequence": 2,
-        "adjustment": 100,
+        "sequence": {
+          "value": 2
+        },
+        "adjustment": {
+          "cents": 100,
+          "currency": "USD"
+        },
         "narrative": {
           "text": "Corrected — posted for the wrong amount"
         }
       }
     },
     {
-      "query": "Banking::Account.Open"
+      "query": "Banking::Account.Open",
+      "args": {
+      }
     },
     {
       "query": "Banking::Account.Overdrawn",
       "args": {
-        "floor": 70000
+        "floor": {
+          "cents": 70000,
+          "currency": "USD"
+        }
       }
     },
     {
-      "query": "Banking::Customer.InGoodStanding"
+      "query": "Banking::Customer.InGoodStanding",
+      "args": {
+      }
     },
     {
-      "query": "Banking::Customer.Suspended"
+      "query": "Banking::Customer.Suspended",
+      "args": {
+      }
     },
     {
-      "query": "Banking::Transfer.InFlight"
+      "query": "Banking::Transfer.InFlight",
+      "args": {
+      }
     },
     {
-      "query": "Banking::Account.LedgerEntry.Reversed"
+      "query": "Banking::Account.LedgerEntry.Reversed",
+      "args": {
+      }
     },
     {
       "verb": "Banking::Customer.Close",
       "args": {
-        "customer": "CUST-0001"
+        "reference": {
+          "value": "CUST-0001"
+        }
       }
     },
     {
       "verb": "Banking::ATMCard.Issue",
       "args": {
-        "serial": "CARD-1",
-        "account": "acct-1",
-        "daily_fee": 2.5
+        "serial": {
+          "value": "CARD-1"
+        },
+        "daily_fee": {
+          "amount": 2.5
+        },
+        "account_id": {
+          "value": "acct-1"
+        }
       }
     },
     {
       "verb": "Banking::ATMCard.Issue",
       "args": {
-        "serial": "CARD-2",
-        "account": "acct-1",
-        "daily_fee": 0.75
+        "serial": {
+          "value": "CARD-2"
+        },
+        "daily_fee": {
+          "amount": 0.75
+        },
+        "account_id": {
+          "value": "acct-1"
+        }
       }
     },
     {
       "verb": "Banking::ATMCard.Issue",
       "args": {
-        "serial": "CARD-3",
-        "account": "acct-1",
-        "daily_fee": 10
+        "serial": {
+          "value": "CARD-3"
+        },
+        "daily_fee": {
+          "amount": 10
+        },
+        "account_id": {
+          "value": "acct-1"
+        }
       }
     },
     {
       "verb": "Banking::ATMCard.Issue",
       "args": {
-        "serial": "CARD-4",
-        "account": "acct-1",
-        "daily_fee": 1.5
+        "serial": {
+          "value": "CARD-4"
+        },
+        "daily_fee": {
+          "amount": 1.5
+        },
+        "account_id": {
+          "value": "acct-1"
+        }
       }
     },
     {
       "verb": "Banking::ATMCard.Issue",
       "args": {
-        "serial": "",
-        "account": "acct-1",
-        "daily_fee": 1
+        "serial": {
+          "value": ""
+        },
+        "daily_fee": {
+          "amount": 1
+        },
+        "account_id": {
+          "value": "acct-1"
+        }
       }
     },
     {
       "verb": "Banking::ATMCard.Activate",
       "args": {
-        "serial": "CARD-1"
+        "serial": {
+          "value": "CARD-1"
+        }
       }
     },
     {
       "verb": "Banking::ATMCard.Activate",
       "args": {
-        "serial": "CARD-2"
+        "serial": {
+          "value": "CARD-2"
+        }
       }
     },
     {
       "verb": "Banking::ATMCard.Activate",
       "args": {
-        "serial": "CARD-3"
+        "serial": {
+          "value": "CARD-3"
+        }
       }
     },
     {
       "verb": "Banking::ATMCard.Activate",
       "args": {
-        "serial": "CARD-4"
+        "serial": {
+          "value": "CARD-4"
+        }
       }
     },
     {
       "verb": "Banking::ATMCard.Activate",
       "args": {
-        "serial": "CARD-1"
+        "serial": {
+          "value": "CARD-1"
+        }
       }
     },
     {
       "verb": "Banking::ATMCard.Rename",
       "args": {
-        "serial": "CARD-2",
-        "nickname": "Travel"
+        "serial": {
+          "value": "CARD-2"
+        },
+        "nickname": {
+          "value": "Travel"
+        }
       }
     },
     {
       "verb": "Banking::ATMCard.Rename",
       "args": {
-        "serial": "CARD-3",
-        "nickname": "Groceries"
+        "serial": {
+          "value": "CARD-3"
+        },
+        "nickname": {
+          "value": "Groceries"
+        }
       }
     },
     {
       "verb": "Banking::ATMCard.Rename",
       "args": {
-        "serial": null,
+        "serial": {
+          "value": null
+        },
         "id": "CARD-4",
-        "nickname": "Backup"
+        "nickname": {
+          "value": "Backup"
+        }
       }
     },
     {
       "verb": "Banking::ATMCard.Withdraw",
       "args": {
-        "serial": "CARD-1",
-        "cents": 4000,
-        "narrative": "Airport cash"
+        "serial": {
+          "value": "CARD-1"
+        },
+        "cents": {
+          "cents": 4000
+        },
+        "narrative": {
+          "text": "Airport cash"
+        }
       }
     },
     {
       "verb": "Banking::ATMCard.Withdraw",
       "args": {
-        "serial": "CARD-1",
-        "cents": 1500,
-        "narrative": "Market"
+        "serial": {
+          "value": "CARD-1"
+        },
+        "cents": {
+          "cents": 1500
+        },
+        "narrative": {
+          "text": "Market"
+        }
       }
     },
     {
       "verb": "Banking::ATMCard.Withdraw",
       "args": {
-        "serial": "CARD-1",
-        "cents": 9000,
-        "narrative": "Deposit for the flat"
+        "serial": {
+          "value": "CARD-1"
+        },
+        "cents": {
+          "cents": 9000
+        },
+        "narrative": {
+          "text": "Deposit for the flat"
+        }
       }
     },
     {
       "verb": "Banking::ATMCard.Withdraw",
       "args": {
-        "serial": "CARD-1",
-        "cents": 0,
-        "narrative": "Nothing at all"
+        "serial": {
+          "value": "CARD-1"
+        },
+        "cents": {
+          "cents": 0
+        },
+        "narrative": {
+          "text": "Nothing at all"
+        }
       }
     },
     {
       "verb": "Banking::ATMCard.Withdrawal.Dispute",
       "args": {
-        "serial": "CARD-1",
-        "sequence": 2,
-        "narrative": "Not mine"
+        "serial": {
+          "value": "CARD-1"
+        },
+        "sequence": {
+          "value": 2
+        },
+        "narrative": {
+          "text": "Not mine"
+        }
       }
     },
     {
       "verb": "Banking::ATMCard.Withdrawal.Dispute",
       "args": {
-        "serial": "CARD-1",
-        "sequence": 2,
-        "narrative": "Twice over"
+        "serial": {
+          "value": "CARD-1"
+        },
+        "sequence": {
+          "value": 2
+        },
+        "narrative": {
+          "text": "Twice over"
+        }
       }
     },
     {
-      "query": "Banking::ATMCard.Active"
+      "query": "Banking::ATMCard.Active",
+      "args": {
+      }
     },
     {
-      "query": "Banking::ATMCard.ByFee"
+      "query": "Banking::ATMCard.ByFee",
+      "args": {
+      }
     },
     {
-      "query": "Banking::ATMCard.Withdrawal.Recent"
+      "query": "Banking::ATMCard.Withdrawal.Recent",
+      "args": {
+      }
     },
     {
       "verb": "Banking::ATMCard.Retire",
       "args": {
-        "serial": "CARD-3"
+        "serial": {
+          "value": "CARD-3"
+        }
       }
     },
     {
-      "query": "Banking::ATMCard.Active"
+      "query": "Banking::ATMCard.Active",
+      "args": {
+      }
     },
     {
       "verb": "Banking::Customer.Register",
       "args": {
-        "reference": "CUST-0002",
+        "reference": {
+          "value": "CUST-0002"
+        },
         "name": {
           "given": "Grace",
           "family": "Hopper"
@@ -581,46 +947,66 @@
     {
       "verb": "Banking::Customer.Suspend",
       "args": {
-        "customer": "CUST-0002",
-        "standing": ""
+        "standing": {
+          "value": ""
+        },
+        "reference": {
+          "value": "CUST-0002"
+        }
       }
     },
     {
       "verb": "Banking::Customer.Suspend",
       "args": {
-        "customer": "CUST-0002",
-        "standing": "under review"
+        "standing": {
+          "value": "under review"
+        },
+        "reference": {
+          "value": "CUST-0002"
+        }
       }
     },
     {
       "verb": "Banking::Customer.Close",
       "args": {
-        "customer": "CUST-0002"
+        "reference": {
+          "value": "CUST-0002"
+        }
       }
     },
     {
       "verb": "Banking::Customer.Close",
       "args": {
-        "customer": "CUST-0002"
+        "reference": {
+          "value": "CUST-0002"
+        }
       }
     },
     {
       "verb": "Banking::Customer.Suspend",
       "args": {
-        "customer": "CUST-0001",
-        "standing": "after the relationship ended"
+        "standing": {
+          "value": "after the relationship ended"
+        },
+        "reference": {
+          "value": "CUST-0001"
+        }
       }
     },
     {
       "verb": "Banking::Customer.Reinstate",
       "args": {
-        "customer": "CUST-0001"
+        "reference": {
+          "value": "CUST-0001"
+        }
       }
     },
     {
       "verb": "Banking::Customer.Register",
       "args": {
-        "reference": "CUST-0003",
+        "reference": {
+          "value": "CUST-0003"
+        },
         "name": {
           "given": "",
           "family": "Nameless"
@@ -633,7 +1019,9 @@
     {
       "verb": "Banking::Customer.Register",
       "args": {
-        "reference": "CUST-0004",
+        "reference": {
+          "value": "CUST-0004"
+        },
         "name": {
           "given": "Only",
           "family": ""
@@ -646,7 +1034,9 @@
     {
       "verb": "Banking::Customer.Register",
       "args": {
-        "reference": "CUST-0001",
+        "reference": {
+          "value": "CUST-0001"
+        },
         "name": {
           "given": "Someone",
           "family": "Else"
@@ -660,60 +1050,96 @@
       "verb": "Banking::Account.Open",
       "args": {
         "id": "acct-3",
-        "customer": "CUST-0002",
-        "number": "ACC-3",
+        "number": {
+          "value": "ACC-3"
+        },
         "kind": {
           "name": "current"
         },
-        "daily_limit": 1000
+        "daily_limit": {
+          "cents": 1000
+        },
+        "customer_id": {
+          "value": "CUST-0002"
+        }
       }
     },
     {
       "verb": "Banking::Account.Credit",
       "args": {
         "id": "acct-3",
-        "amount": 1000,
-        "narrative": "Opening deposit"
+        "amount": {
+          "cents": 1000,
+          "currency": "USD"
+        },
+        "narrative": {
+          "text": "Opening deposit"
+        }
       }
     },
     {
       "verb": "Banking::Account.Debit",
       "args": {
         "id": "acct-3",
-        "amount": 1000,
-        "narrative": "Exactly the balance and exactly the limit"
+        "amount": {
+          "cents": 1000,
+          "currency": "USD"
+        },
+        "narrative": {
+          "text": "Exactly the balance and exactly the limit"
+        }
       }
     },
     {
       "verb": "Banking::Account.Debit",
       "args": {
         "id": "acct-3",
-        "amount": 1,
-        "narrative": "One past empty"
+        "amount": {
+          "cents": 1,
+          "currency": "USD"
+        },
+        "narrative": {
+          "text": "One past empty"
+        }
       }
     },
     {
       "verb": "Banking::Account.Credit",
       "args": {
         "id": "acct-3",
-        "amount": -5000,
-        "narrative": "A credit that takes money away"
+        "amount": {
+          "cents": -5000,
+          "currency": "USD"
+        },
+        "narrative": {
+          "text": "A credit that takes money away"
+        }
       }
     },
     {
       "verb": "Banking::Account.Debit",
       "args": {
         "id": "acct-3",
-        "amount": -5000,
-        "narrative": "A debit that puts money in"
+        "amount": {
+          "cents": -5000,
+          "currency": "USD"
+        },
+        "narrative": {
+          "text": "A debit that puts money in"
+        }
       }
     },
     {
       "verb": "Banking::Account.Credit",
       "args": {
         "id": "acct-3",
-        "amount": 100,
-        "narrative": ""
+        "amount": {
+          "cents": 100,
+          "currency": "USD"
+        },
+        "narrative": {
+          "text": ""
+        }
       }
     },
     {
@@ -726,16 +1152,26 @@
       "verb": "Banking::Account.Credit",
       "args": {
         "id": "acct-3",
-        "amount": 25.5,
-        "narrative": "Half of one"
+        "amount": {
+          "cents": 25.5,
+          "currency": "USD"
+        },
+        "narrative": {
+          "text": "Half of one"
+        }
       }
     },
     {
       "verb": "Banking::Account.Credit",
       "args": {
         "id": "acct-3",
-        "amount": "100",
-        "narrative": "A numeral wearing quotes"
+        "amount": {
+          "cents": "100",
+          "currency": "USD"
+        },
+        "narrative": {
+          "text": "A numeral wearing quotes"
+        }
       }
     },
     {
@@ -745,50 +1181,80 @@
         "amount": {
           "cents": 100
         },
-        "narrative": "A value object where an Integer is declared"
+        "narrative": {
+          "text": "A value object where an Integer is declared"
+        }
       }
     },
     {
       "verb": "Banking::Account.Credit",
       "args": {
         "id": "acct-3",
-        "narrative": "No amount at all"
+        "narrative": {
+          "text": "No amount at all"
+        }
       }
     },
     {
       "verb": "Banking::Account.Credit",
       "args": {
         "id": "acct-3",
-        "amount": 100,
-        "narrative": "An attribute the command never declared",
+        "amount": {
+          "cents": 100,
+          "currency": "USD"
+        },
+        "narrative": {
+          "text": "An attribute the command never declared"
+        },
         "colour": "red"
       }
     },
     {
       "verb": "Banking::Account.Credit",
       "args": {
-        "amount": 100,
-        "narrative": "No account named at all"
+        "amount": {
+          "cents": 100,
+          "currency": "USD"
+        },
+        "narrative": {
+          "text": "No account named at all"
+        }
       }
     },
     {
       "verb": "Banking::Account.Open",
       "args": {
         "id": "acct-3",
-        "customer": "CUST-0002",
-        "number": "ACC-3-AGAIN",
-        "kind": "savings",
-        "daily_limit": 99
+        "number": {
+          "value": "ACC-3-AGAIN"
+        },
+        "kind": {
+          "name": "savings"
+        },
+        "daily_limit": {
+          "cents": 99
+        },
+        "customer_id": {
+          "value": "CUST-0002"
+        }
       }
     },
     {
       "verb": "Banking::Account.Open",
       "args": {
         "id": "acct-4",
-        "customer": "CUST-0002",
-        "number": "ACC-4",
-        "kind": "current",
-        "daily_limit": 100
+        "number": {
+          "value": "ACC-4"
+        },
+        "kind": {
+          "name": "current"
+        },
+        "daily_limit": {
+          "cents": 100
+        },
+        "customer_id": {
+          "value": "CUST-0002"
+        }
       }
     },
     {
@@ -813,104 +1279,183 @@
       "verb": "Banking::Account.Open",
       "args": {
         "id": "acct-5",
-        "customer": "CUST-0002",
-        "number": "ACC-5",
-        "kind": "savings",
-        "daily_limit": -1
+        "number": {
+          "value": "ACC-5"
+        },
+        "kind": {
+          "name": "savings"
+        },
+        "daily_limit": {
+          "cents": -1
+        },
+        "customer_id": {
+          "value": "CUST-0002"
+        }
       }
     },
     {
       "verb": "Banking::Account.Credit",
       "args": {
         "id": "acct-5",
-        "amount": 500,
-        "narrative": "Funded, and unspendable"
+        "amount": {
+          "cents": 500,
+          "currency": "USD"
+        },
+        "narrative": {
+          "text": "Funded, and unspendable"
+        }
       }
     },
     {
       "verb": "Banking::Account.Debit",
       "args": {
         "id": "acct-5",
-        "amount": 1,
-        "narrative": "A limit below every amount there is"
+        "amount": {
+          "cents": 1,
+          "currency": "USD"
+        },
+        "narrative": {
+          "text": "A limit below every amount there is"
+        }
       }
     },
     {
       "verb": "Banking::Account.Open",
       "args": {
         "id": "acct-6",
-        "customer": "CUST-0002",
-        "number": "ACC-6",
-        "kind": "current",
-        "daily_limit": "lots"
+        "number": {
+          "value": "ACC-6"
+        },
+        "kind": {
+          "name": "current"
+        },
+        "daily_limit": {
+          "cents": "lots"
+        },
+        "customer_id": {
+          "value": "CUST-0002"
+        }
       }
     },
     {
       "verb": "Banking::Account.Open",
       "args": {
         "id": "acct-7",
-        "customer": "CUST-0002",
-        "number": "ACC-7",
-        "kind": "current",
-        "daily_limit": 10000
+        "number": {
+          "value": "ACC-7"
+        },
+        "kind": {
+          "name": "current"
+        },
+        "daily_limit": {
+          "cents": 10000
+        },
+        "customer_id": {
+          "value": "CUST-0002"
+        }
       }
     },
     {
       "verb": "Banking::Account.Open",
       "args": {
         "id": "acct-8",
-        "customer": "CUST-0002",
-        "number": "ACC-8",
-        "kind": "current",
-        "daily_limit": 10000
+        "number": {
+          "value": "ACC-8"
+        },
+        "kind": {
+          "name": "current"
+        },
+        "daily_limit": {
+          "cents": 10000
+        },
+        "customer_id": {
+          "value": "CUST-0002"
+        }
       }
     },
     {
       "verb": "Banking::Account.Credit",
       "args": {
         "id": "acct-8",
-        "amount": 5000,
-        "narrative": "Funding the source"
+        "amount": {
+          "cents": 5000,
+          "currency": "USD"
+        },
+        "narrative": {
+          "text": "Funding the source"
+        }
       }
     },
     {
       "verb": "Banking::Transfer.Request",
       "args": {
         "id": "xfer-nosource",
-        "source": "",
-        "destination": "acct-7",
-        "amount": 100,
-        "narrative": "From nowhere named"
+        "source": {
+          "value": ""
+        },
+        "destination": {
+          "value": "acct-7"
+        },
+        "amount": {
+          "cents": 100
+        },
+        "narrative": {
+          "text": "From nowhere named"
+        }
       }
     },
     {
       "verb": "Banking::Transfer.Request",
       "args": {
         "id": "xfer-nodest",
-        "source": "acct-8",
-        "destination": "",
-        "amount": 100,
-        "narrative": "To nowhere named"
+        "source": {
+          "value": "acct-8"
+        },
+        "destination": {
+          "value": ""
+        },
+        "amount": {
+          "cents": 100
+        },
+        "narrative": {
+          "text": "To nowhere named"
+        }
       }
     },
     {
       "verb": "Banking::Transfer.Request",
       "args": {
         "id": "xfer-neg",
-        "source": "acct-8",
-        "destination": "acct-7",
-        "amount": -100,
-        "narrative": "A transfer that runs backwards"
+        "source": {
+          "value": "acct-8"
+        },
+        "destination": {
+          "value": "acct-7"
+        },
+        "amount": {
+          "cents": -100
+        },
+        "narrative": {
+          "text": "A transfer that runs backwards"
+        }
       }
     },
     {
       "verb": "Banking::Transfer.Request",
       "args": {
         "id": "xfer-nonarr",
-        "source": "acct-8",
-        "destination": "acct-7",
-        "amount": 100,
-        "narrative": ""
+        "source": {
+          "value": "acct-8"
+        },
+        "destination": {
+          "value": "acct-7"
+        },
+        "amount": {
+          "cents": 100
+        },
+        "narrative": {
+          "text": ""
+        }
       }
     },
     {
@@ -923,137 +1468,212 @@
       "verb": "Banking::Transfer.Request",
       "args": {
         "id": "xfer-4",
-        "source": "acct-8",
-        "destination": "acct-7",
-        "amount": 1000,
-        "narrative": "Into a frozen destination"
+        "source": {
+          "value": "acct-8"
+        },
+        "destination": {
+          "value": "acct-7"
+        },
+        "amount": {
+          "cents": 1000
+        },
+        "narrative": {
+          "text": "Into a frozen destination"
+        }
       }
     },
     {
-      "query": "Banking::Transfer.InFlight"
+      "query": "Banking::Transfer.InFlight",
+      "args": {
+      }
     },
     {
       "verb": "Banking::Transfer.Reject",
       "args": {
-        "transfer": "xfer-4"
+        "id": "xfer-4"
       }
     },
     {
       "verb": "Banking::Transfer.Debited",
       "args": {
-        "transfer": "xfer-4"
+        "id": "xfer-4"
       }
     },
     {
       "verb": "Banking::Transfer.Settle",
       "args": {
-        "transfer": "xfer-4"
+        "id": "xfer-4"
       }
     },
     {
-      "query": "Banking::Transfer.InFlight"
+      "verb": "Banking::Transfer.Credited",
+      "args": {
+        "id": "xfer-4"
+      }
+    },
+    {
+      "query": "Banking::Transfer.InFlight",
+      "args": {
+      }
     },
     {
       "verb": "Banking::Transfer.Request",
       "args": {
         "id": "xfer-5",
-        "source": "acct-ghost",
-        "destination": "acct-7",
-        "amount": 100,
-        "narrative": "Out of an account that never existed"
+        "source": {
+          "value": "acct-ghost"
+        },
+        "destination": {
+          "value": "acct-7"
+        },
+        "amount": {
+          "cents": 100
+        },
+        "narrative": {
+          "text": "Out of an account that never existed"
+        }
       }
     },
     {
       "verb": "Banking::Transfer.Reverse",
       "args": {
-        "transfer": "xfer-5"
+        "id": "xfer-5"
       }
     },
     {
       "verb": "Banking::Transfer.Reject",
       "args": {
-        "transfer": "xfer-5"
+        "id": "xfer-5"
       }
     },
     {
       "verb": "Banking::ATMCard.Issue",
       "args": {
-        "serial": "CARD-5",
-        "account": "acct-8",
-        "daily_fee": 3.25
+        "serial": {
+          "value": "CARD-5"
+        },
+        "daily_fee": {
+          "amount": 3.25
+        },
+        "account_id": {
+          "value": "acct-8"
+        }
       }
     },
     {
       "verb": "Banking::ATMCard.Retire",
       "args": {
-        "serial": "CARD-5"
+        "serial": {
+          "value": "CARD-5"
+        }
       }
     },
     {
       "verb": "Banking::ATMCard.Retire",
       "args": {
-        "serial": "CARD-5"
+        "serial": {
+          "value": "CARD-5"
+        }
       }
     },
     {
       "verb": "Banking::ATMCard.Activate",
       "args": {
-        "serial": "CARD-5"
+        "serial": {
+          "value": "CARD-5"
+        }
       }
     },
     {
       "verb": "Banking::ATMCard.Issue",
       "args": {
-        "serial": "CARD-1",
-        "account": "acct-8",
-        "daily_fee": 9.99
+        "serial": {
+          "value": "CARD-1"
+        },
+        "daily_fee": {
+          "amount": 9.99
+        },
+        "account_id": {
+          "value": "acct-8"
+        }
       }
     },
     {
       "verb": "Banking::ATMCard.Withdraw",
       "args": {
-        "serial": "CARD-3",
-        "cents": 500,
-        "narrative": "Cash from a card taken out of service"
+        "serial": {
+          "value": "CARD-3"
+        },
+        "cents": {
+          "cents": 500
+        },
+        "narrative": {
+          "text": "Cash from a card taken out of service"
+        }
       }
     },
     {
       "verb": "Banking::ATMCard.Rename",
       "args": {
-        "serial": "CARD-3",
-        "nickname": "Renamed after retirement"
+        "serial": {
+          "value": "CARD-3"
+        },
+        "nickname": {
+          "value": "Renamed after retirement"
+        }
       }
     },
     {
       "verb": "Banking::ATMCard.Withdraw",
       "args": {
-        "serial": "CARD-1",
-        "cents": -100,
-        "narrative": "A handful that puts cash back"
+        "serial": {
+          "value": "CARD-1"
+        },
+        "cents": {
+          "cents": -100
+        },
+        "narrative": {
+          "text": "A handful that puts cash back"
+        }
       }
     },
     {
       "verb": "Banking::ATMCard.Withdrawal.Dispute",
       "args": {
-        "serial": "CARD-1",
-        "sequence": 99,
-        "narrative": "No such handful"
+        "serial": {
+          "value": "CARD-1"
+        },
+        "sequence": {
+          "value": 99
+        },
+        "narrative": {
+          "text": "No such handful"
+        }
       }
     },
     {
       "verb": "Banking::Account.LedgerEntry.Reverse",
       "args": {
         "id": "acct-ghost",
-        "sequence": 1,
-        "narrative": "No such account to reverse on"
+        "sequence": {
+          "value": 1
+        },
+        "narrative": {
+          "text": "No such account to reverse on"
+        }
       }
     },
     {
       "verb": "Banking::Account.LedgerEntry.Amend",
       "args": {
         "id": "acct-8",
-        "sequence": 1,
-        "adjustment": -999999,
+        "sequence": {
+          "value": 1
+        },
+        "adjustment": {
+          "cents": -999999,
+          "currency": "USD"
+        },
         "narrative": {
           "text": "Amended to below nothing"
         }
@@ -1062,32 +1682,460 @@
     {
       "query": "Banking::Account.Overdrawn",
       "args": {
-        "floor": 0
+        "floor": {
+          "cents": 0,
+          "currency": "USD"
+        }
       }
     },
     {
       "query": "Banking::Account.Overdrawn",
       "args": {
-        "floor": "lots"
+        "floor": {
+          "cents": "lots",
+          "currency": "USD"
+        }
       }
     },
     {
-      "query": "Banking::Account.Overdrawn"
+      "query": "Banking::Account.Overdrawn",
+      "args": {
+      }
     },
     {
-      "query": "Banking::Account.Open"
+      "query": "Banking::Account.Open",
+      "args": {
+      }
     },
     {
-      "query": "Banking::Customer.InGoodStanding"
+      "query": "Banking::Customer.InGoodStanding",
+      "args": {
+      }
     },
     {
-      "query": "Banking::ATMCard.Active"
+      "query": "Banking::ATMCard.Active",
+      "args": {
+      }
     },
     {
-      "query": "Banking::ATMCard.ByFee"
+      "query": "Banking::ATMCard.ByFee",
+      "args": {
+      }
     },
     {
-      "query": "Banking::Transfer.InFlight"
+      "query": "Banking::Transfer.InFlight",
+      "args": {
+      }
+    },
+    {
+      "verb": "Banking::Account.ApplyFee",
+      "args": {
+        "id": "acct-8",
+        "amount": {
+          "cents": 100,
+          "currency": "USD"
+        },
+        "narrative": {
+          "text": "Monthly maintenance"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.CorrectFee",
+      "args": {
+        "id": "acct-8",
+        "amount": {
+          "cents": 50,
+          "currency": "USD"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.CorrectFee",
+      "args": {
+        "id": "acct-8",
+        "amount": {
+          "cents": 100,
+          "currency": "USD"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.ApplyFee",
+      "args": {
+        "id": "acct-8",
+        "amount": {
+          "cents": -1,
+          "currency": "USD"
+        },
+        "narrative": {
+          "text": "A fee that pays the customer"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.AccrueInterest",
+      "args": {
+        "id": "acct-8",
+        "amount": {
+          "cents": 30,
+          "currency": "USD"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.CorrectInterest",
+      "args": {
+        "id": "acct-8",
+        "amount": {
+          "cents": 10,
+          "currency": "USD"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.CorrectInterest",
+      "args": {
+        "id": "acct-8",
+        "amount": {
+          "cents": 30,
+          "currency": "USD"
+        }
+      }
+    },
+    {
+      "verb": "Banking::CardPayment.Authorize",
+      "args": {
+        "id": "pay-refund",
+        "amount": {
+          "cents": 500
+        },
+        "merchant": {
+          "value": "Grocer"
+        },
+        "account_id": {
+          "value": "acct-8"
+        }
+      }
+    },
+    {
+      "verb": "Banking::CardPayment.Capture",
+      "args": {
+        "id": "pay-refund"
+      }
+    },
+    {
+      "verb": "Banking::CardPayment.Refund",
+      "args": {
+        "id": "pay-refund"
+      }
+    },
+    {
+      "verb": "Banking::CardPayment.Refund",
+      "args": {
+        "id": "pay-refund"
+      }
+    },
+    {
+      "verb": "Banking::CardPayment.Authorize",
+      "args": {
+        "id": "pay-void",
+        "amount": {
+          "cents": 250
+        },
+        "merchant": {
+          "value": "Hotel"
+        },
+        "account_id": {
+          "value": "acct-8"
+        }
+      }
+    },
+    {
+      "verb": "Banking::CardPayment.Void",
+      "args": {
+        "id": "pay-void"
+      }
+    },
+    {
+      "verb": "Banking::CardPayment.Capture",
+      "args": {
+        "id": "pay-void"
+      }
+    },
+    {
+      "verb": "Banking::CardPayment.Authorize",
+      "args": {
+        "id": "pay-chargeback",
+        "amount": {
+          "cents": 300
+        },
+        "merchant": {
+          "value": "Airline"
+        },
+        "account_id": {
+          "value": "acct-8"
+        }
+      }
+    },
+    {
+      "verb": "Banking::CardPayment.Capture",
+      "args": {
+        "id": "pay-chargeback"
+      }
+    },
+    {
+      "verb": "Banking::CardPayment.Dispute",
+      "args": {
+        "id": "pay-chargeback"
+      }
+    },
+    {
+      "verb": "Banking::CardPayment.Chargeback",
+      "args": {
+        "id": "pay-chargeback"
+      }
+    },
+    {
+      "verb": "Banking::CardPayment.RejectDispute",
+      "args": {
+        "id": "pay-chargeback"
+      }
+    },
+    {
+      "verb": "Banking::CardPayment.Authorize",
+      "args": {
+        "id": "pay-reversal",
+        "amount": {
+          "cents": 125
+        },
+        "merchant": {
+          "value": "Books"
+        },
+        "account_id": {
+          "value": "acct-8"
+        }
+      }
+    },
+    {
+      "verb": "Banking::CardPayment.Capture",
+      "args": {
+        "id": "pay-reversal"
+      }
+    },
+    {
+      "verb": "Banking::CardPayment.Reverse",
+      "args": {
+        "id": "pay-reversal"
+      }
+    },
+    {
+      "verb": "Banking::CardPayment.Refund",
+      "args": {
+        "id": "pay-reversal"
+      }
+    },
+    {
+      "verb": "Banking::CardPayment.Authorize",
+      "args": {
+        "id": "pay-bad",
+        "amount": {
+          "cents": 0
+        },
+        "merchant": {
+          "value": ""
+        },
+        "account_id": {
+          "value": "acct-8"
+        }
+      }
+    },
+    {
+      "query": "Banking::CardPayment.Pending",
+      "args": {
+      }
+    },
+    {
+      "query": "Banking::CardPayment.Disputed",
+      "args": {
+      }
+    },
+    {
+      "verb": "Banking::ExternalTransfer.Request",
+      "args": {
+        "id": "ext-recall",
+        "amount": {
+          "cents": 200
+        },
+        "beneficiary": {
+          "value": "Other Bank"
+        },
+        "account_id": {
+          "value": "acct-8"
+        }
+      }
+    },
+    {
+      "verb": "Banking::ExternalTransfer.Send",
+      "args": {
+        "id": "ext-recall"
+      }
+    },
+    {
+      "verb": "Banking::ExternalTransfer.Recall",
+      "args": {
+        "id": "ext-recall"
+      }
+    },
+    {
+      "verb": "Banking::ExternalTransfer.Return",
+      "args": {
+        "id": "ext-recall"
+      }
+    },
+    {
+      "verb": "Banking::ExternalTransfer.Request",
+      "args": {
+        "id": "ext-return",
+        "amount": {
+          "cents": 200
+        },
+        "beneficiary": {
+          "value": "Closed destination"
+        },
+        "account_id": {
+          "value": "acct-8"
+        }
+      }
+    },
+    {
+      "verb": "Banking::ExternalTransfer.Send",
+      "args": {
+        "id": "ext-return"
+      }
+    },
+    {
+      "verb": "Banking::ExternalTransfer.Return",
+      "args": {
+        "id": "ext-return"
+      }
+    },
+    {
+      "verb": "Banking::ExternalTransfer.Recall",
+      "args": {
+        "id": "ext-return"
+      }
+    },
+    {
+      "verb": "Banking::ExternalTransfer.Request",
+      "args": {
+        "id": "ext-bad",
+        "amount": {
+          "cents": 0
+        },
+        "beneficiary": {
+          "value": ""
+        },
+        "account_id": {
+          "value": "acct-8"
+        }
+      }
+    },
+    {
+      "query": "Banking::ExternalTransfer.Sent",
+      "args": {
+      }
+    },
+    {
+      "verb": "Banking::ScheduledPayment.Schedule",
+      "args": {
+        "id": "schedule-execute",
+        "amount": {
+          "cents": 75
+        },
+        "recipient": {
+          "value": "Landlord"
+        },
+        "due_on": {
+          "value": "2026-08-01"
+        },
+        "account_id": {
+          "value": "acct-8"
+        }
+      }
+    },
+    {
+      "verb": "Banking::ScheduledPayment.Execute",
+      "args": {
+        "id": "schedule-execute"
+      }
+    },
+    {
+      "verb": "Banking::ScheduledPayment.Cancel",
+      "args": {
+        "id": "schedule-execute"
+      }
+    },
+    {
+      "verb": "Banking::ScheduledPayment.Schedule",
+      "args": {
+        "id": "schedule-cancel",
+        "amount": {
+          "cents": 50
+        },
+        "recipient": {
+          "value": "Gym"
+        },
+        "due_on": {
+          "value": "2026-08-02"
+        },
+        "account_id": {
+          "value": "acct-8"
+        }
+      }
+    },
+    {
+      "verb": "Banking::ScheduledPayment.Cancel",
+      "args": {
+        "id": "schedule-cancel"
+      }
+    },
+    {
+      "verb": "Banking::ScheduledPayment.Execute",
+      "args": {
+        "id": "schedule-cancel"
+      }
+    },
+    {
+      "verb": "Banking::ScheduledPayment.Schedule",
+      "args": {
+        "id": "schedule-bad",
+        "amount": {
+          "cents": 0
+        },
+        "recipient": {
+          "value": ""
+        },
+        "due_on": {
+          "value": ""
+        },
+        "account_id": {
+          "value": "acct-8"
+        }
+      }
+    },
+    {
+      "query": "Banking::ScheduledPayment.Due",
+      "args": {
+      }
+    },
+    {
+      "query": "Banking.customer_portfolio",
+      "args": {
+        "customer": {
+          "value": "CUST-0001"
+        }
+      }
     }
   ]
 }

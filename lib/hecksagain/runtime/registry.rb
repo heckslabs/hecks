@@ -18,6 +18,7 @@ module Hecksagain
         @saga_log = []
         @saga_instances = Hash.new { |h, k| h[k] = {} }
         @repositories = {}
+        @projection_repositories = {}
       end
 
       def add_bluebook(item)  = @bluebooks[item.name]  = item
@@ -33,8 +34,36 @@ module Hecksagain
       def verbs = @bluebooks.values.flat_map(&:verbs).sort
 
       def repository(domain, aggregate)
-        @repositories[[domain.to_s, aggregate.name]] ||=
-          Ports::Persistence.repository(self, domain, aggregate)
+        @repositories[[domain.to_s, aggregate.name]] ||= Ports::Persistence.repository(self, domain, aggregate)
+      end
+
+      def read_repository(domain, aggregate)
+        key = [domain.to_s, aggregate.name]
+        binding = Ports::Projection.binds_for(self, domain, aggregate).first
+        return repository(domain, aggregate) unless binding
+
+        projection = (@projection_repositories[key] ||= begin
+          projection = Ports::Persistence::RepositoryFactory.build(self, domain, aggregate, binding,
+                                                                    recover: true, settings_verb: Ports::Projection::VERB)
+          projection
+        end)
+        authoritative = repository(domain, aggregate)
+        projection_current?(projection, authoritative) ? projection : authoritative
+      end
+
+      def projection_current?(projection, authoritative)
+        projected_entries = projection.entries
+        source_entries = authoritative.entries
+        return false unless projected_entries.length == source_entries.length
+        return false unless projected_entries.zip(source_entries).all? do |projected, source|
+          projected.operation == source.operation && projected.id == source.id && projected.state == source.state
+        end
+
+        projected_rows = projection.all.map(&:to_h).sort_by { |row| row.fetch(:id).to_s }
+        source_rows = authoritative.all.map(&:to_h).sort_by { |row| row.fetch(:id).to_s }
+        projected_rows == source_rows
+      rescue StandardError
+        false
       end
 
       def verify!

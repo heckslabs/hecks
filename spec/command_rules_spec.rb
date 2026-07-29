@@ -24,9 +24,9 @@ RSpec.describe "the rules a command obeys" do
   def boot_till    = boot(RULES_TILL)
 
   def funded_account(runtime)
-    runtime.dispatch("Banking::Account.Open", id: "a1", customer: "c", number: "ACC-1",
-                                              kind: "current", daily_limit: 50_000)
-    runtime.dispatch("Banking::Account.Credit", id: "a1", amount: 10_000, narrative: "Opening")
+    runtime.dispatch("Banking::Account.Open", id: "a1", customer_id: { value: "c" }, number: { value: "ACC-1" },
+                                              kind: { name: "current" }, daily_limit: { cents: 50_000 })
+    runtime.dispatch("Banking::Account.Credit", id: "a1", amount: { cents: 10_000, currency: "USD" }, narrative: { text: "Opening" })
     runtime
   end
 
@@ -39,8 +39,7 @@ RSpec.describe "the rules a command obeys" do
 
       expect do
         runtime.dispatch("TillRoom::Till.TakeIn", id: "till-1", amount: "a lot")
-      end.to raise_error(Hecksagain::Runtime::TypeMismatch,
-                         'increment of balance needs an Integer, got "a lot"')
+      end.to raise_error(Hecksagain::Runtime::TypeMismatch, /pass its fields as an object/)
     end
 
     it "refuses a non-Integer amount on an ELEMENT, in the same words" do
@@ -48,32 +47,42 @@ RSpec.describe "the rules a command obeys" do
 
       expect do
         runtime.dispatch("Banking::Account.LedgerEntry.Amend",
-                         id: "a1", sequence: 1, adjustment: "a lot", narrative: narrative)
-      end.to raise_error(Hecksagain::Runtime::TypeMismatch,
-                         'increment of amount needs an Integer, got "a lot"')
+                         id: "a1", sequence: { value: 1 }, adjustment: { cents: "a lot", currency: "USD" }, narrative: narrative)
+      end.to raise_error(Hecksagain::Bluebook::Expression::EvaluationError,
+                         'addition expects a number, got "a lot"')
     end
 
     it "moves an element by exactly what it was told" do
       runtime = funded_account(boot_banking)
       runtime.dispatch("Banking::Account.LedgerEntry.Amend",
-                       id: "a1", sequence: 1, adjustment: 500, narrative: narrative)
+                       id: "a1", sequence: { value: 1 }, adjustment: { cents: 500, currency: "USD" }, narrative: narrative)
 
       entry = runtime.query("Banking::Account.LedgerEntry.Reversed")
       expect(entry).to be_empty 
 
       state = runtime.dispatch("Banking::Account.LedgerEntry.Amend",
-                               id: "a1", sequence: 1, adjustment: -200, narrative: narrative)
+                               id: "a1", sequence: { value: 1 }, adjustment: { cents: -200, currency: "USD" }, narrative: narrative)
                      .state
-      expect(state[:ledger].first[:amount]).to eq(10_300)
+      expect(state[:ledger].first[:amount].to_h).to eq(cents: 10_300, currency: "USD")
     end
 
     it "decrements an element by the same rule, not a sign it invented" do
       runtime = funded_account(boot_banking)
       state   = runtime.dispatch("Banking::Account.LedgerEntry.Amend",
-                                 id: "a1", sequence: 1, adjustment: -1_000, narrative: narrative)
+                                 id: "a1", sequence: { value: 1 }, adjustment: { cents: -1_000, currency: "USD" }, narrative: narrative)
                        .state
 
-      expect(state[:ledger].first[:amount]).to eq(9_000)
+      expect(state[:ledger].first[:amount].to_h).to eq(cents: 9_000, currency: "USD")
+    end
+
+    it "refuses an amendment that would make an entry negative" do
+      runtime = funded_account(boot_banking)
+
+      expect do
+        runtime.dispatch("Banking::Account.LedgerEntry.Amend",
+                         id: "a1", sequence: { value: 1 }, adjustment: { cents: -10_001, currency: "USD" }, narrative: narrative)
+      end.to raise_error(Hecksagain::Runtime::GivenNotMet,
+                         "Amend refused — an amendment leaves a non-negative amount")
     end
   end
 
@@ -91,13 +100,45 @@ RSpec.describe "the rules a command obeys" do
     it "refuses a move an ENTITY's own machine does not admit, in the same shape" do
       runtime = funded_account(boot_banking)
       runtime.dispatch("Banking::Account.LedgerEntry.Reverse",
-                       id: "a1", sequence: 1, narrative: narrative)
+                       id: "a1", sequence: { value: 1 }, narrative: narrative)
 
       expect do
         runtime.dispatch("Banking::Account.LedgerEntry.Amend",
-                         id: "a1", sequence: 1, adjustment: 100, narrative: narrative)
+                         id: "a1", sequence: { value: 1 }, adjustment: { cents: 100, currency: "USD" }, narrative: narrative)
       end.to raise_error(Hecksagain::Runtime::LifecycleRefused,
                          'Amend refused — state is "reversed", and Amend moves it only from "posted"')
+    end
+
+    it "does not settle a transfer until its destination credit is recorded" do
+      runtime = boot_banking
+      runtime.dispatch("Banking::Transfer.Request",
+                       id: "x1", source: { value: "missing-source" }, destination: { value: "missing-destination" },
+                       amount: { cents: 100 }, narrative: { text: "A transfer waiting for credit" })
+      runtime.dispatch("Banking::Transfer.Debited", transfer: "x1")
+
+      expect do
+        runtime.dispatch("Banking::Transfer.Settle", transfer: "x1")
+      end.to raise_error(Hecksagain::Runtime::LifecycleRefused,
+                         'Settle refused — status is "debited", and Settle moves it only from "credited"')
+    end
+
+    it "refuses duplicate and out-of-order transfer legs without changing their state" do
+      runtime = boot_banking
+      runtime.dispatch("Banking::Transfer.Request",
+                       id: "x1", source: { value: "missing-source" }, destination: { value: "missing-destination" },
+                       amount: { cents: 100 }, narrative: { text: "An ordered transfer" })
+
+      expect { runtime.dispatch("Banking::Transfer.Settle", transfer: "x1") }
+        .to raise_error(Hecksagain::Runtime::LifecycleRefused, /status is "requested"/)
+
+      runtime.dispatch("Banking::Transfer.Debited", transfer: "x1")
+      runtime.dispatch("Banking::Transfer.Credited", transfer: "x1")
+
+      expect { runtime.dispatch("Banking::Transfer.Credited", transfer: "x1") }
+        .to raise_error(Hecksagain::Runtime::LifecycleRefused,
+                        'Credited refused — status is "credited", and Credited moves it only from "debited"')
+      expect(runtime.registry.repository("Banking", runtime.registry.bluebook("Banking").aggregate("Transfer"))
+                    .find("x1")[:status]).to eq("credited")
     end
   end
 

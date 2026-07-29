@@ -3,6 +3,7 @@ require_relative "command_rules"
 require_relative "command_interpreter"
 require_relative "entity_interpreter"
 require_relative "query_interpreter"
+require_relative "read_model_interpreter"
 require_relative "policy_interpreter"
 require_relative "saga_interpreter"
 
@@ -31,6 +32,7 @@ module Hecksagain
         @commands = CommandInterpreter.new(registry, rules: rules)
         @entities = EntityInterpreter.new(registry, rules: rules)
         @queries  = QueryInterpreter.new(registry)
+        @read_models = ReadModelInterpreter.new(registry)
         @policies = PolicyInterpreter.new(registry, door: self)
         @sagas    = SagaInterpreter.new(registry, door: self)
       end
@@ -63,6 +65,13 @@ module Hecksagain
       end
 
       def query(verb, **args)
+        domain, query_name = verb.to_s.split(".", 2)
+        if query_name && !domain.include?("::")
+          bluebook = @registry.bluebook(domain) || raise(UnknownVerb, "no domain #{domain.inspect} loaded (verb #{verb})")
+          model = bluebook.read_model(query_name) || raise(UnknownVerb, "#{domain} has no read model #{query_name.inspect}")
+          return @read_models.call(domain, model, args)
+        end
+
         domain, aggregate_name, query_name = parse(verb)
         aggregate = resolve_aggregate(domain, aggregate_name, verb)
 

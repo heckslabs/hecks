@@ -1,9 +1,8 @@
-
 use crate::ir::{
-    Aggregate, Attribute, Cardinality, Command, Direction, Domain, Entity, Factory, Fixture, Given,
-    Invariant, Lifecycle, LimitSpec, Mutation, MutationOp, OrderBy, Policy,
-    DispatchSpec, ProcessManager, ProcessManagerHandler, Query, Reference, ReferenceKind, Transition, ValueSpec,
-    ValueObject, View, WhereClause, WhereOp,
+    Aggregate, Attribute, Cardinality, Command, Direction, DispatchSpec, Domain, Entity, Factory,
+    Fixture, Given, Invariant, Lifecycle, LimitSpec, Mutation, MutationOp, OrderBy, Policy,
+    ProcessManager, ProcessManagerHandler, Query, Reference, ReferenceKind, Transition,
+    ValueObject, ValueSpec, View, WhereClause, WhereOp,
 };
 use serde_json::{json, Value};
 
@@ -204,12 +203,17 @@ fn normalize_value(s: &str) -> String {
     let chars: Vec<char> = s.chars().collect();
     for (i, &c) in chars.iter().enumerate() {
         match c {
-            '"' if prev != '\\' => { in_str = !in_str; out.push(c); }
+            '"' if prev != '\\' => {
+                in_str = !in_str;
+                out.push(c);
+            }
             ' ' | '\t' if !in_str => {
                 let next = chars.get(i + 1).copied().unwrap_or('\0');
                 let just_after_open = matches!(prev, '[' | '{' | '(');
                 let just_before_close = matches!(next, ']' | '}' | ')');
-                if !just_after_open && !just_before_close { out.push(c); }
+                if !just_after_open && !just_before_close {
+                    out.push(c);
+                }
             }
             _ => out.push(c),
         }
@@ -220,16 +224,16 @@ fn normalize_value(s: &str) -> String {
 
 fn dump_mutation_op(op: &MutationOp) -> &'static str {
     match op {
-        MutationOp::Set          => "set",
-        MutationOp::Append       => "append",
-        MutationOp::Increment    => "increment",
-        MutationOp::Decrement    => "decrement",
-        MutationOp::Toggle       => "toggle",
-        MutationOp::Multiply     => "multiply",
-        MutationOp::Clamp        => "clamp",
-        MutationOp::Decay        => "decay",
-        MutationOp::Delete       => "delete",
-        MutationOp::Remove       => "remove",
+        MutationOp::Set => "set",
+        MutationOp::Append => "append",
+        MutationOp::Increment => "increment",
+        MutationOp::Decrement => "decrement",
+        MutationOp::Toggle => "toggle",
+        MutationOp::Multiply => "multiply",
+        MutationOp::Clamp => "clamp",
+        MutationOp::Decay => "decay",
+        MutationOp::Delete => "delete",
+        MutationOp::Remove => "remove",
         MutationOp::AppendUnique => "append_unique",
     }
 }
@@ -271,7 +275,9 @@ fn dump_policy(p: &Policy) -> Value {
 }
 
 fn dump_fixture(f: &Fixture) -> Value {
-    let pairs: Vec<Value> = f.attributes.iter()
+    let pairs: Vec<Value> = f
+        .attributes
+        .iter()
         .map(|(k, v)| json!([k, normalize_value(v)]))
         .collect();
     json!({
@@ -303,15 +309,15 @@ fn dump_where_clause(w: &WhereClause) -> Value {
 
 fn dump_where_op(op: &WhereOp) -> &'static str {
     match op {
-        WhereOp::Eq          => "eq",
-        WhereOp::Ne          => "ne",
-        WhereOp::Gt          => "gt",
-        WhereOp::Gte         => "gte",
-        WhereOp::Lt          => "lt",
-        WhereOp::Lte         => "lte",
-        WhereOp::In          => "in",
+        WhereOp::Eq => "eq",
+        WhereOp::Ne => "ne",
+        WhereOp::Gt => "gt",
+        WhereOp::Gte => "gte",
+        WhereOp::Lt => "lt",
+        WhereOp::Lte => "lte",
+        WhereOp::In => "in",
         WhereOp::NoneInState => "none_in_state",
-        WhereOp::Contains    => "contains",
+        WhereOp::Contains => "contains",
     }
 }
 
@@ -324,7 +330,7 @@ fn dump_order_by(o: &OrderBy) -> Value {
 
 fn dump_direction(d: &Direction) -> &'static str {
     match d {
-        Direction::Asc  => "asc",
+        Direction::Asc => "asc",
         Direction::Desc => "desc",
     }
 }
@@ -364,4 +370,3 @@ fn dump_factory(fac: &Factory) -> Value {
         "mutations": fac.mutations.iter().map(dump_mutation).collect::<Vec<_>>(),
     })
 }
-

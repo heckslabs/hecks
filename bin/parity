@@ -6,103 +6,113 @@ BINARY="$ROOT/rust/target/release/hecksagain"
 (cd "$ROOT/rust" && cargo build --release --workspace --quiet) || exit 1
 
 run_domain() {
-  domain=$1
+  source_domain=$1
   script=$2
-  name=$(basename "$domain")
+  adapter=$3
+  name=$(basename "$source_domain")
+  variant=$(printf '%s' "$adapter" | tr '[:upper:]' '[:lower:]')
+  domain="/tmp/parity.$name.$variant.domain"
+
+  rm -rf "$domain"
+  cp -R "$source_domain" "$domain" || return 1
+  if [ "$variant" = "sqlite" ]; then
+    perl -0pi -e 's/"Heki"/"Sqlite"/g; s/dir "data"/database "data\/parity.sqlite3"/g' \
+      "$domain/bluebook"/*.hecksagon "$domain/bluebook"/*.world || return 1
+  fi
 
   bluebook=$(ls "$domain"/bluebook/*.bluebook 2>/dev/null | head -1)
   [ -z "$bluebook" ] && bluebook=$(ls "$domain"/*.bluebook 2>/dev/null | head -1)
-
-  echo "── $name"
-
+  echo "── $name ($adapter)"
   if [ -z "$bluebook" ]; then
     echo "   NO BLUEBOOK in $domain"
     return 1
   fi
 
-  rm -rf "$domain/data"
-
-  rm -f "/tmp/parity.$name."*
-
-  "$ROOT/bin/ir" "$domain"     > "/tmp/parity.$name.ruby.ir.json" || return 1
-  "$BINARY" --dump "$bluebook" > "/tmp/parity.$name.rust.ir.json" || return 1
-
-  "$ROOT/bin/canonicalise" "/tmp/parity.$name.ruby.ir.json" > "/tmp/parity.$name.ruby.ir.c.json"
-  "$ROOT/bin/canonicalise" "/tmp/parity.$name.rust.ir.json" > "/tmp/parity.$name.rust.ir.c.json"
-
-  if ! diff -u "/tmp/parity.$name.ruby.ir.c.json" "/tmp/parity.$name.rust.ir.c.json"; then
-    echo
-    echo "   SPLIT — the two PARSERS read $(basename "$bluebook") differently."
-    echo "   Fix that before reading any behavioural diff : the interpreters are"
-    echo "   being fed different documents."
+  prefix="/tmp/parity.output.$name.$variant"
+  rm -f "$prefix".*
+  "$ROOT/bin/ir" "$domain" > "$prefix.ruby.ir.json" || return 1
+  "$BINARY" --dump "$bluebook" > "$prefix.rust.ir.json" || return 1
+  "$ROOT/bin/canonicalise" "$prefix.ruby.ir.json" > "$prefix.ruby.ir.c.json"
+  "$ROOT/bin/canonicalise" "$prefix.rust.ir.json" > "$prefix.rust.ir.c.json"
+  if ! diff -u "$prefix.ruby.ir.c.json" "$prefix.rust.ir.c.json"; then
+    echo "   SPLIT — the two parsers read $(basename "$bluebook") differently."
     return 1
   fi
   echo "   parsers agree — same IR from $(basename "$bluebook")"
 
   rm -rf "$domain/data"
-  "$ROOT/bin/run" "$domain" "$script" > "/tmp/parity.$name.ruby.raw.json" || return 1
-  "$ROOT/bin/stores" "$domain" > "/tmp/parity.$name.ruby.rows" 2>/dev/null || true
+  "$ROOT/bin/run" "$domain" "$script" > "$prefix.ruby.raw.json" || return 1
+  "$ROOT/bin/stores" "$domain" > "$prefix.ruby.rows" 2>/dev/null || true
+  "$ROOT/bin/history" "$domain" > "$prefix.ruby.history.raw.json" || return 1
 
   rm -rf "$domain/data"
-  "$BINARY" "$bluebook" "$script"     > "/tmp/parity.$name.rust.raw.json" || return 1
-  "$ROOT/bin/stores" "$domain" > "/tmp/parity.$name.rust.rows" 2>/dev/null || true
+  "$BINARY" "$bluebook" "$script" > "$prefix.rust.raw.json" || return 1
+  "$ROOT/bin/stores" "$domain" > "$prefix.rust.rows" 2>/dev/null || true
+  "$ROOT/bin/history" "$domain" > "$prefix.rust.history.raw.json" || return 1
 
-  "$ROOT/bin/canonicalise" "/tmp/parity.$name.ruby.raw.json" > "/tmp/parity.$name.ruby.json"
-  "$ROOT/bin/canonicalise" "/tmp/parity.$name.rust.raw.json" > "/tmp/parity.$name.rust.json"
-
-  if ! diff -u "/tmp/parity.$name.ruby.json" "/tmp/parity.$name.rust.json"; then
-    echo
-    echo "   SPLIT — the runtimes disagreed on $name."
-    echo "   The parsers agreed, so this is the interpreters. If the disagreement"
-    echo "   is about what an expression MEANS, that is a defect in"
-    echo "   lib/hecksagain/grammar/expression.bluebook, not in whichever runtime"
-    echo "   you like less — tighten the chapter until the ambiguity is gone."
+  "$ROOT/bin/canonicalise" "$prefix.ruby.raw.json" > "$prefix.ruby.json"
+  "$ROOT/bin/canonicalise" "$prefix.rust.raw.json" > "$prefix.rust.json"
+  if ! diff -u "$prefix.ruby.json" "$prefix.rust.json"; then
+    echo "   SPLIT — the runtimes disagreed on $name through $adapter."
     return 1
   fi
   echo "   runtimes agree — same answer for every step"
 
-if [ -s "/tmp/parity.$name.ruby.rows" ] || [ -s "/tmp/parity.$name.rust.rows" ]; then
-  if ! diff -u "/tmp/parity.$name.ruby.rows" "/tmp/parity.$name.rust.rows"; then
-    echo
-    echo "   SPLIT — the runtimes agreed in memory and wrote different stores."
+  "$ROOT/bin/canonicalise" "$prefix.ruby.history.raw.json" > "$prefix.ruby.history.json"
+  "$ROOT/bin/canonicalise" "$prefix.rust.history.raw.json" > "$prefix.rust.history.json"
+  if ! diff -u "$prefix.ruby.history.json" "$prefix.rust.history.json"; then
+    echo "   SPLIT — the runtimes wrote different append-only persistence histories."
     return 1
   fi
+  echo "   histories agree — same append-only persistence history"
 
+  if [ -s "$prefix.ruby.rows" ] || [ -s "$prefix.rust.rows" ]; then
+    "$ROOT/bin/canonicalise" "$prefix.ruby.rows" > "$prefix.ruby.rows.json"
+    "$ROOT/bin/canonicalise" "$prefix.rust.rows" > "$prefix.rust.rows.json"
+    if ! diff -u "$prefix.ruby.rows.json" "$prefix.rust.rows.json"; then
+      echo "   SPLIT — the runtimes agreed in memory and wrote different stores."
+      return 1
+    fi
+    echo "   stores agree — Ruby and Rust wrote the same data"
+  fi
 
-  echo "   stores agree — $(tr "\n" " " < "/tmp/parity.$name.ruby.rows")"
-fi
-
-  rm -rf "$domain/data"
+  rm -rf "$domain"
   return 0
 }
 
-failed=0
+run_variants() {
+  source=$1
+  script=$2
+  if [ "$(basename "$source")" = "banking" ]; then
+    run_domain "$source" "$script" Heki || return 1
+  else
+    run_domain "$source" "$script" Heki || return 1
+  fi
+}
 
+failed=0
 if [ $# -ge 1 ]; then
   domain=$1
   script=${2:-"$ROOT/spec/parity/$(basename "$1").json"}
-  run_domain "$domain" "$script" || failed=1
+  run_variants "$domain" "$script" || failed=1
 else
   for domain in "$ROOT"/examples/*/ "$ROOT"/lib/hecksagain/grammar/; do
     domain=${domain%/}
     name=$(basename "$domain")
     script="$ROOT/spec/parity/$name.json"
-
     if [ ! -f "$script" ]; then
       echo "── $name"
       echo "   NO SCRIPT at spec/parity/$name.json — write one, or remove the example."
       failed=1
       continue
     fi
-
-    run_domain "$domain" "$script" || failed=1
+    run_variants "$domain" "$script" || failed=1
     echo
   done
 fi
 
 if [ "$failed" -eq 0 ]; then
-  echo "AGREED — every example reads the same in both runtimes, and writes the"
-  echo "same rows. The guarantee covers exactly these documents."
+  echo "AGREED — every example reads the same in both runtimes and writes the same adapter histories."
   exit 0
 fi
 

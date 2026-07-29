@@ -14,6 +14,30 @@ RSpec.describe "the expression sublanguage" do
     end
   end
 
+  describe "addition" do
+    it "adds numeric attributes before comparing them" do
+      expect(evaluate("amount + adjustment >= 0", { amount: 10 }, { adjustment: -10 })).to be(true)
+      expect(evaluate("amount + adjustment >= 0", { amount: 10 }, { adjustment: -11 })).to be(false)
+    end
+  end
+
+  describe "modulo and scalar coercion" do
+    it "evaluates modulo with integers and floats" do
+      expect(evaluate("cents.modulo(100) == 75", cents: 275)).to be(true)
+      expect(evaluate("amount.modulo(divisor) == 1", { amount: 7 }, { divisor: 2.0 })).to be(true)
+    end
+
+    it "rejects a zero or non-numeric modulo divisor" do
+      expect { evaluate("amount.modulo(0)", amount: 7) }.to raise_error(/divided by 0/)
+      expect { evaluate('amount.modulo("x")', amount: 7) }.to raise_error(/modulo expects a number/)
+    end
+
+    it "supports empty maps and scalar string conversion" do
+      expect(evaluate("metadata.empty?", metadata: {})).to be(true)
+      expect(evaluate('ratio.to_s == "1.5"', ratio: 1.5)).to be(true)
+    end
+  end
+
   describe "attribute and argument binding" do
     it "reads the subject's own state" do
       expect(evaluate("status == \"available\"", { status: "available" })).to be(true)

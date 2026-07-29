@@ -1,4 +1,3 @@
-
 pub mod expression;
 pub mod hecksagon_helpers;
 pub mod hecksagon_ir;
@@ -8,4 +7,6 @@ pub mod parse_blocks;
 pub mod parser;
 pub mod parser_helpers;
 pub mod pattern_subset;
+pub mod project_loader;
+pub mod router;
 pub mod world;

@@ -15,6 +15,7 @@ module Hecksagain
       def initialize(aggregate:, settings: {}, root: nil)
         @aggregate = aggregate
         @path      = resolve_path(settings, root)
+        @journal_path = "#{@path}.journal"
         @events    = []
 
         FileUtils.mkdir_p(File.dirname(@path))
@@ -33,21 +34,49 @@ module Hecksagain
 
       def count = store.size
 
-      def save(instance)
+      def query(specification, args = {}, context: {})
+        Ports::Query::InMemory.execute(all, specification, args)
+      end
+
+      def append(entry)
+        @entry_mirrors = entry.mirrors
+        append_entry(entry.operation, entry.id, entry.state)
+        entry
+      ensure
+        @entry_mirrors = nil
+      end
+
+      def project(entry)
         current = store
-        current[instance.id.to_s] = instance.state
+        entry.save? ? current[entry.id] = entry.state.dup : current.delete(entry.id)
         write(current)
         @store = current
+        entry
+      end
+
+      def entries
+        return [] unless File.exist?(@journal_path)
+
+        File.readlines(@journal_path, chomp: true).reject(&:empty?).map do |line|
+          value = JSON.parse(line)
+          state = value["state"]&.transform_keys(&:to_sym)
+          Ports::Persistence::Entry.new(operation: value.fetch("operation"), id: value.fetch("id"), state: state, mirrors: value["mirrors"])
+        end
+      end
+
+      def save(instance)
+        entry = Ports::Persistence::Entry.new(operation: "save", id: instance.id.to_s, state: instance.state.dup)
+        append(entry)
+        project(entry)
         instance
       end
 
       def delete(id)
-        current = store
-        removed = current.delete(id.to_s)
-        return false unless removed
+        return false unless find(id)
 
-        write(current)
-        @store = current
+        entry = Ports::Persistence::Entry.new(operation: "delete", id: id.to_s, state: nil)
+        append(entry)
+        project(entry)
         true
       end
 
@@ -70,6 +99,11 @@ module Hecksagain
       end
 
       def read
+        snapshot = read_snapshot
+        replay_journal(snapshot)
+      end
+
+      def read_snapshot
         return {} unless File.exist?(@path)
 
         data = File.binread(@path)
@@ -81,6 +115,24 @@ module Hecksagain
         raise Malformed, "#{@path}: zlib error: #{e.message}"
       rescue JSON::ParserError => e
         raise Malformed, "#{@path}: json error: #{e.message}"
+      end
+
+      def replay_journal(records)
+        return records unless File.exist?(@journal_path)
+
+        File.foreach(@journal_path) do |line|
+          entry = JSON.parse(line)
+          id    = entry.fetch("id")
+
+          case entry.fetch("operation")
+          when "save"   then records[id] = entry.fetch("state")
+          when "delete" then records.delete(id)
+          else raise Malformed, "#{@journal_path}: unknown journal operation #{entry.fetch("operation").inspect}"
+          end
+        end
+        records
+      rescue JSON::ParserError => e
+        raise Malformed, "#{@journal_path}: json error: #{e.message}"
       end
 
       def write(records)
@@ -98,6 +150,15 @@ module Hecksagain
         dir      = declared.start_with?("/") ? declared : File.join(root || Dir.pwd, declared)
 
         File.join(dir, "#{@aggregate.storage_name}.heki")
+      end
+
+      def append_entry(operation, id, state)
+        File.open(@journal_path, "ab") do |journal|
+          journal.write(JSON.generate(operation: operation, id: id.to_s, state: state, mirrors: @entry_mirrors))
+          journal.write("\n")
+          journal.flush
+          journal.fsync
+        end
       end
     end
   end

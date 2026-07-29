@@ -23,8 +23,8 @@ RSpec.describe "one_of" do
     runtime = boot_banking
 
     expect do
-      runtime.dispatch("Banking::Account.Open", id: "a1", customer: "c", number: "ACC-1",
-                                                kind: "savings", daily_limit: 10_000)
+      runtime.dispatch("Banking::Account.Open", id: "a1", customer_id: { value: "c" }, number: { value: "ACC-1" },
+                                                kind: { name: "savings" }, daily_limit: { cents: 10_000 })
     end.not_to raise_error
   end
 
@@ -32,8 +32,8 @@ RSpec.describe "one_of" do
     runtime = boot_banking
 
     expect do
-      runtime.dispatch("Banking::Account.Open", id: "a1", customer: "c", number: "ACC-1",
-                                                kind: "gold", daily_limit: 10_000)
+      runtime.dispatch("Banking::Account.Open", id: "a1", customer_id: { value: "c" }, number: { value: "ACC-1" },
+                                                kind: { name: "gold" }, daily_limit: { cents: 10_000 })
     end.to raise_error(Hecksagain::Runtime::InvariantViolation,
                        'AccountKind admits "current", "savings", "reserve" — got "gold"')
   end
@@ -43,7 +43,7 @@ RSpec.describe "one_of" do
 
     expect do
       runtime.dispatch("Banking::Customer.Register",
-                       reference: "CUST-0009",
+                       reference: { value: "CUST-0009" },
                        name: { given: "No", family: "Route" },
                        email: { address: "nowhere" })
     end.to raise_error(Hecksagain::Runtime::InvariantViolation,

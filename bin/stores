@@ -3,6 +3,7 @@
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
 require "hecksagain"
+require "json"
 
 domain = ARGV.fetch(0)
 exit 0 unless Dir.exist?(domain)
@@ -10,10 +11,18 @@ exit 0 unless Dir.exist?(domain)
 runtime = Hecks.boot(domain)
 registry = runtime.registry
 
-lines = registry.bluebooks.flat_map do |name, bluebook|
-  bluebook.aggregates.map do |aggregate|
-    "#{aggregate.storage_name} #{registry.repository(name, aggregate).count}"
+def records(repository)
+  repository.all.sort_by(&:id).map { |instance| JSON.parse(JSON.generate(instance.to_h)) }
+end
+
+def data_for(repository)
+  { "authoritative" => records(repository) }
+end
+
+stores = registry.bluebooks.each_with_object({}) do |(name, bluebook), all|
+  bluebook.aggregates.each do |aggregate|
+    all[aggregate.storage_name] = data_for(registry.repository(name, aggregate))
   end
 end
 
-puts lines.sort.join("\n")
+puts JSON.generate(stores)

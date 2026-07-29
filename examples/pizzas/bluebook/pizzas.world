@@ -1,5 +1,6 @@
 Hecks.world "Pizzas" do
-  persisted_by("Sqlite") do
+  realm "Examples"
+  persisted_by("SqlitePersistence") do
     database "data/pizzas.db"
   end
 end

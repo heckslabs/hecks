@@ -6,8 +6,13 @@ Hecks.bluebook "TillRoom" do
   aggregate "Till" do
     description "One cash drawer and the count of cents inside it."
 
-    attribute :balance, Integer, default: 0
+    attribute :balance, Money, default: { cents: 0 }
     attribute :marks,   list_of(Mark)
+
+    value_object "Money" do
+      attribute :cents, Integer
+      invariant("a cash amount is never negative") { cents >= 0 }
+    end
 
     value_object "Mark" do
       attribute :amount,    Integer
@@ -26,7 +31,7 @@ Hecks.bluebook "TillRoom" do
       goal "Add cents to the drawer"
 
       reference_to Till
-      attribute :amount, Integer
+      attribute :amount, Money
 
       then_set :balance, increment: :amount
       then_set :marks,   append: { amount: :amount, direction: "in" }
@@ -39,7 +44,7 @@ Hecks.bluebook "TillRoom" do
       goal "Take cents out of the drawer"
 
       reference_to Till
-      attribute :amount, Integer
+      attribute :amount, Money
 
       then_set :balance, decrement: :amount
       then_set :marks,   append: { amount: :amount, direction: "out" }
@@ -52,7 +57,7 @@ Hecks.bluebook "TillRoom" do
       goal "Add the fixed float the branch always starts with"
 
       reference_to Till
-      then_set :balance, increment: 500
+      then_set :balance, increment: { cents: 500 }
 
       emits "Bumped"
     end
