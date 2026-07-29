@@ -75,17 +75,38 @@ module Hecksagain
           offer(label) { @runtime.dispatch(verb, **args(payload)) }
         end
 
-        def judge! = walk("Bluebook", @bluebook, nil, 0)
+        def judge!
+          declare_node("Bluebook", @bluebook, nil, 0)
+          detail_node("Bluebook", @bluebook, nil, 0)
+        end
 
-        # One node, offered whole: itself, then what it contains.
-        def walk(category, node, parent_id, index)
+        # DECLARED BEFORE DETAILED, for every set of siblings.
+        #
+        # A node used to be offered whole — declared, then its lists, then its
+        # children — one sibling at a time. Which means an aggregate's attributes
+        # were offered before its later siblings existed, and an attribute that
+        # POINTS AT another aggregate could only resolve if that aggregate happened
+        # to be declared earlier in the file. Banking survives on luck: Customer is
+        # written above Account.
+        #
+        # So siblings are declared in one pass and detailed in a second. It is the
+        # same ordering the walk already used one level down — value objects before
+        # the attributes that name them — lifted to the level above, and it is what
+        # lets a reference be a REFERENCE rather than a string nobody can check.
+        def declare_node(category, node, parent_id, index)
+          plan = @plan.category(category)
+          return unless plan
+
+          declare(plan, category, node, identify(category, parent_id, node, index), parent_id)
+        end
+
+        def detail_node(category, node, parent_id, index)
           plan = @plan.category(category)
           return unless plan
 
           id           = identify(category, parent_id, node, index)
           eager, later = children_of(category).partition { |child| eager?(category, child) }
 
-          declare(plan, category, node, id, parent_id)
           eager.each { |child| walk_all(child, node, id) }
           setters(plan, category, node, id)
           appends(plan, category, node, id)
@@ -97,9 +118,9 @@ module Hecksagain
           reader = collection_reader(category)
           return unless node.respond_to?(reader)
 
-          Array(node.public_send(reader)).each_with_index do |child, index|
-            walk(category, child, parent_id, index)
-          end
+          children = Array(node.public_send(reader))
+          children.each_with_index { |child, index| declare_node(category, child, parent_id, index) }
+          children.each_with_index { |child, index| detail_node(category, child, parent_id, index) }
         end
 
         def declare(plan, category, node, id, parent_id)

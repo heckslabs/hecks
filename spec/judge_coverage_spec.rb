@@ -48,7 +48,7 @@ RSpec.describe "the judge's coverage of the language" do
     def registry = nil
   end
 
-  def offered_verbs
+  def offered_in_order
     spy = Spy.new
     judge = Hecksagain::Bluebook::MetaValidator::Judge.allocate
     judge.instance_variable_set(:@bluebook, banking)
@@ -59,8 +59,10 @@ RSpec.describe "the judge's coverage of the language" do
       Hecksagain::Bluebook::MetaValidator::Plan.for(Hecksagain::Bluebook::MetaValidator.grammar_registry)
     )
     judge.send(:judge!)
-    spy.verbs.uniq
+    spy.verbs
   end
+
+  def offered_verbs = offered_in_order.uniq
 
   # Every command on every aggregate of the meta-domain, spelled as the judge
   # would dispatch it. World and Wiring live in world.bluebook and are judged
@@ -91,5 +93,21 @@ RSpec.describe "the judge's coverage of the language" do
     expect(phantom).to be_empty,
                        "the judge offers #{phantom.size} verb(s) the language does not declare; " \
                        "UnknownVerb is swallowed, so these dispatch into silence:\n  #{phantom.join("\n  ")}"
+  end
+
+  it "declares every aggregate before it details any of them" do
+    # An aggregate's attributes are offered AFTER every aggregate exists, not after
+    # the ones that happen to be written above it. Banking survives the old order
+    # by luck — Customer is declared above Account, which is the only reason
+    # Account#customer_id could ever point at anything.
+    #
+    # This is what lets a reference be a REFERENCE: `points_at` can resolve against
+    # a head declared later in the file. Pinned here because the ordering is
+    # invisible until that lands, and an invariant nothing watches is one somebody
+    # optimises away.
+    verbs = offered_in_order
+
+    expect(verbs.rindex("Meta::Aggregate.Declare"))
+      .to be < verbs.index("Meta::Aggregate.Attribute")
   end
 end
