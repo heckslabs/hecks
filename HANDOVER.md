@@ -36,7 +36,7 @@ Do not call Rust a projection. Nothing generates it.
 ## Current state
 
     main                     PR #1 and #2 merged
-    experiment/self-hosting  18 commits ahead of 6a33483, NOT PUSHED
+    experiment/self-hosting  ahead of 6a33483, NOT PUSHED
 
     bundle exec rspec                             434 examples, 0 failures
     cd rust && cargo test --release --workspace   passing, 0 warnings
@@ -94,7 +94,7 @@ persist — the same lesson `disputed_by` taught on CardPayment.
   transition whose `from` is a list is several transitions, an open map is one row
   per entry, an append is offered once per binding.
 - `reconstruction.rb` + `shapes.rb` — the inverse, reading through the language's
-  own `whole_bluebook` read model. ~220 code lines against replay.rb's 420, because
+  own `whole_bluebook` read model. 241 code lines against replay.rb's 420, because
   both directions are one table.
 - The language spells its fields EXACTLY as the IR spells them. One spelling, so
   there is no translation table to be quietly wrong in.
@@ -152,6 +152,14 @@ The house failure mode. Each PASSED because the thing asserting it agreed with t
   invented for Seal and never dispatched. First run it refused twenty-five
   bluebooks, and it is not true: a state machine declares no attribute.
 
+AND ONE NEAR-MISS OF MY OWN, worth more than the five because it shows the pattern is
+not somebody else's carelessness: closing the last round-trip gap, I added
+`Field#default` to the language — and no aggregate attribute in banking carries a
+default, so the field was legal and unexercised, about to be committed by the person
+who had spent the day narrating that exact failure. `till.bluebook` declares
+`attribute :balance, Money, default: { cents: 0 }`, so the round-trip spec now
+includes the fixtures and the field is actually exercised.
+
 ## Findings worth not rediscovering
 
 - **Both runtimes can be wrong identically, and parity certifies it.** A read
@@ -187,15 +195,24 @@ The house failure mode. Each PASSED because the thing asserting it agreed with t
   when it also undoes. `IR::Saga` is derived from a compensating leg and deliberately
   NOT in `to_h` — a reading of the source, not a fact about it. `saga` appears in no
   `.bluebook` and never should.
-- **Seven encoding losses, all the same family.** Reading an OBJECT where the IR's
-  `to_h` holds the spelling: `order_by` and `limit` stored as
-  `"#<struct LimitSpec value=3>"` because `Array(an_object)` wraps rather than
-  destructures; a where-clause's value and every saga dispatch binding lost the colon
-  that tells `":ceiling"` the argument from `"ceiling"` the string. An entity's
-  `identified_by` is a String where an aggregate's is a Symbol, and a read-model
-  head's `as` is a String too. **None of these were reachable before the round trip
-  existed** — a bluebook that goes in and never comes out cannot tell you it went in
-  wrong.
+- **ENCODING LOSSES ARE THE LARGEST FAMILY OF BUG IN THIS CODEBASE.** Every one has
+  the same shape: reading an OBJECT where the IR's `to_h` holds the spelling. The
+  count kept growing while I fixed them, so here is the family rather than a number:
+  - `order_by` and `limit` stored as `"#<struct LimitSpec value=3>"`, because
+    `Array(an_object)` WRAPS rather than destructures.
+  - a where-clause's value and every saga dispatch binding lost the colon that tells
+    `":ceiling"` the argument from `"ceiling"` the string. `IR.render_value` had
+    already drawn that distinction and the walk read past it.
+  - an append's field bindings were stored raw, so `append: { direction: "out" }` —
+    a literal — was indistinguishable from an argument named `out`.
+  - a default and a literal mutation source went through `to_s`, so `0.0` came back
+    `"0.0"` and `{ value: "good" }` came back its inspect string.
+  - an entity's `identified_by` is a String where an aggregate's is a Symbol, and a
+    read-model head's `as` is a String too. The IR is not uniform about this.
+
+  When in doubt, offer what `to_h` spells. **None of these were reachable before the
+  round trip existed** — a bluebook that goes in and never comes out cannot tell you
+  it went in wrong.
 - **Unknown command arguments used to be accepted in silence.** Found by renaming a
   field and watching every stale caller stay green. `UnknownArgument` refuses them in
   both runtimes now; a process manager's correlation key is exempt because a saga
@@ -203,6 +220,13 @@ The house failure mode. Each PASSED because the thing asserting it agreed with t
   the saga stamping its own key onto the event it caused.
 - **A `then_set` naming a field the aggregate lacks wrote nothing and refused
   nothing.** Caught at build now, in `AggregateBuilder#seal_mutation_targets`.
+- **AN ARGUMENT WITH NOWHERE TO LAND DOES NOT PERSIST, and this bit twice in one
+  day.** First on CardPayment: `disputed_by` was accepted, resolved, gated the
+  command — and vanished, because the aggregate had no field for it. Then in the
+  meta-domain: `Command.Declare` took `entity_id`, the walk dispatched it correctly
+  with both ids, and every entity command still came back unowned, because the
+  Command AGGREGATE had no `entity_id` either. A command argument and the field it
+  writes into are two declarations, and having one is not having the other.
 
 ## Traps that cost real time
 
@@ -215,6 +239,11 @@ The house failure mode. Each PASSED because the thing asserting it agreed with t
 - **`grep saga` matches "heckSAGAin".** Use `\bsagas?\b`.
 - **Don't move Ruby blocks with a script that counts keywords.** It finds `do`
   inside a comment and produces unbalanced `end`s somewhere quiet.
+- **Make a multi-file edit atomic.** A python script that asserts its anchors as it
+  goes can fail halfway, having written one file and not the other — the judge
+  started sending `entity_id` while the language had never heard of it, and the
+  result was 36 failures that looked like a design error and were a write that never
+  happened. Assert every anchor BEFORE writing anything.
 - **`cd ~/Projects/hecksagain && …` on every command** — the session cwd is not this
   repo and the shell resets between calls.
 - **Don't trust green, and don't trust a filename.** Every real defect this session
