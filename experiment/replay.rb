@@ -172,7 +172,7 @@ declare_verbs = lambda do |holder, owner, prefix|
     end
 
     if (ref = command["references"])
-      try(refusals, "Verb.ActsOn #{verb_id}") { runtime.dispatch("Meta::Verb.ActsOn", id: verb_id, acts_on: v[ref]) }
+      try(refusals, "Verb.ActsOn #{verb_id}") { runtime.dispatch("Meta::Verb.ActsOn", id: verb_id, root: v[ref]) }
     end
     Array(command["emits"]).each do |event|
       try(refusals, "Verb.Announce #{verb_id}") { runtime.dispatch("Meta::Verb.Announce", id: verb_id, announces: v[event]) }

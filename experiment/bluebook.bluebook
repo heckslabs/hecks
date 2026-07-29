@@ -190,6 +190,23 @@ Hecks.bluebook "Meta" do
       emits "TransitionAttached"
     end
 
+    command "Seal" do
+      role "Language"
+      goal "Close an aggregate — the checks that need every declaration present"
+
+      # The builders validate at `build`, once everything is collected. A given
+      # fires at DISPATCH, when later declarations do not exist yet. So the
+      # whole-document rules live on a command dispatched after the aggregate
+      # is fully declared. This is the shape the tier-3 rules need ; whether
+      # the sublanguage can express their CONTENT is the open question.
+      reference_to Root
+
+      given("an aggregate declares at least one attribute") { attributes.size > 0 }
+      given("an aggregate that is identified names a field") { identity.value.to_s.empty? || identity.value.to_s.size > 0 }
+
+      emits "RootSealed"
+    end
+
     command "Value" do
       role "Language"
       goal "Declare a value object belonging to this aggregate"
@@ -355,9 +372,15 @@ Hecks.bluebook "Meta" do
       goal "Name the aggregate this command reaches through"
 
       reference_to Verb
-      attribute :acts_on, EventName
+      # NAMED `root`, not `acts_on` : a command argument SHADOWS the aggregate
+      # field of the same name inside a given, so a once-only rule cannot read
+      # the state it guards unless the two differ.
+      attribute :root, EventName
 
-      then_set :acts_on, to: :acts_on
+      given("a command names what it acts on") { !root.value.to_s.empty? }
+      given("a command acts on ONE root")      { acts_on.value.to_s.empty? }
+
+      then_set :acts_on, to: :root
 
       emits "ReferenceNamed"
     end
@@ -836,6 +859,8 @@ Hecks.bluebook "Meta" do
       attribute :as,        ProjectionText
       attribute :many,      ProjectionText
 
+      given("a read model gathers heads only after its reference") { !ref_target.value.to_s.empty? }
+
       then_set :heads, append: { aggregate: :aggregate, as: :as, many: :many }
 
       emits "HeadGathered"
@@ -969,6 +994,8 @@ Hecks.bluebook "Meta" do
       reference_to Member
       attribute :key,   MemberText
       attribute :value, MemberText
+
+      given("an admitted row binds a named field") { !key.value.to_s.empty? }
 
       then_set :pairs, append: { key: :key, value: :value }
 
