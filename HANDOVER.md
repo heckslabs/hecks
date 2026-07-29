@@ -18,7 +18,8 @@ Do not call Rust a projection. Nothing generates it.
 
 ## Standing rules
 
-1. **Never modify `~/Projects/hecks`** unless asked.
+1. **Never modify `~/Projects/hecks`** unless asked. Different repo; reading it is
+   a distraction. hecksagain is the whole world.
 2. **Don't hand-write what Hecks already has** — cherry-pick whole. But
    simplifying is not copying; that is how `creates?` regressed.
 3. **The DSL constructs the Ruby classes.** `Pizza.create_pizza(...)` is the
@@ -27,126 +28,178 @@ Do not call Rust a projection. Nothing generates it.
 5. **Tests do no IO** except `spec/adapters/`.
 6. **Ruby wins when the shapes differ.** The exporter converts. Never bend a
    bluebook to suit an interpreter.
+7. **Bluebook first, and it is not optional.** Twice in one session a concept was
+   built in Ruby and only declared afterwards, both times within an hour of naming
+   the reflex out loud. If it is about bluebooks, `bluebook.bluebook` is where it
+   goes — declaring the queries took less time than the Struct did.
 
 ## Current state
 
     main                     PR #1 and #2 merged
-    experiment/self-hosting  e4fb90e — 9 commits ahead, pushed
+    experiment/self-hosting  16 commits ahead of 6a33483, NOT PUSHED
 
-    bundle exec rspec                             396 examples, 0 failures (4.6s)
-    cd rust && cargo test --release --workspace   177 passed, 0 warnings
-    bin/parity     AGREED — banking 103/193 · pizzas 5/18 · grammar 27/37
+    bundle exec rspec                             431 examples, 0 failures
+    cd rust && cargo test --release --workspace   passing, 0 warnings
+    bin/parity     AGREED — banking 102/193 · pizzas 5/18 · grammar 27/37
 
-Repo is on GitHub, private: `chrisyoung/hecksagain`.
 `core.hooksPath` is LOCAL config — a fresh clone needs
 `git config core.hooksPath .githooks` or the pre-push parity gate is silent.
 
-## What the language now is
+## THE ROUND TRIP IS CLOSED
 
-`lib/hecksagain/language/bluebook.bluebook` declares what a bluebook IS.
-`lib/hecksagain/language/world.bluebook` declares what a world is.
-`lib/hecksagain/bluebook/meta_validator*` dispatches every built IR into them at
-load; any refusal becomes `Malformed`.
+`bluebook.bluebook`'s vision — "loading a domain becomes dispatching commands into
+this meta-domain ; the IR it stores must equal the IR the DSL builder produces" —
+is now a test rather than a claim:
 
-**Eleven rules live in the language and nowhere else** — their `raise Malformed`
-is deleted:
+    Pizzas   ZERO differences from the builder's to_h
+    Banking  eight, every one a construct the language does not hold
 
-    an event is named · an attribute is named · a vision says something
-    a description says something (aggregate and read model)
-    a rule says what it means (givens and invariants)
-    a mutation names a target · a command names what it acts on
-    a closed set admits a member · a realm says something
-    a latest version says something
+`spec/round_trip_spec` asserts banking's eight as an EXACT CLASSIFIED SET, so a new
+loss fails and a closed gap fails too. The remaining gaps, in the language:
 
-Plus two that became STRUCTURE rather than predicates: an attribute's type is a
-`reference_to ValueObject`, so a primitive fails reference resolution.
+- **an entity's own commands, queries and lifecycle** (6 of the 8). The language's
+  `Entity` holds attributes and transitions and nothing else; Withdrawal and
+  LedgerEntry both declare commands and queries. The fix is `Command` and `Query`
+  parented by `Entity` as well as `Aggregate` — the plan's containment tree picks
+  that up for free, because it derives the tree from each creating command's `*_id`
+  argument.
+- **a non-string default** (1). `ShapeField` types `default` as String, so
+  `default: 0.0` returns `"0.0"`.
+- **a literal that is not a scalar** (1). `to: { value: "good" }` stores the hash's
+  inspect string; `Change`'s `source` is a String.
 
-`spec/fixpoint_spec` judges the language by its own rules. It passes.
+## How the pieces fit
 
-`HECKSAGAIN_META_VALIDATION=off` shows what it is holding.
+- `plan.rb` — reads the language's own IR into a plan. Every append command DECLARES
+  its target (`then_set :givens, append: {...}`), so the append table AND the whole
+  containment tree fall out of the declarations. Appenders are FIRST-WINS with the
+  displaced ones kept as `alternates`, because three commands append to `attributes`.
+- `judge.rb` — the walk. No branch per category. Declares every sibling before
+  detailing any, so a reference can point at a head declared later in the file.
+- `readings.rb` — only where the IR's SHAPE differs from the language's: a
+  transition whose `from` is a list is several transitions, an open map is one row
+  per entry, an append is offered once per binding.
+- `reconstruction.rb` + `shapes.rb` — the inverse, reading through the language's
+  own `whole_bluebook` read model. ~220 code lines against replay.rb's 420, because
+  both directions are one table.
+- The language spells its fields EXACTLY as the IR spells them. One spelling, so
+  there is no translation table to be quietly wrong in.
 
-## THE OPEN THREAD — a generic judge
+## Reading a bluebook back
 
-`meta_validator/judge.rb` is ~140 lines of per-category dispatch. The aggregates
-were renamed to the words they describe (Bluebook, Aggregate, Command,
-ValueObject, Query, Entity, Policy, ProcessManager, ReadModel, Handler,
-Dispatch) precisely so the judge could become a WALK: find the aggregate of the
-same name, offer each field by name.
+    Meta::Bluebook.Called            the bluebook called "Pizzas"
+    Meta::<Root>.DeclaredIn          everything declared in the parent above
+    Meta.whole_bluebook              the whole chapter in ONE read (a read model)
 
-**It does not work yet, and I backed it out.** Top-level fields walk fine.
-Nested collections do not: a command's attributes / givens / mutations are
-value-object LISTS appended by separate commands (`Command.Argument`,
-`Command.Rule`, `Command.Change`), and which append command belongs to which
-list is not derivable from a name. Making it derivable means modelling every
-nested collection as its own root — a real remodelling, not an afternoon.
+Query names are matched EXACTLY and are PascalCase (`.Called`, not `.called`). The
+read model's reference argument is the snake of its `reference_to` target
+(`bluebook:`), not `reference:`.
 
-If attempted: **parity is the gate.** Change Ruby's side only, keep Rust as the
-control, and `AGREED` means the walk is faithful.
+Every attribute type is a REFERENCE to whatever it names — a value object, another
+aggregate's head, or an entity — so "the type is declared" costs no predicate at
+all. Three verbs: `Attribute`, `Reference`, `Holds`. Nothing is skipped.
 
-## Findings recorded, NOT fixed
+## What is left
 
-- **Read-model uniqueness** (`already projects X`) is the last rule that cannot
-  port. It needs to see inside a list, and the sublanguage has no quantifier and
-  cannot reach an element's fields. Costed three ways: a quantifier (~100 lines
-  both runtimes, but it introduces LEXICAL SCOPE and permanently raises the
-  floor every future runtime pays), a pluck primitive (~60 lines, first-order,
-  uglier), or leave it.
-- **`role` and `goal` were never required** by the builders. Banking declares
-  neither on 19 of 40 commands; pizzas 3/3 and grammar 16/16 declare both. The
-  language has no opinion. Whether it should is a design decision, not a defect.
-- **21 of 62 value objects in the language are `{ value: String }` with no rule**
-  — ceremony forced by "attributes must be value objects" plus per-aggregate VO
-  scoping. ~80 lines of nothing. Worth asking whether the rule should apply to
-  every field or only to fields that carry meaning.
-- **Self-hosting does not delete code.** Measured three times: ~+200 lines net.
-  862 (dsl) + 479 (ir) + 1002 (runtime), and nearly all of it is irreducible — a
-  keyword surface, data classes the interpreter reads, and an interpreter. If a
-  smaller codebase is the goal, this is not the route.
-- **The floor is IO PLUS the interpreter**, not IO alone. A `given` is a closed
-  predicate over its own attributes, so a predicate held as DATA cannot be
-  evaluated, a dynamic mutation target cannot be set, and a data-named verb
-  cannot be dispatched. ~390 lines of expression evaluator stay hand-written in
-  every target language.
+- **Close the three round-trip gaps** above. Entity's commands and queries are the
+  big one and the plan will do most of it.
+- **The unwind is COARSE and the corpus cannot tell.** `on :refused` is ONE
+  compensation for a whole procedure; banking hand-lists two undos in the right
+  order, by hand, and the runtime does not know which legs completed. Right for two
+  prior steps, wrong for four. Discriminating case: three undoable steps where only
+  the first two complete.
+- **Five of twelve categories are still pattern names**, not words a bank says:
+  `ProcessManager`, `Handler`, `Dispatch`, and the `lifecycle` / `saga` vocabulary.
+  The collapse they hide: a procedure is an aggregate advanced by EVENTS instead of
+  commands, `correlates_by` is a `reference_to`, and a status is an attribute whose
+  values are a closed set with declared moves —
+  `attribute :status, TransferStatus do transition … end`. An arc, not a rename.
+- **Two rules genuinely blocked on the sublanguage**: read-model uniqueness needs a
+  quantifier, the mutation-target rule needs to reach a list on another root (it
+  lives in `AggregateBuilder` and says so). A third was NOT a sublanguage gap — see
+  below.
+
+## Defects written down as expected behaviour — five in one session
+
+The house failure mode. Each PASSED because the thing asserting it agreed with the bug:
+
+- `dsl_spec`'s five `then_set` cases asserted a mutation was recorded while naming
+  fields their fixture never declared.
+- banking credited an account with `colour: "red"`, succeeded, and wrote the bug
+  into its own narrative: *"An attribute the command never declared."*
+- `spec/saga_spec` was titled "the compensation puts the money back" and the TEST
+  put it back, by hand, one line after asserting the drawer was short.
+- banking hand-drove a transfer into a frozen destination through
+  `Reject → Debited → Settle` to `"status": "settled"` — money debited, never
+  delivered, recorded as done.
+- `Aggregate.Seal` carried `given("an aggregate declares at least one attribute")`,
+  invented for Seal and never dispatched. First run it refused twenty-five
+  bluebooks, and it is not true: a state machine declares no attribute.
 
 ## Findings worth not rediscovering
 
-- **Agreement is not correctness.** Both runtimes can be equally wrong and
-  parity stays green. `bin/parity` now prints an execution census and FAILS on a
-  silent corpus — pizzas once reported AGREED while executing NOTHING.
-- **A rule the judge never offers input to cannot fire.** Twice in the validator
-  alone: five rules declared and unreachable, then policies, process managers
-  and entities unjudged. `spec/judge_coverage_spec` guards it.
-- **Moving a rule is the easiest moment to lose one.** Two were lost while
-  porting — one had no counterpart declared; one was reported as a runtime bug
-  when it was a malformed bluebook I had written. Only the specs pinning the old
-  rules caught them. A spec per ported rule is not optional.
-- **ABSENT is not EMPTY.** Passing `""` for a nil turned every "if you declare
-  it, declare something" rule into "you must declare it" — 73 examples refused.
-- **A command argument SHADOWS the aggregate field of the same name** inside a
-  given. Three sightings. A once-only rule cannot read the state it guards
-  unless the two differ.
-- **`identified_by :name` forbids an argument named `name`** — the runtime reads
-  it as the reference lookup.
-- **Raw Ruby errors leak as refusals.** `no implicit conversion of Symbol into
-  Integer` appeared four times. `Runtime::DOMAIN_REFUSALS` declares the boundary
-  and `spec/domain_refusal_spec` enforces it.
-- **The IR is a shared contract.** Adding a field on one side splits parity
-  immediately — twice (`closed_set`, and the ORDER of a synthesised value
-  object). Field for field AND index for index.
-- **`bin/parity` takes the first `.bluebook` in a folder.** Two files in one
-  directory silently displaced a corpus member. The meta-domain lives in
-  `lib/hecksagain/language/` so joining the corpus is deliberate.
-- **`cd ~/Projects/hecksagain && …` on every command** — the session cwd is not
-  this repo.
+- **Both runtimes can be wrong identically, and parity certifies it.** A read
+  model's gathered heads derived their name with `snake(target) + "s"` in BOTH
+  runtimes, so the meta-domain handed back `querys`, `entitys`, `policys`,
+  `dispatchs` — green on every one. There were also TWO pluralisers and only one was
+  correct. `Naming.plural` / `naming::plural` are the only copies now.
+- **Not all order matters.** BEHAVIOUR-BEARING order must survive: mutations are
+  applied in sequence, a lifecycle takes the FIRST matching transition, a
+  compensation credits before it reverses. PRESENTATION order need not: nothing
+  looks a command up by position, so `ReadModelInterpreter#matching`'s
+  `.sort_by(&:id)` is a canonical form and the round-trip comparison sorts both
+  sides. "Index for index" is about the two CANONICALISERS being byte-equal — a
+  property of the comparison, not of the IR.
+- **Ask whether a rule is unsayable or just badly modelled.** The reference-shape
+  rule looked like a sublanguage gap (`start_with?` is unavailable and leaks a raw
+  `no implicit conversion of Symbol into Integer`). It was a STRING where a
+  reference belonged. `reference_to Aggregate, as: :points_at` is stronger than the
+  prefix match, because a prefix match only checks the text looks right.
+- **`as:` means "a named attribute", not "the root I act on".** Without that a
+  command cannot point at another instance of its own kind. Rust's `ir_json.rs`
+  needed the same rule (`acts_on_root`) — latent, since the meta-domain is not in
+  the parity corpus, and exactly the kind of divergence that later looks like a
+  parser bug.
+- **`identified_by :name` forbids an argument named `name`.** Bluebook was
+  identified by its name AND carried it as a field, so `Bluebook.Normalise` could
+  never say what it acts on. It is reached by id now.
+- **A refusal is not an event.** `on :refused` is the compensating leg's trigger,
+  declared in the `Trigger` vocabulary and bound to `IR::ProcessManager::REFUSED`.
+  The DSL needed no change; the Rust PARSER did — `extract_string` takes the first
+  quoted string and reached past the symbol to grab the transition's from-state.
+- **Procedure and saga are different things.** A procedure coordinates; it is a saga
+  when it also undoes. `IR::Saga` is derived from a compensating leg and deliberately
+  NOT in `to_h` — a reading of the source, not a fact about it. `saga` appears in no
+  `.bluebook` and never should.
+- **Seven encoding losses, all the same family.** Reading an OBJECT where the IR's
+  `to_h` holds the spelling: `order_by` and `limit` stored as
+  `"#<struct LimitSpec value=3>"` because `Array(an_object)` wraps rather than
+  destructures; a where-clause's value and every saga dispatch binding lost the colon
+  that tells `":ceiling"` the argument from `"ceiling"` the string. An entity's
+  `identified_by` is a String where an aggregate's is a Symbol, and a read-model
+  head's `as` is a String too. **None of these were reachable before the round trip
+  existed** — a bluebook that goes in and never comes out cannot tell you it went in
+  wrong.
+- **Unknown command arguments used to be accepted in silence.** Found by renaming a
+  field and watching every stale caller stay green. `UnknownArgument` refuses them in
+  both runtimes now; a process manager's correlation key is exempt because a saga
+  threads it through every leg — the weakest seam in that gate. The better shape is
+  the saga stamping its own key onto the event it caused.
+- **A `then_set` naming a field the aggregate lacks wrote nothing and refused
+  nothing.** Caught at build now, in `AggregateBuilder#seal_mutation_targets`.
 
-## Things a fresh session should NOT redo
+## Traps that cost real time
 
-- **Do not rebuild a round-trip harness.** `experiment/replay.rb` proved every
-  corpus IR round-trips byte-identically, then was retired: reconstruction is
-  not needed for validation, and parity answers the question better. It IS
-  needed if the meta-domain ever becomes the IR rather than its judge.
-- **Do not call a rule unportable without checking.** Both rules called
-  unportable turned out fixable — one by removing it (a data dependency, not an
-  ordering rule), one by recording in the IR what the author had declared.
-- **Do not trust green.** Every real defect this session was found by probing by
-  hand, not by the suite going red.
+- **`bin/parity` cleans up its temp dirs.** The `/tmp/parity.*.json` files are
+  STALE — half an hour went into reading yesterday's and reporting three wrong
+  conclusions from them. Drive the domain live (`Hecks.boot("examples/banking")` and
+  dispatch) or read `bin/parity`'s own output.
+- **Hand-probes dirty `examples/banking/data/`.** Run
+  `git checkout -- examples/banking/data/` after any script that boots a real domain.
+- **`grep saga` matches "heckSAGAin".** Use `\bsagas?\b`.
+- **Don't move Ruby blocks with a script that counts keywords.** It finds `do`
+  inside a comment and produces unbalanced `end`s somewhere quiet.
+- **`cd ~/Projects/hecksagain && …` on every command** — the session cwd is not this
+  repo and the shell resets between calls.
+- **Don't trust green, and don't trust a filename.** Every real defect this session
+  was found by probing by hand or by measuring a diff — never by the suite going red.
