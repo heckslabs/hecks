@@ -390,11 +390,56 @@ fn build_element(
     }
 
     if let Some(value_object) = value_object_for(aggregate, target) {
+        flatten_scalar_fields(aggregate, &value_object, &mut fields);
         admit_member(&value_object, &fields)?;
         enforce_invariants(&value_object, &fields)?;
     }
 
     Ok(Value::Object(fields))
+}
+
+/// Mirrors Ruby's `Value.scalar` (`lib/hecksagain/runtime/value.rb:87`) at the
+/// append boundary.
+///
+/// A command attribute is a value object, but the element it is appended INTO
+/// may declare that same field as a scalar — `then_set :toppings, append: {
+/// amount: :amount }` where the argument is a `ToppingAmount` and
+/// `Topping.amount` is an `Integer`. Ruby flattens the single-field value
+/// object to the scalar it stands for ; without this Rust stored the whole
+/// `{"value":3}` and every predicate reading it failed with
+/// `positive? expects a number, got {"value":3}`.
+///
+/// Only fields the element declares as SCALAR are flattened — a legitimately
+/// nested value object is left intact. A multi-field value object standing in
+/// for a scalar is left untouched here rather than guessed at; Ruby raises
+/// `TypeMismatch` for that case and no corpus step reaches it yet.
+fn flatten_scalar_fields(
+    aggregate: &Map<String, Value>,
+    value_object: &Map<String, Value>,
+    fields: &mut Map<String, Value>,
+) {
+    for attribute in array(value_object, "attributes") {
+        let Some(name) = attribute.get("name").and_then(Value::as_str) else {
+            continue;
+        };
+        let declared_scalar = match attribute.get("type").and_then(Value::as_str) {
+            Some(type_name) => value_object_named(aggregate, type_name).is_none(),
+            None => true,
+        };
+        if !declared_scalar {
+            continue;
+        }
+        let Some(Value::Object(supplied)) = fields.get(name) else {
+            continue;
+        };
+        if supplied.len() != 1 {
+            continue;
+        }
+        let Some(scalar) = supplied.values().next().cloned() else {
+            continue;
+        };
+        fields.insert(name.to_string(), scalar);
+    }
 }
 
 fn ruby_literal(token: &str) -> Value {

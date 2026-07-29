@@ -57,14 +57,13 @@ RSpec.describe "a policy" do
   end
 
   it "records a reaction it cannot deliver rather than swallowing it" do
-    runtime = boot_in_memory
-    pizza   = topped_pizza(runtime)
-    runtime.dispatch("Pizzas::Pizza.Purchase", id: pizza.id, customer_name: { value: "Chris" })
+    runtime = boot_reflex
+    runtime.dispatch("Reflex::Beacon.Raise", id: "beacon-1")
 
     expect(runtime.reactions).to contain_exactly(
       hash_including(
-        policy:    "NotifyOnPurchase",
-        on:        "PizzaPurchased",
+        policy:    "NotifyOnRaise",
+        on:        "Raised",
         trigger:   "Notifications::Notifications.Send",
         delivered: false
       )

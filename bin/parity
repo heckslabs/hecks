@@ -52,11 +52,30 @@ run_domain() {
 
   "$ROOT/bin/canonicalise" "$prefix.ruby.raw.json" > "$prefix.ruby.json"
   "$ROOT/bin/canonicalise" "$prefix.rust.raw.json" > "$prefix.rust.json"
+
+  # Agreement is not execution. Two runtimes that refuse every step agree
+  # perfectly, and every downstream stage — histories, stores — then diffs two
+  # empty results and passes. Pizzas sat like that, reported AGREED, while its
+  # parity script ran no domain logic at all. Ask what actually happened before
+  # asking whether the two answers match.
+  for runtime in ruby rust; do
+    executed=$(ruby -rjson -e 'print JSON.parse(STDIN.read).fetch("events", []).length' \
+      < "$prefix.$runtime.json")
+    attempted=$(ruby -rjson -e 'print JSON.parse(File.read(ARGV[0])).fetch("steps", []).length' \
+      "$script")
+    if [ "$executed" -eq 0 ]; then
+      echo "   SILENT — $name executed nothing through $runtime: 0 events from $attempted steps."
+      echo "            Every step was refused, so both runtimes would agree about nothing."
+      return 1
+    fi
+  done
+
   if ! diff -u "$prefix.ruby.json" "$prefix.rust.json"; then
     echo "   SPLIT — the runtimes disagreed on $name through $adapter."
     return 1
   fi
   echo "   runtimes agree — same answer for every step"
+  echo "   corpus executes — $executed events from $attempted steps"
 
   "$ROOT/bin/canonicalise" "$prefix.ruby.history.raw.json" > "$prefix.ruby.history.json"
   "$ROOT/bin/canonicalise" "$prefix.rust.history.raw.json" > "$prefix.rust.history.json"

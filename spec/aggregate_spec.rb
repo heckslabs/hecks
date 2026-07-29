@@ -84,7 +84,7 @@ RSpec.describe "a constructed aggregate" do
       pizza = Pizza.create_pizza(name: { value: "Margherita" }, price_cents: { cents: 1200 })
 
       expect { pizza.add_topping(name: { value: "Air" }, amount: { value: 0 }) }
-        .to raise_error(Hecksagain::Runtime::InvariantViolation, /amount must be positive/)
+        .to raise_error(Hecksagain::Runtime::InvariantViolation, /ToppingAmount .* an amount is positive/)
     end
   end
 

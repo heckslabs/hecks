@@ -8,12 +8,44 @@ Hecks.bluebook "Expression" do
 
     identified_by :symbol
 
-    attribute :symbol,     String
-    attribute :category,   String
-    attribute :precedence, Integer
-    attribute :arity,      Integer
+    attribute :symbol,     OperatorSymbol
+    attribute :category,   Category
+    attribute :precedence, Precedence
+    attribute :arity,      Arity
     attribute :renderings, list_of(Rendering)
-    attribute :status,     String, default: "proposed"
+
+    lifecycle :status, default: "proposed" do
+      transition "Admit"  => "admitted", from: "proposed"
+      transition "Retire" => "retired",  from: "admitted"
+    end
+
+    value_object "OperatorSymbol" do
+      attribute :value, String
+      invariant("an operator is written as something") { !value.to_s.empty? }
+    end
+
+    value_object "Category" do
+      attribute :value, String
+      invariant("an operator belongs to a category") { !value.to_s.empty? }
+    end
+
+    value_object "Precedence" do
+      attribute :value, Integer
+      invariant("precedence binds at some level") { value > 0 }
+    end
+
+    value_object "Arity" do
+      attribute :value, Integer
+      invariant("an operator takes at least one operand") { value > 0 }
+    end
+
+    value_object "Target" do
+      attribute :value, String
+    end
+
+    value_object "Form" do
+      attribute :value, String
+    end
 
     value_object "Rendering" do
       attribute :target, String
@@ -27,10 +59,10 @@ Hecks.bluebook "Expression" do
       role "Language designer"
       goal "Put an operation forward for the sublanguage"
 
-      attribute :symbol,     String
-      attribute :category,   String
-      attribute :precedence, Integer
-      attribute :arity,      Integer
+      attribute :symbol,     OperatorSymbol
+      attribute :category,   Category
+      attribute :precedence, Precedence
+      attribute :arity,      Arity
 
       emits "OperatorProposed"
     end
@@ -40,8 +72,8 @@ Hecks.bluebook "Expression" do
       goal "Declare how this operator reads in one target"
 
       reference_to Operator
-      attribute :target, String
-      attribute :form,   String
+      attribute :target, Target
+      attribute :form,   Form
 
       given("a retired operator takes no new renderings") { status != "retired" }
 
@@ -57,9 +89,6 @@ Hecks.bluebook "Expression" do
       reference_to Operator
 
       given("an operator must read in every target before it is admitted") { renderings.size >= 2 }
-      given("only a proposed operator can be admitted")                    { status == "proposed" }
-
-      then_set :status, to: "admitted"
 
       emits "OperatorAdmitted"
     end
@@ -70,10 +99,6 @@ Hecks.bluebook "Expression" do
 
       reference_to Operator
 
-      given("only an admitted operator can be retired") { status == "admitted" }
-
-      then_set :status, to: "retired"
-
       emits "OperatorRetired"
     end
   end
@@ -83,14 +108,54 @@ Hecks.bluebook "Expression" do
 
     identified_by :name
 
-    attribute :name,         String
-    attribute :strategy,     String
-    attribute :source_token, String
-    attribute :replacement,  String
-    attribute :boundary,     String, default: "none"
-    attribute :position,     Integer
+    attribute :name,         RuleName
+    attribute :strategy,     Strategy
+    attribute :source_token, SourceToken
+    attribute :replacement,  Replacement
+    attribute :boundary,     Boundary
+    attribute :position,     Position
     attribute :readings,     list_of(Reading)
-    attribute :status,       String, default: "proposed"
+
+    lifecycle :status, default: "proposed" do
+      transition "Admit"  => "admitted", from: "proposed"
+      transition "Retire" => "retired",  from: "admitted"
+    end
+
+    value_object "RuleName" do
+      attribute :value, String
+      invariant("a rule is named") { !value.to_s.empty? }
+    end
+
+    value_object "Strategy" do
+      attribute :value, String
+      invariant("a rule names a strategy") { !value.to_s.empty? }
+    end
+
+    value_object "SourceToken" do
+      attribute :value, String
+    end
+
+    value_object "Replacement" do
+      attribute :value, String
+    end
+
+    value_object "Boundary" do
+      attribute :value, String, default: "none"
+      invariant("a boundary condition is named") { !value.to_s.empty? }
+    end
+
+    value_object "Position" do
+      attribute :value, Integer
+      invariant("a rule sits somewhere in the order") { value > 0 }
+    end
+
+    value_object "Target" do
+      attribute :value, String
+    end
+
+    value_object "Form" do
+      attribute :value, String
+    end
 
     value_object "Rule" do
       attribute :strategy,     String
@@ -117,18 +182,18 @@ Hecks.bluebook "Expression" do
       role "Language designer"
       goal "Put a normalisation rule forward for the canonical form"
 
-      attribute :name,         String
-      attribute :strategy,     String
-      attribute :source_token, String
-      attribute :replacement,  String
-      attribute :boundary,     String
-      attribute :position,     Integer
+      attribute :name,         RuleName
+      attribute :strategy,     Strategy
+      attribute :source_token, SourceToken
+      attribute :replacement,  Replacement
+      attribute :boundary,     Boundary
+      attribute :position,     Position
 
       given("a rule must name a linked strategy") do
-        strategy == "collapse_whitespace" || strategy == "replace"
+        strategy.value == "collapse_whitespace" || strategy.value == "replace"
       end
 
-      given("a rule must state its boundary") { boundary == "none" || boundary == "word" }
+      given("a rule must state its boundary") { boundary.value == "none" || boundary.value == "word" }
 
       emits "NormalisationProposed"
     end
@@ -138,8 +203,8 @@ Hecks.bluebook "Expression" do
       goal "Declare how this rule reads in one target"
 
       reference_to Normalisation
-      attribute :target, String
-      attribute :form,   String
+      attribute :target, Target
+      attribute :form,   Form
 
       given("a retired rule takes no new readings") { status != "retired" }
 
@@ -155,9 +220,6 @@ Hecks.bluebook "Expression" do
       reference_to Normalisation
 
       given("a rule must read in every target before it is admitted") { readings.size >= 2 }
-      given("only a proposed rule can be admitted")                   { status == "proposed" }
-
-      then_set :status, to: "admitted"
 
       emits "NormalisationAdmitted"
     end
@@ -168,10 +230,6 @@ Hecks.bluebook "Expression" do
 
       reference_to Normalisation
 
-      given("only an admitted rule can be retired") { status == "admitted" }
-
-      then_set :status, to: "retired"
-
       emits "NormalisationRetired"
     end
   end
@@ -179,13 +237,57 @@ Hecks.bluebook "Expression" do
   aggregate "Expression" do
     description "One predicate extracted from regular Ruby — the source as written, the canonical text both runtimes evaluate, and the subject it reads against."
 
-    attribute :description, String
-    attribute :source,      String
-    attribute :canonical,   String
-    attribute :subject,     String
-    attribute :role,        String, default: "given"
+    attribute :description, Description
+    attribute :source,      Source
+    attribute :canonical,   Canonical
+    attribute :subject,     Subject
+    attribute :role,        ExpressionRole
     attribute :references,  list_of(Reference)
-    attribute :status,      String, default: "extracted"
+
+    lifecycle :status, default: "extracted" do
+      transition "Admit"  => "admitted", from: "extracted"
+      transition "Reject" => "rejected", from: "extracted"
+    end
+
+    value_object "Description" do
+      attribute :value, String
+      invariant("a predicate says what it is for") { !value.to_s.empty? }
+    end
+
+    value_object "Source" do
+      attribute :value, String
+    end
+
+    value_object "Canonical" do
+      attribute :value, String
+    end
+
+    value_object "Subject" do
+      attribute :value, String
+      invariant("a predicate reads against something") { !value.to_s.empty? }
+    end
+
+    value_object "ExpressionRole" do
+      attribute :value, String, default: "given"
+      invariant("a predicate plays a role") { !value.to_s.empty? }
+    end
+
+    value_object "ReferenceName" do
+      attribute :value, String
+      invariant("a reference must be named") { !value.to_s.empty? }
+    end
+
+    value_object "Kind" do
+      attribute :value, String
+      invariant("a reference is either an attribute or an argument") do
+        value.to_s == "attribute" || value.to_s == "argument"
+      end
+    end
+
+    value_object "Reason" do
+      attribute :value, String
+      invariant("a refusal gives a reason") { !value.to_s.empty? }
+    end
 
     value_object "Reference" do
       attribute :name, String
@@ -201,10 +303,10 @@ Hecks.bluebook "Expression" do
       role "System"
       goal "Lower a real Ruby predicate into the sublanguage"
 
-      attribute :description, String
-      attribute :source,      String
-      attribute :canonical,   String
-      attribute :subject,     String
+      attribute :description, Description
+      attribute :source,      Source
+      attribute :canonical,   Canonical
+      attribute :subject,     Subject
 
       emits "ExpressionExtracted"
     end
@@ -214,8 +316,8 @@ Hecks.bluebook "Expression" do
       goal "Record a name the expression reads"
 
       reference_to Expression
-      attribute :name, String
-      attribute :kind, String
+      attribute :name, ReferenceName
+      attribute :kind, Kind
 
       then_set :references, append: { name: :name, kind: :kind }
 
@@ -228,10 +330,8 @@ Hecks.bluebook "Expression" do
 
       reference_to Expression
 
-      given("an expression must have canonical text") { !canonical.to_s.empty? }
-      given("an expression must know its subject")    { !subject.to_s.empty? }
-
-      then_set :status, to: "admitted"
+      given("an expression must have canonical text") { !canonical.value.to_s.empty? }
+      given("an expression must know its subject")    { !subject.value.to_s.empty? }
 
       emits "ExpressionAdmitted"
     end
@@ -241,9 +341,7 @@ Hecks.bluebook "Expression" do
       goal "Refuse a predicate that leaves the sublanguage"
 
       reference_to Expression
-      attribute :reason, String
-
-      then_set :status, to: "rejected"
+      attribute :reason, Reason
 
       emits "ExpressionRejected"
     end
@@ -252,10 +350,40 @@ Hecks.bluebook "Expression" do
   aggregate "Agreement" do
     description "One expression evaluated by every runtime against the same state — the standing proof that Ruby and Rust mean the same thing."
 
-    attribute :canonical, String
-    attribute :subject,   String
+    attribute :canonical, Canonical
+    attribute :subject,   Subject
     attribute :verdicts,  list_of(Verdict)
-    attribute :status,    String, default: "open"
+
+    lifecycle :status, default: "open" do
+      transition "Settle" => "settled", from: "open"
+      transition "Split"  => "split",   from: "open"
+    end
+
+    value_object "Canonical" do
+      attribute :value, String
+    end
+
+    value_object "Subject" do
+      attribute :value, String
+      invariant("an agreement is asked about something") { !value.to_s.empty? }
+    end
+
+    value_object "Runtime" do
+      attribute :value, String
+      invariant("a verdict must name its runtime") { !value.to_s.empty? }
+    end
+
+    value_object "Outcome" do
+      attribute :value, String
+      invariant("an outcome is true, false, or error") do
+        value.to_s == "true" || value.to_s == "false" || value.to_s == "error"
+      end
+    end
+
+    value_object "Reason" do
+      attribute :value, String
+      invariant("a split gives a reason") { !value.to_s.empty? }
+    end
 
     value_object "Verdict" do
       attribute :runtime, String
@@ -271,8 +399,8 @@ Hecks.bluebook "Expression" do
       role "System"
       goal "Put one expression to every runtime against the same state"
 
-      attribute :canonical, String
-      attribute :subject,   String
+      attribute :canonical, Canonical
+      attribute :subject,   Subject
 
       emits "AgreementAsked"
     end
@@ -282,8 +410,8 @@ Hecks.bluebook "Expression" do
       goal "Record what one runtime said"
 
       reference_to Agreement
-      attribute :runtime, String
-      attribute :outcome, String
+      attribute :runtime, Runtime
+      attribute :outcome, Outcome
 
       given("a settled agreement takes no further answers") { status == "open" }
 
@@ -299,9 +427,6 @@ Hecks.bluebook "Expression" do
       reference_to Agreement
 
       given("agreement needs at least two runtimes") { verdicts.size >= 2 }
-      given("an agreement settles once")             { status == "open" }
-
-      then_set :status, to: "settled"
 
       emits "AgreementSettled"
     end
@@ -311,11 +436,7 @@ Hecks.bluebook "Expression" do
       goal "Record that the runtimes disagreed — a defect in the sublanguage"
 
       reference_to Agreement
-      attribute :reason, String
-
-      given("an agreement splits once") { status == "open" }
-
-      then_set :status, to: "split"
+      attribute :reason, Reason
 
       emits "AgreementSplit"
     end

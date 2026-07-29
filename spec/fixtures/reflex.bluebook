@@ -54,4 +54,27 @@ Hecks.bluebook "Reflex" do
       trigger "Echo.Ring"
     end
   end
+
+  aggregate "Beacon" do
+    description "A beacon that signals a domain which is not loaded — the undeliverable reaction, which must be recorded rather than swallowed"
+
+    attribute :signal, SignalName
+
+    value_object "SignalName" do
+      attribute :value, String
+    end
+
+    command "Raise" do
+      role "Operator"
+      goal "Raise the beacon and announce it outward"
+
+      emits "Raised"
+    end
+
+    policy "NotifyOnRaise" do
+      on      "Raised"
+      trigger "Notifications.Send"
+      across  "Notifications"
+    end
+  end
 end

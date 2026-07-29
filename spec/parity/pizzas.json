@@ -6,84 +6,177 @@
       "verb": "Pizzas::Pizza.CreatePizza",
       "args": {
         "id": "pizza-parity",
-        "name": "Margherita",
-        "price_cents": 1200
+        "name": {
+          "value": "Margherita"
+        },
+        "price_cents": {
+          "cents": 1200
+        }
       }
     },
     {
       "verb": "Pizzas::Pizza.AddTopping",
       "args": {
         "id": "pizza-parity",
-        "name": "Basil",
-        "amount": 3
+        "name": {
+          "value": "Basil"
+        },
+        "amount": {
+          "value": 3
+        }
       }
     },
     {
       "verb": "Pizzas::Pizza.AddTopping",
       "args": {
         "id": "pizza-parity",
-        "name": "Olive",
-        "amount": 2
+        "name": {
+          "value": "Olive"
+        },
+        "amount": {
+          "value": 2
+        }
       }
     },
     {
       "verb": "Pizzas::Pizza.Purchase",
       "args": {
         "id": "pizza-parity",
-        "customer_name": "Chris"
+        "customer_name": {
+          "value": "Chris"
+        }
       }
     },
     {
       "verb": "Pizzas::Pizza.Purchase",
       "args": {
         "id": "pizza-parity",
-        "customer_name": "Someone"
+        "customer_name": {
+          "value": "Someone"
+        }
       }
     },
     {
       "verb": "Pizzas::Pizza.AddTopping",
       "args": {
         "id": "pizza-parity",
-        "name": "Late",
-        "amount": 1
+        "name": {
+          "value": "Late"
+        },
+        "amount": {
+          "value": 1
+        }
       }
     },
     {
       "verb": "Pizzas::Pizza.CreatePizza",
       "args": {
         "id": "pizza-bare",
-        "name": "Bare",
-        "price_cents": 900
+        "name": {
+          "value": "Bare"
+        },
+        "price_cents": {
+          "cents": 900
+        }
       }
     },
     {
       "verb": "Pizzas::Pizza.Purchase",
       "args": {
         "id": "pizza-bare",
-        "customer_name": "Nobody"
+        "customer_name": {
+          "value": "Nobody"
+        }
       }
     },
     {
       "verb": "Pizzas::Pizza.AddTopping",
       "args": {
         "id": "pizza-bare",
-        "name": "Air",
-        "amount": 0
+        "name": {
+          "value": "Air"
+        },
+        "amount": {
+          "value": 0
+        }
       }
     },
     {
       "verb": "Pizzas::Pizza.Purchase",
       "args": {
         "id": "pizza-ghost",
-        "customer_name": "Nobody"
+        "customer_name": {
+          "value": "Nobody"
+        }
       }
     },
     {
       "verb": "Pizzas::Pizza.AddTopping",
       "args": {
         "id": "pizza-bare",
-        "name": "Odd",
-        "amount": "three"
+        "name": {
+          "value": "Odd"
+        },
+        "amount": {
+          "value": "three"
+        }
+      }
+    },
+    {
+      "verb": "Pizzas::Pizza.CreatePizza",
+      "args": {
+        "id": "pizza-noname",
+        "name": {
+          "value": ""
+        },
+        "price_cents": {
+          "cents": 1200
+        }
+      }
+    },
+    {
+      "verb": "Pizzas::Pizza.CreatePizza",
+      "args": {
+        "id": "pizza-negative",
+        "name": {
+          "value": "Neg"
+        },
+        "price_cents": {
+          "cents": -1
+        }
+      }
+    },
+    {
+      "verb": "Pizzas::Pizza.AddTopping",
+      "args": {
+        "id": "pizza-bare",
+        "name": {
+          "value": ""
+        },
+        "amount": {
+          "value": 1
+        }
+      }
+    },
+    {
+      "verb": "Pizzas::Pizza.Purchase",
+      "args": {
+        "id": "pizza-bare",
+        "customer_name": {
+          "value": ""
+        }
+      }
+    },
+    {
+      "query": "Pizzas::Pizza.Available",
+      "args": {}
+    },
+    {
+      "query": "Pizzas::Pizza.CostingLessThan",
+      "args": {
+        "ceiling": {
+          "cents": 1000
+        }
       }
     }
   ]

@@ -5,168 +5,290 @@
     {
       "verb": "Expression::Operator.Propose",
       "args": {
-        "symbol": "&&",
-        "category": "logical",
-        "precedence": 2,
-        "arity": 2
+        "symbol": {
+          "value": "&&"
+        },
+        "category": {
+          "value": "logical"
+        },
+        "precedence": {
+          "value": 2
+        },
+        "arity": {
+          "value": 2
+        }
       }
     },
     {
       "verb": "Expression::Operator.Admit",
       "args": {
-        "symbol": "&&"
+        "symbol": {
+          "value": "&&"
+        }
       }
     },
     {
       "verb": "Expression::Operator.Render",
       "args": {
-        "target": "ruby",
-        "form": "a && b",
-        "symbol": "&&"
+        "target": {
+          "value": "ruby"
+        },
+        "form": {
+          "value": "a && b"
+        },
+        "symbol": {
+          "value": "&&"
+        }
       }
     },
     {
       "verb": "Expression::Operator.Render",
       "args": {
-        "target": "rust",
-        "form": "a && b",
-        "symbol": "&&"
+        "target": {
+          "value": "rust"
+        },
+        "form": {
+          "value": "a && b"
+        },
+        "symbol": {
+          "value": "&&"
+        }
       }
     },
     {
       "verb": "Expression::Operator.Admit",
       "args": {
-        "symbol": "&&"
+        "symbol": {
+          "value": "&&"
+        }
       }
     },
     {
       "verb": "Expression::Operator.Admit",
       "args": {
-        "symbol": "&&"
+        "symbol": {
+          "value": "&&"
+        }
       }
     },
     {
       "verb": "Expression::Operator.Retire",
       "args": {
-        "symbol": "&&"
+        "symbol": {
+          "value": "&&"
+        }
       }
     },
     {
       "verb": "Expression::Operator.Render",
       "args": {
-        "target": "go",
-        "form": "a && b",
-        "symbol": "&&"
+        "target": {
+          "value": "go"
+        },
+        "form": {
+          "value": "a && b"
+        },
+        "symbol": {
+          "value": "&&"
+        }
       }
     },
     {
       "verb": "Expression::Operator.Propose",
       "args": {
-        "symbol": "||",
-        "category": "logical",
-        "precedence": 1,
-        "arity": 2
+        "symbol": {
+          "value": "||"
+        },
+        "category": {
+          "value": "logical"
+        },
+        "precedence": {
+          "value": 1
+        },
+        "arity": {
+          "value": 2
+        }
       }
     },
     {
       "verb": "Expression::Operator.Render",
       "args": {
-        "target": "",
-        "form": "a || b",
-        "symbol": "||"
+        "target": {
+          "value": ""
+        },
+        "form": {
+          "value": "a || b"
+        },
+        "symbol": {
+          "value": "||"
+        }
       }
     },
     {
       "verb": "Expression::Normalisation.Propose",
       "args": {
-        "name": "collapse_whitespace",
-        "strategy": "collapse_whitespace",
-        "source_token": "",
-        "replacement": "",
-        "boundary": "none",
-        "position": 1
+        "name": {
+          "value": "collapse_whitespace"
+        },
+        "strategy": {
+          "value": "collapse_whitespace"
+        },
+        "source_token": {
+          "value": ""
+        },
+        "replacement": {
+          "value": ""
+        },
+        "boundary": {
+          "value": "none"
+        },
+        "position": {
+          "value": 1
+        }
       }
     },
     {
       "verb": "Expression::Normalisation.Admit",
       "args": {
-        "name": "collapse_whitespace"
+        "name": {
+          "value": "collapse_whitespace"
+        }
       }
     },
     {
       "verb": "Expression::Normalisation.Read",
       "args": {
-        "name": "collapse_whitespace",
-        "target": "ruby",
-        "form": "source.split.join(' ')"
+        "name": {
+          "value": "collapse_whitespace"
+        },
+        "target": {
+          "value": "ruby"
+        },
+        "form": {
+          "value": "source.split.join(' ')"
+        }
       }
     },
     {
       "verb": "Expression::Normalisation.Read",
       "args": {
-        "name": "collapse_whitespace",
-        "target": "rust",
-        "form": "source.split_whitespace().collect::<Vec<_>>().join(\" \")"
+        "name": {
+          "value": "collapse_whitespace"
+        },
+        "target": {
+          "value": "rust"
+        },
+        "form": {
+          "value": "source.split_whitespace().collect::<Vec<_>>().join(\" \")"
+        }
       }
     },
     {
       "verb": "Expression::Normalisation.Admit",
       "args": {
-        "name": "collapse_whitespace"
+        "name": {
+          "value": "collapse_whitespace"
+        }
       }
     },
     {
       "verb": "Expression::Normalisation.Propose",
       "args": {
-        "name": "fold_length",
-        "strategy": "replace",
-        "source_token": ".length",
-        "replacement": ".size",
-        "boundary": "word",
-        "position": 2
+        "name": {
+          "value": "fold_length"
+        },
+        "strategy": {
+          "value": "replace"
+        },
+        "source_token": {
+          "value": ".length"
+        },
+        "replacement": {
+          "value": ".size"
+        },
+        "boundary": {
+          "value": "word"
+        },
+        "position": {
+          "value": 2
+        }
       }
     },
     {
       "verb": "Expression::Normalisation.Read",
       "args": {
-        "name": "fold_length",
-        "target": "ruby",
-        "form": "gsub(/\\.length\\b/, '.size')"
+        "name": {
+          "value": "fold_length"
+        },
+        "target": {
+          "value": "ruby"
+        },
+        "form": {
+          "value": "gsub(/\\.length\\b/, '.size')"
+        }
       }
     },
     {
       "verb": "Expression::Normalisation.Read",
       "args": {
-        "name": "fold_length",
-        "target": "rust",
-        "form": "fold_length : find(\".length\") then require the next char be non-word"
+        "name": {
+          "value": "fold_length"
+        },
+        "target": {
+          "value": "rust"
+        },
+        "form": {
+          "value": "fold_length : find(\".length\") then require the next char be non-word"
+        }
       }
     },
     {
       "verb": "Expression::Normalisation.Admit",
       "args": {
-        "name": "fold_length"
+        "name": {
+          "value": "fold_length"
+        }
       }
     },
     {
       "verb": "Expression::Normalisation.Propose",
       "args": {
-        "name": "drop_redundant_parens",
-        "strategy": "invent_something",
-        "source_token": "",
-        "replacement": "",
-        "boundary": "none",
-        "position": 3
+        "name": {
+          "value": "drop_redundant_parens"
+        },
+        "strategy": {
+          "value": "invent_something"
+        },
+        "source_token": {
+          "value": ""
+        },
+        "replacement": {
+          "value": ""
+        },
+        "boundary": {
+          "value": "none"
+        },
+        "position": {
+          "value": 3
+        }
       }
     },
     {
       "verb": "Expression::Expression.Extract",
       "args": {
         "id": "ex-1",
-        "description": "at most ten",
-        "source": "toppings.size < 10",
-        "canonical": "toppings.size < 10",
-        "subject": "Pizza"
+        "description": {
+          "value": "at most ten"
+        },
+        "source": {
+          "value": "toppings.size < 10"
+        },
+        "canonical": {
+          "value": "toppings.size < 10"
+        },
+        "subject": {
+          "value": "Pizza"
+        }
       }
     },
     {
@@ -179,10 +301,18 @@
       "verb": "Expression::Expression.Extract",
       "args": {
         "id": "ex-blank",
-        "description": "unreadable",
-        "source": "",
-        "canonical": "",
-        "subject": "Pizza"
+        "description": {
+          "value": "unreadable"
+        },
+        "source": {
+          "value": ""
+        },
+        "canonical": {
+          "value": ""
+        },
+        "subject": {
+          "value": "Pizza"
+        }
       }
     },
     {
@@ -195,8 +325,12 @@
       "verb": "Expression::Agreement.Ask",
       "args": {
         "id": "ag-1",
-        "canonical": "toppings.size < 10",
-        "subject": "Pizza"
+        "canonical": {
+          "value": "toppings.size < 10"
+        },
+        "subject": {
+          "value": "Pizza"
+        }
       }
     },
     {
@@ -209,16 +343,24 @@
       "verb": "Expression::Agreement.Answer",
       "args": {
         "id": "ag-1",
-        "runtime": "ruby",
-        "outcome": "true"
+        "runtime": {
+          "value": "ruby"
+        },
+        "outcome": {
+          "value": "true"
+        }
       }
     },
     {
       "verb": "Expression::Agreement.Answer",
       "args": {
         "id": "ag-1",
-        "runtime": "rust",
-        "outcome": "true"
+        "runtime": {
+          "value": "rust"
+        },
+        "outcome": {
+          "value": "true"
+        }
       }
     },
     {
@@ -231,25 +373,39 @@
       "verb": "Expression::Agreement.Answer",
       "args": {
         "id": "ag-1",
-        "runtime": "go",
-        "outcome": "true"
+        "runtime": {
+          "value": "go"
+        },
+        "outcome": {
+          "value": "true"
+        }
       }
     },
     {
       "verb": "Expression::Agreement.Split",
       "args": {
         "id": "ag-1",
-        "reason": "already settled"
+        "reason": {
+          "value": "already settled"
+        }
       }
     },
     {
       "verb": "Expression::Expression.Extract",
       "args": {
         "id": "ex-length-cm",
-        "description": "the case that proved the fold was underspecified",
-        "source": "dims.length_cm > 0",
-        "canonical": "dims.length_cm > 0",
-        "subject": "Box"
+        "description": {
+          "value": "the case that proved the fold was underspecified"
+        },
+        "source": {
+          "value": "dims.length_cm > 0"
+        },
+        "canonical": {
+          "value": "dims.length_cm > 0"
+        },
+        "subject": {
+          "value": "Box"
+        }
       }
     },
     {
@@ -262,24 +418,36 @@
       "verb": "Expression::Agreement.Ask",
       "args": {
         "id": "ag-length-cm",
-        "canonical": "dims.length_cm > 0",
-        "subject": "Box"
+        "canonical": {
+          "value": "dims.length_cm > 0"
+        },
+        "subject": {
+          "value": "Box"
+        }
       }
     },
     {
       "verb": "Expression::Agreement.Answer",
       "args": {
         "id": "ag-length-cm",
-        "runtime": "ruby",
-        "outcome": "true"
+        "runtime": {
+          "value": "ruby"
+        },
+        "outcome": {
+          "value": "true"
+        }
       }
     },
     {
       "verb": "Expression::Agreement.Answer",
       "args": {
         "id": "ag-length-cm",
-        "runtime": "rust",
-        "outcome": "true"
+        "runtime": {
+          "value": "rust"
+        },
+        "outcome": {
+          "value": "true"
+        }
       }
     },
     {

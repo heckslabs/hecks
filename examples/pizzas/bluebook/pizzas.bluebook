@@ -12,49 +12,41 @@ Hecks.bluebook "Pizzas" do
 
     value_object "PizzaName" do
       attribute :value, String
+
+      invariant("a pizza is named") { !value.to_s.empty? }
     end
 
     value_object "Price" do
       attribute :cents, Integer
+
+      invariant("a price is never negative") { cents >= 0 }
     end
 
     value_object "CustomerName" do
       attribute :value, String
+
+      invariant("a customer is named") { !value.to_s.empty? }
     end
 
     value_object "ToppingName" do
       attribute :value, String
+
+      invariant("a topping is named") { !value.to_s.empty? }
     end
 
     value_object "ToppingAmount" do
       attribute :value, Integer
-    end
 
-    value_object "LineSku" do
-      attribute :value, String
-    end
-
-    value_object "LineQuantity" do
-      attribute :value, Integer
+      invariant("an amount is positive") { value.positive? }
     end
 
     value_object "Topping" do
       attribute :name,   String
       attribute :amount, Integer
-
-      invariant "amount must be positive" do
-        amount.positive?
-      end
     end
 
     lifecycle :status, default: "available" do
       transition "Purchase" => "sold", from: "available"
-    end
-
-    entity "OrderLine" do
-      identified_by :sku
-      attribute :sku,      LineSku
-      attribute :quantity, LineQuantity
     end
 
     query "Available" do
@@ -65,12 +57,6 @@ Hecks.bluebook "Pizzas" do
     query "CostingLessThan" do
       attribute :ceiling, Price
       where(price_cents: { lt: :ceiling })
-    end
-
-    policy "NotifyOnPurchase" do
-      on      "PizzaPurchased"
-      trigger "Notifications.Send"
-      across  "Notifications"
     end
 
     command "CreatePizza" do
@@ -113,19 +99,6 @@ Hecks.bluebook "Pizzas" do
       then_set :status,        to: "sold"
 
       emits "PizzaPurchased"
-    end
-  end
-
-  process_manager "Checkout" do
-    correlates_by :pizza_id
-    starts_on "PizzaPurchased"
-    ends_on   "CheckoutSettled"
-
-    state "awaiting_payment"
-    state "paid"
-
-    on "PaymentAuthorized", transition: { "awaiting_payment" => "paid" } do
-      dispatch "Pizzas::Pizza.Purchase", with: { pizza: :pizza_id }
     end
   end
 end

@@ -77,10 +77,10 @@ RSpec.describe "Pizzas" do
         .to raise_error(Hecksagain::Runtime::GivenNotMet, /cannot be changed/)
     end
 
-    it "enforces the Topping invariant before the value reaches the pizza" do
+    it "enforces the ToppingAmount invariant before the value reaches the pizza" do
       pizza = create
       expect { runtime.dispatch("Pizzas::Pizza.AddTopping", id: pizza.id, name: { value: "Air" }, amount: { value: 0 }) }
-        .to raise_error(Hecksagain::Runtime::InvariantViolation, /amount must be positive/)
+        .to raise_error(Hecksagain::Runtime::InvariantViolation, /ToppingAmount .* an amount is positive/)
 
       expect(runtime.dispatch("Pizzas::Pizza.AddTopping", id: pizza.id, name: { value: "Basil" }, amount: { value: 1 })
                     .state[:toppings].size).to eq(1)
