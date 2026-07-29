@@ -25,10 +25,18 @@ module Hecksagain
           case "#{category}.#{list_name}"
           when "Aggregate.transitions", "Entity.transitions" then transition_rows(node)
           when "Command.mutations"                           then mutation_rows(node)
+          # A where-clause is read through its own to_h, which is where the IR
+          # spells a symbol argument as ":ceiling". Reading the OBJECT instead lost
+          # the colon, and nothing downstream could tell an argument from a literal
+          # of the same name.
+          when "Query.wheres"                                then Array(node.wheres).map(&:to_h)
           when "Aggregate.value_objects"                     then node.value_objects.map { |shape| { name: shape.name } }
           when "Bluebook.normalisations"                     then normalisation_rows
           when "Member.pairs"                                then pair_rows(node)
-          when "Dispatch.with_spec"                          then pair_rows(node.with_spec)
+          # Through to_h, which is where IR.render_value spells a symbol argument as
+          # ":source". The raw with_spec lost the colon, and a binding that reads an
+          # argument became indistinguishable from one carrying a literal string.
+          when "Dispatch.with_spec"                          then pair_rows(node.to_h[:with])
           else Array(node.public_send(list_name))
           end
         end
@@ -113,8 +121,13 @@ module Hecksagain
           when "Member.shape"       then parent_id
           when "Aggregate.state_field", "Entity.state_field"  then node.lifecycle&.field
           when "Aggregate.state_start", "Entity.state_start"  then node.lifecycle&.default
-          when "Query.order_field"  then Array(node.order_by).first
-          when "Query.order_way"    then Array(node.order_by)[1]
+          # `Array(an_object)` wraps rather than destructures, so these were offering
+          # the OrderBy object itself and storing its inspect string.
+          # Same wrapping mistake as order_by: `limit` is an object, and offering it
+          # stored "#<struct LimitSpec value=3>".
+          when "Query.limit"        then node.limit&.to_h&.fetch(:value, nil)
+          when "Query.order_field"  then node.order_by&.to_h&.fetch(:field, nil)
+          when "Query.order_way"    then node.order_by&.to_h&.fetch(:direction, nil)
           else node.respond_to?(field) ? node.public_send(field) : nil
           end
         end
