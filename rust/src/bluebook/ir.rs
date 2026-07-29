@@ -290,6 +290,11 @@ pub struct ValueObject {
     pub invariants: Vec<Invariant>,
     pub derivations: Vec<Derivation>,
     pub members: Vec<Vec<(String, String)>>,
+    /// A one_of DECLARED but left empty is indistinguishable from no one_of at
+    /// all if only `members` is carried — both are empty. Recording the
+    /// declaration lets the language judge an empty closed set, the same way an
+    /// empty attribute name survives into the IR and is judged there.
+    pub closed_set: bool,
 }
 
 #[derive(Debug, Clone)]

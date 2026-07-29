@@ -10,20 +10,16 @@ module Hecksagain
           @members    = []
         end
 
-        # NOT a language rule, and cannot become one : `one_of` without a block
-        # produces no members, which is indistinguishable in the IR from having
-        # no one_of at all. The artifact is well formed either way — this catches
-        # a mistake in how the DSL was CALLED, which is lint, not law.
+        # moved to the language: a closed set admits a member, on Shape.Close.
+        #
+        # This was called unportable because an empty one_of and no one_of are
+        # both `members: []` in the IR. That was a MODELLING choice, not a law —
+        # an empty attribute NAME survives into the IR and is judged there. So
+        # the IR now records that a closed set was declared, and the language
+        # judges it like everything else.
         def one_of(&block)
-          unless block
-            raise Malformed,
-                  "#{@name} declared one_of with no block — the scalar form " \
-                  "(`attribute :x, one_of(\"a\", \"b\")`) is not read on this " \
-                  "side yet, and silently dropping it would be the same " \
-                  "half-present construct one_of itself was"
-          end
-
-          instance_eval(&block)
+          @closed_set = true
+          instance_eval(&block) if block
         end
 
         def member(**fields)
@@ -53,7 +49,8 @@ module Hecksagain
         def build
           IR::ValueObject.new(
             name: @name, attributes: attributes,
-            invariants: @invariants, members: @members
+            invariants: @invariants, members: @members,
+            closed_set: @closed_set || !@members.empty?
           )
         end
 

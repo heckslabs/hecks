@@ -24,19 +24,23 @@ module Hecksagain
           @reference_name   = (as || Naming.snake(@reference_target)).to_sym
         end
 
+        # Order-independent. `many:` is decided by comparing the included type
+        # against the reference target, so this used to REFUSE an include
+        # declared before the reference — a rule guarding an implementation
+        # limitation rather than a truth about read models. The includes are
+        # collected raw and resolved at build, when the reference is known, so
+        # there is no rule left to enforce.
         def include(type, as: nil)
-          # NOT portable : this is a rule about the ORDER DSL calls are made, and a
-          # built IR carries no ordering — the judge always declares before it
-          # gathers, so the language cannot see the violation. Same category as
-          # one_of-without-a-block : DSL-level, never reaches the IR.
-          raise Malformed, "#{@name} declares includes before its aggregate-head reference" unless @reference_target
-
-          target = Naming.demodulise(type)
-          add_aggregate_head(target, as, many: target != @reference_target)
+          @includes ||= []
+          @includes << [Naming.demodulise(type), as]
         end
 
         def build
           raise Malformed, "#{@name} needs an aggregate-head reference" unless @reference_target
+
+          Array(@includes).each do |target, as|
+            add_aggregate_head(target, as, many: target != @reference_target)
+          end
           IR::ReadModel.new(name: @name, description: @description, reference_name: @reference_name,
                             reference_target: @reference_target, aggregate_heads: @aggregate_heads || [],
                             wheres: @wheres || [], order_by: @order_by, limit: @limit, offset: @offset,

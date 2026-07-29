@@ -416,6 +416,11 @@ Hecks.bluebook "Meta" do
     attribute :name,       ShapeName
     attribute :fields,     list_of(ShapeField)
     attribute :assertions, list_of(Assertion)
+    attribute :rows,       RowCount
+
+    value_object "RowCount" do
+      attribute :value, Integer
+    end
 
     value_object "ShapeName" do
       attribute :value, String
@@ -457,6 +462,24 @@ Hecks.bluebook "Meta" do
       then_set :fields, append: { name: :name, type: :type, list: :list, default: :default }
 
       emits "ShapeFieldAttached"
+    end
+
+    command "Close" do
+      role "Language"
+      goal "Declare that this value object admits a closed set of rows"
+
+      # Dispatched only when the bluebook declared a one_of — so an EMPTY closed
+      # set is visible where it used to be invisible : a shape that is closed
+      # and admits nothing. Members live in their own root (a row is a list of
+      # pairs inside a list of rows), so the count is offered rather than read.
+      reference_to Shape
+      attribute :rows, RowCount
+
+      given("a closed set admits a member") { rows.value > 0 }
+
+      then_set :rows, to: :rows
+
+      emits "ShapeClosed"
     end
 
     command "Assert" do

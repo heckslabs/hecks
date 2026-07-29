@@ -205,6 +205,7 @@ fn value_object_to_value(value_object: &ValueObject) -> Value {
         "name": value_object.name,
         "attributes": value_object.attributes.iter().map(attribute_to_value).collect::<Vec<_>>(),
         "invariants": invariants,
+        "closed_set": value_object.closed_set,
         "members": members
     })
 }

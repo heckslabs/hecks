@@ -233,7 +233,7 @@ RSpec.describe "the DSL surface" do
             end
           end
         end
-      end.to raise_error(Malformed, /not read on this side yet/)
+      end.to raise_error(Malformed, /a closed set admits a member/)
     end
   end
 
@@ -340,12 +340,37 @@ RSpec.describe "the DSL surface" do
       ])
     end
 
+    it "gathers includes declared before the reference, in either order" do
+      # `many:` is decided by comparing each include against the reference, so
+      # this used to be refused. The includes are resolved at build now, which
+      # removes the rule rather than moving it.
+      before = build_bluebook("EitherWay") do
+        read_model("Portfolio") do
+          description "a portfolio"
+          include Account
+          reference_to Customer
+        end
+      end.read_models.first
+
+      after = build_bluebook("EitherWay2") do
+        read_model("Portfolio") do
+          description "a portfolio"
+          reference_to Customer
+          include Account
+        end
+      end.read_models.first
+
+      expect(before.aggregate_heads).to eq(after.aggregate_heads)
+    end
+
     it "validates read-model reference ordering, uniqueness, and descriptions" do
+      # an include with no reference at all still refuses — but for the real
+      # reason, not for the order it was written in
       expect {
         build_bluebook("BadModel") do
           read_model("Portfolio") { include Customer }
         end
-      }.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /before its aggregate-head reference/)
+      }.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /needs an aggregate-head reference/)
 
       # a reference, so `needs an aggregate-head reference` does not fire first
       # and mask the description rule this case is about

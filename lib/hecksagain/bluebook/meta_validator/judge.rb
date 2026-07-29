@@ -124,6 +124,11 @@ module Hecksagain
                     description: v(invariant.description), canonical: v(invariant.canonical))
           end
 
+          # only when a closed set was DECLARED — an empty one is the defect
+          if shape.respond_to?(:closed_set?) && shape.closed_set?
+            send_to("Meta::Shape.Close", id, id: id, rows: { value: Array(shape.members).size })
+          end
+
           Array(shape.members).each_with_index do |row, index|
             member = "#{id}##{index}"
             send_to("Meta::Member.Declare", member, id: member, shape_id: v(id), shape: v(id))

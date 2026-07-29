@@ -655,6 +655,7 @@ pub fn parse_value_object(lines: &[&str]) -> (ValueObject, usize) {
         invariants: vec![],
         derivations: vec![],
         members: vec![],
+        closed_set: false,
     };
 
     let mut i = 1;
@@ -671,6 +672,7 @@ pub fn parse_value_object(lines: &[&str]) -> (ValueObject, usize) {
             i += consumed;
             continue;
         } else if depth == 1 && (line == "one_of do" || line.starts_with("one_of do")) {
+            vo.closed_set = true;
             let mut j = i + 1;
             let mut d = 1;
             while j < lines.len() && d > 0 {
