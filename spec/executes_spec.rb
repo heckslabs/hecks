@@ -97,6 +97,34 @@ RSpec.describe "the language holds a bluebook, and gives it back" do
       .to match_array(pizzas.aggregates.flat_map { |a| a.commands.map(&:name) })
   end
 
+  it "keeps declaration order when read a level at a time" do
+    # The IR is a contract field for field AND INDEX FOR INDEX, so the order a
+    # bluebook declares its commands in is a fact about the source. `DeclaredIn`
+    # preserves it.
+    rows = runtime.query("Meta::Command.DeclaredIn", aggregate_id: { value: "Pizzas::Pizza" })
+
+    expect(rows.map { |row| text(row[:name]) })
+      .to eq(pizzas.aggregate("Pizza").commands.map(&:name))
+  end
+
+  it "does NOT keep declaration order in the whole-bluebook read model" do
+    # And this is why the reconstruction has to read a level at a time rather than
+    # take the convenient snapshot. ReadModelInterpreter#matching ends `.sort_by(&:id)`
+    # — deliberately, because two hand-written stores cannot be trusted to iterate
+    # identically and a read model that returned store order would split parity.
+    #
+    # So the two ways back are for different jobs: the read model hands you the
+    # whole chapter when order does not matter, and DeclaredIn is what you rebuild
+    # an IR from. Pinned because it is a live trap: the read model is the nicer
+    # call, and using it would produce a reconstruction that differs from the
+    # source in a way nothing else would notice.
+    whole = runtime.query("Meta.whole_bluebook", bluebook: "Pizzas").first
+    declared = pizzas.aggregate("Pizza").commands.map(&:name)
+
+    expect(whole[:commands].map { |c| text(c[:name]) }).to eq(declared.sort)
+    expect(declared).not_to eq(declared.sort)
+  end
+
   it "names a gathered collection the way English does" do
     # These four came back as `querys`, `entitys`, `policys` and `dispatchs`, in
     # BOTH runtimes, because each derived the name with snake(target) + "s". Parity
