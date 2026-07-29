@@ -572,6 +572,26 @@ impl Runtime {
             .and_then(|q| q.as_object().cloned())
             .ok_or_else(|| format!("{} has no query {:?}", aggregate_name, query_name))?;
 
+        // A query's arguments are coerced against their declared types exactly as
+        // a command's are — mirrors Ruby's QueryInterpreter#normalize_args. Without
+        // this a query took whatever it was handed : Ruby refused
+        // `cents: "lots"` for a Money and Rust answered with an empty result set,
+        // agreeing about nothing. Reads enter through the aggregate, so they meet
+        // the same gate writes do.
+        let mut args = args.clone();
+        for attribute in array(&declared, "attributes") {
+            let Some(name) = attribute.get("name").and_then(Value::as_str) else {
+                continue;
+            };
+            let Some(given) = args.get(name).cloned() else {
+                continue;
+            };
+            let attribute = attribute.as_object().cloned().unwrap_or_default();
+            let coerced = coerce_attribute(&aggregate, &attribute, &given)?;
+            args.insert(name.to_string(), coerced);
+        }
+        let args = &args;
+
         let mut matched: Vec<(String, State)> = Vec::new();
         for (key, state) in self.all_records(&domain, &aggregate_name, &aggregate) {
             let holds = array(&declared, "wheres").iter().all(|clause| {

@@ -23,6 +23,16 @@ module Hecksagain
     # loaded, and recording the undelivered reaction rather than raising is the
     # design — spec/policy_spec states it in so many words, "records a reaction
     # it cannot deliver rather than swallowing it".
-    DOMAIN_REFUSALS = [GivenNotMet, LifecycleRefused, NotFound, TypeMismatch, UnknownVerb].freeze
+    # InvariantViolation belongs here and was missing. A value object refusing
+    # its own rule is the domain saying no as plainly as a given is — but the
+    # class is declared over in value.rb and never made the list, so the policy
+    # and saga interpreters, which rescue exactly these, would let it propagate
+    # as though the RUNTIME had broken. A reaction whose target violates an
+    # invariant is declined, not crashed. Found by spec/domain_refusal_spec on
+    # its first run : every corpus refusal must be a class named here, and 23
+    # of banking's were InvariantViolation.
+    DOMAIN_REFUSALS = [
+      GivenNotMet, InvariantViolation, LifecycleRefused, NotFound, TypeMismatch, UnknownVerb
+    ].freeze
   end
 end
