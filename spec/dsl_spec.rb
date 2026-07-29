@@ -83,12 +83,12 @@ RSpec.describe "the DSL surface" do
 
     it "refuses a vision that says nothing" do
       expect { build_bluebook("Mute") { vision "" } }
-        .to raise_error(Malformed, /vision says nothing/)
+        .to raise_error(Malformed, /a vision says something/)
     end
 
     it "refuses a description that says nothing" do
       expect { build_aggregate("Blank") { description "" } }
-        .to raise_error(Malformed, /description says nothing/)
+        .to raise_error(Malformed, /a description says something/)
     end
 
     it "refuses an identity that names no field" do
@@ -97,8 +97,14 @@ RSpec.describe "the DSL surface" do
     end
 
     it "refuses an unnamed attribute" do
-      expect { build_aggregate("Nameless") { attribute "", String } }
-        .to raise_error(Malformed, /must be named/)
+      # a DECLARED value-object type, so the value-object-types rule does not
+      # fire first and mask the naming rule this example is about
+      expect do
+        build_aggregate("Nameless") do
+          value_object("Label") { attribute :value, String }
+          attribute "", Object.const_get("Label") rescue attribute "", :Label
+        end
+      end.to raise_error(Malformed, /an attribute is named/)
     end
 
     it "refuses an aggregate attribute that is not a value object" do
@@ -135,7 +141,7 @@ RSpec.describe "the DSL surface" do
 
     it "refuses an unnamed event" do
       expect { build_command("Silent") { emits "" } }
-        .to raise_error(Malformed, /unnamed event/)
+        .to raise_error(Malformed, /an event is named/)
     end
 
     it "refuses a mutation that names no operation" do

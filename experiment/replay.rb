@@ -22,7 +22,7 @@ ir_path = ARGV.shift or abort "usage: replay.rb <canonicalised-ir.json>"
 source  = JSON.parse(File.read(ir_path))
 chapter = source.fetch(source.keys.first)
 
-runtime  = Hecks.boot(File.expand_path("../experiment", __dir__))
+runtime  = Hecks.boot(File.expand_path("../lib/hecksagain/language", __dir__))
 refusals = []
 v = ->(x) { { value: x.to_s } }
 

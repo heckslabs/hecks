@@ -42,7 +42,7 @@ module Hecksagain
         def given(description, &predicate)
           canonical = Ports::Extraction.canonical(predicate)
 
-          raise Malformed, "#{@name} has a given with no description" if description.to_s.empty?
+          # moved to the language: given "a rule says what it means", on Verb.Rule
 
           if canonical.to_s.empty?
             raise Malformed,
@@ -59,7 +59,7 @@ module Hecksagain
         end
 
         def then_set(target, to: nil, append: nil, increment: nil, decrement: nil)
-          raise Malformed, "#{@name} has a then_set with no target" if target.to_s.empty?
+          # moved to the language: given "a mutation names a target", on Verb.Change
 
           named = { set: to, append: append, increment: increment, decrement: decrement }
                   .reject { |_, source| source.nil? }
@@ -80,9 +80,12 @@ module Hecksagain
           @mutations << IR::Mutation.new(target: target.to_sym, op: op, source: source)
         end
 
+        # No raise here. "an event is named" is declared in the language itself —
+        # grammar/bluebook.bluebook, on Verb.Announce — and MetaValidator is what
+        # enforces it. This is the first rule to move ACROSS rather than be
+        # duplicated : delete the declaration and an unnamed event is accepted,
+        # which is what makes the meta-domain load-bearing rather than decorative.
         def emits(event_name)
-          raise Malformed, "#{@name} emits an unnamed event" if event_name.to_s.empty?
-
           @emits << event_name.to_s
         end
 

@@ -19,7 +19,7 @@ module Hecksagain
         end
 
         def description(value)
-          raise Malformed, "#{@name}'s description says nothing" if value.to_s.empty?
+          # moved to the language: Description invariant, on Root.Declare
 
           @description = value
         end

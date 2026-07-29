@@ -14,7 +14,7 @@ module Hecksagain
         end
 
         def vision(value)
-          raise Malformed, "#{@name}'s vision says nothing" if value.to_s.empty?
+          # moved to the language: Vision invariant, on Chapter.Declare
 
           @vision = value
         end
@@ -67,7 +67,11 @@ module Hecksagain
             Namespace.install(Object, aggregate.name, aggregate.ruby_class)
           end
 
-          bluebook
+          # The language judges the bluebook, in the language. Last, so the
+          # meta-domain sees a fully built IR — the whole-document rules need
+          # every declaration present, which is why they cannot be givens fired
+          # at declaration time.
+          MetaValidator.call(bluebook)
         end
 
         private

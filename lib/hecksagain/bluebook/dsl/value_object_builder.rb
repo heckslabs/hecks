@@ -31,7 +31,7 @@ module Hecksagain
         def invariant(description, &predicate)
           canonical = Ports::Extraction.canonical(predicate)
 
-          raise Malformed, "#{@name} has an invariant with no description" if description.to_s.empty?
+          # moved to the language: given "a rule says what it means", on Shape.Assert
 
           if canonical.to_s.empty?
             raise Malformed,

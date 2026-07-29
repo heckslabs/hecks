@@ -13,7 +13,6 @@ require "spec_helper"
 # same defect the whole corpus keeps producing, and porting rules is exactly
 # the activity most likely to produce it.
 RSpec.describe "the language's own rules" do
-  META = File.join(InMemoryDomain::ROOT, "experiment")
 
   def boot_meta
     registry = Hecksagain::Runtime::Registry.new
@@ -22,7 +21,7 @@ RSpec.describe "the language's own rules" do
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-      Kernel.load(File.join(META, "bluebook.bluebook"))
+      Kernel.load(Hecksagain::Bluebook::MetaValidator::GRAMMAR)
       Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
     end
   end

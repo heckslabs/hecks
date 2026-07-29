@@ -17,7 +17,6 @@ require "spec_helper"
 # constants to them. Add an operator to the evaluator without declaring it and
 # this fails ; declare one the evaluator does not implement and this fails.
 RSpec.describe "the declared vocabularies" do
-  META = File.join(InMemoryDomain::ROOT, "experiment")
 
   # Read the declarations WITHOUT booting a second runtime into this process —
   # the members are static IR, which is the whole point of declaring them with
@@ -29,7 +28,7 @@ RSpec.describe "the declared vocabularies" do
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-      Kernel.load(File.join(META, "bluebook.bluebook"))
+      Kernel.load(Hecksagain::Bluebook::MetaValidator::GRAMMAR)
     end
     aggregate = registry.bluebook("Meta").aggregates.find { |a| a.name == "Vocabulary" }
     aggregate.value_objects.to_h { |vo| [vo.name, vo.members.map { |row| row.to_h.values.first }] }

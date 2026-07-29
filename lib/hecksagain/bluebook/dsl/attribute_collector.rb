@@ -7,7 +7,7 @@ module Hecksagain
         def attributes = @attributes ||= []
 
         def attribute(name, type = String, default: nil)
-          raise Malformed, "an attribute must be named" if name.to_s.empty?
+          # moved to the language: FieldName invariant, on Root.Attribute
 
           list = type.is_a?(ListOf)
           attributes << IR::Attribute.new(
