@@ -9,7 +9,7 @@ module Hecksagain
         end
 
         def description(value)
-          raise Malformed, "#{@name}'s description says nothing" if value.to_s.empty?
+          # moved to the language: ProjectionText / purpose, on Projection.Declare
           @description = value
         end
 
@@ -25,6 +25,10 @@ module Hecksagain
         end
 
         def include(type, as: nil)
+          # NOT portable : this is a rule about the ORDER DSL calls are made, and a
+          # built IR carries no ordering — the judge always declares before it
+          # gathers, so the language cannot see the violation. Same category as
+          # one_of-without-a-block : DSL-level, never reaches the IR.
           raise Malformed, "#{@name} declares includes before its aggregate-head reference" unless @reference_target
 
           target = Naming.demodulise(type)

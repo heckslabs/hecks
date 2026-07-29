@@ -61,116 +61,13 @@ module Hecksagain
         end
       end
 
-      # Walks one built bluebook and offers every declaration to the meta-domain.
-      # Only the DISPATCH half of the round trip lives here — reconstruction is
-      # the experiment's business, and validation does not need it.
-      class Judge
-        attr_reader :refusals
-
-        def initialize(bluebook)
-          @bluebook = bluebook
-          @refusals = []
-          @runtime  = fresh_runtime
-          judge!
-        end
-
-        private
-
-        # A FRESH STORE per bluebook. The registry memoises repositories, so
-        # reusing it let every bluebook see the records of every bluebook judged
-        # before it — one domain's declarations shadowing another's, and the
-        # store growing for the life of the process. The parsed grammar is
-        # reused (it is expensive) ; only the records are cleared.
-        def fresh_runtime
-          registry = MetaValidator.grammar_registry
-          registry.instance_variable_set(:@repositories, {})
-          Runtime::Loader.bind_runtime(Runtime::Dispatcher.new(registry))
-        end
-
-        # ABSENT is not EMPTY. The builders' rules read "if you declare it,
-        # declare something" — a description never given is legal. Passing ""
-        # for nil turned every one of them into "you must declare it", which
-        # refused 73 existing examples. Omitted args stay omitted.
-        def v(text) = text.nil? ? nil : { value: text.to_s }
-
-        def args(pairs) = pairs.reject { |_, value| value.nil? }
-
-        def offer(label)
-          yield
-        rescue Runtime::GivenNotMet, Runtime::InvariantViolation, Runtime::TypeMismatch => e
-          @refusals << "#{label}: #{e.message}"
-        rescue Runtime::NotFound, Runtime::UnknownVerb
-          # a declaration the meta-domain has no shape for yet is not a defect
-          # in the bluebook being judged
-          nil
-        end
-
-        def judge!
-          chapter = @bluebook.name
-          offer("#{chapter}") do
-            @runtime.dispatch("Meta::Chapter.Declare", **args(name: v(chapter),
-                              vision: v(@bluebook.vision), classification: v(@bluebook.classification)))
-          end
-          @bluebook.aggregates.each { |aggregate| judge_aggregate(chapter, aggregate) }
-        end
-
-        def judge_aggregate(chapter, aggregate)
-          root = "#{chapter}::#{aggregate.name}"
-          offer(root) do
-            @runtime.dispatch("Meta::Root.Declare", **args(id: root, chapter_id: v(chapter),
-                              name: v(aggregate.name), description: v(aggregate.description),
-                              identity: v(aggregate.identified_by)))
-          end
-
-          aggregate.attributes.each do |attribute|
-            offer("#{root}##{attribute.name}") do
-              @runtime.dispatch("Meta::Root.Attribute", **args(id: root, name: v(attribute.name),
-                                type: v(attribute.type), list: v(attribute.list?)))
-            end
-          end
-
-          aggregate.value_objects.each { |shape| judge_shape(root, aggregate, shape) }
-          aggregate.commands.each { |command| judge_command(root, aggregate, command) }
-        end
-
-        def judge_shape(root, aggregate, shape)
-          id = "#{root}.#{shape.name}"
-          offer(id) do
-            @runtime.dispatch("Meta::Shape.Declare", **args(id: id, root_id: v(aggregate.name), name: v(shape.name)))
-          end
-          shape.invariants.each do |invariant|
-            offer(id) do
-              @runtime.dispatch("Meta::Shape.Assert", **args(id: id,
-                                description: v(invariant.description), canonical: v(invariant.canonical)))
-            end
-          end
-        end
-
-        def judge_command(root, aggregate, command)
-          id = "#{root}.#{command.name}"
-          offer(id) do
-            @runtime.dispatch("Meta::Verb.Declare", **args(id: id, root_id: v(aggregate.name),
-                              name: v(command.name), role: v(command.role), goal: v(command.goal)))
-          end
-
-          command.givens.each do |given|
-            offer(id) do
-              @runtime.dispatch("Meta::Verb.Rule", **args(id: id,
-                                description: v(given.description), canonical: v(given.canonical)))
-            end
-          end
-
-          command.mutations.each do |mutation|
-            offer("#{id}!#{mutation.target}") do
-              @runtime.dispatch("Meta::Verb.Change", **args(id: id, target: v(mutation.target),
-                                op: v(mutation.op), field: v(""), kind: v("argument"), source: v("")))
-            end
-          end
-
-          Array(command.emits).each do |event|
-            offer(id) { @runtime.dispatch("Meta::Verb.Announce", **args(id: id, announces: v(event))) }
-          end
-        end
+      # A FRESH STORE per bluebook. The registry memoises repositories, so
+      # reusing it let every bluebook see the records of every bluebook judged
+      # before it. The parsed grammar is reused ; only the records are cleared.
+      def self.fresh_runtime
+        registry = grammar_registry
+        registry.instance_variable_set(:@repositories, {})
+        Runtime::Loader.bind_runtime(Runtime::Dispatcher.new(registry))
       end
     end
   end

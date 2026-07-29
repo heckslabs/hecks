@@ -347,13 +347,16 @@ RSpec.describe "the DSL surface" do
         end
       }.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /before its aggregate-head reference/)
 
+      # a reference, so `needs an aggregate-head reference` does not fire first
+      # and mask the description rule this case is about
       expect {
         build_bluebook("BadModel") do
           read_model("Portfolio") do
+            reference_to Customer
             description ""
           end
         end
-      }.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /description says nothing/)
+      }.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /a description says something/)
 
       expect {
         build_bluebook("BadModel") do

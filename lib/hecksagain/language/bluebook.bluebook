@@ -815,7 +815,7 @@ Hecks.bluebook "Meta" do
     reference_to Chapter
 
     attribute :name,        ProjectionName
-    attribute :purpose,     ProjectionText
+    attribute :purpose,     ProjectionPurpose
     attribute :query_name,  ProjectionText
     attribute :ref_name,    ProjectionText
     attribute :ref_target,  ProjectionText
@@ -827,7 +827,14 @@ Hecks.bluebook "Meta" do
     end
 
     value_object "ProjectionText" do
+      # deliberately permissive : query_name / ref_name / ref_target are
+      # legitimately empty on a read model that has not named them yet
       attribute :value, String
+    end
+
+    value_object "ProjectionPurpose" do
+      attribute :value, String
+      invariant("a description says something") { !value.to_s.empty? }
     end
 
     value_object "Head" do
@@ -842,7 +849,7 @@ Hecks.bluebook "Meta" do
 
       reference_to Chapter
       attribute :name,       ProjectionName
-      attribute :purpose,    ProjectionText
+      attribute :purpose,    ProjectionPurpose
       attribute :query_name, ProjectionText
       attribute :ref_name,   ProjectionText
       attribute :ref_target, ProjectionText

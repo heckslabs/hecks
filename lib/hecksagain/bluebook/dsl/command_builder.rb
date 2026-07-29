@@ -17,7 +17,7 @@ module Hecksagain
 
         def reference_to(type, as: nil)
           demodulised = Naming.demodulise(type)
-          raise Malformed, "#{@name}.reference_to names nothing" if demodulised.to_s.empty?
+          # moved to the language: given "a command names what it acts on", on Verb.ActsOn
 
           return cross_reference(demodulised, as) unless demodulised.to_s == @owner.to_s
 
