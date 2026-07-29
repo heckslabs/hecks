@@ -48,8 +48,8 @@ RSpec.describe "the rules a command obeys" do
       expect do
         runtime.dispatch("Banking::Account.LedgerEntry.Amend",
                          id: "a1", sequence: { value: 1 }, adjustment: { cents: "a lot", currency: "USD" }, narrative: narrative)
-      end.to raise_error(Hecksagain::Bluebook::Expression::EvaluationError,
-                         'addition expects a number, got "a lot"')
+      end.to raise_error(Hecksagain::Runtime::TypeMismatch,
+                         'Money.cents expects Integer, got "a lot"')
     end
 
     it "moves an element by exactly what it was told" do

@@ -1,0 +1,71 @@
+
+require "spec_helper"
+require "json"
+require "tmpdir"
+require "fileutils"
+
+# A refusal is the domain saying NO. Anything else is the runtime breaking.
+#
+# `Runtime::DOMAIN_REFUSALS` declares that boundary, and the policy and saga
+# interpreters honour it — they rescue only those classes, so a crash in a
+# reaction propagates instead of being logged as "declined". The RUNNERS did
+# not: `bin/run` and the Rust CLI both catch everything a dispatch throws and
+# write it into `refusals`, so a crash arrives in the run contract wearing a
+# refusal's clothes.
+#
+# That is not hypothetical. Every one of these was recorded as a refusal:
+#
+#   positive? expects a number, got {"value":3}     the append flatten bug
+#   no implicit conversion of Symbol into Integer   an argument/attribute collision
+#   addition expects a number, got "a lot"          a String reaching a numeric field
+#
+# The last is fixed at the source — `Value.check_numeric_fields` now refuses it
+# as a TypeMismatch, which IS a domain refusal. This spec is what stops the
+# class from coming back: every error the corpus provokes must be one the
+# domain is allowed to raise.
+RSpec.describe "every refusal the corpus provokes" do
+  CORPUS = {
+    "banking" => "examples/banking",
+    "pizzas"  => "examples/pizzas"
+  }.freeze
+
+  def domain_refusal?(error)
+    Hecksagain::Runtime::DOMAIN_REFUSALS.any? { |klass| error.is_a?(klass) }
+  end
+
+  CORPUS.each do |name, path|
+    it "#{name} raises only errors the domain is allowed to raise" do
+      script = JSON.parse(File.read(File.join(InMemoryDomain::ROOT, "spec/parity/#{name}.json")))
+      Dir.mktmpdir do |tmp|
+        domain = File.join(tmp, name)
+        FileUtils.cp_r(File.join(InMemoryDomain::ROOT, path), domain)
+        FileUtils.rm_rf(File.join(domain, "data"))
+        runtime = Hecks.boot(domain)
+
+        faults = []
+        script.fetch("steps").each do |step|
+          args = (step["args"] || {}).transform_keys(&:to_sym)
+          begin
+            if (question = step["query"])
+              runtime.query(question, **args)
+            else
+              runtime.dispatch(step["verb"], **args)
+            end
+          rescue StandardError => e
+            faults << "#{step['verb'] || step['query']} raised #{e.class}: #{e.message}" unless domain_refusal?(e)
+          end
+        end
+
+        expect(faults).to be_empty
+      end
+    end
+  end
+
+  it "catches an error the domain is NOT allowed to raise" do
+    # The guard has to be seen refusing something, or it is one more rule that
+    # cannot fire. EvaluationError is the class the three leaks above wore.
+    error = Hecksagain::Bluebook::Expression::EvaluationError.new("a predicate blew up")
+    expect(domain_refusal?(error)).to be(false)
+    expect(domain_refusal?(Hecksagain::Runtime::TypeMismatch.new("a value was wrong"))).to be(true)
+  end
+end

@@ -148,6 +148,7 @@ pub fn coerce_attribute(
             }
         }
         admit_member(&value_object, &completed)?;
+        check_numeric_fields(&value_object, &completed)?;
         enforce_invariants(&value_object, &completed)?;
         return Ok(Value::Object(completed));
     }
@@ -396,6 +397,64 @@ fn build_element(
     }
 
     Ok(Value::Object(fields))
+}
+
+/// Mirrors Ruby's `Value.check_numeric_fields` (`lib/hecksagain/runtime/value.rb`).
+///
+/// A field declared Integer or Float must ARRIVE as one. Without this a string
+/// sails into a numeric field and the failure surfaces later, inside a
+/// predicate, as `positive? expects a number, got "three"` — which is not the
+/// domain refusing, it is the runtime breaking, and the run contract recorded
+/// it beside genuine refusals.
+///
+/// Checked BEFORE invariants, because an invariant reading a mistyped field is
+/// exactly what used to explode. The message is byte-identical to Ruby's.
+fn check_numeric_fields(
+    value_object: &Map<String, Value>,
+    fields: &Map<String, Value>,
+) -> Result<(), String> {
+    let vo_name = value_object
+        .get("name")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    for attribute in array(value_object, "attributes") {
+        let Some(name) = attribute.get("name").and_then(Value::as_str) else {
+            continue;
+        };
+        let Some(type_name) = attribute.get("type").and_then(Value::as_str) else {
+            continue;
+        };
+        let numeric = match type_name {
+            "Integer" => true,
+            "Float" => true,
+            _ => continue,
+        };
+        let Some(given) = fields.get(name) else { continue };
+        if given.is_null() {
+            continue;
+        }
+        let ok = if type_name == "Integer" {
+            given.is_i64() || given.is_u64()
+        } else {
+            given.is_number()
+        };
+        if numeric && !ok {
+            return Err(format!(
+                "{vo_name}.{name} expects {type_name}, got {}",
+                render_scalar(given)
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// Ruby's `#inspect` for the values a bluebook field can hold — a string gets
+/// quotes, a number does not. Parity compares these messages byte-for-byte.
+fn render_scalar(value: &Value) -> String {
+    match value {
+        Value::String(text) => format!("{text:?}"),
+        other => other.to_string(),
+    }
 }
 
 /// Mirrors Ruby's `Value.scalar` (`lib/hecksagain/runtime/value.rb:87`) at the

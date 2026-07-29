@@ -42,6 +42,7 @@ module Hecksagain
           completed[attribute.name] = attribute.default unless completed.key?(attribute.name) || attribute.default.nil?
         end
         admit_member(value_object, fields)
+        check_numeric_fields(value_object, fields)
         value_object.invariants.each do |invariant|
           next if Bluebook::Expression::Evaluator.call(invariant.canonical, fields)
 
@@ -50,6 +51,30 @@ module Hecksagain
                 "(given #{canonical_fields(fields)})"
         end
         new(value_object, fields)
+      end
+
+      # A field declared Integer or Float must ARRIVE as one.
+      #
+      # Without this a String sails into a numeric field and the failure surfaces
+      # later, inside a predicate, as `positive? expects a number, got "three"` —
+      # an EvaluationError, which is NOT a domain refusal. So the runtime broke
+      # where the domain should have said no, and the run contract recorded the
+      # crash beside genuine refusals as though the domain had judged it.
+      #
+      # Checked BEFORE invariants, because an invariant reading a mistyped field
+      # is exactly the thing that used to explode.
+      NUMERIC = { "Integer" => Integer, "Float" => Numeric }.freeze
+      private_class_method def self.check_numeric_fields(value_object, fields)
+        value_object.attributes.each do |attribute|
+          expected = NUMERIC[attribute.type.to_s]
+          next unless expected
+
+          given = fields[attribute.name]
+          next if given.nil? || given.is_a?(expected)
+
+          raise TypeMismatch,
+                "#{value_object.name}.#{attribute.name} expects #{attribute.type}, got #{given.inspect}"
+        end
       end
 
       def self.hydrate(aggregate, state)

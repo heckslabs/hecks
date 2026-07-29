@@ -50,9 +50,12 @@ RSpec.describe "then_set arithmetic" do
     runtime.dispatch("TillRoom::Till.OpenTill", id: "till-1")
     runtime.dispatch("TillRoom::Till.TakeIn", id: "till-1", amount: { cents: 10_000 })
 
+    # Refused at the payload gate as a DOMAIN refusal, not deep in a predicate
+    # as an EvaluationError — the latter is not in DOMAIN_REFUSALS, so it used
+    # to be recorded beside genuine refusals while actually being a crash.
     expect { runtime.dispatch("TillRoom::Till.TakeIn", id: "till-1", amount: { cents: "lots" }) }
-      .to raise_error(Hecksagain::Bluebook::Expression::EvaluationError,
-                      /comparison of String with 0 failed/)
+      .to raise_error(Hecksagain::Runtime::TypeMismatch,
+                      'Money.cents expects Integer, got "lots"')
 
     expect(TillRoom::Till.find("till-1").balance.to_h).to eq(cents: 10_000)
   end
