@@ -26,6 +26,12 @@ pub struct Runtime {
 
 const MAX_REACTION_DEPTH: usize = 5;
 
+/// The trigger of the compensating leg. Not an event name — no aggregate
+/// announces it — it is the procedure noticing that a leg it dispatched was
+/// refused. Declared `on :refused` beside the ordinary legs, because the
+/// compensation IS an ordinary leg; only its trigger differs.
+const REFUSED: &str = "refused";
+
 fn state_row((id, mut state): (String, State)) -> Value {
     state.insert("id".to_string(), Value::String(id));
     Value::Object(state)
@@ -1334,16 +1340,110 @@ impl Runtime {
         };
 
         let entry = record.as_object_mut().expect("record is an object");
-        match outcome {
+        let refused = match outcome {
             Ok(()) => {
                 entry.insert("delivered".into(), Value::Bool(true));
+                false
             }
             Err(reason) => {
                 entry.insert("delivered".into(), Value::Bool(false));
                 entry.insert("reason".into(), Value::String(reason));
+                true
             }
-        }
+        };
         self.sagas.push(record);
+
+        if refused {
+            self.unwind_saga(pm_name, event, memory, correlation, domain);
+        }
+    }
+
+    /// A refused leg UNWINDS — the procedure runs the leg declared `on :refused`,
+    /// which is where the compensation lives.
+    ///
+    /// Until this existed a refusal was RECORDED and nothing else happened.
+    /// Banking's settlement into a frozen destination left the debit standing with
+    /// no credit and no reversal, and the corpus hand-drove the transfer to
+    /// `settled` — money taken from the source, never delivered, and called done.
+    ///
+    /// A compensation that is itself refused does not unwind again, and needs no
+    /// flag: the state moves to the compensating leg's `to_state` BEFORE its
+    /// dispatches run, so a second refusal finds the instance no longer in
+    /// `from_state` and records that instead. The check is the guard.
+    fn unwind_saga(
+        &mut self,
+        pm_name: &str,
+        event: &Value,
+        memory: &Map<String, Value>,
+        correlation: &str,
+        domain: &str,
+    ) {
+        let Some(handler) = self
+            .ir
+            .get(domain)
+            .and_then(|b| b.get("process_managers"))
+            .and_then(Value::as_array)
+            .and_then(|pms| {
+                pms.iter()
+                    .find(|p| p.get("name").and_then(Value::as_str) == Some(pm_name))
+            })
+            .and_then(|p| p.get("handlers"))
+            .and_then(Value::as_array)
+            .and_then(|handlers| {
+                handlers
+                    .iter()
+                    .find(|h| h.get("event_type").and_then(Value::as_str) == Some(REFUSED))
+            })
+            .cloned()
+        else {
+            return;
+        };
+
+        let from = handler
+            .get("from_state")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string();
+        let to = handler
+            .get("to_state")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string();
+        let state = self
+            .saga_instances
+            .get(pm_name)
+            .and_then(|table| table.get(correlation))
+            .map(|instance| instance.0.clone())
+            .unwrap_or_default();
+
+        if state != from {
+            self.sagas.push(json!({
+                "process_manager": pm_name, "on": REFUSED, "instance": correlation,
+                "advanced": false, "reason": format!("in {state:?}, not {from:?}"),
+            }));
+            return;
+        }
+
+        if let Some(instance) = self
+            .saga_instances
+            .get_mut(pm_name)
+            .and_then(|table| table.get_mut(correlation))
+        {
+            instance.0 = to.clone();
+        }
+        self.sagas.push(json!({
+            "process_manager": pm_name, "on": REFUSED, "instance": correlation,
+            "advanced": true, "from": from, "to": to,
+        }));
+
+        let dispatches = handler
+            .get("dispatches")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        for spec in &dispatches {
+            self.deliver_saga_dispatch(pm_name, spec, event, memory, correlation, domain);
+        }
     }
 
     fn end_saga(&mut self, pm: &Value, event: &Value) {

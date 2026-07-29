@@ -130,8 +130,14 @@ Hecks.bluebook "Wire" do
       dispatch "Wire::Wire.Landed", with: { wire: :wire }
     end
 
-    on "WireReturned", transition: { "carrying" => "returned" } do
-      dispatch "Wire::Drawer.Put", with: { id: :source, amount: :amount, wire: :wire }
+    # The compensating leg, and its trigger is a REFUSAL rather than an event —
+    # no aggregate announces "the leg you dispatched was declined". It used to
+    # hang off "WireReturned", which meant a human had to notice the wire had
+    # stalled and dispatch Wire.Returned by hand ; until they did, the money was
+    # out of the source drawer and nowhere else.
+    on :refused, transition: { "carrying" => "returned" } do
+      dispatch "Wire::Drawer.Put",    with: { id: :source, amount: :amount, wire: :wire }
+      dispatch "Wire::Wire.Returned", with: { wire: :wire }
     end
   end
 end

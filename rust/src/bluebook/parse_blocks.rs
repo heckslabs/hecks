@@ -1476,7 +1476,23 @@ pub fn parse_process_manager(lines: &[&str]) -> (ProcessManager, usize) {
 }
 
 fn parse_pm_handler(line: &str) -> Option<ProcessManagerHandler> {
-    let event_type = extract_string(line)?;
+    // `on "EventName", transition: {…}` — or `on :refused, transition: {…}`.
+    //
+    // A SYMBOL trigger is not an event name: `:refused` is the procedure noticing
+    // that a leg it dispatched was declined, and no aggregate announces it. It
+    // has to be read before extract_string, which takes the first QUOTED string
+    // on the line and so reaches straight past the symbol to pick up the
+    // transition's from-state. That read banking's compensating leg as
+    // `event_type: "awaiting_credit"` and split the two parsers.
+    let head = line.trim().strip_prefix("on")?.trim_start();
+    let event_type = if let Some(symbol) = head.strip_prefix(':') {
+        symbol
+            .split(|c: char| c == ',' || c.is_whitespace())
+            .next()?
+            .to_string()
+    } else {
+        extract_string(line)?
+    };
     let trans_pos = line.find("transition:")?;
     let after = &line[trans_pos + "transition:".len()..];
     let open = after.find('{')?;

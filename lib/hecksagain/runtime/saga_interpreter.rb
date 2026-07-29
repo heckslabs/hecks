@@ -2,6 +2,12 @@
 module Hecksagain
   module Runtime
     class SagaInterpreter
+      # The trigger of the compensating leg. It is not an event name — no
+      # aggregate announces it — it is the procedure noticing that a leg it
+      # dispatched was refused. Declared `on :refused` beside the ordinary legs,
+      # because the compensation is an ordinary leg ; only its trigger differs.
+      REFUSED = "refused".freeze
+
       attr_reader :registry
 
       def initialize(registry, door:)
@@ -93,6 +99,39 @@ module Hecksagain
           # flies instead of being written into the saga log as though the
           # step had simply been declined.
           @registry.saga_log << record.merge(delivered: false, reason: error.message)
+          unwind(pm, event, instance, correlation, domain)
+        end
+      end
+
+      # A refused leg UNWINDS — the procedure runs the leg declared `on :refused`,
+      # which is where the compensation lives.
+      #
+      # Until this existed a refusal was RECORDED and nothing else happened. The
+      # wire's thousand was taken from the source, refused by the destination, and
+      # sat nowhere until a human dispatched the reversal by hand ; banking's
+      # settlement left a debit standing with no credit and no reversal at all.
+      # Both bluebooks had written the compensating leg. Nothing armed it.
+      #
+      # A compensation that is itself refused does NOT unwind again, and needs no
+      # flag to stop it: the state moves to the compensating leg's to_state BEFORE
+      # its dispatches run, so a second refusal finds the instance no longer in
+      # from_state and records that instead. The check is the guard.
+      def unwind(pm, event, instance, correlation, domain)
+        handler = pm.handler_for(REFUSED)
+        return unless handler && instance
+
+        record = { process_manager: pm.name, on: REFUSED, instance: correlation }
+        unless instance[:state] == handler.from_state
+          @registry.saga_log << record.merge(advanced: false,
+                                             reason: "in #{instance[:state].inspect}, not #{handler.from_state.inspect}")
+          return
+        end
+
+        instance[:state] = handler.to_state
+        @registry.saga_log << record.merge(advanced: true, from: handler.from_state, to: handler.to_state)
+
+        handler.dispatches.each do |spec|
+          deliver_saga_dispatch(pm, spec, event, instance, correlation, domain)
         end
       end
 

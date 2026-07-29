@@ -49,19 +49,27 @@ RSpec.describe "a process manager" do
     expect(Wire::Drawer.find("right").cents.to_h).to eq(cents: 100)
   end
 
-  it "records a refused leg, and the compensation puts the money back" do
+  # A refused leg UNWINDS the legs that already happened. Nobody has to notice.
+  #
+  # This test used to assert the opposite and call it "the compensation puts the
+  # money back" — but it was the TEST that put the money back, by hand, on the
+  # line after asserting the drawer was short. Between those two dispatches the
+  # thousand was nowhere: taken from the source, refused by the destination, and
+  # no part of the system trying to recover it. A drawer that cannot be paid into
+  # is an ordinary Tuesday. Money vanishing because of it is not.
+  it "unwinds a refused leg on its own, without anyone noticing" do
     runtime = funded
     runtime.dispatch("Wire::Drawer.Shut", id: "right")
     runtime.dispatch("Wire::Wire.Ask",
                      id: "wire-2", amount: { cents: 1_000 }, source: { value: "left" }, destination: { value: "right" })
 
-    expect(Wire::Drawer.find("left").cents.to_h).to eq(cents: 9_000)
+    # The refusal is still recorded — a fact about the domain, not a crash.
     expect(runtime.sagas).to include(
       hash_including(dispatch: "Wire::Drawer.Put", delivered: false,
                      reason: "Put refused — the drawer is open")
     )
 
-    runtime.dispatch("Wire::Wire.Returned", wire: "wire-2")
+    # And the money is back, because the Take declared what makes it good again.
     expect(Wire::Drawer.find("left").cents.to_h).to eq(cents: 10_000)
     expect(Wire::Wire.find("wire-2").status).to eq("returned")
   end
@@ -79,7 +87,9 @@ RSpec.describe "a process manager" do
     runtime.dispatch("Wire::Drawer.Shut", id: "right")
     runtime.dispatch("Wire::Wire.Ask",
                      id: "wire-3", amount: { cents: 100 }, source: { value: "left" }, destination: { value: "right" })
-    runtime.dispatch("Wire::Wire.Returned", wire: "wire-3")
+    # No manual Wire.Returned any more — the refused leg unwinds on its own, and
+    # the compensation's own Put emits PutIn while the procedure sits in
+    # "returned". Which IS the wrong phase, arriving without being arranged.
 
     expect(runtime.sagas).to include(
       hash_including(on: "PutIn", advanced: false,

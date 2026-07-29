@@ -41,7 +41,7 @@
     ],
     "instances": {
       "Banking::Transfer#xfer-4": {
-        "status": "settled"
+        "status": "reversed"
       },
       "Banking::CardPayment#pay-refund": {
         "status": "refunded"
