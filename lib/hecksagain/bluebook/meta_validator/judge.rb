@@ -186,13 +186,9 @@ module Hecksagain
 
         # Command -> commands, ValueObject -> value_objects, Query -> queries.
         # Convention, not a table : the IR names a collection after what it holds.
-        def collection_reader(category)
-          singular = Naming.snake(category)
-          return "#{singular.sub(/y\z/, 'ie')}s" if singular.end_with?("y")
-          return "#{singular}es" if singular.end_with?("s", "x", "z", "ch", "sh")
-
-          "#{singular}s"
-        end
+        # The pluraliser lives in Naming because there used to be two of them and
+        # one was wrong — see Naming.plural.
+        def collection_reader(category) = Naming.plural(Naming.snake(category))
       end
     end
   end

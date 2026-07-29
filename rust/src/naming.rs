@@ -22,6 +22,29 @@ pub fn demodulise(type_name: &str) -> &str {
     type_name.rsplit("::").next().unwrap_or(type_name)
 }
 
+/// The name a COLLECTION of something takes.
+///
+/// Mirrors Naming.plural. There were two of these and one was wrong: a read
+/// model's gathered heads derived their name with `format!("{singular}s")` in
+/// BOTH runtimes, so the meta-domain's whole-bluebook read model handed back
+/// `querys`, `entitys`, `policys` and `dispatchs` — and parity was green on every
+/// one, because the two runtimes were identically wrong.
+pub fn plural(word: &str) -> String {
+    let ends_with_any = |suffixes: &[&str]| suffixes.iter().any(|s| word.ends_with(s));
+
+    if word.len() >= 2 && word.ends_with('y') {
+        let before = word.as_bytes()[word.len() - 2];
+        if !matches!(before, b'a' | b'e' | b'i' | b'o' | b'u') {
+            return format!("{}ies", &word[..word.len() - 1]);
+        }
+    }
+    if ends_with_any(&["s", "x", "z", "ch", "sh"]) {
+        return format!("{word}es");
+    }
+
+    format!("{word}s")
+}
+
 pub fn reference_key(type_name: &str) -> String {
     snake(demodulise(type_name))
 }

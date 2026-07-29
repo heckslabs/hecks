@@ -59,7 +59,7 @@ module Hecksagain
         def add_aggregate_head(type, name, many:)
           @aggregate_heads ||= []
           target = Naming.demodulise(type)
-          output = (name || (many ? "#{Naming.snake(target)}s" : Naming.snake(target))).to_sym
+          output = (name || (many ? Naming.plural(Naming.snake(target)) : Naming.snake(target))).to_sym
           raise Malformed, "#{@name} already projects #{output}" if @aggregate_heads.any? { |head| head[:as] == output }
 
           @aggregate_heads << { aggregate: target, as: output, many: many }

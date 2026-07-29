@@ -2,6 +2,35 @@ Hecks.bluebook "Meta" do
   vision "The bluebook language, declared in itself. Loading a domain becomes dispatching commands into this meta-domain ; the IR it stores must equal the IR the DSL builder produces. The floor that stays hand-written is the interpreter — evaluating a predicate held as data — and IO."
   core
 
+  # A WHOLE BLUEBOOK, handed back in one read.
+  #
+  # The twelve `DeclaredIn` queries below can walk the tree a level at a time, and
+  # a caller stitching twelve reads together is a caller reimplementing this. The
+  # language already knows how to say "gather these heads around that spine" —
+  # it is what a read model IS — so the reconstruction is DECLARED rather than
+  # coded, and the shape of what comes back is a fact about the language instead
+  # of a fact about whoever wrote the reader.
+  #
+  # Spined on Bluebook because a bluebook is what you ask for. Everything else
+  # hangs off it, down to a Member's pairs and a Dispatch's bindings.
+  read_model "WholeBluebook" do
+    description "Every declaration of one chapter, gathered around the chapter itself — the way back, in a single read."
+    reference_to Bluebook
+
+    include Bluebook
+    include Aggregate
+    include Command
+    include ValueObject
+    include Query
+    include Entity
+    include Member
+    include Policy
+    include ProcessManager
+    include Handler
+    include Dispatch
+    include ReadModel
+  end
+
   aggregate "Bluebook" do
     description "One .bluebook file — the root a domain declaration hangs from."
 
@@ -340,6 +369,19 @@ Hecks.bluebook "Meta" do
       attribute :source, String
     end
 
+    # A plain string holder, for the id of the aggregate above. Command had no
+    # generic text value object and the alternatives all meant something else —
+    # RuleText is a predicate, FieldRef is a field, ArgType is a type. Reusing one
+    # of those would read as a lie, the way `bluebook_id` typed AggregateName did.
+    value_object "CommandText" do
+      attribute :value, String
+    end
+    # The way back: everything DECLARED IN the aggregate above. The parent
+    # reference IS the query.
+    query "DeclaredIn" do
+      attribute :aggregate_id, CommandText
+      where(aggregate_id: :aggregate_id)
+    end
     command "Declare" do
       role "Language"
       goal "Open a command on an aggregate"
@@ -491,6 +533,12 @@ Hecks.bluebook "Meta" do
       attribute :canonical,   String
     end
 
+    # The way back: everything DECLARED IN the aggregate above. The parent
+    # reference IS the query.
+    query "DeclaredIn" do
+      attribute :aggregate_id, ValueObjectText
+      where(aggregate_id: :aggregate_id)
+    end
     command "Declare" do
       role "Language"
       goal "Open a value object on an aggregate"
@@ -710,6 +758,12 @@ Hecks.bluebook "Meta" do
       attribute :default, String
     end
 
+    # The way back: everything DECLARED IN the aggregate above. The parent
+    # reference IS the query.
+    query "DeclaredIn" do
+      attribute :aggregate_id, QueryText
+      where(aggregate_id: :aggregate_id)
+    end
     command "Declare" do
       role "Language"
       goal "Open a query on an aggregate"
@@ -773,6 +827,12 @@ Hecks.bluebook "Meta" do
       attribute :value, String
     end
 
+    # The way back: everything DECLARED IN the chapter above. The parent
+    # reference IS the query.
+    query "DeclaredIn" do
+      attribute :bluebook_id, PolicyText
+      where(bluebook_id: :bluebook_id)
+    end
     command "Declare" do
       role "Language"
       goal "Declare a policy on a chapter"
@@ -811,6 +871,12 @@ Hecks.bluebook "Meta" do
       attribute :name, String
     end
 
+    # The way back: everything DECLARED IN the chapter above. The parent
+    # reference IS the query.
+    query "DeclaredIn" do
+      attribute :bluebook_id, ProcessManagerText
+      where(bluebook_id: :bluebook_id)
+    end
     command "Declare" do
       role "Language"
       goal "Open a process manager on a chapter"
@@ -858,6 +924,12 @@ Hecks.bluebook "Meta" do
       attribute :value, String
     end
 
+    # The way back: everything DECLARED IN the process manager above. The parent
+    # reference IS the query.
+    query "DeclaredIn" do
+      attribute :process_manager_id, HandlerText
+      where(process_manager_id: :process_manager_id)
+    end
     command "Declare" do
       role "Language"
       goal "Open a handler inside a process manager"
@@ -889,6 +961,12 @@ Hecks.bluebook "Meta" do
       attribute :value, String
     end
 
+    # The way back: everything DECLARED IN the handler above. The parent
+    # reference IS the query.
+    query "DeclaredIn" do
+      attribute :handler_id, DispatchText
+      where(handler_id: :handler_id)
+    end
     command "Declare" do
       role "Language"
       goal "Open a dispatch inside a handler"
@@ -948,6 +1026,12 @@ Hecks.bluebook "Meta" do
       attribute :many,      String
     end
 
+    # The way back: everything DECLARED IN the chapter above. The parent
+    # reference IS the query.
+    query "DeclaredIn" do
+      attribute :bluebook_id, ReadModelText
+      where(bluebook_id: :bluebook_id)
+    end
     command "Declare" do
       role "Language"
       goal "Open a read model on a chapter"
@@ -1015,6 +1099,12 @@ Hecks.bluebook "Meta" do
       attribute :to_state,   String
     end
 
+    # The way back: everything DECLARED IN the aggregate above. The parent
+    # reference IS the query.
+    query "DeclaredIn" do
+      attribute :aggregate_id, EntityText
+      where(aggregate_id: :aggregate_id)
+    end
     command "Declare" do
       role "Language"
       goal "Open an entity inside an aggregate"
@@ -1089,6 +1179,12 @@ Hecks.bluebook "Meta" do
       attribute :value, String
     end
 
+    # The way back: everything DECLARED IN the value object above. The parent
+    # reference IS the query.
+    query "DeclaredIn" do
+      attribute :value_object_id, MemberText
+      where(value_object_id: :value_object_id)
+    end
     command "Declare" do
       role "Language"
       goal "Open one admitted row on a value object"

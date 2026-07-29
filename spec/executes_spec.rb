@@ -81,6 +81,37 @@ RSpec.describe "the language holds a bluebook, and gives it back" do
     expect(rows.map { |row| text(row[:name]) }).to eq(pizzas.aggregates.map(&:name))
   end
 
+  it "hands back the whole bluebook in one read" do
+    # The twelve DeclaredIn queries can walk the tree a level at a time, and a
+    # caller stitching twelve reads together is a caller reimplementing this. The
+    # language already knows how to say "gather these heads around that spine".
+    rows = runtime.query("Meta.whole_bluebook", bluebook: "Pizzas")
+    whole = rows.first
+
+    expect(whole.keys).to eq(
+      %i[bluebook aggregates commands value_objects queries entities members
+         policies process_managers handlers dispatches read_models]
+    )
+    expect(whole[:aggregates].map { |a| text(a[:name]) }).to eq(pizzas.aggregates.map(&:name))
+    expect(whole[:commands].map { |c| text(c[:name]) })
+      .to match_array(pizzas.aggregates.flat_map { |a| a.commands.map(&:name) })
+  end
+
+  it "names a gathered collection the way English does" do
+    # These four came back as `querys`, `entitys`, `policys` and `dispatchs`, in
+    # BOTH runtimes, because each derived the name with snake(target) + "s". Parity
+    # was green on every one of them — two hand-written runtimes identically
+    # wrong. The pluraliser now lives in one place per runtime, mirroring the same
+    # three rules.
+    expect(Hecksagain::Naming.plural("query")).to eq("queries")
+    expect(Hecksagain::Naming.plural("entity")).to eq("entities")
+    expect(Hecksagain::Naming.plural("policy")).to eq("policies")
+    expect(Hecksagain::Naming.plural("dispatch")).to eq("dispatches")
+    expect(Hecksagain::Naming.plural("value_object")).to eq("value_objects")
+    # a vowel before the y is not a plural rule — day, not daies
+    expect(Hecksagain::Naming.plural("day")).to eq("days")
+  end
+
   it "reads through the aggregate's own query, not a repository" do
     # Persistence is an adapter BELOW the aggregate. If the way back reached into
     # a repository it would bypass the rules, the authorisation and the shape that

@@ -21,7 +21,7 @@ pub fn parse_read_model(lines: &[&str]) -> (ReadModel, usize) {
                 let name = line.find("as:").and_then(|pos| extract_symbol(&line[pos + 3..]))
                     .unwrap_or_else(|| {
                         let singular = crate::naming::snake(&aggregate);
-                        if many { format!("{singular}s") } else { singular }
+                        if many { crate::naming::plural(&singular) } else { singular }
                     });
                 model.aggregate_heads.push(AggregateHead { aggregate, name, many });
             }
