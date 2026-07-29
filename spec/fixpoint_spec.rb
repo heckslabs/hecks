@@ -25,8 +25,8 @@ RSpec.describe "the language's own definition" do
     # if the language stops describing a category, a bluebook using it stops
     # being judged — silently, since the judge skips what it has no shape for
     expect(meta.aggregates.map(&:name)).to include(
-      "Chapter", "Root", "Verb", "Shape", "Ask", "Piece", "Member",
-      "Reaction", "Saga", "Projection", "Vocabulary"
+      "Bluebook", "Aggregate", "Command", "ValueObject", "Query", "Entity", "Member",
+      "Policy", "ProcessManager", "ReadModel", "Vocabulary"
     )
   end
 

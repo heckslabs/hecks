@@ -51,7 +51,7 @@ module Hecksagain
 
         def judge!
           chapter = @bluebook.name
-          send_to("Meta::Chapter.Declare", chapter, name: v(chapter),
+          send_to("Meta::Bluebook.Declare", chapter, name: v(chapter),
                   vision: v(@bluebook.vision), classification: v(@bluebook.classification))
           @bluebook.aggregates.each { |aggregate| judge_aggregate(chapter, aggregate) }
           Array(@bluebook.read_models).each      { |model|  judge_projection(chapter, model) }
@@ -61,25 +61,25 @@ module Hecksagain
 
         def judge_reaction(chapter, policy)
           id = "#{chapter}.#{policy.name}"
-          send_to("Meta::Reaction.Declare", id, id: id, chapter_id: v(chapter),
+          send_to("Meta::Policy.Declare", id, id: id, bluebook_id: v(chapter),
                   name: v(policy.name), watches: v(policy.on_event),
                   fires: v(policy.trigger_command), reaches: v(policy.target_domain))
         end
 
         def judge_saga(chapter, saga)
           id = "#{chapter}.#{saga.name}"
-          send_to("Meta::Saga.Declare", id, id: id, chapter_id: v(chapter),
+          send_to("Meta::ProcessManager.Declare", id, id: id, bluebook_id: v(chapter),
                   name: v(saga.name), correlate: v(saga.correlates_by),
                   starts: v(saga.starts_on), ends: v(saga.ends_on))
 
           Array(saga.states).each do |state|
-            send_to("Meta::Saga.State", id, id: id, name: v(state))
+            send_to("Meta::ProcessManager.State", id, id: id, name: v(state))
           end
         end
 
         def judge_aggregate(chapter, aggregate)
           root = "#{chapter}::#{aggregate.name}"
-          send_to("Meta::Root.Declare", root, id: root, chapter_id: v(chapter),
+          send_to("Meta::Aggregate.Declare", root, id: root, bluebook_id: v(chapter),
                   name: v(aggregate.name), description: v(aggregate.description),
                   identity: v(aggregate.identified_by))
 
@@ -100,7 +100,7 @@ module Hecksagain
             # lists are judged by the Piece declarations instead.
             next if aggregate.entities.any? { |entity| entity.name == attribute.type.to_s }
 
-            send_to("Meta::Root.Attribute", "#{root}##{attribute.name}", id: root,
+            send_to("Meta::Aggregate.Attribute", "#{root}##{attribute.name}", id: root,
                     name: v(attribute.name), type: v("#{root}.#{attribute.type}"),
                     list: v(attribute.list?))
           end
@@ -110,28 +110,28 @@ module Hecksagain
 
         def judge_piece(root, _aggregate, piece)
           id = "#{root}.#{piece.name}"
-          send_to("Meta::Piece.Declare", id, id: id, root_id: v(root), owner: v(root),
+          send_to("Meta::Entity.Declare", id, id: id, aggregate_id: v(root), owner: v(root),
                   name: v(piece.name), description: v(piece.description),
                   identity: v(piece.identified_by))
         end
 
         def judge_shape(root, _aggregate, shape)
           id = "#{root}.#{shape.name}"
-          send_to("Meta::Shape.Declare", id, id: id, root_id: v(root), name: v(shape.name))
+          send_to("Meta::ValueObject.Declare", id, id: id, aggregate_id: v(root), name: v(shape.name))
 
           shape.invariants.each do |invariant|
-            send_to("Meta::Shape.Assert", id, id: id,
+            send_to("Meta::ValueObject.Assert", id, id: id,
                     description: v(invariant.description), canonical: v(invariant.canonical))
           end
 
           # only when a closed set was DECLARED — an empty one is the defect
           if shape.respond_to?(:closed_set?) && shape.closed_set?
-            send_to("Meta::Shape.Close", id, id: id, rows: { value: Array(shape.members).size })
+            send_to("Meta::ValueObject.Close", id, id: id, rows: { value: Array(shape.members).size })
           end
 
           Array(shape.members).each_with_index do |row, index|
             member = "#{id}##{index}"
-            send_to("Meta::Member.Declare", member, id: member, shape_id: v(id), shape: v(id))
+            send_to("Meta::Member.Declare", member, id: member, value_object_id: v(id), shape: v(id))
             row.to_h.each do |key, value|
               send_to("Meta::Member.Pair", member, id: member, key: v(key), value: v(value))
             end
@@ -140,50 +140,50 @@ module Hecksagain
 
         def judge_ask(root, _aggregate, ask)
           id = "#{root}.#{ask.name}"
-          send_to("Meta::Ask.Declare", id, id: id, root_id: v(root),
+          send_to("Meta::Query.Declare", id, id: id, aggregate_id: v(root),
                   name: v(ask.name), purpose: v(ask.description))
 
           Array(ask.attributes).each do |attribute|
-            send_to("Meta::Ask.Argument", id, id: id, name: v(attribute.name),
+            send_to("Meta::Query.Argument", id, id: id, name: v(attribute.name),
                     type: v(attribute.type), list: v(attribute.list?), default: v(attribute.default))
           end
         end
 
         def judge_projection(chapter, model)
           id = "#{chapter}.#{model.name}"
-          send_to("Meta::Projection.Declare", id, id: id, chapter_id: v(chapter),
+          send_to("Meta::ReadModel.Declare", id, id: id, bluebook_id: v(chapter),
                   name: v(model.name), purpose: v(model.description),
                   query_name: v(model.query_name), ref_name: v(model.reference_name),
                   ref_target: v(model.reference_target))
 
           Array(model.aggregate_heads).each do |head|
-            send_to("Meta::Projection.Gather", id, id: id, aggregate: v(head[:aggregate]),
+            send_to("Meta::ReadModel.Gather", id, id: id, aggregate: v(head[:aggregate]),
                     as: v(head[:as]), many: v(head[:many]))
           end
         end
 
         def judge_command(root, _aggregate, command)
           id = "#{root}.#{command.name}"
-          send_to("Meta::Verb.Declare", id, id: id, root_id: v(root),
+          send_to("Meta::Command.Declare", id, id: id, aggregate_id: v(root),
                   name: v(command.name), role: v(command.role), goal: v(command.goal))
 
           command.givens.each do |given|
-            send_to("Meta::Verb.Rule", id, id: id,
+            send_to("Meta::Command.Rule", id, id: id,
                     description: v(given.description), canonical: v(given.canonical))
           end
 
           command.mutations.each do |mutation|
-            send_to("Meta::Verb.Change", "#{id}!#{mutation.target}", id: id,
+            send_to("Meta::Command.Change", "#{id}!#{mutation.target}", id: id,
                     target: v(mutation.target), op: v(mutation.op),
                     field: v(""), kind: v("argument"), source: v(""))
           end
 
           # dispatched even when absent, so "a command names what it acts on"
           # is reachable — a rule only offered valid input can never refuse
-          send_to("Meta::Verb.ActsOn", id, id: id, root: v(command.references)) if command.references
+          send_to("Meta::Command.ActsOn", id, id: id, root: v(command.references)) if command.references
 
           Array(command.emits).each do |event|
-            send_to("Meta::Verb.Announce", id, id: id, announces: v(event))
+            send_to("Meta::Command.Announce", id, id: id, announces: v(event))
           end
         end
       end

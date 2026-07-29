@@ -18,16 +18,16 @@ RSpec.describe "the judge's coverage of a bluebook" do
   # carries one. Adding an aggregate to bluebook.bluebook without teaching the
   # judge to offer it is exactly the failure this catches.
   CATEGORY_VERBS = {
-    "Chapter"    => "Meta::Chapter.Declare",
-    "Root"       => "Meta::Root.Declare",
-    "Shape"      => "Meta::Shape.Declare",
-    "Verb"       => "Meta::Verb.Declare",
-    "Ask"        => "Meta::Ask.Declare",
-    "Piece"      => "Meta::Piece.Declare",
+    "Bluebook"    => "Meta::Bluebook.Declare",
+    "Aggregate"       => "Meta::Aggregate.Declare",
+    "ValueObject"      => "Meta::ValueObject.Declare",
+    "Command"       => "Meta::Command.Declare",
+    "Query"        => "Meta::Query.Declare",
+    "Entity"      => "Meta::Entity.Declare",
     "Member"     => "Meta::Member.Declare",
-    "Reaction"   => "Meta::Reaction.Declare",
-    "Saga"       => "Meta::Saga.Declare",
-    "Projection" => "Meta::Projection.Declare"
+    "Policy"   => "Meta::Policy.Declare",
+    "ProcessManager"       => "Meta::ProcessManager.Declare",
+    "ReadModel" => "Meta::ReadModel.Declare"
   }.freeze
 
   # Banking is the only corpus member carrying every category at once.
@@ -77,7 +77,7 @@ RSpec.describe "the judge's coverage of a bluebook" do
     # Vocabulary is excluded on purpose : it is static declaration read from the
     # IR by spec/vocabulary_conformance_spec, never dispatched.
     declared = Hecksagain::Bluebook::MetaValidator.grammar_registry
-                 .bluebook("Meta").aggregates.map(&:name) - %w[Vocabulary Leg Send]
+                 .bluebook("Meta").aggregates.map(&:name) - %w[Vocabulary Handler Dispatch]
     # World and Wiring live in world.bluebook and are judged through their own
     # door (MetaValidator.call_world), so they are not part of this map
 
