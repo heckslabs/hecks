@@ -42,10 +42,13 @@ module Hecksagain
         Setter = Struct.new(:verb, :targets, keyword_init: true)
 
         Category = Struct.new(:name, :declare, :parent, :parent_key, :fields,
-                              :appends, :setters, :sealers, keyword_init: true) do
-          # Every verb this category declares, in declaration order.
+                              :appends, :alternates, :setters, :sealers, keyword_init: true) do
+          # Every verb this category declares, in declaration order. `alternates`
+          # matters here: two commands can append to one list, and a verb missing
+          # from this is a verb the coverage gate stops watching.
           def verbs
-            [declare, *setters.map(&:verb), *appends.values.map(&:verb), *sealers].compact
+            [declare, *setters.map(&:verb), *appends.values.map(&:verb),
+             *alternates.map(&:verb), *sealers].compact
           end
 
           def root? = parent.nil?
@@ -90,6 +93,7 @@ module Hecksagain
             parent_key: parent_key,
             fields:     declared_fields(declare, parent_key),
             appends:    appends_in(rest),
+            alternates: alternates_in(rest),
             setters:    setters_in(rest),
             sealers:    sealers_in(rest)
           )
@@ -129,7 +133,34 @@ module Hecksagain
             Array(command.mutations).each do |mutation|
               next unless mutation.op == :append
 
-              found[mutation.target.to_s] = Append.new(verb: command.name, map: mutation.source)
+              # FIRST wins, not last. Two commands can append to the same list —
+              # Aggregate.Attribute and Aggregate.Reference both extend `attributes`,
+              # because a reference's type is not a value object and cannot go
+              # through the same verb. Overwriting would have let the one declared
+              # later silently displace the other, and the walk would have offered
+              # every ordinary attribute as a reference.
+              found[mutation.target.to_s] ||= Append.new(verb: command.name, map: mutation.source)
+            end
+          end
+        end
+
+        # The appenders DISPLACED by first-wins — Aggregate.Reference behind
+        # Aggregate.Attribute. The walk reaches them by reading the row, not the
+        # plan, but they are still verbs the language declares and the coverage
+        # gate has to see them.
+        def alternates_in(commands)
+          claimed = {}
+          commands.flat_map do |command|
+            Array(command.mutations).filter_map do |mutation|
+              next unless mutation.op == :append
+
+              target = mutation.target.to_s
+              if claimed[target]
+                Append.new(verb: command.name, map: mutation.source)
+              else
+                claimed[target] = true
+                nil
+              end
             end
           end
         end

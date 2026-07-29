@@ -134,11 +134,12 @@ module Hecksagain
             rows_for(category, list_name, node).each_with_index do |row, index|
               next if skip?(category, list_name, row, node)
 
-              payload = append.map.to_h do |field, argument|
-                [argument.to_sym, v(cell(category, list_name, row, field, id))]
+              chosen  = append_for(category, list_name, append, row)
+              payload = chosen.map.to_h do |field, argument|
+                [argument.to_sym, v(cell(category, list_name, row, field, id, chosen))]
               end
 
-              send_to("Meta::#{category}.#{append.verb}", "#{id}##{list_name}[#{index}]",
+              send_to("Meta::#{category}.#{chosen.verb}", "#{id}##{list_name}[#{index}]",
                       id: id, **payload)
             end
           end
@@ -152,21 +153,41 @@ module Hecksagain
         # models that as a reference — so the type is offered as the value object's
         # own id. This is the rule "attributes must use value-object types",
         # enforced by reference resolution rather than by a predicate.
-        def cell(category, list_name, row, field, id)
+        def cell(category, list_name, row, field, id, append)
           value = row_value(row, field)
-          return "#{id}.#{value}" if field == :type && "#{category}.#{list_name}" == "Aggregate.attributes"
+          # Only an ordinary attribute's type is requalified into a value object's
+          # id. A reference's type is `Reference<Customer>` and must arrive as it
+          # is — requalifying it would ask the value objects for something that was
+          # never one.
+          return value unless field == :type && "#{category}.#{list_name}" == "Aggregate.attributes"
+          return value if append.verb == "Reference"
 
-          value
+          "#{id}.#{value}"
         end
 
         # A REFERENCE is not a value object : `Reference<Customer>` names another
-        # aggregate head, so it neither has nor needs one. A list of ENTITIES names
-        # a Piece, judged by its own Entity declarations instead.
+        # aggregate head, so it cannot go through Attribute, whose type resolves
+        # against the value objects. It has its OWN verb, and offering it there is
+        # what stopped the meta-domain silently not holding Account#customer_id.
+        #
+        # A list of ENTITIES still has no verb — its type names a Piece, which is
+        # neither a value object nor a reference — so those attributes remain
+        # unoffered and the way back remains lossy for them. Named rather than
+        # excused: the fix is an Aggregate verb for an entity-typed attribute, the
+        # same shape as this one.
         def skip?(category, list_name, row, node)
           return false unless "#{category}.#{list_name}" == "Aggregate.attributes"
-          return true if row.respond_to?(:reference?) && row.reference?
 
           Array(node.entities).any? { |entity| entity.name == row.type.to_s }
+        end
+
+        # Which verb an attribute row belongs to. The plan cannot decide this — both
+        # verbs append to the same list, and what tells them apart is the row.
+        def append_for(category, list_name, append, row)
+          return append unless "#{category}.#{list_name}" == "Aggregate.attributes"
+          return append unless row.respond_to?(:reference?) && row.reference?
+
+          Plan::Append.new(verb: "Reference", map: append.map)
         end
 
         def identify(category, parent_id, node, index)

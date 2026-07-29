@@ -219,6 +219,51 @@ Hecks.bluebook "Meta" do
       emits "AttributeAttached"
     end
 
+    # An attribute that points at ANOTHER aggregate's head.
+    #
+    # `Attribute` types its type as `reference_to ValueObject`, which is what makes
+    # "attributes use value-object types" a consequence of the model rather than a
+    # predicate. A cross-aggregate reference cannot go through it: its type is
+    # `Reference<Customer>`, which is not a value object and never will be. So the
+    # judge SKIPPED every one of them, and the meta-domain did not hold
+    # Account#customer_id at all — the way back was lossy for exactly one
+    # construct, and the comment excusing it said "the language does not model
+    # reference-typed attributes yet".
+    command "Reference" do
+      role "Language"
+      goal "Attach an attribute that points at another aggregate's head"
+
+      reference_to Aggregate
+      attribute :name, FieldName
+      attribute :type, ReferenceType
+      attribute :list, ListFlag
+
+      given("a reference is named") { !name.value.to_s.empty? }
+
+      then_set :attributes, append: { name: :name, type: :type, list: :list }
+
+      emits "ReferenceAttached"
+    end
+
+    value_object "ReferenceType" do
+      attribute :value, String
+      # WEAKER THAN THE TRUE RULE, and deliberately.
+      #
+      # What wants saying is that the type has the shape `Reference<Something>` —
+      # that is what tells a reference from a value object. It cannot be said: the
+      # predicate sublanguage has comparisons, sign tests and emptiness, and no
+      # prefix match. `start_with?` parses into a segment lookup and leaks a raw
+      # `no implicit conversion of Symbol into Integer`, which is the fourth
+      # sighting of that error in this project and the reason
+      # Runtime::DOMAIN_REFUSALS exists.
+      #
+      # So the rule states only what it can state. The shape is enforced by the
+      # only thing that can enforce it today — the builder, which is what wrote
+      # `Reference<X>` in the first place. Third rule blocked on a missing
+      # sublanguage primitive, after read-model uniqueness and the mutation target.
+      invariant("a reference names the head it points at") { !value.to_s.empty? }
+    end
+
     value_object "FieldName" do
       attribute :value, String
       invariant("an attribute is named") { !value.to_s.empty? }

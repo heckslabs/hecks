@@ -155,6 +155,58 @@ RSpec.describe "the language holds a bluebook, and gives it back" do
     expect(Hecksagain::Naming.plural("day")).to eq("days")
   end
 
+  # Banking is the only corpus member with a cross-aggregate reference.
+  def banking
+    @banking ||= begin
+      registry = Hecksagain::Runtime::Registry.new
+      Hecksagain.with_registry(registry) do
+        Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
+        Kernel.load(InMemoryDomain::EXTRACTION_PORT)
+        Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
+        Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+        Kernel.load(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/banking.bluebook"))
+      end
+      registry.bluebook("Banking")
+    end
+  end
+
+  it "holds an attribute that points at another aggregate's head" do
+    # This one was DROPPED. `Aggregate.Attribute` types its type as
+    # `reference_to ValueObject`, and Reference<Customer> is not a value object, so
+    # the walk skipped every cross-aggregate reference and the meta-domain simply
+    # did not contain Account#customer_id. The way back was lossy for exactly one
+    # construct, behind a comment saying the language did not model it yet.
+    runtime = Hecksagain::Bluebook::MetaValidator.fresh_runtime
+    judge   = Hecksagain::Bluebook::MetaValidator::Judge.allocate
+    judge.instance_variable_set(:@bluebook, banking)
+    judge.instance_variable_set(:@refusals, [])
+    judge.instance_variable_set(:@runtime, runtime)
+    judge.instance_variable_set(
+      :@plan,
+      Hecksagain::Bluebook::MetaValidator::Plan.for(Hecksagain::Bluebook::MetaValidator.grammar_registry)
+    )
+    judge.send(:judge!)
+
+    account = runtime.query("Meta::Aggregate.DeclaredIn", bluebook_id: { value: "Banking" })
+                     .find { |row| text(row[:name]) == "Account" }
+    held = account[:attributes].to_h { |a| [text(a[:name]), text(a[:type])] }
+
+    expect(held["customer_id"]).to eq("Reference<Customer>")
+    # and it is NOT requalified into a value object's id, the way an ordinary
+    # attribute's type is — there is no value object to point at.
+    expect(held["number"]).to eq("Banking::Account.AccountNumber")
+  end
+
+  it "still does not hold an entity-typed attribute" do
+    # Account#ledger is a list of LedgerEntry, an ENTITY. Its type is neither a
+    # value object nor a reference, so it has no verb and the walk skips it — the
+    # last construct the way back cannot carry. Pinned so the hole is a fact in the
+    # suite rather than a sentence in a comment; the fix is an Aggregate verb for
+    # an entity-typed attribute, the same shape as Reference.
+    expect(banking.aggregate("Account").attributes.map { |a| a.name.to_s }).to include("ledger")
+    expect(banking.aggregate("Account").entities.map(&:name)).to include("LedgerEntry")
+  end
+
   it "reads through the aggregate's own query, not a repository" do
     # Persistence is an adapter BELOW the aggregate. If the way back reached into
     # a repository it would bypass the rules, the authorisation and the shape that
