@@ -76,8 +76,14 @@ module Hecksagain
             next set_row(mutation) unless mutation.op == :append
 
             mutation.source.map do |field, argument|
-              { target: mutation.target, op: mutation.op,
-                field: field, kind: "argument", source: argument }
+              # Spelled the way IR::Mutation#appended_fields spells it: a symbol bare
+              # because it names an argument, anything else inspected because it IS
+              # the value. `then_set :marks, append: { direction: "out" }` binds a
+              # LITERAL, and storing it raw made it indistinguishable from an
+              # argument called out.
+              { target: mutation.target, op: mutation.op, field: field,
+                kind: argument.is_a?(Symbol) ? "argument" : "literal",
+                source: argument.is_a?(Symbol) ? argument.to_s : encode_literal(argument) }
             end
           end
         end
@@ -88,7 +94,8 @@ module Hecksagain
           classified = mutation.to_h[:source] || {}
 
           [{ target: mutation.target, op: mutation.op, field: mutation.target,
-             kind: classified[:kind], source: classified[:name] || classified[:value] }]
+             kind: classified[:kind],
+             source: classified[:name] || encode_literal(classified[:value]) }]
         end
 
         # The normalisation table belongs to the expression grammar, not to any one
@@ -163,6 +170,17 @@ module Hecksagain
 
           "#{aggregate_id.split('::').first}::#{target}"
         end
+
+        # A LITERAL, written so it can be read back exactly.
+        #
+        # The language holds a default and a literal mutation source as text, and
+        # `to_s` threw the type away: 0.0 came back "0.0", and `{ value: "good" }`
+        # came back its inspect string with nowhere to say it had been a hash. The
+        # language already stores code as text — `canonical: "cents >= 0"` — so an
+        # encoding is in keeping; it simply has to be SELF-DESCRIBING. `inspect` is:
+        # a number is bare, a string is quoted, a symbol wears its colon, an object
+        # wears its braces. Shapes#decode_literal reads it back.
+        def encode_literal(value) = value.nil? ? nil : value.inspect
 
         # The way back out: an aggregate id becomes the type the IR spells.
         def reference_type(points_at_id) = "Reference<#{points_at_id.to_s.split('::').last}>"

@@ -120,11 +120,16 @@ module Hecksagain
           parent_key.sub(/_id\z/, "").split("_").map(&:capitalize).join
         end
 
-        # What the creating command sets directly, minus the parent link.
-        def declared_fields(declare, parent_key)
+        # What the creating command sets directly. EVERY `*_id` argument is dropped,
+        # not just the parent link: they are references, and a reference is not a
+        # field. Command.Declare carries `entity_id` as well as `aggregate_id`,
+        # because an entity declares commands too, and offering it as a field would
+        # have the walk hand it a name instead of a head.
+        def declared_fields(declare, _parent_key)
           return [] unless declare
 
-          declare.attributes.map { |attribute| attribute.name.to_s } - [parent_key]
+          declare.attributes.map { |attribute| attribute.name.to_s }
+                 .reject { |name| name.end_with?("_id") }
         end
 
         # list attribute -> the command that appends to it, and how its arguments map.

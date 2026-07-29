@@ -65,6 +65,13 @@ module Hecksagain
           rows(name).select { |row| text(row[key]) == parent_id }
         end
 
+        # An aggregate's OWN commands and queries — the ones no entity declared. Both
+        # carry `aggregate_id` either way, because that is the head the reference
+        # resolves against, so the entity ones have to be told apart by `entity_id`.
+        def own(name, aggregate_id)
+          under(name, :aggregate_id, aggregate_id).reject { |row| text(row[:entity_id]).to_s != "" }
+        end
+
         def aggregate(row)
           id = row[:id]
 
@@ -74,10 +81,10 @@ module Hecksagain
             identified_by: text(row[:identified_by])&.to_sym,
             attributes:    Array(row[:attributes]).map { |field| attribute(field, id) },
             value_objects: under(:value_objects, :aggregate_id, id).map { |shape| value_object(shape) },
-            commands:      under(:commands, :aggregate_id, id).map { |verb| command(verb) },
+            commands:      own(:commands, id).map { |verb| command(verb) },
             lifecycle:     lifecycle(row),
             entities:      under(:entities, :aggregate_id, id).map { |piece| entity(piece) },
-            queries:       under(:queries, :aggregate_id, id).map { |ask| query(ask) }
+            queries:       own(:queries, id).map { |ask| query(ask) }
           }
         end
 
@@ -131,7 +138,14 @@ module Hecksagain
             # A STRING here, where an aggregate's is a symbol. The IR is not uniform
             # about this and only a round trip says so.
             identified_by: text(row[:identified_by]),
-            attributes:    Array(row[:attributes]).map { |field| shape_field(field) }
+            attributes:    Array(row[:attributes]).map { |field| shape_field(field) },
+            commands:      under(:commands, :entity_id, row[:id]).map { |verb| command(verb) },
+            queries:       under(:queries, :entity_id, row[:id]).map { |ask| query(ask) },
+            # An entity has its own state machine, and the language has held it all
+            # along — Entity.Lifecycle and Entity.Transition were two of the fourteen
+            # verbs that started firing when the judge became a walk. Only the
+            # reconstruction had never asked for them.
+            lifecycle:     lifecycle(row)
           }
         end
 

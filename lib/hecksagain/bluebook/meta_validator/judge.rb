@@ -30,6 +30,13 @@ module Hecksagain
         # entities have to exist before any attribute names one.
         EAGER_CHILDREN = { "Aggregate" => %w[Entity ValueObject] }.freeze
 
+        # Categories an ENTITY declares as well as an aggregate. The IR reuses
+        # IR::Command and IR::Query for a piece's own commands and queries, so the
+        # language reuses Command and Query — and the plan cannot express a second
+        # parent, because a category's parent is derived from the one `*_id` argument
+        # its creating command carries. This says the other edge out loud.
+        WITHIN_ENTITY = %w[Command Query].freeze
+
         attr_reader :refusals
 
         def initialize(bluebook)
@@ -92,14 +99,14 @@ module Hecksagain
         # same ordering the walk already used one level down — value objects before
         # the attributes that name them — lifted to the level above, and it is what
         # lets a reference be a REFERENCE rather than a string nobody can check.
-        def declare_node(category, node, parent_id, index)
+        def declare_node(category, node, parent_id, index, extra = {})
           plan = @plan.category(category)
           return unless plan
 
-          declare(plan, category, node, identify(category, parent_id, node, index), parent_id)
+          declare(plan, category, node, identify(category, parent_id, node, index), parent_id, extra)
         end
 
-        def detail_node(category, node, parent_id, index)
+        def detail_node(category, node, parent_id, index, _extra = {})
           plan = @plan.category(category)
           return unless plan
 
@@ -110,19 +117,32 @@ module Hecksagain
           setters(plan, category, node, id)
           appends(plan, category, node, id)
           later.each { |child| walk_all(child, node, id) }
+          within_entity(category, node, id, parent_id)
           sealers(plan, category, id)
         end
 
-        def walk_all(category, node, parent_id)
+        def walk_all(category, node, parent_id, extra = {})
           reader = collection_reader(category)
           return unless node.respond_to?(reader)
 
           children = Array(node.public_send(reader))
-          children.each_with_index { |child, index| declare_node(category, child, parent_id, index) }
-          children.each_with_index { |child, index| detail_node(category, child, parent_id, index) }
+          children.each_with_index { |child, index| declare_node(category, child, parent_id, index, extra) }
+          children.each_with_index { |child, index| detail_node(category, child, parent_id, index, extra) }
         end
 
-        def declare(plan, category, node, id, parent_id)
+        # A piece's commands and queries, addressed under the PIECE so two commands
+        # of the same name on an aggregate and on one of its entities cannot collide,
+        # while `aggregate_id` still names the aggregate the reference resolves
+        # against and `entity_id` says which piece declared it.
+        def within_entity(category, node, id, aggregate_id)
+          return unless category == "Entity"
+
+          WITHIN_ENTITY.each do |child|
+            walk_all(child, node, id, aggregate_id: v(aggregate_id), entity_id: v(id))
+          end
+        end
+
+        def declare(plan, category, node, id, parent_id, extra = {})
           return unless plan.declare
 
           payload = { id: id }
@@ -131,7 +151,7 @@ module Hecksagain
             payload[field.to_sym] = v(field_value(category, node, field.to_sym, parent_id))
           end
 
-          send_to("Meta::#{category}.#{plan.declare}", id, **payload)
+          send_to("Meta::#{category}.#{plan.declare}", id, **payload.merge(extra))
         end
 
         # A setter whose every source is absent is not dispatched. An aggregate
@@ -178,6 +198,9 @@ module Hecksagain
         # hangs off the chapter.
         def cell(category, list_name, row, field, id, append)
           value = row_value(row, field)
+          # A default keeps its TYPE by being written as a literal — 0.0 rather than
+          # "0.0" — because the language holds it as text and text alone forgets.
+          return encode_literal(value) if field == :default
           return value unless field == :type && "#{category}.#{list_name}" == "Aggregate.attributes"
           return points_at(row, id) if append.verb == "Reference"
 

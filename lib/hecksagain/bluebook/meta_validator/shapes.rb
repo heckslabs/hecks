@@ -21,12 +21,7 @@ module Hecksagain
             name: text(field[:name])&.to_sym,
             type: type.start_with?("#{aggregate_id}.") ? type.delete_prefix("#{aggregate_id}.") : reference_type(type),
             list: text(field[:list]).to_s == "true",
-            # THE LANGUAGE DOES NOT HOLD THIS. Aggregate's Field value object carries
-            # name, type and list — no default — so an aggregate attribute declared
-            # `default:` loses it. Named in spec/round_trip_spec as a gap rather than
-            # papered over; the fix is a field on Field, and the walk already has the
-            # value to offer.
-            default: nil
+            default: decode_literal(text(field[:default]))
           }
         end
 
@@ -35,13 +30,36 @@ module Hecksagain
             name:    text(field[:name])&.to_sym,
             type:    text(field[:type]),
             list:    text(field[:list]).to_s == "true",
-            default: blank_to_nil(text(field[:default]))
+            default: decode_literal(text(field[:default]))
           }
         end
 
-        # ABSENT is not EMPTY, on the way back as much as on the way in: a default
-        # never declared arrives as an empty cell and has to go back out as nil.
-        def blank_to_nil(value) = value.to_s.empty? ? nil : value
+        # A literal, read back from the self-describing form Readings#encode_literal
+        # wrote. The forms are exactly the five the Primitive vocabulary admits —
+        # String, Integer, Float, TrueClass, FalseClass — plus a symbol, and a flat
+        # object literal, which is what `to: { value: "good" }` is: a value object's
+        # fields written inline.
+        def decode_literal(text)
+          raw = text.to_s
+          return nil if raw.empty?
+          return decode_object(raw)      if raw.start_with?("{") && raw.end_with?("}")
+          return raw[1..-2]              if raw.start_with?('"') && raw.end_with?('"')
+          return raw[1..].to_sym         if raw.start_with?(":")
+          return true                    if raw == "true"
+          return false                   if raw == "false"
+          return raw.to_i                if raw.match?(/\A-?\d+\z/)
+          return raw.to_f                if raw.match?(/\A-?\d+\.\d+\z/)
+
+          raw
+        end
+
+        # Scanned rather than split on ", ", so a quoted value carrying a comma does
+        # not tear in half.
+        def decode_object(raw)
+          raw.scan(/:(\w+)=>("[^"]*"|[^,}]+)/).to_h do |key, value|
+            [key.to_sym, decode_literal(value.strip)]
+          end
+        end
 
         def rule(row) = { description: text(row[:description]), canonical: text(row[:canonical]) }
 
@@ -111,7 +129,9 @@ module Hecksagain
           kind  = text(binding[:kind])
           value = text(binding[:source])
 
-          kind == "argument" ? { kind: kind, name: value } : { kind: "literal", value: value }
+          return { kind: kind, name: value } if kind == "argument"
+
+          { kind: "literal", value: decode_literal(value) }
         end
       end
     end

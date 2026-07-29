@@ -6,15 +6,28 @@ require "spec_helper"
 # `bluebook.bluebook` opens with it: "loading a domain becomes dispatching commands
 # into this meta-domain ; the IR it stores must equal the IR the DSL builder
 # produces." The judge dispatches a bluebook in. Reconstruction reads it back out.
-# This compares the two.
+# This compares the two, and there is no longer any difference to explain.
 #
-# Pizzas comes back EXACTLY. Banking does not, and the differences are the point:
-# they are the constructs the language does not yet hold, asserted as an exact set,
-# so a NEW loss fails here and a CLOSED gap fails here too. A round trip that
-# reports success while dropping a category is the failure the retired
-# `experiment/replay.rb` was built to catch and did not.
+# It began as pizzas exact and banking eight short, with the eight named as an exact
+# classified set — an entity's own commands, queries and lifecycle, a non-string
+# default, a literal with structure. Each turned out to be either a field the
+# language had no room for or a value stored as text that forgot its own type. All
+# four members now come back byte for byte.
+#
+# The fixtures are here on purpose. Banking has no aggregate attribute carrying a
+# default, so `Field#default` would have been legal and unexercised — the exact
+# pattern this project keeps finding — and till declares
+# `attribute :balance, Money, default: { cents: 0 }`, which exercises both the field
+# and the object-literal encoding at once.
 RSpec.describe "a bluebook dispatched in and read back out" do
-  def load_corpus(file, name)
+  CORPUS = {
+    "Pizzas"   => "examples/pizzas/bluebook/pizzas.bluebook",
+    "Banking"  => "examples/banking/bluebook/banking.bluebook",
+    "TillRoom" => "spec/fixtures/till.bluebook",
+    "Wire"     => "spec/fixtures/settlement.bluebook"
+  }.freeze
+
+  def load_corpus(file)
     registry = Hecksagain::Runtime::Registry.new
     Hecksagain.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
@@ -23,11 +36,8 @@ RSpec.describe "a bluebook dispatched in and read back out" do
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       Kernel.load(File.join(InMemoryDomain::ROOT, file))
     end
-    registry.bluebook(name)
+    registry
   end
-
-  def pizzas  = @pizzas  ||= load_corpus("examples/pizzas/bluebook/pizzas.bluebook", "Pizzas")
-  def banking = @banking ||= load_corpus("examples/banking/bluebook/banking.bluebook", "Banking")
 
   # Dispatch it in and KEEP the records — the only difference between judging a
   # bluebook and holding one.
@@ -49,7 +59,9 @@ RSpec.describe "a bluebook dispatched in and read back out" do
 
   # Sort the PRESENTATION axis on both sides. Which position a command occupies in
   # its aggregate's list is read by nothing — see spec/executes_spec — so the read
-  # side canonicalises it and the comparison has to say so out loud.
+  # side canonicalises it and the comparison says so out loud. Order that CHANGES
+  # BEHAVIOUR — a command's mutations, a lifecycle's transitions, a compensation's
+  # dispatches — is untouched here and compared as declared.
   def canonical(node)
     case node
     when Hash then node.to_h { |key, value| [key, canonical(value)] }
@@ -68,64 +80,37 @@ RSpec.describe "a bluebook dispatched in and read back out" do
     elsif source.is_a?(Array) && back.is_a?(Array) && source.size == back.size
       source.each_with_index.flat_map { |element, i| differences(element, back[i], "#{path}[#{i}]") }
     else
-      [path]
+      ["#{path}: declared #{source.inspect[0, 60]}, read back #{back.inspect[0, 60]}"]
     end
   end
 
-  def compare(bluebook)
-    back, refusals = read_back(bluebook)
-    expect(refusals).to be_empty, "the language refused its own corpus: #{refusals.inspect}"
+  CORPUS.each do |name, file|
+    context name do
+      let(:bluebook) { load_corpus(file).bluebook(name) }
 
-    differences(canonical(bluebook.to_h.slice(*back.keys)), canonical(back))
-  end
+      it "comes back exactly as the builder made it" do
+        back, refusals = read_back(bluebook)
 
-  it "gives pizzas back exactly as the builder made it" do
-    expect(compare(pizzas)).to be_empty
-  end
-
-  it "gives banking back apart from the constructs the language does not hold" do
-    # Classified rather than listed by path, so the set survives banking gaining an
-    # aggregate but not banking losing a field.
-    kinds = compare(banking).map { |path| classify(path) }.tally
-
-    expect(kinds).to eq(
-      "an entity's own commands"   => 2,
-      "an entity's own queries"    => 2,
-      "an entity's own lifecycle"  => 2,
-      "a non-string default"       => 1,
-      "a literal that is not a scalar" => 1
-    )
-  end
-
-  def classify(path)
-    case path
-    when /entities\[\d+\]\.commands\z/  then "an entity's own commands"
-    when /entities\[\d+\]\.queries\z/   then "an entity's own queries"
-    when /entities\[\d+\]\.lifecycle\z/ then "an entity's own lifecycle"
-    when /\.default\z/                  then "a non-string default"
-    when /source\.value\z/              then "a literal that is not a scalar"
-    else "UNCLASSIFIED: #{path}"
+        expect(refusals).to be_empty, "the language refused it: #{refusals.inspect}"
+        expect(differences(canonical(bluebook.to_h.slice(*back.keys)), canonical(back))).to be_empty
+      end
     end
   end
 
-  # Each of these is a sentence about the LANGUAGE, not about the reconstruction.
-  #
-  #   an entity's commands, queries and lifecycle — the language's Entity holds
-  #     attributes and transitions, and an entity's own commands and queries have no
-  #     verb at all. Banking's Withdrawal and LedgerEntry both declare them. The fix
-  #     is Command and Query parented by Entity as well as by Aggregate, which the
-  #     plan's containment tree would pick up for free.
-  #
-  #   a non-string default — ShapeField types `default` as String, so
-  #     `default: 0.0` comes back "0.0". The language cannot say what type a default
-  #     is, which is the same gap that makes a closed set's members all strings.
-  #
-  #   a literal that is not a scalar — `then_set :standing, to: { value: "good" }`
-  #     stores the hash's inspect string. Change's `source` is a String, so a literal
-  #     with structure loses it.
-  it "names its gaps as facts about the language" do
-    # Not a tautology: it fails the moment `classify` meets a path it has no sentence
-    # for, which is exactly when somebody has introduced a loss nobody described.
-    expect(compare(banking).map { |path| classify(path) }.grep(/UNCLASSIFIED/)).to be_empty
+  it "compares every part of the IR the builder produces, not a convenient subset" do
+    # The comparison slices the source by the reconstruction's own keys, so a key it
+    # simply never attempted would vanish from the test rather than fail it. This
+    # names what is compared, so dropping one is a failure and not a silence.
+    back, = read_back(load_corpus(CORPUS["Banking"]).bluebook("Banking"))
+
+    expect(back.keys).to eq(%i[name vision classification aggregates read_models policies process_managers])
+    expect(Hecksagain::Bluebook::IR::Bluebook.instance_method(:to_h).owner).to be_truthy
+  end
+
+  it "exercises an aggregate attribute that carries a default" do
+    # Banking has none, so without this `Field#default` would round-trip vacuously.
+    till = load_corpus(CORPUS["TillRoom"]).bluebook("TillRoom")
+
+    expect(till.aggregate("Till").attribute(:balance).default).to eq(cents: 0)
   end
 end
