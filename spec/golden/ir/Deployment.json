@@ -1,0 +1,340 @@
+{
+  "aggregates": [
+    {
+      "attributes": [
+        {
+          "default": null,
+          "list": false,
+          "name": "domain",
+          "type": "WorldName"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "realm",
+          "type": "Realm"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "latest",
+          "type": "Latest"
+        }
+      ],
+      "commands": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "domain",
+              "type": "WorldName"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "realm",
+              "type": "Realm"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "latest",
+              "type": "Latest"
+            }
+          ],
+          "emits": [
+            "WorldDeclared"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Open a world for a domain",
+          "mutations": [
+
+          ],
+          "name": "Declare",
+          "references": null,
+          "role": "Deployment"
+        }
+      ],
+      "description": "One .world — the per-deployment values a domain's adapters need. A sibling artifact to the bluebook, not part of it : the same domain runs in many worlds.",
+      "entities": [
+
+      ],
+      "identified_by": "domain",
+      "lifecycle": null,
+      "name": "World",
+      "queries": [
+
+      ],
+      "value_objects": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "a world names its domain"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "WorldName"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "a realm says something"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "Realm"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "a latest version says something"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "Latest"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "default": null,
+          "list": false,
+          "name": "world_id",
+          "type": "Reference<World>"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "world",
+          "type": "WiringText"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "verb",
+          "type": "WiringText"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "adapter",
+          "type": "WiringText"
+        },
+        {
+          "default": null,
+          "list": true,
+          "name": "settings",
+          "type": "Setting"
+        }
+      ],
+      "commands": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "world_id",
+              "type": "Reference<World>"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "world",
+              "type": "WiringText"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "verb",
+              "type": "WiringText"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "adapter",
+              "type": "WiringText"
+            }
+          ],
+          "emits": [
+            "WiringDeclared"
+          ],
+          "givens": [
+            {
+              "canonical": "!verb.value.to_s.empty?",
+              "description": "a wiring names its verb"
+            }
+          ],
+          "goal": "Bind one adapter in a world",
+          "mutations": [
+
+          ],
+          "name": "Declare",
+          "references": null,
+          "role": "Deployment"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "key",
+              "type": "WiringText"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "WiringText"
+            }
+          ],
+          "emits": [
+            "SettingGiven"
+          ],
+          "givens": [
+            {
+              "canonical": "!key.value.to_s.empty?",
+              "description": "a setting names its key"
+            }
+          ],
+          "goal": "Give one value the bound adapter needs",
+          "mutations": [
+            {
+              "fields": {
+                "key": "key",
+                "value": "value"
+              },
+              "op": "append",
+              "target": "settings"
+            }
+          ],
+          "name": "Set",
+          "references": "Wiring",
+          "role": "Deployment"
+        }
+      ],
+      "description": "One adapter binding inside a world — the verb it answers, the adapter it names, and the values that adapter needs. Its own root because a world's settings are an open map, which no value object can hold.",
+      "entities": [
+
+      ],
+      "identified_by": "id",
+      "lifecycle": null,
+      "name": "Wiring",
+      "queries": [
+
+      ],
+      "value_objects": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "WiringText"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "key",
+              "type": "String"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Setting"
+        }
+      ]
+    }
+  ],
+  "canonical_form": [
+    {
+      "boundary": "none",
+      "position": "1",
+      "replacement": "",
+      "source_token": "",
+      "strategy": "collapse_whitespace"
+    },
+    {
+      "boundary": "word",
+      "position": "2",
+      "replacement": ".size",
+      "source_token": ".length",
+      "strategy": "replace"
+    }
+  ],
+  "classification": "core",
+  "name": "Deployment",
+  "policies": [
+
+  ],
+  "process_managers": [
+
+  ],
+  "read_models": [
+
+  ],
+  "version": null,
+  "vision": "The .world language, declared in itself. A world is a SIBLING of a bluebook, not part of one — the same domain runs in many worlds, and the values its adapters need belong to the deployment rather than to the domain. So it is described in its own file, as its own thing."
+}

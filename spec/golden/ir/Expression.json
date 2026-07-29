@@ -1,0 +1,1534 @@
+{
+  "aggregates": [
+    {
+      "attributes": [
+        {
+          "default": null,
+          "list": false,
+          "name": "symbol",
+          "type": "OperatorSymbol"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "category",
+          "type": "Category"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "precedence",
+          "type": "Precedence"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "arity",
+          "type": "Arity"
+        },
+        {
+          "default": null,
+          "list": true,
+          "name": "renderings",
+          "type": "Rendering"
+        }
+      ],
+      "commands": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "symbol",
+              "type": "OperatorSymbol"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "category",
+              "type": "Category"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "precedence",
+              "type": "Precedence"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "arity",
+              "type": "Arity"
+            }
+          ],
+          "emits": [
+            "OperatorProposed"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Put an operation forward for the sublanguage",
+          "mutations": [
+
+          ],
+          "name": "Propose",
+          "references": null,
+          "role": "Language designer"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "target",
+              "type": "Target"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "form",
+              "type": "Form"
+            }
+          ],
+          "emits": [
+            "OperatorRendered"
+          ],
+          "givens": [
+            {
+              "canonical": "status != \"retired\"",
+              "description": "a retired operator takes no new renderings"
+            }
+          ],
+          "goal": "Declare how this operator reads in one target",
+          "mutations": [
+            {
+              "fields": {
+                "form": "form",
+                "target": "target"
+              },
+              "op": "append",
+              "target": "renderings"
+            }
+          ],
+          "name": "Render",
+          "references": "Operator",
+          "role": "Language designer"
+        },
+        {
+          "attributes": [
+
+          ],
+          "emits": [
+            "OperatorAdmitted"
+          ],
+          "givens": [
+            {
+              "canonical": "renderings.size >= 2",
+              "description": "an operator must read in every target before it is admitted"
+            }
+          ],
+          "goal": "Accept the operation into the sublanguage",
+          "mutations": [
+
+          ],
+          "name": "Admit",
+          "references": "Operator",
+          "role": "Language designer"
+        },
+        {
+          "attributes": [
+
+          ],
+          "emits": [
+            "OperatorRetired"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Remove an operation from the sublanguage",
+          "mutations": [
+
+          ],
+          "name": "Retire",
+          "references": "Operator",
+          "role": "Language designer"
+        }
+      ],
+      "description": "One admitted operation — its symbol, its precedence, and how it reads in every target that must evaluate it.",
+      "entities": [
+
+      ],
+      "identified_by": "symbol",
+      "lifecycle": {
+        "default": "proposed",
+        "field": "status",
+        "transitions": [
+          {
+            "command": "Admit",
+            "from_state": "proposed",
+            "to_state": "admitted"
+          },
+          {
+            "command": "Retire",
+            "from_state": "admitted",
+            "to_state": "retired"
+          }
+        ]
+      },
+      "name": "Operator",
+      "queries": [
+
+      ],
+      "value_objects": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "an operator is written as something"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "OperatorSymbol"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "an operator belongs to a category"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "Category"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "Integer"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "value > 0",
+              "description": "precedence binds at some level"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "Precedence"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "Integer"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "value > 0",
+              "description": "an operator takes at least one operand"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "Arity"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Target"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Form"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "target",
+              "type": "String"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "form",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!target.to_s.empty?",
+              "description": "a rendering must name its target"
+            },
+            {
+              "canonical": "!form.to_s.empty?",
+              "description": "a rendering must have a form"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "Rendering"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "default": null,
+          "list": false,
+          "name": "name",
+          "type": "RuleName"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "strategy",
+          "type": "Strategy"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "source_token",
+          "type": "SourceToken"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "replacement",
+          "type": "Replacement"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "boundary",
+          "type": "Boundary"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "position",
+          "type": "Position"
+        },
+        {
+          "default": null,
+          "list": true,
+          "name": "readings",
+          "type": "Reading"
+        }
+      ],
+      "commands": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "name",
+              "type": "RuleName"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "strategy",
+              "type": "Strategy"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "source_token",
+              "type": "SourceToken"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "replacement",
+              "type": "Replacement"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "boundary",
+              "type": "Boundary"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "position",
+              "type": "Position"
+            }
+          ],
+          "emits": [
+            "NormalisationProposed"
+          ],
+          "givens": [
+            {
+              "canonical": "strategy.value == \"collapse_whitespace\" || strategy.value == \"replace\"",
+              "description": "a rule must name a linked strategy"
+            },
+            {
+              "canonical": "boundary.value == \"none\" || boundary.value == \"word\"",
+              "description": "a rule must state its boundary"
+            }
+          ],
+          "goal": "Put a normalisation rule forward for the canonical form",
+          "mutations": [
+
+          ],
+          "name": "Propose",
+          "references": null,
+          "role": "Language designer"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "target",
+              "type": "Target"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "form",
+              "type": "Form"
+            }
+          ],
+          "emits": [
+            "NormalisationRead"
+          ],
+          "givens": [
+            {
+              "canonical": "status != \"retired\"",
+              "description": "a retired rule takes no new readings"
+            }
+          ],
+          "goal": "Declare how this rule reads in one target",
+          "mutations": [
+            {
+              "fields": {
+                "form": "form",
+                "target": "target"
+              },
+              "op": "append",
+              "target": "readings"
+            }
+          ],
+          "name": "Read",
+          "references": "Normalisation",
+          "role": "Language designer"
+        },
+        {
+          "attributes": [
+
+          ],
+          "emits": [
+            "NormalisationAdmitted"
+          ],
+          "givens": [
+            {
+              "canonical": "readings.size >= 2",
+              "description": "a rule must read in every target before it is admitted"
+            }
+          ],
+          "goal": "Accept the rule into the canonical form",
+          "mutations": [
+
+          ],
+          "name": "Admit",
+          "references": "Normalisation",
+          "role": "Language designer"
+        },
+        {
+          "attributes": [
+
+          ],
+          "emits": [
+            "NormalisationRetired"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Remove a rule from the canonical form",
+          "mutations": [
+
+          ],
+          "name": "Retire",
+          "references": "Normalisation",
+          "role": "Language designer"
+        }
+      ],
+      "description": "One rule that turns written source into canonical text — its boundary condition, where it sits in the order, and how it reads in every target that must apply it.",
+      "entities": [
+
+      ],
+      "identified_by": "name",
+      "lifecycle": {
+        "default": "proposed",
+        "field": "status",
+        "transitions": [
+          {
+            "command": "Admit",
+            "from_state": "proposed",
+            "to_state": "admitted"
+          },
+          {
+            "command": "Retire",
+            "from_state": "admitted",
+            "to_state": "retired"
+          }
+        ]
+      },
+      "name": "Normalisation",
+      "queries": [
+
+      ],
+      "value_objects": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "a rule is named"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "RuleName"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "a rule names a strategy"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "Strategy"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "SourceToken"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Replacement"
+        },
+        {
+          "attributes": [
+            {
+              "default": "none",
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "a boundary condition is named"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "Boundary"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "Integer"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "value > 0",
+              "description": "a rule sits somewhere in the order"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "Position"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Target"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Form"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "strategy",
+              "type": "String"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "source_token",
+              "type": "String"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "replacement",
+              "type": "String"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "boundary",
+              "type": "String"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "position",
+              "type": "Integer"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "strategy",
+                "collapse_whitespace"
+              ],
+              [
+                "source_token",
+                ""
+              ],
+              [
+                "replacement",
+                ""
+              ],
+              [
+                "boundary",
+                "none"
+              ],
+              [
+                "position",
+                "1"
+              ]
+            ],
+            [
+              [
+                "strategy",
+                "replace"
+              ],
+              [
+                "source_token",
+                ".length"
+              ],
+              [
+                "replacement",
+                ".size"
+              ],
+              [
+                "boundary",
+                "word"
+              ],
+              [
+                "position",
+                "2"
+              ]
+            ]
+          ],
+          "name": "Rule"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "target",
+              "type": "String"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "form",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!target.to_s.empty?",
+              "description": "a reading must name its target"
+            },
+            {
+              "canonical": "!form.to_s.empty?",
+              "description": "a reading must have a form"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "Reading"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "default": null,
+          "list": false,
+          "name": "description",
+          "type": "Description"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "source",
+          "type": "Source"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "canonical",
+          "type": "Canonical"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "subject",
+          "type": "Subject"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "role",
+          "type": "ExpressionRole"
+        },
+        {
+          "default": null,
+          "list": true,
+          "name": "references",
+          "type": "Reference"
+        }
+      ],
+      "commands": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "description",
+              "type": "Description"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "source",
+              "type": "Source"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "canonical",
+              "type": "Canonical"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "subject",
+              "type": "Subject"
+            }
+          ],
+          "emits": [
+            "ExpressionExtracted"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Lower a real Ruby predicate into the sublanguage",
+          "mutations": [
+
+          ],
+          "name": "Extract",
+          "references": null,
+          "role": "System"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "name",
+              "type": "ReferenceName"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "kind",
+              "type": "Kind"
+            }
+          ],
+          "emits": [
+            "ReferenceNoted"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Record a name the expression reads",
+          "mutations": [
+            {
+              "fields": {
+                "kind": "kind",
+                "name": "name"
+              },
+              "op": "append",
+              "target": "references"
+            }
+          ],
+          "name": "Note",
+          "references": "Expression",
+          "role": "System"
+        },
+        {
+          "attributes": [
+
+          ],
+          "emits": [
+            "ExpressionAdmitted"
+          ],
+          "givens": [
+            {
+              "canonical": "!canonical.value.to_s.empty?",
+              "description": "an expression must have canonical text"
+            },
+            {
+              "canonical": "!subject.value.to_s.empty?",
+              "description": "an expression must know its subject"
+            }
+          ],
+          "goal": "Accept the expression as evaluable by every target",
+          "mutations": [
+
+          ],
+          "name": "Admit",
+          "references": "Expression",
+          "role": "System"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "reason",
+              "type": "Reason"
+            }
+          ],
+          "emits": [
+            "ExpressionRejected"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Refuse a predicate that leaves the sublanguage",
+          "mutations": [
+
+          ],
+          "name": "Reject",
+          "references": "Expression",
+          "role": "System"
+        }
+      ],
+      "description": "One predicate extracted from regular Ruby — the source as written, the canonical text both runtimes evaluate, and the subject it reads against.",
+      "entities": [
+
+      ],
+      "identified_by": "id",
+      "lifecycle": {
+        "default": "extracted",
+        "field": "status",
+        "transitions": [
+          {
+            "command": "Admit",
+            "from_state": "extracted",
+            "to_state": "admitted"
+          },
+          {
+            "command": "Reject",
+            "from_state": "extracted",
+            "to_state": "rejected"
+          }
+        ]
+      },
+      "name": "Expression",
+      "queries": [
+
+      ],
+      "value_objects": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "a predicate says what it is for"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "Description"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Source"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Canonical"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "a predicate reads against something"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "Subject"
+        },
+        {
+          "attributes": [
+            {
+              "default": "given",
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "a predicate plays a role"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "ExpressionRole"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "a reference must be named"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "ReferenceName"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "value.to_s == \"attribute\" || value.to_s == \"argument\"",
+              "description": "a reference is either an attribute or an argument"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "Kind"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "a refusal gives a reason"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "Reason"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "name",
+              "type": "String"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "kind",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!name.to_s.empty?",
+              "description": "a reference must be named"
+            },
+            {
+              "canonical": "kind.to_s == \"attribute\" || kind.to_s == \"argument\"",
+              "description": "a reference is either an attribute or an argument"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "Reference"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "default": null,
+          "list": false,
+          "name": "canonical",
+          "type": "Canonical"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "subject",
+          "type": "Subject"
+        },
+        {
+          "default": null,
+          "list": true,
+          "name": "verdicts",
+          "type": "Verdict"
+        }
+      ],
+      "commands": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "canonical",
+              "type": "Canonical"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "subject",
+              "type": "Subject"
+            }
+          ],
+          "emits": [
+            "AgreementAsked"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Put one expression to every runtime against the same state",
+          "mutations": [
+
+          ],
+          "name": "Ask",
+          "references": null,
+          "role": "System"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "runtime",
+              "type": "Runtime"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "outcome",
+              "type": "Outcome"
+            }
+          ],
+          "emits": [
+            "VerdictRecorded"
+          ],
+          "givens": [
+            {
+              "canonical": "status == \"open\"",
+              "description": "a settled agreement takes no further answers"
+            }
+          ],
+          "goal": "Record what one runtime said",
+          "mutations": [
+            {
+              "fields": {
+                "outcome": "outcome",
+                "runtime": "runtime"
+              },
+              "op": "append",
+              "target": "verdicts"
+            }
+          ],
+          "name": "Answer",
+          "references": "Agreement",
+          "role": "System"
+        },
+        {
+          "attributes": [
+
+          ],
+          "emits": [
+            "AgreementSettled"
+          ],
+          "givens": [
+            {
+              "canonical": "verdicts.size >= 2",
+              "description": "agreement needs at least two runtimes"
+            }
+          ],
+          "goal": "Record that every runtime reached the same verdict",
+          "mutations": [
+
+          ],
+          "name": "Settle",
+          "references": "Agreement",
+          "role": "System"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "reason",
+              "type": "Reason"
+            }
+          ],
+          "emits": [
+            "AgreementSplit"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Record that the runtimes disagreed — a defect in the sublanguage",
+          "mutations": [
+
+          ],
+          "name": "Split",
+          "references": "Agreement",
+          "role": "System"
+        }
+      ],
+      "description": "One expression evaluated by every runtime against the same state — the standing proof that Ruby and Rust mean the same thing.",
+      "entities": [
+
+      ],
+      "identified_by": "id",
+      "lifecycle": {
+        "default": "open",
+        "field": "status",
+        "transitions": [
+          {
+            "command": "Settle",
+            "from_state": "open",
+            "to_state": "settled"
+          },
+          {
+            "command": "Split",
+            "from_state": "open",
+            "to_state": "split"
+          }
+        ]
+      },
+      "name": "Agreement",
+      "queries": [
+
+      ],
+      "value_objects": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Canonical"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "an agreement is asked about something"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "Subject"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "a verdict must name its runtime"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "Runtime"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "value.to_s == \"true\" || value.to_s == \"false\" || value.to_s == \"error\"",
+              "description": "an outcome is true, false, or error"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "Outcome"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "a split gives a reason"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "Reason"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "runtime",
+              "type": "String"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "outcome",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!runtime.to_s.empty?",
+              "description": "a verdict must name its runtime"
+            },
+            {
+              "canonical": "outcome.to_s == \"true\" || outcome.to_s == \"false\" || outcome.to_s == \"error\"",
+              "description": "an outcome is true, false, or error"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "Verdict"
+        }
+      ]
+    }
+  ],
+  "canonical_form": [
+    {
+      "boundary": "none",
+      "position": "1",
+      "replacement": "",
+      "source_token": "",
+      "strategy": "collapse_whitespace"
+    },
+    {
+      "boundary": "word",
+      "position": "2",
+      "replacement": ".size",
+      "source_token": ".length",
+      "strategy": "replace"
+    }
+  ],
+  "classification": "generic",
+  "name": "Expression",
+  "policies": [
+
+  ],
+  "process_managers": [
+
+  ],
+  "read_models": [
+
+  ],
+  "version": null,
+  "vision": "The subset of regular Ruby a predicate is allowed to be — small enough that every target can evaluate it, and carried as canonical text so Ruby and Rust agree."
+}

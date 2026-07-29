@@ -31,7 +31,9 @@ RSpec.describe "the declared vocabularies" do
       Kernel.load(Hecksagain::Bluebook::MetaValidator::GRAMMAR)
     end
     aggregate = registry.bluebook("Meta").aggregates.find { |a| a.name == "Vocabulary" }
-    aggregate.value_objects.to_h { |vo| [vo.name, vo.members.map { |row| row.to_h.values.first }] }
+    # `hecks_name`, not `name`: a value object is a Ruby class, so `name` is the
+    # constant path it lives at and the declared name is carried beside it.
+    aggregate.value_objects.to_h { |vo| [vo.hecks_name, vo.members.map { |row| row.to_h.values.first }] }
   end
 
   VOCABULARIES = vocabularies

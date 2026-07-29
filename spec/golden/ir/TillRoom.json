@@ -1,0 +1,231 @@
+{
+  "aggregates": [
+    {
+      "attributes": [
+        {
+          "default": {
+            "cents": 0
+          },
+          "list": false,
+          "name": "balance",
+          "type": "Money"
+        },
+        {
+          "default": null,
+          "list": true,
+          "name": "marks",
+          "type": "Mark"
+        }
+      ],
+      "commands": [
+        {
+          "attributes": [
+
+          ],
+          "emits": [
+            "TillOpened"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Start the day with an empty drawer",
+          "mutations": [
+
+          ],
+          "name": "OpenTill",
+          "references": null,
+          "role": "Clerk"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "amount",
+              "type": "Money"
+            }
+          ],
+          "emits": [
+            "TakenIn"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Add cents to the drawer",
+          "mutations": [
+            {
+              "op": "increment",
+              "source": {
+                "kind": "argument",
+                "name": "amount"
+              },
+              "target": "balance"
+            },
+            {
+              "fields": {
+                "amount": "amount",
+                "direction": "\"in\""
+              },
+              "op": "append",
+              "target": "marks"
+            }
+          ],
+          "name": "TakeIn",
+          "references": "Till",
+          "role": "Clerk"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "amount",
+              "type": "Money"
+            }
+          ],
+          "emits": [
+            "PaidOut"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Take cents out of the drawer",
+          "mutations": [
+            {
+              "op": "decrement",
+              "source": {
+                "kind": "argument",
+                "name": "amount"
+              },
+              "target": "balance"
+            },
+            {
+              "fields": {
+                "amount": "amount",
+                "direction": "\"out\""
+              },
+              "op": "append",
+              "target": "marks"
+            }
+          ],
+          "name": "PayOut",
+          "references": "Till",
+          "role": "Clerk"
+        },
+        {
+          "attributes": [
+
+          ],
+          "emits": [
+            "Bumped"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Add the fixed float the branch always starts with",
+          "mutations": [
+            {
+              "op": "increment",
+              "source": {
+                "kind": "literal",
+                "value": {
+                  "cents": 500
+                }
+              },
+              "target": "balance"
+            }
+          ],
+          "name": "Bump",
+          "references": "Till",
+          "role": "Clerk"
+        }
+      ],
+      "description": "One cash drawer and the count of cents inside it.",
+      "entities": [
+
+      ],
+      "identified_by": "id",
+      "lifecycle": null,
+      "name": "Till",
+      "queries": [
+
+      ],
+      "value_objects": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "cents",
+              "type": "Integer"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "cents >= 0",
+              "description": "a cash amount is never negative"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "Money"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "amount",
+              "type": "Integer"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "direction",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Mark"
+        }
+      ]
+    }
+  ],
+  "canonical_form": [
+    {
+      "boundary": "none",
+      "position": "1",
+      "replacement": "",
+      "source_token": "",
+      "strategy": "collapse_whitespace"
+    },
+    {
+      "boundary": "word",
+      "position": "2",
+      "replacement": ".size",
+      "source_token": ".length",
+      "strategy": "replace"
+    }
+  ],
+  "classification": "core",
+  "name": "TillRoom",
+  "policies": [
+
+  ],
+  "process_managers": [
+
+  ],
+  "read_models": [
+
+  ],
+  "version": null,
+  "vision": "A till takes money in and gives money out, and the drawer count is arithmetic — never a guess."
+}

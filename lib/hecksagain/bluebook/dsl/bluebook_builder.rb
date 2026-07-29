@@ -52,9 +52,14 @@ module Hecksagain
                                       process_managers: @process_managers,
                                       classification: @classification)
           namespace = Module.new
+          # The chapter is the top of the construct chain — it owns nothing above
+          # it, and every `hecks_fqn` below resolves by walking up to here.
+          namespace.extend(Construct)
+          namespace.hecks_name = @name
 
           @aggregates.each do |aggregate|
             aggregate.ruby_class.domain = @name
+            aggregate.ruby_class.hecks_owner = namespace
             namespace.const_set(aggregate.name, aggregate.ruby_class)
           end
 

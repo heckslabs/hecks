@@ -20,7 +20,7 @@ require "spec_helper"
 # `attribute :balance, Money, default: { cents: 0 }`, which exercises both the field
 # and the object-literal encoding at once.
 RSpec.describe "a bluebook dispatched in and read back out" do
-  CORPUS = {
+  ROUND_TRIP_CORPUS = {
     "Pizzas"   => "examples/pizzas/bluebook/pizzas.bluebook",
     "Banking"  => "examples/banking/bluebook/banking.bluebook",
     "TillRoom" => "spec/fixtures/till.bluebook",
@@ -84,7 +84,7 @@ RSpec.describe "a bluebook dispatched in and read back out" do
     end
   end
 
-  CORPUS.each do |name, file|
+  ROUND_TRIP_CORPUS.each do |name, file|
     context name do
       let(:bluebook) { load_corpus(file).bluebook(name) }
 
@@ -101,7 +101,7 @@ RSpec.describe "a bluebook dispatched in and read back out" do
     # The comparison slices the source by the reconstruction's own keys, so a key it
     # simply never attempted would vanish from the test rather than fail it. This
     # names what is compared, so dropping one is a failure and not a silence.
-    back, = read_back(load_corpus(CORPUS["Banking"]).bluebook("Banking"))
+    back, = read_back(load_corpus(ROUND_TRIP_CORPUS["Banking"]).bluebook("Banking"))
 
     expect(back.keys).to eq(%i[name vision classification aggregates read_models policies process_managers])
     expect(Hecksagain::Bluebook::IR::Bluebook.instance_method(:to_h).owner).to be_truthy
@@ -109,7 +109,7 @@ RSpec.describe "a bluebook dispatched in and read back out" do
 
   it "exercises an aggregate attribute that carries a default" do
     # Banking has none, so without this `Field#default` would round-trip vacuously.
-    till = load_corpus(CORPUS["TillRoom"]).bluebook("TillRoom")
+    till = load_corpus(ROUND_TRIP_CORPUS["TillRoom"]).bluebook("TillRoom")
 
     expect(till.aggregate("Till").attribute(:balance).default).to eq(cents: 0)
   end

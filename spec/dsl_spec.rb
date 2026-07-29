@@ -243,7 +243,7 @@ RSpec.describe "the DSL surface" do
       end
 
       status = aggregate.attributes.find { |a| a.name == :status }
-      shape  = aggregate.value_objects.find { |v| v.name == "Status" }
+      shape  = aggregate.value_object("Status")
 
       expect(status.type).to eq("Status")
       expect(shape.members).to eq([{ value: "open" }, { value: "shut" }])

@@ -1,0 +1,266 @@
+{
+  "aggregates": [
+    {
+      "attributes": [
+        {
+          "default": null,
+          "list": false,
+          "name": "condition",
+          "type": "LightCondition"
+        }
+      ],
+      "commands": [
+        {
+          "attributes": [
+
+          ],
+          "emits": [
+            "Flipped"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Turn the light on",
+          "mutations": [
+            {
+              "op": "set",
+              "source": {
+                "kind": "literal",
+                "value": {
+                  "value": "on"
+                }
+              },
+              "target": "condition"
+            }
+          ],
+          "name": "Flip",
+          "references": null,
+          "role": "Operator"
+        },
+        {
+          "attributes": [
+
+          ],
+          "emits": [
+
+          ],
+          "givens": [
+
+          ],
+          "goal": "Record that the flip was noticed",
+          "mutations": [
+            {
+              "op": "set",
+              "source": {
+                "kind": "literal",
+                "value": {
+                  "value": "logged"
+                }
+              },
+              "target": "condition"
+            }
+          ],
+          "name": "Log",
+          "references": null,
+          "role": "System"
+        }
+      ],
+      "description": "A light that logs its own flip",
+      "entities": [
+
+      ],
+      "identified_by": "id",
+      "lifecycle": null,
+      "name": "Light",
+      "queries": [
+
+      ],
+      "value_objects": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "LightCondition"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "default": null,
+          "list": false,
+          "name": "rings",
+          "type": "RingCount"
+        }
+      ],
+      "commands": [
+        {
+          "attributes": [
+
+          ],
+          "emits": [
+            "Rang"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Ring the bell, which rings the bell",
+          "mutations": [
+
+          ],
+          "name": "Ring",
+          "references": null,
+          "role": "Operator"
+        }
+      ],
+      "description": "A bell whose ring makes it ring",
+      "entities": [
+
+      ],
+      "identified_by": "id",
+      "lifecycle": null,
+      "name": "Echo",
+      "queries": [
+
+      ],
+      "value_objects": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "Integer"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "RingCount"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "default": null,
+          "list": false,
+          "name": "signal",
+          "type": "SignalName"
+        }
+      ],
+      "commands": [
+        {
+          "attributes": [
+
+          ],
+          "emits": [
+            "Raised"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Raise the beacon and announce it outward",
+          "mutations": [
+
+          ],
+          "name": "Raise",
+          "references": null,
+          "role": "Operator"
+        }
+      ],
+      "description": "A beacon that signals a domain which is not loaded — the undeliverable reaction, which must be recorded rather than swallowed",
+      "entities": [
+
+      ],
+      "identified_by": "id",
+      "lifecycle": null,
+      "name": "Beacon",
+      "queries": [
+
+      ],
+      "value_objects": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "SignalName"
+        }
+      ]
+    }
+  ],
+  "canonical_form": [
+    {
+      "boundary": "none",
+      "position": "1",
+      "replacement": "",
+      "source_token": "",
+      "strategy": "collapse_whitespace"
+    },
+    {
+      "boundary": "word",
+      "position": "2",
+      "replacement": ".size",
+      "source_token": ".length",
+      "strategy": "replace"
+    }
+  ],
+  "classification": "core",
+  "name": "Reflex",
+  "policies": [
+    {
+      "name": "LogOnFlip",
+      "on_event": "Flipped",
+      "target_domain": null,
+      "trigger_command": "Light.Log"
+    },
+    {
+      "name": "RingOnRang",
+      "on_event": "Rang",
+      "target_domain": null,
+      "trigger_command": "Echo.Ring"
+    },
+    {
+      "name": "NotifyOnRaise",
+      "on_event": "Raised",
+      "target_domain": "Notifications",
+      "trigger_command": "Notifications.Send"
+    }
+  ],
+  "process_managers": [
+
+  ],
+  "read_models": [
+
+  ],
+  "version": null,
+  "vision": "An event arrives and a command fires — the whole of a policy, in one aggregate."
+}

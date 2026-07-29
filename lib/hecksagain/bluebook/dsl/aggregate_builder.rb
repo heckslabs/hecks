@@ -16,6 +16,7 @@ module Hecksagain
           @policies      = []
           @reference_targets = []
           @klass         = Class.new(Aggregate)
+          @klass.hecks_name = name
         end
 
         def description(value)
@@ -64,6 +65,7 @@ module Hecksagain
 
         def build
           seal_mutation_targets
+          nest_value_objects
 
           ir = IR::Aggregate.new(
             name:          @name,
@@ -92,6 +94,23 @@ module Hecksagain
         end
 
         private
+
+        # A value object is declared INSIDE an aggregate, so its class is nested
+        # inside the aggregate's — `Pizzas::Pizza::Price`. That nesting is what
+        # lets two aggregates each declare their own `Money` without collision,
+        # which the VO-placement convention deliberately allows.
+        #
+        # The owner is set as well as the constant, because `hecks_fqn` is
+        # computed by walking owners rather than stamped — the chapter above this
+        # aggregate does not exist yet, and will not until the whole file is read.
+        def nest_value_objects
+          (@value_objects + closed_sets).each do |shape|
+            shape.hecks_owner = @klass
+            name = shape.hecks_name
+            @klass.send(:remove_const, name) if @klass.const_defined?(name, false)
+            @klass.const_set(name, shape)
+          end
+        end
 
         # A mutation must name a field the aggregate actually HAS.
         #

@@ -1,0 +1,526 @@
+{
+  "aggregates": [
+    {
+      "attributes": [
+        {
+          "default": {
+            "cents": 0
+          },
+          "list": false,
+          "name": "cents",
+          "type": "Money"
+        }
+      ],
+      "commands": [
+        {
+          "attributes": [
+
+          ],
+          "emits": [
+            "DrawerOpened"
+          ],
+          "givens": [
+
+          ],
+          "goal": "A new drawer",
+          "mutations": [
+
+          ],
+          "name": "Open",
+          "references": null,
+          "role": "Clerk"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "amount",
+              "type": "Money"
+            }
+          ],
+          "emits": [
+            "PutIn"
+          ],
+          "givens": [
+            {
+              "canonical": "status == \"open\"",
+              "description": "the drawer is open"
+            }
+          ],
+          "goal": "Money in",
+          "mutations": [
+            {
+              "op": "increment",
+              "source": {
+                "kind": "argument",
+                "name": "amount"
+              },
+              "target": "cents"
+            }
+          ],
+          "name": "Put",
+          "references": "Drawer",
+          "role": "Clerk"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "amount",
+              "type": "Money"
+            }
+          ],
+          "emits": [
+            "Taken"
+          ],
+          "givens": [
+            {
+              "canonical": "status == \"open\"",
+              "description": "the drawer is open"
+            },
+            {
+              "canonical": "cents.cents >= amount.cents",
+              "description": "the cents cover it"
+            }
+          ],
+          "goal": "Money out",
+          "mutations": [
+            {
+              "op": "decrement",
+              "source": {
+                "kind": "argument",
+                "name": "amount"
+              },
+              "target": "cents"
+            }
+          ],
+          "name": "Take",
+          "references": "Drawer",
+          "role": "Clerk"
+        },
+        {
+          "attributes": [
+
+          ],
+          "emits": [
+            "DrawerShut"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Shut the drawer",
+          "mutations": [
+
+          ],
+          "name": "Shut",
+          "references": "Drawer",
+          "role": "Clerk"
+        },
+        {
+          "attributes": [
+
+          ],
+          "emits": [
+            "DrawerReopened"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Open it again",
+          "mutations": [
+
+          ],
+          "name": "Reopen",
+          "references": "Drawer",
+          "role": "Clerk"
+        }
+      ],
+      "description": null,
+      "entities": [
+
+      ],
+      "identified_by": "id",
+      "lifecycle": {
+        "default": "open",
+        "field": "status",
+        "transitions": [
+          {
+            "command": "Shut",
+            "from_state": "open",
+            "to_state": "shut"
+          },
+          {
+            "command": "Reopen",
+            "from_state": "shut",
+            "to_state": "open"
+          }
+        ]
+      },
+      "name": "Drawer",
+      "queries": [
+
+      ],
+      "value_objects": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "cents",
+              "type": "Integer"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Money"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "default": {
+            "cents": 0
+          },
+          "list": false,
+          "name": "amount",
+          "type": "Money"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "source",
+          "type": "Reference<Drawer>"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "destination",
+          "type": "Reference<Drawer>"
+        }
+      ],
+      "commands": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "amount",
+              "type": "Money"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "source",
+              "type": "Reference<Drawer>"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "destination",
+              "type": "Reference<Drawer>"
+            }
+          ],
+          "emits": [
+            "WireAsked"
+          ],
+          "givens": [
+            {
+              "canonical": "amount.cents.positive?",
+              "description": "a wire moves something"
+            }
+          ],
+          "goal": "Move money between drawers",
+          "mutations": [
+            {
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "amount"
+              },
+              "target": "amount"
+            },
+            {
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "source"
+              },
+              "target": "source"
+            },
+            {
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "destination"
+              },
+              "target": "destination"
+            }
+          ],
+          "name": "Ask",
+          "references": null,
+          "role": "Customer"
+        },
+        {
+          "attributes": [
+
+          ],
+          "emits": [
+            "WireMoved"
+          ],
+          "givens": [
+
+          ],
+          "goal": "The source gave it up",
+          "mutations": [
+
+          ],
+          "name": "Moved",
+          "references": "Wire",
+          "role": "System"
+        },
+        {
+          "attributes": [
+
+          ],
+          "emits": [
+            "WireLanded"
+          ],
+          "givens": [
+
+          ],
+          "goal": "The destination has it",
+          "mutations": [
+
+          ],
+          "name": "Landed",
+          "references": "Wire",
+          "role": "System"
+        },
+        {
+          "attributes": [
+
+          ],
+          "emits": [
+            "WireReturned"
+          ],
+          "givens": [
+
+          ],
+          "goal": "It went back",
+          "mutations": [
+
+          ],
+          "name": "Returned",
+          "references": "Wire",
+          "role": "System"
+        }
+      ],
+      "description": null,
+      "entities": [
+
+      ],
+      "identified_by": "id",
+      "lifecycle": {
+        "default": "asked",
+        "field": "status",
+        "transitions": [
+          {
+            "command": "Moved",
+            "from_state": "asked",
+            "to_state": "moved"
+          },
+          {
+            "command": "Landed",
+            "from_state": "moved",
+            "to_state": "landed"
+          },
+          {
+            "command": "Returned",
+            "from_state": "moved",
+            "to_state": "returned"
+          }
+        ]
+      },
+      "name": "Wire",
+      "queries": [
+
+      ],
+      "value_objects": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "cents",
+              "type": "Integer"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Money"
+        }
+      ]
+    }
+  ],
+  "canonical_form": [
+    {
+      "boundary": "none",
+      "position": "1",
+      "replacement": "",
+      "source_token": "",
+      "strategy": "collapse_whitespace"
+    },
+    {
+      "boundary": "word",
+      "position": "2",
+      "replacement": ".size",
+      "source_token": ".length",
+      "strategy": "replace"
+    }
+  ],
+  "classification": "core",
+  "name": "Wire",
+  "policies": [
+
+  ],
+  "process_managers": [
+    {
+      "correlates_by": "wire",
+      "ends_on": "WireLanded",
+      "handlers": [
+        {
+          "dispatches": [
+            {
+              "command_name": "Wire::Drawer.Take",
+              "with": [
+                [
+                  "id",
+                  ":source"
+                ],
+                [
+                  "amount",
+                  ":amount"
+                ],
+                [
+                  "wire",
+                  ":wire"
+                ]
+              ]
+            }
+          ],
+          "event_type": "WireAsked",
+          "from_state": "asked",
+          "to_state": "asked"
+        },
+        {
+          "dispatches": [
+            {
+              "command_name": "Wire::Wire.Moved",
+              "with": [
+                [
+                  "wire",
+                  ":wire"
+                ]
+              ]
+            },
+            {
+              "command_name": "Wire::Drawer.Put",
+              "with": [
+                [
+                  "id",
+                  ":destination"
+                ],
+                [
+                  "amount",
+                  ":amount"
+                ],
+                [
+                  "wire",
+                  ":wire"
+                ]
+              ]
+            }
+          ],
+          "event_type": "Taken",
+          "from_state": "asked",
+          "to_state": "carrying"
+        },
+        {
+          "dispatches": [
+            {
+              "command_name": "Wire::Wire.Landed",
+              "with": [
+                [
+                  "wire",
+                  ":wire"
+                ]
+              ]
+            }
+          ],
+          "event_type": "PutIn",
+          "from_state": "carrying",
+          "to_state": "landed"
+        },
+        {
+          "dispatches": [
+            {
+              "command_name": "Wire::Drawer.Put",
+              "with": [
+                [
+                  "id",
+                  ":source"
+                ],
+                [
+                  "amount",
+                  ":amount"
+                ],
+                [
+                  "wire",
+                  ":wire"
+                ]
+              ]
+            },
+            {
+              "command_name": "Wire::Wire.Returned",
+              "with": [
+                [
+                  "wire",
+                  ":wire"
+                ]
+              ]
+            }
+          ],
+          "event_type": "refused",
+          "from_state": "carrying",
+          "to_state": "returned"
+        }
+      ],
+      "name": "Carry",
+      "starts_on": "WireAsked",
+      "states": [
+        "asked",
+        "carrying",
+        "landed",
+        "returned"
+      ]
+    }
+  ],
+  "read_models": [
+
+  ],
+  "version": null,
+  "vision": "Money leaves one drawer for another, and something remembers which half happened."
+}

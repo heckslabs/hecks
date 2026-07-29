@@ -45,7 +45,7 @@ module Hecksagain
 
         def synthesise_closed_set(name, one_of)
           type = Naming.pascal(name)
-          closed_sets << IR::ValueObject.new(
+          closed_sets << IR::ValueObject.declare(
             name:       type,
             attributes: [IR::Attribute.new(name: :value, type: "String")],
             members:    one_of.values.map { |value| { value: value.to_s } },

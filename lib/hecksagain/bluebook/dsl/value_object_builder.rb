@@ -47,7 +47,7 @@ module Hecksagain
         end
 
         def build
-          IR::ValueObject.new(
+          IR::ValueObject.declare(
             name: @name, attributes: attributes,
             invariants: @invariants, members: @members,
             closed_set: @closed_set || !@members.empty?

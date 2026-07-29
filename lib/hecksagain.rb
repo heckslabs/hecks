@@ -1,6 +1,7 @@
 
 require_relative "hecksagain/naming"
 require_relative "hecksagain/fqn"
+require_relative "hecksagain/construct"
 require_relative "hecksagain/aggregate"
 require_relative "hecksagain/query_specification/common/specification"
 require_relative "hecksagain/query_specification/common/null_policy"

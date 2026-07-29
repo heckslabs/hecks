@@ -24,7 +24,12 @@ module Hecksagain
         end
 
         def attribute(named)    = @attributes.find { |a| a.name == named.to_sym }
-        def value_object(named) = @value_objects.find { |v| v.name == named.to_s }
+        # A value object is a CLASS now, so `name` is Ruby's answer (the constant
+        # path) and the declared name is `hecks_name`. This finder is on its way
+        # out — once an attribute's type IS the class there is nothing to find —
+        # but every consumer still asks by type string, so it stays until they
+        # stop.
+        def value_object(named) = @value_objects.find { |shape| shape.hecks_name == named.to_s }
         def command(named)      = @commands.find { |c| c.name == named.to_s }
 
         def storage_name = Naming.snake(@name)

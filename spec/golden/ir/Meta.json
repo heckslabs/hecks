@@ -1,0 +1,4254 @@
+{
+  "aggregates": [
+    {
+      "attributes": [
+        {
+          "default": null,
+          "list": false,
+          "name": "name",
+          "type": "BluebookName"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "vision",
+          "type": "Vision"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "classification",
+          "type": "Classification"
+        },
+        {
+          "default": null,
+          "list": true,
+          "name": "normalisations",
+          "type": "NormalisationRule"
+        }
+      ],
+      "commands": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "name",
+              "type": "BluebookName"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "vision",
+              "type": "Vision"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "classification",
+              "type": "Classification"
+            }
+          ],
+          "emits": [
+            "ChapterDeclared"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Open a chapter",
+          "mutations": [
+
+          ],
+          "name": "Declare",
+          "references": null,
+          "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "strategy",
+              "type": "RuleText"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "source_token",
+              "type": "RuleText"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "replacement",
+              "type": "RuleText"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "boundary",
+              "type": "RuleText"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "position",
+              "type": "RuleText"
+            }
+          ],
+          "emits": [
+            "NormalisationAttached"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Attach one canonical-form rule to the chapter",
+          "mutations": [
+            {
+              "fields": {
+                "boundary": "boundary",
+                "position": "position",
+                "replacement": "replacement",
+                "source_token": "source_token",
+                "strategy": "strategy"
+              },
+              "op": "append",
+              "target": "normalisations"
+            }
+          ],
+          "name": "Normalise",
+          "references": "Bluebook",
+          "role": "Language"
+        }
+      ],
+      "description": "One .bluebook file — the root a domain declaration hangs from.",
+      "entities": [
+
+      ],
+      "identified_by": "id",
+      "lifecycle": null,
+      "name": "Bluebook",
+      "queries": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "name",
+              "type": "BluebookName"
+            }
+          ],
+          "description": null,
+          "limit": null,
+          "name": "Called",
+          "order_by": null,
+          "wheres": [
+            {
+              "field": "name",
+              "op": "eq",
+              "value": ":name"
+            }
+          ]
+        }
+      ],
+      "value_objects": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "RuleText"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "strategy",
+              "type": "String"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "source_token",
+              "type": "String"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "replacement",
+              "type": "String"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "boundary",
+              "type": "String"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "position",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "NormalisationRule"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "a chapter is named"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "BluebookName"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "a vision says something"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "Vision"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "value.to_s == \"core\" || value.to_s == \"supporting\" || value.to_s == \"generic\"",
+              "description": "a chapter is core, supporting, or generic"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "Classification"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "default": null,
+          "list": false,
+          "name": "bluebook_id",
+          "type": "Reference<Bluebook>"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "name",
+          "type": "AggregateName"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "description",
+          "type": "Description"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "identified_by",
+          "type": "IdentityField"
+        },
+        {
+          "default": null,
+          "list": true,
+          "name": "attributes",
+          "type": "Field"
+        },
+        {
+          "default": null,
+          "list": true,
+          "name": "value_objects",
+          "type": "ValueName"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "state_field",
+          "type": "IdentityField"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "state_start",
+          "type": "IdentityField"
+        },
+        {
+          "default": null,
+          "list": true,
+          "name": "transitions",
+          "type": "Transition"
+        }
+      ],
+      "commands": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "bluebook_id",
+              "type": "Reference<Bluebook>"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "name",
+              "type": "AggregateName"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "description",
+              "type": "Description"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "identified_by",
+              "type": "IdentityField"
+            }
+          ],
+          "emits": [
+            "RootDeclared"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Open an aggregate inside a chapter",
+          "mutations": [
+
+          ],
+          "name": "Declare",
+          "references": null,
+          "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "type",
+              "type": "Reference<ValueObject>"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "name",
+              "type": "FieldName"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "list",
+              "type": "ListFlag"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "default",
+              "type": "LiteralText"
+            }
+          ],
+          "emits": [
+            "AttributeAttached"
+          ],
+          "givens": [
+            {
+              "canonical": "!name.value.to_s.empty?",
+              "description": "an attribute is named"
+            }
+          ],
+          "goal": "Attach one attribute to the aggregate",
+          "mutations": [
+            {
+              "fields": {
+                "default": "default",
+                "list": "list",
+                "name": "name",
+                "type": "type"
+              },
+              "op": "append",
+              "target": "attributes"
+            }
+          ],
+          "name": "Attribute",
+          "references": "Aggregate",
+          "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "points_at",
+              "type": "Reference<Aggregate>"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "name",
+              "type": "FieldName"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "list",
+              "type": "ListFlag"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "default",
+              "type": "LiteralText"
+            }
+          ],
+          "emits": [
+            "ReferenceAttached"
+          ],
+          "givens": [
+            {
+              "canonical": "!name.value.to_s.empty?",
+              "description": "a reference is named"
+            }
+          ],
+          "goal": "Attach an attribute that points at another aggregate's head",
+          "mutations": [
+            {
+              "fields": {
+                "default": "default",
+                "list": "list",
+                "name": "name",
+                "type": "points_at"
+              },
+              "op": "append",
+              "target": "attributes"
+            }
+          ],
+          "name": "Reference",
+          "references": "Aggregate",
+          "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "holds",
+              "type": "Reference<Entity>"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "name",
+              "type": "FieldName"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "list",
+              "type": "ListFlag"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "default",
+              "type": "LiteralText"
+            }
+          ],
+          "emits": [
+            "PieceHeld"
+          ],
+          "givens": [
+            {
+              "canonical": "!name.value.to_s.empty?",
+              "description": "a held attribute is named"
+            }
+          ],
+          "goal": "Attach an attribute whose type is a piece of this aggregate",
+          "mutations": [
+            {
+              "fields": {
+                "default": "default",
+                "list": "list",
+                "name": "name",
+                "type": "holds"
+              },
+              "op": "append",
+              "target": "attributes"
+            }
+          ],
+          "name": "Holds",
+          "references": "Aggregate",
+          "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "state_field",
+              "type": "FieldName"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "state_start",
+              "type": "FieldName"
+            }
+          ],
+          "emits": [
+            "LifecycleNamed"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Name the field this aggregate's state machine runs on",
+          "mutations": [
+            {
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "state_field"
+              },
+              "target": "state_field"
+            },
+            {
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "state_start"
+              },
+              "target": "state_start"
+            }
+          ],
+          "name": "Lifecycle",
+          "references": "Aggregate",
+          "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "command",
+              "type": "FieldName"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "from_state",
+              "type": "FieldName"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "to_state",
+              "type": "FieldName"
+            }
+          ],
+          "emits": [
+            "TransitionAttached"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Attach one transition to the state machine",
+          "mutations": [
+            {
+              "fields": {
+                "command": "command",
+                "from_state": "from_state",
+                "to_state": "to_state"
+              },
+              "op": "append",
+              "target": "transitions"
+            }
+          ],
+          "name": "Transition",
+          "references": "Aggregate",
+          "role": "Language"
+        },
+        {
+          "attributes": [
+
+          ],
+          "emits": [
+            "RootSealed"
+          ],
+          "givens": [
+            {
+              "canonical": "identified_by.value.to_s.empty? || identified_by.value.to_s.size > 0",
+              "description": "an aggregate that is identified names a field"
+            }
+          ],
+          "goal": "Close an aggregate — the checks that need every declaration present",
+          "mutations": [
+
+          ],
+          "name": "Seal",
+          "references": "Aggregate",
+          "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "name",
+              "type": "FieldName"
+            }
+          ],
+          "emits": [
+            "ValueDeclared"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Declare a value object belonging to this aggregate",
+          "mutations": [
+            {
+              "fields": {
+                "name": "name"
+              },
+              "op": "append",
+              "target": "value_objects"
+            }
+          ],
+          "name": "Value",
+          "references": "Aggregate",
+          "role": "Language"
+        }
+      ],
+      "description": "One aggregate inside a chapter — the head a domain's declarations attach to.",
+      "entities": [
+
+      ],
+      "identified_by": "id",
+      "lifecycle": null,
+      "name": "Aggregate",
+      "queries": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "bluebook_id",
+              "type": "IdentityField"
+            }
+          ],
+          "description": null,
+          "limit": null,
+          "name": "DeclaredIn",
+          "order_by": null,
+          "wheres": [
+            {
+              "field": "bluebook_id",
+              "op": "eq",
+              "value": ":bluebook_id"
+            }
+          ]
+        }
+      ],
+      "value_objects": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "an aggregate is named"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "AggregateName"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "a description says something"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "Description"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "IdentityField"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "name",
+              "type": "String"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "type",
+              "type": "String"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "list",
+              "type": "String"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "default",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Field"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "name",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "ValueName"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "command",
+              "type": "String"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "from_state",
+              "type": "String"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "to_state",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Transition"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "an attribute is named"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "FieldName"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "a type is named"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "TypeName"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "LiteralText"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "value.to_s == \"true\" || value.to_s == \"false\"",
+              "description": "list is true or false"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "ListFlag"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "default": null,
+          "list": false,
+          "name": "aggregate_id",
+          "type": "Reference<Aggregate>"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "entity_id",
+          "type": "Reference<Entity>"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "name",
+          "type": "CommandName"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "role",
+          "type": "Actor"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "goal",
+          "type": "Goal"
+        },
+        {
+          "default": null,
+          "list": true,
+          "name": "emits",
+          "type": "Announcement"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "references",
+          "type": "EventName"
+        },
+        {
+          "default": null,
+          "list": true,
+          "name": "attributes",
+          "type": "Argument"
+        },
+        {
+          "default": null,
+          "list": true,
+          "name": "givens",
+          "type": "Rule"
+        },
+        {
+          "default": null,
+          "list": true,
+          "name": "mutations",
+          "type": "Change"
+        }
+      ],
+      "commands": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "aggregate_id",
+              "type": "Reference<Aggregate>"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "entity_id",
+              "type": "Reference<Entity>"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "name",
+              "type": "CommandName"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "role",
+              "type": "Actor"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "goal",
+              "type": "Goal"
+            }
+          ],
+          "emits": [
+            "VerbDeclared"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Open a command on an aggregate",
+          "mutations": [
+
+          ],
+          "name": "Declare",
+          "references": null,
+          "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "name",
+              "type": "ArgName"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "type",
+              "type": "ArgType"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "list",
+              "type": "ArgType"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "default",
+              "type": "ArgType"
+            }
+          ],
+          "emits": [
+            "ArgumentAttached"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Attach one argument to the command",
+          "mutations": [
+            {
+              "fields": {
+                "default": "default",
+                "list": "list",
+                "name": "name",
+                "type": "type"
+              },
+              "op": "append",
+              "target": "attributes"
+            }
+          ],
+          "name": "Argument",
+          "references": "Command",
+          "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "description",
+              "type": "RuleText"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "canonical",
+              "type": "RuleText"
+            }
+          ],
+          "emits": [
+            "RuleAttached"
+          ],
+          "givens": [
+            {
+              "canonical": "!description.value.to_s.empty?",
+              "description": "a rule says what it means"
+            },
+            {
+              "canonical": "!canonical.value.to_s.empty?",
+              "description": "a rule survives extraction"
+            }
+          ],
+          "goal": "Attach one given to the command",
+          "mutations": [
+            {
+              "fields": {
+                "canonical": "canonical",
+                "description": "description"
+              },
+              "op": "append",
+              "target": "givens"
+            }
+          ],
+          "name": "Rule",
+          "references": "Command",
+          "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "target",
+              "type": "FieldRef"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "op",
+              "type": "OpName"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "field",
+              "type": "FieldRef"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "kind",
+              "type": "FieldRef"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "source",
+              "type": "FieldRef"
+            }
+          ],
+          "emits": [
+            "ChangeAttached"
+          ],
+          "givens": [
+            {
+              "canonical": "!target.value.to_s.empty?",
+              "description": "a mutation names a target"
+            },
+            {
+              "canonical": "!op.value.to_s.empty?",
+              "description": "a mutation does something"
+            }
+          ],
+          "goal": "Attach one mutation to the command",
+          "mutations": [
+            {
+              "fields": {
+                "field": "field",
+                "kind": "kind",
+                "op": "op",
+                "source": "source",
+                "target": "target"
+              },
+              "op": "append",
+              "target": "mutations"
+            }
+          ],
+          "name": "Change",
+          "references": "Command",
+          "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "root",
+              "type": "EventName"
+            }
+          ],
+          "emits": [
+            "ReferenceNamed"
+          ],
+          "givens": [
+            {
+              "canonical": "!root.value.to_s.empty?",
+              "description": "a command names what it acts on"
+            },
+            {
+              "canonical": "references.value.to_s.empty?",
+              "description": "a command acts on ONE root"
+            }
+          ],
+          "goal": "Name the aggregate this command reaches through",
+          "mutations": [
+            {
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "root"
+              },
+              "target": "references"
+            }
+          ],
+          "name": "ActsOn",
+          "references": "Command",
+          "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "announces",
+              "type": "EventName"
+            }
+          ],
+          "emits": [
+            "AnnouncementNamed"
+          ],
+          "givens": [
+            {
+              "canonical": "!announces.value.to_s.empty?",
+              "description": "an event is named"
+            }
+          ],
+          "goal": "Name the event this command emits",
+          "mutations": [
+            {
+              "fields": {
+                "name": "announces"
+              },
+              "op": "append",
+              "target": "emits"
+            }
+          ],
+          "name": "Announce",
+          "references": "Command",
+          "role": "Language"
+        }
+      ],
+      "description": "One command declared on an aggregate — its arguments, its rules, and what it announces.",
+      "entities": [
+
+      ],
+      "identified_by": "id",
+      "lifecycle": null,
+      "name": "Command",
+      "queries": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "aggregate_id",
+              "type": "CommandText"
+            }
+          ],
+          "description": null,
+          "limit": null,
+          "name": "DeclaredIn",
+          "order_by": null,
+          "wheres": [
+            {
+              "field": "aggregate_id",
+              "op": "eq",
+              "value": ":aggregate_id"
+            }
+          ]
+        }
+      ],
+      "value_objects": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "a command is named"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "CommandName"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Actor"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Goal"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "EventName"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "name",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Announcement"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "name",
+              "type": "String"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "type",
+              "type": "String"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "list",
+              "type": "String"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "default",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Argument"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "description",
+              "type": "String"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "canonical",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Rule"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "target",
+              "type": "String"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "op",
+              "type": "String"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "field",
+              "type": "String"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "kind",
+              "type": "String"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "source",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Change"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "CommandText"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "an argument is named"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "ArgName"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "ArgType"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "RuleText"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "FieldRef"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "value.to_s == \"set\" || value.to_s == \"append\" || value.to_s == \"increment\" || value.to_s == \"decrement\"",
+              "description": "an op is one the runtime applies"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "OpName"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "default": null,
+          "list": false,
+          "name": "aggregate_id",
+          "type": "Reference<Aggregate>"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "name",
+          "type": "ValueObjectName"
+        },
+        {
+          "default": null,
+          "list": true,
+          "name": "attributes",
+          "type": "ShapeField"
+        },
+        {
+          "default": null,
+          "list": true,
+          "name": "invariants",
+          "type": "Assertion"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "rows",
+          "type": "RowCount"
+        }
+      ],
+      "commands": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "aggregate_id",
+              "type": "Reference<Aggregate>"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "name",
+              "type": "ValueObjectName"
+            }
+          ],
+          "emits": [
+            "ShapeDeclared"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Open a value object on an aggregate",
+          "mutations": [
+
+          ],
+          "name": "Declare",
+          "references": null,
+          "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "name",
+              "type": "ValueObjectName"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "type",
+              "type": "ValueObjectName"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "list",
+              "type": "ValueObjectName"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "default",
+              "type": "ValueObjectText"
+            }
+          ],
+          "emits": [
+            "ShapeFieldAttached"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Attach one field to the value object",
+          "mutations": [
+            {
+              "fields": {
+                "default": "default",
+                "list": "list",
+                "name": "name",
+                "type": "type"
+              },
+              "op": "append",
+              "target": "attributes"
+            }
+          ],
+          "name": "Field",
+          "references": "ValueObject",
+          "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "rows",
+              "type": "RowCount"
+            }
+          ],
+          "emits": [
+            "ShapeClosed"
+          ],
+          "givens": [
+            {
+              "canonical": "rows.value > 0",
+              "description": "a closed set admits a member"
+            }
+          ],
+          "goal": "Declare that this value object admits a closed set of rows",
+          "mutations": [
+            {
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "rows"
+              },
+              "target": "rows"
+            }
+          ],
+          "name": "Close",
+          "references": "ValueObject",
+          "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "description",
+              "type": "ValueObjectText"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "canonical",
+              "type": "ValueObjectText"
+            }
+          ],
+          "emits": [
+            "AssertionAttached"
+          ],
+          "givens": [
+            {
+              "canonical": "!description.value.to_s.empty?",
+              "description": "a rule says what it means"
+            },
+            {
+              "canonical": "!canonical.value.to_s.empty?",
+              "description": "a rule survives extraction"
+            }
+          ],
+          "goal": "Attach one invariant to the value object",
+          "mutations": [
+            {
+              "fields": {
+                "canonical": "canonical",
+                "description": "description"
+              },
+              "op": "append",
+              "target": "invariants"
+            }
+          ],
+          "name": "Assert",
+          "references": "ValueObject",
+          "role": "Language"
+        }
+      ],
+      "description": "One value object declared on an aggregate — its fields and the rules they must satisfy. Its own root because a value object holds nested lists, which no list element can.",
+      "entities": [
+
+      ],
+      "identified_by": "id",
+      "lifecycle": null,
+      "name": "ValueObject",
+      "queries": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "aggregate_id",
+              "type": "ValueObjectText"
+            }
+          ],
+          "description": null,
+          "limit": null,
+          "name": "DeclaredIn",
+          "order_by": null,
+          "wheres": [
+            {
+              "field": "aggregate_id",
+              "op": "eq",
+              "value": ":aggregate_id"
+            }
+          ]
+        }
+      ],
+      "value_objects": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "Integer"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "RowCount"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "a value object is named"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "ValueObjectName"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "name",
+              "type": "String"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "type",
+              "type": "String"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "list",
+              "type": "String"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "default",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "ShapeField"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "description",
+              "type": "String"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "canonical",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Assertion"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "ValueObjectText"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "default": null,
+          "list": false,
+          "name": "name",
+          "type": "VocabularyName"
+        }
+      ],
+      "commands": [
+
+      ],
+      "description": "The closed sets the language admits — the whole of what any runtime may accept, declared once.",
+      "entities": [
+
+      ],
+      "identified_by": "id",
+      "lifecycle": null,
+      "name": "Vocabulary",
+      "queries": [
+
+      ],
+      "value_objects": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "a vocabulary is named"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "VocabularyName"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "symbol",
+              "type": "String"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "symbol",
+                ">="
+              ]
+            ],
+            [
+              [
+                "symbol",
+                "<="
+              ]
+            ],
+            [
+              [
+                "symbol",
+                "<"
+              ]
+            ],
+            [
+              [
+                "symbol",
+                ">"
+              ]
+            ],
+            [
+              [
+                "symbol",
+                "=="
+              ]
+            ],
+            [
+              [
+                "symbol",
+                "!="
+              ]
+            ]
+          ],
+          "name": "Comparison"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "name",
+              "type": "String"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "name",
+                "positive?"
+              ]
+            ],
+            [
+              [
+                "name",
+                "negative?"
+              ]
+            ],
+            [
+              [
+                "name",
+                "zero?"
+              ]
+            ]
+          ],
+          "name": "SignTest"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "name",
+              "type": "String"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "name",
+                "String"
+              ]
+            ],
+            [
+              [
+                "name",
+                "Integer"
+              ]
+            ],
+            [
+              [
+                "name",
+                "Float"
+              ]
+            ],
+            [
+              [
+                "name",
+                "TrueClass"
+              ]
+            ],
+            [
+              [
+                "name",
+                "FalseClass"
+              ]
+            ]
+          ],
+          "name": "Primitive"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "name",
+              "type": "String"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "name",
+                "collapse_whitespace"
+              ]
+            ],
+            [
+              [
+                "name",
+                "replace"
+              ]
+            ]
+          ],
+          "name": "NormalisationStrategy"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "name",
+              "type": "String"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "name",
+                "set"
+              ]
+            ],
+            [
+              [
+                "name",
+                "append"
+              ]
+            ],
+            [
+              [
+                "name",
+                "increment"
+              ]
+            ],
+            [
+              [
+                "name",
+                "decrement"
+              ]
+            ]
+          ],
+          "name": "MutationOp"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "glob",
+              "type": "String"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "glob",
+                "*.port"
+              ]
+            ],
+            [
+              [
+                "glob",
+                "*.adapter"
+              ]
+            ],
+            [
+              [
+                "glob",
+                "*.bluebook"
+              ]
+            ],
+            [
+              [
+                "glob",
+                "*.hecksagon"
+              ]
+            ],
+            [
+              [
+                "glob",
+                "*.world"
+              ]
+            ]
+          ],
+          "name": "LoadOrder"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "name",
+              "type": "String"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "name",
+                "GivenNotMet"
+              ]
+            ],
+            [
+              [
+                "name",
+                "InvariantViolation"
+              ]
+            ],
+            [
+              [
+                "name",
+                "LifecycleRefused"
+              ]
+            ],
+            [
+              [
+                "name",
+                "NotFound"
+              ]
+            ],
+            [
+              [
+                "name",
+                "TypeMismatch"
+              ]
+            ],
+            [
+              [
+                "name",
+                "UnknownArgument"
+              ]
+            ],
+            [
+              [
+                "name",
+                "UnknownVerb"
+              ]
+            ]
+          ],
+          "name": "DomainRefusal"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "name",
+              "type": "String"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "name",
+                "refused"
+              ]
+            ]
+          ],
+          "name": "Trigger"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "default": null,
+          "list": false,
+          "name": "aggregate_id",
+          "type": "Reference<Aggregate>"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "entity_id",
+          "type": "Reference<Entity>"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "name",
+          "type": "QueryName"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "description",
+          "type": "QueryText"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "order_field",
+          "type": "QueryText"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "order_way",
+          "type": "QueryText"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "limit",
+          "type": "QueryText"
+        },
+        {
+          "default": null,
+          "list": true,
+          "name": "wheres",
+          "type": "Filter"
+        },
+        {
+          "default": null,
+          "list": true,
+          "name": "attributes",
+          "type": "AskArgument"
+        }
+      ],
+      "commands": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "aggregate_id",
+              "type": "Reference<Aggregate>"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "entity_id",
+              "type": "Reference<Entity>"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "name",
+              "type": "QueryName"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "description",
+              "type": "QueryText"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "order_field",
+              "type": "QueryText"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "order_way",
+              "type": "QueryText"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "limit",
+              "type": "QueryText"
+            }
+          ],
+          "emits": [
+            "AskDeclared"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Open a query on an aggregate",
+          "mutations": [
+
+          ],
+          "name": "Declare",
+          "references": null,
+          "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "field",
+              "type": "QueryText"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "op",
+              "type": "QueryText"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "QueryText"
+            }
+          ],
+          "emits": [
+            "FilterAttached"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Attach one where-clause to the query",
+          "mutations": [
+            {
+              "fields": {
+                "field": "field",
+                "op": "op",
+                "value": "value"
+              },
+              "op": "append",
+              "target": "wheres"
+            }
+          ],
+          "name": "Filter",
+          "references": "Query",
+          "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "name",
+              "type": "QueryText"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "type",
+              "type": "QueryText"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "list",
+              "type": "QueryText"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "default",
+              "type": "QueryText"
+            }
+          ],
+          "emits": [
+            "AskArgumentAttached"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Attach one parameter to the query",
+          "mutations": [
+            {
+              "fields": {
+                "default": "default",
+                "list": "list",
+                "name": "name",
+                "type": "type"
+              },
+              "op": "append",
+              "target": "attributes"
+            }
+          ],
+          "name": "Argument",
+          "references": "Query",
+          "role": "Language"
+        }
+      ],
+      "description": "One query declared on an aggregate — what it filters on, how it orders, and how many it returns.",
+      "entities": [
+
+      ],
+      "identified_by": "id",
+      "lifecycle": null,
+      "name": "Query",
+      "queries": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "aggregate_id",
+              "type": "QueryText"
+            }
+          ],
+          "description": null,
+          "limit": null,
+          "name": "DeclaredIn",
+          "order_by": null,
+          "wheres": [
+            {
+              "field": "aggregate_id",
+              "op": "eq",
+              "value": ":aggregate_id"
+            }
+          ]
+        }
+      ],
+      "value_objects": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "a query is named"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "QueryName"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "QueryText"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "field",
+              "type": "String"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "op",
+              "type": "String"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Filter"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "name",
+              "type": "String"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "type",
+              "type": "String"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "list",
+              "type": "String"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "default",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "AskArgument"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "default": null,
+          "list": false,
+          "name": "bluebook_id",
+          "type": "Reference<Bluebook>"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "name",
+          "type": "PolicyName"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "on_event",
+          "type": "PolicyText"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "trigger_command",
+          "type": "PolicyText"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "target_domain",
+          "type": "PolicyText"
+        }
+      ],
+      "commands": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "bluebook_id",
+              "type": "Reference<Bluebook>"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "name",
+              "type": "PolicyName"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "on_event",
+              "type": "PolicyText"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "trigger_command",
+              "type": "PolicyText"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "target_domain",
+              "type": "PolicyText"
+            }
+          ],
+          "emits": [
+            "ReactionDeclared"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Declare a policy on a chapter",
+          "mutations": [
+
+          ],
+          "name": "Declare",
+          "references": null,
+          "role": "Language"
+        }
+      ],
+      "description": "One policy — the event it watches, the command it fires, and the domain that command belongs to.",
+      "entities": [
+
+      ],
+      "identified_by": "id",
+      "lifecycle": null,
+      "name": "Policy",
+      "queries": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "bluebook_id",
+              "type": "PolicyText"
+            }
+          ],
+          "description": null,
+          "limit": null,
+          "name": "DeclaredIn",
+          "order_by": null,
+          "wheres": [
+            {
+              "field": "bluebook_id",
+              "op": "eq",
+              "value": ":bluebook_id"
+            }
+          ]
+        }
+      ],
+      "value_objects": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "a policy is named"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "PolicyName"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "PolicyText"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "default": null,
+          "list": false,
+          "name": "bluebook_id",
+          "type": "Reference<Bluebook>"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "name",
+          "type": "ProcessManagerName"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "correlates_by",
+          "type": "ProcessManagerText"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "starts_on",
+          "type": "ProcessManagerText"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "ends_on",
+          "type": "ProcessManagerText"
+        },
+        {
+          "default": null,
+          "list": true,
+          "name": "states",
+          "type": "SagaState"
+        }
+      ],
+      "commands": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "bluebook_id",
+              "type": "Reference<Bluebook>"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "name",
+              "type": "ProcessManagerName"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "correlates_by",
+              "type": "ProcessManagerText"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "starts_on",
+              "type": "ProcessManagerText"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "ends_on",
+              "type": "ProcessManagerText"
+            }
+          ],
+          "emits": [
+            "SagaDeclared"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Open a process manager on a chapter",
+          "mutations": [
+
+          ],
+          "name": "Declare",
+          "references": null,
+          "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "name",
+              "type": "ProcessManagerText"
+            }
+          ],
+          "emits": [
+            "SagaStateAttached"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Attach one state to the process manager",
+          "mutations": [
+            {
+              "fields": {
+                "name": "name"
+              },
+              "op": "append",
+              "target": "states"
+            }
+          ],
+          "name": "State",
+          "references": "ProcessManager",
+          "role": "Language"
+        }
+      ],
+      "description": "One process manager — what correlates its instances, what starts and ends it, and the states it moves through.",
+      "entities": [
+
+      ],
+      "identified_by": "id",
+      "lifecycle": null,
+      "name": "ProcessManager",
+      "queries": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "bluebook_id",
+              "type": "ProcessManagerText"
+            }
+          ],
+          "description": null,
+          "limit": null,
+          "name": "DeclaredIn",
+          "order_by": null,
+          "wheres": [
+            {
+              "field": "bluebook_id",
+              "op": "eq",
+              "value": ":bluebook_id"
+            }
+          ]
+        }
+      ],
+      "value_objects": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "a process manager is named"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "ProcessManagerName"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "ProcessManagerText"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "name",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "SagaState"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "default": null,
+          "list": false,
+          "name": "process_manager_id",
+          "type": "Reference<ProcessManager>"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "event_type",
+          "type": "HandlerText"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "from_state",
+          "type": "HandlerText"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "to_state",
+          "type": "HandlerText"
+        }
+      ],
+      "commands": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "process_manager_id",
+              "type": "Reference<ProcessManager>"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "event_type",
+              "type": "HandlerText"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "from_state",
+              "type": "HandlerText"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "to_state",
+              "type": "HandlerText"
+            }
+          ],
+          "emits": [
+            "LegDeclared"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Open a handler inside a process manager",
+          "mutations": [
+
+          ],
+          "name": "Declare",
+          "references": null,
+          "role": "Language"
+        }
+      ],
+      "description": "One handler inside a process manager — the event it answers, the state move it makes, and the commands it sends. Its own root because a handler holds nested dispatches, which hold nested bindings.",
+      "entities": [
+
+      ],
+      "identified_by": "id",
+      "lifecycle": null,
+      "name": "Handler",
+      "queries": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "process_manager_id",
+              "type": "HandlerText"
+            }
+          ],
+          "description": null,
+          "limit": null,
+          "name": "DeclaredIn",
+          "order_by": null,
+          "wheres": [
+            {
+              "field": "process_manager_id",
+              "op": "eq",
+              "value": ":process_manager_id"
+            }
+          ]
+        }
+      ],
+      "value_objects": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "HandlerText"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "default": null,
+          "list": false,
+          "name": "handler_id",
+          "type": "Reference<Handler>"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "handler",
+          "type": "DispatchText"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "command_name",
+          "type": "DispatchText"
+        },
+        {
+          "default": null,
+          "list": true,
+          "name": "with_spec",
+          "type": "Binding"
+        }
+      ],
+      "commands": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "handler_id",
+              "type": "Reference<Handler>"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "handler",
+              "type": "DispatchText"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "command_name",
+              "type": "DispatchText"
+            }
+          ],
+          "emits": [
+            "SendDeclared"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Open a dispatch inside a handler",
+          "mutations": [
+
+          ],
+          "name": "Declare",
+          "references": null,
+          "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "key",
+              "type": "DispatchText"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "DispatchText"
+            }
+          ],
+          "emits": [
+            "BindingAttached"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Bind one argument of the dispatched command",
+          "mutations": [
+            {
+              "fields": {
+                "key": "key",
+                "value": "value"
+              },
+              "op": "append",
+              "target": "with_spec"
+            }
+          ],
+          "name": "Bind",
+          "references": "Dispatch",
+          "role": "Language"
+        }
+      ],
+      "description": "One command a handler dispatches, with the arguments it binds. Its own root because the bindings are an open map, which no value object can hold.",
+      "entities": [
+
+      ],
+      "identified_by": "id",
+      "lifecycle": null,
+      "name": "Dispatch",
+      "queries": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "handler_id",
+              "type": "DispatchText"
+            }
+          ],
+          "description": null,
+          "limit": null,
+          "name": "DeclaredIn",
+          "order_by": null,
+          "wheres": [
+            {
+              "field": "handler_id",
+              "op": "eq",
+              "value": ":handler_id"
+            }
+          ]
+        }
+      ],
+      "value_objects": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "DispatchText"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "key",
+              "type": "String"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Binding"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "default": null,
+          "list": false,
+          "name": "bluebook_id",
+          "type": "Reference<Bluebook>"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "name",
+          "type": "ReadModelName"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "description",
+          "type": "ProjectionPurpose"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "query_name",
+          "type": "ReadModelText"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "reference_name",
+          "type": "ReadModelText"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "reference_target",
+          "type": "ReadModelText"
+        },
+        {
+          "default": null,
+          "list": true,
+          "name": "aggregate_heads",
+          "type": "Head"
+        }
+      ],
+      "commands": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "bluebook_id",
+              "type": "Reference<Bluebook>"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "name",
+              "type": "ReadModelName"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "description",
+              "type": "ProjectionPurpose"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "query_name",
+              "type": "ReadModelText"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "reference_name",
+              "type": "ReadModelText"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "reference_target",
+              "type": "ReadModelText"
+            }
+          ],
+          "emits": [
+            "ProjectionDeclared"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Open a read model on a chapter",
+          "mutations": [
+
+          ],
+          "name": "Declare",
+          "references": null,
+          "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "aggregate",
+              "type": "ReadModelText"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "as",
+              "type": "ReadModelText"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "many",
+              "type": "ReadModelText"
+            }
+          ],
+          "emits": [
+            "HeadGathered"
+          ],
+          "givens": [
+            {
+              "canonical": "!reference_target.value.to_s.empty?",
+              "description": "a read model gathers heads only after its reference"
+            }
+          ],
+          "goal": "Attach one aggregate head to the read model",
+          "mutations": [
+            {
+              "fields": {
+                "aggregate": "aggregate",
+                "as": "as",
+                "many": "many"
+              },
+              "op": "append",
+              "target": "aggregate_heads"
+            }
+          ],
+          "name": "Gather",
+          "references": "ReadModel",
+          "role": "Language"
+        }
+      ],
+      "description": "One read model — the aggregate heads it gathers and the reference it hangs from.",
+      "entities": [
+
+      ],
+      "identified_by": "id",
+      "lifecycle": null,
+      "name": "ReadModel",
+      "queries": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "bluebook_id",
+              "type": "ReadModelText"
+            }
+          ],
+          "description": null,
+          "limit": null,
+          "name": "DeclaredIn",
+          "order_by": null,
+          "wheres": [
+            {
+              "field": "bluebook_id",
+              "op": "eq",
+              "value": ":bluebook_id"
+            }
+          ]
+        }
+      ],
+      "value_objects": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "a read model is named"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "ReadModelName"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "ReadModelText"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "a description says something"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "ProjectionPurpose"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "aggregate",
+              "type": "String"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "as",
+              "type": "String"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "many",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Head"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "default": null,
+          "list": false,
+          "name": "aggregate_id",
+          "type": "Reference<Aggregate>"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "owner",
+          "type": "EntityText"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "name",
+          "type": "EntityName"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "description",
+          "type": "EntityName"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "identified_by",
+          "type": "EntityText"
+        },
+        {
+          "default": null,
+          "list": true,
+          "name": "attributes",
+          "type": "PieceField"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "state_field",
+          "type": "EntityText"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "state_start",
+          "type": "EntityText"
+        },
+        {
+          "default": null,
+          "list": true,
+          "name": "transitions",
+          "type": "PieceTransition"
+        }
+      ],
+      "commands": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "aggregate_id",
+              "type": "Reference<Aggregate>"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "owner",
+              "type": "EntityText"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "name",
+              "type": "EntityName"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "description",
+              "type": "EntityName"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "identified_by",
+              "type": "EntityText"
+            }
+          ],
+          "emits": [
+            "PieceDeclared"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Open an entity inside an aggregate",
+          "mutations": [
+
+          ],
+          "name": "Declare",
+          "references": null,
+          "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "name",
+              "type": "EntityText"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "type",
+              "type": "EntityText"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "list",
+              "type": "EntityText"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "default",
+              "type": "EntityText"
+            }
+          ],
+          "emits": [
+            "PieceAttributeAttached"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Attach one attribute to the entity",
+          "mutations": [
+            {
+              "fields": {
+                "default": "default",
+                "list": "list",
+                "name": "name",
+                "type": "type"
+              },
+              "op": "append",
+              "target": "attributes"
+            }
+          ],
+          "name": "Attribute",
+          "references": "Entity",
+          "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "state_field",
+              "type": "EntityText"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "state_start",
+              "type": "EntityText"
+            }
+          ],
+          "emits": [
+            "PieceLifecycleNamed"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Name the field this entity's state machine runs on",
+          "mutations": [
+            {
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "state_field"
+              },
+              "target": "state_field"
+            },
+            {
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "state_start"
+              },
+              "target": "state_start"
+            }
+          ],
+          "name": "Lifecycle",
+          "references": "Entity",
+          "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "command",
+              "type": "EntityText"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "from_state",
+              "type": "EntityText"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "to_state",
+              "type": "EntityText"
+            }
+          ],
+          "emits": [
+            "PieceTransitionAttached"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Attach one transition to the entity's state machine",
+          "mutations": [
+            {
+              "fields": {
+                "command": "command",
+                "from_state": "from_state",
+                "to_state": "to_state"
+              },
+              "op": "append",
+              "target": "transitions"
+            }
+          ],
+          "name": "Transition",
+          "references": "Entity",
+          "role": "Language"
+        }
+      ],
+      "description": "One entity inside an aggregate — an element with its own identity, state machine, commands and queries. Its own root because it repeats the aggregate's whole shape one level down.",
+      "entities": [
+
+      ],
+      "identified_by": "id",
+      "lifecycle": null,
+      "name": "Entity",
+      "queries": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "aggregate_id",
+              "type": "EntityText"
+            }
+          ],
+          "description": null,
+          "limit": null,
+          "name": "DeclaredIn",
+          "order_by": null,
+          "wheres": [
+            {
+              "field": "aggregate_id",
+              "op": "eq",
+              "value": ":aggregate_id"
+            }
+          ]
+        }
+      ],
+      "value_objects": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "an entity is named"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "EntityName"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "EntityText"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "name",
+              "type": "String"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "type",
+              "type": "String"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "list",
+              "type": "String"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "default",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "PieceField"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "command",
+              "type": "String"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "from_state",
+              "type": "String"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "to_state",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "PieceTransition"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "default": null,
+          "list": false,
+          "name": "value_object_id",
+          "type": "Reference<ValueObject>"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "shape",
+          "type": "MemberText"
+        },
+        {
+          "default": null,
+          "list": true,
+          "name": "pairs",
+          "type": "Pair"
+        }
+      ],
+      "commands": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value_object_id",
+              "type": "Reference<ValueObject>"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "shape",
+              "type": "MemberText"
+            }
+          ],
+          "emits": [
+            "MemberDeclared"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Open one admitted row on a value object",
+          "mutations": [
+
+          ],
+          "name": "Declare",
+          "references": null,
+          "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "key",
+              "type": "MemberText"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "MemberText"
+            }
+          ],
+          "emits": [
+            "PairBound"
+          ],
+          "givens": [
+            {
+              "canonical": "!key.value.to_s.empty?",
+              "description": "an admitted row binds a named field"
+            }
+          ],
+          "goal": "Bind one field of the admitted row",
+          "mutations": [
+            {
+              "fields": {
+                "key": "key",
+                "value": "value"
+              },
+              "op": "append",
+              "target": "pairs"
+            }
+          ],
+          "name": "Pair",
+          "references": "Member",
+          "role": "Language"
+        }
+      ],
+      "description": "One admitted row of a value object's one_of — a whole combination of field values, not a per-field choice. Its own root because a row is a list of pairs inside a list of rows.",
+      "entities": [
+
+      ],
+      "identified_by": "id",
+      "lifecycle": null,
+      "name": "Member",
+      "queries": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value_object_id",
+              "type": "MemberText"
+            }
+          ],
+          "description": null,
+          "limit": null,
+          "name": "DeclaredIn",
+          "order_by": null,
+          "wheres": [
+            {
+              "field": "value_object_id",
+              "op": "eq",
+              "value": ":value_object_id"
+            }
+          ]
+        }
+      ],
+      "value_objects": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "MemberText"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "key",
+              "type": "String"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Pair"
+        }
+      ]
+    }
+  ],
+  "canonical_form": [
+    {
+      "boundary": "none",
+      "position": "1",
+      "replacement": "",
+      "source_token": "",
+      "strategy": "collapse_whitespace"
+    },
+    {
+      "boundary": "word",
+      "position": "2",
+      "replacement": ".size",
+      "source_token": ".length",
+      "strategy": "replace"
+    }
+  ],
+  "classification": "core",
+  "name": "Meta",
+  "policies": [
+
+  ],
+  "process_managers": [
+
+  ],
+  "read_models": [
+    {
+      "aggregate_heads": [
+        {
+          "aggregate": "Bluebook",
+          "as": "bluebook",
+          "many": false
+        },
+        {
+          "aggregate": "Aggregate",
+          "as": "aggregates",
+          "many": true
+        },
+        {
+          "aggregate": "Command",
+          "as": "commands",
+          "many": true
+        },
+        {
+          "aggregate": "ValueObject",
+          "as": "value_objects",
+          "many": true
+        },
+        {
+          "aggregate": "Query",
+          "as": "queries",
+          "many": true
+        },
+        {
+          "aggregate": "Entity",
+          "as": "entities",
+          "many": true
+        },
+        {
+          "aggregate": "Member",
+          "as": "members",
+          "many": true
+        },
+        {
+          "aggregate": "Policy",
+          "as": "policies",
+          "many": true
+        },
+        {
+          "aggregate": "ProcessManager",
+          "as": "process_managers",
+          "many": true
+        },
+        {
+          "aggregate": "Handler",
+          "as": "handlers",
+          "many": true
+        },
+        {
+          "aggregate": "Dispatch",
+          "as": "dispatches",
+          "many": true
+        },
+        {
+          "aggregate": "ReadModel",
+          "as": "read_models",
+          "many": true
+        }
+      ],
+      "description": "Every declaration of one chapter, gathered around the chapter itself — the way back, in a single read.",
+      "name": "WholeBluebook",
+      "query_name": "whole_bluebook",
+      "reference_name": "bluebook",
+      "reference_target": "Bluebook"
+    }
+  ],
+  "version": null,
+  "vision": "The bluebook language, declared in itself. Loading a domain becomes dispatching commands into this meta-domain ; the IR it stores must equal the IR the DSL builder produces. The floor that stays hand-written is the interpreter — evaluating a predicate held as data — and IO."
+}

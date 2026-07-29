@@ -240,10 +240,10 @@ module Hecksagain
 
         def identify(category, parent_id, node, index)
           case category
-          when "Bluebook"  then node.name
-          when "Aggregate" then "#{parent_id}::#{node.name}"
+          when "Bluebook"  then declared_name(node)
+          when "Aggregate" then "#{parent_id}::#{declared_name(node)}"
           when "Member", "Handler", "Dispatch" then "#{parent_id}##{index}"
-          else "#{parent_id}.#{node.name}"
+          else "#{parent_id}.#{declared_name(node)}"
           end
         end
 

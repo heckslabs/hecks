@@ -30,7 +30,7 @@ module Hecksagain
           # the colon, and nothing downstream could tell an argument from a literal
           # of the same name.
           when "Query.wheres"                                then Array(node.wheres).map(&:to_h)
-          when "Aggregate.value_objects"                     then node.value_objects.map { |shape| { name: shape.name } }
+          when "Aggregate.value_objects"                     then node.value_objects.map { |shape| { name: shape.hecks_name } }
           when "Bluebook.normalisations"                     then normalisation_rows
           when "Member.pairs"                                then pair_rows(node)
           # Through to_h, which is where IR.render_value spells a symbol argument as
@@ -120,9 +120,25 @@ module Hecksagain
           []
         end
 
+        # What the BLUEBOOK calls a node, whichever kind of thing the node is.
+        #
+        # A construct that has become a Ruby class answers `name` with its
+        # constant path — `Pizzas::Pizza::Price` — because that is Ruby's
+        # question, not the bluebook's. Its declared name is `hecks_name`. Value
+        # objects have crossed over and the other categories have not, so this
+        # asks for the bluebook's name and takes whichever the node can give.
+        #
+        # This shrinks to `node.hecks_name` when every construct is a class, and
+        # disappears when the DSL stops handing the judge nodes at all.
+        def declared_name(node)
+          node.respond_to?(:hecks_name) ? node.hecks_name : node.name
+        end
+
         # One field of a Declare payload. Mostly a reader of the same name — the
         # exceptions are fields the IR keeps somewhere else, or not at all.
         def field_value(category, node, field, parent_id)
+          return declared_name(node) if field == :name
+
           case "#{category}.#{field}"
           when "Entity.owner"       then parent_id
           when "Member.shape"       then parent_id

@@ -1,0 +1,3031 @@
+{
+  "aggregates": [
+    {
+      "attributes": [
+        {
+          "default": null,
+          "list": false,
+          "name": "reference",
+          "type": "CustomerNumber"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "name",
+          "type": "PersonName"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "email",
+          "type": "EmailAddress"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "standing",
+          "type": "CustomerStanding"
+        }
+      ],
+      "commands": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "reference",
+              "type": "CustomerNumber"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "name",
+              "type": "PersonName"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "email",
+              "type": "EmailAddress"
+            }
+          ],
+          "emits": [
+            "CustomerRegistered"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Take on a new customer",
+          "mutations": [
+            {
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "reference"
+              },
+              "target": "reference"
+            },
+            {
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "name"
+              },
+              "target": "name"
+            },
+            {
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "email"
+              },
+              "target": "email"
+            }
+          ],
+          "name": "Register",
+          "references": null,
+          "role": "Branch clerk"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "standing",
+              "type": "CustomerStanding"
+            }
+          ],
+          "emits": [
+            "CustomerSuspended"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Stop a customer transacting while something is investigated",
+          "mutations": [
+            {
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "standing"
+              },
+              "target": "standing"
+            }
+          ],
+          "name": "Suspend",
+          "references": "Customer",
+          "role": "Compliance officer"
+        },
+        {
+          "attributes": [
+
+          ],
+          "emits": [
+            "CustomerReinstated"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Let a cleared customer transact again",
+          "mutations": [
+            {
+              "op": "set",
+              "source": {
+                "kind": "literal",
+                "value": {
+                  "value": "good"
+                }
+              },
+              "target": "standing"
+            }
+          ],
+          "name": "Reinstate",
+          "references": "Customer",
+          "role": "Compliance officer"
+        },
+        {
+          "attributes": [
+
+          ],
+          "emits": [
+            "CustomerClosed"
+          ],
+          "givens": [
+
+          ],
+          "goal": "End the relationship",
+          "mutations": [
+
+          ],
+          "name": "Close",
+          "references": "Customer",
+          "role": "Branch clerk"
+        }
+      ],
+      "description": "A person the bank holds a relationship with. Suspended rather than deleted — a bank forgets nothing.",
+      "entities": [
+
+      ],
+      "identified_by": "reference",
+      "lifecycle": {
+        "default": "active",
+        "field": "status",
+        "transitions": [
+          {
+            "command": "Suspend",
+            "from_state": "active",
+            "to_state": "suspended"
+          },
+          {
+            "command": "Reinstate",
+            "from_state": "suspended",
+            "to_state": "active"
+          },
+          {
+            "command": "Close",
+            "from_state": "active",
+            "to_state": "closed"
+          },
+          {
+            "command": "Close",
+            "from_state": "suspended",
+            "to_state": "closed"
+          }
+        ]
+      },
+      "name": "Customer",
+      "queries": [
+        {
+          "attributes": [
+
+          ],
+          "description": "The everyday customer roll — active, and nothing outstanding against them.",
+          "limit": null,
+          "name": "InGoodStanding",
+          "order_by": {
+            "direction": "asc",
+            "field": "reference"
+          },
+          "wheres": [
+            {
+              "field": "status",
+              "op": "eq",
+              "value": "active"
+            },
+            {
+              "field": "standing",
+              "op": "eq",
+              "value": "good"
+            }
+          ]
+        },
+        {
+          "attributes": [
+
+          ],
+          "description": "The compliance queue, newest concern first.",
+          "limit": {
+            "value": "50"
+          },
+          "name": "Suspended",
+          "order_by": {
+            "direction": "desc",
+            "field": "reference"
+          },
+          "wheres": [
+            {
+              "field": "status",
+              "op": "eq",
+              "value": "suspended"
+            }
+          ]
+        }
+      ],
+      "value_objects": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "a customer reference is present"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "CustomerNumber"
+        },
+        {
+          "attributes": [
+            {
+              "default": "good",
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "a standing is named"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "CustomerStanding"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "given",
+              "type": "String"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "family",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!given.to_s.empty?",
+              "description": "a given name is present"
+            },
+            {
+              "canonical": "!family.to_s.empty?",
+              "description": "a family name is present"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "PersonName"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "address",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "address.include?(\"@\")",
+              "description": "an address routes somewhere"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "EmailAddress"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "default": null,
+          "list": false,
+          "name": "customer_id",
+          "type": "Reference<Customer>"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "number",
+          "type": "AccountNumber"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "balance",
+          "type": "Money"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "kind",
+          "type": "AccountKind"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "daily_limit",
+          "type": "DailyLimit"
+        },
+        {
+          "default": null,
+          "list": true,
+          "name": "ledger",
+          "type": "LedgerEntry"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "fees_cents",
+          "type": "Money"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "interest_cents",
+          "type": "Money"
+        }
+      ],
+      "commands": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "customer_id",
+              "type": "Reference<Customer>"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "number",
+              "type": "AccountNumber"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "kind",
+              "type": "AccountKind"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "daily_limit",
+              "type": "DailyLimit"
+            }
+          ],
+          "emits": [
+            "AccountOpened"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Give a customer somewhere to keep money",
+          "mutations": [
+            {
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "number"
+              },
+              "target": "number"
+            },
+            {
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "kind"
+              },
+              "target": "kind"
+            },
+            {
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "daily_limit"
+              },
+              "target": "daily_limit"
+            }
+          ],
+          "name": "Open",
+          "references": null,
+          "role": "Branch clerk"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "amount",
+              "type": "PositiveMoney"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "narrative",
+              "type": "Narrative"
+            }
+          ],
+          "emits": [
+            "AccountCredited"
+          ],
+          "givens": [
+            {
+              "canonical": "status == \"open\"",
+              "description": "the account is open"
+            }
+          ],
+          "goal": "Put money in",
+          "mutations": [
+            {
+              "op": "increment",
+              "source": {
+                "kind": "argument",
+                "name": "amount"
+              },
+              "target": "balance"
+            },
+            {
+              "fields": {
+                "amount": "amount",
+                "direction": "{:value=>\"credit\"}",
+                "narrative": "narrative"
+              },
+              "op": "append",
+              "target": "ledger"
+            }
+          ],
+          "name": "Credit",
+          "references": "Account",
+          "role": "Teller"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "amount",
+              "type": "PositiveMoney"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "narrative",
+              "type": "Narrative"
+            }
+          ],
+          "emits": [
+            "AccountDebited"
+          ],
+          "givens": [
+            {
+              "canonical": "status == \"open\"",
+              "description": "the account is open"
+            },
+            {
+              "canonical": "balance.cents >= amount.cents",
+              "description": "the balance covers it"
+            },
+            {
+              "canonical": "daily_limit.cents >= amount.cents",
+              "description": "the daily limit allows it"
+            }
+          ],
+          "goal": "Take money out, if it is there to take",
+          "mutations": [
+            {
+              "op": "decrement",
+              "source": {
+                "kind": "argument",
+                "name": "amount"
+              },
+              "target": "balance"
+            },
+            {
+              "fields": {
+                "amount": "amount",
+                "direction": "{:value=>\"debit\"}",
+                "narrative": "narrative"
+              },
+              "op": "append",
+              "target": "ledger"
+            }
+          ],
+          "name": "Debit",
+          "references": "Account",
+          "role": "Teller"
+        },
+        {
+          "attributes": [
+
+          ],
+          "emits": [
+            "AccountFrozen"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Stop an account moving while something is investigated",
+          "mutations": [
+
+          ],
+          "name": "Freeze",
+          "references": "Account",
+          "role": "Compliance officer"
+        },
+        {
+          "attributes": [
+
+          ],
+          "emits": [
+            "AccountUnfrozen"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Release a cleared account",
+          "mutations": [
+
+          ],
+          "name": "Unfreeze",
+          "references": "Account",
+          "role": "Compliance officer"
+        },
+        {
+          "attributes": [
+
+          ],
+          "emits": [
+            "AccountClosed"
+          ],
+          "givens": [
+            {
+              "canonical": "balance.cents.zero?",
+              "description": "an account closes empty"
+            }
+          ],
+          "goal": "Close an account that has been emptied",
+          "mutations": [
+
+          ],
+          "name": "CloseAccount",
+          "references": "Account",
+          "role": "Branch clerk"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "amount",
+              "type": "PositiveMoney"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "narrative",
+              "type": "Narrative"
+            }
+          ],
+          "emits": [
+            "FeeApplied"
+          ],
+          "givens": [
+            {
+              "canonical": "balance.cents >= amount.cents",
+              "description": "the balance covers a fee"
+            }
+          ],
+          "goal": null,
+          "mutations": [
+            {
+              "op": "decrement",
+              "source": {
+                "kind": "argument",
+                "name": "amount"
+              },
+              "target": "balance"
+            },
+            {
+              "op": "increment",
+              "source": {
+                "kind": "argument",
+                "name": "amount"
+              },
+              "target": "fees_cents"
+            }
+          ],
+          "name": "ApplyFee",
+          "references": "Account",
+          "role": null
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "amount",
+              "type": "PositiveMoney"
+            }
+          ],
+          "emits": [
+            "FeeCorrected"
+          ],
+          "givens": [
+            {
+              "canonical": "fees_cents.cents >= amount.cents",
+              "description": "a correction cannot exceed collected fees"
+            }
+          ],
+          "goal": null,
+          "mutations": [
+            {
+              "op": "increment",
+              "source": {
+                "kind": "argument",
+                "name": "amount"
+              },
+              "target": "balance"
+            },
+            {
+              "op": "decrement",
+              "source": {
+                "kind": "argument",
+                "name": "amount"
+              },
+              "target": "fees_cents"
+            }
+          ],
+          "name": "CorrectFee",
+          "references": "Account",
+          "role": null
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "amount",
+              "type": "PositiveMoney"
+            }
+          ],
+          "emits": [
+            "InterestAccrued"
+          ],
+          "givens": [
+
+          ],
+          "goal": null,
+          "mutations": [
+            {
+              "op": "increment",
+              "source": {
+                "kind": "argument",
+                "name": "amount"
+              },
+              "target": "balance"
+            },
+            {
+              "op": "increment",
+              "source": {
+                "kind": "argument",
+                "name": "amount"
+              },
+              "target": "interest_cents"
+            }
+          ],
+          "name": "AccrueInterest",
+          "references": "Account",
+          "role": null
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "amount",
+              "type": "PositiveMoney"
+            }
+          ],
+          "emits": [
+            "InterestCorrected"
+          ],
+          "givens": [
+            {
+              "canonical": "interest_cents.cents >= amount.cents",
+              "description": "a correction cannot exceed accrued interest"
+            },
+            {
+              "canonical": "balance.cents >= amount.cents",
+              "description": "the balance covers an interest correction"
+            }
+          ],
+          "goal": null,
+          "mutations": [
+            {
+              "op": "decrement",
+              "source": {
+                "kind": "argument",
+                "name": "amount"
+              },
+              "target": "balance"
+            },
+            {
+              "op": "decrement",
+              "source": {
+                "kind": "argument",
+                "name": "amount"
+              },
+              "target": "interest_cents"
+            }
+          ],
+          "name": "CorrectInterest",
+          "references": "Account",
+          "role": null
+        }
+      ],
+      "description": "A balance belonging to one customer, and the ledger that explains how it got there.",
+      "entities": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "sequence",
+              "type": "LedgerSequence"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "amount",
+              "type": "Money"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "narrative",
+              "type": "Narrative"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "direction",
+              "type": "LedgerDirection"
+            }
+          ],
+          "commands": [
+            {
+              "attributes": [
+                {
+                  "default": null,
+                  "list": false,
+                  "name": "adjustment",
+                  "type": "Money"
+                },
+                {
+                  "default": null,
+                  "list": false,
+                  "name": "narrative",
+                  "type": "Narrative"
+                }
+              ],
+              "emits": [
+                "LedgerEntryAmended"
+              ],
+              "givens": [
+                {
+                  "canonical": "amount.cents + adjustment.cents >= 0",
+                  "description": "an amendment leaves a non-negative amount"
+                }
+              ],
+              "goal": "Correct a movement posted for the wrong amount",
+              "mutations": [
+                {
+                  "op": "increment",
+                  "source": {
+                    "kind": "argument",
+                    "name": "adjustment"
+                  },
+                  "target": "amount"
+                },
+                {
+                  "op": "set",
+                  "source": {
+                    "kind": "argument",
+                    "name": "narrative"
+                  },
+                  "target": "narrative"
+                }
+              ],
+              "name": "Amend",
+              "references": null,
+              "role": "Back office"
+            },
+            {
+              "attributes": [
+                {
+                  "default": null,
+                  "list": false,
+                  "name": "narrative",
+                  "type": "Narrative"
+                }
+              ],
+              "emits": [
+                "LedgerEntryReversed"
+              ],
+              "givens": [
+
+              ],
+              "goal": "Undo a movement that should not have been posted",
+              "mutations": [
+                {
+                  "op": "set",
+                  "source": {
+                    "kind": "argument",
+                    "name": "narrative"
+                  },
+                  "target": "narrative"
+                }
+              ],
+              "name": "Reverse",
+              "references": null,
+              "role": "Back office"
+            }
+          ],
+          "description": "One movement across the account, in the order it was posted.",
+          "identified_by": "sequence",
+          "lifecycle": {
+            "default": "posted",
+            "field": "state",
+            "transitions": [
+              {
+                "command": "Reverse",
+                "from_state": "posted",
+                "to_state": "reversed"
+              },
+              {
+                "command": "Amend",
+                "from_state": "posted",
+                "to_state": "posted"
+              }
+            ]
+          },
+          "name": "LedgerEntry",
+          "queries": [
+            {
+              "attributes": [
+
+              ],
+              "description": "Entries that were undone — the audit trail nobody wants to need.",
+              "limit": null,
+              "name": "Reversed",
+              "order_by": null,
+              "wheres": [
+                {
+                  "field": "state",
+                  "op": "eq",
+                  "value": "reversed"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "identified_by": "id",
+      "lifecycle": {
+        "default": "open",
+        "field": "status",
+        "transitions": [
+          {
+            "command": "Freeze",
+            "from_state": "open",
+            "to_state": "frozen"
+          },
+          {
+            "command": "Unfreeze",
+            "from_state": "frozen",
+            "to_state": "open"
+          },
+          {
+            "command": "CloseAccount",
+            "from_state": "open",
+            "to_state": "closed"
+          },
+          {
+            "command": "CloseAccount",
+            "from_state": "frozen",
+            "to_state": "closed"
+          }
+        ]
+      },
+      "name": "Account",
+      "queries": [
+        {
+          "attributes": [
+
+          ],
+          "description": "Accounts that can transact today.",
+          "limit": null,
+          "name": "Open",
+          "order_by": {
+            "direction": "asc",
+            "field": "number"
+          },
+          "wheres": [
+            {
+              "field": "status",
+              "op": "eq",
+              "value": "open"
+            }
+          ]
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "floor",
+              "type": "Money"
+            }
+          ],
+          "description": "Accounts below a floor the caller supplies — the morning risk report.",
+          "limit": {
+            "value": "100"
+          },
+          "name": "Overdrawn",
+          "order_by": {
+            "direction": "asc",
+            "field": "balance"
+          },
+          "wheres": [
+            {
+              "field": "balance",
+              "op": "lt",
+              "value": ":floor"
+            }
+          ]
+        }
+      ],
+      "value_objects": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "an account number is present"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "AccountNumber"
+        },
+        {
+          "attributes": [
+            {
+              "default": 0,
+              "list": false,
+              "name": "cents",
+              "type": "Integer"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "cents >= 0",
+              "description": "a daily limit is non-negative"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "DailyLimit"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "Integer"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "value.positive?",
+              "description": "a ledger sequence is positive"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "LedgerSequence"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "value",
+                "credit"
+              ]
+            ],
+            [
+              [
+                "value",
+                "debit"
+              ]
+            ]
+          ],
+          "name": "LedgerDirection"
+        },
+        {
+          "attributes": [
+            {
+              "default": 0,
+              "list": false,
+              "name": "cents",
+              "type": "Integer"
+            },
+            {
+              "default": "USD",
+              "list": false,
+              "name": "currency",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "currency.to_s.size == 3",
+              "description": "a currency is a three-letter code"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "Money"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "cents",
+              "type": "Integer"
+            },
+            {
+              "default": "USD",
+              "list": false,
+              "name": "currency",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "cents.positive?",
+              "description": "an amount is positive"
+            },
+            {
+              "canonical": "currency.to_s.size == 3",
+              "description": "a currency is a three-letter code"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "PositiveMoney"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "name",
+              "type": "String"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "name",
+                "current"
+              ]
+            ],
+            [
+              [
+                "name",
+                "savings"
+              ]
+            ],
+            [
+              [
+                "name",
+                "reserve"
+              ]
+            ]
+          ],
+          "name": "AccountKind"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "text",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!text.to_s.empty?",
+              "description": "a movement explains itself"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "Narrative"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "default": null,
+          "list": false,
+          "name": "account_id",
+          "type": "Reference<Account>"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "serial",
+          "type": "CardSerial"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "nickname",
+          "type": "CardNickname"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "daily_fee",
+          "type": "DailyFee"
+        },
+        {
+          "default": null,
+          "list": true,
+          "name": "withdrawals",
+          "type": "Withdrawal"
+        }
+      ],
+      "commands": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "account_id",
+              "type": "Reference<Account>"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "serial",
+              "type": "CardSerial"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "daily_fee",
+              "type": "DailyFee"
+            }
+          ],
+          "emits": [
+            "ATMCardIssued"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Put a card in a customer's hand",
+          "mutations": [
+            {
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "serial"
+              },
+              "target": "serial"
+            },
+            {
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "daily_fee"
+              },
+              "target": "daily_fee"
+            }
+          ],
+          "name": "Issue",
+          "references": null,
+          "role": "Branch clerk"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "nickname",
+              "type": "CardNickname"
+            }
+          ],
+          "emits": [
+            "ATMCardRenamed"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Name a card so it is recognisable",
+          "mutations": [
+            {
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "nickname"
+              },
+              "target": "nickname"
+            }
+          ],
+          "name": "Rename",
+          "references": "ATMCard",
+          "role": "Customer"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "cents",
+              "type": "WithdrawalAmount"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "narrative",
+              "type": "Narrative"
+            }
+          ],
+          "emits": [
+            "CashWithdrawn"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Take cash out at a machine",
+          "mutations": [
+            {
+              "fields": {
+                "cents": "cents",
+                "narrative": "narrative"
+              },
+              "op": "append",
+              "target": "withdrawals"
+            }
+          ],
+          "name": "Withdraw",
+          "references": "ATMCard",
+          "role": "Customer"
+        },
+        {
+          "attributes": [
+
+          ],
+          "emits": [
+            "ATMCardActivated"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Start using a card",
+          "mutations": [
+
+          ],
+          "name": "Activate",
+          "references": "ATMCard",
+          "role": "Customer"
+        },
+        {
+          "attributes": [
+
+          ],
+          "emits": [
+            "ATMCardRetired"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Take a card out of service",
+          "mutations": [
+
+          ],
+          "name": "Retire",
+          "references": "ATMCard",
+          "role": "Back office"
+        }
+      ],
+      "description": "A card issued against an account, and the cash taken with it.",
+      "entities": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "sequence",
+              "type": "WithdrawalSequence"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "cents",
+              "type": "WithdrawalAmount"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "narrative",
+              "type": "Narrative"
+            }
+          ],
+          "commands": [
+            {
+              "attributes": [
+                {
+                  "default": null,
+                  "list": false,
+                  "name": "narrative",
+                  "type": "Narrative"
+                }
+              ],
+              "emits": [
+                "WithdrawalDisputed"
+              ],
+              "givens": [
+
+              ],
+              "goal": "Challenge a withdrawal that was not mine",
+              "mutations": [
+                {
+                  "op": "set",
+                  "source": {
+                    "kind": "argument",
+                    "name": "narrative"
+                  },
+                  "target": "narrative"
+                }
+              ],
+              "name": "Dispute",
+              "references": null,
+              "role": "Customer"
+            }
+          ],
+          "description": "One handful of cash, in the order it was taken.",
+          "identified_by": "sequence",
+          "lifecycle": {
+            "default": "taken",
+            "field": "state",
+            "transitions": [
+              {
+                "command": "Dispute",
+                "from_state": "taken",
+                "to_state": "disputed"
+              }
+            ]
+          },
+          "name": "Withdrawal",
+          "queries": [
+            {
+              "attributes": [
+
+              ],
+              "description": "The first two withdrawals still standing, whatever else was taken.",
+              "limit": {
+                "value": "2"
+              },
+              "name": "Recent",
+              "order_by": null,
+              "wheres": [
+                {
+                  "field": "state",
+                  "op": "eq",
+                  "value": "taken"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "identified_by": "serial",
+      "lifecycle": {
+        "default": "issued",
+        "field": "status",
+        "transitions": [
+          {
+            "command": "Activate",
+            "from_state": "issued",
+            "to_state": "active"
+          },
+          {
+            "command": "Retire",
+            "from_state": "issued",
+            "to_state": "retired"
+          },
+          {
+            "command": "Retire",
+            "from_state": "active",
+            "to_state": "retired"
+          }
+        ]
+      },
+      "name": "ATMCard",
+      "queries": [
+        {
+          "attributes": [
+
+          ],
+          "description": "Live cards in nickname order — a card nobody named sorts before every card that has one.",
+          "limit": null,
+          "name": "Active",
+          "order_by": {
+            "direction": "asc",
+            "field": "nickname"
+          },
+          "wheres": [
+            {
+              "field": "status",
+              "op": "eq",
+              "value": "active"
+            }
+          ]
+        },
+        {
+          "attributes": [
+
+          ],
+          "description": "Live cards by what they cost to hold, cheapest first — a fee is a Float, so the order is numeric and not alphabetical.",
+          "limit": {
+            "value": "3"
+          },
+          "name": "ByFee",
+          "order_by": {
+            "direction": "asc",
+            "field": "daily_fee"
+          },
+          "wheres": [
+            {
+              "field": "status",
+              "op": "eq",
+              "value": "active"
+            }
+          ]
+        }
+      ],
+      "value_objects": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "a card serial is present"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "CardSerial"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "CardNickname"
+        },
+        {
+          "attributes": [
+            {
+              "default": 0.0,
+              "list": false,
+              "name": "amount",
+              "type": "Float"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "amount >= 0",
+              "description": "a daily fee is non-negative"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "DailyFee"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "Integer"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "value.positive?",
+              "description": "a withdrawal sequence is positive"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "WithdrawalSequence"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "cents",
+              "type": "Integer"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "cents.positive?",
+              "description": "a withdrawal amount is positive"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "WithdrawalAmount"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "text",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!text.to_s.empty?",
+              "description": "a withdrawal explains itself"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "Narrative"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "default": null,
+          "list": false,
+          "name": "source",
+          "type": "Reference<Account>"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "destination",
+          "type": "Reference<Account>"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "amount",
+          "type": "TransferMoney"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "narrative",
+          "type": "Narrative"
+        }
+      ],
+      "commands": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "source",
+              "type": "Reference<Account>"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "destination",
+              "type": "Reference<Account>"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "amount",
+              "type": "TransferMoney"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "narrative",
+              "type": "Narrative"
+            }
+          ],
+          "emits": [
+            "TransferRequested"
+          ],
+          "givens": [
+            {
+              "canonical": "!source.value.to_s.empty?",
+              "description": "a transfer names its source"
+            },
+            {
+              "canonical": "!destination.value.to_s.empty?",
+              "description": "a transfer goes somewhere"
+            },
+            {
+              "canonical": "source.value != destination.value",
+              "description": "a transfer moves BETWEEN accounts"
+            }
+          ],
+          "goal": "Send money to another account",
+          "mutations": [
+            {
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "amount"
+              },
+              "target": "amount"
+            },
+            {
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "narrative"
+              },
+              "target": "narrative"
+            },
+            {
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "source"
+              },
+              "target": "source"
+            },
+            {
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "destination"
+              },
+              "target": "destination"
+            }
+          ],
+          "name": "Request",
+          "references": null,
+          "role": "Customer"
+        },
+        {
+          "attributes": [
+
+          ],
+          "emits": [
+            "TransferDebited"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Record that the source account has given up the money",
+          "mutations": [
+
+          ],
+          "name": "Debited",
+          "references": "Transfer",
+          "role": "System"
+        },
+        {
+          "attributes": [
+
+          ],
+          "emits": [
+            "TransferSettled"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Record that the destination has received it",
+          "mutations": [
+
+          ],
+          "name": "Settle",
+          "references": "Transfer",
+          "role": "System"
+        },
+        {
+          "attributes": [
+
+          ],
+          "emits": [
+            "TransferCredited"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Record that the destination credit committed",
+          "mutations": [
+
+          ],
+          "name": "Credited",
+          "references": "Transfer",
+          "role": "System"
+        },
+        {
+          "attributes": [
+
+          ],
+          "emits": [
+            "TransferReversed"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Put the money back when the credit could not be made",
+          "mutations": [
+
+          ],
+          "name": "Reverse",
+          "references": "Transfer",
+          "role": "System"
+        },
+        {
+          "attributes": [
+
+          ],
+          "emits": [
+            "TransferRejected"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Refuse a transfer before any money moved",
+          "mutations": [
+
+          ],
+          "name": "Reject",
+          "references": "Transfer",
+          "role": "System"
+        }
+      ],
+      "description": "Money leaving one account for another. Two movements that must both happen, or neither.",
+      "entities": [
+
+      ],
+      "identified_by": "id",
+      "lifecycle": {
+        "default": "requested",
+        "field": "status",
+        "transitions": [
+          {
+            "command": "Debited",
+            "from_state": "requested",
+            "to_state": "debited"
+          },
+          {
+            "command": "Credited",
+            "from_state": "debited",
+            "to_state": "credited"
+          },
+          {
+            "command": "Settle",
+            "from_state": "credited",
+            "to_state": "settled"
+          },
+          {
+            "command": "Reverse",
+            "from_state": "debited",
+            "to_state": "reversed"
+          },
+          {
+            "command": "Reject",
+            "from_state": "requested",
+            "to_state": "rejected"
+          }
+        ]
+      },
+      "name": "Transfer",
+      "queries": [
+        {
+          "attributes": [
+
+          ],
+          "description": "Transfers that have left one account and not arrived at the other. The list that must always empty.",
+          "limit": null,
+          "name": "InFlight",
+          "order_by": {
+            "direction": "asc",
+            "field": "status"
+          },
+          "wheres": [
+            {
+              "field": "status",
+              "op": "eq",
+              "value": "debited"
+            }
+          ]
+        }
+      ],
+      "value_objects": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "cents",
+              "type": "Integer"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "cents.positive?",
+              "description": "a transfer amount is positive"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "TransferMoney"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "text",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!text.to_s.empty?",
+              "description": "a transfer explains itself"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "Narrative"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "default": null,
+          "list": false,
+          "name": "account_id",
+          "type": "Reference<Account>"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "disputed_by",
+          "type": "Reference<Customer>"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "amount",
+          "type": "PaymentAmount"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "merchant",
+          "type": "MerchantName"
+        }
+      ],
+      "commands": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "account_id",
+              "type": "Reference<Account>"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "amount",
+              "type": "PaymentAmount"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "merchant",
+              "type": "MerchantName"
+            }
+          ],
+          "emits": [
+            "CardAuthorized"
+          ],
+          "givens": [
+
+          ],
+          "goal": null,
+          "mutations": [
+            {
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "amount"
+              },
+              "target": "amount"
+            },
+            {
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "merchant"
+              },
+              "target": "merchant"
+            }
+          ],
+          "name": "Authorize",
+          "references": null,
+          "role": null
+        },
+        {
+          "attributes": [
+
+          ],
+          "emits": [
+            "CardCaptured"
+          ],
+          "givens": [
+
+          ],
+          "goal": null,
+          "mutations": [
+
+          ],
+          "name": "Capture",
+          "references": "CardPayment",
+          "role": null
+        },
+        {
+          "attributes": [
+
+          ],
+          "emits": [
+            "CardVoided"
+          ],
+          "givens": [
+
+          ],
+          "goal": null,
+          "mutations": [
+
+          ],
+          "name": "Void",
+          "references": "CardPayment",
+          "role": null
+        },
+        {
+          "attributes": [
+
+          ],
+          "emits": [
+            "CardRefunded"
+          ],
+          "givens": [
+
+          ],
+          "goal": null,
+          "mutations": [
+
+          ],
+          "name": "Refund",
+          "references": "CardPayment",
+          "role": null
+        },
+        {
+          "attributes": [
+
+          ],
+          "emits": [
+            "CardReversed"
+          ],
+          "givens": [
+
+          ],
+          "goal": null,
+          "mutations": [
+
+          ],
+          "name": "Reverse",
+          "references": "CardPayment",
+          "role": null
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "disputed_by",
+              "type": "Reference<Customer>"
+            }
+          ],
+          "emits": [
+            "CardDisputed"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Challenge a payment that already settled",
+          "mutations": [
+            {
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "disputed_by"
+              },
+              "target": "disputed_by"
+            }
+          ],
+          "name": "Dispute",
+          "references": "CardPayment",
+          "role": "Customer"
+        },
+        {
+          "attributes": [
+
+          ],
+          "emits": [
+            "CardChargedBack"
+          ],
+          "givens": [
+
+          ],
+          "goal": null,
+          "mutations": [
+
+          ],
+          "name": "Chargeback",
+          "references": "CardPayment",
+          "role": null
+        },
+        {
+          "attributes": [
+
+          ],
+          "emits": [
+            "CardDisputeRejected"
+          ],
+          "givens": [
+
+          ],
+          "goal": null,
+          "mutations": [
+
+          ],
+          "name": "RejectDispute",
+          "references": "CardPayment",
+          "role": null
+        }
+      ],
+      "description": "A card authorisation that either settles, is voided before settlement, or becomes a post-settlement dispute.",
+      "entities": [
+
+      ],
+      "identified_by": "id",
+      "lifecycle": {
+        "default": "authorized",
+        "field": "status",
+        "transitions": [
+          {
+            "command": "Capture",
+            "from_state": "authorized",
+            "to_state": "captured"
+          },
+          {
+            "command": "Void",
+            "from_state": "authorized",
+            "to_state": "voided"
+          },
+          {
+            "command": "Refund",
+            "from_state": "captured",
+            "to_state": "refunded"
+          },
+          {
+            "command": "Reverse",
+            "from_state": "captured",
+            "to_state": "reversed"
+          },
+          {
+            "command": "Dispute",
+            "from_state": "captured",
+            "to_state": "disputed"
+          },
+          {
+            "command": "Dispute",
+            "from_state": "refunded",
+            "to_state": "disputed"
+          },
+          {
+            "command": "Chargeback",
+            "from_state": "disputed",
+            "to_state": "charged_back"
+          },
+          {
+            "command": "RejectDispute",
+            "from_state": "disputed",
+            "to_state": "captured"
+          }
+        ]
+      },
+      "name": "CardPayment",
+      "queries": [
+        {
+          "attributes": [
+
+          ],
+          "description": null,
+          "limit": null,
+          "name": "Pending",
+          "order_by": null,
+          "wheres": [
+            {
+              "field": "status",
+              "op": "eq",
+              "value": "authorized"
+            }
+          ]
+        },
+        {
+          "attributes": [
+
+          ],
+          "description": null,
+          "limit": null,
+          "name": "Disputed",
+          "order_by": null,
+          "wheres": [
+            {
+              "field": "status",
+              "op": "eq",
+              "value": "disputed"
+            }
+          ]
+        }
+      ],
+      "value_objects": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "cents",
+              "type": "Integer"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "cents.positive?",
+              "description": "a payment amount is positive"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "PaymentAmount"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "a merchant name is present"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "MerchantName"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "default": null,
+          "list": false,
+          "name": "account_id",
+          "type": "Reference<Account>"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "amount",
+          "type": "ExternalAmount"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "beneficiary",
+          "type": "BeneficiaryName"
+        }
+      ],
+      "commands": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "account_id",
+              "type": "Reference<Account>"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "amount",
+              "type": "ExternalAmount"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "beneficiary",
+              "type": "BeneficiaryName"
+            }
+          ],
+          "emits": [
+            "ExternalTransferRequested"
+          ],
+          "givens": [
+
+          ],
+          "goal": null,
+          "mutations": [
+            {
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "amount"
+              },
+              "target": "amount"
+            },
+            {
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "beneficiary"
+              },
+              "target": "beneficiary"
+            }
+          ],
+          "name": "Request",
+          "references": null,
+          "role": null
+        },
+        {
+          "attributes": [
+
+          ],
+          "emits": [
+            "ExternalTransferSent"
+          ],
+          "givens": [
+
+          ],
+          "goal": null,
+          "mutations": [
+
+          ],
+          "name": "Send",
+          "references": "ExternalTransfer",
+          "role": null
+        },
+        {
+          "attributes": [
+
+          ],
+          "emits": [
+            "ExternalTransferRecalled"
+          ],
+          "givens": [
+
+          ],
+          "goal": null,
+          "mutations": [
+
+          ],
+          "name": "Recall",
+          "references": "ExternalTransfer",
+          "role": null
+        },
+        {
+          "attributes": [
+
+          ],
+          "emits": [
+            "ExternalTransferReturned"
+          ],
+          "givens": [
+
+          ],
+          "goal": null,
+          "mutations": [
+
+          ],
+          "name": "Return",
+          "references": "ExternalTransfer",
+          "role": null
+        }
+      ],
+      "description": "A transfer sent beyond the bank, where a recall is an instruction and a return is the external network's outcome.",
+      "entities": [
+
+      ],
+      "identified_by": "id",
+      "lifecycle": {
+        "default": "requested",
+        "field": "status",
+        "transitions": [
+          {
+            "command": "Send",
+            "from_state": "requested",
+            "to_state": "sent"
+          },
+          {
+            "command": "Recall",
+            "from_state": "sent",
+            "to_state": "recalled"
+          },
+          {
+            "command": "Return",
+            "from_state": "sent",
+            "to_state": "returned"
+          }
+        ]
+      },
+      "name": "ExternalTransfer",
+      "queries": [
+        {
+          "attributes": [
+
+          ],
+          "description": null,
+          "limit": null,
+          "name": "Sent",
+          "order_by": null,
+          "wheres": [
+            {
+              "field": "status",
+              "op": "eq",
+              "value": "sent"
+            }
+          ]
+        }
+      ],
+      "value_objects": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "cents",
+              "type": "Integer"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "cents.positive?",
+              "description": "an external transfer amount is positive"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "ExternalAmount"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "a beneficiary name is present"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "BeneficiaryName"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "default": null,
+          "list": false,
+          "name": "account_id",
+          "type": "Reference<Account>"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "amount",
+          "type": "ScheduledAmount"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "recipient",
+          "type": "PaymentRecipient"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "due_on",
+          "type": "PaymentDueDate"
+        }
+      ],
+      "commands": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "account_id",
+              "type": "Reference<Account>"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "amount",
+              "type": "ScheduledAmount"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "recipient",
+              "type": "PaymentRecipient"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "due_on",
+              "type": "PaymentDueDate"
+            }
+          ],
+          "emits": [
+            "PaymentScheduled"
+          ],
+          "givens": [
+
+          ],
+          "goal": null,
+          "mutations": [
+            {
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "amount"
+              },
+              "target": "amount"
+            },
+            {
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "recipient"
+              },
+              "target": "recipient"
+            },
+            {
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "due_on"
+              },
+              "target": "due_on"
+            }
+          ],
+          "name": "Schedule",
+          "references": null,
+          "role": null
+        },
+        {
+          "attributes": [
+
+          ],
+          "emits": [
+            "ScheduledPaymentExecuted"
+          ],
+          "givens": [
+
+          ],
+          "goal": null,
+          "mutations": [
+
+          ],
+          "name": "Execute",
+          "references": "ScheduledPayment",
+          "role": null
+        },
+        {
+          "attributes": [
+
+          ],
+          "emits": [
+            "ScheduledPaymentCancelled"
+          ],
+          "givens": [
+
+          ],
+          "goal": null,
+          "mutations": [
+
+          ],
+          "name": "Cancel",
+          "references": "ScheduledPayment",
+          "role": null
+        }
+      ],
+      "description": "An instruction held for a future date, which may execute once or be cancelled before it does.",
+      "entities": [
+
+      ],
+      "identified_by": "id",
+      "lifecycle": {
+        "default": "scheduled",
+        "field": "status",
+        "transitions": [
+          {
+            "command": "Execute",
+            "from_state": "scheduled",
+            "to_state": "executed"
+          },
+          {
+            "command": "Cancel",
+            "from_state": "scheduled",
+            "to_state": "cancelled"
+          }
+        ]
+      },
+      "name": "ScheduledPayment",
+      "queries": [
+        {
+          "attributes": [
+
+          ],
+          "description": null,
+          "limit": null,
+          "name": "Due",
+          "order_by": {
+            "direction": "asc",
+            "field": "due_on"
+          },
+          "wheres": [
+            {
+              "field": "status",
+              "op": "eq",
+              "value": "scheduled"
+            }
+          ]
+        }
+      ],
+      "value_objects": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "cents",
+              "type": "Integer"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "cents.positive?",
+              "description": "a scheduled payment amount is positive"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "ScheduledAmount"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "a payment recipient is present"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "PaymentRecipient"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "a payment due date is present"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "PaymentDueDate"
+        }
+      ]
+    }
+  ],
+  "canonical_form": [
+    {
+      "boundary": "none",
+      "position": "1",
+      "replacement": "",
+      "source_token": "",
+      "strategy": "collapse_whitespace"
+    },
+    {
+      "boundary": "word",
+      "position": "2",
+      "replacement": ".size",
+      "source_token": ".length",
+      "strategy": "replace"
+    }
+  ],
+  "classification": "core",
+  "name": "Banking",
+  "policies": [
+    {
+      "name": "ReviewOnFreeze",
+      "on_event": "Account.AccountFrozen",
+      "target_domain": "Compliance",
+      "trigger_command": "Compliance.OpenReview"
+    },
+    {
+      "name": "FreezeAccountsOnSuspension",
+      "on_event": "CustomerSuspended",
+      "target_domain": null,
+      "trigger_command": "Account.Freeze"
+    },
+    {
+      "name": "NotifyOnClosure",
+      "on_event": "AccountClosed",
+      "target_domain": "Notifications",
+      "trigger_command": "Notifications.Send"
+    }
+  ],
+  "process_managers": [
+    {
+      "correlates_by": "transfer",
+      "ends_on": "TransferSettled",
+      "handlers": [
+        {
+          "dispatches": [
+            {
+              "command_name": "Banking::Account.Debit",
+              "with": [
+                [
+                  "id",
+                  ":source"
+                ],
+                [
+                  "amount",
+                  ":amount"
+                ],
+                [
+                  "narrative",
+                  "{:text=>\"transfer out\"}"
+                ],
+                [
+                  "transfer",
+                  ":transfer"
+                ]
+              ]
+            }
+          ],
+          "event_type": "TransferRequested",
+          "from_state": "requested",
+          "to_state": "requested"
+        },
+        {
+          "dispatches": [
+            {
+              "command_name": "Banking::Transfer.Debited",
+              "with": [
+                [
+                  "transfer",
+                  ":transfer"
+                ]
+              ]
+            },
+            {
+              "command_name": "Banking::Account.Credit",
+              "with": [
+                [
+                  "id",
+                  ":destination"
+                ],
+                [
+                  "amount",
+                  ":amount"
+                ],
+                [
+                  "narrative",
+                  "{:text=>\"transfer in\"}"
+                ],
+                [
+                  "transfer",
+                  ":transfer"
+                ]
+              ]
+            }
+          ],
+          "event_type": "AccountDebited",
+          "from_state": "requested",
+          "to_state": "awaiting_credit"
+        },
+        {
+          "dispatches": [
+            {
+              "command_name": "Banking::Transfer.Credited",
+              "with": [
+                [
+                  "transfer",
+                  ":transfer"
+                ]
+              ]
+            }
+          ],
+          "event_type": "AccountCredited",
+          "from_state": "awaiting_credit",
+          "to_state": "awaiting_credit"
+        },
+        {
+          "dispatches": [
+            {
+              "command_name": "Banking::Transfer.Settle",
+              "with": [
+                [
+                  "transfer",
+                  ":transfer"
+                ]
+              ]
+            }
+          ],
+          "event_type": "TransferCredited",
+          "from_state": "awaiting_credit",
+          "to_state": "settled"
+        },
+        {
+          "dispatches": [
+            {
+              "command_name": "Banking::Account.Credit",
+              "with": [
+                [
+                  "id",
+                  ":source"
+                ],
+                [
+                  "amount",
+                  ":amount"
+                ],
+                [
+                  "narrative",
+                  "{:text=>\"transfer reversed\"}"
+                ]
+              ]
+            },
+            {
+              "command_name": "Banking::Transfer.Reverse",
+              "with": [
+                [
+                  "transfer",
+                  ":transfer"
+                ]
+              ]
+            }
+          ],
+          "event_type": "refused",
+          "from_state": "awaiting_credit",
+          "to_state": "reversed"
+        }
+      ],
+      "name": "Settlement",
+      "starts_on": "TransferRequested",
+      "states": [
+        "requested",
+        "awaiting_credit",
+        "settled",
+        "reversed"
+      ]
+    }
+  ],
+  "read_models": [
+    {
+      "aggregate_heads": [
+        {
+          "aggregate": "Customer",
+          "as": "customer",
+          "many": false
+        },
+        {
+          "aggregate": "Account",
+          "as": "accounts",
+          "many": true
+        },
+        {
+          "aggregate": "ATMCard",
+          "as": "atm_cards",
+          "many": true
+        },
+        {
+          "aggregate": "Transfer",
+          "as": "transfers",
+          "many": true
+        },
+        {
+          "aggregate": "CardPayment",
+          "as": "card_payments",
+          "many": true
+        },
+        {
+          "aggregate": "ExternalTransfer",
+          "as": "external_transfers",
+          "many": true
+        },
+        {
+          "aggregate": "ScheduledPayment",
+          "as": "scheduled_payments",
+          "many": true
+        }
+      ],
+      "description": "A customer's cross-account position, rebuilt from aggregate heads.",
+      "name": "CustomerPortfolio",
+      "query_name": "customer_portfolio",
+      "reference_name": "customer",
+      "reference_target": "Customer"
+    }
+  ],
+  "version": null,
+  "vision": "Customers hold accounts, accounts move money, and every movement is a transfer that can fail halfway. The domain that has to get it right twice — once in the rules, once in the recovery."
+}

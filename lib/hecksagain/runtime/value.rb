@@ -18,7 +18,7 @@ module Hecksagain
 
         aggregate.value_object(attribute.type)
           .then do |value_object|
-            return value if value.is_a?(self) && value.type_name == value_object&.name
+            return value if value.is_a?(self) && value.type_name == value_object&.hecks_name
 
             value_object ? build(value_object, fields_for(value_object, attribute.name, value)) : value
           end
@@ -34,7 +34,7 @@ module Hecksagain
         return value.to_h if value.is_a?(self)
 
         raise TypeMismatch,
-              "#{name} is a #{value_object.name} — pass its fields as an object, not #{value.inspect}"
+              "#{name} is a #{value_object.hecks_name} — pass its fields as an object, not #{value.inspect}"
       end
 
       def self.build(value_object, fields)
@@ -47,7 +47,7 @@ module Hecksagain
           next if Bluebook::Expression::Evaluator.call(invariant.canonical, fields)
 
           raise InvariantViolation,
-                "#{value_object.name} invariant violated — #{invariant.description} " \
+                "#{value_object.hecks_name} invariant violated — #{invariant.description} " \
                 "(given #{canonical_fields(fields)})"
         end
         new(value_object, fields)
@@ -73,7 +73,7 @@ module Hecksagain
           next if given.nil? || given.is_a?(expected)
 
           raise TypeMismatch,
-                "#{value_object.name}.#{attribute.name} expects #{attribute.type}, got #{given.inspect}"
+                "#{value_object.hecks_name}.#{attribute.name} expects #{attribute.type}, got #{given.inspect}"
         end
       end
 
@@ -125,7 +125,7 @@ module Hecksagain
         fields = value_object.attributes
         return build(value_object, { fields.first.name => identifier }) if fields.size == 1
 
-        raise TypeMismatch, "#{value_object.name} is a composite identity — an identity must have exactly one field"
+        raise TypeMismatch, "#{value_object.hecks_name} is a composite identity — an identity must have exactly one field"
       end
 
       def self.admit_member(value_object, fields)
@@ -137,7 +137,7 @@ module Hecksagain
         return if admitted.include?(offered.to_s)
 
         raise InvariantViolation,
-              "#{value_object.name} admits #{admitted.map(&:inspect).join(', ')} — got #{offered.inspect}"
+              "#{value_object.hecks_name} admits #{admitted.map(&:inspect).join(', ')} — got #{offered.inspect}"
       end
 
       def self.canonical_fields(fields)
@@ -151,7 +151,7 @@ module Hecksagain
         @fields       = fields.transform_keys(&:to_sym).freeze
       end
 
-      def type_name = @value_object.name
+      def type_name = @value_object.hecks_name
       def [](field) = @fields[field.to_sym]
       def key?(field) = @fields.key?(field.to_sym)
       def to_h = @fields.transform_values { |value| self.class.materialize(value) }

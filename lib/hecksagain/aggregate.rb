@@ -1,7 +1,15 @@
 module Hecksagain
   class Aggregate
+    extend Construct
+
     class << self
       attr_accessor :ir, :domain, :runtime
+
+      # An aggregate is a MEMBER of its chapter's namespace, so it joins with
+      # `::` where every other construct is declared ON its owner and joins with
+      # `.`. Same spelling as `fqn` below, and `spec/construct_spec` holds the
+      # two to each other.
+      def hecks_separator = "::"
 
       def fqn        = "#{domain}::#{ir.name}"
       def repository = runtime.registry.repository(domain, ir)
