@@ -1,4 +1,4 @@
-# Restart prompt — hecksagain (and one open thread in Hecks)
+# Restart prompt — hecksagain
 
 Paste this into a fresh session.
 
@@ -9,230 +9,144 @@ Ruby as the source of truth. Read `README.md` first, then this.
 
 ## The thesis
 
-In Hecks the parser is authored twice (Ruby DSL + Rust parser) and kept in step
-by a parity suite. Every drift retired there was a disagreement between those
-two authors. Here, **both runtimes are still hand-written — but Ruby holds the
-semantics.** When they disagree, Ruby is right and Rust is the bug.
+Both runtimes are hand-written. Ruby holds the semantics; Rust is a second
+implementation held to Ruby's answers. Parity is a claim about OUTPUT, not
+origin: the same source file in, the same answers out, **as far as the corpus
+reaches**. `bin/parity` is what makes the claim real.
 
-Do not call Rust a projection. Nothing generates it — it is hand-written, and
-saying otherwise claims agreement BY CONSTRUCTION where what we actually have is
-agreement BY CHECKING. Parity is a claim about OUTPUT: same source file in, same
-answers out, as far as the corpus reaches.
+Do not call Rust a projection. Nothing generates it.
 
-When reading the Rust, note it was cherry-picked from Hecks ahead of the Ruby
-here, so it can carry vocabulary this Ruby has not grown yet — `has_many` /
-`has_one` / `belongs_to` / `singularize` are in Hecks's Ruby DSL
-(`ruby/hecks/dsl/aggregate_builder.rb`) and in the Rust, but not in
-`lib/hecksagain/`. Unported, not drifted. Until the Ruby lands them, a bluebook
-using one parses on the Rust side only.
+## Standing rules
 
-## Standing rules — these are not negotiable
-
-1. **Never modify `~/Projects/hecks` unless asked.** Read from it, copy out of
-   it. Verify with `git diff --name-only HEAD -- rust ruby examples`.
-2. **Don't hand-write what Hecks already has.** Cherry-pick the file whole and
-   unedited. But see "simplifying is not copying" below — the one way this rule
-   bit back.
-3. **The DSL constructs the Ruby classes.** `aggregate "Pizza"` builds a real
-   class as it reads ; `command` defines a real method. `Pizza.create_pizza(...)`
-   is the public surface. `dispatch` is private plumbing.
+1. **Never modify `~/Projects/hecks`** unless asked.
+2. **Don't hand-write what Hecks already has** — cherry-pick whole. But
+   simplifying is not copying; that is how `creates?` regressed.
+3. **The DSL constructs the Ruby classes.** `Pizza.create_pizza(...)` is the
+   public surface; `dispatch` is private plumbing.
 4. **Zero warnings, zero failing tests.**
-5. **Tests do no IO** except `spec/adapters/` — the domain runs in memory.
-6. **Ruby wins when the shapes differ.** If the interpreter wants a different
-   shape, the EXPORTER converts. Never change how a bluebook is written to suit
-   the Rust side — that is the inversion this project exists to avoid.
+5. **Tests do no IO** except `spec/adapters/`.
+6. **Ruby wins when the shapes differ.** The exporter converts. Never bend a
+   bluebook to suit an interpreter.
 
-## Current state (hecksagain @ baade06, all green)
+## Current state
 
-```
-bundle exec rspec                                189 examples, 0 failures
-cd rust && cargo test --release --workspace              128 passed, 0 warnings
-bin/parity                                       banking, pizzas, grammar — all stages
-```
+    main                     PR #1 and #2 merged
+    experiment/self-hosting  e4fb90e — 9 commits ahead, pushed
 
-## Layout
+    bundle exec rspec                             396 examples, 0 failures (4.6s)
+    cd rust && cargo test --release --workspace   177 passed, 0 warnings
+    bin/parity     AGREED — banking 103/193 · pizzas 5/18 · grammar 27/37
 
-Ruby holds the semantics ; `rust/` is a second hand-written runtime held to
-Ruby's answers by `bin/parity`. A third would sit beside it as `go/` — one
-flat folder per language, none of them claiming to be generated.
+Repo is on GitHub, private: `chrisyoung/hecksagain`.
+`core.hooksPath` is LOCAL config — a fresh clone needs
+`git config core.hooksPath .githooks` or the pre-push parity gate is silent.
 
-```
-lib/hecksagain/                  rust/src/
-  bluebook/dsl/                    bluebook/parser.rs      (ruby BUILDS via DSL,
-  bluebook/ir/                     bluebook/ir.rs           rust BUILDS via parser)
-  bluebook/expression/             bluebook/expression/    file-for-file
-  runtime/                         runtime/
-  projector/                       projector/ir_json.rs    THE ONE SEAM
+## What the language now is
 
-  ports/<name>/<name>.port         ports/<name>/           contract + resolution
-           <name>.rb
-  adapters/driven/<name>/          adapters/driven/<name>/
-           <name>.adapter                                  sqlite is its own crate
-           <name>.rb                                       (a port may not depend
-  adapters/driving/  — empty        on an adapter ; Cargo enforces it)
+`lib/hecksagain/language/bluebook.bluebook` declares what a bluebook IS.
+`lib/hecksagain/language/world.bluebook` declares what a world is.
+`lib/hecksagain/bluebook/meta_validator*` dispatches every built IR into them at
+load; any refusal becomes `Malformed`.
 
-  grammar/expression.bluebook      the sublanguage a predicate may be
-examples/{pizzas,banking}/
-spec/parity/*.json                 one script per domain
-```
+**Eleven rules live in the language and nowhere else** — their `raise Malformed`
+is deleted:
 
-An adapter never lives INSIDE its port : the adapter declares the port and the
-port never names its adapters. Three persistence adapters exist — Memory,
-Sqlite, Heki — and all three are in-process, because persistence is the one
-impure edge with a bounded lifecycle (hydrate before the sync core, persist
-after it returns). Every other port would run out-of-process.
+    an event is named · an attribute is named · a vision says something
+    a description says something (aggregate and read model)
+    a rule says what it means (givens and invariants)
+    a mutation names a target · a command names what it acts on
+    a closed set admits a member · a realm says something
+    a latest version says something
 
-`bin/parity` walks the corpus : parsers agree on the IR → runtimes agree on
-behaviour → stores agree. Stage three ASKS THROUGH THE PORT (`bin/stores` boots
-the domain and calls `count`) so nothing in the harness knows what a `.heki` is.
+Plus two that became STRUCTURE rather than predicates: an attribute's type is a
+`reference_to ValueObject`, so a primitive fails reference resolution.
 
-## THE OPEN THREAD — finish this first (in Hecks, not hecksagain)
+`spec/fixpoint_spec` judges the language by its own rules. It passes.
 
-Three fixes were in flight in `~/Projects/hecks` when the session ended. Chris
-asked for them explicitly, so the never-modify-Hecks rule is suspended for this
-work. **Nothing is committed. The tree is dirty.**
+`HECKSAGAIN_META_VALIDATION=off` shows what it is holding.
 
-### What is already done and verified
+## THE OPEN THREAD — a generic judge
 
-`%w[a b c].include?(value)` — the corpus's way of saying "one of these", used by
-**58 invariants across 14 bluebooks** — could not fire. There was no list
-literal, so the receiver resolved to nothing, `.include?` fell to its false arm,
-and the payload gate skipped the clause as unjudgeable. Every one looked exactly
-like a rule.
+`meta_validator/judge.rb` is ~140 lines of per-category dispatch. The aggregates
+were renamed to the words they describe (Bluebook, Aggregate, Command,
+ValueObject, Query, Entity, Policy, ProcessManager, ReadModel, Handler,
+Dispatch) precisely so the judge could become a WALK: find the aggregate of the
+same name, offer each field by name.
 
-Fixed by teaching the LANGUAGE the construct rather than rewriting 45 distinct
-predicates into `||` chains (which would bend 14 bluebooks to fit the
-interpreter) :
+**It does not work yet, and I backed it out.** Top-level fields walk fine.
+Nested collections do not: a command's attributes / givens / mutations are
+value-object LISTS appended by separate commands (`Command.Argument`,
+`Command.Rule`, `Command.Change`), and which append command belongs to which
+list is not derivable from a name. Making it derivable means modelling every
+nested collection as its own root — a real remodelling, not an afternoon.
 
-- `rust/src/runtime/interp_expr.rs` — `%w[…]` is a list literal
-- `rust/src/runtime/interp_givens.rs` — `.include?` resolves a LITERAL receiver
-  (field receivers untouched) ; `String#include?` is SUBSTRING as in Ruby, not
-  the CSV-membership reading it had
-- `rust/src/runtime/payload_gate_terms.rs` — `judgeable` admits literal-set
-  membership
+If attempted: **parity is the gate.** Change Ruby's side only, keep Rust as the
+control, and `AGREED` means the walk is faithful.
 
-8 unit tests in `interp_givens.rs` pass, covering membership, near-miss,
-substring, and the list-field arm that was already correct.
+## Findings recorded, NOT fixed
 
-### What is NOT working
-
-**A live dispatch still accepts a value outside the set.** The interpreter judges
-it correctly in isolation, so the payload gate is not reaching that invariant.
-Cause not found. Reproduce :
-
-```sh
-cd ~/Projects/hecks
-rust/target/release/storehouse /tmp/wprobe/wprobe.bluebook \
-  WProbe::Probe.SetMode mode=banana     # should refuse ; currently accepted
-```
-
-(`/tmp/wprobe/wprobe.bluebook` may need recreating — an aggregate with a
-single-attribute VO whose invariant is `%w[ensure status stop].include?(value)`.)
-
-### The three fixes in progress (steps 1 and 2 written, step 3 unrun)
-
-Hecks's canonical IR omits VO invariant EXPRESSIONS, carrying only names. The
-stated reason — "the Ruby side holds the predicate as a Proc (source
-unrecoverable)" — was true when written and is untrue since Ruby 3.3 shipped
-Prism. The cost : **an invariant can be inverted while keeping its name and the
-parity contract sees no change.** Two runtimes then enforce different rules and
-agree perfectly about it.
-
-1. **DONE** — `ruby/hecks/bluebook_model/predicate_source.rb` (new, untracked) :
-   Prism recovery of a block's body. `ruby/hecks/dsl/value_object_builder.rb`
-   passes `expression:` when building an invariant.
-2. **DONE** — `parity/canonical_ir.rb` and `rust/src/dump.rs` both emit the
-   expression.
-3. **NOT RUN** — parity. This is where drift will surface : Ruby's Prism
-   extraction and Rust's parser capture must produce the SAME text. Rust joins a
-   multi-line VO invariant body with `" && "` ; `PredicateSource.canonicalise`
-   mirrors that. Unverified.
-
-**The immediate next step is wiring the require** — `PredicateSource` is not
-autoloaded yet. `ruby/hecks/bluebook_model/structure.rb:50` shows the autoload
-style. Then run :
-
-```sh
-cd ~/Projects/hecks
-ruby -Iruby parity/parity_test.rb
-cd rust && cargo test --release --workspace
-```
-
-Expect drift on the first run. `parity/known_drift.txt` is currently EMPTY (full
-parity) — keep it that way rather than adding entries.
-
-### Committing in Hecks needs an override
-
-The pre-commit loc-ratchet is BRANCH-scoped and blocks every commit on
-`feat/cask-runtime-files`, including pure-markdown ones — the `+2816` delta is
-the in-flight cask-runtime work, not yours. Chris authorises
-`[loc-ratchet-override: <concrete reason>]` per commit. **Never self-authorise ;
-let the hook block, report it verbatim, and ask.**
-
-## Findings recorded but NOT fixed
-
-- **`judgeable` fails open by design**, delegating to "the Ruby runtime, where
-  invariants are live Procs". `CLAUDE.md` says Rust is the only runtime. The
-  second enforcer named in that comment is not running. Decision needed, not
-  just a code change.
-- **Multi-field VO coercion in Hecks** — `payload_gate` validates single-field
-  wrapper VOs only (explicitly Phase 1) ; multi-field VOs are skipped entirely.
-  Grep the corpus before deciding whether it matters.
-- **hecksagain : Rust resolves ONE persistence bind per domain**, Ruby resolves
-  per aggregate. A domain mixing adapters would silently bind everything to
-  whichever Rust saw first. Banking is uniformly Heki, which avoids it.
-- **hecksagain : adapters disagree about `events`** — Ruby's sqlite writes an
-  events table, Rust's does not. Excluded from stage three with that reason
-  stated.
-- **No gate fails when a new DSL keyword has no parity exercise.**
-  `dsl_coverage_spec` catches a method with no UNIT test, not one with no CORPUS
-  test. ~20 lines : cross-reference the DSL method list against keywords
-  appearing in `examples/`.
+- **Read-model uniqueness** (`already projects X`) is the last rule that cannot
+  port. It needs to see inside a list, and the sublanguage has no quantifier and
+  cannot reach an element's fields. Costed three ways: a quantifier (~100 lines
+  both runtimes, but it introduces LEXICAL SCOPE and permanently raises the
+  floor every future runtime pays), a pluck primitive (~60 lines, first-order,
+  uglier), or leave it.
+- **`role` and `goal` were never required** by the builders. Banking declares
+  neither on 19 of 40 commands; pizzas 3/3 and grammar 16/16 declare both. The
+  language has no opinion. Whether it should is a design decision, not a defect.
+- **21 of 62 value objects in the language are `{ value: String }` with no rule**
+  — ceremony forced by "attributes must be value objects" plus per-aggregate VO
+  scoping. ~80 lines of nothing. Worth asking whether the rule should apply to
+  every field or only to fields that carry meaning.
+- **Self-hosting does not delete code.** Measured three times: ~+200 lines net.
+  862 (dsl) + 479 (ir) + 1002 (runtime), and nearly all of it is irreducible — a
+  keyword surface, data classes the interpreter reads, and an interpreter. If a
+  smaller codebase is the goal, this is not the route.
+- **The floor is IO PLUS the interpreter**, not IO alone. A `given` is a closed
+  predicate over its own attributes, so a predicate held as DATA cannot be
+  evaluated, a dynamic mutation target cannot be set, and a data-named verb
+  cannot be dispatched. ~390 lines of expression evaluator stay hand-written in
+  every target language.
 
 ## Findings worth not rediscovering
 
-- **Agreement is not correctness.** Parity proves the two sides read the same
-  document ; it says nothing about whether either is right. Six of today's
-  defects were live in BOTH runtimes simultaneously, which parity structurally
-  cannot detect. The chain that works : `dsl_spec` pins Ruby is RIGHT → parity
-  pins Rust EQUALS Ruby → the corpus pins it covers EVERYTHING.
-- **A rule that always passes is indistinguishable from a rule that holds.**
-  Today's recurring shape. `!value.empty?` never fired in 20+ Hecks rules ;
-  `%w[]` membership never fired in 58 ; two invariants in hecksagain's own
-  grammar chapter raised evaluation errors instead of enforcing. Every one
-  looked green.
-- **Simplifying is not copying.** hecksagain's `creates?` bug was a REGRESSION
-  introduced by simplifying Hecks's rule to `references.nil?` on the way over.
-  Hecks compares the reference target against the AGGREGATE name and is correct.
-  The simplification looked equivalent and was not.
-- **The corpus is the guarantee.** Writing banking — a domain exercising every
-  DSL word — found four real drifts on its first run. Adding the grammar chapter
-  found two more. None were reachable from pizzas.
-- **Exercise constructs for real.** Parity over `null` matching `null` proves
-  nothing. Every keyword must appear in a domain doing something.
-- **Hecks's specializer no longer exists.** Bulk-retired 2026-06-27 ; the golden
-  harness went 40 tests → 1. No `storehouse specialize`, no goldens, nothing
-  emits Rust. Reviving it is new construction. The retirement note — "a
-  .bluebook whose only job is to re-emit imperative Rust captures no domain" —
-  is correct about what was built, and does NOT condemn the rule-declaring
-  approach `extraction.bluebook` conceives.
-- **`FileTool.Write` corrupts JSON content** through the storehouse door — it
-  parsed a JSON string as structured data and wrote `{3 fields}`. Write JSON via
-  a Ruby one-liner instead.
-- **BSD `sed` has no `\b`**, and `perl -0pi` on a whole file will happily
-  prepend to line 1 if the pattern misses. Prefer surgical `FileTool.Edit`.
-- **`cargo build` in a workspace with a root package builds only that package.**
-  Use `--workspace`.
-- **Prism needs a real file.** A bluebook `eval`'d from a string has no source,
-  so every predicate extracts empty.
-- **`spec/dsl_coverage_spec.rb` fails when a DSL method has no test.** That is
-  deliberate — it caught three additions today. Add the example, then declare it.
+- **Agreement is not correctness.** Both runtimes can be equally wrong and
+  parity stays green. `bin/parity` now prints an execution census and FAILS on a
+  silent corpus — pizzas once reported AGREED while executing NOTHING.
+- **A rule the judge never offers input to cannot fire.** Twice in the validator
+  alone: five rules declared and unreachable, then policies, process managers
+  and entities unjudged. `spec/judge_coverage_spec` guards it.
+- **Moving a rule is the easiest moment to lose one.** Two were lost while
+  porting — one had no counterpart declared; one was reported as a runtime bug
+  when it was a malformed bluebook I had written. Only the specs pinning the old
+  rules caught them. A spec per ported rule is not optional.
+- **ABSENT is not EMPTY.** Passing `""` for a nil turned every "if you declare
+  it, declare something" rule into "you must declare it" — 73 examples refused.
+- **A command argument SHADOWS the aggregate field of the same name** inside a
+  given. Three sightings. A once-only rule cannot read the state it guards
+  unless the two differ.
+- **`identified_by :name` forbids an argument named `name`** — the runtime reads
+  it as the reference lookup.
+- **Raw Ruby errors leak as refusals.** `no implicit conversion of Symbol into
+  Integer` appeared four times. `Runtime::DOMAIN_REFUSALS` declares the boundary
+  and `spec/domain_refusal_spec` enforces it.
+- **The IR is a shared contract.** Adding a field on one side splits parity
+  immediately — twice (`closed_set`, and the ORDER of a synthesised value
+  object). Field for field AND index for index.
+- **`bin/parity` takes the first `.bluebook` in a folder.** Two files in one
+  directory silently displaced a corpus member. The meta-domain lives in
+  `lib/hecksagain/language/` so joining the corpus is deliberate.
+- **`cd ~/Projects/hecksagain && …` on every command** — the session cwd is not
+  this repo.
 
-## One thing to watch
+## Things a fresh session should NOT redo
 
-The DSL is now 685 code lines across 12 builder files, of which roughly 30 are
-mechanism (`instance_eval`, class construction, the const shim) and the rest is
-accumulation the grammar already describes. A collapse to one interpreter + a
-keyword table was designed and deliberately deferred — collapsing while still
-adding keywords gets you a half-collapse worse than either end state. Revisit
-once the language stops growing.
+- **Do not rebuild a round-trip harness.** `experiment/replay.rb` proved every
+  corpus IR round-trips byte-identically, then was retired: reconstruction is
+  not needed for validation, and parity answers the question better. It IS
+  needed if the meta-domain ever becomes the IR rather than its judge.
+- **Do not call a rule unportable without checking.** Both rules called
+  unportable turned out fixable — one by removing it (a data dependency, not an
+  ordering rule), one by recording in the IR what the author had declared.
+- **Do not trust green.** Every real defect this session was found by probing by
+  hand, not by the suite going red.
