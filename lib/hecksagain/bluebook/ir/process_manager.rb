@@ -22,6 +22,26 @@ module Hecksagain
         end
       end
 
+      # The compensation half of a procedure, as its own thing.
+      #
+      # A PROCESS MANAGER coordinates: legs, states, an opinion about who goes
+      # next. A SAGA undoes: what makes the world good again when a leg it
+      # dispatched is refused. Two concepts, and the industry slurs them into one
+      # word — so here they are two objects, and a procedure either has a saga or
+      # does not.
+      #
+      # `undoes` is the ordered list of commands the compensation sends. Today that
+      # order is the AUTHOR's, written by hand in one `on :refused` leg, and the
+      # runtime does not know which legs actually completed. When compensation
+      # moves beside each dispatch — `reverses` on the step it reverses — this is
+      # where the completed ones, newest first, will live. The shape is already
+      # right for it; only the source of the order changes.
+      Saga = Struct.new(:trigger, :from_state, :to_state, :reversals, keyword_init: true) do
+        def undoes = reversals.map(&:command_name)
+
+        def to_s = "#{trigger} → #{to_state} (#{undoes.join(', ')})"
+      end
+
       class ProcessManager
         # The trigger of a compensating leg. Not an event name — no aggregate
         # announces that a leg the procedure dispatched was declined — so it lives
@@ -55,15 +75,22 @@ module Hecksagain
         #
         # NAMED here and nowhere an author can type it. `saga` is not a word a
         # bank says, so it never appears in a .bluebook — the author declares a
-        # compensating leg and the saga-ness follows. Derived, so it cannot drift
-        # from the thing it describes, and deliberately NOT in to_h : the IR is a
+        # compensating leg and the saga follows. Derived, so it cannot drift from
+        # the thing it describes, and deliberately NOT in to_h : the IR is a
         # shared contract with the Rust parser, and a derived fact is not a fact
         # about the source.
-        def saga? = @handlers.any? { |handler| handler.event_type == REFUSED }
+        #
+        # nil for a procedure with no answer to a refusal, which is a legitimate
+        # thing to be — a hiring pipeline cannot un-interview anybody.
+        def saga
+          leg = handler_for(REFUSED)
+          return nil unless leg
 
-        # What it does when a leg is refused — nil for a procedure that has no
-        # answer to that, which is a legitimate thing to be.
-        def compensation = handler_for(REFUSED)
+          Saga.new(trigger: REFUSED, from_state: leg.from_state,
+                   to_state: leg.to_state, reversals: leg.dispatches)
+        end
+
+        def saga? = !saga.nil?
 
         def to_h
           {

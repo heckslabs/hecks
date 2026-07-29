@@ -84,12 +84,22 @@ RSpec.describe "a procedure, and when it is a saga" do
   it "is a procedure without being a saga, when nothing needs undoing" do
     expect(hiring.handlers).not_to be_empty
     expect(hiring).not_to be_saga
-    expect(hiring.compensation).to be_nil
+    expect(hiring.saga).to be_nil
   end
 
   it "is a saga once a leg says what makes a refusal good again" do
     expect(settlement).to be_saga
-    expect(settlement.compensation.to_state).to eq("reversed")
+    expect(settlement.saga.to_state).to eq("reversed")
+    expect(settlement.saga.trigger).to eq("refused")
+  end
+
+  it "names what the saga undoes, in the order it undoes it" do
+    # Today the order is the AUTHOR's — one `on :refused` leg, written by hand.
+    # When compensation moves beside each dispatch this reads the completed legs
+    # newest-first instead, and the shape here does not change.
+    expect(settlement.saga.undoes).to eq(
+      ["Banking::Account.Credit", "Banking::Transfer.Reverse"]
+    )
   end
 
   it "keeps the word out of the IR the two parsers share" do
