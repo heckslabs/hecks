@@ -83,6 +83,63 @@ pub fn assign_creation_attributes(
     Ok(())
 }
 
+/// A command takes the arguments it declares, and no others.
+///
+/// Anything else used to ride along in the payload untouched — the loop below
+/// walks the DECLARED attributes, so a name the command never had was simply
+/// never looked at. A misspelled argument was accepted in silence and did
+/// nothing.
+///
+/// The keys that are legitimately not attributes ADDRESS the aggregate rather
+/// than describe it: `id`, whatever the aggregate is identified by, the
+/// reference key of the root a command reaches through, and the correlation key
+/// a process manager threads through every leg it dispatches.
+/// Called for AGGREGATE commands only, mirroring Ruby: the entity interpreter
+/// has no such gate, and adding one here would split the runtimes.
+pub fn refuse_unknown_arguments(
+    aggregate: &Map<String, Value>,
+    command: &Map<String, Value>,
+    args: &State,
+    correlation: &[String],
+) -> Result<(), String> {
+    let mut known: Vec<String> = array(command, "attributes")
+        .iter()
+        .filter_map(|attribute| attribute.get("name").and_then(Value::as_str))
+        .map(str::to_string)
+        .collect();
+    let declared = known.join(", ");
+
+    known.push("id".to_string());
+    if let Some(identity) = aggregate.get("identified_by").and_then(Value::as_str) {
+        known.push(identity.to_string());
+    }
+    if let Some(target) = command.get("references").and_then(Value::as_str) {
+        known.push(crate::naming::reference_key(target));
+    }
+    known.extend(correlation.iter().cloned());
+
+    // SORTED. Payload order is whatever the caller happened to write, and the two
+    // runtimes iterate a map differently — an unsorted list makes the same refusal
+    // read differently in Ruby and Rust, and parity says so.
+    let mut unknown: Vec<&str> = args
+        .keys()
+        .map(String::as_str)
+        .filter(|key| !known.iter().any(|allowed| allowed == key))
+        .collect();
+    unknown.sort_unstable();
+    if unknown.is_empty() {
+        return Ok(());
+    }
+
+    let command_name = command.get("name").and_then(Value::as_str).unwrap_or("");
+    Err(format!(
+        "{} does not declare {} — it takes {}",
+        command_name,
+        unknown.join(", "),
+        declared
+    ))
+}
+
 pub fn normalize_command_args(
     aggregate: &Map<String, Value>,
     command: &Map<String, Value>,

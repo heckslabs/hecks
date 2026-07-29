@@ -3,7 +3,7 @@ use crate::interp_expr::State;
 use crate::interp_givens::evaluate_given;
 use crate::interp_mutations::{
     apply_mutation, arithmetic, assign_creation_attributes, coerce_attribute, defaults_for,
-    normalize_command_args, resolve_source,
+    normalize_command_args, refuse_unknown_arguments, resolve_source,
 };
 use crate::runtime::PersistenceAdapter;
 use crate::value_bridge;
@@ -870,6 +870,7 @@ impl Runtime {
         let aggregate = self.find_aggregate(&domain, &aggregate_name, verb)?;
         let command = find_command(&aggregate, &command_name)
             .ok_or_else(|| format!("{} has no command {:?}", aggregate_name, command_name))?;
+        refuse_unknown_arguments(&aggregate, &command, args, &self.correlation_keys(&domain))?;
         let normalized_args = normalize_command_args(&aggregate, &command, args)?;
         self.resolve_references(&domain, &command, &normalized_args)?;
         let args = &normalized_args;
@@ -1425,6 +1426,25 @@ impl Runtime {
                 ))
             })
             .collect()
+    }
+
+    /// What a process manager correlates by is ROUTING, not description. A saga
+    /// threads its correlation key through every leg it dispatches so the event
+    /// each leg emits carries it and the next step can be correlated — so the key
+    /// arrives on commands that never declare it, and legitimately.
+    fn correlation_keys(&self, domain: &str) -> Vec<String> {
+        self.ir
+            .get(domain)
+            .and_then(|bluebook| bluebook.get("process_managers"))
+            .and_then(Value::as_array)
+            .map(|sagas| {
+                sagas
+                    .iter()
+                    .filter_map(|saga| saga.get("correlates_by").and_then(Value::as_str))
+                    .map(str::to_string)
+                    .collect()
+            })
+            .unwrap_or_default()
     }
 
     fn find_aggregate(

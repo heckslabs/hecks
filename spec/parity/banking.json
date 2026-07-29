@@ -1193,7 +1193,7 @@
           "currency": "USD"
         },
         "narrative": {
-          "text": "An attribute the command never declared"
+          "text": "Refused — colour is not an argument Credit declares"
         },
         "colour": "red"
       }
@@ -1886,7 +1886,10 @@
     {
       "verb": "Banking::CardPayment.Dispute",
       "args": {
-        "id": "pay-chargeback"
+        "id": "pay-chargeback",
+        "disputed_by": {
+          "value": "CUST-0002"
+        }
       }
     },
     {

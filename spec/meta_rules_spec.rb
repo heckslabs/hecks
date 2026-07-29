@@ -30,21 +30,25 @@ RSpec.describe "the language's own rules" do
 
   before do
     @runtime = boot_meta
-    @runtime.dispatch("Meta::Bluebook.Declare", name: v("D"), vision: v("a vision"), classification: v("core"))
+    # A bluebook is reached by id like every other root. It used to be
+    # identified_by :name, which made `Bluebook.Normalise` unable to name what it
+    # acts on — the runtime reads an argument called `name` as the reference.
+    @runtime.dispatch("Meta::Bluebook.Declare", id: "D", name: v("D"),
+                      vision: v("a vision"), classification: v("core"))
     @runtime.dispatch("Meta::Aggregate.Declare", id: "D::A", bluebook_id: v("D"),
-                      name: v("A"), description: v("an aggregate"), identity: v(""))
+                      name: v("A"), description: v("an aggregate"), identified_by: v(""))
   end
 
   # ---- tier 1 : presence, as invariants on the value ------------------------
 
   it "refuses a chapter whose vision says nothing" do
-    expect { @runtime.dispatch("Meta::Bluebook.Declare", name: v("E"), vision: v(""), classification: v("core")) }
+    expect { @runtime.dispatch("Meta::Bluebook.Declare", id: "E", name: v("E"), vision: v(""), classification: v("core")) }
       .to raise_error(Hecksagain::Runtime::InvariantViolation, /a vision says something/)
   end
 
   it "refuses an aggregate whose description says nothing" do
     expect { @runtime.dispatch("Meta::Aggregate.Declare", id: "D::B", bluebook_id: v("D"),
-                               name: v("B"), description: v(""), identity: v("")) }
+                               name: v("B"), description: v(""), identified_by: v("")) }
       .to raise_error(Hecksagain::Runtime::InvariantViolation, /a description says something/)
   end
 
@@ -116,7 +120,8 @@ RSpec.describe "the language's own rules" do
 
   it "refuses a read model gathering heads before its reference" do
     @runtime.dispatch("Meta::ReadModel.Declare", id: "D.P", bluebook_id: v("D"), name: v("P"),
-                      purpose: v("a projection"), query_name: v("p"), ref_name: v(""), ref_target: v(""))
+                      description: v("a projection"), query_name: v("p"),
+                      reference_name: v(""), reference_target: v(""))
 
     expect { @runtime.dispatch("Meta::ReadModel.Gather", id: "D.P", aggregate: v("A"), as: v("a"), many: v("false")) }
       .to raise_error(Hecksagain::Runtime::GivenNotMet, /gathers heads only after its reference/)
@@ -132,11 +137,13 @@ RSpec.describe "the language's own rules" do
 
   # ---- tier 3 : whole-document, dispatched once everything is declared ------
 
-  it "refuses to seal an aggregate that declares no attribute" do
-    expect { @runtime.dispatch("Meta::Aggregate.Seal", id: "D::A") }
-      .to raise_error(Hecksagain::Runtime::GivenNotMet, /declares at least one attribute/)
-  end
-
+  # There is no "an aggregate declares at least one attribute" test any more, and
+  # the rule it pinned is gone. It was invented for Seal rather than ported from a
+  # builder, so no bluebook was written against it — and the first time Seal was
+  # actually dispatched it refused twenty-five of them, including every aggregate
+  # whose state is a `lifecycle` rather than an `attribute`. A spec that only ever
+  # saw the rule refuse the case it was written beside is not evidence the rule is
+  # true.
   it "seals an aggregate that is fully declared" do
     @runtime.dispatch("Meta::ValueObject.Declare", id: "D::A.X", aggregate_id: v("D::A"), name: v("X"))
     @runtime.dispatch("Meta::Aggregate.Attribute", id: "D::A", name: v("x"), type: v("D::A.X"), list: v("false"))

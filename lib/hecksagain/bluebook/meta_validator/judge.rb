@@ -3,30 +3,59 @@ module Hecksagain
     module MetaValidator
       # Offers every declaration in a built bluebook to the meta-domain.
       #
-      # Coverage is the whole point. A rule declared in the language but never
-      # DISPATCHED here cannot fire — five rules sat in that state after the
-      # first pass, declared and unreachable, which is the same defect this
-      # project keeps finding one level down. If the language declares a rule
-      # about queries, this has to offer it queries.
+      # This used to be one hand-written branch per category, and the cost of that
+      # shape was fourteen verbs the language declared and the judge never offered
+      # — among them `Command.Argument` and `ValueObject.Field`, so a command's own
+      # arguments and a value object's own fields were NEVER judged. Every rule
+      # hanging off them was decoration. Nothing went red, because a branch that
+      # does not exist cannot fail.
       #
-      # Only the DISPATCH half of the round trip lives here. Reconstruction is
-      # the experiment's business ; judging does not need it.
+      # So there are no branches. The judge WALKS: it reads the plan the language
+      # makes of itself (Plan), and for each node offers the creating command, then
+      # each list through the command that appends to it, then each child. A verb
+      # in the plan with no offer is now impossible — there is no branch left in
+      # which to forget one, and spec/judge_coverage_spec holds it to that.
+      #
+      # What is NOT uniform lives in Readings, and only where the IR's SHAPE
+      # differs from the language's. Naming differences do not appear at all: the
+      # language spells its fields as the IR spells them.
+      #
+      # Only the DISPATCH half of the round trip lives here. Reconstruction is the
+      # experiment's business ; judging does not need it.
       class Judge
+        include Readings
+
+        # Children offered BEFORE the parent's own lists. An attribute's type is a
+        # reference to the value object it names, so the value objects have to
+        # exist before any attribute names one — and an entity-typed list names a
+        # Piece, which the attribute walk needs in order to skip it.
+        EAGER_CHILDREN = { "Aggregate" => %w[Entity ValueObject] }.freeze
+
         attr_reader :refusals
 
         def initialize(bluebook)
           @bluebook = bluebook
           @refusals = []
           @runtime  = MetaValidator.fresh_runtime
+          @plan     = Plan.for(MetaValidator.grammar_registry)
           judge!
         end
 
         private
 
-        # ABSENT is not EMPTY. The builders' rules read "if you declare it,
-        # declare something" — a description never given is legal. Passing ""
-        # for a nil turns every one of them into "you must declare it".
-        def v(text) = text.nil? ? nil : { value: text.to_s }
+        # ABSENT is not EMPTY. The rules read "if you declare it, declare
+        # something" — a description never given is legal. Passing "" for a nil
+        # turns every one of them into "you must declare it".
+        #
+        # An Integer stays an Integer : RowCount declares `attribute :value,
+        # Integer`, so stringifying a member count fails the type gate rather than
+        # feeding the rule it was meant to feed.
+        def v(text)
+          return nil if text.nil?
+          return { value: text } if text.is_a?(Integer)
+
+          { value: text.to_s }
+        end
 
         def args(pairs) = pairs.reject { |_, value| value.nil? }
 
@@ -34,14 +63,11 @@ module Hecksagain
           yield
         rescue Runtime::GivenNotMet, Runtime::InvariantViolation,
                Runtime::TypeMismatch, Runtime::NotFound => e
-          # NotFound is a VERDICT now, not noise. An attribute's type is a
-          # reference to its value object, so "no Shape with id …" IS the rule
-          # `attributes must use value-object types` refusing. Swallowing it
-          # hid that rule completely the first time this was wired.
+          # NotFound is a VERDICT, not noise. An attribute's type is a reference to
+          # its value object, so "no ValueObject with id …" IS the rule `attributes
+          # must use value-object types` refusing.
           @refusals << "#{label}: #{e.message}"
         rescue Runtime::UnknownVerb
-          # a category the language does not describe yet is not a defect in
-          # the bluebook being judged
           nil
         end
 
@@ -49,142 +75,123 @@ module Hecksagain
           offer(label) { @runtime.dispatch(verb, **args(payload)) }
         end
 
-        def judge!
-          chapter = @bluebook.name
-          send_to("Meta::Bluebook.Declare", chapter, name: v(chapter),
-                  vision: v(@bluebook.vision), classification: v(@bluebook.classification))
-          @bluebook.aggregates.each { |aggregate| judge_aggregate(chapter, aggregate) }
-          Array(@bluebook.read_models).each      { |model|  judge_projection(chapter, model) }
-          Array(@bluebook.policies).each         { |policy| judge_reaction(chapter, policy) }
-          Array(@bluebook.process_managers).each { |saga|   judge_saga(chapter, saga) }
+        def judge! = walk("Bluebook", @bluebook, nil, 0)
+
+        # One node, offered whole: itself, then what it contains.
+        def walk(category, node, parent_id, index)
+          plan = @plan.category(category)
+          return unless plan
+
+          id           = identify(category, parent_id, node, index)
+          eager, later = children_of(category).partition { |child| eager?(category, child) }
+
+          declare(plan, category, node, id, parent_id)
+          eager.each { |child| walk_all(child, node, id) }
+          setters(plan, category, node, id)
+          appends(plan, category, node, id)
+          later.each { |child| walk_all(child, node, id) }
+          sealers(plan, category, id)
         end
 
-        def judge_reaction(chapter, policy)
-          id = "#{chapter}.#{policy.name}"
-          send_to("Meta::Policy.Declare", id, id: id, bluebook_id: v(chapter),
-                  name: v(policy.name), watches: v(policy.on_event),
-                  fires: v(policy.trigger_command), reaches: v(policy.target_domain))
-        end
+        def walk_all(category, node, parent_id)
+          reader = collection_reader(category)
+          return unless node.respond_to?(reader)
 
-        def judge_saga(chapter, saga)
-          id = "#{chapter}.#{saga.name}"
-          send_to("Meta::ProcessManager.Declare", id, id: id, bluebook_id: v(chapter),
-                  name: v(saga.name), correlate: v(saga.correlates_by),
-                  starts: v(saga.starts_on), ends: v(saga.ends_on))
-
-          Array(saga.states).each do |state|
-            send_to("Meta::ProcessManager.State", id, id: id, name: v(state))
+          Array(node.public_send(reader)).each_with_index do |child, index|
+            walk(category, child, parent_id, index)
           end
         end
 
-        def judge_aggregate(chapter, aggregate)
-          root = "#{chapter}::#{aggregate.name}"
-          send_to("Meta::Aggregate.Declare", root, id: root, bluebook_id: v(chapter),
-                  name: v(aggregate.name), description: v(aggregate.description),
-                  identity: v(aggregate.identified_by))
+        def declare(plan, category, node, id, parent_id)
+          return unless plan.declare
 
-          # shapes FIRST : an attribute's type is a reference to its value
-          # object, so the value object has to exist before the attribute names it
-          Array(aggregate.entities).each { |piece| judge_piece(root, aggregate, piece) }
-          aggregate.value_objects.each { |shape| judge_shape(root, aggregate, shape) }
-
-          aggregate.attributes.each do |attribute|
-            # a REFERENCE is not a value object. `Reference<Customer>` names
-            # another aggregate head, so it neither has nor needs a Shape — the
-            # language does not model reference-typed attributes yet, and
-            # judging them as value objects is what made the language fail its
-            # own rules the moment the type became a reference.
-            next if attribute.reference?
-            # a list of ENTITIES names a Piece, not a Shape. The builder's rule
-            # admitted both ; the reference only reaches Shapes, so entity-typed
-            # lists are judged by the Piece declarations instead.
-            next if aggregate.entities.any? { |entity| entity.name == attribute.type.to_s }
-
-            send_to("Meta::Aggregate.Attribute", "#{root}##{attribute.name}", id: root,
-                    name: v(attribute.name), type: v("#{root}.#{attribute.type}"),
-                    list: v(attribute.list?))
+          payload = { id: id }
+          payload[plan.parent_key.to_sym] = v(parent_id) if plan.parent_key
+          plan.fields.each do |field|
+            payload[field.to_sym] = v(field_value(category, node, field.to_sym, parent_id))
           end
-          Array(aggregate.queries).each  { |ask|   judge_ask(root, aggregate, ask) }
-          aggregate.commands.each        { |verb|  judge_command(root, aggregate, verb) }
+
+          send_to("Meta::#{category}.#{plan.declare}", id, **payload)
         end
 
-        def judge_piece(root, _aggregate, piece)
-          id = "#{root}.#{piece.name}"
-          send_to("Meta::Entity.Declare", id, id: id, aggregate_id: v(root), owner: v(root),
-                  name: v(piece.name), description: v(piece.description),
-                  identity: v(piece.identified_by))
+        # A setter whose every source is absent is not dispatched. An aggregate
+        # with no lifecycle has no Lifecycle to offer, and a creating command has
+        # no root to act on — offering either as "" would make a rule refuse a
+        # bluebook that is perfectly well formed.
+        def setters(plan, category, node, id)
+          plan.setters.each do |setter|
+            payload = setter.targets.to_h do |target, argument|
+              [argument.to_sym, v(setter_value(category, node, target))]
+            end
+            next if payload.values.all?(&:nil?)
+
+            send_to("Meta::#{category}.#{setter.verb}", id, id: id, **payload)
+          end
         end
 
-        def judge_shape(root, _aggregate, shape)
-          id = "#{root}.#{shape.name}"
-          send_to("Meta::ValueObject.Declare", id, id: id, aggregate_id: v(root), name: v(shape.name))
+        def appends(plan, category, node, id)
+          plan.appends.each do |list_name, append|
+            rows_for(category, list_name, node).each_with_index do |row, index|
+              next if skip?(category, list_name, row, node)
 
-          shape.invariants.each do |invariant|
-            send_to("Meta::ValueObject.Assert", id, id: id,
-                    description: v(invariant.description), canonical: v(invariant.canonical))
-          end
+              payload = append.map.to_h do |field, argument|
+                [argument.to_sym, v(cell(category, list_name, row, field, id))]
+              end
 
-          # only when a closed set was DECLARED — an empty one is the defect
-          if shape.respond_to?(:closed_set?) && shape.closed_set?
-            send_to("Meta::ValueObject.Close", id, id: id, rows: { value: Array(shape.members).size })
-          end
-
-          Array(shape.members).each_with_index do |row, index|
-            member = "#{id}##{index}"
-            send_to("Meta::Member.Declare", member, id: member, value_object_id: v(id), shape: v(id))
-            row.to_h.each do |key, value|
-              send_to("Meta::Member.Pair", member, id: member, key: v(key), value: v(value))
+              send_to("Meta::#{category}.#{append.verb}", "#{id}##{list_name}[#{index}]",
+                      id: id, **payload)
             end
           end
         end
 
-        def judge_ask(root, _aggregate, ask)
-          id = "#{root}.#{ask.name}"
-          send_to("Meta::Query.Declare", id, id: id, aggregate_id: v(root),
-                  name: v(ask.name), purpose: v(ask.description))
+        def sealers(plan, category, id)
+          plan.sealers.each { |verb| send_to("Meta::#{category}.#{verb}", id, id: id) }
+        end
 
-          Array(ask.attributes).each do |attribute|
-            send_to("Meta::Query.Argument", id, id: id, name: v(attribute.name),
-                    type: v(attribute.type), list: v(attribute.list?), default: v(attribute.default))
+        # An aggregate's attribute names its value object by TYPE, and the language
+        # models that as a reference — so the type is offered as the value object's
+        # own id. This is the rule "attributes must use value-object types",
+        # enforced by reference resolution rather than by a predicate.
+        def cell(category, list_name, row, field, id)
+          value = row_value(row, field)
+          return "#{id}.#{value}" if field == :type && "#{category}.#{list_name}" == "Aggregate.attributes"
+
+          value
+        end
+
+        # A REFERENCE is not a value object : `Reference<Customer>` names another
+        # aggregate head, so it neither has nor needs one. A list of ENTITIES names
+        # a Piece, judged by its own Entity declarations instead.
+        def skip?(category, list_name, row, node)
+          return false unless "#{category}.#{list_name}" == "Aggregate.attributes"
+          return true if row.respond_to?(:reference?) && row.reference?
+
+          Array(node.entities).any? { |entity| entity.name == row.type.to_s }
+        end
+
+        def identify(category, parent_id, node, index)
+          case category
+          when "Bluebook"  then node.name
+          when "Aggregate" then "#{parent_id}::#{node.name}"
+          when "Member", "Handler", "Dispatch" then "#{parent_id}##{index}"
+          else "#{parent_id}.#{node.name}"
           end
         end
 
-        def judge_projection(chapter, model)
-          id = "#{chapter}.#{model.name}"
-          send_to("Meta::ReadModel.Declare", id, id: id, bluebook_id: v(chapter),
-                  name: v(model.name), purpose: v(model.description),
-                  query_name: v(model.query_name), ref_name: v(model.reference_name),
-                  ref_target: v(model.reference_target))
-
-          Array(model.aggregate_heads).each do |head|
-            send_to("Meta::ReadModel.Gather", id, id: id, aggregate: v(head[:aggregate]),
-                    as: v(head[:as]), many: v(head[:many]))
-          end
+        def children_of(category)
+          @plan.names.select { |name| @plan.category(name).parent == category }
         end
 
-        def judge_command(root, _aggregate, command)
-          id = "#{root}.#{command.name}"
-          send_to("Meta::Command.Declare", id, id: id, aggregate_id: v(root),
-                  name: v(command.name), role: v(command.role), goal: v(command.goal))
+        def eager?(category, child) = Array(EAGER_CHILDREN[category]).include?(child)
 
-          command.givens.each do |given|
-            send_to("Meta::Command.Rule", id, id: id,
-                    description: v(given.description), canonical: v(given.canonical))
-          end
+        # Command -> commands, ValueObject -> value_objects, Query -> queries.
+        # Convention, not a table : the IR names a collection after what it holds.
+        def collection_reader(category)
+          singular = Naming.snake(category)
+          return "#{singular.sub(/y\z/, 'ie')}s" if singular.end_with?("y")
+          return "#{singular}es" if singular.end_with?("s", "x", "z", "ch", "sh")
 
-          command.mutations.each do |mutation|
-            send_to("Meta::Command.Change", "#{id}!#{mutation.target}", id: id,
-                    target: v(mutation.target), op: v(mutation.op),
-                    field: v(""), kind: v("argument"), source: v(""))
-          end
-
-          # dispatched even when absent, so "a command names what it acts on"
-          # is reachable — a rule only offered valid input can never refuse
-          send_to("Meta::Command.ActsOn", id, id: id, root: v(command.references)) if command.references
-
-          Array(command.emits).each do |event|
-            send_to("Meta::Command.Announce", id, id: id, announces: v(event))
-          end
+          "#{singular}s"
         end
       end
     end

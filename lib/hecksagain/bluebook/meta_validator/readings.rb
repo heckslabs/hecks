@@ -1,0 +1,160 @@
+module Hecksagain
+  module Bluebook
+    module MetaValidator
+      # The parts of a bluebook the walk cannot read by name alone.
+      #
+      # The language now spells its fields exactly as the IR spells them, so the
+      # judge reads almost everything straight through: `command.givens`,
+      # `value_object.invariants`, `read_model.aggregate_heads`. What remains here
+      # is not naming drift — it is places where the IR's SHAPE differs from the
+      # language's, and no amount of renaming would close that:
+      #
+      #   transitions    one declaration expands to SEVERAL rows, because `from`
+      #                  may be a list of states
+      #   value_objects  the IR holds objects ; the language holds their names
+      #   normalisations not on the bluebook at all — they come from the canonical
+      #                  form table the expression grammar keeps
+      #   members        plain hashes, one Member root per row, pairs per entry
+      #   lifecycle      one IR object feeding two separate fields
+      #
+      # Everything in this file is a difference in shape. If something here is
+      # only a difference in NAME, it is in the wrong file: rename the language.
+      module Readings
+        # A list the walk is about to offer, as rows it can shape into dispatches.
+        def rows_for(category, list_name, node)
+          case "#{category}.#{list_name}"
+          when "Aggregate.transitions", "Entity.transitions" then transition_rows(node)
+          when "Command.mutations"                           then mutation_rows(node)
+          when "Aggregate.value_objects"                     then node.value_objects.map { |shape| { name: shape.name } }
+          when "Bluebook.normalisations"                     then normalisation_rows
+          when "Member.pairs"                                then pair_rows(node)
+          when "Dispatch.with_spec"                          then pair_rows(node.with_spec)
+          else Array(node.public_send(list_name))
+          end
+        end
+
+        # `lifecycle :status do transition "Retire" => "retired", from: ["issued", "active"] end`
+        # is ONE declaration and TWO transitions. Offering it once would leave the
+        # second unjudged, which is the whole failure this judge exists to avoid.
+        def transition_rows(node)
+          lifecycle = node.respond_to?(:lifecycle) ? node.lifecycle : nil
+          return [] unless lifecycle
+
+          lifecycle.transitions.flat_map do |command, transition|
+            froms = transition.constrained? ? Array(transition.from) : [nil]
+            froms.map do |from|
+              { command: command, from_state: from, to_state: transition.target }
+            end
+          end
+        end
+
+        # An OPEN MAP — a member's fields, a dispatch's argument bindings — has no
+        # value object that can hold it, so each entry becomes its own row. This is
+        # why Member and Dispatch are roots in the language rather than lists.
+        def pair_rows(map)
+          Array(map&.to_h).map { |key, value| { key: key, value: value } }
+        end
+
+        # A mutation is ONE declaration, but the language's Change holds a single
+        # field/kind/source triple — and an append binds SEVERAL fields at once
+        # (`append: { name: :name, amount: :amount }`). So an append is offered
+        # once per binding, and each one is judged.
+        #
+        # The judge used to send `field: v(""), kind: v("argument"), source: v("")`
+        # here — three stubbed values, so every rule about what a mutation reads
+        # was being handed a blank and could never refuse.
+        def mutation_rows(node)
+          Array(node.mutations).flat_map do |mutation|
+            next set_row(mutation) unless mutation.op == :append
+
+            mutation.source.map do |field, argument|
+              { target: mutation.target, op: mutation.op,
+                field: field, kind: "argument", source: argument }
+            end
+          end
+        end
+
+        # A set/increment/decrement reads one thing: a command argument, or a
+        # literal written into the bluebook.
+        def set_row(mutation)
+          classified = mutation.to_h[:source] || {}
+
+          [{ target: mutation.target, op: mutation.op, field: mutation.target,
+             kind: classified[:kind], source: classified[:name] || classified[:value] }]
+        end
+
+        # The normalisation table belongs to the expression grammar, not to any one
+        # bluebook — it is how the canonical form of a rule is spelled. The language
+        # models it because a bluebook's rules are canonicalised on the way in.
+        def normalisation_rows
+          table = Expression::CanonicalForm.table
+          return [] unless table
+
+          table.map do |entry|
+            {
+              strategy:     entry[:strategy],
+              source_token: entry[:source_token],
+              replacement:  entry[:replacement],
+              boundary:     entry[:boundary],
+              position:     entry[:position]
+            }
+          end
+        rescue StandardError
+          # The table is a convenience of the Ruby side ; a bluebook that cannot
+          # produce one is not malformed.
+          []
+        end
+
+        # One field of a Declare payload. Mostly a reader of the same name — the
+        # exceptions are fields the IR keeps somewhere else, or not at all.
+        def field_value(category, node, field, parent_id)
+          case "#{category}.#{field}"
+          when "Entity.owner"       then parent_id
+          when "Member.shape"       then parent_id
+          when "Aggregate.state_field", "Entity.state_field"  then node.lifecycle&.field
+          when "Aggregate.state_start", "Entity.state_start"  then node.lifecycle&.default
+          when "Query.order_field"  then Array(node.order_by).first
+          when "Query.order_way"    then Array(node.order_by)[1]
+          else node.respond_to?(field) ? node.public_send(field) : nil
+          end
+        end
+
+        # What a setting command writes. A setter whose source is absent is not
+        # dispatched at all — ABSENT is not EMPTY, and offering "" would turn every
+        # "if you declare it, declare something" rule into "you must declare it".
+        def setter_value(category, node, target)
+          case "#{category}.#{target}"
+          when "ValueObject.rows"  then closed_set_size(node)
+          when "Aggregate.state_field", "Entity.state_field"  then node.lifecycle&.field
+          when "Aggregate.state_start", "Entity.state_start"  then node.lifecycle&.default
+          else node.respond_to?(target) ? node.public_send(target) : nil
+          end
+        end
+
+        # Only a DECLARED closed set has a row count. An empty one is the defect,
+        # so `rows` must stay absent rather than arrive as zero.
+        def closed_set_size(node)
+          return nil unless node.respond_to?(:closed_set?) && node.closed_set?
+
+          Array(node.members).size
+        end
+
+        # One value out of a row, named by the value object's field.
+        def row_value(row, field)
+          # A Hash FIRST. Hash answers to `key` (Hash#key(value)) and to `value` on
+          # some rows, so asking respond_to? before checking for a Hash reads a
+          # member pair through entirely the wrong method.
+          return row[field] if row.is_a?(Hash)
+          return row.public_send(field) if row.respond_to?(field)
+          # A Struct answers to [] but RAISES for a member it does not have, so it
+          # is read through to_h — a field the row simply lacks reads as absent.
+          return row.to_h[field] if row.respond_to?(:to_h) && !row.is_a?(String)
+
+          # A bare scalar row — `emits` is a list of event NAMES, and the
+          # Announcement value object has to call that string something.
+          row
+        end
+      end
+    end
+  end
+end

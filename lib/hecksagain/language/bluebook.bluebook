@@ -5,8 +5,13 @@ Hecks.bluebook "Meta" do
   aggregate "Bluebook" do
     description "One .bluebook file — the root a domain declaration hangs from."
 
-    identified_by :name
-
+    # NOT `identified_by :name`, though a bluebook is known by its name. The
+    # runtime reads an argument called `name` as the reference lookup, so a
+    # command that both REACHES a bluebook and carries its name cannot say both
+    # — `Normalise` could never name what it acts on. That verb went undispatched
+    # for as long as the judge had a branch per category, so nothing ever hit it.
+    # A bluebook keeps its name as a plain field and is reached by id like every
+    # other root.
     attribute :name,           BluebookName
     attribute :vision,         Vision
     attribute :classification, Classification
@@ -79,14 +84,15 @@ Hecks.bluebook "Meta" do
 
     reference_to Bluebook
 
-    attribute :name,         AggregateName
-    attribute :description,  Description
-    attribute :identity,     IdentityField
-    attribute :attributes,   list_of(Field)
-    attribute :values,       list_of(ValueName)
-    attribute :state_field,  IdentityField
-    attribute :state_start,  IdentityField
-    attribute :transitions,  list_of(Transition)
+    # SPELLED AS THE IR SPELLS THEM — see the note on Command's fields.
+    attribute :name,          AggregateName
+    attribute :description,   Description
+    attribute :identified_by, IdentityField
+    attribute :attributes,    list_of(Field)
+    attribute :value_objects, list_of(ValueName)
+    attribute :state_field,   IdentityField
+    attribute :state_start,   IdentityField
+    attribute :transitions,   list_of(Transition)
 
     value_object "AggregateName" do
       attribute :value, String
@@ -123,9 +129,9 @@ Hecks.bluebook "Meta" do
       goal "Open an aggregate inside a chapter"
 
       reference_to Bluebook
-      attribute :name,        AggregateName
-      attribute :description, Description
-      attribute :identity,    IdentityField
+      attribute :name,          AggregateName
+      attribute :description,   Description
+      attribute :identified_by, IdentityField
 
       emits "RootDeclared"
     end
@@ -209,8 +215,21 @@ Hecks.bluebook "Meta" do
       # the sublanguage can express their CONTENT is the open question.
       reference_to Aggregate
 
-      given("an aggregate declares at least one attribute") { attributes.size > 0 }
-      given("an aggregate that is identified names a field") { identity.value.to_s.empty? || identity.value.to_s.size > 0 }
+      # THE RULE THAT WAS HERE WAS NOT TRUE, and nothing could tell us while Seal
+      # went undispatched. `given("an aggregate declares at least one attribute")`
+      # was invented for this command — it is not one of the rules ported from the
+      # builders, so no bluebook was ever written against it. The first time it
+      # ran it refused twenty-five of them, including every aggregate whose state
+      # is a `lifecycle` rather than an `attribute` : a state machine declares no
+      # attribute and is perfectly well formed.
+      #
+      # Seal stays. It is the right SHAPE for a whole-document rule — dispatched
+      # once every declaration is present — and it is now actually dispatched, so
+      # the next rule put here will be seen refusing instead of sitting decorative.
+      # The rule waiting for it is "a mutation names a field the aggregate has",
+      # which lives in AggregateBuilder today because saying it here needs to reach
+      # a list on another root.
+      given("an aggregate that is identified names a field") { identified_by.value.to_s.empty? || identified_by.value.to_s.size > 0 }
 
       emits "RootSealed"
     end
@@ -222,7 +241,7 @@ Hecks.bluebook "Meta" do
       reference_to Aggregate
       attribute :name, FieldName
 
-      then_set :values, append: { name: :name }
+      then_set :value_objects, append: { name: :name }
 
       emits "ValueDeclared"
     end
@@ -233,14 +252,18 @@ Hecks.bluebook "Meta" do
 
     reference_to Aggregate
 
-    attribute :name,      CommandName
-    attribute :role,      Actor
-    attribute :goal,      Goal
-    attribute :emissions, list_of(Announcement)
-    attribute :acts_on,   EventName
-    attribute :arguments, list_of(Argument)
-    attribute :rules,     list_of(Rule)
-    attribute :changes,   list_of(Change)
+    # SPELLED AS THE IR SPELLS THEM. The judge walks a built IR and offers each
+    # field by name, so a field named differently here would need a translation
+    # table between two vocabularies for the same thing — and a table is a place
+    # to be wrong quietly. One spelling, and the walk reads straight through.
+    attribute :name,       CommandName
+    attribute :role,       Actor
+    attribute :goal,       Goal
+    attribute :emits,      list_of(Announcement)
+    attribute :references, EventName
+    attribute :attributes, list_of(Argument)
+    attribute :givens,     list_of(Rule)
+    attribute :mutations,  list_of(Change)
 
     value_object "CommandName" do
       attribute :value, String
@@ -310,7 +333,7 @@ Hecks.bluebook "Meta" do
       attribute :list,    ArgType
       attribute :default, ArgType
 
-      then_set :arguments, append: { name: :name, type: :type, list: :list, default: :default }
+      then_set :attributes, append: { name: :name, type: :type, list: :list, default: :default }
 
       emits "ArgumentAttached"
     end
@@ -336,7 +359,7 @@ Hecks.bluebook "Meta" do
       given("a rule says what it means")  { !description.value.to_s.empty? }
       given("a rule survives extraction") { !canonical.value.to_s.empty? }
 
-      then_set :rules, append: { description: :description, canonical: :canonical }
+      then_set :givens, append: { description: :description, canonical: :canonical }
 
       emits "RuleAttached"
     end
@@ -359,7 +382,7 @@ Hecks.bluebook "Meta" do
       given("a mutation names a target")     { !target.value.to_s.empty? }
       given("a mutation does something")     { !op.value.to_s.empty? }
 
-      then_set :changes, append: { target: :target, op: :op, field: :field, kind: :kind, source: :source }
+      then_set :mutations, append: { target: :target, op: :op, field: :field, kind: :kind, source: :source }
 
       emits "ChangeAttached"
     end
@@ -380,15 +403,15 @@ Hecks.bluebook "Meta" do
       goal "Name the aggregate this command reaches through"
 
       reference_to Command
-      # NAMED `root`, not `acts_on` : a command argument SHADOWS the aggregate
+      # NAMED `root`, not `references` : a command argument SHADOWS the aggregate
       # field of the same name inside a given, so a once-only rule cannot read
       # the state it guards unless the two differ.
       attribute :root, EventName
 
       given("a command names what it acts on") { !root.value.to_s.empty? }
-      given("a command acts on ONE root")      { acts_on.value.to_s.empty? }
+      given("a command acts on ONE root")      { references.value.to_s.empty? }
 
-      then_set :acts_on, to: :root
+      then_set :references, to: :root
 
       emits "ReferenceNamed"
     end
@@ -402,7 +425,7 @@ Hecks.bluebook "Meta" do
 
       given("an event is named") { !announces.value.to_s.empty? }
 
-      then_set :emissions, append: { name: :announces }
+      then_set :emits, append: { name: :announces }
 
       emits "AnnouncementNamed"
     end
@@ -414,8 +437,8 @@ Hecks.bluebook "Meta" do
     reference_to Aggregate
 
     attribute :name,       ValueObjectName
-    attribute :fields,     list_of(ShapeField)
-    attribute :assertions, list_of(Assertion)
+    attribute :attributes, list_of(ShapeField)
+    attribute :invariants, list_of(Assertion)
     attribute :rows,       RowCount
 
     value_object "RowCount" do
@@ -459,7 +482,7 @@ Hecks.bluebook "Meta" do
       attribute :list,    ValueObjectName
       attribute :default, ValueObjectText
 
-      then_set :fields, append: { name: :name, type: :type, list: :list, default: :default }
+      then_set :attributes, append: { name: :name, type: :type, list: :list, default: :default }
 
       emits "ShapeFieldAttached"
     end
@@ -493,7 +516,7 @@ Hecks.bluebook "Meta" do
       given("a rule says what it means")  { !description.value.to_s.empty? }
       given("a rule survives extraction") { !canonical.value.to_s.empty? }
 
-      then_set :assertions, append: { description: :description, canonical: :canonical }
+      then_set :invariants, append: { description: :description, canonical: :canonical }
 
       emits "AssertionAttached"
     end
@@ -602,6 +625,7 @@ Hecks.bluebook "Meta" do
         member name: "LifecycleRefused"
         member name: "NotFound"
         member name: "TypeMismatch"
+        member name: "UnknownArgument"
         member name: "UnknownVerb"
       end
     end
@@ -612,13 +636,13 @@ Hecks.bluebook "Meta" do
 
     reference_to Aggregate
 
-    attribute :name,       QueryName
-    attribute :purpose,    QueryText
+    attribute :name,        QueryName
+    attribute :description, QueryText
     attribute :order_field, QueryText
-    attribute :order_way,  QueryText
-    attribute :ceiling,    QueryText
-    attribute :filters,    list_of(Filter)
-    attribute :arguments,  list_of(AskArgument)
+    attribute :order_way,   QueryText
+    attribute :limit,       QueryText
+    attribute :wheres,      list_of(Filter)
+    attribute :attributes,  list_of(AskArgument)
 
     value_object "QueryName" do
       attribute :value, String
@@ -648,10 +672,10 @@ Hecks.bluebook "Meta" do
 
       reference_to Aggregate
       attribute :name,        QueryName
-      attribute :purpose,     QueryText
+      attribute :description, QueryText
       attribute :order_field, QueryText
       attribute :order_way,   QueryText
-      attribute :ceiling,     QueryText
+      attribute :limit,       QueryText
 
       emits "AskDeclared"
     end
@@ -665,7 +689,7 @@ Hecks.bluebook "Meta" do
       attribute :op,    QueryText
       attribute :value, QueryText
 
-      then_set :filters, append: { field: :field, op: :op, value: :value }
+      then_set :wheres, append: { field: :field, op: :op, value: :value }
 
       emits "FilterAttached"
     end
@@ -680,7 +704,7 @@ Hecks.bluebook "Meta" do
       attribute :list,    QueryText
       attribute :default, QueryText
 
-      then_set :arguments, append: { name: :name, type: :type, list: :list, default: :default }
+      then_set :attributes, append: { name: :name, type: :type, list: :list, default: :default }
 
       emits "AskArgumentAttached"
     end
@@ -692,9 +716,9 @@ Hecks.bluebook "Meta" do
     reference_to Bluebook
 
     attribute :name,     PolicyName
-    attribute :watches,  PolicyText
-    attribute :fires,    PolicyText
-    attribute :reaches,  PolicyText
+    attribute :on_event,        PolicyText
+    attribute :trigger_command, PolicyText
+    attribute :target_domain,   PolicyText
 
     value_object "PolicyName" do
       attribute :value, String
@@ -711,9 +735,9 @@ Hecks.bluebook "Meta" do
 
       reference_to Bluebook
       attribute :name,    PolicyName
-      attribute :watches, PolicyText
-      attribute :fires,   PolicyText
-      attribute :reaches, PolicyText
+      attribute :on_event,        PolicyText
+      attribute :trigger_command, PolicyText
+      attribute :target_domain,   PolicyText
 
       emits "ReactionDeclared"
     end
@@ -725,9 +749,9 @@ Hecks.bluebook "Meta" do
     reference_to Bluebook
 
     attribute :name,      ProcessManagerName
-    attribute :correlate, ProcessManagerText
-    attribute :starts,    ProcessManagerText
-    attribute :ends,      ProcessManagerText
+    attribute :correlates_by, ProcessManagerText
+    attribute :starts_on,     ProcessManagerText
+    attribute :ends_on,       ProcessManagerText
     attribute :states,    list_of(SagaState)
 
     value_object "ProcessManagerName" do
@@ -749,9 +773,9 @@ Hecks.bluebook "Meta" do
 
       reference_to Bluebook
       attribute :name,      ProcessManagerName
-      attribute :correlate, ProcessManagerText
-      attribute :starts,    ProcessManagerText
-      attribute :ends,      ProcessManagerText
+      attribute :correlates_by, ProcessManagerText
+      attribute :starts_on,     ProcessManagerText
+      attribute :ends_on,       ProcessManagerText
 
       emits "SagaDeclared"
     end
@@ -775,7 +799,7 @@ Hecks.bluebook "Meta" do
     reference_to ProcessManager
 
     attribute :saga,       HandlerText
-    attribute :answers,    HandlerText
+    attribute :event_type, HandlerText
     attribute :from_state, HandlerText
     attribute :to_state,   HandlerText
 
@@ -789,7 +813,7 @@ Hecks.bluebook "Meta" do
 
       reference_to ProcessManager
       attribute :saga,       HandlerText
-      attribute :answers,    HandlerText
+      attribute :event_type, HandlerText
       attribute :from_state, HandlerText
       attribute :to_state,   HandlerText
 
@@ -803,8 +827,8 @@ Hecks.bluebook "Meta" do
     reference_to Handler
 
     attribute :handler,      DispatchText
-    attribute :verb,     DispatchText
-    attribute :bindings, list_of(Binding)
+    attribute :command_name, DispatchText
+    attribute :with_spec,    list_of(Binding)
 
     value_object "DispatchText" do
       attribute :value, String
@@ -820,8 +844,8 @@ Hecks.bluebook "Meta" do
       goal "Open a dispatch inside a handler"
 
       reference_to Handler
-      attribute :handler,  DispatchText
-      attribute :verb, DispatchText
+      attribute :handler,      DispatchText
+      attribute :command_name, DispatchText
 
       emits "SendDeclared"
     end
@@ -834,7 +858,7 @@ Hecks.bluebook "Meta" do
       attribute :key,   DispatchText
       attribute :value, DispatchText
 
-      then_set :bindings, append: { key: :key, value: :value }
+      then_set :with_spec, append: { key: :key, value: :value }
 
       emits "BindingAttached"
     end
@@ -845,12 +869,12 @@ Hecks.bluebook "Meta" do
 
     reference_to Bluebook
 
-    attribute :name,        ReadModelName
-    attribute :purpose,     ProjectionPurpose
-    attribute :query_name,  ReadModelText
-    attribute :ref_name,    ReadModelText
-    attribute :ref_target,  ReadModelText
-    attribute :heads,       list_of(Head)
+    attribute :name,             ReadModelName
+    attribute :description,      ProjectionPurpose
+    attribute :query_name,       ReadModelText
+    attribute :reference_name,   ReadModelText
+    attribute :reference_target, ReadModelText
+    attribute :aggregate_heads,  list_of(Head)
 
     value_object "ReadModelName" do
       attribute :value, String
@@ -879,11 +903,11 @@ Hecks.bluebook "Meta" do
       goal "Open a read model on a chapter"
 
       reference_to Bluebook
-      attribute :name,       ReadModelName
-      attribute :purpose,    ProjectionPurpose
-      attribute :query_name, ReadModelText
-      attribute :ref_name,   ReadModelText
-      attribute :ref_target, ReadModelText
+      attribute :name,             ReadModelName
+      attribute :description,      ProjectionPurpose
+      attribute :query_name,       ReadModelText
+      attribute :reference_name,   ReadModelText
+      attribute :reference_target, ReadModelText
 
       emits "ProjectionDeclared"
     end
@@ -897,9 +921,9 @@ Hecks.bluebook "Meta" do
       attribute :as,        ReadModelText
       attribute :many,      ReadModelText
 
-      given("a read model gathers heads only after its reference") { !ref_target.value.to_s.empty? }
+      given("a read model gathers heads only after its reference") { !reference_target.value.to_s.empty? }
 
-      then_set :heads, append: { aggregate: :aggregate, as: :as, many: :many }
+      then_set :aggregate_heads, append: { aggregate: :aggregate, as: :as, many: :many }
 
       emits "HeadGathered"
     end
@@ -910,11 +934,11 @@ Hecks.bluebook "Meta" do
 
     reference_to Aggregate
 
-    attribute :owner,       EntityText
-    attribute :name,        EntityName
-    attribute :description, EntityName
-    attribute :identity,    EntityText
-    attribute :attributes,  list_of(PieceField)
+    attribute :owner,         EntityText
+    attribute :name,          EntityName
+    attribute :description,   EntityName
+    attribute :identified_by, EntityText
+    attribute :attributes,    list_of(PieceField)
     attribute :state_field, EntityText
     attribute :state_start, EntityText
     attribute :transitions, list_of(PieceTransition)
@@ -946,10 +970,10 @@ Hecks.bluebook "Meta" do
       goal "Open an entity inside an aggregate"
 
       reference_to Aggregate
-      attribute :owner,       EntityText
-      attribute :name,        EntityName
-      attribute :description, EntityName
-      attribute :identity,    EntityText
+      attribute :owner,         EntityText
+      attribute :name,          EntityName
+      attribute :description,   EntityName
+      attribute :identified_by, EntityText
 
       emits "PieceDeclared"
     end

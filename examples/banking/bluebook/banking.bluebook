@@ -611,6 +611,7 @@ Hecks.bluebook "Banking" do
     description "A card authorisation that either settles, is voided before settlement, or becomes a post-settlement dispute."
 
     reference_to Account
+    reference_to Customer, as: :disputed_by
     attribute :amount,   PaymentAmount
     attribute :merchant, MerchantName
 
@@ -664,7 +665,27 @@ Hecks.bluebook "Banking" do
     end
 
     command "Dispute" do
+      role "Customer"
+      goal "Challenge a payment that already settled"
+
+      # The only command in the corpus carrying BOTH a self reference and a
+      # cross-aggregate one, and it is here because the fact is real : a dispute
+      # is raised BY someone, and on a joint account that someone is not
+      # derivable from the payment. The CardPayment knows its Account and the
+      # Account knows a Customer, but not which of them challenged the charge.
+      #
+      # Both branches of CommandBuilder#reference_to fire here. CardPayment
+      # matches the owner, so it sets @references and Dispute is NOT creating ;
+      # Customer does not match, so it becomes a Reference<Customer> attribute.
+      # Everywhere else in the corpus those two paths are exercised apart — a
+      # cross-reference always sits on a creating command or an aggregate head —
+      # so nothing distinguished `creates?` reading a self-reference from
+      # `creates?` reading any reference at all.
       reference_to CardPayment
+      reference_to Customer, as: :disputed_by
+
+      then_set :disputed_by, to: :disputed_by
+
       emits "CardDisputed"
     end
 
@@ -817,7 +838,9 @@ Hecks.bluebook "Banking" do
     state "reversed"
 
     on "TransferRequested", transition: { "requested" => "requested" } do
-      dispatch "Banking::Account.Debit", with: { id: :source, amount: :amount, narrative: { text: "transfer out" }, transfer: :transfer, destination: :destination }
+      # Debit never declared :destination — the credit leg reads it from the saga's
+      # memory of the opening payload.
+      dispatch "Banking::Account.Debit", with: { id: :source, amount: :amount, narrative: { text: "transfer out" }, transfer: :transfer }
     end
 
     on "AccountDebited", transition: { "requested" => "awaiting_credit" } do
