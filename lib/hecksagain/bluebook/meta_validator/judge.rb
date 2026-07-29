@@ -32,10 +32,15 @@ module Hecksagain
 
         def offer(label)
           yield
-        rescue Runtime::GivenNotMet, Runtime::InvariantViolation, Runtime::TypeMismatch => e
+        rescue Runtime::GivenNotMet, Runtime::InvariantViolation,
+               Runtime::TypeMismatch, Runtime::NotFound => e
+          # NotFound is a VERDICT now, not noise. An attribute's type is a
+          # reference to its value object, so "no Shape with id …" IS the rule
+          # `attributes must use value-object types` refusing. Swallowing it
+          # hid that rule completely the first time this was wired.
           @refusals << "#{label}: #{e.message}"
-        rescue Runtime::NotFound, Runtime::UnknownVerb
-          # a declaration the meta-domain has no shape for is not a defect in
+        rescue Runtime::UnknownVerb
+          # a category the language does not describe yet is not a defect in
           # the bluebook being judged
           nil
         end
@@ -49,7 +54,27 @@ module Hecksagain
           send_to("Meta::Chapter.Declare", chapter, name: v(chapter),
                   vision: v(@bluebook.vision), classification: v(@bluebook.classification))
           @bluebook.aggregates.each { |aggregate| judge_aggregate(chapter, aggregate) }
-          Array(@bluebook.read_models).each { |model| judge_projection(chapter, model) }
+          Array(@bluebook.read_models).each      { |model|  judge_projection(chapter, model) }
+          Array(@bluebook.policies).each         { |policy| judge_reaction(chapter, policy) }
+          Array(@bluebook.process_managers).each { |saga|   judge_saga(chapter, saga) }
+        end
+
+        def judge_reaction(chapter, policy)
+          id = "#{chapter}.#{policy.name}"
+          send_to("Meta::Reaction.Declare", id, id: id, chapter_id: v(chapter),
+                  name: v(policy.name), watches: v(policy.on_event),
+                  fires: v(policy.trigger_command), reaches: v(policy.target_domain))
+        end
+
+        def judge_saga(chapter, saga)
+          id = "#{chapter}.#{saga.name}"
+          send_to("Meta::Saga.Declare", id, id: id, chapter_id: v(chapter),
+                  name: v(saga.name), correlate: v(saga.correlates_by),
+                  starts: v(saga.starts_on), ends: v(saga.ends_on))
+
+          Array(saga.states).each do |state|
+            send_to("Meta::Saga.State", id, id: id, name: v(state))
+          end
         end
 
         def judge_aggregate(chapter, aggregate)
@@ -58,19 +83,41 @@ module Hecksagain
                   name: v(aggregate.name), description: v(aggregate.description),
                   identity: v(aggregate.identified_by))
 
-          aggregate.attributes.each do |attribute|
-            send_to("Meta::Root.Attribute", "#{root}##{attribute.name}", id: root,
-                    name: v(attribute.name), type: v(attribute.type), list: v(attribute.list?))
-          end
-
+          # shapes FIRST : an attribute's type is a reference to its value
+          # object, so the value object has to exist before the attribute names it
+          Array(aggregate.entities).each { |piece| judge_piece(root, aggregate, piece) }
           aggregate.value_objects.each { |shape| judge_shape(root, aggregate, shape) }
+
+          aggregate.attributes.each do |attribute|
+            # a REFERENCE is not a value object. `Reference<Customer>` names
+            # another aggregate head, so it neither has nor needs a Shape — the
+            # language does not model reference-typed attributes yet, and
+            # judging them as value objects is what made the language fail its
+            # own rules the moment the type became a reference.
+            next if attribute.reference?
+            # a list of ENTITIES names a Piece, not a Shape. The builder's rule
+            # admitted both ; the reference only reaches Shapes, so entity-typed
+            # lists are judged by the Piece declarations instead.
+            next if aggregate.entities.any? { |entity| entity.name == attribute.type.to_s }
+
+            send_to("Meta::Root.Attribute", "#{root}##{attribute.name}", id: root,
+                    name: v(attribute.name), type: v("#{root}.#{attribute.type}"),
+                    list: v(attribute.list?))
+          end
           Array(aggregate.queries).each  { |ask|   judge_ask(root, aggregate, ask) }
           aggregate.commands.each        { |verb|  judge_command(root, aggregate, verb) }
         end
 
-        def judge_shape(root, aggregate, shape)
+        def judge_piece(root, _aggregate, piece)
+          id = "#{root}.#{piece.name}"
+          send_to("Meta::Piece.Declare", id, id: id, root_id: v(root), owner: v(root),
+                  name: v(piece.name), description: v(piece.description),
+                  identity: v(piece.identified_by))
+        end
+
+        def judge_shape(root, _aggregate, shape)
           id = "#{root}.#{shape.name}"
-          send_to("Meta::Shape.Declare", id, id: id, root_id: v(aggregate.name), name: v(shape.name))
+          send_to("Meta::Shape.Declare", id, id: id, root_id: v(root), name: v(shape.name))
 
           shape.invariants.each do |invariant|
             send_to("Meta::Shape.Assert", id, id: id,
@@ -79,16 +126,16 @@ module Hecksagain
 
           Array(shape.members).each_with_index do |row, index|
             member = "#{id}##{index}"
-            send_to("Meta::Member.Declare", member, id: member, shape_id: v(shape.name), shape: v(id))
+            send_to("Meta::Member.Declare", member, id: member, shape_id: v(id), shape: v(id))
             row.to_h.each do |key, value|
               send_to("Meta::Member.Pair", member, id: member, key: v(key), value: v(value))
             end
           end
         end
 
-        def judge_ask(root, aggregate, ask)
+        def judge_ask(root, _aggregate, ask)
           id = "#{root}.#{ask.name}"
-          send_to("Meta::Ask.Declare", id, id: id, root_id: v(aggregate.name),
+          send_to("Meta::Ask.Declare", id, id: id, root_id: v(root),
                   name: v(ask.name), purpose: v(ask.description))
 
           Array(ask.attributes).each do |attribute|
@@ -110,9 +157,9 @@ module Hecksagain
           end
         end
 
-        def judge_command(root, aggregate, command)
+        def judge_command(root, _aggregate, command)
           id = "#{root}.#{command.name}"
-          send_to("Meta::Verb.Declare", id, id: id, root_id: v(aggregate.name),
+          send_to("Meta::Verb.Declare", id, id: id, root_id: v(root),
                   name: v(command.name), role: v(command.role), goal: v(command.goal))
 
           command.givens.each do |given|

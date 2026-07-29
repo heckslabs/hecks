@@ -40,7 +40,8 @@ module Hecksagain
         end
 
         def build
-          validate_value_object_attributes!
+          # moved to the language: an attribute type is a reference to its Shape,
+          # so an undeclared value object fails reference resolution
           validate_reference_value_objects!
           policies = @aggregates.flat_map(&:policies) + @policies
 

@@ -135,12 +135,20 @@ Hecks.bluebook "Meta" do
       goal "Attach one attribute to the aggregate"
 
       reference_to Root
+      # The TYPE is a reference to the value object it names. An attribute
+      # naming an undeclared value object then fails REFERENCE RESOLUTION —
+      # "no Shape with id …" — with no predicate at all.
+      #
+      # This is the rule "attributes must use value-object types", which could
+      # not be a `given` : it needs, for each element of a list, a check against
+      # another list, and the sublanguage has no quantifier and cannot see
+      # inside a list element. As a reference it stops being a predicate and
+      # becomes a consequence of the model.
+      reference_to Shape, as: :type
       attribute :name, FieldName
-      attribute :type, TypeName
       attribute :list, ListFlag
 
-      given("an attribute is named")      { !name.value.to_s.empty? }
-      given("an attribute names a type")  { !type.value.to_s.empty? }
+      given("an attribute is named") { !name.value.to_s.empty? }
 
       then_set :attributes, append: { name: :name, type: :type, list: :list }
 
@@ -285,9 +293,9 @@ Hecks.bluebook "Meta" do
       goal "Open a command on an aggregate"
 
       reference_to Root
-      attribute :name, VerbName
-      attribute :role, Actor
-      attribute :goal, Goal
+      attribute :name,  VerbName
+      attribute :role,  Actor
+      attribute :goal,  Goal
 
       emits "VerbDeclared"
     end

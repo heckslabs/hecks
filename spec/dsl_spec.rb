@@ -109,7 +109,7 @@ RSpec.describe "the DSL surface" do
 
     it "refuses an aggregate attribute that is not a value object" do
       expect { build_aggregate("Primitive") { attribute :code, String } }
-        .to raise_error(Malformed, /Thing#code is String, not a value object/)
+        .to raise_error(Malformed, %r{no Shape with id "Primitive::Thing.String"})
     end
 
     it "refuses a reference to an entity rather than an aggregate head" do

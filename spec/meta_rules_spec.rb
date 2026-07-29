@@ -53,19 +53,22 @@ RSpec.describe "the language's own rules" do
       .to raise_error(Hecksagain::Runtime::InvariantViolation, /an attribute is named/)
   end
 
-  it "refuses an attribute that names no type" do
-    expect { @runtime.dispatch("Meta::Root.Attribute", id: "D::A", name: v("x"), type: v(""), list: v("false")) }
-      .to raise_error(Hecksagain::Runtime::InvariantViolation, /a type is named/)
+  # "attributes must use value-object types" is no longer a predicate — the
+  # type IS a reference to the value object, so an undeclared one cannot resolve
+  it "refuses an attribute whose type is not a declared value object" do
+    expect { @runtime.dispatch("Meta::Root.Attribute", id: "D::A", name: v("x"),
+                               type: v("D::A.Nonexistent"), list: v("false")) }
+      .to raise_error(Hecksagain::Runtime::NotFound, /no Shape with/)
   end
 
   it "refuses a value object that is not named" do
-    expect { @runtime.dispatch("Meta::Shape.Declare", id: "D::A.X", root_id: v("A"), name: v("")) }
+    expect { @runtime.dispatch("Meta::Shape.Declare", id: "D::A.X", root_id: v("D::A"), name: v("")) }
       .to raise_error(Hecksagain::Runtime::InvariantViolation, /a value object is named/)
   end
 
   context "with a command declared" do
     before do
-      @runtime.dispatch("Meta::Verb.Declare", id: "D::A.C", root_id: v("A"),
+      @runtime.dispatch("Meta::Verb.Declare", id: "D::A.C", root_id: v("D::A"),
                         name: v("C"), role: v("Someone"), goal: v("do a thing"))
     end
 
@@ -120,8 +123,8 @@ RSpec.describe "the language's own rules" do
   end
 
   it "refuses an admitted row that binds no named field" do
-    @runtime.dispatch("Meta::Shape.Declare", id: "D::A.X", root_id: v("A"), name: v("X"))
-    @runtime.dispatch("Meta::Member.Declare", id: "D::A.X#0", shape_id: v("X"), shape: v("D::A.X"))
+    @runtime.dispatch("Meta::Shape.Declare", id: "D::A.X", root_id: v("D::A"), name: v("X"))
+    @runtime.dispatch("Meta::Member.Declare", id: "D::A.X#0", shape_id: v("D::A.X"), shape: v("D::A.X"))
 
     expect { @runtime.dispatch("Meta::Member.Pair", id: "D::A.X#0", key: v(""), value: v("q")) }
       .to raise_error(Hecksagain::Runtime::GivenNotMet, /an admitted row binds a named field/)
@@ -135,7 +138,8 @@ RSpec.describe "the language's own rules" do
   end
 
   it "seals an aggregate that is fully declared" do
-    @runtime.dispatch("Meta::Root.Attribute", id: "D::A", name: v("x"), type: v("X"), list: v("false"))
+    @runtime.dispatch("Meta::Shape.Declare", id: "D::A.X", root_id: v("D::A"), name: v("X"))
+    @runtime.dispatch("Meta::Root.Attribute", id: "D::A", name: v("x"), type: v("D::A.X"), list: v("false"))
 
     expect { @runtime.dispatch("Meta::Root.Seal", id: "D::A") }.not_to raise_error
   end
