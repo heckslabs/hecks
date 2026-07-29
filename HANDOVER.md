@@ -36,37 +36,51 @@ Do not call Rust a projection. Nothing generates it.
 ## Current state
 
     main                     PR #1 and #2 merged
-    experiment/self-hosting  16 commits ahead of 6a33483, NOT PUSHED
+    experiment/self-hosting  18 commits ahead of 6a33483, NOT PUSHED
 
-    bundle exec rspec                             431 examples, 0 failures
+    bundle exec rspec                             434 examples, 0 failures
     cd rust && cargo test --release --workspace   passing, 0 warnings
     bin/parity     AGREED — banking 102/193 · pizzas 5/18 · grammar 27/37
 
 `core.hooksPath` is LOCAL config — a fresh clone needs
 `git config core.hooksPath .githooks` or the pre-push parity gate is silent.
 
-## THE ROUND TRIP IS CLOSED
+## THE ROUND TRIP IS CLOSED, AND LOSSLESS
 
 `bluebook.bluebook`'s vision — "loading a domain becomes dispatching commands into
-this meta-domain ; the IR it stores must equal the IR the DSL builder produces" —
-is now a test rather than a claim:
+this meta-domain ; the IR it stores must equal the IR the DSL builder produces" — is
+a test, and there is nothing left to explain:
 
-    Pizzas   ZERO differences from the builder's to_h
-    Banking  eight, every one a construct the language does not hold
+    Pizzas · Banking · TillRoom · Wire     ZERO differences, all four
 
-`spec/round_trip_spec` asserts banking's eight as an EXACT CLASSIFIED SET, so a new
-loss fails and a closed gap fails too. The remaining gaps, in the language:
+`spec/round_trip_spec` compares each against the builder's `to_h`, canonicalising
+only the PRESENTATION axis (which position a command occupies in its aggregate's
+list, read by nothing). Order that changes behaviour — a command's mutations, a
+lifecycle's transitions, a compensation's dispatches — is compared as declared.
 
-- **an entity's own commands, queries and lifecycle** (6 of the 8). The language's
-  `Entity` holds attributes and transitions and nothing else; Withdrawal and
-  LedgerEntry both declare commands and queries. The fix is `Command` and `Query`
-  parented by `Entity` as well as `Aggregate` — the plan's containment tree picks
-  that up for free, because it derives the tree from each creating command's `*_id`
-  argument.
-- **a non-string default** (1). `ShapeField` types `default` as String, so
-  `default: 0.0` returns `"0.0"`.
-- **a literal that is not a scalar** (1). `to: { value: "good" }` stores the hash's
-  inspect string; `Change`'s `source` is a String.
+The fixtures are in that comparison ON PURPOSE. Banking has no aggregate attribute
+carrying a default, so `Field#default` would have been legal and unexercised; till
+declares `attribute :balance, Money, default: { cents: 0 }`, which exercises the
+field and the object-literal encoding together.
+
+Two things the round trip caught that nothing else could see: an append's field
+bindings were stored raw, so `append: { direction: "out" }` — a LITERAL — was
+indistinguishable from an argument named `out`; and `Field` had no `default`, so an
+aggregate attribute carrying one would have been dropped while the reconstruction
+hardcoded nil, matching every corpus member and lying about the first one to declare
+a default.
+
+A literal is stored SELF-DESCRIBINGLY, via `inspect` — a number bare, a string
+quoted, a symbol wearing its colon, an object wearing its braces. The language
+already stores code as text (`canonical: "cents >= 0"`), so an encoding is in
+keeping; forgetting the type was the bug. `Readings#encode_literal` writes,
+`Shapes#decode_literal` reads.
+
+An ENTITY declares commands and queries, and the IR reuses IR::Command and
+IR::Query for them, so the language reuses Command and Query with an `entity_id`
+saying which piece declared it. The part that bit: `entity_id` also needs a field on
+the Command AGGREGATE, because a command argument with nowhere to land does not
+persist — the same lesson `disputed_by` taught on CardPayment.
 
 ## How the pieces fit
 
@@ -101,8 +115,6 @@ all. Three verbs: `Attribute`, `Reference`, `Holds`. Nothing is skipped.
 
 ## What is left
 
-- **Close the three round-trip gaps** above. Entity's commands and queries are the
-  big one and the plan will do most of it.
 - **The unwind is COARSE and the corpus cannot tell.** `on :refused` is ONE
   compensation for a whole procedure; banking hand-lists two undos in the right
   order, by hand, and the runtime does not know which legs completed. Right for two
@@ -114,10 +126,14 @@ all. Three verbs: `Attribute`, `Reference`, `Holds`. Nothing is skipped.
   commands, `correlates_by` is a `reference_to`, and a status is an attribute whose
   values are a closed set with declared moves —
   `attribute :status, TransferStatus do transition … end`. An arc, not a rename.
+- **The reconstruction is not yet the SOURCE.** The round trip proves the
+  meta-domain holds everything; the runtime still runs the builder's IR. Making
+  `Hecks.boot` run the reconstructed one is what "executes" finally means, and the
+  comparison above is the safety net for trying it.
 - **Two rules genuinely blocked on the sublanguage**: read-model uniqueness needs a
   quantifier, the mutation-target rule needs to reach a list on another root (it
-  lives in `AggregateBuilder` and says so). A third was NOT a sublanguage gap — see
-  below.
+  lives in `AggregateBuilder` and says so). A third looked blocked and was a
+  modelling mistake — see the findings.
 
 ## Defects written down as expected behaviour — five in one session
 
