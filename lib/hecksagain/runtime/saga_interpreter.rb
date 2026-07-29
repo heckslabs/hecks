@@ -2,11 +2,9 @@
 module Hecksagain
   module Runtime
     class SagaInterpreter
-      # The trigger of the compensating leg. It is not an event name — no
-      # aggregate announces it — it is the procedure noticing that a leg it
-      # dispatched was refused. Declared `on :refused` beside the ordinary legs,
-      # because the compensation is an ordinary leg ; only its trigger differs.
-      REFUSED = "refused".freeze
+      # The trigger lives on the declaration it triggers, not on the runtime that
+      # notices it — see IR::ProcessManager::REFUSED.
+      REFUSED = Bluebook::IR::ProcessManager::REFUSED
 
       attr_reader :registry
 

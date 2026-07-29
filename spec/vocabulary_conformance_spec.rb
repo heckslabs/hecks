@@ -50,7 +50,7 @@ RSpec.describe "the declared vocabularies" do
     "NormalisationStrategy" => -> { Hecksagain::Bluebook::Expression::CanonicalForm::STRATEGIES },
     "LoadOrder"             => -> { Hecksagain::Adapters::Folder::DOMAIN_ORDER },
     "DomainRefusal"         => -> { Hecksagain::Runtime::DOMAIN_REFUSALS.map { |e| e.name.split("::").last } },
-    "Trigger"               => -> { [Hecksagain::Runtime::SagaInterpreter::REFUSED] }
+    "Trigger"               => -> { [Hecksagain::Bluebook::IR::ProcessManager::REFUSED] }
   }.each do |vocabulary, live|
     it "#{vocabulary} matches the table the runtime uses" do
       expect(declared(vocabulary)).to eq(live.call.map(&:to_s))
