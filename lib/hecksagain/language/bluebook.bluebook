@@ -629,6 +629,21 @@ Hecks.bluebook "Meta" do
         member name: "UnknownVerb"
       end
     end
+
+    # SagaInterpreter::REFUSED, and its counterpart in the Rust dispatcher.
+    #
+    # A leg answers an EVENT — `on "AccountDebited"` — or it answers one of these,
+    # which are not events at all: no aggregate announces that a leg the procedure
+    # dispatched was declined. `on :refused` is the compensating leg, and without
+    # this declaration the word lived only as a magic string in two runtimes
+    # agreeing by coincidence, and a reader of the language could not discover the
+    # trigger existed.
+    value_object "Trigger" do
+      attribute :name, String
+      one_of do
+        member name: "refused"
+      end
+    end
   end
 
   aggregate "Query" do
@@ -798,7 +813,14 @@ Hecks.bluebook "Meta" do
 
     reference_to ProcessManager
 
-    attribute :saga,       HandlerText
+    # No `saga` field. It named the old word for a process manager, held nothing —
+    # IR::ProcessManagerHandler has no such reader, so every Handler record's saga
+    # was empty — and repeated the parent that `process_manager_id` already
+    # carries. A field that names the wrong thing, holds nothing, and duplicates
+    # the reference beside it.
+    #
+    # `event_type` is an event name, or one of the Trigger vocabulary's members
+    # when the leg answers something no aggregate announces.
     attribute :event_type, HandlerText
     attribute :from_state, HandlerText
     attribute :to_state,   HandlerText
@@ -812,7 +834,6 @@ Hecks.bluebook "Meta" do
       goal "Open a handler inside a process manager"
 
       reference_to ProcessManager
-      attribute :saga,       HandlerText
       attribute :event_type, HandlerText
       attribute :from_state, HandlerText
       attribute :to_state,   HandlerText

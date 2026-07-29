@@ -49,7 +49,8 @@ RSpec.describe "the declared vocabularies" do
     "Primitive"             => -> { Hecksagain::Bluebook::IR::Attribute::PRIMITIVES },
     "NormalisationStrategy" => -> { Hecksagain::Bluebook::Expression::CanonicalForm::STRATEGIES },
     "LoadOrder"             => -> { Hecksagain::Adapters::Folder::DOMAIN_ORDER },
-    "DomainRefusal"         => -> { Hecksagain::Runtime::DOMAIN_REFUSALS.map { |e| e.name.split("::").last } }
+    "DomainRefusal"         => -> { Hecksagain::Runtime::DOMAIN_REFUSALS.map { |e| e.name.split("::").last } },
+    "Trigger"               => -> { [Hecksagain::Runtime::SagaInterpreter::REFUSED] }
   }.each do |vocabulary, live|
     it "#{vocabulary} matches the table the runtime uses" do
       expect(declared(vocabulary)).to eq(live.call.map(&:to_s))
@@ -71,7 +72,7 @@ RSpec.describe "the declared vocabularies" do
   it "declares every vocabulary the runtime holds a table for" do
     expect(VOCABULARIES.keys).to include(
       "Comparison", "SignTest", "Primitive", "NormalisationStrategy",
-      "MutationOp", "LoadOrder", "DomainRefusal"
+      "MutationOp", "LoadOrder", "DomainRefusal", "Trigger"
     )
   end
 end
