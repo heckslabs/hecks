@@ -1,0 +1,89 @@
+Hecks.bluebook "Deployment" do
+  vision "The .world language, declared in itself. A world is a SIBLING of a bluebook, not part of one — the same domain runs in many worlds, and the values its adapters need belong to the deployment rather than to the domain. So it is described in its own file, as its own thing."
+  core
+
+  aggregate "World" do
+    description "One .world — the per-deployment values a domain's adapters need. A sibling artifact to the bluebook, not part of it : the same domain runs in many worlds."
+
+    identified_by :domain
+
+    attribute :domain, WorldName
+    attribute :realm,  Realm
+    attribute :latest, Latest
+
+    value_object "WorldName" do
+      attribute :value, String
+      invariant("a world names its domain") { !value.to_s.empty? }
+    end
+
+    value_object "Realm" do
+      attribute :value, String
+      invariant("a realm says something") { !value.to_s.empty? }
+    end
+
+    value_object "Latest" do
+      attribute :value, String
+      invariant("a latest version says something") { !value.to_s.empty? }
+    end
+
+    command "Declare" do
+      role "Deployment"
+      goal "Open a world for a domain"
+
+      attribute :domain, WorldName
+      attribute :realm,  Realm
+      attribute :latest, Latest
+
+      emits "WorldDeclared"
+    end
+  end
+
+  aggregate "Wiring" do
+    description "One adapter binding inside a world — the verb it answers, the adapter it names, and the values that adapter needs. Its own root because a world's settings are an open map, which no value object can hold."
+
+    reference_to World
+
+    attribute :world,    WiringText
+    attribute :verb,     WiringText
+    attribute :adapter,  WiringText
+    attribute :settings, list_of(Setting)
+
+    value_object "WiringText" do
+      attribute :value, String
+    end
+
+    value_object "Setting" do
+      attribute :key,   String
+      attribute :value, String
+    end
+
+    command "Declare" do
+      role "Deployment"
+      goal "Bind one adapter in a world"
+
+      reference_to World
+      attribute :world,   WiringText
+      attribute :verb,    WiringText
+      attribute :adapter, WiringText
+
+      given("a wiring names its verb") { !verb.value.to_s.empty? }
+
+      emits "WiringDeclared"
+    end
+
+    command "Set" do
+      role "Deployment"
+      goal "Give one value the bound adapter needs"
+
+      reference_to Wiring
+      attribute :key,   WiringText
+      attribute :value, WiringText
+
+      given("a setting names its key") { !key.value.to_s.empty? }
+
+      then_set :settings, append: { key: :key, value: :value }
+
+      emits "SettingGiven"
+    end
+  end
+end

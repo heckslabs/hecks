@@ -21,6 +21,8 @@ module Hecksagain
     # judged in a fresh in-memory store so no domain can see another's records.
     module MetaValidator
       GRAMMAR = File.expand_path("../language/bluebook.bluebook", __dir__).freeze
+      # a world is a SIBLING artifact, described in its own file
+      WORLD_GRAMMAR = File.expand_path("../language/world.bluebook", __dir__).freeze
 
       # The meta-domain is itself a bluebook. Judging it while loading it would
       # recurse, so the load path marks the bootstrap and skips.
@@ -32,6 +34,19 @@ module Hecksagain
       # its fixtures constantly — banking alone is ~200 dispatches per build.
       # Keyed on the IR itself, so a CHANGED bluebook is always re-judged.
       def self.verdicts = @verdicts ||= {}
+
+      # A world is not a bluebook, so it gets its own door. Same judge, same
+      # meta-domain registry — a different artifact and a different language file.
+      def self.call_world(world)
+        return world if disabled? || bootstrapping?
+
+        key = Digest::SHA256.hexdigest(JSON.generate([world.domain, world.realm, world.latest, world.settings]))
+        refusals = verdicts[key] ||= WorldJudge.new(world).refusals
+        return world if refusals.empty?
+
+        raise DSL::Malformed,
+              "#{world.domain}'s world is not well formed; #{refusals.join('; ')}"
+      end
 
       def self.call(bluebook)
         return bluebook if disabled? || bootstrapping?
@@ -54,6 +69,7 @@ module Hecksagain
             Kernel.load(File.expand_path("../adapters/driven/memory/memory.adapter", __dir__))
             Kernel.load(File.expand_path("../adapters/driven/prism/prism.adapter", __dir__))
             Kernel.load(GRAMMAR)
+            Kernel.load(WORLD_GRAMMAR)
           end
           registry
         ensure

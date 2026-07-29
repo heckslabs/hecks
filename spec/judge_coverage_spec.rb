@@ -78,6 +78,8 @@ RSpec.describe "the judge's coverage of a bluebook" do
     # IR by spec/vocabulary_conformance_spec, never dispatched.
     declared = Hecksagain::Bluebook::MetaValidator.grammar_registry
                  .bluebook("Meta").aggregates.map(&:name) - %w[Vocabulary Leg Send]
+    # World and Wiring live in world.bluebook and are judged through their own
+    # door (MetaValidator.call_world), so they are not part of this map
 
     expect(CATEGORY_VERBS.keys).to match_array(declared)
   end

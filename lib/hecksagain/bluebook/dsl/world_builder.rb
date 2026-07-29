@@ -37,7 +37,11 @@ module Hecksagain
 
         def respond_to_missing?(_name, _include_private = false) = true
 
-        def build = IR::World.new(domain: @domain, realm: @realm, latest: @latest, settings: @settings)
+        def build
+          MetaValidator.call_world(
+            IR::World.new(domain: @domain, realm: @realm, latest: @latest, settings: @settings)
+          )
+        end
 
         def self.build(domain, &block)
           builder = new(domain)
@@ -48,8 +52,7 @@ module Hecksagain
         private
 
         def required(value, label)
-          raise Malformed, "#{@domain}'s #{label} says nothing" if value.to_s.empty?
-
+          # moved to the language: Realm / Latest invariants, in world.bluebook
           value.to_s
         end
       end

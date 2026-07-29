@@ -10,6 +10,10 @@ module Hecksagain
           @members    = []
         end
 
+        # NOT a language rule, and cannot become one : `one_of` without a block
+        # produces no members, which is indistinguishable in the IR from having
+        # no one_of at all. The artifact is well formed either way — this catches
+        # a mistake in how the DSL was CALLED, which is lint, not law.
         def one_of(&block)
           unless block
             raise Malformed,
