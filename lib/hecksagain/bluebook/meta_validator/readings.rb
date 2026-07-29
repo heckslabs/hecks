@@ -139,6 +139,21 @@ module Hecksagain
           Array(node.members).size
         end
 
+        # `Reference<Customer>` is an IR ENCODING, not a domain fact. The fact is
+        # that the attribute points at Customer's head — so the language is offered
+        # that head's ID, and resolution does the rest. Encoding and decoding both
+        # live here, because this is where the IR's shape differs from the
+        # language's and nowhere else should know the spelling.
+        def points_at(row, aggregate_id)
+          target = row.type.to_s[/\AReference<(.+)>\z/, 1]
+          return nil unless target
+
+          "#{aggregate_id.split('::').first}::#{target}"
+        end
+
+        # The way back out: an aggregate id becomes the type the IR spells.
+        def reference_type(points_at_id) = "Reference<#{points_at_id.to_s.split('::').last}>"
+
         # One value out of a row, named by the value object's field.
         def row_value(row, field)
           # A Hash FIRST. Hash answers to `key` (Hash#key(value)) and to `value` on

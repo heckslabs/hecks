@@ -225,7 +225,7 @@ fn command_to_value(command: &Command, owner: &str) -> Value {
     let references = command
         .references
         .iter()
-        .find(|reference| reference.target == owner)
+        .find(|reference| acts_on_root(reference, owner))
         .map(|reference| Value::String(reference.target.clone()))
         .unwrap_or(Value::Null);
 
@@ -247,11 +247,27 @@ fn command_to_value(command: &Command, owner: &str) -> Value {
     })
 }
 
+/// Is this reference the ROOT the command acts on, or a named attribute?
+///
+/// `as:` means "a named attribute", not "the root I act on" — so a command can
+/// point at another instance of its OWN kind, which is what
+/// `reference_to Aggregate, as: :points_at` says in the meta-domain. Mirrors
+/// CommandBuilder#reference_to: without this, Rust drops such a reference from the
+/// attributes AND claims it as the acted-on root, and the two runtimes disagree
+/// about the same line.
+///
+/// Explicitness is inferred by comparing against the derived name. When `as:` names
+/// exactly what the default would have produced, the two readings coincide anyway.
+fn acts_on_root(reference: &crate::ir::Reference, owner: &str) -> bool {
+    reference.target == owner
+        && reference.name == format!("{}_id", crate::naming::snake(&reference.target))
+}
+
 fn command_attributes(command: &Command, owner: &str) -> Vec<Value> {
     let implied = command
         .references
         .iter()
-        .filter(|reference| reference.target != owner)
+        .filter(|reference| !acts_on_root(reference, owner))
         .map(|reference| {
             json!({
                 "name": reference.name,

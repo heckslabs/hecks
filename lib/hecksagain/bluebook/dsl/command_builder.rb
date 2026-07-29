@@ -19,7 +19,15 @@ module Hecksagain
           demodulised = Naming.demodulise(type)
           # moved to the language: given "a command names what it acts on", on Verb.ActsOn
 
-          return cross_reference(demodulised, as) unless demodulised.to_s == @owner.to_s
+          # `as:` MEANS "a named attribute", not "the root I act on" — so a command
+          # can point at another instance of its OWN kind. Without this,
+          # `reference_to Aggregate, as: :points_at` on a command owned by Aggregate
+          # read as a second self-reference and was refused as naming two roots,
+          # which is how the meta-domain's own Aggregate.Reference could not say the
+          # one thing it exists to say. Transfer has said
+          # `reference_to Account, as: :source` for as long as banking has existed;
+          # this is the same sentence when the target happens to be the owner.
+          return cross_reference(demodulised, as) if as || demodulised.to_s != @owner.to_s
 
           if @references
             raise Malformed,

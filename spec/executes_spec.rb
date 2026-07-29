@@ -170,41 +170,47 @@ RSpec.describe "the language holds a bluebook, and gives it back" do
     end
   end
 
-  it "holds an attribute that points at another aggregate's head" do
-    # This one was DROPPED. `Aggregate.Attribute` types its type as
-    # `reference_to ValueObject`, and Reference<Customer> is not a value object, so
-    # the walk skipped every cross-aggregate reference and the meta-domain simply
-    # did not contain Account#customer_id. The way back was lossy for exactly one
-    # construct, behind a comment saying the language did not model it yet.
-    runtime = Hecksagain::Bluebook::MetaValidator.fresh_runtime
-    judge   = Hecksagain::Bluebook::MetaValidator::Judge.allocate
-    judge.instance_variable_set(:@bluebook, banking)
-    judge.instance_variable_set(:@refusals, [])
-    judge.instance_variable_set(:@runtime, runtime)
-    judge.instance_variable_set(
-      :@plan,
-      Hecksagain::Bluebook::MetaValidator::Plan.for(Hecksagain::Bluebook::MetaValidator.grammar_registry)
-    )
-    judge.send(:judge!)
+  def held_account_attributes
+    @held_account_attributes ||= begin
+      runtime = Hecksagain::Bluebook::MetaValidator.fresh_runtime
+      judge   = Hecksagain::Bluebook::MetaValidator::Judge.allocate
+      judge.instance_variable_set(:@bluebook, banking)
+      judge.instance_variable_set(:@refusals, [])
+      judge.instance_variable_set(:@runtime, runtime)
+      judge.instance_variable_set(
+        :@plan,
+        Hecksagain::Bluebook::MetaValidator::Plan.for(Hecksagain::Bluebook::MetaValidator.grammar_registry)
+      )
+      judge.send(:judge!)
+      raise "banking refused: #{judge.instance_variable_get(:@refusals).inspect}" unless
+        judge.instance_variable_get(:@refusals).empty?
 
-    account = runtime.query("Meta::Aggregate.DeclaredIn", bluebook_id: { value: "Banking" })
-                     .find { |row| text(row[:name]) == "Account" }
-    held = account[:attributes].to_h { |a| [text(a[:name]), text(a[:type])] }
-
-    expect(held["customer_id"]).to eq("Reference<Customer>")
-    # and it is NOT requalified into a value object's id, the way an ordinary
-    # attribute's type is — there is no value object to point at.
-    expect(held["number"]).to eq("Banking::Account.AccountNumber")
+      account = runtime.query("Meta::Aggregate.DeclaredIn", bluebook_id: { value: "Banking" })
+                       .find { |row| text(row[:name]) == "Account" }
+      account[:attributes].to_h { |a| [text(a[:name]), text(a[:type])] }
+    end
   end
 
-  it "still does not hold an entity-typed attribute" do
-    # Account#ledger is a list of LedgerEntry, an ENTITY. Its type is neither a
-    # value object nor a reference, so it has no verb and the walk skips it — the
-    # last construct the way back cannot carry. Pinned so the hole is a fact in the
-    # suite rather than a sentence in a comment; the fix is an Aggregate verb for
-    # an entity-typed attribute, the same shape as Reference.
-    expect(banking.aggregate("Account").attributes.map { |a| a.name.to_s }).to include("ledger")
-    expect(banking.aggregate("Account").entities.map(&:name)).to include("LedgerEntry")
+  it "holds an attribute as the ID of whatever its type names" do
+    # All three kinds resolve as references, so "the type is declared" costs no
+    # predicate at all — the rule is a consequence of the model, which is the trick
+    # the language already used for value objects and now uses for all of them.
+    held = held_account_attributes
+
+    expect(held["number"]).to     eq("Banking::Account.AccountNumber")  # a value object
+    expect(held["customer_id"]).to eq("Banking::Customer")              # another head
+    expect(held["ledger"]).to     eq("Banking::Account.LedgerEntry")    # a piece it holds
+  end
+
+  it "re-encodes a reference into the type the IR spells" do
+    # `Reference<Customer>` is an ENCODING. The meta-domain holds the head, and the
+    # spelling is derived on the way out — in Readings, the one place that knows the
+    # IR's shape differs from the language's.
+    reader = Object.new.extend(Hecksagain::Bluebook::MetaValidator::Readings)
+
+    expect(reader.reference_type("Banking::Customer")).to eq("Reference<Customer>")
+    expect(reader.reference_type(held_account_attributes["customer_id"]))
+      .to eq(banking.aggregate("Account").attribute(:customer_id).type.to_s)
   end
 
   it "reads through the aggregate's own query, not a repository" do

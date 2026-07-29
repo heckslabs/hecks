@@ -234,34 +234,48 @@ Hecks.bluebook "Meta" do
       goal "Attach an attribute that points at another aggregate's head"
 
       reference_to Aggregate
+      # POINTS AT a declared head, and that is the whole rule.
+      #
+      # This carried `attribute :type, ReferenceType` — a STRING — with an invariant
+      # apologising for itself, because the shape that actually tells a reference
+      # from a value object (`Reference<Something>`) is unsayable in the predicate
+      # sublanguage. That was never a sublanguage gap; a string was simply the wrong
+      # model. As a reference it stops being a predicate and becomes a consequence
+      # of the model, exactly as Attribute's type does — and it is STRONGER than the
+      # prefix match, which only ever checked that the text looked right.
+      reference_to Aggregate, as: :points_at
       attribute :name, FieldName
-      attribute :type, ReferenceType
       attribute :list, ListFlag
 
       given("a reference is named") { !name.value.to_s.empty? }
 
-      then_set :attributes, append: { name: :name, type: :type, list: :list }
+      then_set :attributes, append: { name: :name, type: :points_at, list: :list }
 
       emits "ReferenceAttached"
     end
 
-    value_object "ReferenceType" do
-      attribute :value, String
-      # WEAKER THAN THE TRUE RULE, and deliberately.
-      #
-      # What wants saying is that the type has the shape `Reference<Something>` —
-      # that is what tells a reference from a value object. It cannot be said: the
-      # predicate sublanguage has comparisons, sign tests and emptiness, and no
-      # prefix match. `start_with?` parses into a segment lookup and leaks a raw
-      # `no implicit conversion of Symbol into Integer`, which is the fourth
-      # sighting of that error in this project and the reason
-      # Runtime::DOMAIN_REFUSALS exists.
-      #
-      # So the rule states only what it can state. The shape is enforced by the
-      # only thing that can enforce it today — the builder, which is what wrote
-      # `Reference<X>` in the first place. Third rule blocked on a missing
-      # sublanguage primitive, after read-model uniqueness and the mutation target.
-      invariant("a reference names the head it points at") { !value.to_s.empty? }
+    # An attribute whose type names a PIECE this aggregate holds.
+    #
+    # `Account#ledger` is a list of LedgerEntry — neither a value object nor another
+    # aggregate's head — so it fitted no verb and the walk skipped it, the last
+    # construct the way back could not carry. Same trick as Reference: point at the
+    # entity's own declaration, and "an aggregate holds a piece it declared" costs
+    # no predicate at all. Entities are declared before attributes are offered, so
+    # the reference resolves.
+    command "Holds" do
+      role "Language"
+      goal "Attach an attribute whose type is a piece of this aggregate"
+
+      reference_to Aggregate
+      reference_to Entity, as: :holds
+      attribute :name, FieldName
+      attribute :list, ListFlag
+
+      given("a held attribute is named") { !name.value.to_s.empty? }
+
+      then_set :attributes, append: { name: :name, type: :holds, list: :list }
+
+      emits "PieceHeld"
     end
 
     value_object "FieldName" do

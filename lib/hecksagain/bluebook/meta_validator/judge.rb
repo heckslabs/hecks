@@ -25,10 +25,9 @@ module Hecksagain
       class Judge
         include Readings
 
-        # Children offered BEFORE the parent's own lists. An attribute's type is a
-        # reference to the value object it names, so the value objects have to
-        # exist before any attribute names one — and an entity-typed list names a
-        # Piece, which the attribute walk needs in order to skip it.
+        # Children offered BEFORE the parent's own lists. An attribute's type is
+        # offered as the id of the thing it names, so both the value objects and the
+        # entities have to exist before any attribute names one.
         EAGER_CHILDREN = { "Aggregate" => %w[Entity ValueObject] }.freeze
 
         attr_reader :refusals
@@ -153,9 +152,7 @@ module Hecksagain
         def appends(plan, category, node, id)
           plan.appends.each do |list_name, append|
             rows_for(category, list_name, node).each_with_index do |row, index|
-              next if skip?(category, list_name, row, node)
-
-              chosen  = append_for(category, list_name, append, row)
+              chosen = append_for(category, list_name, append, row, node)
               payload = chosen.map.to_h do |field, argument|
                 [argument.to_sym, v(cell(category, list_name, row, field, id, chosen))]
               end
@@ -174,41 +171,48 @@ module Hecksagain
         # models that as a reference — so the type is offered as the value object's
         # own id. This is the rule "attributes must use value-object types",
         # enforced by reference resolution rather than by a predicate.
+        # An attribute's type is offered as the ID OF THE THING IT NAMES, so the
+        # language resolves it as a reference and "the type is declared" costs no
+        # predicate. Three kinds, three ids: a value object and an entity both hang
+        # off this aggregate, so they share its prefix; another aggregate's head
+        # hangs off the chapter.
         def cell(category, list_name, row, field, id, append)
           value = row_value(row, field)
-          # Only an ordinary attribute's type is requalified into a value object's
-          # id. A reference's type is `Reference<Customer>` and must arrive as it
-          # is — requalifying it would ask the value objects for something that was
-          # never one.
           return value unless field == :type && "#{category}.#{list_name}" == "Aggregate.attributes"
-          return value if append.verb == "Reference"
+          return points_at(row, id) if append.verb == "Reference"
 
           "#{id}.#{value}"
         end
 
-        # A REFERENCE is not a value object : `Reference<Customer>` names another
-        # aggregate head, so it cannot go through Attribute, whose type resolves
-        # against the value objects. It has its OWN verb, and offering it there is
-        # what stopped the meta-domain silently not holding Account#customer_id.
+        # Which verb an attribute row belongs to. The plan cannot decide this — all
+        # three append to the same list — and what tells them apart is the row:
         #
-        # A list of ENTITIES still has no verb — its type names a Piece, which is
-        # neither a value object nor a reference — so those attributes remain
-        # unoffered and the way back remains lossy for them. Named rather than
-        # excused: the fix is an Aggregate verb for an entity-typed attribute, the
-        # same shape as this one.
-        def skip?(category, list_name, row, node)
-          return false unless "#{category}.#{list_name}" == "Aggregate.attributes"
+        #   Attribute  its type names a value object of this aggregate
+        #   Reference  its type is Reference<X>, another aggregate's head
+        #   Holds      its type names an entity this aggregate declares
+        #
+        # NOTHING IS SKIPPED any more. Reference and Holds did not exist, so the
+        # walk dropped both kinds and the meta-domain silently did not contain
+        # Account#customer_id or Account#ledger.
+        # Each alternate carries its OWN map, read from the language. Borrowing the
+        # primary's map dispatched `type:` where Reference declares `points_at:`,
+        # and the payload gate caught it — which is the gate paying for itself.
+        def append_for(category, list_name, append, row, node)
+          return append unless "#{category}.#{list_name}" == "Aggregate.attributes"
+          return alternate(category, "Reference") || append if reference_row?(row)
+          return alternate(category, "Holds") || append if entity_row?(row, node)
 
-          Array(node.entities).any? { |entity| entity.name == row.type.to_s }
+          append
         end
 
-        # Which verb an attribute row belongs to. The plan cannot decide this — both
-        # verbs append to the same list, and what tells them apart is the row.
-        def append_for(category, list_name, append, row)
-          return append unless "#{category}.#{list_name}" == "Aggregate.attributes"
-          return append unless row.respond_to?(:reference?) && row.reference?
+        def alternate(category, verb)
+          @plan.category(category).alternates.find { |append| append.verb == verb }
+        end
 
-          Plan::Append.new(verb: "Reference", map: append.map)
+        def reference_row?(row) = row.respond_to?(:reference?) && row.reference?
+
+        def entity_row?(row, node)
+          Array(node.entities).any? { |entity| entity.name == row.type.to_s }
         end
 
         def identify(category, parent_id, node, index)
