@@ -11,6 +11,9 @@
         },
         "price_cents": {
           "cents": 1200
+        },
+        "size": {
+          "value": "large"
         }
       }
     },
@@ -77,6 +80,9 @@
         },
         "price_cents": {
           "cents": 900
+        },
+        "size": {
+          "value": "large"
         }
       }
     },
@@ -131,6 +137,9 @@
         },
         "price_cents": {
           "cents": 1200
+        },
+        "size": {
+          "value": "large"
         }
       }
     },
@@ -143,6 +152,9 @@
         },
         "price_cents": {
           "cents": -1
+        },
+        "size": {
+          "value": "large"
         }
       }
     },
@@ -176,6 +188,21 @@
       "args": {
         "ceiling": {
           "cents": 1000
+        }
+      }
+    },
+    {
+      "verb": "Pizzas::Pizza.CreatePizza",
+      "args": {
+        "id": "pizza-huge",
+        "name": {
+          "value": "Huge"
+        },
+        "price_cents": {
+          "cents": 2000
+        },
+        "size": {
+          "value": "enormous"
         }
       }
     }

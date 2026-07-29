@@ -9,6 +9,7 @@ Hecks.bluebook "Pizzas" do
     attribute :toppings,      list_of(Topping)
     attribute :price_cents,   Price
     attribute :customer_name, CustomerName
+    attribute :size,          one_of("small", "large")
 
     value_object "PizzaName" do
       attribute :value, String
@@ -65,6 +66,7 @@ Hecks.bluebook "Pizzas" do
 
       attribute :name,        PizzaName
       attribute :price_cents, Price
+      attribute :size,        Size
 
       emits "PizzaCreated"
     end

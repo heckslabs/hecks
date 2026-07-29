@@ -224,6 +224,24 @@ RSpec.describe "the DSL surface" do
       end.to raise_error(Malformed, /empty member/)
     end
 
+    it "desugars an inline one_of into a value object named for the attribute" do
+      # Rust parsed this spelling already and threw the values away — the
+      # attribute became a plain String and the closed set meant nothing. Both
+      # runtimes desugar it now, identically.
+      aggregate = build_aggregate("Inline") do
+        attribute :status, one_of("open", "shut")
+      end
+
+      status = aggregate.attributes.find { |a| a.name == :status }
+      shape  = aggregate.value_objects.find { |v| v.name == "Status" }
+
+      expect(status.type).to eq("Status")
+      expect(shape.members).to eq([{ value: "open" }, { value: "shut" }])
+      expect(shape.closed_set?).to be(true)
+      # enforcement is the ordinary one_of machinery from here on — the same
+      # Value.admit_member path spec/one_of_spec already pins for the block form
+    end
+
     it "refuses the scalar one_of spelling rather than dropping it" do
       expect do
         in_registry do

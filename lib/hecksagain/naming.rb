@@ -6,6 +6,13 @@ module Hecksagain
       type.to_s.split("::").last.to_s
     end
 
+    # snake_case -> PascalCase. The name a synthesised closed-set value object
+    # takes when an attribute declares one inline. Both runtimes derive it the
+    # same way, or the same bluebook produces two different IRs.
+    def pascal(text)
+      text.to_s.split("_").map { |part| part.sub(/\A(.)/) { Regexp.last_match(1).upcase } }.join
+    end
+
     def snake(text)
       text.to_s
           .gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2')

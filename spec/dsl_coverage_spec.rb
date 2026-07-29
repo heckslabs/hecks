@@ -74,7 +74,7 @@ RSpec.describe "the DSL surface is fully covered" do
 
   it "AttributeCollector has no method without a test" do
     actual = Hecksagain::Bluebook::DSL::AttributeCollector.public_instance_methods(false)
-    expect(actual.sort).to eq(%i[attribute attributes list_of].sort)
+    expect(actual.sort).to eq(%i[attribute attributes closed_sets list_of one_of].sort)
   end
 
   it "ConstShim has no method without a test" do

@@ -67,7 +67,7 @@ module Hecksagain
             name:          @name,
             description:   @description,
             attributes:    attributes,
-            value_objects: @value_objects,
+            value_objects: @value_objects + closed_sets,
             commands:      @commands,
             identified_by: @identified_by,
             lifecycle:     @lifecycle,

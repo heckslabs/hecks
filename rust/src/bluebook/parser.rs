@@ -2,6 +2,34 @@ use crate::ir::*;
 use crate::parse_blocks::*;
 use crate::parser_helpers::*;
 
+/// The value object an inline `one_of` desugars to. One String field named
+/// `value`, one member row per admitted value, and closed_set set — identical
+/// to what Ruby's AttributeCollector#synthesise_closed_set builds.
+fn closed_set_value_object(name: &str, values: &[String]) -> ValueObject {
+    ValueObject {
+        name: name.to_string(),
+        description: None,
+        attributes: vec![Attribute {
+            name: "value".to_string(),
+            attr_type: "String".to_string(),
+            default: None,
+            list: false,
+            required: false,
+            enum_values: vec![],
+            pattern: None,
+            hint: None,
+            logged: true,
+        }],
+        invariants: vec![],
+        derivations: vec![],
+        members: values
+            .iter()
+            .map(|value| vec![("value".to_string(), value.clone())])
+            .collect(),
+        closed_set: true,
+    }
+}
+
 pub fn parse(source: &str) -> Domain {
     let mut domain = Domain {
         name: String::new(),
@@ -244,6 +272,7 @@ fn parse_aggregate(lines: &[&str]) -> (Aggregate, Vec<Policy>, usize) {
     let name = extract_string(first).unwrap_or_default();
     let desc = extract_second_string(first);
 
+    let mut synthesised: Vec<ValueObject> = Vec::new();
     let mut agg = Aggregate {
         name,
         description: desc,
@@ -304,7 +333,25 @@ fn parse_aggregate(lines: &[&str]) -> (Aggregate, Vec<Policy>, usize) {
                 i += consumed;
                 continue;
             } else if line.starts_with("attribute") {
-                if let Some(attr) = parse_attribute(line) {
+                if let Some(mut attr) = parse_attribute(line) {
+                    // An inline closed set desugars to a value object named for
+                    // the attribute — the same shape a hand-written one_of
+                    // builds, so it goes through the same machinery and the
+                    // attribute's type is still a DECLARED value object.
+                    //
+                    // This used to be parsed and thrown away : the attribute
+                    // became a plain String and the closed set meant nothing.
+                    if !attr.enum_values.is_empty() {
+                        let type_name = crate::naming::pascal(&attr.name);
+                        // deferred to the END of the aggregate, not pushed here.
+                        // Ruby appends synthesised shapes at build, so pushing
+                        // at the point of declaration put them in a different
+                        // ORDER and split parity — the same bluebook has to
+                        // yield the same IR, field for field and index for index.
+                        synthesised.push(closed_set_value_object(&type_name, &attr.enum_values));
+                        attr.attr_type = type_name;
+                        attr.enum_values = vec![];
+                    }
                     agg.attributes.push(attr);
                 }
                 if ends_with_do_block(line) {
@@ -380,6 +427,7 @@ fn parse_aggregate(lines: &[&str]) -> (Aggregate, Vec<Policy>, usize) {
         i += 1;
     }
 
+    agg.value_objects.extend(synthesised);
     (agg, nested_policies, i + 1)
 }
 

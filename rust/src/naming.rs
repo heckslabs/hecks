@@ -181,3 +181,18 @@ mod tests {
         assert_eq!(split_verb(""), None);
     }
 }
+
+/// snake_case -> PascalCase. The name a synthesised closed-set value object
+/// takes when an attribute declares one inline. Mirrors Ruby's `Naming.pascal`
+/// exactly — the same bluebook must yield the same IR in both runtimes.
+pub fn pascal(text: &str) -> String {
+    text.split('_')
+        .map(|part| {
+            let mut chars = part.chars();
+            match chars.next() {
+                Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
+                None => String::new(),
+            }
+        })
+        .collect()
+}
