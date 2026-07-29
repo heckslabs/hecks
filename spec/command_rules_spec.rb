@@ -24,6 +24,8 @@ RSpec.describe "the rules a command obeys" do
   def boot_till    = boot(RULES_TILL)
 
   def funded_account(runtime)
+    runtime.dispatch("Banking::Customer.Register", reference: { value: "c" },
+                     name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
     runtime.dispatch("Banking::Account.Open", id: "a1", customer_id: { value: "c" }, number: { value: "ACC-1" },
                                               kind: { name: "current" }, daily_limit: { cents: 50_000 })
     runtime.dispatch("Banking::Account.Credit", id: "a1", amount: { cents: 10_000, currency: "USD" }, narrative: { text: "Opening" })
@@ -111,8 +113,16 @@ RSpec.describe "the rules a command obeys" do
 
     it "does not settle a transfer until its destination credit is recorded" do
       runtime = boot_banking
+      runtime.dispatch("Banking::Customer.Register", reference: { value: "c-src" },
+                       name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
+      runtime.dispatch("Banking::Account.Open", id: "src", customer_id: { value: "c-src" },
+                       number: { value: "ACC-src" }, kind: { name: "current" }, daily_limit: { cents: 50_000 })
+      runtime.dispatch("Banking::Customer.Register", reference: { value: "c-dst" },
+                       name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
+      runtime.dispatch("Banking::Account.Open", id: "dst", customer_id: { value: "c-dst" },
+                       number: { value: "ACC-dst" }, kind: { name: "current" }, daily_limit: { cents: 50_000 })
       runtime.dispatch("Banking::Transfer.Request",
-                       id: "x1", source: { value: "missing-source" }, destination: { value: "missing-destination" },
+                       id: "x1", source: { value: "src" }, destination: { value: "dst" },
                        amount: { cents: 100 }, narrative: { text: "A transfer waiting for credit" })
       runtime.dispatch("Banking::Transfer.Debited", transfer: "x1")
 
@@ -124,8 +134,16 @@ RSpec.describe "the rules a command obeys" do
 
     it "refuses duplicate and out-of-order transfer legs without changing their state" do
       runtime = boot_banking
+      runtime.dispatch("Banking::Customer.Register", reference: { value: "c-src" },
+                       name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
+      runtime.dispatch("Banking::Account.Open", id: "src", customer_id: { value: "c-src" },
+                       number: { value: "ACC-src" }, kind: { name: "current" }, daily_limit: { cents: 50_000 })
+      runtime.dispatch("Banking::Customer.Register", reference: { value: "c-dst" },
+                       name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
+      runtime.dispatch("Banking::Account.Open", id: "dst", customer_id: { value: "c-dst" },
+                       number: { value: "ACC-dst" }, kind: { name: "current" }, daily_limit: { cents: 50_000 })
       runtime.dispatch("Banking::Transfer.Request",
-                       id: "x1", source: { value: "missing-source" }, destination: { value: "missing-destination" },
+                       id: "x1", source: { value: "src" }, destination: { value: "dst" },
                        amount: { cents: 100 }, narrative: { text: "An ordered transfer" })
 
       expect { runtime.dispatch("Banking::Transfer.Settle", transfer: "x1") }

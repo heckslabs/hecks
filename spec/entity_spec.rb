@@ -20,6 +20,8 @@ RSpec.describe "an entity" do
   end
 
   def funded_account(runtime)
+    runtime.dispatch("Banking::Customer.Register", reference: { value: "c" },
+                     name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
     runtime.dispatch("Banking::Account.Open", id: "a1", customer_id: { value: "c" }, number: { value: "ACC-1" },
                                               kind: { name: "current" }, daily_limit: { cents: 50_000 })
     runtime.dispatch("Banking::Account.Credit", id: "a1", amount: { cents: 10_000, currency: "USD" }, narrative: { text: "Opening" })
@@ -37,6 +39,8 @@ RSpec.describe "an entity" do
 
   it "validates a nested value object before appending an entity" do
     runtime = boot_banking
+    runtime.dispatch("Banking::Customer.Register", reference: { value: "c" },
+                     name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
     runtime.dispatch("Banking::Account.Open", id: "a1", customer_id: { value: "c" }, number: { value: "ACC-1" },
                                               kind: { name: "current" }, daily_limit: { cents: 50_000 })
 

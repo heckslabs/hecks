@@ -401,6 +401,7 @@ impl Runtime {
             .and_then(|c| c.as_object().cloned())
             .ok_or_else(|| format!("{} has no command {:?}", entity_name, command_name))?;
         let normalized_args = normalize_command_args(&aggregate, &command, args)?;
+        self.resolve_references(domain, &command, &normalized_args)?;
         let args = &normalized_args;
 
         let identity = aggregate
@@ -797,6 +798,70 @@ impl Runtime {
             .collect()
     }
 
+    /// A reference must point at something that EXISTS.
+    ///
+    /// Mirrors Ruby's `CommandInterpreter#resolve_references`. `reference_to
+    /// Customer` is the one guarantee an aggregate reference is for, and it was
+    /// declared 14 times across banking and enforced in neither runtime — an
+    /// Account could belong to a customer who was never registered, and parity
+    /// stayed green because both sides were equally permissive.
+    ///
+    /// Checked here, not in coercion, because coercion holds no store. A
+    /// reference INTO ANOTHER DOMAIN is left alone : the target may legitimately
+    /// not be loaded, the same reading `across` policies already get.
+    fn resolve_references(
+        &mut self,
+        domain: &str,
+        command: &Map<String, Value>,
+        args: &State,
+    ) -> Result<(), String> {
+        for attribute in array(command, "attributes") {
+            let Some(name) = attribute.get("name").and_then(Value::as_str) else {
+                continue;
+            };
+            let Some(type_name) = attribute.get("type").and_then(Value::as_str) else {
+                continue;
+            };
+            let Some(target_name) = type_name
+                .strip_prefix("Reference<")
+                .and_then(|rest| rest.strip_suffix('>'))
+            else {
+                continue;
+            };
+            let Some(held) = args.get(name) else { continue };
+            if held.is_null() {
+                continue;
+            }
+            let Ok(target) = self.find_aggregate(domain, target_name, name) else {
+                continue;
+            };
+            let key = match held {
+                Value::Object(fields) if fields.len() == 1 => fields
+                    .values()
+                    .next()
+                    .map(query_text)
+                    .unwrap_or_default(),
+                other => query_text(other),
+            };
+            if key.is_empty() {
+                continue;
+            }
+            let identity = target
+                .get("identified_by")
+                .and_then(Value::as_str)
+                .unwrap_or("id")
+                .to_string();
+            let found = self
+                .all_records(domain, target_name, &target)
+                .into_iter()
+                .any(|(id, _)| id == key);
+            if !found {
+                return Err(format!("no {target_name} with {identity} {key:?}"));
+            }
+        }
+        Ok(())
+    }
+
     pub fn dispatch(&mut self, verb: &str, args: &State) -> Result<State, String> {
         let (domain, aggregate_name, command_name) = parse_verb(verb)?;
         if command_name.contains('.') {
@@ -806,6 +871,7 @@ impl Runtime {
         let command = find_command(&aggregate, &command_name)
             .ok_or_else(|| format!("{} has no command {:?}", aggregate_name, command_name))?;
         let normalized_args = normalize_command_args(&aggregate, &command, args)?;
+        self.resolve_references(&domain, &command, &normalized_args)?;
         let args = &normalized_args;
 
         let identity = aggregate

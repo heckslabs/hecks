@@ -23,6 +23,8 @@ RSpec.describe "one_of" do
     runtime = boot_banking
 
     expect do
+      runtime.dispatch("Banking::Customer.Register", reference: { value: "c" },
+                       name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
       runtime.dispatch("Banking::Account.Open", id: "a1", customer_id: { value: "c" }, number: { value: "ACC-1" },
                                                 kind: { name: "savings" }, daily_limit: { cents: 10_000 })
     end.not_to raise_error
@@ -32,6 +34,8 @@ RSpec.describe "one_of" do
     runtime = boot_banking
 
     expect do
+      runtime.dispatch("Banking::Customer.Register", reference: { value: "c" },
+                       name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
       runtime.dispatch("Banking::Account.Open", id: "a1", customer_id: { value: "c" }, number: { value: "ACC-1" },
                                                 kind: { name: "gold" }, daily_limit: { cents: 10_000 })
     end.to raise_error(Hecksagain::Runtime::InvariantViolation,

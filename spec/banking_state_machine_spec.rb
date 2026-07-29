@@ -19,6 +19,8 @@ RSpec.describe "Banking's generated account machine" do
   it "preserves the account balance invariant across deterministic command traces" do
     20.times do |seed|
       runtime = boot_banking
+      runtime.dispatch("Banking::Customer.Register", reference: { value: "c" },
+                       name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
       runtime.dispatch("Banking::Account.Open", id: "a#{seed}", customer_id: { value: "c" }, number: { value: "ACC-#{seed}" },
                                                 kind: { name: "current" }, daily_limit: { cents: 1_000 })
       model = 0

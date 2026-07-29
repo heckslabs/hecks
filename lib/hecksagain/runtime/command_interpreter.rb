@@ -12,6 +12,7 @@ module Hecksagain
 
       def call(domain, aggregate, command, args)
         args       = normalize_args(aggregate, command, args)
+        resolve_references(domain, aggregate, command, args)
         repository = @registry.repository(domain, aggregate)
         instance   = hydrate(repository, aggregate, command, args)
 
@@ -38,6 +39,55 @@ module Hecksagain
                raise(NotFound, "#{command.name} acts on an existing #{aggregate.name} — pass #{aggregate.identified_by}:")
           repository.find(id) || raise(NotFound, "no #{aggregate.name} with #{aggregate.identified_by} #{id.inspect}")
         end
+      end
+
+      # A reference must point at something that EXISTS.
+      #
+      # `reference_to Customer` is the one guarantee an aggregate reference is
+      # for, and it was declared 14 times across banking and enforced nowhere :
+      # an Account could belong to a customer who was never registered, in both
+      # runtimes, and parity stayed green because both were equally permissive
+      # and no corpus step ever passed a dangling reference.
+      #
+      # Resolved here rather than in coercion because coercion is pure — it
+      # holds no repository. A reference INTO ANOTHER DOMAIN is left alone : a
+      # cross-domain target may legitimately not be loaded, which is the same
+      # reading `across` policies already get.
+      def resolve_references(domain, aggregate, command, args)
+        command.attributes.each do |attribute|
+          next unless attribute.reference?
+          next unless args.key?(attribute.name)
+
+          held = args[attribute.name]
+          next if held.nil?
+
+          target = referenced_aggregate(domain, attribute)
+          next unless target
+
+          key = reference_identity(held)
+          next if key.to_s.empty?
+          next if @registry.repository(domain, target).find(key)
+
+          raise NotFound,
+                "no #{target.name} with #{target.identified_by || :id} #{key.inspect}"
+        end
+      end
+
+      def referenced_aggregate(domain, attribute)
+        name = attribute.type.to_s[/\AReference<(.+)>\z/, 1]
+        return nil unless name
+
+        @registry.bluebook(domain)&.aggregates&.find { |candidate| candidate.name == name }
+      end
+
+      def reference_identity(held)
+        case held
+        when Value then Value.scalar(held).to_s
+        when Hash  then held.values.first.to_s
+        else held.to_s
+        end
+      rescue TypeMismatch
+        nil
       end
 
       def reference_key(command)
