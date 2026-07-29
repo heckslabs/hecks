@@ -71,4 +71,74 @@ RSpec.describe "then_set arithmetic" do
       { amount: 2_500,  direction: "out" }
     ])
   end
+
+  # A mutation names a target — but must the target EXIST?
+  #
+  # The language says only `given("a mutation names a target") { !target.value
+  # .to_s.empty? }`. Non-emptiness, nothing more. So a then_set naming a field
+  # the aggregate never declared is, as far as the language is concerned, well
+  # formed — and at runtime it writes into nothing while both runtimes agree,
+  # which is the signature of every defect this corpus has produced.
+  #
+  # Found while giving CardPayment a `disputed_by` : the then_set was in place
+  # before the aggregate field was, and nothing said so.
+  describe "a mutation into a void" do
+    def in_registry
+      registry = Hecksagain::Runtime::Registry.new
+      Hecks.with_registry(registry) do
+        Kernel.load(InMemoryDomain::EXTRACTION_PORT)
+        Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+        yield
+      end
+      registry
+    end
+
+    def build_void_target
+      in_registry do
+        Hecks.bluebook("Void") do
+          vision "An aggregate whose command sets a field it never declared."
+          supporting
+
+          aggregate "Widget" do
+            description "A widget with exactly one declared field."
+
+            attribute :label, Label
+
+            value_object "Label" do
+              attribute :value, String
+
+              invariant("a widget is labelled") { !value.to_s.empty? }
+            end
+
+            command "Make" do
+              role "Maker"
+              goal "Bring a widget into being"
+
+              attribute :label, Label
+
+              emits "WidgetMade"
+            end
+
+            command "Rename" do
+              role "Maker"
+              goal "Set a field the aggregate never declared"
+
+              reference_to Widget
+              attribute :nickname, Label
+
+              # :nickname is NOT an attribute of Widget — :label is the only one.
+              then_set :nickname, to: :nickname
+
+              emits "WidgetRenamed"
+            end
+          end
+        end
+      end
+    end
+
+    it "refuses a then_set naming a field the aggregate never declared" do
+      expect { build_void_target }
+        .to raise_error(Hecksagain::Bluebook::DSL::Malformed, /nickname/)
+    end
+  end
 end

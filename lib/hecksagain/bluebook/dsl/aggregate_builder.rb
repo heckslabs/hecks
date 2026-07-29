@@ -63,6 +63,8 @@ module Hecksagain
         end
 
         def build
+          seal_mutation_targets
+
           ir = IR::Aggregate.new(
             name:          @name,
             description:   @description,
@@ -90,6 +92,39 @@ module Hecksagain
         end
 
         private
+
+        # A mutation must name a field the aggregate actually HAS.
+        #
+        # NOT moved to the language, and deliberately so. The language says only
+        # `given("a mutation names a target") { !target.value.to_s.empty? }` —
+        # non-emptiness — because saying more means reaching a list that lives on
+        # a DIFFERENT root : a command's changes hang off Command, the fields they
+        # name hang off Aggregate, and a given is a closed predicate over its own
+        # state. Aggregate.Seal is the right shape and cannot see commands ; the
+        # reference trick that rescued "attributes use value-object types" needs a
+        # root to point at, and an aggregate's fields are a value-object list, not
+        # roots. This is the second rule that cannot port for that reason — the
+        # first is read-model uniqueness — and both wait on the same thing : a
+        # quantifier, or fields promoted to roots.
+        #
+        # So it lives here, at build, where every declaration is present. Found by
+        # writing `then_set :disputed_by` on CardPayment before the field existed :
+        # it wrote into nothing, refused nothing, and both runtimes agreed.
+        def seal_mutation_targets
+          known = attributes.map { |attribute| attribute.name.to_sym }
+          known << @lifecycle.field.to_sym if @lifecycle
+
+          @commands.each do |command|
+            command.mutations.each do |mutation|
+              next if known.include?(mutation.target.to_sym)
+
+              raise Malformed,
+                    "#{@name}.#{command.name} sets #{mutation.target}, which #{@name} " \
+                    "never declares — a mutation into a field that does not exist " \
+                    "writes nothing and refuses nothing"
+            end
+          end
+        end
 
         def define_readers
           attributes.each do |attribute|

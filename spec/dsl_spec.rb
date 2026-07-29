@@ -23,6 +23,16 @@ RSpec.describe "the DSL surface" do
     build_aggregate(domain) do
       value_object("Size") { attribute :value, Integer }
       value_object("Tag") { attribute :value, String }
+
+      # The fields the then_set cases below mutate. A mutation must name a field
+      # the aggregate declares (AggregateBuilder#seal_mutation_targets), so the
+      # fixture declares them instead of mutating into a void — which is what it
+      # used to do, silently, while asserting the mutation had been recorded.
+      attribute :status,  Tag
+      attribute :balance, Size
+      attribute :lives,   Size
+      attribute :parts,   list_of(Size)
+
       command("Do", &block)
     end.command("Do")
   end
