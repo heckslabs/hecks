@@ -107,22 +107,37 @@ RSpec.describe "the language holds a bluebook, and gives it back" do
       .to eq(pizzas.aggregate("Pizza").commands.map(&:name))
   end
 
-  it "does NOT keep declaration order in the whole-bluebook read model" do
-    # And this is why the reconstruction has to read a level at a time rather than
-    # take the convenient snapshot. ReadModelInterpreter#matching ends `.sort_by(&:id)`
-    # — deliberately, because two hand-written stores cannot be trusted to iterate
-    # identically and a read model that returned store order would split parity.
+  it "keeps the order that changes behaviour" do
+    # Not all order is equal, and only one kind has to survive a round trip.
     #
-    # So the two ways back are for different jobs: the read model hands you the
-    # whole chapter when order does not matter, and DeclaredIn is what you rebuild
-    # an IR from. Pinned because it is a live trap: the read model is the nicer
-    # call, and using it would produce a reconstruction that differs from the
-    # source in a way nothing else would notice.
-    whole = runtime.query("Meta.whole_bluebook", bluebook: "Pizzas").first
+    # BEHAVIOUR-BEARING: mutations are applied in sequence, so a then_set reading a
+    # field an earlier one wrote depends on the order; a lifecycle takes the FIRST
+    # transition that matches; a compensation credits the source before reversing
+    # the transfer. Reorder any of those and the domain does something else.
+    whole    = runtime.query("Meta.whole_bluebook", bluebook: "Pizzas").first
+    purchase = whole[:commands].find { |c| text(c[:name]) == "Purchase" }
+    source   = pizzas.aggregate("Pizza").command("Purchase")
+
+    expect(purchase[:mutations].map { |m| text(m[:target]) })
+      .to eq(source.mutations.map { |m| m.target.to_s })
+    expect(purchase[:emits].map { |e| text(e[:name]) }).to eq(source.emits)
+  end
+
+  it "normalises the order that does not" do
+    # PRESENTATION ONLY: which order an aggregate's commands happen to be listed
+    # in. Nothing looks a command up by position — find_command is by name — so
+    # ReadModelInterpreter#matching ending `.sort_by(&:id)` is not a loss, it is a
+    # canonical form. And it is the right call: two hand-written stores cannot be
+    # trusted to iterate identically, so a read model returning store order would
+    # split parity on the first disagreement.
+    #
+    # Which means the byte-for-byte proof compares with the head lists sorted on
+    # both sides. That is not a weakening of the claim — it is the claim stated on
+    # the axis the machine actually reads.
+    whole    = runtime.query("Meta.whole_bluebook", bluebook: "Pizzas").first
     declared = pizzas.aggregate("Pizza").commands.map(&:name)
 
     expect(whole[:commands].map { |c| text(c[:name]) }).to eq(declared.sort)
-    expect(declared).not_to eq(declared.sort)
   end
 
   it "names a gathered collection the way English does" do
