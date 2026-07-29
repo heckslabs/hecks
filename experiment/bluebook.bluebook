@@ -1,0 +1,978 @@
+Hecks.bluebook "Meta" do
+  vision "The bluebook language, declared in itself. Loading a domain becomes dispatching commands into this meta-domain ; the IR it stores must equal the IR the DSL builder produces. The floor that stays hand-written is the interpreter — evaluating a predicate held as data — and IO."
+  core
+
+  aggregate "Chapter" do
+    description "One .bluebook file — the root a domain declaration hangs from."
+
+    identified_by :name
+
+    attribute :name,           ChapterName
+    attribute :vision,         Vision
+    attribute :classification, Classification
+    attribute :normalisations, list_of(NormalisationRule)
+
+    value_object "RuleText" do
+      # deliberately permissive : source_token and replacement are legitimately
+      # empty for the collapse_whitespace rule
+      attribute :value, String
+    end
+
+    value_object "NormalisationRule" do
+      attribute :strategy,     String
+      attribute :source_token, String
+      attribute :replacement,  String
+      attribute :boundary,     String
+      attribute :position,     String
+    end
+
+    value_object "ChapterName" do
+      attribute :value, String
+      invariant("a chapter is named") { !value.to_s.empty? }
+    end
+
+    value_object "Vision" do
+      attribute :value, String
+      invariant("a vision says something") { !value.to_s.empty? }
+    end
+
+    value_object "Classification" do
+      attribute :value, String
+      invariant("a chapter is core, supporting, or generic") do
+        value.to_s == "core" || value.to_s == "supporting" || value.to_s == "generic"
+      end
+    end
+
+    command "Declare" do
+      role "Language"
+      goal "Open a chapter"
+
+      attribute :name,           ChapterName
+      attribute :vision,         Vision
+      attribute :classification, Classification
+
+      emits "ChapterDeclared"
+    end
+
+    command "Normalise" do
+      role "Language"
+      goal "Attach one canonical-form rule to the chapter"
+
+      reference_to Chapter
+      attribute :strategy,     RuleText
+      attribute :source_token, RuleText
+      attribute :replacement,  RuleText
+      attribute :boundary,     RuleText
+      attribute :position,     RuleText
+
+      then_set :normalisations, append: {
+        strategy: :strategy, source_token: :source_token,
+        replacement: :replacement, boundary: :boundary, position: :position
+      }
+
+      emits "NormalisationAttached"
+    end
+  end
+
+  aggregate "Root" do
+    description "One aggregate inside a chapter — the head a domain's declarations attach to."
+
+    reference_to Chapter
+
+    attribute :name,         RootName
+    attribute :description,  Description
+    attribute :identity,     IdentityField
+    attribute :attributes,   list_of(Field)
+    attribute :values,       list_of(ValueName)
+    attribute :state_field,  IdentityField
+    attribute :state_start,  IdentityField
+    attribute :transitions,  list_of(Transition)
+
+    value_object "RootName" do
+      attribute :value, String
+      invariant("an aggregate is named") { !value.to_s.empty? }
+    end
+
+    value_object "Description" do
+      attribute :value, String
+      invariant("a description says something") { !value.to_s.empty? }
+    end
+
+    value_object "IdentityField" do
+      attribute :value, String
+    end
+
+    value_object "Field" do
+      attribute :name, String
+      attribute :type, String
+      attribute :list, String
+    end
+
+    value_object "ValueName" do
+      attribute :name, String
+    end
+
+    value_object "Transition" do
+      attribute :command,    String
+      attribute :from_state, String
+      attribute :to_state,   String
+    end
+
+    command "Declare" do
+      role "Language"
+      goal "Open an aggregate inside a chapter"
+
+      reference_to Chapter
+      attribute :name,        RootName
+      attribute :description, Description
+      attribute :identity,    IdentityField
+
+      emits "RootDeclared"
+    end
+
+    command "Attribute" do
+      role "Language"
+      goal "Attach one attribute to the aggregate"
+
+      reference_to Root
+      attribute :name, FieldName
+      attribute :type, TypeName
+      attribute :list, ListFlag
+
+      given("an attribute is named")      { !name.value.to_s.empty? }
+      given("an attribute names a type")  { !type.value.to_s.empty? }
+
+      then_set :attributes, append: { name: :name, type: :type, list: :list }
+
+      emits "AttributeAttached"
+    end
+
+    value_object "FieldName" do
+      attribute :value, String
+      invariant("an attribute is named") { !value.to_s.empty? }
+    end
+
+    value_object "TypeName" do
+      attribute :value, String
+      invariant("a type is named") { !value.to_s.empty? }
+    end
+
+    value_object "ListFlag" do
+      attribute :value, String
+      invariant("list is true or false") { value.to_s == "true" || value.to_s == "false" }
+    end
+
+    command "Lifecycle" do
+      role "Language"
+      goal "Name the field this aggregate's state machine runs on"
+
+      reference_to Root
+      attribute :state_field, FieldName
+      attribute :state_start, FieldName
+
+      then_set :state_field, to: :state_field
+      then_set :state_start, to: :state_start
+
+      emits "LifecycleNamed"
+    end
+
+    command "Transition" do
+      role "Language"
+      goal "Attach one transition to the state machine"
+
+      reference_to Root
+      attribute :command,    FieldName
+      attribute :from_state, FieldName
+      attribute :to_state,   FieldName
+
+      then_set :transitions, append: { command: :command, from_state: :from_state, to_state: :to_state }
+
+      emits "TransitionAttached"
+    end
+
+    command "Value" do
+      role "Language"
+      goal "Declare a value object belonging to this aggregate"
+
+      reference_to Root
+      attribute :name, FieldName
+
+      then_set :values, append: { name: :name }
+
+      emits "ValueDeclared"
+    end
+  end
+
+  aggregate "Verb" do
+    description "One command declared on an aggregate — its arguments, its rules, and what it announces."
+
+    reference_to Root
+
+    attribute :name,      VerbName
+    attribute :role,      Actor
+    attribute :goal,      Goal
+    attribute :emissions, list_of(Announcement)
+    attribute :acts_on,   EventName
+    attribute :arguments, list_of(Argument)
+    attribute :rules,     list_of(Rule)
+    attribute :changes,   list_of(Change)
+
+    value_object "VerbName" do
+      attribute :value, String
+      invariant("a command is named") { !value.to_s.empty? }
+    end
+
+    value_object "Actor" do
+      attribute :value, String
+      # RELAXED for the experiment : banking leaves 19 of 40 commands without a
+      # role, and the hand-written CommandBuilder never required one. Whether
+      # role/goal are mandatory is a language decision — the meta-domain found
+      # the drift the moment it enforced uniformly.
+    end
+
+    value_object "Goal" do
+      attribute :value, String
+      # RELAXED — see Actor above.
+    end
+
+    value_object "EventName" do
+      attribute :value, String
+    end
+
+    value_object "Announcement" do
+      attribute :name, String
+    end
+
+    value_object "Argument" do
+      attribute :name,    String
+      attribute :type,    String
+      attribute :list,    String
+      attribute :default, String
+    end
+
+    value_object "Rule" do
+      attribute :description, String
+      attribute :canonical,   String
+    end
+
+    value_object "Change" do
+      attribute :target, String
+      attribute :op,     String
+      attribute :field,  String
+      attribute :kind,   String
+      attribute :source, String
+    end
+
+    command "Declare" do
+      role "Language"
+      goal "Open a command on an aggregate"
+
+      reference_to Root
+      attribute :name, VerbName
+      attribute :role, Actor
+      attribute :goal, Goal
+
+      emits "VerbDeclared"
+    end
+
+    command "Argument" do
+      role "Language"
+      goal "Attach one argument to the command"
+
+      reference_to Verb
+      attribute :name,    ArgName
+      attribute :type,    ArgType
+      attribute :list,    ArgType
+      attribute :default, ArgType
+
+      then_set :arguments, append: { name: :name, type: :type, list: :list, default: :default }
+
+      emits "ArgumentAttached"
+    end
+
+    value_object "ArgName" do
+      attribute :value, String
+      invariant("an argument is named") { !value.to_s.empty? }
+    end
+
+    value_object "ArgType" do
+      attribute :value, String
+      # list / default reuse this shape and are legitimately empty
+    end
+
+    command "Rule" do
+      role "Language"
+      goal "Attach one given to the command"
+
+      reference_to Verb
+      attribute :description, RuleText
+      attribute :canonical,   RuleText
+
+      given("a rule says what it means")  { !description.value.to_s.empty? }
+      given("a rule survives extraction") { !canonical.value.to_s.empty? }
+
+      then_set :rules, append: { description: :description, canonical: :canonical }
+
+      emits "RuleAttached"
+    end
+
+    value_object "RuleText" do
+      attribute :value, String
+    end
+
+    command "Change" do
+      role "Language"
+      goal "Attach one mutation to the command"
+
+      reference_to Verb
+      attribute :target, FieldRef
+      attribute :op,     OpName
+      attribute :field,  FieldRef
+      attribute :kind,   FieldRef
+      attribute :source, FieldRef
+
+      given("a mutation names a target")     { !target.value.to_s.empty? }
+      given("a mutation does something")     { !op.value.to_s.empty? }
+
+      then_set :changes, append: { target: :target, op: :op, field: :field, kind: :kind, source: :source }
+
+      emits "ChangeAttached"
+    end
+
+    value_object "FieldRef" do
+      attribute :value, String
+    end
+
+    value_object "OpName" do
+      attribute :value, String
+      invariant("an op is one the runtime applies") do
+        value.to_s == "set" || value.to_s == "append" || value.to_s == "increment" || value.to_s == "decrement"
+      end
+    end
+
+    command "ActsOn" do
+      role "Language"
+      goal "Name the aggregate this command reaches through"
+
+      reference_to Verb
+      attribute :acts_on, EventName
+
+      then_set :acts_on, to: :acts_on
+
+      emits "ReferenceNamed"
+    end
+
+    command "Announce" do
+      role "Language"
+      goal "Name the event this command emits"
+
+      reference_to Verb
+      attribute :announces, EventName
+
+      given("an event is named") { !announces.value.to_s.empty? }
+
+      then_set :emissions, append: { name: :announces }
+
+      emits "AnnouncementNamed"
+    end
+  end
+
+  aggregate "Shape" do
+    description "One value object declared on an aggregate — its fields and the rules they must satisfy. Its own root because a value object holds nested lists, which no list element can."
+
+    reference_to Root
+
+    attribute :name,       ShapeName
+    attribute :fields,     list_of(ShapeField)
+    attribute :assertions, list_of(Assertion)
+
+    value_object "ShapeName" do
+      attribute :value, String
+      invariant("a value object is named") { !value.to_s.empty? }
+    end
+
+    value_object "ShapeField" do
+      attribute :name,    String
+      attribute :type,    String
+      attribute :list,    String
+      attribute :default, String
+    end
+
+    value_object "Assertion" do
+      attribute :description, String
+      attribute :canonical,   String
+    end
+
+    command "Declare" do
+      role "Language"
+      goal "Open a value object on an aggregate"
+
+      reference_to Root
+      attribute :name, ShapeName
+
+      emits "ShapeDeclared"
+    end
+
+    command "Field" do
+      role "Language"
+      goal "Attach one field to the value object"
+
+      reference_to Shape
+      attribute :name,    ShapeName
+      attribute :type,    ShapeName
+      attribute :list,    ShapeName
+      attribute :default, ShapeText
+
+      then_set :fields, append: { name: :name, type: :type, list: :list, default: :default }
+
+      emits "ShapeFieldAttached"
+    end
+
+    command "Assert" do
+      role "Language"
+      goal "Attach one invariant to the value object"
+
+      reference_to Shape
+      attribute :description, ShapeText
+      attribute :canonical,   ShapeText
+
+      given("a rule says what it means")  { !description.value.to_s.empty? }
+      given("a rule survives extraction") { !canonical.value.to_s.empty? }
+
+      then_set :assertions, append: { description: :description, canonical: :canonical }
+
+      emits "AssertionAttached"
+    end
+
+    value_object "ShapeText" do
+      attribute :value, String
+    end
+  end
+
+  aggregate "Vocabulary" do
+    # These are DECLARATIONS, not runtime state — a language's admitted sets are
+    # fixed when the language is defined, which is what one_of means. They carry
+    # no commands on purpose : nothing dispatches a vocabulary, the conformance
+    # check READS them from the IR and holds each runtime's own table to them.
+    #
+    # Every one of these is a set two runtimes must agree on, and every one has
+    # already drifted or leaked at least once :
+    #   Comparison            went disjoint from the grammar chapter's operator table
+    #   NormalisationStrategy is the third, unchecked copy of the canonical-form table
+    #   Primitive             is what "primitives live in value objects only" is ABOUT
+    #   DomainRefusal         is the boundary three raw Ruby TypeErrors crossed tonight
+    description "The closed sets the language admits — the whole of what any runtime may accept, declared once."
+
+    attribute :name, VocabularyName
+
+    value_object "VocabularyName" do
+      attribute :value, String
+      invariant("a vocabulary is named") { !value.to_s.empty? }
+    end
+
+    # Expression::Evaluator::COMPARISONS
+    value_object "Comparison" do
+      attribute :symbol, String
+      one_of do
+        member symbol: ">="
+        member symbol: "<="
+        member symbol: "<"
+        member symbol: ">"
+        member symbol: "=="
+        member symbol: "!="
+      end
+    end
+
+    # Expression::Resolver::SIGN_TESTS
+    value_object "SignTest" do
+      attribute :name, String
+      one_of do
+        member name: "positive?"
+        member name: "negative?"
+        member name: "zero?"
+      end
+    end
+
+    # IR::Attribute::PRIMITIVES — the scalars a value object may bottom out in
+    value_object "Primitive" do
+      attribute :name, String
+      one_of do
+        member name: "String"
+        member name: "Integer"
+        member name: "Float"
+        member name: "TrueClass"
+        member name: "FalseClass"
+      end
+    end
+
+    # Expression::CanonicalForm::STRATEGIES
+    value_object "NormalisationStrategy" do
+      attribute :name, String
+      one_of do
+        member name: "collapse_whitespace"
+        member name: "replace"
+      end
+    end
+
+    # the ops Runtime::CommandInterpreter applies
+    value_object "MutationOp" do
+      attribute :name, String
+      one_of do
+        member name: "set"
+        member name: "append"
+        member name: "increment"
+        member name: "decrement"
+      end
+    end
+
+    # Adapters::Driven::Folder::DOMAIN_ORDER — declarations load in this order
+    value_object "LoadOrder" do
+      attribute :glob, String
+      one_of do
+        member glob: "*.port"
+        member glob: "*.adapter"
+        member glob: "*.bluebook"
+        member glob: "*.hecksagon"
+        member glob: "*.world"
+      end
+    end
+
+    # Runtime::Errors::DOMAIN_REFUSALS — what counts as the domain judging,
+    # as opposed to the runtime breaking. Anything outside this set that reaches
+    # a refusal list is a bug wearing a refusal's clothes.
+    value_object "DomainRefusal" do
+      attribute :name, String
+      one_of do
+        member name: "GivenNotMet"
+        member name: "InvariantViolation"
+        member name: "LifecycleRefused"
+        member name: "NotFound"
+        member name: "TypeMismatch"
+        member name: "UnknownVerb"
+      end
+    end
+  end
+
+  aggregate "Ask" do
+    description "One query declared on an aggregate — what it filters on, how it orders, and how many it returns."
+
+    reference_to Root
+
+    attribute :name,       AskName
+    attribute :purpose,    AskText
+    attribute :order_field, AskText
+    attribute :order_way,  AskText
+    attribute :ceiling,    AskText
+    attribute :filters,    list_of(Filter)
+    attribute :arguments,  list_of(AskArgument)
+
+    value_object "AskName" do
+      attribute :value, String
+      invariant("a query is named") { !value.to_s.empty? }
+    end
+
+    value_object "AskText" do
+      attribute :value, String
+    end
+
+    value_object "Filter" do
+      attribute :field, String
+      attribute :op,    String
+      attribute :value, String
+    end
+
+    value_object "AskArgument" do
+      attribute :name,    String
+      attribute :type,    String
+      attribute :list,    String
+      attribute :default, String
+    end
+
+    command "Declare" do
+      role "Language"
+      goal "Open a query on an aggregate"
+
+      reference_to Root
+      attribute :name,        AskName
+      attribute :purpose,     AskText
+      attribute :order_field, AskText
+      attribute :order_way,   AskText
+      attribute :ceiling,     AskText
+
+      emits "AskDeclared"
+    end
+
+    command "Filter" do
+      role "Language"
+      goal "Attach one where-clause to the query"
+
+      reference_to Ask
+      attribute :field, AskText
+      attribute :op,    AskText
+      attribute :value, AskText
+
+      then_set :filters, append: { field: :field, op: :op, value: :value }
+
+      emits "FilterAttached"
+    end
+
+    command "Argument" do
+      role "Language"
+      goal "Attach one parameter to the query"
+
+      reference_to Ask
+      attribute :name,    AskText
+      attribute :type,    AskText
+      attribute :list,    AskText
+      attribute :default, AskText
+
+      then_set :arguments, append: { name: :name, type: :type, list: :list, default: :default }
+
+      emits "AskArgumentAttached"
+    end
+  end
+
+  aggregate "Reaction" do
+    description "One policy — the event it watches, the command it fires, and the domain that command belongs to."
+
+    reference_to Chapter
+
+    attribute :name,     ReactionName
+    attribute :watches,  ReactionText
+    attribute :fires,    ReactionText
+    attribute :reaches,  ReactionText
+
+    value_object "ReactionName" do
+      attribute :value, String
+      invariant("a policy is named") { !value.to_s.empty? }
+    end
+
+    value_object "ReactionText" do
+      attribute :value, String
+    end
+
+    command "Declare" do
+      role "Language"
+      goal "Declare a policy on a chapter"
+
+      reference_to Chapter
+      attribute :name,    ReactionName
+      attribute :watches, ReactionText
+      attribute :fires,   ReactionText
+      attribute :reaches, ReactionText
+
+      emits "ReactionDeclared"
+    end
+  end
+
+  aggregate "Saga" do
+    description "One process manager — what correlates its instances, what starts and ends it, and the states it moves through."
+
+    reference_to Chapter
+
+    attribute :name,      SagaName
+    attribute :correlate, SagaText
+    attribute :starts,    SagaText
+    attribute :ends,      SagaText
+    attribute :states,    list_of(SagaState)
+
+    value_object "SagaName" do
+      attribute :value, String
+      invariant("a process manager is named") { !value.to_s.empty? }
+    end
+
+    value_object "SagaText" do
+      attribute :value, String
+    end
+
+    value_object "SagaState" do
+      attribute :name, String
+    end
+
+    command "Declare" do
+      role "Language"
+      goal "Open a process manager on a chapter"
+
+      reference_to Chapter
+      attribute :name,      SagaName
+      attribute :correlate, SagaText
+      attribute :starts,    SagaText
+      attribute :ends,      SagaText
+
+      emits "SagaDeclared"
+    end
+
+    command "State" do
+      role "Language"
+      goal "Attach one state to the process manager"
+
+      reference_to Saga
+      attribute :name, SagaText
+
+      then_set :states, append: { name: :name }
+
+      emits "SagaStateAttached"
+    end
+  end
+
+  aggregate "Leg" do
+    description "One handler inside a process manager — the event it answers, the state move it makes, and the commands it sends. Its own root because a handler holds nested dispatches, which hold nested bindings."
+
+    reference_to Saga
+
+    attribute :saga,       LegText
+    attribute :answers,    LegText
+    attribute :from_state, LegText
+    attribute :to_state,   LegText
+
+    value_object "LegText" do
+      attribute :value, String
+    end
+
+    command "Declare" do
+      role "Language"
+      goal "Open a handler inside a process manager"
+
+      reference_to Saga
+      attribute :saga,       LegText
+      attribute :answers,    LegText
+      attribute :from_state, LegText
+      attribute :to_state,   LegText
+
+      emits "LegDeclared"
+    end
+  end
+
+  aggregate "Send" do
+    description "One command a handler dispatches, with the arguments it binds. Its own root because the bindings are an open map, which no value object can hold."
+
+    reference_to Leg
+
+    attribute :leg,      SendText
+    attribute :verb,     SendText
+    attribute :bindings, list_of(Binding)
+
+    value_object "SendText" do
+      attribute :value, String
+    end
+
+    value_object "Binding" do
+      attribute :key,   String
+      attribute :value, String
+    end
+
+    command "Declare" do
+      role "Language"
+      goal "Open a dispatch inside a handler"
+
+      reference_to Leg
+      attribute :leg,  SendText
+      attribute :verb, SendText
+
+      emits "SendDeclared"
+    end
+
+    command "Bind" do
+      role "Language"
+      goal "Bind one argument of the dispatched command"
+
+      reference_to Send
+      attribute :key,   SendText
+      attribute :value, SendText
+
+      then_set :bindings, append: { key: :key, value: :value }
+
+      emits "BindingAttached"
+    end
+  end
+
+  aggregate "Projection" do
+    description "One read model — the aggregate heads it gathers and the reference it hangs from."
+
+    reference_to Chapter
+
+    attribute :name,        ProjectionName
+    attribute :purpose,     ProjectionText
+    attribute :query_name,  ProjectionText
+    attribute :ref_name,    ProjectionText
+    attribute :ref_target,  ProjectionText
+    attribute :heads,       list_of(Head)
+
+    value_object "ProjectionName" do
+      attribute :value, String
+      invariant("a read model is named") { !value.to_s.empty? }
+    end
+
+    value_object "ProjectionText" do
+      attribute :value, String
+    end
+
+    value_object "Head" do
+      attribute :aggregate, String
+      attribute :as,        String
+      attribute :many,      String
+    end
+
+    command "Declare" do
+      role "Language"
+      goal "Open a read model on a chapter"
+
+      reference_to Chapter
+      attribute :name,       ProjectionName
+      attribute :purpose,    ProjectionText
+      attribute :query_name, ProjectionText
+      attribute :ref_name,   ProjectionText
+      attribute :ref_target, ProjectionText
+
+      emits "ProjectionDeclared"
+    end
+
+    command "Gather" do
+      role "Language"
+      goal "Attach one aggregate head to the read model"
+
+      reference_to Projection
+      attribute :aggregate, ProjectionText
+      attribute :as,        ProjectionText
+      attribute :many,      ProjectionText
+
+      then_set :heads, append: { aggregate: :aggregate, as: :as, many: :many }
+
+      emits "HeadGathered"
+    end
+  end
+
+  aggregate "Piece" do
+    description "One entity inside an aggregate — an element with its own identity, state machine, commands and queries. Its own root because it repeats the aggregate's whole shape one level down."
+
+    reference_to Root
+
+    attribute :owner,       PieceText
+    attribute :name,        PieceName
+    attribute :description, PieceName
+    attribute :identity,    PieceText
+    attribute :attributes,  list_of(PieceField)
+    attribute :state_field, PieceText
+    attribute :state_start, PieceText
+    attribute :transitions, list_of(PieceTransition)
+
+    value_object "PieceName" do
+      attribute :value, String
+      invariant("an entity is named") { !value.to_s.empty? }
+    end
+
+    value_object "PieceText" do
+      attribute :value, String
+    end
+
+    value_object "PieceField" do
+      attribute :name,    String
+      attribute :type,    String
+      attribute :list,    String
+      attribute :default, String
+    end
+
+    value_object "PieceTransition" do
+      attribute :command,    String
+      attribute :from_state, String
+      attribute :to_state,   String
+    end
+
+    command "Declare" do
+      role "Language"
+      goal "Open an entity inside an aggregate"
+
+      reference_to Root
+      attribute :owner,       PieceText
+      attribute :name,        PieceName
+      attribute :description, PieceName
+      attribute :identity,    PieceText
+
+      emits "PieceDeclared"
+    end
+
+    command "Attribute" do
+      role "Language"
+      goal "Attach one attribute to the entity"
+
+      reference_to Piece
+      attribute :name,    PieceText
+      attribute :type,    PieceText
+      attribute :list,    PieceText
+      attribute :default, PieceText
+
+      then_set :attributes, append: { name: :name, type: :type, list: :list, default: :default }
+
+      emits "PieceAttributeAttached"
+    end
+
+    command "Lifecycle" do
+      role "Language"
+      goal "Name the field this entity's state machine runs on"
+
+      reference_to Piece
+      attribute :state_field, PieceText
+      attribute :state_start, PieceText
+
+      then_set :state_field, to: :state_field
+      then_set :state_start, to: :state_start
+
+      emits "PieceLifecycleNamed"
+    end
+
+    command "Transition" do
+      role "Language"
+      goal "Attach one transition to the entity's state machine"
+
+      reference_to Piece
+      attribute :command,    PieceText
+      attribute :from_state, PieceText
+      attribute :to_state,   PieceText
+
+      then_set :transitions, append: { command: :command, from_state: :from_state, to_state: :to_state }
+
+      emits "PieceTransitionAttached"
+    end
+  end
+
+  aggregate "Member" do
+    description "One admitted row of a value object's one_of — a whole combination of field values, not a per-field choice. Its own root because a row is a list of pairs inside a list of rows."
+
+    reference_to Shape
+
+    attribute :shape, MemberText
+    attribute :pairs, list_of(Pair)
+
+    value_object "MemberText" do
+      attribute :value, String
+    end
+
+    value_object "Pair" do
+      attribute :key,   String
+      attribute :value, String
+    end
+
+    command "Declare" do
+      role "Language"
+      goal "Open one admitted row on a value object"
+
+      reference_to Shape
+      attribute :shape, MemberText
+
+      emits "MemberDeclared"
+    end
+
+    command "Pair" do
+      role "Language"
+      goal "Bind one field of the admitted row"
+
+      reference_to Member
+      attribute :key,   MemberText
+      attribute :value, MemberText
+
+      then_set :pairs, append: { key: :key, value: :value }
+
+      emits "PairBound"
+    end
+  end
+end
