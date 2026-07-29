@@ -66,8 +66,8 @@ RSpec.describe "the language holds a bluebook, and gives it back" do
     expect(refusals).to be_empty
   end
 
-  it "gives the chapter back, by name" do
-    rows = runtime.query("Meta::Bluebook.Named", name: { value: "Pizzas" })
+  it "gives back the bluebook called Pizzas" do
+    rows = runtime.query("Meta::Bluebook.Called", name: { value: "Pizzas" })
 
     expect(rows.size).to eq(1)
     expect(text(rows.first[:name])).to eq(pizzas.name)
@@ -75,8 +75,8 @@ RSpec.describe "the language holds a bluebook, and gives it back" do
     expect(text(rows.first[:classification])).to eq(pizzas.classification)
   end
 
-  it "gives back every aggregate the chapter declared" do
-    rows = runtime.query("Meta::Aggregate.Of", bluebook_id: { value: "Pizzas" })
+  it "gives back every aggregate declared in it" do
+    rows = runtime.query("Meta::Aggregate.DeclaredIn", bluebook_id: { value: "Pizzas" })
 
     expect(rows.map { |row| text(row[:name]) }).to eq(pizzas.aggregates.map(&:name))
   end
@@ -89,6 +89,6 @@ RSpec.describe "the language holds a bluebook, and gives it back" do
     expect(Hecksagain::Bluebook::MetaValidator.grammar_registry
              .bluebook("Meta").aggregates
              .flat_map { |a| a.queries.map { |q| "#{a.name}.#{q.name}" } })
-      .to include("Bluebook.Named", "Aggregate.Of")
+      .to include("Bluebook.Called", "Aggregate.DeclaredIn")
   end
 end

@@ -69,7 +69,10 @@ Hecks.bluebook "Meta" do
     # anything, and "loading a domain becomes dispatching commands into this
     # meta-domain" — the vision at the top of this file — needs the records to
     # come back out as the IR the runtime runs.
-    query "Named" do
+    # Named to finish a sentence about the thing, the way every other query in the
+    # corpus is — pizzas COSTING LESS THAN a ceiling, orders PENDING, cards
+    # ACTIVE. So: the bluebook CALLED "Pizzas".
+    query "Called" do
       attribute :name, BluebookName
       where(name: :name)
     end
@@ -151,10 +154,14 @@ Hecks.bluebook "Meta" do
       emits "RootDeclared"
     end
 
-    # The way back, one level down: every aggregate a chapter declared, found by
-    # the chapter that declared it. The parent reference IS the query.
-    query "Of" do
-      attribute :bluebook_id, AggregateName
+    # The way back, one level down: the aggregates DECLARED IN a chapter, found by
+    # the chapter that declared them. The parent reference IS the query.
+    #
+    # `bluebook_id` is an IdentityField, not an AggregateName — it holds the id of
+    # the chapter above, and calling that a name for aggregates was sloppiness that
+    # would read as a lie the first time somebody looked.
+    query "DeclaredIn" do
+      attribute :bluebook_id, IdentityField
       where(bluebook_id: :bluebook_id)
     end
 
