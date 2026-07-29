@@ -394,8 +394,7 @@
     },
     {
       "query": "Banking::Transfer.InFlight",
-      "args": {
-      }
+      "args": {}
     },
     {
       "verb": "Banking::Transfer.Reverse",
@@ -464,8 +463,7 @@
     },
     {
       "query": "Banking::Customer.Suspended",
-      "args": {
-      }
+      "args": {}
     },
     {
       "verb": "Banking::Customer.Reinstate",
@@ -633,8 +631,7 @@
     },
     {
       "query": "Banking::Account.Open",
-      "args": {
-      }
+      "args": {}
     },
     {
       "query": "Banking::Account.Overdrawn",
@@ -647,23 +644,19 @@
     },
     {
       "query": "Banking::Customer.InGoodStanding",
-      "args": {
-      }
+      "args": {}
     },
     {
       "query": "Banking::Customer.Suspended",
-      "args": {
-      }
+      "args": {}
     },
     {
       "query": "Banking::Transfer.InFlight",
-      "args": {
-      }
+      "args": {}
     },
     {
       "query": "Banking::Account.LedgerEntry.Reversed",
-      "args": {
-      }
+      "args": {}
     },
     {
       "verb": "Banking::Customer.Close",
@@ -903,18 +896,15 @@
     },
     {
       "query": "Banking::ATMCard.Active",
-      "args": {
-      }
+      "args": {}
     },
     {
       "query": "Banking::ATMCard.ByFee",
-      "args": {
-      }
+      "args": {}
     },
     {
       "query": "Banking::ATMCard.Withdrawal.Recent",
-      "args": {
-      }
+      "args": {}
     },
     {
       "verb": "Banking::ATMCard.Retire",
@@ -926,8 +916,7 @@
     },
     {
       "query": "Banking::ATMCard.Active",
-      "args": {
-      }
+      "args": {}
     },
     {
       "verb": "Banking::Customer.Register",
@@ -1484,8 +1473,7 @@
     },
     {
       "query": "Banking::Transfer.InFlight",
-      "args": {
-      }
+      "args": {}
     },
     {
       "verb": "Banking::Transfer.Reject",
@@ -1513,15 +1501,14 @@
     },
     {
       "query": "Banking::Transfer.InFlight",
-      "args": {
-      }
+      "args": {}
     },
     {
       "verb": "Banking::Transfer.Request",
       "args": {
         "id": "xfer-5",
         "source": {
-          "value": "acct-ghost"
+          "value": "acct-8"
         },
         "destination": {
           "value": "acct-7"
@@ -1530,7 +1517,7 @@
           "cents": 100
         },
         "narrative": {
-          "text": "Out of an account that never existed"
+          "text": "A transfer between two accounts that exist"
         }
       }
     },
@@ -1544,6 +1531,24 @@
       "verb": "Banking::Transfer.Reject",
       "args": {
         "id": "xfer-5"
+      }
+    },
+    {
+      "verb": "Banking::Transfer.Request",
+      "args": {
+        "id": "xfer-ghost",
+        "source": {
+          "value": "acct-8"
+        },
+        "destination": {
+          "value": "acct-nowhere"
+        },
+        "amount": {
+          "cents": 100
+        },
+        "narrative": {
+          "text": "A transfer to an account that was never opened"
+        }
       }
     },
     {
@@ -1699,33 +1704,27 @@
     },
     {
       "query": "Banking::Account.Overdrawn",
-      "args": {
-      }
+      "args": {}
     },
     {
       "query": "Banking::Account.Open",
-      "args": {
-      }
+      "args": {}
     },
     {
       "query": "Banking::Customer.InGoodStanding",
-      "args": {
-      }
+      "args": {}
     },
     {
       "query": "Banking::ATMCard.Active",
-      "args": {
-      }
+      "args": {}
     },
     {
       "query": "Banking::ATMCard.ByFee",
-      "args": {
-      }
+      "args": {}
     },
     {
       "query": "Banking::Transfer.InFlight",
-      "args": {
-      }
+      "args": {}
     },
     {
       "verb": "Banking::Account.ApplyFee",
@@ -1952,13 +1951,11 @@
     },
     {
       "query": "Banking::CardPayment.Pending",
-      "args": {
-      }
+      "args": {}
     },
     {
       "query": "Banking::CardPayment.Disputed",
-      "args": {
-      }
+      "args": {}
     },
     {
       "verb": "Banking::ExternalTransfer.Request",
@@ -2043,8 +2040,7 @@
     },
     {
       "query": "Banking::ExternalTransfer.Sent",
-      "args": {
-      }
+      "args": {}
     },
     {
       "verb": "Banking::ScheduledPayment.Schedule",
@@ -2126,8 +2122,7 @@
     },
     {
       "query": "Banking::ScheduledPayment.Due",
-      "args": {
-      }
+      "args": {}
     },
     {
       "query": "Banking.customer_portfolio",

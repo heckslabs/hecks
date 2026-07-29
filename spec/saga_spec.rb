@@ -131,6 +131,10 @@ RSpec.describe "a lifecycle" do
 
   it "addresses a record by its reference key, like every saga leg must" do
     runtime = boot_wire
+    # the drawers have to exist — a wire between accounts that were never
+    # opened is not a wire, and the runtime now says so
+    runtime.dispatch("Wire::Drawer.Open", id: "a")
+    runtime.dispatch("Wire::Drawer.Open", id: "b")
     runtime.dispatch("Wire::Wire.Ask", id: "w", amount: { cents: 1 }, source: { value: "a" }, destination: { value: "b" })
 
     expect { runtime.dispatch("Wire::Wire.Returned", wire: "missing") }
