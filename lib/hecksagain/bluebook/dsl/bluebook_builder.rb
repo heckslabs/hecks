@@ -148,8 +148,7 @@ module Hecksagain
 
         def validate_attribute_references(source, attributes, targets, violations)
           attributes.select(&:reference?).each do |attribute|
-            target = attribute.type.delete_prefix("Reference<").delete_suffix(">")
-            validate_reference(source, target, targets, violations)
+            validate_reference(source, attribute.type.target_name, targets, violations)
           end
         end
 

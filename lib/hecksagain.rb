@@ -18,6 +18,7 @@ require_relative "hecksagain/bluebook/expression/resolver"
 require_relative "hecksagain/bluebook/expression/evaluator"
 
 require_relative "hecksagain/bluebook/ir/type_name"
+require_relative "hecksagain/bluebook/ir/reference"
 require_relative "hecksagain/bluebook/ir/attribute"
 require_relative "hecksagain/bluebook/ir/value_object"
 require_relative "hecksagain/bluebook/ir/command"

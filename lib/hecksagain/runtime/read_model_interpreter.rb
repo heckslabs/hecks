@@ -44,7 +44,11 @@ module Hecksagain
         aggregate ? @registry.read_repository(domain, aggregate).all : []
       end
       def reference(value) = Value.identifier(value)
-      def reference_fields(aggregate, target) = aggregate.attributes.select { |attribute| attribute.type == "Reference<#{target}>" }.map(&:name)
+      def reference_fields(aggregate, target)
+        aggregate.attributes
+                 .select { |attribute| attribute.reference? && attribute.type.target_name == target.to_s }
+                 .map(&:name)
+      end
       def matching(records) = records.select { |record| yield(record) }.sort_by(&:id)
       def row(record) = record.to_h
     end

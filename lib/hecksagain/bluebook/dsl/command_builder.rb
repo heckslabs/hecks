@@ -42,7 +42,7 @@ module Hecksagain
         private
 
         def cross_reference(target, as)
-          attribute(as || :"#{Naming.snake(target)}_id", "Reference<#{target}>")
+          attribute(as || :"#{Naming.snake(target)}_id", IR::Reference.new(target))
         end
 
         public

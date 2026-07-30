@@ -73,11 +73,13 @@ module Hecksagain
         end
       end
 
-      def referenced_aggregate(domain, attribute)
-        name = attribute.type.to_s[/\AReference<(.+)>\z/, 1]
-        return nil unless name
-
-        @registry.bluebook(domain)&.aggregates&.find { |candidate| candidate.name == name }
+      # The reference RESOLVES itself — through the chapter's namespace, so Ruby's
+      # constant tree is the index. This used to regex the target's name out of
+      # "Reference<Customer>" and then search `registry.bluebook(domain).aggregates`
+      # for it: a spelling parsed, and a registry scanned, to reach a class the
+      # attribute was holding all along.
+      def referenced_aggregate(_domain, attribute)
+        attribute.type.resolve&.ir
       end
 
       def reference_identity(held)

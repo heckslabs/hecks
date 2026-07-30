@@ -181,10 +181,9 @@ module Hecksagain
         # live here, because this is where the IR's shape differs from the
         # language's and nowhere else should know the spelling.
         def points_at(row, aggregate_id)
-          target = row.type.to_s[/\AReference<(.+)>\z/, 1]
-          return nil unless target
+          return nil unless row.reference?
 
-          "#{aggregate_id.split('::').first}::#{target}"
+          "#{aggregate_id.split('::').first}::#{row.type.target_name}"
         end
 
         # A LITERAL, written so it can be read back exactly.

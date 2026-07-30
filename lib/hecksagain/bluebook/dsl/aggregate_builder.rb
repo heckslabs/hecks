@@ -34,7 +34,7 @@ module Hecksagain
         def reference_to(type, as: nil)
           target = Naming.demodulise(type)
           @reference_targets << target
-          attribute(as || :"#{Naming.snake(target)}_id", "Reference<#{target}>")
+          attribute(as || :"#{Naming.snake(target)}_id", IR::Reference.new(target))
         end
 
         def lifecycle(field, default:, &block)
@@ -66,6 +66,7 @@ module Hecksagain
         def build
           seal_mutation_targets
           nest_value_objects
+          stamp_references
 
           ir = IR::Aggregate.new(
             name:          @name,
@@ -110,6 +111,31 @@ module Hecksagain
             @klass.send(:remove_const, name) if @klass.const_defined?(name, false)
             @klass.const_set(name, shape)
           end
+        end
+
+        # Every reference is told which aggregate declares it, so it can find the
+        # chapter and resolve its target.
+        #
+        # Stamped HERE, at build, rather than at `reference_to`, because a command
+        # builder does not hold the aggregate's class and should not learn to. And
+        # deliberately across every list that can carry one — a reference the walk
+        # missed would resolve to nil, and `resolve_references` SKIPS a nil target,
+        # so the guarantee would go quiet instead of going red. That is the exact
+        # shape of the bug that let an Account belong to an unregistered customer
+        # fourteen times over.
+        def stamp_references
+          reference_bearing_attributes.each { |attribute| attribute.type.declared_in = @klass }
+        end
+
+        def reference_bearing_attributes
+          lists = [attributes, *@commands.map(&:attributes), *@queries.map(&:attributes)]
+          @entities.each do |entity|
+            lists << entity.attributes
+            lists.concat(entity.commands.map(&:attributes))
+            lists.concat(entity.queries.map(&:attributes))
+          end
+
+          lists.flatten.select(&:reference?)
         end
 
         # A mutation must name a field the aggregate actually HAS.

@@ -352,7 +352,9 @@ module Hecksagain
       end
 
       def select_related(aggregate, target, id)
-        references = aggregate.attributes.select { |attribute| attribute.type == "Reference<#{target}>" }
+        references = aggregate.attributes.select do |attribute|
+          attribute.reference? && attribute.type.target_name == target.to_s
+        end
         return [] if references.empty?
 
         clauses = references.map do |attribute|

@@ -4,22 +4,26 @@ module Hecksagain
       class Attribute
         attr_reader :name, :type, :default
 
+        # A Reference is kept AS ITSELF. Every other type is still a name, and
+        # crosses over as its construct does.
         def initialize(name:, type:, list: false, default: nil)
           @name    = name.to_sym
-          @type    = type.to_s
+          @type    = type.is_a?(Reference) ? type : type.to_s
           @list    = list
           @default = default
         end
 
         def list?   = @list
         def scalar? = !@list
-        def reference? = @type.start_with?("Reference<")
+        def reference? = @type.is_a?(Reference)
 
         PRIMITIVES = %w[String Integer Float TrueClass FalseClass].freeze
         def primitive? = PRIMITIVES.include?(@type)
 
+        # `type` is spelled, never handed over. A Reference renders as
+        # "Reference<Customer>" here because that is what the Rust parser reads.
         def to_h
-          { name: @name, type: @type, list: @list, default: @default }
+          { name: @name, type: @type.to_s, list: @list, default: @default }
         end
       end
     end
