@@ -91,6 +91,28 @@ RSpec.describe Hecksagain::Adapters::Sqlite do
     expect(adapter.count).to eq(2)
   end
 
+  it "pushes an 'in' where-clause down to SQL, matching any of the comma-separated list" do
+    adapter.save(instance("p1", name: { value: "Margherita" }))
+    adapter.save(instance("p2", name: { value: "Diavola" }))
+    adapter.save(instance("p3", name: { value: "Bare" }))
+
+    where = Hecksagain::QuerySpecification::Common::WhereClause.new(
+      field: "name", op: :in, value: "Margherita,Diavola"
+    )
+    declared = Hecksagain::Bluebook::IR::Query.new(name: "ByName", wheres: [where])
+
+    expect(adapter.query(declared, {}).map(&:id)).to contain_exactly("p1", "p2")
+  end
+
+  it "pushes an 'in' where-clause matching nothing when the list is empty" do
+    adapter.save(instance("p1", name: { value: "Margherita" }))
+
+    where = Hecksagain::QuerySpecification::Common::WhereClause.new(field: "name", op: :in, value: "")
+    declared = Hecksagain::Bluebook::IR::Query.new(name: "ByName", wheres: [where])
+
+    expect(adapter.query(declared, {})).to be_empty
+  end
+
   it "deletes through the append-only log and materialized table" do
     adapter.save(instance("p1", name: { value: "Temporary" }))
 

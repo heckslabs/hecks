@@ -192,6 +192,10 @@
       }
     },
     {
+      "query": "Pizzas::Pizza.Expensive",
+      "args": {}
+    },
+    {
       "verb": "Pizzas::Pizza.CreatePizza",
       "args": {
         "id": "pizza-huge",

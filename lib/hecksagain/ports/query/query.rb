@@ -22,16 +22,34 @@ module Hecksagain
           matched
         end
 
+        # The same 8 comparators QuerySpecification::Common::COMPARATORS
+        # declares. This is the path that actually runs for a memory- or
+        # heki-backed aggregate query ; QueryInterpreter#holds? only runs for
+        # entity/sub-list queries, or when no adapter implements :query at all.
         def holds?(clause, held, args)
           want = comparable(resolve(clause.value, args))
+
           case clause.op.to_s
-          when "lt" then held.is_a?(Numeric) && want.is_a?(Numeric) && held < want
-          when "lte" then held.is_a?(Numeric) && want.is_a?(Numeric) && held <= want
-          when "gt" then held.is_a?(Numeric) && want.is_a?(Numeric) && held > want
-          when "gte" then held.is_a?(Numeric) && want.is_a?(Numeric) && held >= want
-          when "ne" then held != want
-          else held == want
+          when "eq"       then held == want
+          when "ne"       then held != want
+          when "lt"       then ordered?(held, want) && held < want
+          when "lte"      then ordered?(held, want) && held <= want
+          when "gt"       then ordered?(held, want) && held > want
+          when "gte"      then ordered?(held, want) && held >= want
+          when "in"       then members(want).include?(held.to_s)
+          when "contains" then members(held).include?(want.to_s)
+          else                 held == want
           end
+        end
+
+        def ordered?(held, want) = held.is_a?(Numeric) && want.is_a?(Numeric)
+
+        # A list of value objects is a list of single-field hashes — unwrap
+        # each element the same way a scalar field is, before stringifying.
+        def members(value)
+          return value.map { |element| comparable(element).to_s } if value.is_a?(Array)
+
+          value.to_s.split(",").map(&:strip)
         end
 
         def resolve(value, args) = value.is_a?(Symbol) ? args[value] : value

@@ -71,9 +71,33 @@ module Hecksagain
         want = comparable(resolve_query_value(clause.value, args))
 
         case clause.op.to_s
-        when "lt" then held.is_a?(Numeric) && want.is_a?(Numeric) && held < want
-        else           held == want
+        when "eq"       then held == want
+        when "ne"       then held != want
+        when "lt"       then ordered?(held, want) && held < want
+        when "lte"      then ordered?(held, want) && held <= want
+        when "gt"       then ordered?(held, want) && held > want
+        when "gte"      then ordered?(held, want) && held >= want
+        when "in"       then members(want).include?(held.to_s)
+        when "contains" then members(held).include?(want.to_s)
+        else                 held == want
         end
+      end
+
+      # gt/gte/lt/lte are numeric-only and silently false otherwise — a
+      # where-clause never raises the way a given does, and that contract
+      # predates this change (lt was already exactly this permissive).
+      def ordered?(held, want) = held.is_a?(Numeric) && want.is_a?(Numeric)
+
+      # in/contains both read a comma-separated list — a real Array survives
+      # untouched (a bluebook's own in-process value, before any wire
+      # serialisation), each element unwrapped the same way a scalar field
+      # is (a list of value objects is a list of single-field hashes) ;
+      # anything else is treated as CSV text, matching the convention Rust's
+      # parser and the SQLite adapter already use.
+      def members(value)
+        return value.map { |element| comparable(element).to_s } if value.is_a?(Array)
+
+        value.to_s.split(",").map(&:strip)
       end
 
       def resolve_query_value(value, args)

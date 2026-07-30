@@ -215,6 +215,22 @@
               "value": ":ceiling"
             }
           ]
+        },
+        {
+          "attributes": [
+
+          ],
+          "description": null,
+          "limit": null,
+          "name": "Expensive",
+          "order_by": null,
+          "wheres": [
+            {
+              "field": "price_cents",
+              "op": "gt",
+              "value": "1000"
+            }
+          ]
         }
       ],
       "value_objects": [

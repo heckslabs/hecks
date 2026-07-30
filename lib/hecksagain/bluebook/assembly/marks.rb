@@ -69,8 +69,14 @@ module Hecksagain
 
         # A saga's argument bindings. Each value rides `render_value`, which marks a
         # Symbol with a leading colon — lose it and an argument reads as a string of
-        # the same name.
-        def bindings(with) = Array(with).to_h { |key, value| [key.to_sym, read(value)] }
+        # the same name. `unmark`, not `read`, for the same reason `where_clause`
+        # needed it over `read` : nothing in the real corpus has ever bound a
+        # literal number or boolean (every `with:` is a kwarg reference or an
+        # object literal), so `read`'s missing numeric/boolean cases were a latent
+        # gap, not yet a proven one — a saga leg dispatching `with: { retry: 3 }`
+        # would bind the STRING "3", silently, to whatever the target command's
+        # argument coercion did with it.
+        def bindings(with) = Array(with).to_h { |key, value| [key.to_sym, unmark(value)] }
 
         def invariant(rule)
           IR::Invariant.new(description: rule[:description], canonical: rule[:canonical])
@@ -160,9 +166,15 @@ module Hecksagain
           raw.scan(/:(\w+)=>("[^"]*"|[^,}]+)/).to_h { |key, value| [key.to_sym, unmark(value.strip)] }
         end
 
+        # `read`, not `unmark`, until a where-clause's literal NUMBER and a
+        # String field's own text collided the same way an object literal
+        # and a symbol argument already had — see `read`'s own comment. A
+        # where-clause's value now needs everything unmark reads : object
+        # literals and symbols for the reason `read` already handled, and
+        # numbers/booleans for gt/gte/lt/lte to compare against at all.
         def where_clause(clause)
           QuerySpecification::Common::WhereClause.new(
-            field: clause[:field], op: clause[:op].to_sym, value: read(clause[:value])
+            field: clause[:field], op: clause[:op].to_sym, value: unmark(clause[:value])
           )
         end
 

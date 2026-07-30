@@ -62,6 +62,18 @@ module Hecksagain
           when "contains"
             clauses << "instr(#{expression}, ?) > 0"
             binds << value.to_s
+          when "in"
+            # The same comma-separated convention every other where-clause
+            # comparator uses (Ports::Query::InMemory, QueryInterpreter,
+            # Rust's dispatcher.rs) — see QuerySpecification.numeric_literal's
+            # neighbourhood for why a literal arrives as text at all.
+            members = value.to_s.split(",").map(&:strip).reject(&:empty?)
+            if members.empty?
+              clauses << "0"
+            else
+              clauses << "#{expression} IN (#{members.map { '?' }.join(', ')})"
+              binds.concat(members)
+            end
           else
             raise ArgumentError, "SQLite query adapter does not support #{clause.op.inspect}"
           end

@@ -60,6 +60,16 @@ Hecks.bluebook "Pizzas" do
       where(price_cents: { lt: :ceiling })
     end
 
+    # A LITERAL, not a kwarg — CostingLessThan's :ceiling is always resolved
+    # from the caller's args before it ever reaches the comparator, so it
+    # never exercised the literal-value path : a where-clause's own number
+    # is stringified when the query is declared ("1000", not 1000), and
+    # gt/gte/lte were never implemented against it at all until this query
+    # gave both runtimes' parity corpus something to disagree about.
+    query "Expensive" do
+      where(price_cents: { gt: 1000 })
+    end
+
     command "CreatePizza" do
       role "Chef"
       goal "Put a new pizza on the menu"

@@ -85,7 +85,14 @@ module Hecksagain
         end
 
         # The IR keeps a where's field as a STRING, not a symbol — it is read back
-        # out, never called.
+        # out, never called. The value stays RAW TEXT here on purpose : this
+        # feeds the declaration hash Assembly::Marks#where_clause decodes
+        # from (via `unmark`), and decoding twice is worse than once — a
+        # kwarg reference (":ceiling") decoded here into the Symbol :ceiling
+        # would have its colon stripped by `unmark`'s own `.to_s` and come
+        # back out as the plain string "ceiling", indistinguishable from a
+        # literal of the same name. One decode, at the one place that builds
+        # the object every comparator actually reads.
         def where_clause(row)
           { field: text(row[:field]), op: text(row[:op]), value: text(row[:value]) }
         end
