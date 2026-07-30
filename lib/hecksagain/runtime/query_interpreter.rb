@@ -11,7 +11,7 @@ module Hecksagain
       def call(domain, aggregate, query_name, args)
         return entity_rows(domain, aggregate, query_name, args) if query_name.include?(".")
 
-        declared = aggregate.queries.find { |q| q.name == query_name } ||
+        declared = aggregate.query(query_name) ||
                    raise(UnknownVerb, "#{aggregate.hecks_name} has no query #{query_name.inspect}")
         args = normalize_args(aggregate, declared, args)
 

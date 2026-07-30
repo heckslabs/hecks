@@ -1,17 +1,22 @@
 module Hecksagain
   module Bluebook
     module IR
+      # A read model — an ask that gathers heads from more than one aggregate.
+      #
+      # Like a query it crosses over as an INSTANCE, and for the same reason: its
+      # body is inherited from `QuerySpecification::ReadModel::Specification`, whose
+      # readers the runtime and the SQLite adapter both call on the object. It gains
+      # an identity and an owner ; it keeps the name it always had, because only a
+      # CLASS ever had a competing answer for `name`.
       class ReadModel < QuerySpecification::ReadModel::Specification
+        include Construct
 
-        # The BLUEBOOK's name for this construct, asked the same way of a class
-        # that has crossed over and of an IR object that has not. Collapses into
-        # Construct when this one crosses.
-        def hecks_name = @name
         attr_reader :name, :description, :reference_name, :reference_target, :aggregate_heads
 
         def initialize(name:, description: nil, reference_name:, reference_target:, aggregate_heads: [], **options)
           super(joins: aggregate_heads, **options)
           @name             = name.to_s
+          @hecks_name       = @name
           @description      = description
           @reference_name   = reference_name.to_sym
           @reference_target = reference_target.to_s

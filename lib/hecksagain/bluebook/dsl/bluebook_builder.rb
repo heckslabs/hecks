@@ -28,6 +28,9 @@ module Hecksagain
         end
 
         def read_model(name, &block)
+          # A read model gathers heads from SEVERAL aggregates, so no single head
+          # declares it — the chapter does. Its owner is stamped in `build`, where
+          # the chapter namespace exists.
           @read_models << ReadModelBuilder.build(name, &block)
         end
 
@@ -57,6 +60,10 @@ module Hecksagain
           namespace.extend(Construct)
           namespace.hecks_name = @name
           namespace.hecks_root = true
+
+          # A read model is declared by the CHAPTER, not by any one head, so its
+          # identity hangs off the chapter: "Pizzas.PizzaWithToppings".
+          @read_models.each { |model| model.hecks_owner = namespace }
 
           @aggregates.each do |aggregate|
             aggregate.ruby_class.domain = @name

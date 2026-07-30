@@ -36,6 +36,10 @@ module Hecksagain
         # stop.
         def value_object(named) = @value_objects.find { |shape| shape.hecks_name == named.to_s }
         def command(named)      = @commands.find { |verb| verb.hecks_name == named.to_s }
+        # An aggregate answers for its own asks the way it answers for its verbs.
+        # An entity has had this finder all along and a head had not, so
+        # `QueryInterpreter` hand-rolled the same search — asymmetry, not design.
+        def query(named)        = @queries.find { |ask| ask.hecks_name == named.to_s }
 
         def storage_name = Naming.snake(@name)
 

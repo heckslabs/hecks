@@ -52,7 +52,9 @@ module Hecksagain
         end
 
         def query(name, &block)
-          @queries << QueryBuilder.build(name, &block)
+          ask = QueryBuilder.build(name, &block)
+          ask.hecks_owner = @klass
+          @queries << ask
         end
 
         def policy(name, &block)

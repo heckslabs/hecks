@@ -202,6 +202,55 @@ RSpec.describe "a construct's identity" do
     end
   end
 
+  describe "an ask, which stays an instance" do
+    def bank = banking.registry.bluebook("Banking")
+
+    it "hangs a query off whatever declares it" do
+      account = bank.aggregate("Account")
+
+      expect(account.queries.map(&:hecks_fqn))
+        .to include("Banking::Account.Overdrawn")
+      expect(account.entities.first.queries.map(&:hecks_fqn))
+        .to eq(["Banking::Account.LedgerEntry.Reversed"])
+    end
+
+    it "hangs a read model off the CHAPTER, since no one head declares it" do
+      # A read model gathers heads from several aggregates. Hanging it off one of
+      # them would name the wrong owner.
+      expect(bank.read_models.map(&:hecks_fqn)).to eq(["Banking.CustomerPortfolio"])
+    end
+
+    it "keeps the name it always had, because only a class had a rival answer" do
+      # `Class#name` is what forced a second word for a construct's own name. An
+      # instance has no such conflict, so a query answers both, identically.
+      ask = bank.aggregate("Account").queries.first
+
+      expect(ask.name).to eq(ask.hecks_name)
+    end
+
+    it "keeps every option its specification superclass carries" do
+      # This is why an ask is NOT hoisted onto a metaclass: its whole body is
+      # inherited instance methods that the runtime and the SQLite adapter read.
+      ask = bank.aggregate("Account").query("Overdrawn")
+
+      %i[wheres order_by limit offset cursor consistency freshness
+         authorization null_semantics inspection index_hints].each do |option|
+        expect(ask).to respond_to(option), "an ask must still answer #{option}"
+      end
+    end
+
+    it "collides with a command of the same name, in a real domain this time" do
+      # The kind-ambiguity finding is not a quirk of the language describing
+      # itself: banking declares BOTH a command and a query called Open on
+      # Account, so "Banking::Account.Open" names two constructs here too.
+      account = bank.aggregate("Account")
+
+      expect(account.command("Open").hecks_fqn).to eq("Banking::Account.Open")
+      expect(account.query("Open").hecks_fqn).to eq("Banking::Account.Open")
+      expect(account.command("Open")).not_to be(account.query("Open"))
+    end
+  end
+
   describe "an entity as a class" do
     def account      = banking.registry.bluebook("Banking").aggregate("Account")
     def ledger_entry = account.entities.first

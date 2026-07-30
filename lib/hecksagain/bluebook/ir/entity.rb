@@ -37,6 +37,7 @@ module Hecksagain
                          queries: queries, lifecycle: lifecycle)
             # A piece owns the verbs declared on it, so they can state an identity.
             commands.each { |verb| verb.hecks_owner = piece }
+            queries.each  { |ask|  ask.hecks_owner  = piece }
             piece
           end
 

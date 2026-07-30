@@ -3,12 +3,24 @@ module Hecksagain
     module IR
       def self.render_value(value) = QuerySpecification.render_value(value)
 
+      # A query — an ASK, declared on an aggregate or on one of its entities.
+      #
+      # It crosses over as an INSTANCE rather than a class, and the reason is worth
+      # stating because it is the boundary of the pattern. A query inherits its
+      # whole body from `QuerySpecification::Common::Options` — `wheres`,
+      # `order_by`, `limit`, `offset`, `cursor`, `consistency`, `freshness`,
+      # `authorization`, `null_semantics`, `inspection`, `index_hints` — and those
+      # are INSTANCE methods that the runtime and the SQLite adapter both read.
+      # Hoisting the declaration onto a metaclass would put the identity and the
+      # specification on opposite sides of the object.
+      #
+      # And nothing is lost, because `Class#name` was the only reason a construct
+      # ever needed a second word for its own name. An instance answers `name`
+      # truthfully. So a query gains an owner and an identity — which is what the
+      # graph is for — and keeps the name it always had.
       class Query < QuerySpecification::Common::Options
+        include Construct
 
-        # The BLUEBOOK's name for this construct, asked the same way of a class
-        # that has crossed over and of an IR object that has not. Collapses into
-        # Construct when this one crosses.
-        def hecks_name = @name
         attr_reader :name, :description, :attributes
 
         def initialize(name:, description: nil, attributes: [], wheres: [],
@@ -20,6 +32,7 @@ module Hecksagain
                 consistency: consistency, freshness: freshness, authorization: authorization,
                 null_semantics: null_semantics, inspection: inspection, index_hints: index_hints)
           @name        = name.to_s
+          @hecks_name  = @name
           @description = description
           @attributes  = attributes
         end
