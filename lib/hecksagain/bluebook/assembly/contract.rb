@@ -22,7 +22,14 @@ module Hecksagain
       #                      by one, because it is the kind with no other check.
       #
       # Every one of those can FAIL. That is the whole difference.
-      Contract = Struct.new(:holder, :make, :fields, :derived, :rows, keyword_init: true) do
+      Contract = Struct.new(:holder, :make, :fields, :derived, :rows, :reads, keyword_init: true) do
+        # How a declaration key is read back off a ROW. Absent means the default —
+        # `text(row[key])`, a single cell — which is most of them ; present names the
+        # shape, because a list needs a reader per element and a folded field is
+        # gathered rather than fetched. Same pattern as `rows`, in the other
+        # direction: declare the exceptions, default the rest.
+        def reader(key) = Hash(reads)[key.to_sym]
+
         # How an appendable LIST becomes rows the walk can offer. A list absent from
         # here reads straight off the node ; one that is present names the shaper,
         # because the IR keeps a shape the language does not — a transition whose

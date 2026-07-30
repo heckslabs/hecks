@@ -247,6 +247,63 @@ RSpec.describe "a graph assembled from declarations" do
 
     def readings = Hecksagain::Bluebook::MetaValidator::Readings.instance_methods(false)
 
+    # THE READ DIRECTION, HELD THE SAME WAY.
+    #
+    # `Reconstruction` had eleven methods, one per category, each spelling out keys
+    # the table already names. Six read the table now, and the exceptions live in its
+    # `reads:` column — so the same two questions apply: does every read exception
+    # name a key that exists, and does every reader it names exist?
+    it "reads every declaration key by a reader that exists, for a key the table names" do
+      meta    = Hecksagain::Bluebook::MetaValidator.grammar_registry.bluebook("Meta")
+      readers = Hecksagain::Bluebook::MetaValidator::Reconstruction.private_instance_methods(false) +
+                Hecksagain::Bluebook::MetaValidator::Shapes.instance_methods(false)
+
+      broken = plan.names.flat_map do |category|
+        contract = Hecksagain::Bluebook::Assembly.contract(category)
+        named    = contract.fields.values.map(&:first)
+
+        Hash(contract.reads).filter_map do |key, spec|
+          next "#{category}##{key} is read but no field declares it" unless named.include?(key)
+
+          # `[:from, row_key]` names a ROW KEY, not a reader — the declaration key and
+          # the language's field are spelled differently for exactly one thing, a
+          # dispatch's bindings. So what it names must be a field of that category.
+          if spec.is_a?(Array) && spec.first == :from
+            next nil if stored_fields(meta, category).include?(spec.last)
+
+            next "#{category}##{key} reads from #{spec.last}, which the language does not declare"
+          end
+
+          method = spec.is_a?(Array) ? spec.last : spec
+          next nil unless method.is_a?(Symbol) && !%i[symbol names].include?(method)
+          next nil if readers.include?(method)
+
+          "#{category}##{key} names reader #{method}, which does not exist"
+        end
+      end
+
+      expect(broken).to be_empty,
+                        "#{broken.size} read exception(s) do not hold:\n  #{broken.join("\n  ")}"
+    end
+
+    # WHY THE CONTAINMENT IS NOT ON THE TABLE, measured rather than assumed.
+    #
+    # Folding `aggregate`, `entity` and the chapter would mean the table listing each
+    # one's children — except the plan already knows every parent-child edge, so the
+    # honest version would DERIVE them. It does not work, and this is why: a
+    # category's parent comes from the one `*_id` its creating command carries, and
+    # `Command.Declare` carries `aggregate_id` before `entity_id`. So the plan says an
+    # ENTITY HAS NO CHILDREN, and a piece's own verbs and asks — the `own` / `within`
+    # partition — is exactly the case a derived walk would have to except.
+    #
+    # Five categories out of six for free and a hand-written exception for the one
+    # that matters is not a fold, it is a fold plus the thing the fold was for.
+    it "cannot derive an entity's children from the plan, which is why containment is code" do
+      expect(plan.names.select { |name| plan.category(name).parent == "Entity" }).to be_empty
+      expect(plan.category("Command").parent).to eq("Aggregate")
+      expect(plan.category("Query").parent).to eq("Aggregate")
+    end
+
     it "claims nothing the language does not declare" do
       # The other half of the same failure: a contract for a retired category, or a
       # field renamed in the language and left behind here, would be dead weight

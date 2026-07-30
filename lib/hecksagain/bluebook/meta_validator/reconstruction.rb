@@ -76,6 +76,54 @@ module Hecksagain
           @runtime.query("Meta::#{category}.DeclaredIn", key.to_sym => { value: parent_id.to_s })
         end
 
+        # ONE DECLARATION, BUILT FROM THE CONTRACT.
+        #
+        # There were eleven methods here, one per category, each spelling out the same
+        # keys `Assembly::Contracts` already names — which is the shape the judge used
+        # to have and paid fourteen unoffered verbs for. The keys come from the table
+        # now, and the exceptions come from its `reads:` column: a list needs a reader
+        # per element, a folded field is gathered rather than fetched, and everything
+        # else is one cell.
+        #
+        # `extra` is what the containment supplies — children, and the folded objects
+        # a row cannot hold on its own.
+        def declaration(category, row, extra = {})
+          contract = Assembly.contract(category)
+
+          contract.fields.each_with_object({}) do |(_keyword, (key, _build)), out|
+            next if extra.key?(key)
+
+            out[key] = read_row(contract.reader(key), key, row)
+          end.merge(extra)
+        end
+
+        def read_row(spec, key, row)
+          case spec
+          when nil      then text(row[key])
+          when :symbol  then text(row[key])&.to_sym
+          when :names   then Array(row[key]).map { |held| text(held[:name]) }
+          when Array    then read_shaped(spec, key, row)
+          else send(spec, row)
+          end
+        end
+
+        # The readers are the ones `Shapes` already has, called by name — no wrappers,
+        # so nothing shadows them. `:each_with_id` is the single exception that needs
+        # more than the element: an attribute's type came in as the ID of whatever it
+        # names, so reading it back needs the row it belongs to.
+        def read_shaped(spec, key, row)
+          shape, named = spec
+
+          case shape
+          when :each         then Array(row[key]).map { |held| send(named, held) }
+          when :each_with_id then Array(row[key]).map { |held| send(named, held, row[:id]) }
+          when :call         then send(named, row)
+          when :from         then pairs(row[named])
+          end
+        end
+
+        def pairs(with) = Array(with).map { |binding| [text(binding[:key]), text(binding[:value])] }
+
         # Every cell of the meta-domain is a single-field value object, so a row
         # arrives holding Values rather than Strings.
         def text(cell)
@@ -117,15 +165,10 @@ module Hecksagain
           }
         end
 
-        def value_object(row)
-          {
-            name:       text(row[:name]),
-            attributes: Array(row[:attributes]).map { |field| shape_field(field) },
-            invariants: Array(row[:invariants]).map { |assertion| rule(assertion) },
-            closed_set: !text(row[:rows]).nil?,
-            members:    members_of(row[:id])
-          }
-        end
+        def value_object(row) = declaration("ValueObject", row)
+
+        def closed_set_of(row) = !text(row[:rows]).nil?
+        def members_row(row)   = members_of(row[:id])
 
         # A closed set's admitted rows. Each Member is its own root because its pairs
         # are an OPEN MAP, which no value object can hold — so they come back the way
@@ -136,29 +179,9 @@ module Hecksagain
           end
         end
 
-        def command(row)
-          {
-            name:       text(row[:name]),
-            role:       text(row[:role]),
-            goal:       text(row[:goal]),
-            references: text(row[:references]),
-            attributes: Array(row[:attributes]).map { |argument| shape_field(argument) },
-            givens:     Array(row[:givens]).map { |given| rule(given) },
-            mutations:  mutations(row),
-            emits:      Array(row[:emits]).map { |announcement| text(announcement[:name]) }
-          }
-        end
+        def command(row) = declaration("Command", row)
 
-        def query(row)
-          {
-            name:        text(row[:name]),
-            description: text(row[:description]),
-            attributes:  Array(row[:attributes]).map { |argument| shape_field(argument) },
-            wheres:      Array(row[:wheres]).map { |filter| where_clause(filter) },
-            order_by:    order_by(row),
-            limit:       limit(row)
-          }.merge(options_of(row))
-        end
+        def query(row) = declaration("Query", row).merge(options_of(row))
 
         def entity(row)
           {
@@ -192,52 +215,22 @@ module Hecksagain
           }
         end
 
-        def policy(row)
-          {
-            name:            text(row[:name]),
-            on_event:        text(row[:on_event]),
-            trigger_command: text(row[:trigger_command]),
-            target_domain:   text(row[:target_domain]),
-            aggregate:       text(row[:aggregate])
-          }
-        end
+        def policy(row) = declaration("Policy", row)
 
         def process_manager(row)
-          {
-            name:          text(row[:name]),
-            correlates_by: text(row[:correlates_by]),
-            starts_on:     text(row[:starts_on]),
-            ends_on:       text(row[:ends_on]),
-            states:        Array(row[:states]).map { |state| text(state[:name]) },
-            handlers:      declared("Handler", row[:id]).map { |leg| handler(leg) }
-          }
+          declaration("ProcessManager", row,
+                      handlers: declared("Handler", row[:id]).map { |leg| handler(leg) })
         end
 
         def handler(row)
-          {
-            event_type: text(row[:event_type]),
-            from_state: text(row[:from_state]),
-            to_state:   text(row[:to_state]),
-            dispatches: declared("Dispatch", row[:id]).map { |leg| dispatch(leg) }
-          }
+          declaration("Handler", row,
+                      dispatches: declared("Dispatch", row[:id]).map { |leg| dispatch(leg) })
         end
 
-        def dispatch(row)
-          {
-            command_name: text(row[:command_name]),
-            with:         Array(row[:with_spec]).map { |binding| [text(binding[:key]), text(binding[:value])] }
-          }
-        end
+        def dispatch(row) = declaration("Dispatch", row)
 
         def read_model(row)
-          {
-            name:             text(row[:name]),
-            description:      text(row[:description]),
-            query_name:       text(row[:query_name]),
-            reference_name:   text(row[:reference_name])&.to_sym,
-            reference_target: text(row[:reference_target]),
-            aggregate_heads:  Array(row[:aggregate_heads]).map { |gathered| head(gathered) }
-          }.merge(options_of(row))
+          declaration("ReadModel", row).merge(query_name: text(row[:query_name])).merge(options_of(row))
         end
       end
     end

@@ -56,6 +56,7 @@ module Hecksagain
             attributes:    [:attributes,    [:each, :attribute]]
           },
           rows: { transitions: :transition_rows, value_objects: :value_object_names },
+          reads: { identified_by: :symbol, attributes: [:each_with_id, :attribute] },
           derived: {
             state_field:   [:folded, :lifecycle, :field],
             state_start:   [:folded, :lifecycle, :default],
@@ -77,6 +78,7 @@ module Hecksagain
             emits:      [:emits,      :plain]
           },
           rows: { mutations: :mutation_rows },
+          reads: { attributes: [:each, :shape_field], givens: [:each, :rule], mutations: [:call, :mutations], emits: :names },
           derived: {}
         ),
 
@@ -90,6 +92,8 @@ module Hecksagain
             closed_set: [:closed_set, :flag]
           },
           # The language counts the admitted rows ; the IR keeps a flag and the rows.
+          reads: { attributes: [:each, :shape_field], invariants: [:each, :rule],
+                  closed_set: [:call, :closed_set_of], members: [:call, :members_row] },
           derived: { rows: [:folded, %i[closed_set members], nil] }
         ),
 
@@ -114,6 +118,8 @@ module Hecksagain
             index_hints:     [:index_hints,     :index_hints]
           },
           rows: { wheres: :where_rows, options: :option_rows },
+          reads: { attributes: [:each, :shape_field], wheres: [:each, :where_clause],
+                  order_by: [:call, :order_by], limit: [:call, :limit] },
           derived: {
             order_field: [:folded, :order_by, :field],
             order_way:   [:folded, :order_by, :direction],
@@ -137,6 +143,7 @@ module Hecksagain
             attributes:    [:attributes,    [:each, :shape_field]]
           },
           rows: { transitions: :transition_rows },
+          reads: { attributes: [:each, :shape_field] },
           derived: {
             owner:       :parent,
             state_field: [:folded, :lifecycle, :field],
@@ -171,6 +178,7 @@ module Hecksagain
             ends_on:       [:ends_on,       :plain],
             states:        [:states,        :plain]
           },
+          reads: { states: :names },
           derived: {}
         ),
 
@@ -191,6 +199,7 @@ module Hecksagain
             with_spec:    [:with,         :bindings]
           },
           rows: { with_spec: :with_spec_rows },
+          reads: { with: [:from, :with_spec] },
           derived: { handler: :parent }
         ),
 
@@ -217,6 +226,7 @@ module Hecksagain
             index_hints:      [:index_hints,      :index_hints]
           },
           rows: { options: :read_model_option_rows },
+          reads: { reference_name: :symbol, aggregate_heads: [:each, :head] },
           derived: {
             query_name: [:computed, :query_name],
             options:    [:folded, %i[offset cursor null_semantics authorization
