@@ -26,6 +26,8 @@ module Hecksagain
           nest(shapes)
           [commands, entities, asks].each { |held| held.each { |one| one.hecks_owner = @klass } }
 
+          fields = Array(@row[:attributes]).map { |field| Marks.attribute(field) }
+
           ir = Build.call(
             "Aggregate", @row,
             value_objects: shapes,
@@ -33,8 +35,12 @@ module Hecksagain
             entities:      entities,
             queries:       asks,
             lifecycle:     lifecycle_of(@row),
+            # A policy declared inside a head is HOISTED onto the chapter by the
+            # builder, and `Aggregate#to_h` never carried it — so the language does
+            # not record which head a chapter-level policy was written in. The
+            # chapter holds them all, which is what `PolicyInterpreter` reads.
             policies:      [],
-            reference_targets: commands.filter_map(&:references)
+            reference_targets: reference_targets(fields)
           )
 
           @klass.ir     = ir
@@ -45,6 +51,16 @@ module Hecksagain
         end
 
         private
+
+        # What this head points at with an aggregate-level `reference_to`. NOT the
+        # self-references its verbs carry — the first version read
+        # `commands.filter_map(&:references)` and gave Pizza two targets of "Pizza",
+        # its own verbs pointing at itself, where the builder recorded none. An
+        # aggregate-level `reference_to X` leaves a reference ATTRIBUTE behind, so
+        # the attributes are where the answer is.
+        def reference_targets(fields)
+          fields.select(&:reference?).map { |field| field.type.target_name }
+        end
 
         def value_object(row)
           Build.call("ValueObject", row)

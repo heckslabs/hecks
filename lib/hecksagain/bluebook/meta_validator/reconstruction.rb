@@ -157,7 +157,7 @@ module Hecksagain
             wheres:      Array(row[:wheres]).map { |filter| where_clause(filter) },
             order_by:    order_by(row),
             limit:       limit(row)
-          }
+          }.merge(options_of(row))
         end
 
         def entity(row)
@@ -236,7 +236,7 @@ module Hecksagain
             reference_name:   text(row[:reference_name])&.to_sym,
             reference_target: text(row[:reference_target]),
             aggregate_heads:  Array(row[:aggregate_heads]).map { |gathered| head(gathered) }
-          }
+          }.merge(options_of(row))
         end
       end
     end

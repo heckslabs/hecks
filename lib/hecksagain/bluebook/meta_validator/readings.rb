@@ -31,6 +31,7 @@ module Hecksagain
           # of the same name.
           when "Query.wheres"                                then Array(node.wheres).map(&:to_h)
           when "Aggregate.value_objects"                     then node.value_objects.map { |shape| { name: shape.hecks_name } }
+          when "Query.options", "ReadModel.options"          then option_rows(node)
           when "Bluebook.normalisations"                     then normalisation_rows
           when "Member.pairs"                                then pair_rows(node)
           # Through to_h, which is where IR.render_value spells a symbol argument as
@@ -61,6 +62,33 @@ module Hecksagain
         # why Member and Dispatch are roots in the language rather than lists.
         def pair_rows(map)
           Array(map&.to_h).map { |key, value| { key: key, value: value } }
+        end
+
+        # EVERY SPECIFICATION OPTION AN ASK CARRIES, flattened to rows.
+        #
+        # `offset`, `cursor`, `nulls`, `authorize`, `consistency`, `freshness`,
+        # `inspect_query` and `use_index` are eight options, several compound
+        # (authorize names a policy AND a tenant) and one repeated (an index hint per
+        # occurrence). `extra_options_to_h` already spells every one of them and drops
+        # the absent ones, so this reads that rather than naming them here — a ninth
+        # option needs no change on either side.
+        #
+        # `at` tells repeated rows apart, so two index hints do not collapse.
+        def option_rows(node)
+          return [] unless node.respond_to?(:extra_options_to_h)
+
+          node.extra_options_to_h.flat_map do |option, held|
+            case held
+            when Array then held.each_with_index.flat_map { |one, at| parts(option, one, at) }
+            else parts(option, held, nil)
+            end
+          end
+        end
+
+        def parts(option, held, at)
+          Hash(held).map do |key, value|
+            { option: option.to_s, key: key.to_s, value: value, at: at&.to_s }
+          end
         end
 
         # A mutation is ONE declaration, but the language's Change holds a single

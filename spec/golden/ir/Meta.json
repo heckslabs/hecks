@@ -2419,6 +2419,12 @@
           "list": true,
           "name": "attributes",
           "type": "AskArgument"
+        },
+        {
+          "default": null,
+          "list": true,
+          "name": "options",
+          "type": "AskOption"
         }
       ],
       "commands": [
@@ -2521,6 +2527,59 @@
             }
           ],
           "name": "Filter",
+          "references": "Query",
+          "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "option",
+              "type": "QueryText"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "key",
+              "type": "QueryText"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "QueryText"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "at",
+              "type": "QueryText"
+            }
+          ],
+          "emits": [
+            "OptionAttached"
+          ],
+          "givens": [
+            {
+              "canonical": "!option.value.to_s.empty?",
+              "description": "an option is named"
+            }
+          ],
+          "goal": "Attach one part of one specification option to the query",
+          "mutations": [
+            {
+              "fields": {
+                "at": "at",
+                "key": "key",
+                "option": "option",
+                "value": "value"
+              },
+              "op": "append",
+              "target": "options"
+            }
+          ],
+          "name": "Option",
           "references": "Query",
           "role": "Language"
         },
@@ -2710,6 +2769,42 @@
 
           ],
           "name": "AskArgument"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "option",
+              "type": "String"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "key",
+              "type": "String"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "at",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "AskOption"
         }
       ]
     },
@@ -3413,6 +3508,12 @@
           "list": true,
           "name": "aggregate_heads",
           "type": "Head"
+        },
+        {
+          "default": null,
+          "list": true,
+          "name": "options",
+          "type": "ProjectionOption"
         }
       ],
       "commands": [
@@ -3512,6 +3613,59 @@
             }
           ],
           "name": "Gather",
+          "references": "ReadModel",
+          "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "option",
+              "type": "ReadModelText"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "key",
+              "type": "ReadModelText"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "ReadModelText"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "at",
+              "type": "ReadModelText"
+            }
+          ],
+          "emits": [
+            "OptionAttached"
+          ],
+          "givens": [
+            {
+              "canonical": "!option.value.to_s.empty?",
+              "description": "an option is named"
+            }
+          ],
+          "goal": "Attach one part of one specification option to the read model",
+          "mutations": [
+            {
+              "fields": {
+                "at": "at",
+                "key": "key",
+                "option": "option",
+                "value": "value"
+              },
+              "op": "append",
+              "target": "options"
+            }
+          ],
+          "name": "Option",
           "references": "ReadModel",
           "role": "Language"
         }
@@ -3636,6 +3790,42 @@
 
           ],
           "name": "Head"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "option",
+              "type": "String"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "key",
+              "type": "String"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "at",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "ProjectionOption"
         }
       ]
     },

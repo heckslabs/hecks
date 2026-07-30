@@ -34,7 +34,11 @@ module Hecksagain
           when :plain    then value
           when :identity then value&.to_sym
           when :flag     then value ? true : false
-          when Array     then Array(value).map { |held| Marks.public_send(reader.last, held) }
+          when Array
+            # [:each, reader] maps a list ; [:option, name] reads one named option,
+            # which needs its name as well as its value.
+            reader.first == :each ? Array(value).map { |held| Marks.public_send(reader.last, held) }
+                                  : Marks.option(reader.last, value)
           else Marks.public_send(reader, value)
           end
         end

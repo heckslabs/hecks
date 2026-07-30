@@ -63,6 +63,27 @@ module Hecksagain
 
         def rule(row) = { description: text(row[:description]), canonical: text(row[:canonical]) }
 
+        # THE OPTION ROWS, GATHERED BACK into the shapes `extra_options_to_h` spells.
+        #
+        # One row per part, so a compound option is several rows and a repeated one is
+        # several groups told apart by `at`. Grouping by option name and then by `at`
+        # rebuilds both without either knowing which options exist — the whole point
+        # of holding them as an open map.
+        def options_of(row)
+          Array(row[:options])
+            .group_by { |part| text(part[:option]) }
+            .to_h { |option, parts| [option.to_sym, gathered(parts)] }
+        end
+
+        def gathered(parts)
+          repeated, single = parts.partition { |part| !text(part[:at]).to_s.empty? }
+          return single.to_h { |part| [text(part[:key]).to_sym, text(part[:value])] } if repeated.empty?
+
+          repeated.group_by { |part| text(part[:at]) }
+                  .values
+                  .map { |group| group.to_h { |part| [text(part[:key]).to_sym, text(part[:value])] } }
+        end
+
         # The IR keeps a where's field as a STRING, not a symbol — it is read back
         # out, never called.
         def where_clause(row)

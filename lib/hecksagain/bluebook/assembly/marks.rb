@@ -37,11 +37,35 @@ module Hecksagain
 
         # A member's fields — an OPEN MAP, which is why Member is its own root in
         # the language and why the pairs arrive as a list rather than a value object.
-        def member(pairs) = pairs.to_h { |key, value| [key.to_sym, value] }
+        #
+        # The values are UNMARKED, because `ValueObject#to_h` spells them with `to_s`
+        # and the language stores them as text: `member code: "JPY", minor_units: 0`
+        # came back with a minor_units of "0", and a closed set that admits the string
+        # would refuse the number the caller passes.
+        def member(pairs)
+          pairs.to_h { |key, value| [key.to_sym, unmark_scalar(value)] }
+        end
 
-        # A read model's gathered head is a raw hash the interpreter destructures by
-        # key, so the keys must be symbols whichever way the declaration arrived.
-        def head(row) = row.to_h { |key, value| [key.to_sym, value] }
+        # A read model's gathered head. The keys must be symbols whichever way the
+        # declaration arrived, and `as` must be one too: it NAMES the reader the
+        # projection answers to, and `ReadModel#to_h` spells it `to_s`.
+        def head(row)
+          row.to_h { |key, value| [key.to_sym, key.to_sym == :as ? value.to_sym : value] }
+        end
+
+        # A scalar that was written as itself rather than inspected — a member's
+        # value, where the language holds text and the type has to be read back from
+        # the shape of it. Unlike `unmark`, a bare word stays a String here, because
+        # a closed set admits words far more often than symbols.
+        def unmark_scalar(value)
+          text = value.to_s
+          return true       if text == "true"
+          return false      if text == "false"
+          return text.to_i  if text.match?(/\A-?\d+\z/)
+          return text.to_f  if text.match?(/\A-?\d+\.\d+\z/)
+
+          text
+        end
 
         # A saga's argument bindings. Each value rides `render_value`, which marks a
         # Symbol with a leading colon — lose it and an argument reads as a string of
@@ -97,9 +121,22 @@ module Hecksagain
         # else `to_s`. A where-clause value and a saga's argument bindings both ride
         # that spelling, and losing the colon made an argument indistinguishable
         # from a string of the same name.
+        #
+        # AN OBJECT LITERAL RIDES IT TOO, and that is the one that bit. A saga leg
+        # binds `narrative: { text: "transfer out" }` — a value object's fields
+        # written inline — and `to_s` on a Hash is its inspect form, so it comes back
+        # as text. Read as a string it reached the runtime as
+        # `"{:text=>\"transfer out\"}"`, coercion refused it, the debit leg was never
+        # delivered, and the whole settlement wire stopped: banking emitted
+        # TransferRequested five times and TransferDebited never. Parity caught what
+        # every other gate missed, because a saga that silently does nothing looks
+        # exactly like a saga with nothing to do.
         def read(value)
           text = value.to_s
-          text.start_with?(":") ? text[1..].to_sym : text
+          return object(text)     if text.start_with?("{") && text.end_with?("}")
+          return text[1..].to_sym if text.start_with?(":")
+
+          text
         end
 
         # A literal, from the self-describing form `inspect` produced.
@@ -141,6 +178,47 @@ module Hecksagain
           return nil unless declared
 
           QuerySpecification::Common::LimitSpec.new(value: read(declared[:value]))
+        end
+
+        # EVERY OTHER SPECIFICATION OPTION, from one table.
+        #
+        # Each entry names the struct and which of its members carry a value that was
+        # `render_value`d (a Symbol marked with a colon) rather than plain text. A
+        # ninth option is one row here and nothing else — the language already holds
+        # it, because it holds options as an open map rather than a field each.
+        OPTIONS = {
+          offset:         [QuerySpecification::Common::OffsetSpec,        %i[value]],
+          cursor:         [QuerySpecification::Common::CursorSpec,        %i[value]],
+          null_semantics: [QuerySpecification::Common::NullSemantics,     []],
+          authorization:  [QuerySpecification::Common::AuthorizationSpec, %i[policy tenant]],
+          consistency:    [QuerySpecification::Common::ConsistencySpec,   %i[timeout]],
+          freshness:      [QuerySpecification::Common::FreshnessSpec,     %i[max_age]],
+          inspection:     [QuerySpecification::Common::InspectionSpec,    []]
+        }.freeze
+
+        # `mode` and `policy` are read as symbols because the DSL declares them that
+        # way — `nulls :last`, `authorize :customer_access` — and `to_h` spells them
+        # with `to_s`, so the colon is not there to strip.
+        SYMBOLIC = %i[mode policy tenant].freeze
+
+        def option(name, declared)
+          return nil if declared.nil?
+
+          holder, marked = OPTIONS.fetch(name)
+          holder.new(**Hash(declared).to_h { |key, value| [key, option_value(key, value, marked)] })
+        end
+
+        def option_value(key, value, marked)
+          return nil               if value.nil?
+          return read(value)       if marked.include?(key)
+          return value.to_sym      if SYMBOLIC.include?(key)
+
+          value
+        end
+
+        # A repeated option — an index hint per occurrence.
+        def index_hints(declared)
+          Array(declared).map { |hint| QuerySpecification::Common::IndexHint.new(name: hint[:name].to_sym) }
         end
       end
     end

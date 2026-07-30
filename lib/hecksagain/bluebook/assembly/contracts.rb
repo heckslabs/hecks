@@ -102,13 +102,23 @@ module Hecksagain
             name:        [:name,        :plain],
             description: [:description, :plain],
             attributes:  [:attributes,  [:each, :shape_field]],
-            wheres:      [:wheres,      [:each, :where_clause]],
-            order_by:    [:order_by,    :order_by],
-            limit:       [:limit,       :limit]
+            wheres:          [:wheres,          [:each, :where_clause]],
+            order_by:        [:order_by,        :order_by],
+            limit:           [:limit,           :limit],
+            # Held by the language as an OPEN MAP, so every one of these reads the
+            # same way and a ninth option needs no new field on either side.
+            offset:          [:offset,          [:option, :offset]],
+            cursor:          [:cursor,          [:option, :cursor]],
+            null_semantics:  [:null_semantics,  [:option, :null_semantics]],
+            authorization:   [:authorization,   [:option, :authorization]],
+            consistency:     [:consistency,     [:option, :consistency]],
+            freshness:       [:freshness,       [:option, :freshness]],
+            inspection:      [:inspection,      [:option, :inspection]],
+            index_hints:     [:index_hints,     :index_hints]
           },
           # Two language fields, one IR object — the same difference in the other
           # direction.
-          derived: %i[order_field order_way]
+          derived: %i[order_field order_way options]
         ),
 
         "Entity" => Contract.new(
@@ -116,12 +126,16 @@ module Hecksagain
           fields: {
             name:          [:name,          :plain],
             description:   [:description,   :plain],
-            identified_by: [:identified_by, :plain],
+            # A SYMBOL, though `Entity#to_h` spells it `&.to_s` where an aggregate's
+            # `to_h` keeps the symbol. The IR is not uniform about this, and byte
+            # equality with `to_h` CANNOT SEE the difference — both sides render as a
+            # string. So the assembled graph got a String, and `element_of` looked up
+            # `args["sequence"]` in a symbol-keyed payload and found nothing: "Reverse
+            # acts on one LedgerEntry — pass sequence:", while passing sequence.
+            identified_by: [:identified_by, :identity],
             attributes:    [:attributes,    [:each, :shape_field]]
           },
-          # `owner` is the parent pointer the containment tree already knows. A
-          # piece's identified_by is a STRING where a head's is a Symbol, and only a
-          # round trip ever said so.
+          # `owner` is the parent pointer the containment tree already knows.
           derived: %i[owner state_field state_start transitions commands queries lifecycle]
         ),
 
@@ -140,7 +154,12 @@ module Hecksagain
           holder: IR::ProcessManager, make: :new,
           fields: {
             name:          [:name,          :plain],
-            correlates_by: [:correlates_by, :plain],
+            # A SYMBOL. `SagaInterpreter` does `event.payload[pm.correlates_by]` — a
+            # hash lookup on a symbol-keyed payload — and `value == pm.correlates_by`
+            # when resolving a leg s bindings. A String there finds nothing and
+            # resolves to nothing, so the wire never advanced and a drawer that
+            # should have held 2500 held 0. to_h could not show it: it stringifies.
+            correlates_by: [:correlates_by, :identity],
             starts_on:     [:starts_on,     :plain],
             ends_on:       [:ends_on,       :plain],
             states:        [:states,        :plain]
@@ -175,10 +194,23 @@ module Hecksagain
             description:      [:description,      :plain],
             reference_name:   [:reference_name,   :identity],
             reference_target: [:reference_target, :plain],
-            aggregate_heads:  [:aggregate_heads,  [:each, :head]]
+            aggregate_heads:  [:aggregate_heads,  [:each, :head]],
+            # A read model inherits every option an ask has, so it reads them the
+            # same way — see Query.
+            wheres:           [:wheres,           [:each, :where_clause]],
+            order_by:         [:order_by,         :order_by],
+            limit:            [:limit,            :limit],
+            offset:           [:offset,           [:option, :offset]],
+            cursor:           [:cursor,           [:option, :cursor]],
+            null_semantics:   [:null_semantics,   [:option, :null_semantics]],
+            authorization:    [:authorization,    [:option, :authorization]],
+            consistency:      [:consistency,      [:option, :consistency]],
+            freshness:        [:freshness,        [:option, :freshness]],
+            inspection:       [:inspection,       [:option, :inspection]],
+            index_hints:      [:index_hints,      :index_hints]
           },
           # `query_name` is Naming.snake(name) — computed, never stored.
-          derived: %i[query_name]
+          derived: %i[query_name options]
         ),
 
         # A member's pairs are an OPEN MAP, which is why Member is its own root in

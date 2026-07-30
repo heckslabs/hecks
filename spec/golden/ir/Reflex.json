@@ -73,7 +73,56 @@
       "lifecycle": null,
       "name": "Light",
       "queries": [
+        {
+          "attributes": [
 
+          ],
+          "authorization": {
+            "policy": "operator_access",
+            "tenant": "condition"
+          },
+          "consistency": {
+            "mode": "snapshot",
+            "timeout": "2"
+          },
+          "cursor": {
+            "value": ":after"
+          },
+          "description": "Lights that are on, most recent first, with every option a query can carry",
+          "freshness": {
+            "max_age": "30",
+            "mode": "eventual"
+          },
+          "index_hints": [
+            {
+              "name": "condition_index"
+            }
+          ],
+          "inspection": {
+            "mode": "sql"
+          },
+          "limit": {
+            "value": "10"
+          },
+          "name": "Lit",
+          "null_semantics": {
+            "mode": "last"
+          },
+          "offset": {
+            "value": "5"
+          },
+          "order_by": {
+            "direction": "desc",
+            "field": "condition"
+          },
+          "wheres": [
+            {
+              "field": "condition",
+              "op": "eq",
+              "value": "on"
+            }
+          ]
+        }
       ],
       "value_objects": [
         {
@@ -259,7 +308,45 @@
 
   ],
   "read_models": [
-
+    {
+      "aggregate_heads": [
+        {
+          "aggregate": "Echo",
+          "as": "echos",
+          "many": true
+        }
+      ],
+      "authorization": {
+        "policy": "operator_access",
+        "tenant": "condition"
+      },
+      "cursor": {
+        "value": ":after"
+      },
+      "description": "Every echo gathered around a light, with the options a projection can carry",
+      "freshness": {
+        "max_age": "60",
+        "mode": "bounded"
+      },
+      "index_hints": [
+        {
+          "name": "condition_index"
+        }
+      ],
+      "inspection": {
+        "mode": "sql"
+      },
+      "name": "Signals",
+      "null_semantics": {
+        "mode": "last"
+      },
+      "offset": {
+        "value": "5"
+      },
+      "query_name": "signals",
+      "reference_name": "light",
+      "reference_target": "Light"
+    }
   ],
   "version": null,
   "vision": "An event arrives and a command fires — the whole of a policy, in one aggregate."

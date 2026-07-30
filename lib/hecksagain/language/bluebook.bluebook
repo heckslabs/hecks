@@ -835,6 +835,19 @@ Hecks.bluebook "Meta" do
     attribute :limit,       QueryText
     attribute :wheres,      list_of(Filter)
     attribute :attributes,  list_of(AskArgument)
+    # EVERY OTHER OPTION A QUERY CAN CARRY, as an open map rather than a field
+    # each. `offset`, `cursor`, `nulls`, `authorize`, `consistency`, `freshness`,
+    # `inspect_query` and `use_index` are eight more specifications, several of them
+    # compound — authorize names a policy AND a tenant, freshness a mode AND a max
+    # age. Eleven more fields would have to be added here one at a time, and the
+    # ninth option would need a twelfth.
+    #
+    # So they ride as rows: the option's NAME, the KEY within it, and the value. The
+    # language already models an open map exactly this way twice — a member's pairs
+    # and a world's settings — and both are their own root for the same reason, that
+    # no value object can hold a map. Held here as a list because an option belongs
+    # to the ask rather than standing alone.
+    attribute :options,     list_of(AskOption)
 
     value_object "QueryName" do
       attribute :value, String
@@ -856,6 +869,18 @@ Hecks.bluebook "Meta" do
       attribute :type,    String
       attribute :list,    String
       attribute :default, String
+    end
+
+    # One entry of one option. `option` names which specification it belongs to
+    # (offset, freshness, authorization), `key` the part within it (value, mode,
+    # max_age, policy, tenant), and `value` what was declared. A single-valued
+    # option is one row ; a compound is one row per part ; a repeated one — an index
+    # hint — is one row per occurrence, told apart by `at`.
+    value_object "AskOption" do
+      attribute :option, String
+      attribute :key,    String
+      attribute :value,  String
+      attribute :at,     String
     end
 
     # The way back: everything DECLARED IN the aggregate above. The parent
@@ -892,6 +917,23 @@ Hecks.bluebook "Meta" do
       then_set :wheres, append: { field: :field, op: :op, value: :value }
 
       emits "FilterAttached"
+    end
+
+    command "Option" do
+      role "Language"
+      goal "Attach one part of one specification option to the query"
+
+      reference_to Query
+      attribute :option, QueryText
+      attribute :key,    QueryText
+      attribute :value,  QueryText
+      attribute :at,     QueryText
+
+      given("an option is named") { !option.value.to_s.empty? }
+
+      then_set :options, append: { option: :option, key: :key, value: :value, at: :at }
+
+      emits "OptionAttached"
     end
 
     command "Argument" do
@@ -1105,6 +1147,9 @@ Hecks.bluebook "Meta" do
     attribute :reference_name,   ReadModelText
     attribute :reference_target, ReadModelText
     attribute :aggregate_heads,  list_of(Head)
+    # The same open map a query carries — see Query's AskOption. A read model
+    # inherits every specification option an ask has, so it holds them the same way.
+    attribute :options,          list_of(ProjectionOption)
 
     value_object "ReadModelName" do
       attribute :value, String
@@ -1126,6 +1171,13 @@ Hecks.bluebook "Meta" do
       attribute :aggregate, String
       attribute :as,        String
       attribute :many,      String
+    end
+
+    value_object "ProjectionOption" do
+      attribute :option, String
+      attribute :key,    String
+      attribute :value,  String
+      attribute :at,     String
     end
 
     # The way back: everything DECLARED IN the chapter above. The parent
@@ -1162,6 +1214,23 @@ Hecks.bluebook "Meta" do
       then_set :aggregate_heads, append: { aggregate: :aggregate, as: :as, many: :many }
 
       emits "HeadGathered"
+    end
+
+    command "Option" do
+      role "Language"
+      goal "Attach one part of one specification option to the read model"
+
+      reference_to ReadModel
+      attribute :option, ReadModelText
+      attribute :key,    ReadModelText
+      attribute :value,  ReadModelText
+      attribute :at,     ReadModelText
+
+      given("an option is named") { !option.value.to_s.empty? }
+
+      then_set :options, append: { option: :option, key: :key, value: :value, at: :at }
+
+      emits "OptionAttached"
     end
   end
 

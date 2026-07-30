@@ -48,10 +48,10 @@ RSpec.describe "the judge's coverage of the language" do
     def registry = nil
   end
 
-  def offered_in_order
+  def offered_in_order(bluebook = banking)
     spy = Spy.new
     judge = Hecksagain::Bluebook::MetaValidator::Judge.allocate
-    judge.instance_variable_set(:@bluebook, banking)
+    judge.instance_variable_set(:@bluebook, bluebook)
     judge.instance_variable_set(:@refusals, [])
     judge.instance_variable_set(:@runtime, spy)
     judge.instance_variable_set(
@@ -62,7 +62,30 @@ RSpec.describe "the judge's coverage of the language" do
     spy.verbs
   end
 
-  def offered_verbs = offered_in_order.uniq
+# THE UNION OF THE CORPUS, not banking alone.
+#
+# Banking carries every CATEGORY, which is why the order examples below read it —
+# but it declares no query options, so `Query.Option` and `ReadModel.Option` were
+# never offered and this gate called them decoration. It was right to: a verb
+# nothing dispatches carries rules that cannot fire. The answer is to exercise
+# them somewhere, not to excuse them, so `reflex` declares an ask with every
+# option a query can carry and the coverage question becomes "does the judge
+# reach this verb for ANY bluebook", which is what it always meant.
+def offered_verbs = (offered_in_order + offered_in_order(reflex)).uniq
+
+def reflex
+  @reflex ||= begin
+    registry = Hecksagain::Runtime::Registry.new
+    Hecksagain.with_registry(registry) do
+      Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
+      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
+      Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
+      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+      Kernel.load(File.join(InMemoryDomain::ROOT, "spec/fixtures/reflex.bluebook"))
+    end
+    registry.bluebook("Reflex")
+  end
+end
 
   # Every command on every aggregate of the meta-domain, spelled as the judge
   # would dispatch it. World and Wiring live in world.bluebook and are judged
