@@ -8,62 +8,121 @@ module Hecksagain
       module Resolver
         SIGN_TESTS = %w[positive? negative? zero?].freeze
 
+        # Which Comparison operator each sign test is sugar for, against the
+        # literal 0 — declared the same way in Vocabulary::SignTest's
+        # compares_via (language/bluebook.bluebook) ; spec/vocabulary_conformance_spec
+        # holds the two tables equal.
+        SIGN_TEST_OPERATORS = {
+          "positive?" => ">",
+          "negative?" => "<",
+          "zero?"     => "=="
+        }.freeze
+
+        # The leaf grammar an expression's dotted/arithmetic side parses into.
+        # Which node a string produces is a pure function of the string, so
+        # parse() runs once per distinct leaf (folded into Evaluator's own
+        # ast_cache — see evaluator.rb) and interpret() reads state/attrs
+        # fresh on every call. Only Lookup — the true leaf — ever touches
+        # state/attrs.
+        IntegerLiteral = Struct.new(:value, keyword_init: true)
+        FloatLiteral   = Struct.new(:value, keyword_init: true)
+        StringLiteral  = Struct.new(:value, keyword_init: true)
+        BoolLiteral    = Struct.new(:value, keyword_init: true)
+        NilLiteral     = Struct.new(keyword_init: true)
+        Addition       = Struct.new(:left, :right, keyword_init: true)
+        SignTest       = Struct.new(:operator, :test, :receiver, keyword_init: true)
+        Empty          = Struct.new(:receiver, keyword_init: true)
+        ToS            = Struct.new(:receiver, keyword_init: true)
+        Modulo         = Struct.new(:receiver, :divisor, keyword_init: true)
+        Size           = Struct.new(:receiver, keyword_init: true)
+        Lookup         = Struct.new(:path, keyword_init: true)
+
         module_function
 
         def resolve(expr, state, attrs)
+          interpret(parse(expr), state, attrs)
+        end
+
+        def parse(expr)
           expr = expr.to_s.strip
 
-          return resolve("#{Regexp.last_match(1)}.size", state, attrs) if expr =~ /\A(.+)\.length\z/
+          return Size.new(receiver: parse(Regexp.last_match(1))) if expr =~ /\A(.+)\.length\z/
 
-          return Integer(expr, 10) if expr.match?(/\A-?\d+\z/)
-          return Float(expr)       if expr.match?(/\A-?\d*\.\d+\z/)
-          return expr[1..-2]       if quoted?(expr)
-        return true              if expr == "true"
-        return false             if expr == "false"
-        return nil               if expr == "nil"
+          return IntegerLiteral.new(value: Integer(expr, 10)) if expr.match?(/\A-?\d+\z/)
+          return FloatLiteral.new(value: Float(expr))         if expr.match?(/\A-?\d*\.\d+\z/)
+          return StringLiteral.new(value: expr[1..-2])        if quoted?(expr)
+          return BoolLiteral.new(value: true)                 if expr == "true"
+          return BoolLiteral.new(value: false)                if expr == "false"
+          return NilLiteral.new                                if expr == "nil"
 
-        arithmetic = split_addition(expr)
-        return add(arithmetic, state, attrs) if arithmetic
+          arithmetic = split_addition(expr)
+          return Addition.new(left: parse(arithmetic[0]), right: parse(arithmetic[1])) if arithmetic
 
           sign = match_suffix(expr, SIGN_TESTS)
-          return apply_sign_test(sign, state, attrs) if sign
+          return sign_test_node(sign) if sign
 
-          return emptiness_of(Regexp.last_match(1), state, attrs) if expr =~ /\A(.+)\.empty\?\z/
-          return string_of(Regexp.last_match(1), state, attrs)    if expr =~ /\A(.+)\.to_s\z/
+          return Empty.new(receiver: parse(Regexp.last_match(1))) if expr =~ /\A(.+)\.empty\?\z/
+          return ToS.new(receiver: parse(Regexp.last_match(1)))   if expr =~ /\A(.+)\.to_s\z/
 
           modulo = match_call(expr, ".modulo(")
-          return apply_modulo(modulo, state, attrs) if modulo
+          return Modulo.new(receiver: parse(modulo[0]), divisor: parse(modulo[1])) if modulo
 
-          return size_of(Regexp.last_match(1), state, attrs) if expr =~ /\A(.+)\.size\z/
+          return Size.new(receiver: parse(Regexp.last_match(1))) if expr =~ /\A(.+)\.size\z/
 
-        lookup(expr, state, attrs)
-      end
+          Lookup.new(path: expr)
+        end
 
-      def split_addition(expr)
-        depth = 0
-        quote = nil
+        def sign_test_node(parts)
+          receiver, test = parts
+          symbol   = SIGN_TEST_OPERATORS.fetch(test)
+          operator = Evaluator::OPERATORS.find { |candidate| candidate.symbol == symbol }
+          SignTest.new(operator: operator, test: test, receiver: parse(receiver))
+        end
 
-        expr.each_char.with_index do |char, index|
-          if quote
-            quote = nil if char == quote
-          elsif ['"', "'"].include?(char)
-            quote = char
-          elsif char == "("
-            depth += 1
-          elsif char == ")"
-            depth -= 1
-          elsif char == "+" && depth.zero?
-            return [expr[0...index].strip, expr[(index + 1)..].strip]
+        def interpret(node, state, attrs)
+          case node
+          when IntegerLiteral, FloatLiteral, StringLiteral, BoolLiteral then node.value
+          when NilLiteral then nil
+          when Addition
+            add(interpret(node.left, state, attrs), interpret(node.right, state, attrs))
+          when SignTest
+            apply_sign_test(node, interpret(node.receiver, state, attrs))
+          when Empty
+            emptiness_of(interpret(node.receiver, state, attrs))
+          when ToS
+            string_of(interpret(node.receiver, state, attrs))
+          when Modulo
+            apply_modulo(interpret(node.receiver, state, attrs), interpret(node.divisor, state, attrs))
+          when Size
+            size_of(interpret(node.receiver, state, attrs))
+          when Lookup
+            lookup(node.path, state, attrs)
           end
         end
-        nil
-      end
 
-      def add(parts, state, attrs)
-        left, right = parts
-        require_number(resolve(left, state, attrs), "addition") +
-          require_number(resolve(right, state, attrs), "addition")
-      end
+        def split_addition(expr)
+          depth = 0
+          quote = nil
+
+          expr.each_char.with_index do |char, index|
+            if quote
+              quote = nil if char == quote
+            elsif ['"', "'"].include?(char)
+              quote = char
+            elsif char == "("
+              depth += 1
+            elsif char == ")"
+              depth -= 1
+            elsif char == "+" && depth.zero?
+              return [expr[0...index].strip, expr[(index + 1)..].strip]
+            end
+          end
+          nil
+        end
+
+        def add(left, right)
+          require_number(left, "addition") + require_number(right, "addition")
+        end
 
         def quoted?(expr)
           return false if expr.length < 2
@@ -72,23 +131,30 @@ module Hecksagain
             (expr.start_with?("'") && expr.end_with?("'"))
         end
 
-        def size_of(receiver, state, attrs)
-          value = resolve(receiver, state, attrs)
+        # Declared the same way in Vocabulary::SizedType
+        # (language/bluebook.bluebook) — spec/vocabulary_conformance_spec
+        # holds this equal to the language. Shared by .size and .empty?,
+        # which admit the same set for the same reason.
+        SIZED_TYPES = %w[Array String Hash].freeze
+
+        def size_of(value)
           return value.size if value.is_a?(Array) || value.is_a?(String) || value.is_a?(Hash)
 
           raise EvaluationError, "size expects a list or string, got #{describe(value)}"
         end
 
-        def emptiness_of(receiver, state, attrs)
-          value = resolve(receiver, state, attrs)
+        def emptiness_of(value)
           return value.empty? if value.is_a?(Array) || value.is_a?(String) || value.is_a?(Hash)
 
           raise EvaluationError, "empty? expects a list or string, got #{describe(value)}"
         end
 
-        def string_of(receiver, state, attrs)
-          value = resolve(receiver, state, attrs)
+        # Declared the same way in Vocabulary::ToStringType
+        # (language/bluebook.bluebook) — spec/vocabulary_conformance_spec
+        # holds this equal to the language.
+        TO_STRING_TYPES = %w[String Integer Float TrueClass FalseClass NilClass].freeze
 
+        def string_of(value)
           case value
           when String                then value
           when Integer, Float        then value.to_s
@@ -107,17 +173,11 @@ module Hecksagain
           nil
         end
 
-        def apply_sign_test(parts, state, attrs)
-          receiver, test = parts
-          value = resolve(receiver, state, attrs)
+        def apply_sign_test(node, value)
           number = numeric(value)
-          raise EvaluationError, "#{test} expects a number, got #{describe(value)}" unless number
+          raise EvaluationError, "#{node.test} expects a number, got #{describe(value)}" unless number
 
-          case test
-          when "positive?" then number.positive?
-          when "negative?" then number.negative?
-          else number.zero?
-          end
+          Evaluator.apply(node.operator, number, 0)
         end
 
         def match_call(expr, marker)
@@ -127,12 +187,11 @@ module Hecksagain
           [expr[0...index], expr[(index + marker.length)...-1]]
         end
 
-        def apply_modulo(parts, state, attrs)
-          receiver, argument = parts
-          divisor = require_number(resolve(argument, state, attrs), "modulo")
+        def apply_modulo(receiver_value, divisor_value)
+          divisor = require_number(divisor_value, "modulo")
           raise EvaluationError, "divided by 0" if divisor.zero?
 
-          require_number(resolve(receiver, state, attrs), "modulo").to_i % divisor.to_i
+          require_number(receiver_value, "modulo").to_i % divisor.to_i
         end
 
         def lookup(expr, state, attrs)

@@ -4,6 +4,20 @@ module Hecksagain
     class CommandRules
       attr_reader :registry
 
+      # The ops Runtime::CommandInterpreter applies. Declared the same way in
+      # Vocabulary::MutationOp (language/bluebook.bluebook) —
+      # spec/vocabulary_conformance_spec holds the two tables equal, so
+      # increment/decrement's sign cannot drift from what the language says
+      # each op means. set/append carry no sign — they do no arithmetic.
+      MutationOp = Struct.new(:name, :sign, keyword_init: true)
+
+      MUTATION_OPS = [
+        MutationOp.new(name: "set",       sign: nil),
+        MutationOp.new(name: "append",    sign: nil),
+        MutationOp.new(name: "increment", sign: 1),
+        MutationOp.new(name: "decrement", sign: -1)
+      ].freeze
+
       def initialize(registry)
         @registry = registry
       end
@@ -39,6 +53,61 @@ module Hecksagain
         source
       end
 
+      # A reference must point at something that EXISTS.
+      #
+      # `reference_to Customer` is the one guarantee an aggregate reference is
+      # for, and it was declared 14 times across banking and enforced nowhere :
+      # an Account could belong to a customer who was never registered, in both
+      # runtimes, and parity stayed green because both were equally permissive
+      # and no corpus step ever passed a dangling reference.
+      #
+      # Resolved here rather than in coercion because coercion is pure — it
+      # holds no repository. A reference INTO ANOTHER DOMAIN is left alone : a
+      # cross-domain target may legitimately not be loaded, which is the same
+      # reading `across` policies already get.
+      #
+      # Shared by CommandInterpreter and EntityInterpreter — an entity command
+      # can declare a reference-typed attribute the same way an aggregate
+      # command can, even though nothing in the real corpus does yet.
+      def resolve_references(domain, command, args)
+        command.attributes.each do |attribute|
+          next unless attribute.reference?
+          next unless args.key?(attribute.name)
+
+          held = args[attribute.name]
+          next if held.nil?
+
+          target = referenced_aggregate(attribute)
+          next unless target
+
+          key = reference_identity(held)
+          next if key.to_s.empty?
+          next if @registry.repository(domain, target).find(key)
+
+          raise NotFound,
+                "no #{target.name} with #{target.identified_by || :id} #{key.inspect}"
+        end
+      end
+
+      # The reference RESOLVES itself — through the chapter's namespace, so Ruby's
+      # constant tree is the index. This used to regex the target's name out of
+      # "Reference<Customer>" and then search `registry.bluebook(domain).aggregates`
+      # for it: a spelling parsed, and a registry scanned, to reach a class the
+      # attribute was holding all along.
+      def referenced_aggregate(attribute)
+        attribute.type.resolve&.ir
+      end
+
+      def reference_identity(held)
+        case held
+        when Value then Value.scalar(held).to_s
+        when Hash  then held.values.first.to_s
+        else held.to_s
+        end
+      rescue TypeMismatch
+        nil
+      end
+
       def arithmetic(current, amount, target, sign)
         op      = sign.positive? ? "increment" : "decrement"
         current ||= 0
@@ -72,7 +141,7 @@ module Hecksagain
         current.with(field, current[field] + (sign * amount[field]))
       end
 
-      def sign_of(op) = op == :increment ? 1 : -1
+      def sign_of(op) = MUTATION_OPS.find { |candidate| candidate.name == op.to_s }&.sign || -1
 
       def emit(command, domain, aggregate, instance, args, repository)
         command.emits.map do |event_name|

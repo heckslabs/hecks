@@ -4,6 +4,13 @@ module Hecksagain
     class EntityInterpreter
       attr_reader :registry
 
+      # Set by a spec to observe dispatch order (Vocabulary::EntityDispatchOrder
+      # in language/bluebook.bluebook) ; nil in production, always — see
+      # CommandInterpreter.trace, the same mechanism.
+      class << self
+        attr_accessor :trace
+      end
+
       def initialize(registry, rules:)
         @registry = registry
         @rules    = rules
@@ -16,23 +23,30 @@ module Hecksagain
         command = entity.command(command_name) ||
                   raise(UnknownVerb, "#{entity_name} has no command #{command_name.inspect}")
 
-        args       = normalize_args(aggregate, command, args)
+        args       = step(:normalize_args) { normalize_args(aggregate, command, args) }
+        step(:resolve_references) { @rules.resolve_references(domain, command, args) }
         repository = @registry.repository(domain, aggregate)
-        instance   = parent(repository, aggregate, entity_name, command_name, args)
-        element    = element_of(aggregate, entity, entity_name, command_name, instance, args)
+        instance   = step(:hydrate_parent) { parent(repository, aggregate, entity_name, command_name, args) }
+        element    = step(:locate_element) { element_of(aggregate, entity, entity_name, command_name, instance, args) }
 
         view = Instance.new(aggregate: entity, id: element[entity.identified_by].to_s, state: element)
-        @rules.enforce_givens(view, command, args)
-        transition = @rules.admissible_transition(entity, command, view)
-        command.mutations.each { |mutation| apply_to_element(aggregate, entity, element, mutation, args) }
-        element[entity.lifecycle.field] = transition.target if transition
+        step(:enforce_givens) { @rules.enforce_givens(view, command, args) }
+        transition = step(:admissible_transition) { @rules.admissible_transition(entity, command, view) }
+        step(:apply_mutations) { command.mutations.each { |mutation| apply_to_element(aggregate, entity, element, mutation, args) } }
+        step(:advance_lifecycle) { element[entity.lifecycle.field] = transition.target } if transition
 
-        repository.save(instance)
+        step(:save) { repository.save(instance) }
 
-        [instance, @rules.emit(command, domain, aggregate, instance, args, repository)]
+        [instance, step(:emit) { @rules.emit(command, domain, aggregate, instance, args, repository) }]
       end
 
       private
+
+      def step(name)
+        result = yield
+        self.class.trace << name if self.class.trace
+        result
+      end
 
       def parent(repository, aggregate, entity_name, command_name, args)
         parent_key = aggregate.identified_by || :id

@@ -1,3 +1,4 @@
+use super::evaluator::{apply, Operator, OPERATORS};
 use serde_json::{Map, Value};
 
 pub type State = Map<String, Value>;
@@ -6,58 +7,141 @@ pub type Eval<T> = Result<T, String>;
 
 const SIGN_TESTS: [&str; 3] = ["positive?", "negative?", "zero?"];
 
+// The leaf grammar an expression's dotted/arithmetic side parses into. Which
+// node a string produces is a pure function of the string, so parse() runs
+// once per distinct leaf — folded into Evaluator's own AST_CACHE, since a
+// leaf string is a substring of some canonical predicate that only gets
+// parsed on that predicate's first evaluation (see evaluator.rs) — and
+// interpret() reads state/attrs fresh on every call. Only Lookup, the true
+// leaf, ever touches state/attrs.
+#[derive(Debug)]
+pub(crate) enum ResolverNode {
+    IntegerLiteral(i64),
+    FloatLiteral(f64),
+    StringLiteral(String),
+    BoolLiteral(bool),
+    NilLiteral,
+    Addition(Box<ResolverNode>, Box<ResolverNode>),
+    SignTest {
+        operator: &'static Operator,
+        test: &'static str,
+        receiver: Box<ResolverNode>,
+    },
+    Empty(Box<ResolverNode>),
+    ToS(Box<ResolverNode>),
+    Modulo(Box<ResolverNode>, Box<ResolverNode>),
+    Size(Box<ResolverNode>),
+    Lookup(String),
+}
+
 pub fn resolve_expr(expr: &str, state: &State, attrs: &State) -> Eval<Value> {
+    interpret(&parse(expr), state, attrs)
+}
+
+pub(crate) fn parse(expr: &str) -> ResolverNode {
     let expr = expr.trim();
 
     if let Some(field) = expr.strip_suffix(".length") {
-        return resolve_expr(&format!("{}.size", field.trim()), state, attrs);
+        return ResolverNode::Size(Box::new(parse(field.trim())));
     }
 
     if let Ok(n) = expr.parse::<i64>() {
-        return Ok(Value::from(n));
+        return ResolverNode::IntegerLiteral(n);
     }
     if let Ok(f) = expr.parse::<f64>() {
-        return Ok(Value::from(f));
+        return ResolverNode::FloatLiteral(f);
     }
     if is_quoted(expr) {
-        return Ok(Value::String(expr[1..expr.len() - 1].to_string()));
+        return ResolverNode::StringLiteral(expr[1..expr.len() - 1].to_string());
     }
     match expr {
-        "true" => return Ok(Value::Bool(true)),
-        "false" => return Ok(Value::Bool(false)),
-        "nil" | "null" => return Ok(Value::Null),
+        "true" => return ResolverNode::BoolLiteral(true),
+        "false" => return ResolverNode::BoolLiteral(false),
+        "nil" | "null" => return ResolverNode::NilLiteral,
         _ => {}
     }
 
     if let Some((left, right)) = split_addition(expr) {
-        let left = require_number(&resolve_expr(&left, state, attrs)?, "addition")?;
-        let right = require_number(&resolve_expr(&right, state, attrs)?, "addition")?;
-        return Ok(Value::from(left + right));
+        return ResolverNode::Addition(Box::new(parse(&left)), Box::new(parse(&right)));
     }
 
     for test in SIGN_TESTS {
         if let Some(receiver) = expr.strip_suffix(&format!(".{}", test)) {
-            return apply_sign_test(receiver, test, state, attrs);
+            return sign_test_node(receiver, test);
         }
     }
 
-    if let Some((receiver, argument)) = match_call(expr, ".modulo(") {
-        return apply_modulo(&receiver, &argument, state, attrs);
-    }
-
     if let Some(receiver) = expr.strip_suffix(".empty?") {
-        return emptiness_of(receiver.trim(), state, attrs);
+        return ResolverNode::Empty(Box::new(parse(receiver.trim())));
     }
 
     if let Some(receiver) = expr.strip_suffix(".to_s") {
-        return string_of(receiver.trim(), state, attrs);
+        return ResolverNode::ToS(Box::new(parse(receiver.trim())));
+    }
+
+    if let Some((receiver, argument)) = match_call(expr, ".modulo(") {
+        return ResolverNode::Modulo(Box::new(parse(&receiver)), Box::new(parse(&argument)));
     }
 
     if let Some(receiver) = expr.strip_suffix(".size") {
-        return size_of(receiver.trim(), state, attrs);
+        return ResolverNode::Size(Box::new(parse(receiver.trim())));
     }
 
-    lookup(expr, state, attrs)
+    ResolverNode::Lookup(expr.to_string())
+}
+
+fn sign_test_node(receiver: &str, test: &'static str) -> ResolverNode {
+    let symbol = sign_test_operator(test);
+    let operator = OPERATORS
+        .iter()
+        .find(|candidate| candidate.symbol == symbol)
+        .expect("sign_test_operator names a declared Comparison operator");
+    ResolverNode::SignTest {
+        operator,
+        test,
+        receiver: Box::new(parse(receiver)),
+    }
+}
+
+pub(crate) fn interpret(node: &ResolverNode, state: &State, attrs: &State) -> Eval<Value> {
+    match node {
+        ResolverNode::IntegerLiteral(n) => Ok(Value::from(*n)),
+        ResolverNode::FloatLiteral(f) => Ok(Value::from(*f)),
+        ResolverNode::StringLiteral(text) => Ok(Value::String(text.clone())),
+        ResolverNode::BoolLiteral(flag) => Ok(Value::Bool(*flag)),
+        ResolverNode::NilLiteral => Ok(Value::Null),
+        ResolverNode::Addition(left, right) => {
+            let left = require_number(&interpret(left, state, attrs)?, "addition")?;
+            let right = require_number(&interpret(right, state, attrs)?, "addition")?;
+            Ok(Value::from(left + right))
+        }
+        ResolverNode::SignTest {
+            operator,
+            test,
+            receiver,
+        } => {
+            let value = interpret(receiver, state, attrs)?;
+            let number = numeric_value(&value)
+                .ok_or_else(|| format!("{} expects a number, got {}", test, describe(&value)))?;
+            Ok(Value::Bool(apply(
+                operator,
+                &Value::from(number),
+                &Value::from(0),
+            )?))
+        }
+        ResolverNode::Empty(receiver) => emptiness_of(&interpret(receiver, state, attrs)?),
+        ResolverNode::ToS(receiver) => string_of(&interpret(receiver, state, attrs)?),
+        ResolverNode::Modulo(receiver, argument) => {
+            let divisor = require_number(&interpret(argument, state, attrs)?, "modulo")?;
+            if divisor == 0.0 {
+                return Err("divided by 0".to_string());
+            }
+            let left = require_number(&interpret(receiver, state, attrs)?, "modulo")?;
+            Ok(Value::from((left as i64).rem_euclid(divisor as i64)))
+        }
+        ResolverNode::Size(receiver) => size_of(&interpret(receiver, state, attrs)?),
+        ResolverNode::Lookup(path) => lookup(path, state, attrs),
+    }
 }
 
 fn split_addition(expr: &str) -> Option<(String, String)> {
@@ -97,10 +181,8 @@ pub fn is_quoted(expr: &str) -> bool {
     (first == b'"' && last == b'"') || (first == b'\'' && last == b'\'')
 }
 
-fn size_of(receiver: &str, state: &State, attrs: &State) -> Eval<Value> {
-    let value = resolve_expr(receiver, state, attrs)?;
-
-    match &value {
+fn size_of(value: &Value) -> Eval<Value> {
+    match value {
         Value::Array(items) => Ok(Value::from(items.len() as i64)),
         Value::String(text) => Ok(Value::from(text.chars().count() as i64)),
         Value::Object(map) => Ok(Value::from(map.len() as i64)),
@@ -111,10 +193,8 @@ fn size_of(receiver: &str, state: &State, attrs: &State) -> Eval<Value> {
     }
 }
 
-fn emptiness_of(receiver: &str, state: &State, attrs: &State) -> Eval<Value> {
-    let value = resolve_expr(receiver, state, attrs)?;
-
-    match &value {
+fn emptiness_of(value: &Value) -> Eval<Value> {
+    match value {
         Value::Array(items) => Ok(Value::Bool(items.is_empty())),
         Value::String(text) => Ok(Value::Bool(text.is_empty())),
         Value::Object(map) => Ok(Value::Bool(map.is_empty())),
@@ -125,10 +205,8 @@ fn emptiness_of(receiver: &str, state: &State, attrs: &State) -> Eval<Value> {
     }
 }
 
-fn string_of(receiver: &str, state: &State, attrs: &State) -> Eval<Value> {
-    let value = resolve_expr(receiver, state, attrs)?;
-
-    Ok(Value::String(match &value {
+fn string_of(value: &Value) -> Eval<Value> {
+    Ok(Value::String(match value {
         Value::String(text) => text.clone(),
         Value::Null => String::new(),
         Value::Bool(flag) => flag.to_string(),
@@ -140,16 +218,16 @@ fn string_of(receiver: &str, state: &State, attrs: &State) -> Eval<Value> {
     }))
 }
 
-fn apply_sign_test(receiver: &str, test: &str, state: &State, attrs: &State) -> Eval<Value> {
-    let value = resolve_expr(receiver, state, attrs)?;
-    let number = numeric_value(&value)
-        .ok_or_else(|| format!("{} expects a number, got {}", test, describe(&value)))?;
-
-    Ok(Value::Bool(match test {
-        "positive?" => number > 0.0,
-        "negative?" => number < 0.0,
-        _ => number == 0.0,
-    }))
+// Which Comparison operator each sign test is sugar for, against the literal
+// 0 — declared the same way in Vocabulary::SignTest's compares_via
+// (language/bluebook.bluebook) ; spec/vocabulary_conformance_spec holds the
+// two tables equal.
+fn sign_test_operator(test: &str) -> &'static str {
+    match test {
+        "positive?" => ">",
+        "negative?" => "<",
+        _ => "==",
+    }
 }
 
 pub fn match_call(expr: &str, marker: &str) -> Option<(String, String)> {
@@ -161,16 +239,6 @@ pub fn match_call(expr: &str, marker: &str) -> Option<(String, String)> {
         expr[..index].to_string(),
         expr[index + marker.len()..expr.len() - 1].to_string(),
     ))
-}
-
-fn apply_modulo(receiver: &str, argument: &str, state: &State, attrs: &State) -> Eval<Value> {
-    let divisor = require_number(&resolve_expr(argument, state, attrs)?, "modulo")?;
-    if divisor == 0.0 {
-        return Err("divided by 0".to_string());
-    }
-    let left = require_number(&resolve_expr(receiver, state, attrs)?, "modulo")?;
-
-    Ok(Value::from((left as i64).rem_euclid(divisor as i64)))
 }
 
 fn lookup(expr: &str, state: &State, attrs: &State) -> Eval<Value> {

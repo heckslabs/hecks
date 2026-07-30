@@ -721,26 +721,83 @@ Hecks.bluebook "Meta" do
       invariant("a vocabulary is named") { !value.to_s.empty? }
     end
 
-    # Expression::Evaluator::COMPARISONS
+    # Expression::Evaluator::COMPARISONS — six operators, all reduced by both
+    # runtimes to two primitives (less_than, equal) combined with a small boolean
+    # algebra: compares_less_than and compares_equal choose which primitive(s) OR
+    # together, negated inverts the result. `compare` reads this table instead of
+    # hardcoding a six-way case statement — see Evaluator::COMPARISONS.
     value_object "Comparison" do
-      attribute :symbol, String
+      attribute :symbol,             String
+      attribute :compares_less_than, String
+      attribute :compares_equal,     String
+      attribute :negated,            String
+
       one_of do
-        member symbol: ">="
-        member symbol: "<="
-        member symbol: "<"
-        member symbol: ">"
-        member symbol: "=="
-        member symbol: "!="
+        member symbol: ">=", compares_less_than: "true",  compares_equal: "false", negated: "true"
+        member symbol: "<=", compares_less_than: "true",  compares_equal: "true",  negated: "false"
+        member symbol: "<",  compares_less_than: "true",  compares_equal: "false", negated: "false"
+        member symbol: ">",  compares_less_than: "true",  compares_equal: "true",  negated: "true"
+        member symbol: "==", compares_less_than: "false", compares_equal: "true",  negated: "false"
+        member symbol: "!=", compares_less_than: "false", compares_equal: "true",  negated: "true"
       end
     end
 
     # Expression::Resolver::SIGN_TESTS
+    # Each sign test is comparing against the literal 0, using an operator
+    # Comparison already declares — compares_via names which one, so a sign
+    # test is sugar for an existing operator rather than a second algebra
+    # beside it. `positive?` = value > 0, `negative?` = value < 0, `zero?` =
+    # value == 0.
     value_object "SignTest" do
-      attribute :name, String
+      attribute :name,         String
+      attribute :compares_via, String
       one_of do
-        member name: "positive?"
-        member name: "negative?"
-        member name: "zero?"
+        member name: "positive?", compares_via: ">"
+        member name: "negative?", compares_via: "<"
+        member name: "zero?",     compares_via: "=="
+      end
+    end
+
+    # `.include?`'s haystack type decides its behaviour : Array does
+    # membership (the same equal? primitive Comparison's == uses), String
+    # does an exact substring match and refuses a non-String needle. Anything
+    # else is always false — not declared here, since it is the fallback
+    # every OTHER haystack type shares, not a case of its own.
+    value_object "IncludeHaystack" do
+      attribute :type,     String
+      attribute :strategy, String
+      one_of do
+        member type: "Array",  strategy: "membership"
+        member type: "String", strategy: "substring"
+      end
+    end
+
+    # `.to_s` admits exactly these scalar types, and every one of them uses
+    # the SAME rule (Ruby's own to_s — nil renders "", a bool its name, a
+    # number its digits, a string itself) — a closed set to admit into, not a
+    # table of different rules per type.
+    value_object "ToStringType" do
+      attribute :type, String
+      one_of do
+        member type: "String"
+        member type: "Integer"
+        member type: "Float"
+        member type: "TrueClass"
+        member type: "FalseClass"
+        member type: "NilClass"
+      end
+    end
+
+    # `.size` and `.empty?` admit exactly the same closed set — a list, a
+    # string, or an open map — and each just calls the one Ruby/Rust method
+    # already named for it. One declaration for both, since the set itself is
+    # the only thing either needed to say.
+    value_object "SizedType" do
+      attribute :type, String
+      one_of do
+        member type: "Array"
+        member type: "String"
+        member type: "Hash"
       end
     end
 
@@ -765,14 +822,39 @@ Hecks.bluebook "Meta" do
       end
     end
 
-    # the ops Runtime::CommandInterpreter applies
+    # the ops Runtime::CommandInterpreter applies. `sign` is the arithmetic
+    # delta increment/decrement share one primitive by — CommandRules#arithmetic
+    # (Ruby) and mutations.rs' `arithmetic` (Rust) both apply `current + sign *
+    # amount`, differing only in which sign. set and append do no arithmetic,
+    # so they carry no sign — ABSENT IS NOT EMPTY, same reading as elsewhere in
+    # this file.
     value_object "MutationOp" do
       attribute :name, String
+      attribute :sign, String
       one_of do
-        member name: "set"
-        member name: "append"
-        member name: "increment"
-        member name: "decrement"
+        member name: "set",       sign: ""
+        member name: "append",    sign: ""
+        member name: "increment", sign: "1"
+        member name: "decrement", sign: "-1"
+      end
+    end
+
+    # QuerySpecification::Common::Comparators::COMPARATORS — a where-clause's
+    # admitted operators. Unlike Comparison, these do not reduce to one shared
+    # boolean algebra (eq/ne compare values, gt/gte/lt/lte order them, in/contains
+    # test membership in opposite directions), so this stays a flat closed set —
+    # the same shape MutationOp had before it grew a sign.
+    value_object "QueryComparator" do
+      attribute :name, String
+      one_of do
+        member name: "eq"
+        member name: "ne"
+        member name: "gt"
+        member name: "gte"
+        member name: "lt"
+        member name: "lte"
+        member name: "in"
+        member name: "contains"
       end
     end
 
@@ -785,6 +867,59 @@ Hecks.bluebook "Meta" do
         member glob: "*.bluebook"
         member glob: "*.hecksagon"
         member glob: "*.world"
+      end
+    end
+
+    # CommandInterpreter#call / dispatcher.rs::dispatch — an aggregate command's
+    # own interpretation, ending at the events it emits. Reaction (policies,
+    # sagas) is a structurally separate phase in both runtimes and is not part
+    # of this : Ruby returns from CommandInterpreter#call before it runs, in a
+    # different class ; Rust runs it after, inside the same function, but it is
+    # still what a command's OWN emitted events cause, not what interpreting
+    # the command does. Two conditional steps — assign_creation_attributes only
+    # fires for a creating command, advance_lifecycle only when a transition
+    # applies — so this is the order a command that does both follows,
+    # confirmed by tracing a real dispatch, not read off the source.
+    value_object "AggregateDispatchOrder" do
+      attribute :step, String
+      one_of do
+        member step: "refuse_unknown_arguments"
+        member step: "normalize_args"
+        member step: "resolve_references"
+        member step: "hydrate"
+        member step: "enforce_givens"
+        member step: "admissible_transition"
+        member step: "assign_creation_attributes"
+        member step: "apply_mutations"
+        member step: "advance_lifecycle"
+        member step: "save"
+        member step: "emit"
+      end
+    end
+
+    # EntityInterpreter#call / dispatcher.rs::dispatch_entity — the same shape
+    # one level down, on a piece an aggregate holds rather than the aggregate
+    # itself. Shorter than AggregateDispatchOrder because an entity is never
+    # CREATED through this path (no assign_creation_attributes) and inherits
+    # its aggregate's own argument gate rather than running one of its own (no
+    # refuse_unknown_arguments) — hydrating the parent and locating the
+    # element replace a single hydrate. resolve_references stayed, though —
+    # an entity command can declare a reference-typed attribute the same way
+    # an aggregate command can (CommandRules#resolve_references is shared by
+    # both interpreters), even though nothing in the real corpus does yet.
+    value_object "EntityDispatchOrder" do
+      attribute :step, String
+      one_of do
+        member step: "normalize_args"
+        member step: "resolve_references"
+        member step: "hydrate_parent"
+        member step: "locate_element"
+        member step: "enforce_givens"
+        member step: "admissible_transition"
+        member step: "apply_mutations"
+        member step: "advance_lifecycle"
+        member step: "save"
+        member step: "emit"
       end
     end
 

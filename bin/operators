@@ -1,0 +1,25 @@
+#!/usr/bin/env ruby
+
+# Dumps the comparison-operator table both runtimes' `compare` reads instead
+# of hardcoding a six-way case statement. Ruby reads Evaluator::OPERATORS
+# directly ; Rust cannot run this file, so its copy is this script's output,
+# checked in at rust/src/bluebook/expression/operators.json and embedded at
+# compile time. Regenerate with:
+#
+#   bin/operators > rust/src/bluebook/expression/operators.json
+#
+# spec/vocabulary_conformance_spec.rb holds Evaluator::OPERATORS equal to
+# what the language declares (Vocabulary::Comparison) ; spec/operators_export_spec.rb
+# holds the checked-in JSON equal to this script's own output, so regenerate
+# it any time OPERATORS changes.
+
+require "json"
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+require "hecksagain"
+
+rows = Hecksagain::Bluebook::Expression::Evaluator::OPERATORS.map do |op|
+  { symbol: op.symbol, compares_less_than: op.compares_less_than,
+    compares_equal: op.compares_equal, negated: op.negated }
+end
+
+puts JSON.pretty_generate(rows)

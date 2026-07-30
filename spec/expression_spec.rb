@@ -285,4 +285,36 @@ RSpec.describe "the expression sublanguage" do
       expect(canonical).to include(".size")
     end
   end
+
+  describe "caching" do
+    let(:evaluator) { Hecksagain::Bluebook::Expression::Evaluator }
+
+    it "parses a leaf expression's grammar once, no matter how many times its predicate runs" do
+      expr = "amount > 0"
+      evaluator.ast_cache.delete(expr)
+
+      evaluate(expr, amount: 1)
+      left_leaf = evaluator.ast_cache.fetch(expr).left
+
+      evaluate(expr, amount: -1)
+      evaluate(expr, amount: 0)
+
+      expect(evaluator.ast_cache.fetch(expr).left).to equal(left_leaf)
+    end
+
+    it "parses a leaf's nested sub-expressions once too — the receiver of a sign test, not just the top" do
+      expr = "amount.positive?"
+      evaluator.ast_cache.delete(expr)
+
+      evaluate(expr, amount: 1)
+      sign_test = evaluator.ast_cache.fetch(expr).expr
+      receiver_leaf = sign_test.receiver
+
+      evaluate(expr, amount: -1)
+
+      resolved_again = evaluator.ast_cache.fetch(expr).expr
+      expect(resolved_again).to equal(sign_test)
+      expect(resolved_again.receiver).to equal(receiver_leaf)
+    end
+  end
 end

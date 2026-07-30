@@ -5,29 +5,46 @@ module Hecksagain
     class CommandInterpreter
       attr_reader :registry
 
+      # Set by a spec to observe dispatch order (Vocabulary::AggregateDispatchOrder
+      # in language/bluebook.bluebook) ; nil in production, always — one array
+      # push and a nil check per step is the entire cost of leaving this in.
+      class << self
+        attr_accessor :trace
+      end
+
       def initialize(registry, rules:)
         @registry = registry
         @rules    = rules
       end
 
       def call(domain, aggregate, command, args)
-        args       = normalize_args(domain, aggregate, command, args)
-        resolve_references(domain, aggregate, command, args)
+        args       = step(:normalize_args) { normalize_args(domain, aggregate, command, args) }
+        step(:resolve_references) { @rules.resolve_references(domain, command, args) }
         repository = @registry.repository(domain, aggregate)
-        instance   = hydrate(repository, aggregate, command, args)
+        instance   = step(:hydrate) { hydrate(repository, aggregate, command, args) }
 
-        @rules.enforce_givens(instance, command, args)
-        transition = @rules.admissible_transition(aggregate, command, instance)
-        assign_creation_attributes(instance, aggregate, command, args) if command.creates?
-        command.mutations.each { |mutation| apply(instance, aggregate, mutation, args) }
-        instance[aggregate.lifecycle.field] = transition.target if transition
+        step(:enforce_givens) { @rules.enforce_givens(instance, command, args) }
+        transition = step(:admissible_transition) { @rules.admissible_transition(aggregate, command, instance) }
+        step(:assign_creation_attributes) { assign_creation_attributes(instance, aggregate, command, args) } if command.creates?
+        step(:apply_mutations) { command.mutations.each { |mutation| apply(instance, aggregate, mutation, args) } }
+        step(:advance_lifecycle) { instance[aggregate.lifecycle.field] = transition.target } if transition
 
-        repository.save(instance)
+        step(:save) { repository.save(instance) }
 
-        [instance, @rules.emit(command, domain, aggregate, instance, args, repository)]
+        [instance, step(:emit) { @rules.emit(command, domain, aggregate, instance, args, repository) }]
       end
 
       private
+
+      # Logged AFTER the step's own work, so a step that wraps sub-steps (see
+      # normalize_args, which traces refuse_unknown_arguments internally) logs
+      # itself once everything inside it has already logged — trace order is
+      # completion order, which is dispatch order.
+      def step(name)
+        result = yield
+        self.class.trace << name if self.class.trace
+        result
+      end
 
       def hydrate(repository, aggregate, command, args)
         if command.creates?
@@ -39,57 +56,6 @@ module Hecksagain
                raise(NotFound, "#{command.hecks_name} acts on an existing #{aggregate.hecks_name} — pass #{aggregate.identified_by}:")
           repository.find(id) || raise(NotFound, "no #{aggregate.hecks_name} with #{aggregate.identified_by} #{id.inspect}")
         end
-      end
-
-      # A reference must point at something that EXISTS.
-      #
-      # `reference_to Customer` is the one guarantee an aggregate reference is
-      # for, and it was declared 14 times across banking and enforced nowhere :
-      # an Account could belong to a customer who was never registered, in both
-      # runtimes, and parity stayed green because both were equally permissive
-      # and no corpus step ever passed a dangling reference.
-      #
-      # Resolved here rather than in coercion because coercion is pure — it
-      # holds no repository. A reference INTO ANOTHER DOMAIN is left alone : a
-      # cross-domain target may legitimately not be loaded, which is the same
-      # reading `across` policies already get.
-      def resolve_references(domain, aggregate, command, args)
-        command.attributes.each do |attribute|
-          next unless attribute.reference?
-          next unless args.key?(attribute.name)
-
-          held = args[attribute.name]
-          next if held.nil?
-
-          target = referenced_aggregate(domain, attribute)
-          next unless target
-
-          key = reference_identity(held)
-          next if key.to_s.empty?
-          next if @registry.repository(domain, target).find(key)
-
-          raise NotFound,
-                "no #{target.name} with #{target.identified_by || :id} #{key.inspect}"
-        end
-      end
-
-      # The reference RESOLVES itself — through the chapter's namespace, so Ruby's
-      # constant tree is the index. This used to regex the target's name out of
-      # "Reference<Customer>" and then search `registry.bluebook(domain).aggregates`
-      # for it: a spelling parsed, and a registry scanned, to reach a class the
-      # attribute was holding all along.
-      def referenced_aggregate(_domain, attribute)
-        attribute.type.resolve&.ir
-      end
-
-      def reference_identity(held)
-        case held
-        when Value then Value.scalar(held).to_s
-        when Hash  then held.values.first.to_s
-        else held.to_s
-        end
-      rescue TypeMismatch
-        nil
       end
 
       def reference_key(command)
@@ -137,7 +103,7 @@ module Hecksagain
       end
 
       def normalize_args(domain, aggregate, command, args)
-        refuse_unknown_arguments(domain, aggregate, command, args)
+        step(:refuse_unknown_arguments) { refuse_unknown_arguments(domain, aggregate, command, args) }
 
         command.attributes.each_with_object(args.dup) do |attribute, normalized|
           next unless normalized.key?(attribute.name)

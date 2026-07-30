@@ -1,0 +1,38 @@
+[
+  {
+    "symbol": ">=",
+    "compares_less_than": true,
+    "compares_equal": false,
+    "negated": true
+  },
+  {
+    "symbol": "<=",
+    "compares_less_than": true,
+    "compares_equal": true,
+    "negated": false
+  },
+  {
+    "symbol": "<",
+    "compares_less_than": true,
+    "compares_equal": false,
+    "negated": false
+  },
+  {
+    "symbol": ">",
+    "compares_less_than": true,
+    "compares_equal": true,
+    "negated": true
+  },
+  {
+    "symbol": "==",
+    "compares_less_than": false,
+    "compares_equal": true,
+    "negated": false
+  },
+  {
+    "symbol": "!=",
+    "compares_less_than": false,
+    "compares_equal": true,
+    "negated": true
+  }
+]

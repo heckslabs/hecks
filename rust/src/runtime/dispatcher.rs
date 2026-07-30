@@ -8,8 +8,10 @@ use crate::interp_mutations::{
 use crate::runtime::PersistenceAdapter;
 use crate::value_bridge;
 use serde_json::{json, Map, Value};
-use std::collections::BTreeMap;
+use std::cell::RefCell;
+use std::collections::{BTreeMap, HashMap};
 use std::fs;
+use std::sync::Arc;
 
 pub struct Runtime {
     ir: Value,
@@ -22,6 +24,21 @@ pub struct Runtime {
     saga_instances: BTreeMap<String, BTreeMap<String, (String, Map<String, Value>)>>,
     minted: usize,
     reaction_depth: usize,
+    // Set by a test to observe dispatch order (Vocabulary::AggregateDispatchOrder /
+    // EntityDispatchOrder in language/bluebook.bluebook) ; None in production,
+    // always — one Vec push and a match per step is the entire cost of leaving
+    // this in. Mirrors CommandInterpreter.trace / EntityInterpreter.trace on
+    // the Ruby side.
+    pub dispatch_trace: Option<Vec<&'static str>>,
+    // Resolved aggregate/entity/command/query/domain subtrees, keyed by a
+    // discriminated string ("aggregate:{domain}:{name}", etc.) — `ir` is set
+    // once in `new` and never mutated, so a lookup's answer never changes
+    // after the first resolve. A `RefCell` (not the `Mutex` AST_CACHE uses),
+    // since a `Runtime` is never shared across threads — this field is
+    // per-instance, not a global static, on purpose: two `Runtime`s can load
+    // the same domain name with different declared content (tests do), so a
+    // global keyed only on name would leak one instance's answer into another's.
+    resolved_cache: RefCell<HashMap<String, Arc<Map<String, Value>>>>,
 }
 
 const MAX_REACTION_DEPTH: usize = 5;
@@ -94,9 +111,18 @@ fn resolve_query_value(value: Option<&Value>, args: &State) -> Value {
     value.clone()
 }
 
+// A literal where-value is stringified when the query is DECLARED
+// (Rust's own parser and Ruby's QuerySpecification.render_value agree on
+// this), indistinguishable on the wire from a String field's own value —
+// `"5"` for the number 5, `"open"` for the string `"open"`. A kwarg
+// reference resolves to whatever typed value the caller passed and never
+// hits this path. Parsing the string here is safe precisely because a
+// non-numeric string (a genuine text field) simply fails to parse and
+// falls through to `None`, same as before.
 fn query_number(value: &Value) -> Option<f64> {
     match value {
         Value::Number(_) => value.as_f64(),
+        Value::String(text) => text.trim().parse::<f64>().ok(),
         Value::Object(fields) => {
             let numbers: Vec<f64> = fields.values().filter_map(query_number).collect();
             (numbers.len() == 1).then(|| numbers[0])
@@ -139,6 +165,43 @@ fn query_less_than(held: &Value, want: &Value) -> bool {
     match (query_number(held), query_number(want)) {
         (Some(h), Some(w)) => h < w,
         _ => false,
+    }
+}
+
+fn query_greater_than(held: &Value, want: &Value) -> bool {
+    match (query_number(held), query_number(want)) {
+        (Some(h), Some(w)) => h > w,
+        _ => false,
+    }
+}
+
+fn query_at_least(held: &Value, want: &Value) -> bool {
+    match (query_number(held), query_number(want)) {
+        (Some(h), Some(w)) => h >= w,
+        _ => false,
+    }
+}
+
+fn query_at_most(held: &Value, want: &Value) -> bool {
+    match (query_number(held), query_number(want)) {
+        (Some(h), Some(w)) => h <= w,
+        _ => false,
+    }
+}
+
+// in/contains both read a comma-separated list — a real JSON array is read
+// element by element (query_text already unwraps a single-field object, so
+// a list of value objects works the same as a list of scalars) ; anything
+// else is treated as CSV text, matching the convention Ruby's
+// QueryInterpreter/Ports::Query::InMemory and the SQLite adapter both use.
+fn query_members(value: &Value) -> Vec<String> {
+    match value {
+        Value::Array(items) => items.iter().map(query_text).collect(),
+        _ => query_text(value)
+            .split(',')
+            .map(|part| part.trim().to_string())
+            .filter(|part| !part.is_empty())
+            .collect(),
     }
 }
 
@@ -237,6 +300,14 @@ impl Runtime {
             saga_instances: BTreeMap::new(),
             minted: 0,
             reaction_depth: 0,
+            dispatch_trace: None,
+            resolved_cache: RefCell::new(HashMap::new()),
+        }
+    }
+
+    fn trace_step(&mut self, name: &'static str) {
+        if let Some(trace) = &mut self.dispatch_trace {
+            trace.push(name);
         }
     }
 
@@ -396,18 +467,17 @@ impl Runtime {
     ) -> Result<State, String> {
         let (entity_name, command_name) = crate::naming::split_dotted(dotted);
         let aggregate = self.find_aggregate(domain, aggregate_name, dotted)?;
-        let entity = array(&aggregate, "entities")
-            .into_iter()
-            .find(|e| e.get("name").and_then(Value::as_str) == Some(entity_name))
-            .and_then(|e| e.as_object().cloned())
-            .ok_or_else(|| format!("{} has no entity {:?}", aggregate_name, entity_name))?;
-        let command = array(&entity, "commands")
-            .into_iter()
-            .find(|c| c.get("name").and_then(Value::as_str) == Some(command_name))
-            .and_then(|c| c.as_object().cloned())
-            .ok_or_else(|| format!("{} has no command {:?}", entity_name, command_name))?;
+        let entity = self.find_entity(domain, aggregate_name, &aggregate, entity_name)?;
+        let command =
+            self.find_entity_command(domain, aggregate_name, entity_name, &entity, command_name)?;
         let normalized_args = normalize_command_args(&aggregate, &command, args)?;
+        self.trace_step("normalize_args");
+        // An entity command can declare a reference-typed attribute the same
+        // way an aggregate command can (CommandRules#resolve_references is
+        // shared by both interpreters on the Ruby side too), even though
+        // nothing in the real corpus does yet. Part of Vocabulary::EntityDispatchOrder.
         self.resolve_references(domain, &command, &normalized_args)?;
+        self.trace_step("resolve_references");
         let args = &normalized_args;
 
         let identity = aggregate
@@ -438,6 +508,7 @@ impl Runtime {
                 .cloned()
                 .ok_or_else(|| format!("no {} with {} {:?}", aggregate_name, identity, parent_id))?
         };
+        self.trace_step("hydrate_parent");
 
         let list_attr = array(&aggregate, "attributes")
             .into_iter()
@@ -473,6 +544,7 @@ impl Runtime {
                 )
             })?;
         let mut element = elements[position].as_object().cloned().unwrap_or_default();
+        self.trace_step("locate_element");
 
         for given in array(&command, "givens") {
             let canonical = given.get("canonical").and_then(Value::as_str).unwrap_or("");
@@ -484,7 +556,9 @@ impl Runtime {
                 return Err(format!("{} refused — {}", command_name, description));
             }
         }
+        self.trace_step("enforce_givens");
         let transition_to = admissible_transition(&entity, command_name, &element)?;
+        self.trace_step("admissible_transition");
 
         for mutation in array(&command, "mutations") {
             let target = mutation
@@ -516,8 +590,10 @@ impl Runtime {
                 }
             }
         }
+        self.trace_step("apply_mutations");
         if let Some((field, to_state)) = transition_to {
             element.insert(field, Value::String(to_state));
+            self.trace_step("advance_lifecycle");
         }
 
         elements[position] = Value::Object(element);
@@ -536,6 +612,7 @@ impl Runtime {
             let key = format!("{}::{}#{}", domain, aggregate_name, parent_id);
             self.store.insert(key, state.clone());
         }
+        self.trace_step("save");
 
         let mut announced: Vec<Value> = Vec::new();
         for emitted in array(&command, "emits") {
@@ -550,6 +627,8 @@ impl Runtime {
                 announced.push(event);
             }
         }
+        self.trace_step("emit");
+
         for event in &announced {
             self.react_to(event, domain);
         }
@@ -573,11 +652,7 @@ impl Runtime {
         if query_name.contains('.') {
             return self.query_entity(&domain, &aggregate_name, &aggregate, &query_name, args);
         }
-        let declared = array(&aggregate, "queries")
-            .into_iter()
-            .find(|q| q.get("name").and_then(Value::as_str) == Some(query_name.as_str()))
-            .and_then(|q| q.as_object().cloned())
-            .ok_or_else(|| format!("{} has no query {:?}", aggregate_name, query_name))?;
+        let declared = self.find_query(&domain, &aggregate_name, &aggregate, &query_name)?;
 
         // A query's arguments are coerced against their declared types exactly as
         // a command's are — mirrors Ruby's QueryInterpreter#normalize_args. Without
@@ -599,9 +674,10 @@ impl Runtime {
         }
         let args = &args;
 
+        let wheres = array(&declared, "wheres");
         let mut matched: Vec<(String, State)> = Vec::new();
         for (key, state) in self.all_records(&domain, &aggregate_name, &aggregate) {
-            let holds = array(&declared, "wheres").iter().all(|clause| {
+            let holds = wheres.iter().all(|clause| {
                 let field = clause
                     .get("field")
                     .and_then(Value::as_str)
@@ -609,7 +685,13 @@ impl Runtime {
                 let held = state.get(field).cloned().unwrap_or(Value::Null);
                 let want = resolve_query_value(clause.get("value"), args);
                 match clause.get("op").and_then(Value::as_str) {
+                    Some("ne") => query_value(&held) != query_value(&want),
                     Some("lt") => query_less_than(&held, &want),
+                    Some("lte") => query_at_most(&held, &want),
+                    Some("gt") => query_greater_than(&held, &want),
+                    Some("gte") => query_at_least(&held, &want),
+                    Some("in") => query_members(&want).contains(&query_text(&held)),
+                    Some("contains") => query_members(&held).contains(&query_text(&want)),
                     _ => query_value(&held) == query_value(&want),
                 }
             });
@@ -657,33 +739,32 @@ impl Runtime {
     }
 
     fn query_read_model(&mut self, domain: &str, query_name: &str, args: &State) -> Result<Vec<Value>, String> {
-        let declared_domain = self.ir.get(domain).and_then(Value::as_object).cloned()
-            .ok_or_else(|| format!("no domain {domain:?} loaded"))?;
+        let declared_domain = self.find_domain(domain)?;
         let model = array(&declared_domain, "read_models").into_iter()
             .find(|model| model.get("query_name").and_then(Value::as_str) == Some(query_name))
             .and_then(|model| model.as_object().cloned())
             .ok_or_else(|| format!("{domain} has no read model {query_name:?}"))?;
         let reference_name = model.get("reference_name").and_then(Value::as_str).unwrap_or("reference");
         let reference_id = args.get(reference_name).map(query_text).unwrap_or_default();
-        let aggregate = |name: &str| array(&declared_domain, "aggregates").into_iter()
-            .find(|aggregate| aggregate.get("name").and_then(Value::as_str) == Some(name))
-            .and_then(|aggregate| aggregate.as_object().cloned())
-            .ok_or_else(|| format!("{domain} has no aggregate {name:?}"));
         let mut projected: Vec<(String, Vec<(String, State)>)> = Vec::new();
         let mut report = Map::new();
         for head in array(&model, "aggregate_heads") {
             let head = head.as_object().ok_or_else(|| "read model head must be an object".to_string())?;
             let aggregate_name = head.get("aggregate").and_then(Value::as_str).unwrap_or_default();
             let name = head.get("as").and_then(Value::as_str).unwrap_or_default().to_string();
-            let mut rows = self.all_records(domain, aggregate_name, &aggregate(aggregate_name)?);
+            // find_aggregate is cache-backed, and this is the same aggregate
+            // whether the row is the reference target or a projected source —
+            // resolved once here and reused for both branches below (the
+            // original called the equivalent lookup twice in the else branch).
+            let aggregate = self.find_aggregate(domain, aggregate_name, query_name)?;
+            let mut rows = self.all_records(domain, aggregate_name, &aggregate);
             if aggregate_name == model.get("reference_target").and_then(Value::as_str).unwrap_or_default() {
                 rows.retain(|(id, _)| id == &reference_id);
                 if rows.is_empty() { return Err(format!("no {aggregate_name} with reference {reference_id:?}")); }
             } else {
-                let candidate = aggregate(aggregate_name)?;
                 rows.retain(|(_, state)| projected.iter().any(|(source_name, source_rows)| {
                     let reference_type = format!("Reference<{source_name}>");
-                    let fields: Vec<String> = array(&candidate, "attributes").into_iter()
+                    let fields: Vec<String> = array(&aggregate, "attributes").into_iter()
                         .filter(|attribute| attribute.get("type").and_then(Value::as_str) == Some(reference_type.as_str()))
                         .filter_map(|attribute| attribute.get("name").and_then(Value::as_str).map(str::to_string))
                         .collect();
@@ -707,16 +788,9 @@ impl Runtime {
         args: &State,
     ) -> Result<Vec<Value>, String> {
         let (entity_name, query_name) = crate::naming::split_dotted(dotted);
-        let entity = array(aggregate, "entities")
-            .into_iter()
-            .find(|e| e.get("name").and_then(Value::as_str) == Some(entity_name))
-            .and_then(|e| e.as_object().cloned())
-            .ok_or_else(|| format!("{} has no entity {:?}", aggregate_name, entity_name))?;
-        let declared = array(&entity, "queries")
-            .into_iter()
-            .find(|q| q.get("name").and_then(Value::as_str) == Some(query_name))
-            .and_then(|q| q.as_object().cloned())
-            .ok_or_else(|| format!("{} has no query {:?}", entity_name, query_name))?;
+        let entity = self.find_entity(domain, aggregate_name, aggregate, entity_name)?;
+        let declared =
+            self.find_entity_query(domain, aggregate_name, entity_name, &entity, query_name)?;
         let list_attr = array(aggregate, "attributes")
             .into_iter()
             .filter_map(|a| a.as_object().cloned())
@@ -728,6 +802,7 @@ impl Runtime {
             .ok_or_else(|| format!("{} holds no list of {}", aggregate_name, entity_name))?;
 
         let parent_key = crate::naming::reference_key(aggregate_name);
+        let wheres = array(&declared, "wheres");
         let mut rows: Vec<Value> = Vec::new();
         for (parent_id, state) in self.all_records(domain, aggregate_name, aggregate) {
             for element in state
@@ -739,7 +814,7 @@ impl Runtime {
                 let Some(element) = element.as_object() else {
                     continue;
                 };
-                let holds = array(&declared, "wheres").iter().all(|clause| {
+                let holds = wheres.iter().all(|clause| {
                     let field = clause
                         .get("field")
                         .and_then(Value::as_str)
@@ -747,8 +822,14 @@ impl Runtime {
                     let held = element.get(field).cloned().unwrap_or(Value::Null);
                     let want = resolve_query_value(clause.get("value"), args);
                     match clause.get("op").and_then(Value::as_str) {
+                        Some("ne") => query_value(&held) != query_value(&want),
                         Some("lt") => query_less_than(&held, &want),
-                    _ => query_value(&held) == query_value(&want),
+                        Some("lte") => query_at_most(&held, &want),
+                        Some("gt") => query_greater_than(&held, &want),
+                        Some("gte") => query_at_least(&held, &want),
+                        Some("in") => query_members(&want).contains(&query_text(&held)),
+                        Some("contains") => query_members(&held).contains(&query_text(&want)),
+                        _ => query_value(&held) == query_value(&want),
                     }
                 });
                 if holds {
@@ -874,11 +955,15 @@ impl Runtime {
             return self.dispatch_entity(&domain, &aggregate_name, &command_name, args);
         }
         let aggregate = self.find_aggregate(&domain, &aggregate_name, verb)?;
-        let command = find_command(&aggregate, &command_name)
+        let command = self
+            .find_command(&domain, &aggregate_name, &aggregate, &command_name)
             .ok_or_else(|| format!("{} has no command {:?}", aggregate_name, command_name))?;
         refuse_unknown_arguments(&aggregate, &command, args, &self.correlation_keys(&domain))?;
+        self.trace_step("refuse_unknown_arguments");
         let normalized_args = normalize_command_args(&aggregate, &command, args)?;
+        self.trace_step("normalize_args");
         self.resolve_references(&domain, &command, &normalized_args)?;
+        self.trace_step("resolve_references");
         let args = &normalized_args;
 
         let identity = aggregate
@@ -892,6 +977,7 @@ impl Runtime {
             .unwrap_or(true);
 
         let (id, mut state) = self.hydrate(&aggregate, &command, args, &identity, creates)?;
+        self.trace_step("hydrate");
 
         for given in array(&command, "givens") {
             let canonical = given.get("canonical").and_then(Value::as_str).unwrap_or("");
@@ -903,17 +989,22 @@ impl Runtime {
                 return Err(format!("{} refused — {}", command_name, description));
             }
         }
+        self.trace_step("enforce_givens");
 
         let transition_to = admissible_transition(&aggregate, &command_name, &state)?;
+        self.trace_step("admissible_transition");
 
         if creates {
             assign_creation_attributes(&mut state, &aggregate, &command, args)?;
+            self.trace_step("assign_creation_attributes");
         }
         for mutation in array(&command, "mutations") {
             apply_mutation(&mut state, &aggregate, &mutation, args)?;
         }
+        self.trace_step("apply_mutations");
         if let Some((field, to_state)) = transition_to {
             state.insert(field, Value::String(to_state));
+            self.trace_step("advance_lifecycle");
         }
 
         if self.adapters.contains_key(&aggregate_name) {
@@ -929,6 +1020,7 @@ impl Runtime {
             let key = format!("{}::{}#{}", domain, aggregate_name, id);
             self.store.insert(key, state.clone());
         }
+        self.trace_step("save");
 
         let mut announced: Vec<Value> = Vec::new();
         for emitted in array(&command, "emits") {
@@ -944,6 +1036,7 @@ impl Runtime {
                 announced.push(event);
             }
         }
+        self.trace_step("emit");
 
         for event in &announced {
             self.react_to(event, &domain);
@@ -1547,28 +1640,155 @@ impl Runtime {
             .unwrap_or_default()
     }
 
+    // Every resolved subtree below is a pure function of (ir, key) — ir is set
+    // once in `new` and never mutated after — so the first resolve's answer is
+    // final. Only successful resolutions are cached (the `?` on `resolve()?`
+    // propagates before the insert): a failed lookup is an error path, not the
+    // hot path, so it stays a cheap re-scan rather than needing an Option-typed
+    // cache entry. The RefCell borrow is dropped before `resolve` runs, so a
+    // resolver that itself resolves another cached key can't double-borrow.
+    fn cached_lookup(
+        &self,
+        key: String,
+        resolve: impl FnOnce() -> Result<Map<String, Value>, String>,
+    ) -> Result<Arc<Map<String, Value>>, String> {
+        if let Some(hit) = self.resolved_cache.borrow().get(&key) {
+            return Ok(hit.clone());
+        }
+        let resolved = Arc::new(resolve()?);
+        self.resolved_cache.borrow_mut().insert(key, resolved.clone());
+        Ok(resolved)
+    }
+
+    fn find_domain(&self, domain: &str) -> Result<Arc<Map<String, Value>>, String> {
+        self.cached_lookup(format!("domain:{domain}"), || {
+            self.ir
+                .get(domain)
+                .and_then(Value::as_object)
+                .cloned()
+                .ok_or_else(|| format!("no domain {domain:?} loaded"))
+        })
+    }
+
     fn find_aggregate(
         &self,
         domain: &str,
         name: &str,
         verb: &str,
-    ) -> Result<Map<String, Value>, String> {
-        let bluebook = self
-            .ir
-            .get(domain)
-            .ok_or_else(|| format!("no domain {domain:?} loaded (verb {verb})"))?;
+    ) -> Result<Arc<Map<String, Value>>, String> {
+        self.cached_lookup(format!("aggregate:{domain}:{name}"), || {
+            let bluebook = self
+                .ir
+                .get(domain)
+                .ok_or_else(|| format!("no domain {domain:?} loaded (verb {verb})"))?;
 
-        bluebook
-            .get("aggregates")
-            .and_then(Value::as_array)
-            .and_then(|aggregates| {
-                aggregates
-                    .iter()
-                    .find(|a| a.get("name").and_then(Value::as_str) == Some(name))
-            })
-            .and_then(Value::as_object)
-            .cloned()
-            .ok_or_else(|| format!("{} has no aggregate {:?}", domain, name))
+            bluebook
+                .get("aggregates")
+                .and_then(Value::as_array)
+                .and_then(|aggregates| {
+                    aggregates
+                        .iter()
+                        .find(|a| a.get("name").and_then(Value::as_str) == Some(name))
+                })
+                .and_then(Value::as_object)
+                .cloned()
+                .ok_or_else(|| format!("{} has no aggregate {:?}", domain, name))
+        })
+    }
+
+    fn find_entity(
+        &self,
+        domain: &str,
+        aggregate_name: &str,
+        aggregate: &Map<String, Value>,
+        entity_name: &str,
+    ) -> Result<Arc<Map<String, Value>>, String> {
+        self.cached_lookup(
+            format!("entity:{domain}:{aggregate_name}:{entity_name}"),
+            || {
+                array(aggregate, "entities")
+                    .into_iter()
+                    .find(|e| e.get("name").and_then(Value::as_str) == Some(entity_name))
+                    .and_then(|e| e.as_object().cloned())
+                    .ok_or_else(|| format!("{} has no entity {:?}", aggregate_name, entity_name))
+            },
+        )
+    }
+
+    fn find_command(
+        &self,
+        domain: &str,
+        aggregate_name: &str,
+        aggregate: &Map<String, Value>,
+        name: &str,
+    ) -> Option<Arc<Map<String, Value>>> {
+        self.cached_lookup(format!("command:{domain}:{aggregate_name}:{name}"), || {
+            array(aggregate, "commands")
+                .into_iter()
+                .find(|c| c.get("name").and_then(Value::as_str) == Some(name))
+                .and_then(|c| c.as_object().cloned())
+                .ok_or_else(String::new)
+        })
+        .ok()
+    }
+
+    fn find_entity_command(
+        &self,
+        domain: &str,
+        aggregate_name: &str,
+        entity_name: &str,
+        entity: &Map<String, Value>,
+        command_name: &str,
+    ) -> Result<Arc<Map<String, Value>>, String> {
+        self.cached_lookup(
+            format!("entity_command:{domain}:{aggregate_name}:{entity_name}:{command_name}"),
+            || {
+                array(entity, "commands")
+                    .into_iter()
+                    .find(|c| c.get("name").and_then(Value::as_str) == Some(command_name))
+                    .and_then(|c| c.as_object().cloned())
+                    .ok_or_else(|| format!("{} has no command {:?}", entity_name, command_name))
+            },
+        )
+    }
+
+    fn find_query(
+        &self,
+        domain: &str,
+        aggregate_name: &str,
+        aggregate: &Map<String, Value>,
+        query_name: &str,
+    ) -> Result<Arc<Map<String, Value>>, String> {
+        self.cached_lookup(
+            format!("query:{domain}:{aggregate_name}:{query_name}"),
+            || {
+                array(aggregate, "queries")
+                    .into_iter()
+                    .find(|q| q.get("name").and_then(Value::as_str) == Some(query_name))
+                    .and_then(|q| q.as_object().cloned())
+                    .ok_or_else(|| format!("{} has no query {:?}", aggregate_name, query_name))
+            },
+        )
+    }
+
+    fn find_entity_query(
+        &self,
+        domain: &str,
+        aggregate_name: &str,
+        entity_name: &str,
+        entity: &Map<String, Value>,
+        query_name: &str,
+    ) -> Result<Arc<Map<String, Value>>, String> {
+        self.cached_lookup(
+            format!("entity_query:{domain}:{aggregate_name}:{entity_name}:{query_name}"),
+            || {
+                array(entity, "queries")
+                    .into_iter()
+                    .find(|q| q.get("name").and_then(Value::as_str) == Some(query_name))
+                    .and_then(|q| q.as_object().cloned())
+                    .ok_or_else(|| format!("{} has no query {:?}", entity_name, query_name))
+            },
+        )
     }
 }
 
@@ -1599,16 +1819,6 @@ fn parse_verb(verb: &str) -> Result<(String, String, String), String> {
         aggregate.to_string(),
         command.to_string(),
     ))
-}
-
-fn find_command(aggregate: &Map<String, Value>, name: &str) -> Option<Map<String, Value>> {
-    aggregate
-        .get("commands")?
-        .as_array()?
-        .iter()
-        .find(|c| c.get("name").and_then(Value::as_str) == Some(name))?
-        .as_object()
-        .cloned()
 }
 
 pub fn array(node: &Map<String, Value>, key: &str) -> Vec<Value> {
@@ -1659,8 +1869,61 @@ mod query_semantics_tests {
         assert!(query_less_than(&json!(1), &json!(2)));
         assert!(query_less_than(&json!(9.5), &json!(10)));
         assert!(!query_less_than(&json!("a"), &json!("b")));
-        assert!(!query_less_than(&json!(1), &json!("2")));
         assert!(!query_less_than(&Value::Null, &json!(1)));
+    }
+
+    // A where-clause's literal value is stringified when the query is
+    // declared — "5" for the number 5 — indistinguishable on the wire from a
+    // String field's own value. `query_number` recovers the number FROM
+    // either side, which is what makes a literal (not just a kwarg
+    // reference) usable in gt/gte/lt/lte at all — this was the actual gap:
+    // the corpus's only `lt` usage is a kwarg, so a literal number never
+    // exercised this path before spec/fixtures/query_ops.bluebook existed.
+    #[test]
+    fn a_numeric_string_compares_as_the_number_it_spells() {
+        assert!(query_less_than(&json!(1), &json!("2")));
+        assert!(query_less_than(&json!("1"), &json!(2)));
+        assert!(query_greater_than(&json!("10"), &json!(5)));
+        assert!(query_at_least(&json!("5"), &json!(5)));
+        assert!(query_at_most(&json!(5), &json!("5")));
+    }
+
+    #[test]
+    fn every_ordering_operator_matches_its_declared_algebra() {
+        assert!(query_greater_than(&json!(10), &json!(5)));
+        assert!(!query_greater_than(&json!(5), &json!(10)));
+        assert!(!query_greater_than(&json!(5), &json!(5)));
+
+        assert!(query_at_least(&json!(10), &json!(5)));
+        assert!(query_at_least(&json!(5), &json!(5)));
+        assert!(!query_at_least(&json!(4), &json!(5)));
+
+        assert!(query_at_most(&json!(5), &json!(10)));
+        assert!(query_at_most(&json!(5), &json!(5)));
+        assert!(!query_at_most(&json!(10), &json!(5)));
+
+        // Non-numeric operands are silently false, never a panic — a
+        // where-clause never raises the way a given does.
+        assert!(!query_greater_than(&json!("a"), &json!("b")));
+        assert!(!query_at_least(&Value::Null, &json!(1)));
+    }
+
+    #[test]
+    fn members_reads_a_json_array_or_falls_back_to_csv_text() {
+        assert_eq!(
+            query_members(&json!(["a", "b"])),
+            vec!["a".to_string(), "b".to_string()]
+        );
+        assert_eq!(
+            query_members(&json!("a,b, c")),
+            vec!["a".to_string(), "b".to_string(), "c".to_string()]
+        );
+        // A list of value objects unwraps the same way a scalar field does.
+        assert_eq!(
+            query_members(&json!([{"value": "urgent"}, {"value": "later"}])),
+            vec!["urgent".to_string(), "later".to_string()]
+        );
+        assert_eq!(query_members(&Value::Null), Vec::<String>::new());
     }
 
     #[test]
@@ -1730,5 +1993,133 @@ mod query_semantics_tests {
 
         let mirror = &runtime.mirrors["Account"][0].1;
         assert_eq!(mirror.find("a").unwrap().get("balance"), &crate::runtime::Value::Int(500));
+    }
+}
+
+#[cfg(test)]
+mod dispatch_order_tests {
+    use super::*;
+
+    // Mirrors spec/vocabulary_conformance_spec.rb's two trace specs — same
+    // fixtures, same declared order (Vocabulary::AggregateDispatchOrder /
+    // EntityDispatchOrder in language/bluebook.bluebook), proving Rust's
+    // dispatch/dispatch_entity follow it too, not just Ruby's.
+    #[test]
+    fn aggregate_dispatch_matches_the_declared_order() {
+        let mut runtime = Runtime::boot("../spec/fixtures/dispatch_order.bluebook").unwrap();
+        runtime.dispatch_trace = Some(Vec::new());
+
+        let args: State = serde_json::from_value(json!({
+            "id": "w1",
+            "label": {"value": "x"},
+            "amount": {"value": 5},
+            "part_sequence": {"value": 1},
+            "part_note": {"value": "start"}
+        }))
+        .unwrap();
+
+        runtime.dispatch("DispatchOrder::Widget.Open", &args).unwrap();
+
+        let trace = runtime.dispatch_trace.take().unwrap();
+        assert_eq!(
+            trace,
+            vec![
+                "refuse_unknown_arguments",
+                "normalize_args",
+                "resolve_references",
+                "hydrate",
+                "enforce_givens",
+                "admissible_transition",
+                "assign_creation_attributes",
+                "apply_mutations",
+                "advance_lifecycle",
+                "save",
+                "emit",
+            ]
+        );
+    }
+
+    #[test]
+    fn entity_dispatch_matches_the_declared_order() {
+        // Not banking — that domain is really persisted (Heki/Sqlite, per its
+        // own .world/.hecksagon), and Runtime::boot writes real files under
+        // examples/banking/data/ with no in-memory override available on the
+        // Rust side (unlike Ruby's InMemoryDomain::MEMORY_ADAPTER). This
+        // fixture has no .world/.hecksagon sibling at all, so it defaults to
+        // the in-memory store — same fixture the Ruby spec uses.
+        let mut runtime = Runtime::boot("../spec/fixtures/dispatch_order.bluebook").unwrap();
+
+        let open: State = serde_json::from_value(json!({
+            "id": "w1",
+            "label": {"value": "x"},
+            "amount": {"value": 5},
+            "part_sequence": {"value": 1},
+            "part_note": {"value": "start"}
+        }))
+        .unwrap();
+        runtime.dispatch("DispatchOrder::Widget.Open", &open).unwrap();
+
+        runtime.dispatch_trace = Some(Vec::new());
+        let advance: State = serde_json::from_value(json!({
+            "id": "w1",
+            "sequence": {"value": 1},
+            "note": {"value": "done note"}
+        }))
+        .unwrap();
+        runtime.dispatch("DispatchOrder::Widget.Part.Advance", &advance).unwrap();
+
+        let trace = runtime.dispatch_trace.take().unwrap();
+        assert_eq!(
+            trace,
+            vec![
+                "normalize_args",
+                "resolve_references",
+                "hydrate_parent",
+                "locate_element",
+                "enforce_givens",
+                "admissible_transition",
+                "apply_mutations",
+                "advance_lifecycle",
+                "save",
+                "emit",
+            ]
+        );
+    }
+}
+
+#[cfg(test)]
+mod resolved_cache_tests {
+    use super::*;
+
+    // Same shape as evaluator.rs's AST_CACHE identity check: proves
+    // find_aggregate resolves the aggregate's declared shape once per
+    // (domain, name) and reuses it — not once per dispatch — which is the
+    // whole point of caching it instead of re-cloning the aggregate subtree
+    // on every call.
+    #[test]
+    fn dispatching_twice_reuses_the_same_resolved_aggregate() {
+        let mut runtime = Runtime::boot("../spec/fixtures/dispatch_order.bluebook").unwrap();
+
+        let open: State = serde_json::from_value(json!({
+            "id": "w1",
+            "label": {"value": "x"},
+            "amount": {"value": 5},
+            "part_sequence": {"value": 1},
+            "part_note": {"value": "start"}
+        }))
+        .unwrap();
+        runtime.dispatch("DispatchOrder::Widget.Open", &open).unwrap();
+
+        let first = runtime
+            .find_aggregate("DispatchOrder", "Widget", "probe")
+            .unwrap();
+        let second = runtime
+            .find_aggregate("DispatchOrder", "Widget", "probe")
+            .unwrap();
+
+        assert!(
+            Arc::ptr_eq(&first, &second),
+            "find_aggregate should return the same cached Arc on a second call, not re-resolve"
+        );
     }
 }

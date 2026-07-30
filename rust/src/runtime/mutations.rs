@@ -2,6 +2,44 @@ use crate::dispatcher::array;
 use crate::interp_expr::State;
 use crate::interp_givens::evaluate_given;
 use serde_json::{Map, Value};
+use std::sync::LazyLock;
+
+// increment/decrement share one arithmetic primitive, differing only by
+// sign — the same reduction Vocabulary::Comparison's algebra is for the six
+// comparison operators. The language declares it in Vocabulary::MutationOp
+// (language/bluebook.bluebook) ; Ruby's copy (CommandRules::MUTATION_OPS) is
+// held equal to the language by spec/vocabulary_conformance_spec ; this
+// file's copy is that table's JSON export, embedded at compile time.
+// Regenerate with `bin/mutation_ops > rust/src/runtime/mutation_ops.json`
+// any time MUTATION_OPS changes.
+struct MutationOp {
+    name: String,
+    sign: Option<i64>,
+}
+
+static MUTATION_OPS_JSON: &str = include_str!("mutation_ops.json");
+
+static MUTATION_OPS: LazyLock<Vec<MutationOp>> = LazyLock::new(|| {
+    let parsed: Value =
+        serde_json::from_str(MUTATION_OPS_JSON).expect("mutation_ops.json must parse as JSON");
+    parsed
+        .as_array()
+        .expect("mutation_ops.json must hold an array")
+        .iter()
+        .map(|row| MutationOp {
+            name: row["name"].as_str().expect("name").to_string(),
+            sign: row["sign"].as_i64(),
+        })
+        .collect()
+});
+
+fn sign_of(operation: &str) -> i64 {
+    MUTATION_OPS
+        .iter()
+        .find(|op| op.name == operation)
+        .and_then(|op| op.sign)
+        .unwrap_or(-1)
+}
 
 pub fn defaults_for(aggregate: &Map<String, Value>) -> Result<State, String> {
     let mut state = Map::new();
@@ -329,7 +367,7 @@ pub fn arithmetic(
         ));
     };
 
-    let sign = if operation == "increment" { 1 } else { -1 };
+    let sign = sign_of(operation);
     if let (Some(current_fields), Some(amount_fields)) = (current.as_object(), amount.as_object()) {
         let field = current_fields.iter().find_map(|(name, value)| {
             value.as_i64().and_then(|_| amount_fields.get(name)?.as_i64().map(|_| name.clone()))
@@ -687,4 +725,28 @@ fn value_object_for(aggregate: &Map<String, Value>, target: &str) -> Option<Map<
         .to_string();
 
     value_object_named(aggregate, &element_type)
+}
+
+#[cfg(test)]
+mod sign_tests {
+    use super::*;
+
+    #[test]
+    fn increment_and_decrement_read_their_sign_from_the_declared_table() {
+        assert_eq!(sign_of("increment"), 1);
+        assert_eq!(sign_of("decrement"), -1);
+    }
+
+    #[test]
+    fn set_and_append_never_reach_sign_of_but_default_safely_if_they_did() {
+        assert_eq!(sign_of("set"), -1);
+        assert_eq!(sign_of("append"), -1);
+    }
+
+    #[test]
+    fn the_table_holds_exactly_the_four_declared_ops() {
+        let mut names: Vec<&str> = MUTATION_OPS.iter().map(|op| op.name.as_str()).collect();
+        names.sort();
+        assert_eq!(names, vec!["append", "decrement", "increment", "set"]);
+    }
 }

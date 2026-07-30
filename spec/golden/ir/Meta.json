@@ -2035,6 +2035,24 @@
               "list": false,
               "name": "symbol",
               "type": "String"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "compares_less_than",
+              "type": "String"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "compares_equal",
+              "type": "String"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "negated",
+              "type": "String"
             }
           ],
           "closed_set": true,
@@ -2046,36 +2064,108 @@
               [
                 "symbol",
                 ">="
+              ],
+              [
+                "compares_less_than",
+                "true"
+              ],
+              [
+                "compares_equal",
+                "false"
+              ],
+              [
+                "negated",
+                "true"
               ]
             ],
             [
               [
                 "symbol",
                 "<="
+              ],
+              [
+                "compares_less_than",
+                "true"
+              ],
+              [
+                "compares_equal",
+                "true"
+              ],
+              [
+                "negated",
+                "false"
               ]
             ],
             [
               [
                 "symbol",
                 "<"
+              ],
+              [
+                "compares_less_than",
+                "true"
+              ],
+              [
+                "compares_equal",
+                "false"
+              ],
+              [
+                "negated",
+                "false"
               ]
             ],
             [
               [
                 "symbol",
                 ">"
+              ],
+              [
+                "compares_less_than",
+                "true"
+              ],
+              [
+                "compares_equal",
+                "true"
+              ],
+              [
+                "negated",
+                "true"
               ]
             ],
             [
               [
                 "symbol",
                 "=="
+              ],
+              [
+                "compares_less_than",
+                "false"
+              ],
+              [
+                "compares_equal",
+                "true"
+              ],
+              [
+                "negated",
+                "false"
               ]
             ],
             [
               [
                 "symbol",
                 "!="
+              ],
+              [
+                "compares_less_than",
+                "false"
+              ],
+              [
+                "compares_equal",
+                "true"
+              ],
+              [
+                "negated",
+                "true"
               ]
             ]
           ],
@@ -2088,6 +2178,12 @@
               "list": false,
               "name": "name",
               "type": "String"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "compares_via",
+              "type": "String"
             }
           ],
           "closed_set": true,
@@ -2099,22 +2195,165 @@
               [
                 "name",
                 "positive?"
+              ],
+              [
+                "compares_via",
+                ">"
               ]
             ],
             [
               [
                 "name",
                 "negative?"
+              ],
+              [
+                "compares_via",
+                "<"
               ]
             ],
             [
               [
                 "name",
                 "zero?"
+              ],
+              [
+                "compares_via",
+                "=="
               ]
             ]
           ],
           "name": "SignTest"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "type",
+              "type": "String"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "strategy",
+              "type": "String"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "type",
+                "Array"
+              ],
+              [
+                "strategy",
+                "membership"
+              ]
+            ],
+            [
+              [
+                "type",
+                "String"
+              ],
+              [
+                "strategy",
+                "substring"
+              ]
+            ]
+          ],
+          "name": "IncludeHaystack"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "type",
+              "type": "String"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "type",
+                "String"
+              ]
+            ],
+            [
+              [
+                "type",
+                "Integer"
+              ]
+            ],
+            [
+              [
+                "type",
+                "Float"
+              ]
+            ],
+            [
+              [
+                "type",
+                "TrueClass"
+              ]
+            ],
+            [
+              [
+                "type",
+                "FalseClass"
+              ]
+            ],
+            [
+              [
+                "type",
+                "NilClass"
+              ]
+            ]
+          ],
+          "name": "ToStringType"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "type",
+              "type": "String"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "type",
+                "Array"
+              ]
+            ],
+            [
+              [
+                "type",
+                "String"
+              ]
+            ],
+            [
+              [
+                "type",
+                "Hash"
+              ]
+            ]
+          ],
+          "name": "SizedType"
         },
         {
           "attributes": [
@@ -2199,6 +2438,12 @@
               "list": false,
               "name": "name",
               "type": "String"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "sign",
+              "type": "String"
             }
           ],
           "closed_set": true,
@@ -2210,28 +2455,109 @@
               [
                 "name",
                 "set"
+              ],
+              [
+                "sign",
+                ""
               ]
             ],
             [
               [
                 "name",
                 "append"
+              ],
+              [
+                "sign",
+                ""
               ]
             ],
             [
               [
                 "name",
                 "increment"
+              ],
+              [
+                "sign",
+                "1"
               ]
             ],
             [
               [
                 "name",
                 "decrement"
+              ],
+              [
+                "sign",
+                "-1"
               ]
             ]
           ],
           "name": "MutationOp"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "name",
+              "type": "String"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "name",
+                "eq"
+              ]
+            ],
+            [
+              [
+                "name",
+                "ne"
+              ]
+            ],
+            [
+              [
+                "name",
+                "gt"
+              ]
+            ],
+            [
+              [
+                "name",
+                "gte"
+              ]
+            ],
+            [
+              [
+                "name",
+                "lt"
+              ]
+            ],
+            [
+              [
+                "name",
+                "lte"
+              ]
+            ],
+            [
+              [
+                "name",
+                "in"
+              ]
+            ],
+            [
+              [
+                "name",
+                "contains"
+              ]
+            ]
+          ],
+          "name": "QueryComparator"
         },
         {
           "attributes": [
@@ -2279,6 +2605,166 @@
             ]
           ],
           "name": "LoadOrder"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "step",
+              "type": "String"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "step",
+                "refuse_unknown_arguments"
+              ]
+            ],
+            [
+              [
+                "step",
+                "normalize_args"
+              ]
+            ],
+            [
+              [
+                "step",
+                "resolve_references"
+              ]
+            ],
+            [
+              [
+                "step",
+                "hydrate"
+              ]
+            ],
+            [
+              [
+                "step",
+                "enforce_givens"
+              ]
+            ],
+            [
+              [
+                "step",
+                "admissible_transition"
+              ]
+            ],
+            [
+              [
+                "step",
+                "assign_creation_attributes"
+              ]
+            ],
+            [
+              [
+                "step",
+                "apply_mutations"
+              ]
+            ],
+            [
+              [
+                "step",
+                "advance_lifecycle"
+              ]
+            ],
+            [
+              [
+                "step",
+                "save"
+              ]
+            ],
+            [
+              [
+                "step",
+                "emit"
+              ]
+            ]
+          ],
+          "name": "AggregateDispatchOrder"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "step",
+              "type": "String"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "step",
+                "normalize_args"
+              ]
+            ],
+            [
+              [
+                "step",
+                "resolve_references"
+              ]
+            ],
+            [
+              [
+                "step",
+                "hydrate_parent"
+              ]
+            ],
+            [
+              [
+                "step",
+                "locate_element"
+              ]
+            ],
+            [
+              [
+                "step",
+                "enforce_givens"
+              ]
+            ],
+            [
+              [
+                "step",
+                "admissible_transition"
+              ]
+            ],
+            [
+              [
+                "step",
+                "apply_mutations"
+              ]
+            ],
+            [
+              [
+                "step",
+                "advance_lifecycle"
+              ]
+            ],
+            [
+              [
+                "step",
+                "save"
+              ]
+            ],
+            [
+              [
+                "step",
+                "emit"
+              ]
+            ]
+          ],
+          "name": "EntityDispatchOrder"
         },
         {
           "attributes": [

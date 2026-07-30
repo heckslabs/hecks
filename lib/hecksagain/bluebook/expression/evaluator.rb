@@ -2,44 +2,102 @@ module Hecksagain
   module Bluebook
     module Expression
       module Evaluator
-        COMPARISONS = %w[>= <= < > == !=].freeze
+        Operator = Struct.new(:symbol, :compares_less_than, :compares_equal, :negated, keyword_init: true)
+
+        # Six operators, reduced to two primitives (less_than, equal) combined
+        # with a small boolean algebra: compares_less_than/compares_equal choose
+        # which primitive(s) OR together, negated inverts the result. Declared
+        # the same way in Vocabulary::Comparison (language/bluebook.bluebook) —
+        # spec/vocabulary_conformance_spec holds the two tables equal, field for
+        # field, so a runtime cannot drift from what the language says an
+        # operator computes.
+        OPERATORS = [
+          Operator.new(symbol: ">=", compares_less_than: true,  compares_equal: false, negated: true),
+          Operator.new(symbol: "<=", compares_less_than: true,  compares_equal: true,  negated: false),
+          Operator.new(symbol: "<",  compares_less_than: true,  compares_equal: false, negated: false),
+          Operator.new(symbol: ">",  compares_less_than: true,  compares_equal: true,  negated: true),
+          Operator.new(symbol: "==", compares_less_than: false, compares_equal: true,  negated: false),
+          Operator.new(symbol: "!=", compares_less_than: false, compares_equal: true,  negated: true)
+        ].freeze
+
+        COMPARISONS = OPERATORS.map(&:symbol).freeze
+
+        # The boolean/comparison grammar an expression parses into. Leaf nodes
+        # (Compare/Include/Resolve) hold already-parsed Resolver ASTs, not raw
+        # strings — which branch a leaf's grammar takes is, like the boolean/
+        # comparison grammar above it, a pure function of the string. Only the
+        # final state/attrs dictionary read, inside Resolver.interpret, varies
+        # per call. Parsing the whole tree once and caching it (ast_cache,
+        # below) is what makes that safe.
+        Or      = Struct.new(:left, :right, keyword_init: true)
+        And     = Struct.new(:left, :right, keyword_init: true)
+        Not     = Struct.new(:node, keyword_init: true)
+        Compare = Struct.new(:operator, :left, :right, keyword_init: true)
+        Include = Struct.new(:haystack, :needle, keyword_init: true)
+        Resolve = Struct.new(:expr, keyword_init: true)
 
         module_function
 
+        # Keyed by the exact string `call` receives. Canonical text is already
+        # normalised at DSL-build time, so the same given/invariant's text is
+        # byte-identical across every dispatch that evaluates it — parsed once
+        # here, interpreted fresh against each call's own state/attrs. Matches
+        # MetaValidator.verdicts' unsynchronized `||= {}` idiom : redundant
+        # parse work under real parallelism, never corruption.
+        def ast_cache = @ast_cache ||= {}
+
         def call(expr, state, attrs = {})
+          interpret(ast_cache[expr] ||= parse(expr), state, attrs)
+        end
+
+        def parse(expr)
           expr = strip_parens(expr.to_s.strip)
 
           left, right = split_top_level(expr, "||")
-          return call(left, state, attrs) || call(right, state, attrs) if left
+          return Or.new(left: parse(left), right: parse(right)) if left
 
           left, right = split_top_level(expr, "&&")
-          return call(left, state, attrs) && call(right, state, attrs) if left
+          return And.new(left: parse(left), right: parse(right)) if left
 
           membership = match_include(expr)
-          return includes?(membership, state, attrs) if membership
+          return Include.new(haystack: Resolver.parse(membership[0]), needle: Resolver.parse(membership[1])) if membership
 
-          COMPARISONS.each do |operator|
-            left, right = split_comparison(expr, operator)
-            return compare(operator, left, right, state, attrs) if left
+          OPERATORS.each do |op|
+            left, right = split_comparison(expr, op.symbol)
+            return Compare.new(operator: op, left: Resolver.parse(left), right: Resolver.parse(right)) if left
           end
 
-          return !call(Regexp.last_match(1), state, attrs) if expr =~ /\A!(.+)\z/
+          return Not.new(node: parse(Regexp.last_match(1))) if expr =~ /\A!(.+)\z/
 
-          truthy?(Resolver.resolve(expr, state, attrs))
+          Resolve.new(expr: Resolver.parse(expr))
         end
 
-        def compare(operator, left, right, state, attrs)
-          lhs = Resolver.resolve(left, state, attrs)
-          rhs = Resolver.resolve(right, state, attrs)
-
-          case operator
-          when ">=" then !less_than(lhs, rhs)
-          when "<=" then less_than(lhs, rhs) || equal?(lhs, rhs)
-          when "<"  then less_than(lhs, rhs)
-          when ">"  then !less_than(lhs, rhs) && !equal?(lhs, rhs)
-          when "==" then equal?(lhs, rhs)
-          when "!=" then !equal?(lhs, rhs)
+        def interpret(node, state, attrs)
+          case node
+          when Or      then interpret(node.left, state, attrs) || interpret(node.right, state, attrs)
+          when And     then interpret(node.left, state, attrs) && interpret(node.right, state, attrs)
+          when Not     then !interpret(node.node, state, attrs)
+          when Compare then compare(node.operator, node.left, node.right, state, attrs)
+          when Include then includes?([node.haystack, node.needle], state, attrs)
+          when Resolve then truthy?(Resolver.interpret(node.expr, state, attrs))
           end
+        end
+
+        def compare(op, left, right, state, attrs)
+          lhs = Resolver.interpret(left, state, attrs)
+          rhs = Resolver.interpret(right, state, attrs)
+
+          apply(op, lhs, rhs)
+        end
+
+        # The algebra itself, on values already resolved — split out so a sign
+        # test (SignTest#compares_via names an Operator symbol) can apply the
+        # SAME primitives compare() uses against the literal 0, rather than
+        # re-deriving positive?/negative?/zero? by hand a second time.
+        def apply(op, lhs, rhs)
+          result = (op.compares_less_than && less_than(lhs, rhs)) ||
+                   (op.compares_equal && equal?(lhs, rhs))
+          op.negated ? !result : result
         end
 
         def less_than(lhs, rhs)
@@ -75,11 +133,18 @@ module Hecksagain
           [expr[0...index], expr[(index + ".include?(".length)...-1]]
         end
 
+        # Declared the same way in Vocabulary::IncludeHaystack
+        # (language/bluebook.bluebook) — spec/vocabulary_conformance_spec
+        # holds this equal to the language, so the set of haystack types
+        # `.include?` supports cannot drift from what the language says it
+        # does.
+        INCLUDE_HAYSTACKS = %w[Array String].freeze
+
         def includes?(parts, state, attrs)
           haystack, needle = parts
-          wanted = Resolver.resolve(needle, state, attrs)
+          wanted = Resolver.interpret(needle, state, attrs)
 
-          case (found = Resolver.resolve(haystack, state, attrs))
+          case (found = Resolver.interpret(haystack, state, attrs))
           when Array then found.any? { |item| equal?(item, wanted) }
           when String
             unless wanted.is_a?(String)

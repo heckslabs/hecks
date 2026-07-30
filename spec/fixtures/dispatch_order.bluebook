@@ -1,0 +1,73 @@
+
+Hecks.bluebook "DispatchOrder" do
+  vision "One command that creates, transitions, and mutates in a single dispatch, so a trace of it exercises every declared dispatch step exactly once."
+  generic
+
+  aggregate "Widget" do
+    description "A row with a creating command that also transitions on arrival."
+
+    attribute :label,  Label
+    attribute :amount, Amount
+
+    lifecycle :status, default: "new" do
+      transition "Open" => "active", from: "new"
+    end
+
+    value_object "Label" do
+      attribute :value, String
+    end
+
+    value_object "Amount" do
+      attribute :value, Integer
+    end
+
+    value_object "PartSequence" do
+      attribute :value, Integer
+    end
+
+    value_object "Note" do
+      attribute :value, String
+    end
+
+    command "Open" do
+      role "System"
+      goal "Create a widget, transition it to active, and set its amount — one dispatch, every step"
+
+      attribute :label,         Label
+      attribute :amount,        Amount
+      attribute :part_sequence, PartSequence
+      attribute :part_note,     Note
+
+      then_set :amount, to: :amount
+      then_set :parts,  append: { sequence: :part_sequence, note: :part_note }
+
+      emits "WidgetOpened"
+    end
+
+    attribute :parts, list_of(Part)
+
+    entity "Part" do
+      description "A piece a widget holds, transitioned and mutated in one dispatch — no other test fixture needs real persistence to exercise entity dispatch order."
+
+      identified_by :sequence
+
+      attribute :sequence, PartSequence
+      attribute :note,     Note
+
+      lifecycle :status, default: "new" do
+        transition "Advance" => "done", from: "new"
+      end
+
+      command "Advance" do
+        role "System"
+        goal "Move a part to done and set its note — one dispatch, every entity step"
+
+        attribute :note, Note
+
+        then_set :note, to: :note
+
+        emits "PartAdvanced"
+      end
+    end
+  end
+end
