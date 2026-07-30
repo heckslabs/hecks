@@ -96,12 +96,19 @@ RSpec.describe "Banking across persistence adapters" do
     JSON.parse(JSON.generate(refusals: refusals, queries: queries, stores: stores))
   end
 
+  # A command is a Ruby class and answers `hecks_name`; a query is still an IR
+  # object and answers `name`. This walks both kinds, so it asks for whichever the
+  # declaration has — and collapses to `hecks_name` when queries cross over too.
+  def verb_name(declaration)
+    declaration.respond_to?(:hecks_name) ? declaration.hecks_name : declaration.name
+  end
+
   def declared_verbs(runtime, kind)
     bluebook = runtime.registry.bluebook("Banking")
     bluebook.aggregates.flat_map do |aggregate|
-      direct = aggregate.public_send(kind).map { |declaration| "Banking::#{aggregate.name}.#{declaration.name}" }
+      direct = aggregate.public_send(kind).map { |declaration| "Banking::#{aggregate.name}.#{verb_name(declaration)}" }
       nested = aggregate.entities.flat_map do |entity|
-        entity.public_send(kind).map { |declaration| "Banking::#{aggregate.name}.#{entity.name}.#{declaration.name}" }
+        entity.public_send(kind).map { |declaration| "Banking::#{aggregate.name}.#{entity.name}.#{verb_name(declaration)}" }
       end
       direct + nested
     end.sort

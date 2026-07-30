@@ -31,11 +31,21 @@ module Hecksagain
   #     price.hecks_owner = pizza_class
   #     price.hecks_fqn                   # => "Pizzas::Pizza.Price"
   module Construct
+    # A construct asked for an identity it cannot compute.
+    class Unowned < StandardError; end
+
     # What declares this one — the chapter above an aggregate, the aggregate
     # above a value object. nil for a chapter, which is the top.
     attr_accessor :hecks_owner
 
     attr_writer :hecks_name
+
+    # A chapter is the only construct that legitimately has no owner. Everything
+    # else is DECLARED IN something, so a missing owner is an unstamped construct
+    # rather than a top — see hecks_fqn.
+    attr_writer :hecks_root
+
+    def hecks_root? = @hecks_root ? true : false
 
     # The name as the bluebook declares it, never the constant path.
     def hecks_name = @hecks_name
@@ -45,8 +55,19 @@ module Hecksagain
     # (`.`). Overridden by Aggregate, defaulted here for every other construct.
     def hecks_separator = "."
 
+    # REFUSES rather than guesses. A construct with no owner and no claim to be a
+    # chapter has simply not been stamped yet — entity commands are in that state
+    # while entities are still IR objects — and answering the bare name would be a
+    # plausible half-truth that no test would notice. That shape of falsehood is
+    # what this repo keeps finding, so it goes red instead.
     def hecks_fqn
-      return hecks_name.to_s unless hecks_owner
+      return hecks_name.to_s if hecks_root?
+
+      unless hecks_owner
+        raise Construct::Unowned,
+              "#{hecks_name.inspect} cannot say what declares it, so it has no " \
+              "identity — it was never stamped with an owner"
+      end
 
       "#{hecks_owner.hecks_fqn}#{hecks_separator}#{hecks_name}"
     end

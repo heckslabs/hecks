@@ -56,6 +56,7 @@ module Hecksagain
           # it, and every `hecks_fqn` below resolves by walking up to here.
           namespace.extend(Construct)
           namespace.hecks_name = @name
+          namespace.hecks_root = true
 
           @aggregates.each do |aggregate|
             aggregate.ruby_class.domain = @name
@@ -88,7 +89,7 @@ module Hecksagain
           @aggregates.each do |aggregate|
             validate_attributes(aggregate.name, aggregate.attributes, aggregate, violations)
             aggregate.commands.each do |command|
-              validate_attributes("#{aggregate.name}.#{command.name}", command.attributes, aggregate, violations)
+              validate_attributes("#{aggregate.name}.#{command.hecks_name}", command.attributes, aggregate, violations)
             end
             aggregate.queries.each do |query|
               validate_attributes("#{aggregate.name}.#{query.name}", query.attributes, aggregate, violations)
@@ -96,7 +97,7 @@ module Hecksagain
             aggregate.entities.each do |entity|
               validate_attributes("#{aggregate.name}.#{entity.name}", entity.attributes, aggregate, violations)
               entity.commands.each do |command|
-                validate_attributes("#{aggregate.name}.#{entity.name}.#{command.name}", command.attributes, aggregate, violations)
+                validate_attributes("#{aggregate.name}.#{entity.name}.#{command.hecks_name}", command.attributes, aggregate, violations)
               end
               entity.queries.each do |query|
                 validate_attributes("#{aggregate.name}.#{entity.name}.#{query.name}", query.attributes, aggregate, violations)
@@ -129,14 +130,14 @@ module Hecksagain
             aggregate.reference_targets.each { |target| validate_reference(aggregate.name, target, targets, violations) }
             validate_attribute_references(aggregate.name, aggregate.attributes, targets, violations)
             aggregate.commands.each do |command|
-              validate_reference("#{aggregate.name}.#{command.name}", command.references, targets, violations) if command.references
-              validate_attribute_references("#{aggregate.name}.#{command.name}", command.attributes, targets, violations)
+              validate_reference("#{aggregate.name}.#{command.hecks_name}", command.references, targets, violations) if command.references
+              validate_attribute_references("#{aggregate.name}.#{command.hecks_name}", command.attributes, targets, violations)
             end
             aggregate.entities.each do |entity|
               validate_attribute_references("#{aggregate.name}.#{entity.name}", entity.attributes, targets, violations)
               entity.commands.each do |command|
-                validate_reference("#{aggregate.name}.#{entity.name}.#{command.name}", command.references, targets, violations) if command.references
-                validate_attribute_references("#{aggregate.name}.#{entity.name}.#{command.name}", command.attributes, targets, violations)
+                validate_reference("#{aggregate.name}.#{entity.name}.#{command.hecks_name}", command.references, targets, violations) if command.references
+                validate_attribute_references("#{aggregate.name}.#{entity.name}.#{command.hecks_name}", command.attributes, targets, violations)
               end
             end
           end

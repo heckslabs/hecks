@@ -17,7 +17,7 @@ module Hecksagain
         end
 
         def attribute(named) = @attributes.find { |a| a.name == named.to_sym }
-        def command(named)   = @commands.find { |c| c.name == named.to_s }
+        def command(named)   = @commands.find { |verb| verb.hecks_name == named.to_s }
         def query(named)     = @queries.find { |q| q.name == named.to_s }
 
         def to_h

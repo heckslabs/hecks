@@ -13,7 +13,7 @@ module Hecksagain
 
       def fqn        = "#{domain}::#{ir.name}"
       def repository = runtime.registry.repository(domain, ir)
-      def commands   = ir.commands.map { |command| Naming.snake(command.name) }.sort
+      def commands   = ir.commands.map { |command| Naming.snake(command.hecks_name) }.sort
 
       def find(id)
         found = repository.find(id)

@@ -59,6 +59,12 @@ module Hecksagain
 
         def command(name, &block)
           command = CommandBuilder.build(name, owner: @name, &block)
+          # The verb is declared ON this aggregate, which is what `acts_on` answers
+          # with. An ENTITY's commands are deliberately not stamped here: they are
+          # declared on the entity, and an entity is still an IR object rather than
+          # a construct, so asking one for its identity refuses rather than
+          # answering "Deposit" and looking right.
+          command.hecks_owner = @klass
           @commands << command
           define_command(command)
         end
@@ -164,7 +170,7 @@ module Hecksagain
               next if known.include?(mutation.target.to_sym)
 
               raise Malformed,
-                    "#{@name}.#{command.name} sets #{mutation.target}, which #{@name} " \
+                    "#{@name}.#{command.hecks_name} sets #{mutation.target}, which #{@name} " \
                     "never declares — a mutation into a field that does not exist " \
                     "writes nothing and refuses nothing"
             end
@@ -189,8 +195,8 @@ module Hecksagain
         end
 
         def define_command(command)
-          method_name = Naming.snake(command.name)
-          verb        = command.name
+          method_name = Naming.snake(command.hecks_name)
+          verb        = command.hecks_name
 
           if command.creates?
             @klass.define_singleton_method(method_name) do |**args|

@@ -36,7 +36,7 @@ module Hecksagain
         else
           id = identity_from(aggregate, args, aggregate.identified_by || :id) ||
                identity_from(aggregate, args, reference_key(command)) ||
-               raise(NotFound, "#{command.name} acts on an existing #{aggregate.name} — pass #{aggregate.identified_by}:")
+               raise(NotFound, "#{command.hecks_name} acts on an existing #{aggregate.name} — pass #{aggregate.identified_by}:")
           repository.find(id) || raise(NotFound, "no #{aggregate.name} with #{aggregate.identified_by} #{id.inspect}")
         end
       end
@@ -118,7 +118,7 @@ module Hecksagain
         return if unknown.empty?
 
         raise UnknownArgument,
-              "#{command.name} does not declare #{unknown.join(', ')} — " \
+              "#{command.hecks_name} does not declare #{unknown.join(', ')} — " \
               "it takes #{command.attributes.map(&:name).join(', ')}"
       end
 

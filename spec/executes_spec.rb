@@ -94,7 +94,7 @@ RSpec.describe "the language holds a bluebook, and gives it back" do
     )
     expect(whole[:aggregates].map { |a| text(a[:name]) }).to eq(pizzas.aggregates.map(&:name))
     expect(whole[:commands].map { |c| text(c[:name]) })
-      .to match_array(pizzas.aggregates.flat_map { |a| a.commands.map(&:name) })
+      .to match_array(pizzas.aggregates.flat_map { |a| a.commands.map(&:hecks_name) })
   end
 
   it "keeps declaration order when read a level at a time" do
@@ -104,7 +104,7 @@ RSpec.describe "the language holds a bluebook, and gives it back" do
     rows = runtime.query("Meta::Command.DeclaredIn", aggregate_id: { value: "Pizzas::Pizza" })
 
     expect(rows.map { |row| text(row[:name]) })
-      .to eq(pizzas.aggregate("Pizza").commands.map(&:name))
+      .to eq(pizzas.aggregate("Pizza").commands.map(&:hecks_name))
   end
 
   it "keeps the order that changes behaviour" do
@@ -135,7 +135,7 @@ RSpec.describe "the language holds a bluebook, and gives it back" do
     # both sides. That is not a weakening of the claim — it is the claim stated on
     # the axis the machine actually reads.
     whole    = runtime.query("Meta.whole_bluebook", bluebook: "Pizzas").first
-    declared = pizzas.aggregate("Pizza").commands.map(&:name)
+    declared = pizzas.aggregate("Pizza").commands.map(&:hecks_name)
 
     expect(whole[:commands].map { |c| text(c[:name]) }).to eq(declared.sort)
   end

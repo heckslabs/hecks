@@ -138,12 +138,68 @@ RSpec.describe "a construct's identity" do
         .to raise_error(Hecksagain::Bluebook::DSL::Malformed, /cannot say which aggregate declares it/)
     end
 
-    it "keeps spelling the old string in the export, where Rust reads it" do
+    it "keeps spelling the old reference string in the export, where Rust reads it" do
       account = banking.registry.bluebook("Banking").aggregate("Account")
       customer_id = account.attribute(:customer_id)
 
       expect(customer_id.type).to be_a(Hecksagain::Bluebook::IR::Reference)
       expect(customer_id.to_h[:type]).to eq("Reference<Customer>")
+    end
+  end
+
+  describe "a command as a class" do
+    def add_topping = pizzas.registry.bluebook("Pizzas").aggregate("Pizza").command("AddTopping")
+    def create      = pizzas.registry.bluebook("Pizzas").aggregate("Pizza").command("CreatePizza")
+
+    it "acts on the aggregate CLASS, not the name of one" do
+      expect(add_topping).to be_a(Class)
+      expect(add_topping.hecks_name).to eq("AddTopping")
+      expect(add_topping.acts_on).to be(pizza)
+    end
+
+    it "acts on nothing when it is the command that creates" do
+      expect(create.creates?).to be(true)
+      expect(create.acts_on).to be_nil
+    end
+
+    it "still spells its name in the export, where Rust reads it" do
+      expect(add_topping.to_h[:name]).to eq("AddTopping")
+    end
+
+    # WHY COMMANDS ARE NOT NESTED AS CONSTANTS, pinned so it is not "tidied up".
+    #
+    # A command and a value object may share a name inside one aggregate, and the
+    # language does it six times ON PURPOSE: the command `Argument` is the verb
+    # that appends to the `arguments` list whose element type is the value object
+    # `Argument`, and `Plan` reads exactly that pairing to build the walk. So
+    # `Meta::Command::Argument` cannot be both, and `hecks_fqn` is not unique
+    # either — identity is (KIND, FQN). The judge's ids collide the same way and
+    # get away with it because each category has its own repository.
+    it "shares its name with a value object, which is why it is not a constant" do
+      meta     = Hecksagain::Bluebook::MetaValidator.grammar_registry.bluebook("Meta")
+      command  = meta.aggregate("Command")
+      verb     = command.command("Argument")
+      shape    = command.value_object("Argument")
+
+      expect(verb).not_to be(shape)
+      expect(verb.hecks_name).to eq(shape.hecks_name)
+      # The same identity string for two different constructs — so the constant
+      # tree cannot be the index for a kind-ambiguous name.
+      expect(shape.hecks_fqn).to eq("Meta::Command.Argument")
+      expect(command.ruby_class.const_get(:Argument)).to be(shape)
+    end
+
+    it "refuses to state an identity it was never given" do
+      # An ENTITY's commands are declared on the entity, and an entity is still an
+      # IR object rather than a construct — so it cannot be an owner yet. Asking
+      # one for its identity goes RED rather than answering "Deposit", which would
+      # be a plausible half-truth that nothing would catch.
+      ledger_entry = banking.registry.bluebook("Banking")
+                            .aggregate("Account").entities.first.commands.first
+
+      expect(ledger_entry.hecks_owner).to be_nil
+      expect { ledger_entry.hecks_fqn }
+        .to raise_error(Hecksagain::Construct::Unowned, /cannot say what declares it/)
     end
   end
 end

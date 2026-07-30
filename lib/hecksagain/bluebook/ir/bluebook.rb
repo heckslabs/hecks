@@ -22,7 +22,7 @@ module Hecksagain
 
         def verbs
           @aggregates.flat_map do |agg|
-            agg.commands.map { |cmd| "#{@name}::#{agg.name}.#{cmd.name}" }
+            agg.commands.map { |cmd| "#{@name}::#{agg.name}.#{cmd.hecks_name}" }
           end
         end
 

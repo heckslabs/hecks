@@ -73,7 +73,7 @@ RSpec.describe "the judge's coverage of the language" do
   def declared_verbs
     Hecksagain::Bluebook::MetaValidator.grammar_registry
       .bluebook("Meta").aggregates
-      .flat_map { |aggregate| aggregate.commands.map { |c| "Meta::#{aggregate.name}.#{c.name}" } }
+      .flat_map { |aggregate| aggregate.commands.map { |c| "Meta::#{aggregate.name}.#{c.hecks_name}" } }
   end
 
   it "offers every verb the language declares" do

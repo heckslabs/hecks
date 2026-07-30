@@ -103,7 +103,7 @@ RSpec.describe Hecksagain::Bluebook::MetaValidator::Plan do
   it "names every verb the language declares, and no others" do
     declared = Hecksagain::Bluebook::MetaValidator.grammar_registry
                  .bluebook("Meta").aggregates
-                 .flat_map { |a| a.commands.map { |c| "Meta::#{a.name}.#{c.name}" } }
+                 .flat_map { |a| a.commands.map { |c| "Meta::#{a.name}.#{c.hecks_name}" } }
 
     expect(plan.verbs).to match_array(declared)
   end

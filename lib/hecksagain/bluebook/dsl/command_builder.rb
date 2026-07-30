@@ -98,7 +98,7 @@ module Hecksagain
         end
 
         def build
-          IR::Command.new(
+          IR::Command.declare(
             name:       @name,
             role:       @role,
             goal:       @goal,

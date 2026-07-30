@@ -733,7 +733,7 @@ RSpec.describe "the DSL surface" do
     end
 
     it "command declares a command" do
-      expect(build_aggregate("Commanded") { command("Do") }.commands.map(&:name)).to eq(["Do"])
+      expect(build_aggregate("Commanded") { command("Do") }.commands.map(&:hecks_name)).to eq(["Do"])
     end
 
     it "storage_name is the snake_case form used for tables and keys" do

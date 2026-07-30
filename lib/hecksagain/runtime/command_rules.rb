@@ -12,7 +12,7 @@ module Hecksagain
         command.givens.each do |given|
           next if Bluebook::Expression::Evaluator.call(given.canonical, subject, args)
 
-          raise GivenNotMet, "#{command.name} refused — #{given.description}"
+          raise GivenNotMet, "#{command.hecks_name} refused — #{given.description}"
         end
       end
 
@@ -20,7 +20,7 @@ module Hecksagain
         lifecycle = declaring.lifecycle
         return nil unless lifecycle
 
-        candidates = lifecycle.transitions_for(command.name)
+        candidates = lifecycle.transitions_for(command.hecks_name)
         return nil if candidates.empty?
 
         current  = subject[lifecycle.field].to_s
@@ -29,8 +29,8 @@ module Hecksagain
 
         allowed = candidates.flat_map { |t| Array(t.from) }.uniq
         raise LifecycleRefused,
-              "#{command.name} refused — #{lifecycle.field} is #{current.inspect}, and " \
-              "#{command.name} moves it only from #{allowed.map(&:inspect).join(' or ')}"
+              "#{command.hecks_name} refused — #{lifecycle.field} is #{current.inspect}, and " \
+              "#{command.hecks_name} moves it only from #{allowed.map(&:inspect).join(' or ')}"
       end
 
       def resolve_source(source, args)

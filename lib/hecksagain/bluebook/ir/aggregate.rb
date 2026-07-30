@@ -30,7 +30,7 @@ module Hecksagain
         # but every consumer still asks by type string, so it stays until they
         # stop.
         def value_object(named) = @value_objects.find { |shape| shape.hecks_name == named.to_s }
-        def command(named)      = @commands.find { |c| c.name == named.to_s }
+        def command(named)      = @commands.find { |verb| verb.hecks_name == named.to_s }
 
         def storage_name = Naming.snake(@name)
 

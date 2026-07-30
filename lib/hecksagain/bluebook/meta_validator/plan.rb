@@ -88,7 +88,7 @@ module Hecksagain
 
           Category.new(
             name:       aggregate.name,
-            declare:    declare&.name,
+            declare:    declare&.hecks_name,
             parent:     parent_key && categorise(parent_key),
             parent_key: parent_key,
             fields:     declared_fields(declare, parent_key),
@@ -144,7 +144,7 @@ module Hecksagain
               # through the same verb. Overwriting would have let the one declared
               # later silently displace the other, and the walk would have offered
               # every ordinary attribute as a reference.
-              found[mutation.target.to_s] ||= Append.new(verb: command.name, map: mutation.source)
+              found[mutation.target.to_s] ||= Append.new(verb: command.hecks_name, map: mutation.source)
             end
           end
         end
@@ -161,7 +161,7 @@ module Hecksagain
 
               target = mutation.target.to_s
               if claimed[target]
-                Append.new(verb: command.name, map: mutation.source)
+                Append.new(verb: command.hecks_name, map: mutation.source)
               else
                 claimed[target] = true
                 nil
@@ -179,7 +179,7 @@ module Hecksagain
                       .to_h { |mutation| [mutation.target.to_s, mutation.source.to_s] }
             next if targets.empty?
 
-            Setter.new(verb: command.name, targets: targets)
+            Setter.new(verb: command.hecks_name, targets: targets)
           end
         end
 
@@ -187,7 +187,7 @@ module Hecksagain
         # the whole-document check: dispatched once everything is declared, carrying
         # only givens. A category with no sealer simply has no such rule.
         def sealers_in(commands)
-          commands.select { |command| Array(command.mutations).empty? }.map(&:name)
+          commands.select { |command| Array(command.mutations).empty? }.map(&:hecks_name)
         end
       end
     end
