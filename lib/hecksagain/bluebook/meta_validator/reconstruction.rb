@@ -17,6 +17,24 @@ module Hecksagain
       # This file is the TRAVERSAL. The hashes at its tips, and the encodings they
       # undo, are in Shapes.
       #
+      # IT READS LEVEL BY LEVEL, THROUGH `DeclaredIn`, AND NOT THROUGH THE READ
+      # MODEL — which is the difference between a reconstruction that can be the
+      # SOURCE and one that can only be a check.
+      #
+      # `Meta.whole_bluebook` gathers a chapter in a single read, and it sorts:
+      # `ReadModelInterpreter#matching` ends `.sort_by(&:id)` deliberately, because
+      # two hand-written stores cannot be trusted to iterate identically and a read
+      # model returning store order would split parity on the first disagreement.
+      # Right for a read model, fatal here — the order a bluebook declares its
+      # commands in is a FACT ABOUT THE SOURCE, and the IR is a contract field for
+      # field and index for index. Rust reads that order straight out of the file.
+      # `DeclaredIn` preserves it (spec/executes_spec says so), so this asks each
+      # level for its own children rather than filtering one sorted gather.
+      #
+      # The parent key of every level is read from the language's own plan, the same
+      # Plan the walk dispatches from — so the two directions really are one table,
+      # which is what the header above has always claimed.
+      #
       # WHAT IT CANNOT REBUILD matters as much as what it can, and
       # spec/round_trip_spec pins the difference as an exact set: a field the language
       # does not hold appears there as a named gap, and a field it stops holding
@@ -28,25 +46,34 @@ module Hecksagain
         def self.of(runtime, chapter) = new(runtime, chapter).to_h
 
         def initialize(runtime, chapter)
-          @whole = runtime.query("Meta.whole_bluebook", bluebook: chapter).first or
+          @runtime = runtime
+          @plan    = Plan.for(MetaValidator.grammar_registry)
+          @chapter = runtime.query("Meta::Bluebook.Called", name: { value: chapter }).first or
             raise NotFound, "the meta-domain holds no bluebook called #{chapter.inspect}"
         end
 
         def to_h
-          chapter = @whole[:bluebook]
-
           {
-            name:             text(chapter[:name]),
-            vision:           text(chapter[:vision]),
-            classification:   text(chapter[:classification]),
-            aggregates:       rows(:aggregates).map { |row| aggregate(row) },
-            read_models:      rows(:read_models).map { |row| read_model(row) },
-            policies:         rows(:policies).map { |row| policy(row) },
-            process_managers: rows(:process_managers).map { |row| process_manager(row) }
+            name:             text(@chapter[:name]),
+            vision:           text(@chapter[:vision]),
+            classification:   text(@chapter[:classification]),
+            aggregates:       declared("Aggregate", chapter_id).map { |row| aggregate(row) },
+            read_models:      declared("ReadModel", chapter_id).map { |row| read_model(row) },
+            policies:         declared("Policy", chapter_id).map { |row| policy(row) },
+            process_managers: declared("ProcessManager", chapter_id).map { |row| process_manager(row) }
           }
         end
 
         private
+
+        def chapter_id = @chapter[:id].to_s
+
+        # Everything DECLARED IN one parent, in the order it was declared. The key
+        # is the one the language's own creating command carries, read from Plan.
+        def declared(category, parent_id)
+          key = @plan.category(category).parent_key
+          @runtime.query("Meta::#{category}.DeclaredIn", key.to_sym => { value: parent_id.to_s })
+        end
 
         # Every cell of the meta-domain is a single-field value object, so a row
         # arrives holding Values rather than Strings.
@@ -57,19 +84,20 @@ module Hecksagain
           cell
         end
 
-        def rows(name) = Array(@whole[name])
-
-        # Children are found by the parent id they were declared under — the same
-        # reference the `DeclaredIn` queries read.
-        def under(name, key, parent_id)
-          rows(name).select { |row| text(row[key]) == parent_id }
+        # An aggregate's OWN verbs and asks — the ones no entity declared. Both carry
+        # `aggregate_id` either way, because that is the head the reference resolves
+        # against, so the entity ones have to be told apart by `entity_id`. Rejecting
+        # from an ORDERED read keeps the order.
+        def own(category, aggregate_id)
+          declared(category, aggregate_id).reject { |row| text(row[:entity_id]).to_s != "" }
         end
 
-        # An aggregate's OWN commands and queries — the ones no entity declared. Both
-        # carry `aggregate_id` either way, because that is the head the reference
-        # resolves against, so the entity ones have to be told apart by `entity_id`.
-        def own(name, aggregate_id)
-          under(name, :aggregate_id, aggregate_id).reject { |row| text(row[:entity_id]).to_s != "" }
+        # A piece's own verbs and asks. There is no `DeclaredIn` keyed by entity, so
+        # this reads the aggregate's — in declaration order — and keeps the ones that
+        # name this piece.
+        def within(category, row)
+          declared(category, text(row[:aggregate_id]))
+            .select { |held| text(held[:entity_id]).to_s == row[:id].to_s }
         end
 
         def aggregate(row)
@@ -80,11 +108,11 @@ module Hecksagain
             description:   text(row[:description]),
             identified_by: text(row[:identified_by])&.to_sym,
             attributes:    Array(row[:attributes]).map { |field| attribute(field, id) },
-            value_objects: under(:value_objects, :aggregate_id, id).map { |shape| value_object(shape) },
-            commands:      own(:commands, id).map { |verb| command(verb) },
+            value_objects: declared("ValueObject", id).map { |shape| value_object(shape) },
+            commands:      own("Command", id).map { |verb| command(verb) },
             lifecycle:     lifecycle(row),
-            entities:      under(:entities, :aggregate_id, id).map { |piece| entity(piece) },
-            queries:       own(:queries, id).map { |ask| query(ask) }
+            entities:      declared("Entity", id).map { |piece| entity(piece) },
+            queries:       own("Query", id).map { |ask| query(ask) }
           }
         end
 
@@ -102,7 +130,7 @@ module Hecksagain
         # are an OPEN MAP, which no value object can hold — so they come back the way
         # they went in, one pair at a time.
         def members_of(value_object_id)
-          under(:members, :value_object_id, value_object_id).map do |member|
+          declared("Member", value_object_id).map do |member|
             Array(member[:pairs]).map { |pair| [text(pair[:key]).to_s, text(pair[:value]).to_s] }
           end
         end
@@ -139,8 +167,8 @@ module Hecksagain
             # about this and only a round trip says so.
             identified_by: text(row[:identified_by]),
             attributes:    Array(row[:attributes]).map { |field| shape_field(field) },
-            commands:      under(:commands, :entity_id, row[:id]).map { |verb| command(verb) },
-            queries:       under(:queries, :entity_id, row[:id]).map { |ask| query(ask) },
+            commands:      within("Command", row).map { |verb| command(verb) },
+            queries:       within("Query", row).map { |ask| query(ask) },
             # An entity has its own state machine, and the language has held it all
             # along — Entity.Lifecycle and Entity.Transition were two of the fourteen
             # verbs that started firing when the judge became a walk. Only the
@@ -179,7 +207,7 @@ module Hecksagain
             starts_on:     text(row[:starts_on]),
             ends_on:       text(row[:ends_on]),
             states:        Array(row[:states]).map { |state| text(state[:name]) },
-            handlers:      under(:handlers, :process_manager_id, row[:id]).map { |leg| handler(leg) }
+            handlers:      declared("Handler", row[:id]).map { |leg| handler(leg) }
           }
         end
 
@@ -188,7 +216,7 @@ module Hecksagain
             event_type: text(row[:event_type]),
             from_state: text(row[:from_state]),
             to_state:   text(row[:to_state]),
-            dispatches: under(:dispatches, :handler_id, row[:id]).map { |leg| dispatch(leg) }
+            dispatches: declared("Dispatch", row[:id]).map { |leg| dispatch(leg) }
           }
         end
 

@@ -57,17 +57,24 @@ RSpec.describe "a bluebook dispatched in and read back out" do
      judge.instance_variable_get(:@refusals)]
   end
 
-  # Sort the PRESENTATION axis on both sides. Which position a command occupies in
-  # its aggregate's list is read by nothing — see spec/executes_spec — so the read
-  # side canonicalises it and the comparison says so out loud. Order that CHANGES
-  # BEHAVIOUR — a command's mutations, a lifecycle's transitions, a compensation's
-  # dispatches — is untouched here and compared as declared.
+  # NOTHING IS SORTED ANY MORE, and that is the claim getting stronger.
+  #
+  # This used to canonicalise the PRESENTATION axis on both sides — which position
+  # a command occupies in its aggregate's list — because `Reconstruction` read the
+  # chapter through `Meta.whole_bluebook`, and a read model sorts by id on purpose.
+  # So the comparison had to sort too, and said so out loud.
+  #
+  # The reconstruction reads level by level through `DeclaredIn` now, which
+  # preserves declaration order, so both sides are compared exactly as written. The
+  # IR is a contract field for field AND INDEX FOR INDEX, and this says index for
+  # index without a caveat. Which is what a reconstruction has to manage before it
+  # can be the SOURCE rather than a check: Rust reads the order out of the file.
   def canonical(node)
     case node
     when Hash then node.to_h { |key, value| [key, canonical(value)] }
     when Array
       mapped = node.map { |element| canonical(element) }
-      mapped.all? { |e| e.is_a?(Hash) && e[:name] } ? mapped.sort_by { |e| e[:name].to_s } : mapped
+      mapped
     else node
     end
   end
