@@ -29,7 +29,24 @@ module Hecksagain
             default: field[:default]
           )
         end
-        alias shape_field attribute
+
+        # The same shape. Two names because a head's field and a verb's argument are
+        # different things in the language even though the IR keeps one class for
+        # both — `Aggregate.Attribute` and `Command.Argument` are separate verbs.
+        def shape_field(field) = attribute(field)
+
+        # A member's fields — an OPEN MAP, which is why Member is its own root in
+        # the language and why the pairs arrive as a list rather than a value object.
+        def member(pairs) = pairs.to_h { |key, value| [key.to_sym, value] }
+
+        # A read model's gathered head is a raw hash the interpreter destructures by
+        # key, so the keys must be symbols whichever way the declaration arrived.
+        def head(row) = row.to_h { |key, value| [key.to_sym, value] }
+
+        # A saga's argument bindings. Each value rides `render_value`, which marks a
+        # Symbol with a leading colon — lose it and an argument reads as a string of
+        # the same name.
+        def bindings(with) = Array(with).to_h { |key, value| [key.to_sym, read(value)] }
 
         def invariant(rule)
           IR::Invariant.new(description: rule[:description], canonical: rule[:canonical])

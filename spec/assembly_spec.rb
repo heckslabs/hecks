@@ -71,6 +71,82 @@ RSpec.describe "a graph assembled from declarations" do
     end
   end
 
+  describe "the table, held to the language" do
+    def plan
+      Hecksagain::Bluebook::MetaValidator::Plan.for(
+        Hecksagain::Bluebook::MetaValidator.grammar_registry
+      )
+    end
+
+    # EVERY FIELD THE LANGUAGE DECLARES IS EITHER ASSEMBLED OR NAMED AS DERIVED.
+    #
+    # This is the judge-coverage lesson, in the other direction. The judge used to
+    # carry a hand-written branch per category, and the price was fourteen verbs the
+    # language declared and the walk never offered — every rule hanging off them
+    # decoration, and nothing red, because a branch that does not exist cannot fail.
+    # An assembler with a method per category is the same shape, so the table is
+    # checked against the language rather than hand-kept: add a field to
+    # bluebook.bluebook and forget to assemble it, and this says so.
+    # Read off the aggregate's OWN ATTRIBUTES, not only the creating command's
+    # arguments. `Plan#fields` is the latter, and the first draft of this example
+    # used it — so adding `attribute :nickname` to the language's Bluebook passed
+    # unnoticed, because nothing had taught `Declare` to carry it yet. What an
+    # assembly must account for is what the language STORES.
+    def stored_fields(meta, category)
+      aggregate = meta.aggregate(category)
+      declared  = plan.category(category)
+
+      (aggregate.attributes.map(&:name) +
+       declared.fields.map(&:to_sym) +
+       declared.appends.keys.map(&:to_sym) +
+       declared.setters.flat_map { |setter| setter.targets.keys.map(&:to_sym) })
+        .uniq
+        # A PARENT POINTER is derived by structure, not by a contract. Every `*_id`
+        # here is the reference to whatever declares the construct — an aggregate's
+        # chapter, a verb's head, a piece's head, a member's shape — and the
+        # containment tree already knows it, which is precisely how the assembly
+        # walks. Requiring thirteen contracts to each restate one would be a list
+        # nobody reads, and the day one went stale it would say nothing.
+        .reject { |field| field.to_s.end_with?("_id") }
+    end
+
+    it "consumes or explicitly derives every field the language declares" do
+      meta = Hecksagain::Bluebook::MetaValidator.grammar_registry.bluebook("Meta")
+
+      unclaimed = plan.names.flat_map do |category|
+        contract = Hecksagain::Bluebook::Assembly.contract(category)
+
+        stored_fields(meta, category)
+          .reject { |field| contract.declares?(field) }
+          .map { |field| "#{category}##{field}" }
+      end
+
+      expect(unclaimed).to be_empty,
+                           "the language declares #{unclaimed.size} field(s) no contract accounts for, " \
+                           "so a graph assembled from them would drop each one in silence:\n  " \
+                           "#{unclaimed.join("\n  ")}"
+    end
+
+    it "names a contract for every category the language declares" do
+      missing = plan.names.reject do |category|
+        Hecksagain::Bluebook::Assembly::CONTRACTS.key?(category)
+      end
+
+      expect(missing).to be_empty,
+                         "the language declares #{missing.join(', ')} and the table has no contract for it"
+    end
+
+    it "claims nothing the language does not declare" do
+      # The other half of the same failure: a contract for a retired category, or a
+      # field renamed in the language and left behind here, would be dead weight
+      # nothing exercises.
+      declared = plan.names
+      phantom  = Hecksagain::Bluebook::Assembly::CONTRACTS.keys - declared
+
+      expect(phantom).to be_empty
+    end
+  end
+
   it "gives the assembled head a working Ruby surface, not just an IR" do
     # The graph is what the runtime RUNS, so an assembled aggregate has to carry the
     # same class, verbs and readers the DSL would have defined.

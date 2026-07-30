@@ -1,19 +1,16 @@
 module Hecksagain
   module Bluebook
     class Assembly
-      # One head, built from its declaration.
+      # One head, built from its declaration — and PROJECTED into a Ruby class.
       #
-      # The mirror of `AggregateBuilder#build`, with the DSL taken out: instead of
-      # collecting declarations as a block is evaluated, it reads them from a hash.
-      # Everything after that is identical, and deliberately so — the class, the
-      # nested value objects, the verbs defined on it, the owners, the references
-      # stamped once every sibling exists.
+      # The fields come from the contract like every other construct's. What is here
+      # is the part no field table can say: which construct holds which, and how a
+      # head becomes a class with `create_pizza` on it, `Price` nested inside it, and
+      # its references able to resolve.
       #
       # It DECIDES NOTHING. Whether a declaration is admissible was settled on the
       # way in, by the language.
       class AggregateAssembly
-        include Marks
-
         def initialize(row)
           @row   = row
           @klass = Class.new(Aggregate)
@@ -21,39 +18,46 @@ module Hecksagain
         end
 
         def aggregate
-          shapes    = Array(@row[:value_objects]).map { |shape| value_object(shape) }
-          entities  = Array(@row[:entities]).map { |piece| entity(piece) }
-          commands  = Array(@row[:commands]).map { |verb| command(verb) }
-          asks      = Array(@row[:queries]).map { |ask| query(ask) }
-          fields    = Array(@row[:attributes]).map { |field| attribute(field) }
+          shapes   = Array(@row[:value_objects]).map { |shape| value_object(shape) }
+          commands = Array(@row[:commands]).map { |verb| Build.call("Command", verb) }
+          entities = Array(@row[:entities]).map { |piece| entity(piece) }
+          asks     = Array(@row[:queries]).map { |ask| Build.call("Query", ask) }
 
           nest(shapes)
-          commands.each { |verb| verb.hecks_owner = @klass }
-          entities.each { |piece| piece.hecks_owner = @klass }
-          asks.each { |ask| ask.hecks_owner = @klass }
+          [commands, entities, asks].each { |held| held.each { |one| one.hecks_owner = @klass } }
 
-          ir = IR::Aggregate.new(
-            name:          @row[:name],
-            description:   @row[:description],
-            attributes:    fields,
+          ir = Build.call(
+            "Aggregate", @row,
             value_objects: shapes,
             commands:      commands,
-            identified_by: @row[:identified_by] || :id,
-            lifecycle:     lifecycle,
             entities:      entities,
             queries:       asks,
+            lifecycle:     lifecycle_of(@row),
             policies:      [],
             reference_targets: commands.filter_map(&:references)
           )
 
           @klass.ir     = ir
           ir.ruby_class = @klass
-          declare_surface(fields, commands)
+          declare_surface(ir)
           stamp_references(ir)
           ir
         end
 
         private
+
+        def value_object(row)
+          Build.call("ValueObject", row)
+        end
+
+        def entity(row)
+          Build.call(
+            "Entity", row,
+            commands:  Array(row[:commands]).map { |verb| Build.call("Command", verb) },
+            queries:   Array(row[:queries]).map { |ask| Build.call("Query", ask) },
+            lifecycle: lifecycle_of(row)
+          )
+        end
 
         # `Pizzas::Pizza::Price` — nested where the bluebook nests it, which is what
         # lets two heads each declare their own `Money`.
@@ -66,16 +70,16 @@ module Hecksagain
           end
         end
 
-        def declare_surface(fields, commands)
-          fields.each { |field| @klass.declare_reader(field.name) }
-          @klass.declare_reader(@row.dig(:lifecycle, :field)) if @row[:lifecycle]
-          commands.each { |verb| @klass.declare_verb(verb.hecks_name, creates: verb.creates?) }
+        def declare_surface(ir)
+          ir.attributes.each { |field| @klass.declare_reader(field.name) }
+          @klass.declare_reader(ir.lifecycle.field) if ir.lifecycle
+          ir.commands.each { |verb| @klass.declare_verb(verb.hecks_name, creates: verb.creates?) }
         end
 
         # Every reference learns which head declares it, so it can reach the chapter
         # and resolve. Deliberately across every list that can carry one — a
         # reference the walk misses resolves to nil, and a nil target is SKIPPED
-        # rather than refused.
+        # rather than refused, so the guarantee would go quiet instead of red.
         def stamp_references(ir)
           lists = [ir.attributes, *ir.commands.map(&:attributes), *ir.queries.map(&:attributes)]
           ir.entities.each do |piece|
@@ -87,55 +91,9 @@ module Hecksagain
           lists.flatten.select(&:reference?).each { |field| field.type.declared_in = @klass }
         end
 
-        def value_object(row)
-          IR::ValueObject.declare(
-            name:       row[:name],
-            attributes: Array(row[:attributes]).map { |field| shape_field(field) },
-            invariants: Array(row[:invariants]).map { |rule| invariant(rule) },
-            members:    Array(row[:members]).map { |member| member.to_h { |key, value| [key.to_sym, value] } },
-            closed_set: row[:closed_set] ? true : false
-          )
-        end
-
-        def command(row)
-          IR::Command.declare(
-            name:       row[:name],
-            role:       row[:role],
-            goal:       row[:goal],
-            references: row[:references],
-            attributes: Array(row[:attributes]).map { |field| shape_field(field) },
-            givens:     Array(row[:givens]).map { |rule| given(rule) },
-            mutations:  Array(row[:mutations]).map { |change| mutation(change) },
-            emits:      Array(row[:emits])
-          )
-        end
-
-        def entity(row)
-          piece = IR::Entity.declare(
-            name:          row[:name],
-            description:   row[:description],
-            identified_by: row[:identified_by],
-            attributes:    Array(row[:attributes]).map { |field| shape_field(field) },
-            commands:      Array(row[:commands]).map { |verb| command(verb) },
-            queries:       Array(row[:queries]).map { |ask| query(ask) },
-            lifecycle:     lifecycle_of(row)
-          )
-          piece
-        end
-
-        def query(row)
-          IR::Query.new(
-            name:        row[:name],
-            description: row[:description],
-            attributes:  Array(row[:attributes]).map { |field| shape_field(field) },
-            wheres:      Array(row[:wheres]).map { |clause| where_clause(clause) },
-            order_by:    order_by(row[:order_by]),
-            limit:       limit(row[:limit])
-          )
-        end
-
-        def lifecycle = lifecycle_of(@row)
-
+        # THREE LANGUAGE FIELDS, ONE IR OBJECT. `state_field`, `state_start` and
+        # `transitions` are separate declarations; the IR keeps one Lifecycle. The
+        # contract names them derived, and this is what derives them.
         def lifecycle_of(row)
           declared = row[:lifecycle]
           return nil unless declared
@@ -161,7 +119,7 @@ module Hecksagain
         end
 
         def from_of(froms)
-          return nil     if froms.empty?
+          return nil         if froms.empty?
           return froms.first if froms.size == 1
 
           froms
