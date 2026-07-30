@@ -136,6 +136,88 @@ RSpec.describe "a graph assembled from declarations" do
                          "the language declares #{missing.join(', ')} and the table has no contract for it"
     end
 
+    # EVERY `derived:` CLAIM IS CHECKED, and this is the hole it closes.
+    #
+    # `derived:` used to be a list of names, which the coverage example above
+    # accepted without asking anything. So writing `derived: %i[version]` would have
+    # passed while dropping a chapter's version in silence — measured, not
+    # supposed: declaring a field in the language and calling it derived left the
+    # whole suite green, and only `spec/golden/ir` moved, which is regenerated on
+    # purpose and would have buried it.
+    #
+    # A claim now has a KIND, and every kind can fail.
+    it "justifies every derived field with a claim that can be false" do
+      keys = declaration_keys
+
+      unjustified = plan.names.flat_map do |category|
+        contract = Hecksagain::Bluebook::Assembly.contract(category)
+
+        contract.derived.filter_map do |field, kind|
+          fault = fault_in(category, contract, field, kind, keys)
+          "#{category}##{field} claims #{kind.inspect} — #{fault}" if fault
+        end
+      end
+
+      expect(unjustified).to be_empty,
+                             "#{unjustified.size} derived claim(s) do not hold:\n  #{unjustified.join("\n  ")}"
+    end
+
+    def fault_in(category, contract, field, kind, keys)
+      case kind
+      when :parent
+        return nil if field.to_s.end_with?("_id")
+        return nil if Hecksagain::Bluebook::Assembly::PARENT_POINTERS.include?(field)
+
+        "no parent names it — a pointer is a *_id or one of #{Hecksagain::Bluebook::Assembly::PARENT_POINTERS.inspect}"
+      when :children
+        child = Hecksagain::Naming.pascal(field.to_s.sub(/s\z/, ""))
+        return nil if plan.category(child)&.parent == category
+
+        "no category #{child} is declared with #{category} as its parent"
+      when :elsewhere
+        return nil if Hecksagain::Bluebook::Assembly.elsewhere?(category, field)
+
+        "elsewhere is allow-listed one at a time, and this is not on the list"
+      when Array
+        fault_in_pair(contract, field, kind, keys)
+      else "no such kind"
+      end
+    end
+
+    def fault_in_pair(contract, _field, kind, keys)
+      shape, target = kind
+
+      case shape
+      when :computed
+        return nil if contract.computes?(target)
+        return "#{contract.holder} takes #{target} as a keyword, so it is STORED, not computed" if contract.accepts?(target)
+
+        "#{contract.holder} does not answer to #{target}"
+      when :folded
+        absent = Array(target).reject { |key| keys.include?(key) }
+        absent.empty? ? nil : "nothing folds into #{absent.inspect} — no declaration carries those keys"
+      else "no such kind"
+      end
+    end
+
+    # Every key a REAL reconstructed declaration carries, gathered once. A fold has
+    # to land somewhere, and this is what says whether it does.
+    def declaration_keys
+      @declaration_keys ||= ASSEMBLY_CORPUS.values.flat_map { |file|
+        built = load_chapter(file).bluebook(File.basename(file, ".bluebook").capitalize) ||
+                load_chapter(file).bluebooks.values.first
+        keys_in(Hecksagain::Bluebook::MetaValidator.hold(built)[:declaration])
+      }.uniq
+    end
+
+    def keys_in(node)
+      case node
+      when Hash  then node.keys + node.values.flat_map { |held| keys_in(held) }
+      when Array then node.flat_map { |held| keys_in(held) }
+      else []
+      end
+    end
+
     it "claims nothing the language does not declare" do
       # The other half of the same failure: a contract for a retired category, or a
       # field renamed in the language and left behind here, would be dead weight

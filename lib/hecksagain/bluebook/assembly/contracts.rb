@@ -32,10 +32,6 @@ module Hecksagain
       # pointer the containment tree already knows, or something computed from what
       # is here (`query_name` is `Naming.snake(name)`, `creates?` is whether a verb
       # names a root). Naming one is a claim, and the coverage gate holds it.
-      Contract = Struct.new(:holder, :make, :fields, :derived, keyword_init: true) do
-        def declares?(field) = fields.key?(field) || derived.include?(field)
-      end
-
       def self.contract(category) = CONTRACTS.fetch(category.to_s)
 
       CONTRACTS = {
@@ -47,9 +43,7 @@ module Hecksagain
             vision:         [:vision,         :plain],
             classification: [:classification, :plain]
           },
-          # The canonical-form table belongs to the expression grammar, not to any
-          # one chapter — `IR::Bluebook#to_h` splices it in and never reads it back.
-          derived: %i[normalisations aggregates read_models policies process_managers]
+          derived: { normalisations: :elsewhere }
         ),
 
         "Aggregate" => Contract.new(
@@ -60,11 +54,12 @@ module Hecksagain
             identified_by: [:identified_by, :identity],
             attributes:    [:attributes,    [:each, :attribute]]
           },
-          # state_field / state_start / transitions are ONE lifecycle object in the
-          # IR, so the assembly builds it from the `lifecycle:` the spelling holds.
-          # The child categories are assembled by the containment tree.
-          derived: %i[state_field state_start transitions value_objects commands
-                      entities queries lifecycle policies reference_targets]
+          derived: {
+            state_field:   [:folded, %i[lifecycle]],
+            state_start:   [:folded, %i[lifecycle]],
+            transitions:   [:folded, %i[lifecycle]],
+            value_objects: :children
+          }
         ),
 
         "Command" => Contract.new(
@@ -79,7 +74,7 @@ module Hecksagain
             mutations:  [:mutations,  [:each, :mutation]],
             emits:      [:emits,      :plain]
           },
-          derived: []
+          derived: {}
         ),
 
         "ValueObject" => Contract.new(
@@ -91,9 +86,8 @@ module Hecksagain
             members:    [:members,    [:each, :member]],
             closed_set: [:closed_set, :flag]
           },
-          # `rows` is the language's count of admitted rows ; the IR keeps the rows
-          # themselves and a flag, both of which are above.
-          derived: %i[rows]
+          # The language counts the admitted rows ; the IR keeps a flag and the rows.
+          derived: { rows: [:folded, %i[closed_set members]] }
         ),
 
         "Query" => Contract.new(
@@ -116,9 +110,12 @@ module Hecksagain
             inspection:      [:inspection,      [:option, :inspection]],
             index_hints:     [:index_hints,     :index_hints]
           },
-          # Two language fields, one IR object — the same difference in the other
-          # direction.
-          derived: %i[order_field order_way options]
+          derived: {
+            order_field: [:folded, %i[order_by]],
+            order_way:   [:folded, %i[order_by]],
+            options:     [:folded, %i[offset cursor null_semantics authorization
+                                      consistency freshness inspection index_hints]]
+          }
         ),
 
         "Entity" => Contract.new(
@@ -135,8 +132,12 @@ module Hecksagain
             identified_by: [:identified_by, :identity],
             attributes:    [:attributes,    [:each, :shape_field]]
           },
-          # `owner` is the parent pointer the containment tree already knows.
-          derived: %i[owner state_field state_start transitions commands queries lifecycle]
+          derived: {
+            owner:       :parent,
+            state_field: [:folded, %i[lifecycle]],
+            state_start: [:folded, %i[lifecycle]],
+            transitions: [:folded, %i[lifecycle]]
+          }
         ),
 
         "Policy" => Contract.new(
@@ -148,7 +149,7 @@ module Hecksagain
             trigger_command: [:trigger_command, :plain],
             target_domain:   [:target_domain,   :plain]
           },
-          derived: []
+          derived: {}
         ),
 
         "ProcessManager" => Contract.new(
@@ -165,7 +166,7 @@ module Hecksagain
             ends_on:       [:ends_on,       :plain],
             states:        [:states,        :plain]
           },
-          derived: %i[handlers]
+          derived: {}
         ),
 
         "Handler" => Contract.new(
@@ -175,7 +176,7 @@ module Hecksagain
             from_state: [:from_state, :plain],
             to_state:   [:to_state,   :plain]
           },
-          derived: %i[dispatches]
+          derived: {}
         ),
 
         "Dispatch" => Contract.new(
@@ -184,8 +185,7 @@ module Hecksagain
             command_name: [:command_name, :plain],
             with_spec:    [:with,         :bindings]
           },
-          # `handler` is the parent pointer.
-          derived: %i[handler]
+          derived: { handler: :parent }
         ),
 
         "ReadModel" => Contract.new(
@@ -210,8 +210,11 @@ module Hecksagain
             inspection:       [:inspection,       [:option, :inspection]],
             index_hints:      [:index_hints,      :index_hints]
           },
-          # `query_name` is Naming.snake(name) — computed, never stored.
-          derived: %i[query_name options]
+          derived: {
+            query_name: [:computed, :query_name],
+            options:    [:folded, %i[offset cursor null_semantics authorization
+                                     consistency freshness inspection index_hints]]
+          }
         ),
 
         # A member's pairs are an OPEN MAP, which is why Member is its own root in
@@ -220,7 +223,7 @@ module Hecksagain
         "Member" => Contract.new(
           holder: nil, make: nil,
           fields: {},
-          derived: %i[shape pairs]
+          derived: { shape: :parent, pairs: [:folded, %i[members]] }
         )
       }.freeze
     end
