@@ -1,22 +1,27 @@
 
 require "spec_helper"
 
-# HOW FAR THE LANGUAGE IS FROM BEING THE SOURCE, measured rather than asserted.
+# THE LANGUAGE IS THE SOURCE, and this is what holds it to that.
 #
-# `MetaValidator.call` returns the bluebook it was handed. Returning
-# `Assembly.call(held[:declaration])` instead is the whole swap, because
-# `Hecks.bluebook` registers whatever comes back from there — the runtime would run
-# what the meta-domain HOLDS rather than what the builder made.
+# `MetaValidator.call` returns `Assembly.call(held[:declaration])` — the graph the
+# meta-domain HOLDS — and `Hecks.bluebook` registers whatever comes back, so the
+# runtime runs the language's graph and not the builder's. The builder's own graph
+# exists only to be dispatched in ; nothing keeps it.
 #
-# That was tried. The corpus runs, both runtimes agree, and the wire format does
-# not move. What stops it is a short list of things the IR itself does not carry,
-# and this spec compares the two graphs FIELD BY FIELD, TYPE INCLUDED, and holds
-# the differences to exactly that list.
+# This spec compares the two graphs FIELD BY FIELD, TYPE INCLUDED, and there is
+# nothing left in the gap list. Type included is the whole point: `to_h`
+# stringifies, so byte equality cannot see a Symbol that came back a String, and
+# five real breaks hid exactly there —
 #
-# Type included is the point. `to_h` stringifies, so byte equality cannot see a
-# Symbol that came back a String — and three real breaks hid there: an entity's
-# `identified_by`, a procedure's `correlates_by`, and a saga leg binding an object
-# literal. Each one looked identical on the wire and stopped the runtime dead.
+#   an entity's `identified_by`     "pass sequence:", while sequence was passed
+#   a procedure's `correlates_by`   the settlement wire never advanced
+#   a saga leg's object literal     the debit leg was never delivered
+#   a closed set's member values    a set admitting "0" refusing the 0 passed
+#   an aggregate's reference targets Pizza pointing at itself, twice
+#
+# Each looked identical on the wire and stopped the runtime dead. Only bin/parity
+# caught the third, because a saga that silently does nothing looks exactly like a
+# saga with nothing to do.
 RSpec.describe "the distance between the builder's graph and the language's" do
   ORCHESTRATION_CORPUS = {
     "Pizzas"     => "examples/pizzas/bluebook/pizzas.bluebook",
@@ -27,23 +32,21 @@ RSpec.describe "the distance between the builder's graph and the language's" do
     "Reflex"     => "spec/fixtures/reflex.bluebook"
   }.freeze
 
-  # What the IR cannot carry, so the language cannot hold it, so an assembled graph
-  # cannot have it. Each entry is a claim about the WIRE FORMAT, not about the
-  # assembly — closing any of them changes `to_h` and therefore Rust.
+  # EMPTY, AND IT HAS TO STAY THAT WAY.
   #
-  #   @policies         `Aggregate#to_h` omits them. A policy declared inside a head
-  #                     is hoisted onto the chapter, which is where the runtime
-  #                     reads it, so nothing is lost at runtime — only the record of
-  #                     which head declared it.
-  #   @wheres @order_by @limit @offset @cursor @consistency @freshness
-  #   @authorization @null_semantics @inspection @index_hints @joins
-  #                     on a READ MODEL only. `ReadModel#to_h` omits every one, and
-  #                     so does Rust's ReadModel struct — five fields, no filters.
-  #                     A read model's filtering has never been in the contract.
-  KNOWN_GAPS = %w[
-    @policies @wheres @order_by @limit @offset @cursor @consistency @freshness
-    @authorization @null_semantics @inspection @index_hints @joins
-  ].freeze
+  # It held thirteen entries, all of them justified by the same wrong belief: that
+  # the language may only hold what `to_h` carries. `ReadModel#to_h` omits a read
+  # model's filters, Rust's ReadModel struct has no room for them, and a hoisted
+  # policy lost which head declared it — so all of that looked unrecoverable.
+  #
+  # It was not. `to_h` is a PROJECTION for the other runtime ; the language is the
+  # SOURCE. They must agree about everything to_h spells and need not be the same
+  # size. Both are held now — the filters as option rows, the policy's head as a
+  # field — and the wire format did not move, so Rust never noticed.
+  #
+  # Anything added here from now on is a claim that the language cannot hold
+  # something, and that claim should be very hard to make.
+  KNOWN_GAPS = [].freeze
 
   def load_chapter(file)
     registry = Hecksagain::Runtime::Registry.new
@@ -124,12 +127,18 @@ RSpec.describe "the distance between the builder's graph and the language's" do
     expect(assembled.aggregate("Pizza").command("AddTopping").acts_on).to be(pizza)
   end
 
-  it "keeps the gap list honest by naming what is still in it" do
-    # If a gap closes, the list must shrink — otherwise it stops describing anything
-    # and starts excusing everything. Read models are the whole of it apart from
-    # aggregate-level policies.
-    expect(KNOWN_GAPS).to include("@policies")
-    expect(KNOWN_GAPS).to include("@wheres")
-    expect(KNOWN_GAPS.size).to eq(13)
+  it "keeps the gap list empty, because there is nothing it cannot hold" do
+    expect(KNOWN_GAPS).to be_empty
+  end
+
+  it "registers the language's graph, not the one the builder made" do
+    # The swap, asserted rather than described: what comes back from the door
+    # `Hecks.bluebook` registers through is a DIFFERENT object from the one handed
+    # in, assembled from records. Sabotaging the assembly fails 136 examples, which
+    # is the other half of the same proof — the runtime depends on this, it does not
+    # merely tolerate it.
+    built = load_chapter(ORCHESTRATION_CORPUS.fetch("Pizzas")).bluebook("Pizzas")
+
+    expect(Hecksagain::Bluebook::MetaValidator.call(built)).not_to be(built)
   end
 end

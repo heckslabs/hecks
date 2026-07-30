@@ -143,6 +143,7 @@ module Hecksagain
           holder: IR::Policy, make: :new,
           fields: {
             name:            [:name,            :plain],
+            aggregate:       [:aggregate,       :plain],
             on_event:        [:on_event,        :plain],
             trigger_command: [:trigger_command, :plain],
             target_domain:   [:target_domain,   :plain]

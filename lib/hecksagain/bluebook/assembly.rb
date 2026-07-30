@@ -42,7 +42,7 @@ module Hecksagain
           "Bluebook", @declaration,
           aggregates:       aggregates,
           read_models:      models,
-          policies:         Array(@declaration[:policies]).map { |row| Build.call("Policy", row) },
+          policies:         reactions(aggregates),
           process_managers: Array(@declaration[:process_managers]).map { |row| process_manager(row) }
         )
 
@@ -51,6 +51,19 @@ module Hecksagain
       end
 
       private
+
+      # Every reaction the chapter holds, and each one also handed back to the head
+      # that declared it — the builder keeps a policy in BOTH places, hoisting it onto
+      # the chapter where the runtime reads it while the head keeps its own list. The
+      # language records which head, so the assembly can put it back.
+      def reactions(aggregates)
+        Array(@declaration[:policies]).map { |row| Build.call("Policy", row) }.each do |reaction|
+          next if reaction.aggregate.to_s.empty?
+
+          head = aggregates.find { |held| held.hecks_name == reaction.aggregate }
+          head&.policies&.push(reaction)
+        end
+      end
 
       def process_manager(row)
         Build.call("ProcessManager", row,

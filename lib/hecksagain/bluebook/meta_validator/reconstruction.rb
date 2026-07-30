@@ -197,7 +197,8 @@ module Hecksagain
             name:            text(row[:name]),
             on_event:        text(row[:on_event]),
             trigger_command: text(row[:trigger_command]),
-            target_domain:   text(row[:target_domain])
+            target_domain:   text(row[:target_domain]),
+            aggregate:       text(row[:aggregate])
           }
         end
 

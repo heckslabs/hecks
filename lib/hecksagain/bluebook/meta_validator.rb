@@ -65,44 +65,39 @@ module Hecksagain
       # classes, so a second load of the same chapter re-assembles fresh ones —
       # which is the behaviour `Namespace.install` and `spec/construct_spec` both
       # expect. Caching the graph would hand two boots the same classes.
-      # NOT YET THE SOURCE, and the reason is an exact list.
+      # THE LANGUAGE IS THE SOURCE. This is the line that makes it one.
       #
-      # Returning `Assembly.call(held[:declaration])` here is the whole swap — the
-      # runtime would run what the language HOLDS instead of what the builder made,
-      # because `Hecks.bluebook` registers whatever comes back from this method. It
-      # was tried, and it works for everything the language can hold: the corpus
-      # runs, both runtimes agree, the wire format does not move.
+      # `Hecks.bluebook` registers whatever comes back from here, so returning the
+      # assembled graph rather than the bluebook it was handed is the whole swap: the
+      # runtime runs what the meta-domain HOLDS. The builder's own graph exists only
+      # to be dispatched in ; nothing keeps it.
       #
-      # Three things stop it, all of them holes in the IR rather than in the
-      # language, and `spec/orchestration_spec` names each one as an exact
-      # difference so the distance is measured instead of guessed:
+      # It stayed unlanded for one wrong belief, worth naming because it looked so
+      # much like a wall: that the language may only hold what `to_h` carries.
+      # `ReadModel#to_h` omits a read model's filters and Rust's ReadModel struct has
+      # no room for them, so read-model filtering seemed impossible to read back —
+      # and hoisted policies lost which head declared them for the same reason.
+      # But `to_h` is a PROJECTION for the other runtime and the language is the
+      # SOURCE. They must agree about everything to_h spells ; they need not be the
+      # same size. Both are held now, as declarations the wire format never sees, and
+      # the wire format did not move an inch.
       #
-      #   1. `ReadModel#to_h` omits wheres, order_by and limit entirely — and so
-      #      does Rust's ReadModel struct, which has five fields and none of them
-      #      are filters. A read model's filtering has never been part of the
-      #      cross-language contract, so it cannot be read back. Closing it is a
-      #      feature in TWO runtimes, not a refactor.
-      #   2. `Aggregate#to_h` omits policies. The builder hoists a policy declared
-      #      inside a head onto the chapter, so the language holds the policy but
-      #      not which head wrote it.
-      #   3. `Query.Option` and `ReadModel.Option` are declared and unexercised —
-      #      no corpus query carries an offset or a freshness, so the judge never
-      #      offers those verbs and `spec/judge_coverage_spec` calls them
-      #      decoration. Exercising them means teaching Rust the same options.
-      #
-      # Everything else is in place: the reconstruction reads in declaration order,
-      # `Assembly` rebuilds the graph from one table held to the language, and the
-      # equivalence is pinned. What is left is a wire-format decision, and it is
-      # Chris's rather than mine.
+      # What is CACHED is the declarations, not the graph. A hash carries no Ruby
+      # classes, so a second load of the same chapter assembles fresh ones — which is
+      # what `Namespace.install` and `spec/construct_spec` both expect. Caching the
+      # graph would hand two boots the same classes.
       def self.call(bluebook)
         return bluebook if disabled? || bootstrapping?
 
         key = Digest::SHA256.hexdigest(JSON.generate(bluebook.to_h))
         held = verdicts[key] ||= hold(bluebook)
-        return bluebook if held[:refusals].empty?
 
-        raise DSL::Malformed,
-              "#{bluebook.hecks_name} is not a well-formed bluebook; #{held[:refusals].join('; ')}"
+        unless held[:refusals].empty?
+          raise DSL::Malformed,
+                "#{bluebook.hecks_name} is not a well-formed bluebook; #{held[:refusals].join('; ')}"
+        end
+
+        Assembly.call(held[:declaration])
       end
 
       # Dispatch it in and READ IT BACK. A refused chapter has no declarations to

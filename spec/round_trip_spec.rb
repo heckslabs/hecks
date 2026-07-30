@@ -75,7 +75,16 @@ RSpec.describe "a bluebook dispatched in and read back out" do
     return [] if source == back
 
     if source.is_a?(Hash) && back.is_a?(Hash)
-      (source.keys | back.keys).flat_map { |key| differences(source[key], back[key], "#{path}.#{key}") }
+      # SOURCE KEYS ONLY, so the language is allowed to hold MORE than `to_h`
+      # spells. It was `source.keys | back.keys`, which reads as symmetry and is
+      # actually a claim nobody needs: `to_h` is a PROJECTION for the other runtime,
+      # and the language is the source. What must hold is that everything the
+      # contract spells comes back identically — a field the language stops holding
+      # still shows up here as a source key with nothing behind it, and a field
+      # REMOVED from the contract is what spec/golden/ir is for. A read model's
+      # filters and which head declared a policy are both held now and neither is on
+      # the wire.
+      source.keys.flat_map { |key| differences(source[key], back[key], "#{path}.#{key}") }
     elsif source.is_a?(Array) && back.is_a?(Array) && source.size == back.size
       source.each_with_index.flat_map { |element, i| differences(element, back[i], "#{path}[#{i}]") }
     else

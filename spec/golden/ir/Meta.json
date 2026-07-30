@@ -2825,6 +2825,12 @@
         {
           "default": null,
           "list": false,
+          "name": "aggregate",
+          "type": "PolicyText"
+        },
+        {
+          "default": null,
+          "list": false,
           "name": "on_event",
           "type": "PolicyText"
         },
@@ -2855,6 +2861,12 @@
               "list": false,
               "name": "name",
               "type": "PolicyName"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "aggregate",
+              "type": "PolicyText"
             },
             {
               "default": null,

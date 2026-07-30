@@ -31,7 +31,8 @@ module Hecksagain
           # of the same name.
           when "Query.wheres"                                then Array(node.wheres).map(&:to_h)
           when "Aggregate.value_objects"                     then node.value_objects.map { |shape| { name: shape.hecks_name } }
-          when "Query.options", "ReadModel.options"          then option_rows(node)
+          when "Query.options"                               then option_rows(node)
+          when "ReadModel.options"                           then option_rows(node, filters: true)
           when "Bluebook.normalisations"                     then normalisation_rows
           when "Member.pairs"                                then pair_rows(node)
           # Through to_h, which is where IR.render_value spells a symbol argument as
@@ -74,15 +75,45 @@ module Hecksagain
         # option needs no change on either side.
         #
         # `at` tells repeated rows apart, so two index hints do not collapse.
-        def option_rows(node)
+        # `filters: true` adds a read model's wheres, order_by and limit.
+        #
+        # THE LANGUAGE MAY HOLD MORE THAN `to_h` CARRIES, and this is where that
+        # matters. `ReadModel#to_h` omits all three — `extra_options_to_h` rejects
+        # them by name — and so does Rust's ReadModel struct, which has five fields
+        # and none of them are filters. So a read model's filtering has never been in
+        # the cross-language contract, and I first read that as a wall: if the wire
+        # cannot carry it, the language cannot hold it, and a graph assembled from
+        # the language must lose it.
+        #
+        # That was the wrong conclusion. `to_h` is a PROJECTION for the other
+        # runtime ; the language is the SOURCE. They have to agree about everything
+        # to_h spells, not about everything the language knows. Held as option rows,
+        # the filters survive the round trip and the wire format does not move an
+        # inch — so Rust is untouched and read-model filtering can still become a
+        # contract later, deliberately, rather than as a side effect of this.
+        #
+        # Named `wheres`, `order_by` and `limit` so they gather back into exactly the
+        # declaration keys the assembly already reads.
+        def option_rows(node, filters: false)
           return [] unless node.respond_to?(:extra_options_to_h)
 
-          node.extra_options_to_h.flat_map do |option, held|
+          spelled = node.extra_options_to_h
+          spelled = filter_options(node).merge(spelled) if filters
+
+          spelled.flat_map do |option, held|
             case held
             when Array then held.each_with_index.flat_map { |one, at| parts(option, one, at) }
             else parts(option, held, nil)
             end
           end
+        end
+
+        def filter_options(node)
+          {
+            wheres:   Array(node.wheres).map(&:to_h),
+            order_by: node.order_by&.to_h,
+            limit:    node.limit&.to_h
+          }.reject { |_, held| held.nil? || held == [] }
         end
 
         def parts(option, held, at)

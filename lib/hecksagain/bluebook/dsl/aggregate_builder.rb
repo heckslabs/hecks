@@ -56,7 +56,9 @@ module Hecksagain
         end
 
         def policy(name, &block)
-          @policies << PolicyBuilder.build(name, &block)
+          reaction = PolicyBuilder.build(name, &block)
+          reaction.aggregate = @name
+          @policies << reaction
         end
 
         def value_object(name, &block)
