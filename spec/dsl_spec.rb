@@ -671,7 +671,13 @@ RSpec.describe "the DSL surface" do
       end.aggregate("Thing").command("Do")
 
       expect(command.creates?).to be true
-      expect(command.attribute(:customer_id).type).to eq("Reference<Customer>")
+      # The GRAPH holds the edge and the EXPORT holds the spelling. Both of these
+      # assertions passed unchanged through the reference crossing, because
+      # `IR::Reference` carried an `==` that compared equal to the string it
+      # replaced — so they went on affirming the pre-crossing truth for a whole
+      # commit. The shim is gone ; they say what is actually there.
+      expect(command.attribute(:customer_id).type.target_name).to eq("Customer")
+      expect(command.attribute(:customer_id).to_h[:type]).to eq("Reference<Customer>")
     end
 
     it "reference_to its OWN root makes the command act on an existing one" do
@@ -724,7 +730,8 @@ RSpec.describe "the DSL surface" do
         aggregate("Pizza") { description "A pizza" }
         aggregate("Thing") { reference_to Pizza }
       end.aggregate("Thing")
-      expect(aggregate.attribute(:pizza_id).type).to eq("Reference<Pizza>")
+      expect(aggregate.attribute(:pizza_id).type.target_name).to eq("Pizza")
+      expect(aggregate.attribute(:pizza_id).to_h[:type]).to eq("Reference<Pizza>")
     end
 
     it "value_object declares a VO inside the aggregate that uses it" do

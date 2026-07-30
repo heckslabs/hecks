@@ -59,11 +59,6 @@ module Hecksagain
         def to_s = "Reference<#{@target_name}>"
         def inspect = "#<Reference #{@target_name}>"
 
-        # Compares equal to the string it replaces, so a consumer still holding
-        # the old spelling reads correctly while it is migrated.
-        def ==(other) = other.to_s == to_s
-        alias eql? ==
-        def hash = to_s.hash
       end
     end
   end

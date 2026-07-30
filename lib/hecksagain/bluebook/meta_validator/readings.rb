@@ -122,17 +122,11 @@ module Hecksagain
 
         # What the BLUEBOOK calls a node, whichever kind of thing the node is.
         #
-        # A construct that has become a Ruby class answers `name` with its
-        # constant path — `Pizzas::Pizza::Price` — because that is Ruby's
-        # question, not the bluebook's. Its declared name is `hecks_name`. Value
-        # objects have crossed over and the other categories have not, so this
-        # asks for the bluebook's name and takes whichever the node can give.
-        #
-        # This shrinks to `node.hecks_name` when every construct is a class, and
-        # disappears when the DSL stops handing the judge nodes at all.
-        def declared_name(node)
-          node.respond_to?(:hecks_name) ? node.hecks_name : node.name
-        end
+        # This used to sniff — `respond_to?(:hecks_name) ? … : node.name` — because
+        # only value objects had crossed over. Every construct answers now, so
+        # there is nothing to choose between. It disappears entirely when the DSL
+        # stops handing the judge nodes at all.
+        def declared_name(node) = node.hecks_name
 
         # One field of a Declare payload. Mostly a reader of the same name — the
         # exceptions are fields the IR keeps somewhere else, or not at all.

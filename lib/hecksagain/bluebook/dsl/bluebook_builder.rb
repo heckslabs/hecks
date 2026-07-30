@@ -171,7 +171,14 @@ module Hecksagain
 
         def self.build(name, version: nil, &block)
           builder  = new(name, version: version)
-          resolver = ->(const) { IR::TypeName.new(const) }
+          # A bare constant in a bluebook — `attribute :name, PizzaName` — is a NAME,
+          # not a reference to something Ruby has heard of. `const_missing` hands
+          # over the symbol, and that is the whole answer: `IR::Attribute` spells it
+          # with `to_s`, so the `IR::TypeName` wrapper this used to build existed
+          # only long enough to be stringified. The concept still has a home — the
+          # language declares `value_object "TypeName"` — it just needed no Ruby
+          # class of its own.
+          resolver = ->(const) { const }
           ConstShim.with(resolver) { builder.instance_eval(&block) } if block
           builder.build
         end

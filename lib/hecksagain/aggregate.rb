@@ -7,11 +7,15 @@ module Hecksagain
 
       # An aggregate is a MEMBER of its chapter's namespace, so it joins with
       # `::` where every other construct is declared ON its owner and joins with
-      # `.`. Same spelling as `fqn` below, and `spec/construct_spec` holds the
-      # two to each other.
+      # `.`.
       def hecks_separator = "::"
 
-      def fqn        = "#{domain}::#{ir.name}"
+      # `fqn` computed "#{domain}::#{ir.name}" — the same string by a second route,
+      # which is exactly the duplicate identity the invisible field exists to
+      # prevent. It also answered "::Pizza" for an aggregate with no chapter, where
+      # `hecks_fqn` refuses. One spelling, and this name survives only because the
+      # runtime addresses aggregates by it.
+      def fqn = hecks_fqn
       def repository = runtime.registry.repository(domain, ir)
       def commands   = ir.commands.map { |command| Naming.snake(command.hecks_name) }.sort
 
