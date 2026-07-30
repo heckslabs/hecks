@@ -129,6 +129,25 @@ Leaves are literals, dotted value-object paths, `.size`/`.length`,
 only once it reads in EVERY target — one with no Rust rendering is not a slow
 operator, it is not an operator.
 
+## Porting to a new language
+
+Adding a third implementation — or just maintaining these two — needs more than reading Ruby and
+Rust side by side and guessing at intent. `docs/porting/` collects what's otherwise scattered:
+
+- [`grammar.md`](docs/porting/grammar.md) — the expression sublanguage above, written out as a
+  formal precedence-ordered grammar instead of two pieces of regex to reverse-engineer.
+- [`conformance-kit.md`](docs/porting/conformance-kit.md) — precisely what `spec/golden/ir/*.json`
+  and `spec/parity/*.json` are, and what `bin/parity` actually checks (there is no per-step expected
+  value anywhere — it's a full-output diff, byte-exact past JSON key order).
+- [`behavior-notes.md`](docs/porting/behavior-notes.md) — the non-obvious behavioral rules this
+  project only learned by breaking, consolidated from comments scattered across both runtimes.
+- [`build-order.md`](docs/porting/build-order.md) — a staged path (parser → expressions → dispatch →
+  query → full corpus) with a checkpoint at each stage, since `bin/parity` alone gives no signal
+  until a new implementation is substantially complete.
+
+Persistence adapters are deliberately not covered — that's its own concern, separate from whether a
+bluebook runs correctly.
+
 ## The folder convention
 
 A domain's `bluebook/` folder holds only what is **its own**:
