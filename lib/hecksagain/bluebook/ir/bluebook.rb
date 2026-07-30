@@ -1,7 +1,14 @@
 module Hecksagain
   module Bluebook
     module IR
+      # A chapter — the top of the construct chain.
+      #
+      # It is a ROOT: nothing declares it, so `hecks_fqn` is just its name. That is
+      # what `hecks_root` exists to say, and saying it here is what keeps
+      # `hecks_fqn` refusing for every construct that is merely unstamped.
       class Bluebook
+        include Construct
+
         attr_reader :name, :version, :vision, :aggregates, :policies, :process_managers,
                     :classification, :read_models
 
@@ -10,6 +17,8 @@ module Hecksagain
           @policies         = policies
           @process_managers = process_managers
           @name       = name.to_s
+          @hecks_name = @name
+          @hecks_root = true
           @version    = version&.to_s
           @vision     = vision
           @aggregates = aggregates

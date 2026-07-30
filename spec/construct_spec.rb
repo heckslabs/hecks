@@ -1,5 +1,6 @@
 
 require "spec_helper"
+require "stringio"
 
 # A CONSTRUCT IS A RUBY CLASS, AND WHAT POINTS AT ONE IS AN EDGE.
 #
@@ -199,6 +200,67 @@ RSpec.describe "a construct's identity" do
       expect(orphan.hecks_owner).to be_nil
       expect { orphan.hecks_fqn }
         .to raise_error(Hecksagain::Construct::Unowned, /cannot say what declares it/)
+    end
+  end
+
+  describe "the chapter, and why one table survives" do
+    it "is a root, so it is the one construct with no owner to name" do
+      chapter = banking.registry.bluebook("Banking")
+
+      expect(chapter.hecks_root?).to be(true)
+      expect(chapter.hecks_fqn).to eq("Banking")
+    end
+
+    it "answers hecks_name from every construct, crossed over or not" do
+      # The universal question. If one of these stops answering, the consumers that
+      # cannot tell a class from an IR object — `Instance.new(aggregate: entity)`,
+      # `CommandRules#admissible_transition(declaring, …)` — start reading nil.
+      bank    = banking.registry.bluebook("Banking")
+      account = bank.aggregate("Account")
+
+      [bank, account, account.command("Open"), account.query("Open"),
+       account.entities.first, account.entities.first.commands.first,
+       account.value_objects.first, bank.read_models.first,
+       bank.policies.first, bank.process_managers.first].each do |construct|
+        expect(construct.hecks_name).to be_a(String), "#{construct.inspect} answers no hecks_name"
+        expect(construct.hecks_name).not_to be_empty
+      end
+    end
+
+    # WHY `Registry` KEEPS A CHAPTER TABLE, pinned so it is not "optimised" away.
+    #
+    # Ruby's constant tree is the index for everything INSIDE an aggregate, because
+    # an aggregate class is a namespace nobody else owns. A chapter installs at TOP
+    # LEVEL, where the names are not ours — so `Namespace.install` warns and keeps
+    # the existing constant, and the chapter is never reachable that way. A domain
+    # is entered by name exactly once; everything below it is traversal.
+    it "cannot be indexed by Ruby's constants, because top-level names are not ours" do
+      captured = StringIO.new
+      registry = Hecksagain::Runtime::Registry.new
+
+      begin
+        was = $stderr
+        $stderr = captured
+        Hecksagain.with_registry(registry) do
+          Kernel.load(InMemoryDomain::EXTRACTION_PORT)
+          Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+          Hecks.bluebook("Set") do
+            vision "a domain whose name Ruby already uses"
+            supporting
+            aggregate("Thing") do
+              description "a thing"
+              attribute :label, Label
+              value_object("Label") { attribute :value, String }
+            end
+          end
+        end
+      ensure
+        $stderr = was
+      end
+
+      expect(captured.string).to match(/Set is already defined — leaving it alone/)
+      expect(registry.bluebook("Set").hecks_fqn).to eq("Set")
+      expect(Object.const_get(:Set)).not_to be(registry.bluebook("Set"))
     end
   end
 
