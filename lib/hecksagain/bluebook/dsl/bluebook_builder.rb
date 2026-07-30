@@ -90,43 +90,6 @@ module Hecksagain
 
         private
 
-        def validate_value_object_attributes!
-          violations = []
-
-          @aggregates.each do |aggregate|
-            validate_attributes(aggregate.hecks_name, aggregate.attributes, aggregate, violations)
-            aggregate.commands.each do |command|
-              validate_attributes("#{aggregate.hecks_name}.#{command.hecks_name}", command.attributes, aggregate, violations)
-            end
-            aggregate.queries.each do |query|
-              validate_attributes("#{aggregate.hecks_name}.#{query.name}", query.attributes, aggregate, violations)
-            end
-            aggregate.entities.each do |entity|
-              validate_attributes("#{aggregate.hecks_name}.#{entity.hecks_name}", entity.attributes, aggregate, violations)
-              entity.commands.each do |command|
-                validate_attributes("#{aggregate.hecks_name}.#{entity.hecks_name}.#{command.hecks_name}", command.attributes, aggregate, violations)
-              end
-              entity.queries.each do |query|
-                validate_attributes("#{aggregate.hecks_name}.#{entity.hecks_name}.#{query.name}", query.attributes, aggregate, violations)
-              end
-            end
-          end
-
-          return if violations.empty?
-
-          raise Malformed, "attributes must use value-object types; #{violations.join('; ')}"
-        end
-
-        def validate_attributes(owner, attributes, aggregate, violations)
-          attributes.each do |attribute|
-            next if attribute.reference?
-            next if aggregate.value_object(attribute.type)
-            next if attribute.list? && aggregate.entities.any? { |entity| entity.hecks_name == attribute.type }
-
-            violations << "#{owner}##{attribute.name} is #{attribute.type}, not a value object declared by #{aggregate.hecks_name}"
-          end
-        end
-
         def validate_reference_value_objects!
           targets = @aggregates.each_with_object({}) do |aggregate, index|
             index[aggregate.hecks_name] = aggregate
