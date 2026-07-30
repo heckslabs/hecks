@@ -133,7 +133,7 @@ Hecks.bluebook "Banking" do
 
     value_object "DailyLimit" do
       attribute :cents, Integer, default: 0
-      invariant("a daily limit is non-negative") { cents >= 0 }
+      invariant("a daily limit is non-negative") { !cents.negative? }
     end
 
     value_object "LedgerSequence" do

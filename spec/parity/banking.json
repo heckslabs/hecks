@@ -121,6 +121,24 @@
     {
       "verb": "Banking::Account.Open",
       "args": {
+        "id": "acct-negative-limit",
+        "number": {
+          "value": "ACC-NEG"
+        },
+        "kind": {
+          "name": "current"
+        },
+        "daily_limit": {
+          "cents": -1
+        },
+        "customer_id": {
+          "value": "CUST-0001"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.Open",
+      "args": {
         "id": "acct-2",
         "number": {
           "value": "ACC-2"

@@ -1043,7 +1043,7 @@
           "closed_set": false,
           "invariants": [
             {
-              "canonical": "cents >= 0",
+              "canonical": "!cents.negative?",
               "description": "a daily limit is non-negative"
             }
           ],
