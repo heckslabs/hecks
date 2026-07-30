@@ -26,20 +26,29 @@ module Hecksagain
           @identified_by = identified_by.to_sym
           @lifecycle     = lifecycle
           @reference_targets = reference_targets
+
+          # Indexed once here, since @attributes/@value_objects/@commands/@queries
+          # are final by the time an Aggregate exists — every dispatch asks these
+          # finders by name, and a linear scan repeated on every call was doing
+          # work the declared shape had already settled at boot.
+          @attributes_by_name    = @attributes.to_h { |a| [a.name, a] }
+          @value_objects_by_name = @value_objects.to_h { |shape| [shape.hecks_name, shape] }
+          @commands_by_name      = @commands.to_h { |verb| [verb.hecks_name, verb] }
+          @queries_by_name       = @queries.to_h { |ask| [ask.hecks_name, ask] }
         end
 
-        def attribute(named)    = @attributes.find { |a| a.name == named.to_sym }
+        def attribute(named)    = @attributes_by_name[named.to_sym]
         # A value object is a CLASS now, so `name` is Ruby's answer (the constant
         # path) and the declared name is `hecks_name`. This finder is on its way
         # out — once an attribute's type IS the class there is nothing to find —
         # but every consumer still asks by type string, so it stays until they
         # stop.
-        def value_object(named) = @value_objects.find { |shape| shape.hecks_name == named.to_s }
-        def command(named)      = @commands.find { |verb| verb.hecks_name == named.to_s }
+        def value_object(named) = @value_objects_by_name[named.to_s]
+        def command(named)      = @commands_by_name[named.to_s]
         # An aggregate answers for its own asks the way it answers for its verbs.
         # An entity has had this finder all along and a head had not, so
         # `QueryInterpreter` hand-rolled the same search — asymmetry, not design.
-        def query(named)        = @queries.find { |ask| ask.hecks_name == named.to_s }
+        def query(named)        = @queries_by_name[named.to_s]
 
         def storage_name = Naming.snake(@name)
 

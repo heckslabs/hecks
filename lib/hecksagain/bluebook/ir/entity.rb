@@ -48,11 +48,16 @@ module Hecksagain
             @commands      = commands
             @queries       = queries
             @lifecycle     = lifecycle
+            # Indexed once — attributes/commands/queries are final once absorbed,
+            # and every dispatch asks these finders by name.
+            @attributes_by_name = attributes.to_h { |held| [held.name, held] }
+            @commands_by_name   = commands.to_h { |verb| [verb.hecks_name, verb] }
+            @queries_by_name    = queries.to_h { |ask| [ask.hecks_name, ask] }
           end
 
-          def attribute(named) = attributes.find { |held| held.name == named.to_sym }
-          def command(named)   = commands.find { |verb| verb.hecks_name == named.to_s }
-          def query(named)     = queries.find { |ask| ask.hecks_name == named.to_s }
+          def attribute(named) = @attributes_by_name[named.to_sym]
+          def command(named)   = @commands_by_name[named.to_s]
+          def query(named)     = @queries_by_name[named.to_s]
 
           def to_h
             {

@@ -66,6 +66,9 @@ module Hecksagain
             @mutations  = mutations
             @emits      = emits
             @references = references
+            # Indexed once — attributes are final once absorbed, and every
+            # dispatch asks this finder by name.
+            @attributes_by_name = attributes.to_h { |held| [held.name, held] }
           end
 
           # The construct this verb acts upon — the class, not its name.
@@ -87,7 +90,7 @@ module Hecksagain
 
           def creates? = @references.nil?
 
-          def attribute(named) = attributes.find { |held| held.name == named.to_sym }
+          def attribute(named) = @attributes_by_name[named.to_sym]
 
           def to_h
             {
