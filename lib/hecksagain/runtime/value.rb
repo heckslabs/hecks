@@ -86,7 +86,7 @@ module Hecksagain
       end
 
       def self.hydrate_entity_list(aggregate, attribute, value)
-        entity = aggregate.entities.find { |candidate| candidate.name == attribute.type.to_s }
+        entity = aggregate.entities.find { |candidate| candidate.hecks_name == attribute.type.to_s }
         return value unless entity
 
         Array(value).map do |element|

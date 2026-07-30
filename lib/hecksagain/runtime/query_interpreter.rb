@@ -12,7 +12,7 @@ module Hecksagain
         return entity_rows(domain, aggregate, query_name, args) if query_name.include?(".")
 
         declared = aggregate.queries.find { |q| q.name == query_name } ||
-                   raise(UnknownVerb, "#{aggregate.name} has no query #{query_name.inspect}")
+                   raise(UnknownVerb, "#{aggregate.hecks_name} has no query #{query_name.inspect}")
         args = normalize_args(aggregate, declared, args)
 
         repository = @registry.repository(domain, aggregate)
@@ -33,14 +33,14 @@ module Hecksagain
 
       def entity_rows(domain, aggregate, dotted, args)
         entity_name, query_name = Naming.split_dotted(dotted)
-        entity = aggregate.entities.find { |e| e.name == entity_name } ||
-                 raise(UnknownVerb, "#{aggregate.name} has no entity #{entity_name.inspect}")
+        entity = aggregate.entities.find { |piece| piece.hecks_name == entity_name } ||
+                 raise(UnknownVerb, "#{aggregate.hecks_name} has no entity #{entity_name.inspect}")
         declared = entity.query(query_name) ||
                    raise(UnknownVerb, "#{entity_name} has no query #{query_name.inspect}")
         list_attr = aggregate.attributes.find { |a| a.list? && a.type.to_s == entity_name } ||
-                    raise(UnknownVerb, "#{aggregate.name} holds no list of #{entity_name}")
+                    raise(UnknownVerb, "#{aggregate.hecks_name} holds no list of #{entity_name}")
 
-        parent_key = Naming.reference_key(aggregate.name)
+        parent_key = Naming.reference_key(aggregate.hecks_name)
         rows = @registry.repository(domain, aggregate).all.flat_map do |record|
           Array(record[list_attr.name])
             .select { |el| declared.wheres.all? { |w| element_where_holds?(w, el, args) } }

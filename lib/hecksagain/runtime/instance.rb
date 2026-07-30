@@ -50,7 +50,7 @@ module Hecksagain
 
       def inspect
         fields = @state.map { |k, v| "#{k}=#{v.inspect}" }.join(" ")
-        "#<#{@aggregate.name} #{@id} #{fields}>"
+        "#<#{@aggregate.hecks_name} #{@id} #{fields}>"
       end
 
       private

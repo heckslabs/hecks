@@ -43,6 +43,11 @@ module Hecksagain
       end
 
       class ProcessManager
+
+        # The BLUEBOOK's name for this construct, asked the same way of a class
+        # that has crossed over and of an IR object that has not. Collapses into
+        # Construct when this one crosses.
+        def hecks_name = @name
         # The trigger of a compensating leg. Not an event name — no aggregate
         # announces that a leg the procedure dispatched was declined — so it lives
         # here beside the thing it triggers rather than in the runtime that

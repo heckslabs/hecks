@@ -34,11 +34,11 @@ module Hecksagain
       def verbs = @bluebooks.values.flat_map(&:verbs).sort
 
       def repository(domain, aggregate)
-        @repositories[[domain.to_s, aggregate.name]] ||= Ports::Persistence.repository(self, domain, aggregate)
+        @repositories[[domain.to_s, aggregate.hecks_name]] ||= Ports::Persistence.repository(self, domain, aggregate)
       end
 
       def read_repository(domain, aggregate)
-        key = [domain.to_s, aggregate.name]
+        key = [domain.to_s, aggregate.hecks_name]
         binding = Ports::Projection.binds_for(self, domain, aggregate).first
         return repository(domain, aggregate) unless binding
 

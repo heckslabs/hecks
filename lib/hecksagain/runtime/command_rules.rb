@@ -78,7 +78,7 @@ module Hecksagain
         command.emits.map do |event_name|
           event = Event.new(
             name:        event_name,
-            aggregate:   "#{domain}::#{aggregate.name}",
+            aggregate:   "#{domain}::#{aggregate.hecks_name}",
             id:          instance.id,
             payload:     args,
             occurred_at: Time.now.utc.iso8601

@@ -42,7 +42,13 @@ module Hecksagain
         end
 
         def entity(name, &block)
-          @entities << EntityBuilder.build(name, &block)
+          piece = EntityBuilder.build(name, &block)
+          # A piece is declared IN this aggregate. Its own commands were given the
+          # piece as their owner when it was declared, so the chain is now
+          # chapter -> aggregate -> entity -> command, and every link can state
+          # an identity.
+          piece.hecks_owner = @klass
+          @entities << piece
         end
 
         def query(name, &block)

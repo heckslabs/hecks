@@ -106,9 +106,9 @@ RSpec.describe "Banking across persistence adapters" do
   def declared_verbs(runtime, kind)
     bluebook = runtime.registry.bluebook("Banking")
     bluebook.aggregates.flat_map do |aggregate|
-      direct = aggregate.public_send(kind).map { |declaration| "Banking::#{aggregate.name}.#{verb_name(declaration)}" }
+      direct = aggregate.public_send(kind).map { |declaration| "Banking::#{aggregate.hecks_name}.#{verb_name(declaration)}" }
       nested = aggregate.entities.flat_map do |entity|
-        entity.public_send(kind).map { |declaration| "Banking::#{aggregate.name}.#{entity.name}.#{verb_name(declaration)}" }
+        entity.public_send(kind).map { |declaration| "Banking::#{aggregate.hecks_name}.#{entity.hecks_name}.#{verb_name(declaration)}" }
       end
       direct + nested
     end.sort

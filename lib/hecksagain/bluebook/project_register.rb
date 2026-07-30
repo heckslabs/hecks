@@ -35,15 +35,15 @@ module Hecksagain
           bluebook.aggregates.each do |aggregate|
             aggregate.commands.each do |command|
               add(Fqn.command(realm: realm, domain: bluebook.name, version: bluebook.version,
-                              aggregate: aggregate.name, command: command.hecks_name), directory, dispatcher, command.hecks_name, bluebook.version) if bluebook.version
-              add(Fqn.command(realm: realm, domain: bluebook.name, aggregate: aggregate.name,
+                              aggregate: aggregate.hecks_name, command: command.hecks_name), directory, dispatcher, command.hecks_name, bluebook.version) if bluebook.version
+              add(Fqn.command(realm: realm, domain: bluebook.name, aggregate: aggregate.hecks_name,
                               command: command.hecks_name), directory, dispatcher, command.hecks_name, bluebook.version) if current?(bluebook, world)
             end
             aggregate.queries.each do |query|
               name = Naming.snake(query.name)
               add(Fqn.query(realm: realm, domain: bluebook.name, version: bluebook.version,
-                            aggregate: aggregate.name, query: name), directory, dispatcher, query.name, bluebook.version) if bluebook.version
-              add(Fqn.query(realm: realm, domain: bluebook.name, aggregate: aggregate.name,
+                            aggregate: aggregate.hecks_name, query: name), directory, dispatcher, query.name, bluebook.version) if bluebook.version
+              add(Fqn.query(realm: realm, domain: bluebook.name, aggregate: aggregate.hecks_name,
                             query: name), directory, dispatcher, query.name, bluebook.version) if current?(bluebook, world)
             end
           end

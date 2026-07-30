@@ -61,7 +61,7 @@ module Hecksagain
           @aggregates.each do |aggregate|
             aggregate.ruby_class.domain = @name
             aggregate.ruby_class.hecks_owner = namespace
-            namespace.const_set(aggregate.name, aggregate.ruby_class)
+            namespace.const_set(aggregate.hecks_name, aggregate.ruby_class)
           end
 
           namespace.define_singleton_method(:vision)     { bluebook.vision }
@@ -69,9 +69,9 @@ module Hecksagain
 
           Namespace.install(Object, @name, namespace)
           @aggregates.each do |aggregate|
-            next if aggregate.name == @name
+            next if aggregate.hecks_name == @name
 
-            Namespace.install(Object, aggregate.name, aggregate.ruby_class)
+            Namespace.install(Object, aggregate.hecks_name, aggregate.ruby_class)
           end
 
           # The language judges the bluebook, in the language. Last, so the
@@ -87,20 +87,20 @@ module Hecksagain
           violations = []
 
           @aggregates.each do |aggregate|
-            validate_attributes(aggregate.name, aggregate.attributes, aggregate, violations)
+            validate_attributes(aggregate.hecks_name, aggregate.attributes, aggregate, violations)
             aggregate.commands.each do |command|
-              validate_attributes("#{aggregate.name}.#{command.hecks_name}", command.attributes, aggregate, violations)
+              validate_attributes("#{aggregate.hecks_name}.#{command.hecks_name}", command.attributes, aggregate, violations)
             end
             aggregate.queries.each do |query|
-              validate_attributes("#{aggregate.name}.#{query.name}", query.attributes, aggregate, violations)
+              validate_attributes("#{aggregate.hecks_name}.#{query.name}", query.attributes, aggregate, violations)
             end
             aggregate.entities.each do |entity|
-              validate_attributes("#{aggregate.name}.#{entity.name}", entity.attributes, aggregate, violations)
+              validate_attributes("#{aggregate.hecks_name}.#{entity.hecks_name}", entity.attributes, aggregate, violations)
               entity.commands.each do |command|
-                validate_attributes("#{aggregate.name}.#{entity.name}.#{command.hecks_name}", command.attributes, aggregate, violations)
+                validate_attributes("#{aggregate.hecks_name}.#{entity.hecks_name}.#{command.hecks_name}", command.attributes, aggregate, violations)
               end
               entity.queries.each do |query|
-                validate_attributes("#{aggregate.name}.#{entity.name}.#{query.name}", query.attributes, aggregate, violations)
+                validate_attributes("#{aggregate.hecks_name}.#{entity.hecks_name}.#{query.name}", query.attributes, aggregate, violations)
               end
             end
           end
@@ -114,30 +114,30 @@ module Hecksagain
           attributes.each do |attribute|
             next if attribute.reference?
             next if aggregate.value_object(attribute.type)
-            next if attribute.list? && aggregate.entities.any? { |entity| entity.name == attribute.type }
+            next if attribute.list? && aggregate.entities.any? { |entity| entity.hecks_name == attribute.type }
 
-            violations << "#{owner}##{attribute.name} is #{attribute.type}, not a value object declared by #{aggregate.name}"
+            violations << "#{owner}##{attribute.name} is #{attribute.type}, not a value object declared by #{aggregate.hecks_name}"
           end
         end
 
         def validate_reference_value_objects!
           targets = @aggregates.each_with_object({}) do |aggregate, index|
-            index[aggregate.name] = aggregate
+            index[aggregate.hecks_name] = aggregate
           end
           violations = []
 
           @aggregates.each do |aggregate|
-            aggregate.reference_targets.each { |target| validate_reference(aggregate.name, target, targets, violations) }
-            validate_attribute_references(aggregate.name, aggregate.attributes, targets, violations)
+            aggregate.reference_targets.each { |target| validate_reference(aggregate.hecks_name, target, targets, violations) }
+            validate_attribute_references(aggregate.hecks_name, aggregate.attributes, targets, violations)
             aggregate.commands.each do |command|
-              validate_reference("#{aggregate.name}.#{command.hecks_name}", command.references, targets, violations) if command.references
-              validate_attribute_references("#{aggregate.name}.#{command.hecks_name}", command.attributes, targets, violations)
+              validate_reference("#{aggregate.hecks_name}.#{command.hecks_name}", command.references, targets, violations) if command.references
+              validate_attribute_references("#{aggregate.hecks_name}.#{command.hecks_name}", command.attributes, targets, violations)
             end
             aggregate.entities.each do |entity|
-              validate_attribute_references("#{aggregate.name}.#{entity.name}", entity.attributes, targets, violations)
+              validate_attribute_references("#{aggregate.hecks_name}.#{entity.hecks_name}", entity.attributes, targets, violations)
               entity.commands.each do |command|
-                validate_reference("#{aggregate.name}.#{entity.name}.#{command.hecks_name}", command.references, targets, violations) if command.references
-                validate_attribute_references("#{aggregate.name}.#{entity.name}.#{command.hecks_name}", command.attributes, targets, violations)
+                validate_reference("#{aggregate.hecks_name}.#{entity.hecks_name}.#{command.hecks_name}", command.references, targets, violations) if command.references
+                validate_attribute_references("#{aggregate.hecks_name}.#{entity.hecks_name}.#{command.hecks_name}", command.attributes, targets, violations)
               end
             end
           end

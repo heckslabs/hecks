@@ -67,7 +67,7 @@ module Hecksagain
             # no special case: a category with nothing to offer contributes nothing.
             next if aggregate.commands.empty?
 
-            plan[aggregate.name] = read(aggregate)
+            plan[aggregate.hecks_name] = read(aggregate)
           end.freeze
         end
 
@@ -87,7 +87,7 @@ module Hecksagain
           rest       = aggregate.commands - [declare].compact
 
           Category.new(
-            name:       aggregate.name,
+            name:       aggregate.hecks_name,
             declare:    declare&.hecks_name,
             parent:     parent_key && categorise(parent_key),
             parent_key: parent_key,

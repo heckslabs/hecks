@@ -2,6 +2,11 @@ module Hecksagain
   module Bluebook
     module IR
       class ReadModel < QuerySpecification::ReadModel::Specification
+
+        # The BLUEBOOK's name for this construct, asked the same way of a class
+        # that has crossed over and of an IR object that has not. Collapses into
+        # Construct when this one crosses.
+        def hecks_name = @name
         attr_reader :name, :description, :reference_name, :reference_target, :aggregate_heads
 
         def initialize(name:, description: nil, reference_name:, reference_target:, aggregate_heads: [], **options)

@@ -9,7 +9,7 @@ module Hecksagain
       module_function
 
       def binds_for(registry, domain, aggregate)
-        registry.hecksagon(domain)&.binds_for(aggregate.name, VERB) || []
+        registry.hecksagon(domain)&.binds_for(aggregate.hecks_name, VERB) || []
       end
 
       def worker(registry, domain, aggregate, policy: :refresh)

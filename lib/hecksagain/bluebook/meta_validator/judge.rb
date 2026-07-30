@@ -235,7 +235,7 @@ module Hecksagain
         def reference_row?(row) = row.respond_to?(:reference?) && row.reference?
 
         def entity_row?(row, node)
-          Array(node.entities).any? { |entity| entity.name == row.type.to_s }
+          Array(node.entities).any? { |entity| entity.hecks_name == row.type.to_s }
         end
 
         def identify(category, parent_id, node, index)

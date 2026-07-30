@@ -190,16 +190,56 @@ RSpec.describe "a construct's identity" do
     end
 
     it "refuses to state an identity it was never given" do
-      # An ENTITY's commands are declared on the entity, and an entity is still an
-      # IR object rather than a construct — so it cannot be an owner yet. Asking
-      # one for its identity goes RED rather than answering "Deposit", which would
-      # be a plausible half-truth that nothing would catch.
-      ledger_entry = banking.registry.bluebook("Banking")
-                            .aggregate("Account").entities.first.commands.first
+      # Nothing in the corpus is in this state any more — the owner chain reaches
+      # every command. But a construct built by hand, or one a future builder
+      # forgets to stamp, must go RED rather than answer a bare name that looks
+      # right.
+      orphan = Hecksagain::Bluebook::IR::Command.declare(name: "Unstamped")
 
-      expect(ledger_entry.hecks_owner).to be_nil
-      expect { ledger_entry.hecks_fqn }
+      expect(orphan.hecks_owner).to be_nil
+      expect { orphan.hecks_fqn }
         .to raise_error(Hecksagain::Construct::Unowned, /cannot say what declares it/)
+    end
+  end
+
+  describe "an entity as a class" do
+    def account      = banking.registry.bluebook("Banking").aggregate("Account")
+    def ledger_entry = account.entities.first
+
+    it "closes the owner chain, so a piece's verb can say what it is" do
+      # chapter -> aggregate -> entity -> command, which is the id the judge mints.
+      expect(ledger_entry.hecks_fqn).to eq("Banking::Account.LedgerEntry")
+      expect(ledger_entry.commands.map(&:hecks_fqn))
+        .to eq(["Banking::Account.LedgerEntry.Amend", "Banking::Account.LedgerEntry.Reverse"])
+    end
+
+    it "has its verbs act on the PIECE, not on nothing" do
+      # An element is addressed through its parent, so an entity's command never
+      # self-references and `creates?` answers true for all of them. Reading
+      # `acts_on` off that alone would claim `Amend` brings a ledger entry into
+      # being — three of banking's commands, saying so with nothing to contradict
+      # them.
+      amend = ledger_entry.command("Amend")
+
+      expect(amend.creates?).to be(true)
+      expect(amend.acts_on).to be(ledger_entry)
+    end
+
+    it "stays structurally interchangeable with an aggregate" do
+      # The runtime builds `Instance.new(aggregate: entity)` and `CommandRules`
+      # takes either as `declaring`, so a piece answers the same questions a head
+      # does.
+      %i[hecks_name attributes attribute identified_by lifecycle commands queries].each do |message|
+        expect(ledger_entry).to respond_to(message), "an entity must answer #{message} like an aggregate"
+      end
+    end
+
+    it "keeps NOT answering value_object, which is how a piece is told from a head" do
+      # `Value.for_attribute` sniffs for this method to decide whether it is
+      # holding a head. An entity that grew one would silently start coercing its
+      # fields as though it declared value objects.
+      expect(ledger_entry).not_to respond_to(:value_object)
+      expect(account).to respond_to(:value_object)
     end
   end
 end

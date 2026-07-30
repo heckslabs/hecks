@@ -609,7 +609,7 @@ RSpec.describe "the DSL surface" do
         value_object("Quantity") { attribute :value, Integer }
       end.entities.first
 
-      expect([line.name, line.identified_by]).to eq(["OrderLine", :sku])
+      expect([line.hecks_name, line.identified_by]).to eq(["OrderLine", :sku])
       expect(line.attribute(:quantity).type).to eq("Quantity")
     end
 

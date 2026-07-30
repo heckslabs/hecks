@@ -2,6 +2,11 @@ module Hecksagain
   module Bluebook
     module IR
       class Policy
+
+        # The BLUEBOOK's name for this construct, asked the same way of a class
+        # that has crossed over and of an IR object that has not. Collapses into
+        # Construct when this one crosses.
+        def hecks_name = @name
         attr_reader :name, :on_event, :trigger_command, :target_domain
 
         def initialize(name:, on_event: nil, trigger_command: nil, target_domain: nil)

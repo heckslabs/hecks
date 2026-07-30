@@ -11,8 +11,8 @@ module Hecksagain
 
       def call(domain, aggregate, dotted, args)
         entity_name, command_name = Naming.split_dotted(dotted)
-        entity  = aggregate.entities.find { |e| e.name == entity_name } ||
-                  raise(UnknownVerb, "#{aggregate.name} has no entity #{entity_name.inspect}")
+        entity  = aggregate.entities.find { |piece| piece.hecks_name == entity_name } ||
+                  raise(UnknownVerb, "#{aggregate.hecks_name} has no entity #{entity_name.inspect}")
         command = entity.command(command_name) ||
                   raise(UnknownVerb, "#{entity_name} has no command #{command_name.inspect}")
 
@@ -37,22 +37,22 @@ module Hecksagain
       def parent(repository, aggregate, entity_name, command_name, args)
         parent_key = aggregate.identified_by || :id
         parent_id = args[parent_key] || args[:id] ||
-                    raise(NotFound, "#{command_name} acts on a #{aggregate.name}'s #{entity_name} — pass #{aggregate.identified_by}:")
+                    raise(NotFound, "#{command_name} acts on a #{aggregate.hecks_name}'s #{entity_name} — pass #{aggregate.identified_by}:")
         parent_id = Value.identifier(Value.for_attribute(aggregate, aggregate.attribute(parent_key), parent_id))
         repository.find(parent_id) ||
-          raise(NotFound, "no #{aggregate.name} with #{aggregate.identified_by} #{parent_id.inspect}")
+          raise(NotFound, "no #{aggregate.hecks_name} with #{aggregate.identified_by} #{parent_id.inspect}")
       end
 
       def element_of(aggregate, entity, entity_name, command_name, instance, args)
         list_attr = aggregate.attributes.find { |a| a.list? && a.type.to_s == entity_name } ||
-                    raise(UnknownVerb, "#{aggregate.name} holds no list of #{entity_name}")
+                    raise(UnknownVerb, "#{aggregate.hecks_name} holds no list of #{entity_name}")
         key  = entity.identified_by
         want = args[key] ||
                raise(NotFound, "#{command_name} acts on one #{entity_name} — pass #{key}:")
         want = Value.for_attribute(aggregate, entity.attribute(key), want)
 
         Array(instance[list_attr.name]).find { |el| el[key] == want } ||
-          raise(NotFound, "no #{entity_name} with #{key} #{Value.materialize(want).to_json} on #{aggregate.name} #{instance.id.inspect}")
+          raise(NotFound, "no #{entity_name} with #{key} #{Value.materialize(want).to_json} on #{aggregate.hecks_name} #{instance.id.inspect}")
       end
 
       def apply_to_element(aggregate, entity, element, mutation, args)

@@ -2,6 +2,11 @@ module Hecksagain
   module Bluebook
     module IR
       class Aggregate
+
+        # The BLUEBOOK's name for this construct, asked the same way of a class
+        # that has crossed over and of an IR object that has not. Collapses into
+        # Construct when this one crosses.
+        def hecks_name = @name
         attr_reader :name, :description, :attributes, :value_objects, :commands,
                     :identified_by, :lifecycle, :entities, :queries, :policies, :reference_targets
 

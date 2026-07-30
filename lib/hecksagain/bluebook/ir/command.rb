@@ -68,9 +68,22 @@ module Hecksagain
             @references = references
           end
 
-          # The aggregate this acts on — the class, not its name. A creating
-          # command acts on no existing root, so it answers nil.
-          def acts_on = creates? ? nil : hecks_owner
+          # The construct this verb acts upon — the class, not its name.
+          #
+          # A verb declared on an ENTITY always acts on that piece. It never
+          # self-references, because an element is addressed THROUGH its parent —
+          # which means `creates?` answers true for every one of them, and reading
+          # `acts_on` off `creates?` alone would report that `LedgerEntry.Amend`
+          # brings a ledger entry into being. Three of banking's commands were
+          # about to say exactly that, and nothing would have contradicted them.
+          #
+          # On an aggregate, a creating command acts on no existing root, so nil is
+          # the truth: there is nothing there yet.
+          def acts_on
+            return hecks_owner if hecks_owner.is_a?(Class) && hecks_owner < Entity
+
+            creates? ? nil : hecks_owner
+          end
 
           def creates? = @references.nil?
 

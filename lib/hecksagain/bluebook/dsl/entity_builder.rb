@@ -26,7 +26,7 @@ module Hecksagain
         end
 
         def build
-          IR::Entity.new(
+          IR::Entity.declare(
             name:          @name,
             description:   @description,
             identified_by: @identified_by,

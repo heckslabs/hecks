@@ -11,7 +11,7 @@ module Hecksagain
           hexagon = registry.hecksagon(domain)
           return default_binding(aggregate) unless hexagon
 
-          bindings = hexagon.binds_for(aggregate.name, VERB)
+          bindings = hexagon.binds_for(aggregate.hecks_name, VERB)
           raise missing_binding(domain, aggregate) if bindings.empty?
 
           authoritative = bindings.select { |bind| bind.role.nil? || bind.role.empty? }
@@ -22,28 +22,28 @@ module Hecksagain
         end
 
         def default_binding(aggregate)
-          Bluebook::IR::Bind.new(aggregate: aggregate.name, verb: VERB, adapter: DEFAULT_ADAPTER)
+          Bluebook::IR::Bind.new(aggregate: aggregate.hecks_name, verb: VERB, adapter: DEFAULT_ADAPTER)
         end
 
         def missing_binding(domain, aggregate)
           Runtime::WiringError.new(
-            "#{domain}::#{aggregate.name} has no #{VERB} bind. #{domain} declares a " \
+            "#{domain}::#{aggregate.hecks_name} has no #{VERB} bind. #{domain} declares a " \
             "hecksagon, so its wiring is being decided explicitly and an aggregate " \
             "left out is a forgotten decision. Bind it, or say " \
-            "#{aggregate.name}.#{VERB}(#{DEFAULT_ADAPTER.inspect}) to keep it in memory on purpose."
+            "#{aggregate.hecks_name}.#{VERB}(#{DEFAULT_ADAPTER.inspect}) to keep it in memory on purpose."
           )
         end
 
         def ambiguous_binding(domain, aggregate, authoritative)
           Runtime::WiringError.new(
-            "#{domain}::#{aggregate.name} has #{authoritative.size} authoritative #{VERB} bindings. " \
+            "#{domain}::#{aggregate.hecks_name} has #{authoritative.size} authoritative #{VERB} bindings. " \
             "Declare exactly one adapter without a role."
           )
         end
 
         def unsupported_roles(domain, aggregate, bindings)
           Runtime::WiringError.new(
-            "#{domain}::#{aggregate.name} uses persistence role#{bindings.size == 1 ? '' : 's'} " \
+            "#{domain}::#{aggregate.hecks_name} uses persistence role#{bindings.size == 1 ? '' : 's'} " \
             "#{bindings.map(&:role).map(&:inspect).join(', ')}. Only persisted_by is supported."
           )
         end

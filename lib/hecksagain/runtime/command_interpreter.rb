@@ -36,8 +36,8 @@ module Hecksagain
         else
           id = identity_from(aggregate, args, aggregate.identified_by || :id) ||
                identity_from(aggregate, args, reference_key(command)) ||
-               raise(NotFound, "#{command.hecks_name} acts on an existing #{aggregate.name} — pass #{aggregate.identified_by}:")
-          repository.find(id) || raise(NotFound, "no #{aggregate.name} with #{aggregate.identified_by} #{id.inspect}")
+               raise(NotFound, "#{command.hecks_name} acts on an existing #{aggregate.hecks_name} — pass #{aggregate.identified_by}:")
+          repository.find(id) || raise(NotFound, "no #{aggregate.hecks_name} with #{aggregate.identified_by} #{id.inspect}")
         end
       end
 
@@ -202,7 +202,7 @@ module Hecksagain
       end
 
       def entity_element(aggregate, element_type, current, fields)
-        entity = aggregate.entities.find { |e| e.name == element_type.to_s }
+        entity = aggregate.entities.find { |piece| piece.hecks_name == element_type.to_s }
         return fields unless entity
 
         entity.attributes.each do |attribute|
