@@ -43,6 +43,7 @@ module Hecksagain
             vision:         [:vision,         :plain],
             classification: [:classification, :plain]
           },
+          rows: { normalisations: :normalisation_table },
           derived: { normalisations: :elsewhere }
         ),
 
@@ -54,10 +55,11 @@ module Hecksagain
             identified_by: [:identified_by, :identity],
             attributes:    [:attributes,    [:each, :attribute]]
           },
+          rows: { transitions: :transition_rows, value_objects: :value_object_names },
           derived: {
-            state_field:   [:folded, %i[lifecycle]],
-            state_start:   [:folded, %i[lifecycle]],
-            transitions:   [:folded, %i[lifecycle]],
+            state_field:   [:folded, :lifecycle, :field],
+            state_start:   [:folded, :lifecycle, :default],
+            transitions:   [:folded, :lifecycle, :transitions],
             value_objects: :children
           }
         ),
@@ -74,6 +76,7 @@ module Hecksagain
             mutations:  [:mutations,  [:each, :mutation]],
             emits:      [:emits,      :plain]
           },
+          rows: { mutations: :mutation_rows },
           derived: {}
         ),
 
@@ -87,7 +90,7 @@ module Hecksagain
             closed_set: [:closed_set, :flag]
           },
           # The language counts the admitted rows ; the IR keeps a flag and the rows.
-          derived: { rows: [:folded, %i[closed_set members]] }
+          derived: { rows: [:folded, %i[closed_set members], nil] }
         ),
 
         "Query" => Contract.new(
@@ -110,11 +113,12 @@ module Hecksagain
             inspection:      [:inspection,      [:option, :inspection]],
             index_hints:     [:index_hints,     :index_hints]
           },
+          rows: { wheres: :where_rows, options: :option_rows },
           derived: {
-            order_field: [:folded, %i[order_by]],
-            order_way:   [:folded, %i[order_by]],
+            order_field: [:folded, :order_by, :field],
+            order_way:   [:folded, :order_by, :direction],
             options:     [:folded, %i[offset cursor null_semantics authorization
-                                      consistency freshness inspection index_hints]]
+                                       consistency freshness inspection index_hints], nil]
           }
         ),
 
@@ -132,11 +136,12 @@ module Hecksagain
             identified_by: [:identified_by, :identity],
             attributes:    [:attributes,    [:each, :shape_field]]
           },
+          rows: { transitions: :transition_rows },
           derived: {
             owner:       :parent,
-            state_field: [:folded, %i[lifecycle]],
-            state_start: [:folded, %i[lifecycle]],
-            transitions: [:folded, %i[lifecycle]]
+            state_field: [:folded, :lifecycle, :field],
+            state_start: [:folded, :lifecycle, :default],
+            transitions: [:folded, :lifecycle, :transitions]
           }
         ),
 
@@ -185,6 +190,7 @@ module Hecksagain
             command_name: [:command_name, :plain],
             with_spec:    [:with,         :bindings]
           },
+          rows: { with_spec: :with_spec_rows },
           derived: { handler: :parent }
         ),
 
@@ -210,10 +216,11 @@ module Hecksagain
             inspection:       [:inspection,       [:option, :inspection]],
             index_hints:      [:index_hints,      :index_hints]
           },
+          rows: { options: :read_model_option_rows },
           derived: {
             query_name: [:computed, :query_name],
             options:    [:folded, %i[offset cursor null_semantics authorization
-                                     consistency freshness inspection index_hints]]
+                                      consistency freshness inspection index_hints], nil]
           }
         ),
 
@@ -223,7 +230,8 @@ module Hecksagain
         "Member" => Contract.new(
           holder: nil, make: nil,
           fields: {},
-          derived: { shape: :parent, pairs: [:folded, %i[members]] }
+          rows: { pairs: :pair_rows },
+          derived: { shape: :parent, pairs: [:folded, %i[members], nil] }
         )
       }.freeze
     end

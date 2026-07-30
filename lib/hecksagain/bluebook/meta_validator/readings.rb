@@ -21,27 +21,39 @@ module Hecksagain
       # only a difference in NAME, it is in the wrong file: rename the language.
       module Readings
         # A list the walk is about to offer, as rows it can shape into dispatches.
+        #
+        # FROM THE TABLE. This was nine hand-written cases keyed "Category.list", and
+        # every one of them was a fact `Assembly::Contracts` is the right place to
+        # keep: which shaper turns this list into rows. A list with no shaper reads
+        # straight off the node, which is most of them.
         def rows_for(category, list_name, node)
-          case "#{category}.#{list_name}"
-          when "Aggregate.transitions", "Entity.transitions" then transition_rows(node)
-          when "Command.mutations"                           then mutation_rows(node)
-          # A where-clause is read through its own to_h, which is where the IR
-          # spells a symbol argument as ":ceiling". Reading the OBJECT instead lost
-          # the colon, and nothing downstream could tell an argument from a literal
-          # of the same name.
-          when "Query.wheres"                                then Array(node.wheres).map(&:to_h)
-          when "Aggregate.value_objects"                     then node.value_objects.map { |shape| { name: shape.hecks_name } }
-          when "Query.options"                               then option_rows(node)
-          when "ReadModel.options"                           then option_rows(node, filters: true)
-          when "Bluebook.normalisations"                     then normalisation_rows
-          when "Member.pairs"                                then pair_rows(node)
-          # Through to_h, which is where IR.render_value spells a symbol argument as
-          # ":source". The raw with_spec lost the colon, and a binding that reads an
-          # argument became indistinguishable from one carrying a literal string.
-          when "Dispatch.with_spec"                          then pair_rows(node.to_h[:with])
-          else Array(node.public_send(list_name))
-          end
+          shaper = Assembly.contract(category).shaper(list_name)
+          return Array(node.public_send(list_name)) unless shaper
+
+          public_send(shaper, node)
         end
+
+        # A where-clause is read through its own to_h, which is where the IR spells a
+        # symbol argument as ":ceiling". Reading the OBJECT instead lost the colon,
+        # and nothing downstream could tell an argument from a literal of the same
+        # name.
+        def where_rows(node) = Array(node.wheres).map(&:to_h)
+
+        # The language holds a value object's NAME here ; the IR holds the object.
+        def value_object_names(node) = node.value_objects.map { |shape| { name: shape.hecks_name } }
+
+        # Through to_h, which is where IR.render_value spells a symbol argument as
+        # ":source". The raw with_spec lost the colon, and a binding that reads an
+        # argument became indistinguishable from one carrying a literal string.
+        def with_spec_rows(node) = pair_rows(node.to_h[:with])
+
+        # A read model carries the same options an ask does, plus its filters — see
+        # option_rows.
+        def read_model_option_rows(node) = option_rows(node, filters: true)
+
+        # The canonical-form table is the expression grammar's, not this chapter's, so
+        # the node is not consulted at all.
+        def normalisation_table(_node) = normalisation_rows
 
         # `lifecycle :status do transition "Retire" => "retired", from: ["issued", "active"] end`
         # is ONE declaration and TWO transitions. Offering it once would leave the
@@ -189,35 +201,58 @@ module Hecksagain
 
         # One field of a Declare payload. Mostly a reader of the same name — the
         # exceptions are fields the IR keeps somewhere else, or not at all.
+        # READ FROM THE TABLE, not from a branch per category.
+        #
+        # These were eight hand-written cases — `Entity.owner`, `Member.shape`, two
+        # lifecycle members twice over, and three of a query's — each one restating
+        # something `Assembly::Contracts` already declares. A parent pointer is
+        # `:parent` there ; a folded field names the object and member it lives in.
+        # So the exceptions are looked up rather than repeated, and a new fold is one
+        # line in one file instead of two lines in two.
         def field_value(category, node, field, parent_id)
           return declared_name(node) if field == :name
 
-          case "#{category}.#{field}"
-          when "Entity.owner"       then parent_id
-          when "Member.shape"       then parent_id
-          when "Aggregate.state_field", "Entity.state_field"  then node.lifecycle&.field
-          when "Aggregate.state_start", "Entity.state_start"  then node.lifecycle&.default
-          # `Array(an_object)` wraps rather than destructures, so these were offering
-          # the OrderBy object itself and storing its inspect string.
-          # Same wrapping mistake as order_by: `limit` is an object, and offering it
-          # stored "#<struct LimitSpec value=3>".
-          when "Query.limit"        then node.limit&.to_h&.fetch(:value, nil)
-          when "Query.order_field"  then node.order_by&.to_h&.fetch(:field, nil)
-          when "Query.order_way"    then node.order_by&.to_h&.fetch(:direction, nil)
-          else node.respond_to?(field) ? node.public_send(field) : nil
-          end
+          contract = Assembly.contract(category)
+          # A setter names its target as a STRING and a Declare field arrives a Symbol,
+          # so the lookup keys on a Symbol either way. The case statement this replaced
+          # was type-blind because it interpolated ; a Hash is not.
+          named    = field.to_sym
+          return parent_id if contract.kind_of(named) == :parent
+
+          object, member = contract.folded(named)
+          return through(node, object, member) if member
+
+          # `limit` is a language field AND an object in the IR — `Array(an_object)`
+          # wraps rather than destructures, so offering it stored
+          # "#<struct LimitSpec value=3>".
+          return node.limit&.to_h&.fetch(:value, nil) if "#{category}.#{field}" == "Query.limit"
+
+          node.respond_to?(field) ? node.public_send(field) : nil
+        end
+
+        # One member of the object a field folds into. `to_h` first, because the
+        # member names are the ones the IR SPELLS — a Lifecycle's `default`, an
+        # OrderBy's `direction` — and reading the object raw is how a colon or a type
+        # goes missing.
+        def through(node, object, member)
+          held = node.respond_to?(object) ? node.public_send(object) : nil
+          return nil unless held
+
+          member == :transitions ? held : held.to_h[member]
         end
 
         # What a setting command writes. A setter whose source is absent is not
         # dispatched at all — ABSENT is not EMPTY, and offering "" would turn every
         # "if you declare it, declare something" rule into "you must declare it".
         def setter_value(category, node, target)
-          case "#{category}.#{target}"
-          when "ValueObject.rows"  then closed_set_size(node)
-          when "Aggregate.state_field", "Entity.state_field"  then node.lifecycle&.field
-          when "Aggregate.state_start", "Entity.state_start"  then node.lifecycle&.default
-          else node.respond_to?(target) ? node.public_send(target) : nil
-          end
+          # `rows` folds into `closed_set` and `members` between them, with no single
+          # member to name, so it keeps its own reading — see Contract#folded.
+          return closed_set_size(node) if "#{category}.#{target}" == "ValueObject.rows"
+
+          object, member = Assembly.contract(category).folded(target.to_sym)
+          return through(node, object, member) if member
+
+          node.respond_to?(target) ? node.public_send(target) : nil
         end
 
         # Only a DECLARED closed set has a row count. An empty one is the defect,

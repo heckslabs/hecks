@@ -22,10 +22,36 @@ module Hecksagain
       #                      by one, because it is the kind with no other check.
       #
       # Every one of those can FAIL. That is the whole difference.
-      Contract = Struct.new(:holder, :make, :fields, :derived, keyword_init: true) do
+      Contract = Struct.new(:holder, :make, :fields, :derived, :rows, keyword_init: true) do
+        # How an appendable LIST becomes rows the walk can offer. A list absent from
+        # here reads straight off the node ; one that is present names the shaper,
+        # because the IR keeps a shape the language does not — a transition whose
+        # `from` is a list is several rows, an append binds several fields at once,
+        # an open map is one row per entry.
+        def shaper(list) = Hash(rows)[list.to_sym]
+
         def declares?(field) = fields.key?(field) || derived.key?(field)
 
         def kind_of(field) = derived[field]
+
+        # WHERE A FOLDED FIELD ACTUALLY LIVES, as [object, member].
+        #
+        # `[:folded, :lifecycle, :field]` says the language's `state_field` is the
+        # `field` of the IR's one Lifecycle. That is the same fact `Readings` used to
+        # state a second time as `node.lifecycle&.field` — so saying it once here
+        # drives BOTH directions: the walk reads the member on the way in, and the
+        # reconstruction gathers the members back into the object on the way out.
+        #
+        # A nil member means the fold has no single member to name — `rows` is a
+        # count of what `closed_set` and `members` hold between them, and `options`
+        # spreads across eight keys. Those keep their own code, and the gate still
+        # checks the object they name is real.
+        def folded(field)
+          kind = derived[field]
+          return nil unless kind.is_a?(Array) && kind.first == :folded
+
+          [kind[1], kind[2]]
+        end
 
         # COMPUTED means worked out, not merely answerable.
         #

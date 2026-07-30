@@ -194,7 +194,10 @@ RSpec.describe "a graph assembled from declarations" do
 
         "#{contract.holder} does not answer to #{target}"
       when :folded
-        absent = Array(target).reject { |key| keys.include?(key) }
+        # The object(s) it folds into AND the member it is, so a mistyped member is
+        # caught too — `[:folded, :order_by, :directionn]` names a key nothing carries.
+        wanted = Array(target) + [kind[2]].compact
+        absent = wanted.reject { |key| keys.include?(key) }
         absent.empty? ? nil : "nothing folds into #{absent.inspect} — no declaration carries those keys"
       else "no such kind"
       end
@@ -217,6 +220,32 @@ RSpec.describe "a graph assembled from declarations" do
       else []
       end
     end
+
+    # THE WRITE DIRECTION IS HELD TO THE LANGUAGE TOO.
+    #
+    # `Readings#rows_for` was nine cases keyed "Category.list" and now reads the
+    # table, so the same question can be asked of it: does every list the language
+    # declares have a way to be offered, and does every shaper the table names exist?
+    it "offers every appendable list, by a shaper that exists or a reader on the holder" do
+      unreadable = plan.names.flat_map do |category|
+        contract = Hecksagain::Bluebook::Assembly.contract(category)
+
+        plan.category(category).appends.keys.filter_map do |list|
+          shaper = contract.shaper(list)
+          next "#{category}##{list} names shaper #{shaper} and Readings has no such method" if shaper && !readings.include?(shaper)
+          next nil if shaper
+          next nil if contract.holder.nil? || contract.answers?(list.to_sym)
+
+          "#{category}##{list} has no shaper and #{contract.holder} does not answer to it"
+        end
+      end
+
+      expect(unreadable).to be_empty,
+                            "#{unreadable.size} list(s) the language declares cannot be offered:\n  " \
+                            "#{unreadable.join("\n  ")}"
+    end
+
+    def readings = Hecksagain::Bluebook::MetaValidator::Readings.instance_methods(false)
 
     it "claims nothing the language does not declare" do
       # The other half of the same failure: a contract for a retired category, or a
