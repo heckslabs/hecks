@@ -40,21 +40,13 @@ RSpec.describe "a bluebook dispatched in and read back out" do
   end
 
   # Dispatch it in and KEEP the records — the only difference between judging a
-  # bluebook and holding one.
+  # bluebook and holding one. This used to be `Judge.allocate` and four
+  # `instance_variable_set` calls, because the judge threw its runtime away.
   def read_back(bluebook)
-    runtime = Hecksagain::Bluebook::MetaValidator.fresh_runtime
-    judge   = Hecksagain::Bluebook::MetaValidator::Judge.allocate
-    judge.instance_variable_set(:@bluebook, bluebook)
-    judge.instance_variable_set(:@refusals, [])
-    judge.instance_variable_set(:@runtime, runtime)
-    judge.instance_variable_set(
-      :@plan,
-      Hecksagain::Bluebook::MetaValidator::Plan.for(Hecksagain::Bluebook::MetaValidator.grammar_registry)
-    )
-    judge.send(:judge!)
+    judge = Hecksagain::Bluebook::MetaValidator::Judge.new(bluebook)
 
-    [Hecksagain::Bluebook::MetaValidator::Reconstruction.of(runtime, bluebook.name),
-     judge.instance_variable_get(:@refusals)]
+    [Hecksagain::Bluebook::MetaValidator::Reconstruction.of(judge.runtime, bluebook.hecks_name),
+     judge.refusals]
   end
 
   # NOTHING IS SORTED ANY MORE, and that is the claim getting stronger.
@@ -110,8 +102,41 @@ RSpec.describe "a bluebook dispatched in and read back out" do
     # names what is compared, so dropping one is a failure and not a silence.
     back, = read_back(load_corpus(ROUND_TRIP_CORPUS["Banking"]).bluebook("Banking"))
 
-    expect(back.keys).to eq(%i[name vision classification aggregates read_models policies process_managers])
+    expect(back.keys).to eq(%i[name version vision classification aggregates read_models policies process_managers])
     expect(Hecksagain::Bluebook::IR::Bluebook.instance_method(:to_h).owner).to be_truthy
+  end
+
+  it "carries a chapter's version, which no corpus member declares" do
+    # The language grew `version` so a graph assembled purely from these records
+    # would stop losing it. No bluebook in the tree declares one, so without this
+    # the field would be legal and unexercised — the exact pattern that let
+    # `Field#default` sit unproven, and that this spec exists to refuse.
+    registry = Hecksagain::Runtime::Registry.new
+    Hecksagain.with_registry(registry) do
+      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
+      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+      Hecks.bluebook("Pinned", version: "v2") do
+        vision "a chapter that pins its contract version"
+        supporting
+
+        aggregate "Thing" do
+          description "a thing"
+          attribute :label, Label
+          value_object("Label") { attribute :value, String }
+        end
+      end
+    end
+
+    back, refusals = read_back(registry.bluebook("Pinned"))
+
+    expect(refusals).to be_empty
+    expect(back[:version]).to eq("v2")
+  end
+
+  it "leaves version absent when a chapter pins none, since ABSENT IS NOT EMPTY" do
+    back, = read_back(load_corpus(ROUND_TRIP_CORPUS["Pizzas"]).bluebook("Pizzas"))
+
+    expect(back[:version]).to be_nil
   end
 
   it "exercises an aggregate attribute that carries a default" do

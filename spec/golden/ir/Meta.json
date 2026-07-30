@@ -22,6 +22,12 @@
         },
         {
           "default": null,
+          "list": false,
+          "name": "version",
+          "type": "Version"
+        },
+        {
+          "default": null,
           "list": true,
           "name": "normalisations",
           "type": "NormalisationRule"
@@ -47,6 +53,12 @@
               "list": false,
               "name": "classification",
               "type": "Classification"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "version",
+              "type": "Version"
             }
           ],
           "emits": [
@@ -274,6 +286,27 @@
 
           ],
           "name": "Classification"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "a version says something"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "Version"
         }
       ]
     },

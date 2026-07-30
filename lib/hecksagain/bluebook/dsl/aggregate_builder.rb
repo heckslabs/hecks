@@ -4,8 +4,6 @@ module Hecksagain
       class AggregateBuilder
         include AttributeCollector
 
-        RESERVED = %i[id state events reload inspect to_h hash class].freeze
-
         def initialize(name)
           @name          = name
           @value_objects = []
@@ -185,36 +183,17 @@ module Hecksagain
           end
         end
 
+        # The class defines its own surface now — `Aggregate.declare_reader` and
+        # `.declare_verb`. These used to build the methods here, reaching into
+        # @klass from outside, which meant the DSL was the only thing that could
+        # ever finish an aggregate. The assembler needs the same two calls.
         def define_readers
-          attributes.each do |attribute|
-            if RESERVED.include?(attribute.name)
-              warn "[hecksagain] #{@name}##{attribute.name} shadows a built-in — no reader defined"
-              next
-            end
-
-            field = attribute.name
-            @klass.define_method(field) { @state[field] }
-          end
-
-          if @lifecycle && !RESERVED.include?(@lifecycle.field)
-            field = @lifecycle.field
-            @klass.define_method(field) { @state[field] }
-          end
+          attributes.each { |attribute| @klass.declare_reader(attribute.name) }
+          @klass.declare_reader(@lifecycle.field) if @lifecycle
         end
 
         def define_command(command)
-          method_name = Naming.snake(command.hecks_name)
-          verb        = command.hecks_name
-
-          if command.creates?
-            @klass.define_singleton_method(method_name) do |**args|
-              wrap(run(verb, **args).instance)
-            end
-          else
-            @klass.define_method(method_name) do |**args|
-              run(verb, **args)
-            end
-          end
+          @klass.declare_verb(command.hecks_name, creates: command.creates?)
         end
       end
     end

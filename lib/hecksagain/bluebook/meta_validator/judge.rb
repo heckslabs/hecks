@@ -39,6 +39,15 @@ module Hecksagain
 
         attr_reader :refusals
 
+        # THE RECORDS SURVIVE THE VERDICT.
+        #
+        # Judging a bluebook and HOLDING one differ by exactly this: whether anyone
+        # keeps the runtime the declarations were dispatched into. Nobody did, so
+        # `spec/round_trip_spec` reached the records by `Judge.allocate` and four
+        # `instance_variable_set` calls. Reading the chapter back is the point now,
+        # not a curiosity, so the runtime is simply readable.
+        attr_reader :runtime
+
         def initialize(bluebook)
           @bluebook = bluebook
           @refusals = []

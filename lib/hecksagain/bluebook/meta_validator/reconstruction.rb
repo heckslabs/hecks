@@ -55,6 +55,7 @@ module Hecksagain
         def to_h
           {
             name:             text(@chapter[:name]),
+            version:          text(@chapter[:version]),
             vision:           text(@chapter[:vision]),
             classification:   text(@chapter[:classification]),
             aggregates:       declared("Aggregate", chapter_id).map { |row| aggregate(row) },

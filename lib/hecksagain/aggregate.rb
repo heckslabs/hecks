@@ -19,6 +19,43 @@ module Hecksagain
       def repository = runtime.registry.repository(domain, ir)
       def commands   = ir.commands.map { |command| Naming.snake(command.hecks_name) }.sort
 
+      # A CLASS DEFINES ITS OWN SURFACE.
+      #
+      # These two lived in `AggregateBuilder` as `define_readers` and
+      # `define_command`, reaching into `@klass` from outside. They belong here,
+      # because the DSL is about to stop being the only thing that builds an
+      # aggregate: once the language hands the graph back, the assembler needs the
+      # same two calls, and neither of them should have to be a builder to make
+      # them.
+      #
+      # `RESERVED` names would shadow the machinery the instance runs on, so a
+      # field with one of those names gets no reader and says so.
+      RESERVED = %i[id state events reload inspect to_h hash class].freeze
+
+      def declare_reader(field)
+        if RESERVED.include?(field.to_sym)
+          warn "[hecksagain] #{hecks_name}##{field} shadows a built-in — no reader defined"
+          return
+        end
+
+        field = field.to_sym
+        define_method(field) { @state[field] }
+      end
+
+      # A creating verb is a CLASS method returning the new record ; one that
+      # reaches an existing root is an instance method returning self, so verbs
+      # chain. Only the verb string is closed over — `run` resolves the runtime at
+      # call time.
+      def declare_verb(verb, creates:)
+        method_name = Naming.snake(verb)
+
+        if creates
+          define_singleton_method(method_name) { |**args| wrap(run(verb, **args).instance) }
+        else
+          define_method(method_name) { |**args| run(verb, **args) }
+        end
+      end
+
       def find(id)
         found = repository.find(id)
         found && wrap(found)

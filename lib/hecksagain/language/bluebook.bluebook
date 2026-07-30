@@ -44,6 +44,14 @@ Hecks.bluebook "Meta" do
     attribute :name,           BluebookName
     attribute :vision,         Vision
     attribute :classification, Classification
+    # A domain CONTRACT version, pinned per chapter — `Hecks.bluebook "Pizzas",
+    # version: "v2"`. Held here because the language must hold everything the
+    # runtime runs on, and this was the one field it did not: the round trip sliced
+    # its comparison by the reconstruction's own keys, so a version was excluded
+    # from the check rather than failing it, and a chapter assembled purely from
+    # these records would have lost it in silence. Most chapters declare none, and
+    # ABSENT IS NOT EMPTY — an unversioned chapter offers nothing here at all.
+    attribute :version,        Version
     attribute :normalisations, list_of(NormalisationRule)
 
     value_object "RuleText" do
@@ -77,6 +85,11 @@ Hecks.bluebook "Meta" do
       end
     end
 
+    value_object "Version" do
+      attribute :value, String
+      invariant("a version says something") { !value.to_s.empty? }
+    end
+
     command "Declare" do
       role "Language"
       goal "Open a chapter"
@@ -84,6 +97,7 @@ Hecks.bluebook "Meta" do
       attribute :name,           BluebookName
       attribute :vision,         Vision
       attribute :classification, Classification
+      attribute :version,        Version
 
       emits "ChapterDeclared"
     end
