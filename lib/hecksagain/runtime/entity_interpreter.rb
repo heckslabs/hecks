@@ -29,7 +29,7 @@ module Hecksagain
         instance   = step(:hydrate_parent) { parent(repository, aggregate, entity_name, command_name, args) }
         element    = step(:locate_element) { element_of(aggregate, entity, entity_name, command_name, instance, args) }
 
-        view = Instance.new(aggregate: entity, id: element[entity.identified_by].to_s, state: element)
+        view = Instance.new(aggregate: entity, id: identity_scalar(entity, element[entity.identified_by]).to_s, state: element)
         step(:enforce_givens) { @rules.enforce_givens(view, command, args) }
         transition = step(:admissible_transition) { @rules.admissible_transition(entity, command, view) }
         step(:apply_mutations) { command.mutations.each { |mutation| apply_to_element(aggregate, entity, element, mutation, args) } }
@@ -66,7 +66,21 @@ module Hecksagain
         want = Value.for_attribute(aggregate, entity.attribute(key), want)
 
         Array(instance[list_attr.name]).find { |el| el[key] == want } ||
-          raise(NotFound, "no #{entity_name} with #{key} #{Value.materialize(want).to_json} on #{aggregate.hecks_name} #{instance.id.inspect}")
+          raise(NotFound, "no #{entity_name} with #{key} #{identity_scalar(entity, want).to_json} on #{aggregate.hecks_name} #{instance.id.inspect}")
+      end
+
+      # An id is a SCALAR. The path says which field carries it, so a piece is
+      # entry 3 — never entry {"value":3}, which is an identity nobody can type
+      # back in, and which was reaching the view as a Ruby object address
+      # besides. With no path the single field is still unwrapped, because a
+      # value object standing as an identity has exactly one field to give.
+      def identity_scalar(entity, held)
+        _head, *rest = entity.identity_path.to_s.split(".")
+        return Value.identifier(held) if rest.empty?
+
+        rest.reduce(Value.materialize(held)) do |dug, field|
+          dug.is_a?(Hash) ? (dug[field.to_sym] || dug[field]) : nil
+        end
       end
 
       def apply_to_element(aggregate, entity, element, mutation, args)

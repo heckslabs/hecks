@@ -145,6 +145,25 @@ pub fn extract_symbol(line: &str) -> Option<String> {
     }
 }
 
+/// The two ways a construct says what it is known by, read in ONE place.
+///
+/// `identified_by :sequence` names the attribute ; `identified_by { sequence.value }`
+/// names the scalar FIELD inside it. A head and a piece spell this identically, so
+/// they must READ it identically — the block form lived inlined in the aggregate
+/// parser, which is exactly why an entity could not say the same words.
+pub fn extract_identity_path(line: &str) -> Option<String> {
+    if line.contains(char::from(123)) {
+        return line
+            .split(char::from(123))
+            .nth(1)
+            .and_then(|inner| inner.split(char::from(125)).next())
+            .map(|path| path.trim().to_string())
+            .filter(|path| !path.is_empty());
+    }
+
+    extract_symbol(line)
+}
+
 pub fn extract_word_after(line: &str, keyword: &str) -> Option<String> {
     let start = line.find(keyword)? + keyword.len();
     let rest = line[start..].trim();

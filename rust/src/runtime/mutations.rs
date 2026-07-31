@@ -438,7 +438,15 @@ fn build_element(
     }
 
     if let Some(entity) = entity_for(aggregate, target) {
-        if let Some(key) = entity.get("identified_by").and_then(Value::as_str) {
+        // The HEAD, not the path. A piece is GIVEN its identity here, and
+        // what is filled in is the attribute — the path only says which
+        // field inside it stands as the id.
+        if let Some(key) = entity
+            .get("identified_by")
+            .and_then(Value::as_str)
+            .map(|identity| identity.split('.').next().unwrap_or(identity).to_string())
+        {
+            let key = key.as_str();
             if !fields.contains_key(key) {
                 let generated = Value::from(current_len as i64 + 1);
                 let entity_attributes = array(&entity, "attributes");

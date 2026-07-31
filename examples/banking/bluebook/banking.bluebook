@@ -186,7 +186,7 @@ Hecks.bluebook "Banking" do
     entity "LedgerEntry" do
       description "One movement across the account, in the order it was posted."
 
-      identified_by :sequence
+      identified_by { sequence.value }
 
       attribute :sequence,  LedgerSequence
       attribute :amount,    Money
@@ -414,7 +414,7 @@ Hecks.bluebook "Banking" do
     entity "Withdrawal" do
       description "One handful of cash, in the order it was taken."
 
-      identified_by :sequence
+      identified_by { sequence.value }
 
       attribute :sequence,  WithdrawalSequence
       attribute :cents,     WithdrawalAmount

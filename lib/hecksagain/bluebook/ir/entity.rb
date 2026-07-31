@@ -26,7 +26,7 @@ module Hecksagain
         extend Construct
 
         class << self
-          attr_reader :description, :identified_by, :attributes, :commands, :queries, :lifecycle
+          attr_reader :description, :identified_by, :identity_path, :attributes, :commands, :queries, :lifecycle
 
           def declare(name:, description: nil, identified_by: nil, attributes: [],
                       commands: [], queries: [], lifecycle: nil)
@@ -43,7 +43,13 @@ module Hecksagain
 
           def absorb(description:, identified_by:, attributes:, commands:, queries:, lifecycle:)
             @description   = description
-            @identified_by = identified_by
+            # Split exactly as an aggregate splits it. The PATH "sequence.value"
+            # says which field carries the identity ; `identified_by` stays the
+            # HEAD attribute, because every reader that looks up or coerces an
+            # attribute — the element finder, the sort key, the identity an
+            # appended piece is given — wants the attribute, not the path.
+            @identity_path = identified_by&.to_s
+            @identified_by = @identity_path&.split(".")&.first&.to_sym
             @attributes    = attributes
             @commands      = commands
             @queries       = queries
@@ -63,7 +69,7 @@ module Hecksagain
             {
               name:          hecks_name,
               description:   description,
-              identified_by: identified_by&.to_s,
+              identified_by: identity_path,
               attributes:    attributes.map(&:to_h),
               commands:      commands.map(&:to_h),
               queries:       queries.map(&:to_h),

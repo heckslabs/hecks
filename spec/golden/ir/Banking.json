@@ -896,7 +896,7 @@
             }
           ],
           "description": "One movement across the account, in the order it was posted.",
-          "identified_by": "sequence",
+          "identified_by": "sequence.value",
           "lifecycle": {
             "default": "posted",
             "field": "state",
@@ -1461,7 +1461,7 @@
             }
           ],
           "description": "One handful of cash, in the order it was taken.",
-          "identified_by": "sequence",
+          "identified_by": "sequence.value",
           "lifecycle": {
             "default": "taken",
             "field": "state",

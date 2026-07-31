@@ -151,6 +151,25 @@ fn query_text(value: &Value) -> String {
     }
 }
 
+/// An id is a SCALAR. The path says which field carries it ; with no path, a
+/// value object standing as an identity still has exactly one field to give,
+/// so it is unwrapped rather than rendered whole. `EntityInterpreter
+/// #identity_scalar` is the same reading on the Ruby side — a piece is entry 3,
+/// never entry {"value":3}.
+fn identity_scalar(value: &Value, field: Option<&str>) -> Value {
+    match field {
+        Some(name) => value.get(name).cloned().unwrap_or_else(|| value.clone()),
+        None => match value.as_object() {
+            Some(fields) if fields.len() == 1 => fields
+                .values()
+                .next()
+                .cloned()
+                .unwrap_or_else(|| value.clone()),
+            _ => value.clone(),
+        },
+    }
+}
+
 fn query_value(value: &Value) -> &Value {
     match value {
         Value::Object(fields) if fields.len() == 1 => {
@@ -530,11 +549,18 @@ impl Runtime {
             .and_then(|a| a.get("name").and_then(Value::as_str).map(str::to_string))
             .ok_or_else(|| format!("{} holds no list of {}", aggregate_name, entity_name))?;
 
-        let entity_key = entity
+        // A PIECE's identity is a path too : the caller passes the head
+        // attribute and the id is the scalar dug out of it, exactly as a
+        // head resolves its own a few lines above.
+        let entity_identity = entity
             .get("identified_by")
             .and_then(Value::as_str)
             .unwrap_or("id")
             .to_string();
+        let (entity_key, entity_field) = match entity_identity.split_once('.') {
+            Some((left, right)) => (left.to_string(), Some(right.to_string())),
+            None => (entity_identity.clone(), None),
+        };
         let want = args.get(&entity_key).cloned().ok_or_else(|| {
             format!("{command_name} acts on one {entity_name} — pass {entity_key}:")
         })?;
@@ -567,7 +593,11 @@ impl Runtime {
             .ok_or_else(|| {
                 format!(
                     "no {} with {} {} on {} {:?}",
-                    entity_name, entity_key, want, aggregate_name, parent_id
+                    entity_name,
+                    entity_key,
+                    identity_scalar(&want, entity_field.as_deref()),
+                    aggregate_name,
+                    parent_id
                 )
             })?;
         let mut element = elements[position].as_object().cloned().unwrap_or_default();
@@ -882,9 +912,14 @@ impl Runtime {
         // sub-list row is identified by its PARENT and then by the entity's own
         // key, since two entities under different parents can share a sequence,
         // and a parent alone would leave every sibling tied.
+        // The HEAD, not the path : a row is a stored element, and what it
+        // keys is the attribute the identity is dug out of.
         let entity_key = entity
             .get("identified_by")
             .and_then(Value::as_str)
+            .unwrap_or("id")
+            .split('.')
+            .next()
             .unwrap_or("id")
             .to_string();
         rows.sort_by(|a, b| {
@@ -2124,8 +2159,13 @@ mod dispatch_order_tests {
         // the in-memory store — same fixture the Ruby spec uses.
         let mut runtime = Runtime::boot("../spec/fixtures/dispatch_order.bluebook").unwrap();
 
+        // ADDRESSED BY ITS LABEL, the way the Ruby twin addresses it
+        // (vocabulary_conformance_spec.rb). A Widget is `identified_by
+        // { label.value }`, so it is stored as "x" — passing `id: "w1"`
+        // opened one widget and then looked for another, and the entity
+        // leg has been refusing "no Widget with label" ever since the
+        // fixture learned to name a field. Nothing minted, nothing guessed.
         let open: State = serde_json::from_value(json!({
-            "id": "w1",
             "label": {"value": "x"},
             "amount": {"value": 5},
             "part_sequence": {"value": 1},
@@ -2136,7 +2176,7 @@ mod dispatch_order_tests {
 
         runtime.dispatch_trace = Some(Vec::new());
         let advance: State = serde_json::from_value(json!({
-            "id": "w1",
+            "label": {"value": "x"},
             "sequence": {"value": 1},
             "note": {"value": "done note"}
         }))
