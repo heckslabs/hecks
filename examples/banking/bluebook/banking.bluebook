@@ -610,9 +610,16 @@ Hecks.bluebook "Banking" do
   aggregate "CardPayment" do
     description "A card authorisation that either settles, is voided before settlement, or becomes a post-settlement dispute."
 
+    identified_by :authorisation
+
     reference_to Account
     reference_to Customer, as: :disputed_by
+    attribute :authorisation, AuthorisationCode
     attribute :amount,   PaymentAmount
+
+    value_object "AuthorisationCode" do
+      attribute :value, String
+    end
     attribute :merchant, MerchantName
 
     value_object "PaymentAmount" do
@@ -637,6 +644,7 @@ Hecks.bluebook "Banking" do
 
     command "Authorize" do
       reference_to Account
+      attribute :authorisation, AuthorisationCode
       attribute :amount, PaymentAmount
       attribute :merchant, MerchantName
       then_set :amount, to: :amount

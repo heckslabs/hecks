@@ -2009,6 +2009,12 @@
         {
           "default": null,
           "list": false,
+          "name": "authorisation",
+          "type": "AuthorisationCode"
+        },
+        {
+          "default": null,
+          "list": false,
           "name": "amount",
           "type": "PaymentAmount"
         },
@@ -2027,6 +2033,12 @@
               "list": false,
               "name": "account_id",
               "type": "Reference<Account>"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "authorisation",
+              "type": "AuthorisationCode"
             },
             {
               "default": null,
@@ -2213,7 +2225,7 @@
       "entities": [
 
       ],
-      "identified_by": "id",
+      "identified_by": "authorisation",
       "lifecycle": {
         "default": "authorized",
         "field": "status",
@@ -2296,6 +2308,24 @@
         }
       ],
       "value_objects": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "AuthorisationCode"
+        },
         {
           "attributes": [
             {

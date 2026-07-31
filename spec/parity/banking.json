@@ -1823,7 +1823,6 @@
     {
       "verb": "Banking::CardPayment.Authorize",
       "args": {
-        "id": "pay-refund",
         "amount": {
           "cents": 500
         },
@@ -1832,31 +1831,39 @@
         },
         "account_id": {
           "value": "acct-8"
+        },
+        "authorisation": {
+          "value": "pay-refund"
         }
       }
     },
     {
       "verb": "Banking::CardPayment.Capture",
       "args": {
-        "id": "pay-refund"
+        "authorisation": {
+          "value": "pay-refund"
+        }
       }
     },
     {
       "verb": "Banking::CardPayment.Refund",
       "args": {
-        "id": "pay-refund"
+        "authorisation": {
+          "value": "pay-refund"
+        }
       }
     },
     {
       "verb": "Banking::CardPayment.Refund",
       "args": {
-        "id": "pay-refund"
+        "authorisation": {
+          "value": "pay-refund"
+        }
       }
     },
     {
       "verb": "Banking::CardPayment.Authorize",
       "args": {
-        "id": "pay-void",
         "amount": {
           "cents": 250
         },
@@ -1865,25 +1872,31 @@
         },
         "account_id": {
           "value": "acct-8"
+        },
+        "authorisation": {
+          "value": "pay-void"
         }
       }
     },
     {
       "verb": "Banking::CardPayment.Void",
       "args": {
-        "id": "pay-void"
+        "authorisation": {
+          "value": "pay-void"
+        }
       }
     },
     {
       "verb": "Banking::CardPayment.Capture",
       "args": {
-        "id": "pay-void"
+        "authorisation": {
+          "value": "pay-void"
+        }
       }
     },
     {
       "verb": "Banking::CardPayment.Authorize",
       "args": {
-        "id": "pay-chargeback",
         "amount": {
           "cents": 300
         },
@@ -1892,40 +1905,50 @@
         },
         "account_id": {
           "value": "acct-8"
+        },
+        "authorisation": {
+          "value": "pay-chargeback"
         }
       }
     },
     {
       "verb": "Banking::CardPayment.Capture",
       "args": {
-        "id": "pay-chargeback"
+        "authorisation": {
+          "value": "pay-chargeback"
+        }
       }
     },
     {
       "verb": "Banking::CardPayment.Dispute",
       "args": {
-        "id": "pay-chargeback",
         "disputed_by": {
           "value": "CUST-0002"
+        },
+        "authorisation": {
+          "value": "pay-chargeback"
         }
       }
     },
     {
       "verb": "Banking::CardPayment.Chargeback",
       "args": {
-        "id": "pay-chargeback"
+        "authorisation": {
+          "value": "pay-chargeback"
+        }
       }
     },
     {
       "verb": "Banking::CardPayment.RejectDispute",
       "args": {
-        "id": "pay-chargeback"
+        "authorisation": {
+          "value": "pay-chargeback"
+        }
       }
     },
     {
       "verb": "Banking::CardPayment.Authorize",
       "args": {
-        "id": "pay-reversal",
         "amount": {
           "cents": 125
         },
@@ -1934,31 +1957,39 @@
         },
         "account_id": {
           "value": "acct-8"
+        },
+        "authorisation": {
+          "value": "pay-reversal"
         }
       }
     },
     {
       "verb": "Banking::CardPayment.Capture",
       "args": {
-        "id": "pay-reversal"
+        "authorisation": {
+          "value": "pay-reversal"
+        }
       }
     },
     {
       "verb": "Banking::CardPayment.Reverse",
       "args": {
-        "id": "pay-reversal"
+        "authorisation": {
+          "value": "pay-reversal"
+        }
       }
     },
     {
       "verb": "Banking::CardPayment.Refund",
       "args": {
-        "id": "pay-reversal"
+        "authorisation": {
+          "value": "pay-reversal"
+        }
       }
     },
     {
       "verb": "Banking::CardPayment.Authorize",
       "args": {
-        "id": "pay-bad",
         "amount": {
           "cents": 0
         },
@@ -1967,6 +1998,9 @@
         },
         "account_id": {
           "value": "acct-8"
+        },
+        "authorisation": {
+          "value": "pay-bad"
         }
       }
     },
