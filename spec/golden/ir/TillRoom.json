@@ -6,6 +6,7 @@
           "default": null,
           "list": false,
           "name": "number",
+          "optional": false,
           "type": "TillNumber"
         },
         {
@@ -14,13 +15,22 @@
           },
           "list": false,
           "name": "balance",
+          "optional": false,
           "type": "Money"
         },
         {
           "default": null,
           "list": true,
           "name": "marks",
+          "optional": false,
           "type": "Mark"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "note",
+          "optional": false,
+          "type": "Note"
         }
       ],
       "commands": [
@@ -30,6 +40,7 @@
               "default": null,
               "list": false,
               "name": "number",
+              "optional": false,
               "type": "TillNumber"
             }
           ],
@@ -53,7 +64,15 @@
               "default": null,
               "list": false,
               "name": "amount",
+              "optional": false,
               "type": "Money"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "note",
+              "optional": true,
+              "type": "Note"
             }
           ],
           "emits": [
@@ -79,6 +98,14 @@
               },
               "op": "append",
               "target": "marks"
+            },
+            {
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "note"
+              },
+              "target": "note"
             }
           ],
           "name": "TakeIn",
@@ -91,6 +118,7 @@
               "default": null,
               "list": false,
               "name": "amount",
+              "optional": false,
               "type": "Money"
             }
           ],
@@ -168,6 +196,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -186,6 +215,7 @@
               "default": null,
               "list": false,
               "name": "cents",
+              "optional": false,
               "type": "Integer"
             }
           ],
@@ -207,12 +237,14 @@
               "default": null,
               "list": false,
               "name": "amount",
+              "optional": false,
               "type": "Integer"
             },
             {
               "default": null,
               "list": false,
               "name": "direction",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -224,6 +256,25 @@
 
           ],
           "name": "Mark"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "text",
+              "optional": false,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Note"
         }
       ]
     }

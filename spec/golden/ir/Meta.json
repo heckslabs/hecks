@@ -6,30 +6,35 @@
           "default": null,
           "list": false,
           "name": "name",
+          "optional": false,
           "type": "BluebookName"
         },
         {
           "default": null,
           "list": false,
           "name": "vision",
+          "optional": false,
           "type": "Vision"
         },
         {
           "default": null,
           "list": false,
           "name": "classification",
+          "optional": false,
           "type": "Classification"
         },
         {
           "default": null,
           "list": false,
           "name": "version",
+          "optional": false,
           "type": "Version"
         },
         {
           "default": null,
           "list": true,
           "name": "normalisations",
+          "optional": false,
           "type": "NormalisationRule"
         }
       ],
@@ -40,24 +45,28 @@
               "default": null,
               "list": false,
               "name": "name",
+              "optional": false,
               "type": "BluebookName"
             },
             {
               "default": null,
               "list": false,
               "name": "vision",
+              "optional": true,
               "type": "Vision"
             },
             {
               "default": null,
               "list": false,
               "name": "classification",
+              "optional": true,
               "type": "Classification"
             },
             {
               "default": null,
               "list": false,
               "name": "version",
+              "optional": true,
               "type": "Version"
             }
           ],
@@ -81,30 +90,35 @@
               "default": null,
               "list": false,
               "name": "strategy",
+              "optional": false,
               "type": "RuleText"
             },
             {
               "default": null,
               "list": false,
               "name": "source_token",
+              "optional": false,
               "type": "RuleText"
             },
             {
               "default": null,
               "list": false,
               "name": "replacement",
+              "optional": false,
               "type": "RuleText"
             },
             {
               "default": null,
               "list": false,
               "name": "boundary",
+              "optional": false,
               "type": "RuleText"
             },
             {
               "default": null,
               "list": false,
               "name": "position",
+              "optional": true,
               "type": "RuleText"
             }
           ],
@@ -147,6 +161,7 @@
               "default": null,
               "list": false,
               "name": "name",
+              "optional": false,
               "type": "BluebookName"
             }
           ],
@@ -170,6 +185,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -188,30 +204,35 @@
               "default": null,
               "list": false,
               "name": "strategy",
+              "optional": false,
               "type": "String"
             },
             {
               "default": null,
               "list": false,
               "name": "source_token",
+              "optional": false,
               "type": "String"
             },
             {
               "default": null,
               "list": false,
               "name": "replacement",
+              "optional": false,
               "type": "String"
             },
             {
               "default": null,
               "list": false,
               "name": "boundary",
+              "optional": false,
               "type": "String"
             },
             {
               "default": null,
               "list": false,
               "name": "position",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -230,6 +251,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -251,6 +273,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -272,6 +295,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -293,6 +317,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -316,60 +341,70 @@
           "default": null,
           "list": false,
           "name": "bluebook_id",
+          "optional": false,
           "type": "Reference<Bluebook>"
         },
         {
           "default": null,
           "list": false,
           "name": "name",
+          "optional": false,
           "type": "AggregateName"
         },
         {
           "default": null,
           "list": false,
           "name": "description",
+          "optional": false,
           "type": "Description"
         },
         {
           "default": null,
           "list": false,
           "name": "identified_by",
+          "optional": false,
           "type": "IdentityField"
         },
         {
           "default": null,
           "list": true,
           "name": "attributes",
+          "optional": false,
           "type": "Field"
         },
         {
           "default": null,
           "list": true,
           "name": "value_objects",
+          "optional": false,
           "type": "ValueName"
         },
         {
           "default": null,
           "list": false,
           "name": "state_field",
+          "optional": false,
           "type": "IdentityField"
         },
         {
           "default": null,
           "list": false,
           "name": "state_start",
+          "optional": false,
           "type": "IdentityField"
         },
         {
           "default": null,
           "list": true,
           "name": "transitions",
+          "optional": false,
           "type": "Transition"
         },
         {
           "default": null,
           "list": false,
           "name": "position",
+          "optional": false,
           "type": "Position"
         }
       ],
@@ -380,30 +415,35 @@
               "default": null,
               "list": false,
               "name": "bluebook_id",
+              "optional": false,
               "type": "Reference<Bluebook>"
             },
             {
               "default": null,
               "list": false,
               "name": "name",
+              "optional": false,
               "type": "AggregateName"
             },
             {
               "default": null,
               "list": false,
               "name": "description",
+              "optional": true,
               "type": "Description"
             },
             {
               "default": null,
               "list": false,
               "name": "identified_by",
+              "optional": false,
               "type": "IdentityField"
             },
             {
               "default": null,
               "list": false,
               "name": "position",
+              "optional": true,
               "type": "Position"
             }
           ],
@@ -427,24 +467,35 @@
               "default": null,
               "list": false,
               "name": "type",
+              "optional": false,
               "type": "Reference<ValueObject>"
             },
             {
               "default": null,
               "list": false,
               "name": "name",
+              "optional": false,
               "type": "FieldName"
             },
             {
               "default": null,
               "list": false,
               "name": "list",
+              "optional": false,
+              "type": "ListFlag"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "optional",
+              "optional": true,
               "type": "ListFlag"
             },
             {
               "default": null,
               "list": false,
               "name": "default",
+              "optional": true,
               "type": "LiteralText"
             }
           ],
@@ -461,6 +512,7 @@
                 "default": "default",
                 "list": "list",
                 "name": "name",
+                "optional": "optional",
                 "type": "type"
               },
               "op": "append",
@@ -477,24 +529,35 @@
               "default": null,
               "list": false,
               "name": "points_at",
+              "optional": false,
               "type": "Reference<Aggregate>"
             },
             {
               "default": null,
               "list": false,
               "name": "name",
+              "optional": false,
               "type": "FieldName"
             },
             {
               "default": null,
               "list": false,
               "name": "list",
+              "optional": false,
+              "type": "ListFlag"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "optional",
+              "optional": true,
               "type": "ListFlag"
             },
             {
               "default": null,
               "list": false,
               "name": "default",
+              "optional": true,
               "type": "LiteralText"
             }
           ],
@@ -511,6 +574,7 @@
                 "default": "default",
                 "list": "list",
                 "name": "name",
+                "optional": "optional",
                 "type": "points_at"
               },
               "op": "append",
@@ -527,24 +591,35 @@
               "default": null,
               "list": false,
               "name": "holds",
+              "optional": false,
               "type": "Reference<Entity>"
             },
             {
               "default": null,
               "list": false,
               "name": "name",
+              "optional": false,
               "type": "FieldName"
             },
             {
               "default": null,
               "list": false,
               "name": "list",
+              "optional": false,
+              "type": "ListFlag"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "optional",
+              "optional": true,
               "type": "ListFlag"
             },
             {
               "default": null,
               "list": false,
               "name": "default",
+              "optional": true,
               "type": "LiteralText"
             }
           ],
@@ -561,6 +636,7 @@
                 "default": "default",
                 "list": "list",
                 "name": "name",
+                "optional": "optional",
                 "type": "holds"
               },
               "op": "append",
@@ -577,12 +653,14 @@
               "default": null,
               "list": false,
               "name": "state_field",
+              "optional": false,
               "type": "FieldName"
             },
             {
               "default": null,
               "list": false,
               "name": "state_start",
+              "optional": false,
               "type": "FieldName"
             }
           ],
@@ -621,18 +699,21 @@
               "default": null,
               "list": false,
               "name": "command",
+              "optional": false,
               "type": "FieldName"
             },
             {
               "default": null,
               "list": false,
               "name": "from_state",
+              "optional": true,
               "type": "FieldName"
             },
             {
               "default": null,
               "list": false,
               "name": "to_state",
+              "optional": false,
               "type": "FieldName"
             }
           ],
@@ -685,6 +766,7 @@
               "default": null,
               "list": false,
               "name": "name",
+              "optional": false,
               "type": "FieldName"
             }
           ],
@@ -723,6 +805,7 @@
               "default": null,
               "list": false,
               "name": "bluebook_id",
+              "optional": false,
               "type": "IdentityField"
             }
           ],
@@ -749,6 +832,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -770,6 +854,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -791,6 +876,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -809,24 +895,35 @@
               "default": null,
               "list": false,
               "name": "name",
+              "optional": false,
               "type": "String"
             },
             {
               "default": null,
               "list": false,
               "name": "type",
+              "optional": false,
               "type": "String"
             },
             {
               "default": null,
               "list": false,
               "name": "list",
+              "optional": false,
+              "type": "String"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "optional",
+              "optional": true,
               "type": "String"
             },
             {
               "default": null,
               "list": false,
               "name": "default",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -845,6 +942,7 @@
               "default": null,
               "list": false,
               "name": "name",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -863,18 +961,21 @@
               "default": null,
               "list": false,
               "name": "command",
+              "optional": false,
               "type": "String"
             },
             {
               "default": null,
               "list": false,
               "name": "from_state",
+              "optional": false,
               "type": "String"
             },
             {
               "default": null,
               "list": false,
               "name": "to_state",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -893,6 +994,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "Integer"
             }
           ],
@@ -911,6 +1013,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -932,6 +1035,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -953,6 +1057,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -971,6 +1076,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -994,66 +1100,77 @@
           "default": null,
           "list": false,
           "name": "aggregate_id",
+          "optional": false,
           "type": "Reference<Aggregate>"
         },
         {
           "default": null,
           "list": false,
           "name": "entity_id",
+          "optional": false,
           "type": "Reference<Entity>"
         },
         {
           "default": null,
           "list": false,
           "name": "name",
+          "optional": false,
           "type": "CommandName"
         },
         {
           "default": null,
           "list": false,
           "name": "role",
+          "optional": false,
           "type": "Actor"
         },
         {
           "default": null,
           "list": false,
           "name": "goal",
+          "optional": false,
           "type": "Goal"
         },
         {
           "default": null,
           "list": true,
           "name": "emits",
+          "optional": false,
           "type": "Announcement"
         },
         {
           "default": null,
           "list": false,
           "name": "references",
+          "optional": false,
           "type": "EventName"
         },
         {
           "default": null,
           "list": true,
           "name": "attributes",
+          "optional": false,
           "type": "Argument"
         },
         {
           "default": null,
           "list": true,
           "name": "givens",
+          "optional": false,
           "type": "Rule"
         },
         {
           "default": null,
           "list": true,
           "name": "mutations",
+          "optional": false,
           "type": "Change"
         },
         {
           "default": null,
           "list": false,
           "name": "position",
+          "optional": false,
           "type": "Position"
         }
       ],
@@ -1064,36 +1181,42 @@
               "default": null,
               "list": false,
               "name": "aggregate_id",
+              "optional": false,
               "type": "Reference<Aggregate>"
             },
             {
               "default": null,
               "list": false,
               "name": "entity_id",
+              "optional": true,
               "type": "Reference<Entity>"
             },
             {
               "default": null,
               "list": false,
               "name": "name",
+              "optional": false,
               "type": "CommandName"
             },
             {
               "default": null,
               "list": false,
               "name": "role",
+              "optional": true,
               "type": "Actor"
             },
             {
               "default": null,
               "list": false,
               "name": "goal",
+              "optional": true,
               "type": "Goal"
             },
             {
               "default": null,
               "list": false,
               "name": "position",
+              "optional": true,
               "type": "Position"
             }
           ],
@@ -1117,24 +1240,35 @@
               "default": null,
               "list": false,
               "name": "name",
+              "optional": false,
               "type": "ArgName"
             },
             {
               "default": null,
               "list": false,
               "name": "type",
+              "optional": false,
               "type": "ArgType"
             },
             {
               "default": null,
               "list": false,
               "name": "list",
+              "optional": false,
+              "type": "ArgType"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "optional",
+              "optional": true,
               "type": "ArgType"
             },
             {
               "default": null,
               "list": false,
               "name": "default",
+              "optional": true,
               "type": "ArgType"
             }
           ],
@@ -1151,6 +1285,7 @@
                 "default": "default",
                 "list": "list",
                 "name": "name",
+                "optional": "optional",
                 "type": "type"
               },
               "op": "append",
@@ -1167,24 +1302,35 @@
               "default": null,
               "list": false,
               "name": "points_at",
+              "optional": false,
               "type": "Reference<Aggregate>"
             },
             {
               "default": null,
               "list": false,
               "name": "name",
+              "optional": false,
               "type": "ArgName"
             },
             {
               "default": null,
               "list": false,
               "name": "list",
+              "optional": false,
+              "type": "ArgType"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "optional",
+              "optional": true,
               "type": "ArgType"
             },
             {
               "default": null,
               "list": false,
               "name": "default",
+              "optional": true,
               "type": "ArgType"
             }
           ],
@@ -1201,6 +1347,7 @@
                 "default": "default",
                 "list": "list",
                 "name": "name",
+                "optional": "optional",
                 "type": "points_at"
               },
               "op": "append",
@@ -1217,12 +1364,14 @@
               "default": null,
               "list": false,
               "name": "description",
+              "optional": true,
               "type": "RuleText"
             },
             {
               "default": null,
               "list": false,
               "name": "canonical",
+              "optional": false,
               "type": "RuleText"
             }
           ],
@@ -1260,30 +1409,35 @@
               "default": null,
               "list": false,
               "name": "target",
+              "optional": false,
               "type": "FieldRef"
             },
             {
               "default": null,
               "list": false,
               "name": "op",
+              "optional": false,
               "type": "OpName"
             },
             {
               "default": null,
               "list": false,
               "name": "field",
+              "optional": false,
               "type": "FieldRef"
             },
             {
               "default": null,
               "list": false,
               "name": "kind",
+              "optional": false,
               "type": "FieldRef"
             },
             {
               "default": null,
               "list": false,
               "name": "source",
+              "optional": false,
               "type": "FieldRef"
             }
           ],
@@ -1324,6 +1478,7 @@
               "default": null,
               "list": false,
               "name": "root",
+              "optional": false,
               "type": "EventName"
             }
           ],
@@ -1361,6 +1516,7 @@
               "default": null,
               "list": false,
               "name": "announces",
+              "optional": false,
               "type": "EventName"
             }
           ],
@@ -1402,6 +1558,7 @@
               "default": null,
               "list": false,
               "name": "aggregate_id",
+              "optional": false,
               "type": "CommandText"
             }
           ],
@@ -1428,6 +1585,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -1449,6 +1607,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -1467,6 +1626,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -1485,6 +1645,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -1503,6 +1664,7 @@
               "default": null,
               "list": false,
               "name": "name",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -1521,24 +1683,35 @@
               "default": null,
               "list": false,
               "name": "name",
+              "optional": false,
               "type": "String"
             },
             {
               "default": null,
               "list": false,
               "name": "type",
+              "optional": false,
               "type": "String"
             },
             {
               "default": null,
               "list": false,
               "name": "list",
+              "optional": false,
+              "type": "String"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "optional",
+              "optional": true,
               "type": "String"
             },
             {
               "default": null,
               "list": false,
               "name": "default",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -1557,12 +1730,14 @@
               "default": null,
               "list": false,
               "name": "description",
+              "optional": false,
               "type": "String"
             },
             {
               "default": null,
               "list": false,
               "name": "canonical",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -1581,30 +1756,35 @@
               "default": null,
               "list": false,
               "name": "target",
+              "optional": false,
               "type": "String"
             },
             {
               "default": null,
               "list": false,
               "name": "op",
+              "optional": false,
               "type": "String"
             },
             {
               "default": null,
               "list": false,
               "name": "field",
+              "optional": false,
               "type": "String"
             },
             {
               "default": null,
               "list": false,
               "name": "kind",
+              "optional": false,
               "type": "String"
             },
             {
               "default": null,
               "list": false,
               "name": "source",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -1623,6 +1803,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -1641,6 +1822,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "Integer"
             }
           ],
@@ -1659,6 +1841,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -1680,6 +1863,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -1698,6 +1882,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -1716,6 +1901,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -1734,6 +1920,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -1757,36 +1944,42 @@
           "default": null,
           "list": false,
           "name": "aggregate_id",
+          "optional": false,
           "type": "Reference<Aggregate>"
         },
         {
           "default": null,
           "list": false,
           "name": "name",
+          "optional": false,
           "type": "ValueObjectName"
         },
         {
           "default": null,
           "list": true,
           "name": "attributes",
+          "optional": false,
           "type": "ShapeField"
         },
         {
           "default": null,
           "list": true,
           "name": "invariants",
+          "optional": false,
           "type": "Assertion"
         },
         {
           "default": null,
           "list": false,
           "name": "rows",
+          "optional": false,
           "type": "RowCount"
         },
         {
           "default": null,
           "list": false,
           "name": "position",
+          "optional": false,
           "type": "Position"
         }
       ],
@@ -1797,18 +1990,21 @@
               "default": null,
               "list": false,
               "name": "aggregate_id",
+              "optional": false,
               "type": "Reference<Aggregate>"
             },
             {
               "default": null,
               "list": false,
               "name": "name",
+              "optional": false,
               "type": "ValueObjectName"
             },
             {
               "default": null,
               "list": false,
               "name": "position",
+              "optional": true,
               "type": "Position"
             }
           ],
@@ -1832,24 +2028,35 @@
               "default": null,
               "list": false,
               "name": "name",
+              "optional": false,
               "type": "ValueObjectName"
             },
             {
               "default": null,
               "list": false,
               "name": "type",
+              "optional": false,
               "type": "ValueObjectName"
             },
             {
               "default": null,
               "list": false,
               "name": "list",
+              "optional": false,
+              "type": "ValueObjectName"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "optional",
+              "optional": true,
               "type": "ValueObjectName"
             },
             {
               "default": null,
               "list": false,
               "name": "default",
+              "optional": true,
               "type": "ValueObjectText"
             }
           ],
@@ -1866,6 +2073,7 @@
                 "default": "default",
                 "list": "list",
                 "name": "name",
+                "optional": "optional",
                 "type": "type"
               },
               "op": "append",
@@ -1882,6 +2090,7 @@
               "default": null,
               "list": false,
               "name": "rows",
+              "optional": false,
               "type": "RowCount"
             }
           ],
@@ -1915,12 +2124,14 @@
               "default": null,
               "list": false,
               "name": "description",
+              "optional": true,
               "type": "ValueObjectText"
             },
             {
               "default": null,
               "list": false,
               "name": "canonical",
+              "optional": false,
               "type": "ValueObjectText"
             }
           ],
@@ -1967,6 +2178,7 @@
               "default": null,
               "list": false,
               "name": "aggregate_id",
+              "optional": false,
               "type": "ValueObjectText"
             }
           ],
@@ -1993,6 +2205,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "Integer"
             }
           ],
@@ -2011,6 +2224,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -2032,24 +2246,35 @@
               "default": null,
               "list": false,
               "name": "name",
+              "optional": false,
               "type": "String"
             },
             {
               "default": null,
               "list": false,
               "name": "type",
+              "optional": false,
               "type": "String"
             },
             {
               "default": null,
               "list": false,
               "name": "list",
+              "optional": false,
+              "type": "String"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "optional",
+              "optional": true,
               "type": "String"
             },
             {
               "default": null,
               "list": false,
               "name": "default",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -2068,12 +2293,14 @@
               "default": null,
               "list": false,
               "name": "description",
+              "optional": false,
               "type": "String"
             },
             {
               "default": null,
               "list": false,
               "name": "canonical",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -2092,6 +2319,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "Integer"
             }
           ],
@@ -2110,6 +2338,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -2130,6 +2359,7 @@
           "default": null,
           "list": false,
           "name": "name",
+          "optional": false,
           "type": "VocabularyName"
         }
       ],
@@ -2153,6 +2383,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -2174,24 +2405,28 @@
               "default": null,
               "list": false,
               "name": "symbol",
+              "optional": false,
               "type": "String"
             },
             {
               "default": null,
               "list": false,
               "name": "compares_less_than",
+              "optional": false,
               "type": "String"
             },
             {
               "default": null,
               "list": false,
               "name": "compares_equal",
+              "optional": false,
               "type": "String"
             },
             {
               "default": null,
               "list": false,
               "name": "negated",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -2317,12 +2552,14 @@
               "default": null,
               "list": false,
               "name": "name",
+              "optional": false,
               "type": "String"
             },
             {
               "default": null,
               "list": false,
               "name": "compares_via",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -2370,12 +2607,14 @@
               "default": null,
               "list": false,
               "name": "type",
+              "optional": false,
               "type": "String"
             },
             {
               "default": null,
               "list": false,
               "name": "strategy",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -2413,6 +2652,7 @@
               "default": null,
               "list": false,
               "name": "type",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -2466,6 +2706,7 @@
               "default": null,
               "list": false,
               "name": "type",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -2501,6 +2742,7 @@
               "default": null,
               "list": false,
               "name": "name",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -2548,6 +2790,7 @@
               "default": null,
               "list": false,
               "name": "name",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -2577,12 +2820,14 @@
               "default": null,
               "list": false,
               "name": "name",
+              "optional": false,
               "type": "String"
             },
             {
               "default": null,
               "list": false,
               "name": "sign",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -2640,6 +2885,7 @@
               "default": null,
               "list": false,
               "name": "name",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -2705,6 +2951,7 @@
               "default": null,
               "list": false,
               "name": "glob",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -2752,6 +2999,7 @@
               "default": null,
               "list": false,
               "name": "step",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -2764,6 +3012,12 @@
               [
                 "step",
                 "refuse_unknown_arguments"
+              ]
+            ],
+            [
+              [
+                "step",
+                "refuse_absent_arguments"
               ]
             ],
             [
@@ -2835,6 +3089,7 @@
               "default": null,
               "list": false,
               "name": "step",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -2912,6 +3167,7 @@
               "default": null,
               "list": false,
               "name": "name",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -2920,6 +3176,12 @@
 
           ],
           "members": [
+            [
+              [
+                "name",
+                "AbsentArgument"
+              ]
+            ],
             [
               [
                 "name",
@@ -2971,6 +3233,7 @@
               "default": null,
               "list": false,
               "name": "name",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -2996,66 +3259,77 @@
           "default": null,
           "list": false,
           "name": "aggregate_id",
+          "optional": false,
           "type": "Reference<Aggregate>"
         },
         {
           "default": null,
           "list": false,
           "name": "entity_id",
+          "optional": false,
           "type": "Reference<Entity>"
         },
         {
           "default": null,
           "list": false,
           "name": "name",
+          "optional": false,
           "type": "QueryName"
         },
         {
           "default": null,
           "list": false,
           "name": "description",
+          "optional": false,
           "type": "QueryText"
         },
         {
           "default": null,
           "list": false,
           "name": "order_field",
+          "optional": false,
           "type": "QueryText"
         },
         {
           "default": null,
           "list": false,
           "name": "order_way",
+          "optional": false,
           "type": "QueryText"
         },
         {
           "default": null,
           "list": false,
           "name": "limit",
+          "optional": false,
           "type": "QueryText"
         },
         {
           "default": null,
           "list": true,
           "name": "wheres",
+          "optional": false,
           "type": "Filter"
         },
         {
           "default": null,
           "list": true,
           "name": "attributes",
+          "optional": false,
           "type": "AskArgument"
         },
         {
           "default": null,
           "list": true,
           "name": "options",
+          "optional": false,
           "type": "AskOption"
         },
         {
           "default": null,
           "list": false,
           "name": "position",
+          "optional": false,
           "type": "Position"
         }
       ],
@@ -3066,48 +3340,56 @@
               "default": null,
               "list": false,
               "name": "aggregate_id",
+              "optional": false,
               "type": "Reference<Aggregate>"
             },
             {
               "default": null,
               "list": false,
               "name": "entity_id",
+              "optional": true,
               "type": "Reference<Entity>"
             },
             {
               "default": null,
               "list": false,
               "name": "name",
+              "optional": false,
               "type": "QueryName"
             },
             {
               "default": null,
               "list": false,
               "name": "description",
+              "optional": true,
               "type": "QueryText"
             },
             {
               "default": null,
               "list": false,
               "name": "order_field",
+              "optional": true,
               "type": "QueryText"
             },
             {
               "default": null,
               "list": false,
               "name": "order_way",
+              "optional": true,
               "type": "QueryText"
             },
             {
               "default": null,
               "list": false,
               "name": "limit",
+              "optional": true,
               "type": "QueryText"
             },
             {
               "default": null,
               "list": false,
               "name": "position",
+              "optional": true,
               "type": "Position"
             }
           ],
@@ -3131,18 +3413,21 @@
               "default": null,
               "list": false,
               "name": "field",
+              "optional": false,
               "type": "QueryText"
             },
             {
               "default": null,
               "list": false,
               "name": "op",
+              "optional": false,
               "type": "QueryText"
             },
             {
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "QueryText"
             }
           ],
@@ -3174,24 +3459,28 @@
               "default": null,
               "list": false,
               "name": "option",
+              "optional": false,
               "type": "QueryText"
             },
             {
               "default": null,
               "list": false,
               "name": "key",
+              "optional": false,
               "type": "QueryText"
             },
             {
               "default": null,
               "list": false,
               "name": "value",
+              "optional": true,
               "type": "QueryText"
             },
             {
               "default": null,
               "list": false,
               "name": "at",
+              "optional": true,
               "type": "QueryText"
             }
           ],
@@ -3227,24 +3516,35 @@
               "default": null,
               "list": false,
               "name": "name",
+              "optional": false,
               "type": "QueryText"
             },
             {
               "default": null,
               "list": false,
               "name": "type",
+              "optional": false,
               "type": "QueryText"
             },
             {
               "default": null,
               "list": false,
               "name": "list",
+              "optional": false,
+              "type": "QueryText"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "optional",
+              "optional": true,
               "type": "QueryText"
             },
             {
               "default": null,
               "list": false,
               "name": "default",
+              "optional": true,
               "type": "QueryText"
             }
           ],
@@ -3261,6 +3561,7 @@
                 "default": "default",
                 "list": "list",
                 "name": "name",
+                "optional": "optional",
                 "type": "type"
               },
               "op": "append",
@@ -3286,6 +3587,7 @@
               "default": null,
               "list": false,
               "name": "aggregate_id",
+              "optional": false,
               "type": "QueryText"
             }
           ],
@@ -3312,6 +3614,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -3333,6 +3636,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -3351,18 +3655,21 @@
               "default": null,
               "list": false,
               "name": "field",
+              "optional": false,
               "type": "String"
             },
             {
               "default": null,
               "list": false,
               "name": "op",
+              "optional": false,
               "type": "String"
             },
             {
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -3381,24 +3688,35 @@
               "default": null,
               "list": false,
               "name": "name",
+              "optional": false,
               "type": "String"
             },
             {
               "default": null,
               "list": false,
               "name": "type",
+              "optional": false,
               "type": "String"
             },
             {
               "default": null,
               "list": false,
               "name": "list",
+              "optional": false,
+              "type": "String"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "optional",
+              "optional": true,
               "type": "String"
             },
             {
               "default": null,
               "list": false,
               "name": "default",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -3417,24 +3735,28 @@
               "default": null,
               "list": false,
               "name": "option",
+              "optional": false,
               "type": "String"
             },
             {
               "default": null,
               "list": false,
               "name": "key",
+              "optional": false,
               "type": "String"
             },
             {
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             },
             {
               "default": null,
               "list": false,
               "name": "at",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -3453,6 +3775,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "Integer"
             }
           ],
@@ -3473,42 +3796,49 @@
           "default": null,
           "list": false,
           "name": "bluebook_id",
+          "optional": false,
           "type": "Reference<Bluebook>"
         },
         {
           "default": null,
           "list": false,
           "name": "name",
+          "optional": false,
           "type": "PolicyName"
         },
         {
           "default": null,
           "list": false,
           "name": "aggregate",
+          "optional": false,
           "type": "PolicyText"
         },
         {
           "default": null,
           "list": false,
           "name": "on_event",
+          "optional": false,
           "type": "PolicyText"
         },
         {
           "default": null,
           "list": false,
           "name": "trigger_command",
+          "optional": false,
           "type": "PolicyText"
         },
         {
           "default": null,
           "list": false,
           "name": "target_domain",
+          "optional": false,
           "type": "PolicyText"
         },
         {
           "default": null,
           "list": false,
           "name": "position",
+          "optional": false,
           "type": "Position"
         }
       ],
@@ -3519,42 +3849,49 @@
               "default": null,
               "list": false,
               "name": "bluebook_id",
+              "optional": false,
               "type": "Reference<Bluebook>"
             },
             {
               "default": null,
               "list": false,
               "name": "name",
+              "optional": false,
               "type": "PolicyName"
             },
             {
               "default": null,
               "list": false,
               "name": "aggregate",
+              "optional": true,
               "type": "PolicyText"
             },
             {
               "default": null,
               "list": false,
               "name": "on_event",
+              "optional": false,
               "type": "PolicyText"
             },
             {
               "default": null,
               "list": false,
               "name": "trigger_command",
+              "optional": false,
               "type": "PolicyText"
             },
             {
               "default": null,
               "list": false,
               "name": "target_domain",
+              "optional": true,
               "type": "PolicyText"
             },
             {
               "default": null,
               "list": false,
               "name": "position",
+              "optional": true,
               "type": "Position"
             }
           ],
@@ -3587,6 +3924,7 @@
               "default": null,
               "list": false,
               "name": "bluebook_id",
+              "optional": false,
               "type": "PolicyText"
             }
           ],
@@ -3613,6 +3951,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -3634,6 +3973,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -3652,6 +3992,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "Integer"
             }
           ],
@@ -3672,42 +4013,49 @@
           "default": null,
           "list": false,
           "name": "bluebook_id",
+          "optional": false,
           "type": "Reference<Bluebook>"
         },
         {
           "default": null,
           "list": false,
           "name": "name",
+          "optional": false,
           "type": "ProcessManagerName"
         },
         {
           "default": null,
           "list": false,
           "name": "correlates_by",
+          "optional": false,
           "type": "ProcessManagerText"
         },
         {
           "default": null,
           "list": false,
           "name": "starts_on",
+          "optional": false,
           "type": "ProcessManagerText"
         },
         {
           "default": null,
           "list": false,
           "name": "ends_on",
+          "optional": false,
           "type": "ProcessManagerText"
         },
         {
           "default": null,
           "list": true,
           "name": "states",
+          "optional": false,
           "type": "SagaState"
         },
         {
           "default": null,
           "list": false,
           "name": "position",
+          "optional": false,
           "type": "Position"
         }
       ],
@@ -3718,36 +4066,42 @@
               "default": null,
               "list": false,
               "name": "bluebook_id",
+              "optional": false,
               "type": "Reference<Bluebook>"
             },
             {
               "default": null,
               "list": false,
               "name": "name",
+              "optional": false,
               "type": "ProcessManagerName"
             },
             {
               "default": null,
               "list": false,
               "name": "correlates_by",
+              "optional": false,
               "type": "ProcessManagerText"
             },
             {
               "default": null,
               "list": false,
               "name": "starts_on",
+              "optional": false,
               "type": "ProcessManagerText"
             },
             {
               "default": null,
               "list": false,
               "name": "ends_on",
+              "optional": false,
               "type": "ProcessManagerText"
             },
             {
               "default": null,
               "list": false,
               "name": "position",
+              "optional": true,
               "type": "Position"
             }
           ],
@@ -3771,6 +4125,7 @@
               "default": null,
               "list": false,
               "name": "name",
+              "optional": false,
               "type": "ProcessManagerText"
             }
           ],
@@ -3809,6 +4164,7 @@
               "default": null,
               "list": false,
               "name": "bluebook_id",
+              "optional": false,
               "type": "ProcessManagerText"
             }
           ],
@@ -3835,6 +4191,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -3856,6 +4213,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -3874,6 +4232,7 @@
               "default": null,
               "list": false,
               "name": "name",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -3892,6 +4251,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "Integer"
             }
           ],
@@ -3912,30 +4272,35 @@
           "default": null,
           "list": false,
           "name": "process_manager_id",
+          "optional": false,
           "type": "Reference<ProcessManager>"
         },
         {
           "default": null,
           "list": false,
           "name": "event_type",
+          "optional": false,
           "type": "HandlerText"
         },
         {
           "default": null,
           "list": false,
           "name": "from_state",
+          "optional": false,
           "type": "HandlerText"
         },
         {
           "default": null,
           "list": false,
           "name": "to_state",
+          "optional": false,
           "type": "HandlerText"
         },
         {
           "default": null,
           "list": false,
           "name": "position",
+          "optional": false,
           "type": "Position"
         }
       ],
@@ -3946,30 +4311,35 @@
               "default": null,
               "list": false,
               "name": "process_manager_id",
+              "optional": false,
               "type": "Reference<ProcessManager>"
             },
             {
               "default": null,
               "list": false,
               "name": "event_type",
+              "optional": false,
               "type": "HandlerText"
             },
             {
               "default": null,
               "list": false,
               "name": "from_state",
+              "optional": true,
               "type": "HandlerText"
             },
             {
               "default": null,
               "list": false,
               "name": "to_state",
+              "optional": false,
               "type": "HandlerText"
             },
             {
               "default": null,
               "list": false,
               "name": "position",
+              "optional": true,
               "type": "Position"
             }
           ],
@@ -4002,6 +4372,7 @@
               "default": null,
               "list": false,
               "name": "process_manager_id",
+              "optional": false,
               "type": "HandlerText"
             }
           ],
@@ -4028,6 +4399,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -4046,6 +4418,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "Integer"
             }
           ],
@@ -4066,30 +4439,35 @@
           "default": null,
           "list": false,
           "name": "handler_id",
+          "optional": false,
           "type": "Reference<Handler>"
         },
         {
           "default": null,
           "list": false,
           "name": "handler",
+          "optional": false,
           "type": "DispatchText"
         },
         {
           "default": null,
           "list": false,
           "name": "command_name",
+          "optional": false,
           "type": "DispatchText"
         },
         {
           "default": null,
           "list": true,
           "name": "with_spec",
+          "optional": false,
           "type": "Binding"
         },
         {
           "default": null,
           "list": false,
           "name": "position",
+          "optional": false,
           "type": "Position"
         }
       ],
@@ -4100,24 +4478,28 @@
               "default": null,
               "list": false,
               "name": "handler_id",
+              "optional": false,
               "type": "Reference<Handler>"
             },
             {
               "default": null,
               "list": false,
               "name": "handler",
+              "optional": false,
               "type": "DispatchText"
             },
             {
               "default": null,
               "list": false,
               "name": "command_name",
+              "optional": false,
               "type": "DispatchText"
             },
             {
               "default": null,
               "list": false,
               "name": "position",
+              "optional": true,
               "type": "Position"
             }
           ],
@@ -4141,12 +4523,14 @@
               "default": null,
               "list": false,
               "name": "key",
+              "optional": false,
               "type": "DispatchText"
             },
             {
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "DispatchText"
             }
           ],
@@ -4186,6 +4570,7 @@
               "default": null,
               "list": false,
               "name": "handler_id",
+              "optional": false,
               "type": "DispatchText"
             }
           ],
@@ -4212,6 +4597,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -4230,12 +4616,14 @@
               "default": null,
               "list": false,
               "name": "key",
+              "optional": false,
               "type": "String"
             },
             {
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -4254,6 +4642,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "Integer"
             }
           ],
@@ -4274,54 +4663,63 @@
           "default": null,
           "list": false,
           "name": "bluebook_id",
+          "optional": false,
           "type": "Reference<Bluebook>"
         },
         {
           "default": null,
           "list": false,
           "name": "name",
+          "optional": false,
           "type": "ReadModelName"
         },
         {
           "default": null,
           "list": false,
           "name": "description",
+          "optional": false,
           "type": "ProjectionPurpose"
         },
         {
           "default": null,
           "list": false,
           "name": "query_name",
+          "optional": false,
           "type": "ReadModelText"
         },
         {
           "default": null,
           "list": false,
           "name": "reference_name",
+          "optional": false,
           "type": "ReadModelText"
         },
         {
           "default": null,
           "list": false,
           "name": "reference_target",
+          "optional": false,
           "type": "ReadModelText"
         },
         {
           "default": null,
           "list": true,
           "name": "aggregate_heads",
+          "optional": false,
           "type": "Head"
         },
         {
           "default": null,
           "list": true,
           "name": "options",
+          "optional": false,
           "type": "ProjectionOption"
         },
         {
           "default": null,
           "list": false,
           "name": "position",
+          "optional": false,
           "type": "Position"
         }
       ],
@@ -4332,42 +4730,49 @@
               "default": null,
               "list": false,
               "name": "bluebook_id",
+              "optional": false,
               "type": "Reference<Bluebook>"
             },
             {
               "default": null,
               "list": false,
               "name": "name",
+              "optional": false,
               "type": "ReadModelName"
             },
             {
               "default": null,
               "list": false,
               "name": "description",
+              "optional": true,
               "type": "ProjectionPurpose"
             },
             {
               "default": null,
               "list": false,
               "name": "query_name",
+              "optional": false,
               "type": "ReadModelText"
             },
             {
               "default": null,
               "list": false,
               "name": "reference_name",
+              "optional": false,
               "type": "ReadModelText"
             },
             {
               "default": null,
               "list": false,
               "name": "reference_target",
+              "optional": false,
               "type": "ReadModelText"
             },
             {
               "default": null,
               "list": false,
               "name": "position",
+              "optional": true,
               "type": "Position"
             }
           ],
@@ -4391,18 +4796,21 @@
               "default": null,
               "list": false,
               "name": "aggregate",
+              "optional": true,
               "type": "ReadModelText"
             },
             {
               "default": null,
               "list": false,
               "name": "as",
+              "optional": false,
               "type": "ReadModelText"
             },
             {
               "default": null,
               "list": false,
               "name": "many",
+              "optional": false,
               "type": "ReadModelText"
             }
           ],
@@ -4437,24 +4845,28 @@
               "default": null,
               "list": false,
               "name": "option",
+              "optional": false,
               "type": "ReadModelText"
             },
             {
               "default": null,
               "list": false,
               "name": "key",
+              "optional": false,
               "type": "ReadModelText"
             },
             {
               "default": null,
               "list": false,
               "name": "value",
+              "optional": true,
               "type": "ReadModelText"
             },
             {
               "default": null,
               "list": false,
               "name": "at",
+              "optional": true,
               "type": "ReadModelText"
             }
           ],
@@ -4499,6 +4911,7 @@
               "default": null,
               "list": false,
               "name": "bluebook_id",
+              "optional": false,
               "type": "ReadModelText"
             }
           ],
@@ -4525,6 +4938,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -4546,6 +4960,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -4564,6 +4979,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -4585,18 +5001,21 @@
               "default": null,
               "list": false,
               "name": "aggregate",
+              "optional": false,
               "type": "String"
             },
             {
               "default": null,
               "list": false,
               "name": "as",
+              "optional": false,
               "type": "String"
             },
             {
               "default": null,
               "list": false,
               "name": "many",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -4615,24 +5034,28 @@
               "default": null,
               "list": false,
               "name": "option",
+              "optional": false,
               "type": "String"
             },
             {
               "default": null,
               "list": false,
               "name": "key",
+              "optional": false,
               "type": "String"
             },
             {
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             },
             {
               "default": null,
               "list": false,
               "name": "at",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -4651,6 +5074,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "Integer"
             }
           ],
@@ -4671,60 +5095,70 @@
           "default": null,
           "list": false,
           "name": "aggregate_id",
+          "optional": false,
           "type": "Reference<Aggregate>"
         },
         {
           "default": null,
           "list": false,
           "name": "owner",
+          "optional": false,
           "type": "EntityText"
         },
         {
           "default": null,
           "list": false,
           "name": "name",
+          "optional": false,
           "type": "EntityName"
         },
         {
           "default": null,
           "list": false,
           "name": "description",
+          "optional": false,
           "type": "EntityName"
         },
         {
           "default": null,
           "list": false,
           "name": "identified_by",
+          "optional": false,
           "type": "EntityText"
         },
         {
           "default": null,
           "list": true,
           "name": "attributes",
+          "optional": false,
           "type": "PieceField"
         },
         {
           "default": null,
           "list": false,
           "name": "state_field",
+          "optional": false,
           "type": "EntityText"
         },
         {
           "default": null,
           "list": false,
           "name": "state_start",
+          "optional": false,
           "type": "EntityText"
         },
         {
           "default": null,
           "list": true,
           "name": "transitions",
+          "optional": false,
           "type": "PieceTransition"
         },
         {
           "default": null,
           "list": false,
           "name": "position",
+          "optional": false,
           "type": "Position"
         }
       ],
@@ -4735,36 +5169,42 @@
               "default": null,
               "list": false,
               "name": "aggregate_id",
+              "optional": false,
               "type": "Reference<Aggregate>"
             },
             {
               "default": null,
               "list": false,
               "name": "owner",
+              "optional": false,
               "type": "EntityText"
             },
             {
               "default": null,
               "list": false,
               "name": "name",
+              "optional": false,
               "type": "EntityName"
             },
             {
               "default": null,
               "list": false,
               "name": "description",
+              "optional": true,
               "type": "EntityName"
             },
             {
               "default": null,
               "list": false,
               "name": "identified_by",
+              "optional": false,
               "type": "EntityText"
             },
             {
               "default": null,
               "list": false,
               "name": "position",
+              "optional": true,
               "type": "Position"
             }
           ],
@@ -4795,24 +5235,35 @@
               "default": null,
               "list": false,
               "name": "name",
+              "optional": false,
               "type": "EntityText"
             },
             {
               "default": null,
               "list": false,
               "name": "type",
+              "optional": false,
               "type": "EntityText"
             },
             {
               "default": null,
               "list": false,
               "name": "list",
+              "optional": false,
+              "type": "EntityText"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "optional",
+              "optional": true,
               "type": "EntityText"
             },
             {
               "default": null,
               "list": false,
               "name": "default",
+              "optional": true,
               "type": "EntityText"
             }
           ],
@@ -4829,6 +5280,7 @@
                 "default": "default",
                 "list": "list",
                 "name": "name",
+                "optional": "optional",
                 "type": "type"
               },
               "op": "append",
@@ -4845,12 +5297,14 @@
               "default": null,
               "list": false,
               "name": "state_field",
+              "optional": false,
               "type": "EntityText"
             },
             {
               "default": null,
               "list": false,
               "name": "state_start",
+              "optional": false,
               "type": "EntityText"
             }
           ],
@@ -4889,18 +5343,21 @@
               "default": null,
               "list": false,
               "name": "command",
+              "optional": false,
               "type": "EntityText"
             },
             {
               "default": null,
               "list": false,
               "name": "from_state",
+              "optional": true,
               "type": "EntityText"
             },
             {
               "default": null,
               "list": false,
               "name": "to_state",
+              "optional": false,
               "type": "EntityText"
             }
           ],
@@ -4941,6 +5398,7 @@
               "default": null,
               "list": false,
               "name": "aggregate_id",
+              "optional": false,
               "type": "EntityText"
             }
           ],
@@ -4967,6 +5425,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -4988,6 +5447,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -5006,24 +5466,35 @@
               "default": null,
               "list": false,
               "name": "name",
+              "optional": false,
               "type": "String"
             },
             {
               "default": null,
               "list": false,
               "name": "type",
+              "optional": false,
               "type": "String"
             },
             {
               "default": null,
               "list": false,
               "name": "list",
+              "optional": false,
+              "type": "String"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "optional",
+              "optional": true,
               "type": "String"
             },
             {
               "default": null,
               "list": false,
               "name": "default",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -5042,18 +5513,21 @@
               "default": null,
               "list": false,
               "name": "command",
+              "optional": false,
               "type": "String"
             },
             {
               "default": null,
               "list": false,
               "name": "from_state",
+              "optional": false,
               "type": "String"
             },
             {
               "default": null,
               "list": false,
               "name": "to_state",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -5072,6 +5546,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "Integer"
             }
           ],
@@ -5092,24 +5567,28 @@
           "default": null,
           "list": false,
           "name": "value_object_id",
+          "optional": false,
           "type": "Reference<ValueObject>"
         },
         {
           "default": null,
           "list": false,
           "name": "shape",
+          "optional": false,
           "type": "MemberText"
         },
         {
           "default": null,
           "list": true,
           "name": "pairs",
+          "optional": false,
           "type": "Pair"
         },
         {
           "default": null,
           "list": false,
           "name": "position",
+          "optional": false,
           "type": "Position"
         }
       ],
@@ -5120,18 +5599,21 @@
               "default": null,
               "list": false,
               "name": "value_object_id",
+              "optional": false,
               "type": "Reference<ValueObject>"
             },
             {
               "default": null,
               "list": false,
               "name": "shape",
+              "optional": false,
               "type": "MemberText"
             },
             {
               "default": null,
               "list": false,
               "name": "position",
+              "optional": true,
               "type": "Position"
             }
           ],
@@ -5155,12 +5637,14 @@
               "default": null,
               "list": false,
               "name": "key",
+              "optional": false,
               "type": "MemberText"
             },
             {
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "MemberText"
             }
           ],
@@ -5203,6 +5687,7 @@
               "default": null,
               "list": false,
               "name": "value_object_id",
+              "optional": false,
               "type": "MemberText"
             }
           ],
@@ -5229,6 +5714,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -5247,12 +5733,14 @@
               "default": null,
               "list": false,
               "name": "key",
+              "optional": false,
               "type": "String"
             },
             {
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -5271,6 +5759,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "Integer"
             }
           ],

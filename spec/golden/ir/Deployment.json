@@ -6,18 +6,21 @@
           "default": null,
           "list": false,
           "name": "domain",
+          "optional": false,
           "type": "WorldName"
         },
         {
           "default": null,
           "list": false,
           "name": "realm",
+          "optional": false,
           "type": "Realm"
         },
         {
           "default": null,
           "list": false,
           "name": "latest",
+          "optional": false,
           "type": "Latest"
         }
       ],
@@ -28,18 +31,21 @@
               "default": null,
               "list": false,
               "name": "domain",
+              "optional": false,
               "type": "WorldName"
             },
             {
               "default": null,
               "list": false,
               "name": "realm",
+              "optional": true,
               "type": "Realm"
             },
             {
               "default": null,
               "list": false,
               "name": "latest",
+              "optional": true,
               "type": "Latest"
             }
           ],
@@ -75,6 +81,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -96,6 +103,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -117,6 +125,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -140,30 +149,35 @@
           "default": null,
           "list": false,
           "name": "world_id",
+          "optional": false,
           "type": "Reference<World>"
         },
         {
           "default": null,
           "list": false,
           "name": "world",
+          "optional": false,
           "type": "WiringText"
         },
         {
           "default": null,
           "list": false,
           "name": "verb",
+          "optional": false,
           "type": "WiringText"
         },
         {
           "default": null,
           "list": false,
           "name": "adapter",
+          "optional": false,
           "type": "WiringText"
         },
         {
           "default": null,
           "list": true,
           "name": "settings",
+          "optional": false,
           "type": "Setting"
         }
       ],
@@ -174,24 +188,28 @@
               "default": null,
               "list": false,
               "name": "world_id",
+              "optional": false,
               "type": "Reference<World>"
             },
             {
               "default": null,
               "list": false,
               "name": "world",
+              "optional": false,
               "type": "WiringText"
             },
             {
               "default": null,
               "list": false,
               "name": "verb",
+              "optional": false,
               "type": "WiringText"
             },
             {
               "default": null,
               "list": false,
               "name": "adapter",
+              "optional": false,
               "type": "WiringText"
             }
           ],
@@ -218,12 +236,14 @@
               "default": null,
               "list": false,
               "name": "key",
+              "optional": false,
               "type": "WiringText"
             },
             {
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "WiringText"
             }
           ],
@@ -269,6 +289,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -287,12 +308,14 @@
               "default": null,
               "list": false,
               "name": "key",
+              "optional": false,
               "type": "String"
             },
             {
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],

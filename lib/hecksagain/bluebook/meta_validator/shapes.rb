@@ -21,7 +21,11 @@ module Hecksagain
             name: text(field[:name])&.to_sym,
             type: type.start_with?("#{aggregate_id}.") ? type.delete_prefix("#{aggregate_id}.") : reference_type(type),
             list: text(field[:list]).to_s == "true",
-            default: decode_literal(text(field[:default]))
+            default: decode_literal(text(field[:default])),
+            # Read back the same way `list` is — both are booleans about the
+            # attribute, held as text, and dropping either would rebuild a
+            # bluebook that no longer says what it said.
+            optional: text(field[:optional]).to_s == "true"
           }
         end
 
@@ -37,10 +41,11 @@ module Hecksagain
           type = text(field[:type]).to_s
 
           {
-            name:    text(field[:name])&.to_sym,
-            type:    type.include?("::") ? reference_type(type) : text(field[:type]),
-            list:    text(field[:list]).to_s == "true",
-            default: decode_literal(text(field[:default]))
+            name:     text(field[:name])&.to_sym,
+            type:     type.include?("::") ? reference_type(type) : text(field[:type]),
+            list:     text(field[:list]).to_s == "true",
+            default:  decode_literal(text(field[:default])),
+            optional: text(field[:optional]).to_s == "true"
           }
         end
 

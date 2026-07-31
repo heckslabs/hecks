@@ -20,7 +20,10 @@ RSpec.describe "a policy" do
   end
 
   def topped_pizza(runtime)
-    pizza = runtime.dispatch("Pizzas::Pizza.CreatePizza", name: "Margherita", name: { value: "Margherita" }, price_cents: { cents: 900 })
+    # `name:` was written TWICE here — once bare, once as the value object — and
+    # Ruby warned on every run while silently keeping the second.
+    pizza = runtime.dispatch("Pizzas::Pizza.CreatePizza",
+                             name: { value: "Margherita" }, price_cents: { cents: 900 }, size: { value: "small" })
     runtime.dispatch("Pizzas::Pizza.AddTopping", name: pizza.id, topping: { value: "Basil" }, amount: { value: 3 })
     pizza
   end

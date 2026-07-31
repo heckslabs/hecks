@@ -316,7 +316,8 @@ RSpec.describe "the DSL surface" do
         Hecksagain::Runtime::Dispatcher.new(registry.tap(&:verify!))
       )
 
-      state = runtime.dispatch("Coerced::Holding.Open", id: "h1", kind: { name: "current" }).state
+      state = runtime.dispatch("Coerced::Holding.Open", id: "h1",
+                               kind: { name: "current" }, amount: { cents: 100, currency: "GBP" }).state
 
       expect(state[:kind]).to be_a(Hecksagain::Runtime::Value)
       expect(state[:kind].type_name).to eq("Kind")
@@ -329,8 +330,10 @@ RSpec.describe "the DSL surface" do
         Hecksagain::Runtime::Dispatcher.new(registry.tap(&:verify!))
       )
 
-      first  = runtime.dispatch("Coerced::Holding.Open", id: "h1", kind: { name: "current" }).state[:kind]
-      second = runtime.dispatch("Coerced::Holding.Open", id: "h2", kind: { name: "current" }).state[:kind]
+      first  = runtime.dispatch("Coerced::Holding.Open", id: "h1",
+                                kind: { name: "current" }, amount: { cents: 100, currency: "GBP" }).state[:kind]
+      second = runtime.dispatch("Coerced::Holding.Open", id: "h2",
+                                kind: { name: "current" }, amount: { cents: 250, currency: "GBP" }).state[:kind]
 
       expect(first).to eq(second)
       expect(first.to_h).to eq(name: "current")
@@ -342,7 +345,10 @@ RSpec.describe "the DSL surface" do
         Hecksagain::Runtime::Dispatcher.new(registry.tap(&:verify!))
       )
 
-      expect { runtime.dispatch("Coerced::Holding.Open", id: "h2", kind: { name: "offshore" }) }
+      expect {
+        runtime.dispatch("Coerced::Holding.Open", id: "h2",
+                         kind: { name: "offshore" }, amount: { cents: 100, currency: "GBP" })
+      }
         .to raise_error(Hecksagain::Runtime::InvariantViolation, /current or savings/)
     end
 
@@ -352,7 +358,10 @@ RSpec.describe "the DSL surface" do
         Hecksagain::Runtime::Dispatcher.new(registry.tap(&:verify!))
       )
 
-      expect { runtime.dispatch("Coerced::Holding.Open", id: "h3", kind: "current") }
+      expect {
+        runtime.dispatch("Coerced::Holding.Open", id: "h3",
+                         kind: "current", amount: { cents: 100, currency: "GBP" })
+      }
         .to raise_error(Hecksagain::Runtime::TypeMismatch, /pass its fields as an object/)
     end
   end

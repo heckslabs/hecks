@@ -95,9 +95,9 @@ Hecks.bluebook "Meta" do
       goal "Open a chapter"
 
       attribute :name,           BluebookName
-      attribute :vision,         Vision
-      attribute :classification, Classification
-      attribute :version,        Version
+      attribute :vision,         Vision, optional: true
+      attribute :classification, Classification, optional: true
+      attribute :version,        Version, optional: true
 
       emits "ChapterDeclared"
     end
@@ -129,7 +129,7 @@ Hecks.bluebook "Meta" do
       attribute :source_token, RuleText
       attribute :replacement,  RuleText
       attribute :boundary,     RuleText
-      attribute :position,     RuleText
+      attribute :position,     RuleText, optional: true
 
       then_set :normalisations, append: {
         strategy: :strategy, source_token: :source_token,
@@ -173,6 +173,7 @@ Hecks.bluebook "Meta" do
       attribute :name,    String
       attribute :type,    String
       attribute :list,    String
+      attribute :optional, String, optional: true
       # Held as a LITERAL, written so its type survives — 0.0 rather than "0.0".
       # Without this an aggregate attribute's default was simply dropped, and the
       # reconstruction hardcoded nil, which happened to match every corpus member
@@ -196,10 +197,10 @@ Hecks.bluebook "Meta" do
 
       reference_to Bluebook
       attribute :name,          AggregateName
-      attribute :description,   Description
+      attribute :description,   Description, optional: true
       attribute :identified_by, IdentityField
 
-      attribute :position, Position
+      attribute :position, Position, optional: true
       emits "RootDeclared"
     end
 
@@ -244,9 +245,10 @@ Hecks.bluebook "Meta" do
       reference_to ValueObject, as: :type
       attribute :name,    FieldName
       attribute :list,    ListFlag
-      attribute :default, LiteralText
+      attribute :optional, ListFlag, optional: true
+      attribute :default, LiteralText, optional: true
 
-      then_set :attributes, append: { name: :name, type: :type, list: :list, default: :default }
+      then_set :attributes, append: { name: :name, type: :type, list: :list, default: :default, optional: :optional }
 
       emits "AttributeAttached"
     end
@@ -278,9 +280,10 @@ Hecks.bluebook "Meta" do
       reference_to Aggregate, as: :points_at
       attribute :name,    FieldName
       attribute :list,    ListFlag
-      attribute :default, LiteralText
+      attribute :optional, ListFlag, optional: true
+      attribute :default, LiteralText, optional: true
 
-      then_set :attributes, append: { name: :name, type: :points_at, list: :list, default: :default }
+      then_set :attributes, append: { name: :name, type: :points_at, list: :list, default: :default, optional: :optional }
 
       emits "ReferenceAttached"
     end
@@ -301,9 +304,10 @@ Hecks.bluebook "Meta" do
       reference_to Entity, as: :holds
       attribute :name,    FieldName
       attribute :list,    ListFlag
-      attribute :default, LiteralText
+      attribute :optional, ListFlag, optional: true
+      attribute :default, LiteralText, optional: true
 
-      then_set :attributes, append: { name: :name, type: :holds, list: :list, default: :default }
+      then_set :attributes, append: { name: :name, type: :holds, list: :list, default: :default, optional: :optional }
 
       emits "PieceHeld"
     end
@@ -356,7 +360,7 @@ Hecks.bluebook "Meta" do
 
       reference_to Aggregate
       attribute :command,    FieldName
-      attribute :from_state, FieldName
+      attribute :from_state, FieldName, optional: true
       attribute :to_state,   FieldName
 
       then_set :transitions, append: { command: :command, from_state: :from_state, to_state: :to_state }
@@ -470,6 +474,7 @@ Hecks.bluebook "Meta" do
       attribute :name,    String
       attribute :type,    String
       attribute :list,    String
+      attribute :optional, String, optional: true
       attribute :default, String
     end
 
@@ -521,12 +526,12 @@ Hecks.bluebook "Meta" do
       # Command for both — an entity's commands are IR::Command objects — so the
       # language uses the same Command, and says which piece declared it when a piece
       # did. Absent for an aggregate's own commands, and ABSENT is not EMPTY.
-      reference_to Entity, as: :entity_id
+      reference_to Entity, as: :entity_id, optional: true
       attribute :name,  CommandName
-      attribute :role,  Actor
-      attribute :goal,  Goal
+      attribute :role,  Actor, optional: true
+      attribute :goal,  Goal, optional: true
 
-      attribute :position, Position
+      attribute :position, Position, optional: true
       emits "VerbDeclared"
     end
 
@@ -538,9 +543,10 @@ Hecks.bluebook "Meta" do
       attribute :name,    ArgName
       attribute :type,    ArgType
       attribute :list,    ArgType
-      attribute :default, ArgType
+      attribute :optional, ArgType, optional: true
+      attribute :default, ArgType, optional: true
 
-      then_set :attributes, append: { name: :name, type: :type, list: :list, default: :default }
+      then_set :attributes, append: { name: :name, type: :type, list: :list, default: :default, optional: :optional }
 
       emits "ArgumentAttached"
     end
@@ -566,9 +572,10 @@ Hecks.bluebook "Meta" do
       # decoration, and this language has paid for that mistake before.
       attribute :name,    ArgName
       attribute :list,    ArgType
-      attribute :default, ArgType
+      attribute :optional, ArgType, optional: true
+      attribute :default, ArgType, optional: true
 
-      then_set :attributes, append: { name: :name, type: :points_at, list: :list, default: :default }
+      then_set :attributes, append: { name: :name, type: :points_at, list: :list, default: :default, optional: :optional }
 
       emits "ArgumentReferenceAttached"
     end
@@ -588,7 +595,7 @@ Hecks.bluebook "Meta" do
       goal "Attach one given to the command"
 
       reference_to Command
-      attribute :description, RuleText
+      attribute :description, RuleText, optional: true
       attribute :canonical,   RuleText
 
       given("a rule says what it means")  { !description.value.to_s.empty? }
@@ -689,6 +696,7 @@ Hecks.bluebook "Meta" do
       attribute :name,    String
       attribute :type,    String
       attribute :list,    String
+      attribute :optional, String, optional: true
       attribute :default, String
     end
 
@@ -723,7 +731,7 @@ Hecks.bluebook "Meta" do
       reference_to Aggregate
       attribute :name, ValueObjectName
 
-      attribute :position, Position
+      attribute :position, Position, optional: true
       emits "ShapeDeclared"
     end
 
@@ -735,9 +743,10 @@ Hecks.bluebook "Meta" do
       attribute :name,    ValueObjectName
       attribute :type,    ValueObjectName
       attribute :list,    ValueObjectName
-      attribute :default, ValueObjectText
+      attribute :optional, ValueObjectName, optional: true
+      attribute :default, ValueObjectText, optional: true
 
-      then_set :attributes, append: { name: :name, type: :type, list: :list, default: :default }
+      then_set :attributes, append: { name: :name, type: :type, list: :list, default: :default, optional: :optional }
 
       emits "ShapeFieldAttached"
     end
@@ -765,7 +774,7 @@ Hecks.bluebook "Meta" do
       goal "Attach one invariant to the value object"
 
       reference_to ValueObject
-      attribute :description, ValueObjectText
+      attribute :description, ValueObjectText, optional: true
       attribute :canonical,   ValueObjectText
 
       given("a rule says what it means")  { !description.value.to_s.empty? }
@@ -965,6 +974,7 @@ Hecks.bluebook "Meta" do
       attribute :step, String
       one_of do
         member step: "refuse_unknown_arguments"
+        member step: "refuse_absent_arguments"
         member step: "normalize_args"
         member step: "resolve_references"
         member step: "hydrate"
@@ -1010,6 +1020,7 @@ Hecks.bluebook "Meta" do
     value_object "DomainRefusal" do
       attribute :name, String
       one_of do
+        member name: "AbsentArgument"
         member name: "GivenNotMet"
         member name: "InvariantViolation"
         member name: "LifecycleRefused"
@@ -1084,6 +1095,7 @@ Hecks.bluebook "Meta" do
       attribute :name,    String
       attribute :type,    String
       attribute :list,    String
+      attribute :optional, String, optional: true
       attribute :default, String
     end
 
@@ -1124,14 +1136,14 @@ Hecks.bluebook "Meta" do
 
       reference_to Aggregate
       # Declared on an aggregate or on one of its entities — see Command.Declare.
-      reference_to Entity, as: :entity_id
+      reference_to Entity, as: :entity_id, optional: true
       attribute :name,        QueryName
-      attribute :description, QueryText
-      attribute :order_field, QueryText
-      attribute :order_way,   QueryText
-      attribute :limit,       QueryText
+      attribute :description, QueryText, optional: true
+      attribute :order_field, QueryText, optional: true
+      attribute :order_way,   QueryText, optional: true
+      attribute :limit,       QueryText, optional: true
 
-      attribute :position, Position
+      attribute :position, Position, optional: true
       emits "AskDeclared"
     end
 
@@ -1156,8 +1168,13 @@ Hecks.bluebook "Meta" do
       reference_to Query
       attribute :option, QueryText
       attribute :key,    QueryText
-      attribute :value,  QueryText
-      attribute :at,     QueryText
+      # AN OPTION MAY HAVE NO VALUE. `consistency :snapshot` with no timeout is a
+      # complete declaration, and an option is judged one key at a time — so the
+      # `timeout` row arrives carrying nothing. Requiring a value here made every
+      # such declaration unbuildable, which is a rule about the LANGUAGE, not
+      # about the one spec that noticed.
+      attribute :value,  QueryText, optional: true
+      attribute :at,     QueryText, optional: true
 
       given("an option is named") { !option.value.to_s.empty? }
 
@@ -1174,9 +1191,10 @@ Hecks.bluebook "Meta" do
       attribute :name,    QueryText
       attribute :type,    QueryText
       attribute :list,    QueryText
-      attribute :default, QueryText
+      attribute :optional, QueryText, optional: true
+      attribute :default, QueryText, optional: true
 
-      then_set :attributes, append: { name: :name, type: :type, list: :list, default: :default }
+      then_set :attributes, append: { name: :name, type: :type, list: :list, default: :default, optional: :optional }
 
       emits "AskArgumentAttached"
     end
@@ -1236,12 +1254,12 @@ Hecks.bluebook "Meta" do
 
       reference_to Bluebook
       attribute :name,            PolicyName
-      attribute :aggregate,       PolicyText
+      attribute :aggregate,       PolicyText, optional: true
       attribute :on_event,        PolicyText
       attribute :trigger_command, PolicyText
-      attribute :target_domain,   PolicyText
+      attribute :target_domain,   PolicyText, optional: true
 
-      attribute :position, Position
+      attribute :position, Position, optional: true
       emits "ReactionDeclared"
     end
   end
@@ -1299,7 +1317,7 @@ Hecks.bluebook "Meta" do
       attribute :starts_on,     ProcessManagerText
       attribute :ends_on,       ProcessManagerText
 
-      attribute :position, Position
+      attribute :position, Position, optional: true
       emits "SagaDeclared"
     end
 
@@ -1362,10 +1380,10 @@ Hecks.bluebook "Meta" do
 
       reference_to ProcessManager
       attribute :event_type, HandlerText
-      attribute :from_state, HandlerText
+      attribute :from_state, HandlerText, optional: true
       attribute :to_state,   HandlerText
 
-      attribute :position, Position
+      attribute :position, Position, optional: true
       emits "LegDeclared"
     end
   end
@@ -1415,7 +1433,7 @@ Hecks.bluebook "Meta" do
       attribute :handler,      DispatchText
       attribute :command_name, DispatchText
 
-      attribute :position, Position
+      attribute :position, Position, optional: true
       emits "SendDeclared"
     end
 
@@ -1502,12 +1520,12 @@ Hecks.bluebook "Meta" do
 
       reference_to Bluebook
       attribute :name,             ReadModelName
-      attribute :description,      ProjectionPurpose
+      attribute :description,      ProjectionPurpose, optional: true
       attribute :query_name,       ReadModelText
       attribute :reference_name,   ReadModelText
       attribute :reference_target, ReadModelText
 
-      attribute :position, Position
+      attribute :position, Position, optional: true
       emits "ProjectionDeclared"
     end
 
@@ -1516,7 +1534,7 @@ Hecks.bluebook "Meta" do
       goal "Attach one aggregate head to the read model"
 
       reference_to ReadModel
-      attribute :aggregate, ReadModelText
+      attribute :aggregate, ReadModelText, optional: true
       attribute :as,        ReadModelText
       attribute :many,      ReadModelText
 
@@ -1534,8 +1552,9 @@ Hecks.bluebook "Meta" do
       reference_to ReadModel
       attribute :option, ReadModelText
       attribute :key,    ReadModelText
-      attribute :value,  ReadModelText
-      attribute :at,     ReadModelText
+      # Same reading as Query.Option above — an option key may stand alone.
+      attribute :value,  ReadModelText, optional: true
+      attribute :at,     ReadModelText, optional: true
 
       given("an option is named") { !option.value.to_s.empty? }
 
@@ -1572,6 +1591,7 @@ Hecks.bluebook "Meta" do
       attribute :name,    String
       attribute :type,    String
       attribute :list,    String
+      attribute :optional, String, optional: true
       attribute :default, String
     end
 
@@ -1607,7 +1627,7 @@ Hecks.bluebook "Meta" do
       reference_to Aggregate
       attribute :owner,         EntityText
       attribute :name,          EntityName
-      attribute :description,   EntityName
+      attribute :description,   EntityName, optional: true
       attribute :identified_by, EntityText
 
       # A PIECE MUST SAY WHAT IT IS KNOWN BY — the rule, where the language keeps
@@ -1622,7 +1642,7 @@ Hecks.bluebook "Meta" do
       given("an entity says what it is known by") { !identified_by.value.to_s.empty? }
       given("an entity is known by a field")       { identified_by.value.to_s.include?(".") }
 
-      attribute :position, Position
+      attribute :position, Position, optional: true
       emits "PieceDeclared"
     end
 
@@ -1634,9 +1654,10 @@ Hecks.bluebook "Meta" do
       attribute :name,    EntityText
       attribute :type,    EntityText
       attribute :list,    EntityText
-      attribute :default, EntityText
+      attribute :optional, EntityText, optional: true
+      attribute :default, EntityText, optional: true
 
-      then_set :attributes, append: { name: :name, type: :type, list: :list, default: :default }
+      then_set :attributes, append: { name: :name, type: :type, list: :list, default: :default, optional: :optional }
 
       emits "PieceAttributeAttached"
     end
@@ -1662,7 +1683,7 @@ Hecks.bluebook "Meta" do
 
       reference_to Entity
       attribute :command,    EntityText
-      attribute :from_state, EntityText
+      attribute :from_state, EntityText, optional: true
       attribute :to_state,   EntityText
 
       then_set :transitions, append: { command: :command, from_state: :from_state, to_state: :to_state }
@@ -1714,7 +1735,7 @@ Hecks.bluebook "Meta" do
       reference_to ValueObject
       attribute :shape, MemberText
 
-      attribute :position, Position
+      attribute :position, Position, optional: true
       emits "MemberDeclared"
     end
 

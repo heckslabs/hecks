@@ -58,7 +58,8 @@ fn aggregate_attributes(aggregate: &Aggregate) -> Vec<Value> {
             "name": reference.name,
             "type": format!("Reference<{}>", reference.target),
             "list": false,
-            "default": Value::Null
+            "default": Value::Null,
+            "optional": reference.optional
         })
     });
 
@@ -173,7 +174,8 @@ fn attribute_to_value(attribute: &Attribute) -> Value {
         "name": attribute.name,
         "type": attribute.attr_type,
         "list": attribute.list,
-        "default": literal(attribute.default.as_deref())
+        "default": literal(attribute.default.as_deref()),
+        "optional": attribute.optional
     })
 }
 
@@ -273,7 +275,8 @@ fn command_attributes(command: &Command, owner: &str) -> Vec<Value> {
                 "name": reference.name,
                 "type": format!("Reference<{}>", reference.target),
                 "list": false,
-                "default": Value::Null
+                "default": Value::Null,
+                "optional": reference.optional
             })
         });
 

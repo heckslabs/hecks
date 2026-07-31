@@ -11,6 +11,11 @@ Hecks.bluebook "TillRoom" do
     attribute :number,  TillNumber
     attribute :balance, Money, default: { cents: 0 }
     attribute :marks,   list_of(Mark)
+    # A clerk may say why a taking was unusual, or say nothing — the one OPTIONAL
+    # fact in this fixture, and the only door left through which an absent
+    # argument can still reach a mutation. A REQUIRED one is refused at the
+    # payload gate long before `then_set` ever resolves its source.
+    attribute :note,    Note
 
     value_object "TillNumber" do
       attribute :value, String
@@ -24,6 +29,10 @@ Hecks.bluebook "TillRoom" do
     value_object "Mark" do
       attribute :amount,    Integer
       attribute :direction, String
+    end
+
+    value_object "Note" do
+      attribute :text, String
     end
 
     command "OpenTill" do
@@ -41,9 +50,11 @@ Hecks.bluebook "TillRoom" do
 
       reference_to Till
       attribute :amount, Money
+      attribute :note,   Note, optional: true
 
       then_set :balance, increment: :amount
       then_set :marks,   append: { amount: :amount, direction: "in" }
+      then_set :note,    to: :note
 
       emits "TakenIn"
     end

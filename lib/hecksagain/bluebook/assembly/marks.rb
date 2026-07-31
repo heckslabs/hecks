@@ -23,10 +23,17 @@ module Hecksagain
           target = type[/\AReference<(.+)>\z/, 1]
 
           IR::Attribute.new(
-            name:    field[:name],
-            type:    target ? IR::Reference.new(target) : type,
-            list:    field[:list] ? true : false,
-            default: field[:default]
+            name:     field[:name],
+            type:     target ? IR::Reference.new(target) : type,
+            list:     field[:list] ? true : false,
+            default:  field[:default],
+            # The LAST place optionality can be dropped, and the one that was
+            # dropping it. Every bluebook in the registry is the round-trip
+            # product — MetaValidator dispatches the declaration in and reads it
+            # back — so a fact this constructor does not carry is a fact the
+            # language cannot state about itself, however plainly the source
+            # wrote it.
+            optional: field[:optional] ? true : false
           )
         end
 

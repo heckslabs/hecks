@@ -219,7 +219,7 @@ pub struct Attribute {
     pub attr_type: String,
     pub default: Option<String>,
     pub list: bool,
-    pub required: bool,
+    pub optional: bool,
     pub enum_values: Vec<String>,
     pub pattern: Option<String>,
     pub hint: Option<String>,
@@ -315,6 +315,11 @@ pub struct Reference {
     pub domain: Option<String>,
     pub cardinality: Cardinality,
     pub kind: ReferenceKind,
+    // A named reference on a COMMAND is an argument, so it may be optional the
+    // same way a plain attribute is. Ruby reaches this through the shared
+    // attribute collector ; here the two shapes are separate and it has to be
+    // carried explicitly, or the implied reference-attribute loses the fact.
+    pub optional: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -508,6 +513,7 @@ impl Reference {
                 min: 0,
                 max: Some(1),
             },
+            optional: false,
             kind: ReferenceKind::LegacyReferenceTo,
         }
     }
@@ -521,6 +527,7 @@ impl Reference {
                 min: 0,
                 max: Some(1),
             },
+            optional: false,
             kind: ReferenceKind::BelongsTo,
         }
     }
@@ -534,6 +541,7 @@ impl Reference {
                 min: 0,
                 max: Some(1),
             },
+            optional: false,
             kind: ReferenceKind::HasOne,
         }
     }
@@ -544,6 +552,7 @@ impl Reference {
             target,
             domain,
             cardinality: Cardinality { min: 0, max: None },
+            optional: false,
             kind: ReferenceKind::HasMany,
         }
     }
@@ -557,6 +566,7 @@ impl Reference {
                 min: 0,
                 max: Some(max),
             },
+            optional: false,
             kind: ReferenceKind::HasMany,
         }
     }

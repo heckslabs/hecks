@@ -10,6 +10,12 @@ module Hecksagain
     # is the right name carrying the wrong thing, this one is a name the command
     # never had. Both are the payload gate refusing before any rule runs.
     class UnknownArgument < StandardError; end
+    # The third of the trio, and the one that was missing : a name the command DOES
+    # declare, absent. TypeMismatch is the right name carrying the wrong thing,
+    # UnknownArgument a name that was never declared, AbsentArgument a declared name
+    # that never arrived. Between them they say a command takes exactly the
+    # arguments it declares — no others, and all of them.
+    class AbsentArgument < StandardError; end
 
     # The domain saying NO — the errors a reaction may legitimately meet and
     # record as an undelivered outcome. A policy whose target refuses is a fact
@@ -36,8 +42,8 @@ module Hecksagain
     # its first run : every corpus refusal must be a class named here, and 23
     # of banking's were InvariantViolation.
     DOMAIN_REFUSALS = [
-      GivenNotMet, InvariantViolation, LifecycleRefused, NotFound, TypeMismatch,
-      UnknownArgument, UnknownVerb
+      AbsentArgument, GivenNotMet, InvariantViolation, LifecycleRefused, NotFound,
+      TypeMismatch, UnknownArgument, UnknownVerb
     ].freeze
   end
 end

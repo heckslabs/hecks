@@ -117,7 +117,7 @@ fn dump_attribute(attr: &Attribute) -> Value {
         "type": attr.attr_type,
         "list": attr.list,
         "default": attr.default,
-        "required": attr.required,
+        "optional": attr.optional,
         "one_of": attr.enum_values,
         "pattern": attr.pattern,
         "hint": attr.hint,

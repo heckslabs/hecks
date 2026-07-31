@@ -371,7 +371,7 @@ pub fn parse_query(lines: &[&str]) -> (Query, usize) {
                         attr_type: "String".to_string(),
                         default: None,
                         list: false,
-                        required: false,
+                        optional: false,
                         enum_values: vec![],
                         pattern: None,
                         hint: None,
@@ -1133,8 +1133,8 @@ pub fn parse_attribute(line: &str) -> Option<Attribute> {
         raw.to_string()
     };
 
-    let required = line.contains("required:")
-        && extract_after(line, "required:")
+    let optional = line.contains("optional:")
+        && extract_after(line, "optional:")
             .map(|a| a.trim_start().starts_with("true"))
             .unwrap_or(false);
     let default = if line.contains("default:") {
@@ -1164,7 +1164,7 @@ pub fn parse_attribute(line: &str) -> Option<Attribute> {
         attr_type,
         default,
         list,
-        required,
+        optional,
         enum_values,
         pattern,
         hint,

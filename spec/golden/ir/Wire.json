@@ -6,6 +6,7 @@
           "default": null,
           "list": false,
           "name": "number",
+          "optional": false,
           "type": "DrawerNumber"
         },
         {
@@ -14,6 +15,7 @@
           },
           "list": false,
           "name": "cents",
+          "optional": false,
           "type": "Money"
         }
       ],
@@ -24,6 +26,7 @@
               "default": null,
               "list": false,
               "name": "number",
+              "optional": false,
               "type": "DrawerNumber"
             }
           ],
@@ -47,6 +50,7 @@
               "default": null,
               "list": false,
               "name": "amount",
+              "optional": false,
               "type": "Money"
             }
           ],
@@ -80,6 +84,7 @@
               "default": null,
               "list": false,
               "name": "amount",
+              "optional": false,
               "type": "Money"
             }
           ],
@@ -180,6 +185,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -198,6 +204,7 @@
               "default": null,
               "list": false,
               "name": "cents",
+              "optional": false,
               "type": "Integer"
             }
           ],
@@ -218,6 +225,7 @@
           "default": null,
           "list": false,
           "name": "reference",
+          "optional": false,
           "type": "WireReference"
         },
         {
@@ -226,18 +234,21 @@
           },
           "list": false,
           "name": "amount",
+          "optional": false,
           "type": "Money"
         },
         {
           "default": null,
           "list": false,
           "name": "source",
+          "optional": false,
           "type": "Reference<Drawer>"
         },
         {
           "default": null,
           "list": false,
           "name": "destination",
+          "optional": false,
           "type": "Reference<Drawer>"
         }
       ],
@@ -248,24 +259,28 @@
               "default": null,
               "list": false,
               "name": "reference",
+              "optional": false,
               "type": "WireReference"
             },
             {
               "default": null,
               "list": false,
               "name": "amount",
+              "optional": false,
               "type": "Money"
             },
             {
               "default": null,
               "list": false,
               "name": "source",
+              "optional": false,
               "type": "Reference<Drawer>"
             },
             {
               "default": null,
               "list": false,
               "name": "destination",
+              "optional": false,
               "type": "Reference<Drawer>"
             }
           ],
@@ -401,6 +416,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -419,6 +435,7 @@
               "default": null,
               "list": false,
               "name": "cents",
+              "optional": false,
               "type": "Integer"
             }
           ],

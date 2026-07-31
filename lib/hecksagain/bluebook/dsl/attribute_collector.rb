@@ -11,16 +11,17 @@ module Hecksagain
         # installed by whoever owns value objects (the aggregate).
         def closed_sets = @closed_sets ||= []
 
-        def attribute(name, type = String, default: nil)
+        def attribute(name, type = String, default: nil, optional: false)
           # moved to the language: FieldName invariant, on Root.Attribute
 
           type = synthesise_closed_set(name, type) if type.is_a?(OneOf)
           list = type.is_a?(ListOf)
           attributes << IR::Attribute.new(
-            name:    name,
-            type:    list ? type.type : type,
-            list:    list,
-            default: default
+            name:     name,
+            type:     list ? type.type : type,
+            list:     list,
+            default:  default,
+            optional: optional
           )
         end
 

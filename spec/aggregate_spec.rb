@@ -22,7 +22,7 @@ RSpec.describe "a constructed aggregate" do
 
   describe "a creating command" do
     it "is a class method returning the new record" do
-      pizza = Pizza.create_pizza(name: { value: "Margherita" }, price_cents: { cents: 1200 })
+      pizza = Pizza.create_pizza(name: { value: "Margherita" }, price_cents: { cents: 1200 }, size: { value: "large" })
 
       expect(pizza).to be_a(Pizza)
       expect(pizza.name.to_h).to eq(value: "Margherita")
@@ -34,14 +34,14 @@ RSpec.describe "a constructed aggregate" do
 
   describe "a command that references its aggregate" do
     it "is an instance method that never asks for an id" do
-      pizza = Pizza.create_pizza(name: { value: "Margherita" }, price_cents: { cents: 1200 })
+      pizza = Pizza.create_pizza(name: { value: "Margherita" }, price_cents: { cents: 1200 }, size: { value: "large" })
       pizza.add_topping(topping: { value: "Basil" }, amount: { value: 3 })
 
       expect(pizza.toppings.map(&:to_h)).to eq([{ name: "Basil", amount: 3 }])
     end
 
     it "returns self, so commands chain" do
-      pizza = Pizza.create_pizza(name: { value: "Margherita" }, price_cents: { cents: 1200 })
+      pizza = Pizza.create_pizza(name: { value: "Margherita" }, price_cents: { cents: 1200 }, size: { value: "large" })
               .add_topping(topping: { value: "Basil" }, amount: { value: 3 })
               .add_topping(topping: { value: "Olive" }, amount: { value: 2 })
               .purchase(customer_name: { value: "Chris" })
@@ -54,7 +54,7 @@ RSpec.describe "a constructed aggregate" do
 
   describe "reading" do
     it "finds, lists, and counts through the bound adapter" do
-      pizza = Pizza.create_pizza(name: { value: "Margherita" }, price_cents: { cents: 1200 })
+      pizza = Pizza.create_pizza(name: { value: "Margherita" }, price_cents: { cents: 1200 }, size: { value: "large" })
 
       expect(Pizza.count).to eq(1)
       expect(Pizza.find(pizza.id).name.to_h).to eq(value: "Margherita")
@@ -63,7 +63,7 @@ RSpec.describe "a constructed aggregate" do
     end
 
     it "reports the events one instance announced" do
-      pizza = Pizza.create_pizza(name: { value: "Margherita" }, price_cents: { cents: 1200 })
+      pizza = Pizza.create_pizza(name: { value: "Margherita" }, price_cents: { cents: 1200 }, size: { value: "large" })
               .add_topping(topping: { value: "Basil" }, amount: { value: 3 })
               .purchase(customer_name: { value: "Chris" })
 
@@ -74,14 +74,14 @@ RSpec.describe "a constructed aggregate" do
 
   describe "the rules still hold" do
     it "refuses a purchase with no toppings" do
-      pizza = Pizza.create_pizza(name: { value: "Bare" }, price_cents: { cents: 900 })
+      pizza = Pizza.create_pizza(name: { value: "Bare" }, price_cents: { cents: 900 }, size: { value: "small" })
 
       expect { pizza.purchase(customer_name: { value: "Chris" }) }
         .to raise_error(Hecksagain::Runtime::GivenNotMet, /at least one topping/)
     end
 
     it "enforces the value object invariant" do
-      pizza = Pizza.create_pizza(name: { value: "Margherita" }, price_cents: { cents: 1200 })
+      pizza = Pizza.create_pizza(name: { value: "Margherita" }, price_cents: { cents: 1200 }, size: { value: "large" })
 
       expect { pizza.add_topping(topping: { value: "Air" }, amount: { value: 0 }) }
         .to raise_error(Hecksagain::Runtime::InvariantViolation, /ToppingAmount .* an amount is positive/)
@@ -90,6 +90,7 @@ RSpec.describe "a constructed aggregate" do
 
   it "raises NoMethodError for an unknown method outside a hecksagon" do
     expect { Pizza.persisted_by("Memory") }.to raise_error(NoMethodError)
-    expect { Pizza.create_pizza(name: { value: "X" }, price_cents: { cents: 1 }).nonsense }.to raise_error(NoMethodError)
+    expect { Pizza.create_pizza(name: { value: "X" }, price_cents: { cents: 1 }, size: { value: "small" }).nonsense }
+      .to raise_error(NoMethodError)
   end
 end

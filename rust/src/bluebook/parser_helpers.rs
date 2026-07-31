@@ -314,9 +314,9 @@ pub fn parse_shorthand_attribute(line: &str) -> Option<crate::ir::Attribute> {
     } else {
         None
     };
-    let required = line.contains("required:")
+    let optional = line.contains("optional:")
         && line
-            .split("required:")
+            .split("optional:")
             .nth(1)
             .map(|a| a.trim_start().starts_with("true"))
             .unwrap_or(false);
@@ -325,7 +325,7 @@ pub fn parse_shorthand_attribute(line: &str) -> Option<crate::ir::Attribute> {
         attr_type,
         default,
         list,
-        required,
+        optional,
         enum_values: vec![],
         pattern: None,
         hint: None,

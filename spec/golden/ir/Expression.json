@@ -6,30 +6,35 @@
           "default": null,
           "list": false,
           "name": "symbol",
+          "optional": false,
           "type": "OperatorSymbol"
         },
         {
           "default": null,
           "list": false,
           "name": "category",
+          "optional": false,
           "type": "Category"
         },
         {
           "default": null,
           "list": false,
           "name": "precedence",
+          "optional": false,
           "type": "Precedence"
         },
         {
           "default": null,
           "list": false,
           "name": "arity",
+          "optional": false,
           "type": "Arity"
         },
         {
           "default": null,
           "list": true,
           "name": "renderings",
+          "optional": false,
           "type": "Rendering"
         }
       ],
@@ -40,24 +45,28 @@
               "default": null,
               "list": false,
               "name": "symbol",
+              "optional": false,
               "type": "OperatorSymbol"
             },
             {
               "default": null,
               "list": false,
               "name": "category",
+              "optional": false,
               "type": "Category"
             },
             {
               "default": null,
               "list": false,
               "name": "precedence",
+              "optional": false,
               "type": "Precedence"
             },
             {
               "default": null,
               "list": false,
               "name": "arity",
+              "optional": false,
               "type": "Arity"
             }
           ],
@@ -81,12 +90,14 @@
               "default": null,
               "list": false,
               "name": "target",
+              "optional": false,
               "type": "Target"
             },
             {
               "default": null,
               "list": false,
               "name": "form",
+              "optional": false,
               "type": "Form"
             }
           ],
@@ -186,6 +197,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -207,6 +219,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -228,6 +241,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "Integer"
             }
           ],
@@ -249,6 +263,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "Integer"
             }
           ],
@@ -270,6 +285,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -288,6 +304,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -306,12 +323,14 @@
               "default": null,
               "list": false,
               "name": "target",
+              "optional": false,
               "type": "String"
             },
             {
               "default": null,
               "list": false,
               "name": "form",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -339,42 +358,49 @@
           "default": null,
           "list": false,
           "name": "name",
+          "optional": false,
           "type": "RuleName"
         },
         {
           "default": null,
           "list": false,
           "name": "strategy",
+          "optional": false,
           "type": "Strategy"
         },
         {
           "default": null,
           "list": false,
           "name": "source_token",
+          "optional": false,
           "type": "SourceToken"
         },
         {
           "default": null,
           "list": false,
           "name": "replacement",
+          "optional": false,
           "type": "Replacement"
         },
         {
           "default": null,
           "list": false,
           "name": "boundary",
+          "optional": false,
           "type": "Boundary"
         },
         {
           "default": null,
           "list": false,
           "name": "position",
+          "optional": false,
           "type": "Position"
         },
         {
           "default": null,
           "list": true,
           "name": "readings",
+          "optional": false,
           "type": "Reading"
         }
       ],
@@ -385,36 +411,42 @@
               "default": null,
               "list": false,
               "name": "name",
+              "optional": false,
               "type": "RuleName"
             },
             {
               "default": null,
               "list": false,
               "name": "strategy",
+              "optional": false,
               "type": "Strategy"
             },
             {
               "default": null,
               "list": false,
               "name": "source_token",
+              "optional": false,
               "type": "SourceToken"
             },
             {
               "default": null,
               "list": false,
               "name": "replacement",
+              "optional": false,
               "type": "Replacement"
             },
             {
               "default": null,
               "list": false,
               "name": "boundary",
+              "optional": false,
               "type": "Boundary"
             },
             {
               "default": null,
               "list": false,
               "name": "position",
+              "optional": true,
               "type": "Position"
             }
           ],
@@ -445,12 +477,14 @@
               "default": null,
               "list": false,
               "name": "target",
+              "optional": false,
               "type": "Target"
             },
             {
               "default": null,
               "list": false,
               "name": "form",
+              "optional": false,
               "type": "Form"
             }
           ],
@@ -550,6 +584,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -571,6 +606,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -592,6 +628,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -610,6 +647,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -628,6 +666,7 @@
               "default": "none",
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -649,6 +688,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "Integer"
             }
           ],
@@ -670,6 +710,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -688,6 +729,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -706,30 +748,35 @@
               "default": null,
               "list": false,
               "name": "strategy",
+              "optional": false,
               "type": "String"
             },
             {
               "default": null,
               "list": false,
               "name": "source_token",
+              "optional": false,
               "type": "String"
             },
             {
               "default": null,
               "list": false,
               "name": "replacement",
+              "optional": false,
               "type": "String"
             },
             {
               "default": null,
               "list": false,
               "name": "boundary",
+              "optional": false,
               "type": "String"
             },
             {
               "default": null,
               "list": false,
               "name": "position",
+              "optional": false,
               "type": "Integer"
             }
           ],
@@ -791,12 +838,14 @@
               "default": null,
               "list": false,
               "name": "target",
+              "optional": false,
               "type": "String"
             },
             {
               "default": null,
               "list": false,
               "name": "form",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -824,36 +873,42 @@
           "default": null,
           "list": false,
           "name": "description",
+          "optional": false,
           "type": "Description"
         },
         {
           "default": null,
           "list": false,
           "name": "source",
+          "optional": false,
           "type": "Source"
         },
         {
           "default": null,
           "list": false,
           "name": "canonical",
+          "optional": false,
           "type": "Canonical"
         },
         {
           "default": null,
           "list": false,
           "name": "subject",
+          "optional": false,
           "type": "Subject"
         },
         {
           "default": null,
           "list": false,
           "name": "role",
+          "optional": false,
           "type": "ExpressionRole"
         },
         {
           "default": null,
           "list": true,
           "name": "references",
+          "optional": false,
           "type": "Reference"
         }
       ],
@@ -864,24 +919,28 @@
               "default": null,
               "list": false,
               "name": "description",
+              "optional": true,
               "type": "Description"
             },
             {
               "default": null,
               "list": false,
               "name": "source",
+              "optional": false,
               "type": "Source"
             },
             {
               "default": null,
               "list": false,
               "name": "canonical",
+              "optional": false,
               "type": "Canonical"
             },
             {
               "default": null,
               "list": false,
               "name": "subject",
+              "optional": false,
               "type": "Subject"
             }
           ],
@@ -905,12 +964,14 @@
               "default": null,
               "list": false,
               "name": "name",
+              "optional": false,
               "type": "ReferenceName"
             },
             {
               "default": null,
               "list": false,
               "name": "kind",
+              "optional": false,
               "type": "Kind"
             }
           ],
@@ -966,6 +1027,7 @@
               "default": null,
               "list": false,
               "name": "reason",
+              "optional": false,
               "type": "Reason"
             }
           ],
@@ -1016,6 +1078,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -1037,6 +1100,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -1055,6 +1119,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -1073,6 +1138,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -1094,6 +1160,7 @@
               "default": "given",
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -1115,6 +1182,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -1136,6 +1204,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -1157,6 +1226,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -1178,12 +1248,14 @@
               "default": null,
               "list": false,
               "name": "name",
+              "optional": false,
               "type": "String"
             },
             {
               "default": null,
               "list": false,
               "name": "kind",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -1211,18 +1283,21 @@
           "default": null,
           "list": false,
           "name": "canonical",
+          "optional": false,
           "type": "Canonical"
         },
         {
           "default": null,
           "list": false,
           "name": "subject",
+          "optional": false,
           "type": "Subject"
         },
         {
           "default": null,
           "list": true,
           "name": "verdicts",
+          "optional": false,
           "type": "Verdict"
         }
       ],
@@ -1233,12 +1308,14 @@
               "default": null,
               "list": false,
               "name": "canonical",
+              "optional": false,
               "type": "Canonical"
             },
             {
               "default": null,
               "list": false,
               "name": "subject",
+              "optional": false,
               "type": "Subject"
             }
           ],
@@ -1262,12 +1339,14 @@
               "default": null,
               "list": false,
               "name": "runtime",
+              "optional": false,
               "type": "Runtime"
             },
             {
               "default": null,
               "list": false,
               "name": "outcome",
+              "optional": false,
               "type": "Outcome"
             }
           ],
@@ -1322,6 +1401,7 @@
               "default": null,
               "list": false,
               "name": "reason",
+              "optional": false,
               "type": "Reason"
             }
           ],
@@ -1372,6 +1452,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -1390,6 +1471,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -1411,6 +1493,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -1432,6 +1515,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -1453,6 +1537,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -1474,12 +1559,14 @@
               "default": null,
               "list": false,
               "name": "runtime",
+              "optional": false,
               "type": "String"
             },
             {
               "default": null,
               "list": false,
               "name": "outcome",
+              "optional": false,
               "type": "String"
             }
           ],

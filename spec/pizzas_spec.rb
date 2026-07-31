@@ -3,8 +3,9 @@ require "hecksagain"
 RSpec.describe "Pizzas" do
   let(:runtime) { boot_in_memory }
 
-  def create(name: "Margherita", price_cents: 1200)
-    runtime.dispatch("Pizzas::Pizza.CreatePizza", name: { value: name }, price_cents: { cents: price_cents })
+  def create(name: "Margherita", price_cents: 1200, size: "large")
+    runtime.dispatch("Pizzas::Pizza.CreatePizza",
+                     name: { value: name }, price_cents: { cents: price_cents }, size: { value: size })
   end
 
   def topped(**overrides)
@@ -172,7 +173,10 @@ RSpec.describe "Pizzas" do
       pizza = registry.bluebook("Pizzas").aggregate("Pizza")
       expect(registry.repository("Pizzas", pizza)).to be_a(Hecksagain::Ports::Persistence::AppendOnly)
 
-      runtime.dispatch("Pizzas::Pizza.CreatePizza", name: "Margherita", name: { value: "Margherita" }, price_cents: { cents: 900 })
+      # `name:` was written TWICE here — once as a bare string, once as the value
+      # object — and Ruby warned on every run while silently keeping the second.
+      runtime.dispatch("Pizzas::Pizza.CreatePizza",
+                       name: { value: "Margherita" }, price_cents: { cents: 900 }, size: { value: "small" })
       expect(registry.repository("Pizzas", pizza).count).to eq(1)
     end
 

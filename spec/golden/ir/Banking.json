@@ -6,24 +6,28 @@
           "default": null,
           "list": false,
           "name": "reference",
+          "optional": false,
           "type": "CustomerNumber"
         },
         {
           "default": null,
           "list": false,
           "name": "name",
+          "optional": false,
           "type": "PersonName"
         },
         {
           "default": null,
           "list": false,
           "name": "email",
+          "optional": false,
           "type": "EmailAddress"
         },
         {
           "default": null,
           "list": false,
           "name": "standing",
+          "optional": false,
           "type": "CustomerStanding"
         }
       ],
@@ -34,18 +38,21 @@
               "default": null,
               "list": false,
               "name": "reference",
+              "optional": false,
               "type": "CustomerNumber"
             },
             {
               "default": null,
               "list": false,
               "name": "name",
+              "optional": false,
               "type": "PersonName"
             },
             {
               "default": null,
               "list": false,
               "name": "email",
+              "optional": false,
               "type": "EmailAddress"
             }
           ],
@@ -92,6 +99,7 @@
               "default": null,
               "list": false,
               "name": "standing",
+              "optional": false,
               "type": "CustomerStanding"
             }
           ],
@@ -248,6 +256,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -269,6 +278,7 @@
               "default": "good",
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -290,12 +300,14 @@
               "default": null,
               "list": false,
               "name": "given",
+              "optional": false,
               "type": "String"
             },
             {
               "default": null,
               "list": false,
               "name": "family",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -321,6 +333,7 @@
               "default": null,
               "list": false,
               "name": "address",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -344,48 +357,56 @@
           "default": null,
           "list": false,
           "name": "customer_id",
+          "optional": false,
           "type": "Reference<Customer>"
         },
         {
           "default": null,
           "list": false,
           "name": "number",
+          "optional": false,
           "type": "AccountNumber"
         },
         {
           "default": null,
           "list": false,
           "name": "balance",
+          "optional": false,
           "type": "Money"
         },
         {
           "default": null,
           "list": false,
           "name": "kind",
+          "optional": false,
           "type": "AccountKind"
         },
         {
           "default": null,
           "list": false,
           "name": "daily_limit",
+          "optional": false,
           "type": "DailyLimit"
         },
         {
           "default": null,
           "list": true,
           "name": "ledger",
+          "optional": false,
           "type": "LedgerEntry"
         },
         {
           "default": null,
           "list": false,
           "name": "fees_cents",
+          "optional": false,
           "type": "Money"
         },
         {
           "default": null,
           "list": false,
           "name": "interest_cents",
+          "optional": false,
           "type": "Money"
         }
       ],
@@ -396,24 +417,28 @@
               "default": null,
               "list": false,
               "name": "customer_id",
+              "optional": false,
               "type": "Reference<Customer>"
             },
             {
               "default": null,
               "list": false,
               "name": "number",
+              "optional": false,
               "type": "AccountNumber"
             },
             {
               "default": null,
               "list": false,
               "name": "kind",
+              "optional": false,
               "type": "AccountKind"
             },
             {
               "default": null,
               "list": false,
               "name": "daily_limit",
+              "optional": false,
               "type": "DailyLimit"
             }
           ],
@@ -460,12 +485,14 @@
               "default": null,
               "list": false,
               "name": "amount",
+              "optional": false,
               "type": "PositiveMoney"
             },
             {
               "default": null,
               "list": false,
               "name": "narrative",
+              "optional": false,
               "type": "Narrative"
             }
           ],
@@ -508,12 +535,14 @@
               "default": null,
               "list": false,
               "name": "amount",
+              "optional": false,
               "type": "PositiveMoney"
             },
             {
               "default": null,
               "list": false,
               "name": "narrative",
+              "optional": false,
               "type": "Narrative"
             }
           ],
@@ -621,12 +650,14 @@
               "default": null,
               "list": false,
               "name": "amount",
+              "optional": false,
               "type": "PositiveMoney"
             },
             {
               "default": null,
               "list": false,
               "name": "narrative",
+              "optional": false,
               "type": "Narrative"
             }
           ],
@@ -668,6 +699,7 @@
               "default": null,
               "list": false,
               "name": "amount",
+              "optional": false,
               "type": "PositiveMoney"
             }
           ],
@@ -709,6 +741,7 @@
               "default": null,
               "list": false,
               "name": "amount",
+              "optional": false,
               "type": "PositiveMoney"
             }
           ],
@@ -747,6 +780,7 @@
               "default": null,
               "list": false,
               "name": "amount",
+              "optional": false,
               "type": "PositiveMoney"
             }
           ],
@@ -795,24 +829,28 @@
               "default": null,
               "list": false,
               "name": "sequence",
+              "optional": false,
               "type": "LedgerSequence"
             },
             {
               "default": null,
               "list": false,
               "name": "amount",
+              "optional": false,
               "type": "Money"
             },
             {
               "default": null,
               "list": false,
               "name": "narrative",
+              "optional": false,
               "type": "Narrative"
             },
             {
               "default": null,
               "list": false,
               "name": "direction",
+              "optional": false,
               "type": "LedgerDirection"
             }
           ],
@@ -823,12 +861,14 @@
                   "default": null,
                   "list": false,
                   "name": "adjustment",
+                  "optional": false,
                   "type": "Money"
                 },
                 {
                   "default": null,
                   "list": false,
                   "name": "narrative",
+                  "optional": false,
                   "type": "Narrative"
                 }
               ],
@@ -870,6 +910,7 @@
                   "default": null,
                   "list": false,
                   "name": "narrative",
+                  "optional": false,
                   "type": "Narrative"
                 }
               ],
@@ -988,6 +1029,7 @@
               "default": null,
               "list": false,
               "name": "floor",
+              "optional": false,
               "type": "Money"
             }
           ],
@@ -1016,6 +1058,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -1037,6 +1080,7 @@
               "default": 0,
               "list": false,
               "name": "cents",
+              "optional": false,
               "type": "Integer"
             }
           ],
@@ -1058,6 +1102,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "Integer"
             }
           ],
@@ -1079,6 +1124,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -1108,12 +1154,14 @@
               "default": 0,
               "list": false,
               "name": "cents",
+              "optional": false,
               "type": "Integer"
             },
             {
               "default": "USD",
               "list": false,
               "name": "currency",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -1135,12 +1183,14 @@
               "default": null,
               "list": false,
               "name": "cents",
+              "optional": false,
               "type": "Integer"
             },
             {
               "default": "USD",
               "list": false,
               "name": "currency",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -1166,6 +1216,7 @@
               "default": null,
               "list": false,
               "name": "name",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -1201,6 +1252,7 @@
               "default": null,
               "list": false,
               "name": "text",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -1224,30 +1276,35 @@
           "default": null,
           "list": false,
           "name": "account_id",
+          "optional": false,
           "type": "Reference<Account>"
         },
         {
           "default": null,
           "list": false,
           "name": "serial",
+          "optional": false,
           "type": "CardSerial"
         },
         {
           "default": null,
           "list": false,
           "name": "nickname",
+          "optional": false,
           "type": "CardNickname"
         },
         {
           "default": null,
           "list": false,
           "name": "daily_fee",
+          "optional": false,
           "type": "DailyFee"
         },
         {
           "default": null,
           "list": true,
           "name": "withdrawals",
+          "optional": false,
           "type": "Withdrawal"
         }
       ],
@@ -1258,18 +1315,21 @@
               "default": null,
               "list": false,
               "name": "account_id",
+              "optional": false,
               "type": "Reference<Account>"
             },
             {
               "default": null,
               "list": false,
               "name": "serial",
+              "optional": false,
               "type": "CardSerial"
             },
             {
               "default": null,
               "list": false,
               "name": "daily_fee",
+              "optional": false,
               "type": "DailyFee"
             }
           ],
@@ -1308,6 +1368,7 @@
               "default": null,
               "list": false,
               "name": "nickname",
+              "optional": false,
               "type": "CardNickname"
             }
           ],
@@ -1338,12 +1399,14 @@
               "default": null,
               "list": false,
               "name": "cents",
+              "optional": false,
               "type": "WithdrawalAmount"
             },
             {
               "default": null,
               "list": false,
               "name": "narrative",
+              "optional": false,
               "type": "Narrative"
             }
           ],
@@ -1413,18 +1476,21 @@
               "default": null,
               "list": false,
               "name": "sequence",
+              "optional": false,
               "type": "WithdrawalSequence"
             },
             {
               "default": null,
               "list": false,
               "name": "cents",
+              "optional": false,
               "type": "WithdrawalAmount"
             },
             {
               "default": null,
               "list": false,
               "name": "narrative",
+              "optional": false,
               "type": "Narrative"
             }
           ],
@@ -1435,6 +1501,7 @@
                   "default": null,
                   "list": false,
                   "name": "narrative",
+                  "optional": false,
                   "type": "Narrative"
                 }
               ],
@@ -1568,6 +1635,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -1589,6 +1657,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -1607,6 +1676,7 @@
               "default": 0.0,
               "list": false,
               "name": "amount",
+              "optional": false,
               "type": "Float"
             }
           ],
@@ -1628,6 +1698,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "Integer"
             }
           ],
@@ -1649,6 +1720,7 @@
               "default": null,
               "list": false,
               "name": "cents",
+              "optional": false,
               "type": "Integer"
             }
           ],
@@ -1670,6 +1742,7 @@
               "default": null,
               "list": false,
               "name": "text",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -1693,30 +1766,35 @@
           "default": null,
           "list": false,
           "name": "source",
+          "optional": false,
           "type": "Reference<Account>"
         },
         {
           "default": null,
           "list": false,
           "name": "destination",
+          "optional": false,
           "type": "Reference<Account>"
         },
         {
           "default": null,
           "list": false,
           "name": "reference",
+          "optional": false,
           "type": "TransferReference"
         },
         {
           "default": null,
           "list": false,
           "name": "amount",
+          "optional": false,
           "type": "TransferMoney"
         },
         {
           "default": null,
           "list": false,
           "name": "narrative",
+          "optional": false,
           "type": "Narrative"
         }
       ],
@@ -1727,30 +1805,35 @@
               "default": null,
               "list": false,
               "name": "source",
+              "optional": false,
               "type": "Reference<Account>"
             },
             {
               "default": null,
               "list": false,
               "name": "destination",
+              "optional": false,
               "type": "Reference<Account>"
             },
             {
               "default": null,
               "list": false,
               "name": "reference",
+              "optional": false,
               "type": "TransferReference"
             },
             {
               "default": null,
               "list": false,
               "name": "amount",
+              "optional": false,
               "type": "TransferMoney"
             },
             {
               "default": null,
               "list": false,
               "name": "narrative",
+              "optional": false,
               "type": "Narrative"
             }
           ],
@@ -1966,6 +2049,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -1987,6 +2071,7 @@
               "default": null,
               "list": false,
               "name": "cents",
+              "optional": false,
               "type": "Integer"
             }
           ],
@@ -2008,6 +2093,7 @@
               "default": null,
               "list": false,
               "name": "text",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -2031,30 +2117,35 @@
           "default": null,
           "list": false,
           "name": "account_id",
+          "optional": false,
           "type": "Reference<Account>"
         },
         {
           "default": null,
           "list": false,
           "name": "disputed_by",
+          "optional": false,
           "type": "Reference<Customer>"
         },
         {
           "default": null,
           "list": false,
           "name": "authorisation",
+          "optional": false,
           "type": "AuthorisationCode"
         },
         {
           "default": null,
           "list": false,
           "name": "amount",
+          "optional": false,
           "type": "PaymentAmount"
         },
         {
           "default": null,
           "list": false,
           "name": "merchant",
+          "optional": false,
           "type": "MerchantName"
         }
       ],
@@ -2065,24 +2156,28 @@
               "default": null,
               "list": false,
               "name": "account_id",
+              "optional": false,
               "type": "Reference<Account>"
             },
             {
               "default": null,
               "list": false,
               "name": "authorisation",
+              "optional": false,
               "type": "AuthorisationCode"
             },
             {
               "default": null,
               "list": false,
               "name": "amount",
+              "optional": false,
               "type": "PaymentAmount"
             },
             {
               "default": null,
               "list": false,
               "name": "merchant",
+              "optional": false,
               "type": "MerchantName"
             }
           ],
@@ -2193,6 +2288,7 @@
               "default": null,
               "list": false,
               "name": "disputed_by",
+              "optional": false,
               "type": "Reference<Customer>"
             }
           ],
@@ -2347,6 +2443,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -2365,6 +2462,7 @@
               "default": null,
               "list": false,
               "name": "cents",
+              "optional": false,
               "type": "Integer"
             }
           ],
@@ -2386,6 +2484,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -2409,24 +2508,28 @@
           "default": null,
           "list": false,
           "name": "account_id",
+          "optional": false,
           "type": "Reference<Account>"
         },
         {
           "default": null,
           "list": false,
           "name": "end_to_end",
+          "optional": false,
           "type": "EndToEndReference"
         },
         {
           "default": null,
           "list": false,
           "name": "amount",
+          "optional": false,
           "type": "ExternalAmount"
         },
         {
           "default": null,
           "list": false,
           "name": "beneficiary",
+          "optional": false,
           "type": "BeneficiaryName"
         }
       ],
@@ -2437,24 +2540,28 @@
               "default": null,
               "list": false,
               "name": "account_id",
+              "optional": false,
               "type": "Reference<Account>"
             },
             {
               "default": null,
               "list": false,
               "name": "end_to_end",
+              "optional": false,
               "type": "EndToEndReference"
             },
             {
               "default": null,
               "list": false,
               "name": "amount",
+              "optional": false,
               "type": "ExternalAmount"
             },
             {
               "default": null,
               "list": false,
               "name": "beneficiary",
+              "optional": false,
               "type": "BeneficiaryName"
             }
           ],
@@ -2594,6 +2701,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -2612,6 +2720,7 @@
               "default": null,
               "list": false,
               "name": "cents",
+              "optional": false,
               "type": "Integer"
             }
           ],
@@ -2633,6 +2742,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -2656,30 +2766,35 @@
           "default": null,
           "list": false,
           "name": "account_id",
+          "optional": false,
           "type": "Reference<Account>"
         },
         {
           "default": null,
           "list": false,
           "name": "amount",
+          "optional": false,
           "type": "ScheduledAmount"
         },
         {
           "default": null,
           "list": false,
           "name": "instruction",
+          "optional": false,
           "type": "InstructionReference"
         },
         {
           "default": null,
           "list": false,
           "name": "recipient",
+          "optional": false,
           "type": "PaymentRecipient"
         },
         {
           "default": null,
           "list": false,
           "name": "due_on",
+          "optional": false,
           "type": "PaymentDueDate"
         }
       ],
@@ -2690,30 +2805,35 @@
               "default": null,
               "list": false,
               "name": "account_id",
+              "optional": false,
               "type": "Reference<Account>"
             },
             {
               "default": null,
               "list": false,
               "name": "instruction",
+              "optional": false,
               "type": "InstructionReference"
             },
             {
               "default": null,
               "list": false,
               "name": "amount",
+              "optional": false,
               "type": "ScheduledAmount"
             },
             {
               "default": null,
               "list": false,
               "name": "recipient",
+              "optional": false,
               "type": "PaymentRecipient"
             },
             {
               "default": null,
               "list": false,
               "name": "due_on",
+              "optional": false,
               "type": "PaymentDueDate"
             }
           ],
@@ -2841,6 +2961,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -2859,6 +2980,7 @@
               "default": null,
               "list": false,
               "name": "cents",
+              "optional": false,
               "type": "Integer"
             }
           ],
@@ -2880,6 +3002,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -2901,6 +3024,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],

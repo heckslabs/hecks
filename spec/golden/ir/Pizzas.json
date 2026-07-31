@@ -6,30 +6,35 @@
           "default": null,
           "list": false,
           "name": "name",
+          "optional": false,
           "type": "PizzaName"
         },
         {
           "default": null,
           "list": true,
           "name": "toppings",
+          "optional": false,
           "type": "Topping"
         },
         {
           "default": null,
           "list": false,
           "name": "price_cents",
+          "optional": false,
           "type": "Price"
         },
         {
           "default": null,
           "list": false,
           "name": "customer_name",
+          "optional": false,
           "type": "CustomerName"
         },
         {
           "default": null,
           "list": false,
           "name": "size",
+          "optional": false,
           "type": "Size"
         }
       ],
@@ -40,18 +45,21 @@
               "default": null,
               "list": false,
               "name": "name",
+              "optional": false,
               "type": "PizzaName"
             },
             {
               "default": null,
               "list": false,
               "name": "price_cents",
+              "optional": false,
               "type": "Price"
             },
             {
               "default": null,
               "list": false,
               "name": "size",
+              "optional": false,
               "type": "Size"
             }
           ],
@@ -75,12 +83,14 @@
               "default": null,
               "list": false,
               "name": "topping",
+              "optional": false,
               "type": "ToppingName"
             },
             {
               "default": null,
               "list": false,
               "name": "amount",
+              "optional": false,
               "type": "ToppingAmount"
             }
           ],
@@ -118,6 +128,7 @@
               "default": null,
               "list": false,
               "name": "customer_name",
+              "optional": false,
               "type": "CustomerName"
             }
           ],
@@ -201,6 +212,7 @@
               "default": null,
               "list": false,
               "name": "ceiling",
+              "optional": false,
               "type": "Price"
             }
           ],
@@ -240,6 +252,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -261,6 +274,7 @@
               "default": null,
               "list": false,
               "name": "cents",
+              "optional": false,
               "type": "Integer"
             }
           ],
@@ -282,6 +296,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -303,6 +318,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -324,6 +340,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "Integer"
             }
           ],
@@ -345,12 +362,14 @@
               "default": null,
               "list": false,
               "name": "name",
+              "optional": false,
               "type": "String"
             },
             {
               "default": null,
               "list": false,
               "name": "amount",
+              "optional": false,
               "type": "Integer"
             }
           ],
@@ -369,6 +388,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],

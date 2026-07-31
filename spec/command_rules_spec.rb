@@ -64,14 +64,30 @@ RSpec.describe "the rules a command obeys" do
     # the two would agree. Both are gone : the message now names what is
     # actually wrong, and both runtimes word it identically because Ruby's
     # Rendering.describe and Rust's describe() both spell nil "nil".
-    it "says an absent amount is nil, not the name of the argument" do
+    it "says an absent OPTIONAL argument is nil, not the name of the argument" do
+      runtime = boot_till
+      runtime.dispatch("TillRoom::Till.OpenTill", number: { value: "till-1" })
+
+      # `note` is optional, so the payload gate lets this through and the
+      # mutation actually resolves an argument that is not there — the only
+      # remaining path to the leak. It used to resolve to the SYMBOL `:note`
+      # and refuse with "note is a Note — pass its fields as an object, not
+      # :note", describing a mistake the caller had not made.
+      state = runtime.dispatch("TillRoom::Till.TakeIn",
+                               number: { value: "till-1" }, amount: { cents: 300 }).state
+
+      expect(state[:note]).to be_nil
+      expect(state[:balance].to_h).to eq(cents: 300)
+    end
+
+    it "refuses an absent REQUIRED argument at the gate, before any rule runs" do
       runtime = funded_account(boot_banking)
 
       expect do
         runtime.dispatch("Banking::Account.Credit",
                          number: { value: "a1" }, narrative: { text: "No amount at all" })
-      end.to raise_error(Hecksagain::Runtime::TypeMismatch,
-                         "increment of balance needs an Integer, got nil")
+      end.to raise_error(Hecksagain::Runtime::AbsentArgument,
+                         "Credit was not given amount — it takes amount, narrative")
     end
 
     # The counterpart on the OTHER side of the arithmetic : a total that has
@@ -83,7 +99,8 @@ RSpec.describe "the rules a command obeys" do
     it "still starts an unset total at zero" do
       runtime = funded_account(boot_banking)
       state   = runtime.dispatch("Banking::Account.ApplyFee",
-                                 number: { value: "a1" }, amount: { cents: 250, currency: "USD" })
+                                 number: { value: "a1" }, amount: { cents: 250, currency: "USD" },
+                                 narrative: narrative)
                        .state
 
       expect(state[:fees_cents].to_h).to eq(cents: 250, currency: "USD")

@@ -187,7 +187,7 @@ Hecks.bluebook "Expression" do
       attribute :source_token, SourceToken
       attribute :replacement,  Replacement
       attribute :boundary,     Boundary
-      attribute :position,     Position
+      attribute :position,     Position, optional: true
 
       given("a rule must name a linked strategy") do
         strategy.value == "collapse_whitespace" || strategy.value == "replace"
@@ -305,7 +305,7 @@ Hecks.bluebook "Expression" do
       role "System"
       goal "Lower a real Ruby predicate into the sublanguage"
 
-      attribute :description, Description
+      attribute :description, Description, optional: true
       attribute :source,      Source
       attribute :canonical,   Canonical
       attribute :subject,     Subject

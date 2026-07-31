@@ -6,12 +6,14 @@
           "default": null,
           "list": false,
           "name": "name",
+          "optional": false,
           "type": "LightName"
         },
         {
           "default": null,
           "list": false,
           "name": "condition",
+          "optional": false,
           "type": "LightCondition"
         }
       ],
@@ -22,6 +24,7 @@
               "default": null,
               "list": false,
               "name": "name",
+              "optional": false,
               "type": "LightName"
             }
           ],
@@ -142,6 +145,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -160,6 +164,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -180,12 +185,14 @@
           "default": null,
           "list": false,
           "name": "name",
+          "optional": false,
           "type": "BellName"
         },
         {
           "default": null,
           "list": false,
           "name": "rings",
+          "optional": false,
           "type": "RingCount"
         }
       ],
@@ -196,6 +203,7 @@
               "default": null,
               "list": false,
               "name": "name",
+              "optional": false,
               "type": "BellName"
             }
           ],
@@ -231,6 +239,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],
@@ -249,6 +258,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "Integer"
             }
           ],
@@ -269,6 +279,7 @@
           "default": null,
           "list": false,
           "name": "signal",
+          "optional": false,
           "type": "SignalName"
         }
       ],
@@ -309,6 +320,7 @@
               "default": null,
               "list": false,
               "name": "value",
+              "optional": false,
               "type": "String"
             }
           ],

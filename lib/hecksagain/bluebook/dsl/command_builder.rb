@@ -15,7 +15,12 @@ module Hecksagain
         def role(value) = @role = value
         def goal(value) = @goal = value
 
-        def reference_to(type, as: nil)
+        # `optional:` rides here as well as on a plain attribute : `as:` makes a
+        # reference into a NAMED ARGUMENT, and a named argument is exactly the kind
+        # of fact that may or may not be given. The meta-domain's Verb.Declare
+        # points at the Entity a command belongs to — and most commands belong to no
+        # entity at all.
+        def reference_to(type, as: nil, optional: false)
           demodulised = Naming.demodulise(type)
           # moved to the language: given "a command names what it acts on", on Verb.ActsOn
 
@@ -27,7 +32,7 @@ module Hecksagain
           # one thing it exists to say. Transfer has said
           # `reference_to Account, as: :source` for as long as banking has existed;
           # this is the same sentence when the target happens to be the owner.
-          return cross_reference(demodulised, as) if as || demodulised.to_s != @owner.to_s
+          return cross_reference(demodulised, as, optional) if as || demodulised.to_s != @owner.to_s
 
           if @references
             raise Malformed,
@@ -41,8 +46,8 @@ module Hecksagain
 
         private
 
-        def cross_reference(target, as)
-          attribute(as || :"#{Naming.snake(target)}_id", IR::Reference.new(target))
+        def cross_reference(target, as, optional = false)
+          attribute(as || :"#{Naming.snake(target)}_id", IR::Reference.new(target), optional: optional)
         end
 
         public

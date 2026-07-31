@@ -31,8 +31,8 @@ Hecks.bluebook "Deployment" do
       goal "Open a world for a domain"
 
       attribute :domain, WorldName
-      attribute :realm,  Realm
-      attribute :latest, Latest
+      attribute :realm,  Realm, optional: true
+      attribute :latest, Latest, optional: true
 
       emits "WorldDeclared"
     end

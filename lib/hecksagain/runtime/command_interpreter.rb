@@ -99,6 +99,35 @@ module Hecksagain
               "it takes #{command.attributes.map(&:name).join(', ')}"
       end
 
+      # And it takes ALL of them. The other half of the same sentence, missing
+      # until fuzz went looking : a name the command never declared was refused,
+      # while a name it DID declare could simply be left out.
+      #
+      # Ruby happened to refuse `Customer.Register` without its `name` — but by
+      # ACCIDENT, and with a lie for a message. `then_set :name, to: :name` found
+      # nothing to resolve, passed the literal symbol on, and coercion reported
+      # `name is a PersonName — pass its fields as an object`, which describes a
+      # mistake the caller did not make. Rust had no such accident and wrote
+      # `name: null`. So neither runtime was refusing the real mistake, and the
+      # seam between the two accidents is what showed up as a parity SPLIT.
+      #
+      # No command attribute anywhere in the corpus carries a default — checked,
+      # all eight chapters, zero — so there is no optional argument for this to
+      # step on. Every declared attribute is a fact the command needs.
+      def refuse_absent_arguments(command, args)
+        given    = args.keys.map(&:to_sym)
+        required = command.attributes.reject(&:optional?).map { |attribute| attribute.name.to_sym }
+        # SORTED, for the same reason the unknown list is : declaration order is
+        # stable but the two runtimes reach it differently, and a refusal has to
+        # read identically in both or parity says so.
+        absent = (required - given).sort
+        return if absent.empty?
+
+        raise AbsentArgument,
+              "#{command.hecks_name} was not given #{absent.join(', ')} — " \
+              "it takes #{command.attributes.map(&:name).join(', ')}"
+      end
+
       # What a process manager correlates by is ROUTING, not description. A saga
       # threads its correlation key through every leg it dispatches so the event
       # each leg emits carries it and the next step can be correlated — so the key
@@ -115,6 +144,9 @@ module Hecksagain
 
       def normalize_args(domain, aggregate, command, args)
         step(:refuse_unknown_arguments) { refuse_unknown_arguments(domain, aggregate, command, args) }
+        # Unknown first, deliberately : a payload that both misspells one name and
+        # omits another is more usefully told about the name that does not exist.
+        step(:refuse_absent_arguments)  { refuse_absent_arguments(command, args) }
 
         command.attributes.each_with_object(args.dup) do |attribute, normalized|
           next unless normalized.key?(attribute.name)

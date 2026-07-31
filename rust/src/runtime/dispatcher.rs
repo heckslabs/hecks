@@ -3,7 +3,7 @@ use crate::interp_expr::State;
 use crate::interp_givens::evaluate_given;
 use crate::interp_mutations::{
     apply_mutation, arithmetic, assign_creation_attributes, coerce_attribute, defaults_for,
-    normalize_command_args, refuse_unknown_arguments, resolve_source,
+    normalize_command_args, refuse_absent_arguments, refuse_unknown_arguments, resolve_source,
 };
 use crate::runtime::PersistenceAdapter;
 use crate::value_bridge;
@@ -1148,6 +1148,10 @@ impl Runtime {
             .ok_or_else(|| format!("{} has no command {:?}", aggregate_name, command_name))?;
         refuse_unknown_arguments(&aggregate, &command, args, &self.correlation_keys(&domain))?;
         self.trace_step("refuse_unknown_arguments");
+        // Unknown first, deliberately : a payload that both misspells one name and
+        // omits another is more usefully told about the name that does not exist.
+        refuse_absent_arguments(&command, args)?;
+        self.trace_step("refuse_absent_arguments");
         self.refuse_object_references(&domain, &command, args)?;
         let normalized_args = normalize_command_args(&aggregate, &command, args)?;
         self.trace_step("normalize_args");
@@ -2391,6 +2395,7 @@ mod dispatch_order_tests {
             trace,
             vec![
                 "refuse_unknown_arguments",
+                "refuse_absent_arguments",
                 "normalize_args",
                 "resolve_references",
                 "hydrate",

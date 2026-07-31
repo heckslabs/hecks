@@ -181,6 +181,60 @@ pub fn refuse_unknown_arguments(
     ))
 }
 
+/// And it takes ALL of them. The other half of the same sentence, missing until
+/// fuzz went looking : a name the command never declared was refused, while a
+/// name it DID declare could simply be left out.
+///
+/// Rust wrote `name: null` and carried on, because `assign_creation_attributes`
+/// only ever assigned the arguments that were present. Ruby refused the same
+/// payload, but by ACCIDENT — an unresolved `then_set` leaking its literal source
+/// symbol into coercion — and with a message describing a mistake the caller did
+/// not make. Neither runtime was refusing the real one, and the seam between the
+/// two accidents is what showed up as a parity SPLIT.
+///
+/// No command attribute anywhere in the corpus carries a default — checked, all
+/// eight chapters, zero — so there is no optional argument for this to step on.
+pub fn refuse_absent_arguments(command: &Map<String, Value>, args: &State) -> Result<(), String> {
+    let declared: Vec<String> = array(command, "attributes")
+        .iter()
+        .filter_map(|attribute| attribute.get("name").and_then(Value::as_str))
+        .map(str::to_string)
+        .collect();
+
+    // SORTED, for the same reason the unknown list is : declaration order is stable
+    // but the two runtimes reach it differently, and a refusal has to read
+    // identically in both or parity says so.
+    let required: Vec<String> = array(command, "attributes")
+        .iter()
+        .filter(|attribute| {
+            !attribute
+                .get("optional")
+                .and_then(Value::as_bool)
+                .unwrap_or(false)
+        })
+        .filter_map(|attribute| attribute.get("name").and_then(Value::as_str))
+        .map(str::to_string)
+        .collect();
+
+    let mut absent: Vec<&str> = required
+        .iter()
+        .map(String::as_str)
+        .filter(|name| !args.contains_key(*name))
+        .collect();
+    absent.sort_unstable();
+    if absent.is_empty() {
+        return Ok(());
+    }
+
+    let command_name = command.get("name").and_then(Value::as_str).unwrap_or("");
+    Err(format!(
+        "{} was not given {} — it takes {}",
+        command_name,
+        absent.join(", "),
+        declared.join(", ")
+    ))
+}
+
 pub fn normalize_command_args(
     aggregate: &Map<String, Value>,
     command: &Map<String, Value>,
