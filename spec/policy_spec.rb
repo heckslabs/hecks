@@ -58,7 +58,7 @@ RSpec.describe "a policy" do
 
   it "records a reaction it cannot deliver rather than swallowing it" do
     runtime = boot_reflex
-    runtime.dispatch("Reflex::Beacon.Raise", id: "beacon-1")
+    runtime.dispatch("Reflex::Beacon.Raise", signal: { value: "beacon-1" })
 
     expect(runtime.reactions).to contain_exactly(
       hash_including(

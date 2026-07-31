@@ -238,7 +238,7 @@
       "entities": [
 
       ],
-      "identified_by": "id",
+      "identified_by": "signal",
       "lifecycle": null,
       "name": "Beacon",
       "queries": [
