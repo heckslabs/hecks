@@ -49,6 +49,11 @@ end
 # corpus run still takes banking through both on every push.
 PARITY_ADAPTER = "Heki".freeze
 
+# How many seeds may be drawn per executing seed asked for, before the sweep
+# gives up and says so. Generous, because a domain whose sequences mostly refuse
+# is a generator problem worth reporting rather than a reason to run forever.
+DRAW_LIMIT = 5
+
 def parity_verdict(domain, script_path)
   output, status = Open3.capture2e(File.join(ROOT, "bin/parity"), domain, script_path, PARITY_ADAPTER)
   return [:agreed, output] if status.success?
@@ -148,7 +153,28 @@ def fuzz_domain(domain, seeds, steps)
   failures = []
   agreed = 0
   silent = 0
-  (1..seeds).each do |seed|
+  drawn = 0
+
+  # DRAWN UNTIL N HAVE EXECUTED, rather than simply numbered 1..N.
+  #
+  # A silent sequence refused every step, so the two runtimes agreed about
+  # nothing — `bin/parity` says so itself. Counting one toward the sweep is how
+  # `--seeds 20` came to mean thirteen, and the number that was reported was the
+  # number asked for rather than the number achieved.
+  #
+  # Silence is NOT retired. It is a property of the seed AND the bluebook
+  # together: seed 8 is silent against banking as it stands today, and generates
+  # something else entirely the moment banking moves. A remembered deny-list
+  # would go stale immediately and would skip precisely the seed that had just
+  # become interesting.
+  #
+  # The cap stops a domain that can never execute from drawing forever, and is
+  # REPORTED rather than swallowed — a sweep that fell short is not a sweep that
+  # passed.
+  cap = seeds * DRAW_LIMIT
+  while (agreed + failures.length) < seeds && drawn < cap
+    drawn += 1
+    seed = drawn
     generated = Hecksagain::Fuzzing::SequenceGenerator.generate(domain, seed: seed, steps: steps)
     Dir.mktmpdir("hecksagain-fuzz-trial") do |tmp|
       path = File.join(tmp, "trial.json")
@@ -162,7 +188,7 @@ def fuzz_domain(domain, seeds, steps)
     end
   end
 
-  report(domain, name, seeds, agreed, silent, failures)
+  report(domain, name, seeds, drawn, agreed, silent, failures)
 end
 
 # WHAT THE SWEEP FOUND, grouped by disagreement rather than by seed — twenty
@@ -170,10 +196,14 @@ end
 # becomes noise. Silent runs are named rather than buried : they are the sweep
 # telling you it never reached an interesting state, which is a fuzzer problem,
 # not a runtime one.
-def report(domain, name, seeds, agreed, silent, failures)
-  puts "   #{seeds} seeds — #{agreed} agreed, #{failures.length} split, #{silent} silent"
-  if silent > agreed && silent.positive?
-    puts "   MOSTLY SILENT — most sequences refused everything, so this sweep proves little."
+def report(domain, name, seeds, drawn, agreed, silent, failures)
+  executed = agreed + failures.length
+  drawn_note = silent.positive? ? " (#{drawn} drawn, #{silent} silent)" : ""
+  puts "   #{executed} seeds executed#{drawn_note} — #{agreed} agreed, #{failures.length} split"
+
+  if executed < seeds
+    puts "   SHORT — asked for #{seeds} executing seeds and drew #{drawn} to find #{executed}."
+    puts "          The generator is not reaching state ; this sweep proves less than it looks."
   end
 
   if failures.empty?
