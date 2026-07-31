@@ -35,6 +35,13 @@ pub(super) fn compare_strings(a: &str, b: &str) -> std::cmp::Ordering {
     if let (Ok(an), Ok(bn)) = (a.parse::<i64>(), b.parse::<i64>()) {
         return an.cmp(&bn);
     }
+    // A FLOAT IS A NUMBER TOO. Parsing only i64 sent `2.5` down the byte-compare
+    // path, where '2' < '3' happens to be right and '10.0' < '9.0' is not.
+    if let (Ok(an), Ok(bn)) = (a.parse::<f64>(), b.parse::<f64>()) {
+        if let Some(ordering) = an.partial_cmp(&bn) {
+            return ordering;
+        }
+    }
     a.cmp(b)
 }
 
@@ -57,13 +64,46 @@ pub(super) fn resolve_state_field(state: &AggregateState, field: &str) -> String
             _ => return String::new(),
         }
     }
-    match cur {
+    scalar_reading(cur)
+}
+
+/// THE SCALAR A VALUE OBJECT STANDS FOR.
+///
+/// This read a one-key map by the literal key `"value"` and nothing else, so
+/// `{"cents":2500}` — Money, Price, every amount in the corpus — fell through to
+/// `Display for Value::Map`, which renders `"{1 fields}"`. Byte-compared against
+/// `"2500"` that puts `'{'` (0x7B) above every digit, so Gt was ALWAYS true and
+/// Lt ALWAYS false, whatever the number was.
+///
+/// The rule is `query_number`'s (dispatcher.rs): EXACTLY ONE numeric member, any
+/// key name. Not Ruby's `comparable`, which takes the first numeric in insertion
+/// order — `Value::Map` is a HashMap here, so "first" would be a coin flip on any
+/// object with two numbers. Requiring exactly one is deterministic, and agrees
+/// with Ruby wherever at most one member is numeric, which is every value object
+/// the corpus declares.
+///
+/// Unwrapping any single-field map subsumes the old `"value"` case rather than
+/// special-casing it.
+fn scalar_reading(value: &Value) -> String {
+    match value {
         Value::Null => String::new(),
-        Value::Map(m) if m.len() == 1 => m
-            .get("value")
-            .map(|v| v.to_string())
-            .unwrap_or_else(|| cur.to_string()),
-        _ => cur.to_string(),
+        Value::Map(fields) => {
+            let numbers: Vec<&Value> = fields
+                .values()
+                .filter(|held| matches!(held, Value::Int(_) | Value::Float(_)))
+                .collect();
+
+            match numbers.as_slice() {
+                [only] => only.to_string(),
+                _ if fields.len() == 1 => fields
+                    .values()
+                    .next()
+                    .map(ToString::to_string)
+                    .unwrap_or_default(),
+                _ => value.to_string(),
+            }
+        }
+        _ => value.to_string(),
     }
 }
 

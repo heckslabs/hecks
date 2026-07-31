@@ -234,6 +234,91 @@ fn where_matches_resolves_nested_vo_bare_and_dotted() {
     assert!(!storehouse::runtime::where_matches(&s, &clause("sequence.nope", WhereOp::Eq, "7"), &attrs), "missing leaf");
 }
 
+// A VALUE OBJECT WHOSE NUMBER IS NOT KEYED "value" — Money, Price, every amount
+// the corpus declares. The oracle read a one-key map only by the literal key
+// "value", so {"cents":2500} rendered as "{1 fields}" and byte-compared: '{'
+// (0x7B) sorts above every digit, so Gt was ALWAYS true and Lt ALWAYS false,
+// whatever the number was. These fail before the fix.
+#[test]
+fn where_matches_reads_a_value_object_by_its_number_not_its_key() {
+    let attrs = HashMap::new();
+
+    let mut priced = AggregateState::new("p1");
+    let mut price: HashMap<String, Value> = HashMap::new();
+    price.insert("cents".to_string(), Value::Int(2500));
+    priced.set("price", Value::Map(price));
+
+    let matches = |op, target| {
+        storehouse::runtime::where_matches(&priced, &clause("price", op, target), &attrs)
+    };
+    assert!(!matches(WhereOp::Gt, "3000"), "2500 is not greater than 3000");
+    assert!(matches(WhereOp::Lt, "3000"), "2500 is less than 3000");
+    assert!(matches(WhereOp::Eq, "2500"), "2500 equals 2500");
+}
+
+// TWO fields, one of them numeric — banking's Money{cents, currency}. The rule is
+// query_number's: exactly ONE numeric member, whatever it is called. Not Ruby's
+// "first numeric in insertion order", which would be a coin flip here because
+// Value::Map is a HashMap.
+#[test]
+fn where_matches_reads_the_one_numeric_member_of_a_two_field_value_object() {
+    let attrs = HashMap::new();
+
+    let mut account = AggregateState::new("a1");
+    let mut money: HashMap<String, Value> = HashMap::new();
+    money.insert("cents".to_string(), Value::Int(0));
+    money.insert("currency".to_string(), Value::Str("USD".into()));
+    account.set("balance", Value::Map(money));
+
+    assert!(
+        storehouse::runtime::where_matches(&account, &clause("balance", WhereOp::Lt, "1"), &attrs),
+        "0 is less than 1"
+    );
+    assert!(
+        !storehouse::runtime::where_matches(&account, &clause("balance", WhereOp::Gt, "1"), &attrs),
+        "0 is not greater than 1"
+    );
+}
+
+// A FLOAT — banking's DailyFee{amount: Float}. compare_strings parsed i64 only,
+// so this fell to a byte compare where "10.5" sorts BELOW "9.0" on the first
+// character. Asserted on a bare Float rather than through a value object, so the
+// map reading cannot mask it: a Gt against 9.0 passed for the wrong reason while
+// the oracle was broken, because "{1 fields}" byte-compares above every digit.
+#[test]
+fn where_matches_compares_a_float_as_a_number() {
+    let attrs = HashMap::new();
+
+    let mut card = AggregateState::new("c1");
+    card.set("rate", Value::Float(10.5));
+
+    assert!(
+        storehouse::runtime::where_matches(&card, &clause("rate", WhereOp::Gt, "9.0"), &attrs),
+        "10.5 is greater than 9.0"
+    );
+    assert!(
+        !storehouse::runtime::where_matches(&card, &clause("rate", WhereOp::Lt, "9.0"), &attrs),
+        "10.5 is not less than 9.0"
+    );
+}
+
+// The same number inside a value object, asked the way the corpus asks it — a Lt
+// that the broken reading gets WRONG. A Gt would have passed either way.
+#[test]
+fn where_matches_reads_a_float_member_of_a_value_object() {
+    let attrs = HashMap::new();
+
+    let mut card = AggregateState::new("c1");
+    let mut fee: HashMap<String, Value> = HashMap::new();
+    fee.insert("amount".to_string(), Value::Float(10.5));
+    card.set("daily_fee", Value::Map(fee));
+
+    assert!(
+        storehouse::runtime::where_matches(&card, &clause("daily_fee", WhereOp::Lt, "11.0"), &attrs),
+        "10.5 is less than 11.0"
+    );
+}
+
 #[test]
 fn injection_value_is_bound_not_executed() {
     let repo = seeded("injection");
