@@ -122,7 +122,7 @@ RSpec.describe "the rules a command obeys" do
       runtime.dispatch("Banking::Account.Open", number: { value: "dst" }, customer_id: { value: "c-dst" },
                        kind: { name: "current" }, daily_limit: { cents: 50_000 })
       runtime.dispatch("Banking::Transfer.Request",
-                       id: "x1", source: { value: "src" }, destination: { value: "dst" },
+                       reference: { value: "x1" }, source: { value: "src" }, destination: { value: "dst" },
                        amount: { cents: 100 }, narrative: { text: "A transfer waiting for credit" })
       runtime.dispatch("Banking::Transfer.Debited", transfer: "x1")
 
@@ -143,7 +143,7 @@ RSpec.describe "the rules a command obeys" do
       runtime.dispatch("Banking::Account.Open", number: { value: "dst" }, customer_id: { value: "c-dst" },
                        kind: { name: "current" }, daily_limit: { cents: 50_000 })
       runtime.dispatch("Banking::Transfer.Request",
-                       id: "x1", source: { value: "src" }, destination: { value: "dst" },
+                       reference: { value: "x1" }, source: { value: "src" }, destination: { value: "dst" },
                        amount: { cents: 100 }, narrative: { text: "An ordered transfer" })
 
       expect { runtime.dispatch("Banking::Transfer.Settle", transfer: "x1") }

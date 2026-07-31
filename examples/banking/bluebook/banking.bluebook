@@ -517,9 +517,18 @@ Hecks.bluebook "Banking" do
   aggregate "Transfer" do
     description "Money leaving one account for another. Two movements that must both happen, or neither."
 
+    identified_by { reference.value }
+
     reference_to Account, as: :source
     reference_to Account, as: :destination
+
+    attribute :reference, TransferReference
     attribute :amount,    TransferMoney
+
+    value_object "TransferReference" do
+      attribute :value, String
+      invariant("a transfer is referenced") { !value.to_s.empty? }
+    end
     attribute :narrative, Narrative
 
     value_object "TransferMoney" do
@@ -547,6 +556,7 @@ Hecks.bluebook "Banking" do
 
       reference_to Account, as: :source
       reference_to Account, as: :destination
+      attribute :reference,   TransferReference
       attribute :amount,      TransferMoney
       attribute :narrative,   Narrative
 

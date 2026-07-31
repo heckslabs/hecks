@@ -350,7 +350,6 @@
     {
       "verb": "Banking::Transfer.Request",
       "args": {
-        "id": "xfer-1",
         "source": {
           "value": "acct-1"
         },
@@ -362,13 +361,15 @@
         },
         "narrative": {
           "text": "Rent"
+        },
+        "reference": {
+          "value": "xfer-1"
         }
       }
     },
     {
       "verb": "Banking::Transfer.Request",
       "args": {
-        "id": "xfer-zero",
         "source": {
           "value": "acct-1"
         },
@@ -380,13 +381,15 @@
         },
         "narrative": {
           "text": "Nothing"
+        },
+        "reference": {
+          "value": "xfer-zero"
         }
       }
     },
     {
       "verb": "Banking::Transfer.Request",
       "args": {
-        "id": "xfer-self",
         "source": {
           "value": "acct-1"
         },
@@ -398,6 +401,9 @@
         },
         "narrative": {
           "text": "To myself"
+        },
+        "reference": {
+          "value": "xfer-self"
         }
       }
     },
@@ -412,7 +418,6 @@
     {
       "verb": "Banking::Transfer.Request",
       "args": {
-        "id": "xfer-2",
         "source": {
           "value": "acct-1"
         },
@@ -424,6 +429,9 @@
         },
         "narrative": {
           "text": "Into the frozen account"
+        },
+        "reference": {
+          "value": "xfer-2"
         }
       }
     },
@@ -434,7 +442,9 @@
     {
       "verb": "Banking::Transfer.Reverse",
       "args": {
-        "id": "xfer-2"
+        "reference": {
+          "value": "xfer-2"
+        }
       }
     },
     {
@@ -575,7 +585,6 @@
     {
       "verb": "Banking::Transfer.Request",
       "args": {
-        "id": "xfer-3",
         "source": {
           "value": "acct-2"
         },
@@ -587,13 +596,18 @@
         },
         "narrative": {
           "text": "Out of a closed account"
+        },
+        "reference": {
+          "value": "xfer-3"
         }
       }
     },
     {
       "verb": "Banking::Transfer.Reject",
       "args": {
-        "id": "xfer-3"
+        "reference": {
+          "value": "xfer-3"
+        }
       }
     },
     {
@@ -1470,7 +1484,6 @@
     {
       "verb": "Banking::Transfer.Request",
       "args": {
-        "id": "xfer-nosource",
         "source": {
           "value": ""
         },
@@ -1482,13 +1495,15 @@
         },
         "narrative": {
           "text": "From nowhere named"
+        },
+        "reference": {
+          "value": "xfer-nosource"
         }
       }
     },
     {
       "verb": "Banking::Transfer.Request",
       "args": {
-        "id": "xfer-nodest",
         "source": {
           "value": "acct-8"
         },
@@ -1500,13 +1515,15 @@
         },
         "narrative": {
           "text": "To nowhere named"
+        },
+        "reference": {
+          "value": "xfer-nodest"
         }
       }
     },
     {
       "verb": "Banking::Transfer.Request",
       "args": {
-        "id": "xfer-neg",
         "source": {
           "value": "acct-8"
         },
@@ -1518,13 +1535,15 @@
         },
         "narrative": {
           "text": "A transfer that runs backwards"
+        },
+        "reference": {
+          "value": "xfer-neg"
         }
       }
     },
     {
       "verb": "Banking::Transfer.Request",
       "args": {
-        "id": "xfer-nonarr",
         "source": {
           "value": "acct-8"
         },
@@ -1536,6 +1555,9 @@
         },
         "narrative": {
           "text": ""
+        },
+        "reference": {
+          "value": "xfer-nonarr"
         }
       }
     },
@@ -1550,7 +1572,6 @@
     {
       "verb": "Banking::Transfer.Request",
       "args": {
-        "id": "xfer-4",
         "source": {
           "value": "acct-8"
         },
@@ -1562,6 +1583,9 @@
         },
         "narrative": {
           "text": "Into a frozen destination"
+        },
+        "reference": {
+          "value": "xfer-4"
         }
       }
     },
@@ -1572,25 +1596,33 @@
     {
       "verb": "Banking::Transfer.Reject",
       "args": {
-        "id": "xfer-4"
+        "reference": {
+          "value": "xfer-4"
+        }
       }
     },
     {
       "verb": "Banking::Transfer.Debited",
       "args": {
-        "id": "xfer-4"
+        "reference": {
+          "value": "xfer-4"
+        }
       }
     },
     {
       "verb": "Banking::Transfer.Settle",
       "args": {
-        "id": "xfer-4"
+        "reference": {
+          "value": "xfer-4"
+        }
       }
     },
     {
       "verb": "Banking::Transfer.Credited",
       "args": {
-        "id": "xfer-4"
+        "reference": {
+          "value": "xfer-4"
+        }
       }
     },
     {
@@ -1600,7 +1632,6 @@
     {
       "verb": "Banking::Transfer.Request",
       "args": {
-        "id": "xfer-5",
         "source": {
           "value": "acct-8"
         },
@@ -1612,25 +1643,31 @@
         },
         "narrative": {
           "text": "A transfer between two accounts that exist"
+        },
+        "reference": {
+          "value": "xfer-5"
         }
       }
     },
     {
       "verb": "Banking::Transfer.Reverse",
       "args": {
-        "id": "xfer-5"
+        "reference": {
+          "value": "xfer-5"
+        }
       }
     },
     {
       "verb": "Banking::Transfer.Reject",
       "args": {
-        "id": "xfer-5"
+        "reference": {
+          "value": "xfer-5"
+        }
       }
     },
     {
       "verb": "Banking::Transfer.Request",
       "args": {
-        "id": "xfer-ghost",
         "source": {
           "value": "acct-8"
         },
@@ -1642,6 +1679,9 @@
         },
         "narrative": {
           "text": "A transfer to an account that was never opened"
+        },
+        "reference": {
+          "value": "xfer-ghost"
         }
       }
     },

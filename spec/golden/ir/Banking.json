@@ -1704,6 +1704,12 @@
         {
           "default": null,
           "list": false,
+          "name": "reference",
+          "type": "TransferReference"
+        },
+        {
+          "default": null,
+          "list": false,
           "name": "amount",
           "type": "TransferMoney"
         },
@@ -1728,6 +1734,12 @@
               "list": false,
               "name": "destination",
               "type": "Reference<Account>"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "reference",
+              "type": "TransferReference"
             },
             {
               "default": null,
@@ -1893,7 +1905,7 @@
       "entities": [
 
       ],
-      "identified_by": "id",
+      "identified_by": "reference.value",
       "lifecycle": {
         "default": "requested",
         "field": "status",
@@ -1948,6 +1960,27 @@
         }
       ],
       "value_objects": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "a transfer is referenced"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "TransferReference"
+        },
         {
           "attributes": [
             {
