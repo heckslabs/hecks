@@ -53,26 +53,45 @@ reactions = runtime.reactions
 
 sagas = runtime.sagas
 
+# The run is REPORTED before it is JUDGED. A matrix expectation that fails says
+# what was wanted and never what happened — and aborting before the print takes
+# the whole run's evidence down with it, which is how a refusal that merely
+# changed its words reads as a runtime that crashed. So: answer to stdout first,
+# every unmet expectation collected rather than aborted on at the first, and the
+# complaints to stderr where a failing parity run already shows them.
+puts JSON.pretty_generate(
+  instances: instances, events: events, refusals: refusals, reactions: reactions,
+  sagas: sagas, queries: queries
+)
+
 expectations = JSON.parse(File.read(script))["expectations"] || {}
-expected_events = Array(expectations["event_names"])
-missing_events = expected_events - events.map { |event| event[:name] }
-abort "matrix expected events missing: #{missing_events.join(', ')}" unless missing_events.empty?
+unmet = []
+
+missing_events = Array(expectations["event_names"]) - events.map { |event| event[:name] }
+unmet << "matrix expected events missing: #{missing_events.join(', ')}" unless missing_events.empty?
 
 Array(expectations["refusals"]).each do |expected|
+  verb = expected.fetch("verb")
   matched = refusals.any? do |refusal|
-    refusal[:verb] == expected.fetch("verb") && refusal[:error].include?(expected.fetch("includes"))
+    refusal[:verb] == verb && refusal[:error].include?(expected.fetch("includes"))
   end
-  abort "matrix expected refusal missing: #{expected}" unless matched
+  next if matched
+
+  # What DID that verb say? A refusal that changed its words is a different
+  # story from a refusal that never happened, and the two are indistinguishable
+  # until the actual errors are printed beside the wanted one.
+  said = refusals.select { |refusal| refusal[:verb] == verb }.map { |refusal| refusal[:error] }.uniq
+  unmet << "matrix expected refusal missing: #{expected}\n" \
+           "  #{verb} actually refused with: #{said.empty? ? '(nothing — every attempt was accepted)' : said.inspect}"
 end
 
 (expectations["instances"] || {}).each do |key, fields|
   actual = instances[key] || {}
   fields.each do |field, value|
-    abort "matrix expected #{key}.#{field}=#{value.inspect}, got #{actual[field.to_sym].inspect}" unless actual[field.to_sym] == value
+    next if actual[field.to_sym] == value
+
+    unmet << "matrix expected #{key}.#{field}=#{value.inspect}, got #{actual[field.to_sym].inspect}"
   end
 end
 
-puts JSON.pretty_generate(
-  instances: instances, events: events, refusals: refusals, reactions: reactions,
-  sagas: sagas, queries: queries
-)
+abort unmet.join("\n") unless unmet.empty?

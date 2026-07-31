@@ -104,17 +104,27 @@ fn main() {
         "queries": queries,
     });
 
-    if let Err(reason) = enforce_expectations(&script, &output) {
-        eprintln!("matrix expectation failed: {reason}");
+    // The run is REPORTED before it is JUDGED, exactly as bin/run reports it on
+    // the Ruby side. A matrix expectation that fails says what was wanted and
+    // never what happened — and exiting before the print takes the whole run's
+    // evidence with it, so a refusal that merely changed its wording is
+    // indistinguishable from a runtime that died. Print first ; complain after.
+    println!("{}", serde_json::to_string_pretty(&output).unwrap());
+
+    let unmet = enforce_expectations(&script, &output);
+    if !unmet.is_empty() {
+        eprintln!("matrix expectation failed: {}", unmet.join("\n"));
         std::process::exit(1);
     }
-
-    println!("{}", serde_json::to_string_pretty(&output).unwrap());
 }
 
-fn enforce_expectations(script: &Value, output: &Value) -> Result<(), String> {
+/// Every unmet expectation, not just the first. A script that has drifted has
+/// usually drifted in more than one place, and reporting one at a time turns
+/// one diagnosis into five runs.
+fn enforce_expectations(script: &Value, output: &Value) -> Vec<String> {
+    let mut unmet = Vec::new();
     let Some(expectations) = script.get("expectations").and_then(Value::as_object) else {
-        return Ok(());
+        return unmet;
     };
 
     let events = output
@@ -135,7 +145,7 @@ fn enforce_expectations(script: &Value, output: &Value) -> Result<(), String> {
             .iter()
             .any(|event| event.get("name").and_then(Value::as_str) == Some(name))
         {
-            return Err(format!("event {:?} is missing", name));
+            unmet.push(format!("event {:?} is missing", name));
         }
     }
 
@@ -165,9 +175,26 @@ fn enforce_expectations(script: &Value, output: &Value) -> Result<(), String> {
                     .and_then(Value::as_str)
                     .is_some_and(|error| error.contains(includes))
         }) {
-            return Err(format!(
-                "refusal {:?} containing {:?} is missing",
-                verb, includes
+            // What DID that verb say? A refusal that changed its words is a
+            // different story from a refusal that never happened, and the two
+            // read identically until the actual errors are printed beside the
+            // wanted one. Same reading bin/run prints on the Ruby side.
+            let mut said: Vec<&str> = refusals
+                .iter()
+                .filter(|refusal| refusal.get("verb").and_then(Value::as_str) == Some(verb))
+                .filter_map(|refusal| refusal.get("error").and_then(Value::as_str))
+                .collect();
+            said.dedup();
+            unmet.push(format!(
+                "refusal {:?} containing {:?} is missing\n  {} actually refused with: {}",
+                verb,
+                includes,
+                verb,
+                if said.is_empty() {
+                    "(nothing — every attempt was accepted)".to_string()
+                } else {
+                    format!("{:?}", said)
+                }
             ));
         }
     }
@@ -183,17 +210,23 @@ fn enforce_expectations(script: &Value, output: &Value) -> Result<(), String> {
         .cloned()
         .unwrap_or_default()
     {
-        let actual = instances
-            .get(&key)
-            .and_then(Value::as_object)
-            .ok_or_else(|| format!("instance {:?} is missing", key))?;
+        let Some(actual) = instances.get(&key).and_then(Value::as_object) else {
+            unmet.push(format!("instance {:?} is missing", key));
+            continue;
+        };
         for (field, expected) in fields.as_object().cloned().unwrap_or_default() {
             if actual.get(&field) != Some(&expected) {
-                return Err(format!("{}.{} is not {}", key, field, expected));
+                unmet.push(format!(
+                    "{}.{} is not {} — it is {}",
+                    key,
+                    field,
+                    expected,
+                    actual.get(&field).unwrap_or(&Value::Null)
+                ));
             }
         }
     }
-    Ok(())
+    unmet
 }
 
 fn read_bluebook(path: &str) -> Value {
