@@ -74,7 +74,7 @@
             {
               "default": null,
               "list": false,
-              "name": "name",
+              "name": "topping",
               "type": "ToppingName"
             },
             {
@@ -102,7 +102,7 @@
             {
               "fields": {
                 "amount": "amount",
-                "name": "name"
+                "name": "topping"
               },
               "op": "append",
               "target": "toppings"
@@ -162,7 +162,7 @@
       "entities": [
 
       ],
-      "identified_by": "id",
+      "identified_by": "name.value",
       "lifecycle": {
         "default": "available",
         "field": "status",

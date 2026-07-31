@@ -20,8 +20,8 @@ RSpec.describe "a policy" do
   end
 
   def topped_pizza(runtime)
-    pizza = runtime.dispatch("Pizzas::Pizza.CreatePizza", id: "Margherita", name: { value: "Margherita" }, price_cents: { cents: 900 })
-    runtime.dispatch("Pizzas::Pizza.AddTopping", id: pizza.id, name: { value: "Basil" }, amount: { value: 3 })
+    pizza = runtime.dispatch("Pizzas::Pizza.CreatePizza", name: "Margherita", name: { value: "Margherita" }, price_cents: { cents: 900 })
+    runtime.dispatch("Pizzas::Pizza.AddTopping", name: pizza.id, topping: { value: "Basil" }, amount: { value: 3 })
     pizza
   end
 
@@ -74,7 +74,7 @@ RSpec.describe "a policy" do
   it "leaves the triggering command's own state committed" do
     runtime = boot_in_memory
     pizza   = topped_pizza(runtime)
-    runtime.dispatch("Pizzas::Pizza.Purchase", id: pizza.id, customer_name: { value: "Chris" })
+    runtime.dispatch("Pizzas::Pizza.Purchase", name: pizza.id, customer_name: { value: "Chris" })
 
     expect(Pizzas::Pizza.find(pizza.id).status).to eq("sold")
   end

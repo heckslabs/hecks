@@ -5,6 +5,8 @@ Hecks.bluebook "Pizzas" do
   aggregate "Pizza" do
     description "A pizza that gathers toppings and is eventually sold to a customer."
 
+    identified_by { name.value }
+
     attribute :name,          PizzaName
     attribute :toppings,      list_of(Topping)
     attribute :price_cents,   Price
@@ -86,13 +88,13 @@ Hecks.bluebook "Pizzas" do
       goal "Customize a pizza with an ingredient"
 
       reference_to Pizza
-      attribute :name,   ToppingName
+      attribute :topping, ToppingName
       attribute :amount, ToppingAmount
 
       given("a sold pizza cannot be changed") { status == "available" }
       given("at most 10 toppings")            { toppings.size < 10 }
 
-      then_set :toppings, append: { name: :name, amount: :amount }
+      then_set :toppings, append: { name: :topping, amount: :amount }
 
       emits "ToppingAdded"
     end

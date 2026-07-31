@@ -134,6 +134,12 @@ module Hecksagain
         unless rest.empty?
           held = args[key]
           held = held.to_h if held.respond_to?(:to_h)
+          # AN ID IS ALWAYS A SCALAR. The path says WHICH FIELD carries it, so a
+          # caller may hand that field's value straight over — a string or a
+          # number, never a serialised object. Only a value object that actually
+          # arrived whole has to be opened.
+          return held.to_s unless held.is_a?(Hash)
+
           return rest.reduce(held) { |h, f| h.is_a?(Hash) ? (h[f.to_sym] || h[f]) : nil }&.to_s
         end
 

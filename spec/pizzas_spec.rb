@@ -4,12 +4,12 @@ RSpec.describe "Pizzas" do
   let(:runtime) { boot_in_memory }
 
   def create(name: "Margherita", price_cents: 1200)
-    runtime.dispatch("Pizzas::Pizza.CreatePizza", id: name, name: { value: name }, price_cents: { cents: price_cents })
+    runtime.dispatch("Pizzas::Pizza.CreatePizza", name: { value: name }, price_cents: { cents: price_cents })
   end
 
   def topped(**overrides)
     pizza = create
-    runtime.dispatch("Pizzas::Pizza.AddTopping", id: pizza.id, name: { value: "Basil" }, amount: { value: 3 }, **overrides)
+    runtime.dispatch("Pizzas::Pizza.AddTopping", name: pizza.id, topping: { value: "Basil" }, amount: { value: 3 }, **overrides)
     pizza
   end
 
@@ -32,7 +32,7 @@ RSpec.describe "Pizzas" do
   describe "selling a pizza" do
     it "emits PizzaPurchased and records the customer" do
       pizza  = topped
-      result = runtime.dispatch("Pizzas::Pizza.Purchase", id: pizza.id, customer_name: { value: "Chris" })
+      result = runtime.dispatch("Pizzas::Pizza.Purchase", name: pizza.id, customer_name: { value: "Chris" })
 
       expect(result.events.map(&:name)).to eq(["PizzaPurchased"])
       expect(result.state[:customer_name].to_h).to eq(value: "Chris")
@@ -41,14 +41,14 @@ RSpec.describe "Pizzas" do
 
     it "appends toppings as value objects" do
       pizza = topped
-      state = runtime.dispatch("Pizzas::Pizza.AddTopping", id: pizza.id, name: { value: "Olive" }, amount: { value: 2 }).state
+      state = runtime.dispatch("Pizzas::Pizza.AddTopping", name: pizza.id, topping: { value: "Olive" }, amount: { value: 2 }).state
 
       expect(state[:toppings].map(&:to_h)).to eq([{ name: "Basil", amount: 3 }, { name: "Olive", amount: 2 }])
     end
 
     it "keeps every emitted event in order" do
       pizza = topped
-      runtime.dispatch("Pizzas::Pizza.Purchase", id: pizza.id, customer_name: { value: "Chris" })
+      runtime.dispatch("Pizzas::Pizza.Purchase", name: pizza.id, customer_name: { value: "Chris" })
 
       expect(runtime.events.map(&:name)).to eq(%w[PizzaCreated ToppingAdded PizzaPurchased])
     end
@@ -57,39 +57,39 @@ RSpec.describe "Pizzas" do
   describe "the rules the bluebook declares" do
     it "refuses a purchase with no toppings" do
       pizza = create
-      expect { runtime.dispatch("Pizzas::Pizza.Purchase", id: pizza.id, customer_name: { value: "Chris" }) }
+      expect { runtime.dispatch("Pizzas::Pizza.Purchase", name: pizza.id, customer_name: { value: "Chris" }) }
         .to raise_error(Hecksagain::Runtime::GivenNotMet, /at least one topping/)
     end
 
     it "refuses a second purchase" do
       pizza = topped
-      runtime.dispatch("Pizzas::Pizza.Purchase", id: pizza.id, customer_name: { value: "Chris" })
+      runtime.dispatch("Pizzas::Pizza.Purchase", name: pizza.id, customer_name: { value: "Chris" })
 
-      expect { runtime.dispatch("Pizzas::Pizza.Purchase", id: pizza.id, customer_name: { value: "Someone" }) }
+      expect { runtime.dispatch("Pizzas::Pizza.Purchase", name: pizza.id, customer_name: { value: "Someone" }) }
         .to raise_error(Hecksagain::Runtime::GivenNotMet, /still be available/)
     end
 
     it "refuses a topping on a sold pizza" do
       pizza = topped
-      runtime.dispatch("Pizzas::Pizza.Purchase", id: pizza.id, customer_name: { value: "Chris" })
+      runtime.dispatch("Pizzas::Pizza.Purchase", name: pizza.id, customer_name: { value: "Chris" })
 
-      expect { runtime.dispatch("Pizzas::Pizza.AddTopping", id: pizza.id, name: { value: "Late" }, amount: { value: 1 }) }
+      expect { runtime.dispatch("Pizzas::Pizza.AddTopping", name: pizza.id, topping: { value: "Late" }, amount: { value: 1 }) }
         .to raise_error(Hecksagain::Runtime::GivenNotMet, /cannot be changed/)
     end
 
     it "enforces the ToppingAmount invariant before the value reaches the pizza" do
       pizza = create
-      expect { runtime.dispatch("Pizzas::Pizza.AddTopping", id: pizza.id, name: { value: "Air" }, amount: { value: 0 }) }
+      expect { runtime.dispatch("Pizzas::Pizza.AddTopping", name: pizza.id, topping: { value: "Air" }, amount: { value: 0 }) }
         .to raise_error(Hecksagain::Runtime::InvariantViolation, /ToppingAmount .* an amount is positive/)
 
-      expect(runtime.dispatch("Pizzas::Pizza.AddTopping", id: pizza.id, name: { value: "Basil" }, amount: { value: 1 })
+      expect(runtime.dispatch("Pizzas::Pizza.AddTopping", name: pizza.id, topping: { value: "Basil" }, amount: { value: 1 })
                     .state[:toppings].size).to eq(1)
     end
 
     it "leaves the instance untouched when a command is refused" do
       pizza = topped
       begin
-        runtime.dispatch("Pizzas::Pizza.AddTopping", id: pizza.id, name: { value: "Air" }, amount: { value: -5 })
+        runtime.dispatch("Pizzas::Pizza.AddTopping", name: pizza.id, topping: { value: "Air" }, amount: { value: -5 })
       rescue Hecksagain::Runtime::InvariantViolation
       end
 
@@ -111,12 +111,12 @@ RSpec.describe "Pizzas" do
 
     it "requires an id for a command that acts on an existing instance" do
       expect { runtime.dispatch("Pizzas::Pizza.Purchase", customer_name: { value: "Chris" }) }
-        .to raise_error(Hecksagain::Runtime::NotFound, /pass id/)
+        .to raise_error(Hecksagain::Runtime::NotFound, /pass name/)
     end
 
     it "reports an id that does not exist" do
-      expect { runtime.dispatch("Pizzas::Pizza.Purchase", id: "pizza-nope", customer_name: { value: "Chris" }) }
-        .to raise_error(Hecksagain::Runtime::NotFound, /no Pizza with id/)
+      expect { runtime.dispatch("Pizzas::Pizza.Purchase", name: "pizza-nope", customer_name: { value: "Chris" }) }
+        .to raise_error(Hecksagain::Runtime::NotFound, /no Pizza with name/)
     end
   end
 
@@ -172,7 +172,7 @@ RSpec.describe "Pizzas" do
       pizza = registry.bluebook("Pizzas").aggregate("Pizza")
       expect(registry.repository("Pizzas", pizza)).to be_a(Hecksagain::Ports::Persistence::AppendOnly)
 
-      runtime.dispatch("Pizzas::Pizza.CreatePizza", id: "Margherita", name: { value: "Margherita" }, price_cents: { cents: 900 })
+      runtime.dispatch("Pizzas::Pizza.CreatePizza", name: "Margherita", name: { value: "Margherita" }, price_cents: { cents: 900 })
       expect(registry.repository("Pizzas", pizza).count).to eq(1)
     end
 

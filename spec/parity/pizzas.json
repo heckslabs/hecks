@@ -5,7 +5,6 @@
     {
       "verb": "Pizzas::Pizza.CreatePizza",
       "args": {
-        "id": "pizza-parity",
         "name": {
           "value": "Margherita"
         },
@@ -20,61 +19,60 @@
     {
       "verb": "Pizzas::Pizza.AddTopping",
       "args": {
-        "id": "pizza-parity",
-        "name": {
-          "value": "Basil"
-        },
         "amount": {
           "value": 3
-        }
+        },
+        "topping": {
+          "value": "Basil"
+        },
+        "name": "pizza-parity"
       }
     },
     {
       "verb": "Pizzas::Pizza.AddTopping",
       "args": {
-        "id": "pizza-parity",
-        "name": {
-          "value": "Olive"
-        },
         "amount": {
           "value": 2
-        }
+        },
+        "topping": {
+          "value": "Olive"
+        },
+        "name": "pizza-parity"
       }
     },
     {
       "verb": "Pizzas::Pizza.Purchase",
       "args": {
-        "id": "pizza-parity",
         "customer_name": {
           "value": "Chris"
-        }
+        },
+        "name": "pizza-parity"
       }
     },
     {
       "verb": "Pizzas::Pizza.Purchase",
       "args": {
-        "id": "pizza-parity",
         "customer_name": {
           "value": "Someone"
-        }
+        },
+        "name": "pizza-parity"
       }
     },
     {
       "verb": "Pizzas::Pizza.AddTopping",
       "args": {
-        "id": "pizza-parity",
-        "name": {
-          "value": "Late"
-        },
         "amount": {
           "value": 1
-        }
+        },
+        "topping": {
+          "value": "Late"
+        },
+        "name": "pizza-parity"
       }
     },
     {
       "verb": "Pizzas::Pizza.CreatePizza",
       "args": {
-        "id": "pizza-bare",
         "name": {
           "value": "Bare"
         },
@@ -89,49 +87,48 @@
     {
       "verb": "Pizzas::Pizza.Purchase",
       "args": {
-        "id": "pizza-bare",
         "customer_name": {
           "value": "Nobody"
-        }
+        },
+        "name": "pizza-bare"
       }
     },
     {
       "verb": "Pizzas::Pizza.AddTopping",
       "args": {
-        "id": "pizza-bare",
-        "name": {
-          "value": "Air"
-        },
         "amount": {
           "value": 0
-        }
+        },
+        "topping": {
+          "value": "Air"
+        },
+        "name": "pizza-bare"
       }
     },
     {
       "verb": "Pizzas::Pizza.Purchase",
       "args": {
-        "id": "pizza-ghost",
         "customer_name": {
           "value": "Nobody"
-        }
+        },
+        "name": "pizza-ghost"
       }
     },
     {
       "verb": "Pizzas::Pizza.AddTopping",
       "args": {
-        "id": "pizza-bare",
-        "name": {
-          "value": "Odd"
-        },
         "amount": {
           "value": "three"
-        }
+        },
+        "topping": {
+          "value": "Odd"
+        },
+        "name": "pizza-bare"
       }
     },
     {
       "verb": "Pizzas::Pizza.CreatePizza",
       "args": {
-        "id": "pizza-noname",
         "name": {
           "value": ""
         },
@@ -146,7 +143,6 @@
     {
       "verb": "Pizzas::Pizza.CreatePizza",
       "args": {
-        "id": "pizza-negative",
         "name": {
           "value": "Neg"
         },
@@ -161,22 +157,22 @@
     {
       "verb": "Pizzas::Pizza.AddTopping",
       "args": {
-        "id": "pizza-bare",
-        "name": {
-          "value": ""
-        },
         "amount": {
           "value": 1
-        }
+        },
+        "topping": {
+          "value": ""
+        },
+        "name": "pizza-bare"
       }
     },
     {
       "verb": "Pizzas::Pizza.Purchase",
       "args": {
-        "id": "pizza-bare",
         "customer_name": {
           "value": ""
-        }
+        },
+        "name": "pizza-bare"
       }
     },
     {
@@ -198,7 +194,6 @@
     {
       "verb": "Pizzas::Pizza.CreatePizza",
       "args": {
-        "id": "pizza-huge",
         "name": {
           "value": "Huge"
         },
@@ -213,7 +208,6 @@
     {
       "verb": "Pizzas::Pizza.CreatePizza",
       "args": {
-        "id": "pizza-twin-b",
         "name": {
           "value": "Twin"
         },
@@ -228,7 +222,6 @@
     {
       "verb": "Pizzas::Pizza.CreatePizza",
       "args": {
-        "id": "pizza-twin-a",
         "name": {
           "value": "Twin"
         },
@@ -243,7 +236,6 @@
     {
       "verb": "Pizzas::Pizza.CreatePizza",
       "args": {
-        "id": "pizza-twin-c",
         "name": {
           "value": "Twin"
         },

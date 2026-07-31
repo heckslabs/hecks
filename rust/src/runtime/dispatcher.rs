@@ -510,13 +510,13 @@ impl Runtime {
             adapter
                 .find(&parent_id)
                 .map(value_bridge::from_state)
-                .ok_or_else(|| format!("no {} with {} {:?}", aggregate_name, identity, parent_id))?
+                .ok_or_else(|| format!("no {} with {} {:?}", aggregate_name, parent_head, parent_id))?
         } else {
             let key = format!("{}::{}#{}", domain, aggregate_name, parent_id);
             self.store
                 .get(&key)
                 .cloned()
-                .ok_or_else(|| format!("no {} with {} {:?}", aggregate_name, identity, parent_id))?
+                .ok_or_else(|| format!("no {} with {} {:?}", aggregate_name, parent_head, parent_id))?
         };
         self.trace_step("hydrate_parent");
 
@@ -1192,7 +1192,7 @@ impl Runtime {
             let state = adapter
                 .find(&id)
                 .map(value_bridge::from_state)
-                .ok_or_else(|| format!("no {} with {} {:?}", aggregate_name, identity, id))?;
+                .ok_or_else(|| format!("no {} with {} {:?}", aggregate_name, head, id))?;
             return Ok((id, state));
         }
 
@@ -1201,7 +1201,7 @@ impl Runtime {
             .keys()
             .find(|key| key.ends_with(&format!("::{}#{}", aggregate_name, id)))
             .cloned()
-            .ok_or_else(|| format!("no {} with {} {:?}", aggregate_name, identity, id))?;
+            .ok_or_else(|| format!("no {} with {} {:?}", aggregate_name, head, id))?;
 
         Ok((id, self.store[&key].clone()))
     }
