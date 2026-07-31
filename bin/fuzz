@@ -41,12 +41,31 @@ end
 # real bug here — the very first banking run "found" a SPLIT that turned out
 # to be a single query with no state to query yet, shrunk down to that one
 # vacuous step and reported as though it meant something.
-def parity_result(domain, script_path)
+def parity_verdict(domain, script_path)
   output, status = Open3.capture2e(File.join(ROOT, "bin/parity"), domain, script_path)
-  return :agreed if status.success?
-  return :silent if output.include?("SILENT")
+  return [:agreed, output] if status.success?
+  return [:silent, output] if output.include?("SILENT")
 
-  :split
+  [:split, output]
+end
+
+def parity_result(domain, script_path) = parity_verdict(domain, script_path).first
+
+# WHICH DISAGREEMENT THIS IS, so twenty seeds that all found one bug read as one
+# bug. The first changed line pair names the shape ; digits and quoted text are
+# blanked so the same disagreement over different generated values groups
+# together, which is the whole difference between a report and a pile.
+def signature_of(output)
+  changed = output.lines.select { |line| line.start_with?("+", "-") }
+                  .reject { |line| line.start_with?("+++", "---") }
+  return "unknown" if changed.empty?
+
+  # Keys survive, values blur. Blanking both made every disagreement read as
+  # `"…": "…"`, which groups correctly and tells you nothing — the field that
+  # moved is the whole point of the line.
+  changed.first(2)
+         .map { |line| line.strip.gsub(/: "[^"]*"/, ': "…"').gsub(/\b\d+\b/, "N") }
+         .join("  vs  ")
 end
 
 # One sweep at a time, trying to remove each remaining step ; keep the
@@ -76,8 +95,38 @@ def shrink(domain, steps, seed)
         end
       end
     end while changed
-    current
+    shrink_arguments(domain, current, seed, path)
   end
+end
+
+# THEN INSIDE EACH SURVIVING STEP. Removing whole steps leaves every argument of
+# the ones that remain, so an irrelevant value rides along looking implicated:
+# banking seed 21 shrank to three steps and kept `adjustment: -2147483648`, which
+# had nothing to do with the split, and left whether i32::MIN separately splits
+# unknown — masked by the disagreement that did fire.
+#
+# Arguments are dropped one at a time and kept dropped only while the split still
+# reproduces, the same rule the step pass uses. An argument the domain requires
+# will change the refusal and stop reproducing, so it comes straight back.
+def shrink_arguments(domain, steps, seed, path)
+  steps.each_with_index do |step, position|
+    args = step["args"] || step[:args]
+    next unless args.is_a?(Hash)
+
+    args.keys.each do |key|
+      trimmed = args.reject { |name, _| name == key }
+      candidate = steps.map(&:dup)
+      candidate[position] = step.merge("args" => trimmed)
+
+      write_script(candidate, path, seed, File.basename(domain))
+      next unless parity_result(domain, path) == :split
+
+      args = trimmed
+      steps = candidate
+      step = candidate[position]
+    end
+  end
+  steps
 end
 
 def fuzz_domain(domain, seeds, steps)
@@ -85,7 +134,10 @@ def fuzz_domain(domain, seeds, steps)
   name = File.basename(domain)
   puts "── #{name}"
 
-  failure = nil
+  # EVERY SEED RUNS. Stopping at the first split let one bug hide every bug
+  # behind it, and made a green re-run after a fix weak evidence — the rest of
+  # the space had never been reached to begin with.
+  failures = []
   agreed = 0
   silent = 0
   (1..seeds).each do |seed|
@@ -93,33 +145,57 @@ def fuzz_domain(domain, seeds, steps)
     Dir.mktmpdir("hecksagain-fuzz-trial") do |tmp|
       path = File.join(tmp, "trial.json")
       write_script(generated, path, seed, name)
-      case parity_result(domain, path)
-      when :split  then failure = { seed: seed, steps: generated }
+      verdict, output = parity_verdict(domain, path)
+      case verdict
+      when :split  then failures << { seed: seed, steps: generated, signature: signature_of(output) }
       when :silent then silent += 1
-      else               agreed += 1
+      else              agreed += 1
       end
     end
-    break if failure
   end
 
-  unless failure
-    note = silent.positive? ? " (#{silent} silent — refused everything, not counted either way)" : ""
-    puts "   #{agreed}/#{seeds} generated sequences agreed#{note}"
+  report(domain, name, seeds, agreed, silent, failures)
+end
+
+# WHAT THE SWEEP FOUND, grouped by disagreement rather than by seed — twenty
+# seeds tripping one bug is one finding, and reading it as twenty is how a report
+# becomes noise. Silent runs are named rather than buried : they are the sweep
+# telling you it never reached an interesting state, which is a fuzzer problem,
+# not a runtime one.
+def report(domain, name, seeds, agreed, silent, failures)
+  puts "   #{seeds} seeds — #{agreed} agreed, #{failures.length} split, #{silent} silent"
+  if silent > agreed && silent.positive?
+    puts "   MOSTLY SILENT — most sequences refused everything, so this sweep proves little."
+  end
+
+  if failures.empty?
     puts
     return true
   end
 
-  puts "   SPLIT at seed #{failure[:seed]} (#{failure[:steps].length} steps) — shrinking"
-  shrunk = shrink(domain, failure[:steps], failure[:seed])
-
+  grouped = failures.group_by { |failure| failure[:signature] }
+  puts "   #{grouped.size} distinct disagreement(s):"
   save_dir = File.join(ROOT, "tmp/fuzz-failures")
   FileUtils.mkdir_p(save_dir)
-  save_path = File.join(save_dir, "#{name}-seed#{failure[:seed]}.json")
-  write_script(shrunk, save_path, failure[:seed], name)
 
-  puts "   shrunk #{failure[:steps].length} steps -> #{shrunk.length}, saved to #{save_path}"
-  puts "   reproduce with: bin/parity #{domain} #{save_path}"
-  puts "   promoting this into spec/parity/#{name}.json permanently is a manual decision, not automatic."
+  grouped.each_value.with_index(1) do |group, number|
+    seeds_hit = group.map { |failure| failure[:seed] }
+    smallest  = group.min_by { |failure| failure[:steps].length }
+
+    puts
+    puts "   (#{number}) #{group.first[:signature]}"
+    puts "       #{group.length} of #{seeds} seeds: #{seeds_hit.first(8).join(', ')}#{seeds_hit.length > 8 ? ', …' : ''}"
+
+    shrunk    = shrink(domain, smallest[:steps], smallest[:seed])
+    save_path = File.join(save_dir, "#{name}-seed#{smallest[:seed]}.json")
+    write_script(shrunk, save_path, smallest[:seed], name)
+
+    puts "       shrunk #{smallest[:steps].length} steps -> #{shrunk.length}"
+    puts "       reproduce: bin/parity #{domain} #{save_path}"
+  end
+
+  puts
+  puts "   promoting any of these into spec/parity/#{name}.json permanently is a manual decision, not automatic."
   puts
   false
 end

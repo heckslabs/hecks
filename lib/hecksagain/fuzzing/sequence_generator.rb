@@ -1,5 +1,7 @@
 require "fileutils"
+require "set"
 require "tmpdir"
+require_relative "invalid_value_generator"
 require_relative "value_generator"
 
 module Hecksagain
@@ -25,6 +27,17 @@ module Hecksagain
       # instead of spending its early budget refusing "acts on nothing yet."
       CREATING_WEIGHT = 2
 
+      # How often a payload is deliberately the wrong shape. Low, because a
+      # refused step reaches no new state and a sequence of them is SILENT.
+      MALFORMED_ARGUMENT_PROBABILITY = 0.12
+
+      # How strongly an unexercised verb is preferred over one this sequence has
+      # already dispatched. Random picking revisits the same handful of verbs and
+      # leaves whole commands untouched for a whole run — which is the same
+      # "reached no interesting state" problem the SILENT count reports, seen from
+      # the generating end rather than the scoring end.
+      UNEXERCISED_WEIGHT = 4
+
       def self.generate(domain_path, seed:, steps:)
         new(domain_path, seed: seed, steps: steps).call
       end
@@ -36,6 +49,7 @@ module Hecksagain
         @random           = Random.new(seed)
         @known_ids        = Hash.new { |h, k| h[k] = [] }
         @entity_known_ids = Hash.new { |h, k| h[k] = [] }
+        @exercised        = Set.new
       end
 
       def call
@@ -124,6 +138,7 @@ module Hecksagain
         entry = pick(catalog)
         return nil unless entry
 
+        @exercised << entry[:verb]
         entry[:query] ? build_query_step(runtime, entry) : build_command_step(runtime, catalog, entry)
       end
 
@@ -134,7 +149,21 @@ module Hecksagain
         catalog[:instance].each { |entry| pool << entry if @known_ids[entry[:aggregate].hecks_name].any? }
         catalog[:entity_commands].each { |entry| pool << entry if @known_ids[entry[:aggregate].hecks_name].any? }
         catalog[:entity_queries].each { |entry| pool << entry if @known_ids[entry[:aggregate].hecks_name].any? }
-        pool.sample(random: @random)
+
+        steer(pool).sample(random: @random)
+      end
+
+      # Coverage-guided rather than uniformly random : a verb this sequence has
+      # not dispatched yet is weighted up, so a run spends its budget on the
+      # commands it has not reached instead of re-rolling the ones it has. The
+      # eligibility rules above still decide what is POSSIBLE — this only decides
+      # what is likely, so a verb gated behind state it does not have yet stays
+      # out of the pool entirely rather than being preferred forever.
+      def steer(pool)
+        fresh = pool.reject { |entry| @exercised.include?(entry[:verb]) }
+        return pool if fresh.empty?
+
+        pool + (fresh * UNEXERCISED_WEIGHT)
       end
 
       def build_query_step(runtime, entry)
@@ -153,15 +182,55 @@ module Hecksagain
       end
 
       def args_for(attributes, aggregate)
-        attributes.each_with_object({}) do |attribute, args|
+        args = attributes.each_with_object({}) do |attribute, built|
           # List-typed direct command arguments have no example in this repo's
           # domains today — every list is populated via a per-element append
           # command instead (docs/porting/behavior-notes.md). Skipped rather
           # than guessed at.
           next if attribute.list?
 
-          args[attribute.name.to_s] = ValueGenerator.value_for(attribute, aggregate, random: @random, known_ids: @known_ids)
+          built[attribute.name.to_s] = ValueGenerator.value_for(attribute, aggregate, random: @random, known_ids: @known_ids)
         end
+
+        malform(args, attributes, aggregate)
+      end
+
+      # ONE MALFORMATION AT A TIME, and usually none. A step whose payload is
+      # wrong in three ways only ever proves which check runs first ; wrong in
+      # exactly one way names the check that fired. And the rate stays low on
+      # purpose — a corrupted step is almost always refused, a sequence of
+      # refusals reaches no state at all, and bin/fuzz already counts those as
+      # SILENT rather than scoring them.
+      def malform(args, attributes, aggregate)
+        return args if args.empty? || @random.rand >= MALFORMED_ARGUMENT_PROBABILITY
+
+        case @random.rand(3)
+        when 0 then corrupt_one(args, attributes, aggregate)
+        when 1 then drop_one(args, aggregate)
+        else        args.merge([InvalidValueGenerator.undeclared_argument(random: @random)].to_h)
+        end
+      end
+
+      # NEVER THE IDENTITY. A creating command with no id auto-mints one, and the
+      # two runtimes mint differently by design — Ruby a random hex, Rust a
+      # counter — so dropping it manufactures a disagreement that says nothing
+      # about either runtime's behaviour. Every step in the hand-written corpus
+      # supplies an id for the same reason. Whether an auto-minted id OUGHT to
+      # agree is a real question, but it is not one a payload fuzzer can ask.
+      def drop_one(args, aggregate)
+        identity  = (aggregate.identified_by || :id).to_s
+        droppable = args.keys - [identity, "id"]
+        return args if droppable.empty?
+
+        args.reject { |name, _| name == droppable.sample(random: @random) }
+      end
+
+      def corrupt_one(args, attributes, aggregate)
+        named = attributes.reject(&:list?).select { |attribute| args.key?(attribute.name.to_s) }
+        return args if named.empty?
+
+        attribute = named.sample(random: @random)
+        args.merge(attribute.name.to_s => InvalidValueGenerator.corrupt(attribute, aggregate, random: @random))
       end
 
       def add_identity!(args, entry)
@@ -257,9 +326,21 @@ module Hecksagain
 
       def symbolize(args) = args.transform_keys(&:to_sym)
 
+      # A step the runtime declines is not a generator failure — it simply did
+      # not take effect, so nothing is recorded and the sequence carries on. The
+      # step still goes into the corpus, because a REFUSAL IS AN ANSWER and the
+      # two runtimes have to word it identically.
+      #
+      # EvaluationError sits alongside the declared refusals deliberately : a
+      # payload the interpreter cannot read is the domain declining it, and
+      # bin/run already records exactly those in a corpus's refusals —
+      # `positive? expects a number, got "lots"` is one of banking's. Anything
+      # else still propagates and fails spec/fuzzing, which is what says the
+      # generator built a step that breaks the interpreter for reasons that have
+      # nothing to do with a cross-runtime disagreement.
       def safe_call
         yield
-      rescue *Hecksagain::Runtime::DOMAIN_REFUSALS
+      rescue *Hecksagain::Runtime::DOMAIN_REFUSALS, Hecksagain::Bluebook::Expression::EvaluationError
         nil
       end
     end
