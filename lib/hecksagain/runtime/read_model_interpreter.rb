@@ -71,7 +71,8 @@ module Hecksagain
               "#{model.reference_name} arrived as an object"
       end
 
-      def reference(value) = Value.reference_id(value)
+      # A reference is the id, in the argument and in the stored row alike.
+      def reference(value) = value.to_s
       def reference_fields(aggregate, target)
         aggregate.attributes
                  .select { |attribute| attribute.reference? && attribute.type.target_name == target.to_s }

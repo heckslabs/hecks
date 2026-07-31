@@ -26,8 +26,8 @@ module Hecksagain
         # WHICH UNCHANGING FACT SAYS WHICH ONE THIS IS — a FIELD, not a whole value
         # object. `identified_by { number.value }` names the scalar inside
         # AccountNumber ; an identity is a value, and serialising a value object
-        # into one only worked because CommandRules#reference_identity guessed at
-        # `values.first`.
+        # into one only worked while something downstream guessed at `values.first`.
+        # Nothing guesses now.
         #
         # The block is never CALLED. Its source is read the same way a given's is
         # (Ports::Extraction), which is why `number.value` needs no method called

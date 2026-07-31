@@ -38,7 +38,7 @@ RSpec.describe Hecksagain::Fuzzing::ValueGenerator do
   end
 
   describe ".scalar_of" do
-    it "unwraps a single-key hash the same way CommandRules#reference_identity does" do
+    it "unwraps the single-field value object a declared identity is written as" do
       expect(described_class.scalar_of({ "value" => "c1" })).to eq("c1")
     end
 

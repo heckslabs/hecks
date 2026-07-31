@@ -348,7 +348,7 @@ module Hecksagain
         # The REFERENCE's own shape, read the same way ReadModelInterpreter
         # reads it — not the identity unwrap, which is gone : an identity is
         # declared as a path and followed.
-        reference_id = Runtime::Value.reference_id(args.fetch(model.reference_name))
+        reference_id = args.fetch(model.reference_name).to_s
         reports = {}
         model.aggregate_heads.each do |head|
           aggregate = bluebook.aggregate(head[:aggregate])

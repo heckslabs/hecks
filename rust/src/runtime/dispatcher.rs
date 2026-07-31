@@ -139,9 +139,13 @@ fn query_text(value: &Value) -> String {
         Value::Null => String::new(),
         Value::String(text) => text.clone(),
         Value::Bool(flag) => flag.to_string(),
-        // Aggregate references are represented by their aggregate head's
-        // identity state.  A one-field value is therefore usable at the
-        // aggregate boundary without granting value objects independent IDs.
+        // A SINGLE-FIELD VALUE OBJECT, compared by the value inside it — which
+        // is what `where(status: "open")` means when `status` is a value object.
+        //
+        // This used to say it was how aggregate REFERENCES are represented. It
+        // is not, any more: a reference is the id itself, and anything else is
+        // refused at the payload gate. The unwrap stays for the value objects it
+        // was always also doing.
         Value::Object(fields) if fields.len() == 1 => fields
             .values()
             .next()
@@ -1015,14 +1019,11 @@ impl Runtime {
             let Ok(target) = self.find_aggregate(domain, target_name, name) else {
                 continue;
             };
-            let key = match held {
-                Value::Object(fields) if fields.len() == 1 => fields
-                    .values()
-                    .next()
-                    .map(query_text)
-                    .unwrap_or_default(),
-                other => query_text(other),
-            };
+            // The id itself. This opened a one-field object first, which is the
+            // reference unwrap in its second copy — a reference that arrives as
+            // anything but its id is refused at the payload gate now, so there is
+            // nothing here to open.
+            let key = query_text(held);
             if key.is_empty() {
                 continue;
             }

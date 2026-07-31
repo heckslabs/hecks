@@ -16,7 +16,11 @@ run_domain() {
   rm -rf "$domain"
   cp -R "$source_domain" "$domain" || return 1
   if [ "$variant" = "sqlite" ]; then
-    perl -0pi -e 's/"Heki"/"Sqlite"/g; s/dir "data"/database "data\/parity.sqlite3"/g' \
+    # SqlitePersistence, not "Sqlite" — that is the adapter's actual name on both
+    # sides (Ruby declares it, Rust registers `sqlitepersistence`). The old
+    # substitution named an adapter that has never existed, which no one noticed
+    # because nothing ever ran this branch.
+    perl -0pi -e 's/"Heki"/"SqlitePersistence"/g; s/dir "data"/database "data\/parity.sqlite3"/g' \
       "$domain/bluebook"/*.hecksagon "$domain/bluebook"/*.world || return 1
   fi
 
@@ -99,13 +103,22 @@ run_domain() {
   return 0
 }
 
+# TWO BRANCHES THAT RAN THE SAME ADAPTER IS NOT A CHOICE, IT IS A STUB.
+#
+# The Sqlite rewrite below was written, shipped, and never once reached — and it
+# would not have worked if it had been: it substituted an adapter named "Sqlite",
+# and no such adapter exists. Ruby declares SqlitePersistence and Rust registers
+# `sqlitepersistence`.
+#
+# Banking is the domain that earns the second run : it is the only one with
+# references, and every reference-bearing SQLite path was Ruby-only until now
+# (pizzas does drive Rust through SQLite, but pizzas has no references).
 run_variants() {
   source=$1
   script=$2
+  run_domain "$source" "$script" Heki || return 1
   if [ "$(basename "$source")" = "banking" ]; then
-    run_domain "$source" "$script" Heki || return 1
-  else
-    run_domain "$source" "$script" Heki || return 1
+    run_domain "$source" "$script" Sqlite || return 1
   fi
 }
 

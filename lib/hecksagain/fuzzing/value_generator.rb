@@ -2,8 +2,8 @@ module Hecksagain
   module Fuzzing
     # One attribute, one value — in the exact JSON shape the hand-written parity
     # corpus already uses (a value-object-typed attribute is a nested hash keyed
-    # by its own field names ; a reference is a single-key hash wrapping a bare
-    # id, key name irrelevant — see CommandRules#reference_identity). Everything
+    # by its own field names ; a reference is the BARE ID of the head it points
+    # at, because that is what a reference is). Everything
     # returned is a plain, JSON-safe Ruby value : String keys throughout, never
     # symbols, so a generated step can be dumped straight to JSON.
     #
@@ -75,13 +75,16 @@ module Hecksagain
         value_object.attributes.to_h { |field| [field.name.to_s, primitive(field.type.to_s, random: random, name: field.name.to_s)] }
       end
 
+      # THE ID ITSELF. This minted `{"value" => id}` back when a reference was
+      # stored wrapped ; the payload gate refuses that shape now, so a fuzzer
+      # still emitting it would have every generated reference refused and
+      # `bin/parity`'s SILENT guard would report the fuzzer broken rather than
+      # the runtime.
       def reference_value(attribute, random:, known_ids:)
         pool = known_ids[attribute.type.target_name.to_s] || []
-        if pool.empty? || random.rand < INVALID_REFERENCE_PROBABILITY
-          return { "value" => "missing-#{random.bytes(4).unpack1('H*')}" }
-        end
+        return "missing-#{random.bytes(4).unpack1('H*')}" if pool.empty? || random.rand < INVALID_REFERENCE_PROBABILITY
 
-        { "value" => pool.sample(random: random) }
+        pool.sample(random: random)
       end
 
       def primitive(type_name, random:, name: nil)
@@ -123,10 +126,10 @@ module Hecksagain
         random.rand(0.01..1000.0).round(2)
       end
 
-      # The bare scalar a generated identity value stands for, for recording
-      # into `known_ids` — mirrors CommandRules#reference_identity exactly,
-      # since that's the same unwrapping a reference pointing at this record
-      # will need to survive.
+      # The bare scalar a generated IDENTITY value stands for, for recording into
+      # `known_ids`. An identity is declared as a value object, so this opens one ;
+      # a reference pointing at this record is already that scalar and needs no
+      # opening at all. The two used to be the same reading and are not any more.
       def scalar_of(identity_value)
         identity_value.is_a?(Hash) ? identity_value.values.first.to_s : identity_value.to_s
       end

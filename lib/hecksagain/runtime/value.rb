@@ -111,22 +111,11 @@ module Hecksagain
       # `scalar` below is a different job and stays: rendering a value object
       # into a column or a message, where there is no path to consult.
 
-      # THE ID A REFERENCE POINTS AT, read out of the reference attribute's own
-      # declared shape. This is what is left of the old `identifier`, and it is
-      # deliberately named for the one job it still has — a REFERENCE, never an
-      # identity. An identity is declared as a path and followed
-      # (Runtime::Identity) ; a reference carries no path, so its shape is all
-      # there is to read.
-      #
-      # Storing the scalar itself would retire this too. That is a change to
-      # how references are STORED, and a separate piece of work from how
-      # identities are DECLARED.
-      def self.reference_id(value)
-        return scalar(value) if value.is_a?(self)
-        return value.values.first if value.is_a?(Hash) && value.size == 1
-
-        value
-      end
+      # `Value.reference_id` lived here, opening a reference to find the id
+      # inside it. A reference IS the id now — refused at the payload gate if it
+      # arrives as anything else — so there is nothing left to open. The comment
+      # it carried said retiring it meant changing how references are STORED ;
+      # that is what happened.
 
       # A REFERENCE IS AN ID, SO AN OBJECT IS NOT ONE.
       #

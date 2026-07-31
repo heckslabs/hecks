@@ -80,7 +80,9 @@ module Hecksagain
           target = referenced_aggregate(attribute)
           next unless target
 
-          key = reference_identity(held)
+          # The id itself — a reference that arrived as anything else was
+          # already refused at the payload gate.
+          key = held.to_s
           next if key.to_s.empty?
           next if @registry.repository(domain, target).find(key)
 
@@ -98,15 +100,6 @@ module Hecksagain
         attribute.type.resolve&.ir
       end
 
-      def reference_identity(held)
-        case held
-        when Value then Value.scalar(held).to_s
-        when Hash  then held.values.first.to_s
-        else held.to_s
-        end
-      rescue TypeMismatch
-        nil
-      end
 
       def arithmetic(current, amount, target, sign)
         op      = sign.positive? ? "increment" : "decrement"
