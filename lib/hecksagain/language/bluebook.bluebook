@@ -199,6 +199,7 @@ Hecks.bluebook "Meta" do
       attribute :description,   Description
       attribute :identified_by, IdentityField
 
+      attribute :position, Position
       emits "RootDeclared"
     end
 
@@ -208,9 +209,22 @@ Hecks.bluebook "Meta" do
     # `bluebook_id` is an IdentityField, not an AggregateName — it holds the id of
     # the chapter above, and calling that a name for aggregates was sloppiness that
     # would read as a lie the first time somebody looked.
+    # WHERE IT SITS AMONG ITS SIBLINGS. Declaration order is a FACT ABOUT THE
+    # SOURCE — Rust reads it straight out of the file, and the IR is a contract
+    # field for field AND INDEX FOR INDEX. So the language HOLDS it, instead of
+    # inheriting it from whatever order a store happens to iterate: an ask that
+    # does not say how it is ordered is answered in identity order, which is
+    # right for every other ask and fatal for the one that is the SOURCE.
+    value_object "Position" do
+      attribute :value, Integer
+    end
+
+    attribute :position, Position
+
     query "DeclaredIn" do
       attribute :bluebook_id, IdentityField
       where(bluebook_id: :bluebook_id)
+      order_by :position
     end
 
     command "Attribute" do
@@ -470,9 +484,22 @@ Hecks.bluebook "Meta" do
     end
     # The way back: everything DECLARED IN the aggregate above. The parent
     # reference IS the query.
+    # WHERE IT SITS AMONG ITS SIBLINGS. Declaration order is a FACT ABOUT THE
+    # SOURCE — Rust reads it straight out of the file, and the IR is a contract
+    # field for field AND INDEX FOR INDEX. So the language HOLDS it, instead of
+    # inheriting it from whatever order a store happens to iterate: an ask that
+    # does not say how it is ordered is answered in identity order, which is
+    # right for every other ask and fatal for the one that is the SOURCE.
+    value_object "Position" do
+      attribute :value, Integer
+    end
+
+    attribute :position, Position
+
     query "DeclaredIn" do
       attribute :aggregate_id, CommandText
       where(aggregate_id: :aggregate_id)
+      order_by :position
     end
     command "Declare" do
       role "Language"
@@ -488,6 +515,7 @@ Hecks.bluebook "Meta" do
       attribute :role,  Actor
       attribute :goal,  Goal
 
+      attribute :position, Position
       emits "VerbDeclared"
     end
 
@@ -632,9 +660,22 @@ Hecks.bluebook "Meta" do
 
     # The way back: everything DECLARED IN the aggregate above. The parent
     # reference IS the query.
+    # WHERE IT SITS AMONG ITS SIBLINGS. Declaration order is a FACT ABOUT THE
+    # SOURCE — Rust reads it straight out of the file, and the IR is a contract
+    # field for field AND INDEX FOR INDEX. So the language HOLDS it, instead of
+    # inheriting it from whatever order a store happens to iterate: an ask that
+    # does not say how it is ordered is answered in identity order, which is
+    # right for every other ask and fatal for the one that is the SOURCE.
+    value_object "Position" do
+      attribute :value, Integer
+    end
+
+    attribute :position, Position
+
     query "DeclaredIn" do
       attribute :aggregate_id, ValueObjectText
       where(aggregate_id: :aggregate_id)
+      order_by :position
     end
     command "Declare" do
       role "Language"
@@ -643,6 +684,7 @@ Hecks.bluebook "Meta" do
       reference_to Aggregate
       attribute :name, ValueObjectName
 
+      attribute :position, Position
       emits "ShapeDeclared"
     end
 
@@ -1020,9 +1062,22 @@ Hecks.bluebook "Meta" do
 
     # The way back: everything DECLARED IN the aggregate above. The parent
     # reference IS the query.
+    # WHERE IT SITS AMONG ITS SIBLINGS. Declaration order is a FACT ABOUT THE
+    # SOURCE — Rust reads it straight out of the file, and the IR is a contract
+    # field for field AND INDEX FOR INDEX. So the language HOLDS it, instead of
+    # inheriting it from whatever order a store happens to iterate: an ask that
+    # does not say how it is ordered is answered in identity order, which is
+    # right for every other ask and fatal for the one that is the SOURCE.
+    value_object "Position" do
+      attribute :value, Integer
+    end
+
+    attribute :position, Position
+
     query "DeclaredIn" do
       attribute :aggregate_id, QueryText
       where(aggregate_id: :aggregate_id)
+      order_by :position
     end
     command "Declare" do
       role "Language"
@@ -1037,6 +1092,7 @@ Hecks.bluebook "Meta" do
       attribute :order_way,   QueryText
       attribute :limit,       QueryText
 
+      attribute :position, Position
       emits "AskDeclared"
     end
 
@@ -1117,9 +1173,22 @@ Hecks.bluebook "Meta" do
 
     # The way back: everything DECLARED IN the chapter above. The parent
     # reference IS the query.
+    # WHERE IT SITS AMONG ITS SIBLINGS. Declaration order is a FACT ABOUT THE
+    # SOURCE — Rust reads it straight out of the file, and the IR is a contract
+    # field for field AND INDEX FOR INDEX. So the language HOLDS it, instead of
+    # inheriting it from whatever order a store happens to iterate: an ask that
+    # does not say how it is ordered is answered in identity order, which is
+    # right for every other ask and fatal for the one that is the SOURCE.
+    value_object "Position" do
+      attribute :value, Integer
+    end
+
+    attribute :position, Position
+
     query "DeclaredIn" do
       attribute :bluebook_id, PolicyText
       where(bluebook_id: :bluebook_id)
+      order_by :position
     end
     command "Declare" do
       role "Language"
@@ -1132,6 +1201,7 @@ Hecks.bluebook "Meta" do
       attribute :trigger_command, PolicyText
       attribute :target_domain,   PolicyText
 
+      attribute :position, Position
       emits "ReactionDeclared"
     end
   end
@@ -1162,9 +1232,22 @@ Hecks.bluebook "Meta" do
 
     # The way back: everything DECLARED IN the chapter above. The parent
     # reference IS the query.
+    # WHERE IT SITS AMONG ITS SIBLINGS. Declaration order is a FACT ABOUT THE
+    # SOURCE — Rust reads it straight out of the file, and the IR is a contract
+    # field for field AND INDEX FOR INDEX. So the language HOLDS it, instead of
+    # inheriting it from whatever order a store happens to iterate: an ask that
+    # does not say how it is ordered is answered in identity order, which is
+    # right for every other ask and fatal for the one that is the SOURCE.
+    value_object "Position" do
+      attribute :value, Integer
+    end
+
+    attribute :position, Position
+
     query "DeclaredIn" do
       attribute :bluebook_id, ProcessManagerText
       where(bluebook_id: :bluebook_id)
+      order_by :position
     end
     command "Declare" do
       role "Language"
@@ -1176,6 +1259,7 @@ Hecks.bluebook "Meta" do
       attribute :starts_on,     ProcessManagerText
       attribute :ends_on,       ProcessManagerText
 
+      attribute :position, Position
       emits "SagaDeclared"
     end
 
@@ -1215,9 +1299,22 @@ Hecks.bluebook "Meta" do
 
     # The way back: everything DECLARED IN the process manager above. The parent
     # reference IS the query.
+    # WHERE IT SITS AMONG ITS SIBLINGS. Declaration order is a FACT ABOUT THE
+    # SOURCE — Rust reads it straight out of the file, and the IR is a contract
+    # field for field AND INDEX FOR INDEX. So the language HOLDS it, instead of
+    # inheriting it from whatever order a store happens to iterate: an ask that
+    # does not say how it is ordered is answered in identity order, which is
+    # right for every other ask and fatal for the one that is the SOURCE.
+    value_object "Position" do
+      attribute :value, Integer
+    end
+
+    attribute :position, Position
+
     query "DeclaredIn" do
       attribute :process_manager_id, HandlerText
       where(process_manager_id: :process_manager_id)
+      order_by :position
     end
     command "Declare" do
       role "Language"
@@ -1228,6 +1325,7 @@ Hecks.bluebook "Meta" do
       attribute :from_state, HandlerText
       attribute :to_state,   HandlerText
 
+      attribute :position, Position
       emits "LegDeclared"
     end
   end
@@ -1252,9 +1350,22 @@ Hecks.bluebook "Meta" do
 
     # The way back: everything DECLARED IN the handler above. The parent
     # reference IS the query.
+    # WHERE IT SITS AMONG ITS SIBLINGS. Declaration order is a FACT ABOUT THE
+    # SOURCE — Rust reads it straight out of the file, and the IR is a contract
+    # field for field AND INDEX FOR INDEX. So the language HOLDS it, instead of
+    # inheriting it from whatever order a store happens to iterate: an ask that
+    # does not say how it is ordered is answered in identity order, which is
+    # right for every other ask and fatal for the one that is the SOURCE.
+    value_object "Position" do
+      attribute :value, Integer
+    end
+
+    attribute :position, Position
+
     query "DeclaredIn" do
       attribute :handler_id, DispatchText
       where(handler_id: :handler_id)
+      order_by :position
     end
     command "Declare" do
       role "Language"
@@ -1264,6 +1375,7 @@ Hecks.bluebook "Meta" do
       attribute :handler,      DispatchText
       attribute :command_name, DispatchText
 
+      attribute :position, Position
       emits "SendDeclared"
     end
 
@@ -1327,9 +1439,22 @@ Hecks.bluebook "Meta" do
 
     # The way back: everything DECLARED IN the chapter above. The parent
     # reference IS the query.
+    # WHERE IT SITS AMONG ITS SIBLINGS. Declaration order is a FACT ABOUT THE
+    # SOURCE — Rust reads it straight out of the file, and the IR is a contract
+    # field for field AND INDEX FOR INDEX. So the language HOLDS it, instead of
+    # inheriting it from whatever order a store happens to iterate: an ask that
+    # does not say how it is ordered is answered in identity order, which is
+    # right for every other ask and fatal for the one that is the SOURCE.
+    value_object "Position" do
+      attribute :value, Integer
+    end
+
+    attribute :position, Position
+
     query "DeclaredIn" do
       attribute :bluebook_id, ReadModelText
       where(bluebook_id: :bluebook_id)
+      order_by :position
     end
     command "Declare" do
       role "Language"
@@ -1342,6 +1467,7 @@ Hecks.bluebook "Meta" do
       attribute :reference_name,   ReadModelText
       attribute :reference_target, ReadModelText
 
+      attribute :position, Position
       emits "ProjectionDeclared"
     end
 
@@ -1417,9 +1543,22 @@ Hecks.bluebook "Meta" do
 
     # The way back: everything DECLARED IN the aggregate above. The parent
     # reference IS the query.
+    # WHERE IT SITS AMONG ITS SIBLINGS. Declaration order is a FACT ABOUT THE
+    # SOURCE — Rust reads it straight out of the file, and the IR is a contract
+    # field for field AND INDEX FOR INDEX. So the language HOLDS it, instead of
+    # inheriting it from whatever order a store happens to iterate: an ask that
+    # does not say how it is ordered is answered in identity order, which is
+    # right for every other ask and fatal for the one that is the SOURCE.
+    value_object "Position" do
+      attribute :value, Integer
+    end
+
+    attribute :position, Position
+
     query "DeclaredIn" do
       attribute :aggregate_id, EntityText
       where(aggregate_id: :aggregate_id)
+      order_by :position
     end
     command "Declare" do
       role "Language"
@@ -1431,6 +1570,7 @@ Hecks.bluebook "Meta" do
       attribute :description,   EntityName
       attribute :identified_by, EntityText
 
+      attribute :position, Position
       emits "PieceDeclared"
     end
 
@@ -1497,9 +1637,22 @@ Hecks.bluebook "Meta" do
 
     # The way back: everything DECLARED IN the value object above. The parent
     # reference IS the query.
+    # WHERE IT SITS AMONG ITS SIBLINGS. Declaration order is a FACT ABOUT THE
+    # SOURCE — Rust reads it straight out of the file, and the IR is a contract
+    # field for field AND INDEX FOR INDEX. So the language HOLDS it, instead of
+    # inheriting it from whatever order a store happens to iterate: an ask that
+    # does not say how it is ordered is answered in identity order, which is
+    # right for every other ask and fatal for the one that is the SOURCE.
+    value_object "Position" do
+      attribute :value, Integer
+    end
+
+    attribute :position, Position
+
     query "DeclaredIn" do
       attribute :value_object_id, MemberText
       where(value_object_id: :value_object_id)
+      order_by :position
     end
     command "Declare" do
       role "Language"
@@ -1508,6 +1661,7 @@ Hecks.bluebook "Meta" do
       reference_to ValueObject
       attribute :shape, MemberText
 
+      attribute :position, Position
       emits "MemberDeclared"
     end
 

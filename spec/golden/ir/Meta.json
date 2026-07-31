@@ -365,6 +365,12 @@
           "list": true,
           "name": "transitions",
           "type": "Transition"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "position",
+          "type": "Position"
         }
       ],
       "commands": [
@@ -393,6 +399,12 @@
               "list": false,
               "name": "identified_by",
               "type": "IdentityField"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "position",
+              "type": "Position"
             }
           ],
           "emits": [
@@ -726,7 +738,10 @@
           "description": null,
           "limit": null,
           "name": "DeclaredIn",
-          "order_by": null,
+          "order_by": {
+            "direction": "asc",
+            "field": "position"
+          },
           "wheres": [
             {
               "field": "bluebook_id",
@@ -887,6 +902,24 @@
               "default": null,
               "list": false,
               "name": "value",
+              "type": "Integer"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Position"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
               "type": "String"
             }
           ],
@@ -1025,6 +1058,12 @@
           "list": true,
           "name": "mutations",
           "type": "Change"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "position",
+          "type": "Position"
         }
       ],
       "commands": [
@@ -1059,6 +1098,12 @@
               "list": false,
               "name": "goal",
               "type": "Goal"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "position",
+              "type": "Position"
             }
           ],
           "emits": [
@@ -1322,7 +1367,10 @@
           "description": null,
           "limit": null,
           "name": "DeclaredIn",
-          "order_by": null,
+          "order_by": {
+            "direction": "asc",
+            "field": "position"
+          },
           "wheres": [
             {
               "field": "aggregate_id",
@@ -1552,6 +1600,24 @@
               "default": null,
               "list": false,
               "name": "value",
+              "type": "Integer"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Position"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
               "type": "String"
             }
           ],
@@ -1675,6 +1741,12 @@
           "list": false,
           "name": "rows",
           "type": "RowCount"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "position",
+          "type": "Position"
         }
       ],
       "commands": [
@@ -1691,6 +1763,12 @@
               "list": false,
               "name": "name",
               "type": "ValueObjectName"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "position",
+              "type": "Position"
             }
           ],
           "emits": [
@@ -1854,7 +1932,10 @@
           "description": null,
           "limit": null,
           "name": "DeclaredIn",
-          "order_by": null,
+          "order_by": {
+            "direction": "asc",
+            "field": "position"
+          },
           "wheres": [
             {
               "field": "aggregate_id",
@@ -1963,6 +2044,24 @@
 
           ],
           "name": "Assertion"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "Integer"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Position"
         },
         {
           "attributes": [
@@ -2911,6 +3010,12 @@
           "list": true,
           "name": "options",
           "type": "AskOption"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "position",
+          "type": "Position"
         }
       ],
       "commands": [
@@ -2957,6 +3062,12 @@
               "list": false,
               "name": "limit",
               "type": "QueryText"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "position",
+              "type": "Position"
             }
           ],
           "emits": [
@@ -3140,7 +3251,10 @@
           "description": null,
           "limit": null,
           "name": "DeclaredIn",
-          "order_by": null,
+          "order_by": {
+            "direction": "asc",
+            "field": "position"
+          },
           "wheres": [
             {
               "field": "aggregate_id",
@@ -3291,6 +3405,24 @@
 
           ],
           "name": "AskOption"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "Integer"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Position"
         }
       ]
     },
@@ -3331,6 +3463,12 @@
           "list": false,
           "name": "target_domain",
           "type": "PolicyText"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "position",
+          "type": "Position"
         }
       ],
       "commands": [
@@ -3371,6 +3509,12 @@
               "list": false,
               "name": "target_domain",
               "type": "PolicyText"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "position",
+              "type": "Position"
             }
           ],
           "emits": [
@@ -3408,7 +3552,10 @@
           "description": null,
           "limit": null,
           "name": "DeclaredIn",
-          "order_by": null,
+          "order_by": {
+            "direction": "asc",
+            "field": "position"
+          },
           "wheres": [
             {
               "field": "bluebook_id",
@@ -3457,6 +3604,24 @@
 
           ],
           "name": "PolicyText"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "Integer"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Position"
         }
       ]
     },
@@ -3497,6 +3662,12 @@
           "list": true,
           "name": "states",
           "type": "SagaState"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "position",
+          "type": "Position"
         }
       ],
       "commands": [
@@ -3531,6 +3702,12 @@
               "list": false,
               "name": "ends_on",
               "type": "ProcessManagerText"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "position",
+              "type": "Position"
             }
           ],
           "emits": [
@@ -3597,7 +3774,10 @@
           "description": null,
           "limit": null,
           "name": "DeclaredIn",
-          "order_by": null,
+          "order_by": {
+            "direction": "asc",
+            "field": "position"
+          },
           "wheres": [
             {
               "field": "bluebook_id",
@@ -3664,6 +3844,24 @@
 
           ],
           "name": "SagaState"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "Integer"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Position"
         }
       ]
     },
@@ -3692,6 +3890,12 @@
           "list": false,
           "name": "to_state",
           "type": "HandlerText"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "position",
+          "type": "Position"
         }
       ],
       "commands": [
@@ -3720,6 +3924,12 @@
               "list": false,
               "name": "to_state",
               "type": "HandlerText"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "position",
+              "type": "Position"
             }
           ],
           "emits": [
@@ -3757,7 +3967,10 @@
           "description": null,
           "limit": null,
           "name": "DeclaredIn",
-          "order_by": null,
+          "order_by": {
+            "direction": "asc",
+            "field": "position"
+          },
           "wheres": [
             {
               "field": "process_manager_id",
@@ -3785,6 +3998,24 @@
 
           ],
           "name": "HandlerText"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "Integer"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Position"
         }
       ]
     },
@@ -3813,6 +4044,12 @@
           "list": true,
           "name": "with_spec",
           "type": "Binding"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "position",
+          "type": "Position"
         }
       ],
       "commands": [
@@ -3835,6 +4072,12 @@
               "list": false,
               "name": "command_name",
               "type": "DispatchText"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "position",
+              "type": "Position"
             }
           ],
           "emits": [
@@ -3908,7 +4151,10 @@
           "description": null,
           "limit": null,
           "name": "DeclaredIn",
-          "order_by": null,
+          "order_by": {
+            "direction": "asc",
+            "field": "position"
+          },
           "wheres": [
             {
               "field": "handler_id",
@@ -3960,6 +4206,24 @@
 
           ],
           "name": "Binding"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "Integer"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Position"
         }
       ]
     },
@@ -4012,6 +4276,12 @@
           "list": true,
           "name": "options",
           "type": "ProjectionOption"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "position",
+          "type": "Position"
         }
       ],
       "commands": [
@@ -4052,6 +4322,12 @@
               "list": false,
               "name": "reference_target",
               "type": "ReadModelText"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "position",
+              "type": "Position"
             }
           ],
           "emits": [
@@ -4188,7 +4464,10 @@
           "description": null,
           "limit": null,
           "name": "DeclaredIn",
-          "order_by": null,
+          "order_by": {
+            "direction": "asc",
+            "field": "position"
+          },
           "wheres": [
             {
               "field": "bluebook_id",
@@ -4324,6 +4603,24 @@
 
           ],
           "name": "ProjectionOption"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "Integer"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Position"
         }
       ]
     },
@@ -4382,6 +4679,12 @@
           "list": true,
           "name": "transitions",
           "type": "PieceTransition"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "position",
+          "type": "Position"
         }
       ],
       "commands": [
@@ -4416,6 +4719,12 @@
               "list": false,
               "name": "identified_by",
               "type": "EntityText"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "position",
+              "type": "Position"
             }
           ],
           "emits": [
@@ -4590,7 +4899,10 @@
           "description": null,
           "limit": null,
           "name": "DeclaredIn",
-          "order_by": null,
+          "order_by": {
+            "direction": "asc",
+            "field": "position"
+          },
           "wheres": [
             {
               "field": "aggregate_id",
@@ -4705,6 +5017,24 @@
 
           ],
           "name": "PieceTransition"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "Integer"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Position"
         }
       ]
     },
@@ -4727,6 +5057,12 @@
           "list": true,
           "name": "pairs",
           "type": "Pair"
+        },
+        {
+          "default": null,
+          "list": false,
+          "name": "position",
+          "type": "Position"
         }
       ],
       "commands": [
@@ -4743,6 +5079,12 @@
               "list": false,
               "name": "shape",
               "type": "MemberText"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "position",
+              "type": "Position"
             }
           ],
           "emits": [
@@ -4819,7 +5161,10 @@
           "description": null,
           "limit": null,
           "name": "DeclaredIn",
-          "order_by": null,
+          "order_by": {
+            "direction": "asc",
+            "field": "position"
+          },
           "wheres": [
             {
               "field": "value_object_id",
@@ -4871,6 +5216,24 @@
 
           ],
           "name": "Pair"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "Integer"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Position"
         }
       ]
     }

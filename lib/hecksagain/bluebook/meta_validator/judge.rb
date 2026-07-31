@@ -112,7 +112,7 @@ module Hecksagain
           plan = @plan.category(category)
           return unless plan
 
-          declare(plan, category, node, identify(category, parent_id, node, index), parent_id, extra)
+          declare(plan, category, node, identify(category, parent_id, node, index), parent_id, index, extra)
         end
 
         def detail_node(category, node, parent_id, index, _extra = {})
@@ -151,13 +151,26 @@ module Hecksagain
           end
         end
 
-        def declare(plan, category, node, id, parent_id, extra = {})
+        # WHERE IT SITS AMONG ITS SIBLINGS IS A FACT ABOUT THE WALK, not about the
+        # node : a command does not know it is the third command on its aggregate.
+        # The walk knows, so the walk supplies it, and every other field still
+        # comes from the node. Declaration order used to survive only because the
+        # meta store happened to iterate in insertion order — an accident that an
+        # ask ordered any other way would have taken away, and Reconstruction is
+        # the one reader that must have the SOURCE'S order rather than a stable one.
+        POSITION = "position"
+
+        def declare(plan, category, node, id, parent_id, index, extra = {})
           return unless plan.declare
 
           payload = { id: id }
           payload[plan.parent_key.to_sym] = v(parent_id) if plan.parent_key
           plan.fields.each do |field|
-            payload[field.to_sym] = v(field_value(category, node, field.to_sym, parent_id))
+            payload[field.to_sym] = if field == POSITION
+                                      v(index)
+                                    else
+                                      v(field_value(category, node, field.to_sym, parent_id))
+                                    end
           end
 
           send_to("Meta::#{category}.#{plan.declare}", id, **payload.merge(extra))

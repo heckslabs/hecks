@@ -58,6 +58,7 @@ module Hecksagain
           rows: { transitions: :transition_rows, value_objects: :value_object_names },
           reads: { identified_by: :symbol, attributes: [:each_with_id, :attribute] },
           derived: {
+            position: :walk,
             state_field:   [:folded, :lifecycle, :field],
             state_start:   [:folded, :lifecycle, :default],
             transitions:   [:folded, :lifecycle, :transitions],
@@ -79,7 +80,7 @@ module Hecksagain
           },
           rows: { mutations: :mutation_rows },
           reads: { attributes: [:each, :shape_field], givens: [:each, :rule], mutations: [:call, :mutations], emits: :names },
-          derived: {}
+          derived: { position: :walk }
         ),
 
         "ValueObject" => Contract.new(
@@ -94,7 +95,7 @@ module Hecksagain
           # The language counts the admitted rows ; the IR keeps a flag and the rows.
           reads: { attributes: [:each, :shape_field], invariants: [:each, :rule],
                   closed_set: [:call, :closed_set_of], members: [:call, :members_row] },
-          derived: { rows: [:folded, %i[closed_set members], nil] }
+          derived: { position: :walk, rows: [:folded, %i[closed_set members], nil] }
         ),
 
         "Query" => Contract.new(
@@ -121,6 +122,7 @@ module Hecksagain
           reads: { attributes: [:each, :shape_field], wheres: [:each, :where_clause],
                   order_by: [:call, :order_by], limit: [:call, :limit] },
           derived: {
+            position: :walk,
             order_field: [:folded, :order_by, :field],
             order_way:   [:folded, :order_by, :direction],
             options:     [:folded, %i[offset cursor null_semantics authorization
@@ -145,6 +147,7 @@ module Hecksagain
           rows: { transitions: :transition_rows },
           reads: { attributes: [:each, :shape_field] },
           derived: {
+            position: :walk,
             owner:       :parent,
             state_field: [:folded, :lifecycle, :field],
             state_start: [:folded, :lifecycle, :default],
@@ -161,7 +164,7 @@ module Hecksagain
             trigger_command: [:trigger_command, :plain],
             target_domain:   [:target_domain,   :plain]
           },
-          derived: {}
+          derived: { position: :walk }
         ),
 
         "ProcessManager" => Contract.new(
@@ -179,7 +182,7 @@ module Hecksagain
             states:        [:states,        :plain]
           },
           reads: { states: :names },
-          derived: {}
+          derived: { position: :walk }
         ),
 
         "Handler" => Contract.new(
@@ -189,7 +192,7 @@ module Hecksagain
             from_state: [:from_state, :plain],
             to_state:   [:to_state,   :plain]
           },
-          derived: {}
+          derived: { position: :walk }
         ),
 
         "Dispatch" => Contract.new(
@@ -200,7 +203,7 @@ module Hecksagain
           },
           rows: { with_spec: :with_spec_rows },
           reads: { with: [:from, :with_spec] },
-          derived: { handler: :parent }
+          derived: { position: :walk, handler: :parent }
         ),
 
         "ReadModel" => Contract.new(
@@ -228,6 +231,7 @@ module Hecksagain
           rows: { options: :read_model_option_rows },
           reads: { reference_name: :symbol, aggregate_heads: [:each, :head] },
           derived: {
+            position: :walk,
             query_name: [:computed, :query_name],
             options:    [:folded, %i[offset cursor null_semantics authorization
                                       consistency freshness inspection index_hints], nil]
@@ -241,7 +245,7 @@ module Hecksagain
           holder: nil, make: nil,
           fields: {},
           rows: { pairs: :pair_rows },
-          derived: { shape: :parent, pairs: [:folded, %i[members], nil] }
+          derived: { position: :walk, shape: :parent, pairs: [:folded, %i[members], nil] }
         )
       }.freeze
     end

@@ -178,6 +178,15 @@ RSpec.describe "a graph assembled from declarations" do
         return nil if Hecksagain::Bluebook::Assembly.elsewhere?(category, field)
 
         "elsewhere is allow-listed one at a time, and this is not on the list"
+      when :walk
+        # SUPPLIED BY THE WALK, SPENT ON THE ORDERING. A node does not know where it
+        # sits among its siblings, so the walk supplies it and no construct carries
+        # it. The claim is false in the one way that matters : if the ask does not
+        # order by the field then nothing consumes it at all, and calling it derived
+        # would drop a declared field in exactly the silence this gate exists to break.
+        return nil if ordered_by?(category, field)
+
+        "#{category}.DeclaredIn does not order by it, so nothing consumes it"
       when Array
         fault_in_pair(contract, field, kind, keys)
       else "no such kind"
@@ -201,6 +210,15 @@ RSpec.describe "a graph assembled from declarations" do
         absent.empty? ? nil : "nothing folds into #{absent.inspect} — no declaration carries those keys"
       else "no such kind"
       end
+    end
+
+    # Whether the category's own way back orders by the field — the proof that a
+    # walk-supplied field is consumed rather than merely stored.
+    def ordered_by?(category, field)
+      meta = Hecksagain::Bluebook::MetaValidator.grammar_registry.bluebook("Meta")
+      ask  = meta.aggregate(category)&.query("DeclaredIn")
+
+      ask&.order_by&.field.to_s == field.to_s
     end
 
     # Every key a REAL reconstructed declaration carries, gathered once. A fold has
