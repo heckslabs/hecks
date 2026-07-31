@@ -1,5 +1,5 @@
 use storehouse::ports::persistence;
-use storehouse::{dispatcher, dump, ir_json, parser};
+use storehouse::{dispatcher, ir_json, parser};
 
 use dispatcher::Runtime;
 use serde_json::{json, Map, Value};
@@ -31,18 +31,6 @@ fn main() {
             };
             println!("{}: {}", aggregate.name, persistence.adapter);
         }
-        return;
-    }
-
-    if arguments.len() == 3 && arguments[1] == "--canonical" {
-        let source = fs::read_to_string(&arguments[2]).unwrap_or_else(|error| {
-            eprintln!("cannot read {}: {}", arguments[2], error);
-            std::process::exit(1);
-        });
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&dump::dump(&parser::parse(&source))).unwrap()
-        );
         return;
     }
 

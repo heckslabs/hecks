@@ -34,7 +34,6 @@ pub use runtime::mutations as interp_mutations;
 pub use runtime::value_bridge;
 
 pub use bluebook::router::{boot, dispatch, dispatch_short, query, query_short, Router};
-pub use projector::dump;
 pub use projector::ir_json;
 
 /// Dispatch a command through the process router without exposing either a
