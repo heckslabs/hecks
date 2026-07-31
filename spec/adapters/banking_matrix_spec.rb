@@ -139,8 +139,14 @@ RSpec.describe "Banking across persistence adapters" do
       Hecksagain::Ports::Projection.worker(runtime.registry, "Banking", aggregate)
     end
     workers.each(&:catch_up!)
-    projection_repository = runtime.registry.read_repository("Banking", runtime.registry.bluebook("Banking").aggregate("Customer"))
-    expect(projection_repository).to respond_to(:query_read_model)
+    # WHICH REPOSITORY, not which methods. `read_repository` hands back the
+    # authoritative store whenever the projection is judged stale, and Heki
+    # answers `query_read_model` too — so `respond_to` passed either way and
+    # a projection silently declining to serve would have read as success.
+    customer = runtime.registry.bluebook("Banking").aggregate("Customer")
+    projection_repository = runtime.registry.read_repository("Banking", customer)
+    expect(projection_repository.adapter).to be_a(Hecksagain::Adapters::SqliteProjection)
+    expect(projection_repository).not_to be(runtime.registry.repository("Banking", customer))
     after = runtime.query("Banking.customer_portfolio", customer: { value: "c" })
     expect(after).to eq(before)
     expect(workers.map(&:checkpoint)).to eq(workers.map { |worker| worker.projection.entries.length })
