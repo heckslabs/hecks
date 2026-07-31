@@ -1,4 +1,5 @@
 
+require_relative "hecksagain/rendering"
 require_relative "hecksagain/naming"
 require_relative "hecksagain/fqn"
 require_relative "hecksagain/construct"

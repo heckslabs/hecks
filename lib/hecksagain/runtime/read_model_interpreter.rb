@@ -37,7 +37,7 @@ module Hecksagain
       end
 
       def fetch(bluebook, domain, aggregate_name, id)
-        @registry.read_repository(domain, bluebook.aggregate(aggregate_name)).find(id) || raise(NotFound, "no #{aggregate_name} with reference #{id.inspect}")
+        @registry.read_repository(domain, bluebook.aggregate(aggregate_name)).find(id) || raise(NotFound, "no #{aggregate_name} with reference #{Rendering.describe(id)}")
       end
       def records(bluebook, domain, aggregate_name)
         aggregate = bluebook.aggregate(aggregate_name)

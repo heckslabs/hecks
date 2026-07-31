@@ -1,4 +1,5 @@
 require "json"
+require_relative "../../rendering"
 
 module Hecksagain
   module Bluebook
@@ -228,13 +229,7 @@ module Hecksagain
             raise(EvaluationError, "#{operation} expects a number, got #{describe(value)}")
         end
 
-        def describe(value)
-          case value
-          when nil then "nil"
-          when Hash, Array then JSON.generate(value)
-          else value.inspect
-          end
-        end
+        def describe(value) = Rendering.describe(value)
       end
     end
   end

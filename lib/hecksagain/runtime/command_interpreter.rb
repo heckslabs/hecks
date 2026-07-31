@@ -54,7 +54,7 @@ module Hecksagain
           id = identity_from(aggregate, args, aggregate.identified_by || :id) ||
                identity_from(aggregate, args, reference_key(command)) ||
                raise(NotFound, "#{command.hecks_name} acts on an existing #{aggregate.hecks_name} — pass #{aggregate.identified_by}:")
-          repository.find(id) || raise(NotFound, "no #{aggregate.hecks_name} with #{aggregate.identified_by} #{id.inspect}")
+          repository.find(id) || raise(NotFound, "no #{aggregate.hecks_name} with #{aggregate.identified_by} #{Rendering.describe(id)}")
         end
       end
 

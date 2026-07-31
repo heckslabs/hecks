@@ -43,7 +43,7 @@ module Hecksagain
 
         allowed = candidates.flat_map { |t| Array(t.from) }.uniq
         raise LifecycleRefused,
-              "#{command.hecks_name} refused — #{lifecycle.field} is #{current.inspect}, and " \
+              "#{command.hecks_name} refused — #{lifecycle.field} is #{Rendering.describe(current)}, and " \
               "#{command.hecks_name} moves it only from #{allowed.map(&:inspect).join(' or ')}"
       end
 
@@ -117,10 +117,10 @@ module Hecksagain
         end
 
         unless amount.is_a?(Integer)
-          raise TypeMismatch, "#{op} of #{target} needs an Integer, got #{amount.inspect}"
+          raise TypeMismatch, "#{op} of #{target} needs an Integer, got #{Rendering.describe(amount)}"
         end
         unless current.is_a?(Integer)
-          raise TypeMismatch, "#{op} of #{target} needs an Integer #{target}, got #{current.inspect}"
+          raise TypeMismatch, "#{op} of #{target} needs an Integer #{target}, got #{Rendering.describe(current)}"
         end
 
         current + (sign * amount)

@@ -1,4 +1,5 @@
 require "json"
+require_relative "../rendering"
 module Hecksagain
   module Runtime
     class InvariantViolation < StandardError; end
@@ -34,7 +35,7 @@ module Hecksagain
         return value.to_h if value.is_a?(self)
 
         raise TypeMismatch,
-              "#{name} is a #{value_object.hecks_name} — pass its fields as an object, not #{value.inspect}"
+              "#{name} is a #{value_object.hecks_name} — pass its fields as an object, not #{Rendering.describe(value)}"
       end
 
       def self.build(value_object, fields)
@@ -73,7 +74,7 @@ module Hecksagain
           next if given.nil? || given.is_a?(expected)
 
           raise TypeMismatch,
-                "#{value_object.hecks_name}.#{attribute.name} expects #{attribute.type}, got #{given.inspect}"
+                "#{value_object.hecks_name}.#{attribute.name} expects #{attribute.type}, got #{Rendering.describe(given)}"
         end
       end
 
