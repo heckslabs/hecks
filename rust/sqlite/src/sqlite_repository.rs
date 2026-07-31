@@ -13,6 +13,10 @@ pub struct SqliteRepository {
     pub(super) table: String,
     pub(super) columns: Vec<String>,
     pub(super) numeric_columns: Vec<String>,
+    /// Column -> the field inside its value object that carries the number.
+    /// A third category the two Vecs above cannot express: not "the column is
+    /// numeric" (it is TEXT, holding JSON) but "the number is at this path".
+    pub(super) numeric_paths: HashMap<String, String>,
     float_columns: Vec<String>,
     pub(super) store: HashMap<String, AggregateState>,
     next_id: u64,
@@ -20,11 +24,16 @@ pub struct SqliteRepository {
 }
 
 impl SqliteRepository {
+    /// `numeric_paths` is REQUIRED rather than a setter on purpose: a repository
+    /// without it silently under-answers every comparison on a value-object
+    /// column, which is the exact failure this parameter exists to end. Making
+    /// one is then impossible rather than merely discouraged.
     pub fn new(
         aggregate_type: &str,
         db_path: &str,
         identified_by: Option<String>,
         columns: Vec<(String, String)>,
+        numeric_paths: HashMap<String, String>,
     ) -> Result<Self, rusqlite::Error> {
         if let Some(parent) = std::path::Path::new(db_path).parent() {
             let _ = std::fs::create_dir_all(parent);
@@ -50,6 +59,7 @@ impl SqliteRepository {
             table,
             columns: col_names,
             numeric_columns,
+            numeric_paths,
             float_columns,
             store: HashMap::new(),
             next_id: 1,
@@ -322,6 +332,47 @@ impl storehouse::runtime::PersistenceAdapter for SqliteRepository {
     }
 }
 
+/// WHERE THE NUMBER LIVES INSIDE EACH VALUE-OBJECT COLUMN.
+///
+/// A value object is stored as its JSON object, so `balance` holds
+/// `{"cents":2500}` and comparing that column against `2500` compares text
+/// against an object. Ruby's `query_expression` digs the FIRST Integer/Float
+/// member the value object declares — `$.cents` for a Price, `$.amount` for a
+/// DailyFee — and only for a NON-LIST attribute (`value_object?`). Same reading
+/// here, from the same declaration, so the two adapters cannot drift apart
+/// without the bluebook moving under both.
+///
+/// The list filter is not fussiness: pizzas' `toppings` is `list_of(Topping)`
+/// and Topping declares `amount: Integer`, so without it this would dig
+/// `$.amount` out of a JSON array.
+fn numeric_paths(agg: &storehouse::ir::Aggregate) -> HashMap<String, String> {
+    agg.attributes
+        .iter()
+        .filter(|attribute| !attribute.list)
+        .filter_map(|attribute| {
+            let shape = agg
+                .value_objects
+                .iter()
+                .find(|held| held.name == attribute.attr_type)?;
+            let member = shape
+                .attributes
+                .iter()
+                .find(|held| matches!(held.attr_type.as_str(), "Integer" | "Float"))?;
+
+            // The path is INTERPOLATED into SQL, never bound. A declared name is
+            // not user input, but "bound, never interpolated" is the rule this
+            // file keeps, and a member name is the one thing here that could
+            // qualify it.
+            let plain = member
+                .name
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '_');
+
+            plain.then(|| (attribute.name.clone(), member.name.clone()))
+        })
+        .collect()
+}
+
 pub fn sqlite_factory(
     spec: &storehouse::runtime::PersistenceSpec,
 ) -> Result<Box<dyn storehouse::runtime::PersistenceAdapter>, String> {
@@ -372,8 +423,14 @@ pub fn sqlite_factory(
             }
         }
     }
-    let repo = SqliteRepository::new(&agg.name, db_path, agg.identified_by.clone(), columns)
-        .map_err(|e| format!("open/CREATE TABLE failed for db `{db_path}`: {e}"))?;
+    let repo = SqliteRepository::new(
+        &agg.name,
+        db_path,
+        agg.identified_by.clone(),
+        columns,
+        numeric_paths(agg),
+    )
+    .map_err(|e| format!("open/CREATE TABLE failed for db `{db_path}`: {e}"))?;
     repo.ensure_indexes(&indexed_columns);
     Ok(Box::new(repo))
 }
@@ -381,4 +438,67 @@ pub fn sqlite_factory(
 pub fn register() {
     storehouse::runtime::register_persistence_adapter("sqlitepersistence", sqlite_factory);
     storehouse::runtime::register_persistence_adapter("sqlitemirror", sqlite_factory);
+}
+
+#[cfg(test)]
+mod numeric_path_tests {
+    use super::numeric_paths;
+
+    // Anchored to the manifest dir: a workspace member's tests run with the CRATE
+    // root as cwd, not the workspace root.
+    const PIZZAS: &str = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../examples/pizzas/bluebook/pizzas.bluebook"
+    );
+
+    fn pizzas() -> storehouse::ir::Domain {
+        let source = std::fs::read_to_string(PIZZAS).expect("read the pizzas bluebook");
+        storehouse::parser::parse(&source)
+    }
+
+    // READ FROM THE REAL DECLARATION, not a synthetic one — the value this has to
+    // get right is the one the corpus actually declares.
+    #[test]
+    fn a_value_object_column_points_at_its_first_number() {
+        let domain = pizzas();
+        let pizza = domain
+            .aggregates
+            .iter()
+            .find(|a| a.name == "Pizza")
+            .expect("pizzas declares a Pizza");
+
+        let paths = numeric_paths(pizza);
+
+        assert_eq!(paths.get("price_cents"), Some(&"cents".to_string()));
+    }
+
+    // A LIST GETS NO PATH. `toppings` is `list_of(Topping)` and Topping declares
+    // `amount: Integer`, so without the list filter this would dig `$.amount`
+    // out of a JSON ARRAY and quietly match nothing.
+    #[test]
+    fn a_list_of_value_objects_gets_no_path() {
+        let domain = pizzas();
+        let pizza = domain
+            .aggregates
+            .iter()
+            .find(|a| a.name == "Pizza")
+            .expect("pizzas declares a Pizza");
+
+        assert!(pizza.attributes.iter().any(|a| a.name == "toppings" && a.list));
+        assert_eq!(numeric_paths(pizza).get("toppings"), None);
+    }
+
+    // A value object with no number at all, and a lifecycle column, get none.
+    #[test]
+    fn a_column_with_no_number_gets_no_path() {
+        let domain = pizzas();
+        let pizza = domain
+            .aggregates
+            .iter()
+            .find(|a| a.name == "Pizza")
+            .expect("pizzas declares a Pizza");
+
+        let paths = numeric_paths(pizza);
+        assert_eq!(paths.get("name"), None, "a Name carries only a String");
+    }
 }

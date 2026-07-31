@@ -29,7 +29,7 @@ fn save_then_find_round_trips_typed_columns() {
         ("title".to_string(), "TEXT".to_string()),
         ("status".to_string(), "TEXT".to_string()),
     ];
-    let mut repo = SqliteRepository::new("BlogEntry", &db, None, cols).unwrap();
+    let mut repo = SqliteRepository::new("BlogEntry", &db, None, cols, HashMap::new()).unwrap();
     let mut state = AggregateState::new("1");
     state.set("title", Value::Str("First Light".into()));
     state.set("status", Value::Str("published".into()));
@@ -46,12 +46,12 @@ fn cold_reopen_sees_persisted_rows_and_advances_next_id() {
     let db = tmp_db("cold");
     let cols = vec![("title".to_string(), "TEXT".to_string())];
     {
-        let mut repo = SqliteRepository::new("BlogEntry", &db, None, cols.clone()).unwrap();
+        let mut repo = SqliteRepository::new("BlogEntry", &db, None, cols.clone(), HashMap::new()).unwrap();
         let mut s = AggregateState::new("1");
         s.set("title", Value::Str("First".into()));
         repo.save(s, WriteContext::OutOfBand { reason: "test" }).unwrap();
     }
-    let mut repo2 = SqliteRepository::new("BlogEntry", &db, None, cols).unwrap();
+    let mut repo2 = SqliteRepository::new("BlogEntry", &db, None, cols, HashMap::new()).unwrap();
     assert_eq!(repo2.count(), 1, "reopened repo must see the persisted row");
     assert_eq!(repo2.find("1").unwrap().get("title").to_string(), "First");
     let minted = repo2.id_for_command(&HashMap::new());
@@ -65,7 +65,7 @@ fn update_replaces_the_current_row_and_keeps_a_real_as_a_float() {
         ("fee".to_string(), "REAL".to_string()),
         ("status".to_string(), "TEXT".to_string()),
     ];
-    let mut repo = SqliteRepository::new("Card", &db, None, cols.clone()).unwrap();
+    let mut repo = SqliteRepository::new("Card", &db, None, cols.clone(), HashMap::new()).unwrap();
     let mut first = AggregateState::new("card-1");
     first.set("fee", Value::Float(10.0));
     first.set("status", Value::Str("issued".into()));
@@ -77,7 +77,7 @@ fn update_replaces_the_current_row_and_keeps_a_real_as_a_float() {
     repo.save(replacement, WriteContext::OutOfBand { reason: "test" }).unwrap();
     drop(repo);
 
-    let reopened = SqliteRepository::new("Card", &db, None, cols).unwrap();
+    let reopened = SqliteRepository::new("Card", &db, None, cols, HashMap::new()).unwrap();
     let row = reopened.find("card-1").unwrap();
     assert_eq!(row.get("fee"), &Value::Float(10.0));
     assert_eq!(row.get("status"), &Value::Str("retired".into()));

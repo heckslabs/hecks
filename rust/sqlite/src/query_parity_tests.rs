@@ -25,7 +25,7 @@ fn seeded(name: &str) -> SqliteRepository {
         ("status".to_string(), "VARCHAR(255)".to_string()),
         ("priority".to_string(), "INTEGER".to_string()),
     ];
-    let mut repo = SqliteRepository::new("Ticket", &path, None, cols).expect("open db");
+    let mut repo = SqliteRepository::new("Ticket", &path, None, cols, HashMap::new()).expect("open db");
     let rows = [
         ("1", "pending", 1),
         ("2", "paid", 10),
@@ -120,7 +120,7 @@ fn object_valued_column_matches_the_same_rows_as_the_oracle() {
     let path = db_path("object_column");
     let _ = std::fs::remove_file(&path);
     let cols = vec![("account".to_string(), "VARCHAR(255)".to_string())];
-    let mut repo = SqliteRepository::new("Card", &path, None, cols).expect("open db");
+    let mut repo = SqliteRepository::new("Card", &path, None, cols, HashMap::new()).expect("open db");
 
     for (id, account) in [("c1", "acct-1"), ("c2", "acct-2")] {
         let mut s = AggregateState::new(id);
@@ -180,7 +180,7 @@ fn numeric_range_null_priority_matches_oracle() {
         ("status".to_string(), "VARCHAR(255)".to_string()),
         ("priority".to_string(), "INTEGER".to_string()),
     ];
-    let mut repo = SqliteRepository::new("Ticket", &path, None, cols).expect("open db");
+    let mut repo = SqliteRepository::new("Ticket", &path, None, cols, HashMap::new()).expect("open db");
     let mut a = AggregateState::new("1");
     a.set("status", Value::Str("x".into()));
     a.set("priority", Value::Int(3));
@@ -232,6 +232,77 @@ fn where_matches_resolves_nested_vo_bare_and_dotted() {
     assert!(storehouse::runtime::where_matches(&s, &clause("sequence.value", WhereOp::Eq, "7"), &attrs), "7 == 7");
     assert!(!storehouse::runtime::where_matches(&s, &clause("sequence.value", WhereOp::Lt, "7"), &attrs), "7 < 7 false");
     assert!(!storehouse::runtime::where_matches(&s, &clause("sequence.nope", WhereOp::Eq, "7"), &attrs), "missing leaf");
+}
+
+// A VALUE-OBJECT COLUMN, compared by the number inside it.
+//
+// `price` holds `{"cents":…}`. Before numeric paths, `scalar_of` dug a `$.value`
+// that is not there and fell back to the whole JSON text, so Eq matched NOTHING
+// — silently, because the fallback in `SqliteRepository::query` fires only when
+// pushdown returns None, never when it returns an empty set. The ordered ops
+// were dropped entirely, so they returned the whole store unnarrowed.
+//
+// The NULL row and the mis-shaped `{"value":7}` row are here on purpose: neither
+// carries the declared path, so SQL cannot know their number, and the contract
+// says a candidate set must never drop a row the dispatcher would keep.
+fn priced(name: &str) -> SqliteRepository {
+    let path = db_path(name);
+    let _ = std::fs::remove_file(&path);
+    let cols = vec![("price".to_string(), "TEXT".to_string())];
+    let paths = HashMap::from([("price".to_string(), "cents".to_string())]);
+    let mut repo = SqliteRepository::new("Pizza", &path, None, cols, paths).expect("open db");
+
+    let mut cheap = AggregateState::new("cheap");
+    cheap.set("price", Value::Map(HashMap::from([("cents".to_string(), Value::Int(1200))])));
+    repo.save(cheap, heki::WriteContext::OutOfBand { reason: "test" }).unwrap();
+
+    let mut dear = AggregateState::new("dear");
+    dear.set("price", Value::Map(HashMap::from([("cents".to_string(), Value::Int(2000))])));
+    repo.save(dear, heki::WriteContext::OutOfBand { reason: "test" }).unwrap();
+
+    let unpriced = AggregateState::new("unpriced");
+    repo.save(unpriced, heki::WriteContext::OutOfBand { reason: "test" }).unwrap();
+
+    let mut odd = AggregateState::new("odd");
+    odd.set("price", Value::Map(HashMap::from([("value".to_string(), Value::Int(7))])));
+    repo.save(odd, heki::WriteContext::OutOfBand { reason: "test" }).unwrap();
+
+    repo
+}
+
+#[test]
+fn a_value_object_column_agrees_with_the_oracle_on_every_comparator() {
+    let repo = priced("priced_parity");
+    let attrs = HashMap::new();
+    for wheres in [
+        vec![clause("price", WhereOp::Eq, "1200")],
+        vec![clause("price", WhereOp::In, "1200, 9999")],
+        vec![clause("price", WhereOp::Gt, "1500")],
+        vec![clause("price", WhereOp::Gte, "2000")],
+        vec![clause("price", WhereOp::Lt, "1500")],
+        vec![clause("price", WhereOp::Lte, "1200")],
+    ] {
+        assert_parity(&repo, &wheres, &attrs);
+    }
+}
+
+// Agreement alone would be satisfied by pushing nothing at all, so this asserts
+// the narrowing actually happens. Both of these returned the WHOLE store before:
+// Eq matched nothing and fell through, the ordered ops were dropped.
+#[test]
+fn a_value_object_column_actually_narrows_at_sql() {
+    let repo = priced("priced_narrow");
+    let attrs = HashMap::new();
+
+    let equal = repo.query(&[clause("price", WhereOp::Eq, "1200")], &attrs);
+    assert_eq!(raw_ids(&equal), vec!["cheap".to_string()], "eq narrows to the one row");
+
+    // NULL and the mis-shaped row survive as candidates — SQL cannot know their
+    // number, and dropping a row the dispatcher would keep is an under-return.
+    let above = repo.query(&[clause("price", WhereOp::Gt, "1500")], &attrs);
+    assert!(above.len() < repo.all().len(), "gt must narrow");
+    assert!(raw_ids(&above).contains(&"dear".to_string()), "2000 > 1500");
+    assert!(!raw_ids(&above).contains(&"cheap".to_string()), "1200 is not > 1500");
 }
 
 // A VALUE OBJECT WHOSE NUMBER IS NOT KEYED "value" — Money, Price, every amount

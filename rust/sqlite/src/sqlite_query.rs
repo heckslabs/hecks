@@ -5,12 +5,21 @@ use storehouse::runtime::AggregateState;
 use std::collections::HashMap;
 
 impl SqliteRepository {
+    /// What this table's columns are, in the three categories the builder needs.
+    pub(crate) fn column_facts(&self) -> crate::sql_query::ColumnFacts<'_> {
+        crate::sql_query::ColumnFacts {
+            columns: &self.columns,
+            numeric_columns: &self.numeric_columns,
+            numeric_paths: &self.numeric_paths,
+        }
+    }
+
     pub fn query(
         &self,
         wheres: &[storehouse::ir::WhereClause],
         attrs: &HashMap<String, String>,
     ) -> Vec<AggregateState> {
-        match crate::sql_query::build_pushdown(wheres, attrs, &self.columns, &self.numeric_columns) {
+        match crate::sql_query::build_pushdown(wheres, attrs, &self.column_facts()) {
             Some((where_sql, params)) => crate::sql_query::run_filtered(
                 &self.conn, &self.table, &self.columns, &where_sql, &params,
             )
@@ -44,6 +53,17 @@ impl SqliteRepository {
                 );
                 let _ = self.conn.execute(&int_ddl, []);
             }
+            // The value-object columns compare through `numeric_of`, so they need
+            // an index on THAT expression — same character-identity rule.
+            if let Some(path) = self.numeric_paths.get(col) {
+                let path_ddl = format!(
+                    "CREATE INDEX IF NOT EXISTS {idx} ON {t} ({expr})",
+                    idx = quote_ident(&format!("idx_{}_{}_path", self.table, col)),
+                    t = quote_ident(&self.table),
+                    expr = crate::sql_query::numeric_of(col, path),
+                );
+                let _ = self.conn.execute(&path_ddl, []);
+            }
         }
     }
 }
@@ -60,7 +80,7 @@ mod tests {
             .into_owned();
         let _ = std::fs::remove_file(&path);
         let cols = vec![("status".to_string(), "VARCHAR(255)".to_string())];
-        let repo = SqliteRepository::new("Ticket", &path, None, cols).unwrap();
+        let repo = SqliteRepository::new("Ticket", &path, None, cols, HashMap::new()).unwrap();
         repo.ensure_indexes(&["status".to_string()]);
 
         // THE QUERY THE REPOSITORY WOULD REALLY RUN, not one written here to
@@ -73,7 +93,7 @@ mod tests {
             value: "x".into(),
         }];
         let (where_sql, _params) =
-            crate::sql_query::build_pushdown(&wheres, &HashMap::new(), &repo.columns, &repo.numeric_columns)
+            crate::sql_query::build_pushdown(&wheres, &HashMap::new(), &repo.column_facts())
                 .expect("an eq on a known column pushes down");
 
         let plan: String = repo

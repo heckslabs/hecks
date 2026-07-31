@@ -1,5 +1,5 @@
 
-use crate::sql_query::build_pushdown;
+use crate::sql_query::{build_pushdown, ColumnFacts};
 use storehouse::ir::{WhereClause, WhereOp};
 use rusqlite::types::Value as SqlValue;
 use std::collections::HashMap;
@@ -9,18 +9,32 @@ fn clause(field: &str, op: WhereOp, value: &str) -> WhereClause {
 }
 
 fn cols() -> Vec<String> {
-    vec!["status".to_string(), "priority".to_string()]
+    vec!["status".to_string(), "priority".to_string(), "price".to_string()]
 }
 
 fn nums() -> Vec<String> {
     vec!["priority".to_string()]
 }
 
+// `price` is a value-object column: TEXT holding `{"cents":…}`, so it is neither
+// a plain column nor a numeric one — the third category.
+fn paths() -> HashMap<String, String> {
+    HashMap::from([("price".to_string(), "cents".to_string())])
+}
+
+fn facts<'a>(
+    columns: &'a [String],
+    numeric_columns: &'a [String],
+    numeric_paths: &'a HashMap<String, String>,
+) -> ColumnFacts<'a> {
+    ColumnFacts { columns, numeric_columns, numeric_paths }
+}
+
 #[test]
 fn eq_builds_cast_text_bound_param() {
     let attrs = HashMap::new();
     let (sql, params) =
-        build_pushdown(&[clause("status", WhereOp::Eq, "pending")], &attrs, &cols(), &nums()).unwrap();
+        build_pushdown(&[clause("status", WhereOp::Eq, "pending")], &attrs, &facts(&cols(), &nums(), &paths())).unwrap();
     assert_eq!(sql, "COALESCE(CASE WHEN json_valid(\"status\") THEN json_extract(\"status\", '$.value') END, CAST(\"status\" AS TEXT)) = ?1");
     assert_eq!(params, vec![SqlValue::Text("pending".into())]);
 }
@@ -29,7 +43,7 @@ fn eq_builds_cast_text_bound_param() {
 fn in_builds_placeholder_list_bound_params() {
     let attrs = HashMap::new();
     let (sql, params) =
-        build_pushdown(&[clause("status", WhereOp::In, "a, b ,c")], &attrs, &cols(), &nums()).unwrap();
+        build_pushdown(&[clause("status", WhereOp::In, "a, b ,c")], &attrs, &facts(&cols(), &nums(), &paths())).unwrap();
     assert_eq!(sql, "COALESCE(CASE WHEN json_valid(\"status\") THEN json_extract(\"status\", '$.value') END, CAST(\"status\" AS TEXT)) IN (?1, ?2, ?3)");
     assert_eq!(
         params,
@@ -46,7 +60,7 @@ fn kwarg_ref_resolves_from_attrs() {
     let mut attrs = HashMap::new();
     attrs.insert("st".to_string(), "shipped".to_string());
     let (sql, params) =
-        build_pushdown(&[clause("status", WhereOp::Eq, ":st")], &attrs, &cols(), &nums()).unwrap();
+        build_pushdown(&[clause("status", WhereOp::Eq, ":st")], &attrs, &facts(&cols(), &nums(), &paths())).unwrap();
     assert_eq!(sql, "COALESCE(CASE WHEN json_valid(\"status\") THEN json_extract(\"status\", '$.value') END, CAST(\"status\" AS TEXT)) = ?1");
     assert_eq!(params, vec![SqlValue::Text("shipped".into())]);
 }
@@ -56,7 +70,7 @@ fn injection_value_is_bound_never_interpolated() {
     let attrs = HashMap::new();
     let evil = "x'; DROP TABLE ticket; --";
     let (sql, params) =
-        build_pushdown(&[clause("status", WhereOp::Eq, evil)], &attrs, &cols(), &nums()).unwrap();
+        build_pushdown(&[clause("status", WhereOp::Eq, evil)], &attrs, &facts(&cols(), &nums(), &paths())).unwrap();
     assert!(!sql.contains("DROP"));
     assert_eq!(sql, "COALESCE(CASE WHEN json_valid(\"status\") THEN json_extract(\"status\", '$.value') END, CAST(\"status\" AS TEXT)) = ?1");
     assert_eq!(params, vec![SqlValue::Text(evil.into())]);
@@ -68,8 +82,7 @@ fn unknown_column_is_dropped_not_emitted() {
     let out = build_pushdown(
         &[clause("status; DROP TABLE ticket", WhereOp::Eq, "x")],
         &attrs,
-        &cols(),
-        &nums(),
+        &facts(&cols(), &nums(), &paths()),
     );
     assert!(out.is_none());
 }
@@ -79,7 +92,7 @@ fn ne_and_contains_are_always_left_to_oracle() {
     let attrs = HashMap::new();
     for op in [WhereOp::Ne, WhereOp::Contains] {
         assert!(
-            build_pushdown(&[clause("status", op, "pending")], &attrs, &cols(), &nums()).is_none(),
+            build_pushdown(&[clause("status", op, "pending")], &attrs, &facts(&cols(), &nums(), &paths())).is_none(),
             "Ne / Contains never push"
         );
     }
@@ -90,7 +103,7 @@ fn numeric_target_on_non_integer_column_is_left_to_oracle() {
     let attrs = HashMap::new();
     for op in [WhereOp::Gt, WhereOp::Gte, WhereOp::Lt, WhereOp::Lte] {
         assert!(
-            build_pushdown(&[clause("status", op, "5")], &attrs, &cols(), &nums()).is_none(),
+            build_pushdown(&[clause("status", op, "5")], &attrs, &facts(&cols(), &nums(), &paths())).is_none(),
             "numeric target on a non-integer column defers to oracle"
         );
     }
@@ -100,21 +113,21 @@ fn numeric_target_on_non_integer_column_is_left_to_oracle() {
 fn numeric_target_on_integer_column_pushes_as_cast_integer() {
     let attrs = HashMap::new();
     let (sql, params) =
-        build_pushdown(&[clause("priority", WhereOp::Gt, "5")], &attrs, &cols(), &nums()).unwrap();
+        build_pushdown(&[clause("priority", WhereOp::Gt, "5")], &attrs, &facts(&cols(), &nums(), &paths())).unwrap();
     assert_eq!(sql, "CAST(\"priority\" AS INTEGER) > ?1");
     assert_eq!(params, vec![SqlValue::Integer(5)]);
 
     let (sql, _) =
-        build_pushdown(&[clause("priority", WhereOp::Gte, "9")], &attrs, &cols(), &nums()).unwrap();
+        build_pushdown(&[clause("priority", WhereOp::Gte, "9")], &attrs, &facts(&cols(), &nums(), &paths())).unwrap();
     assert_eq!(sql, "CAST(\"priority\" AS INTEGER) >= ?1");
 
     let (sql, params) =
-        build_pushdown(&[clause("priority", WhereOp::Lt, "5")], &attrs, &cols(), &nums()).unwrap();
+        build_pushdown(&[clause("priority", WhereOp::Lt, "5")], &attrs, &facts(&cols(), &nums(), &paths())).unwrap();
     assert_eq!(sql, "(\"priority\" IS NULL OR CAST(\"priority\" AS INTEGER) < ?1)");
     assert_eq!(params, vec![SqlValue::Integer(5)]);
 
     let (sql, _) =
-        build_pushdown(&[clause("priority", WhereOp::Lte, "2")], &attrs, &cols(), &nums()).unwrap();
+        build_pushdown(&[clause("priority", WhereOp::Lte, "2")], &attrs, &facts(&cols(), &nums(), &paths())).unwrap();
     assert_eq!(sql, "(\"priority\" IS NULL OR CAST(\"priority\" AS INTEGER) <= ?1)");
 }
 
@@ -129,7 +142,7 @@ fn nonnumeric_target_ordered_ops_push_as_cast_text() {
     ];
     for (op, sym) in ops {
         let (sql, params) =
-            build_pushdown(&[clause("status", op, "pending")], &attrs, &cols(), &nums()).unwrap();
+            build_pushdown(&[clause("status", op, "pending")], &attrs, &facts(&cols(), &nums(), &paths())).unwrap();
         assert_eq!(sql, format!("COALESCE(CASE WHEN json_valid(\"status\") THEN json_extract(\"status\", '$.value') END, CAST(\"status\" AS TEXT)) {} ?1", sym));
         assert_eq!(params, vec![SqlValue::Text("pending".into())]);
     }
@@ -138,13 +151,13 @@ fn nonnumeric_target_ordered_ops_push_as_cast_text() {
 #[test]
 fn empty_ordered_target_is_left_to_oracle() {
     let attrs = HashMap::new();
-    assert!(build_pushdown(&[clause("status", WhereOp::Gt, "")], &attrs, &cols(), &nums()).is_none());
+    assert!(build_pushdown(&[clause("status", WhereOp::Gt, "")], &attrs, &facts(&cols(), &nums(), &paths())).is_none());
 }
 
 #[test]
 fn empty_eq_target_is_left_to_oracle() {
     let attrs = HashMap::new();
-    assert!(build_pushdown(&[clause("status", WhereOp::Eq, "")], &attrs, &cols(), &nums()).is_none());
+    assert!(build_pushdown(&[clause("status", WhereOp::Eq, "")], &attrs, &facts(&cols(), &nums(), &paths())).is_none());
 }
 
 #[test]
@@ -156,8 +169,7 @@ fn mixed_clauses_push_only_the_pushable_subset() {
             clause("priority", WhereOp::Ne, "3"), 
         ],
         &attrs,
-        &cols(),
-        &nums(),
+        &facts(&cols(), &nums(), &paths()),
     )
     .unwrap();
     assert_eq!(sql, "COALESCE(CASE WHEN json_valid(\"status\") THEN json_extract(\"status\", '$.value') END, CAST(\"status\" AS TEXT)) = ?1");
