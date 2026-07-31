@@ -280,6 +280,22 @@ mod tests {
     use std::fs;
     use std::path::{Path, PathBuf};
 
+    /// THE DEFAULT ROUTER IS PROCESS-GLOBAL, so the tests that boot it cannot run
+    /// at once. `boot` REPLACES it, and whichever booted last would then answer
+    /// for all of them — the others would dispatch against a domain they never
+    /// wrote. Rust runs a binary's tests in parallel, so they take turns here
+    /// rather than hoping the scheduler interleaves kindly.
+    ///
+    /// Caught by a single failure in one `--workspace` run and not reproducible
+    /// after: `macro_options_pin_a_version_without_claiming_a_payload_key` looked
+    /// for a command another test's router had replaced. Poisoning is absorbed
+    /// so one genuine failure does not cascade into two more.
+    static BOOTED_ROUTER: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    fn booting() -> std::sync::MutexGuard<'static, ()> {
+        BOOTED_ROUTER.lock().unwrap_or_else(|held| held.into_inner())
+    }
+
     #[test]
     fn routes_every_discovered_domain_and_translates_query_names() {
         let root = temporary_project("all-domains");
@@ -406,6 +422,7 @@ mod tests {
             None,
         );
 
+        let _serialised = booting();
         boot(&root).unwrap();
         let state = crate::command!(Acme::Catalog::Book::Add, { code: "book-1" }).unwrap();
         assert_eq!(state.get("code"), Some(&json!("book-1")));
@@ -460,6 +477,7 @@ mod tests {
             Some("v2"),
         );
 
+        let _serialised = booting();
         boot(&root).unwrap();
         assert_eq!(
             crate::command!(Acme::Banking::Account::Open, { code: "latest" })
@@ -495,6 +513,7 @@ mod tests {
             );
         }
 
+        let _serialised = booting();
         boot(&root).unwrap();
         let error = crate::command!(SharedBook::Add, {}).unwrap_err();
         assert!(error.contains("SharedBook.Add is ambiguous"));

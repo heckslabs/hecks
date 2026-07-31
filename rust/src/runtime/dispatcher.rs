@@ -161,6 +161,48 @@ fn query_text(value: &Value) -> String {
 /// the bluebook loads, so a path is always there to dig.
 /// `EntityInterpreter#identity_scalar` is the same reading on the Ruby side — a
 /// piece is entry 3, never entry {"value":3}.
+/// The declared op string, as the IR spells it.
+fn where_op(op: &str) -> Option<crate::ir::WhereOp> {
+    Some(match op {
+        "eq" => crate::ir::WhereOp::Eq,
+        "ne" => crate::ir::WhereOp::Ne,
+        "lt" => crate::ir::WhereOp::Lt,
+        "lte" => crate::ir::WhereOp::Lte,
+        "gt" => crate::ir::WhereOp::Gt,
+        "gte" => crate::ir::WhereOp::Gte,
+        "in" => crate::ir::WhereOp::In,
+        "contains" => crate::ir::WhereOp::Contains,
+        _ => return None,
+    })
+}
+
+/// A query's arguments, rendered the way the adapter will compare them.
+///
+/// NOT `query_text` alone. Banking asks `Overdrawn` for a `floor` of
+/// `{"cents":0,"currency":"USD"}` — two fields, so `query_text` hands back the
+/// whole JSON object and the bound clause would match nothing. `query_number`
+/// reads the one numeric member, which is the same reading the filter applies a
+/// few lines later.
+///
+/// A NULL argument is omitted rather than rendered: an absent kwarg resolves to
+/// an empty target, which the builder skips, which leaves the clause to the
+/// filter. That is how `Overdrawn` with no arguments still answers.
+fn pushdown_attrs(args: &State) -> HashMap<String, String> {
+    args.iter()
+        .filter(|(_, value)| !value.is_null())
+        .map(|(name, value)| {
+            let rendered = match query_number(value) {
+                Some(number) if number.fract() == 0.0 && number.abs() < 9.0e15 => {
+                    format!("{}", number as i64)
+                }
+                Some(number) if number.is_finite() => format!("{number}"),
+                _ => query_text(value),
+            };
+            (name.clone(), rendered)
+        })
+        .collect()
+}
+
 fn identity_scalar(value: &Value, field: Option<&str>) -> Value {
     match field {
         Some(name) => value.get(name).cloned().unwrap_or_else(|| value.clone()),
@@ -732,7 +774,11 @@ impl Runtime {
 
         let wheres = array(&declared, "wheres");
         let mut matched: Vec<(String, State)> = Vec::new();
-        for (key, state) in self.all_records(&domain, &aggregate_name, &aggregate) {
+        // CANDIDATES, then the SAME predicate as ever. An adapter that can narrow
+        // says so ; the filter below still decides, so the answer is unchanged by
+        // whatever the adapter could or could not push. Only the aggregate path
+        // pushes — see `candidate_records`.
+        for (key, state) in self.candidate_records(&domain, &aggregate_name, &aggregate, &wheres, args) {
             let holds = wheres.iter().all(|clause| {
                 let field = clause
                     .get("field")
@@ -959,6 +1005,50 @@ impl Runtime {
             rows.truncate(query_limit(&resolve_query_value(Some(limit), args)));
         }
         Ok(rows)
+    }
+
+    /// ROWS THAT MIGHT MATCH, from an adapter that can narrow.
+    ///
+    /// The caller filters these with the full predicate regardless, so this is
+    /// free to return too many and must never return too few — the contract on
+    /// `PersistenceAdapter::query`.
+    ///
+    /// ONLY THE AGGREGATE QUERY PATH USES THIS. An entity query's clauses apply
+    /// to elements INSIDE a JSON list column, which this schema cannot express,
+    /// and the builder filters by column NAME alone — so a piece's field sharing
+    /// a parent column's name would narrow the parent set by a clause meant for
+    /// the child. A read model has no clauses at all.
+    fn candidate_records(
+        &mut self,
+        domain: &str,
+        aggregate_name: &str,
+        aggregate: &Map<String, Value>,
+        wheres: &[Value],
+        args: &State,
+    ) -> Vec<(String, State)> {
+        let clauses: Vec<crate::ir::WhereClause> = wheres
+            .iter()
+            .filter_map(|clause| {
+                Some(crate::ir::WhereClause {
+                    field: clause.get("field")?.as_str()?.to_string(),
+                    op: where_op(clause.get("op").and_then(Value::as_str)?)?,
+                    value: clause.get("value")?.as_str()?.to_string(),
+                })
+            })
+            .collect();
+
+        let narrowed = (!clauses.is_empty())
+            .then(|| self.adapters.get(aggregate_name))
+            .flatten()
+            .and_then(|adapter| adapter.query(&clauses, &pushdown_attrs(args)));
+
+        match narrowed {
+            Some(states) => states
+                .into_iter()
+                .map(|state| (state.id.clone(), value_bridge::from_state(&state)))
+                .collect(),
+            None => self.all_records(domain, aggregate_name, aggregate),
+        }
     }
 
     fn all_records(
@@ -2120,6 +2210,105 @@ mod query_semantics_tests {
         assert!(query_truthy(&json!(0)));
         assert!(query_truthy(&json!("")));
         assert!(query_truthy(&json!(true)));
+    }
+
+
+    /// An adapter that answers `query` with whatever it was told to, so the
+    /// CANDIDATES contract can be tested from the caller's side.
+    struct NarrowingAdapter {
+        records: HashMap<String, AggregateState>,
+        answer: Option<Vec<String>>,
+    }
+
+    impl NarrowingAdapter {
+        fn holding(ids: &[&str], answer: Option<Vec<String>>) -> Self {
+            let mut records = HashMap::new();
+            for id in ids {
+                let mut state = AggregateState::new(id);
+                // Every row is "open", so the declared where matches ALL of them
+                // and any difference in the answer comes from the candidate set.
+                state.set("status", crate::runtime::Value::Str("open".into()));
+                records.insert(id.to_string(), state);
+            }
+            Self { records, answer }
+        }
+    }
+
+    impl PersistenceAdapter for NarrowingAdapter {
+        fn find(&self, id: &str) -> Option<&AggregateState> { self.records.get(id) }
+        fn find_mut(&mut self, id: &str) -> Option<&mut AggregateState> { self.records.get_mut(id) }
+        fn all(&self) -> Vec<&AggregateState> { self.records.values().collect() }
+        fn count(&self) -> usize { self.records.len() }
+        fn next_id_value(&self) -> u64 { 1 }
+        fn id_for_command(&mut self, _attrs: &HashMap<String, crate::runtime::Value>) -> String { "1".to_string() }
+        fn save(&mut self, state: AggregateState, _ctx: WriteContext<'_>) -> Result<(), String> {
+            self.records.insert(state.id.clone(), state);
+            Ok(())
+        }
+        fn delete(&mut self, id: &str, _ctx: WriteContext<'_>) -> Result<(), String> {
+            self.records.remove(id);
+            Ok(())
+        }
+        fn query(&self, _wheres: &[crate::ir::WhereClause], _attrs: &HashMap<String, String>) -> Option<Vec<AggregateState>> {
+            self.answer.as_ref().map(|ids| {
+                ids.iter().filter_map(|id| self.records.get(id).cloned()).collect()
+            })
+        }
+        fn seed_record(&mut self, state: AggregateState) { self.records.insert(state.id.clone(), state); }
+        fn set_next_id(&mut self, _value: u64) {}
+    }
+
+    fn answered_with(answer: Option<Vec<String>>) -> Vec<String> {
+        let mut runtime = Runtime::boot("../spec/fixtures/query_ops.bluebook").unwrap();
+        runtime.adapters.insert(
+            "Item".to_string(),
+            Box::new(NarrowingAdapter::holding(&["a", "b", "c"], answer)),
+        );
+
+        runtime
+            .query("QueryOps::Item.Eq", &State::new())
+            .unwrap()
+            .into_iter()
+            .filter_map(|row| row.get("id").and_then(Value::as_str).map(str::to_string))
+            .collect()
+    }
+
+    // THE POST-FILTER IS AUTHORITATIVE, and these four say so from both sides.
+    //
+    // An adapter that cannot narrow, one that narrows exactly, and one that
+    // narrows too little all give the SAME answer — which is the whole reason
+    // the contract can be "superset" rather than "exact", and why a partial
+    // pushdown is safe.
+    #[test]
+    fn an_adapter_that_cannot_narrow_answers_as_it_always_did() {
+        assert_eq!(answered_with(None), vec!["a", "b", "c"]);
+    }
+
+    #[test]
+    fn an_exact_candidate_set_answers_the_same() {
+        assert_eq!(
+            answered_with(Some(vec!["a".into(), "b".into(), "c".into()])),
+            vec!["a", "b", "c"]
+        );
+    }
+
+    #[test]
+    fn an_over_broad_candidate_set_answers_the_same() {
+        // Deliberately unnarrowed, repeated — the filter still decides.
+        assert_eq!(
+            answered_with(Some(vec!["c".into(), "a".into(), "b".into()])),
+            vec!["a", "b", "c"]
+        );
+    }
+
+    // AND THIS IS WHY THE CONTRACT SAYS SUPERSET. An adapter that returns too
+    // FEW rows changes the answer, and nothing downstream can put them back —
+    // the filter can only remove. Under-returning is the one failure a candidate
+    // set can commit, which is why `build_pushdown` emits nothing rather than
+    // guess whenever it cannot express a clause exactly.
+    #[test]
+    fn an_under_broad_candidate_set_loses_rows_that_should_have_matched() {
+        assert_eq!(answered_with(Some(vec!["a".into()])), vec!["a"]);
     }
 
     struct JournalAdapter {

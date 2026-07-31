@@ -51,6 +51,26 @@ pub trait PersistenceAdapter: Send {
         Ok(vec![])
     }
 
+    /// CANDIDATES, NEVER FINAL ROWS.
+    ///
+    /// `Some(rows)` promises `rows` is a SUPERSET of every stored row satisfying
+    /// `wheres` — formally, `matches(r, wheres)` implies `r` is in `rows`. The
+    /// caller MUST still apply the whole predicate. `Some(vec![])` therefore
+    /// means "provably nothing matches", which is why a caller must not treat an
+    /// empty answer as a failure to narrow.
+    ///
+    /// `None` means "I cannot narrow ; use `all()`". Semantically the same as
+    /// `Some(all())`, kept so an adapter need not clone its whole store.
+    ///
+    /// A SUPERSET AND NOT AN ANSWER, because narrowing is partial by nature: the
+    /// SQLite builder skips an unknown column, `Ne`, `Contains`, an empty target
+    /// and any comparison it cannot express. Were these final rows, each of those
+    /// would be a silent wrong answer, and SQL would have to reproduce every
+    /// comparator the dispatcher applies — a second implementation of the
+    /// language's own semantics, which is the duplication `bin/undeclared` exists
+    /// to find. Under this contract the caller's answer is unchanged by whatever
+    /// the adapter can or cannot push, and the whole risk collapses to one
+    /// property: NEVER UNDER-RETURN.
     fn query(
         &self,
         wheres: &[ir::WhereClause],
