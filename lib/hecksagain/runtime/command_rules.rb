@@ -47,8 +47,27 @@ module Hecksagain
               "#{command.hecks_name} moves it only from #{allowed.map(&:inspect).join(' or ')}"
       end
 
+      # A mutation's source is either the NAME OF AN ARGUMENT or a LITERAL, and
+      # the two are told apart by type : a Symbol is always a name, a String or a
+      # number is always a value. Checked across all eight chapters — `to: :name`
+      # and `to: "sold"`, never a Symbol meant as a value.
+      #
+      # `&& args.key?(source)` used to guard the lookup, and that guard is what
+      # made an ABSENT argument fall through to `source` and return THE SYMBOL
+      # ITSELF as the value. `Customer.Register` without its `name` set name to
+      # the literal `:name`, coercion met a Symbol where a PersonName belonged,
+      # and Ruby refused with "name is a PersonName — pass its fields as an
+      # object, not :name" — a message describing a mistake the caller had not
+      # made. Rust reads the same IR structurally (`kind: "argument"` vs a literal
+      # `value`) and returned Null, so it accepted and wrote `name: null`. Neither
+      # runtime was refusing the real mistake and they disagreed about what to do
+      # instead, which is how it surfaced : as a parity SPLIT, from fuzz.
+      #
+      # Absent now resolves to nil in both. Whether it should be REFUSED instead
+      # is a separate question — the language cannot yet say which arguments are
+      # optional, and the meta-domain has plenty that are.
       def resolve_source(source, args)
-        return args[source] if source.is_a?(Symbol) && args.key?(source)
+        return args[source] if source.is_a?(Symbol)
 
         source
       end

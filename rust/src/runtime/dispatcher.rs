@@ -670,7 +670,7 @@ impl Runtime {
                         .get("op")
                         .and_then(Value::as_str)
                         .unwrap_or("increment");
-                    let updated = arithmetic(&aggregate, &element, &target, operation, &mutation, args)?;
+                    let updated = arithmetic(&element, &target, operation, &mutation, args)?;
                     element.insert(target, updated);
                 }
                 _ => {

@@ -54,6 +54,41 @@ RSpec.describe "the rules a command obeys" do
                          'Money.cents expects Integer, got "a lot"')
     end
 
+    # AN ABSENT ARGUMENT IS NIL, NOT ITS OWN NAME.
+    #
+    # `resolve_source` used to fall through to the Symbol when the argument was
+    # missing, so an absent `amount` arrived at coercion AS `:amount` and Ruby
+    # refused with "amount is a Money — pass its fields as an object, not
+    # :amount" — which describes passing the wrong SHAPE, a mistake the caller
+    # had not made. Rust then grew a branch reproducing that exact sentence so
+    # the two would agree. Both are gone : the message now names what is
+    # actually wrong, and both runtimes word it identically because Ruby's
+    # Rendering.describe and Rust's describe() both spell nil "nil".
+    it "says an absent amount is nil, not the name of the argument" do
+      runtime = funded_account(boot_banking)
+
+      expect do
+        runtime.dispatch("Banking::Account.Credit",
+                         number: { value: "a1" }, narrative: { text: "No amount at all" })
+      end.to raise_error(Hecksagain::Runtime::TypeMismatch,
+                         "increment of balance needs an Integer, got nil")
+    end
+
+    # The counterpart on the OTHER side of the arithmetic : a total that has
+    # never been set reads as zero (`current ||= 0`), and only the total does.
+    # Rust conflated the two — one `integer_field` mapping Null to 0 for both —
+    # so an absent amount there incremented by zero and silently SUCCEEDED
+    # while Ruby refused. That asymmetry is the whole reason the imitation
+    # branch above had to exist.
+    it "still starts an unset total at zero" do
+      runtime = funded_account(boot_banking)
+      state   = runtime.dispatch("Banking::Account.ApplyFee",
+                                 number: { value: "a1" }, amount: { cents: 250, currency: "USD" })
+                       .state
+
+      expect(state[:fees_cents].to_h).to eq(cents: 250, currency: "USD")
+    end
+
     it "moves an element by exactly what it was told" do
       runtime = funded_account(boot_banking)
       runtime.dispatch("Banking::Account.LedgerEntry.Amend",

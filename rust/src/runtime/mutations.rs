@@ -1,3 +1,4 @@
+use crate::bluebook::expression::resolver::describe;
 use crate::dispatcher::array;
 use crate::interp_expr::State;
 use crate::interp_givens::evaluate_given;
@@ -291,7 +292,7 @@ pub fn apply_mutation(
             state.insert(target, Value::Array(items));
         }
         "increment" | "decrement" => {
-            let updated = arithmetic(aggregate, state, &target, operation, mutation, args)?;
+            let updated = arithmetic(state, &target, operation, mutation, args)?;
             state.insert(target, updated);
         }
         _ => {
@@ -303,42 +304,30 @@ pub fn apply_mutation(
     Ok(())
 }
 
+// No `aggregate` parameter : it was here only so the imitation branch above could
+// look up the target's declared type and reproduce Ruby's leaked-symbol sentence.
+// Arithmetic itself never needed the schema — it needs a current total and an
+// amount — and dropping it is the honest measure of what that branch cost.
 pub fn arithmetic(
-    aggregate: &Map<String, Value>,
     state: &State,
     target: &str,
     operation: &str,
     mutation: &Value,
     args: &State,
 ) -> Result<Value, String> {
-    let source = mutation.get("source");
-    let missing_argument = source.and_then(|s| s.get("kind")).and_then(Value::as_str)
-        == Some("argument")
-        && source
-            .and_then(|s| s.get("name"))
-            .and_then(Value::as_str)
-            .is_some_and(|name| !args.contains_key(name));
-
-    if missing_argument {
-        let name = source
-            .and_then(|s| s.get("name"))
-            .and_then(Value::as_str)
-            .unwrap_or_default();
-        if let Some(attribute) = array(aggregate, "attributes")
-            .iter()
-            .find(|attribute| attribute.get("name").and_then(Value::as_str) == Some(target))
-            .and_then(Value::as_object)
-        {
-            if let Some(type_name) = attribute.get("type").and_then(Value::as_str)
-                .filter(|type_name| value_object_named(aggregate, type_name).is_some())
-            {
-                return Err(format!(
-                    "{target} is a {type_name} — pass its fields as an object, not :{name}"
-                ));
-            }
-        }
-    }
-
+    // An ABSENT argument used to be IMITATED here rather than fixed. Ruby's
+    // resolve_source fell through to the Symbol itself when the argument was
+    // missing, so `increment: :amount` with no amount reported "amount is a Money
+    // — pass its fields as an object, not :amount" : a message about a mistake the
+    // caller had not made. This function grew a `missing_argument` branch whose
+    // whole job was to reproduce that sentence, and a `:{name}` rendering to match
+    // the leaked symbol. Rust was taught to imitate an accident — so the two
+    // runtimes agreed, and parity stayed green, over a bug they now shared. No
+    // spec ever pinned it ; the two that pin "pass its fields as an object" both
+    // pass a scalar on purpose, which is the real mistake and still refused.
+    //
+    // Ruby resolves an absent argument to nil now, so this reads it as nil too,
+    // and both refuse it as what it actually is : not an Integer.
     let amount = resolve_source(mutation, args);
     let amount_int = integer_field(&amount, state.get(target));
     let Some(amount_int) = amount_int else {
@@ -347,25 +336,31 @@ pub fn arithmetic(
                 "{operation} of {target} needs a value object with one shared Integer field"
             ));
         }
-        let shown = if missing_argument {
-            let name = source
-                .and_then(|s| s.get("name"))
-                .and_then(Value::as_str)
-                .unwrap_or_default();
-            format!(":{name}")
-        } else {
-            amount.to_string()
-        };
+        // describe(), not to_string() : Ruby words this with Rendering.describe and
+        // the two have to read identically. They differ on exactly one value — nil,
+        // which JSON spells "null" — and nil is precisely the value an absent
+        // argument now arrives as, so raw to_string() here would have replaced one
+        // split with another.
         return Err(format!(
-            "{operation} of {target} needs an Integer, got {shown}"
+            "{operation} of {target} needs an Integer, got {}",
+            describe(&amount)
         ));
     };
 
     let current = state.get(target).cloned().unwrap_or(Value::Null);
-    let current_int = integer_field(&current, Some(&amount));
+    // `current ||= 0` — an unset total starts at zero, exactly as Ruby reads it.
+    // This is the ONLY place a nil may stand in for a number : the AMOUNT above
+    // has no such reading, and conflating the two is what made an absent argument
+    // silently increment by zero here while Ruby refused it.
+    let current_int = if current.is_null() {
+        Some(0)
+    } else {
+        integer_field(&current, Some(&amount))
+    };
     let Some(current_int) = current_int else {
         return Err(format!(
-            "{operation} of {target} needs an Integer {target}, got {current}"
+            "{operation} of {target} needs an Integer {target}, got {}",
+            describe(&current)
         ));
     };
 
@@ -384,7 +379,6 @@ pub fn arithmetic(
 fn integer_field(value: &Value, counterpart: Option<&Value>) -> Option<i64> {
     match value {
         Value::Number(number) => number.as_i64(),
-        Value::Null => Some(0),
         Value::Object(fields) => counterpart.and_then(Value::as_object).and_then(|other| {
             fields.iter().find_map(|(name, value)| {
                 value.as_i64().filter(|_| other.get(name).and_then(Value::as_i64).is_some())
