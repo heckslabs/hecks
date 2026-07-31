@@ -24,11 +24,15 @@ impl SqliteRepository {
             if !self.columns.iter().any(|c| c == col) {
                 continue;
             }
+            // INDEXED ON THE EXPRESSION THE QUERY ACTUALLY USES. SQLite will only
+            // reach for an expression index when the two match character for
+            // character, so this has to be `sql_query::scalar_of` and not a
+            // hand-written cast that happens to resemble it.
             let ddl = format!(
-                "CREATE INDEX IF NOT EXISTS {idx} ON {t} (CAST({c} AS TEXT))",
+                "CREATE INDEX IF NOT EXISTS {idx} ON {t} ({expr})",
                 idx = quote_ident(&format!("idx_{}_{}_text", self.table, col)),
                 t = quote_ident(&self.table),
-                c = quote_ident(col),
+                expr = crate::sql_query::scalar_of(col),
             );
             let _ = self.conn.execute(&ddl, []);
             if self.numeric_columns.iter().any(|c| c == col) {
@@ -58,10 +62,24 @@ mod tests {
         let cols = vec![("status".to_string(), "VARCHAR(255)".to_string())];
         let repo = SqliteRepository::new("Ticket", &path, None, cols).unwrap();
         repo.ensure_indexes(&["status".to_string()]);
+
+        // THE QUERY THE REPOSITORY WOULD REALLY RUN, not one written here to
+        // resemble it. This test used to spell its own `WHERE CAST(status AS
+        // TEXT) = ?1`, so it went on passing when the pushdown expression
+        // changed underneath it and the planner quietly stopped using the index.
+        let wheres = vec![storehouse::ir::WhereClause {
+            field: "status".into(),
+            op: storehouse::ir::WhereOp::Eq,
+            value: "x".into(),
+        }];
+        let (where_sql, _params) =
+            crate::sql_query::build_pushdown(&wheres, &HashMap::new(), &repo.columns, &repo.numeric_columns)
+                .expect("an eq on a known column pushes down");
+
         let plan: String = repo
             .conn
             .query_row(
-                "EXPLAIN QUERY PLAN SELECT id, status FROM ticket WHERE CAST(status AS TEXT) = ?1",
+                &format!("EXPLAIN QUERY PLAN SELECT id, status FROM ticket WHERE {where_sql}"),
                 ["x"],
                 |r| r.get::<_, String>(3),
             )

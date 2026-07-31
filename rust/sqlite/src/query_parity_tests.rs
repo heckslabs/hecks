@@ -109,6 +109,39 @@ fn parity_across_every_op() {
     }
 }
 
+// A COLUMN THAT HOLDS AN OBJECT, queried by the scalar inside it. The in-memory
+// oracle (`where_matches` -> `resolve_state_field`) opens a one-key map and
+// matches ; the SQL pushdown compares the whole stored text and does not. If the
+// two disagree the store answers less than the oracle, and `sqlite_query`'s
+// fallback cannot save it — that fallback fires only when pushdown returns None,
+// never when it returns an empty set.
+#[test]
+fn object_valued_column_matches_the_same_rows_as_the_oracle() {
+    let path = db_path("object_column");
+    let _ = std::fs::remove_file(&path);
+    let cols = vec![("account".to_string(), "VARCHAR(255)".to_string())];
+    let mut repo = SqliteRepository::new("Card", &path, None, cols).expect("open db");
+
+    for (id, account) in [("c1", "acct-1"), ("c2", "acct-2")] {
+        let mut s = AggregateState::new(id);
+        let mut held: HashMap<String, Value> = HashMap::new();
+        held.insert("value".to_string(), Value::Str(account.into()));
+        s.set("account", Value::Map(held));
+        repo.save(s, heki::WriteContext::OutOfBand { reason: "test" }).unwrap();
+    }
+
+    let attrs = HashMap::new();
+    for wheres in [
+        vec![clause("account", WhereOp::Eq, "acct-1")],
+        vec![clause("account", WhereOp::Ne, "acct-1")],
+        vec![clause("account", WhereOp::In, "acct-1, acct-9")],
+        vec![clause("account", WhereOp::Gt, "acct-1")],
+        vec![clause("account", WhereOp::Lte, "acct-1")],
+    ] {
+        assert_parity(&repo, &wheres, &attrs);
+    }
+}
+
 #[test]
 fn pushed_eq_actually_narrows_at_sql() {
     let repo = seeded("narrow");

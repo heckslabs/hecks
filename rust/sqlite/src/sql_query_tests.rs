@@ -21,7 +21,7 @@ fn eq_builds_cast_text_bound_param() {
     let attrs = HashMap::new();
     let (sql, params) =
         build_pushdown(&[clause("status", WhereOp::Eq, "pending")], &attrs, &cols(), &nums()).unwrap();
-    assert_eq!(sql, "CAST(\"status\" AS TEXT) = ?1");
+    assert_eq!(sql, "COALESCE(CASE WHEN json_valid(\"status\") THEN json_extract(\"status\", '$.value') END, CAST(\"status\" AS TEXT)) = ?1");
     assert_eq!(params, vec![SqlValue::Text("pending".into())]);
 }
 
@@ -30,7 +30,7 @@ fn in_builds_placeholder_list_bound_params() {
     let attrs = HashMap::new();
     let (sql, params) =
         build_pushdown(&[clause("status", WhereOp::In, "a, b ,c")], &attrs, &cols(), &nums()).unwrap();
-    assert_eq!(sql, "CAST(\"status\" AS TEXT) IN (?1, ?2, ?3)");
+    assert_eq!(sql, "COALESCE(CASE WHEN json_valid(\"status\") THEN json_extract(\"status\", '$.value') END, CAST(\"status\" AS TEXT)) IN (?1, ?2, ?3)");
     assert_eq!(
         params,
         vec![
@@ -47,7 +47,7 @@ fn kwarg_ref_resolves_from_attrs() {
     attrs.insert("st".to_string(), "shipped".to_string());
     let (sql, params) =
         build_pushdown(&[clause("status", WhereOp::Eq, ":st")], &attrs, &cols(), &nums()).unwrap();
-    assert_eq!(sql, "CAST(\"status\" AS TEXT) = ?1");
+    assert_eq!(sql, "COALESCE(CASE WHEN json_valid(\"status\") THEN json_extract(\"status\", '$.value') END, CAST(\"status\" AS TEXT)) = ?1");
     assert_eq!(params, vec![SqlValue::Text("shipped".into())]);
 }
 
@@ -58,7 +58,7 @@ fn injection_value_is_bound_never_interpolated() {
     let (sql, params) =
         build_pushdown(&[clause("status", WhereOp::Eq, evil)], &attrs, &cols(), &nums()).unwrap();
     assert!(!sql.contains("DROP"));
-    assert_eq!(sql, "CAST(\"status\" AS TEXT) = ?1");
+    assert_eq!(sql, "COALESCE(CASE WHEN json_valid(\"status\") THEN json_extract(\"status\", '$.value') END, CAST(\"status\" AS TEXT)) = ?1");
     assert_eq!(params, vec![SqlValue::Text(evil.into())]);
 }
 
@@ -130,7 +130,7 @@ fn nonnumeric_target_ordered_ops_push_as_cast_text() {
     for (op, sym) in ops {
         let (sql, params) =
             build_pushdown(&[clause("status", op, "pending")], &attrs, &cols(), &nums()).unwrap();
-        assert_eq!(sql, format!("CAST(\"status\" AS TEXT) {} ?1", sym));
+        assert_eq!(sql, format!("COALESCE(CASE WHEN json_valid(\"status\") THEN json_extract(\"status\", '$.value') END, CAST(\"status\" AS TEXT)) {} ?1", sym));
         assert_eq!(params, vec![SqlValue::Text("pending".into())]);
     }
 }
@@ -160,6 +160,6 @@ fn mixed_clauses_push_only_the_pushable_subset() {
         &nums(),
     )
     .unwrap();
-    assert_eq!(sql, "CAST(\"status\" AS TEXT) = ?1");
+    assert_eq!(sql, "COALESCE(CASE WHEN json_valid(\"status\") THEN json_extract(\"status\", '$.value') END, CAST(\"status\" AS TEXT)) = ?1");
     assert_eq!(params.len(), 1);
 }
