@@ -22,7 +22,7 @@ RSpec.describe "an entity" do
   def funded_account(runtime)
     runtime.dispatch("Banking::Customer.Register", reference: { value: "c" },
                      name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
-    runtime.dispatch("Banking::Account.Open", customer_id: { value: "c" }, number: { value: "a1" },
+    runtime.dispatch("Banking::Account.Open", customer_id: "c", number: { value: "a1" },
                                               kind: { name: "current" }, daily_limit: { cents: 50_000 })
     runtime.dispatch("Banking::Account.Credit", number: { value: "a1" }, amount: { cents: 10_000, currency: "USD" }, narrative: { text: "Opening" })
     runtime.dispatch("Banking::Account.Debit", number: { value: "a1" },  amount: { cents: 2_500, currency: "USD" },  narrative: { text: "Groceries" })
@@ -41,7 +41,7 @@ RSpec.describe "an entity" do
     runtime = boot_banking
     runtime.dispatch("Banking::Customer.Register", reference: { value: "c" },
                      name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
-    runtime.dispatch("Banking::Account.Open", customer_id: { value: "c" }, number: { value: "a1" },
+    runtime.dispatch("Banking::Account.Open", customer_id: "c", number: { value: "a1" },
                                               kind: { name: "current" }, daily_limit: { cents: 50_000 })
 
     expect do

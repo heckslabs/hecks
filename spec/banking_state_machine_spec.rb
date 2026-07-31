@@ -21,7 +21,7 @@ RSpec.describe "Banking's generated account machine" do
       runtime = boot_banking
       runtime.dispatch("Banking::Customer.Register", reference: { value: "c" },
                        name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
-      runtime.dispatch("Banking::Account.Open", customer_id: { value: "c" }, number: { value: "a#{seed}" },
+      runtime.dispatch("Banking::Account.Open", customer_id: "c", number: { value: "a#{seed}" },
                                                 kind: { name: "current" }, daily_limit: { cents: 1_000 })
       model = 0
       random = Random.new(seed)

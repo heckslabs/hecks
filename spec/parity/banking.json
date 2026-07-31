@@ -112,9 +112,7 @@
         "daily_limit": {
           "cents": 50000
         },
-        "customer_id": {
-          "value": "CUST-0001"
-        }
+        "customer_id": "CUST-0001"
       }
     },
     {
@@ -129,9 +127,7 @@
         "daily_limit": {
           "cents": -1
         },
-        "customer_id": {
-          "value": "CUST-0001"
-        }
+        "customer_id": "CUST-0001"
       }
     },
     {
@@ -146,9 +142,7 @@
         "daily_limit": {
           "cents": 10000
         },
-        "customer_id": {
-          "value": "CUST-0001"
-        }
+        "customer_id": "CUST-0001"
       }
     },
     {
@@ -163,9 +157,7 @@
         "daily_limit": {
           "cents": 10000
         },
-        "customer_id": {
-          "value": "CUST-0001"
-        }
+        "customer_id": "CUST-0001"
       }
     },
     {
@@ -195,9 +187,7 @@
         "daily_limit": {
           "cents": 10000
         },
-        "customer_id": {
-          "value": "CUST-0001"
-        }
+        "customer_id": "CUST-0001"
       }
     },
     {
@@ -350,12 +340,8 @@
     {
       "verb": "Banking::Transfer.Request",
       "args": {
-        "source": {
-          "value": "acct-1"
-        },
-        "destination": {
-          "value": "acct-2"
-        },
+        "source": "acct-1",
+        "destination": "acct-2",
         "amount": {
           "cents": 2500
         },
@@ -370,12 +356,8 @@
     {
       "verb": "Banking::Transfer.Request",
       "args": {
-        "source": {
-          "value": "acct-1"
-        },
-        "destination": {
-          "value": "acct-2"
-        },
+        "source": "acct-1",
+        "destination": "acct-2",
         "amount": {
           "cents": 0
         },
@@ -390,12 +372,8 @@
     {
       "verb": "Banking::Transfer.Request",
       "args": {
-        "source": {
-          "value": "acct-1"
-        },
-        "destination": {
-          "value": "acct-1"
-        },
+        "source": "acct-1",
+        "destination": "acct-1",
         "amount": {
           "cents": 100
         },
@@ -418,12 +396,8 @@
     {
       "verb": "Banking::Transfer.Request",
       "args": {
-        "source": {
-          "value": "acct-1"
-        },
-        "destination": {
-          "value": "acct-2"
-        },
+        "source": "acct-1",
+        "destination": "acct-2",
         "amount": {
           "cents": 1000
         },
@@ -585,12 +559,8 @@
     {
       "verb": "Banking::Transfer.Request",
       "args": {
-        "source": {
-          "value": "acct-2"
-        },
-        "destination": {
-          "value": "acct-1"
-        },
+        "source": "acct-2",
+        "destination": "acct-1",
         "amount": {
           "cents": 100
         },
@@ -752,9 +722,7 @@
         "daily_fee": {
           "amount": 2.5
         },
-        "account_id": {
-          "value": "acct-1"
-        }
+        "account_id": "acct-1"
       }
     },
     {
@@ -766,9 +734,7 @@
         "daily_fee": {
           "amount": 0.75
         },
-        "account_id": {
-          "value": "acct-1"
-        }
+        "account_id": "acct-1"
       }
     },
     {
@@ -780,9 +746,7 @@
         "daily_fee": {
           "amount": 10
         },
-        "account_id": {
-          "value": "acct-1"
-        }
+        "account_id": "acct-1"
       }
     },
     {
@@ -794,9 +758,7 @@
         "daily_fee": {
           "amount": 1.5
         },
-        "account_id": {
-          "value": "acct-1"
-        }
+        "account_id": "acct-1"
       }
     },
     {
@@ -808,9 +770,7 @@
         "daily_fee": {
           "amount": 1
         },
-        "account_id": {
-          "value": "acct-1"
-        }
+        "account_id": "acct-1"
       }
     },
     {
@@ -1124,9 +1084,7 @@
         "daily_limit": {
           "cents": 1000
         },
-        "customer_id": {
-          "value": "CUST-0002"
-        }
+        "customer_id": "CUST-0002"
       }
     },
     {
@@ -1322,9 +1280,7 @@
         "daily_limit": {
           "cents": 99
         },
-        "customer_id": {
-          "value": "CUST-0002"
-        }
+        "customer_id": "CUST-0002"
       }
     },
     {
@@ -1339,9 +1295,7 @@
         "daily_limit": {
           "cents": 100
         },
-        "customer_id": {
-          "value": "CUST-0002"
-        }
+        "customer_id": "CUST-0002"
       }
     },
     {
@@ -1380,9 +1334,7 @@
         "daily_limit": {
           "cents": -1
         },
-        "customer_id": {
-          "value": "CUST-0002"
-        }
+        "customer_id": "CUST-0002"
       }
     },
     {
@@ -1427,9 +1379,7 @@
         "daily_limit": {
           "cents": "lots"
         },
-        "customer_id": {
-          "value": "CUST-0002"
-        }
+        "customer_id": "CUST-0002"
       }
     },
     {
@@ -1444,9 +1394,7 @@
         "daily_limit": {
           "cents": 10000
         },
-        "customer_id": {
-          "value": "CUST-0002"
-        }
+        "customer_id": "CUST-0002"
       }
     },
     {
@@ -1461,9 +1409,7 @@
         "daily_limit": {
           "cents": 10000
         },
-        "customer_id": {
-          "value": "CUST-0002"
-        }
+        "customer_id": "CUST-0002"
       }
     },
     {
@@ -1484,12 +1430,8 @@
     {
       "verb": "Banking::Transfer.Request",
       "args": {
-        "source": {
-          "value": ""
-        },
-        "destination": {
-          "value": "acct-7"
-        },
+        "source": "",
+        "destination": "acct-7",
         "amount": {
           "cents": 100
         },
@@ -1504,12 +1446,8 @@
     {
       "verb": "Banking::Transfer.Request",
       "args": {
-        "source": {
-          "value": "acct-8"
-        },
-        "destination": {
-          "value": ""
-        },
+        "source": "acct-8",
+        "destination": "",
         "amount": {
           "cents": 100
         },
@@ -1524,12 +1462,8 @@
     {
       "verb": "Banking::Transfer.Request",
       "args": {
-        "source": {
-          "value": "acct-8"
-        },
-        "destination": {
-          "value": "acct-7"
-        },
+        "source": "acct-8",
+        "destination": "acct-7",
         "amount": {
           "cents": -100
         },
@@ -1544,12 +1478,8 @@
     {
       "verb": "Banking::Transfer.Request",
       "args": {
-        "source": {
-          "value": "acct-8"
-        },
-        "destination": {
-          "value": "acct-7"
-        },
+        "source": "acct-8",
+        "destination": "acct-7",
         "amount": {
           "cents": 100
         },
@@ -1572,12 +1502,8 @@
     {
       "verb": "Banking::Transfer.Request",
       "args": {
-        "source": {
-          "value": "acct-8"
-        },
-        "destination": {
-          "value": "acct-7"
-        },
+        "source": "acct-8",
+        "destination": "acct-7",
         "amount": {
           "cents": 1000
         },
@@ -1632,12 +1558,8 @@
     {
       "verb": "Banking::Transfer.Request",
       "args": {
-        "source": {
-          "value": "acct-8"
-        },
-        "destination": {
-          "value": "acct-7"
-        },
+        "source": "acct-8",
+        "destination": "acct-7",
         "amount": {
           "cents": 100
         },
@@ -1668,12 +1590,8 @@
     {
       "verb": "Banking::Transfer.Request",
       "args": {
-        "source": {
-          "value": "acct-8"
-        },
-        "destination": {
-          "value": "acct-nowhere"
-        },
+        "source": "acct-8",
+        "destination": "acct-nowhere",
         "amount": {
           "cents": 100
         },
@@ -1694,9 +1612,7 @@
         "daily_fee": {
           "amount": 3.25
         },
-        "account_id": {
-          "value": "acct-8"
-        }
+        "account_id": "acct-8"
       }
     },
     {
@@ -1732,9 +1648,7 @@
         "daily_fee": {
           "amount": 9.99
         },
-        "account_id": {
-          "value": "acct-8"
-        }
+        "account_id": "acct-8"
       }
     },
     {
@@ -1963,9 +1877,7 @@
         "merchant": {
           "value": "Grocer"
         },
-        "account_id": {
-          "value": "acct-8"
-        },
+        "account_id": "acct-8",
         "authorisation": {
           "value": "pay-refund"
         }
@@ -2004,9 +1916,7 @@
         "merchant": {
           "value": "Hotel"
         },
-        "account_id": {
-          "value": "acct-8"
-        },
+        "account_id": "acct-8",
         "authorisation": {
           "value": "pay-void"
         }
@@ -2037,9 +1947,7 @@
         "merchant": {
           "value": "Airline"
         },
-        "account_id": {
-          "value": "acct-8"
-        },
+        "account_id": "acct-8",
         "authorisation": {
           "value": "pay-chargeback"
         }
@@ -2056,9 +1964,7 @@
     {
       "verb": "Banking::CardPayment.Dispute",
       "args": {
-        "disputed_by": {
-          "value": "CUST-0002"
-        },
+        "disputed_by": "CUST-0002",
         "authorisation": {
           "value": "pay-chargeback"
         }
@@ -2089,9 +1995,7 @@
         "merchant": {
           "value": "Books"
         },
-        "account_id": {
-          "value": "acct-8"
-        },
+        "account_id": "acct-8",
         "authorisation": {
           "value": "pay-reversal"
         }
@@ -2130,9 +2034,7 @@
         "merchant": {
           "value": ""
         },
-        "account_id": {
-          "value": "acct-8"
-        },
+        "account_id": "acct-8",
         "authorisation": {
           "value": "pay-bad"
         }
@@ -2155,9 +2057,7 @@
         "beneficiary": {
           "value": "Other Bank"
         },
-        "account_id": {
-          "value": "acct-8"
-        },
+        "account_id": "acct-8",
         "end_to_end": {
           "value": "ext-recall"
         }
@@ -2196,9 +2096,7 @@
         "beneficiary": {
           "value": "Closed destination"
         },
-        "account_id": {
-          "value": "acct-8"
-        },
+        "account_id": "acct-8",
         "end_to_end": {
           "value": "ext-return"
         }
@@ -2237,9 +2135,7 @@
         "beneficiary": {
           "value": ""
         },
-        "account_id": {
-          "value": "acct-8"
-        },
+        "account_id": "acct-8",
         "end_to_end": {
           "value": "ext-bad"
         }
@@ -2261,9 +2157,7 @@
         "due_on": {
           "value": "2026-08-01"
         },
-        "account_id": {
-          "value": "acct-8"
-        },
+        "account_id": "acct-8",
         "instruction": {
           "value": "schedule-execute"
         }
@@ -2297,9 +2191,7 @@
         "due_on": {
           "value": "2026-08-02"
         },
-        "account_id": {
-          "value": "acct-8"
-        },
+        "account_id": "acct-8",
         "instruction": {
           "value": "schedule-cancel"
         }
@@ -2333,9 +2225,7 @@
         "due_on": {
           "value": ""
         },
-        "account_id": {
-          "value": "acct-8"
-        },
+        "account_id": "acct-8",
         "instruction": {
           "value": "schedule-bad"
         }
@@ -2348,9 +2238,7 @@
     {
       "query": "Banking.customer_portfolio",
       "args": {
-        "customer": {
-          "value": "CUST-0001"
-        }
+        "customer": "CUST-0001"
       }
     }
   ]

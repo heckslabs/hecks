@@ -119,7 +119,7 @@ RSpec.describe "Banking across persistence adapters" do
       runtime = boot(adapter)
       runtime.dispatch("Banking::Customer.Register", reference: { value: "c" }, name: { given: "Ada", family: "Lovelace" },
                                                    email: { address: "ada@example.com" })
-      runtime.dispatch("Banking::Account.Open", customer_id: { value: "c" }, number: { value: "a" }, kind: { name: "current" }, daily_limit: { cents: 1_000 })
+      runtime.dispatch("Banking::Account.Open", customer_id: "c", number: { value: "a" }, kind: { name: "current" }, daily_limit: { cents: 1_000 })
       runtime.dispatch("Banking::Account.Credit", number: { value: "a" }, amount: { cents: 500, currency: "USD" }, narrative: { text: "Opening" })
       runtime.dispatch("Banking::Account.Debit", number: { value: "a" }, amount: { cents: 125, currency: "USD" }, narrative: { text: "Lunch" })
 
@@ -132,9 +132,9 @@ RSpec.describe "Banking across persistence adapters" do
   it "reads the projection after catch-up and keeps all three stores in parity" do
     runtime = boot("Heki", projected: true)
     runtime.dispatch("Banking::Customer.Register", reference: { value: "c" }, name: { given: "Ada", family: "Lovelace" }, email: { address: "ada@example.com" })
-    runtime.dispatch("Banking::Account.Open", customer_id: { value: "c" }, number: { value: "a" }, kind: { name: "current" }, daily_limit: { cents: 1_000 })
+    runtime.dispatch("Banking::Account.Open", customer_id: "c", number: { value: "a" }, kind: { name: "current" }, daily_limit: { cents: 1_000 })
 
-    before = runtime.query("Banking.customer_portfolio", customer: { value: "c" })
+    before = runtime.query("Banking.customer_portfolio", customer: "c")
     workers = runtime.registry.bluebooks.fetch("Banking").aggregates.filter_map do |aggregate|
       Hecksagain::Ports::Projection.worker(runtime.registry, "Banking", aggregate)
     end
@@ -147,14 +147,14 @@ RSpec.describe "Banking across persistence adapters" do
     projection_repository = runtime.registry.read_repository("Banking", customer)
     expect(projection_repository.adapter).to be_a(Hecksagain::Adapters::SqliteProjection)
     expect(projection_repository).not_to be(runtime.registry.repository("Banking", customer))
-    after = runtime.query("Banking.customer_portfolio", customer: { value: "c" })
+    after = runtime.query("Banking.customer_portfolio", customer: "c")
     expect(after).to eq(before)
     expect(workers.map(&:checkpoint)).to eq(workers.map { |worker| worker.projection.entries.length })
 
     # Refresh is safe to repeat after a restart: it rebuilds from the durable
     # authoritative journal without changing the report.
     workers.each(&:catch_up!)
-    expect(runtime.query("Banking.customer_portfolio", customer: { value: "c" })).to eq(after)
+    expect(runtime.query("Banking.customer_portfolio", customer: "c")).to eq(after)
 
     workers.each do |worker|
       aggregate = worker.projection.aggregate
@@ -190,7 +190,7 @@ RSpec.describe "Banking across persistence adapters" do
     replay_matrix(memory)
     replay_matrix(sqlite)
 
-    args = { customer: { value: "CUST-0001" } }
+    args = { customer: "CUST-0001" }
     # SQLite returns JSON-decoded reference payloads with string keys while
     # Memory retains symbol keys. Compare the wire representation so this
     # checks report data parity rather than Ruby hash-key spelling.

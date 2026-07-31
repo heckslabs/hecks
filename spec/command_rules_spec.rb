@@ -26,7 +26,7 @@ RSpec.describe "the rules a command obeys" do
   def funded_account(runtime)
     runtime.dispatch("Banking::Customer.Register", reference: { value: "c" },
                      name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
-    runtime.dispatch("Banking::Account.Open", customer_id: { value: "c" }, number: { value: "a1" },
+    runtime.dispatch("Banking::Account.Open", customer_id: "c", number: { value: "a1" },
                                               kind: { name: "current" }, daily_limit: { cents: 50_000 })
     runtime.dispatch("Banking::Account.Credit", number: { value: "a1" }, amount: { cents: 10_000, currency: "USD" }, narrative: { text: "Opening" })
     runtime
@@ -115,14 +115,14 @@ RSpec.describe "the rules a command obeys" do
       runtime = boot_banking
       runtime.dispatch("Banking::Customer.Register", reference: { value: "c-src" },
                        name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
-      runtime.dispatch("Banking::Account.Open", number: { value: "src" }, customer_id: { value: "c-src" },
+      runtime.dispatch("Banking::Account.Open", number: { value: "src" }, customer_id: "c-src",
                        kind: { name: "current" }, daily_limit: { cents: 50_000 })
       runtime.dispatch("Banking::Customer.Register", reference: { value: "c-dst" },
                        name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
-      runtime.dispatch("Banking::Account.Open", number: { value: "dst" }, customer_id: { value: "c-dst" },
+      runtime.dispatch("Banking::Account.Open", number: { value: "dst" }, customer_id: "c-dst",
                        kind: { name: "current" }, daily_limit: { cents: 50_000 })
       runtime.dispatch("Banking::Transfer.Request",
-                       reference: { value: "x1" }, source: { value: "src" }, destination: { value: "dst" },
+                       reference: { value: "x1" }, source: "src", destination: "dst",
                        amount: { cents: 100 }, narrative: { text: "A transfer waiting for credit" })
       runtime.dispatch("Banking::Transfer.Debited", transfer: "x1")
 
@@ -136,14 +136,14 @@ RSpec.describe "the rules a command obeys" do
       runtime = boot_banking
       runtime.dispatch("Banking::Customer.Register", reference: { value: "c-src" },
                        name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
-      runtime.dispatch("Banking::Account.Open", number: { value: "src" }, customer_id: { value: "c-src" },
+      runtime.dispatch("Banking::Account.Open", number: { value: "src" }, customer_id: "c-src",
                        kind: { name: "current" }, daily_limit: { cents: 50_000 })
       runtime.dispatch("Banking::Customer.Register", reference: { value: "c-dst" },
                        name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
-      runtime.dispatch("Banking::Account.Open", number: { value: "dst" }, customer_id: { value: "c-dst" },
+      runtime.dispatch("Banking::Account.Open", number: { value: "dst" }, customer_id: "c-dst",
                        kind: { name: "current" }, daily_limit: { cents: 50_000 })
       runtime.dispatch("Banking::Transfer.Request",
-                       reference: { value: "x1" }, source: { value: "src" }, destination: { value: "dst" },
+                       reference: { value: "x1" }, source: "src", destination: "dst",
                        amount: { cents: 100 }, narrative: { text: "An ordered transfer" })
 
       expect { runtime.dispatch("Banking::Transfer.Settle", transfer: "x1") }

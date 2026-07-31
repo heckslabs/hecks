@@ -1759,15 +1759,15 @@
           ],
           "givens": [
             {
-              "canonical": "!source.value.to_s.empty?",
+              "canonical": "!source.to_s.empty?",
               "description": "a transfer names its source"
             },
             {
-              "canonical": "!destination.value.to_s.empty?",
+              "canonical": "!destination.to_s.empty?",
               "description": "a transfer goes somewhere"
             },
             {
-              "canonical": "source.value != destination.value",
+              "canonical": "source != destination",
               "description": "a transfer moves BETWEEN accounts"
             }
           ],

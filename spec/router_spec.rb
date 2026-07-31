@@ -88,11 +88,11 @@ RSpec.describe Hecksagain::Router do
 
     described_class.boot(@root)
     Realm::Banking::Customer.Register(reference: { value: "C-1" }, name: { value: "Ada" })
-    Realm::Banking::Account.Open(id: "A-1", customer_id: { value: "C-1" }, number: { value: "ACC-1" })
+    Realm::Banking::Account.Open(id: "A-1", customer_id: "C-1", number: { value: "ACC-1" })
 
-    expect(Realm::Banking.customer_portfolio(customer: { value: "C-1" })).to eq([
+    expect(Realm::Banking.customer_portfolio(customer: "C-1")).to eq([
       { customer: { id: "C-1", reference: { value: "C-1" }, name: { value: "Ada" } },
-        accounts: [{ id: "A-1", customer_id: { value: "C-1" }, number: { value: "ACC-1" }, balance: { cents: 0 } }] }
+        accounts: [{ id: "A-1", customer_id: "C-1", number: { value: "ACC-1" }, balance: { cents: 0 } }] }
     ])
   ensure
     Object.send(:remove_const, :Realm) if Object.const_defined?(:Realm, false)

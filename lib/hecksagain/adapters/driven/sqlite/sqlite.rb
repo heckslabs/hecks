@@ -179,7 +179,9 @@ module Hecksagain
         attribute = @aggregate.attribute(name)
         column = quote_ident(name)
         return column if path.empty? && @aggregate.lifecycle&.field.to_s == name
-        return column if path.empty? && attribute && !value_object?(attribute) && !attribute.reference?
+        # A REFERENCE compares as a plain column: it holds a scalar id, so there
+        # is no `$.value` to dig for any more.
+        return column if path.empty? && attribute && !value_object?(attribute)
 
         value_path = if path.empty? && value
                        hash = value.is_a?(Runtime::Value) ? value.to_h : value
@@ -292,9 +294,13 @@ module Hecksagain
           state[attr.name] =
             if attr.list?
               raw ? JSON.parse(raw, symbolize_names: true) : []
-            elsif value_object?(attr) || attr.reference?
+            elsif value_object?(attr)
               raw ? JSON.parse(raw, symbolize_names: true) : nil
             else
+              # A REFERENCE lands here now, with the ordinary scalars. It holds
+              # the id of a head, which is text — `JSON.parse("acct-1")` raises,
+              # so reading it as JSON was only ever survivable while the column
+              # held an object.
               raw
             end
         end
@@ -320,9 +326,10 @@ module Hecksagain
     # only one operational contract each.
     class SqlitePersistence < Sqlite; end
     class SqliteProjection < Sqlite
-      # Older authoritative journals stored one-field value objects as their
-      # scalar identity. Accept that durable representation while building a
-      # new read store; normal command writes still require object payloads.
+      # Rebuilds a read store from the authoritative journal, entry by entry.
+      # A value object is written as its JSON object and a reference as the
+      # bare id it holds — the same shapes the command path writes, so there
+      # is no second representation to accept here any more.
       def project(entry)
         return @db.execute("DELETE FROM #{quoted_table} WHERE id = ?", [entry.id]) if entry.delete?
 
@@ -372,11 +379,12 @@ module Hecksagain
         end
         return [] if references.empty?
 
-        clauses = references.map do |attribute|
-          column = quote_ident(attribute.name)
-          "(json_extract(#{column}, '$.value') = ? OR #{column} = ?)"
-        end
-        bind = references.flat_map { [id.to_s, id.to_s] }
+        # A REFERENCE COLUMN HOLDS THE ID, so it compares as itself. The
+        # `json_extract(col,'$.value') = ? OR col = ?` this replaced was
+        # reading both shapes because both existed — one written by the
+        # command path, one by older journals. There is one shape now.
+        clauses = references.map { |attribute| "#{quote_ident(attribute.name)} = ?" }
+        bind = references.map { id.to_s }
         @db.execute("SELECT * FROM #{quote_ident(aggregate.storage_name)} WHERE #{clauses.join(' OR ')} ORDER BY id", bind)
            .map { |row| projected_instance(aggregate, row) }
       end
@@ -396,9 +404,10 @@ module Hecksagain
                           raw
                         elsif attribute.list?
                                    raw ? JSON.parse(raw, symbolize_names: true) : []
-                                 elsif !aggregate.value_object(attribute.type).nil? || attribute.reference?
+                                 elsif !aggregate.value_object(attribute.type).nil?
                                    raw ? JSON.parse(raw, symbolize_names: true) : nil
                                  else
+                                   # A reference is a scalar id — see `decode`.
                                    raw
                                  end
         end

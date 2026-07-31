@@ -560,9 +560,13 @@ Hecks.bluebook "Banking" do
       attribute :amount,      TransferMoney
       attribute :narrative,   Narrative
 
-      given("a transfer names its source")  { !source.value.to_s.empty? }
-      given("a transfer goes somewhere")    { !destination.value.to_s.empty? }
-      given("a transfer moves BETWEEN accounts") { source.value != destination.value }
+      # A REFERENCE IS THE ACCOUNT'S NUMBER, so these read it as one. They said
+      # `source.value` while a reference was stored as an object wrapping that
+      # number — describing the wrapper rather than the account, and a clerk
+      # would not say it that way either.
+      given("a transfer names its source")  { !source.to_s.empty? }
+      given("a transfer goes somewhere")    { !destination.to_s.empty? }
+      given("a transfer moves BETWEEN accounts") { source != destination }
 
       then_set :amount,      to: :amount
       then_set :narrative,   to: :narrative
