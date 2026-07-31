@@ -2015,7 +2015,6 @@
     {
       "verb": "Banking::ExternalTransfer.Request",
       "args": {
-        "id": "ext-recall",
         "amount": {
           "cents": 200
         },
@@ -2024,31 +2023,39 @@
         },
         "account_id": {
           "value": "acct-8"
+        },
+        "end_to_end": {
+          "value": "ext-recall"
         }
       }
     },
     {
       "verb": "Banking::ExternalTransfer.Send",
       "args": {
-        "id": "ext-recall"
+        "end_to_end": {
+          "value": "ext-recall"
+        }
       }
     },
     {
       "verb": "Banking::ExternalTransfer.Recall",
       "args": {
-        "id": "ext-recall"
+        "end_to_end": {
+          "value": "ext-recall"
+        }
       }
     },
     {
       "verb": "Banking::ExternalTransfer.Return",
       "args": {
-        "id": "ext-recall"
+        "end_to_end": {
+          "value": "ext-recall"
+        }
       }
     },
     {
       "verb": "Banking::ExternalTransfer.Request",
       "args": {
-        "id": "ext-return",
         "amount": {
           "cents": 200
         },
@@ -2057,31 +2064,39 @@
         },
         "account_id": {
           "value": "acct-8"
+        },
+        "end_to_end": {
+          "value": "ext-return"
         }
       }
     },
     {
       "verb": "Banking::ExternalTransfer.Send",
       "args": {
-        "id": "ext-return"
+        "end_to_end": {
+          "value": "ext-return"
+        }
       }
     },
     {
       "verb": "Banking::ExternalTransfer.Return",
       "args": {
-        "id": "ext-return"
+        "end_to_end": {
+          "value": "ext-return"
+        }
       }
     },
     {
       "verb": "Banking::ExternalTransfer.Recall",
       "args": {
-        "id": "ext-return"
+        "end_to_end": {
+          "value": "ext-return"
+        }
       }
     },
     {
       "verb": "Banking::ExternalTransfer.Request",
       "args": {
-        "id": "ext-bad",
         "amount": {
           "cents": 0
         },
@@ -2090,6 +2105,9 @@
         },
         "account_id": {
           "value": "acct-8"
+        },
+        "end_to_end": {
+          "value": "ext-bad"
         }
       }
     },
@@ -2100,7 +2118,6 @@
     {
       "verb": "Banking::ScheduledPayment.Schedule",
       "args": {
-        "id": "schedule-execute",
         "amount": {
           "cents": 75
         },
@@ -2112,25 +2129,31 @@
         },
         "account_id": {
           "value": "acct-8"
+        },
+        "instruction": {
+          "value": "schedule-execute"
         }
       }
     },
     {
       "verb": "Banking::ScheduledPayment.Execute",
       "args": {
-        "id": "schedule-execute"
+        "instruction": {
+          "value": "schedule-execute"
+        }
       }
     },
     {
       "verb": "Banking::ScheduledPayment.Cancel",
       "args": {
-        "id": "schedule-execute"
+        "instruction": {
+          "value": "schedule-execute"
+        }
       }
     },
     {
       "verb": "Banking::ScheduledPayment.Schedule",
       "args": {
-        "id": "schedule-cancel",
         "amount": {
           "cents": 50
         },
@@ -2142,25 +2165,31 @@
         },
         "account_id": {
           "value": "acct-8"
+        },
+        "instruction": {
+          "value": "schedule-cancel"
         }
       }
     },
     {
       "verb": "Banking::ScheduledPayment.Cancel",
       "args": {
-        "id": "schedule-cancel"
+        "instruction": {
+          "value": "schedule-cancel"
+        }
       }
     },
     {
       "verb": "Banking::ScheduledPayment.Execute",
       "args": {
-        "id": "schedule-cancel"
+        "instruction": {
+          "value": "schedule-cancel"
+        }
       }
     },
     {
       "verb": "Banking::ScheduledPayment.Schedule",
       "args": {
-        "id": "schedule-bad",
         "amount": {
           "cents": 0
         },
@@ -2172,6 +2201,9 @@
         },
         "account_id": {
           "value": "acct-8"
+        },
+        "instruction": {
+          "value": "schedule-bad"
         }
       }
     },

@@ -719,9 +719,16 @@ Hecks.bluebook "Banking" do
   aggregate "ExternalTransfer" do
     description "A transfer sent beyond the bank, where a recall is an instruction and a return is the external network's outcome."
 
+    identified_by :end_to_end
+
     reference_to Account
+    attribute :end_to_end,  EndToEndReference
     attribute :amount,      ExternalAmount
     attribute :beneficiary, BeneficiaryName
+
+    value_object "EndToEndReference" do
+      attribute :value, String
+    end
 
     value_object "ExternalAmount" do
       attribute :cents, Integer
@@ -741,6 +748,7 @@ Hecks.bluebook "Banking" do
 
     command "Request" do
       reference_to Account
+      attribute :end_to_end, EndToEndReference
       attribute :amount, ExternalAmount
       attribute :beneficiary, BeneficiaryName
       then_set :amount, to: :amount
@@ -773,8 +781,15 @@ Hecks.bluebook "Banking" do
 
     reference_to Account
     attribute :amount,    ScheduledAmount
+    identified_by :instruction
+
+    attribute :instruction, InstructionReference
     attribute :recipient, PaymentRecipient
     attribute :due_on,    PaymentDueDate
+
+    value_object "InstructionReference" do
+      attribute :value, String
+    end
 
     value_object "ScheduledAmount" do
       attribute :cents, Integer
@@ -798,6 +813,7 @@ Hecks.bluebook "Banking" do
 
     command "Schedule" do
       reference_to Account
+      attribute :instruction, InstructionReference
       attribute :amount, ScheduledAmount
       attribute :recipient, PaymentRecipient
       attribute :due_on, PaymentDueDate
