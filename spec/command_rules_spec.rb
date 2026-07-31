@@ -37,10 +37,10 @@ RSpec.describe "the rules a command obeys" do
   describe "Integer-or-nothing arithmetic" do
     it "refuses a non-Integer amount on a RECORD, in so many words" do
       runtime = boot_till
-      runtime.dispatch("TillRoom::Till.OpenTill", id: "till-1")
+      runtime.dispatch("TillRoom::Till.OpenTill", number: { value: "till-1" })
 
       expect do
-        runtime.dispatch("TillRoom::Till.TakeIn", id: "till-1", amount: "a lot")
+        runtime.dispatch("TillRoom::Till.TakeIn", number: { value: "till-1" }, amount: "a lot")
       end.to raise_error(Hecksagain::Runtime::TypeMismatch, /pass its fields as an object/)
     end
 

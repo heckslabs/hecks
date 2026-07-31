@@ -27,7 +27,7 @@ RSpec.describe "a policy" do
 
   it "fires the command its event names, and the reaction lands" do
     runtime = boot_reflex
-    runtime.dispatch("Reflex::Light.Flip", id: "light-1")
+    runtime.dispatch("Reflex::Light.Flip", name: { value: "light-1" }, id: "light-1")
 
     expect(Reflex::Light.find("light-1").condition.to_h).to eq(value: "logged")
 
@@ -39,8 +39,8 @@ RSpec.describe "a policy" do
 
   it "fires once per matching event, not once per declaration site" do
     runtime = boot_reflex
-    runtime.dispatch("Reflex::Light.Flip", id: "light-1")
-    runtime.dispatch("Reflex::Light.Flip", id: "light-2")
+    runtime.dispatch("Reflex::Light.Flip", name: { value: "light-1" }, id: "light-1")
+    runtime.dispatch("Reflex::Light.Flip", name: { value: "light-1" }, id: "light-2")
 
     expect(runtime.reactions.size).to eq(2)
   end

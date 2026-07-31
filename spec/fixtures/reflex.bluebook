@@ -5,7 +5,14 @@ Hecks.bluebook "Reflex" do
   aggregate "Light" do
     description "A light that logs its own flip"
 
+    identified_by :name
+
+    attribute :name,      LightName
     attribute :condition, LightCondition
+
+    value_object "LightName" do
+      attribute :value, String
+    end
 
     value_object "LightCondition" do
       attribute :value, String
@@ -14,6 +21,8 @@ Hecks.bluebook "Reflex" do
     command "Flip" do
       role "Operator"
       goal "Turn the light on"
+
+      attribute :name, LightName
 
       then_set :condition, to: { value: "on" }
 

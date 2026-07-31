@@ -3,6 +3,12 @@
     {
       "attributes": [
         {
+          "default": null,
+          "list": false,
+          "name": "number",
+          "type": "TillNumber"
+        },
+        {
           "default": {
             "cents": 0
           },
@@ -20,7 +26,12 @@
       "commands": [
         {
           "attributes": [
-
+            {
+              "default": null,
+              "list": false,
+              "name": "number",
+              "type": "TillNumber"
+            }
           ],
           "emits": [
             "TillOpened"
@@ -144,13 +155,31 @@
       "entities": [
 
       ],
-      "identified_by": "id",
+      "identified_by": "number",
       "lifecycle": null,
       "name": "Till",
       "queries": [
 
       ],
       "value_objects": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "TillNumber"
+        },
         {
           "attributes": [
             {

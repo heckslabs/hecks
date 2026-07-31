@@ -31,22 +31,22 @@ RSpec.describe "an argument a command does not declare" do
   it "is refused, and names itself" do
     runtime = boot_till
 
-    expect { runtime.dispatch("TillRoom::Till.OpenTill", id: "till-1", nonsense: 1) }
+    expect { runtime.dispatch("TillRoom::Till.OpenTill", number: { value: "till-1" }, nonsense: 1) }
       .to raise_error(Hecksagain::Runtime::UnknownArgument, /nonsense/)
   end
 
   it "is refused even when every declared argument is also present" do
     runtime = boot_till
-    runtime.dispatch("TillRoom::Till.OpenTill", id: "till-1")
+    runtime.dispatch("TillRoom::Till.OpenTill", number: { value: "till-1" })
 
-    expect { runtime.dispatch("TillRoom::Till.TakeIn", id: "till-1", amount: { cents: 500 }, sneaky: "x") }
+    expect { runtime.dispatch("TillRoom::Till.TakeIn", number: { value: "till-1" }, amount: { cents: 500 }, sneaky: "x") }
       .to raise_error(Hecksagain::Runtime::UnknownArgument, /sneaky/)
   end
 
   it "names every unknown argument at once, not just the first" do
     runtime = boot_till
 
-    expect { runtime.dispatch("TillRoom::Till.OpenTill", id: "till-1", one: 1, two: 2) }
+    expect { runtime.dispatch("TillRoom::Till.OpenTill", number: { value: "till-1" }, one: 1, two: 2) }
       .to raise_error(Hecksagain::Runtime::UnknownArgument, /one.*two|two.*one/)
   end
 
@@ -56,7 +56,7 @@ RSpec.describe "an argument a command does not declare" do
     # declared attribute, and refusing them would refuse every dispatch there is.
     runtime = boot_till
 
-    expect { runtime.dispatch("TillRoom::Till.OpenTill", id: "till-1") }.not_to raise_error
-    expect { runtime.dispatch("TillRoom::Till.Bump", id: "till-1") }.not_to raise_error
+    expect { runtime.dispatch("TillRoom::Till.OpenTill", number: { value: "till-1" }) }.not_to raise_error
+    expect { runtime.dispatch("TillRoom::Till.Bump", number: { value: "till-1" }) }.not_to raise_error
   end
 end

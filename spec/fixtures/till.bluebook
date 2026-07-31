@@ -6,8 +6,15 @@ Hecks.bluebook "TillRoom" do
   aggregate "Till" do
     description "One cash drawer and the count of cents inside it."
 
+    identified_by :number
+
+    attribute :number,  TillNumber
     attribute :balance, Money, default: { cents: 0 }
     attribute :marks,   list_of(Mark)
+
+    value_object "TillNumber" do
+      attribute :value, String
+    end
 
     value_object "Money" do
       attribute :cents, Integer
@@ -22,6 +29,8 @@ Hecks.bluebook "TillRoom" do
     command "OpenTill" do
       role "Clerk"
       goal "Start the day with an empty drawer"
+
+      attribute :number, TillNumber
 
       emits "TillOpened"
     end
