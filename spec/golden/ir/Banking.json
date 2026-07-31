@@ -166,7 +166,7 @@
       "entities": [
 
       ],
-      "identified_by": "reference",
+      "identified_by": "reference.value",
       "lifecycle": {
         "default": "active",
         "field": "status",
@@ -1496,7 +1496,7 @@
           ]
         }
       ],
-      "identified_by": "serial",
+      "identified_by": "serial.value",
       "lifecycle": {
         "default": "issued",
         "field": "status",
@@ -2225,7 +2225,7 @@
       "entities": [
 
       ],
-      "identified_by": "authorisation",
+      "identified_by": "authorisation.value",
       "lifecycle": {
         "default": "authorized",
         "field": "status",
@@ -2513,7 +2513,7 @@
       "entities": [
 
       ],
-      "identified_by": "end_to_end",
+      "identified_by": "end_to_end.value",
       "lifecycle": {
         "default": "requested",
         "field": "status",
@@ -2762,7 +2762,7 @@
       "entities": [
 
       ],
-      "identified_by": "instruction",
+      "identified_by": "instruction.value",
       "lifecycle": {
         "default": "scheduled",
         "field": "status",

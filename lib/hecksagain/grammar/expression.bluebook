@@ -6,7 +6,7 @@ Hecks.bluebook "Expression" do
   aggregate "Operator" do
     description "One admitted operation — its symbol, its precedence, and how it reads in every target that must evaluate it."
 
-    identified_by :symbol
+    identified_by { symbol.value }
 
     attribute :symbol,     OperatorSymbol
     attribute :category,   Category
@@ -106,7 +106,7 @@ Hecks.bluebook "Expression" do
   aggregate "Normalisation" do
     description "One rule that turns written source into canonical text — its boundary condition, where it sits in the order, and how it reads in every target that must apply it."
 
-    identified_by :name
+    identified_by { name.value }
 
     attribute :name,         RuleName
     attribute :strategy,     Strategy
@@ -237,7 +237,7 @@ Hecks.bluebook "Expression" do
   aggregate "Expression" do
     description "One predicate extracted from regular Ruby — the source as written, the canonical text both runtimes evaluate, and the subject it reads against."
 
-    identified_by :canonical
+    identified_by { canonical.value }
 
     attribute :description, Description
     attribute :source,      Source
@@ -352,7 +352,7 @@ Hecks.bluebook "Expression" do
   aggregate "Agreement" do
     description "One expression evaluated by every runtime against the same state — the standing proof that Ruby and Rust mean the same thing."
 
-    identified_by :canonical
+    identified_by { canonical.value }
 
     attribute :canonical, Canonical
     attribute :subject,   Subject

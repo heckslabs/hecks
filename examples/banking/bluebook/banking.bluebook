@@ -17,7 +17,7 @@ Hecks.bluebook "Banking" do
   aggregate "Customer" do
     description "A person the bank holds a relationship with. Suspended rather than deleted — a bank forgets nothing."
 
-    identified_by :reference
+    identified_by { reference.value }
 
     attribute :reference, CustomerNumber
     attribute :name,      PersonName
@@ -370,7 +370,7 @@ Hecks.bluebook "Banking" do
   aggregate "ATMCard" do
     description "A card issued against an account, and the cash taken with it."
 
-    identified_by :serial
+    identified_by { serial.value }
 
     reference_to Account
 
@@ -610,7 +610,7 @@ Hecks.bluebook "Banking" do
   aggregate "CardPayment" do
     description "A card authorisation that either settles, is voided before settlement, or becomes a post-settlement dispute."
 
-    identified_by :authorisation
+    identified_by { authorisation.value }
 
     reference_to Account
     reference_to Customer, as: :disputed_by
@@ -719,7 +719,7 @@ Hecks.bluebook "Banking" do
   aggregate "ExternalTransfer" do
     description "A transfer sent beyond the bank, where a recall is an instruction and a return is the external network's outcome."
 
-    identified_by :end_to_end
+    identified_by { end_to_end.value }
 
     reference_to Account
     attribute :end_to_end,  EndToEndReference
@@ -781,7 +781,7 @@ Hecks.bluebook "Banking" do
 
     reference_to Account
     attribute :amount,    ScheduledAmount
-    identified_by :instruction
+    identified_by { instruction.value }
 
     attribute :instruction, InstructionReference
     attribute :recipient, PaymentRecipient

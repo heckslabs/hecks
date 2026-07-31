@@ -483,14 +483,26 @@ impl Runtime {
             .and_then(Value::as_str)
             .unwrap_or("id")
             .to_string();
+        // The parent's identity is a PATH too : the caller passes the head and
+        // the field is dug out, exactly as an aggregate command resolves it.
+        let (parent_head, parent_field) = match identity.split_once('.') {
+            Some((left, right)) => (left.to_string(), Some(right.to_string())),
+            None => (identity.clone(), None),
+        };
         let parent_id = args
-            .get(&identity)
+            .get(&parent_head)
             .or_else(|| args.get("id"))
-            .map(query_text)
+            .map(|value| match &parent_field {
+                Some(name) => value
+                    .get(name)
+                    .map(query_text)
+                    .unwrap_or_else(|| query_text(value)),
+                None => query_text(value),
+            })
             .filter(|id| !id.is_empty())
             .ok_or_else(|| {
                 format!(
-                    "{command_name} acts on a {aggregate_name}'s {entity_name} — pass {identity}:"
+                    "{command_name} acts on a {aggregate_name}'s {entity_name} — pass {parent_head}:"
                 )
             })?;
 
@@ -1116,13 +1128,26 @@ impl Runtime {
         // random hex, and the same dispatch made two different records. A
         // creating command that cannot say WHICH ONE THIS IS is refused, and an
         // aggregate with no `identified_by` has to be told.
+        // A PATH names the field carrying the id : the caller passes the HEAD and
+        // the field is dug out, because an id is always a scalar.
+        let (head, field) = match identity.split_once(char::from(46)) {
+            Some((left, right)) => (left, Some(right)),
+            None => (identity, None),
+        };
+        let dig = |value: &Value| -> String {
+            match field {
+                Some(name) => value.get(name).map(query_text).unwrap_or_else(|| query_text(value)),
+                None => query_text(value),
+            }
+        };
+
         if creates {
             let id = args
-                .get(identity)
+                .get(head)
                 .filter(|value| query_truthy(value))
-                .map(query_text)
+                .map(&dig)
                 .ok_or_else(|| {
-                    format!("{command_name} creates a {aggregate_name} — pass {identity}:")
+                    format!("{command_name} creates a {aggregate_name} — pass {head}:")
                 })?;
             return Ok((id, defaults_for(aggregate)?));
         }
@@ -1145,7 +1170,7 @@ impl Runtime {
                 coerce_attribute(aggregate, attribute, value)?;
             }
         }
-        let mut identity_keys = vec![identity];
+        let mut identity_keys = vec![head];
         if identity == "id" {
             identity_keys.push("id");
         }
@@ -1154,12 +1179,12 @@ impl Runtime {
         }
         let id = identity_keys.into_iter()
             .filter_map(|key| args.get(key))
-            .map(query_text)
+            .map(&dig)
             .find(|value| !value.is_empty())
             .ok_or_else(|| {
                 format!(
                     "{} acts on an existing {} — pass {}:",
-                    command_name, aggregate_name, identity
+                    command_name, aggregate_name, head
                 )
             })?;
 

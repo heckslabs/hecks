@@ -149,7 +149,9 @@ pub fn refuse_unknown_arguments(
 
     known.push("id".to_string());
     if let Some(identity) = aggregate.get("identified_by").and_then(Value::as_str) {
-        known.push(identity.to_string());
+        // The HEAD, not the path. `identified_by { symbol.value }` means a caller
+        // passes `symbol:` — admitting "symbol.value" would refuse it as undeclared.
+        known.push(identity.split(char::from(46)).next().unwrap_or(identity).to_string());
     }
     if let Some(target) = command.get("references").and_then(Value::as_str) {
         known.push(crate::naming::reference_key(target));

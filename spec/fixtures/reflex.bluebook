@@ -5,7 +5,7 @@ Hecks.bluebook "Reflex" do
   aggregate "Light" do
     description "A light that logs its own flip"
 
-    identified_by :name
+    identified_by { name.value }
 
     attribute :name,      LightName
     attribute :condition, LightCondition
@@ -73,7 +73,7 @@ Hecks.bluebook "Reflex" do
   aggregate "Echo" do
     description "A bell whose ring makes it ring"
 
-    identified_by :name
+    identified_by { name.value }
 
     attribute :name,  BellName
     attribute :rings, RingCount
@@ -104,7 +104,7 @@ Hecks.bluebook "Reflex" do
   aggregate "Beacon" do
     description "A beacon that signals a domain which is not loaded — the undeliverable reaction, which must be recorded rather than swallowed"
 
-    identified_by :signal
+    identified_by { signal.value }
 
     attribute :signal, SignalName
 

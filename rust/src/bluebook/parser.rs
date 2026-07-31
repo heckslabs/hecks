@@ -385,7 +385,14 @@ fn parse_aggregate(lines: &[&str]) -> (Aggregate, Vec<Policy>, usize) {
                 i += consumed;
                 continue;
             } else if line.starts_with("identified_by") {
-                agg.identified_by = extract_symbol(line);
+                agg.identified_by = if line.contains(char::from(123)) {
+                    line.split(char::from(123)).nth(1)
+                        .and_then(|inner| inner.split(char::from(125)).next())
+                        .map(|path| path.trim().to_string())
+                        .filter(|path| !path.is_empty())
+                } else {
+                    extract_symbol(line)
+                };
             } else if line.starts_with("view") && ends_with_do_block(line) {
                 let (v, consumed) = parse_view(&lines[i..]);
                 agg.views.push(v);
