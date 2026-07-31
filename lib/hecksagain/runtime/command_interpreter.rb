@@ -58,11 +58,11 @@ module Hecksagain
           # found this the other way round : the only two declarations in banking
           # whose removal made the runtimes disagree were both `identified_by`,
           # and they disagreed because removing them fell through to here.
-          id = identity_from(aggregate, args, aggregate.identified_by || :id) ||
+          id = identity_from(aggregate, args, aggregate.identity_path.to_s.empty? ? :id : aggregate.identity_path) ||
                raise(NotFound, "#{command.hecks_name} creates a #{aggregate.hecks_name} — pass #{aggregate.identified_by}:")
           Instance.new(aggregate: aggregate, id: id)
         else
-          id = identity_from(aggregate, args, aggregate.identified_by || :id) ||
+          id = identity_from(aggregate, args, aggregate.identity_path.to_s.empty? ? :id : aggregate.identity_path) ||
                identity_from(aggregate, args, reference_key(command)) ||
                raise(NotFound, "#{command.hecks_name} acts on an existing #{aggregate.hecks_name} — pass #{aggregate.identified_by}:")
           repository.find(id) || raise(NotFound, "no #{aggregate.hecks_name} with #{aggregate.identified_by} #{Rendering.describe(id)}")
@@ -123,8 +123,19 @@ module Hecksagain
         end
       end
 
+      # A path digs into the value object that carries the identity, so what is
+      # stored is the SCALAR inside it rather than the object serialised whole.
       def identity_from(aggregate, args, key)
-        return nil unless key && args.key?(key)
+        return nil unless key
+
+        head, *rest = key.to_s.split(".")
+        key = head.to_sym
+        return nil unless args.key?(key)
+        unless rest.empty?
+          held = args[key]
+          held = held.to_h if held.respond_to?(:to_h)
+          return rest.reduce(held) { |h, f| h.is_a?(Hash) ? (h[f.to_sym] || h[f]) : nil }&.to_s
+        end
 
         attribute = aggregate.attribute(aggregate.identified_by || :id)
         raw       = args[key]

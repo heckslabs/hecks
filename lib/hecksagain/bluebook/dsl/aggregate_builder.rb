@@ -23,10 +23,20 @@ module Hecksagain
           @description = value
         end
 
-        def identified_by(field)
+        # WHICH UNCHANGING FACT SAYS WHICH ONE THIS IS — a FIELD, not a whole value
+        # object. `identified_by { number.value }` names the scalar inside
+        # AccountNumber ; an identity is a value, and serialising a value object
+        # into one only worked because CommandRules#reference_identity guessed at
+        # `values.first`.
+        #
+        # The block is never CALLED. Its source is read the same way a given's is
+        # (Ports::Extraction), which is why `number.value` needs no method called
+        # `number` to exist — the same reason `balance >= amount` works in a given.
+        def identified_by(field = nil, &path)
+          field = Ports::Extraction.canonical(path) if path
           raise Malformed, "#{@name}.identified_by names no field" if field.to_s.empty?
 
-          @identified_by = field.to_sym
+          @identified_by = field.to_s.strip.to_sym
         end
 
         def reference_to(type, as: nil)

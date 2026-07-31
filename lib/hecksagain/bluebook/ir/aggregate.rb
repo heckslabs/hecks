@@ -8,7 +8,7 @@ module Hecksagain
         # Construct when this one crosses.
         def hecks_name = @name
         attr_reader :name, :description, :attributes, :value_objects, :commands,
-                    :identified_by, :lifecycle, :entities, :queries, :policies, :reference_targets
+                    :identified_by, :identity_path, :lifecycle, :entities, :queries, :policies, :reference_targets
 
         attr_accessor :ruby_class
 
@@ -23,7 +23,11 @@ module Hecksagain
           @attributes    = attributes
           @value_objects = value_objects
           @commands      = commands
-          @identified_by = identified_by.to_sym
+          # The PATH "number.value" says which field carries the identity ;
+          # `identified_by` stays the HEAD attribute, which is what every reader
+          # that looks up or coerces an attribute actually wants.
+          @identity_path = identified_by.to_s
+          @identified_by = @identity_path.split(".").first.to_sym
           @lifecycle     = lifecycle
           @reference_targets = reference_targets
 
@@ -56,7 +60,7 @@ module Hecksagain
           {
             name:          @name,
             description:   @description,
-            identified_by: @identified_by,
+            identified_by: @identity_path.to_sym,
             attributes:    @attributes.map(&:to_h),
             value_objects: @value_objects.map(&:to_h),
             commands:      @commands.map(&:to_h),
