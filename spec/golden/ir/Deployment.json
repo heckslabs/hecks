@@ -7,6 +7,7 @@
           "list": false,
           "name": "domain",
           "optional": false,
+          "pattern": null,
           "type": "WorldName"
         },
         {
@@ -14,6 +15,7 @@
           "list": false,
           "name": "realm",
           "optional": false,
+          "pattern": null,
           "type": "Realm"
         },
         {
@@ -21,6 +23,7 @@
           "list": false,
           "name": "latest",
           "optional": false,
+          "pattern": null,
           "type": "Latest"
         }
       ],
@@ -32,6 +35,7 @@
               "list": false,
               "name": "domain",
               "optional": false,
+              "pattern": null,
               "type": "WorldName"
             },
             {
@@ -39,6 +43,7 @@
               "list": false,
               "name": "realm",
               "optional": true,
+              "pattern": null,
               "type": "Realm"
             },
             {
@@ -46,6 +51,7 @@
               "list": false,
               "name": "latest",
               "optional": true,
+              "pattern": null,
               "type": "Latest"
             }
           ],
@@ -82,6 +88,7 @@
               "list": false,
               "name": "value",
               "optional": false,
+              "pattern": null,
               "type": "String"
             }
           ],
@@ -104,6 +111,7 @@
               "list": false,
               "name": "value",
               "optional": false,
+              "pattern": null,
               "type": "String"
             }
           ],
@@ -126,6 +134,7 @@
               "list": false,
               "name": "value",
               "optional": false,
+              "pattern": null,
               "type": "String"
             }
           ],
@@ -150,6 +159,7 @@
           "list": false,
           "name": "world_id",
           "optional": false,
+          "pattern": null,
           "type": "Reference<World>"
         },
         {
@@ -157,6 +167,7 @@
           "list": false,
           "name": "world",
           "optional": false,
+          "pattern": null,
           "type": "WiringText"
         },
         {
@@ -164,6 +175,7 @@
           "list": false,
           "name": "verb",
           "optional": false,
+          "pattern": null,
           "type": "WiringText"
         },
         {
@@ -171,6 +183,7 @@
           "list": false,
           "name": "adapter",
           "optional": false,
+          "pattern": null,
           "type": "WiringText"
         },
         {
@@ -178,6 +191,7 @@
           "list": true,
           "name": "settings",
           "optional": false,
+          "pattern": null,
           "type": "Setting"
         }
       ],
@@ -189,6 +203,7 @@
               "list": false,
               "name": "world_id",
               "optional": false,
+              "pattern": null,
               "type": "Reference<World>"
             },
             {
@@ -196,6 +211,7 @@
               "list": false,
               "name": "world",
               "optional": false,
+              "pattern": null,
               "type": "WiringText"
             },
             {
@@ -203,6 +219,7 @@
               "list": false,
               "name": "verb",
               "optional": false,
+              "pattern": null,
               "type": "WiringText"
             },
             {
@@ -210,6 +227,7 @@
               "list": false,
               "name": "adapter",
               "optional": false,
+              "pattern": null,
               "type": "WiringText"
             }
           ],
@@ -237,6 +255,7 @@
               "list": false,
               "name": "key",
               "optional": false,
+              "pattern": null,
               "type": "WiringText"
             },
             {
@@ -244,6 +263,7 @@
               "list": false,
               "name": "value",
               "optional": false,
+              "pattern": null,
               "type": "WiringText"
             }
           ],
@@ -290,6 +310,7 @@
               "list": false,
               "name": "value",
               "optional": false,
+              "pattern": null,
               "type": "String"
             }
           ],
@@ -309,6 +330,7 @@
               "list": false,
               "name": "key",
               "optional": false,
+              "pattern": null,
               "type": "String"
             },
             {
@@ -316,6 +338,7 @@
               "list": false,
               "name": "value",
               "optional": false,
+              "pattern": null,
               "type": "String"
             }
           ],

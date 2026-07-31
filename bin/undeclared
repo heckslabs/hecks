@@ -36,7 +36,11 @@ MUTATIONS = [
   { name: "drop an identified_by",  pattern: /^\s*identified_by\s/, change: :delete },
   { name: "drop an invariant",      pattern: /^\s*invariant\(/,     change: :delete },
   { name: "drop a limit",           pattern: /^\s*limit\s/,         change: :delete },
-  { name: "flip a where comparator", pattern: /\b(lt|gt|lte|gte):/,  change: :flip }
+  { name: "flip a where comparator", pattern: /\b(lt|gt|lte|gte):/,  change: :flip },
+  # A pattern is a kwarg, not a line — deleting the line would take the whole
+  # attribute with it and prove nothing about the pattern. So this strips the
+  # kwarg and leaves an attribute that no longer says what its values look like.
+  { name: "drop a pattern",         pattern: /,\s*pattern:\s*['"]/,  change: :strip_kwarg }
 ].freeze
 
 FLIPS = { "lt" => "gt", "gt" => "lt", "lte" => "gte", "gte" => "lte" }.freeze
@@ -88,6 +92,7 @@ def mutants_of(source)
       case mutation[:change]
       when :delete then mutated.delete_at(index)
       when :flip   then mutated[index] = line.sub(/\b(lt|gt|lte|gte):/) { "#{FLIPS[Regexp.last_match(1)]}:" }
+      when :strip_kwarg then mutated[index] = line.sub(/,\s*pattern:\s*(['"]).*?\1/, "")
       end
       found << { line: index + 1, what: mutation[:name], text: line.strip, source: mutated.join }
     end

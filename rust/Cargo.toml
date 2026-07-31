@@ -20,6 +20,13 @@ path = "src/lib.rs"
 [dependencies]
 serde_json = "1"
 
+# regex — a declared `pattern:` has to be MATCHED, not just parsed, and this is
+# the engine pattern_subset was written against : every construct it refuses is
+# refused because THIS crate and Ruby's Onigmo would disagree about it. The
+# subset is only half the story, though — see pattern_subset::matches for the
+# builder flags that align the two engines on the constructs it admits.
+regex = "1"
+
 # flate2 — heki compresses its store. Same version Hecks pins, so a store
 # written by one runtime is readable by the other.
 flate2 = "1"

@@ -7,6 +7,7 @@
           "list": false,
           "name": "number",
           "optional": false,
+          "pattern": null,
           "type": "TillNumber"
         },
         {
@@ -16,6 +17,7 @@
           "list": false,
           "name": "balance",
           "optional": false,
+          "pattern": null,
           "type": "Money"
         },
         {
@@ -23,6 +25,7 @@
           "list": true,
           "name": "marks",
           "optional": false,
+          "pattern": null,
           "type": "Mark"
         },
         {
@@ -30,6 +33,7 @@
           "list": false,
           "name": "note",
           "optional": false,
+          "pattern": null,
           "type": "Note"
         }
       ],
@@ -41,6 +45,7 @@
               "list": false,
               "name": "number",
               "optional": false,
+              "pattern": null,
               "type": "TillNumber"
             }
           ],
@@ -65,6 +70,7 @@
               "list": false,
               "name": "amount",
               "optional": false,
+              "pattern": null,
               "type": "Money"
             },
             {
@@ -72,6 +78,7 @@
               "list": false,
               "name": "note",
               "optional": true,
+              "pattern": null,
               "type": "Note"
             }
           ],
@@ -119,6 +126,7 @@
               "list": false,
               "name": "amount",
               "optional": false,
+              "pattern": null,
               "type": "Money"
             }
           ],
@@ -197,6 +205,7 @@
               "list": false,
               "name": "value",
               "optional": false,
+              "pattern": null,
               "type": "String"
             }
           ],
@@ -216,6 +225,7 @@
               "list": false,
               "name": "cents",
               "optional": false,
+              "pattern": null,
               "type": "Integer"
             }
           ],
@@ -238,6 +248,7 @@
               "list": false,
               "name": "amount",
               "optional": false,
+              "pattern": null,
               "type": "Integer"
             },
             {
@@ -245,6 +256,7 @@
               "list": false,
               "name": "direction",
               "optional": false,
+              "pattern": null,
               "type": "String"
             }
           ],
@@ -264,6 +276,7 @@
               "list": false,
               "name": "text",
               "optional": false,
+              "pattern": null,
               "type": "String"
             }
           ],

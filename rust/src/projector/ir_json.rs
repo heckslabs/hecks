@@ -59,7 +59,10 @@ fn aggregate_attributes(aggregate: &Aggregate) -> Vec<Value> {
             "type": format!("Reference<{}>", reference.target),
             "list": false,
             "default": Value::Null,
-            "optional": reference.optional
+            "optional": reference.optional,
+            // A reference is an ID, never pattern-matched — but Ruby builds this
+            // attribute through the shared collector, so its IR carries the key.
+            "pattern": Value::Null
         })
     });
 
@@ -175,7 +178,8 @@ fn attribute_to_value(attribute: &Attribute) -> Value {
         "type": attribute.attr_type,
         "list": attribute.list,
         "default": literal(attribute.default.as_deref()),
-        "optional": attribute.optional
+        "optional": attribute.optional,
+        "pattern": attribute.pattern
     })
 }
 
@@ -276,7 +280,8 @@ fn command_attributes(command: &Command, owner: &str) -> Vec<Value> {
                 "type": format!("Reference<{}>", reference.target),
                 "list": false,
                 "default": Value::Null,
-                "optional": reference.optional
+                "optional": reference.optional,
+                "pattern": Value::Null
             })
         });
 

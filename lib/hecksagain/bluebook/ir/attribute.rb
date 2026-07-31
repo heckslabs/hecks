@@ -2,16 +2,17 @@ module Hecksagain
   module Bluebook
     module IR
       class Attribute
-        attr_reader :name, :type, :default
+        attr_reader :name, :type, :default, :pattern
 
         # A Reference is kept AS ITSELF. Every other type is still a name, and
         # crosses over as its construct does.
-        def initialize(name:, type:, list: false, default: nil, optional: false)
+        def initialize(name:, type:, list: false, default: nil, optional: false, pattern: nil)
           @name     = name.to_sym
           @type     = type.is_a?(Reference) ? type : type.to_s
           @list     = list
           @default  = default
           @optional = optional
+          @pattern  = pattern
         end
 
         def list?   = @list
@@ -38,7 +39,8 @@ module Hecksagain
         # `type` is spelled, never handed over. A Reference renders as
         # "Reference<Customer>" here because that is what the Rust parser reads.
         def to_h
-          { name: @name, type: @type.to_s, list: @list, default: @default, optional: @optional }
+          { name: @name, type: @type.to_s, list: @list, default: @default, optional: @optional,
+            pattern: @pattern }
         end
       end
     end

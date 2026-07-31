@@ -44,6 +44,7 @@ module Hecksagain
         end
         admit_member(value_object, fields)
         check_numeric_fields(value_object, fields)
+        check_patterns(value_object, fields)
         value_object.invariants.each do |invariant|
           next if Bluebook::Expression::Evaluator.call(invariant.canonical, fields)
 
@@ -75,6 +76,31 @@ module Hecksagain
 
           raise TypeMismatch,
                 "#{value_object.hecks_name}.#{attribute.name} expects #{attribute.type}, got #{Rendering.describe(given)}"
+        end
+      end
+
+      # A field declared with a PATTERN must match it.
+      #
+      # Beside check_numeric_fields and for the same reason : a value that does
+      # not look like what it claims to be is the DOMAIN saying no, and it should
+      # say so here rather than let the wrong shape travel on and surface as a
+      # broken predicate later.
+      #
+      # Which regexes may be written at all is PatternSubset's job, enforced when
+      # the bluebook is declared — so by the time a value arrives here the pattern
+      # is already one both runtimes read the same way, and this is a plain match.
+      private_class_method def self.check_patterns(value_object, fields)
+        value_object.attributes.each do |attribute|
+          pattern = attribute.pattern
+          next unless pattern
+
+          given = fields[attribute.name]
+          next if given.nil?
+          next if given.is_a?(String) && Regexp.new(pattern).match?(given)
+
+          raise TypeMismatch,
+                "#{value_object.hecks_name}.#{attribute.name} must match #{pattern}, " \
+                "got #{Rendering.describe(given)}"
         end
       end
 

@@ -42,7 +42,24 @@ RSpec.describe "one_of" do
                        'AccountKind admits "current", "savings", "reserve" — got "gold"')
   end
 
+  # This used to reach the door through EmailAddress, whose rule was the
+  # hand-rolled invariant `address.include?("@")`. That rule is a declared
+  # `pattern:` now, so the example moved to a value object that still HAS an
+  # invariant — otherwise the test would have kept its name and quietly stopped
+  # testing invariants at all.
   it "judges an object payload's invariants at the same door" do
+    runtime = boot_banking
+
+    expect do
+      runtime.dispatch("Banking::Customer.Register",
+                       reference: { value: "" },
+                       name: { given: "No", family: "Reference" },
+                       email: { address: "no@reference.com" })
+    end.to raise_error(Hecksagain::Runtime::InvariantViolation,
+                       'CustomerNumber invariant violated — a customer reference is present (given {"value":""})')
+  end
+
+  it "judges an object payload's patterns at the same door" do
     runtime = boot_banking
 
     expect do
@@ -50,7 +67,7 @@ RSpec.describe "one_of" do
                        reference: { value: "CUST-0009" },
                        name: { given: "No", family: "Route" },
                        email: { address: "nowhere" })
-    end.to raise_error(Hecksagain::Runtime::InvariantViolation,
-                       'EmailAddress invariant violated — an address routes somewhere (given {"address":"nowhere"})')
+    end.to raise_error(Hecksagain::Runtime::TypeMismatch,
+                       'EmailAddress.address must match ^[^@ ]+@[^@ ]+\.[^@ ]+$, got "nowhere"')
   end
 end

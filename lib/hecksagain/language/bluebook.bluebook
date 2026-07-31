@@ -174,6 +174,7 @@ Hecks.bluebook "Meta" do
       attribute :type,    String
       attribute :list,    String
       attribute :optional, String, optional: true
+      attribute :pattern,  String, optional: true
       # Held as a LITERAL, written so its type survives — 0.0 rather than "0.0".
       # Without this an aggregate attribute's default was simply dropped, and the
       # reconstruction hardcoded nil, which happened to match every corpus member
@@ -246,9 +247,10 @@ Hecks.bluebook "Meta" do
       attribute :name,    FieldName
       attribute :list,    ListFlag
       attribute :optional, ListFlag, optional: true
+      attribute :pattern,  ListFlag, optional: true
       attribute :default, LiteralText, optional: true
 
-      then_set :attributes, append: { name: :name, type: :type, list: :list, default: :default, optional: :optional }
+      then_set :attributes, append: { name: :name, type: :type, list: :list, default: :default, optional: :optional, pattern: :pattern }
 
       emits "AttributeAttached"
     end
@@ -281,9 +283,10 @@ Hecks.bluebook "Meta" do
       attribute :name,    FieldName
       attribute :list,    ListFlag
       attribute :optional, ListFlag, optional: true
+      attribute :pattern,  ListFlag, optional: true
       attribute :default, LiteralText, optional: true
 
-      then_set :attributes, append: { name: :name, type: :points_at, list: :list, default: :default, optional: :optional }
+      then_set :attributes, append: { name: :name, type: :points_at, list: :list, default: :default, optional: :optional, pattern: :pattern }
 
       emits "ReferenceAttached"
     end
@@ -305,9 +308,10 @@ Hecks.bluebook "Meta" do
       attribute :name,    FieldName
       attribute :list,    ListFlag
       attribute :optional, ListFlag, optional: true
+      attribute :pattern,  ListFlag, optional: true
       attribute :default, LiteralText, optional: true
 
-      then_set :attributes, append: { name: :name, type: :holds, list: :list, default: :default, optional: :optional }
+      then_set :attributes, append: { name: :name, type: :holds, list: :list, default: :default, optional: :optional, pattern: :pattern }
 
       emits "PieceHeld"
     end
@@ -475,6 +479,7 @@ Hecks.bluebook "Meta" do
       attribute :type,    String
       attribute :list,    String
       attribute :optional, String, optional: true
+      attribute :pattern,  String, optional: true
       attribute :default, String
     end
 
@@ -544,9 +549,10 @@ Hecks.bluebook "Meta" do
       attribute :type,    ArgType
       attribute :list,    ArgType
       attribute :optional, ArgType, optional: true
+      attribute :pattern,  ArgType, optional: true
       attribute :default, ArgType, optional: true
 
-      then_set :attributes, append: { name: :name, type: :type, list: :list, default: :default, optional: :optional }
+      then_set :attributes, append: { name: :name, type: :type, list: :list, default: :default, optional: :optional, pattern: :pattern }
 
       emits "ArgumentAttached"
     end
@@ -573,9 +579,10 @@ Hecks.bluebook "Meta" do
       attribute :name,    ArgName
       attribute :list,    ArgType
       attribute :optional, ArgType, optional: true
+      attribute :pattern,  ArgType, optional: true
       attribute :default, ArgType, optional: true
 
-      then_set :attributes, append: { name: :name, type: :points_at, list: :list, default: :default, optional: :optional }
+      then_set :attributes, append: { name: :name, type: :points_at, list: :list, default: :default, optional: :optional, pattern: :pattern }
 
       emits "ArgumentReferenceAttached"
     end
@@ -697,6 +704,7 @@ Hecks.bluebook "Meta" do
       attribute :type,    String
       attribute :list,    String
       attribute :optional, String, optional: true
+      attribute :pattern,  String, optional: true
       attribute :default, String
     end
 
@@ -744,9 +752,10 @@ Hecks.bluebook "Meta" do
       attribute :type,    ValueObjectName
       attribute :list,    ValueObjectName
       attribute :optional, ValueObjectName, optional: true
+      attribute :pattern,  ValueObjectName, optional: true
       attribute :default, ValueObjectText, optional: true
 
-      then_set :attributes, append: { name: :name, type: :type, list: :list, default: :default, optional: :optional }
+      then_set :attributes, append: { name: :name, type: :type, list: :list, default: :default, optional: :optional, pattern: :pattern }
 
       emits "ShapeFieldAttached"
     end
@@ -1096,6 +1105,7 @@ Hecks.bluebook "Meta" do
       attribute :type,    String
       attribute :list,    String
       attribute :optional, String, optional: true
+      attribute :pattern,  String, optional: true
       attribute :default, String
     end
 
@@ -1192,9 +1202,10 @@ Hecks.bluebook "Meta" do
       attribute :type,    QueryText
       attribute :list,    QueryText
       attribute :optional, QueryText, optional: true
+      attribute :pattern,  QueryText, optional: true
       attribute :default, QueryText, optional: true
 
-      then_set :attributes, append: { name: :name, type: :type, list: :list, default: :default, optional: :optional }
+      then_set :attributes, append: { name: :name, type: :type, list: :list, default: :default, optional: :optional, pattern: :pattern }
 
       emits "AskArgumentAttached"
     end
@@ -1592,6 +1603,7 @@ Hecks.bluebook "Meta" do
       attribute :type,    String
       attribute :list,    String
       attribute :optional, String, optional: true
+      attribute :pattern,  String, optional: true
       attribute :default, String
     end
 
@@ -1655,9 +1667,10 @@ Hecks.bluebook "Meta" do
       attribute :type,    EntityText
       attribute :list,    EntityText
       attribute :optional, EntityText, optional: true
+      attribute :pattern,  EntityText, optional: true
       attribute :default, EntityText, optional: true
 
-      then_set :attributes, append: { name: :name, type: :type, list: :list, default: :default, optional: :optional }
+      then_set :attributes, append: { name: :name, type: :type, list: :list, default: :default, optional: :optional, pattern: :pattern }
 
       emits "PieceAttributeAttached"
     end

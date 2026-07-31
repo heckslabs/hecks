@@ -1,0 +1,217 @@
+[
+  {
+    "pattern": "^[A-Z]{3}-[0-9]{4}$",
+    "input": "ABC-1234",
+    "matches": true
+  },
+  {
+    "pattern": "^[A-Z]{3}-[0-9]{4}$",
+    "input": "abc-1234",
+    "matches": false
+  },
+  {
+    "pattern": "^[A-Z]{3}-[0-9]{4}$",
+    "input": "xx\nABC-1234\nyy",
+    "matches": true
+  },
+  {
+    "pattern": "^[A-Z]{3}-[0-9]{4}$",
+    "input": "ABC-1234\n",
+    "matches": true
+  },
+  {
+    "pattern": "^[A-Z]{3}-[0-9]{4}$",
+    "input": "ABC-١٢٣٤",
+    "matches": false
+  },
+  {
+    "pattern": "^[0-9]{5}(-[0-9]{4})?$",
+    "input": "12345",
+    "matches": true
+  },
+  {
+    "pattern": "^[0-9]{5}(-[0-9]{4})?$",
+    "input": "12345-6789",
+    "matches": true
+  },
+  {
+    "pattern": "^[0-9]{5}(-[0-9]{4})?$",
+    "input": "1234",
+    "matches": false
+  },
+  {
+    "pattern": "^[0-9]{5}(-[0-9]{4})?$",
+    "input": "12345\nx",
+    "matches": true
+  },
+  {
+    "pattern": "^[0-9]{5}(-[0-9]{4})?$",
+    "input": "١٢٣٤٥",
+    "matches": false
+  },
+  {
+    "pattern": "^[^@ ]+@[^@ ]+\\.[^@ ]+$",
+    "input": "a@b.co",
+    "matches": true
+  },
+  {
+    "pattern": "^[^@ ]+@[^@ ]+\\.[^@ ]+$",
+    "input": "a b@c.co",
+    "matches": false
+  },
+  {
+    "pattern": "^[^@ ]+@[^@ ]+\\.[^@ ]+$",
+    "input": "no-at-sign",
+    "matches": false
+  },
+  {
+    "pattern": "^[^@ ]+@[^@ ]+\\.[^@ ]+$",
+    "input": "a@b.co\nevil",
+    "matches": true
+  },
+  {
+    "pattern": "^[^@ ]+@[^@ ]+\\.[^@ ]+$",
+    "input": "\na@b.co",
+    "matches": true
+  },
+  {
+    "pattern": "^[^@ ]+@[^@ ]+\\.[^@ ]+$",
+    "input": "café@x.co",
+    "matches": true
+  },
+  {
+    "pattern": "^(red|green|blue)$",
+    "input": "red",
+    "matches": true
+  },
+  {
+    "pattern": "^(red|green|blue)$",
+    "input": "purple",
+    "matches": false
+  },
+  {
+    "pattern": "^(red|green|blue)$",
+    "input": "red\ngreen",
+    "matches": true
+  },
+  {
+    "pattern": "^(red|green|blue)$",
+    "input": "RED",
+    "matches": false
+  },
+  {
+    "pattern": "^(red|green|blue)$",
+    "input": "x\nred",
+    "matches": true
+  },
+  {
+    "pattern": "^[A-Za-z0-9_]+$",
+    "input": "abc_1",
+    "matches": true
+  },
+  {
+    "pattern": "^[A-Za-z0-9_]+$",
+    "input": "a b",
+    "matches": false
+  },
+  {
+    "pattern": "^[A-Za-z0-9_]+$",
+    "input": "café",
+    "matches": false
+  },
+  {
+    "pattern": "^[A-Za-z0-9_]+$",
+    "input": "abc\ndef",
+    "matches": true
+  },
+  {
+    "pattern": "^[ \\t]*$",
+    "input": "",
+    "matches": true
+  },
+  {
+    "pattern": "^[ \\t]*$",
+    "input": "   ",
+    "matches": true
+  },
+  {
+    "pattern": "^[ \\t]*$",
+    "input": " ",
+    "matches": false
+  },
+  {
+    "pattern": "^[ \\t]*$",
+    "input": "a",
+    "matches": false
+  },
+  {
+    "pattern": "^[ \\t]*$",
+    "input": "\n",
+    "matches": true
+  },
+  {
+    "pattern": "^[ \\t]*$",
+    "input": "\t",
+    "matches": true
+  },
+  {
+    "pattern": "^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+    "input": "12345678-1234-1234-1234-123456789abc",
+    "matches": true
+  },
+  {
+    "pattern": "^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+    "input": "nope",
+    "matches": false
+  },
+  {
+    "pattern": "^\\+?[0-9 ()-]{7,20}$",
+    "input": "+44 20 1234",
+    "matches": true
+  },
+  {
+    "pattern": "^\\+?[0-9 ()-]{7,20}$",
+    "input": "abc",
+    "matches": false
+  },
+  {
+    "pattern": "^\\+?[0-9 ()-]{7,20}$",
+    "input": "+44 20 1234\nx",
+    "matches": true
+  },
+  {
+    "pattern": "\\Aonly\\z",
+    "input": "only",
+    "matches": true
+  },
+  {
+    "pattern": "\\Aonly\\z",
+    "input": "only\n",
+    "matches": false
+  },
+  {
+    "pattern": "\\Aonly\\z",
+    "input": "x\nonly",
+    "matches": false
+  },
+  {
+    "pattern": "^a.c$",
+    "input": "abc",
+    "matches": true
+  },
+  {
+    "pattern": "^a.c$",
+    "input": "a\nc",
+    "matches": false
+  },
+  {
+    "pattern": "^a.c$",
+    "input": "a\tc",
+    "matches": true
+  },
+  {
+    "pattern": "^a.c$",
+    "input": "aéc",
+    "matches": true
+  }
+]

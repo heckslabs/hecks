@@ -176,6 +176,38 @@
       }
     },
     {
+      "verb": "Banking::Customer.Register",
+      "note": "An @ and a space — the old invariant admitted it",
+      "args": {
+        "reference": {
+          "value": "CUST-0010"
+        },
+        "name": {
+          "given": "Spacey",
+          "family": "Address"
+        },
+        "email": {
+          "address": "has a space@x.co"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Customer.Register",
+      "note": "An @ and no dot — the old invariant admitted it too",
+      "args": {
+        "reference": {
+          "value": "CUST-0011"
+        },
+        "name": {
+          "given": "Dotless",
+          "family": "Address"
+        },
+        "email": {
+          "address": "a@b"
+        }
+      }
+    },
+    {
       "verb": "Banking::Account.Open",
       "args": {
         "number": {

@@ -301,6 +301,7 @@ pub fn coerce_attribute(
         }
         admit_member(&value_object, &completed)?;
         check_numeric_fields(&value_object, &completed)?;
+        check_patterns(&value_object, &completed)?;
         enforce_invariants(&value_object, &completed)?;
         return Ok(Value::Object(completed));
     }
@@ -598,6 +599,52 @@ fn check_numeric_fields(
             ));
         }
     }
+    Ok(())
+}
+
+/// A field declared with a PATTERN must match it.
+///
+/// Beside check_numeric_fields and for the same reason : a value that does not
+/// look like what it claims to be is the DOMAIN saying no, and it should say so
+/// here rather than let the wrong shape travel on and surface as a broken
+/// predicate later.
+///
+/// Which regexes may be written at all is pattern_subset's job — so by the time
+/// a value arrives here the pattern is already one both runtimes read the same
+/// way, and this is a plain match. The message is byte-identical to Ruby's.
+fn check_patterns(
+    value_object: &Map<String, Value>,
+    fields: &Map<String, Value>,
+) -> Result<(), String> {
+    let vo_name = value_object
+        .get("name")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+
+    for attribute in array(value_object, "attributes") {
+        let Some(name) = attribute.get("name").and_then(Value::as_str) else {
+            continue;
+        };
+        let Some(pattern) = attribute.get("pattern").and_then(Value::as_str) else {
+            continue;
+        };
+        let Some(given) = fields.get(name) else { continue };
+        if given.is_null() {
+            continue;
+        }
+
+        let satisfied = match given.as_str() {
+            Some(text) => crate::pattern_subset::matches(pattern, text)?,
+            None => false,
+        };
+        if !satisfied {
+            return Err(format!(
+                "{vo_name}.{name} must match {pattern}, got {}",
+                render_scalar(given)
+            ));
+        }
+    }
+
     Ok(())
 }
 

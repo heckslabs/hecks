@@ -1,0 +1,41 @@
+#!/usr/bin/env ruby
+require "json"
+
+# THE DIFFERENTIAL TABLE for `pattern:`, and how to regenerate it :
+#
+#   bin/pattern-cases > spec/parity/fixtures/patterns.json
+#
+# The fixture it writes is a RECORDED CONTRACT both runtimes answer to —
+# spec/pattern_subset_spec.rb and rust/src/bluebook/pattern_subset.rs each read
+# it and neither generates it. This script exists to AUTHOR a new case, not to
+# referee : Ruby computes the expected answer once, and Rust then has to agree.
+# If it does not, that is the finding.
+#
+#
+# Every pattern here is one the subset ADMITS. The question is not whether both
+# engines can parse it — that is what validate_pattern_subset answers — but
+# whether they AGREE about what it matches, which the subset says nothing about.
+#
+# The inputs are chosen to hit the places Ruby's Onigmo and Rust's regex crate
+# are documented to differ : embedded newlines (line anchors vs text anchors), a
+# trailing newline (Ruby's $ matches before it), and non-ASCII digits and word
+# characters. The perl classes and POSIX brackets are NOT here because the subset
+# now refuses them ; the cases that established why live in the Rust tests.
+CASES = [
+  ['^[A-Z]{3}-[0-9]{4}$',                       ["ABC-1234", "abc-1234", "xx\nABC-1234\nyy", "ABC-1234\n", "ABC-١٢٣٤"]],
+  ['^[0-9]{5}(-[0-9]{4})?$',                     ["12345", "12345-6789", "1234", "12345\nx", "١٢٣٤٥"]],
+  ['^[^@ ]+@[^@ ]+\.[^@ ]+$',                    ["a@b.co", "a b@c.co", "no-at-sign", "a@b.co\nevil", "\na@b.co", "café@x.co"]],
+  ['^(red|green|blue)$',                         ["red", "purple", "red\ngreen", "RED", "x\nred"]],
+  ['^[A-Za-z0-9_]+$',                            ["abc_1", "a b", "café", "abc\ndef"]],
+  ['^[ \t]*$',                                   ["", "   ", " ", "a", "\n", "\t"]],
+  ['^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$', ["12345678-1234-1234-1234-123456789abc", "nope"]],
+  ['^\+?[0-9 ()-]{7,20}$',                       ["+44 20 1234", "abc", "+44 20 1234\nx"]],
+  ['\Aonly\z',                                   ["only", "only\n", "x\nonly"]],
+  ['^a.c$',                                      ["abc", "a\nc", "a\tc", "aéc"]]
+].freeze
+
+rows = CASES.flat_map do |pattern, inputs|
+  regexp = Regexp.new(pattern)
+  inputs.map { |input| { "pattern" => pattern, "input" => input, "matches" => regexp.match?(input) } }
+end
+puts JSON.pretty_generate(rows)

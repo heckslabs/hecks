@@ -33,7 +33,8 @@ module Hecksagain
             # back — so a fact this constructor does not carry is a fact the
             # language cannot state about itself, however plainly the source
             # wrote it.
-            optional: field[:optional] ? true : false
+            optional: field[:optional] ? true : false,
+            pattern:  field[:pattern]
           )
         end
 

@@ -25,7 +25,8 @@ module Hecksagain
             # Read back the same way `list` is — both are booleans about the
             # attribute, held as text, and dropping either would rebuild a
             # bluebook that no longer says what it said.
-            optional: text(field[:optional]).to_s == "true"
+            optional: text(field[:optional]).to_s == "true",
+            pattern: presence(text(field[:pattern]))
           }
         end
 
@@ -45,8 +46,19 @@ module Hecksagain
             type:     type.include?("::") ? reference_type(type) : text(field[:type]),
             list:     text(field[:list]).to_s == "true",
             default:  decode_literal(text(field[:default])),
-            optional: text(field[:optional]).to_s == "true"
+            optional: text(field[:optional]).to_s == "true",
+            pattern:  presence(text(field[:pattern]))
           }
+        end
+
+        # An ABSENT pattern is nil, not "". The language holds every field as
+        # text, so a field nobody set comes back as the empty string — and ""
+        # is a real regex (it matches everything), so keeping it would turn
+        # "no pattern" into "a pattern that always passes" and quietly cost the
+        # IR its round trip.
+        def presence(text)
+          value = text.to_s
+          value.empty? ? nil : value
         end
 
         # A literal, read back from the self-describing form Readings#encode_literal
