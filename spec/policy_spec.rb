@@ -47,7 +47,7 @@ RSpec.describe "a policy" do
 
   it "stops a reaction that feeds itself, and says so" do
     runtime = boot_reflex
-    runtime.dispatch("Reflex::Echo.Ring", id: "bell-1")
+    runtime.dispatch("Reflex::Echo.Ring", name: { value: "bell-1" })
 
     expect(runtime.reactions.size).to eq(Hecksagain::Runtime::Dispatcher::MAX_REACTION_DEPTH + 1)
 

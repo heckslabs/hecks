@@ -73,7 +73,14 @@ Hecks.bluebook "Reflex" do
   aggregate "Echo" do
     description "A bell whose ring makes it ring"
 
+    identified_by :name
+
+    attribute :name,  BellName
     attribute :rings, RingCount
+
+    value_object "BellName" do
+      attribute :value, String
+    end
 
     value_object "RingCount" do
       attribute :value, Integer
@@ -82,6 +89,8 @@ Hecks.bluebook "Reflex" do
     command "Ring" do
       role "Operator"
       goal "Ring the bell, which rings the bell"
+
+      attribute :name, BellName
 
       emits "Rang"
     end

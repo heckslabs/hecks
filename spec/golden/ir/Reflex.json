@@ -179,6 +179,12 @@
         {
           "default": null,
           "list": false,
+          "name": "name",
+          "type": "BellName"
+        },
+        {
+          "default": null,
+          "list": false,
           "name": "rings",
           "type": "RingCount"
         }
@@ -186,7 +192,12 @@
       "commands": [
         {
           "attributes": [
-
+            {
+              "default": null,
+              "list": false,
+              "name": "name",
+              "type": "BellName"
+            }
           ],
           "emits": [
             "Rang"
@@ -207,13 +218,31 @@
       "entities": [
 
       ],
-      "identified_by": "id",
+      "identified_by": "name",
       "lifecycle": null,
       "name": "Echo",
       "queries": [
 
       ],
       "value_objects": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "BellName"
+        },
         {
           "attributes": [
             {
