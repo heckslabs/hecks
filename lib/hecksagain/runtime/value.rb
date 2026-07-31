@@ -128,6 +128,42 @@ module Hecksagain
         value
       end
 
+      # A REFERENCE IS AN ID, SO AN OBJECT IS NOT ONE.
+      #
+      # Nothing coerces a reference — `for_attribute` misses on
+      # "Reference<Account>", which is no value object's name, and hands the
+      # argument straight through. That is why the wrapped form went in
+      # unnoticed for as long as it did: there was no place it could be
+      # refused, so whatever the first caller wrote became the shape.
+      #
+      # This is that place. It sits at the payload gate rather than inside
+      # coercion because the sentence names the COMMAND, and `for_attribute`
+      # never learns which command it is serving.
+      #
+      # An Array is deliberately not refused here. A reference is never a list
+      # today, and inventing a rule for a shape the language cannot declare is
+      # how decoration gets written.
+      def self.refuse_object_reference(command, attribute, value)
+        return unless attribute.reference?
+        return unless value.is_a?(Hash) || value.is_a?(self)
+
+        raise TypeMismatch,
+              "#{command.hecks_name} refused — a reference is an id, and " \
+              "#{attribute.name} arrived as an object#{known_by(attribute)}"
+      end
+
+      # "(Account is known by number)" — what to send instead. No article, on
+      # purpose: "an Account" and "a Customer" differ by the target's first
+      # letter, and both runtimes would have to agree on that rule to keep the
+      # refusal byte-identical. Silent when the target is another chapter's,
+      # where this runtime cannot see what it is known by.
+      def self.known_by(attribute)
+        target = attribute.type.resolve&.ir
+        return "" unless target&.identified_by
+
+        " (#{attribute.type.target_name} is known by #{target.identified_by})"
+      end
+
       def self.scalar(value)
         return value unless value.is_a?(self)
 

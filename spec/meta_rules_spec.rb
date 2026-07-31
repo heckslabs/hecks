@@ -35,7 +35,7 @@ RSpec.describe "the language's own rules" do
     # acts on — the runtime reads an argument called `name` as the reference.
     @runtime.dispatch("Meta::Bluebook.Declare", id: "D", name: v("D"),
                       vision: v("a vision"), classification: v("core"))
-    @runtime.dispatch("Meta::Aggregate.Declare", id: "D::A", bluebook_id: v("D"),
+    @runtime.dispatch("Meta::Aggregate.Declare", id: "D::A", bluebook_id: "D",
                       name: v("A"), description: v("an aggregate"), identified_by: v(""))
   end
 
@@ -47,13 +47,13 @@ RSpec.describe "the language's own rules" do
   end
 
   it "refuses an aggregate whose description says nothing" do
-    expect { @runtime.dispatch("Meta::Aggregate.Declare", id: "D::B", bluebook_id: v("D"),
+    expect { @runtime.dispatch("Meta::Aggregate.Declare", id: "D::B", bluebook_id: "D",
                                name: v("B"), description: v(""), identified_by: v("")) }
       .to raise_error(Hecksagain::Runtime::InvariantViolation, /a description says something/)
   end
 
   it "refuses an attribute that is not named" do
-    expect { @runtime.dispatch("Meta::Aggregate.Attribute", id: "D::A", name: v(""), type: v("T"), list: v("false")) }
+    expect { @runtime.dispatch("Meta::Aggregate.Attribute", id: "D::A", name: v(""), type: "T", list: v("false")) }
       .to raise_error(Hecksagain::Runtime::InvariantViolation, /an attribute is named/)
   end
 
@@ -61,18 +61,18 @@ RSpec.describe "the language's own rules" do
   # type IS a reference to the value object, so an undeclared one cannot resolve
   it "refuses an attribute whose type is not a declared value object" do
     expect { @runtime.dispatch("Meta::Aggregate.Attribute", id: "D::A", name: v("x"),
-                               type: v("D::A.Nonexistent"), list: v("false")) }
+                               type: "D::A.Nonexistent", list: v("false")) }
       .to raise_error(Hecksagain::Runtime::NotFound, /no ValueObject with/)
   end
 
   it "refuses a value object that is not named" do
-    expect { @runtime.dispatch("Meta::ValueObject.Declare", id: "D::A.X", aggregate_id: v("D::A"), name: v("")) }
+    expect { @runtime.dispatch("Meta::ValueObject.Declare", id: "D::A.X", aggregate_id: "D::A", name: v("")) }
       .to raise_error(Hecksagain::Runtime::InvariantViolation, /a value object is named/)
   end
 
   context "with a command declared" do
     before do
-      @runtime.dispatch("Meta::Command.Declare", id: "D::A.C", aggregate_id: v("D::A"),
+      @runtime.dispatch("Meta::Command.Declare", id: "D::A.C", aggregate_id: "D::A",
                         name: v("C"), role: v("Someone"), goal: v("do a thing"))
     end
 
@@ -119,7 +119,7 @@ RSpec.describe "the language's own rules" do
   end
 
   it "refuses a read model gathering heads before its reference" do
-    @runtime.dispatch("Meta::ReadModel.Declare", id: "D.P", bluebook_id: v("D"), name: v("P"),
+    @runtime.dispatch("Meta::ReadModel.Declare", id: "D.P", bluebook_id: "D", name: v("P"),
                       description: v("a projection"), query_name: v("p"),
                       reference_name: v(""), reference_target: v(""))
 
@@ -134,7 +134,7 @@ RSpec.describe "the language's own rules" do
   # agreed. The rule removes the default there was to disagree about.
   it "refuses an entity that does not say what it is known by" do
     expect do
-      @runtime.dispatch("Meta::Entity.Declare", id: "D::A.E", aggregate_id: v("D::A"), owner: v("A"),
+      @runtime.dispatch("Meta::Entity.Declare", id: "D::A.E", aggregate_id: "D::A", owner: v("A"),
                         name: v("E"), description: v("a piece"), identified_by: v(""), position: { value: 0 })
     end.to raise_error(Hecksagain::Runtime::GivenNotMet, /an entity says what it is known by/)
   end
@@ -145,14 +145,14 @@ RSpec.describe "the language's own rules" do
   # whole object standing as the id.
   it "refuses an entity known by a whole value object rather than a field" do
     expect do
-      @runtime.dispatch("Meta::Entity.Declare", id: "D::A.E", aggregate_id: v("D::A"), owner: v("A"),
+      @runtime.dispatch("Meta::Entity.Declare", id: "D::A.E", aggregate_id: "D::A", owner: v("A"),
                         name: v("E"), description: v("a piece"), identified_by: v("sequence"),
                         position: { value: 0 })
     end.to raise_error(Hecksagain::Runtime::GivenNotMet, /an entity is known by a field/)
   end
 
   it "refuses an aggregate known by a whole value object rather than a field" do
-    @runtime.dispatch("Meta::Aggregate.Declare", id: "D::C", bluebook_id: v("D"),
+    @runtime.dispatch("Meta::Aggregate.Declare", id: "D::C", bluebook_id: "D",
                       name: v("C"), description: v("an aggregate"), identified_by: v("number"))
 
     expect { @runtime.dispatch("Meta::Aggregate.Seal", id: "D::C") }
@@ -160,7 +160,7 @@ RSpec.describe "the language's own rules" do
   end
 
   it "admits an aggregate known by the field inside its value object" do
-    @runtime.dispatch("Meta::Aggregate.Declare", id: "D::E", bluebook_id: v("D"),
+    @runtime.dispatch("Meta::Aggregate.Declare", id: "D::E", bluebook_id: "D",
                       name: v("E"), description: v("an aggregate"), identified_by: v("number.value"))
 
     expect { @runtime.dispatch("Meta::Aggregate.Seal", id: "D::E") }.not_to raise_error
@@ -168,7 +168,7 @@ RSpec.describe "the language's own rules" do
 
   it "admits an entity that names the field it is known by" do
     expect do
-      @runtime.dispatch("Meta::Entity.Declare", id: "D::A.E", aggregate_id: v("D::A"), owner: v("A"),
+      @runtime.dispatch("Meta::Entity.Declare", id: "D::A.E", aggregate_id: "D::A", owner: v("A"),
                         name: v("E"), description: v("a piece"), identified_by: v("sequence.value"),
                         position: { value: 0 })
     end.not_to raise_error
@@ -180,11 +180,11 @@ RSpec.describe "the language's own rules" do
   # judge held a command's reference as the STRING "Reference<Customer>" and a
   # `raise Malformed` beside the builder was the only thing checking it.
   it "refuses an argument that references a head nobody declared" do
-    @runtime.dispatch("Meta::Command.Declare", id: "D::A.C", aggregate_id: v("D::A"), entity_id: v(""),
+    @runtime.dispatch("Meta::Command.Declare", id: "D::A.C", aggregate_id: "D::A", entity_id: "",
                       name: v("C"), role: v("Clerk"), goal: v("do a thing"), position: { value: 0 })
 
     expect do
-      @runtime.dispatch("Meta::Command.Reference", id: "D::A.C", points_at: v("D::Nonexistent"),
+      @runtime.dispatch("Meta::Command.Reference", id: "D::A.C", points_at: "D::Nonexistent",
                         name: v("customer_id"), list: v("false"), default: v(""))
     end.to raise_error(Hecksagain::Runtime::NotFound, /no Aggregate with/)
   end
@@ -192,8 +192,8 @@ RSpec.describe "the language's own rules" do
 
 
   it "refuses an admitted row that binds no named field" do
-    @runtime.dispatch("Meta::ValueObject.Declare", id: "D::A.X", aggregate_id: v("D::A"), name: v("X"))
-    @runtime.dispatch("Meta::Member.Declare", id: "D::A.X#0", value_object_id: v("D::A.X"), shape: v("D::A.X"))
+    @runtime.dispatch("Meta::ValueObject.Declare", id: "D::A.X", aggregate_id: "D::A", name: v("X"))
+    @runtime.dispatch("Meta::Member.Declare", id: "D::A.X#0", value_object_id: "D::A.X", shape: v("D::A.X"))
 
     expect { @runtime.dispatch("Meta::Member.Pair", id: "D::A.X#0", key: v(""), value: v("q")) }
       .to raise_error(Hecksagain::Runtime::GivenNotMet, /an admitted row binds a named field/)
@@ -209,8 +209,8 @@ RSpec.describe "the language's own rules" do
   # saw the rule refuse the case it was written beside is not evidence the rule is
   # true.
   it "seals an aggregate that is fully declared" do
-    @runtime.dispatch("Meta::ValueObject.Declare", id: "D::A.X", aggregate_id: v("D::A"), name: v("X"))
-    @runtime.dispatch("Meta::Aggregate.Attribute", id: "D::A", name: v("x"), type: v("D::A.X"), list: v("false"))
+    @runtime.dispatch("Meta::ValueObject.Declare", id: "D::A.X", aggregate_id: "D::A", name: v("X"))
+    @runtime.dispatch("Meta::Aggregate.Attribute", id: "D::A", name: v("x"), type: "D::A.X", list: v("false"))
 
     expect { @runtime.dispatch("Meta::Aggregate.Seal", id: "D::A") }.not_to raise_error
   end

@@ -481,6 +481,7 @@ impl Runtime {
         let entity = self.find_entity(domain, aggregate_name, &aggregate, entity_name)?;
         let command =
             self.find_entity_command(domain, aggregate_name, entity_name, &entity, command_name)?;
+        self.refuse_object_references(domain, &command, args)?;
         let normalized_args = normalize_command_args(&aggregate, &command, args)?;
         self.trace_step("normalize_args");
         // An entity command can declare a reference-typed attribute the same
@@ -804,6 +805,15 @@ impl Runtime {
             .and_then(|model| model.as_object().cloned())
             .ok_or_else(|| format!("{domain} has no read model {query_name:?}"))?;
         let reference_name = model.get("reference_name").and_then(Value::as_str).unwrap_or("reference");
+        // AN ASK'S REFERENCE IS AN ID TOO. Without this, `query_text` below would
+        // quietly open a wrapped one and answer, while Ruby read it whole and
+        // found nothing — a split that shows only when a stale caller exists.
+        // ReadModelInterpreter#refuse_object_reference is the same sentence.
+        if args.get(reference_name).map(Value::is_object).unwrap_or(false) {
+            return Err(format!(
+                "{query_name} refused — a reference is an id, and {reference_name} arrived as an object"
+            ));
+        }
         let reference_id = args.get(reference_name).map(query_text).unwrap_or_default();
         let mut projected: Vec<(String, Vec<(String, State)>)> = Vec::new();
         let mut report = Map::new();
@@ -1047,6 +1057,7 @@ impl Runtime {
             .ok_or_else(|| format!("{} has no command {:?}", aggregate_name, command_name))?;
         refuse_unknown_arguments(&aggregate, &command, args, &self.correlation_keys(&domain))?;
         self.trace_step("refuse_unknown_arguments");
+        self.refuse_object_references(&domain, &command, args)?;
         let normalized_args = normalize_command_args(&aggregate, &command, args)?;
         self.trace_step("normalize_args");
         self.resolve_references(&domain, &command, &normalized_args)?;
@@ -1774,6 +1785,67 @@ impl Runtime {
         })
     }
 
+    /// A REFERENCE IS AN ID, SO AN OBJECT IS NOT ONE.
+    ///
+    /// Nothing coerces a reference — `coerce_attribute` misses on
+    /// "Reference<Account>", which is no value object's name, and hands the
+    /// argument straight through. That is why the wrapped form went unnoticed for
+    /// as long as it did: there was nowhere it could be refused, so whatever the
+    /// first caller wrote became the shape.
+    ///
+    /// `Value.refuse_object_reference` is the same sentence on the Ruby side, and
+    /// it has to be the SAME sentence — refusal wording is byte-exact contract.
+    /// An Array is deliberately not refused: a reference is never a list, and a
+    /// rule for a shape the language cannot declare is decoration.
+    fn refuse_object_references(
+        &self,
+        domain: &str,
+        command: &Map<String, Value>,
+        args: &State,
+    ) -> Result<(), String> {
+        let command_name = command.get("name").and_then(Value::as_str).unwrap_or_default();
+        for attribute in array(command, "attributes") {
+            let Some(name) = attribute.get("name").and_then(Value::as_str) else {
+                continue;
+            };
+            let Some(target) = attribute
+                .get("type")
+                .and_then(Value::as_str)
+                .and_then(|held| held.strip_prefix("Reference<"))
+                .and_then(|held| held.strip_suffix('>'))
+            else {
+                continue;
+            };
+            if !args.get(name).map(Value::is_object).unwrap_or(false) {
+                continue;
+            }
+
+            return Err(format!(
+                "{command_name} refused — a reference is an id, and {name} arrived as an object{}",
+                self.known_by(domain, target)
+            ));
+        }
+        Ok(())
+    }
+
+    /// "(Account is known by number)" — what to send instead. No article, on
+    /// purpose: "an Account" and "a Customer" differ by the target's first
+    /// letter, and both runtimes would have to agree on that rule to keep the
+    /// refusal byte-identical. The HEAD of the identity path, because that is
+    /// what Ruby's `identified_by` answers.
+    fn known_by(&self, domain: &str, target: &str) -> String {
+        let Ok(aggregate) = self.find_aggregate(domain, target, "") else {
+            return String::new();
+        };
+        let identity = aggregate
+            .get("identified_by")
+            .and_then(Value::as_str)
+            .unwrap_or("id");
+        let head = identity.split('.').next().unwrap_or(identity);
+
+        format!(" ({target} is known by {head})")
+    }
+
     fn find_aggregate(
         &self,
         domain: &str,
@@ -2142,6 +2214,36 @@ mod dispatch_order_tests {
             ]
         );
     }
+
+// THE SAME SENTENCE, IN THE OTHER RUNTIME.
+//
+// Refusal wording is byte-exact contract — bin/parity diffs it character
+// for character — and the only mechanism this repo has for holding two
+// languages to one string BELOW that level is asserting the same literal in
+// both. Its twin is spec/reference_shape_spec.rb.
+#[test]
+fn a_wrapped_reference_is_refused_in_the_same_words_as_ruby() {
+    let mut runtime = Runtime::boot("../spec/fixtures/settlement.bluebook").unwrap();
+
+    for number in ["a", "b"] {
+        let open: State =
+            serde_json::from_value(json!({ "number": { "value": number } })).unwrap();
+        runtime.dispatch("Wire::Drawer.Open", &open).unwrap();
+    }
+
+    let asked: State = serde_json::from_value(json!({
+        "reference": {"value": "w1"},
+        "amount": {"cents": 100},
+        "source": {"value": "a"},
+        "destination": "b"
+    }))
+    .unwrap();
+
+    assert_eq!(
+        runtime.dispatch("Wire::Wire.Ask", &asked).unwrap_err(),
+        "Ask refused — a reference is an id, and source arrived as an object (Drawer is known by number)"
+    );
+}
 
     #[test]
     fn entity_dispatch_matches_the_declared_order() {

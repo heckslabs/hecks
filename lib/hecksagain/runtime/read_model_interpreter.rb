@@ -10,7 +10,12 @@ module Hecksagain
       private
 
       def project(domain, model, args)
-        bluebook     = @registry.bluebook(domain)
+        bluebook = @registry.bluebook(domain)
+        # BEFORE the adapter early-return below, so the SQLite path inherits it.
+        # Without this the two runtimes split on a stale caller: Rust's
+        # `query_text` quietly opens a wrapped reference and answers, while Ruby
+        # reads it whole and finds nothing.
+        refuse_object_reference(model, args)
         reference_id = reference(args.fetch(model.reference_name))
         repository = @registry.read_repository(domain, bluebook.aggregate(model.reference_target))
         if repository.respond_to?(:query_read_model) && repository.adapter.respond_to?(:query_read_model)
@@ -53,6 +58,19 @@ module Hecksagain
       # Storing the scalar itself would remove this reading altogether. That
       # is a change to how references are STORED, not to how identities are
       # declared, so it is not made here.
+      # An ask names itself where a command would name itself, and says the
+      # same thing about the same shape. `Value.refuse_object_reference` is
+      # not reused because it speaks of a COMMAND and its attribute ; a read
+      # model has a query name and one declared reference.
+      def refuse_object_reference(model, args)
+        offered = args.fetch(model.reference_name, nil)
+        return unless offered.is_a?(Hash) || offered.is_a?(Value)
+
+        raise TypeMismatch,
+              "#{model.query_name} refused — a reference is an id, and " \
+              "#{model.reference_name} arrived as an object"
+      end
+
       def reference(value) = Value.reference_id(value)
       def reference_fields(aggregate, target)
         aggregate.attributes

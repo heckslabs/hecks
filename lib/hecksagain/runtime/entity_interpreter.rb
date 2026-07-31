@@ -109,6 +109,7 @@ module Hecksagain
         command.attributes.each_with_object(args.dup) do |attribute, normalized|
           next unless normalized.key?(attribute.name)
 
+          Value.refuse_object_reference(command, attribute, normalized[attribute.name])
           normalized[attribute.name] = Value.for_attribute(aggregate, attribute, normalized[attribute.name])
         end
       end
