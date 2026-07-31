@@ -209,6 +209,67 @@
           "value": "enormous"
         }
       }
+    },
+    {
+      "verb": "Pizzas::Pizza.CreatePizza",
+      "args": {
+        "id": "pizza-twin-b",
+        "name": {
+          "value": "Twin"
+        },
+        "price_cents": {
+          "cents": 1500
+        },
+        "size": {
+          "value": "large"
+        }
+      }
+    },
+    {
+      "verb": "Pizzas::Pizza.CreatePizza",
+      "args": {
+        "id": "pizza-twin-a",
+        "name": {
+          "value": "Twin"
+        },
+        "price_cents": {
+          "cents": 1500
+        },
+        "size": {
+          "value": "large"
+        }
+      }
+    },
+    {
+      "verb": "Pizzas::Pizza.CreatePizza",
+      "args": {
+        "id": "pizza-twin-c",
+        "name": {
+          "value": "Twin"
+        },
+        "price_cents": {
+          "cents": 1500
+        },
+        "size": {
+          "value": "large"
+        }
+      }
+    },
+    {
+      "query": "Pizzas::Pizza.Available",
+      "args": {}
+    },
+    {
+      "query": "Pizzas::Pizza.CostingLessThan",
+      "args": {
+        "ceiling": {
+          "cents": 3000
+        }
+      }
+    },
+    {
+      "query": "Pizzas::Pizza.Expensive",
+      "args": {}
     }
   ]
 }

@@ -47,7 +47,8 @@ module Hecksagain
             .map    { |el| { parent_key => record.id }.merge(el) }
         end
 
-        ordered = declared.order_by ? ordered_elements(rows, declared.order_by, declared.null_semantics) : rows
+        ordered = ordered_elements(rows, declared.order_by, declared.null_semantics,
+                                   parent_key, entity.identified_by)
         declared.limit ? ordered.first(resolve_query_value(declared.limit.value, args).to_i) : ordered
       end
 
@@ -55,11 +56,24 @@ module Hecksagain
         holds?(clause, element[clause.field.to_sym], args)
       end
 
-      def ordered_elements(rows, order_by, null_semantics = nil)
-        field  = order_by.field.to_sym
-        rows = QuerySpecification::Common::NullPolicy.order(rows, direction: order_by.direction,
-                                                             policy: null_semantics) { |row| comparable(row[field]) }
-        rows
+      # A row's own key, however the store spells it. A sub-list row is a plain hash
+      # merged from stored state, so its keys arrive as strings from one adapter and
+      # symbols from another — and reading only one spelling gave every row the SAME
+      # identity, which is a tie, which is the exact nondeterminism this tier exists
+      # to remove. It rides `comparable` for the same reason a where-clause does : an
+      # identity is a value object, and `to_s` on one is an OBJECT ADDRESS — a sort key
+      # that differs run to run, which is worse than the store order it replaced.
+      def cell(row, key) = row[key.to_sym] || row[key.to_s]
+
+      # A sub-list row is identified by its PARENT and then its own key : two
+      # entities under different parents can share a sequence, so the parent has
+      # to lead or the tie is not broken at all.
+      def ordered_elements(rows, order_by, null_semantics, parent_key, entity_key)
+        field = order_by&.field&.to_sym
+        Ports::Query::Ordering.apply(
+          rows, order_by, null_semantics,
+          identity: ->(row) { [row[parent_key].to_s, comparable(cell(row, entity_key))] }
+        ) { |row| comparable(row[field]) }
       end
 
       def where_holds?(clause, record, args)
@@ -124,11 +138,9 @@ module Hecksagain
       end
 
       def ordered(records, order_by, null_semantics = nil)
-        return records unless order_by
-
-        field  = order_by.field
-        QuerySpecification::Common::NullPolicy.order(records, direction: order_by.direction,
-                                                     policy: null_semantics) { |record| comparable(record[field]) }
+        field = order_by&.field
+        Ports::Query::Ordering.apply(records, order_by, null_semantics,
+                                     identity: ->(record) { record.id.to_s }) { |record| comparable(record[field]) }
       end
     end
   end

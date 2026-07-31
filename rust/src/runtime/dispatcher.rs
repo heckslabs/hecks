@@ -717,6 +717,14 @@ impl Runtime {
             }
         }
 
+        // THE TWO TIERS THE PORT DECLARES — see Ports::Query::Ordering. The declared
+        // order when there is one, then IDENTITY, always. Identity is the base rather
+        // than only a tiebreak because an ask with no order_by used to hand back
+        // whatever order the store held, which is how a heki-backed Ruby and a
+        // heki-backed Rust came to answer the same ask differently. sort_by is stable
+        // here, so the declared pass keeps this base underneath it.
+        matched.sort_by(|(a_id, _), (b_id, _)| a_id.cmp(b_id));
+
         if let Some(order) = declared.get("order_by").and_then(Value::as_object) {
             let field = order
                 .get("field")
@@ -859,6 +867,25 @@ impl Runtime {
                 }
             }
         }
+
+        // THE SAME TWO TIERS, one level down — see Ports::Query::Ordering. A
+        // sub-list row is identified by its PARENT and then by the entity's own
+        // key, since two entities under different parents can share a sequence,
+        // and a parent alone would leave every sibling tied.
+        let entity_key = entity
+            .get("identified_by")
+            .and_then(Value::as_str)
+            .unwrap_or("id")
+            .to_string();
+        rows.sort_by(|a, b| {
+            let left_parent = query_text(a.get(&parent_key).unwrap_or(&Value::Null));
+            let right_parent = query_text(b.get(&parent_key).unwrap_or(&Value::Null));
+            left_parent.cmp(&right_parent).then_with(|| {
+                let left = a.get(&entity_key).cloned().unwrap_or(Value::Null);
+                let right = b.get(&entity_key).cloned().unwrap_or(Value::Null);
+                query_order(&left, &right)
+            })
+        });
 
         if let Some(order) = declared.get("order_by").and_then(Value::as_object) {
             let field = order
