@@ -116,6 +116,8 @@ Hecks.bluebook "Banking" do
   aggregate "Account" do
     description "A balance belonging to one customer, and the ledger that explains how it got there."
 
+    identified_by { number.value }
+
     reference_to Customer
 
     attribute :number,       AccountNumber
@@ -864,12 +866,12 @@ Hecks.bluebook "Banking" do
     on "TransferRequested", transition: { "requested" => "requested" } do
       # Debit never declared :destination — the credit leg reads it from the saga's
       # memory of the opening payload.
-      dispatch "Banking::Account.Debit", with: { id: :source, amount: :amount, narrative: { text: "transfer out" }, transfer: :transfer }
+      dispatch "Banking::Account.Debit", with: { number: :source, amount: :amount, narrative: { text: "transfer out" }, transfer: :transfer }
     end
 
     on "AccountDebited", transition: { "requested" => "awaiting_credit" } do
       dispatch "Banking::Transfer.Debited", with: { transfer: :transfer }
-      dispatch "Banking::Account.Credit", with: { id: :destination, amount: :amount, narrative: { text: "transfer in" }, transfer: :transfer }
+      dispatch "Banking::Account.Credit", with: { number: :destination, amount: :amount, narrative: { text: "transfer in" }, transfer: :transfer }
     end
 
     on "AccountCredited", transition: { "awaiting_credit" => "awaiting_credit" } do
@@ -886,7 +888,7 @@ Hecks.bluebook "Banking" do
     # left the debit standing, the settlement stuck in awaiting_credit, and the
     # amount nowhere. The reversal was written and never armed.
     on :refused, transition: { "awaiting_credit" => "reversed" } do
-      dispatch "Banking::Account.Credit", with: { id: :source, amount: :amount, narrative: { text: "transfer reversed" } }
+      dispatch "Banking::Account.Credit", with: { number: :source, amount: :amount, narrative: { text: "transfer reversed" } }
       dispatch "Banking::Transfer.Reverse", with: { transfer: :transfer }
     end
   end

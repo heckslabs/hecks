@@ -22,10 +22,10 @@ RSpec.describe "an entity" do
   def funded_account(runtime)
     runtime.dispatch("Banking::Customer.Register", reference: { value: "c" },
                      name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
-    runtime.dispatch("Banking::Account.Open", id: "a1", customer_id: { value: "c" }, number: { value: "ACC-1" },
+    runtime.dispatch("Banking::Account.Open", customer_id: { value: "c" }, number: { value: "a1" },
                                               kind: { name: "current" }, daily_limit: { cents: 50_000 })
-    runtime.dispatch("Banking::Account.Credit", id: "a1", amount: { cents: 10_000, currency: "USD" }, narrative: { text: "Opening" })
-    runtime.dispatch("Banking::Account.Debit",  id: "a1", amount: { cents: 2_500, currency: "USD" },  narrative: { text: "Groceries" })
+    runtime.dispatch("Banking::Account.Credit", number: { value: "a1" }, amount: { cents: 10_000, currency: "USD" }, narrative: { text: "Opening" })
+    runtime.dispatch("Banking::Account.Debit", number: { value: "a1" },  amount: { cents: 2_500, currency: "USD" },  narrative: { text: "Groceries" })
   end
 
   it "is born with its declared identity and its lifecycle's default" do
@@ -41,11 +41,11 @@ RSpec.describe "an entity" do
     runtime = boot_banking
     runtime.dispatch("Banking::Customer.Register", reference: { value: "c" },
                      name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
-    runtime.dispatch("Banking::Account.Open", id: "a1", customer_id: { value: "c" }, number: { value: "ACC-1" },
+    runtime.dispatch("Banking::Account.Open", customer_id: { value: "c" }, number: { value: "a1" },
                                               kind: { name: "current" }, daily_limit: { cents: 50_000 })
 
     expect do
-      runtime.dispatch("Banking::Account.Credit", id: "a1", amount: { cents: 100, currency: "USD" }, narrative: { text: "" })
+      runtime.dispatch("Banking::Account.Credit", number: { value: "a1" }, amount: { cents: 100, currency: "USD" }, narrative: { text: "" })
     end.to raise_error(Hecksagain::Runtime::InvariantViolation,
                        'Narrative invariant violated — a movement explains itself (given {"text":""})')
   end
@@ -54,7 +54,7 @@ RSpec.describe "an entity" do
     runtime = boot_banking
     funded_account(runtime)
     runtime.dispatch("Banking::Account.LedgerEntry.Reverse",
-                     id: "a1", sequence: { value: 2 }, narrative: { text: "Posted in error" })
+                     number: { value: "a1" }, sequence: { value: 2 }, narrative: { text: "Posted in error" })
 
     ledger = Banking::Account.find("a1").ledger
     expect(ledger[1][:state]).to     eq("reversed")
@@ -67,11 +67,11 @@ RSpec.describe "an entity" do
     runtime = boot_banking
     funded_account(runtime)
     runtime.dispatch("Banking::Account.LedgerEntry.Reverse",
-                     id: "a1", sequence: { value: 2 }, narrative: { text: "Once" })
+                     number: { value: "a1" }, sequence: { value: 2 }, narrative: { text: "Once" })
 
     expect do
       runtime.dispatch("Banking::Account.LedgerEntry.Reverse",
-                       id: "a1", sequence: { value: 2 }, narrative: { text: "Twice" })
+                       number: { value: "a1" }, sequence: { value: 2 }, narrative: { text: "Twice" })
     end.to raise_error(Hecksagain::Runtime::LifecycleRefused,
                        'Reverse refused — state is "reversed", and Reverse moves it only from "posted"')
   end
@@ -82,7 +82,7 @@ RSpec.describe "an entity" do
 
     expect do
       runtime.dispatch("Banking::Account.LedgerEntry.Reverse",
-                       id: "a1", sequence: { value: 99 }, narrative: { text: "Ghost" })
+                       number: { value: "a1" }, sequence: { value: 99 }, narrative: { text: "Ghost" })
     end.to raise_error(Hecksagain::Runtime::NotFound,
                        'no LedgerEntry with sequence {"value":99} on Account "a1"')
   end
@@ -91,7 +91,7 @@ RSpec.describe "an entity" do
     runtime = boot_banking
     funded_account(runtime)
     runtime.dispatch("Banking::Account.LedgerEntry.Reverse",
-                     id: "a1", sequence: { value: 2 }, narrative: { text: "Posted in error" })
+                     number: { value: "a1" }, sequence: { value: 2 }, narrative: { text: "Posted in error" })
 
     rows = runtime.query("Banking::Account.LedgerEntry.Reversed")
     materialized = rows.map { |row| row.transform_values { |value| Hecksagain::Runtime::Value.materialize(value) } }

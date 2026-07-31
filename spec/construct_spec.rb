@@ -123,7 +123,7 @@ RSpec.describe "a construct's identity" do
 
     it "still refuses a reference that points at nothing" do
       expect {
-        banking.dispatch("Banking::Account.Open", customer_id: "nobody-registered-this",
+        banking.dispatch("Banking::Account.Open", number: { value: "nobody-registered-this" }, customer_id: "nobody-registered-this",
                                                   number: { value: "ACC-1" },
                                                   kind: { name: "current" },
                                                   daily_limit: { cents: 100 })

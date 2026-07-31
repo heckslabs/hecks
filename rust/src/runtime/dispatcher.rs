@@ -987,9 +987,13 @@ impl Runtime {
             if key.is_empty() {
                 continue;
             }
+            // The HEAD names what a caller passes, so it is what a refusal names.
             let identity = target
                 .get("identified_by")
                 .and_then(Value::as_str)
+                .unwrap_or("id")
+                .split('.')
+                .next()
                 .unwrap_or("id")
                 .to_string();
             let found = self

@@ -25,7 +25,7 @@ RSpec.describe "one_of" do
     expect do
       runtime.dispatch("Banking::Customer.Register", reference: { value: "c" },
                        name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
-      runtime.dispatch("Banking::Account.Open", id: "a1", customer_id: { value: "c" }, number: { value: "ACC-1" },
+      runtime.dispatch("Banking::Account.Open", customer_id: { value: "c" }, number: { value: "a1" },
                                                 kind: { name: "savings" }, daily_limit: { cents: 10_000 })
     end.not_to raise_error
   end
@@ -36,7 +36,7 @@ RSpec.describe "one_of" do
     expect do
       runtime.dispatch("Banking::Customer.Register", reference: { value: "c" },
                        name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
-      runtime.dispatch("Banking::Account.Open", id: "a1", customer_id: { value: "c" }, number: { value: "ACC-1" },
+      runtime.dispatch("Banking::Account.Open", customer_id: { value: "c" }, number: { value: "a1" },
                                                 kind: { name: "gold" }, daily_limit: { cents: 10_000 })
     end.to raise_error(Hecksagain::Runtime::InvariantViolation,
                        'AccountKind admits "current", "savings", "reserve" — got "gold"')

@@ -119,9 +119,9 @@ RSpec.describe "Banking across persistence adapters" do
       runtime = boot(adapter)
       runtime.dispatch("Banking::Customer.Register", reference: { value: "c" }, name: { given: "Ada", family: "Lovelace" },
                                                    email: { address: "ada@example.com" })
-      runtime.dispatch("Banking::Account.Open", id: "a", customer_id: { value: "c" }, number: { value: "ACC" }, kind: { name: "current" }, daily_limit: { cents: 1_000 })
-      runtime.dispatch("Banking::Account.Credit", id: "a", amount: { cents: 500, currency: "USD" }, narrative: { text: "Opening" })
-      runtime.dispatch("Banking::Account.Debit", id: "a", amount: { cents: 125, currency: "USD" }, narrative: { text: "Lunch" })
+      runtime.dispatch("Banking::Account.Open", customer_id: { value: "c" }, number: { value: "a" }, kind: { name: "current" }, daily_limit: { cents: 1_000 })
+      runtime.dispatch("Banking::Account.Credit", number: { value: "a" }, amount: { cents: 500, currency: "USD" }, narrative: { text: "Opening" })
+      runtime.dispatch("Banking::Account.Debit", number: { value: "a" }, amount: { cents: 125, currency: "USD" }, narrative: { text: "Lunch" })
 
       account = runtime.registry.repository("Banking", runtime.registry.bluebook("Banking").aggregate("Account")).find("a")
       expect(account[:balance].to_h).to eq(cents: 375, currency: "USD")
@@ -132,7 +132,7 @@ RSpec.describe "Banking across persistence adapters" do
   it "reads the projection after catch-up and keeps all three stores in parity" do
     runtime = boot("Heki", projected: true)
     runtime.dispatch("Banking::Customer.Register", reference: { value: "c" }, name: { given: "Ada", family: "Lovelace" }, email: { address: "ada@example.com" })
-    runtime.dispatch("Banking::Account.Open", id: "a", customer_id: { value: "c" }, number: { value: "ACC" }, kind: { name: "current" }, daily_limit: { cents: 1_000 })
+    runtime.dispatch("Banking::Account.Open", customer_id: { value: "c" }, number: { value: "a" }, kind: { name: "current" }, daily_limit: { cents: 1_000 })
 
     before = runtime.query("Banking.customer_portfolio", customer: { value: "c" })
     workers = runtime.registry.bluebooks.fetch("Banking").aggregates.filter_map do |aggregate|

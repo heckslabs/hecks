@@ -21,7 +21,7 @@ RSpec.describe "Banking's generated account machine" do
       runtime = boot_banking
       runtime.dispatch("Banking::Customer.Register", reference: { value: "c" },
                        name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
-      runtime.dispatch("Banking::Account.Open", id: "a#{seed}", customer_id: { value: "c" }, number: { value: "ACC-#{seed}" },
+      runtime.dispatch("Banking::Account.Open", customer_id: { value: "c" }, number: { value: "a#{seed}" },
                                                 kind: { name: "current" }, daily_limit: { cents: 1_000 })
       model = 0
       random = Random.new(seed)
@@ -32,7 +32,7 @@ RSpec.describe "Banking's generated account machine" do
         before = model
 
         begin
-          runtime.dispatch("Banking::Account.#{verb}", id: "a#{seed}", amount: { cents: amount, currency: "USD" },
+          runtime.dispatch("Banking::Account.#{verb}", number: { value: "a#{seed}" }, amount: { cents: amount, currency: "USD" },
                                                         narrative: { text: "generated #{seed}" })
           model += verb == "Credit" ? amount : -amount
         rescue Hecksagain::Runtime::GivenNotMet, Hecksagain::Runtime::InvariantViolation

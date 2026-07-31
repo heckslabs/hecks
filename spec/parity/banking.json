@@ -103,9 +103,8 @@
     {
       "verb": "Banking::Account.Open",
       "args": {
-        "id": "acct-1",
         "number": {
-          "value": "ACC-1"
+          "value": "acct-1"
         },
         "kind": {
           "name": "current"
@@ -121,9 +120,8 @@
     {
       "verb": "Banking::Account.Open",
       "args": {
-        "id": "acct-negative-limit",
         "number": {
-          "value": "ACC-NEG"
+          "value": "acct-negative-limit"
         },
         "kind": {
           "name": "current"
@@ -139,9 +137,8 @@
     {
       "verb": "Banking::Account.Open",
       "args": {
-        "id": "acct-2",
         "number": {
-          "value": "ACC-2"
+          "value": "acct-2"
         },
         "kind": {
           "name": "savings"
@@ -157,9 +154,8 @@
     {
       "verb": "Banking::Account.Open",
       "args": {
-        "id": "acct-9",
         "number": {
-          "value": "ACC-9"
+          "value": "acct-9"
         },
         "kind": {
           "name": "gold"
@@ -190,9 +186,8 @@
     {
       "verb": "Banking::Account.Open",
       "args": {
-        "id": "acct-noname",
         "number": {
-          "value": ""
+          "value": "acct-noname"
         },
         "kind": {
           "name": "savings"
@@ -208,127 +203,147 @@
     {
       "verb": "Banking::Account.Credit",
       "args": {
-        "id": "acct-1",
         "amount": {
           "cents": 10000,
           "currency": "USD"
         },
         "narrative": {
           "text": "Opening deposit"
+        },
+        "number": {
+          "value": "acct-1"
         }
       }
     },
     {
       "verb": "Banking::Account.Credit",
       "args": {
-        "id": "acct-1",
         "amount": {
           "cents": 0,
           "currency": "USD"
         },
         "narrative": {
           "text": "Nothing at all"
+        },
+        "number": {
+          "value": "acct-1"
         }
       }
     },
     {
       "verb": "Banking::Account.Debit",
       "args": {
-        "id": "acct-1",
         "amount": {
           "cents": 2500,
           "currency": "USD"
         },
         "narrative": {
           "text": "Groceries"
+        },
+        "number": {
+          "value": "acct-1"
         }
       }
     },
     {
       "verb": "Banking::Account.Debit",
       "args": {
-        "id": "acct-1",
         "amount": {
           "cents": 999999,
           "currency": "USD"
         },
         "narrative": {
           "text": "More than is there"
+        },
+        "number": {
+          "value": "acct-1"
         }
       }
     },
     {
       "verb": "Banking::Account.Debit",
       "args": {
-        "id": "acct-1",
         "amount": {
           "cents": 0,
           "currency": "USD"
         },
         "narrative": {
           "text": "Nothing at all"
+        },
+        "number": {
+          "value": "acct-1"
         }
       }
     },
     {
       "verb": "Banking::Account.Credit",
       "args": {
-        "id": "acct-1",
         "amount": {
           "cents": 55000,
           "currency": "USD"
         },
         "narrative": {
           "text": "Salary"
+        },
+        "number": {
+          "value": "acct-1"
         }
       }
     },
     {
       "verb": "Banking::Account.Debit",
       "args": {
-        "id": "acct-1",
         "amount": {
           "cents": 52000,
           "currency": "USD"
         },
         "narrative": {
           "text": "Covered, but over the daily limit"
+        },
+        "number": {
+          "value": "acct-1"
         }
       }
     },
     {
       "verb": "Banking::Account.LedgerEntry.Reverse",
       "args": {
-        "id": "acct-1",
         "sequence": {
           "value": 2
         },
         "narrative": {
           "text": "Posted in error — reversed"
+        },
+        "number": {
+          "value": "acct-1"
         }
       }
     },
     {
       "verb": "Banking::Account.LedgerEntry.Reverse",
       "args": {
-        "id": "acct-1",
         "sequence": {
           "value": 2
         },
         "narrative": {
           "text": "Twice over"
+        },
+        "number": {
+          "value": "acct-1"
         }
       }
     },
     {
       "verb": "Banking::Account.LedgerEntry.Reverse",
       "args": {
-        "id": "acct-1",
         "sequence": {
           "value": 99
         },
         "narrative": {
           "text": "No such movement"
+        },
+        "number": {
+          "value": "acct-1"
         }
       }
     },
@@ -389,7 +404,9 @@
     {
       "verb": "Banking::Account.Freeze",
       "args": {
-        "id": "acct-2"
+        "number": {
+          "value": "acct-2"
+        }
       }
     },
     {
@@ -423,38 +440,48 @@
     {
       "verb": "Banking::Account.Unfreeze",
       "args": {
-        "id": "acct-2"
+        "number": {
+          "value": "acct-2"
+        }
       }
     },
     {
       "verb": "Banking::Account.Freeze",
       "args": {
-        "id": "acct-1"
+        "number": {
+          "value": "acct-1"
+        }
       }
     },
     {
       "verb": "Banking::Account.Freeze",
       "args": {
-        "id": "acct-1"
+        "number": {
+          "value": "acct-1"
+        }
       }
     },
     {
       "verb": "Banking::Account.Debit",
       "args": {
-        "id": "acct-1",
         "amount": {
           "cents": 100,
           "currency": "USD"
         },
         "narrative": {
           "text": "From a frozen account"
+        },
+        "number": {
+          "value": "acct-1"
         }
       }
     },
     {
       "verb": "Banking::Account.Unfreeze",
       "args": {
-        "id": "acct-1"
+        "number": {
+          "value": "acct-1"
+        }
       }
     },
     {
@@ -502,38 +529,46 @@
     {
       "verb": "Banking::Account.CloseAccount",
       "args": {
-        "id": "acct-1"
+        "number": {
+          "value": "acct-1"
+        }
       }
     },
     {
       "verb": "Banking::Account.Debit",
       "args": {
-        "id": "acct-2",
         "amount": {
           "cents": 2500,
           "currency": "USD"
         },
         "narrative": {
           "text": "Emptying before close"
+        },
+        "number": {
+          "value": "acct-2"
         }
       }
     },
     {
       "verb": "Banking::Account.CloseAccount",
       "args": {
-        "id": "acct-2"
+        "number": {
+          "value": "acct-2"
+        }
       }
     },
     {
       "verb": "Banking::Account.Credit",
       "args": {
-        "id": "acct-2",
         "amount": {
           "cents": 100,
           "currency": "USD"
         },
         "narrative": {
           "text": "Into a closed account"
+        },
+        "number": {
+          "value": "acct-2"
         }
       }
     },
@@ -564,26 +599,30 @@
     {
       "verb": "Banking::Account.Debit",
       "args": {
-        "id": "acct-ghost",
         "amount": {
           "cents": 100,
           "currency": "USD"
         },
         "narrative": {
           "text": "No such account"
+        },
+        "number": {
+          "value": "acct-ghost"
         }
       }
     },
     {
       "verb": "Banking::Account.Debit",
       "args": {
-        "id": "acct-1",
         "amount": {
           "cents": "lots",
           "currency": "USD"
         },
         "narrative": {
           "text": "Not a number"
+        },
+        "number": {
+          "value": "acct-1"
         }
       }
     },
@@ -602,7 +641,6 @@
     {
       "verb": "Banking::Account.LedgerEntry.Amend",
       "args": {
-        "id": "acct-1",
         "sequence": {
           "value": 1
         },
@@ -612,13 +650,15 @@
         },
         "narrative": {
           "text": "Corrected — posted for the wrong amount"
+        },
+        "number": {
+          "value": "acct-1"
         }
       }
     },
     {
       "verb": "Banking::Account.LedgerEntry.Amend",
       "args": {
-        "id": "acct-1",
         "sequence": {
           "value": 1
         },
@@ -628,13 +668,15 @@
         },
         "narrative": {
           "text": "Corrected — posted for the wrong amount"
+        },
+        "number": {
+          "value": "acct-1"
         }
       }
     },
     {
       "verb": "Banking::Account.LedgerEntry.Amend",
       "args": {
-        "id": "acct-1",
         "sequence": {
           "value": 2
         },
@@ -644,6 +686,9 @@
         },
         "narrative": {
           "text": "Corrected — posted for the wrong amount"
+        },
+        "number": {
+          "value": "acct-1"
         }
       }
     },
@@ -1056,9 +1101,8 @@
     {
       "verb": "Banking::Account.Open",
       "args": {
-        "id": "acct-3",
         "number": {
-          "value": "ACC-3"
+          "value": "acct-3"
         },
         "kind": {
           "name": "current"
@@ -1074,138 +1118,159 @@
     {
       "verb": "Banking::Account.Credit",
       "args": {
-        "id": "acct-3",
         "amount": {
           "cents": 1000,
           "currency": "USD"
         },
         "narrative": {
           "text": "Opening deposit"
+        },
+        "number": {
+          "value": "acct-3"
         }
       }
     },
     {
       "verb": "Banking::Account.Debit",
       "args": {
-        "id": "acct-3",
         "amount": {
           "cents": 1000,
           "currency": "USD"
         },
         "narrative": {
           "text": "Exactly the balance and exactly the limit"
+        },
+        "number": {
+          "value": "acct-3"
         }
       }
     },
     {
       "verb": "Banking::Account.Debit",
       "args": {
-        "id": "acct-3",
         "amount": {
           "cents": 1,
           "currency": "USD"
         },
         "narrative": {
           "text": "One past empty"
+        },
+        "number": {
+          "value": "acct-3"
         }
       }
     },
     {
       "verb": "Banking::Account.Credit",
       "args": {
-        "id": "acct-3",
         "amount": {
           "cents": -5000,
           "currency": "USD"
         },
         "narrative": {
           "text": "A credit that takes money away"
+        },
+        "number": {
+          "value": "acct-3"
         }
       }
     },
     {
       "verb": "Banking::Account.Debit",
       "args": {
-        "id": "acct-3",
         "amount": {
           "cents": -5000,
           "currency": "USD"
         },
         "narrative": {
           "text": "A debit that puts money in"
+        },
+        "number": {
+          "value": "acct-3"
         }
       }
     },
     {
       "verb": "Banking::Account.Credit",
       "args": {
-        "id": "acct-3",
         "amount": {
           "cents": 100,
           "currency": "USD"
         },
         "narrative": {
           "text": ""
+        },
+        "number": {
+          "value": "acct-3"
         }
       }
     },
     {
       "verb": "Banking::Account.Unfreeze",
       "args": {
-        "id": "acct-3"
+        "number": {
+          "value": "acct-3"
+        }
       }
     },
     {
       "verb": "Banking::Account.Credit",
       "args": {
-        "id": "acct-3",
         "amount": {
           "cents": 25.5,
           "currency": "USD"
         },
         "narrative": {
           "text": "Half of one"
+        },
+        "number": {
+          "value": "acct-3"
         }
       }
     },
     {
       "verb": "Banking::Account.Credit",
       "args": {
-        "id": "acct-3",
         "amount": {
           "cents": "100",
           "currency": "USD"
         },
         "narrative": {
           "text": "A numeral wearing quotes"
+        },
+        "number": {
+          "value": "acct-3"
         }
       }
     },
     {
       "verb": "Banking::Account.Credit",
       "args": {
-        "id": "acct-3",
         "amount": {
           "cents": 100
         },
         "narrative": {
           "text": "A value object where an Integer is declared"
+        },
+        "number": {
+          "value": "acct-3"
         }
       }
     },
     {
       "verb": "Banking::Account.Credit",
       "args": {
-        "id": "acct-3",
         "narrative": {
           "text": "No amount at all"
+        },
+        "number": {
+          "value": "acct-3"
         }
       }
     },
     {
       "verb": "Banking::Account.Credit",
       "args": {
-        "id": "acct-3",
         "amount": {
           "cents": 100,
           "currency": "USD"
@@ -1213,7 +1278,10 @@
         "narrative": {
           "text": "Refused — colour is not an argument Credit declares"
         },
-        "colour": "red"
+        "colour": "red",
+        "number": {
+          "value": "acct-3"
+        }
       }
     },
     {
@@ -1231,9 +1299,8 @@
     {
       "verb": "Banking::Account.Open",
       "args": {
-        "id": "acct-3",
         "number": {
-          "value": "ACC-3-AGAIN"
+          "value": "acct-3"
         },
         "kind": {
           "name": "savings"
@@ -1249,9 +1316,8 @@
     {
       "verb": "Banking::Account.Open",
       "args": {
-        "id": "acct-4",
         "number": {
-          "value": "ACC-4"
+          "value": "acct-4"
         },
         "kind": {
           "name": "current"
@@ -1267,27 +1333,32 @@
     {
       "verb": "Banking::Account.Freeze",
       "args": {
-        "id": "acct-4"
+        "number": {
+          "value": "acct-4"
+        }
       }
     },
     {
       "verb": "Banking::Account.CloseAccount",
       "args": {
-        "id": "acct-4"
+        "number": {
+          "value": "acct-4"
+        }
       }
     },
     {
       "verb": "Banking::Account.Freeze",
       "args": {
-        "id": "acct-4"
+        "number": {
+          "value": "acct-4"
+        }
       }
     },
     {
       "verb": "Banking::Account.Open",
       "args": {
-        "id": "acct-5",
         "number": {
-          "value": "ACC-5"
+          "value": "acct-5"
         },
         "kind": {
           "name": "savings"
@@ -1303,35 +1374,38 @@
     {
       "verb": "Banking::Account.Credit",
       "args": {
-        "id": "acct-5",
         "amount": {
           "cents": 500,
           "currency": "USD"
         },
         "narrative": {
           "text": "Funded, and unspendable"
+        },
+        "number": {
+          "value": "acct-5"
         }
       }
     },
     {
       "verb": "Banking::Account.Debit",
       "args": {
-        "id": "acct-5",
         "amount": {
           "cents": 1,
           "currency": "USD"
         },
         "narrative": {
           "text": "A limit below every amount there is"
+        },
+        "number": {
+          "value": "acct-5"
         }
       }
     },
     {
       "verb": "Banking::Account.Open",
       "args": {
-        "id": "acct-6",
         "number": {
-          "value": "ACC-6"
+          "value": "acct-6"
         },
         "kind": {
           "name": "current"
@@ -1347,9 +1421,8 @@
     {
       "verb": "Banking::Account.Open",
       "args": {
-        "id": "acct-7",
         "number": {
-          "value": "ACC-7"
+          "value": "acct-7"
         },
         "kind": {
           "name": "current"
@@ -1365,9 +1438,8 @@
     {
       "verb": "Banking::Account.Open",
       "args": {
-        "id": "acct-8",
         "number": {
-          "value": "ACC-8"
+          "value": "acct-8"
         },
         "kind": {
           "name": "current"
@@ -1383,13 +1455,15 @@
     {
       "verb": "Banking::Account.Credit",
       "args": {
-        "id": "acct-8",
         "amount": {
           "cents": 5000,
           "currency": "USD"
         },
         "narrative": {
           "text": "Funding the source"
+        },
+        "number": {
+          "value": "acct-8"
         }
       }
     },
@@ -1468,7 +1542,9 @@
     {
       "verb": "Banking::Account.Freeze",
       "args": {
-        "id": "acct-7"
+        "number": {
+          "value": "acct-7"
+        }
       }
     },
     {
@@ -1677,19 +1753,20 @@
     {
       "verb": "Banking::Account.LedgerEntry.Reverse",
       "args": {
-        "id": "acct-ghost",
         "sequence": {
           "value": 1
         },
         "narrative": {
           "text": "No such account to reverse on"
+        },
+        "number": {
+          "value": "acct-ghost"
         }
       }
     },
     {
       "verb": "Banking::Account.LedgerEntry.Amend",
       "args": {
-        "id": "acct-8",
         "sequence": {
           "value": 1
         },
@@ -1699,6 +1776,9 @@
         },
         "narrative": {
           "text": "Amended to below nothing"
+        },
+        "number": {
+          "value": "acct-8"
         }
       }
     },
@@ -1747,76 +1827,90 @@
     {
       "verb": "Banking::Account.ApplyFee",
       "args": {
-        "id": "acct-8",
         "amount": {
           "cents": 100,
           "currency": "USD"
         },
         "narrative": {
           "text": "Monthly maintenance"
+        },
+        "number": {
+          "value": "acct-8"
         }
       }
     },
     {
       "verb": "Banking::Account.CorrectFee",
       "args": {
-        "id": "acct-8",
         "amount": {
           "cents": 50,
           "currency": "USD"
+        },
+        "number": {
+          "value": "acct-8"
         }
       }
     },
     {
       "verb": "Banking::Account.CorrectFee",
       "args": {
-        "id": "acct-8",
         "amount": {
           "cents": 100,
           "currency": "USD"
+        },
+        "number": {
+          "value": "acct-8"
         }
       }
     },
     {
       "verb": "Banking::Account.ApplyFee",
       "args": {
-        "id": "acct-8",
         "amount": {
           "cents": -1,
           "currency": "USD"
         },
         "narrative": {
           "text": "A fee that pays the customer"
+        },
+        "number": {
+          "value": "acct-8"
         }
       }
     },
     {
       "verb": "Banking::Account.AccrueInterest",
       "args": {
-        "id": "acct-8",
         "amount": {
           "cents": 30,
           "currency": "USD"
+        },
+        "number": {
+          "value": "acct-8"
         }
       }
     },
     {
       "verb": "Banking::Account.CorrectInterest",
       "args": {
-        "id": "acct-8",
         "amount": {
           "cents": 10,
           "currency": "USD"
+        },
+        "number": {
+          "value": "acct-8"
         }
       }
     },
     {
       "verb": "Banking::Account.CorrectInterest",
       "args": {
-        "id": "acct-8",
         "amount": {
           "cents": 30,
           "currency": "USD"
+        },
+        "number": {
+          "value": "acct-8"
         }
       }
     },

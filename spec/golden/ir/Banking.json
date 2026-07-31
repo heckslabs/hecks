@@ -934,7 +934,7 @@
           ]
         }
       ],
-      "identified_by": "id",
+      "identified_by": "number.value",
       "lifecycle": {
         "default": "open",
         "field": "status",
@@ -2935,7 +2935,7 @@
               "command_name": "Banking::Account.Debit",
               "with": [
                 [
-                  "id",
+                  "number",
                   ":source"
                 ],
                 [
@@ -2972,7 +2972,7 @@
               "command_name": "Banking::Account.Credit",
               "with": [
                 [
-                  "id",
+                  "number",
                   ":destination"
                 ],
                 [
@@ -3032,7 +3032,7 @@
               "command_name": "Banking::Account.Credit",
               "with": [
                 [
-                  "id",
+                  "number",
                   ":source"
                 ],
                 [

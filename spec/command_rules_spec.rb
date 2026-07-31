@@ -26,9 +26,9 @@ RSpec.describe "the rules a command obeys" do
   def funded_account(runtime)
     runtime.dispatch("Banking::Customer.Register", reference: { value: "c" },
                      name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
-    runtime.dispatch("Banking::Account.Open", id: "a1", customer_id: { value: "c" }, number: { value: "ACC-1" },
+    runtime.dispatch("Banking::Account.Open", customer_id: { value: "c" }, number: { value: "a1" },
                                               kind: { name: "current" }, daily_limit: { cents: 50_000 })
-    runtime.dispatch("Banking::Account.Credit", id: "a1", amount: { cents: 10_000, currency: "USD" }, narrative: { text: "Opening" })
+    runtime.dispatch("Banking::Account.Credit", number: { value: "a1" }, amount: { cents: 10_000, currency: "USD" }, narrative: { text: "Opening" })
     runtime
   end
 
@@ -49,7 +49,7 @@ RSpec.describe "the rules a command obeys" do
 
       expect do
         runtime.dispatch("Banking::Account.LedgerEntry.Amend",
-                         id: "a1", sequence: { value: 1 }, adjustment: { cents: "a lot", currency: "USD" }, narrative: narrative)
+                         number: { value: "a1" }, sequence: { value: 1 }, adjustment: { cents: "a lot", currency: "USD" }, narrative: narrative)
       end.to raise_error(Hecksagain::Runtime::TypeMismatch,
                          'Money.cents expects Integer, got "a lot"')
     end
@@ -57,13 +57,13 @@ RSpec.describe "the rules a command obeys" do
     it "moves an element by exactly what it was told" do
       runtime = funded_account(boot_banking)
       runtime.dispatch("Banking::Account.LedgerEntry.Amend",
-                       id: "a1", sequence: { value: 1 }, adjustment: { cents: 500, currency: "USD" }, narrative: narrative)
+                       number: { value: "a1" }, sequence: { value: 1 }, adjustment: { cents: 500, currency: "USD" }, narrative: narrative)
 
       entry = runtime.query("Banking::Account.LedgerEntry.Reversed")
       expect(entry).to be_empty 
 
       state = runtime.dispatch("Banking::Account.LedgerEntry.Amend",
-                               id: "a1", sequence: { value: 1 }, adjustment: { cents: -200, currency: "USD" }, narrative: narrative)
+                               number: { value: "a1" }, sequence: { value: 1 }, adjustment: { cents: -200, currency: "USD" }, narrative: narrative)
                      .state
       expect(state[:ledger].first[:amount].to_h).to eq(cents: 10_300, currency: "USD")
     end
@@ -71,7 +71,7 @@ RSpec.describe "the rules a command obeys" do
     it "decrements an element by the same rule, not a sign it invented" do
       runtime = funded_account(boot_banking)
       state   = runtime.dispatch("Banking::Account.LedgerEntry.Amend",
-                                 id: "a1", sequence: { value: 1 }, adjustment: { cents: -1_000, currency: "USD" }, narrative: narrative)
+                                 number: { value: "a1" }, sequence: { value: 1 }, adjustment: { cents: -1_000, currency: "USD" }, narrative: narrative)
                        .state
 
       expect(state[:ledger].first[:amount].to_h).to eq(cents: 9_000, currency: "USD")
@@ -82,7 +82,7 @@ RSpec.describe "the rules a command obeys" do
 
       expect do
         runtime.dispatch("Banking::Account.LedgerEntry.Amend",
-                         id: "a1", sequence: { value: 1 }, adjustment: { cents: -10_001, currency: "USD" }, narrative: narrative)
+                         number: { value: "a1" }, sequence: { value: 1 }, adjustment: { cents: -10_001, currency: "USD" }, narrative: narrative)
       end.to raise_error(Hecksagain::Runtime::GivenNotMet,
                          "Amend refused — an amendment leaves a non-negative amount")
     end
@@ -91,10 +91,10 @@ RSpec.describe "the rules a command obeys" do
   describe "the state machine" do
     it "refuses a move an AGGREGATE's machine does not admit" do
       runtime = funded_account(boot_banking)
-      runtime.dispatch("Banking::Account.Freeze", id: "a1")
+      runtime.dispatch("Banking::Account.Freeze", number: { value: "a1" }, id: "a1")
 
       expect do
-        runtime.dispatch("Banking::Account.Freeze", id: "a1")
+        runtime.dispatch("Banking::Account.Freeze", number: { value: "a1" }, id: "a1")
       end.to raise_error(Hecksagain::Runtime::LifecycleRefused,
                          'Freeze refused — status is "frozen", and Freeze moves it only from "open"')
     end
@@ -102,11 +102,11 @@ RSpec.describe "the rules a command obeys" do
     it "refuses a move an ENTITY's own machine does not admit, in the same shape" do
       runtime = funded_account(boot_banking)
       runtime.dispatch("Banking::Account.LedgerEntry.Reverse",
-                       id: "a1", sequence: { value: 1 }, narrative: narrative)
+                       number: { value: "a1" }, sequence: { value: 1 }, narrative: narrative)
 
       expect do
         runtime.dispatch("Banking::Account.LedgerEntry.Amend",
-                         id: "a1", sequence: { value: 1 }, adjustment: { cents: 100, currency: "USD" }, narrative: narrative)
+                         number: { value: "a1" }, sequence: { value: 1 }, adjustment: { cents: 100, currency: "USD" }, narrative: narrative)
       end.to raise_error(Hecksagain::Runtime::LifecycleRefused,
                          'Amend refused — state is "reversed", and Amend moves it only from "posted"')
     end
@@ -115,12 +115,12 @@ RSpec.describe "the rules a command obeys" do
       runtime = boot_banking
       runtime.dispatch("Banking::Customer.Register", reference: { value: "c-src" },
                        name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
-      runtime.dispatch("Banking::Account.Open", id: "src", customer_id: { value: "c-src" },
-                       number: { value: "ACC-src" }, kind: { name: "current" }, daily_limit: { cents: 50_000 })
+      runtime.dispatch("Banking::Account.Open", number: { value: "src" }, customer_id: { value: "c-src" },
+                       kind: { name: "current" }, daily_limit: { cents: 50_000 })
       runtime.dispatch("Banking::Customer.Register", reference: { value: "c-dst" },
                        name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
-      runtime.dispatch("Banking::Account.Open", id: "dst", customer_id: { value: "c-dst" },
-                       number: { value: "ACC-dst" }, kind: { name: "current" }, daily_limit: { cents: 50_000 })
+      runtime.dispatch("Banking::Account.Open", number: { value: "dst" }, customer_id: { value: "c-dst" },
+                       kind: { name: "current" }, daily_limit: { cents: 50_000 })
       runtime.dispatch("Banking::Transfer.Request",
                        id: "x1", source: { value: "src" }, destination: { value: "dst" },
                        amount: { cents: 100 }, narrative: { text: "A transfer waiting for credit" })
@@ -136,12 +136,12 @@ RSpec.describe "the rules a command obeys" do
       runtime = boot_banking
       runtime.dispatch("Banking::Customer.Register", reference: { value: "c-src" },
                        name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
-      runtime.dispatch("Banking::Account.Open", id: "src", customer_id: { value: "c-src" },
-                       number: { value: "ACC-src" }, kind: { name: "current" }, daily_limit: { cents: 50_000 })
+      runtime.dispatch("Banking::Account.Open", number: { value: "src" }, customer_id: { value: "c-src" },
+                       kind: { name: "current" }, daily_limit: { cents: 50_000 })
       runtime.dispatch("Banking::Customer.Register", reference: { value: "c-dst" },
                        name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
-      runtime.dispatch("Banking::Account.Open", id: "dst", customer_id: { value: "c-dst" },
-                       number: { value: "ACC-dst" }, kind: { name: "current" }, daily_limit: { cents: 50_000 })
+      runtime.dispatch("Banking::Account.Open", number: { value: "dst" }, customer_id: { value: "c-dst" },
+                       kind: { name: "current" }, daily_limit: { cents: 50_000 })
       runtime.dispatch("Banking::Transfer.Request",
                        id: "x1", source: { value: "src" }, destination: { value: "dst" },
                        amount: { cents: 100 }, narrative: { text: "An ordered transfer" })
