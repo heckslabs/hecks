@@ -25,10 +25,20 @@ module Hecksagain
           }
         end
 
+        # An argument, a parameter, a piece's attribute — the three places an
+        # attribute is written that carry no owner id to strip.
+        #
+        # A REFERENCE among them came in as the head's ID, because that is what
+        # Command/Entity/Query.Reference offer, so it goes back out as the
+        # encoding the IR spells. A qualified name is the tell : an ordinary
+        # type names something declared beside it (`Money`, `AccountNumber`) and
+        # never carries a chapter, while a head's id always does.
         def shape_field(field)
+          type = text(field[:type]).to_s
+
           {
             name:    text(field[:name])&.to_sym,
-            type:    text(field[:type]),
+            type:    type.include?("::") ? reference_type(type) : text(field[:type]),
             list:    text(field[:list]).to_s == "true",
             default: decode_literal(text(field[:default]))
           }

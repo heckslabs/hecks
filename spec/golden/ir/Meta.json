@@ -452,10 +452,7 @@
             "AttributeAttached"
           ],
           "givens": [
-            {
-              "canonical": "!name.value.to_s.empty?",
-              "description": "an attribute is named"
-            }
+
           ],
           "goal": "Attach one attribute to the aggregate",
           "mutations": [
@@ -505,10 +502,7 @@
             "ReferenceAttached"
           ],
           "givens": [
-            {
-              "canonical": "!name.value.to_s.empty?",
-              "description": "a reference is named"
-            }
+
           ],
           "goal": "Attach an attribute that points at another aggregate's head",
           "mutations": [
@@ -558,10 +552,7 @@
             "PieceHeld"
           ],
           "givens": [
-            {
-              "canonical": "!name.value.to_s.empty?",
-              "description": "a held attribute is named"
-            }
+
           ],
           "goal": "Attach an attribute whose type is a piece of this aggregate",
           "mutations": [
@@ -1167,6 +1158,56 @@
             }
           ],
           "name": "Argument",
+          "references": "Command",
+          "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "points_at",
+              "type": "Reference<Aggregate>"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "name",
+              "type": "ArgName"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "list",
+              "type": "ArgType"
+            },
+            {
+              "default": null,
+              "list": false,
+              "name": "default",
+              "type": "ArgType"
+            }
+          ],
+          "emits": [
+            "ArgumentReferenceAttached"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Attach an argument that points at another aggregate's head",
+          "mutations": [
+            {
+              "fields": {
+                "default": "default",
+                "list": "list",
+                "name": "name",
+                "type": "points_at"
+              },
+              "op": "append",
+              "target": "attributes"
+            }
+          ],
+          "name": "Reference",
           "references": "Command",
           "role": "Language"
         },

@@ -174,6 +174,23 @@ RSpec.describe "the language's own rules" do
     end.not_to raise_error
   end
 
+  # `reference_to` written on a COMMAND, which the language records the same way
+  # it records one written on a head: the argument's type is offered as the head's
+  # own id, so "points at a declared head" costs no predicate. Before this the
+  # judge held a command's reference as the STRING "Reference<Customer>" and a
+  # `raise Malformed` beside the builder was the only thing checking it.
+  it "refuses an argument that references a head nobody declared" do
+    @runtime.dispatch("Meta::Command.Declare", id: "D::A.C", aggregate_id: v("D::A"), entity_id: v(""),
+                      name: v("C"), role: v("Clerk"), goal: v("do a thing"), position: { value: 0 })
+
+    expect do
+      @runtime.dispatch("Meta::Command.Reference", id: "D::A.C", points_at: v("D::Nonexistent"),
+                        name: v("customer_id"), list: v("false"), default: v(""))
+    end.to raise_error(Hecksagain::Runtime::NotFound, /no Aggregate with/)
+  end
+
+
+
   it "refuses an admitted row that binds no named field" do
     @runtime.dispatch("Meta::ValueObject.Declare", id: "D::A.X", aggregate_id: v("D::A"), name: v("X"))
     @runtime.dispatch("Meta::Member.Declare", id: "D::A.X#0", value_object_id: v("D::A.X"), shape: v("D::A.X"))

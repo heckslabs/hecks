@@ -137,6 +137,11 @@ RSpec.describe "the DSL surface" do
       end.to raise_error(Malformed, /Root\.Child\.Change references Child; references may only target aggregate heads/)
     end
 
+    # REFUSED BY THE LANGUAGE NOW, not by a raise beside the builder. A
+    # command's reference argument is offered to the meta-domain as the head's
+    # own id, so "points at a declared head" is what reference resolution
+    # already means — no predicate, and a message that says which id it looked
+    # for and failed to find.
     it "refuses a reference to a value object rather than an aggregate head" do
       expect do
         build_bluebook("HeadOnly") do
@@ -146,7 +151,7 @@ RSpec.describe "the DSL surface" do
             command("UseCode") { reference_to Code }
           end
         end
-      end.to raise_error(Malformed, /Root\.UseCode references Code; references may only target aggregate heads/)
+      end.to raise_error(Malformed, /Root\.UseCode#attributes\[0\]: no Aggregate with id "HeadOnly::Code"/)
     end
 
     it "refuses an unnamed event" do

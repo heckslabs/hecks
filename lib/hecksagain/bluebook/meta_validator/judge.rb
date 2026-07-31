@@ -223,8 +223,14 @@ module Hecksagain
           # A default keeps its TYPE by being written as a literal — 0.0 rather than
           # "0.0" — because the language holds it as text and text alone forgets.
           return encode_literal(value) if field == :default
-          return value unless field == :type && "#{category}.#{list_name}" == "Aggregate.attributes"
+          return value unless field == :type
+          # A REFERENCE names another head WHEREVER it is written — on a head, on
+          # a command, on a piece, on an ask — so it is offered as that head's
+          # id in all four. Only the head's own attributes additionally qualify
+          # an ordinary type into a value object's id ; a command argument's
+          # type is text and stays text.
           return points_at(row, id) if append.verb == "Reference"
+          return value unless "#{category}.#{list_name}" == "Aggregate.attributes"
 
           "#{id}.#{value}"
         end
@@ -242,8 +248,12 @@ module Hecksagain
         # Each alternate carries its OWN map, read from the language. Borrowing the
         # primary's map dispatched `type:` where Reference declares `points_at:`,
         # and the payload gate caught it — which is the gate paying for itself.
+        # `reference_to` can be written in FOUR places — on a head, a command, a
+        # piece, an ask — and each keeps its own list of attributes, so each
+        # needs the Reference alternate. Only a head can hold a piece, so Holds
+        # stays where it was.
         def append_for(category, list_name, append, row, node)
-          return append unless "#{category}.#{list_name}" == "Aggregate.attributes"
+          return append unless list_name.to_s == "attributes"
           return alternate(category, "Reference") || append if reference_row?(row)
           return alternate(category, "Holds") || append if entity_row?(row, node)
 
@@ -256,7 +266,12 @@ module Hecksagain
 
         def reference_row?(row) = row.respond_to?(:reference?) && row.reference?
 
+        # Only a HEAD declares pieces, and now that every attribute list reaches
+        # this, the node may be a command, a piece or an ask — none of which
+        # answer `entities` at all.
         def entity_row?(row, node)
+          return false unless node.respond_to?(:entities)
+
           Array(node.entities).any? { |entity| entity.hecks_name == row.type.to_s }
         end
 

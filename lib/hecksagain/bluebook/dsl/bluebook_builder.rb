@@ -96,18 +96,33 @@ module Hecksagain
           end
           violations = []
 
+          # WHAT IS LEFT HERE IS THE ACTS-ON TARGET, and only that.
+          #
+          # A reference ATTRIBUTE is now the language's business: it is offered
+          # as the head's own id and resolved as a reference, so
+          # `Aggregate.Reference` and `Command.Reference` refuse an undeclared
+          # head without a predicate. The clauses that checked those are gone.
+          #
+          # What no verb models yet is `command.references` — the root a command
+          # reaches through — which the language holds as `Command.ActsOn(root)`,
+          # a plain string. Until that becomes a reference, this is the only
+          # thing standing between a command and a root nobody declared.
+          #
+          # The entity and query clauses that used to live here were never
+          # reachable: neither EntityBuilder nor QueryBuilder offers
+          # `reference_to`, so an attribute in those places cannot be
+          # reference-typed at all. Defensive code for a sentence the language
+          # cannot say.
           @aggregates.each do |aggregate|
-            aggregate.reference_targets.each { |target| validate_reference(aggregate.hecks_name, target, targets, violations) }
-            validate_attribute_references(aggregate.hecks_name, aggregate.attributes, targets, violations)
             aggregate.commands.each do |command|
               validate_reference("#{aggregate.hecks_name}.#{command.hecks_name}", command.references, targets, violations) if command.references
-              validate_attribute_references("#{aggregate.hecks_name}.#{command.hecks_name}", command.attributes, targets, violations)
             end
             aggregate.entities.each do |entity|
-              validate_attribute_references("#{aggregate.hecks_name}.#{entity.hecks_name}", entity.attributes, targets, violations)
               entity.commands.each do |command|
-                validate_reference("#{aggregate.hecks_name}.#{entity.hecks_name}.#{command.hecks_name}", command.references, targets, violations) if command.references
-                validate_attribute_references("#{aggregate.hecks_name}.#{entity.hecks_name}.#{command.hecks_name}", command.attributes, targets, violations)
+                next unless command.references
+
+                validate_reference("#{aggregate.hecks_name}.#{entity.hecks_name}.#{command.hecks_name}",
+                                   command.references, targets, violations)
               end
             end
           end
@@ -115,12 +130,6 @@ module Hecksagain
           return if violations.empty?
 
           raise Malformed, "references must target aggregate heads; #{violations.uniq.join('; ')}"
-        end
-
-        def validate_attribute_references(source, attributes, targets, violations)
-          attributes.select(&:reference?).each do |attribute|
-            validate_reference(source, attribute.type.target_name, targets, violations)
-          end
         end
 
         def validate_reference(source, target_name, targets, violations)

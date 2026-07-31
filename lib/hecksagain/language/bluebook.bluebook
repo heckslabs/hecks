@@ -246,8 +246,6 @@ Hecks.bluebook "Meta" do
       attribute :list,    ListFlag
       attribute :default, LiteralText
 
-      given("an attribute is named") { !name.value.to_s.empty? }
-
       then_set :attributes, append: { name: :name, type: :type, list: :list, default: :default }
 
       emits "AttributeAttached"
@@ -282,8 +280,6 @@ Hecks.bluebook "Meta" do
       attribute :list,    ListFlag
       attribute :default, LiteralText
 
-      given("a reference is named") { !name.value.to_s.empty? }
-
       then_set :attributes, append: { name: :name, type: :points_at, list: :list, default: :default }
 
       emits "ReferenceAttached"
@@ -307,13 +303,19 @@ Hecks.bluebook "Meta" do
       attribute :list,    ListFlag
       attribute :default, LiteralText
 
-      given("a held attribute is named") { !name.value.to_s.empty? }
-
       then_set :attributes, append: { name: :name, type: :holds, list: :list, default: :default }
 
       emits "PieceHeld"
     end
 
+    # THE ONLY RULE THAT CAN REFUSE AN UNNAMED ATTRIBUTE, and it lives here.
+    #
+    # Attribute, Reference and Holds each carried `given("… is named")` beside
+    # this, and not one of them could ever fire: an EMPTY name builds the value
+    # object and this invariant refuses first, while an ABSENT name builds no
+    # value object and the given did not refuse at all — probed, not reasoned.
+    # Three rules that read as rules and were decoration. A predicate cannot
+    # guard what a type already guards.
     value_object "FieldName" do
       attribute :value, String
       invariant("an attribute is named") { !value.to_s.empty? }
@@ -541,6 +543,34 @@ Hecks.bluebook "Meta" do
       then_set :attributes, append: { name: :name, type: :type, list: :list, default: :default }
 
       emits "ArgumentAttached"
+    end
+
+    # An argument that points at ANOTHER aggregate's head — the same word
+    # `reference_to`, written on a command instead of on the head.
+    #
+    # `Argument` types its type as text, so a reference argument arrived as the
+    # STRING "Reference<Customer>" and the language held a spelling rather than a
+    # reference. That left "a reference points at a declared head" enforceable
+    # only by a `raise Malformed` in the DSL, for three of the four places the
+    # word can be written. As a reference it is a consequence of the model here
+    # too, exactly as Aggregate.Reference made it one on a head.
+    command "Reference" do
+      role "Language"
+      goal "Attach an argument that points at another aggregate's head"
+
+      reference_to Command
+      reference_to Aggregate, as: :points_at
+      # No `given` that the name is present : ArgName already carries that
+      # invariant, and a value object's invariant fires during coercion — before
+      # any given is reached. A rule that cannot be the one to refuse is
+      # decoration, and this language has paid for that mistake before.
+      attribute :name,    ArgName
+      attribute :list,    ArgType
+      attribute :default, ArgType
+
+      then_set :attributes, append: { name: :name, type: :points_at, list: :list, default: :default }
+
+      emits "ArgumentReferenceAttached"
     end
 
     value_object "ArgName" do
@@ -1150,6 +1180,7 @@ Hecks.bluebook "Meta" do
 
       emits "AskArgumentAttached"
     end
+
   end
 
   aggregate "Policy" do
@@ -1609,6 +1640,7 @@ Hecks.bluebook "Meta" do
 
       emits "PieceAttributeAttached"
     end
+
 
     command "Lifecycle" do
       role "Language"
