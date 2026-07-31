@@ -1570,6 +1570,17 @@ Hecks.bluebook "Meta" do
       attribute :description,   EntityName
       attribute :identified_by, EntityText
 
+      # A PIECE MUST SAY WHAT IT IS KNOWN BY — the rule, where the language keeps
+      # its rules. An entity is an element with an identity of ITS OWN ; that is
+      # the whole difference between a piece and a value object, so a command
+      # acting on one must be able to say which one. Undeclared, the two runtimes
+      # each invented a different answer (Ruby fell through to nothing, Rust
+      # assumed `id`) and agreed only because every entity in the corpus happened
+      # to declare it — `bin/undeclared` reported precisely that, a divergence the
+      # declaration was masking. Requiring it removes the default there was to
+      # disagree about.
+      given("an entity says what it is known by") { !identified_by.value.to_s.empty? }
+
       attribute :position, Position
       emits "PieceDeclared"
     end

@@ -4731,7 +4731,10 @@
             "PieceDeclared"
           ],
           "givens": [
-
+            {
+              "canonical": "!identified_by.value.to_s.empty?",
+              "description": "an entity says what it is known by"
+            }
           ],
           "goal": "Open an entity inside an aggregate",
           "mutations": [

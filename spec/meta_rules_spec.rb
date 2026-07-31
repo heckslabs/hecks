@@ -127,6 +127,26 @@ RSpec.describe "the language's own rules" do
       .to raise_error(Hecksagain::Runtime::GivenNotMet, /gathers heads only after its reference/)
   end
 
+  # A PIECE MUST SAY WHAT IT IS KNOWN BY. Not invented for the rule's own sake:
+  # `bin/undeclared` perturbs banking's Withdrawal by dropping this very line and
+  # reported it MASKING A DIVERGENCE — without it Ruby refused with "pass :" and
+  # Rust with "pass id:", so the declaration was the only reason the two runtimes
+  # agreed. The rule removes the default there was to disagree about.
+  it "refuses an entity that does not say what it is known by" do
+    expect do
+      @runtime.dispatch("Meta::Entity.Declare", id: "D::A.E", aggregate_id: v("D::A"), owner: v("A"),
+                        name: v("E"), description: v("a piece"), identified_by: v(""), position: { value: 0 })
+    end.to raise_error(Hecksagain::Runtime::GivenNotMet, /an entity says what it is known by/)
+  end
+
+  it "admits an entity that names the field it is known by" do
+    expect do
+      @runtime.dispatch("Meta::Entity.Declare", id: "D::A.E", aggregate_id: v("D::A"), owner: v("A"),
+                        name: v("E"), description: v("a piece"), identified_by: v("sequence.value"),
+                        position: { value: 0 })
+    end.not_to raise_error
+  end
+
   it "refuses an admitted row that binds no named field" do
     @runtime.dispatch("Meta::ValueObject.Declare", id: "D::A.X", aggregate_id: v("D::A"), name: v("X"))
     @runtime.dispatch("Meta::Member.Declare", id: "D::A.X#0", value_object_id: v("D::A.X"), shape: v("D::A.X"))
