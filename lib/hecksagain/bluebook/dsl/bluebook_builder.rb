@@ -90,55 +90,45 @@ module Hecksagain
 
         private
 
+        # AN ENTITY COMMAND MAY NOT NAME ITSELF AS ITS ROOT.
+        #
+        # That is the whole of what is left here, and it needs saying plainly
+        # because the sentence this used to raise — "references must target
+        # aggregate heads" — was never what it checked.
+        #
+        # `CommandBuilder#reference_to` sets `references` ONLY when the target's
+        # bare name equals the owner's ; anything else becomes a reference
+        # ATTRIBUTE. So on an aggregate command `references` is always a copy of
+        # that aggregate's own name, and looking it up in an index of aggregates
+        # is a TAUTOLOGY — that branch never refused anything and structurally
+        # could not. Verified across all eight golden chapters before deleting it.
+        #
+        # On a PIECE's command the owner is the entity, and an entity is not a
+        # head, so what this actually refuses is `reference_to <its own name>`
+        # written inside `entity do … end`. A piece is reached THROUGH its
+        # aggregate ; a command on one addresses the aggregate, never the piece.
+        #
+        # Reference ATTRIBUTES are the language's business now — offered as the
+        # head's own id and resolved as references, so `Aggregate.Reference` and
+        # `Command.Reference` refuse an undeclared head with no predicate at all.
         def validate_reference_value_objects!
-          targets = @aggregates.each_with_object({}) do |aggregate, index|
-            index[aggregate.hecks_name] = aggregate
-          end
-          violations = []
+          heads = @aggregates.map(&:hecks_name)
 
-          # WHAT IS LEFT HERE IS THE ACTS-ON TARGET, and only that.
-          #
-          # A reference ATTRIBUTE is now the language's business: it is offered
-          # as the head's own id and resolved as a reference, so
-          # `Aggregate.Reference` and `Command.Reference` refuse an undeclared
-          # head without a predicate. The clauses that checked those are gone.
-          #
-          # What no verb models yet is `command.references` — the root a command
-          # reaches through — which the language holds as `Command.ActsOn(root)`,
-          # a plain string. Until that becomes a reference, this is the only
-          # thing standing between a command and a root nobody declared.
-          #
-          # The entity and query clauses that used to live here were never
-          # reachable: neither EntityBuilder nor QueryBuilder offers
-          # `reference_to`, so an attribute in those places cannot be
-          # reference-typed at all. Defensive code for a sentence the language
-          # cannot say.
-          @aggregates.each do |aggregate|
-            aggregate.commands.each do |command|
-              validate_reference("#{aggregate.hecks_name}.#{command.hecks_name}", command.references, targets, violations) if command.references
-            end
-            aggregate.entities.each do |entity|
-              entity.commands.each do |command|
+          violations = @aggregates.flat_map do |aggregate|
+            aggregate.entities.flat_map do |entity|
+              entity.commands.filter_map do |command|
                 next unless command.references
+                next if heads.include?(command.references.to_s)
 
-                validate_reference("#{aggregate.hecks_name}.#{entity.hecks_name}.#{command.hecks_name}",
-                                   command.references, targets, violations)
+                "#{aggregate.hecks_name}.#{entity.hecks_name}.#{command.hecks_name} names itself as its root"
               end
             end
           end
 
           return if violations.empty?
 
-          raise Malformed, "references must target aggregate heads; #{violations.uniq.join('; ')}"
-        end
-
-        def validate_reference(source, target_name, targets, violations)
-          target = targets[target_name.to_s]
-          unless target
-            violations << "#{source} references #{target_name}; references may only target aggregate heads"
-            return
-          end
-
+          raise Malformed,
+                "an entity command is addressed through its aggregate; #{violations.uniq.join('; ')}"
         end
 
         def self.build(name, version: nil, &block)

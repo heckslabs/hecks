@@ -122,7 +122,13 @@ RSpec.describe "the DSL surface" do
         .to raise_error(Malformed, %r{no ValueObject with id "Primitive::Thing.String"})
     end
 
-    it "refuses a reference to an entity rather than an aggregate head" do
+    # A PIECE IS REACHED THROUGH ITS AGGREGATE, so a command on one addresses
+    # the aggregate and never the piece. This used to be described as "a
+    # reference to an entity rather than an aggregate head", which is not what
+    # it checks: `CommandBuilder#reference_to` only sets `references` when the
+    # target names the OWNER, so the only thing that can reach here is a piece's
+    # command naming itself.
+    it "refuses an entity command that names itself as its root" do
       expect do
         build_bluebook("HeadOnly") do
           aggregate "Root" do
@@ -134,7 +140,9 @@ RSpec.describe "the DSL surface" do
             end
           end
         end
-      end.to raise_error(Malformed, /Root\.Child\.Change references Child; references may only target aggregate heads/)
+      end.to raise_error(Malformed,
+                         "an entity command is addressed through its aggregate; " \
+                         "Root.Child.Change names itself as its root")
     end
 
     # REFUSED BY THE LANGUAGE NOW, not by a raise beside the builder. A
