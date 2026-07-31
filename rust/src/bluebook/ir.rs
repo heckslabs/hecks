@@ -222,8 +222,6 @@ pub struct Attribute {
     pub optional: bool,
     pub enum_values: Vec<String>,
     pub pattern: Option<String>,
-    pub hint: Option<String>,
-    pub logged: bool,
 }
 
 #[derive(Debug, Clone)]

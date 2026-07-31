@@ -17,8 +17,6 @@ fn closed_set_value_object(name: &str, values: &[String]) -> ValueObject {
             optional: false,
             enum_values: vec![],
             pattern: None,
-            hint: None,
-            logged: true,
         }],
         invariants: vec![],
         derivations: vec![],
@@ -550,8 +548,6 @@ fn absorb_has_one(line: &str, agg: &mut Aggregate) {
                 optional: false,
                 enum_values: vec![],
                 pattern: None,
-                hint: None,
-                logged: true,
             });
         }
     }
@@ -573,8 +569,6 @@ fn absorb_belongs_to(line: &str, agg: &mut Aggregate) {
                 optional: false,
                 enum_values: vec![],
                 pattern: None,
-                hint: None,
-                logged: true,
             });
         }
     }

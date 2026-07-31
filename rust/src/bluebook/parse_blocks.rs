@@ -374,8 +374,6 @@ pub fn parse_query(lines: &[&str]) -> (Query, usize) {
                         optional: false,
                         enum_values: vec![],
                         pattern: None,
-                        hint: None,
-                        logged: true,
                     });
                 }
             }
@@ -1154,11 +1152,6 @@ pub fn parse_attribute(line: &str) -> Option<Attribute> {
         (attr_type, vec![])
     };
     let pattern = parse_pattern_kwarg(line);
-    let hint = parse_hint_kwarg(line);
-    let logged = !(line.contains("logged:")
-        && extract_after(line, "logged:")
-            .map(|a| a.trim_start().starts_with("false"))
-            .unwrap_or(false));
     Some(Attribute {
         name,
         attr_type,
@@ -1167,8 +1160,6 @@ pub fn parse_attribute(line: &str) -> Option<Attribute> {
         optional,
         enum_values,
         pattern,
-        hint,
-        logged,
     })
 }
 
@@ -1191,20 +1182,6 @@ fn parse_pattern_kwarg(line: &str) -> Option<String> {
             );
             None
         }
-    }
-}
-
-fn parse_hint_kwarg(line: &str) -> Option<String> {
-    let after = line.split("hint:").nth(1)?.trim_start();
-    let quote = after.chars().next().filter(|c| *c == '"' || *c == '\'')?;
-    let body: String = after[quote.len_utf8()..]
-        .chars()
-        .take_while(|c| *c != quote)
-        .collect();
-    if body.is_empty() {
-        None
-    } else {
-        Some(body)
     }
 }
 

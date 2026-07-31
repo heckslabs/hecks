@@ -328,8 +328,6 @@ pub fn parse_shorthand_attribute(line: &str) -> Option<crate::ir::Attribute> {
         optional,
         enum_values: vec![],
         pattern: None,
-        hint: None,
-        logged: true,
     })
 }
 
