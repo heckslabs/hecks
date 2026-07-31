@@ -4,7 +4,14 @@ Hecks.bluebook "Wire" do
   core
 
   aggregate "Drawer" do
+    identified_by { number.value }
+
+    attribute :number, DrawerNumber
     attribute :cents, Money, default: { cents: 0 }
+
+    value_object "DrawerNumber" do
+      attribute :value, String
+    end
 
     value_object "Money" do
       attribute :cents, Integer
@@ -18,6 +25,7 @@ Hecks.bluebook "Wire" do
     command "Open" do
       role "Clerk"
       goal "A new drawer"
+      attribute :number, DrawerNumber
       emits "DrawerOpened"
     end
 
@@ -118,12 +126,12 @@ Hecks.bluebook "Wire" do
     state "returned"
 
     on "WireAsked", transition: { "asked" => "asked" } do
-      dispatch "Wire::Drawer.Take", with: { id: :source, amount: :amount, wire: :wire }
+      dispatch "Wire::Drawer.Take", with: { number: :source, amount: :amount, wire: :wire }
     end
 
     on "Taken", transition: { "asked" => "carrying" } do
       dispatch "Wire::Wire.Moved",  with: { wire: :wire }
-      dispatch "Wire::Drawer.Put",  with: { id: :destination, amount: :amount, wire: :wire }
+      dispatch "Wire::Drawer.Put",  with: { number: :destination, amount: :amount, wire: :wire }
     end
 
     on "PutIn", transition: { "carrying" => "landed" } do
@@ -136,7 +144,7 @@ Hecks.bluebook "Wire" do
     # stalled and dispatch Wire.Returned by hand ; until they did, the money was
     # out of the source drawer and nowhere else.
     on :refused, transition: { "carrying" => "returned" } do
-      dispatch "Wire::Drawer.Put",    with: { id: :source, amount: :amount, wire: :wire }
+      dispatch "Wire::Drawer.Put",    with: { number: :source, amount: :amount, wire: :wire }
       dispatch "Wire::Wire.Returned", with: { wire: :wire }
     end
   end

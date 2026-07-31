@@ -20,9 +20,9 @@ RSpec.describe "a process manager" do
   end
 
   def funded(runtime = boot_wire)
-    runtime.dispatch("Wire::Drawer.Open", id: "left")
-    runtime.dispatch("Wire::Drawer.Open", id: "right")
-    runtime.dispatch("Wire::Drawer.Put",  id: "left", amount: { cents: 10_000 })
+    runtime.dispatch("Wire::Drawer.Open", number: { value: "left" })
+    runtime.dispatch("Wire::Drawer.Open", number: { value: "right" })
+    runtime.dispatch("Wire::Drawer.Put",  number: { value: "left" }, amount: { cents: 10_000 })
     runtime
   end
 
@@ -59,7 +59,7 @@ RSpec.describe "a process manager" do
   # is an ordinary Tuesday. Money vanishing because of it is not.
   it "unwinds a refused leg on its own, without anyone noticing" do
     runtime = funded
-    runtime.dispatch("Wire::Drawer.Shut", id: "right")
+    runtime.dispatch("Wire::Drawer.Shut", number: { value: "right" })
     runtime.dispatch("Wire::Wire.Ask",
                      id: "wire-2", amount: { cents: 1_000 }, source: { value: "left" }, destination: { value: "right" })
 
@@ -76,7 +76,7 @@ RSpec.describe "a process manager" do
 
   it "ignores an uncorrelated event — a manual Take is just a take" do
     runtime = funded
-    runtime.dispatch("Wire::Drawer.Take", id: "left", amount: { cents: 500 })
+    runtime.dispatch("Wire::Drawer.Take", number: { value: "left" }, amount: { cents: 500 })
 
     expect(runtime.sagas).to be_empty
     expect(Wire::Drawer.find("left").cents.to_h).to eq(cents: 9_500)
@@ -84,7 +84,7 @@ RSpec.describe "a process manager" do
 
   it "records an event that arrives in the wrong phase, and does not advance" do
     runtime = funded
-    runtime.dispatch("Wire::Drawer.Shut", id: "right")
+    runtime.dispatch("Wire::Drawer.Shut", number: { value: "right" })
     runtime.dispatch("Wire::Wire.Ask",
                      id: "wire-3", amount: { cents: 100 }, source: { value: "left" }, destination: { value: "right" })
     # No manual Wire.Returned any more — the refused leg unwinds on its own, and
@@ -116,25 +116,25 @@ RSpec.describe "a lifecycle" do
 
   it "is born at its default — the field exists before any transition" do
     runtime = boot_wire
-    runtime.dispatch("Wire::Drawer.Open", id: "d")
+    runtime.dispatch("Wire::Drawer.Open", number: { value: "d" })
 
     expect(Wire::Drawer.find("d").status).to eq("open")
   end
 
   it "applies the transition the command names" do
     runtime = boot_wire
-    runtime.dispatch("Wire::Drawer.Open", id: "d")
-    runtime.dispatch("Wire::Drawer.Shut", id: "d")
+    runtime.dispatch("Wire::Drawer.Open", number: { value: "d" })
+    runtime.dispatch("Wire::Drawer.Shut", number: { value: "d" })
 
     expect(Wire::Drawer.find("d").status).to eq("shut")
   end
 
   it "refuses a move the machine does not admit, in so many words" do
     runtime = boot_wire
-    runtime.dispatch("Wire::Drawer.Open", id: "d")
-    runtime.dispatch("Wire::Drawer.Shut", id: "d")
+    runtime.dispatch("Wire::Drawer.Open", number: { value: "d" })
+    runtime.dispatch("Wire::Drawer.Shut", number: { value: "d" })
 
-    expect { runtime.dispatch("Wire::Drawer.Shut", id: "d") }
+    expect { runtime.dispatch("Wire::Drawer.Shut", number: { value: "d" }) }
       .to raise_error(Hecksagain::Runtime::LifecycleRefused,
                       'Shut refused — status is "shut", and Shut moves it only from "open"')
   end
@@ -143,8 +143,8 @@ RSpec.describe "a lifecycle" do
     runtime = boot_wire
     # the drawers have to exist — a wire between accounts that were never
     # opened is not a wire, and the runtime now says so
-    runtime.dispatch("Wire::Drawer.Open", id: "a")
-    runtime.dispatch("Wire::Drawer.Open", id: "b")
+    runtime.dispatch("Wire::Drawer.Open", number: { value: "a" })
+    runtime.dispatch("Wire::Drawer.Open", number: { value: "b" })
     runtime.dispatch("Wire::Wire.Ask", id: "w", amount: { cents: 1 }, source: { value: "a" }, destination: { value: "b" })
 
     expect { runtime.dispatch("Wire::Wire.Returned", wire: "missing") }
