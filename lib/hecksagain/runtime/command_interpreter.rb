@@ -150,7 +150,11 @@ module Hecksagain
         # never mentioned.
         attribute = key == aggregate.identified_by ? aggregate.attribute(key) : nil
         raw       = args[key]
-        Value.identifier(attribute ? Value.for_attribute(aggregate, attribute, raw) : raw)
+        # NO PATH TO FOLLOW, so nothing is dug and nothing is opened. This is
+        # reached by the addressing keys that are not the aggregate's own
+        # declared identity — `id`, and the reference key a command reaches
+        # its root through — and those carry an id ALREADY RESOLVED.
+        attribute ? Value.for_attribute(aggregate, attribute, raw) : raw
       end
 
       def assign_creation_attributes(instance, aggregate, command, args)

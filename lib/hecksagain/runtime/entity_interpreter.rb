@@ -52,7 +52,11 @@ module Hecksagain
         parent_key = aggregate.identified_by || :id
         parent_id = args[parent_key] || args[:id] ||
                     raise(NotFound, "#{command_name} acts on a #{aggregate.hecks_name}'s #{entity_name} — pass #{aggregate.identified_by}:")
-        parent_id = Value.identifier(Value.for_attribute(aggregate, aggregate.attribute(parent_key), parent_id))
+        # The PARENT's identity is a path too, and it is followed, not opened —
+        # the same reading `CommandInterpreter#identity_from` gives it when an
+        # aggregate command addresses the same root.
+        parent_id = Identity.scalar(aggregate.identity_path,
+                                    Value.for_attribute(aggregate, aggregate.attribute(parent_key), parent_id))
         repository.find(parent_id) ||
           raise(NotFound, "no #{aggregate.hecks_name} with #{aggregate.identified_by} #{parent_id.inspect}")
       end
@@ -69,14 +73,13 @@ module Hecksagain
           raise(NotFound, "no #{entity_name} with #{key} #{identity_scalar(entity, want).to_json} on #{aggregate.hecks_name} #{instance.id.inspect}")
       end
 
-      # An id is a SCALAR. The path says which field carries it, so a piece is
-      # entry 3 — never entry {"value":3}, which is an identity nobody can type
-      # back in, and which was reaching the view as a Ruby object address
-      # besides. With no path the single field is still unwrapped, because a
-      # value object standing as an identity has exactly one field to give.
+      # An id is a SCALAR, and the PATH is how it is reached — never by opening a
+      # value object and taking whatever single field is inside. That unwrapping
+      # is gone from the language : a piece that does not name its field is
+      # refused when the bluebook loads (`an entity is known by a field`), so by
+      # the time a dispatch arrives here there is always a path to dig.
       def identity_scalar(entity, held)
         _head, *rest = entity.identity_path.to_s.split(".")
-        return Value.identifier(held) if rest.empty?
 
         rest.reduce(Value.materialize(held)) do |dug, field|
           dug.is_a?(Hash) ? (dug[field.to_sym] || dug[field]) : nil

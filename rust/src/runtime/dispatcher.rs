@@ -151,22 +151,16 @@ fn query_text(value: &Value) -> String {
     }
 }
 
-/// An id is a SCALAR. The path says which field carries it ; with no path, a
-/// value object standing as an identity still has exactly one field to give,
-/// so it is unwrapped rather than rendered whole. `EntityInterpreter
-/// #identity_scalar` is the same reading on the Ruby side — a piece is entry 3,
-/// never entry {"value":3}.
+/// An id is a SCALAR, and the PATH is how it is reached — never by opening a
+/// value object and taking whatever single field is inside. That unwrapping is
+/// gone from the language : a piece that does not name its field is refused when
+/// the bluebook loads, so a path is always there to dig.
+/// `EntityInterpreter#identity_scalar` is the same reading on the Ruby side — a
+/// piece is entry 3, never entry {"value":3}.
 fn identity_scalar(value: &Value, field: Option<&str>) -> Value {
     match field {
         Some(name) => value.get(name).cloned().unwrap_or_else(|| value.clone()),
-        None => match value.as_object() {
-            Some(fields) if fields.len() == 1 => fields
-                .values()
-                .next()
-                .cloned()
-                .unwrap_or_else(|| value.clone()),
-            _ => value.clone(),
-        },
+        None => value.clone(),
     }
 }
 

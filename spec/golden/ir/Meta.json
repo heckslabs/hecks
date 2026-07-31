@@ -676,7 +676,7 @@
           ],
           "givens": [
             {
-              "canonical": "identified_by.value.to_s.empty? || identified_by.value.to_s.size > 0",
+              "canonical": "identified_by.value.to_s.empty? || identified_by.value.to_s == \"id\" || identified_by.value.to_s.include?(\".\")",
               "description": "an aggregate that is identified names a field"
             }
           ],
@@ -4734,6 +4734,10 @@
             {
               "canonical": "!identified_by.value.to_s.empty?",
               "description": "an entity says what it is known by"
+            },
+            {
+              "canonical": "identified_by.value.to_s.include?(\".\")",
+              "description": "an entity is known by a field"
             }
           ],
           "goal": "Open an entity inside an aggregate",

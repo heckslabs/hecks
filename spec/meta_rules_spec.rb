@@ -139,6 +139,33 @@ RSpec.describe "the language's own rules" do
     end.to raise_error(Hecksagain::Runtime::GivenNotMet, /an entity says what it is known by/)
   end
 
+  # AN IDENTITY NAMES A FIELD, so the runtime never has to open a value object
+  # and guess which one was meant. The unwrap that used to do the guessing is
+  # gone from Value, so a declaration that stops at the attribute would leave the
+  # whole object standing as the id.
+  it "refuses an entity known by a whole value object rather than a field" do
+    expect do
+      @runtime.dispatch("Meta::Entity.Declare", id: "D::A.E", aggregate_id: v("D::A"), owner: v("A"),
+                        name: v("E"), description: v("a piece"), identified_by: v("sequence"),
+                        position: { value: 0 })
+    end.to raise_error(Hecksagain::Runtime::GivenNotMet, /an entity is known by a field/)
+  end
+
+  it "refuses an aggregate known by a whole value object rather than a field" do
+    @runtime.dispatch("Meta::Aggregate.Declare", id: "D::C", bluebook_id: v("D"),
+                      name: v("C"), description: v("an aggregate"), identified_by: v("number"))
+
+    expect { @runtime.dispatch("Meta::Aggregate.Seal", id: "D::C") }
+      .to raise_error(Hecksagain::Runtime::GivenNotMet, /an aggregate that is identified names a field/)
+  end
+
+  it "admits an aggregate known by the field inside its value object" do
+    @runtime.dispatch("Meta::Aggregate.Declare", id: "D::E", bluebook_id: v("D"),
+                      name: v("E"), description: v("an aggregate"), identified_by: v("number.value"))
+
+    expect { @runtime.dispatch("Meta::Aggregate.Seal", id: "D::E") }.not_to raise_error
+  end
+
   it "admits an entity that names the field it is known by" do
     expect do
       @runtime.dispatch("Meta::Entity.Declare", id: "D::A.E", aggregate_id: v("D::A"), owner: v("A"),

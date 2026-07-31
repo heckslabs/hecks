@@ -338,7 +338,10 @@ module Hecksagain
       def query_read_model(_domain, model, args, bluebook = nil)
         raise ArgumentError, "projection query needs its domain bluebook" unless bluebook
 
-        reference_id = Runtime::Value.identifier(args.fetch(model.reference_name))
+        # The REFERENCE's own shape, read the same way ReadModelInterpreter
+        # reads it — not the identity unwrap, which is gone : an identity is
+        # declared as a path and followed.
+        reference_id = Runtime::Value.reference_id(args.fetch(model.reference_name))
         reports = {}
         model.aggregate_heads.each do |head|
           aggregate = bluebook.aggregate(head[:aggregate])

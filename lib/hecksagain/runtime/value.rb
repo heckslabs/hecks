@@ -101,13 +101,31 @@ module Hecksagain
         end
       end
 
-      def self.identifier(value)
-        return value.values.first if value.is_a?(Hash) && value.size == 1
-        return value unless value.is_a?(self)
+      # `Value.identifier` used to live here: hand it a one-field value object
+      # and it opened it, so `identified_by :number` could pass for an identity
+      # and the runtime would guess which field was meant. THAT GUESS IS GONE.
+      # An identity names its field — `identified_by { number.value }` — and the
+      # path is what reaches the scalar. A declaration that names no field is
+      # refused when the bluebook loads, so nothing has to be unwrapped later.
+      #
+      # `scalar` below is a different job and stays: rendering a value object
+      # into a column or a message, where there is no path to consult.
 
+      # THE ID A REFERENCE POINTS AT, read out of the reference attribute's own
+      # declared shape. This is what is left of the old `identifier`, and it is
+      # deliberately named for the one job it still has — a REFERENCE, never an
+      # identity. An identity is declared as a path and followed
+      # (Runtime::Identity) ; a reference carries no path, so its shape is all
+      # there is to read.
+      #
+      # Storing the scalar itself would retire this too. That is a change to
+      # how references are STORED, and a separate piece of work from how
+      # identities are DECLARED.
+      def self.reference_id(value)
         return scalar(value) if value.is_a?(self)
+        return value.values.first if value.is_a?(Hash) && value.size == 1
 
-        raise TypeMismatch, "#{value.type_name} is a composite identity — an identity must have exactly one field"
+        value
       end
 
       def self.scalar(value)

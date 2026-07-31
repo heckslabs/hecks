@@ -51,7 +51,7 @@ Hecks.bluebook "DispatchOrder" do
     entity "Part" do
       description "A piece a widget holds, transitioned and mutated in one dispatch — no other test fixture needs real persistence to exercise entity dispatch order."
 
-      identified_by :sequence
+      identified_by { sequence.value }
 
       attribute :sequence, PartSequence
       attribute :note,     Note

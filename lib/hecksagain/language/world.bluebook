@@ -5,7 +5,7 @@ Hecks.bluebook "Deployment" do
   aggregate "World" do
     description "One .world — the per-deployment values a domain's adapters need. A sibling artifact to the bluebook, not part of it : the same domain runs in many worlds."
 
-    identified_by :domain
+    identified_by { domain.value }
 
     attribute :domain, WorldName
     attribute :realm,  Realm

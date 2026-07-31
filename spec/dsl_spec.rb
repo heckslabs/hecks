@@ -550,8 +550,13 @@ RSpec.describe "the DSL surface" do
       expect(build_aggregate("Described") { description "a thing" }.description).to eq("a thing")
     end
 
-    it "identified_by overrides the identity attribute" do
-      expect(build_aggregate("Identified") { identified_by :name }.identified_by).to eq(:name)
+    it "identified_by names a field, and the HEAD is what readers look up" do
+      identified = build_aggregate("Identified") do
+        identified_by { name.value }
+      end
+
+      expect(identified.identity_path).to eq("name.value")
+      expect(identified.identified_by).to eq(:name)
     end
 
     it "identified_by defaults to id" do
@@ -601,7 +606,7 @@ RSpec.describe "the DSL surface" do
     it "entity declares an identity-bearing member inside the boundary" do
       line = build_aggregate("Ordered") do
         entity "OrderLine" do
-          identified_by :sku
+          identified_by { sku.value }
           attribute :sku,      Sku
           attribute :quantity, Quantity
         end

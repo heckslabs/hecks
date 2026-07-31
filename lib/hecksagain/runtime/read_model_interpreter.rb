@@ -10,8 +10,8 @@ module Hecksagain
       private
 
       def project(domain, model, args)
-        reference_id = Value.identifier(args.fetch(model.reference_name))
-        bluebook    = @registry.bluebook(domain)
+        bluebook     = @registry.bluebook(domain)
+        reference_id = reference(args.fetch(model.reference_name))
         repository = @registry.read_repository(domain, bluebook.aggregate(model.reference_target))
         if repository.respond_to?(:query_read_model) && repository.adapter.respond_to?(:query_read_model)
           return repository.query_read_model(domain, model, args, bluebook)
@@ -43,7 +43,17 @@ module Hecksagain
         aggregate = bluebook.aggregate(aggregate_name)
         aggregate ? @registry.read_repository(domain, aggregate).all : []
       end
-      def reference(value) = Value.identifier(value)
+      # A stored reference holds the target's id inside the REFERENCE
+      # ATTRIBUTE's own declared shape, so reading it is reading that shape —
+      # a different thing from the identity unwrap that was removed. An
+      # IDENTITY is declared as a path and followed (Runtime::Identity) ; a
+      # reference has no path of its own, and `Value.scalar` refuses a
+      # composite rather than guessing which field was meant.
+      #
+      # Storing the scalar itself would remove this reading altogether. That
+      # is a change to how references are STORED, not to how identities are
+      # declared, so it is not made here.
+      def reference(value) = Value.reference_id(value)
       def reference_fields(aggregate, target)
         aggregate.attributes
                  .select { |attribute| attribute.reference? && attribute.type.target_name == target.to_s }

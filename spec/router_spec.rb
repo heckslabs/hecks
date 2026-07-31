@@ -17,7 +17,7 @@ RSpec.describe Hecksagain::Router do
         value_object "Code" do
           attribute :value, String
         end
-        identified_by :code
+        identified_by { code.value }
         command "Add" do
           attribute :code, Code
         end
@@ -32,7 +32,7 @@ RSpec.describe Hecksagain::Router do
         value_object "Number" do
           attribute :value, String
         end
-        identified_by :number
+        identified_by { number.value }
         command "Issue" do
           attribute :number, Number
         end
@@ -55,7 +55,7 @@ RSpec.describe Hecksagain::Router do
         include Account
       end
       aggregate "Customer" do
-        identified_by :reference
+        identified_by { reference.value }
         attribute :reference, CustomerNumber
         attribute :name, PersonName
         value_object "CustomerNumber" do
@@ -132,7 +132,7 @@ RSpec.describe Hecksagain::Router do
         value_object "Code" do
           attribute :value, String
         end
-        identified_by :code
+        identified_by { code.value }
         command "Add" do
           attribute :code, Code
         end
@@ -158,7 +158,7 @@ RSpec.describe Hecksagain::Router do
         value_object "Code" do
           attribute :value, String
         end
-        identified_by :code
+        identified_by { code.value }
         command "LegacyOpen" do
           attribute :code, Code
         end
@@ -171,7 +171,7 @@ RSpec.describe Hecksagain::Router do
         value_object "Code" do
           attribute :value, String
         end
-        identified_by :code
+        identified_by { code.value }
         command "Open" do
           attribute :code, Code
         end
@@ -212,7 +212,7 @@ RSpec.describe Hecksagain::Router do
         value_object "Code" do
           attribute :value, String
         end
-        identified_by :code
+        identified_by { code.value }
         command "Add" do
           attribute :code, Code
         end

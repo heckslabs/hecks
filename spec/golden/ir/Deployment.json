@@ -62,7 +62,7 @@
       "entities": [
 
       ],
-      "identified_by": "domain",
+      "identified_by": "domain.value",
       "lifecycle": null,
       "name": "World",
       "queries": [

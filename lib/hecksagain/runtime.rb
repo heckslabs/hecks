@@ -29,6 +29,7 @@
 
 require_relative "runtime/event"
 require_relative "runtime/value"
+require_relative "runtime/identity"
 require_relative "runtime/instance"
 require_relative "runtime/registry"
 require_relative "runtime/errors"

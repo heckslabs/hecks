@@ -387,7 +387,16 @@ Hecks.bluebook "Meta" do
       # The rule waiting for it is "a mutation names a field the aggregate has",
       # which lives in AggregateBuilder today because saying it here needs to reach
       # a list on another root.
-      given("an aggregate that is identified names a field") { identified_by.value.to_s.empty? || identified_by.value.to_s.size > 0 }
+      # AN IDENTITY NAMES A FIELD. This rule used to read `empty? || size > 0`,
+      # which is true of every string there is — a rule that cannot refuse, and
+      # so no rule at all. What it means to say is that an identity reaches a
+      # SCALAR : `identified_by { number.value }`, never `identified_by :number`,
+      # which hands over a whole value object and leaves the runtime to open it.
+      # The runtime no longer opens it, so the declaration has to be exact.
+      # An aggregate that declares no identity falls back to `id`, which the
+      # language's own chapters rely on and which needs no path : it is ALREADY a
+      # scalar, so there is nothing to open. Everything else must name its field.
+      given("an aggregate that is identified names a field") { identified_by.value.to_s.empty? || identified_by.value.to_s == "id" || identified_by.value.to_s.include?(".") }
 
       emits "RootSealed"
     end
@@ -1580,6 +1589,7 @@ Hecks.bluebook "Meta" do
       # declaration was masking. Requiring it removes the default there was to
       # disagree about.
       given("an entity says what it is known by") { !identified_by.value.to_s.empty? }
+      given("an entity is known by a field")       { identified_by.value.to_s.include?(".") }
 
       attribute :position, Position
       emits "PieceDeclared"
