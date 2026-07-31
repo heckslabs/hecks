@@ -205,7 +205,7 @@ RSpec.describe "the declared vocabularies" do
     runtime = boot(File.join(InMemoryDomain::ROOT, "spec/fixtures/dispatch_order.bluebook"))
 
     Hecksagain::Runtime::CommandInterpreter.trace = []
-    runtime.dispatch("DispatchOrder::Widget.Open", id: "w1", label: { value: "x" }, amount: { value: 5 },
+    runtime.dispatch("DispatchOrder::Widget.Open", label: { value: "x" }, amount: { value: 5 },
                       part_sequence: { value: 1 }, part_note: { value: "start" })
     trace = Hecksagain::Runtime::CommandInterpreter.trace
     Hecksagain::Runtime::CommandInterpreter.trace = nil
@@ -215,11 +215,11 @@ RSpec.describe "the declared vocabularies" do
 
   it "EntityDispatchOrder matches a real dispatch that transitions and mutates" do
     runtime = boot(File.join(InMemoryDomain::ROOT, "spec/fixtures/dispatch_order.bluebook"))
-    runtime.dispatch("DispatchOrder::Widget.Open", id: "w1", label: { value: "x" }, amount: { value: 5 },
+    runtime.dispatch("DispatchOrder::Widget.Open", label: { value: "x" }, amount: { value: 5 },
                       part_sequence: { value: 1 }, part_note: { value: "start" })
 
     Hecksagain::Runtime::EntityInterpreter.trace = []
-    runtime.dispatch("DispatchOrder::Widget.Part.Advance", id: "w1", sequence: { value: 1 },
+    runtime.dispatch("DispatchOrder::Widget.Part.Advance", label: { value: "x" }, sequence: { value: 1 },
                       note: { value: "done note" })
     trace = Hecksagain::Runtime::EntityInterpreter.trace
     Hecksagain::Runtime::EntityInterpreter.trace = nil

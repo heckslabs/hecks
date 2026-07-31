@@ -237,6 +237,8 @@ Hecks.bluebook "Expression" do
   aggregate "Expression" do
     description "One predicate extracted from regular Ruby — the source as written, the canonical text both runtimes evaluate, and the subject it reads against."
 
+    identified_by :canonical
+
     attribute :description, Description
     attribute :source,      Source
     attribute :canonical,   Canonical
@@ -349,6 +351,8 @@ Hecks.bluebook "Expression" do
 
   aggregate "Agreement" do
     description "One expression evaluated by every runtime against the same state — the standing proof that Ruby and Rust mean the same thing."
+
+    identified_by :canonical
 
     attribute :canonical, Canonical
     attribute :subject,   Subject

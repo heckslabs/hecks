@@ -988,7 +988,7 @@
       "entities": [
 
       ],
-      "identified_by": "id",
+      "identified_by": "canonical",
       "lifecycle": {
         "default": "extracted",
         "field": "status",
@@ -1344,7 +1344,7 @@
       "entities": [
 
       ],
-      "identified_by": "id",
+      "identified_by": "canonical",
       "lifecycle": {
         "default": "open",
         "field": "status",

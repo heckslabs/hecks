@@ -6,6 +6,8 @@ Hecks.bluebook "DispatchOrder" do
   aggregate "Widget" do
     description "A row with a creating command that also transitions on arrival."
 
+    identified_by :label
+
     attribute :label,  Label
     attribute :amount, Amount
 
