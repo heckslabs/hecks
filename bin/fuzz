@@ -41,8 +41,16 @@ end
 # real bug here — the very first banking run "found" a SPLIT that turned out
 # to be a single query with no state to query yet, shrunk down to that one
 # vacuous step and reported as though it meant something.
+# THROUGH ONE ADAPTER. A generated sequence is looking for the two RUNTIMES to
+# disagree, which is a property of the interpreter and not of the store — and
+# this is called once per seed and ~60 more times per failure it shrinks, so the
+# second adapter doubled the cost of the whole sweep for nothing. Cross-ADAPTER
+# agreement is spec/adapters/banking_matrix_spec's job, and bin/parity's own
+# corpus run still takes banking through both on every push.
+PARITY_ADAPTER = "Heki".freeze
+
 def parity_verdict(domain, script_path)
-  output, status = Open3.capture2e(File.join(ROOT, "bin/parity"), domain, script_path)
+  output, status = Open3.capture2e(File.join(ROOT, "bin/parity"), domain, script_path, PARITY_ADAPTER)
   return [:agreed, output] if status.success?
   return [:silent, output] if output.include?("SILENT")
 

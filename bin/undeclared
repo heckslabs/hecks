@@ -54,10 +54,20 @@ end
 # disagreeing, and the corpus's own expectations no longer being met. The second
 # is what SHOULD happen when a guard is deleted — it is the corpus noticing, and
 # it is proof the declaration carries weight. Only the first is a finding.
+# THROUGH ONE ADAPTER, NAMED. Perturbing a declaration asks whether the two
+# RUNTIMES still agree, which the store does not bear on — and this runs once per
+# perturbation, 54 of them for banking, so the second adapter cost about 75
+# seconds a run for nothing.
+#
+# Naming it also makes the answer file below DELIBERATE. It used to glob every
+# variant and take `.sort.first`, which happened to select heki because 'h' sorts
+# before 's' — correct by alphabet rather than by intent.
+PARITY_ADAPTER = "Heki".freeze
+
 def outcome(domain, script)
-  output, status = Open3.capture2e(File.join(ROOT, "bin/parity"), domain, script)
+  output, status = Open3.capture2e(File.join(ROOT, "bin/parity"), domain, script, PARITY_ADAPTER)
   name = File.basename(domain)
-  answer = Dir.glob("/tmp/parity.output.#{name}.*.ruby.json").sort.first
+  answer = "/tmp/parity.output.#{name}.#{PARITY_ADAPTER.downcase}.ruby.json"
 
   return [:split, nil] if output.include?("SPLIT")
   return [:noticed, nil] unless status.success?

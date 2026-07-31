@@ -126,7 +126,28 @@ failed=0
 if [ $# -ge 1 ]; then
   domain=$1
   script=${2:-"$ROOT/spec/parity/$(basename "$1").json"}
-  run_variants "$domain" "$script" || failed=1
+  # ONE ADAPTER, WHEN THE CALLER ASKS FOR ONE.
+  #
+  # `run_domain` has always taken an adapter ; there was simply no way to say
+  # which from the command line. The harnesses that shell out to this in a LOOP
+  # — bin/fuzz once per seed, plus ~60 more per failure it shrinks, and
+  # bin/undeclared once per perturbed declaration — are hunting cross-RUNTIME
+  # disagreement, which is a property of the interpreter and not of the store.
+  # Running them through one adapter costs them nothing and halves their
+  # wall clock.
+  #
+  # The no-argument corpus run below is untouched, so the pre-push gate still
+  # takes banking through both.
+  variant=$3
+  case "$variant" in
+    Heki|Sqlite|"") ;;
+    *) echo "   NO ADAPTER named $variant — it is Heki or Sqlite."; exit 1 ;;
+  esac
+  if [ -n "$variant" ]; then
+    run_domain "$domain" "$script" "$variant" || failed=1
+  else
+    run_variants "$domain" "$script" || failed=1
+  fi
 else
   for domain in "$ROOT"/examples/*/ "$ROOT"/lib/hecksagain/grammar/; do
     domain=${domain%/}
