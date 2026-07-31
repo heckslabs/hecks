@@ -528,6 +528,23 @@ impl Runtime {
         let want = args.get(&entity_key).cloned().ok_or_else(|| {
             format!("{command_name} acts on one {entity_name} — pass {entity_key}:")
         })?;
+        // An entity's identity is a declared attribute like any other, so it is
+        // coerced through its own type BEFORE it is matched — EntityInterpreter
+        // #element_of has always done this. Matching the raw argument instead
+        // meant a LedgerSequence of 0 was reported as a missing element rather
+        // than as the invariant it actually violates, so the two runtimes
+        // refused the same dispatch for different reasons. It also makes a
+        // scalar stand in for a single-field value object here, the way it
+        // does everywhere else. Part of Vocabulary::EntityDispatchOrder's
+        // locate_element.
+        let want = match array(&entity, "attributes")
+            .into_iter()
+            .filter_map(|held| held.as_object().cloned())
+            .find(|held| held.get("name").and_then(Value::as_str) == Some(entity_key.as_str()))
+        {
+            Some(attribute) => coerce_attribute(&aggregate, &attribute, &want)?,
+            None => want,
+        };
 
         let mut elements = state
             .get(&list_attr)
