@@ -42,13 +42,22 @@ module Hecksagain
         Setter = Struct.new(:verb, :targets, keyword_init: true)
 
         Category = Struct.new(:name, :declare, :parent, :parent_key, :fields,
-                              :appends, :alternates, :setters, :sealers, keyword_init: true) do
+                              :appends, :alternates, :setters, :sealers, :references,
+                              keyword_init: true) do
           # Every verb this category declares, in declaration order. `alternates`
           # matters here: two commands can append to one list, and a verb missing
           # from this is a verb the coverage gate stops watching.
           def verbs
             [declare, *setters.map(&:verb), *appends.values.map(&:verb),
              *alternates.map(&:verb), *sealers].compact
+          end
+
+          # DOES THIS ARGUMENT CARRY AN ID? A reference is the id of a head, and
+          # an id is a scalar — so the judge offers it bare, where every other
+          # field goes as a one-field value object. The language answers this
+          # about itself, so declaring a new reference needs no change here.
+          def references?(verb, argument)
+            Array(references[verb.to_s]).include?(argument.to_s)
           end
 
           def root? = parent.nil?
@@ -95,8 +104,20 @@ module Hecksagain
             appends:    appends_in(rest),
             alternates: alternates_in(rest),
             setters:    setters_in(rest),
-            sealers:    sealers_in(rest)
+            sealers:    sealers_in(rest),
+            # EVERY command, not `rest` — the creating command carries the parent
+            # link, which is the most common reference of all.
+            references: references_in(aggregate.commands)
           )
+        end
+
+        # Which arguments of which verbs carry an ID rather than a value, read
+        # straight from the language's own IR.
+        def references_in(commands)
+          commands.each_with_object({}) do |command, found|
+            named = command.attributes.select(&:reference?).map { |attribute| attribute.name.to_s }
+            found[command.hecks_name] = named unless named.empty?
+          end
         end
 
         # The creating command is the one that does not reach through its own root.

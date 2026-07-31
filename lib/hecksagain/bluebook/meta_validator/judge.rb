@@ -72,6 +72,20 @@ module Hecksagain
           { value: text.to_s }
         end
 
+        # A REFERENCE IS AN ID, AND AN ID IS A SCALAR.
+        #
+        # Every other field goes to the meta-domain as a one-field value object,
+        # because that is what it is. A reference is not: it carries the id of a
+        # head, and wrapping an id in an object was the language saying `{value:
+        # "Banking::Customer"}` where it meant `"Banking::Customer"`. The plan
+        # answers which arguments those are, read from the language's own IR, so
+        # nothing here needs to know the names.
+        def carried(plan, verb, argument, value)
+          return v(value) unless plan && verb && plan.references?(verb, argument)
+
+          value
+        end
+
         def args(pairs) = pairs.reject { |_, value| value.nil? }
 
         def offer(label)
@@ -147,7 +161,10 @@ module Hecksagain
           return unless category == "Entity"
 
           WITHIN_ENTITY.each do |child|
-            walk_all(child, node, id, aggregate_id: v(aggregate_id), entity_id: v(id))
+            plan = @plan.category(child)
+            walk_all(child, node, id,
+                     aggregate_id: carried(plan, plan&.declare, "aggregate_id", aggregate_id),
+                     entity_id:    carried(plan, plan&.declare, "entity_id", id))
           end
         end
 
@@ -164,12 +181,12 @@ module Hecksagain
           return unless plan.declare
 
           payload = { id: id }
-          payload[plan.parent_key.to_sym] = v(parent_id) if plan.parent_key
+          payload[plan.parent_key.to_sym] = carried(plan, plan.declare, plan.parent_key, parent_id) if plan.parent_key
           plan.fields.each do |field|
             payload[field.to_sym] = if field == POSITION
                                       v(index)
                                     else
-                                      v(field_value(category, node, field.to_sym, parent_id))
+                                      carried(plan, plan.declare, field, field_value(category, node, field.to_sym, parent_id))
                                     end
           end
 
@@ -196,7 +213,9 @@ module Hecksagain
             rows_for(category, list_name, node).each_with_index do |row, index|
               chosen = append_for(category, list_name, append, row, node)
               payload = chosen.map.to_h do |field, argument|
-                [argument.to_sym, v(cell(category, list_name, row, field, id, chosen))]
+                [argument.to_sym,
+                 carried(@plan.category(category), chosen.verb, argument,
+                       cell(category, list_name, row, field, id, chosen))]
               end
 
               send_to("Meta::#{category}.#{chosen.verb}", "#{id}##{list_name}[#{index}]",
