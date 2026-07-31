@@ -227,6 +227,13 @@ module Hecksagain
           # "#<struct LimitSpec value=3>".
           return node.limit&.to_h&.fetch(:value, nil) if "#{category}.#{field}" == "Query.limit"
 
+          # `identified_by` READS BACK as the head attribute, so every dispatch
+          # that only wants to look an attribute up is untouched — but what the
+          # language must HOLD is the whole path, or `{ number.value }` comes
+          # back as `number` and the identity silently becomes a value object
+          # again. The reconstruction is faithful ; it was being handed the head.
+          return node.identity_path if field == :identified_by && node.respond_to?(:identity_path)
+
           node.respond_to?(field) ? node.public_send(field) : nil
         end
 

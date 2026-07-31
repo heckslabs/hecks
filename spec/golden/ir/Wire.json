@@ -152,7 +152,7 @@
       "entities": [
 
       ],
-      "identified_by": "number",
+      "identified_by": "number.value",
       "lifecycle": {
         "default": "open",
         "field": "status",
@@ -368,7 +368,7 @@
       "entities": [
 
       ],
-      "identified_by": "reference",
+      "identified_by": "reference.value",
       "lifecycle": {
         "default": "asked",
         "field": "status",
