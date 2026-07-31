@@ -4,7 +4,7 @@ RSpec.describe "Pizzas" do
   let(:runtime) { boot_in_memory }
 
   def create(name: "Margherita", price_cents: 1200)
-    runtime.dispatch("Pizzas::Pizza.CreatePizza", name: { value: name }, price_cents: { cents: price_cents })
+    runtime.dispatch("Pizzas::Pizza.CreatePizza", id: name, name: { value: name }, price_cents: { cents: price_cents })
   end
 
   def topped(**overrides)
@@ -172,7 +172,7 @@ RSpec.describe "Pizzas" do
       pizza = registry.bluebook("Pizzas").aggregate("Pizza")
       expect(registry.repository("Pizzas", pizza)).to be_a(Hecksagain::Ports::Persistence::AppendOnly)
 
-      runtime.dispatch("Pizzas::Pizza.CreatePizza", name: { value: "Margherita" }, price_cents: { cents: 900 })
+      runtime.dispatch("Pizzas::Pizza.CreatePizza", id: "Margherita", name: { value: "Margherita" }, price_cents: { cents: 900 })
       expect(registry.repository("Pizzas", pizza).count).to eq(1)
     end
 

@@ -1,4 +1,3 @@
-require "securerandom"
 
 module Hecksagain
   module Runtime
@@ -48,7 +47,19 @@ module Hecksagain
 
       def hydrate(repository, aggregate, command, args)
         if command.creates?
-          id = identity_from(aggregate, args, aggregate.identified_by || :id) || mint_id(aggregate)
+          # NOTHING IS MINTED. An identity that is invented is neither derived
+          # from the record nor permanently associated with it — Ruby minted a
+          # random hex and Rust a counter, so the same dispatch produced two
+          # different records, and Ruby's was not even stable across two runs of
+          # itself. A store written yesterday could not be reasoned about today.
+          #
+          # So a creating command that cannot say WHICH ONE THIS IS is refused,
+          # and an aggregate with no `identified_by` must be told. bin/undeclared
+          # found this the other way round : the only two declarations in banking
+          # whose removal made the runtimes disagree were both `identified_by`,
+          # and they disagreed because removing them fell through to here.
+          id = identity_from(aggregate, args, aggregate.identified_by || :id) ||
+               raise(NotFound, "#{command.hecks_name} creates a #{aggregate.hecks_name} — pass #{aggregate.identified_by}:")
           Instance.new(aggregate: aggregate, id: id)
         else
           id = identity_from(aggregate, args, aggregate.identified_by || :id) ||
@@ -118,10 +129,6 @@ module Hecksagain
         attribute = aggregate.attribute(aggregate.identified_by || :id)
         raw       = args[key]
         Value.identifier(attribute ? Value.for_attribute(aggregate, attribute, raw) : raw)
-      end
-
-      def mint_id(aggregate)
-        "#{aggregate.storage_name}-#{SecureRandom.hex(4)}"
       end
 
       def assign_creation_attributes(instance, aggregate, command, args)

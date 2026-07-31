@@ -6,6 +6,10 @@ Hecks.bluebook "QueryOps" do
   aggregate "Item" do
     description "A row with fields sized for every comparator: a status to equate, an amount to order, and tags to test membership both directions."
 
+    # Its label is what says which row this is. Nothing is minted, so an
+    # aggregate has to name the unchanging fact that identifies it.
+    identified_by :label
+
     attribute :label,  Label
     attribute :amount, Amount
     attribute :status, Status

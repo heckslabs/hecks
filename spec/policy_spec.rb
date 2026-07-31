@@ -20,7 +20,7 @@ RSpec.describe "a policy" do
   end
 
   def topped_pizza(runtime)
-    pizza = runtime.dispatch("Pizzas::Pizza.CreatePizza", name: { value: "Margherita" }, price_cents: { cents: 900 })
+    pizza = runtime.dispatch("Pizzas::Pizza.CreatePizza", id: "Margherita", name: { value: "Margherita" }, price_cents: { cents: 900 })
     runtime.dispatch("Pizzas::Pizza.AddTopping", id: pizza.id, name: { value: "Basil" }, amount: { value: 3 })
     pizza
   end

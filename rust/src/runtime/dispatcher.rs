@@ -22,7 +22,6 @@ pub struct Runtime {
     pub reactions: Vec<Value>,
     pub sagas: Vec<Value>,
     saga_instances: BTreeMap<String, BTreeMap<String, (String, Map<String, Value>)>>,
-    minted: usize,
     reaction_depth: usize,
     // Set by a test to observe dispatch order (Vocabulary::AggregateDispatchOrder /
     // EntityDispatchOrder in language/bluebook.bluebook) ; None in production,
@@ -298,7 +297,6 @@ impl Runtime {
             reactions: Vec::new(),
             sagas: Vec::new(),
             saga_instances: BTreeMap::new(),
-            minted: 0,
             reaction_depth: 0,
             dispatch_trace: None,
             resolved_cache: RefCell::new(HashMap::new()),
@@ -1113,15 +1111,19 @@ impl Runtime {
             .and_then(Value::as_str)
             .unwrap_or("command");
 
+        // NOTHING IS MINTED. An invented identity is neither derived from the
+        // record nor permanently associated with it — this counted, Ruby drew a
+        // random hex, and the same dispatch made two different records. A
+        // creating command that cannot say WHICH ONE THIS IS is refused, and an
+        // aggregate with no `identified_by` has to be told.
         if creates {
             let id = args
                 .get(identity)
                 .filter(|value| query_truthy(value))
                 .map(query_text)
-                .unwrap_or_else(|| {
-                    self.minted += 1;
-                    format!("{}-{}", crate::naming::snake(&aggregate_name), self.minted)
-                });
+                .ok_or_else(|| {
+                    format!("{command_name} creates a {aggregate_name} — pass {identity}:")
+                })?;
             return Ok((id, defaults_for(aggregate)?));
         }
 
