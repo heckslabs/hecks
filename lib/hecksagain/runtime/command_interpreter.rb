@@ -137,7 +137,12 @@ module Hecksagain
           return rest.reduce(held) { |h, f| h.is_a?(Hash) ? (h[f.to_sym] || h[f]) : nil }&.to_s
         end
 
-        attribute = aggregate.attribute(aggregate.identified_by || :id)
+        # Coerced against the identity ATTRIBUTE only when the caller actually
+        # named it. A saga addresses an aggregate by its correlation key, and
+        # that key carries the id ALREADY RESOLVED — coercing "w1" against a
+        # WireReference asked the caller to pass fields for a value object they
+        # never mentioned.
+        attribute = key == aggregate.identified_by ? aggregate.attribute(key) : nil
         raw       = args[key]
         Value.identifier(attribute ? Value.for_attribute(aggregate, attribute, raw) : raw)
       end

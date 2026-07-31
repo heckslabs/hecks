@@ -215,6 +215,12 @@
     {
       "attributes": [
         {
+          "default": null,
+          "list": false,
+          "name": "reference",
+          "type": "WireReference"
+        },
+        {
           "default": {
             "cents": 0
           },
@@ -238,6 +244,12 @@
       "commands": [
         {
           "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "reference",
+              "type": "WireReference"
+            },
             {
               "default": null,
               "list": false,
@@ -356,7 +368,7 @@
       "entities": [
 
       ],
-      "identified_by": "id",
+      "identified_by": "reference",
       "lifecycle": {
         "default": "asked",
         "field": "status",
@@ -383,6 +395,24 @@
 
       ],
       "value_objects": [
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "WireReference"
+        },
         {
           "attributes": [
             {

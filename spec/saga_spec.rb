@@ -29,7 +29,7 @@ RSpec.describe "a process manager" do
   it "carries a wire end to end — exact cents, exact states — and retires" do
     runtime = funded
     runtime.dispatch("Wire::Wire.Ask",
-                     id: "wire-1", amount: { cents: 2_500 }, source: { value: "left" }, destination: { value: "right" })
+                     reference: { value: "wire-1" }, amount: { cents: 2_500 }, source: { value: "left" }, destination: { value: "right" })
 
     expect(Wire::Drawer.find("left").cents.to_h).to  eq(cents: 7_500)
     expect(Wire::Drawer.find("right").cents.to_h).to eq(cents: 2_500)
@@ -44,7 +44,7 @@ RSpec.describe "a process manager" do
   it "remembers the opening payload — the credit leg reads a destination no event carried" do
     runtime = funded
     runtime.dispatch("Wire::Wire.Ask",
-                     id: "wire-1", amount: { cents: 100 }, source: { value: "left" }, destination: { value: "right" })
+                     reference: { value: "wire-1" }, amount: { cents: 100 }, source: { value: "left" }, destination: { value: "right" })
 
     expect(Wire::Drawer.find("right").cents.to_h).to eq(cents: 100)
   end
@@ -61,7 +61,7 @@ RSpec.describe "a process manager" do
     runtime = funded
     runtime.dispatch("Wire::Drawer.Shut", number: { value: "right" })
     runtime.dispatch("Wire::Wire.Ask",
-                     id: "wire-2", amount: { cents: 1_000 }, source: { value: "left" }, destination: { value: "right" })
+                     reference: { value: "wire-2" }, amount: { cents: 1_000 }, source: { value: "left" }, destination: { value: "right" })
 
     # The refusal is still recorded — a fact about the domain, not a crash.
     expect(runtime.sagas).to include(
@@ -86,7 +86,7 @@ RSpec.describe "a process manager" do
     runtime = funded
     runtime.dispatch("Wire::Drawer.Shut", number: { value: "right" })
     runtime.dispatch("Wire::Wire.Ask",
-                     id: "wire-3", amount: { cents: 100 }, source: { value: "left" }, destination: { value: "right" })
+                     reference: { value: "wire-3" }, amount: { cents: 100 }, source: { value: "left" }, destination: { value: "right" })
     # No manual Wire.Returned any more — the refused leg unwinds on its own, and
     # the compensation's own Put emits PutIn while the procedure sits in
     # "returned". Which IS the wrong phase, arriving without being arranged.
@@ -145,9 +145,9 @@ RSpec.describe "a lifecycle" do
     # opened is not a wire, and the runtime now says so
     runtime.dispatch("Wire::Drawer.Open", number: { value: "a" })
     runtime.dispatch("Wire::Drawer.Open", number: { value: "b" })
-    runtime.dispatch("Wire::Wire.Ask", id: "w", amount: { cents: 1 }, source: { value: "a" }, destination: { value: "b" })
+    runtime.dispatch("Wire::Wire.Ask", reference: { value: "w" }, amount: { cents: 1 }, source: { value: "a" }, destination: { value: "b" })
 
     expect { runtime.dispatch("Wire::Wire.Returned", wire: "missing") }
-      .to raise_error(Hecksagain::Runtime::NotFound, /no Wire with id "missing"/)
+      .to raise_error(Hecksagain::Runtime::NotFound, /no Wire with reference "missing"/)
   end
 end
