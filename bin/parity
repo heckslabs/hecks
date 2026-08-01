@@ -248,33 +248,51 @@ run_lineage() {
   rm "$staged/bluebook/translations/2-unresolved.bluebook"
   echo "   unresolved refuses at load — byte-identical in both runtimes"
 
-  # ── an adapter with no eras: the same drift that Postgres carries is
-  #    simply not its business. It holds nothing on disk, and it is
+  # ── the adapters with no eras: the same drift Postgres carries across
+  #    is simply not their business. Each holds nothing on disk and is
   #    never lectured about a translation it could not apply — the two
   #    runtimes agree on the silence as firmly as they agree on bytes.
-  heki="/tmp/parity.lineage.heki.domain"
-  rm -rf "$heki"
-  cp -R "$src" "$heki"
-  rm -rf "$heki/bluebook/translations"
-  perl -0pi -e 's/persisted_by\("Postgres"\) do\s*\n\s*database "[^"]*"/persisted_by("Heki") do\n    dir "data"/g' "$heki/bluebook/lineage.world"
-  perl -0pi -e 's/persisted_by\("Postgres"\)/persisted_by("Heki")/g' "$heki/bluebook/lineage.hecksagon" "$heki/v1/lineage.hecksagon"
-  cp "$heki/v1/lineage.bluebook" "$heki/bluebook/lineage.bluebook"
-  cp "$heki/v1/lineage.hecksagon" "$heki/bluebook/lineage.hecksagon"
-  "$ROOT/bin/run" "$heki" "$ROOT/spec/parity/fixtures/lineage_v1.json" >/dev/null 2>&1 || { echo "   FAILED — heki era-1 writes did not run"; return 1; }
-  if [ -d "$heki/data/eras" ]; then echo "   SPLIT — an adapter with no eras held one anyway"; return 1; fi
-  cp "$src/bluebook/lineage.bluebook" "$heki/bluebook/lineage.bluebook"
-  cp "$src/bluebook/lineage.hecksagon" "$heki/bluebook/lineage.hecksagon"
-  perl -0pi -e 's/persisted_by\("Postgres"\)/persisted_by("Heki")/g' "$heki/bluebook/lineage.hecksagon"
+  #    Every non-capable adapter is walked, not a representative one:
+  #    "eras belong to the adapter that can carry data across them" is a
+  #    claim about all of them, so all of them are asked.
   no_lecture="cannot translate\|cannot serve a superseded era"
-  "$ROOT/bin/ir" "$heki" >/dev/null 2>&1 || { echo "   SPLIT — ruby refused to boot drift under an adapter that has no eras"; return 1; }
-  if "$ROOT/bin/run" "$heki" "$ROOT/spec/parity/lineage.json" 2>&1 | grep -q "$no_lecture"; then
-    echo "   SPLIT — ruby lectured an adapter that has no eras"; return 1
-  fi
-  if "$BINARY" "$heki/bluebook/lineage.bluebook" "$ROOT/spec/parity/lineage.json" 2>&1 | grep -q "$no_lecture"; then
-    echo "   SPLIT — rust lectured an adapter that has no eras"; return 1
-  fi
-  if [ -d "$heki/data/eras" ]; then echo "   SPLIT — an era was held for an adapter that has none"; return 1; fi
-  echo "   an adapter with no eras holds nothing and is never lectured — both runtimes"
+  for eraless in Heki SqlitePersistence Memory; do
+    home="/tmp/parity.lineage.$(printf '%s' "$eraless" | tr '[:upper:]' '[:lower:]').domain"
+    rm -rf "$home"
+    cp -R "$src" "$home"
+    rm -rf "$home/bluebook/translations"
+    case "$eraless" in
+      Heki) perl -0pi -e 's/persisted_by\("Postgres"\) do\s*\n\s*database "[^"]*"/persisted_by("Heki") do\n    dir "data"/' \
+              "$home/bluebook/lineage.world" || return 1 ;;
+      SqlitePersistence) perl -0pi -e 's/persisted_by\("Postgres"\) do\s*\n\s*database "[^"]*"/persisted_by("SqlitePersistence") do\n    database "data\/parity.sqlite3"/' \
+              "$home/bluebook/lineage.world" || return 1 ;;
+      # Memory declares no fields at all, so its bind carries no block —
+      # which is the point: there is nothing left to configure.
+      Memory) perl -0pi -e 's/persisted_by\("Postgres"\) do\s*\n\s*database "[^"]*"\s*\n\s*end/persisted_by("Memory")/' \
+              "$home/bluebook/lineage.world" || return 1 ;;
+    esac
+    perl -0pi -e "s/persisted_by\\(\"Postgres\"\\)/persisted_by(\"$eraless\")/g" \
+      "$home/bluebook/lineage.hecksagon" "$home/v1/lineage.hecksagon" || return 1
+    cp "$home/v1/lineage.bluebook" "$home/bluebook/lineage.bluebook"
+    cp "$home/v1/lineage.hecksagon" "$home/bluebook/lineage.hecksagon"
+    "$ROOT/bin/run" "$home" "$ROOT/spec/parity/fixtures/lineage_v1.json" >/dev/null 2>&1 ||
+      { echo "   FAILED — $eraless era-1 writes did not run"; return 1; }
+    if [ -d "$home/data/eras" ]; then echo "   SPLIT — $eraless held an era it cannot use"; return 1; fi
+
+    cp "$src/bluebook/lineage.bluebook" "$home/bluebook/lineage.bluebook"
+    cp "$src/bluebook/lineage.hecksagon" "$home/bluebook/lineage.hecksagon"
+    perl -0pi -e "s/persisted_by\\(\"Postgres\"\\)/persisted_by(\"$eraless\")/g" "$home/bluebook/lineage.hecksagon" || return 1
+    "$ROOT/bin/ir" "$home" >/dev/null 2>&1 ||
+      { echo "   SPLIT — ruby refused to boot drift under $eraless, which has no eras"; return 1; }
+    if "$ROOT/bin/run" "$home" "$ROOT/spec/parity/lineage.json" 2>&1 | grep -q "$no_lecture"; then
+      echo "   SPLIT — ruby lectured $eraless, which has no eras"; return 1
+    fi
+    if "$BINARY" "$home/bluebook/lineage.bluebook" "$ROOT/spec/parity/lineage.json" 2>&1 | grep -q "$no_lecture"; then
+      echo "   SPLIT — rust lectured $eraless, which has no eras"; return 1
+    fi
+    if [ -d "$home/data/eras" ]; then echo "   SPLIT — an era was held for $eraless, which has none"; return 1; fi
+  done
+  echo "   Heki, Sqlite and Memory hold nothing and are never lectured — both runtimes"
 
   # ── the authoring loop: scaffold, resolve, audit; rust refuses until minted
   "$ROOT/bin/scaffold_translation" "$staged" >/dev/null 2>&1 || { echo "   FAILED — scaffold refused"; return 1; }
