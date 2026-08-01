@@ -248,7 +248,10 @@ run_lineage() {
   rm "$staged/bluebook/translations/2-unresolved.bluebook"
   echo "   unresolved refuses at load — byte-identical in both runtimes"
 
-  # ── capability refusal bytes: the same drift under a file adapter
+  # ── an adapter with no eras: the same drift that Postgres carries is
+  #    simply not its business. It holds nothing on disk, and it is
+  #    never lectured about a translation it could not apply — the two
+  #    runtimes agree on the silence as firmly as they agree on bytes.
   heki="/tmp/parity.lineage.heki.domain"
   rm -rf "$heki"
   cp -R "$src" "$heki"
@@ -258,13 +261,20 @@ run_lineage() {
   cp "$heki/v1/lineage.bluebook" "$heki/bluebook/lineage.bluebook"
   cp "$heki/v1/lineage.hecksagon" "$heki/bluebook/lineage.hecksagon"
   "$ROOT/bin/run" "$heki" "$ROOT/spec/parity/fixtures/lineage_v1.json" >/dev/null 2>&1 || { echo "   FAILED — heki era-1 writes did not run"; return 1; }
+  if [ -d "$heki/data/eras" ]; then echo "   SPLIT — an adapter with no eras held one anyway"; return 1; fi
   cp "$src/bluebook/lineage.bluebook" "$heki/bluebook/lineage.bluebook"
   cp "$src/bluebook/lineage.hecksagon" "$heki/bluebook/lineage.hecksagon"
   perl -0pi -e 's/persisted_by\("Postgres"\)/persisted_by("Heki")/g' "$heki/bluebook/lineage.hecksagon"
-  want_capability="cannot boot Account: the shape changed (era 2) and Heki cannot translate — bind Postgres, or reset the data"
-  "$ROOT/bin/run" "$heki" "$ROOT/spec/parity/lineage.json" 2>&1 | grep -qF "$want_capability" || { echo "   SPLIT — ruby capability refusal bytes"; return 1; }
-  "$BINARY" "$heki/bluebook/lineage.bluebook" "$ROOT/spec/parity/lineage.json" 2>&1 | grep -qF "$want_capability" || { echo "   SPLIT — rust capability refusal bytes"; return 1; }
-  echo "   a file adapter refuses the same drift toward Postgres — byte-identical in both runtimes"
+  no_lecture="cannot translate\|cannot serve a superseded era"
+  "$ROOT/bin/ir" "$heki" >/dev/null 2>&1 || { echo "   SPLIT — ruby refused to boot drift under an adapter that has no eras"; return 1; }
+  if "$ROOT/bin/run" "$heki" "$ROOT/spec/parity/lineage.json" 2>&1 | grep -q "$no_lecture"; then
+    echo "   SPLIT — ruby lectured an adapter that has no eras"; return 1
+  fi
+  if "$BINARY" "$heki/bluebook/lineage.bluebook" "$ROOT/spec/parity/lineage.json" 2>&1 | grep -q "$no_lecture"; then
+    echo "   SPLIT — rust lectured an adapter that has no eras"; return 1
+  fi
+  if [ -d "$heki/data/eras" ]; then echo "   SPLIT — an era was held for an adapter that has none"; return 1; fi
+  echo "   an adapter with no eras holds nothing and is never lectured — both runtimes"
 
   # ── the authoring loop: scaffold, resolve, audit; rust refuses until minted
   "$ROOT/bin/scaffold_translation" "$staged" >/dev/null 2>&1 || { echo "   FAILED — scaffold refused"; return 1; }

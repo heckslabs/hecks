@@ -547,16 +547,8 @@ impl Runtime {
 
         let mut adapter_names = BTreeMap::new();
         let mut capable = BTreeMap::new();
-        let mut ephemeral = false;
         for aggregate in &aggregates {
             let bindings = crate::ports::persistence::resolve_all_for(&source_text, &aggregate.name)?;
-            if aggregate.name == aggregates[0].name {
-                ephemeral = bindings
-                    .authoritative
-                    .settings
-                    .get("eras")
-                    .is_some_and(|declared| declared == "ephemeral");
-            }
             adapter_names.insert(aggregate.name.clone(), bindings.authoritative.adapter.clone());
             if bindings.authoritative.adapter.to_lowercase() != "memory" {
                 let repository = boot_repository(aggregate, &source_text, bindings.authoritative, &domain_name)?;
@@ -573,29 +565,24 @@ impl Runtime {
             runtime.recover_mirrors(&aggregate.name)?;
         }
 
-        // The era gate runs for EVERY adapter. A lineage-capable
+        // Eras belong to the adapters that HAVE them. A lineage-capable
         // adapter (Postgres) holds its era facts as rows beside its
         // data and gets the whole domain delegated to its own gate —
         // which recognizes stored eras structurally and refuses toward
         // the Ruby scaffold on anything unminted, since era identity is
-        // minted on the Ruby side alone. Everything else goes through
-        // the file store, anchored two levels above the bluebook file —
-        // the same `<domain>/data/eras/...` root Ruby's Loader derives.
+        // minted on the Ruby side alone. Every other adapter has no era
+        // to hold, and holding one for it would record history about
+        // data nothing can act on.
+        //
+        // The compute gate is not an era fact and runs regardless.
         let context = crate::runtime::era_check::EraContext {
             domain: &runtime.domain,
             translations: &runtime.translations,
             adapters: &adapter_names,
             capable: &capable,
         };
+        crate::runtime::era_check::check_compute_rules(&context)?;
         if capable.values().any(|declared| *declared) {
-            if ephemeral {
-                return Err(format!(
-                    "{} binds Postgres with eras \"ephemeral\" — the enforcement-grade adapter \
-                     never forgets an era; drop the setting, or bind a file adapter for iteration",
-                    domain_name
-                ));
-            }
-            crate::runtime::era_check::check_compute_rules(&context)?;
             let current_shape = crate::runtime::storage_shape::project(&runtime.domain);
             let translations = runtime.translations.clone();
             let capable_aggregate = aggregates
@@ -617,14 +604,6 @@ impl Runtime {
                     }
                 }
             }
-        } else if ephemeral {
-            // A DECLARED-ephemeral domain iterates freely: no held
-            // texts, no drift refusals — the world file says, in
-            // versioned text, that this data is disposable. The compute
-            // gate still applies; nothing else does.
-            crate::runtime::era_check::check_compute_rules(&context)?;
-        } else if let Some(root) = bluebook_path.parent().and_then(std::path::Path::parent) {
-            crate::runtime::era_check::check(&context, root, &source)?;
         }
 
         Ok(runtime)

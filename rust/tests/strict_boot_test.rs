@@ -25,7 +25,7 @@ fn a_near_miss_block_keyword_refuses_at_boot_instead_of_half_reading() {
     .unwrap();
     fs::write(
         bluebook_dir.join("typo.world"),
-        "Hecks.world \"Typo\" do\n  realm \"Examples\"\n  persisted_by(\"Memory\") do\n    eras \"ephemeral\"\n  end\nend\n",
+        "Hecks.world \"Typo\" do\n  realm \"Examples\"\n  persisted_by(\"Memory\")\nend\n",
     )
     .unwrap();
 

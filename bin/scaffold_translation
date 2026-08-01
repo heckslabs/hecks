@@ -58,28 +58,12 @@ if capable
   diffed = Hecksagain::Translation::Scaffold.diff(held_bluebook, bluebook)
   db.close
 else
-  # A file-store domain scaffolds too: drift refuses everywhere, and
-  # the remedy the refusal names ("bind Postgres") starts with an edge
-  # someone can read.
-  store = Hecksagain::Ports::Persistence::EraStore.new(registry.root, bluebook.name)
-  texts = store.held_texts
-  abort "#{bluebook.name} holds no era yet — boot once, then scaffold" if texts.empty?
-  ordinal, held_text = texts.last
-  held_bluebook = manager.shadow(held_text)
-  if Hecksagain::Runtime::StorageShape.project(held_bluebook) == current_shape
-    puts "#{bluebook.name} matches era #{ordinal} — nothing to scaffold."
-    exit 0
-  end
-  from_label = store.mint!(ordinal, held_bluebook)
-  to_hash = Hecksagain::Runtime::StorageShape.mint_hash(bluebook)
-  to_label = to_hash[0, Hecksagain::Runtime::StorageShape::LABEL_LENGTH]
-  diffed = Hecksagain::Translation::Scaffold.diff(held_bluebook, bluebook)
-  edge = Hecksagain::Translation::Scaffold::Edge.new(
-    domain: bluebook.name, from: from_label, to: to_label,
-    ordinal: ordinal + 1, label: to_label,
-    aggregates: diffed[:aggregates], retired: diffed[:retired]
-  )
-  path = Hecksagain::Translation::Scaffold.write!(directory, edge)
+  # Eras belong to the adapters that can carry data across them. An
+  # edge scaffolded for an adapter that cannot apply it would be a
+  # document describing a translation nothing will ever run.
+  abort "#{bluebook.name} is bound to #{adapter_name}, which holds no eras — " \
+        "a translation edge is only applied by a lineage-capable adapter. " \
+        "Bind Postgres, or change the shape and its stored data by hand."
 end
 
 text = File.read(path)

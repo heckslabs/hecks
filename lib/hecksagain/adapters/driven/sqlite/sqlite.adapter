@@ -1,7 +1,6 @@
 Hecks.adapter "SqlitePersistence" do
   port   "persistence"
   field  :database
-  field  :eras
 end
 
 Hecks.adapter "SqliteProjection" do

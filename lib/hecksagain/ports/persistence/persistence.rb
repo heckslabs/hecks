@@ -11,7 +11,6 @@ end
 require_relative "binding_policy"
 require_relative "lineage"
 require_relative "era_tamper"
-require_relative "era_store"
 require_relative "repository_factory"
 require_relative "append_only"
 

@@ -54,12 +54,10 @@ if capable
   stored_projection = era[:held_projection] && JSON.parse(era[:held_projection])
   reattest = -> { lineage.reattest!(ordinal) }
 else
-  store = Hecksagain::Ports::Persistence::EraStore.new(registry.root, bluebook.name)
-  text = store.raw_text(ordinal) or abort "#{bluebook.name} holds no era #{ordinal}"
-  stored = store.stored_digest(ordinal)
-  stored_hash = store.names.dig(ordinal, :hash)
-  stored_projection = store.stored_projection(ordinal)
-  reattest = -> { store.reattest!(ordinal) }
+  # Only a lineage-capable adapter holds era texts, so only one can
+  # have a held text whose digest went stale.
+  abort "#{bluebook.name} is bound to #{adapter_name}, which holds no eras — " \
+        "there is no frozen text to re-attest."
 end
 
 computed = Digest::SHA256.hexdigest(text)

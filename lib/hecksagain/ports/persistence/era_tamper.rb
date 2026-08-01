@@ -15,7 +15,7 @@ module Hecksagain
       # 3am, even though the repair tool itself is Ruby.
       #
       # The refusal wordings here are byte-identical with the Rust twin
-      # (rust/src/ports/persistence/era_store.rs). One accepted corner
+      # (rust/postgres/src/postgres_repository.rs). One accepted corner
       # divergence: an edited text Ruby cannot parse falls back to the
       # generic wording, while Rust's permissive parser always reaches a
       # verdict — two different judgments about the same input, the same

@@ -8,9 +8,6 @@ pub use persistence::{resolve_all_for, resolve_for, Persistence, PersistenceBind
 mod lineage;
 pub use lineage::Lineage;
 
-mod era_store;
-pub use era_store::EraStore;
-
 #[allow(dead_code)]
 pub mod persistence_adapter;
 
