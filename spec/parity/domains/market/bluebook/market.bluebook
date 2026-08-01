@@ -19,6 +19,12 @@ Hecks.bluebook "Market" do
   aggregate "Stall" do
     description "A pitch on the market floor — a row and a number, because neither names it alone."
 
+    # A REFERENCE, on the head that is composite-identified, holds two
+    # differently-shaped pieces and announces twice. Reference resolution and
+    # identity derivation have never met on one aggregate before: every
+    # reference-bearing head in the corpus is known by a single path.
+    reference_to Trader
+
     identified_by do
       row.value
       number.value
@@ -28,6 +34,10 @@ Hecks.bluebook "Market" do
     attribute :number,     StallNumber
     attribute :trader,     TraderName
     attribute :rent_pence, Rent
+    # A CLOSED SET and a DEFAULT, on the head that already carries a composite
+    # identity and two differently-shaped pieces — so those forms are exercised
+    # TOGETHER rather than each alone in a different chapter.
+    attribute :cover,      one_of("covered", "open"), default: { value: "open" }
     attribute :bookings,   list_of(Booking)
     attribute :inspections, list_of(Inspection)
 
@@ -154,11 +164,16 @@ Hecks.bluebook "Market" do
       goal "Let the pitch to a trader for the day"
 
       reference_to Stall
-      attribute :trader, TraderName
+      attribute :trader,    TraderName
+      reference_to Trader, as: :trader_id
+      # MAY BE LEFT OUT — the exception is what gets marked, and this is the only
+      # optional argument on a composite-identified head in the corpus.
+      attribute :cover,  Cover, optional: true
 
       given("a stall already let cannot be let again") { status == "vacant" }
 
-      then_set :trader, to: :trader
+      then_set :trader,    to: :trader
+      then_set :trader_id, to: :trader_id
 
       emits "StallLet"
     end
@@ -214,7 +229,11 @@ Hecks.bluebook "Market" do
 
       given("only a let stall can be vacated") { status == "let" }
 
+      # TWO ANNOUNCEMENTS from a head that is composite-identified and holds two
+      # pieces. `relay` proves two events work at all ; this proves they work
+      # where the id is a join and the aggregate is not a toy.
       emits "StallVacated"
+      emits "PitchAvailable"
     end
 
     # EVERY PART SUPPLIED BY THE CALLER, because a composite piece gets no
@@ -246,6 +265,43 @@ Hecks.bluebook "Market" do
       then_set :bookings, append: { day: :day, session: :session, holder: :holder }
 
       emits "BookingHeld"
+    end
+  end
+  aggregate "Trader" do
+    description "Somebody licensed to trade on the floor, named once and referred to from every pitch they hold."
+
+    identified_by { name.value }
+
+    attribute :name, TraderName
+
+    value_object "TraderName" do
+      attribute :value, String
+
+      invariant("a trader is named") { !value.to_s.empty? }
+    end
+
+    lifecycle :standing, default: "registered" do
+      transition "Suspend" => "suspended", from: "registered"
+    end
+
+    command "Register" do
+      role "Clerk"
+      goal "Put a trader on the register"
+
+      attribute :name, TraderName
+
+      emits "TraderRegistered"
+    end
+
+    command "Suspend" do
+      role "Clerk"
+      goal "Stop a trader taking new pitches"
+
+      reference_to Trader
+
+      given("only a registered trader is suspended") { standing == "registered" }
+
+      emits "TraderSuspended"
     end
   end
 end

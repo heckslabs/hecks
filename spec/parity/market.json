@@ -3,6 +3,55 @@
   "note": "A COMPOSITE IDENTITY, driven where a single-path reading gives a different answer. Stall 1 exists in row A and in row B and they are not the same pitch, so a runtime keying on the number alone finds A/1 when told B/1, and one keying on the row alone lets the whole row at once. Every step below distinguishes those two mistakes from the right answer: the pair is opened, both are let separately, one is vacated and re-let while the other stays let, and the refusals name the identity as the bluebook declared it \u2014 both paths, in order. It also holds TWO entities whose identities are shaped differently \u2014 a Booking joined from day+session, an Inspection from a single reference \u2014 so `entity_for`, which finds a piece by matching a list attribute's type against an entity name, has to choose rather than take the only candidate.",
   "steps": [
     {
+      "verb": "Market::Trader.Register",
+      "args": {
+        "name": {
+          "value": "Ada"
+        }
+      },
+      "note": "TRADERS FIRST \u2014 a Stall now points at one, and a reference must resolve to a head that exists."
+    },
+    {
+      "verb": "Market::Trader.Register",
+      "args": {
+        "name": {
+          "value": "Bram"
+        }
+      }
+    },
+    {
+      "verb": "Market::Trader.Register",
+      "args": {
+        "name": {
+          "value": "Cleo"
+        }
+      }
+    },
+    {
+      "verb": "Market::Trader.Register",
+      "args": {
+        "name": {
+          "value": "Dai"
+        }
+      }
+    },
+    {
+      "verb": "Market::Trader.Register",
+      "args": {
+        "name": {
+          "value": "Eira"
+        }
+      }
+    },
+    {
+      "verb": "Market::Trader.Register",
+      "args": {
+        "name": {
+          "value": "Ffion"
+        }
+      }
+    },
+    {
       "verb": "Market::Stall.OpenStall",
       "args": {
         "row": {
@@ -56,7 +105,8 @@
         },
         "trader": {
           "value": "Ada"
-        }
+        },
+        "trader_id": "Ada"
       }
     },
     {
@@ -71,7 +121,8 @@
         },
         "trader": {
           "value": "Bram"
-        }
+        },
+        "trader_id": "Bram"
       }
     },
     {
@@ -86,7 +137,8 @@
         },
         "trader": {
           "value": "Cleo"
-        }
+        },
+        "trader_id": "Cleo"
       }
     },
     {
@@ -101,7 +153,8 @@
         },
         "trader": {
           "value": "Dai"
-        }
+        },
+        "trader_id": "Dai"
       }
     },
     {
@@ -127,7 +180,8 @@
         },
         "trader": {
           "value": "Eira"
-        }
+        },
+        "trader_id": "Eira"
       }
     },
     {
@@ -151,7 +205,8 @@
         },
         "trader": {
           "value": "Ffion"
-        }
+        },
+        "trader_id": "Ffion"
       }
     },
     {
@@ -493,6 +548,39 @@
         },
         "session": {
           "value": "morning"
+        }
+      }
+    },
+    {
+      "verb": "Market::Stall.Let",
+      "note": "REFUSED \u2014 a reference must point at a head that exists, and nobody registered Zeb.",
+      "args": {
+        "row": {
+          "value": "A"
+        },
+        "number": {
+          "value": 2
+        },
+        "trader": {
+          "value": "Zeb"
+        },
+        "trader_id": "Zeb"
+      }
+    },
+    {
+      "verb": "Market::Trader.Suspend",
+      "args": {
+        "name": {
+          "value": "Bram"
+        }
+      }
+    },
+    {
+      "verb": "Market::Trader.Suspend",
+      "note": "REFUSED \u2014 only a registered trader is suspended.",
+      "args": {
+        "name": {
+          "value": "Bram"
         }
       }
     }

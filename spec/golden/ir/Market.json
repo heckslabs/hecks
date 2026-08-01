@@ -6,6 +6,15 @@
           "admits": null,
           "default": null,
           "list": false,
+          "name": "trader_id",
+          "optional": false,
+          "pattern": null,
+          "type": "Reference<Trader>"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
           "name": "row",
           "optional": false,
           "pattern": null,
@@ -37,6 +46,17 @@
           "optional": false,
           "pattern": null,
           "type": "Rent"
+        },
+        {
+          "admits": null,
+          "default": {
+            "value": "open"
+          },
+          "list": false,
+          "name": "cover",
+          "optional": false,
+          "pattern": null,
+          "type": "Cover"
         },
         {
           "admits": null,
@@ -112,6 +132,24 @@
               "optional": false,
               "pattern": null,
               "type": "TraderName"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "trader_id",
+              "optional": false,
+              "pattern": null,
+              "type": "Reference<Trader>"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "cover",
+              "optional": true,
+              "pattern": null,
+              "type": "Cover"
             }
           ],
           "emits": [
@@ -132,6 +170,14 @@
                 "name": "trader"
               },
               "target": "trader"
+            },
+            {
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "trader_id"
+              },
+              "target": "trader_id"
             }
           ],
           "name": "Let",
@@ -143,7 +189,8 @@
 
           ],
           "emits": [
-            "StallVacated"
+            "StallVacated",
+            "PitchAvailable"
           ],
           "givens": [
             {
@@ -711,6 +758,148 @@
 
           ],
           "name": "InspectionRef"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "value",
+                "covered"
+              ]
+            ],
+            [
+              [
+                "value",
+                "open"
+              ]
+            ]
+          ],
+          "name": "Cover"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "name",
+          "optional": false,
+          "pattern": null,
+          "type": "TraderName"
+        }
+      ],
+      "commands": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "name",
+              "optional": false,
+              "pattern": null,
+              "type": "TraderName"
+            }
+          ],
+          "emits": [
+            "TraderRegistered"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Put a trader on the register",
+          "mutations": [
+
+          ],
+          "name": "Register",
+          "references": null,
+          "role": "Clerk"
+        },
+        {
+          "attributes": [
+
+          ],
+          "emits": [
+            "TraderSuspended"
+          ],
+          "givens": [
+            {
+              "canonical": "standing == \"registered\"",
+              "description": "only a registered trader is suspended"
+            }
+          ],
+          "goal": "Stop a trader taking new pitches",
+          "mutations": [
+
+          ],
+          "name": "Suspend",
+          "references": "Trader",
+          "role": "Clerk"
+        }
+      ],
+      "description": "Somebody licensed to trade on the floor, named once and referred to from every pitch they hold.",
+      "entities": [
+
+      ],
+      "identified_by": [
+        "name.value"
+      ],
+      "lifecycle": {
+        "default": "registered",
+        "field": "standing",
+        "transitions": [
+          {
+            "command": "Suspend",
+            "from_state": "registered",
+            "to_state": "suspended"
+          }
+        ]
+      },
+      "name": "Trader",
+      "queries": [
+
+      ],
+      "value_objects": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "a trader is named"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "TraderName"
         }
       ]
     }
