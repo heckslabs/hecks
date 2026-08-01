@@ -49,13 +49,9 @@ pub fn parse_command(lines: &[&str], owner: &str) -> (Command, usize) {
         givens: vec![],
         mutations: vec![],
     };
-    // Gathered apart from the arguments so the acted-on root can be lifted out
-    // and the rest PREPENDED, which is the order the IR has always carried.
-    let mut references: Vec<Attribute> = Vec::new();
-
     if first.contains("{") && first.contains("}") {
-        parse_inline_command(first, &mut cmd, &mut references);
-        settle_references(&mut cmd, references, owner);
+        parse_inline_command(first, &mut cmd);
+        settle_references(&mut cmd, owner);
         return (cmd, 1);
     }
 
@@ -98,7 +94,7 @@ pub fn parse_command(lines: &[&str], owner: &str) -> (Command, usize) {
             } else if is_shorthand_line(line) {
                 match parse_shorthand(line) {
                     ShorthandResult::Attribute(a) => cmd.attributes.push(a),
-                    ShorthandResult::Reference(r) => references.push(r),
+                    ShorthandResult::Reference(r) => cmd.attributes.push(r),
                     ShorthandResult::None => {}
                 }
             } else if line.starts_with("role") {
@@ -118,7 +114,7 @@ pub fn parse_command(lines: &[&str], owner: &str) -> (Command, usize) {
                     } else {
                         format!("{}_id", crate::naming::snake(&target))
                     };
-                    references.push(reference_attribute(name, &target));
+                    cmd.attributes.push(reference_attribute(name, &target));
                 }
             } else if line.starts_with("given") && line.contains(" do ") && line.ends_with("end") {
                 let msg = extract_string(line);
@@ -183,7 +179,7 @@ pub fn parse_command(lines: &[&str], owner: &str) -> (Command, usize) {
         }
         i += 1;
     }
-    settle_references(&mut cmd, references, owner);
+    settle_references(&mut cmd, owner);
     (cmd, i + 1)
 }
 
@@ -196,19 +192,31 @@ pub fn parse_command(lines: &[&str], owner: &str) -> (Command, usize) {
 /// time the IR is projected.
 ///
 /// Every reference that reads as the acted-on root is dropped from the
-/// arguments, and the FIRST of them names the root. The survivors are prepended
-/// to the declared arguments, which is the order the IR has always carried.
-fn settle_references(cmd: &mut Command, references: Vec<Attribute>, owner: &str) {
-    let (acting, mut arguments): (Vec<Attribute>, Vec<Attribute>) = references
-        .into_iter()
-        .partition(|reference| acts_on_root(reference, owner));
+/// arguments, and its presence names the root. The survivors stay exactly where
+/// they were WRITTEN.
+///
+/// They used to be gathered into a side vector and PREPENDED, with a comment
+/// claiming that was "the order the IR has always carried". It was not — Ruby
+/// keeps declaration order, and the two only agreed because every command in the
+/// corpus happened to declare `reference_to` before its plain attributes. A
+/// command that declares an argument first and a cross-reference second put the
+/// two runtimes' IR out of order, and `market`'s `Let` is that command.
+fn settle_references(cmd: &mut Command, owner: &str) {
+    let mut acting = false;
+    let kept: Vec<Attribute> = cmd
+        .attributes
+        .drain(..)
+        .filter(|attribute| {
+            // `acts_on_root` only admits a reference whose target IS the owner,
+            // so the owner's name is the root's name.
+            let root = acts_on_root(attribute, owner);
+            acting |= root;
+            !root
+        })
+        .collect();
 
-    // `acts_on_root` only admits a reference whose target IS the owner, so the
-    // owner's name is the root's name.
-    cmd.references = acting.first().map(|_| owner.to_string());
-
-    arguments.append(&mut cmd.attributes);
-    cmd.attributes = arguments;
+    cmd.references = acting.then(|| owner.to_string());
+    cmd.attributes = kept;
 }
 
 fn parse_role_arg(line: &str) -> Option<String> {
@@ -227,7 +235,7 @@ fn parse_role_arg(line: &str) -> Option<String> {
     }
 }
 
-fn parse_inline_command(line: &str, cmd: &mut Command, references: &mut Vec<Attribute>) {
+fn parse_inline_command(line: &str, cmd: &mut Command) {
     if let Some(block) = extract_block(line) {
         for part in block.split(';') {
             let part = part.trim();
@@ -242,12 +250,12 @@ fn parse_inline_command(line: &str, cmd: &mut Command, references: &mut Vec<Attr
             } else if part.starts_with("reference_to") {
                 if let Some(target) = extract_word_after(part, "reference_to") {
                     let snake = crate::naming::snake(&target);
-                    references.push(reference_attribute(snake, &target));
+                    cmd.attributes.push(reference_attribute(snake, &target));
                 }
             } else if is_shorthand_line(part) {
                 match parse_shorthand(part) {
                     ShorthandResult::Attribute(a) => cmd.attributes.push(a),
-                    ShorthandResult::Reference(r) => references.push(r),
+                    ShorthandResult::Reference(r) => cmd.attributes.push(r),
                     ShorthandResult::None => {}
                 }
             }
