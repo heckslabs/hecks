@@ -29,6 +29,7 @@ Hecks.bluebook "Market" do
     attribute :trader,     TraderName
     attribute :rent_pence, Rent
     attribute :bookings,   list_of(Booking)
+    attribute :inspections, list_of(Inspection)
 
     # A COMPOSITE PIECE, for the same reason the head is one. A booking is a
     # day AND a session, and neither names it alone: the same stall is booked
@@ -121,6 +122,12 @@ Hecks.bluebook "Market" do
       end
     end
 
+    value_object "InspectionRef" do
+      attribute :value, String
+
+      invariant("an inspection is referenced") { !value.to_s.empty? }
+    end
+
     lifecycle :status, default: "vacant" do
       transition "Let"    => "let",    from: "vacant"
       transition "Vacate" => "vacant", from: "let"
@@ -156,6 +163,49 @@ Hecks.bluebook "Market" do
       emits "StallLet"
     end
 
+    # THE SECOND PIECE ON THIS HEAD, and the reason it is here: every aggregate
+    # in the tree held at most ONE entity, so `entity_for` — which finds a piece
+    # by matching a list attribute's TYPE against an entity name — had never
+    # once had to choose. One candidate and the right candidate were the same
+    # answer.
+    #
+    # Its identity is a SINGLE path where Booking's is two, so the two pieces on
+    # this head are shaped differently on purpose: locating a Booking joins two
+    # parts, locating an Inspection joins one, and a runtime that reaches for
+    # "the entity" rather than the named one picks the wrong shape and says so.
+    entity "Inspection" do
+      identified_by { reference.value }
+
+      attribute :reference, InspectionRef
+
+      lifecycle :verdict, default: "pending" do
+        transition "Pass" => "passed", from: "pending"
+        transition "Fail" => "failed", from: "pending"
+      end
+
+      command "Pass" do
+        role "Inspector"
+        goal "Record that the pitch is fit to trade from"
+
+        attribute :reference, InspectionRef
+
+        given("only a pending inspection is decided") { verdict == "pending" }
+
+        emits "InspectionPassed"
+      end
+
+      command "Fail" do
+        role "Inspector"
+        goal "Record that the pitch is not fit to trade from"
+
+        attribute :reference, InspectionRef
+
+        given("only a pending inspection is decided") { verdict == "pending" }
+
+        emits "InspectionFailed"
+      end
+    end
+
     command "Vacate" do
       role "Clerk"
       goal "Take the trader off the pitch"
@@ -170,6 +220,18 @@ Hecks.bluebook "Market" do
     # EVERY PART SUPPLIED BY THE CALLER, because a composite piece gets no
     # running number — "the next one in this list" is an answer for a piece
     # known by its position and no answer at all for one known by two facts.
+    command "Inspect" do
+      role "Inspector"
+      goal "Open an inspection on the pitch"
+
+      reference_to Stall
+      attribute :reference, InspectionRef
+
+      then_set :inspections, append: { reference: :reference }
+
+      emits "InspectionOpened"
+    end
+
     command "Book" do
       role "Clerk"
       goal "Hold a session on the pitch for a trader"

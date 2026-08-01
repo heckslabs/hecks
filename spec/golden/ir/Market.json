@@ -46,6 +46,15 @@
           "optional": false,
           "pattern": null,
           "type": "Booking"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": true,
+          "name": "inspections",
+          "optional": false,
+          "pattern": null,
+          "type": "Inspection"
         }
       ],
       "commands": [
@@ -149,6 +158,38 @@
           "name": "Vacate",
           "references": "Stall",
           "role": "Clerk"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "reference",
+              "optional": false,
+              "pattern": null,
+              "type": "InspectionRef"
+            }
+          ],
+          "emits": [
+            "InspectionOpened"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Open an inspection on the pitch",
+          "mutations": [
+            {
+              "fields": {
+                "reference": "reference"
+              },
+              "op": "append",
+              "target": "inspections"
+            }
+          ],
+          "name": "Inspect",
+          "references": "Stall",
+          "role": "Inspector"
         },
         {
           "attributes": [
@@ -361,6 +402,103 @@
               ]
             }
           ]
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "reference",
+              "optional": false,
+              "pattern": null,
+              "type": "InspectionRef"
+            }
+          ],
+          "commands": [
+            {
+              "attributes": [
+                {
+                  "admits": null,
+                  "default": null,
+                  "list": false,
+                  "name": "reference",
+                  "optional": false,
+                  "pattern": null,
+                  "type": "InspectionRef"
+                }
+              ],
+              "emits": [
+                "InspectionPassed"
+              ],
+              "givens": [
+                {
+                  "canonical": "verdict == \"pending\"",
+                  "description": "only a pending inspection is decided"
+                }
+              ],
+              "goal": "Record that the pitch is fit to trade from",
+              "mutations": [
+
+              ],
+              "name": "Pass",
+              "references": null,
+              "role": "Inspector"
+            },
+            {
+              "attributes": [
+                {
+                  "admits": null,
+                  "default": null,
+                  "list": false,
+                  "name": "reference",
+                  "optional": false,
+                  "pattern": null,
+                  "type": "InspectionRef"
+                }
+              ],
+              "emits": [
+                "InspectionFailed"
+              ],
+              "givens": [
+                {
+                  "canonical": "verdict == \"pending\"",
+                  "description": "only a pending inspection is decided"
+                }
+              ],
+              "goal": "Record that the pitch is not fit to trade from",
+              "mutations": [
+
+              ],
+              "name": "Fail",
+              "references": null,
+              "role": "Inspector"
+            }
+          ],
+          "description": null,
+          "identified_by": [
+            "reference.value"
+          ],
+          "lifecycle": {
+            "default": "pending",
+            "field": "verdict",
+            "transitions": [
+              {
+                "command": "Pass",
+                "from_state": "pending",
+                "to_state": "passed"
+              },
+              {
+                "command": "Fail",
+                "from_state": "pending",
+                "to_state": "failed"
+              }
+            ]
+          },
+          "name": "Inspection",
+          "queries": [
+
+          ]
         }
       ],
       "identified_by": [
@@ -549,6 +687,30 @@
 
           ],
           "name": "BookingSession"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "an inspection is referenced"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "InspectionRef"
         }
       ]
     }

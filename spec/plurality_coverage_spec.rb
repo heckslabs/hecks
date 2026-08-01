@@ -42,19 +42,16 @@ RSpec.describe "every list the language declares, filled more than once" do
 
   # WHERE THE LANGUAGE AND THE WIRE DISAGREE ABOUT A NAME.
   #
-  # There should be nothing here. "The language spells its fields EXACTLY as the
-  # IR spells them. One spelling, so there is no translation table to be quietly
-  # wrong in" — and this IS that translation table, kept only so the gate can
-  # still measure the field rather than skip it. An entry is a defect with a
-  # workaround, not a design.
+  # EMPTY, AND IT SHOULD STAY EMPTY. "The language spells its fields EXACTLY as
+  # the IR spells them. One spelling, so there is no translation table to be
+  # quietly wrong in" — and this is that table, so an entry is a defect with a
+  # workaround rather than a design.
   #
-  # `Dispatch.with_spec` is spelled `with` on the wire. Everything else agrees:
-  # Ruby's `IR::Dispatch` holds `with_spec`, Rust's generated `DispatchSpec`
-  # holds `with_spec`, and only `to_h` renames it. Closing it means renaming in
-  # the language or on the wire, which moves both parsers, eight goldens and the
-  # parity fixtures — worth doing deliberately, not as a side effect of this
-  # spec.
-  WIRE_SPELLING = { with_spec: "with" }.freeze
+  # It held one: `Dispatch.with_spec` was spelled `with` on the wire, and only
+  # there — the language, Ruby's `IR::Dispatch`, Rust's `DispatchSpec` and
+  # `contracts.rb`'s own field map all said `with_spec`, and `to_h` renamed it on
+  # the way out. The wire was the outlier, so the wire moved.
+  WIRE_SPELLING = {}.freeze
 
   # UNREACHED ON PURPOSE — every entry is a claim the corpus does not test, and
   # every one says why it is not worth a fixture yet. Delete an entry and the
@@ -69,9 +66,11 @@ RSpec.describe "every list the language declares, filled more than once" do
     # second acts on the record the first one creates — so the ORDER the two are
     # heard in decides the outcome rather than only the trace, and both runtimes
     # are held to it. This entry was deleted because the guard below demanded it.
-    "entities" =>
-      "An aggregate holding TWO entities. Every head in the corpus holds at most one, " \
-      "so `entity_for` and the list-attribute lookup have never had to choose.",
+    # `entities` was here. Market's Stall holds two now — a Booking joined from
+    # day+session and an Inspection from a single reference — so `entity_for`
+    # has to choose rather than take the only candidate, and the two pieces are
+    # shaped differently on purpose so reaching for "the entity" picks wrong.
+    # This entry was deleted because the guard below demanded it.
     "process_managers" =>
       "A chapter running TWO procedures. Banking runs one saga; nothing exercises two " \
       "correlating independently over the same event stream.",
@@ -79,12 +78,8 @@ RSpec.describe "every list the language declares, filled more than once" do
       "A chapter declaring TWO read models.",
     "index_hints" =>
       "Two index hints on one ask. A hint is advisory — it cannot change an answer, " \
-      "only the work done to reach it — so this is the weakest entry here.",
-    "policies" =>
-      # Present for completeness: policies DO reach 3, so this key is not expected
-      # to be needed. Left out deliberately — see the guard below.
-      nil
-  }.compact.freeze
+      "only the work done to reach it — so this is the weakest entry here."
+  }.freeze
 
   # The corpus is every frozen IR, which is every chapter in the tree — the same
   # set `ir_golden_spec` walks, and for the same reason: a shape only one
