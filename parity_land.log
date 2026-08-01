@@ -1,2 +1,0 @@
-bin/parity: line 308: syntax error near unexpected token `>>'
-bin/parity: line 308: `>>>>>>> 5c578a6 (feat(translation): domain-version translation on Postgres — squashed for landing)'
