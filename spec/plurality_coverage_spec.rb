@@ -61,24 +61,19 @@ RSpec.describe "every list the language declares, filled more than once" do
   # known-UNCHECKED, which is the honest word and the reason they are written
   # down rather than skipped.
   ALLOWED_SINGLETON = {
-    # `emits` was here. `spec/parity/domains/relay` covers it now: one `Raise`
-    # announces SightingRaised AND AlarmDue, a policy waits on each, and the
-    # second acts on the record the first one creates — so the ORDER the two are
-    # heard in decides the outcome rather than only the trace, and both runtimes
-    # are held to it. This entry was deleted because the guard below demanded it.
-    # `entities` was here. Market's Stall holds two now — a Booking joined from
-    # day+session and an Inspection from a single reference — so `entity_for`
-    # has to choose rather than take the only candidate, and the two pieces are
-    # shaped differently on purpose so reaching for "the entity" picks wrong.
-    # This entry was deleted because the guard below demanded it.
-    "process_managers" =>
-      "A chapter running TWO procedures. Banking runs one saga; nothing exercises two " \
-      "correlating independently over the same event stream.",
-    "read_models" =>
-      "A chapter declaring TWO read models.",
-    "index_hints" =>
-      "Two index hints on one ask. A hint is advisory — it cannot change an answer, " \
-      "only the work done to reach it — so this is the weakest entry here."
+    # EMPTY, and every entry that was here is now a corpus member instead.
+    #
+    #   emits             relay: one Raise announces twice, a policy on each
+    #   entities          market: a Stall holds a Booking and an Inspection,
+    #                     identified by two paths and one
+    #   process_managers  relay: two procedures over one event stream,
+    #                     correlating independently
+    #   read_models       relay: two boards projecting different roots
+    #   index_hints       reflex: two hints on one ask (a fixture, because the
+    #                     Rust Query struct does not carry query options — the
+    #                     honest home for a form only one runtime reads)
+    #
+    # Each was deleted because the guard below demanded it once the corpus grew.
   }.freeze
 
   # The corpus is every frozen IR, which is every chapter in the tree — the same

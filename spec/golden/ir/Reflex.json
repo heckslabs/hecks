@@ -118,6 +118,9 @@
           "index_hints": [
             {
               "name": "condition_index"
+            },
+            {
+              "name": "recency_index"
             }
           ],
           "inspection": {

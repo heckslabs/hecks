@@ -66,7 +66,11 @@ Hecks.bluebook "Reflex" do
       consistency :snapshot, timeout: 2
       freshness :eventual, max_age: 30
       inspect_query :sql
+      # TWO HINTS, because `index_hints` is a list and one hint could never tell
+      # a list from a scalar. A hint is advisory — it cannot change an answer,
+      # only the work done to reach it — so a second one costs nothing to mean.
       use_index :condition_index
+      use_index :recency_index
     end
   end
 

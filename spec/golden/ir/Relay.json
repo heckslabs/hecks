@@ -288,10 +288,97 @@
     }
   ],
   "process_managers": [
+    {
+      "correlates_by": "sighting",
+      "ends_on": "SightingCleared",
+      "handlers": [
+        {
+          "dispatches": [
 
+          ],
+          "event_type": "SightingRaised",
+          "from_state": "watching",
+          "to_state": "watching"
+        },
+        {
+          "dispatches": [
+
+          ],
+          "event_type": "SightingCleared",
+          "from_state": "watching",
+          "to_state": "closed"
+        }
+      ],
+      "name": "Response",
+      "starts_on": "SightingRaised",
+      "states": [
+        "watching",
+        "closed"
+      ]
+    },
+    {
+      "correlates_by": "alarm",
+      "ends_on": "AlarmEscalated",
+      "handlers": [
+        {
+          "dispatches": [
+
+          ],
+          "event_type": "AlarmOpened",
+          "from_state": "opened",
+          "to_state": "opened"
+        },
+        {
+          "dispatches": [
+
+          ],
+          "event_type": "AlarmEscalated",
+          "from_state": "opened",
+          "to_state": "escalated"
+        }
+      ],
+      "name": "Escalation",
+      "starts_on": "AlarmOpened",
+      "states": [
+        "opened",
+        "escalated"
+      ]
+    }
   ],
   "read_models": [
-
+    {
+      "aggregate_heads": [
+        {
+          "aggregate": "Sighting",
+          "as": "sighting",
+          "many": false
+        },
+        {
+          "aggregate": "Alarm",
+          "as": "alarms",
+          "many": true
+        }
+      ],
+      "description": "Every sighting with the alarms raised against it.",
+      "name": "SightingBoard",
+      "query_name": "sighting_board",
+      "reference_name": "sighting",
+      "reference_target": "Sighting"
+    },
+    {
+      "aggregate_heads": [
+        {
+          "aggregate": "Alarm",
+          "as": "alarm",
+          "many": false
+        }
+      ],
+      "description": "Every alarm on its own, for whoever is working the queue.",
+      "name": "AlarmBoard",
+      "query_name": "alarm_board",
+      "reference_name": "alarm",
+      "reference_target": "Alarm"
+    }
   ],
   "version": "v2",
   "vision": "One thing happening announces two facts, and each is somebody else's cue."
