@@ -7,6 +7,7 @@ pub mod ir_structs;
 pub mod ir_vocabulary;
 pub mod parse_blocks;
 pub mod parser;
+pub mod projected;
 pub mod parser_helpers;
 pub mod pattern_subset;
 pub mod project_loader;

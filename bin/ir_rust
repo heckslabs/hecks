@@ -1,0 +1,275 @@
+#!/usr/bin/env ruby
+
+# A DOMAIN'S IR, PROJECTED INTO RUST SOURCE.
+#
+# `bin/ir_vocabulary` projects the closed sets the language declares.
+# `bin/ir_structs` projects the STRUCT DECLARATIONS those sets sit in. This is
+# the next rung and the one the others were for: a whole domain, as Rust VALUES
+# of those structs, so a booted Rust runtime needs neither Ruby-produced JSON
+# nor a `.bluebook` parse to know what a domain is.
+#
+# WHAT IT IS FOR. Rust's boot path today is
+#
+#     parser::parse()             -> ir::Domain
+#     ir_json::domain_to_value()  -> serde_json::Value   <- types discarded
+#     Runtime::new(value)         -> Runtime { ir: Value }
+#
+# so the typed structs live for one function call and every reader afterwards is
+# a map lookup. That flattening is where this project's recurring bug lives — the
+# generated struct says `identified_by: Vec<String>` and the dispatcher read it
+# with `as_str`, which returns None on an array, silently, and compiled. A domain
+# that ARRIVES as Rust values is the step that lets the runtime read the structs
+# instead.
+#
+# WHAT THIS IS NOT. It does not replace the parser: Rust still parses `.bluebook`
+# for anything not projected ahead of time, and `--dump` still exists because
+# `bin/parity` diffs it. This projects ONE domain on demand.
+#
+# HOW IT IS CHECKED, and it is the whole reason to trust it: the projected
+# domain is flattened back through `ir_json::domain_to_value` and compared to
+# Ruby's own `to_h`. A generator that mis-inverts a mutation source or drops an
+# optional field fails that comparison — it is the same byte-for-byte contract
+# `bin/parity` holds the two parsers to, pointed at the projection instead.
+# spec/ir_rust_export_spec.rb runs it.
+#
+#     bin/ir_rust examples/pizzas > rust/src/bluebook/projected/pizzas.rs
+#
+# WHOLE FILE, NEVER A PATCH — the same rule the other two generators carry.
+
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+require "hecksagain"
+require "json"
+
+root = ARGV[0] or abort "usage: bin/ir_rust <domain-directory>"
+
+registry = Hecksagain.boot(root).registry
+chapter  = registry.bluebooks.values.first or abort "#{root} declares no bluebook"
+ir       = JSON.parse(JSON.generate(chapter.to_h))
+
+# ---------------------------------------------------------------- emitters
+
+# A Rust string literal. Rust and Ruby agree on `\` and `"` escaping, and the
+# corpus carries neither a newline nor a control character inside a declared
+# name, description or predicate — `canonical` is whitespace-collapsed before it
+# ever reaches here.
+def rs(text) = "#{text.to_s.inspect}.to_string()"
+
+def opt(text) = text.nil? ? "None" : "Some(#{rs(text)})"
+
+def vec(items) = items.empty? ? "vec![]" : "vec![#{items.join(', ')}]"
+
+def flag(value) = value ? "true" : "false"
+
+# THE RAW SOURCE RUST'S PARSER WOULD HAVE PRODUCED, rebuilt from the wire.
+#
+# Ruby's `IR::Mutation#to_h` decodes what Rust keeps as text, so projecting it
+# back means inverting that decode. The wire distinguishes an ARGUMENT from a
+# LITERAL by quoting — `Readings#encode_literal` exists because it once did not,
+# and `append: { direction: "out" }` was indistinguishable from an argument named
+# `out` — so the inversion reads the quotes rather than guessing.
+def mutation_source(mutation)
+  if mutation["op"] == "append"
+    pairs = (mutation["fields"] || {}).map do |field, bound|
+      literal = bound.to_s.start_with?('"')
+      "#{field}: #{literal ? bound : ":#{bound}"}"
+    end
+    return "{ #{pairs.join(', ')} }"
+  end
+
+  source = mutation["source"] || {}
+  return ":#{source['name']}" if source["kind"] == "argument"
+
+  held = source["value"]
+  held.is_a?(String) ? held.inspect : held.inspect
+end
+
+MUTATION_OPS = { "set" => "Set", "increment" => "Increment", "decrement" => "Decrement",
+                 "append" => "Append" }.freeze
+
+WHERE_OPS = { "eq" => "Eq", "ne" => "Ne", "gt" => "Gt", "gte" => "Gte", "lt" => "Lt",
+              "lte" => "Lte", "in" => "In", "contains" => "Contains" }.freeze
+
+def attribute(held)
+  # `enum_values` is a Rust-only field the wire does not carry — a closed set
+  # lives on the VALUE OBJECT (`closed_set` + `members`), which is where both
+  # runtimes read it. Projected empty rather than invented.
+  "Attribute { name: #{rs(held['name'])}, r#type: #{rs(held['type'])}, " \
+    "default: #{opt(held['default'].nil? ? nil : literal_text(held['default']))}, " \
+    "list: #{flag(held['list'])}, optional: #{flag(held['optional'])}, " \
+    "enum_values: vec![], pattern: #{opt(held['pattern'])}, admits: #{opt(held['admits'])} }"
+end
+
+# A default crosses the wire DECODED (`{"cents" => 0}`), and Rust keeps it as the
+# text its parser read. `ir_json::literal` is the decoder, so this is its inverse.
+def literal_text(held)
+  case held
+  when Hash   then "{ #{held.map { |key, value| "#{key}: #{literal_text(value)}" }.join(', ')} }"
+  when String then held.inspect
+  when nil    then "nil"
+  else held.to_s
+  end
+end
+
+def invariant(held)
+  "Invariant { description: #{rs(held['description'])}, canonical: #{rs(held['canonical'])} }"
+end
+
+def value_object(held)
+  members = (held["members"] || []).map do |row|
+    vec(row.map { |field, value| "(#{rs(field)}, #{rs(value)})" })
+  end
+  "ValueObject { name: #{rs(held['name'])}, attributes: #{vec((held['attributes'] || []).map { |a| attribute(a) })}, " \
+    "invariants: #{vec((held['invariants'] || []).map { |i| invariant(i) })}, " \
+    "members: #{vec(members)}, closed_set: #{flag(held['closed_set'])} }"
+end
+
+def given(held)
+  "Given { description: #{opt(held['description'])}, canonical: #{rs(held['canonical'])} }"
+end
+
+def mutation(held)
+  "Mutation { target: #{rs(held['target'])}, op: MutationOp::#{MUTATION_OPS.fetch(held['op'])}, " \
+    "source: #{rs(mutation_source(held))} }"
+end
+
+def where_clause(held)
+  "WhereClause { field: #{rs(held['field'])}, op: WhereOp::#{WHERE_OPS.fetch(held['op'])}, " \
+    "value: #{rs(held['value'])} }"
+end
+
+def order_by(held)
+  return "None" if held.nil?
+
+  "Some(OrderBy { field: #{rs(held['field'])}, " \
+    "direction: Direction::#{held['direction'] == 'desc' ? 'Desc' : 'Asc'} })"
+end
+
+def limit(held)
+  held.nil? ? "None" : "Some(LimitSpec { value: #{rs(held['value'])} })"
+end
+
+def query(held)
+  "Query { name: #{rs(held['name'])}, description: #{opt(held['description'])}, " \
+    "attributes: #{vec((held['attributes'] || []).map { |a| attribute(a) })}, " \
+    "wheres: #{vec((held['wheres'] || []).map { |w| where_clause(w) })}, " \
+    "order_by: #{order_by(held['order_by'])}, limit: #{limit(held['limit'])} }"
+end
+
+def transition(held)
+  "Transition { command: #{rs(held['command'])}, from_state: #{opt(held['from_state'])}, " \
+    "to_state: #{rs(held['to_state'])} }"
+end
+
+def lifecycle(held)
+  return "None" if held.nil?
+
+  "Some(Lifecycle { field: #{rs(held['field'])}, default: #{rs(held['default'])}, " \
+    "transitions: #{vec((held['transitions'] || []).map { |t| transition(t) })} })"
+end
+
+def command(held)
+  "Command { name: #{rs(held['name'])}, goal: #{opt(held['goal'])}, role: #{opt(held['role'])}, " \
+    "attributes: #{vec((held['attributes'] || []).map { |a| attribute(a) })}, " \
+    "references: #{opt(held['references'])}, " \
+    "emits: #{vec((held['emits'] || []).map { |e| rs(e) })}, " \
+    "givens: #{vec((held['givens'] || []).map { |g| given(g) })}, " \
+    "mutations: #{vec((held['mutations'] || []).map { |m| mutation(m) })} }"
+end
+
+def entity(held)
+  "Entity { name: #{rs(held['name'])}, description: #{opt(held['description'])}, " \
+    "identified_by: #{vec((held['identified_by'] || []).map { |p| rs(p) })}, " \
+    "attributes: #{vec((held['attributes'] || []).map { |a| attribute(a) })}, " \
+    "lifecycle: #{lifecycle(held['lifecycle'])}, " \
+    "commands: #{vec((held['commands'] || []).map { |c| command(c) })}, " \
+    "queries: #{vec((held['queries'] || []).map { |q| query(q) })} }"
+end
+
+def aggregate(held)
+  "Aggregate { name: #{rs(held['name'])}, description: #{opt(held['description'])}, " \
+    "identified_by: #{vec((held['identified_by'] || []).map { |p| rs(p) })}, " \
+    "attributes: #{vec((held['attributes'] || []).map { |a| attribute(a) })}, " \
+    "lifecycle: #{lifecycle(held['lifecycle'])}, " \
+    "commands: #{vec((held['commands'] || []).map { |c| command(c) })}, " \
+    "queries: #{vec((held['queries'] || []).map { |q| query(q) })}, " \
+    "value_objects: #{vec((held['value_objects'] || []).map { |v| value_object(v) })}, " \
+    "entities: #{vec((held['entities'] || []).map { |e| entity(e) })} }"
+end
+
+def policy(held)
+  "Policy { name: #{rs(held['name'])}, on_event: #{rs(held['on_event'])}, " \
+    "trigger_command: #{rs(held['trigger_command'])}, target_domain: #{opt(held['target_domain'])} }"
+end
+
+def aggregate_head(held)
+  "AggregateHead { aggregate: #{rs(held['aggregate'])}, r#as: #{rs(held['as'])}, many: #{flag(held['many'])} }"
+end
+
+def read_model(held)
+  "ReadModel { name: #{rs(held['name'])}, description: #{opt(held['description'])}, " \
+    "reference_name: #{rs(held['reference_name'])}, reference_target: #{rs(held['reference_target'])}, " \
+    "aggregate_heads: #{vec((held['aggregate_heads'] || []).map { |h| aggregate_head(h) })} }"
+end
+
+# A BINDING'S VALUE, as `ValueSpec`. The wire carries the same text Rust's
+# parser read — a leading colon means an argument the event carried, anything
+# else is a literal — which is the distinction `IR.render_value` draws and the
+# walk once read past.
+def value_spec(text)
+  text.to_s.start_with?(":") ? "ValueSpec::FromEvent { name: #{rs(text.to_s[1..])}, default: None }"
+                             : "ValueSpec::Literal { value: #{rs(text)} }"
+end
+
+def dispatch(held)
+  bindings = (held["with_spec"] || []).map { |key, value| "(#{rs(key)}, #{value_spec(value)})" }
+  "DispatchSpec { command_name: #{rs(held['command_name'])}, with_spec: #{vec(bindings)} }"
+end
+
+def handler(held)
+  "ProcessManagerHandler { event_type: #{rs(held['event_type'])}, from_state: #{rs(held['from_state'])}, " \
+    "to_state: #{rs(held['to_state'])}, " \
+    "dispatches: #{vec((held['dispatches'] || []).map { |d| dispatch(d) })} }"
+end
+
+def process_manager(held)
+  "ProcessManager { name: #{rs(held['name'])}, correlates_by: #{rs(held['correlates_by'])}, " \
+    "starts_on: #{rs(held['starts_on'])}, ends_on: #{opt(held['ends_on'])}, " \
+    "states: #{vec((held['states'] || []).map { |s| rs(s) })}, " \
+    "handlers: #{vec((held['handlers'] || []).map { |h| handler(h) })} }"
+end
+
+# ---------------------------------------------------------------- the file
+
+name = ir["name"]
+
+puts <<~HEADER
+  // GENERATED BY bin/ir_rust — DO NOT EDIT BY HAND.
+  //
+  // #{name}, as Rust values of the structs `bin/ir_structs` projects from the
+  // language. Nothing here is parsed at boot and nothing here came from Ruby at
+  // run time: this IS the domain, in the form the runtime holds it.
+  //
+  // Regenerate: bin/ir_rust <domain> > #{"rust/src/bluebook/projected/#{Hecksagain::Naming.snake(name)}.rs"}
+  //
+  // Held to Ruby by spec/ir_rust_export_spec.rb, which flattens what this
+  // returns back through `ir_json::domain_to_value` and diffs it against Ruby's
+  // own `to_h`. A mis-inverted mutation source or a dropped optional fails that
+  // comparison, which is the same byte-for-byte contract `bin/parity` holds the
+  // two parsers to.
+  #![allow(clippy::needless_update)]
+
+  use crate::ir::*;
+
+  pub fn domain() -> Domain {
+      Domain {
+          name: #{rs(ir['name'])},
+          vision: #{opt(ir['vision'])},
+          classification: #{opt(ir['classification'])},
+          version: #{opt(ir['version'])},
+          aggregates: #{vec((ir['aggregates'] || []).map { |a| aggregate(a) })},
+          policies: #{vec((ir['policies'] || []).map { |p| policy(p) })},
+          process_managers: #{vec((ir['process_managers'] || []).map { |p| process_manager(p) })},
+          read_models: #{vec((ir['read_models'] || []).map { |m| read_model(m) })},
+      }
+  }
+HEADER
