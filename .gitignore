@@ -2,7 +2,13 @@
 .DS_Store
 *.db
 *.db-journal
-eras/
+# The RUNTIME era store, which a file adapter writes under each domain's own
+# `<root>/data/eras/<domain>/`. Anchored to `data/`, and deliberately: this was
+# a bare `eras/`, which matches a directory of that name at ANY depth — so it
+# also swallowed `spec/fixtures/eras/`, the eleven bump_/same_ bluebooks BOTH
+# runtimes' storage-shape tests walk. They were never committed, nobody saw
+# them missing, and the Ruby suite aborted at load rather than failing a test.
+**/data/eras/
 Cargo.lock
 Gemfile.lock
 projection/rust/target/

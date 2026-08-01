@@ -1,0 +1,66 @@
+# behavior-only edits everywhere — the storage shape is untouched
+Hecks.bluebook "Shaped", version: "v2" do
+  vision "the same shape, told differently"
+  aggregate "Customer" do
+    identified_by { full_name.value }
+
+    attribute :full_name, FullName
+
+    value_object "FullName" do
+      attribute :value, String
+    end
+  end
+
+  aggregate "Account" do
+    identified_by { number.value }
+
+    reference_to Customer
+
+    attribute :number,  AccountNumber
+    attribute :balance, Money
+    attribute :tags,    list_of(Tag)
+
+    lifecycle :status, default: "open" do
+      transition "Close" => "closed", from: "open"
+      transition "Reopen" => "open", from: "closed"
+    end
+
+    value_object "AccountNumber" do
+      attribute :value, String
+    end
+
+    query "StillOpen" do
+      where(status: "open")
+    end
+
+    value_object "Money" do
+      attribute :cents,    Integer
+      attribute :currency, String, default: "EUR"
+    end
+
+    value_object "Tag" do
+      attribute :value, String
+    end
+
+    command "Open" do
+      attribute :number,  AccountNumber
+      attribute :balance, Money
+
+      emits "AccountOpened"
+    end
+
+    command "Close" do
+      reference_to Account
+
+      given("an account must be open to close") { status == "open" }
+
+      emits "AccountClosed"
+    end
+
+    command "Reopen" do
+      reference_to Account
+
+      emits "AccountReopened"
+    end
+  end
+end

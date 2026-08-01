@@ -1,0 +1,53 @@
+Hecks.bluebook "Shaped" do
+  aggregate "Customer" do
+    identified_by { full_name.value }
+
+    attribute :full_name, FullName
+
+    value_object "FullName" do
+      attribute :value, String
+    end
+  end
+
+  aggregate "Account" do
+    identified_by { number.value }
+
+    reference_to Customer
+
+    attribute :number,  AccountNumber
+    attribute :balance, Money
+    attribute :tags,    list_of(Tag)
+
+    lifecycle :phase, default: "open" do
+      transition "Close" => "closed", from: "open"
+    end
+
+    value_object "AccountNumber" do
+      attribute :value, String
+    end
+
+    value_object "Money" do
+      attribute :cents,    Integer
+      attribute :currency, String, default: "USD"
+    end
+
+    value_object "Tag" do
+      attribute :value, String
+    end
+
+    command "Open" do
+      attribute :number,  AccountNumber
+      attribute :balance, Money
+
+      emits "AccountOpened"
+    end
+
+    command "Close" do
+      reference_to Account
+
+      given("an account must be open to close") { phase == "open" }
+
+      emits "AccountClosed"
+    end
+  end
+end
