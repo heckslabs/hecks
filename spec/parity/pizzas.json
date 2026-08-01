@@ -1,6 +1,9 @@
 {
   "name": "pizzas-parity",
-  "note": "Successes and every refusal path. A runtime that ACCEPTS what the other refuses is the failure worth catching, so the refusals matter more than the successes. The final step passes a non-numeric amount, so the sign predicate itself must refuse — proving the two runtimes word an evaluation failure identically, not just a rule failure.",
+  "note": "Successes and every refusal path. A runtime that ACCEPTS what the other refuses is the failure worth catching, so the refusals matter more than the successes. The final step passes a non-numeric amount, so the sign predicate itself must refuse \u2014 proving the two runtimes word an evaluation failure identically, not just a rule failure.",
+  "expectations": {
+    "events": 5
+  },
   "steps": [
     {
       "verb": "Pizzas::Pizza.CreatePizza",

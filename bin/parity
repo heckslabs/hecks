@@ -103,17 +103,38 @@ run_domain() {
   # empty results and passes. Pizzas sat like that, reported AGREED, while its
   # parity script ran no domain logic at all. Ask what actually happened before
   # asking whether the two answers match.
+  # AGREEMENT IS NOT EXECUTION, AND A FLOOR IS NOT A CLAIM.
+  #
+  # This used to refuse only ZERO events. That caught pizzas sitting green while
+  # running no domain logic at all — and then let `market` report AGREED at SEVEN
+  # events from FORTY steps, a thirty-three-refusal cascade from one bad default,
+  # because seven is not zero. A floor cannot tell "most of this refused" from
+  # "this is what the script asks for".
+  #
+  # So the script SAYS how many events it expects, and the number is checked
+  # exactly. Fewer means refusals crept in ; more means something fired that
+  # nobody wrote down. Changing the corpus changes the number ON PURPOSE, in the
+  # same commit, which is the same discipline the IR goldens carry.
+  expected=$(ruby -rjson -e 'print JSON.parse(File.read(ARGV[0])).dig("expectations", "events") || -1' \
+    "$script")
+  attempted=$(ruby -rjson -e 'print JSON.parse(File.read(ARGV[0])).fetch("steps", []).length' \
+    "$script")
+  if [ "$expected" -lt 0 ]; then
+    echo "   NO CLAIM — $script does not say how many events it expects."
+    echo "              Add \"expectations\": { \"events\": N }; a corpus member that"
+    echo "              cannot say what it does cannot notice when it stops doing it."
+    return 1
+  fi
   for runtime in ruby rust; do
     executed=$(ruby -rjson -e 'print JSON.parse(STDIN.read).fetch("events", []).length' \
       < "$prefix.$runtime.json")
-    attempted=$(ruby -rjson -e 'print JSON.parse(File.read(ARGV[0])).fetch("steps", []).length' \
-      "$script")
-    if [ "$executed" -eq 0 ]; then
-      echo "   SILENT — $name executed nothing through $runtime: 0 events from $attempted steps."
-      echo "            Every step was refused, so both runtimes would agree about nothing."
+    if [ "$executed" -ne "$expected" ]; then
+      echo "   OFF ITS CLAIM — $name executed $executed events through $runtime from $attempted steps ; the script says $expected."
+      echo "                   Fewer means steps are being refused that used to run."
       return 1
     fi
   done
+  executed=$expected
 
   if ! diff -u "$prefix.ruby.json" "$prefix.rust.json"; then
     echo "   SPLIT — the runtimes disagreed on $name through $adapter."

@@ -1,6 +1,6 @@
 {
   "name": "banking-parity",
-  "note": "Every declared banking command and query is exercised in both runtimes, including refusal paths. The adversarial cases assert that nested Narrative values are validated before an entity is appended, an amendment cannot reduce a ledger entry below zero, and a transfer cannot settle until a destination credit produced TransferCredited. Persistence retains every write as an append-only version entry while reads materialize the last entry for each identity. One external transfer names a direction outside Account::LedgerDirection: `admits` is a rule about a set declared in ANOTHER aggregate, and a rule only one runtime enforces is one bluebook meaning two things — which is precisely what this file exists to catch.",
+  "note": "Every declared banking command and query is exercised in both runtimes, including refusal paths. The adversarial cases assert that nested Narrative values are validated before an entity is appended, an amendment cannot reduce a ledger entry below zero, and a transfer cannot settle until a destination credit produced TransferCredited. Persistence retains every write as an append-only version entry while reads materialize the last entry for each identity. One external transfer names a direction outside Account::LedgerDirection: `admits` is a rule about a set declared in ANOTHER aggregate, and a rule only one runtime enforces is one bluebook meaning two things \u2014 which is precisely what this file exists to catch.",
   "expectations": {
     "event_names": [
       "TransferCredited"
@@ -67,7 +67,8 @@
       "Banking::ScheduledPayment#schedule-cancel": {
         "status": "cancelled"
       }
-    }
+    },
+    "events": 104
   },
   "steps": [
     {
@@ -177,7 +178,7 @@
     },
     {
       "verb": "Banking::Customer.Register",
-      "note": "An @ and a space — the old invariant admitted it",
+      "note": "An @ and a space \u2014 the old invariant admitted it",
       "args": {
         "reference": {
           "value": "CUST-0010"
@@ -193,7 +194,7 @@
     },
     {
       "verb": "Banking::Customer.Register",
-      "note": "An @ and no dot — the old invariant admitted it too",
+      "note": "An @ and no dot \u2014 the old invariant admitted it too",
       "args": {
         "reference": {
           "value": "CUST-0011"
@@ -334,7 +335,7 @@
           "value": 2
         },
         "narrative": {
-          "text": "Posted in error — reversed"
+          "text": "Posted in error \u2014 reversed"
         },
         "number": {
           "value": "acct-1"
@@ -443,8 +444,7 @@
     },
     {
       "query": "Banking::Transfer.InFlight",
-      "args": {
-      }
+      "args": {}
     },
     {
       "verb": "Banking::Transfer.Reverse",
@@ -525,8 +525,7 @@
     },
     {
       "query": "Banking::Customer.Suspended",
-      "args": {
-      }
+      "args": {}
     },
     {
       "verb": "Banking::Customer.Reinstate",
@@ -667,7 +666,7 @@
           "currency": "USD"
         },
         "narrative": {
-          "text": "Corrected — posted for the wrong amount"
+          "text": "Corrected \u2014 posted for the wrong amount"
         },
         "number": {
           "value": "acct-1"
@@ -685,7 +684,7 @@
           "currency": "USD"
         },
         "narrative": {
-          "text": "Corrected — posted for the wrong amount"
+          "text": "Corrected \u2014 posted for the wrong amount"
         },
         "number": {
           "value": "acct-1"
@@ -703,7 +702,7 @@
           "currency": "USD"
         },
         "narrative": {
-          "text": "Corrected — posted for the wrong amount"
+          "text": "Corrected \u2014 posted for the wrong amount"
         },
         "number": {
           "value": "acct-1"
@@ -712,8 +711,7 @@
     },
     {
       "query": "Banking::Account.Open",
-      "args": {
-      }
+      "args": {}
     },
     {
       "query": "Banking::Account.Overdrawn",
@@ -726,23 +724,19 @@
     },
     {
       "query": "Banking::Customer.InGoodStanding",
-      "args": {
-      }
+      "args": {}
     },
     {
       "query": "Banking::Customer.Suspended",
-      "args": {
-      }
+      "args": {}
     },
     {
       "query": "Banking::Transfer.InFlight",
-      "args": {
-      }
+      "args": {}
     },
     {
       "query": "Banking::Account.LedgerEntry.Reversed",
-      "args": {
-      }
+      "args": {}
     },
     {
       "verb": "Banking::Customer.Close",
@@ -971,18 +965,15 @@
     },
     {
       "query": "Banking::ATMCard.Active",
-      "args": {
-      }
+      "args": {}
     },
     {
       "query": "Banking::ATMCard.ByFee",
-      "args": {
-      }
+      "args": {}
     },
     {
       "query": "Banking::ATMCard.Withdrawal.Recent",
-      "args": {
-      }
+      "args": {}
     },
     {
       "verb": "Banking::ATMCard.Retire",
@@ -994,8 +985,7 @@
     },
     {
       "query": "Banking::ATMCard.Active",
-      "args": {
-      }
+      "args": {}
     },
     {
       "verb": "Banking::Customer.Register",
@@ -1290,7 +1280,7 @@
           "currency": "USD"
         },
         "narrative": {
-          "text": "Refused — colour is not an argument Credit declares"
+          "text": "Refused \u2014 colour is not an argument Credit declares"
         },
         "colour": "red",
         "number": {
@@ -1559,8 +1549,7 @@
     },
     {
       "query": "Banking::Transfer.InFlight",
-      "args": {
-      }
+      "args": {}
     },
     {
       "verb": "Banking::Transfer.Reject",
@@ -1596,8 +1585,7 @@
     },
     {
       "query": "Banking::Transfer.InFlight",
-      "args": {
-      }
+      "args": {}
     },
     {
       "verb": "Banking::Transfer.Request",
@@ -1800,33 +1788,27 @@
     },
     {
       "query": "Banking::Account.Overdrawn",
-      "args": {
-      }
+      "args": {}
     },
     {
       "query": "Banking::Account.Open",
-      "args": {
-      }
+      "args": {}
     },
     {
       "query": "Banking::Customer.InGoodStanding",
-      "args": {
-      }
+      "args": {}
     },
     {
       "query": "Banking::ATMCard.Active",
-      "args": {
-      }
+      "args": {}
     },
     {
       "query": "Banking::ATMCard.ByFee",
-      "args": {
-      }
+      "args": {}
     },
     {
       "query": "Banking::Transfer.InFlight",
-      "args": {
-      }
+      "args": {}
     },
     {
       "verb": "Banking::Account.ApplyFee",
@@ -2092,13 +2074,11 @@
     },
     {
       "query": "Banking::CardPayment.Pending",
-      "args": {
-      }
+      "args": {}
     },
     {
       "query": "Banking::CardPayment.Disputed",
-      "args": {
-      }
+      "args": {}
     },
     {
       "verb": "Banking::ExternalTransfer.Request",
@@ -2222,8 +2202,7 @@
     },
     {
       "query": "Banking::ExternalTransfer.Sent",
-      "args": {
-      }
+      "args": {}
     },
     {
       "verb": "Banking::ScheduledPayment.Schedule",
@@ -2313,8 +2292,7 @@
     },
     {
       "query": "Banking::ScheduledPayment.Due",
-      "args": {
-      }
+      "args": {}
     },
     {
       "query": "Banking.customer_portfolio",

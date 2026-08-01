@@ -95,6 +95,7 @@ module Hecksagain
 
         def build
           seal_mutation_targets
+          seal_defaults
 
           ir = IR::Aggregate.new(
             name:          @name,
@@ -167,6 +168,37 @@ module Hecksagain
         # So it lives here, at build, where every declaration is present. Found by
         # writing `then_set :disputed_by` on CardPayment before the field existed :
         # it wrote into nothing, refused nothing, and both runtimes agreed.
+        # A DEFAULT FILLS THE SHAPE IT IS DECLARED ON, or it fills nothing.
+        #
+        # `attribute :cover, one_of("covered", "open"), default: "open"` builds
+        # cleanly and then refuses EVERY create at dispatch — "cover is a Cover,
+        # pass its fields as an object" — because the value object wants its
+        # fields and got a bare string. The bluebook is wrong at the line where
+        # it is written and says so nowhere near it.
+        #
+        # It cost a corpus member 33 refusals out of 40 steps, and `bin/parity`
+        # reported AGREED throughout: both runtimes refused identically, which is
+        # agreement about nothing. `till.bluebook` has always had the right shape
+        # — `default: { cents: 0 }`.
+        #
+        # A PRIMITIVE takes a scalar and a VALUE OBJECT takes its fields, so the
+        # test is simply which one the type names. Nothing here guesses at the
+        # keys: a default that is a Hash is left to `Value.for_attribute`, which
+        # is where a wrong FIELD belongs.
+        def seal_defaults
+          shapes = @value_objects.map { |shape| shape.hecks_name.to_s }
+
+          attributes.each do |attribute|
+            next if attribute.default.nil? || attribute.default.is_a?(Hash)
+            next unless shapes.include?(attribute.type.to_s)
+
+            raise Malformed,
+                  "#{@name}.#{attribute.name} defaults to #{attribute.default.inspect}, but " \
+                  "#{attribute.type} is a value object — a default fills its FIELDS " \
+                  "(default: { ... }), and a bare value refuses every create instead"
+          end
+        end
+
         def seal_mutation_targets
           known = attributes.map { |attribute| attribute.name.to_sym }
           known << @lifecycle.field.to_sym if @lifecycle

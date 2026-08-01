@@ -1,6 +1,9 @@
 {
   "name": "translation-parity",
-  "note": "The chapter that DEFINES the translation sublanguage, read by both parsers — added to the corpus the day it was written, so it can never sit outside the walk the way expression.bluebook once did. Every step walks a declared gate: admitting a rule before it executes in two targets, declaring into a sealed edge, sealing an empty edge, proposing a kind the language does not have.",
+  "note": "The chapter that DEFINES the translation sublanguage, read by both parsers \u2014 added to the corpus the day it was written, so it can never sit outside the walk the way expression.bluebook once did. Every step walks a declared gate: admitting a rule before it executes in two targets, declaring into a sealed edge, sealing an empty edge, proposing a kind the language does not have.",
+  "expectations": {
+    "events": 14
+  },
   "steps": [
     {
       "verb": "Translation::Rule.Propose",

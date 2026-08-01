@@ -253,6 +253,29 @@ RSpec.describe "the DSL surface" do
                          /UseCode#attributes\[0\]: no Aggregate with bluebook_id, name "HeadOnly:Code"/)
     end
 
+    # A DEFAULT FILLS THE SHAPE IT IS DECLARED ON. `default: "open"` on a
+    # value-object attribute built cleanly and then refused every create at
+    # dispatch, which cost a corpus member 33 refusals out of 40 steps while
+    # `bin/parity` reported AGREED — both runtimes refusing identically is
+    # agreement about nothing.
+    it "refuses a bare default where the type wants fields" do
+      expect do
+        build_aggregate("Defaulted") do
+          value_object("Cover") { attribute :value, String }
+          attribute :cover, Cover, default: "open"
+        end
+      end.to raise_error(Malformed, /Cover is a value object — a default fills its FIELDS/)
+    end
+
+    it "takes a default that fills the fields" do
+      thing = build_aggregate("Defaulted") do
+        value_object("Cover") { attribute :value, String }
+        attribute :cover, Cover, default: { value: "open" }
+      end
+
+      expect(thing.attribute(:cover).default).to eq({ value: "open" })
+    end
+
     it "refuses an unnamed event" do
       expect { build_command("Silent") { emits "" } }
         .to raise_error(Malformed, /an event is named/)
