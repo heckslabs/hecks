@@ -182,7 +182,9 @@
       "entities": [
 
       ],
-      "identified_by": "reference.value",
+      "identified_by": [
+        "reference.value"
+      ],
       "lifecycle": {
         "default": "active",
         "field": "status",
@@ -975,7 +977,9 @@
             }
           ],
           "description": "One movement across the account, in the order it was posted.",
-          "identified_by": "sequence.value",
+          "identified_by": [
+            "sequence.value"
+          ],
           "lifecycle": {
             "default": "posted",
             "field": "state",
@@ -1013,7 +1017,9 @@
           ]
         }
       ],
-      "identified_by": "number.value",
+      "identified_by": [
+        "number.value"
+      ],
       "lifecycle": {
         "default": "open",
         "field": "status",
@@ -1592,7 +1598,9 @@
             }
           ],
           "description": "One handful of cash, in the order it was taken.",
-          "identified_by": "sequence.value",
+          "identified_by": [
+            "sequence.value"
+          ],
           "lifecycle": {
             "default": "taken",
             "field": "state",
@@ -1627,7 +1635,9 @@
           ]
         }
       ],
-      "identified_by": "serial.value",
+      "identified_by": [
+        "serial.value"
+      ],
       "lifecycle": {
         "default": "issued",
         "field": "status",
@@ -2068,7 +2078,9 @@
       "entities": [
 
       ],
-      "identified_by": "reference.value",
+      "identified_by": [
+        "reference.value"
+      ],
       "lifecycle": {
         "default": "requested",
         "field": "status",
@@ -2447,7 +2459,9 @@
       "entities": [
 
       ],
-      "identified_by": "authorisation.value",
+      "identified_by": [
+        "authorisation.value"
+      ],
       "lifecycle": {
         "default": "authorized",
         "field": "status",
@@ -2757,7 +2771,9 @@
       "entities": [
 
       ],
-      "identified_by": "end_to_end.value",
+      "identified_by": [
+        "end_to_end.value"
+      ],
       "lifecycle": {
         "default": "requested",
         "field": "status",
@@ -3032,7 +3048,9 @@
       "entities": [
 
       ],
-      "identified_by": "instruction.value",
+      "identified_by": [
+        "instruction.value"
+      ],
       "lifecycle": {
         "default": "scheduled",
         "field": "status",

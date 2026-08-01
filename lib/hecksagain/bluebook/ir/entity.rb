@@ -26,7 +26,8 @@ module Hecksagain
         extend Construct
 
         class << self
-          attr_reader :description, :identified_by, :identity_path, :attributes, :commands, :queries, :lifecycle
+          attr_reader :description, :identified_by, :identity_paths, :identity_heads,
+                      :attributes, :commands, :queries, :lifecycle
 
           def declare(name:, description: nil, identified_by: nil, attributes: [],
                       commands: [], queries: [], lifecycle: nil)
@@ -43,13 +44,16 @@ module Hecksagain
 
           def absorb(description:, identified_by:, attributes:, commands:, queries:, lifecycle:)
             @description   = description
-            # Split exactly as an aggregate splits it. The PATH "sequence.value"
-            # says which field carries the identity ; `identified_by` stays the
-            # HEAD attribute, because every reader that looks up or coerces an
-            # attribute — the element finder, the sort key, the identity an
-            # appended piece is given — wants the attribute, not the path.
-            @identity_path = identified_by&.to_s
-            @identified_by = @identity_path&.split(".")&.first&.to_sym
+            # Split exactly as an aggregate splits it, several paths included. The
+            # PATH "sequence.value" says which field carries the identity ;
+            # `identity_heads` are the attributes those paths start at, because
+            # every reader that looks up or coerces an attribute — the element
+            # finder, the sort key, the identity an appended piece is given —
+            # wants the attribute, not the path. `identified_by` is the single
+            # head, offered only when there is one path to have a head of.
+            @identity_paths = Array(identified_by).map { |path| path.to_s }.reject(&:empty?)
+            @identity_heads = @identity_paths.map { |path| path.split(".").first.to_sym }
+            @identified_by  = @identity_heads.size == 1 ? @identity_heads.first : nil
             @attributes    = attributes
             @commands      = commands
             @queries       = queries
@@ -69,7 +73,7 @@ module Hecksagain
             {
               name:          hecks_name,
               description:   description,
-              identified_by: identity_path,
+              identified_by: identity_paths,
               attributes:    attributes.map(&:to_h),
               commands:      commands.map(&:to_h),
               queries:       queries.map(&:to_h),

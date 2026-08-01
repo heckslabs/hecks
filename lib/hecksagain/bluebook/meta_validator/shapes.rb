@@ -19,7 +19,7 @@ module Hecksagain
 
           {
             name: text(field[:name])&.to_sym,
-            type: type.start_with?("#{aggregate_id}.") ? type.delete_prefix("#{aggregate_id}.") : reference_type(type),
+            type: owned_type(type, aggregate_id) || reference_type(type),
             list: text(field[:list]).to_s == "true",
             default: decode_literal(text(field[:default])),
             # Read back the same way `list` is — both are booleans about the
@@ -29,6 +29,21 @@ module Hecksagain
             pattern: presence(text(field[:pattern]))
           }
         end
+
+        # A TYPE THIS AGGREGATE OWNS, offered as its id and read back as its name.
+        # Prefixed with the owner and the identity join, because that IS the value
+        # object's identity — the aggregate it belongs to, then its name.
+        def owned_type(type, aggregate_id)
+          prefix = Naming.identity([aggregate_id, ""])
+          return nil unless type.start_with?(prefix)
+
+          type.delete_prefix(prefix)
+        end
+
+        # ONE PART OF AN IDENTITY, read back as the path it went in as. The inverse
+        # of `Marks#identity_path`, and named the same so the two directions read
+        # as one table.
+        def identity_path(part) = text(part[:value]).to_s
 
         # An argument, a parameter, a piece's attribute — the three places an
         # attribute is written that carry no owner id to strip.
@@ -43,7 +58,11 @@ module Hecksagain
 
           {
             name:     text(field[:name])&.to_sym,
-            type:     type.include?("::") ? reference_type(type) : text(field[:type]),
+            # A QUALIFIED name is the tell : an ordinary type names something
+            # declared beside it (`Money`, `AccountNumber`) and carries no join at
+            # all, where a head's id always does (chapter + name, joined the way
+            # every derived id is).
+            type:     type.include?(Naming::IDENTITY_JOIN) ? reference_type(type) : text(field[:type]),
             list:     text(field[:list]).to_s == "true",
             default:  decode_literal(text(field[:default])),
             optional: text(field[:optional]).to_s == "true",

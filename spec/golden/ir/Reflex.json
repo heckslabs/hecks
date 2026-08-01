@@ -86,7 +86,9 @@
       "entities": [
 
       ],
-      "identified_by": "name.value",
+      "identified_by": [
+        "name.value"
+      ],
       "lifecycle": null,
       "name": "Light",
       "queries": [
@@ -234,7 +236,9 @@
       "entities": [
 
       ],
-      "identified_by": "name.value",
+      "identified_by": [
+        "name.value"
+      ],
       "lifecycle": null,
       "name": "Echo",
       "queries": [
@@ -318,7 +322,9 @@
       "entities": [
 
       ],
-      "identified_by": "signal.value",
+      "identified_by": [
+        "signal.value"
+      ],
       "lifecycle": null,
       "name": "Beacon",
       "queries": [

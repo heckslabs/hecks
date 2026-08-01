@@ -180,7 +180,9 @@
       "entities": [
 
       ],
-      "identified_by": "symbol.value",
+      "identified_by": [
+        "symbol.value"
+      ],
       "lifecycle": {
         "default": "proposed",
         "field": "status",
@@ -590,7 +592,9 @@
       "entities": [
 
       ],
-      "identified_by": "name.value",
+      "identified_by": [
+        "name.value"
+      ],
       "lifecycle": {
         "default": "proposed",
         "field": "status",
@@ -1112,7 +1116,9 @@
       "entities": [
 
       ],
-      "identified_by": "canonical.value",
+      "identified_by": [
+        "canonical.value"
+      ],
       "lifecycle": {
         "default": "extracted",
         "field": "status",
@@ -1504,7 +1510,9 @@
       "entities": [
 
       ],
-      "identified_by": "canonical.value",
+      "identified_by": [
+        "canonical.value"
+      ],
       "lifecycle": {
         "default": "open",
         "field": "status",

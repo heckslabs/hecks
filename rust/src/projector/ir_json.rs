@@ -39,7 +39,11 @@ fn aggregate_to_value(aggregate: &Aggregate) -> Value {
     json!({
         "name": aggregate.name,
         "description": optional(&aggregate.description),
-        "identified_by": aggregate.identified_by.clone().unwrap_or_else(|| "id".to_string()),
+        // A LIST, matching Ruby's `identity_paths` — the wire format for a
+        // declared identity is always a list of parts, empty when nothing is
+        // declared. There is no "id" default any more : an aggregate that names
+        // no field is an aggregate that names no field, not a hidden mint.
+        "identified_by": identity_list(&aggregate.identified_by),
         "attributes": aggregate_attributes(aggregate),
         "value_objects": aggregate.value_objects.iter().map(value_object_to_value).collect::<Vec<_>>(),
         "commands": aggregate.commands.iter().map(|c| command_to_value(c, &aggregate.name)).collect::<Vec<_>>(),
@@ -73,7 +77,7 @@ fn entity_to_value(entity: &Entity) -> Value {
     json!({
         "name": entity.name,
         "description": optional(&entity.description),
-        "identified_by": optional(&entity.identified_by),
+        "identified_by": identity_list(&entity.identified_by),
         "attributes": entity.attributes.iter().map(attribute_to_value).collect::<Vec<_>>(),
         "commands": entity.commands.iter().map(|c| command_to_value(c, &entity.name)).collect::<Vec<_>>(),
         "queries": entity.queries.iter().map(query_to_value).collect::<Vec<_>>(),
@@ -495,6 +499,18 @@ fn optional(text: &Option<String>) -> Value {
     match text {
         Some(text) => Value::String(text.clone()),
         None => Value::Null,
+    }
+}
+
+// AN IDENTITY IS A LIST OF PARTS, on the wire the same way Ruby's
+// `identity_paths` is — one element for the ordinary single-field case, empty
+// when nothing is declared. Rust's own IR still holds one path (the corpus
+// declares nothing richer), so this is the export-time shape, not a new
+// internal representation ; Ruby is the one growing composite identities.
+fn identity_list(path: &Option<String>) -> Value {
+    match path {
+        Some(path) => Value::Array(vec![Value::String(path.clone())]),
+        None => Value::Array(vec![]),
     }
 }
 

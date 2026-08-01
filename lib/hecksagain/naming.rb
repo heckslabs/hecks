@@ -1,6 +1,20 @@
 module Hecksagain
   module Naming
+    # WHAT SEPARATES THE PARTS OF A DERIVED IDENTITY.
+    #
+    # An identity of several parts is their JOIN, and the join has to be spelled the
+    # same everywhere or two readers name two different records off one declaration.
+    # It was spelled three ways at once here — "::" for an aggregate under a
+    # chapter, "." for everything under an aggregate, "#" for the three that keyed
+    # off position — and each was written where it happened to be needed. Once the
+    # runtime derived the same identity, the runtime made a FOURTH, and a reference
+    # that resolved by string comparison found nothing.
+    IDENTITY_JOIN = ":".freeze
+
     module_function
+
+    # The parts of an identity, joined in declaration order.
+    def identity(parts) = Array(parts).join(IDENTITY_JOIN)
 
     def demodulise(type)
       type.to_s.split("::").last.to_s

@@ -184,7 +184,9 @@
       "entities": [
 
       ],
-      "identified_by": "name.value",
+      "identified_by": [
+        "name.value"
+      ],
       "lifecycle": {
         "default": "available",
         "field": "status",

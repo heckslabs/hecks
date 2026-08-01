@@ -52,11 +52,11 @@ module Hecksagain
           fields: {
             name:          [:name,          :plain],
             description:   [:description,   :plain],
-            identified_by: [:identified_by, :identity],
+            identified_by: [:identified_by, :plain],
             attributes:    [:attributes,    [:each, :attribute]]
           },
-          rows: { transitions: :transition_rows, value_objects: :value_object_names },
-          reads: { identified_by: :symbol, attributes: [:each_with_id, :attribute] },
+          rows: { transitions: :transition_rows, value_objects: :value_object_names, identified_by: :identity_rows },
+          reads: { identified_by: [:each, :identity_path], attributes: [:each_with_id, :attribute] },
           derived: {
             position: :walk,
             state_field:   [:folded, :lifecycle, :field],
@@ -135,17 +135,18 @@ module Hecksagain
           fields: {
             name:          [:name,          :plain],
             description:   [:description,   :plain],
-            # A SYMBOL, though `Entity#to_h` spells it `&.to_s` where an aggregate's
-            # `to_h` keeps the symbol. The IR is not uniform about this, and byte
-            # equality with `to_h` CANNOT SEE the difference — both sides render as a
-            # string. So the assembled graph got a String, and `element_of` looked up
-            # `args["sequence"]` in a symbol-keyed payload and found nothing: "Reverse
-            # acts on one LedgerEntry — pass sequence:", while passing sequence.
-            identified_by: [:identified_by, :identity],
+            # A LIST OF PATHS, exactly as an aggregate's is. The two used to differ
+            # — a Symbol here and a String there, which byte equality with `to_h`
+            # COULD NOT SEE because both render as a string, so the assembled graph
+            # got a String and `element_of` looked up `args["sequence"]` in a
+            # symbol-keyed payload and found nothing: "Reverse acts on one
+            # LedgerEntry — pass sequence:", while passing sequence. There is one
+            # spelling now, and no room left for that difference.
+            identified_by: [:identified_by, :plain],
             attributes:    [:attributes,    [:each, :shape_field]]
           },
-          rows: { transitions: :transition_rows },
-          reads: { attributes: [:each, :shape_field] },
+          rows: { transitions: :transition_rows, identified_by: :identity_rows },
+          reads: { identified_by: [:each, :identity_path], attributes: [:each, :shape_field] },
           derived: {
             position: :walk,
             owner:       :parent,

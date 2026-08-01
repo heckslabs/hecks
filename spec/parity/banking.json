@@ -871,9 +871,8 @@
       "verb": "Banking::ATMCard.Rename",
       "args": {
         "serial": {
-          "value": null
+          "value": "CARD-4"
         },
-        "id": "CARD-4",
         "nickname": {
           "value": "Backup"
         }

@@ -42,6 +42,12 @@ module Hecksagain
         # The language holds a value object's NAME here ; the IR holds the object.
         def value_object_names(node) = node.value_objects.map { |shape| { name: shape.hecks_name } }
 
+        # AN IDENTITY IS A LIST OF PARTS, so it is offered one part at a time — the
+        # same way attributes and transitions are. The IR holds the paths ; the
+        # language holds a row per path, and the ORDER between them is the whole
+        # meaning, because the identity is their join.
+        def identity_rows(node) = node.identity_paths.map { |path| { value: path } }
+
         # Through to_h, which is where IR.render_value spells a symbol argument as
         # ":source". The raw with_spec lost the colon, and a binding that reads an
         # argument became indistinguishable from one carrying a literal string.
@@ -227,12 +233,11 @@ module Hecksagain
           # "#<struct LimitSpec value=3>".
           return node.limit&.to_h&.fetch(:value, nil) if "#{category}.#{field}" == "Query.limit"
 
-          # `identified_by` READS BACK as the head attribute, so every dispatch
-          # that only wants to look an attribute up is untouched — but what the
-          # language must HOLD is the whole path, or `{ number.value }` comes
-          # back as `number` and the identity silently becomes a value object
-          # again. The reconstruction is faithful ; it was being handed the head.
-          return node.identity_path if field == :identified_by && node.respond_to?(:identity_path)
+          # `identified_by` is no longer a FIELD of any declaration — it is a list,
+          # filled by Identify one part at a time, so it is read through `identity_rows`
+          # like every other list rather than special-cased here. What this branch
+          # existed to protect is now structural : a path cannot come back as its head,
+          # because there is nowhere left that holds only a head.
 
           node.respond_to?(field) ? node.public_send(field) : nil
         end
@@ -278,7 +283,15 @@ module Hecksagain
         def points_at(row, aggregate_id)
           return nil unless row.reference?
 
-          "#{aggregate_id.split('::').first}::#{row.type.target_name}"
+          # THE CHAPTER THIS HEAD IS IN, AND THE HEAD IT POINTS AT — which is exactly
+          # how an aggregate is identified, so it is built the same way rather than
+          # spelled again with a separator of its own. This is dispatched as a REAL
+          # REFERENCE VALUE (`Aggregate.Reference`'s `points_at:`), resolved by
+          # `repository.find` against the target Aggregate-within-Meta record's OWN
+          # stored id — so it MUST equal what that record's identity actually
+          # derives, not a wire-format spelling. `reference_type`, below, is the
+          # separate later reader that un-derives it back into "Reference<X>".
+          Naming.identity([aggregate_id.split(Naming::IDENTITY_JOIN).first, row.type.target_name])
         end
 
         # A LITERAL, written so it can be read back exactly.
@@ -292,8 +305,11 @@ module Hecksagain
         # wears its braces. Shapes#decode_literal reads it back.
         def encode_literal(value) = value.nil? ? nil : value.inspect
 
-        # The way back out: an aggregate id becomes the type the IR spells.
-        def reference_type(points_at_id) = "Reference<#{points_at_id.to_s.split('::').last}>"
+        # The way back out: an aggregate id becomes the type the IR spells. The
+        # id is a JOIN of chapter + name (Naming::IDENTITY_JOIN, the same join
+        # `points_at` built it with, not the "::" a real bluebook's own type
+        # names never carry) ; the wire format wants only the bare name.
+        def reference_type(points_at_id) = "Reference<#{points_at_id.to_s.split(Naming::IDENTITY_JOIN).last}>"
 
         # One value out of a row, named by the value object's field.
         def row_value(row, field)

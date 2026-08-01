@@ -129,6 +129,7 @@ RSpec.describe "a bluebook dispatched in and read back out" do
         supporting
 
         aggregate "Thing" do
+          identified_by { id.value }
           description "a thing"
           attribute :label, Label
           value_object("Label") { attribute :value, String }

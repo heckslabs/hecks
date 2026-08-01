@@ -51,7 +51,13 @@ module Hecksagain
         end
 
         def judge_wiring(domain, verb, values)
-          id = "#{domain}.#{verb}"
+          # THE SAME JOIN THE LANGUAGE ITSELF DERIVES. Wiring is
+          # `identified_by do world_id; verb.value end` now — `Wiring.Declare`
+          # (a creating command) ignores this `id:` entirely and computes its OWN
+          # from `world_id`/`verb`, so a locally minted "#{domain}.#{verb}" named a
+          # record `Wiring.Set` could never find : the id passed here has to be
+          # the SAME derivation, not a second guess at what it must be.
+          id = Naming.identity([domain, verb])
           # `world_id` is the WORLD's id and goes bare, the way every reference
           # does now ; `world` beside it is an ordinary text attribute that happens
           # to hold the same string, and stays a value object. The two look alike

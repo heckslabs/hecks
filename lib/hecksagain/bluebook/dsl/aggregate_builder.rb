@@ -8,7 +8,7 @@ module Hecksagain
           @name          = name
           @value_objects = []
           @commands      = []
-          @identified_by = :id
+          @identity_paths = []
           @entities      = []
           @queries       = []
           @policies      = []
@@ -23,20 +23,36 @@ module Hecksagain
           @description = value
         end
 
-        # WHICH UNCHANGING FACT SAYS WHICH ONE THIS IS — a FIELD, not a whole value
-        # object. `identified_by { number.value }` names the scalar inside
+        # WHICH UNCHANGING FACTS SAY WHICH ONE THIS IS — FIELDS, not whole value
+        # objects. `identified_by { number.value }` names the scalar inside
         # AccountNumber ; an identity is a value, and serialising a value object
         # into one only worked while something downstream guessed at `values.first`.
         # Nothing guesses now.
         #
+        # SEVERAL PATHS, and the identity is their JOIN, in declaration order :
+        #
+        #   identified_by do
+        #     aggregate_id
+        #     name.value
+        #   end                        ->  "Pizzas::Order:PlaceOrder"
+        #
+        # One path is the ordinary case and reads exactly as it always did. More
+        # than one is what a thing named BENEATH another needs : a command is not
+        # named by `PlaceOrder`, which every chapter may spell, but by the
+        # aggregate it belongs to AND that name. Nothing here is minted, so the
+        # same declaration names the same record on every run.
+        #
         # The block is never CALLED. Its source is read the same way a given's is
         # (Ports::Extraction), which is why `number.value` needs no method called
         # `number` to exist — the same reason `balance >= amount` works in a given.
+        # The canonical form collapses the block's newlines to single spaces, so
+        # the paths arrive here already separated and in the order written.
         def identified_by(field = nil, &path)
-          field = Ports::Extraction.canonical(path) if path
-          raise Malformed, "#{@name}.identified_by names no field" if field.to_s.empty?
+          declared = path ? Ports::Extraction.canonical(path) : field
+          paths    = declared.to_s.split(" ").reject(&:empty?)
+          raise Malformed, "#{@name}.identified_by names no field" if paths.empty?
 
-          @identified_by = field.to_s.strip.to_sym
+          @identity_paths = paths
         end
 
         def reference_to(type, as: nil)
@@ -98,7 +114,7 @@ module Hecksagain
             attributes:    attributes,
             value_objects: @value_objects + closed_sets,
             commands:      @commands,
-            identified_by: @identified_by,
+            identified_by: @identity_paths,
             lifecycle:     @lifecycle,
             entities:      @entities,
             queries:       @queries,

@@ -58,14 +58,24 @@ module Hecksagain
           # found this the other way round : the only two declarations in banking
           # whose removal made the runtimes disagree were both `identified_by`,
           # and they disagreed because removing them fell through to here.
-          id = identity_from(aggregate, args, aggregate.identity_path.to_s.empty? ? :id : aggregate.identity_path) ||
-               raise(NotFound, "#{command.hecks_name} creates a #{aggregate.hecks_name} — pass #{aggregate.identified_by}:")
+          id = identity_of(aggregate, args) ||
+               raise(NotFound, "#{command.hecks_name} creates a #{aggregate.hecks_name} — pass #{identity_reading(aggregate)}:")
           Instance.new(aggregate: aggregate, id: id)
         else
-          id = identity_from(aggregate, args, aggregate.identity_path.to_s.empty? ? :id : aggregate.identity_path) ||
+          # A COMMAND THAT ACTS ON A RECORD MAY NAME IT BY THE ID IT DERIVED.
+          #
+          # This is not the fallback coming back. The fallback MINTED an identity for
+          # an aggregate that declared none ; this names an aggregate whose identity is
+          # declared and already derived, by the answer that derivation gave. A caller
+          # holding a record's id — a walk that just declared it, a saga carrying it
+          # forward — should not have to take the identity apart to say which one it
+          # means. A CREATING command gets no such courtesy : it must derive, because
+          # there is no record yet whose id could be quoted back.
+          id = identity_of(aggregate, args) ||
+               identity_from(aggregate, args, :id) ||
                identity_from(aggregate, args, reference_key(command)) ||
-               raise(NotFound, "#{command.hecks_name} acts on an existing #{aggregate.hecks_name} — pass #{aggregate.identified_by}:")
-          repository.find(id) || raise(NotFound, "no #{aggregate.hecks_name} with #{aggregate.identified_by} #{Rendering.describe(id)}")
+               raise(NotFound, "#{command.hecks_name} acts on an existing #{aggregate.hecks_name} — pass #{identity_reading(aggregate)}:")
+          repository.find(id) || raise(NotFound, "no #{aggregate.hecks_name} with #{identity_reading(aggregate)} #{Rendering.describe(id)}")
         end
       end
 
@@ -86,7 +96,7 @@ module Hecksagain
       # identified by, and the reference key of the root a command reaches
       # through. Refusing those would refuse every dispatch there is.
       def refuse_unknown_arguments(domain, aggregate, command, args)
-        addressing = [:id, aggregate.identified_by, reference_key(command)] + correlation_keys(domain)
+        addressing = [:id, *aggregate.identity_heads, reference_key(command)] + correlation_keys(domain)
         known      = (command.attributes.map(&:name) + addressing).compact.map(&:to_sym)
         # SORTED. Payload order is whatever the caller happened to write, and the
         # two runtimes iterate a map differently — an unsorted list makes the same
@@ -156,41 +166,15 @@ module Hecksagain
         end
       end
 
-      # A path digs into the value object that carries the identity, so what is
-      # stored is the SCALAR inside it rather than the object serialised whole.
-      def identity_from(aggregate, args, key)
-        return nil unless key
+      # THE JOIN, THE DIG, AND THE READING — all shared with `EntityInterpreter`
+      # now, in `Runtime::Identity`, rather than kept as two copies that could
+      # only ever drift. See that module for the reasoning ; these three stay
+      # here, at the old names, purely so nothing below has to change.
+      def identity_of(aggregate, args)   = Identity.of(aggregate, args)
+      def identity_from(aggregate, args, key) = Identity.from(aggregate, args, key)
+      def identity_reading(construct)    = Identity.reading(construct)
 
-        head, *rest = key.to_s.split(".")
-        key = head.to_sym
-        return nil unless args.key?(key)
-        unless rest.empty?
-          held = args[key]
-          held = held.to_h if held.respond_to?(:to_h)
-          # AN ID IS ALWAYS A SCALAR. The path says WHICH FIELD carries it, so a
-          # caller may hand that field's value straight over — a string or a
-          # number, never a serialised object. Only a value object that actually
-          # arrived whole has to be opened.
-          return held.to_s unless held.is_a?(Hash)
-
-          return rest.reduce(held) { |h, f| h.is_a?(Hash) ? (h[f.to_sym] || h[f]) : nil }&.to_s
-        end
-
-        # Coerced against the identity ATTRIBUTE only when the caller actually
-        # named it. A saga addresses an aggregate by its correlation key, and
-        # that key carries the id ALREADY RESOLVED — coercing "w1" against a
-        # WireReference asked the caller to pass fields for a value object they
-        # never mentioned.
-        attribute = key == aggregate.identified_by ? aggregate.attribute(key) : nil
-        raw       = args[key]
-        # NO PATH TO FOLLOW, so nothing is dug and nothing is opened. This is
-        # reached by the addressing keys that are not the aggregate's own
-        # declared identity — `id`, and the reference key a command reaches
-        # its root through — and those carry an id ALREADY RESOLVED.
-        attribute ? Value.for_attribute(aggregate, attribute, raw) : raw
-      end
-
-      def assign_creation_attributes(instance, aggregate, command, args)
+          def assign_creation_attributes(instance, aggregate, command, args)
         command.attributes.each do |attr|
           next unless aggregate.attribute(attr.name)
           next unless args.key?(attr.name)

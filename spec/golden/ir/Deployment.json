@@ -74,7 +74,9 @@
       "entities": [
 
       ],
-      "identified_by": "domain.value",
+      "identified_by": [
+        "domain.value"
+      ],
       "lifecycle": null,
       "name": "World",
       "queries": [
@@ -296,7 +298,10 @@
       "entities": [
 
       ],
-      "identified_by": "id",
+      "identified_by": [
+        "world_id",
+        "verb.value"
+      ],
       "lifecycle": null,
       "name": "Wiring",
       "queries": [

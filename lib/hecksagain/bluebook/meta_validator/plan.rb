@@ -43,6 +43,7 @@ module Hecksagain
 
         Category = Struct.new(:name, :declare, :parent, :parent_key, :fields,
                               :appends, :alternates, :setters, :sealers, :references,
+                              :identity_paths,
                               keyword_init: true) do
           # Every verb this category declares, in declaration order. `alternates`
           # matters here: two commands can append to one list, and a verb missing
@@ -107,7 +108,14 @@ module Hecksagain
             sealers:    sealers_in(rest),
             # EVERY command, not `rest` — the creating command carries the parent
             # link, which is the most common reference of all.
-            references: references_in(aggregate.commands)
+            references: references_in(aggregate.commands),
+            # HOW THE CATEGORY NAMES ITS RECORDS, read from the language rather
+            # than restated. The judge has to know a record's id BEFORE it
+            # dispatches, because the children it walks next carry it as their
+            # parent — so it derives the same join the runtime will, off the same
+            # declaration. It used to be a branch per category, and a branch that
+            # disagreed with the runtime by one separator was a broken reference.
+            identity_paths: aggregate.identity_paths
           )
         end
 

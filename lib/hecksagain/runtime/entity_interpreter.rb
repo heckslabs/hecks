@@ -29,7 +29,7 @@ module Hecksagain
         instance   = step(:hydrate_parent) { parent(repository, aggregate, entity_name, command_name, args) }
         element    = step(:locate_element) { element_of(aggregate, entity, entity_name, command_name, instance, args) }
 
-        view = Instance.new(aggregate: entity, id: identity_scalar(entity, element[entity.identified_by]).to_s, state: element)
+        view = Instance.new(aggregate: entity, id: element_identity(entity, element).to_s, state: element)
         step(:enforce_givens) { @rules.enforce_givens(view, command, args) }
         transition = step(:admissible_transition) { @rules.admissible_transition(entity, command, view) }
         step(:apply_mutations) { command.mutations.each { |mutation| apply_to_element(aggregate, entity, element, mutation, args) } }
@@ -48,42 +48,55 @@ module Hecksagain
         result
       end
 
+      # THE PARENT AGGREGATE, addressed exactly as `CommandInterpreter#hydrate`
+      # addresses one acting on itself — derive from the declared identity first
+      # (`Identity.of`), and let a bare `id:` name an already-derived record when
+      # the identity itself is not what the caller is holding.
       def parent(repository, aggregate, entity_name, command_name, args)
-        parent_key = aggregate.identified_by || :id
-        parent_id = args[parent_key] || args[:id] ||
-                    raise(NotFound, "#{command_name} acts on a #{aggregate.hecks_name}'s #{entity_name} — pass #{aggregate.identified_by}:")
-        # The PARENT's identity is a path too, and it is followed, not opened —
-        # the same reading `CommandInterpreter#identity_from` gives it when an
-        # aggregate command addresses the same root.
-        parent_id = Identity.scalar(aggregate.identity_path,
-                                    Value.for_attribute(aggregate, aggregate.attribute(parent_key), parent_id))
+        parent_id = Identity.of(aggregate, args) ||
+                    Identity.from(aggregate, args, :id) ||
+                    raise(NotFound, "#{command_name} acts on a #{aggregate.hecks_name}'s #{entity_name} — pass #{Identity.reading(aggregate)}:")
         repository.find(parent_id) ||
-          raise(NotFound, "no #{aggregate.hecks_name} with #{aggregate.identified_by} #{parent_id.inspect}")
+          raise(NotFound, "no #{aggregate.hecks_name} with #{Identity.reading(aggregate)} #{parent_id.inspect}")
       end
 
+      # ONE ELEMENT, MATCHED ON EVERY PART OF ITS IDENTITY — not just the first.
+      # A piece's identity may be several paths, the same shape a head's can be,
+      # so a dispatch that names the element has to supply every part and every
+      # part has to agree with the stored one.
       def element_of(aggregate, entity, entity_name, command_name, instance, args)
         list_attr = aggregate.attributes.find { |a| a.list? && a.type.to_s == entity_name } ||
                     raise(UnknownVerb, "#{aggregate.hecks_name} holds no list of #{entity_name}")
-        key  = entity.identified_by
-        want = args[key] ||
-               raise(NotFound, "#{command_name} acts on one #{entity_name} — pass #{key}:")
-        want = Value.for_attribute(aggregate, entity.attribute(key), want)
 
-        Array(instance[list_attr.name]).find { |el| el[key] == want } ||
-          raise(NotFound, "no #{entity_name} with #{key} #{identity_scalar(entity, want).to_json} on #{aggregate.hecks_name} #{instance.id.inspect}")
+        wants = entity.identity_paths.map do |path|
+          head = path.to_s.split(".").first.to_sym
+          raw  = args[head] ||
+                 raise(NotFound, "#{command_name} acts on one #{entity_name} — pass #{Identity.reading(entity)}:")
+
+          [head, path, Value.for_attribute(aggregate, entity.attribute(head), raw)]
+        end
+
+        Array(instance[list_attr.name]).find { |el| wants.all? { |head, _path, want| el[head] == want } } ||
+          raise(NotFound, "no #{entity_name} with #{Identity.reading(entity)} " \
+                          "#{wants.map { |_h, path, want| Identity.scalar(path, want) }.join(', ')} " \
+                          "on #{aggregate.hecks_name} #{instance.id.inspect}")
       end
 
-      # An id is a SCALAR, and the PATH is how it is reached — never by opening a
-      # value object and taking whatever single field is inside. That unwrapping
-      # is gone from the language : a piece that does not name its field is
-      # refused when the bluebook loads (`an entity is known by a field`), so by
-      # the time a dispatch arrives here there is always a path to dig.
-      def identity_scalar(entity, held)
-        _head, *rest = entity.identity_path.to_s.split(".")
-
-        rest.reduce(Value.materialize(held)) do |dug, field|
-          dug.is_a?(Hash) ? (dug[field.to_sym] || dug[field]) : nil
+      # THE ELEMENT'S OWN IDENTITY, joined from its parts — the entity-level
+      # twin of `Identity.of`, reading off the STORED ELEMENT (a Hash) rather
+      # than a dispatch payload. An id is a SCALAR, and the PATH is how it is
+      # reached — never by opening a value object and taking whatever single
+      # field is inside. That unwrapping is gone from the language : a piece
+      # that does not name its fields is refused when the bluebook loads ("an
+      # entity says what it is known by", "an identity part reaches a scalar"),
+      # so by the time a dispatch arrives here there is always a path to dig.
+      def element_identity(entity, element)
+        parts = entity.identity_paths.map do |path|
+          head = path.to_s.split(".").first.to_sym
+          Identity.scalar(path, element[head])
         end
+
+        Naming.identity(parts)
       end
 
       def apply_to_element(aggregate, entity, element, mutation, args)

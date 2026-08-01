@@ -8,12 +8,13 @@ module Hecksagain
         # Construct when this one crosses.
         def hecks_name = @name
         attr_reader :name, :description, :attributes, :value_objects, :commands,
-                    :identified_by, :identity_path, :lifecycle, :entities, :queries, :policies, :reference_targets
+                    :identified_by, :identity_paths, :identity_heads, :lifecycle,
+                    :entities, :queries, :policies, :reference_targets
 
         attr_accessor :ruby_class
 
         def initialize(name:, description: nil, attributes: [], value_objects: [],
-                       commands: [], identified_by: :id, lifecycle: nil,
+                       commands: [], identified_by: [], lifecycle: nil,
                        entities: [], queries: [], policies: [], reference_targets: [])
           @entities      = entities
           @queries       = queries
@@ -23,11 +24,18 @@ module Hecksagain
           @attributes    = attributes
           @value_objects = value_objects
           @commands      = commands
-          # The PATH "number.value" says which field carries the identity ;
-          # `identified_by` stays the HEAD attribute, which is what every reader
-          # that looks up or coerces an attribute actually wants.
-          @identity_path = identified_by.to_s
-          @identified_by = @identity_path.split(".").first.to_sym
+          # THE PATHS, IN DECLARATION ORDER, because the identity IS their join.
+          # "number.value" says which field carries the identity ; several paths
+          # say the identity is made of several facts, which is what anything
+          # named beneath another thing needs. `identity_heads` are the attributes
+          # those paths start at — what every reader that looks up or coerces an
+          # attribute actually wants — and `identified_by` is the single head,
+          # offered ONLY when there is one path to have a head of. A composite has
+          # no single head, and answering with the first would be a guess ; the
+          # readers that need all of them ask for `identity_heads`.
+          @identity_paths = Array(identified_by).map { |path| path.to_s }.reject(&:empty?)
+          @identity_heads = @identity_paths.map { |path| path.split(".").first.to_sym }
+          @identified_by  = @identity_heads.size == 1 ? @identity_heads.first : nil
           @lifecycle     = lifecycle
           @reference_targets = reference_targets
 
@@ -60,7 +68,7 @@ module Hecksagain
           {
             name:          @name,
             description:   @description,
-            identified_by: @identity_path.to_sym,
+            identified_by: @identity_paths,
             attributes:    @attributes.map(&:to_h),
             value_objects: @value_objects.map(&:to_h),
             commands:      @commands.map(&:to_h),

@@ -294,7 +294,9 @@
     {
       "verb": "Expression::Expression.Admit",
       "args": {
-        "id": "ex-1"
+        "canonical": {
+          "value": "toppings.size < 10"
+        }
       }
     },
     {
@@ -318,7 +320,9 @@
     {
       "verb": "Expression::Expression.Admit",
       "args": {
-        "id": "ex-blank"
+        "canonical": {
+          "value": ""
+        }
       }
     },
     {
@@ -336,57 +340,69 @@
     {
       "verb": "Expression::Agreement.Settle",
       "args": {
-        "id": "ag-1"
-      }
-    },
-    {
-      "verb": "Expression::Agreement.Answer",
-      "args": {
-        "id": "ag-1",
-        "runtime": {
-          "value": "ruby"
-        },
-        "outcome": {
-          "value": "true"
+        "canonical": {
+          "value": "toppings.size < 10"
         }
       }
     },
     {
       "verb": "Expression::Agreement.Answer",
       "args": {
-        "id": "ag-1",
+        "runtime": {
+          "value": "ruby"
+        },
+        "outcome": {
+          "value": "true"
+        },
+        "canonical": {
+          "value": "toppings.size < 10"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Agreement.Answer",
+      "args": {
         "runtime": {
           "value": "rust"
         },
         "outcome": {
           "value": "true"
+        },
+        "canonical": {
+          "value": "toppings.size < 10"
         }
       }
     },
     {
       "verb": "Expression::Agreement.Settle",
       "args": {
-        "id": "ag-1"
+        "canonical": {
+          "value": "toppings.size < 10"
+        }
       }
     },
     {
       "verb": "Expression::Agreement.Answer",
       "args": {
-        "id": "ag-1",
         "runtime": {
           "value": "go"
         },
         "outcome": {
           "value": "true"
+        },
+        "canonical": {
+          "value": "toppings.size < 10"
         }
       }
     },
     {
       "verb": "Expression::Agreement.Split",
       "args": {
-        "id": "ag-1",
         "reason": {
           "value": "already settled"
+        },
+        "canonical": {
+          "value": "toppings.size < 10"
         }
       }
     },
@@ -411,7 +427,9 @@
     {
       "verb": "Expression::Expression.Admit",
       "args": {
-        "id": "ex-length-cm"
+        "canonical": {
+          "value": "dims.length_cm > 0"
+        }
       }
     },
     {
@@ -429,31 +447,37 @@
     {
       "verb": "Expression::Agreement.Answer",
       "args": {
-        "id": "ag-length-cm",
         "runtime": {
           "value": "ruby"
         },
         "outcome": {
           "value": "true"
+        },
+        "canonical": {
+          "value": "dims.length_cm > 0"
         }
       }
     },
     {
       "verb": "Expression::Agreement.Answer",
       "args": {
-        "id": "ag-length-cm",
         "runtime": {
           "value": "rust"
         },
         "outcome": {
           "value": "true"
+        },
+        "canonical": {
+          "value": "dims.length_cm > 0"
         }
       }
     },
     {
       "verb": "Expression::Agreement.Settle",
       "args": {
-        "id": "ag-length-cm"
+        "canonical": {
+          "value": "dims.length_cm > 0"
+        }
       }
     }
   ]

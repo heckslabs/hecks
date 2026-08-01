@@ -15,8 +15,20 @@ RSpec.describe "the DSL surface" do
     in_registry { Hecks.bluebook(name, &block) }.bluebook(name)
   end
 
+  # A BASELINE IDENTITY, so tests exercising something else entirely — a
+  # lifecycle, a query, a default — do not each have to declare one to pass
+  # MetaValidator's "an aggregate says what it is known by" (Seal never
+  # defaults this any more ; see the `identified_by` tests below, which are
+  # what actually exercises the rule). A block that declares its OWN
+  # `identified_by` overrides this one, since it runs after and the builder
+  # keeps only the last call.
   def build_aggregate(domain, &block)
-    build_bluebook(domain) { aggregate("Thing", &block) }.aggregate("Thing")
+    build_bluebook(domain) do
+      aggregate("Thing") do
+        identified_by { thing_id.value }
+        instance_eval(&block) if block
+      end
+    end.aggregate("Thing")
   end
 
   def build_command(domain, &block)
@@ -119,7 +131,7 @@ RSpec.describe "the DSL surface" do
 
     it "refuses an aggregate attribute that is not a value object" do
       expect { build_aggregate("Primitive") { attribute :code, String } }
-        .to raise_error(Malformed, %r{no ValueObject with id "Primitive::Thing.String"})
+        .to raise_error(Malformed, %r{no ValueObject with id "Primitive:Thing:String"})
     end
 
     # A PIECE IS REACHED THROUGH ITS AGGREGATE, so a command on one addresses
@@ -154,12 +166,14 @@ RSpec.describe "the DSL surface" do
       expect do
         build_bluebook("HeadOnly") do
           aggregate "Root" do
+            identified_by { id.value }
+
             value_object("Code") { attribute :value, String }
 
             command("UseCode") { reference_to Code }
           end
         end
-      end.to raise_error(Malformed, /Root\.UseCode#attributes\[0\]: no Aggregate with id "HeadOnly::Code"/)
+      end.to raise_error(Malformed, /UseCode#attributes\[0\]: no Aggregate with id "HeadOnly:Code"/)
     end
 
     it "refuses an unnamed event" do
@@ -214,6 +228,8 @@ RSpec.describe "the DSL surface" do
       registry = in_registry do
         Hecks.bluebook("Coins") do
           aggregate("Coin") do
+            identified_by { id.value }
+
             attribute :currency, Currency
 
             value_object("Currency") do
@@ -286,6 +302,12 @@ RSpec.describe "the DSL surface" do
 
         Hecks.bluebook("Coerced") do
           aggregate("Holding") do
+            # THE ID EVERY TEST BELOW ALREADY PASSES ("h1", "h2"...) IS THE FACT.
+            # A bare scalar payload short-circuits the ".value" dig (see
+            # `identity_from`'s "AN ID IS ALWAYS A SCALAR" note), so this derives
+            # from exactly what each dispatch already supplies — nothing minted.
+            identified_by { id.value }
+
             attribute :kind,   Kind
             attribute :amount, Amount
 
@@ -370,6 +392,8 @@ RSpec.describe "the DSL surface" do
     it "read_model declares a domain-level projection" do
       model = build_bluebook("Portfolio") do
         aggregate "Customer" do
+          identified_by { id.value }
+
           attribute :reference, CustomerNumber
           value_object "CustomerNumber" do
             attribute :value, String
@@ -550,7 +574,16 @@ RSpec.describe "the DSL surface" do
     end
 
     it "aggregate adds an aggregate" do
-      expect(build_bluebook("Agged") { aggregate("Thing") }.aggregates.map(&:name)).to eq(["Thing"])
+      # `identified_by` reads its OWN source line via Prism, so it needs a line to
+      # itself — stacking it on the SAME line as the block that opens it makes
+      # `block_node_at` find that OUTER block first (walk is pre-order) and read
+      # the wrong source entirely.
+      built = build_bluebook("Agged") do
+        aggregate("Thing") do
+          identified_by { id.value }
+        end
+      end
+      expect(built.aggregates.map(&:name)).to eq(["Thing"])
     end
 
     it "core, supporting and generic each record a classification" do
@@ -562,7 +595,12 @@ RSpec.describe "the DSL surface" do
     end
 
     it "verbs lists every command as a fully-qualified verb" do
-      bluebook = build_bluebook("Verbed") { aggregate("Thing") { command("Do") } }
+      bluebook = build_bluebook("Verbed") do
+        aggregate("Thing") do
+          identified_by { id.value }
+          command("Do")
+        end
+      end
       expect(bluebook.verbs).to eq(["Verbed::Thing.Do"])
     end
   end
@@ -577,12 +615,37 @@ RSpec.describe "the DSL surface" do
         identified_by { name.value }
       end
 
-      expect(identified.identity_path).to eq("name.value")
+      expect(identified.identity_paths).to eq(["name.value"])
       expect(identified.identified_by).to eq(:name)
     end
 
-    it "identified_by defaults to id" do
-      expect(build_aggregate("Defaulted") {}.identified_by).to eq(:id)
+    it "identified_by joins several paths, and offers no single HEAD for a composite" do
+      identified = build_aggregate("Composite") do
+        identified_by do
+          batch_id
+          name.value
+        end
+      end
+
+      expect(identified.identity_paths).to eq(["batch_id", "name.value"])
+      expect(identified.identity_heads).to eq([:batch_id, :name])
+      expect(identified.identified_by).to be_nil
+    end
+
+    # NOTHING IS MINTED, so nothing DEFAULTS either — a default WAS a mint, just
+    # a lazier one. An aggregate that declares no identity has none : it cannot
+    # be created (hydrate's creating branch has nothing to derive from) until it
+    # says what it is known by.
+    #
+    # Built through the RAW builder, not `build_aggregate` : that helper hands
+    # every fixture a baseline identity so the OTHER 40 tests in this file
+    # don't have to think about one, which makes it the wrong tool for proving
+    # there is no default underneath.
+    it "identified_by has no default : an aggregate that declares none has none" do
+      undeclared = Hecksagain::Bluebook::DSL::AggregateBuilder.build("Undeclared") {}
+
+      expect(undeclared.identity_paths).to eq([])
+      expect(undeclared.identified_by).to be_nil
     end
 
     it "lifecycle records a state machine on a field" do
@@ -693,8 +756,14 @@ RSpec.describe "the DSL surface" do
 
     it "reference_to another root is an attribute, and leaves the command creating" do
       command = build_bluebook("Open") do
-        aggregate("Customer") { description "A customer" }
-        aggregate("Thing") { command("Do") { reference_to "Customer" } }
+        aggregate("Customer") do
+          identified_by { id.value }
+          description "A customer"
+        end
+        aggregate("Thing") do
+          identified_by { id.value }
+          command("Do") { reference_to "Customer" }
+        end
       end.aggregate("Thing").command("Do")
 
       expect(command.creates?).to be true
@@ -754,8 +823,14 @@ RSpec.describe "the DSL surface" do
 
     it "reference_to points at another root by its identity" do
       aggregate = build_bluebook("Referring") do
-        aggregate("Pizza") { description "A pizza" }
-        aggregate("Thing") { reference_to Pizza }
+        aggregate("Pizza") do
+          identified_by { id.value }
+          description "A pizza"
+        end
+        aggregate("Thing") do
+          identified_by { id.value }
+          reference_to Pizza
+        end
       end.aggregate("Thing")
       expect(aggregate.attribute(:pizza_id).type.target_name).to eq("Pizza")
       expect(aggregate.attribute(:pizza_id).to_h[:type]).to eq("Reference<Pizza>")

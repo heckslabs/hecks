@@ -13,6 +13,7 @@ RSpec.describe Hecksagain::Bluebook::ProjectLoader do
     write_bluebook("catalog", <<~RUBY)
       Hecks.bluebook "Catalog" do
         aggregate "Book" do
+          identified_by { id.value }
           description "A book"
           command "Add" do
           end
@@ -25,6 +26,7 @@ RSpec.describe Hecksagain::Bluebook::ProjectLoader do
     write_bluebook("billing", <<~RUBY)
       Hecks.bluebook "Billing" do
         aggregate "Invoice" do
+          identified_by { id.value }
           description "An invoice"
           command "Issue" do
           end
@@ -51,6 +53,7 @@ RSpec.describe Hecksagain::Bluebook::ProjectLoader do
       write_bluebook("duplicate#{number}", <<~RUBY)
         Hecks.bluebook "Catalog" do
           aggregate "Book" do
+            identified_by { id.value }
             description "A book"
             command "Add" do
             end
@@ -69,6 +72,7 @@ RSpec.describe Hecksagain::Bluebook::ProjectLoader do
       write_bluebook("banking_#{version}", <<~RUBY)
         Hecks.bluebook "Banking", version: "#{version}" do
           aggregate "Account" do
+            identified_by { id.value }
             description "An account"
             command "Credit" do
             end

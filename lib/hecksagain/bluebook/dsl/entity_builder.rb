@@ -18,12 +18,14 @@ module Hecksagain
         # it, which is what an id actually is — a LedgerEntry is entry 3, not
         # entry {"value":3}. The block is recovered through the same extraction
         # port an aggregate's is, so the two constructs cannot drift apart in
-        # how they spell an identity.
+        # how they spell an identity — INCLUDING the several-path form, which a
+        # piece may say for the same reason a head may.
         def identified_by(field = nil, &path)
-          field = Ports::Extraction.canonical(path) if path
-          raise Malformed, "#{@name}.identified_by names no field" if field.to_s.empty?
+          declared = path ? Ports::Extraction.canonical(path) : field
+          paths    = declared.to_s.split(" ").reject(&:empty?)
+          raise Malformed, "#{@name}.identified_by names no field" if paths.empty?
 
-          @identified_by = field.to_s.strip.to_sym
+          @identity_paths = paths
         end
 
         def command(name, &block)
@@ -42,7 +44,7 @@ module Hecksagain
           IR::Entity.declare(
             name:          @name,
             description:   @description,
-            identified_by: @identified_by,
+            identified_by: @identity_paths,
             attributes:    attributes,
             commands:      @commands,
             queries:       @queries,

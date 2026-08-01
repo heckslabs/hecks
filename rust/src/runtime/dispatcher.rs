@@ -130,8 +130,21 @@ fn query_number(value: &Value) -> Option<f64> {
     }
 }
 
-fn query_truthy(value: &Value) -> bool {
-    !matches!(value, Value::Null | Value::Bool(false))
+// THE DECLARED PATH, if there is one — read off the wire's own shape rather
+// than a bare string. `identified_by` travels as a LIST now (Ruby's
+// `identity_paths`, matched byte-for-byte by `ir_json::identity_list`) : empty
+// when nothing is declared, one element for the single-field identity this
+// runtime actually resolves. There is no "id" DEFAULT any more — that default
+// was a MINT, the exact ability this reader exists to not have. A construct
+// with no declared identity gets `None` here, and every caller below has to
+// say what that means for it (usually : refuse, the same way Ruby's creating
+// branch always has).
+pub fn identity_path(construct: &Map<String, Value>) -> Option<&str> {
+    construct
+        .get("identified_by")
+        .and_then(Value::as_array)
+        .and_then(|paths| paths.first())
+        .and_then(Value::as_str)
 }
 
 fn query_text(value: &Value) -> String {
@@ -538,10 +551,8 @@ impl Runtime {
         self.trace_step("resolve_references");
         let args = &normalized_args;
 
-        let identity = aggregate
-            .get("identified_by")
-            .and_then(Value::as_str)
-            .unwrap_or("id")
+        let identity = identity_path(&aggregate)
+            .unwrap_or("")
             .to_string();
         // The parent's identity is a PATH too : the caller passes the head and
         // the field is dug out, exactly as an aggregate command resolves it.
@@ -562,7 +573,7 @@ impl Runtime {
             .filter(|id| !id.is_empty())
             .ok_or_else(|| {
                 format!(
-                    "{command_name} acts on a {aggregate_name}'s {entity_name} — pass {parent_head}:"
+                    "{command_name} acts on a {aggregate_name}'s {entity_name} — pass {identity}:"
                 )
             })?;
 
@@ -570,13 +581,13 @@ impl Runtime {
             adapter
                 .find(&parent_id)
                 .map(value_bridge::from_state)
-                .ok_or_else(|| format!("no {} with {} {:?}", aggregate_name, parent_head, parent_id))?
+                .ok_or_else(|| format!("no {} with {} {:?}", aggregate_name, identity, parent_id))?
         } else {
             let key = format!("{}::{}#{}", domain, aggregate_name, parent_id);
             self.store
                 .get(&key)
                 .cloned()
-                .ok_or_else(|| format!("no {} with {} {:?}", aggregate_name, parent_head, parent_id))?
+                .ok_or_else(|| format!("no {} with {} {:?}", aggregate_name, identity, parent_id))?
         };
         self.trace_step("hydrate_parent");
 
@@ -593,17 +604,15 @@ impl Runtime {
         // A PIECE's identity is a path too : the caller passes the head
         // attribute and the id is the scalar dug out of it, exactly as a
         // head resolves its own a few lines above.
-        let entity_identity = entity
-            .get("identified_by")
-            .and_then(Value::as_str)
-            .unwrap_or("id")
+        let entity_identity = identity_path(&entity)
+            .unwrap_or("")
             .to_string();
         let (entity_key, entity_field) = match entity_identity.split_once('.') {
             Some((left, right)) => (left.to_string(), Some(right.to_string())),
             None => (entity_identity.clone(), None),
         };
         let want = args.get(&entity_key).cloned().ok_or_else(|| {
-            format!("{command_name} acts on one {entity_name} — pass {entity_key}:")
+            format!("{command_name} acts on one {entity_name} — pass {entity_identity}:")
         })?;
         // An entity's identity is a declared attribute like any other, so it is
         // coerced through its own type BEFORE it is matched — EntityInterpreter
@@ -635,7 +644,7 @@ impl Runtime {
                 format!(
                     "no {} with {} {} on {} {:?}",
                     entity_name,
-                    entity_key,
+                    entity_identity,
                     identity_scalar(&want, entity_field.as_deref()),
                     aggregate_name,
                     parent_id
@@ -968,10 +977,8 @@ impl Runtime {
         // and a parent alone would leave every sibling tied.
         // The HEAD, not the path : a row is a stored element, and what it
         // keys is the attribute the identity is dug out of.
-        let entity_key = entity
-            .get("identified_by")
-            .and_then(Value::as_str)
-            .unwrap_or("id")
+        let entity_key = identity_path(&entity)
+            .unwrap_or("")
             .split('.')
             .next()
             .unwrap_or("id")
@@ -1118,10 +1125,8 @@ impl Runtime {
                 continue;
             }
             // The HEAD names what a caller passes, so it is what a refusal names.
-            let identity = target
-                .get("identified_by")
-                .and_then(Value::as_str)
-                .unwrap_or("id")
+            let identity = identity_path(&target)
+                .unwrap_or("")
                 .split('.')
                 .next()
                 .unwrap_or("id")
@@ -1159,10 +1164,8 @@ impl Runtime {
         self.trace_step("resolve_references");
         let args = &normalized_args;
 
-        let identity = aggregate
-            .get("identified_by")
-            .and_then(Value::as_str)
-            .unwrap_or("id")
+        let identity = identity_path(&aggregate)
+            .unwrap_or("")
             .to_string();
         let creates = command
             .get("references")
@@ -1281,12 +1284,21 @@ impl Runtime {
         };
 
         if creates {
+            // FILTERED AFTER THE DIG, not before : the WRAPPER (`{value: ""}`)
+            // is a non-empty Hash and always passed `query_truthy`, so a blank
+            // SCALAR inside it — an expression whose source did not survive
+            // extraction — read as a perfectly good identity. "" is not a fact
+            // about anything ; the ELSE branch a few lines down has always
+            // filtered the dug scalar this way, and creation now matches it.
             let id = args
                 .get(head)
-                .filter(|value| query_truthy(value))
                 .map(&dig)
+                .filter(|value| !value.is_empty())
                 .ok_or_else(|| {
-                    format!("{command_name} creates a {aggregate_name} — pass {head}:")
+                    // THE DECLARED PATH, not just its head — the same reading
+                    // Ruby's `identity_reading` quotes back, so a refusal names
+                    // exactly what the bluebook said ("name.value", not "name").
+                    format!("{command_name} creates a {aggregate_name} — pass {identity}:")
                 })?;
             return Ok((id, defaults_for(aggregate)?));
         }
@@ -1323,7 +1335,7 @@ impl Runtime {
             .ok_or_else(|| {
                 format!(
                     "{} acts on an existing {} — pass {}:",
-                    command_name, aggregate_name, head
+                    command_name, aggregate_name, identity
                 )
             })?;
 
@@ -1331,7 +1343,7 @@ impl Runtime {
             let state = adapter
                 .find(&id)
                 .map(value_bridge::from_state)
-                .ok_or_else(|| format!("no {} with {} {:?}", aggregate_name, head, id))?;
+                .ok_or_else(|| format!("no {} with {} {:?}", aggregate_name, identity, id))?;
             return Ok((id, state));
         }
 
@@ -1340,7 +1352,7 @@ impl Runtime {
             .keys()
             .find(|key| key.ends_with(&format!("::{}#{}", aggregate_name, id)))
             .cloned()
-            .ok_or_else(|| format!("no {} with {} {:?}", aggregate_name, head, id))?;
+            .ok_or_else(|| format!("no {} with {} {:?}", aggregate_name, identity, id))?;
 
         Ok((id, self.store[&key].clone()))
     }
@@ -1932,10 +1944,8 @@ impl Runtime {
         let Ok(aggregate) = self.find_aggregate(domain, target, "") else {
             return String::new();
         };
-        let identity = aggregate
-            .get("identified_by")
-            .and_then(Value::as_str)
-            .unwrap_or("id");
+        let identity = identity_path(&aggregate)
+            .unwrap_or("");
         let head = identity.split('.').next().unwrap_or(identity);
 
         format!(" ({target} is known by {head})")
@@ -2205,15 +2215,6 @@ mod query_semantics_tests {
         assert_eq!(query_limit(&json!("abc")), 0);
         assert_eq!(query_limit(&json!(5.9)), 5);
         assert_eq!(query_limit(&json!(true)), 0);
-    }
-
-    #[test]
-    fn only_nothing_and_false_are_falsy() {
-        assert!(!query_truthy(&Value::Null));
-        assert!(!query_truthy(&json!(false)));
-        assert!(query_truthy(&json!(0)));
-        assert!(query_truthy(&json!("")));
-        assert!(query_truthy(&json!(true)));
     }
 
 

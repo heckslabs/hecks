@@ -182,6 +182,14 @@ module Hecksagain
 
           payload = { id: id }
           payload[plan.parent_key.to_sym] = carried(plan, plan.declare, plan.parent_key, parent_id) if plan.parent_key
+          # OWNER_ID, bare, whenever this category's identity reaches for it —
+          # not `carried()`, because it addresses the record rather than
+          # describing it, exactly as `id` above does not go through carried
+          # either. Set unconditionally from `parent_id`, so it is the SAME
+          # value `identify()` just derived the id from two lines up — the two
+          # cannot disagree, because they are the same call reading the same
+          # argument.
+          payload[:owner_id] = parent_id if plan.identity_paths.any? { |path| path.to_s.split(".").first == OWNER }
           plan.fields.each do |field|
             payload[field.to_sym] = if field == POSITION
                                       v(index)
@@ -251,7 +259,7 @@ module Hecksagain
           return points_at(row, id) if append.verb == "Reference"
           return value unless "#{category}.#{list_name}" == "Aggregate.attributes"
 
-          "#{id}.#{value}"
+          Naming.identity([id, value])
         end
 
         # Which verb an attribute row belongs to. The plan cannot decide this — all
@@ -294,13 +302,51 @@ module Hecksagain
           Array(node.entities).any? { |entity| entity.hecks_name == row.type.to_s }
         end
 
+        # A RECORD'S ID IS ITS DECLARED IDENTITY, JOINED — the same join the runtime
+        # does, off the same declaration, because there is only one way to name a
+        # thing and it should be written once.
+        #
+        # This was a branch per category: "#{parent}::#{name}" for an aggregate,
+        # "#{parent}.#{name}" for most, "#{parent}##{index}" for the three that had
+        # no name to use. It was the composite identity all along, hand-written here
+        # because the language could not say it — which is why the language having
+        # no identity of its own and this method existing were the same fact.
+        #
+        # A part resolves from one of three places, and the declaration says which:
+        # the parent reference is the walk's parent_id, `position` is where the walk
+        # is, and anything else is read off the node.
         def identify(category, parent_id, node, index)
-          case category
-          when "Bluebook"  then declared_name(node)
-          when "Aggregate" then "#{parent_id}::#{declared_name(node)}"
-          when "Member", "Handler", "Dispatch" then "#{parent_id}##{index}"
-          else "#{parent_id}.#{declared_name(node)}"
-          end
+          plan = @plan.category(category)
+          return declared_name(node) unless plan
+
+          Naming.identity(plan.identity_paths.map { |path| identity_part(plan, path, parent_id, node, index, category) })
+        end
+
+        # "owner_id" is a SECOND reserved head, beside `position` : it names
+        # whichever record is walking THIS one right now, aggregate or entity
+        # alike, without saying which — Command and Query read it so an
+        # entity's verbs are the entity's own. It is never a declared
+        # attribute (declaring one for a field that names two different types
+        # would be a lie about which), so it cannot be read through
+        # `field_value` ; it is read the same way `plan.parent_key` already is,
+        # because it IS that fact, spelled for the walk's immediate parent
+        # rather than for one specific kind of one.
+        OWNER = "owner_id"
+
+        def identity_part(plan, path, parent_id, node, index, category)
+          head = path.to_s.split(".").first
+          return parent_id.to_s if head == plan.parent_key.to_s || head == OWNER
+          return index.to_s     if head == POSITION
+
+          v_scalar(field_value(category, node, head.to_sym, parent_id))
+        end
+
+        # The scalar inside whatever the reading handed back — a name is already one,
+        # a value object is not.
+        def v_scalar(held)
+          return held.to_s unless held.respond_to?(:to_h) && !held.is_a?(String)
+
+          held.to_h.values.first.to_s
         end
 
         def children_of(category)

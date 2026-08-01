@@ -149,7 +149,7 @@ pub fn refuse_unknown_arguments(
     let declared = known.join(", ");
 
     known.push("id".to_string());
-    if let Some(identity) = aggregate.get("identified_by").and_then(Value::as_str) {
+    if let Some(identity) = crate::dispatcher::identity_path(aggregate) {
         // The HEAD, not the path. `identified_by { symbol.value }` means a caller
         // passes `symbol:` — admitting "symbol.value" would refuse it as undeclared.
         known.push(identity.split(char::from(46)).next().unwrap_or(identity).to_string());
@@ -490,9 +490,7 @@ fn build_element(
         // The HEAD, not the path. A piece is GIVEN its identity here, and
         // what is filled in is the attribute — the path only says which
         // field inside it stands as the id.
-        if let Some(key) = entity
-            .get("identified_by")
-            .and_then(Value::as_str)
+        if let Some(key) = crate::dispatcher::identity_path(&entity)
             .map(|identity| identity.split('.').next().unwrap_or(identity).to_string())
         {
             let key = key.as_str();

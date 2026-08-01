@@ -43,6 +43,11 @@ module Hecksagain
         # both — `Aggregate.Attribute` and `Command.Argument` are separate verbs.
         def shape_field(field) = attribute(field)
 
+        # ONE PART OF AN IDENTITY. It goes in as a row so the language can hold an
+        # ordered list of them, and comes back out as the path it always was —
+        # a String, because `identity_paths` splits paths and never symbols.
+        def identity_path(part) = part[:value].to_s
+
         # A member's fields — an OPEN MAP, which is why Member is its own root in
         # the language and why the pairs arrive as a list rather than a value object.
         #

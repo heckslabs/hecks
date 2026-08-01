@@ -165,7 +165,9 @@
       "entities": [
 
       ],
-      "identified_by": "id",
+      "identified_by": [
+        "name.value"
+      ],
       "lifecycle": null,
       "name": "Bluebook",
       "queries": [
@@ -388,11 +390,11 @@
         },
         {
           "default": null,
-          "list": false,
+          "list": true,
           "name": "identified_by",
           "optional": false,
           "pattern": null,
-          "type": "IdentityField"
+          "type": "IdentityPath"
         },
         {
           "default": null,
@@ -473,14 +475,6 @@
             {
               "default": null,
               "list": false,
-              "name": "identified_by",
-              "optional": false,
-              "pattern": null,
-              "type": "IdentityField"
-            },
-            {
-              "default": null,
-              "list": false,
               "name": "position",
               "optional": true,
               "pattern": null,
@@ -499,6 +493,40 @@
           ],
           "name": "Declare",
           "references": null,
+          "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "path",
+              "optional": false,
+              "pattern": null,
+              "type": "IdentityPath"
+            }
+          ],
+          "emits": [
+            "RootIdentified"
+          ],
+          "givens": [
+            {
+              "canonical": "path.value.to_s.include?(\".\") || path.value.to_s.include?(\"_id\")",
+              "description": "an identity part reaches a scalar"
+            }
+          ],
+          "goal": "Attach one part of the aggregate's identity",
+          "mutations": [
+            {
+              "fields": {
+                "value": "path"
+              },
+              "op": "append",
+              "target": "identified_by"
+            }
+          ],
+          "name": "Identify",
+          "references": "Aggregate",
           "role": "Language"
         },
         {
@@ -835,8 +863,8 @@
           ],
           "givens": [
             {
-              "canonical": "identified_by.value.to_s.empty? || identified_by.value.to_s == \"id\" || identified_by.value.to_s.include?(\".\")",
-              "description": "an aggregate that is identified names a field"
+              "canonical": "!identified_by.empty?",
+              "description": "an aggregate says what it is known by"
             }
           ],
           "goal": "Close an aggregate — the checks that need every declaration present",
@@ -883,7 +911,10 @@
       "entities": [
 
       ],
-      "identified_by": "id",
+      "identified_by": [
+        "bluebook_id",
+        "name.value"
+      ],
       "lifecycle": null,
       "name": "Aggregate",
       "queries": [
@@ -980,6 +1011,26 @@
 
           ],
           "name": "IdentityField"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "IdentityPath"
         },
         {
           "attributes": [
@@ -1716,7 +1767,10 @@
       "entities": [
 
       ],
-      "identified_by": "id",
+      "identified_by": [
+        "owner_id",
+        "name.value"
+      ],
       "lifecycle": null,
       "name": "Command",
       "queries": [
@@ -2395,7 +2449,10 @@
       "entities": [
 
       ],
-      "identified_by": "id",
+      "identified_by": [
+        "aggregate_id",
+        "name.value"
+      ],
       "lifecycle": null,
       "name": "ValueObject",
       "queries": [
@@ -2618,7 +2675,9 @@
       "entities": [
 
       ],
-      "identified_by": "id",
+      "identified_by": [
+        "name.value"
+      ],
       "lifecycle": null,
       "name": "Vocabulary",
       "queries": [
@@ -3886,7 +3945,10 @@
       "entities": [
 
       ],
-      "identified_by": "id",
+      "identified_by": [
+        "owner_id",
+        "name.value"
+      ],
       "lifecycle": null,
       "name": "Query",
       "queries": [
@@ -4261,7 +4323,10 @@
       "entities": [
 
       ],
-      "identified_by": "id",
+      "identified_by": [
+        "bluebook_id",
+        "name.value"
+      ],
       "lifecycle": null,
       "name": "Policy",
       "queries": [
@@ -4519,7 +4584,10 @@
       "entities": [
 
       ],
-      "identified_by": "id",
+      "identified_by": [
+        "bluebook_id",
+        "name.value"
+      ],
       "lifecycle": null,
       "name": "ProcessManager",
       "queries": [
@@ -4742,7 +4810,10 @@
       "entities": [
 
       ],
-      "identified_by": "id",
+      "identified_by": [
+        "process_manager_id",
+        "event_type.value"
+      ],
       "lifecycle": null,
       "name": "Handler",
       "queries": [
@@ -4954,7 +5025,10 @@
       "entities": [
 
       ],
-      "identified_by": "id",
+      "identified_by": [
+        "handler_id",
+        "command_name.value"
+      ],
       "lifecycle": null,
       "name": "Dispatch",
       "queries": [
@@ -5323,7 +5397,10 @@
       "entities": [
 
       ],
-      "identified_by": "id",
+      "identified_by": [
+        "bluebook_id",
+        "name.value"
+      ],
       "lifecycle": null,
       "name": "ReadModel",
       "queries": [
@@ -5559,11 +5636,11 @@
         },
         {
           "default": null,
-          "list": false,
+          "list": true,
           "name": "identified_by",
           "optional": false,
           "pattern": null,
-          "type": "EntityText"
+          "type": "IdentityPath"
         },
         {
           "default": null,
@@ -5644,14 +5721,6 @@
             {
               "default": null,
               "list": false,
-              "name": "identified_by",
-              "optional": false,
-              "pattern": null,
-              "type": "EntityText"
-            },
-            {
-              "default": null,
-              "list": false,
               "name": "position",
               "optional": true,
               "pattern": null,
@@ -5662,14 +5731,7 @@
             "PieceDeclared"
           ],
           "givens": [
-            {
-              "canonical": "!identified_by.value.to_s.empty?",
-              "description": "an entity says what it is known by"
-            },
-            {
-              "canonical": "identified_by.value.to_s.include?(\".\")",
-              "description": "an entity is known by a field"
-            }
+
           ],
           "goal": "Open an entity inside an aggregate",
           "mutations": [
@@ -5677,6 +5739,61 @@
           ],
           "name": "Declare",
           "references": null,
+          "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "path",
+              "optional": false,
+              "pattern": null,
+              "type": "IdentityPath"
+            }
+          ],
+          "emits": [
+            "PieceIdentified"
+          ],
+          "givens": [
+            {
+              "canonical": "path.value.to_s.include?(\".\") || path.value.to_s.include?(\"_id\")",
+              "description": "an identity part reaches a scalar"
+            }
+          ],
+          "goal": "Attach one part of the entity's identity",
+          "mutations": [
+            {
+              "fields": {
+                "value": "path"
+              },
+              "op": "append",
+              "target": "identified_by"
+            }
+          ],
+          "name": "Identify",
+          "references": "Entity",
+          "role": "Language"
+        },
+        {
+          "attributes": [
+
+          ],
+          "emits": [
+            "PieceSealed"
+          ],
+          "givens": [
+            {
+              "canonical": "!identified_by.empty?",
+              "description": "an entity says what it is known by"
+            }
+          ],
+          "goal": "Close an entity — the checks that need every declaration present",
+          "mutations": [
+
+          ],
+          "name": "Seal",
+          "references": "Entity",
           "role": "Language"
         },
         {
@@ -5857,7 +5974,10 @@
       "entities": [
 
       ],
-      "identified_by": "id",
+      "identified_by": [
+        "aggregate_id",
+        "name.value"
+      ],
       "lifecycle": null,
       "name": "Entity",
       "queries": [
@@ -5931,6 +6051,26 @@
 
           ],
           "name": "EntityText"
+        },
+        {
+          "attributes": [
+            {
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "IdentityPath"
         },
         {
           "attributes": [
@@ -6175,7 +6315,10 @@
       "entities": [
 
       ],
-      "identified_by": "id",
+      "identified_by": [
+        "value_object_id",
+        "position.value"
+      ],
       "lifecycle": null,
       "name": "Member",
       "queries": [

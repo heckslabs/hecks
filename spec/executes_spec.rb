@@ -101,7 +101,9 @@ RSpec.describe "the language holds a bluebook, and gives it back" do
     # The IR is a contract field for field AND INDEX FOR INDEX, so the order a
     # bluebook declares its commands in is a fact about the source. `DeclaredIn`
     # preserves it.
-    rows = runtime.query("Meta::Command.DeclaredIn", aggregate_id: { value: "Pizzas::Pizza" })
+    # "Pizzas:Pizza" — the Aggregate-within-Meta record's OWN derived id
+    # (bluebook_id:name.value), not the real "Pizzas::Pizza" Ruby constant path.
+    rows = runtime.query("Meta::Command.DeclaredIn", aggregate_id: { value: "Pizzas:Pizza" })
 
     expect(rows.map { |row| text(row[:name]) })
       .to eq(pizzas.aggregate("Pizza").commands.map(&:hecks_name))
@@ -195,11 +197,15 @@ RSpec.describe "the language holds a bluebook, and gives it back" do
     # All three kinds resolve as references, so "the type is declared" costs no
     # predicate at all — the rule is a consequence of the model, which is the trick
     # the language already used for value objects and now uses for all of them.
+    # One separator now, everywhere a head's id is stored — the internal
+    # identity join, not the real Ruby "::" constant path (that spelling
+    # survives only in the WIRE FORMAT, "Reference<Customer>", produced on the
+    # way back out ; see the next test).
     held = held_account_attributes
 
-    expect(held["number"]).to     eq("Banking::Account.AccountNumber")  # a value object
-    expect(held["customer_id"]).to eq("Banking::Customer")              # another head
-    expect(held["ledger"]).to     eq("Banking::Account.LedgerEntry")    # a piece it holds
+    expect(held["number"]).to     eq("Banking:Account:AccountNumber")  # a value object
+    expect(held["customer_id"]).to eq("Banking:Customer")              # another head
+    expect(held["ledger"]).to     eq("Banking:Account:LedgerEntry")    # a piece it holds
   end
 
   it "re-encodes a reference into the type the IR spells" do

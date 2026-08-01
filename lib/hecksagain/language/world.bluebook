@@ -43,6 +43,14 @@ Hecks.bluebook "Deployment" do
 
     reference_to World
 
+    # THE WORLD IT IS IN, AND THE VERB IT ANSWERS. One world binds one adapter per
+    # verb — that is what a binding IS — so the verb names the wiring, and the
+    # world says whose.
+    identified_by do
+      world_id
+      verb.value
+    end
+
     attribute :world,    WiringText
     attribute :verb,     WiringText
     attribute :adapter,  WiringText

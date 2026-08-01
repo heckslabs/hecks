@@ -70,6 +70,7 @@ RSpec.describe Hecksagain::Router do
         end
       end
       aggregate "Account" do
+        identified_by { id.value }
         reference_to Customer
         attribute :number, AccountNumber
         attribute :balance, Balance, default: { cents: 0 }
@@ -99,8 +100,22 @@ RSpec.describe Hecksagain::Router do
   end
 
   it "resolves an unpinned route to the world's latest domain version" do
-    write_domain("banking_v1", "Banking", 'aggregate "Account" do; description "v1"; command "Credit" do; end; end', version: "v1")
-    write_domain("banking_v2", "Banking", 'aggregate "Account" do; description "v2"; command "Credit" do; end; end', version: "v2", latest: "v2")
+    write_domain("banking_v1", "Banking", <<~RUBY, version: "v1")
+      aggregate "Account" do
+        identified_by { id.value }
+        description "v1"
+        command "Credit" do
+        end
+      end
+    RUBY
+    write_domain("banking_v2", "Banking", <<~RUBY, version: "v2", latest: "v2")
+      aggregate "Account" do
+        identified_by { id.value }
+        description "v2"
+        command "Credit" do
+        end
+      end
+    RUBY
 
     router = described_class.load(@root)
 
@@ -111,6 +126,7 @@ RSpec.describe Hecksagain::Router do
   it "rejects an unknown route and mismatched command/query door" do
     write_domain("catalog", "Catalog", <<~RUBY)
       aggregate "Book" do
+        identified_by { id.value }
         description "A book"
         command "Add" do; end
         query "Available" do; end
@@ -189,6 +205,7 @@ RSpec.describe Hecksagain::Router do
   it "rejects unknown namespace options and non-command method names" do
     write_domain("catalog", "Catalog", <<~RUBY, realm: "EdgeRealm")
       aggregate "Book" do
+        identified_by { id.value }
         description "A book"
         command "Add" do
         end
@@ -231,6 +248,7 @@ RSpec.describe Hecksagain::Router do
     %w[catalog billing].each do |domain_name|
       write_domain(domain_name, domain_name.capitalize, <<~RUBY, realm: "AmbiguityRealm")
         aggregate "SharedShortcutBook" do
+          identified_by { id.value }
           description "A book"
           command "Add" do
           end

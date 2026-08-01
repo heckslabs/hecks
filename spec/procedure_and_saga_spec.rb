@@ -32,6 +32,7 @@ RSpec.describe "a procedure, and when it is a saga" do
         supporting
 
         aggregate "Candidate" do
+          identified_by { id.value }
           description "Somebody applying for a job."
 
           attribute :stage, Stage

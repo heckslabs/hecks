@@ -34,13 +34,22 @@ Hecks.bluebook "Meta" do
   aggregate "Bluebook" do
     description "One .bluebook file — the root a domain declaration hangs from."
 
-    # NOT `identified_by :name`, though a bluebook is known by its name. The
-    # runtime reads an argument called `name` as the reference lookup, so a
-    # command that both REACHES a bluebook and carries its name cannot say both
-    # — `Normalise` could never name what it acts on. That verb went undispatched
-    # for as long as the judge had a branch per category, so nothing ever hit it.
-    # A bluebook keeps its name as a plain field and is reached by id like every
-    # other root.
+    # A CHAPTER IS KNOWN BY ITS NAME, which is what anyone would have said.
+    #
+    # It was not, and the reason it was not is worth keeping : the runtime read the
+    # identity out of the payload under its head's own name, so a command that both
+    # REACHED a bluebook and carried a name could not say both, and `Normalise`
+    # could never name what it acts on. The answer at the time was to duck it —
+    # keep `name` a plain field and be reached by a minted `id` like nothing else
+    # in the language.
+    #
+    # The duck is what is gone. A command reaches its root through the REFERENCE it
+    # declares (`bluebook_id`), which is a different key from any argument it
+    # carries, so the two cannot collide however they are spelled. The fallback was
+    # hiding a lookup bug ; removing it made the bug visible, and the bug was the
+    # smaller thing.
+    identified_by { name.value }
+
     attribute :name,           BluebookName
     attribute :vision,         Vision
     attribute :classification, Classification
@@ -145,10 +154,26 @@ Hecks.bluebook "Meta" do
 
     reference_to Bluebook
 
+    # THE CHAPTER IT IS IN, AND ITS NAME. `Order` names nothing on its own — two
+    # chapters may both declare one — so the chapter is part of the identity, not
+    # context around it. This is the derivation `MetaValidator::Judge#identify`
+    # spelled by hand as "#{parent_id}::#{name}" for as long as the language could
+    # not say it.
+    identified_by do
+      bluebook_id
+      name.value
+    end
+
     # SPELLED AS THE IR SPELLS THEM — see the note on Command's fields.
     attribute :name,          AggregateName
     attribute :description,   Description
-    attribute :identified_by, IdentityField
+    # SEVERAL PATHS, because the identity is their JOIN. One is the ordinary case ;
+    # more than one is what anything named BENEATH another thing needs, and the
+    # language's own chapters are all of that kind — a command is not named by
+    # `Declare`, which every aggregate here spells, but by the aggregate it belongs
+    # to AND that name. Held as a list for the same reason attributes are : the
+    # order is a fact about the source, and the join reads in it.
+    attribute :identified_by, list_of(IdentityPath)
     attribute :attributes,    list_of(Field)
     attribute :value_objects, list_of(ValueName)
     attribute :state_field,   IdentityField
@@ -166,6 +191,18 @@ Hecks.bluebook "Meta" do
     end
 
     value_object "IdentityField" do
+      attribute :value, String
+    end
+
+    # ONE PART OF AN IDENTITY — a path down to the SCALAR that carries it, like
+    # "number.value". A part on its own is not an identity ; the identity is every
+    # part joined, in the order they were declared.
+    #
+    # Its field is `value`, like every other one-field value object in this
+    # language, because that is the name the judge wraps a cell under. Spelling it
+    # `path` made `path.path` read nothing, and a given that reads nothing does not
+    # fail — it refuses everything, which is a far quieter way to be wrong.
+    value_object "IdentityPath" do
       attribute :value, String
     end
 
@@ -199,10 +236,44 @@ Hecks.bluebook "Meta" do
       reference_to Bluebook
       attribute :name,          AggregateName
       attribute :description,   Description, optional: true
-      attribute :identified_by, IdentityField
 
       attribute :position, Position, optional: true
       emits "RootDeclared"
+    end
+
+    # ONE PART OF THE IDENTITY, attached the way one attribute is. It was an
+    # argument on Declare while an identity was a single field ; a list cannot be
+    # carried by one argument, and every other list in this language is filled by
+    # a verb of its own, so this is the shape that was already here.
+    command "Identify" do
+      role "Language"
+      goal "Attach one part of the aggregate's identity"
+
+      reference_to Aggregate
+      attribute :path, IdentityPath
+
+      # AN IDENTITY PART REACHES A SCALAR. This rule used to sit on Seal reading
+      # `empty? || == "id" || includes(".")` — two escapes and a check. The escapes
+      # were the whole of it : `empty?` let an aggregate say nothing and be given a
+      # minted `id`, and `== "id"` let it name that slot outright. Both are gone,
+      # so what is left is the rule itself, and it now runs on every part rather
+      # than on whichever one a single field happened to hold.
+      #
+      # TWO WAYS TO REACH ONE. A path opens a value object and names the field
+      # inside it — `number.value`. A REFERENCE is already a scalar : it holds
+      # another root's id, so there is nothing to open, which is precisely what the
+      # retired `== "id"` escape was true about and wrong to generalise from. The
+      # language MINTS the `_id` ending itself in `reference_to`, so reading it here
+      # is reading the language's own spelling, not guessing at a convention.
+      #
+      # Said with `include?` rather than `end_with?` because `include?` is a word
+      # the predicate sublanguage HAS and `end_with?` is not — and a given written
+      # in words the sublanguage cannot read does not fail loudly, it simply refuses
+      # everything, which is how the first draft of this rule refused `name.value`.
+      given("an identity part reaches a scalar") { path.value.to_s.include?(".") || path.value.to_s.include?("_id") }
+
+      then_set :identified_by, append: { value: :path }
+      emits "RootIdentified"
     end
 
     # The way back, one level down: the aggregates DECLARED IN a chapter, found by
@@ -397,16 +468,18 @@ Hecks.bluebook "Meta" do
       # The rule waiting for it is "a mutation names a field the aggregate has",
       # which lives in AggregateBuilder today because saying it here needs to reach
       # a list on another root.
-      # AN IDENTITY NAMES A FIELD. This rule used to read `empty? || size > 0`,
-      # which is true of every string there is — a rule that cannot refuse, and
-      # so no rule at all. What it means to say is that an identity reaches a
-      # SCALAR : `identified_by { number.value }`, never `identified_by :number`,
-      # which hands over a whole value object and leaves the runtime to open it.
-      # The runtime no longer opens it, so the declaration has to be exact.
-      # An aggregate that declares no identity falls back to `id`, which the
-      # language's own chapters rely on and which needs no path : it is ALREADY a
-      # scalar, so there is nothing to open. Everything else must name its field.
-      given("an aggregate that is identified names a field") { identified_by.value.to_s.empty? || identified_by.value.to_s == "id" || identified_by.value.to_s.include?(".") }
+      # AN AGGREGATE SAYS WHAT IT IS KNOWN BY. Nothing falls back to `id` any more.
+      #
+      # The fallback was never a default — it was a MINT. An aggregate that said
+      # nothing got an id invented for it, so the same declaration named a
+      # different record on the next run, and nothing outside the runtime could
+      # name a record at all. The rule that stood here permitted it in as many
+      # words (`empty? || == "id"`), and the comment named exactly who was
+      # leaning on it : the language's own chapters, all fourteen of them.
+      #
+      # They derive now, like everything else does. What each PART must look like
+      # is Identify's rule ; this one only asks that there be one.
+      given("an aggregate says what it is known by") { !identified_by.empty? }
 
       emits "RootSealed"
     end
@@ -439,6 +512,23 @@ Hecks.bluebook "Meta" do
     # field by name, so a field named differently here would need a translation
     # table between two vocabularies for the same thing — and a table is a place
     # to be wrong quietly. One spelling, and the walk reads straight through.
+    # THE IMMEDIATE OWNER, AND ITS NAME. Almost every chapter declares a
+    # `Declare` ; the owner is what tells one from another.
+    #
+    # `owner_id` NOT `aggregate_id` : a command declared on an ENTITY is that
+    # entity's, not its aggregate's — `Banking:Account:LedgerEntry:Amend` is
+    # LedgerEntry's Amend, and `Banking:Account:LedgerEntry` is what tells it
+    # apart from a same-named command on some OTHER entity of the same
+    # aggregate. `aggregate_id` (kept, below, as data) still names the true
+    # root, for the DeclaredIn walk that gathers every command under a
+    # chapter’s aggregate whichever piece declared it ; `owner_id` names only
+    # whichever declared THIS one. `owner_id` is not a declared attribute —
+    # it is the WALK's immediate parent, read the same way `position` is.
+    identified_by do
+      owner_id
+      name.value
+    end
+
     attribute :name,       CommandName
     attribute :role,       Actor
     attribute :goal,       Goal
@@ -685,6 +775,14 @@ Hecks.bluebook "Meta" do
 
     reference_to Aggregate
 
+    # THE AGGREGATE IT BELONGS TO, AND ITS NAME. A value object belongs to one
+    # aggregate by rule, and `Name` or `Amount` is spelled in half the chapters
+    # there are.
+    identified_by do
+      aggregate_id
+      name.value
+    end
+
     attribute :name,       ValueObjectName
     attribute :attributes, list_of(ShapeField)
     attribute :invariants, list_of(Assertion)
@@ -812,6 +910,11 @@ Hecks.bluebook "Meta" do
     #   Primitive             is what "primitives live in value objects only" is ABOUT
     #   DomainRefusal         is the boundary three raw Ruby TypeErrors crossed tonight
     description "The closed sets the language admits — the whole of what any runtime may accept, declared once."
+
+    # ITS NAME, and nothing else. A vocabulary hangs under no other thing — the
+    # closed sets are the language's own, declared once — so one path is the whole
+    # identity.
+    identified_by { name.value }
 
     attribute :name, VocabularyName
 
@@ -1064,6 +1167,14 @@ Hecks.bluebook "Meta" do
     # Which piece declared it — see Command's entity_id.
     reference_to Entity, as: :entity_id
 
+    # THE IMMEDIATE OWNER, AND ITS NAME — the same derivation Command takes
+    # (see the note there), because an ask sits exactly where a verb does and
+    # an entity's asks are its own the same way its verbs are.
+    identified_by do
+      owner_id
+      name.value
+    end
+
     attribute :name,        QueryName
     attribute :description, QueryText
     attribute :order_field, QueryText
@@ -1217,6 +1328,13 @@ Hecks.bluebook "Meta" do
 
     reference_to Bluebook
 
+    # THE CHAPTER IT IS IN, AND ITS NAME. A policy hangs off the chapter rather
+    # than an aggregate, so the chapter is the part above it.
+    identified_by do
+      bluebook_id
+      name.value
+    end
+
     attribute :name,            PolicyName
     # WHICH HEAD DECLARED IT, empty for a reaction the chapter owns.
     #
@@ -1279,6 +1397,13 @@ Hecks.bluebook "Meta" do
     description "One process manager — what correlates its instances, what starts and ends it, and the states it moves through."
 
     reference_to Bluebook
+
+    # THE CHAPTER IT IS IN, AND ITS NAME — the same shape a policy takes, and for
+    # the same reason.
+    identified_by do
+      bluebook_id
+      name.value
+    end
 
     attribute :name,      ProcessManagerName
     attribute :correlates_by, ProcessManagerText
@@ -1350,6 +1475,15 @@ Hecks.bluebook "Meta" do
 
     reference_to ProcessManager
 
+    # THE PROCESS MANAGER IT IS IN, AND THE EVENT IT ANSWERS. A saga answers each
+    # event once, so the event names the leg. The judge keyed this by POSITION
+    # ("#{parent}##{index}"), which is a mint : insert a leg above and every leg
+    # below is renamed. The event does not move.
+    identified_by do
+      process_manager_id
+      event_type.value
+    end
+
     # No `saga` field. It named the old word for a process manager, held nothing —
     # IR::ProcessManagerHandler has no such reader, so every Handler record's saga
     # was empty — and repeated the parent that `process_manager_id` already
@@ -1403,6 +1537,13 @@ Hecks.bluebook "Meta" do
     description "One command a handler dispatches, with the arguments it binds. Its own root because the bindings are an open map, which no value object can hold."
 
     reference_to Handler
+
+    # THE HANDLER IT IS IN, AND THE COMMAND IT SENDS — keyed by position before,
+    # for the same want of a way to say this.
+    identified_by do
+      handler_id
+      command_name.value
+    end
 
     attribute :handler,      DispatchText
     attribute :command_name, DispatchText
@@ -1466,6 +1607,12 @@ Hecks.bluebook "Meta" do
     description "One read model — the aggregate heads it gathers and the reference it hangs from."
 
     reference_to Bluebook
+
+    # THE CHAPTER IT IS IN, AND ITS NAME.
+    identified_by do
+      bluebook_id
+      name.value
+    end
 
     attribute :name,             ReadModelName
     attribute :description,      ProjectionPurpose
@@ -1580,10 +1727,20 @@ Hecks.bluebook "Meta" do
 
     reference_to Aggregate
 
+    # THE AGGREGATE IT IS IN, AND ITS NAME. Note this is the identity of the RECORD
+    # describing a piece, which is a different thing from the identity that piece
+    # itself declares (`identified_by`, the list below).
+    identified_by do
+      aggregate_id
+      name.value
+    end
+
     attribute :owner,         EntityText
     attribute :name,          EntityName
     attribute :description,   EntityName
-    attribute :identified_by, EntityText
+    # SEVERAL PATHS, joined — a piece spells an identity exactly as a head does,
+    # which is the whole point of it being its own root.
+    attribute :identified_by, list_of(IdentityPath)
     attribute :attributes,    list_of(PieceField)
     attribute :state_field, EntityText
     attribute :state_start, EntityText
@@ -1595,6 +1752,13 @@ Hecks.bluebook "Meta" do
     end
 
     value_object "EntityText" do
+      attribute :value, String
+    end
+
+    # A piece's identity is made of parts the same way a head's is, so it holds
+    # the same shape. Declared here rather than shared because a value object
+    # belongs to the aggregate that uses it.
+    value_object "IdentityPath" do
       attribute :value, String
     end
 
@@ -1640,22 +1804,49 @@ Hecks.bluebook "Meta" do
       attribute :owner,         EntityText
       attribute :name,          EntityName
       attribute :description,   EntityName, optional: true
-      attribute :identified_by, EntityText
-
-      # A PIECE MUST SAY WHAT IT IS KNOWN BY — the rule, where the language keeps
-      # its rules. An entity is an element with an identity of ITS OWN ; that is
-      # the whole difference between a piece and a value object, so a command
-      # acting on one must be able to say which one. Undeclared, the two runtimes
-      # each invented a different answer (Ruby fell through to nothing, Rust
-      # assumed `id`) and agreed only because every entity in the corpus happened
-      # to declare it — `bin/undeclared` reported precisely that, a divergence the
-      # declaration was masking. Requiring it removes the default there was to
-      # disagree about.
-      given("an entity says what it is known by") { !identified_by.value.to_s.empty? }
-      given("an entity is known by a field")       { identified_by.value.to_s.include?(".") }
 
       attribute :position, Position, optional: true
       emits "PieceDeclared"
+    end
+
+    # ONE PART OF THE PIECE'S IDENTITY, attached exactly as an aggregate's is.
+    #
+    # A PIECE MUST SAY WHAT IT IS KNOWN BY — the rule, where the language keeps
+    # its rules. An entity is an element with an identity of ITS OWN ; that is
+    # the whole difference between a piece and a value object, so a command
+    # acting on one must be able to say which one. Undeclared, the two runtimes
+    # each invented a different answer (Ruby fell through to nothing, Rust
+    # assumed `id`) and agreed only because every entity in the corpus happened
+    # to declare it — `bin/undeclared` reported precisely that, a divergence the
+    # declaration was masking. Requiring it removes the default there was to
+    # disagree about. That requirement now sits on Seal, where a whole-document
+    # rule belongs ; what stays here is the shape of each part.
+    command "Identify" do
+      role "Language"
+      goal "Attach one part of the entity's identity"
+
+      reference_to Entity
+      attribute :path, IdentityPath
+
+      # Two ways to reach a scalar — see Aggregate.Identify, where the same rule
+      # is written out in full.
+      given("an identity part reaches a scalar") { path.value.to_s.include?(".") || path.value.to_s.include?("_id") }
+
+      then_set :identified_by, append: { value: :path }
+      emits "PieceIdentified"
+    end
+
+    command "Seal" do
+      role "Language"
+      goal "Close an entity — the checks that need every declaration present"
+
+      # A piece gets the whole-document shape a head has, for the same reason :
+      # "it said SOMETHING" cannot be asked while the parts are still arriving.
+      reference_to Entity
+
+      given("an entity says what it is known by") { !identified_by.empty? }
+
+      emits "PieceSealed"
     end
 
     command "Attribute" do
@@ -1709,6 +1900,18 @@ Hecks.bluebook "Meta" do
     description "One admitted row of a value object's one_of — a whole combination of field values, not a per-field choice. Its own root because a row is a list of pairs inside a list of rows."
 
     reference_to ValueObject
+
+    # THE VALUE OBJECT IT IS ADMITTED BY, AND WHERE IT SITS AMONG THE ROWS.
+    #
+    # A member has no other distinguishing fact : its pairs are an OPEN MAP, which
+    # is the whole reason it is a root, and a map cannot be a path. Position is not
+    # a mint — it is read straight out of the source file, the same fact the
+    # language already holds deliberately so that an ask ordered any other way
+    # cannot take declaration order away.
+    identified_by do
+      value_object_id
+      position.value
+    end
 
     attribute :shape, MemberText
     attribute :pairs, list_of(Pair)

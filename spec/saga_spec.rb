@@ -147,7 +147,10 @@ RSpec.describe "a lifecycle" do
     runtime.dispatch("Wire::Drawer.Open", number: { value: "b" })
     runtime.dispatch("Wire::Wire.Ask", reference: { value: "w" }, amount: { cents: 1 }, source: "a", destination: "b")
 
+    # The message now names the declared PATH ("reference.value"), not just its
+    # head — more precise than the bare field name, and what `identity_reading`
+    # quotes for every construct now, not something special-cased for Wire.
     expect { runtime.dispatch("Wire::Wire.Returned", wire: "missing") }
-      .to raise_error(Hecksagain::Runtime::NotFound, /no Wire with reference "missing"/)
+      .to raise_error(Hecksagain::Runtime::NotFound, /no Wire with reference\.value "missing"/)
   end
 end

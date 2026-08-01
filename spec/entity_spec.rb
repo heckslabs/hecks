@@ -83,8 +83,10 @@ RSpec.describe "an entity" do
     expect do
       runtime.dispatch("Banking::Account.LedgerEntry.Reverse",
                        number: { value: "a1" }, sequence: { value: 99 }, narrative: { text: "Ghost" })
+    # The message names the declared PATH now ("sequence.value"), not just the
+    # head — the same precision every construct's not-found message carries.
     end.to raise_error(Hecksagain::Runtime::NotFound,
-                       'no LedgerEntry with sequence 99 on Account "a1"')
+                       'no LedgerEntry with sequence.value 99 on Account "a1"')
   end
 
   it "answers its query with the element AND whose boundary it is" do

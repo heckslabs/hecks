@@ -251,6 +251,7 @@ RSpec.describe "a construct's identity" do
             vision "a domain whose name Ruby already uses"
             supporting
             aggregate("Thing") do
+              identified_by { id.value }
               description "a thing"
               attribute :label, Label
               value_object("Label") { attribute :value, String }

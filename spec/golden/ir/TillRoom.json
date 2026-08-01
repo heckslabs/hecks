@@ -191,7 +191,9 @@
       "entities": [
 
       ],
-      "identified_by": "number.value",
+      "identified_by": [
+        "number.value"
+      ],
       "lifecycle": null,
       "name": "Till",
       "queries": [

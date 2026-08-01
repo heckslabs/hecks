@@ -124,6 +124,10 @@ module Hecksagain
 
         def pairs(with) = Array(with).map { |binding| [text(binding[:key]), text(binding[:value])] }
 
+        # THE PARTS, IN THE ORDER THEY WENT IN, because the identity is their join
+        # and a join read out of order names a different record.
+        def identity_paths(row) = Array(row[:identified_by]).map { |part| text(part[:value]).to_s }
+
         # Every cell of the meta-domain is a single-field value object, so a row
         # arrives holding Values rather than Strings.
         def text(cell)
@@ -155,7 +159,7 @@ module Hecksagain
           {
             name:          text(row[:name]),
             description:   text(row[:description]),
-            identified_by: text(row[:identified_by])&.to_sym,
+            identified_by: identity_paths(row),
             attributes:    Array(row[:attributes]).map { |field| attribute(field, id) },
             value_objects: declared("ValueObject", id).map { |shape| value_object(shape) },
             commands:      own("Command", id).map { |verb| command(verb) },
@@ -187,9 +191,10 @@ module Hecksagain
           {
             name:        text(row[:name]),
             description: text(row[:description]),
-            # A STRING here, where an aggregate's is a symbol. The IR is not uniform
-            # about this and only a round trip says so.
-            identified_by: text(row[:identified_by]),
+            # The same shape as an aggregate's now. It was a String here and a
+            # Symbol there — the IR was not uniform about it, and only a round trip
+            # ever said so.
+            identified_by: identity_paths(row),
             attributes:    Array(row[:attributes]).map { |field| shape_field(field) },
             commands:      within("Command", row).map { |verb| command(verb) },
             queries:       within("Query", row).map { |ask| query(ask) },
