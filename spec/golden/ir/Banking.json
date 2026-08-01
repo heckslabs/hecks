@@ -3400,7 +3400,7 @@
           "dispatches": [
             {
               "command_name": "Banking::Account.Debit",
-              "with": [
+              "with_spec": [
                 [
                   "number",
                   ":source"
@@ -3428,7 +3428,7 @@
           "dispatches": [
             {
               "command_name": "Banking::Transfer.Debited",
-              "with": [
+              "with_spec": [
                 [
                   "transfer",
                   ":transfer"
@@ -3437,7 +3437,7 @@
             },
             {
               "command_name": "Banking::Account.Credit",
-              "with": [
+              "with_spec": [
                 [
                   "number",
                   ":destination"
@@ -3465,7 +3465,7 @@
           "dispatches": [
             {
               "command_name": "Banking::Transfer.Credited",
-              "with": [
+              "with_spec": [
                 [
                   "transfer",
                   ":transfer"
@@ -3481,7 +3481,7 @@
           "dispatches": [
             {
               "command_name": "Banking::Transfer.Settle",
-              "with": [
+              "with_spec": [
                 [
                   "transfer",
                   ":transfer"
@@ -3497,7 +3497,7 @@
           "dispatches": [
             {
               "command_name": "Banking::Account.Credit",
-              "with": [
+              "with_spec": [
                 [
                   "number",
                   ":source"
@@ -3514,7 +3514,7 @@
             },
             {
               "command_name": "Banking::Transfer.Reverse",
-              "with": [
+              "with_spec": [
                 [
                   "transfer",
                   ":transfer"

@@ -1740,7 +1740,7 @@ impl Runtime {
             .to_string();
         let mut args = Map::new();
         for pair in spec
-            .get("with")
+            .get("with_spec")
             .and_then(Value::as_array)
             .cloned()
             .unwrap_or_default()

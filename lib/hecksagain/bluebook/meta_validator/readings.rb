@@ -51,7 +51,7 @@ module Hecksagain
         # Through to_h, which is where IR.render_value spells a symbol argument as
         # ":source". The raw with_spec lost the colon, and a binding that reads an
         # argument became indistinguishable from one carrying a literal string.
-        def with_spec_rows(node) = pair_rows(node.to_h[:with])
+        def with_spec_rows(node) = pair_rows(node.to_h[:with_spec])
 
         # A read model carries the same options an ask does, plus its filters — see
         # option_rows.

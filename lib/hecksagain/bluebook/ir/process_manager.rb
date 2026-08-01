@@ -5,7 +5,7 @@ module Hecksagain
         def to_h
           {
             command_name: command_name.to_s,
-            with:         with_spec.map { |key, value| [key.to_s, IR.render_value(value)] }
+            with_spec:    with_spec.map { |key, value| [key.to_s, IR.render_value(value)] }
           }
         end
       end

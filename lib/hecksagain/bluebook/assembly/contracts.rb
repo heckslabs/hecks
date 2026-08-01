@@ -200,10 +200,10 @@ module Hecksagain
           holder: IR::DispatchSpec, make: :new,
           fields: {
             command_name: [:command_name, :plain],
-            with_spec:    [:with,         :bindings]
+            with_spec:    [:with_spec,    :bindings]
           },
           rows: { with_spec: :with_spec_rows },
-          reads: { with: [:from, :with_spec] },
+          reads: { with_spec: [:from, :with_spec] },
           derived: { position: :walk, handler: :parent }
         ),
 

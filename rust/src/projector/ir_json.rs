@@ -127,7 +127,7 @@ fn pm_handler_to_value(handler: &ProcessManagerHandler) -> Value {
         "to_state": handler.to_state,
         "dispatches": handler.dispatches.iter().map(|d| json!({
             "command_name": d.command_name,
-            "with": d.with_spec.iter()
+            "with_spec": d.with_spec.iter()
                 .map(|(key, spec)| json!([key, value_spec_text(spec)]))
                 .collect::<Vec<_>>()
         })).collect::<Vec<_>>()
