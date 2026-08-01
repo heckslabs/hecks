@@ -22,8 +22,10 @@ Do not call Rust a projection. Nothing generates it.
    a distraction. hecksagain is the whole world.
 2. **Don't hand-write what Hecks already has** — cherry-pick whole. But
    simplifying is not copying; that is how `creates?` regressed.
-3. **The DSL constructs the Ruby classes.** `Pizza.create_pizza(...)` is the
-   public surface; `dispatch` is private plumbing.
+3. **`Pizza.create_pizza(...)` is the public surface; `dispatch` is private
+   plumbing.** Served by the class-free facade (`lib/hecksagain/facade/`) —
+   per-boot modules closing over the dispatcher. No domain classes are minted
+   anywhere; the IR is the only graph.
 4. **Zero warnings, zero failing tests.**
 5. **Tests do no IO** except `spec/adapters/`.
 6. **Ruby wins when the shapes differ.** The exporter converts. Never bend a

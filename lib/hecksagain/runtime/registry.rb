@@ -19,6 +19,16 @@ module Hecksagain
         @saga_instances = Hash.new { |h, k| h[k] = {} }
         @repositories = {}
         @projection_repositories = {}
+        @bluebook_builders = {}
+      end
+
+      # THE BUILDER STAYS OPEN FOR THE LIFE OF THIS REGISTRY, keyed by chapter
+      # name — see the comment on `BluebookBuilder.build`. A chapter split across
+      # several files (`language/bluebook/*.bluebook`, all `Hecks.bluebook "Bluebook"`)
+      # needs its declarations to accumulate into ONE builder rather than each
+      # file minting its own and silently discarding the one before.
+      def bluebook_builder(name)
+        @bluebook_builders[name.to_s] ||= yield
       end
 
       def add_bluebook(item)  = @bluebooks[item.name]  = item

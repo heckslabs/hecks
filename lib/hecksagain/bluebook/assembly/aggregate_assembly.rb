@@ -1,20 +1,17 @@
 module Hecksagain
   module Bluebook
     class Assembly
-      # One head, built from its declaration — and PROJECTED into a Ruby class.
+      # One head, built from its declaration.
       #
       # The fields come from the contract like every other construct's. What is here
       # is the part no field table can say: which construct holds which, and how a
-      # head becomes a class with `create_pizza` on it, `Price` nested inside it, and
-      # its references able to resolve.
+      # head's references become able to resolve.
       #
       # It DECIDES NOTHING. Whether a declaration is admissible was settled on the
       # way in, by the language.
       class AggregateAssembly
         def initialize(row)
-          @row   = row
-          @klass = Class.new(Aggregate)
-          @klass.hecks_name = row[:name].to_s
+          @row = row
         end
 
         def aggregate
@@ -22,9 +19,6 @@ module Hecksagain
           commands = Array(@row[:commands]).map { |verb| Build.call("Command", verb) }
           entities = Array(@row[:entities]).map { |piece| entity(piece) }
           asks     = Array(@row[:queries]).map { |ask| Build.call("Query", ask) }
-
-          nest(shapes)
-          [commands, entities, asks].each { |held| held.each { |one| one.hecks_owner = @klass } }
 
           fields = Array(@row[:attributes]).map { |field| Marks.attribute(field) }
 
@@ -43,9 +37,6 @@ module Hecksagain
             reference_targets: reference_targets(fields)
           )
 
-          @klass.ir     = ir
-          ir.ruby_class = @klass
-          declare_surface(ir)
           stamp_references(ir)
           ir
         end
@@ -75,23 +66,6 @@ module Hecksagain
           )
         end
 
-        # `Pizzas::Pizza::Price` — nested where the bluebook nests it, which is what
-        # lets two heads each declare their own `Money`.
-        def nest(shapes)
-          shapes.each do |shape|
-            shape.hecks_owner = @klass
-            name = shape.hecks_name
-            @klass.send(:remove_const, name) if @klass.const_defined?(name, false)
-            @klass.const_set(name, shape)
-          end
-        end
-
-        def declare_surface(ir)
-          ir.attributes.each { |field| @klass.declare_reader(field.name) }
-          @klass.declare_reader(ir.lifecycle.field) if ir.lifecycle
-          ir.commands.each { |verb| @klass.declare_verb(verb.hecks_name, creates: verb.creates?) }
-        end
-
         # Every reference learns which head declares it, so it can reach the chapter
         # and resolve. Deliberately across every list that can carry one — a
         # reference the walk misses resolves to nil, and a nil target is SKIPPED
@@ -104,7 +78,7 @@ module Hecksagain
             lists.concat(piece.queries.map(&:attributes))
           end
 
-          lists.flatten.select(&:reference?).each { |field| field.type.declared_in = @klass }
+          lists.flatten.select(&:reference?).each { |field| field.type.declared_in = ir }
         end
 
         # THREE LANGUAGE FIELDS, ONE IR OBJECT. `state_field`, `state_start` and

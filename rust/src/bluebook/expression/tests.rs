@@ -174,7 +174,7 @@ end"##;
     let found: Vec<(String, String)> = cmd
         .givens
         .iter()
-        .map(|g| (g.message.clone().unwrap_or_default(), g.expression.clone()))
+        .map(|g| (g.description.clone().unwrap_or_default(), g.canonical.clone()))
         .collect();
 
     assert_eq!(
@@ -187,10 +187,10 @@ end"##;
     );
 
     for given in &cmd.givens {
-        assert_ne!(given.expression, given.message.clone().unwrap_or_default());
+        assert_ne!(given.canonical, given.description.clone().unwrap_or_default());
     }
 
-    assert_eq!(cmd.emits.as_deref(), Some("ThingRegistered"));
+    assert_eq!(cmd.emits, vec!["ThingRegistered".to_string()]);
 }
 
 #[test]

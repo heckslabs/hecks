@@ -1,0 +1,151 @@
+Hecks.bluebook "Bluebook" do
+  vision "The bluebook language, declared in itself. Loading a domain becomes dispatching commands into this meta-domain ; the IR it stores must equal the IR the DSL builder produces. The floor that stays hand-written is the interpreter — evaluating a predicate held as data — and IO."
+  core
+
+  # A WHOLE BLUEBOOK, handed back in one read.
+  #
+  # The twelve `DeclaredIn` queries below can walk the tree a level at a time, and
+  # a caller stitching twelve reads together is a caller reimplementing this. The
+  # language already knows how to say "gather these heads around that spine" —
+  # it is what a read model IS — so the reconstruction is DECLARED rather than
+  # coded, and the shape of what comes back is a fact about the language instead
+  # of a fact about whoever wrote the reader.
+  #
+  # Spined on Bluebook because a bluebook is what you ask for. Everything else
+  # hangs off it, down to a Member's pairs and a Dispatch's bindings.
+  read_model "WholeBluebook" do
+    description "Every declaration of one chapter, gathered around the chapter itself — the way back, in a single read."
+    reference_to Bluebook
+
+    include Bluebook
+    include Aggregate
+    include Command
+    include ValueObject
+    include Query
+    include Entity
+    include Member
+    include Policy
+    include ProcessManager
+    include Handler
+    include Dispatch
+    include ReadModel
+  end
+
+  aggregate "Bluebook" do
+    description "One .bluebook file — the root a domain declaration hangs from."
+
+    # A CHAPTER IS KNOWN BY ITS NAME, which is what anyone would have said.
+    #
+    # It was not, and the reason it was not is worth keeping : the runtime read the
+    # identity out of the payload under its head's own name, so a command that both
+    # REACHED a bluebook and carried a name could not say both, and `Normalise`
+    # could never name what it acts on. The answer at the time was to duck it —
+    # keep `name` a plain field and be reached by a minted `id` like nothing else
+    # in the language.
+    #
+    # The duck is what is gone. A command reaches its root through the REFERENCE it
+    # declares (`bluebook_id`), which is a different key from any argument it
+    # carries, so the two cannot collide however they are spelled. The fallback was
+    # hiding a lookup bug ; removing it made the bug visible, and the bug was the
+    # smaller thing.
+    identified_by { name.value }
+
+    attribute :name,           BluebookName
+    attribute :vision,         Vision
+    attribute :classification, Classification
+    # A domain CONTRACT version, pinned per chapter — `Hecks.bluebook "Pizzas",
+    # version: "v2"`. Held here because the language must hold everything the
+    # runtime runs on, and this was the one field it did not: the round trip sliced
+    # its comparison by the reconstruction's own keys, so a version was excluded
+    # from the check rather than failing it, and a chapter assembled purely from
+    # these records would have lost it in silence. Most chapters declare none, and
+    # ABSENT IS NOT EMPTY — an unversioned chapter offers nothing here at all.
+    attribute :version,        Version
+    attribute :normalisations, list_of(NormalisationRule)
+
+    value_object "RuleText" do
+      # deliberately permissive : source_token and replacement are legitimately
+      # empty for the collapse_whitespace rule
+      attribute :value, String
+    end
+
+    value_object "NormalisationRule" do
+      attribute :strategy,     String
+      attribute :source_token, String
+      attribute :replacement,  String
+      attribute :boundary,     String
+      attribute :position,     String
+    end
+
+    value_object "BluebookName" do
+      attribute :value, String
+      invariant("a chapter is named") { !value.to_s.empty? }
+    end
+
+    value_object "Vision" do
+      attribute :value, String
+      invariant("a vision says something") { !value.to_s.empty? }
+    end
+
+    value_object "Classification" do
+      attribute :value, String
+      invariant("a chapter is core, supporting, or generic") do
+        value.to_s == "core" || value.to_s == "supporting" || value.to_s == "generic"
+      end
+    end
+
+    value_object "Version" do
+      attribute :value, String
+      invariant("a version says something") { !value.to_s.empty? }
+    end
+
+    command "Declare" do
+      role "Language"
+      goal "Open a chapter"
+
+      attribute :name,           BluebookName
+      attribute :vision,         Vision, optional: true
+      attribute :classification, Classification, optional: true
+      attribute :version,        Version, optional: true
+
+      emits "ChapterDeclared"
+    end
+
+    # THE WAY BACK.
+    #
+    # Until these existed the meta-domain was write-only: twelve categories, 34
+    # verbs, and not one query. A bluebook could be dispatched in and never read
+    # out, which is exactly as much as JUDGING requires — offer every declaration,
+    # collect the refusals, throw the records away. It is also why the language
+    # could only validate. A store you cannot read cannot be the source of
+    # anything, and "loading a domain becomes dispatching commands into this
+    # meta-domain" — the vision at the top of this file — needs the records to
+    # come back out as the IR the runtime runs.
+    # Named to finish a sentence about the thing, the way every other query in the
+    # corpus is — pizzas COSTING LESS THAN a ceiling, orders PENDING, cards
+    # ACTIVE. So: the bluebook CALLED "Pizzas".
+    query "Called" do
+      attribute :name, BluebookName
+      where(name: :name)
+    end
+
+    command "Normalise" do
+      role "Language"
+      goal "Attach one canonical-form rule to the chapter"
+
+      reference_to Bluebook
+      attribute :strategy,     RuleText
+      attribute :source_token, RuleText
+      attribute :replacement,  RuleText
+      attribute :boundary,     RuleText
+      attribute :position,     RuleText, optional: true
+
+      then_set :normalisations, append: {
+        strategy: :strategy, source_token: :source_token,
+        replacement: :replacement, boundary: :boundary, position: :position
+      }
+
+      emits "NormalisationAttached"
+    end
+  end
+end

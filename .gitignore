@@ -9,3 +9,4 @@ target/
 tmp/
 vendor/bundle/
 coverage/
+.claude/

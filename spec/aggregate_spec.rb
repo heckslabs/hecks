@@ -15,16 +15,18 @@ RSpec.describe "a constructed aggregate" do
     expect(Pizza.commands).to eq(%w[add_topping create_pizza purchase])
   end
 
-  it "is a real class, not a stand-in" do
-    expect(Pizza).to be_a(Class)
-    expect(Pizza.ancestors).to include(Hecksagain::Aggregate)
+  it "is a door over the runtime, not a minted class" do
+    expect(Pizza).to be_a(Module)
+    expect(Pizza).not_to be_a(Class)
+    expect(Pizza.ir).to be_a(Hecksagain::Bluebook::IR::Aggregate)
+    expect(Pizza.fqn).to eq("Pizzas::Pizza")
   end
 
   describe "a creating command" do
-    it "is a class method returning the new record" do
+    it "is a module method returning the new record in hand" do
       pizza = Pizza.create_pizza(name: { value: "Margherita" }, price_cents: { cents: 1200 }, size: { value: "large" })
 
-      expect(pizza).to be_a(Pizza)
+      expect(pizza).to be_a(Hecksagain::Facade::Handle)
       expect(pizza.name.to_h).to eq(value: "Margherita")
       expect(pizza.price_cents.to_h).to eq(cents: 1200)
       expect(pizza.status).to eq("available")

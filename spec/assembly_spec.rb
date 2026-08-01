@@ -65,7 +65,7 @@ RSpec.describe "a graph assembled from declarations" do
     end
   end
 
-  %w[Meta Deployment].each do |name|
+  %w[Bluebook World].each do |name|
     it "rebuilds #{name}, the language itself, exactly as it was declared" do
       assert_inverse(Hecksagain::Bluebook::MetaValidator.grammar_registry.bluebook(name))
     end
@@ -111,7 +111,7 @@ RSpec.describe "a graph assembled from declarations" do
     end
 
     it "consumes or explicitly derives every field the language declares" do
-      meta = Hecksagain::Bluebook::MetaValidator.grammar_registry.bluebook("Meta")
+      meta = Hecksagain::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
 
       unclaimed = plan.names.flat_map do |category|
         contract = Hecksagain::Bluebook::Assembly.contract(category)
@@ -215,7 +215,7 @@ RSpec.describe "a graph assembled from declarations" do
     # Whether the category's own way back orders by the field — the proof that a
     # walk-supplied field is consumed rather than merely stored.
     def ordered_by?(category, field)
-      meta = Hecksagain::Bluebook::MetaValidator.grammar_registry.bluebook("Meta")
+      meta = Hecksagain::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
       ask  = meta.aggregate(category)&.query("DeclaredIn")
 
       ask&.order_by&.field.to_s == field.to_s
@@ -272,7 +272,7 @@ RSpec.describe "a graph assembled from declarations" do
     # `reads:` column — so the same two questions apply: does every read exception
     # name a key that exists, and does every reader it names exist?
     it "reads every declaration key by a reader that exists, for a key the table names" do
-      meta    = Hecksagain::Bluebook::MetaValidator.grammar_registry.bluebook("Meta")
+      meta    = Hecksagain::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
       readers = Hecksagain::Bluebook::MetaValidator::Reconstruction.private_instance_methods(false) +
                 Hecksagain::Bluebook::MetaValidator::Shapes.instance_methods(false)
 
@@ -333,18 +333,17 @@ RSpec.describe "a graph assembled from declarations" do
     end
   end
 
-  it "gives the assembled head a working Ruby surface, not just an IR" do
-    # The graph is what the runtime RUNS, so an assembled aggregate has to carry the
-    # same class, verbs and readers the DSL would have defined.
+  it "gives the assembled head a working graph, not just a bag of fields" do
+    # The graph is what the runtime RUNS, so an assembled aggregate has to carry
+    # the same verbs, fields and owned shapes the DSL would have built.
     built     = load_chapter(ASSEMBLY_CORPUS.fetch("Pizzas")).bluebook("Pizzas")
     assembled = Hecksagain::Bluebook::Assembly.call(built.to_h)
-    pizza     = assembled.aggregate("Pizza").ruby_class
+    pizza     = assembled.aggregate("Pizza")
 
-    expect(pizza.ir).to be(assembled.aggregate("Pizza"))
-    expect(pizza).to respond_to(:create_pizza)          # a creating verb, class-side
-    expect(pizza.instance_methods).to include(:add_topping, :purchase)
-    expect(pizza.instance_methods).to include(:name, :toppings, :status)
-    expect(pizza::Price.hecks_fqn).to eq("Pizzas::Pizza.Price")
+    expect(pizza.command("CreatePizza").creates?).to be(true)
+    expect(pizza.command("AddTopping").acts_on).to be(pizza)
+    expect(pizza.attributes.map(&:name)).to include(:name, :toppings)
+    expect(pizza.value_object("Price").hecks_fqn).to eq("Pizzas::Pizza.Price")
   end
 
   it "gives an assembled reference a resolvable edge" do
@@ -353,6 +352,6 @@ RSpec.describe "a graph assembled from declarations" do
     account   = assembled.aggregate("Account")
 
     expect(account.attribute(:customer_id).type.resolve)
-      .to be(assembled.aggregate("Customer").ruby_class)
+      .to be(assembled.aggregate("Customer"))
   end
 end

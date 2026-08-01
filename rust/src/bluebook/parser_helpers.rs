@@ -224,22 +224,6 @@ pub fn ends_with_do_block(line: &str) -> bool {
     false
 }
 
-pub fn extract_kwarg_symbol(line: &str, kwarg: &str) -> Option<String> {
-    let needle = format!("{kwarg}:");
-    let start = line.find(&needle)? + needle.len();
-    let rest = line[start..].trim_start();
-    let rest = rest.strip_prefix(':')?;
-    let end = rest
-        .find(|c: char| !c.is_alphanumeric() && c != '_')
-        .unwrap_or(rest.len());
-    let sym = rest[..end].trim().to_string();
-    if sym.is_empty() {
-        None
-    } else {
-        Some(sym)
-    }
-}
-
 const SHORTHAND_TYPES: &[&str] = &[
     "String", "Integer", "Float", "Boolean", "JSON", "Date", "DateTime",
 ];
@@ -322,16 +306,69 @@ pub fn parse_shorthand_attribute(line: &str) -> Option<crate::ir::Attribute> {
             .unwrap_or(false);
     Some(crate::ir::Attribute {
         name,
-        attr_type,
+        r#type: attr_type,
         default,
         list,
         optional,
         enum_values: vec![],
         pattern: None,
+        // READ HERE TOO, unlike `pattern` beside it. `admits` is a RULE, and a
+        // rule the long spelling enforces and the shorthand quietly drops is the
+        // same bluebook meaning two things — which is the whole reason this fact
+        // crosses the wire at all.
+        admits: super::parse_blocks::parse_quoted_kwarg(line, "admits:"),
     })
 }
 
-pub fn parse_shorthand_reference(line: &str) -> Option<crate::ir::Reference> {
+/// A REFERENCE IS AN ATTRIBUTE — `Reference<Customer>` is a type, not a second
+/// kind of declaration. Ruby's builder reaches this through the shared
+/// attribute collector, so the two sides carry one shape and not two.
+pub fn reference_attribute(name: String, target: &str) -> crate::ir::Attribute {
+    crate::ir::Attribute {
+        name,
+        r#type: format!("Reference<{target}>"),
+        default: None,
+        list: false,
+        // A reference is an ID, never defaulted, never pattern-matched and
+        // never a member of a closed set — but it travels the same collector as
+        // every other attribute, so it carries the same keys.
+        optional: false,
+        enum_values: vec![],
+        pattern: None,
+        admits: None,
+    }
+}
+
+/// What a reference-typed attribute POINTS AT, or none if it points at nothing.
+pub fn reference_target(attribute: &crate::ir::Attribute) -> Option<&str> {
+    attribute
+        .r#type
+        .strip_prefix("Reference<")?
+        .strip_suffix('>')
+}
+
+/// Is this reference the ROOT the command acts on, or a named argument?
+///
+/// `as:` means "a named argument", not "the root I act on" — so a command can
+/// point at another instance of its OWN kind, which is what
+/// `reference_to Aggregate, as: :points_at` says in the meta-domain. Mirrors
+/// CommandBuilder#reference_to: without this, Rust drops such a reference from
+/// the attributes AND claims it as the acted-on root, and the two runtimes
+/// disagree about the same line.
+///
+/// Explicitness is inferred by comparing against the derived name. When `as:`
+/// names exactly what the default would have produced, the two readings
+/// coincide anyway.
+pub fn acts_on_root(attribute: &crate::ir::Attribute, owner: &str) -> bool {
+    match reference_target(attribute) {
+        Some(target) => {
+            target == owner && attribute.name == format!("{}_id", crate::naming::snake(target))
+        }
+        None => false,
+    }
+}
+
+pub fn parse_shorthand_reference(line: &str) -> Option<crate::ir::Attribute> {
     let open = line.find('(')? + 1;
     let close = line.find(')')?;
     let inside = &line[open..close];
@@ -356,18 +393,15 @@ pub fn parse_shorthand_reference(line: &str) -> Option<crate::ir::Reference> {
         crate::naming::snake(&target)
     };
 
-    let domain = if target.contains("::") {
-        Some(target.split("::").next()?.to_string())
-    } else {
-        None
-    };
-
-    Some(crate::ir::Reference::single(name, target, domain))
+    Some(reference_attribute(name, &target))
 }
 
 pub enum ShorthandResult {
     Attribute(crate::ir::Attribute),
-    Reference(crate::ir::Reference),
+    /// Still told apart from a plain attribute, because a reference is
+    /// PREPENDED to the attribute list rather than appended — see
+    /// `parser::parse_aggregate`.
+    Reference(crate::ir::Attribute),
     None,
 }
 

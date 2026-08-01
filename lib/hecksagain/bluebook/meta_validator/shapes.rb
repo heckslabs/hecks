@@ -26,7 +26,12 @@ module Hecksagain
             # attribute, held as text, and dropping either would rebuild a
             # bluebook that no longer says what it said.
             optional: text(field[:optional]).to_s == "true",
-            pattern: presence(text(field[:pattern]))
+            pattern: presence(text(field[:pattern])),
+            # THE ROUND TRIP IS THE ONLY WAY IN. The grammar registry keeps the
+            # ASSEMBLED graph — the language as its own judge read it back — so a
+            # fact dropped here is a fact bin/ir_structs never sees, no matter how
+            # plainly the .bluebook file declares it.
+            admits: presence(text(field[:admits]))
           }
         end
 
@@ -66,7 +71,8 @@ module Hecksagain
             list:     text(field[:list]).to_s == "true",
             default:  decode_literal(text(field[:default])),
             optional: text(field[:optional]).to_s == "true",
-            pattern:  presence(text(field[:pattern]))
+            pattern:  presence(text(field[:pattern])),
+            admits:   presence(text(field[:admits]))
           }
         end
 

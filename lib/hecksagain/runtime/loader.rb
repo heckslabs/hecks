@@ -17,10 +17,13 @@ module Hecksagain
         bind_runtime(Dispatcher.new(registry))
       end
 
+      # THE DOOR IS INSTALLED HERE, NOT STAMPED. This used to write the
+      # dispatcher onto every aggregate's class (`ruby_class.runtime =`) — the
+      # class-level global that made two runtimes in one process share one
+      # name. The facade's modules close over THIS dispatcher instead, so the
+      # binding lives in the surface a boot installs, not on anything shared.
       def self.bind_runtime(dispatcher)
-        dispatcher.registry.bluebooks.each_value do |bluebook|
-          bluebook.aggregates.each { |aggregate| aggregate.ruby_class.runtime = dispatcher }
-        end
+        Facade::Surface.install(dispatcher)
         dispatcher
       end
     end

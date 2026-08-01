@@ -1,0 +1,211 @@
+Hecks.bluebook "Bluebook" do
+  aggregate "ValueObject" do
+    description "One value object declared on an aggregate — its fields and the rules they must satisfy. Its own root because a value object holds nested lists, which no list element can."
+
+    reference_to Aggregate
+
+    # THE AGGREGATE IT BELONGS TO, AND ITS NAME. A value object belongs to one
+    # aggregate by rule, and `Name` or `Amount` is spelled in half the chapters
+    # there are.
+    identified_by do
+      aggregate_id
+      name.value
+    end
+
+    attribute :name,       ValueObjectName
+    attribute :attributes, list_of(ShapeField)
+    attribute :invariants, list_of(Assertion)
+    attribute :rows,       RowCount
+
+    value_object "RowCount" do
+      attribute :value, Integer
+    end
+
+    value_object "ValueObjectName" do
+      attribute :value, String
+      invariant("a value object is named") { !value.to_s.empty? }
+    end
+
+    value_object "ShapeField" do
+      attribute :name,    String
+      attribute :type,    String
+      attribute :list,    String
+      attribute :optional, String, optional: true
+      attribute :pattern,  String, optional: true
+      attribute :default, String
+      # The closed set this value must belong to — see Aggregate::Field.
+      attribute :admits, String, optional: true
+    end
+
+    value_object "Assertion" do
+      attribute :description, String
+      attribute :canonical,   String
+    end
+
+    # The way back: everything DECLARED IN the aggregate above. The parent
+    # reference IS the query.
+    # WHERE IT SITS AMONG ITS SIBLINGS. Declaration order is a FACT ABOUT THE
+    # SOURCE — Rust reads it straight out of the file, and the IR is a contract
+    # field for field AND INDEX FOR INDEX. So the language HOLDS it, instead of
+    # inheriting it from whatever order a store happens to iterate: an ask that
+    # does not say how it is ordered is answered in identity order, which is
+    # right for every other ask and fatal for the one that is the SOURCE.
+    value_object "Position" do
+      attribute :value, Integer
+    end
+
+    attribute :position, Position
+
+    query "DeclaredIn" do
+      attribute :aggregate_id, ValueObjectText
+      where(aggregate_id: :aggregate_id)
+      order_by :position
+    end
+    command "Declare" do
+      role "Language"
+      goal "Open a value object on an aggregate"
+
+      reference_to Aggregate
+      attribute :name, ValueObjectName
+
+      attribute :position, Position, optional: true
+      emits "ShapeDeclared"
+    end
+
+    command "Field" do
+      role "Language"
+      goal "Attach one field to the value object"
+
+      reference_to ValueObject
+      attribute :name,    ValueObjectName
+      attribute :type,    ValueObjectName
+      attribute :list,    ValueObjectName
+      attribute :optional, ValueObjectName, optional: true
+      # FREE TEXT, like `default` beside it and like the pattern every other
+      # element builder takes. `ValueObjectName` carries the invariant "a value
+      # object is named", which is not a thing a regex has to be — it happened to
+      # admit banking's one pattern because that pattern is not empty, and it
+      # said the wrong thing about why.
+      attribute :pattern,  ValueObjectText, optional: true
+      attribute :default, ValueObjectText, optional: true
+      attribute :admits,  ValueObjectText, optional: true
+
+      then_set :attributes, append: { name: :name, type: :type, list: :list, default: :default, optional: :optional, pattern: :pattern, admits: :admits }
+
+      emits "ShapeFieldAttached"
+    end
+
+    command "Close" do
+      role "Language"
+      goal "Declare that this value object admits a closed set of rows"
+
+      # Dispatched only when the bluebook declared a one_of — so an EMPTY closed
+      # set is visible where it used to be invisible : a shape that is closed
+      # and admits nothing. Members live in their own root (a row is a list of
+      # pairs inside a list of rows), so the count is offered rather than read.
+      reference_to ValueObject
+      attribute :rows, RowCount
+
+      given("a closed set admits a member") { rows.value > 0 }
+
+      then_set :rows, to: :rows
+
+      emits "ShapeClosed"
+    end
+
+    command "Assert" do
+      role "Language"
+      goal "Attach one invariant to the value object"
+
+      reference_to ValueObject
+      attribute :description, ValueObjectText, optional: true
+      attribute :canonical,   ValueObjectText
+
+      given("a rule says what it means")  { !description.value.to_s.empty? }
+      given("a rule survives extraction") { !canonical.value.to_s.empty? }
+
+      then_set :invariants, append: { description: :description, canonical: :canonical }
+
+      emits "AssertionAttached"
+    end
+
+    value_object "ValueObjectText" do
+      attribute :value, String
+    end
+  end
+
+  aggregate "Member" do
+    description "One admitted row of a value object's one_of — a whole combination of field values, not a per-field choice. Its own root because a row is a list of pairs inside a list of rows."
+
+    reference_to ValueObject
+
+    # THE VALUE OBJECT IT IS ADMITTED BY, AND WHERE IT SITS AMONG THE ROWS.
+    #
+    # A member has no other distinguishing fact : its pairs are an OPEN MAP, which
+    # is the whole reason it is a root, and a map cannot be a path. Position is not
+    # a mint — it is read straight out of the source file, the same fact the
+    # language already holds deliberately so that an ask ordered any other way
+    # cannot take declaration order away.
+    identified_by do
+      value_object_id
+      position.value
+    end
+
+    attribute :shape, MemberText
+    attribute :pairs, list_of(Pair)
+
+    value_object "MemberText" do
+      attribute :value, String
+    end
+
+    value_object "Pair" do
+      attribute :key,   String
+      attribute :value, String
+    end
+
+    # The way back: everything DECLARED IN the value object above. The parent
+    # reference IS the query.
+    # WHERE IT SITS AMONG ITS SIBLINGS. Declaration order is a FACT ABOUT THE
+    # SOURCE — Rust reads it straight out of the file, and the IR is a contract
+    # field for field AND INDEX FOR INDEX. So the language HOLDS it, instead of
+    # inheriting it from whatever order a store happens to iterate: an ask that
+    # does not say how it is ordered is answered in identity order, which is
+    # right for every other ask and fatal for the one that is the SOURCE.
+    value_object "Position" do
+      attribute :value, Integer
+    end
+
+    attribute :position, Position
+
+    query "DeclaredIn" do
+      attribute :value_object_id, MemberText
+      where(value_object_id: :value_object_id)
+      order_by :position
+    end
+    command "Declare" do
+      role "Language"
+      goal "Open one admitted row on a value object"
+
+      reference_to ValueObject
+      attribute :shape, MemberText
+
+      attribute :position, Position, optional: true
+      emits "MemberDeclared"
+    end
+
+    command "Pair" do
+      role "Language"
+      goal "Bind one field of the admitted row"
+
+      reference_to Member
+      attribute :key,   MemberText
+      attribute :value, MemberText
+
+      given("an admitted row binds a named field") { !key.value.to_s.empty? }
+
+      then_set :pairs, append: { key: :key, value: :value }
+
+      emits "PairBound"
+    end
+  end
+end

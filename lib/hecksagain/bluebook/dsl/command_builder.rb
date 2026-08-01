@@ -94,7 +94,7 @@ module Hecksagain
         end
 
         # No raise here. "an event is named" is declared in the language itself —
-        # grammar/bluebook.bluebook, on Verb.Announce — and MetaValidator is what
+        # language/bluebook/behavior.bluebook, on Command.Announce — and MetaValidator is what
         # enforces it. This is the first rule to move ACROSS rather than be
         # duplicated : delete the declaration and an unnamed event is accepted,
         # which is what makes the meta-domain load-bearing rather than decorative.

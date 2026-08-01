@@ -1,142 +1,47 @@
 use std::fmt;
 
-#[derive(Debug, Clone)]
-pub struct Domain {
-    pub name: String,
-    pub version: Option<String>,
-    pub category: Option<String>,
-    pub vision: Option<String>,
-    pub classification: Option<String>,
-    pub aggregates: Vec<Aggregate>,
-    pub read_models: Vec<ReadModel>,
-    pub policies: Vec<Policy>,
-    pub fixtures: Vec<Fixture>,
-    pub entrypoint: Option<String>,
-    pub sections: Vec<Section>,
-    pub process_managers: Vec<ProcessManager>,
-    pub cadences: Vec<Cadence>,
-    pub block_grammars: Vec<BlockGrammar>,
-}
+// THE CLOSED SETS COME FROM THE LANGUAGE, not from here. `MutationOp` and
+// `WhereOp` are declared by `Vocabulary` in the bluebook chapter and PROJECTED
+// into Rust source by `bin/ir_vocabulary` ; re-exported so every consumer's
+// `use crate::ir::*` reaches them at the same path as when they were written
+// here by hand. Both had drifted while they were hand-written — eleven mutation
+// ops against the four the language admits, and a ninth where-op it never
+// declared — which is the whole argument for projecting them.
+pub use super::ir_vocabulary::{MutationOp, WhereOp};
 
-#[derive(Debug, Clone)]
-pub struct Cadence {
-    pub name: String,
-    pub interval: String,
-    pub dispatches: Vec<CadenceDispatch>,
-}
-
-#[derive(Debug, Clone)]
-pub struct CadenceDispatch {
-    pub command_name: String,
-    pub attrs: Vec<(String, String)>,
-}
-
-#[derive(Debug, Clone)]
-pub struct BlockGrammar {
-    pub name: String,
-    pub blocks: Vec<BlockGrammarEntry>,
-}
-
-#[derive(Debug, Clone)]
-pub struct BlockGrammarEntry {
-    pub keyword: String,
-    pub parser: BlockParser,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum BlockParser {
-    Aggregate,
-    ReadModel,
-    Policy,
-    ProcessManager,
-    Cadence,
-    Section,
-    Fixture,
-}
-
-impl BlockParser {
-    pub fn from_name(name: &str) -> Option<Self> {
-        match name {
-            "parse_aggregate" => Some(Self::Aggregate),
-            "parse_read_model" => Some(Self::ReadModel),
-            "parse_policy" => Some(Self::Policy),
-            "parse_process_manager" => Some(Self::ProcessManager),
-            "parse_cadence" => Some(Self::Cadence),
-            "parse_section" => Some(Self::Section),
-            "parse_fixture" => Some(Self::Fixture),
-            _ => None,
-        }
-    }
-
-    pub fn name(&self) -> &'static str {
-        match self {
-            Self::Aggregate => "parse_aggregate",
-            Self::ReadModel => "parse_read_model",
-            Self::Policy => "parse_policy",
-            Self::ProcessManager => "parse_process_manager",
-            Self::Cadence => "parse_cadence",
-            Self::Section => "parse_section",
-            Self::Fixture => "parse_fixture",
-        }
-    }
-}
-
-impl BlockGrammar {
-    pub fn canonical_bluebook() -> Self {
-        Self {
-            name: "Bluebook".into(),
-            blocks: vec![
-                entry("aggregate", BlockParser::Aggregate),
-                entry("read_model", BlockParser::ReadModel),
-                entry("section", BlockParser::Section),
-                entry("policy", BlockParser::Policy),
-                entry("process_manager", BlockParser::ProcessManager),
-                entry("cadence", BlockParser::Cadence),
-                entry("fixture", BlockParser::Fixture),
-            ],
-        }
-    }
-}
-
-fn entry(keyword: &str, parser: BlockParser) -> BlockGrammarEntry {
-    BlockGrammarEntry {
-        keyword: keyword.into(),
-        parser,
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct ProcessManager {
-    pub name: String,
-    pub correlates_by: String,
-    pub starts_on: String,
-    pub ends_on: Option<String>,
-    pub states: Vec<String>,
-    pub handlers: Vec<ProcessManagerHandler>,
-}
-
-#[derive(Debug, Clone)]
-pub struct ProcessManagerHandler {
-    pub event_type: String,
-    pub from_state: String,
-    pub to_state: String,
-    pub dispatches: Vec<DispatchSpec>,
-    pub set_specs: Vec<(String, ValueSpec)>,
-}
+// THE CATEGORY SHAPES COME FROM THE LANGUAGE TOO, one rung further along than
+// the closed sets above. `bin/ir_structs` reads the thirteen categories the
+// language uses to describe itself, plus the `derived:` column of
+// `assembly/contracts.rb` — the one thing the language cannot say, which fields
+// the IR does not carry and why — and emits these nine as Rust source.
+//
+// Only ten, and that is the honest number: the rest of this file is here
+// because the language and Rust genuinely disagree about it, or because the
+// language never declared it at all. `ir_structs.rs`'s header names every one
+// of those and says which. Re-exported so `use crate::ir::*` reaches them at
+// the path they were written at by hand.
+//
+// ProcessManager and ProcessManagerHandler joined the list once the LANGUAGE
+// was corrected, not Rust: it declared `ends_on` required where both runtimes
+// have always held it optional, and `from_state` optional where neither runtime
+// can parse a leg without one. Both structs came out of the generator identical,
+// field for field and in order, to the hand-written ones deleted from here.
+//
+// WhereClause joined them once the LANGUAGE grew a word rather than once Rust
+// changed: `op` has always been a `WhereOp` here, and the set it reads is one
+// the language declares (Vocabulary::QueryComparator), but nothing LINKED the
+// two, so the generator refused to guess the typing and said so. `Filter.op`
+// now says `admits: Vocabulary::QueryComparator`, and what comes out is
+// identical, field for field, to the struct deleted from here.
+pub use super::ir_structs::{
+    Aggregate, Command, Domain, Entity, Given, ProcessManager, ProcessManagerHandler, ReadModel,
+    Transition, WhereClause,
+};
 
 #[derive(Debug, Clone)]
 pub struct DispatchSpec {
     pub command_name: String,
     pub with_spec: Vec<(String, ValueSpec)>,
-    pub for_each: Option<ForEachSpec>,
-}
-
-#[derive(Debug, Clone)]
-pub struct ForEachSpec {
-    pub source_context: Option<String>,
-    pub source_aggregate: String,
-    pub query_name: String,
-    pub query_inputs: Vec<(String, ValueSpec)>,
 }
 
 #[derive(Debug, Clone)]
@@ -157,85 +62,58 @@ pub enum ValueSpec {
     },
 }
 
-#[derive(Debug, Clone)]
-pub struct Section {
-    pub title: String,
-    pub rows: Vec<SectionRow>,
+impl Aggregate {
+    /// THE ONE PATH A REPOSITORY ADDRESSES RECORDS BY, or none declared.
+    ///
+    /// A repository uses the identity as a KEY into a command's attributes, so
+    /// it needs a single name where the IR now carries a list. This resolves it
+    /// the same way `dispatcher::identity_path` resolves the same question off
+    /// the wire — the first declared path — so the struct reader and the JSON
+    /// reader can never address one aggregate two different ways. Composite
+    /// identities are a Ruby-side growth the corpus does not yet declare; when
+    /// they arrive, BOTH readers change together, and `Naming::IDENTITY_JOIN`
+    /// (`":"`, lib/hecksagain/naming.rb) is the join they will change to.
+    pub fn identity_key(&self) -> Option<String> {
+        self.identified_by.first().cloned()
+    }
 }
 
-#[derive(Debug, Clone)]
-pub struct SectionRow {
-    pub label: String,
-    pub field: String,
-}
-
-#[derive(Debug, Clone)]
-pub struct UnknownKeyword {
-    pub keyword: String,
-    pub suggestion: String,
-}
-
-#[derive(Debug, Clone)]
-pub struct Aggregate {
-    pub name: String,
-    pub description: Option<String>,
-    pub context: Option<String>,
-    pub category: Option<String>,
-    pub bluebook_version: Option<String>,
-    pub identified_by: Option<String>,
-    pub attributes: Vec<Attribute>,
-    pub factories: Vec<Factory>,
-    pub commands: Vec<Command>,
-    pub queries: Vec<Query>,
-    pub value_objects: Vec<ValueObject>,
-    pub entities: Vec<Entity>,
-    pub references: Vec<Reference>,
-    pub lifecycle: Option<Lifecycle>,
-    pub invariants: Vec<Invariant>,
-    pub views: Vec<View>,
-    pub unknown_keywords: Vec<UnknownKeyword>,
-    pub realm_path: Option<String>,
-}
-
-#[derive(Debug, Clone)]
-pub struct ReadModel {
-    pub name: String,
-    pub description: Option<String>,
-    pub reference_name: String,
-    pub reference_target: String,
-    pub aggregate_heads: Vec<AggregateHead>,
+impl Entity {
+    /// A piece answers this the same way a head does — see `Aggregate::identity_key`.
+    pub fn identity_key(&self) -> Option<String> {
+        self.identified_by.first().cloned()
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct AggregateHead {
     pub aggregate: String,
-    pub name: String,
+    /// SPELLED `as`, the way Ruby spells it and the way the wire has always
+    /// carried it. A Rust keyword, so it takes the one mechanical escape a
+    /// generator has to know: `r#`.
+    pub r#as: String,
     pub many: bool,
 }
 
 #[derive(Debug, Clone)]
 pub struct Attribute {
     pub name: String,
-    pub attr_type: String,
+    /// SPELLED `type`, matching Ruby, escaped because Rust reserves the word.
+    pub r#type: String,
     pub default: Option<String>,
     pub list: bool,
     pub optional: bool,
     pub enum_values: Vec<String>,
     pub pattern: Option<String>,
-}
-
-#[derive(Debug, Clone)]
-pub struct Command {
-    pub name: String,
-    pub description: Option<String>,
-    pub role: Option<String>,
-    pub attributes: Vec<Attribute>,
-    pub references: Vec<Reference>,
-    pub emits: Option<String>,
-    pub emits_identified_by: Option<String>,
-    pub givens: Vec<Given>,
-    pub mutations: Vec<Mutation>,
-    pub redirects_native: Vec<String>,
+    /// The closed set this value must belong to, named where it was declared —
+    /// `"Vocabulary::MutationOp"`. Qualified by the aggregate that holds it,
+    /// because a closed set is a value object INSIDE an aggregate.
+    ///
+    /// The NAME crosses, not the members: each runtime resolves it against its
+    /// own IR, so neither keeps a copy of a set the other declared. Unlike
+    /// `enum_values` beside it — which `one_of` desugars away into a synthesised
+    /// value object — this names a set that already exists and is left alone.
+    pub admits: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -246,47 +124,20 @@ pub struct Query {
     pub wheres: Vec<WhereClause>,
     pub order_by: Option<OrderBy>,
     pub limit: Option<LimitSpec>,
-    pub reduction: Option<Reduction>,
-    pub group_by: Option<String>,
-    pub scope_to: Option<String>,
-}
-
-#[derive(Debug, Clone)]
-pub struct Given {
-    pub expression: String,
-    pub message: Option<String>,
 }
 
 #[derive(Debug, Clone)]
 pub struct Mutation {
-    pub field: String,
-    pub operation: MutationOp,
-    pub value: String,
-    pub invalid_op: Option<String>,
-}
-
-#[derive(Debug, Clone)]
-pub enum MutationOp {
-    Set,
-    Append,
-    Increment,
-    Decrement,
-    Toggle,
-    Delete,
-    Multiply,
-    Clamp,
-    Decay,
-    Remove,
-    AppendUnique,
+    pub target: String,
+    pub op: MutationOp,
+    pub source: String,
 }
 
 #[derive(Debug, Clone)]
 pub struct ValueObject {
     pub name: String,
-    pub description: Option<String>,
     pub attributes: Vec<Attribute>,
     pub invariants: Vec<Invariant>,
-    pub derivations: Vec<Derivation>,
     pub members: Vec<Vec<(String, String)>>,
     /// A one_of DECLARED but left empty is indistinguishable from no one_of at
     /// all if only `members` is carried — both are empty. Recording the
@@ -296,40 +147,11 @@ pub struct ValueObject {
 }
 
 #[derive(Debug, Clone)]
-pub struct Entity {
-    pub name: String,
-    pub description: Option<String>,
-    pub attributes: Vec<Attribute>,
-    pub commands: Vec<Command>,
-    pub queries: Vec<Query>,
-    pub lifecycle: Option<Lifecycle>,
-    pub identified_by: Option<String>,
-}
-
-#[derive(Debug, Clone)]
-pub struct Reference {
-    pub name: String,
-    pub target: String,
-    pub domain: Option<String>,
-    pub cardinality: Cardinality,
-    pub kind: ReferenceKind,
-    // A named reference on a COMMAND is an argument, so it may be optional the
-    // same way a plain attribute is. Ruby reaches this through the shared
-    // attribute collector ; here the two shapes are separate and it has to be
-    // carried explicitly, or the implied reference-attribute loses the fact.
-    pub optional: bool,
-}
-
-#[derive(Debug, Clone)]
 pub struct Policy {
     pub name: String,
     pub on_event: String,
     pub trigger_command: String,
     pub target_domain: Option<String>,
-    pub with: Vec<(String, ValueSpec)>,
-    pub wheres: Vec<WhereClause>,
-    pub for_each: Option<ForEachSpec>,
-    pub extra_dispatches: Vec<DispatchSpec>,
 }
 
 impl Policy {
@@ -350,40 +172,6 @@ pub struct Lifecycle {
 }
 
 #[derive(Debug, Clone)]
-pub struct Transition {
-    pub command: String,
-    pub to_state: String,
-    pub from_state: Option<String>,
-}
-
-#[derive(Debug, Clone)]
-pub struct Fixture {
-    pub name: Option<String>,
-    pub aggregate_name: String,
-    pub attributes: Vec<(String, String)>,
-}
-
-#[derive(Debug, Clone)]
-pub struct WhereClause {
-    pub field: String,
-    pub op: WhereOp,
-    pub value: String,
-}
-
-#[derive(Debug, Clone)]
-pub enum WhereOp {
-    Eq,
-    Ne,
-    Gt,
-    Gte,
-    Lt,
-    Lte,
-    In,
-    NoneInState,
-    Contains,
-}
-
-#[derive(Debug, Clone)]
 pub struct OrderBy {
     pub field: String,
     pub direction: Direction,
@@ -398,22 +186,6 @@ pub enum Direction {
 #[derive(Debug, Clone)]
 pub struct LimitSpec {
     pub value: String,
-}
-
-#[derive(Debug, Clone)]
-pub enum Reduction {
-    Count,
-    Sum(String),
-    Max(String),
-    Min(String),
-    Median(String),
-}
-
-#[derive(Debug, Clone)]
-pub struct View {
-    pub name: String,
-    pub show_all: bool,
-    pub fields: Vec<String>,
 }
 
 impl fmt::Display for Domain {
@@ -443,8 +215,8 @@ impl fmt::Display for Domain {
                     "├──"
                 };
                 write!(f, "{}{} {}", cont, cmd_prefix, cmd.name)?;
-                if let Some(ref emits) = cmd.emits {
-                    write!(f, " -> {}", emits)?;
+                if !cmd.emits.is_empty() {
+                    write!(f, " -> {}", cmd.emits.join(", "))?;
                 }
                 writeln!(f)?;
             }
@@ -464,122 +236,7 @@ impl fmt::Display for Domain {
 
 #[derive(Debug, Clone)]
 pub struct Invariant {
-    pub name: String,
-    pub expression: String,
+    pub description: String,
+    pub canonical: String,
 }
 
-#[derive(Debug, Clone)]
-pub struct Derivation {
-    pub name: String,
-    pub return_type: String,
-    pub params: Vec<String>,
-    pub expression: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Cardinality {
-    pub min: usize,
-    pub max: Option<usize>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ReferenceKind {
-    BelongsTo,
-    HasOne,
-    HasMany,
-    LegacyReferenceTo,
-}
-
-impl ReferenceKind {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            ReferenceKind::BelongsTo => "belongs_to",
-            ReferenceKind::HasOne => "has_one",
-            ReferenceKind::HasMany => "has_many",
-            ReferenceKind::LegacyReferenceTo => "reference_to",
-        }
-    }
-}
-
-impl Reference {
-    pub fn single(name: String, target: String, domain: Option<String>) -> Self {
-        Reference {
-            name,
-            target,
-            domain,
-            cardinality: Cardinality {
-                min: 0,
-                max: Some(1),
-            },
-            optional: false,
-            kind: ReferenceKind::LegacyReferenceTo,
-        }
-    }
-
-    pub fn belongs_to(name: String, target: String, domain: Option<String>) -> Self {
-        Reference {
-            name,
-            target,
-            domain,
-            cardinality: Cardinality {
-                min: 0,
-                max: Some(1),
-            },
-            optional: false,
-            kind: ReferenceKind::BelongsTo,
-        }
-    }
-
-    pub fn has_one(name: String, target: String, domain: Option<String>) -> Self {
-        Reference {
-            name,
-            target,
-            domain,
-            cardinality: Cardinality {
-                min: 0,
-                max: Some(1),
-            },
-            optional: false,
-            kind: ReferenceKind::HasOne,
-        }
-    }
-
-    pub fn many(name: String, target: String, domain: Option<String>) -> Self {
-        Reference {
-            name,
-            target,
-            domain,
-            cardinality: Cardinality { min: 0, max: None },
-            optional: false,
-            kind: ReferenceKind::HasMany,
-        }
-    }
-
-    pub fn many_with_max(name: String, target: String, domain: Option<String>, max: usize) -> Self {
-        Reference {
-            name,
-            target,
-            domain,
-            cardinality: Cardinality {
-                min: 0,
-                max: Some(max),
-            },
-            optional: false,
-            kind: ReferenceKind::HasMany,
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct Factory {
-    pub name: String,
-    pub description: Option<String>,
-    pub role: Option<String>,
-    pub produces: Option<String>,
-    pub attributes: Vec<Attribute>,
-    pub references: Vec<Reference>,
-    pub emits: Option<String>,
-    pub emits_identified_by: Option<String>,
-    pub givens: Vec<Given>,
-    pub mutations: Vec<Mutation>,
-}

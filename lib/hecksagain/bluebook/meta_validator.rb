@@ -5,14 +5,16 @@ module Hecksagain
   module Bluebook
     # Judges a bluebook by DISPATCHING it into the language declared in itself.
     #
-    # `lib/hecksagain/grammar/bluebook.bluebook` declares what a bluebook IS —
-    # Chapter, Root, Verb, Shape, Ask, Piece, and the rest — and carries the
-    # language's rules as `given` and `invariant` rather than as `raise
-    # Malformed` scattered across seven builder files. This replays a built IR
-    # into that domain and turns any refusal into a Malformed, so the meta-domain
-    # is what actually judges rather than a description sitting beside the code.
+    # `lib/hecksagain/language/bluebook/` declares what a bluebook IS —
+    # Chapter, Root, Verb, Shape, Ask, Piece, and the rest, split across eight
+    # files by function and merged into one chapter at load time (see
+    # GRAMMAR_FILES below) — and carries the language's rules as `given` and
+    # `invariant` rather than as `raise Malformed` scattered across seven
+    # builder files. This replays a built IR into that domain and turns any
+    # refusal into a Malformed, so the meta-domain is what actually judges
+    # rather than a description sitting beside the code.
     #
-    # Delete grammar/bluebook.bluebook and validation stops. That is the whole
+    # Delete language/bluebook/ and validation stops. That is the whole
     # point : a self-description that only describes is indistinguishable from
     # enforcement, and the first version of this file was deleted for exactly
     # that reason.
@@ -20,12 +22,37 @@ module Hecksagain
     # The meta-domain is loaded ONCE and its registry reused ; each bluebook is
     # judged in a fresh in-memory store so no domain can see another's records.
     module MetaValidator
-      GRAMMAR = File.expand_path("../language/bluebook.bluebook", __dir__).freeze
+      # THE CHAPTER, SPLIT BY FUNCTION, MERGED AT LOAD TIME. One 1973-line file
+      # became eight, grouped by what each piece of the language IS (a root, what
+      # it can do, what it is made of, what reacts to it, its closed vocabulary,
+      # the read-back) rather than left as one undifferentiated block. Every file
+      # opens the SAME `Hecks.bluebook "Bluebook" do ... end` ; `BluebookBuilder.build`
+      # keeps one builder open per chapter name across calls (see its own comment),
+      # so loading all eight in order accumulates one domain, not eight.
+      #
+      # ORDER IS AN EXPLICIT LIST, not a sorted glob. Declaration order is a fact
+      # about the source — the golden IR fixture pins the exact sequence — and a
+      # filename-alphabetical sort would not reproduce a deliberate, reviewed order
+      # by accident. This is the array to edit when a file is added, removed, or
+      # reordered.
+      GRAMMAR_DIR   = File.expand_path("../language/bluebook", __dir__).freeze
+      GRAMMAR_FILES = %w[bluebook aggregate behavior shape entity reaction vocabulary projection]
+                        .map { |name| File.join(GRAMMAR_DIR, "#{name}.bluebook") }.freeze
       # a world is a SIBLING artifact, described in its own file
       WORLD_GRAMMAR = File.expand_path("../language/world.bluebook", __dir__).freeze
 
+      # The chapters that ARE the language — loaded raw during bootstrap, then
+      # judged through themselves and replaced by their own assembled graphs
+      # (see grammar_registry). Each is named after its file : Bluebook describes
+      # bluebooks (language/bluebook/) ; World describes worlds (world.bluebook),
+      # and backs the WorldJudge door.
+      LANGUAGE_CHAPTERS = %w[Bluebook World].freeze
+
       # The meta-domain is itself a bluebook. Judging it while loading it would
-      # recurse, so the load path marks the bootstrap and skips.
+      # recurse, so the load path marks the bootstrap and skips — but the skip
+      # is only the FIRST pass. Once every grammar file is loaded and merged,
+      # grammar_registry judges the language through itself and keeps the
+      # assembled result (the fixpoint, made load-bearing).
       def self.bootstrapping? = @bootstrapping
 
       def self.disabled? = ENV["HECKSAGAIN_META_VALIDATION"] == "off"
@@ -112,29 +139,69 @@ module Hecksagain
 
       def self.grammar_registry
         @grammar_registry ||= begin
-          @bootstrapping = true
-          registry = Runtime::Registry.new
-          Hecksagain.with_registry(registry) do
-            Kernel.load(File.expand_path("../ports/persistence/persistence.port", __dir__))
-            Kernel.load(File.expand_path("../ports/extraction/extraction.port", __dir__))
-            Kernel.load(File.expand_path("../adapters/driven/memory/memory.adapter", __dir__))
-            Kernel.load(File.expand_path("../adapters/driven/prism/prism.adapter", __dir__))
-            Kernel.load(GRAMMAR)
-            Kernel.load(WORLD_GRAMMAR)
-          end
+          registry = load_grammar_into(Runtime::Registry.new)
+          # Assigned BEFORE the fixpoint judge below: judging re-enters
+          # grammar_registry through fresh_runtime (judge.rb) and Plan.for
+          # (judge.rb, reconstruction.rb) — a bare ||= would still be nil
+          # while its right-hand side evaluates, and recurse forever.
+          @grammar_registry = registry
+          # THE FIXPOINT MADE LOAD-BEARING. The bootstrap loaded the language
+          # raw ; now the language judges itself, its records are read back,
+          # and the ASSEMBLED graph replaces the raw one — so every bluebook
+          # judged from here on is judged by the language the language itself
+          # produced. Outside load_grammar_into on purpose : its ensure clears
+          # @bootstrapping, and call() must see bootstrapping? == false to do
+          # anything at all.
+          LANGUAGE_CHAPTERS.each { |name| registry.add_bluebook(call(registry.bluebook(name))) }
           registry
-        ensure
-          @bootstrapping = false
         end
+      end
+
+      # THE ONE PLACE THE GRAMMAR'S OWN BOOT SEQUENCE IS SPELLED — ports, the
+      # memory/prism adapters, the (now eight-file) chapter itself, then the
+      # sibling world grammar. `grammar_registry` uses this for its memoised
+      # singleton ; anything that needs an ISOLATED registry (a spec wanting a
+      # fresh store per example, say) calls this directly instead of hand-
+      # copying the sequence.
+      #
+      # THE BOOTSTRAP GUARD LIVES HERE, not just around the singleton. Splitting
+      # the chapter into several files means each file's own `Hecks.bluebook
+      # "Bluebook"` call now runs `BluebookBuilder#build` once per file — and
+      # `MetaValidator.call` judges whatever it is handed unless `bootstrapping?`
+      # is true. A caller that loaded the grammar files by hand into its own
+      # registry, without this guard, would get each file DISPATCHED AND JUDGED
+      # ALONE the moment it loaded — and a lone file like `aggregate.bluebook`
+      # refuses immediately, since `Aggregate.Attribute` references `ValueObject`
+      # and `Aggregate.Holds` references `Entity`, both declared in later files.
+      # Every caller of the grammar must go through here for exactly that reason.
+      def self.load_grammar_into(registry)
+        @bootstrapping = true
+        Hecksagain.with_registry(registry) do
+          Kernel.load(File.expand_path("../ports/persistence/persistence.port", __dir__))
+          Kernel.load(File.expand_path("../ports/extraction/extraction.port", __dir__))
+          Kernel.load(File.expand_path("../adapters/driven/memory/memory.adapter", __dir__))
+          Kernel.load(File.expand_path("../adapters/driven/prism/prism.adapter", __dir__))
+          GRAMMAR_FILES.each { |file| Kernel.load(file) }
+          Kernel.load(WORLD_GRAMMAR)
+        end
+        registry
+      ensure
+        @bootstrapping = false
       end
 
       # A FRESH STORE per bluebook. The registry memoises repositories, so
       # reusing it let every bluebook see the records of every bluebook judged
       # before it. The parsed grammar is reused ; only the records are cleared.
+      # (During grammar_registry's own fixpoint judge this clear runs on the
+      # singleton mid-memoisation — harmless for the same reason : the grammar
+      # is what is kept, the records were never meant to survive a judging.)
+      # No `bind_runtime` here : judging dispatches by FQN and never opens the
+      # door, and binding would re-install the language's own facade constants
+      # once per judged chapter.
       def self.fresh_runtime
         registry = grammar_registry
         registry.instance_variable_set(:@repositories, {})
-        Runtime::Loader.bind_runtime(Runtime::Dispatcher.new(registry))
+        Runtime::Dispatcher.new(registry)
       end
     end
   end

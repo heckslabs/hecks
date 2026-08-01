@@ -3,6 +3,7 @@
     {
       "attributes": [
         {
+          "admits": null,
           "default": null,
           "list": false,
           "name": "name",
@@ -11,6 +12,7 @@
           "type": "PizzaName"
         },
         {
+          "admits": null,
           "default": null,
           "list": true,
           "name": "toppings",
@@ -19,6 +21,7 @@
           "type": "Topping"
         },
         {
+          "admits": null,
           "default": null,
           "list": false,
           "name": "price_cents",
@@ -27,6 +30,7 @@
           "type": "Price"
         },
         {
+          "admits": null,
           "default": null,
           "list": false,
           "name": "customer_name",
@@ -35,6 +39,7 @@
           "type": "CustomerName"
         },
         {
+          "admits": null,
           "default": null,
           "list": false,
           "name": "size",
@@ -47,6 +52,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "name",
@@ -55,6 +61,7 @@
               "type": "PizzaName"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "price_cents",
@@ -63,6 +70,7 @@
               "type": "Price"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "size",
@@ -88,6 +96,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "topping",
@@ -96,6 +105,7 @@
               "type": "ToppingName"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "amount",
@@ -135,6 +145,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "customer_name",
@@ -222,6 +233,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "ceiling",
@@ -263,6 +275,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -286,6 +299,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "cents",
@@ -309,6 +323,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -332,6 +347,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -355,6 +371,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -378,6 +395,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "name",
@@ -386,6 +404,7 @@
               "type": "String"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "amount",
@@ -406,6 +425,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",

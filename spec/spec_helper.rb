@@ -29,7 +29,11 @@ module InMemoryDomain
       Kernel.load(PRISM_ADAPTER)
       Kernel.load(PIZZAS_BLUEBOOK)
 
-      Hecks.hecksagon("Pizzas") { Pizzas::Pizza.persisted_by("Memory") }
+      # `::` on purpose — a real .hecksagon file is loaded at TOP LEVEL, where an
+      # unresolved constant reaches Object's const_missing (ConstShim ->
+      # BindingProxy). This block lives inside a module, so a bare `Pizzas`
+      # would be looked up here first and reach no hook at all.
+      Hecks.hecksagon("Pizzas") { ::Pizzas::Pizza.persisted_by("Memory") }
     end
 
     registry.verify!

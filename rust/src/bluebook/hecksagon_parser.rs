@@ -697,17 +697,11 @@ fn parse_driven_dispatch(joined: &str) -> Option<DrivenDispatch> {
         }
         prev = c;
     }
-    let mut attrs = match split_at {
+    let attrs = match split_at {
         Some(idx) => parse_options(body[idx + 1..].trim_end_matches(')').trim()),
         None => Vec::new(),
     };
-    let for_each = crate::parse_blocks::parse_for_each_clause(body);
-    attrs.retain(|(k, _)| k != "for_each");
-    Some(DrivenDispatch {
-        command,
-        attrs,
-        for_each,
-    })
+    Some(DrivenDispatch { command, attrs })
 }
 
 fn parse_canned_block(lines: &[&str]) -> (Option<CannedResponse>, usize) {

@@ -2,16 +2,20 @@ module Hecksagain
   module Bluebook
     module IR
       class Aggregate
+        # A construct like every other: the aggregate carries its own identity
+        # and sits in the owner chain between its chapter (an IR::Bluebook) and
+        # everything declared on it. The chain is IR objects end to end now —
+        # reference resolution and hecks_fqn both walk it, and neither needs a
+        # Ruby class to exist.
+        include Construct
 
-        # The BLUEBOOK's name for this construct, asked the same way of a class
-        # that has crossed over and of an IR object that has not. Collapses into
-        # Construct when this one crosses.
-        def hecks_name = @name
         attr_reader :name, :description, :attributes, :value_objects, :commands,
                     :identified_by, :identity_paths, :identity_heads, :lifecycle,
                     :entities, :queries, :policies, :reference_targets
 
-        attr_accessor :ruby_class
+        # An aggregate is a MEMBER of its chapter's namespace — "Pizzas::Pizza" —
+        # where everything else is declared ON its owner and joins with ".".
+        def hecks_separator = "::"
 
         def initialize(name:, description: nil, attributes: [], value_objects: [],
                        commands: [], identified_by: [], lifecycle: nil,
@@ -20,6 +24,7 @@ module Hecksagain
           @queries       = queries
           @policies      = policies
           @name          = name.to_s
+          @hecks_name    = @name
           @description   = description
           @attributes    = attributes
           @value_objects = value_objects
@@ -47,6 +52,14 @@ module Hecksagain
           @value_objects_by_name = @value_objects.to_h { |shape| [shape.hecks_name, shape] }
           @commands_by_name      = @commands.to_h { |verb| [verb.hecks_name, verb] }
           @queries_by_name       = @queries.to_h { |ask| [ask.hecks_name, ask] }
+
+          # THE AGGREGATE STAMPS ITS OWN CHILDREN. Owner links are only ever
+          # read lazily — hecks_fqn at ask time, Reference#resolve at dispatch
+          # time — so the constructor is the right stamping point : by the time
+          # an Aggregate exists its declarations are final, and nothing outside
+          # needs to remember to stamp them. (An entity stamps its own commands
+          # and queries when it is declared, so the chain closes downward.)
+          (@commands + @value_objects + @entities + @queries).each { |child| child.hecks_owner = self }
         end
 
         def attribute(named)    = @attributes_by_name[named.to_sym]

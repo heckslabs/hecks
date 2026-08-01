@@ -3,6 +3,7 @@
     {
       "attributes": [
         {
+          "admits": null,
           "default": null,
           "list": false,
           "name": "symbol",
@@ -11,6 +12,7 @@
           "type": "OperatorSymbol"
         },
         {
+          "admits": null,
           "default": null,
           "list": false,
           "name": "category",
@@ -19,6 +21,7 @@
           "type": "Category"
         },
         {
+          "admits": null,
           "default": null,
           "list": false,
           "name": "precedence",
@@ -27,6 +30,7 @@
           "type": "Precedence"
         },
         {
+          "admits": null,
           "default": null,
           "list": false,
           "name": "arity",
@@ -35,6 +39,7 @@
           "type": "Arity"
         },
         {
+          "admits": null,
           "default": null,
           "list": true,
           "name": "renderings",
@@ -47,6 +52,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "symbol",
@@ -55,6 +61,7 @@
               "type": "OperatorSymbol"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "category",
@@ -63,6 +70,7 @@
               "type": "Category"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "precedence",
@@ -71,6 +79,7 @@
               "type": "Precedence"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "arity",
@@ -96,6 +105,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "target",
@@ -104,6 +114,7 @@
               "type": "Target"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "form",
@@ -207,6 +218,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -230,6 +242,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -253,6 +266,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -276,6 +290,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -287,8 +302,8 @@
           "closed_set": false,
           "invariants": [
             {
-              "canonical": "value > 0",
-              "description": "an operator takes at least one operand"
+              "canonical": "value > 0 && value <= 3",
+              "description": "an operator takes one, two or three operands"
             }
           ],
           "members": [
@@ -299,6 +314,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -319,6 +335,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -339,6 +356,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "target",
@@ -347,6 +365,7 @@
               "type": "String"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "form",
@@ -376,6 +395,7 @@
     {
       "attributes": [
         {
+          "admits": null,
           "default": null,
           "list": false,
           "name": "name",
@@ -384,6 +404,7 @@
           "type": "RuleName"
         },
         {
+          "admits": null,
           "default": null,
           "list": false,
           "name": "strategy",
@@ -392,6 +413,7 @@
           "type": "Strategy"
         },
         {
+          "admits": null,
           "default": null,
           "list": false,
           "name": "source_token",
@@ -400,6 +422,7 @@
           "type": "SourceToken"
         },
         {
+          "admits": null,
           "default": null,
           "list": false,
           "name": "replacement",
@@ -408,6 +431,7 @@
           "type": "Replacement"
         },
         {
+          "admits": null,
           "default": null,
           "list": false,
           "name": "boundary",
@@ -416,6 +440,7 @@
           "type": "Boundary"
         },
         {
+          "admits": null,
           "default": null,
           "list": false,
           "name": "position",
@@ -424,6 +449,7 @@
           "type": "Position"
         },
         {
+          "admits": null,
           "default": null,
           "list": true,
           "name": "readings",
@@ -436,6 +462,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "name",
@@ -444,6 +471,7 @@
               "type": "RuleName"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "strategy",
@@ -452,6 +480,7 @@
               "type": "Strategy"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "source_token",
@@ -460,6 +489,7 @@
               "type": "SourceToken"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "replacement",
@@ -468,6 +498,7 @@
               "type": "Replacement"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "boundary",
@@ -476,6 +507,7 @@
               "type": "Boundary"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "position",
@@ -508,6 +540,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "target",
@@ -516,6 +549,7 @@
               "type": "Target"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "form",
@@ -619,6 +653,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -642,6 +677,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -665,6 +701,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -685,6 +722,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -705,6 +743,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": "none",
               "list": false,
               "name": "value",
@@ -728,6 +767,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -751,6 +791,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -771,6 +812,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -791,6 +833,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "strategy",
@@ -799,6 +842,7 @@
               "type": "String"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "source_token",
@@ -807,6 +851,7 @@
               "type": "String"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "replacement",
@@ -815,6 +860,7 @@
               "type": "String"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "boundary",
@@ -823,6 +869,7 @@
               "type": "String"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "position",
@@ -886,6 +933,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "target",
@@ -894,6 +942,7 @@
               "type": "String"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "form",
@@ -923,6 +972,7 @@
     {
       "attributes": [
         {
+          "admits": null,
           "default": null,
           "list": false,
           "name": "description",
@@ -931,6 +981,7 @@
           "type": "Description"
         },
         {
+          "admits": null,
           "default": null,
           "list": false,
           "name": "source",
@@ -939,6 +990,7 @@
           "type": "Source"
         },
         {
+          "admits": null,
           "default": null,
           "list": false,
           "name": "canonical",
@@ -947,6 +999,7 @@
           "type": "Canonical"
         },
         {
+          "admits": null,
           "default": null,
           "list": false,
           "name": "subject",
@@ -955,6 +1008,7 @@
           "type": "Subject"
         },
         {
+          "admits": null,
           "default": null,
           "list": false,
           "name": "role",
@@ -963,6 +1017,7 @@
           "type": "ExpressionRole"
         },
         {
+          "admits": null,
           "default": null,
           "list": true,
           "name": "references",
@@ -975,6 +1030,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "description",
@@ -983,6 +1039,7 @@
               "type": "Description"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "source",
@@ -991,6 +1048,7 @@
               "type": "Source"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "canonical",
@@ -999,6 +1057,7 @@
               "type": "Canonical"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "subject",
@@ -1024,6 +1083,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "name",
@@ -1032,6 +1092,7 @@
               "type": "ReferenceName"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "kind",
@@ -1089,6 +1150,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "reason",
@@ -1143,6 +1205,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -1166,6 +1229,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -1186,6 +1250,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -1206,6 +1271,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -1229,6 +1295,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": "given",
               "list": false,
               "name": "value",
@@ -1252,6 +1319,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -1275,6 +1343,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -1298,6 +1367,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -1321,6 +1391,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "name",
@@ -1329,6 +1400,7 @@
               "type": "String"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "kind",
@@ -1358,6 +1430,7 @@
     {
       "attributes": [
         {
+          "admits": null,
           "default": null,
           "list": false,
           "name": "canonical",
@@ -1366,6 +1439,7 @@
           "type": "Canonical"
         },
         {
+          "admits": null,
           "default": null,
           "list": false,
           "name": "subject",
@@ -1374,6 +1448,7 @@
           "type": "Subject"
         },
         {
+          "admits": null,
           "default": null,
           "list": true,
           "name": "verdicts",
@@ -1386,6 +1461,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "canonical",
@@ -1394,6 +1470,7 @@
               "type": "Canonical"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "subject",
@@ -1419,6 +1496,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "runtime",
@@ -1427,6 +1505,7 @@
               "type": "Runtime"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "outcome",
@@ -1483,6 +1562,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "reason",
@@ -1537,6 +1617,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -1557,6 +1638,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -1580,6 +1662,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -1603,6 +1686,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -1626,6 +1710,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -1649,6 +1734,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "runtime",
@@ -1657,6 +1743,7 @@
               "type": "String"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "outcome",

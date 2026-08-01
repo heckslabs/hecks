@@ -5,8 +5,8 @@ module Hecksagain
     # This is the half that lets the language orchestrate. `Reconstruction` reads a
     # chapter back out of the meta-domain, in declaration order, as plain
     # declarations — the same shape `to_h` spells. This turns those declarations
-    # into the graph the runtime runs: aggregate classes with their verbs defined,
-    # value objects nested inside them, entities, asks, the chapter's namespace.
+    # into the graph the runtime runs: IR aggregates with their verbs, value
+    # objects, entities and asks, owned by the chapter that declares them.
     #
     # It takes a HASH, not a runtime, on purpose. That makes it a pure inverse of
     # `to_h` and testable without the meta-domain in the picture at all:
@@ -24,9 +24,9 @@ module Hecksagain
     # to have — and the price of that shape was fourteen verbs the language declared
     # and nothing ever offered.
     #
-    # What stays hand-written is the CONTAINMENT and the PROJECTION: which construct
-    # holds which, and how a head becomes a Ruby class with verbs on it. Neither is
-    # a field table.
+    # What stays hand-written is the CONTAINMENT: which construct holds which.
+    # That is not a field table. (The runtime SURFACE is no longer built here at
+    # all — the door is a per-boot projection, facade/surface.rb.)
     class Assembly
       def self.call(declaration) = new(declaration).bluebook
 
@@ -46,7 +46,6 @@ module Hecksagain
           process_managers: Array(@declaration[:process_managers]).map { |row| process_manager(row) }
         )
 
-        Installation.new(chapter, models).install
         chapter
       end
 

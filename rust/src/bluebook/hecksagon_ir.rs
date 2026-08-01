@@ -92,7 +92,6 @@ pub struct CannedResponse {
 pub struct DrivenDispatch {
     pub command: String,
     pub attrs: Vec<(String, String)>,
-    pub for_each: Option<crate::ir::ForEachSpec>,
 }
 
 #[derive(Debug, Clone, Default)]

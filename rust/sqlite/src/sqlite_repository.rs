@@ -353,11 +353,11 @@ fn numeric_paths(agg: &storehouse::ir::Aggregate) -> HashMap<String, String> {
             let shape = agg
                 .value_objects
                 .iter()
-                .find(|held| held.name == attribute.attr_type)?;
+                .find(|held| held.name == attribute.r#type)?;
             let member = shape
                 .attributes
                 .iter()
-                .find(|held| matches!(held.attr_type.as_str(), "Integer" | "Float"))?;
+                .find(|held| matches!(held.r#type.as_str(), "Integer" | "Float"))?;
 
             // The path is INTERPOLATED into SQL, never bound. A declared name is
             // not user input, but "bound, never interpolated" is the rule this
@@ -383,23 +383,31 @@ pub fn sqlite_factory(
             agg.name
         )
     })?;
-    let mut columns: Vec<(String, String)> = agg
-        .attributes
-        .iter()
-        .filter(|a| !matches!(a.name.as_str(), "id" | "created_at" | "updated_at"))
-        .map(|a| {
-            (
-                a.name.clone(),
-                if a.list { "TEXT".to_string() } else { crate::sqlite_mapping::sql_type(&a.attr_type).to_string() },
-            )
-        })
-        .collect();
     // `reference_to` declares an aggregate attribute in its own right.  Its
     // value is the referenced aggregate head, so persistence uses that
     // attribute's declared name (for example `customer_id`), just as the Ruby
     // adapter does.  Do not synthesize a second `*_id` column: it would never
     // receive the state value and makes a mirrored store diverge on reload.
-    for reference in &agg.references {
+    //
+    // References sort to the FRONT of the attribute list and to the END of the
+    // column list, so they are split back out here rather than read from a
+    // second collection.  A reference is a held id : always TEXT, whatever the
+    // referenced head declares.
+    let (references, declared): (Vec<_>, Vec<_>) = agg
+        .attributes
+        .iter()
+        .partition(|a| a.r#type.starts_with("Reference<"));
+    let mut columns: Vec<(String, String)> = declared
+        .iter()
+        .filter(|a| !matches!(a.name.as_str(), "id" | "created_at" | "updated_at"))
+        .map(|a| {
+            (
+                a.name.clone(),
+                if a.list { "TEXT".to_string() } else { crate::sqlite_mapping::sql_type(&a.r#type).to_string() },
+            )
+        })
+        .collect();
+    for reference in &references {
         let name = reference.name.clone();
         if !columns.iter().any(|(column, _)| column == &name) {
             columns.push((name, "TEXT".to_string()));
@@ -426,7 +434,7 @@ pub fn sqlite_factory(
     let repo = SqliteRepository::new(
         &agg.name,
         db_path,
-        agg.identified_by.clone(),
+        agg.identity_key(),
         columns,
         numeric_paths(agg),
     )

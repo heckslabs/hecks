@@ -17,7 +17,7 @@ Parse `.bluebook` source into the IR shape documented in `conformance-kit.md` §
 compared against `spec/golden/ir/*.json`. Start with `Pizzas.json` — it's the smallest, and exercises
 attributes, commands (both `set` and `append` mutations), a lifecycle, and non-closed value objects
 without needing entities, policies, process managers, or read models yet. `Banking.json` and
-`Meta.json` exercise closed-set value objects (`members`), entities, and cross-aggregate references
+`Bluebook.json` exercise closed-set value objects (`members`), entities, and cross-aggregate references
 — useful once the basic shape is solid.
 
 ## Stage 2 — Expression evaluator/resolver

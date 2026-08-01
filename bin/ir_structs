@@ -1,0 +1,372 @@
+#!/usr/bin/env ruby
+
+# THE LANGUAGE'S CATEGORY SHAPES, PROJECTED INTO RUST SOURCE.
+#
+# `bin/ir_vocabulary` projects the CLOSED SETS `Vocabulary` declares — two enums,
+# read from one aggregate's value objects. This is the next rung: the STRUCT
+# declarations, read from the thirteen category aggregates the language uses to
+# describe itself, plus the one thing the language cannot say about them.
+#
+# TWO SOURCES, because Ruby's IR is the language PLUS a fold table:
+#
+#   lib/hecksagain/language/bluebook/*.bluebook   what a category is made of
+#   lib/hecksagain/bluebook/assembly/contracts.rb which of those fields the IR
+#                                                 does not carry, and why
+#
+# The `derived:` column of a contract is what makes this generatable at all. It
+# is the language saying "this field is not a field" — a parent pointer the
+# containment tree already knows (`:parent`), a child collection (`:children`),
+# something computed (`:computed`), somewhere else entirely (`:elsewhere`), or a
+# FOLD: three flat fields the IR carries as one nested struct
+# (`state_field`/`state_start`/`transitions` → `lifecycle`). Without that column
+# a generator has to guess, and a generator that guesses is a hand-written copy
+# with extra steps.
+#
+# WHOLE FILE, NEVER A PATCH — same rule as bin/ir_vocabulary. This writes a
+# complete module; the structs it cannot honestly derive stay hand-written in
+# ir.rs and are named, with their reason, in the emitted header.
+#
+# Regenerate with:
+#
+#   bin/ir_structs > rust/src/bluebook/ir_structs.rs
+#
+# spec/ir_structs_export_spec.rb holds the checked-in file equal to this
+# script's current output.
+
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+require "hecksagain"
+# The one table that says which Rust enum a declared closed set becomes — shared
+# with bin/ir_vocabulary, which projects the sets themselves.
+require_relative "vocabulary_projections"
+
+N = Hecksagain::Naming
+
+# WHAT RUST CALLS EACH CATEGORY. Rust's business, said once — the same shape as
+# bin/ir_vocabulary's PROJECTIONS. The language says `Bluebook` because that is
+# the book a domain expert writes; Rust says `Domain` because that is what its
+# runtime holds.
+RUST_NAME = {
+  "Bluebook" => "Domain",
+  "Handler"  => "ProcessManagerHandler",
+  "Dispatch" => "DispatchSpec"
+}.freeze
+
+# WHAT RUST CALLS EACH ELEMENT VALUE OBJECT — and, where several map to one
+# name, the CLAIM THAT THEY ARE THE SAME DECLARATION. The language spells the
+# element of a list once per category, so `Field`, `Argument`, `AskArgument`,
+# `ShapeField` and `PieceField` are five spellings of one shape; Rust holds one
+# `Attribute`. The claim is checked below rather than trusted: if two of them
+# ever stop being byte-identical, this generator raises instead of quietly
+# collapsing a real difference.
+ELEMENT_NAME = {
+  "Field"           => "Attribute",
+  "Argument"        => "Attribute",
+  "AskArgument"     => "Attribute",
+  "ShapeField"      => "Attribute",
+  "PieceField"      => "Attribute",
+  "Transition"      => "Transition",
+  "PieceTransition" => "Transition",
+  "Rule"            => "Given",
+  "Assertion"       => "Invariant",
+  "Filter"          => "WhereClause",
+  "Head"            => "AggregateHead",
+  "Change"          => "Mutation",
+  "Binding"         => "Binding"
+}.freeze
+
+# WHAT IS PROJECTED. Everything else in ir.rs stays hand-written, and every
+# exclusion is a REASON, printed into the emitted header. Two kinds of reason:
+# the language has no source for the shape, or the language and Rust genuinely
+# disagree and the disagreement is a finding rather than a mapping rule.
+ROOTS    = %w[Bluebook Aggregate Entity Command ReadModel ProcessManager Handler].freeze
+ELEMENTS = [%w[Command Rule], %w[Aggregate Transition], %w[Query Filter]].freeze
+
+NOT_PROJECTED = {
+  "Lifecycle" => "a DECLARED FOLD — the language holds state_field/state_start/transitions flat on Aggregate and Entity, and contracts.rb folds them into this. The fold's TARGET is generatable (both structs get `lifecycle: Option<Lifecycle>`); the struct it targets is not.",
+  "OrderBy"   => "the same fold, one category over — Query holds order_field/order_way flat.",
+  "Direction" => "no language source. `order_way` is a QueryText, not a closed set; Vocabulary never declares the two directions.",
+  "LimitSpec" => "no language source. Query.limit is a QueryText — a plain string — so the language would project `Option<String>`, not a struct.",
+  "ValueSpec" => "no language source at all. from_event/from_pm/from_iter are a Rust-side reading of a dispatch binding; the language declares Binding as two plain strings.",
+  "Query"       => "DIVERGENCE — `limit`. The language declares Query.limit as QueryText (optional on Declare), which projects to Option<String>; Rust holds Option<LimitSpec>. Everything else in Query projects exactly.",
+  "ValueObject" => "DIVERGENCE — `members` and `closed_set`. The language models a member as its OWN root (the Member category, with an open map of pairs) and keeps only a `rows` COUNT on ValueObject; Rust holds the rows themselves plus a bool. contracts.rb marks `rows` as folded FROM closed_set+members, which is the fold running backwards — the language cannot hand back what it only counted.",
+  "Policy"      => "DIVERGENCE — `aggregate`. The language declares it and Ruby's IR::Policy carries it (which head the policy was WRITTEN inside, before the builder hoisted it onto the chapter), but Ruby keeps it off `to_h` on purpose: the wire is the contract between the runtimes and does not carry it. So Rust never grew the field. Projecting it would put a field on Rust that nothing can fill from the wire — the asymmetry is deliberate, and it is Ruby's comment, not this generator's, that should decide when it ends.",
+  "DispatchSpec" =>"DIVERGENCE — `with_spec`. The language declares list_of(Binding) where Binding is two plain strings, so it projects to Vec<Binding>; Rust holds Vec<(String, ValueSpec)> and reads each value as a from_event/from_pm/literal spec.",
+  "Attribute" => "DIVERGENCE — `enum_values`, and the flags. The language declares seven plain-String fields (name/type/list/optional/pattern/default/admits) and Rust carries all seven — `admits` reached the wire once it became a RULE both runtimes enforce, and this generator reads it to type a field besides (see WhereClause). Rust also carries `enum_values: Vec<String>` the language never declares, and reads `list`/`optional` as bool where the language admits only Strings. The five element declarations now agree that `pattern` and `default` are free text — Aggregate's three builders typed `pattern` as a ListFlag, which admits only \"true\"/\"false\" and so was false about a regex rather than merely loose — but they still disagree about `name`, `type` and the two flags, so no single type rule reads all five.",
+  "Invariant" => "DIVERGENCE — `description`. `Command::Rule` and `ValueObject::Assertion` are byte-identical declarations built by byte-identical commands (description OPTIONAL, canonical required), yet Rust holds Given.description as Option<String> and Invariant.description as String. The dedupe rule says these are one struct; Rust says they are two. Given is projected, Invariant is not.",
+  "Mutation" => "DIVERGENCE — arity. The language declares Change with five fields (target, op, field, kind, source); Rust's Mutation carries three (target, op, source) and types op as the MutationOp closed set. `field` and `kind` are declared and unread.",
+  "AggregateHead" => "DIVERGENCE — `many`. The language declares it as a plain ReadModelText and Rust reads it as a bool, with no ListFlag-style invariant behind it to read. `aggregate` used to be the second half of this: declared OPTIONAL on ReadModel.Gather against Rust's required String, and neither runtime can build a head without one, so the language was corrected and only the flag is left."
+}.freeze
+
+# RUST'S RESERVED WORDS, not a rename table. A field the language spells `type`
+# or `as` is spelled the same in Rust, escaped the one mechanical way Rust
+# offers. This is the whole of the naming rule.
+RUST_KEYWORDS = %w[
+  as async await break const continue crate dyn else enum extern false fn for if
+  impl in let loop match mod move mut pub ref return self Self static struct
+  super trait true type unsafe use where while
+].freeze
+
+def rust_ident(name)
+  RUST_KEYWORDS.include?(name.to_s) ? "r##{name}" : name.to_s
+end
+
+BLUEBOOK   = Hecksagain::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
+CONTRACTS  = Hecksagain::Bluebook::Assembly::CONTRACTS
+
+# `Vocabulary` declares closed sets, not a construct — bin/ir_vocabulary has it.
+# `Member` is a root the IR never builds (its contract holds no class at all),
+# because a member's pairs are an open map kept on the value object it belongs to.
+CATEGORIES = BLUEBOOK.aggregates.map(&:hecks_name) - %w[Vocabulary Member]
+
+def category(name)
+  BLUEBOOK.aggregate(name) or raise "the language declares no category #{name}"
+end
+
+def derived(name)
+  contract = CONTRACTS[name] or raise "contracts.rb has no contract for #{name}"
+  contract.derived || {}
+end
+
+def attributes_of(construct)
+  construct.attributes.map(&:to_h)
+end
+
+# THE ONE COMMAND THAT BUILDS AN ELEMENT, found by its ARGUMENTS rather than by
+# its name — `Rule` is built by `Command.Rule` and `Field` by `Aggregate.Attribute`,
+# so a name match would find one and miss the other. A command whose argument
+# names are exactly the element's field names is the command that builds it.
+def builder_of(cat, shape)
+  wanted  = attributes_of(shape).map { |f| f[:name].to_s }.sort
+  matches = category(cat).commands.select do |cmd|
+    attributes_of(cmd).map { |a| a[:name].to_s }.sort == wanted
+  end
+  raise "no command on #{cat} builds #{shape.hecks_name} (#{wanted.join(', ')})" if matches.empty?
+  raise "#{matches.size} commands on #{cat} build #{shape.hecks_name}" if matches.size > 1
+
+  matches.first
+end
+
+# WHICH ARGUMENTS A COMMAND LETS YOU LEAVE OUT. This is the whole of the
+# optionality rule: a field the declaring command requires is a String, and a
+# field it lets you omit — or never mentions at all — is an Option<String>.
+def optionality(command)
+  return Hash.new(true) if command.nil?
+
+  table = Hash.new(true)
+  attributes_of(command).each { |a| table[a[:name].to_s] = a[:optional] ? true : false }
+  table
+end
+
+def element_shape(cat, type_name)
+  category(cat).value_objects.find { |vo| vo.hecks_name == type_name.to_s }
+end
+
+def element_rust_name(shape)
+  ELEMENT_NAME.fetch(shape.hecks_name) do
+    raise "no Rust name declared for element #{shape.hecks_name}"
+  end
+end
+
+# THE DEDUPE CLAIM, CHECKED. Every element the table collapses onto one Rust
+# name must be the SAME DECLARATION — same field names, in the same order, with
+# the same declared types. Five spellings of one shape is a fact about the
+# language, not a convenience, so it fails loudly the day it stops being true.
+def verify_dedupe!
+  seen = Hash.new { |h, k| h[k] = [] }
+  CATEGORIES.each do |cat|
+    category(cat).value_objects.each do |vo|
+      rust = ELEMENT_NAME[vo.hecks_name] or next
+      seen[rust] << [ "#{cat}::#{vo.hecks_name}",
+                      attributes_of(vo).map { |f| [f[:name].to_s, f[:type].to_s] } ]
+    end
+  end
+
+  seen.each do |rust, spellings|
+    shapes = spellings.map(&:last).uniq
+    next if shapes.size <= 1
+
+    raise "#{rust} collapses #{spellings.map(&:first).join(', ')}, but they no longer " \
+          "declare the same shape: #{shapes.inspect}"
+  end
+end
+
+# HOW ONE DECLARED FIELD BECOMES ONE RUST FIELD, or becomes nothing.
+#
+#   position          skipped unconditionally — every category declares it for
+#                     the meta-domain's walk, and no Rust struct has one, because
+#                     Rust's Vec order IS the position
+#   Reference<X>      skipped — a parent pointer becomes NESTING ON THE PARENT
+#   named in derived  skipped — the contract already said it is not a field
+#   list_of(one-field VO)    Vec<String>
+#   list_of(multi-field VO)  Vec<Struct>
+#   anything else     String, or Option<String> if Declare lets you omit it
+def project_field(cat, attr, declare_optional)
+  name = attr[:name].to_s
+  return nil if name == "position"
+  return nil if attr[:type].to_s.start_with?("Reference<")
+  return nil if derived(cat).key?(name.to_sym)
+
+  if attr[:list]
+    shape = element_shape(cat, attr[:type])
+    raise "#{cat}.#{name} is a list of #{attr[:type]}, which #{cat} does not declare" if shape.nil?
+
+    inner = attributes_of(shape).size == 1 ? "String" : element_rust_name(shape)
+    [rust_ident(name), "Vec<#{inner}>", "list_of(#{attr[:type]})"]
+  else
+    rust = declare_optional[name] ? "Option<String>" : "String"
+    [rust_ident(name), rust, attr[:type].to_s]
+  end
+end
+
+# A PARENT REFERENCE, READ FROM THE OTHER END. `Command` declares
+# `aggregate_id: Reference<Aggregate>`; Rust does not put that on Command, it
+# puts `commands: Vec<Command>` on Aggregate. Same fact, other end — so the
+# back-reference is dropped above and the nesting is grown here.
+def nestings(cat)
+  CATEGORIES.filter_map do |child|
+    next unless attributes_of(category(child))
+                .any? { |a| a[:type].to_s == "Reference<#{cat}>" }
+
+    [ N.plural(N.snake(child)),
+      "Vec<#{RUST_NAME.fetch(child, child)}>",
+      "every #{child} whose parent this is" ]
+  end
+end
+
+# A FOLD'S TARGET. `state_field: [:folded, :lifecycle, :field]` says the IR
+# carries this as `lifecycle`, so `lifecycle` is a field even though the
+# language never declares one. A fold whose second element is a LIST is the
+# arrow running the other way — `rows` derived FROM closed_set and members —
+# and adds nothing.
+def folds(cat)
+  derived(cat).values
+              .select { |d| d.is_a?(Array) && d.first == :folded && d[1].is_a?(Symbol) }
+              .map    { |d| d[1] }
+              .uniq
+              .map    { |target| [target.to_s, "Option<#{N.pascal(target.to_s)}>", "declared fold"] }
+end
+
+# EVERY TYPE THE PROJECTED STRUCTS NAME, so the `use` line is derived too. A
+# generated struct reaches for hand-written ones — `Option<Lifecycle>`,
+# `Vec<Attribute>` — and which ones it reaches for changes the moment ROOTS
+# does, so listing them by hand would be one more copy to forget.
+BORROWED = []
+
+def borrow(type)
+  inner = type[/\A(?:Vec|Option)<(.+)>\z/, 1] || type
+  BORROWED << inner unless inner == "String"
+  type
+end
+
+def render(rust_name, source, rows)
+  lines = ["/// `#{source}`, as the language declares it.", "#[derive(Debug, Clone)]",
+           "pub struct #{rust_name} {"]
+  rows.each do |field, type, origin|
+    borrow(type)
+    lines << "    /// #{origin}"
+    lines << "    pub #{field}: #{type},"
+  end
+  lines << "}"
+  lines.join("\n")
+end
+
+def project_root(cat)
+  agg              = category(cat)
+  declare          = agg.commands.find { |c| c.hecks_name == "Declare" }
+  declare_optional = optionality(declare)
+  rows             = attributes_of(agg).filter_map { |a| project_field(cat, a, declare_optional) }
+  rows += folds(cat)
+  rows += nestings(cat)
+  raise "#{cat} projects to an empty struct" if rows.empty?
+
+  render(RUST_NAME.fetch(cat, cat), "Bluebook::#{cat}", rows)
+end
+
+# AN `admits` NAMES A SET THE LANGUAGE DECLARES — OR THIS RAISES.
+#
+# The link is carried as TEXT, because a closed set is a value object inside an
+# aggregate and `reference_to` reaches heads only, so reference resolution cannot
+# make this a consequence of the model the way an attribute's type is. Checked
+# here instead, where it is READ, and in the same voice as `verify_dedupe!` and
+# `builder_of` beside it: a claim the language cannot check for itself is checked
+# by its one reader, loudly.
+def admitted_enum(admitted, where)
+  aggregate, set = admitted.to_s.split("::", 2)
+  raise "#{where} admits #{admitted.inspect}, which names no aggregate — a closed set " \
+        "lives inside one, so the link is spelled Aggregate::SetName" if set.nil? || set.empty?
+
+  shape = category(aggregate).value_object(set) or
+    raise "#{where} admits #{admitted}, but #{aggregate} declares no #{set}"
+  raise "#{where} admits #{admitted}, which admits nothing — the field would be uninhabited" if shape.members.empty?
+
+  PROJECTIONS.fetch(set) do
+    raise "#{where} admits #{admitted}, which bin/ir_vocabulary does not project into Rust — " \
+          "there is no enum to type the field as"
+  end
+end
+
+def project_element(cat, shape_name)
+  shape       = element_shape(cat, shape_name) or raise "#{cat} declares no #{shape_name}"
+  builder     = builder_of(cat, shape)
+  optional    = optionality(builder)
+  rows = attributes_of(shape).filter_map do |field|
+    name = field[:name].to_s
+    next if name == "position"
+
+    # A FIELD THAT NAMES A CLOSED SET IS TYPED BY IT. This is the whole of what
+    # `admits` buys: Rust's WhereClause.op has always been a `WhereOp` and its
+    # parser has always mapped the eight strings correctly, but with the link
+    # unsaid this generator could only emit `String`, so the struct stayed
+    # hand-written. The language says it now, so the projection can read it.
+    rust = if field[:admits]
+             admitted_enum(field[:admits], "#{cat}::#{shape_name}.#{name}")
+           else
+             "String"
+           end
+    origin = field[:admits] ? "#{field[:type]}, admits #{field[:admits]}" : field[:type].to_s
+
+    [rust_ident(name), optional[name] ? "Option<#{rust}>" : rust,
+     "#{origin}, #{optional[name] ? 'optional' : 'required'} on #{cat}.#{builder.hecks_name}"]
+  end
+  render(element_rust_name(shape), "#{cat}::#{shape_name}", rows)
+end
+
+verify_dedupe!
+
+structs = ELEMENTS.map { |cat, shape| project_element(cat, shape) } +
+          ROOTS.map    { |cat| project_root(cat) }
+
+projected = ELEMENTS.map { |cat, shape| element_rust_name(element_shape(cat, shape)) } +
+            ROOTS.map    { |cat| RUST_NAME.fetch(cat, cat) }
+borrowed  = (BORROWED.uniq - projected).sort
+
+excluded = NOT_PROJECTED.map do |name, why|
+  wrapped = why.scan(/\S.{0,72}(?:\s|$)/).map(&:rstrip)
+  (["//   #{name}"] + wrapped.map { |w| "//     #{w}" }).join("\n")
+end.join("\n//\n")
+
+puts <<~RUST
+  // GENERATED BY bin/ir_structs — DO NOT EDIT BY HAND.
+  //
+  // The shapes the language declares about itself, projected into Rust structs.
+  // Sources: lib/hecksagain/language/bluebook/*.bluebook (the thirteen
+  // categories) and lib/hecksagain/bluebook/assembly/contracts.rb (the fold
+  // table — which declared fields the IR does not carry, and why).
+  // Regenerate: bin/ir_structs > rust/src/bluebook/ir_structs.rs
+  //
+  // Held equal to the generator's current output by
+  // spec/ir_structs_export_spec.rb, so a forgotten regeneration goes red rather
+  // than compiling a stale copy of a shape the language has since changed.
+  //
+  // WHAT IS NOT HERE, AND WHY. These stay hand-written in ir.rs. A generator
+  // that reached them would need a rule bigger than the struct, or would have to
+  // invent what the language does not say — so each is named with its reason,
+  // and each DIVERGENCE below is a real disagreement between the language and
+  // Rust that is worth closing at one end or the other:
+  //
+  #{excluded}
+
+  use super::ir::{#{borrowed.join(', ')}};
+
+  #{structs.join("\n\n")}
+RUST

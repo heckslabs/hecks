@@ -11,7 +11,7 @@ pub fn domain_to_value(domain: &Domain) -> Value {
         "name": model.name, "description": optional(&model.description),
         "reference_name": model.reference_name, "reference_target": model.reference_target,
         "aggregate_heads": model.aggregate_heads.iter().map(|head| json!({
-            "aggregate": head.aggregate, "as": head.name, "many": head.many
+            "aggregate": head.aggregate, "as": head.r#as, "many": head.many
         })).collect::<Vec<_>>(),
         "query_name": crate::naming::snake(&model.name)
     })).collect();
@@ -42,11 +42,14 @@ fn aggregate_to_value(aggregate: &Aggregate) -> Value {
         // A LIST, matching Ruby's `identity_paths` — the wire format for a
         // declared identity is always a list of parts, empty when nothing is
         // declared. There is no "id" default any more : an aggregate that names
-        // no field is an aggregate that names no field, not a hidden mint.
-        "identified_by": identity_list(&aggregate.identified_by),
-        "attributes": aggregate_attributes(aggregate),
+        // no field is an aggregate that names no field, not a hidden mint. The
+        // IR holds it as a list too now, so this is a copy, not a widening.
+        "identified_by": aggregate.identified_by,
+        // References included, already in place — `reference_to` leaves an
+        // attribute, and the parser is what put it at the front.
+        "attributes": aggregate.attributes.iter().map(attribute_to_value).collect::<Vec<_>>(),
         "value_objects": aggregate.value_objects.iter().map(value_object_to_value).collect::<Vec<_>>(),
-        "commands": aggregate.commands.iter().map(|c| command_to_value(c, &aggregate.name)).collect::<Vec<_>>(),
+        "commands": aggregate.commands.iter().map(command_to_value).collect::<Vec<_>>(),
         "lifecycle": aggregate.lifecycle.as_ref().map(lifecycle_to_value),
         "entities": aggregate.entities.iter().map(entity_to_value).collect::<Vec<_>>(),
         "queries": aggregate.queries.iter().map(query_to_value).collect::<Vec<_>>()
@@ -54,32 +57,13 @@ fn aggregate_to_value(aggregate: &Aggregate) -> Value {
     })
 }
 
-fn aggregate_attributes(aggregate: &Aggregate) -> Vec<Value> {
-    let declared = aggregate.attributes.iter().map(attribute_to_value);
-
-    let implied = aggregate.references.iter().map(|reference| {
-        json!({
-            "name": reference.name,
-            "type": format!("Reference<{}>", reference.target),
-            "list": false,
-            "default": Value::Null,
-            "optional": reference.optional,
-            // A reference is an ID, never pattern-matched — but Ruby builds this
-            // attribute through the shared collector, so its IR carries the key.
-            "pattern": Value::Null
-        })
-    });
-
-    implied.chain(declared).collect()
-}
-
 fn entity_to_value(entity: &Entity) -> Value {
     json!({
         "name": entity.name,
         "description": optional(&entity.description),
-        "identified_by": identity_list(&entity.identified_by),
+        "identified_by": entity.identified_by,
         "attributes": entity.attributes.iter().map(attribute_to_value).collect::<Vec<_>>(),
-        "commands": entity.commands.iter().map(|c| command_to_value(c, &entity.name)).collect::<Vec<_>>(),
+        "commands": entity.commands.iter().map(command_to_value).collect::<Vec<_>>(),
         "queries": entity.queries.iter().map(query_to_value).collect::<Vec<_>>(),
         "lifecycle": entity.lifecycle.as_ref().map(lifecycle_to_value)
     })
@@ -110,8 +94,7 @@ fn where_to_value(clause: &WhereClause) -> Value {
             WhereOp::Lt => "lt",
             WhereOp::Lte => "lte",
             WhereOp::In => "in",
-            WhereOp::Contains => "contains",
-            WhereOp::NoneInState => "none_in_state"
+            WhereOp::Contains => "contains"
         },
         "value": clause.value
     })
@@ -179,11 +162,12 @@ fn transition_to_value(transition: &Transition) -> Value {
 fn attribute_to_value(attribute: &Attribute) -> Value {
     json!({
         "name": attribute.name,
-        "type": attribute.attr_type,
+        "type": attribute.r#type,
         "list": attribute.list,
         "default": literal(attribute.default.as_deref()),
         "optional": attribute.optional,
-        "pattern": attribute.pattern
+        "pattern": attribute.pattern,
+        "admits": attribute.admits
     })
 }
 
@@ -193,8 +177,8 @@ fn value_object_to_value(value_object: &ValueObject) -> Value {
         .iter()
         .map(|invariant| {
             json!({
-                "description": invariant.name,
-                "canonical": canonicalise(&invariant.expression)
+                "description": invariant.description,
+                "canonical": canonicalise(&invariant.canonical)
             })
         })
         .collect();
@@ -220,90 +204,37 @@ fn value_object_to_value(value_object: &ValueObject) -> Value {
     })
 }
 
-fn command_to_value(command: &Command, owner: &str) -> Value {
+fn command_to_value(command: &Command) -> Value {
     let givens: Vec<Value> = command
         .givens
         .iter()
         .map(|given| {
             json!({
-                "description": optional(&given.message),
-                "canonical": canonicalise(&given.expression)
+                "description": optional(&given.description),
+                "canonical": canonicalise(&given.canonical)
             })
         })
-        .collect();
-
-    let references = command
-        .references
-        .iter()
-        .find(|reference| acts_on_root(reference, owner))
-        .map(|reference| Value::String(reference.target.clone()))
-        .unwrap_or(Value::Null);
-
-    let emits: Vec<Value> = command
-        .emits
-        .iter()
-        .map(|name| Value::String(name.clone()))
         .collect();
 
     json!({
         "name": command.name,
         "role": optional(&command.role),
-        "goal": optional(&command.description),
-        "references": references,
-        "attributes": command_attributes(command, owner),
+        "goal": optional(&command.goal),
+        "references": optional(&command.references),
+        "attributes": command.attributes.iter().map(attribute_to_value).collect::<Vec<_>>(),
         "givens": givens,
         "mutations": command.mutations.iter().map(mutation_to_value).collect::<Vec<_>>(),
-        "emits": emits
+        "emits": command.emits
     })
 }
 
-/// Is this reference the ROOT the command acts on, or a named attribute?
-///
-/// `as:` means "a named attribute", not "the root I act on" — so a command can
-/// point at another instance of its OWN kind, which is what
-/// `reference_to Aggregate, as: :points_at` says in the meta-domain. Mirrors
-/// CommandBuilder#reference_to: without this, Rust drops such a reference from the
-/// attributes AND claims it as the acted-on root, and the two runtimes disagree
-/// about the same line.
-///
-/// Explicitness is inferred by comparing against the derived name. When `as:` names
-/// exactly what the default would have produced, the two readings coincide anyway.
-fn acts_on_root(reference: &crate::ir::Reference, owner: &str) -> bool {
-    reference.target == owner
-        && reference.name == format!("{}_id", crate::naming::snake(&reference.target))
-}
-
-fn command_attributes(command: &Command, owner: &str) -> Vec<Value> {
-    let implied = command
-        .references
-        .iter()
-        .filter(|reference| !acts_on_root(reference, owner))
-        .map(|reference| {
-            json!({
-                "name": reference.name,
-                "type": format!("Reference<{}>", reference.target),
-                "list": false,
-                "default": Value::Null,
-                "optional": reference.optional,
-                "pattern": Value::Null
-            })
-        });
-
-    implied
-        .chain(command.attributes.iter().map(attribute_to_value))
-        .collect()
-}
-
 fn mutation_to_value(mutation: &crate::ir::Mutation) -> Value {
-    let target = mutation.field.clone();
+    let target = mutation.target.clone();
 
-    if matches!(
-        mutation.operation,
-        MutationOp::Append | MutationOp::AppendUnique
-    ) {
+    if matches!(mutation.op, MutationOp::Append) {
         let mut fields = Map::new();
         let body = mutation
-            .value
+            .source
             .trim()
             .trim_start_matches('{')
             .trim_end_matches('}');
@@ -322,14 +253,14 @@ fn mutation_to_value(mutation: &crate::ir::Mutation) -> Value {
         return json!({ "target": target, "op": "append", "fields": fields });
     }
 
-    let text = mutation.value.trim();
+    let text = mutation.source.trim();
     let source = if let Some(name) = text.strip_prefix(':') {
         json!({ "kind": "argument", "name": name })
     } else {
         json!({ "kind": "literal", "value": literal(Some(text)) })
     };
 
-    let op = match mutation.operation {
+    let op = match mutation.op {
         MutationOp::Increment => "increment",
         MutationOp::Decrement => "decrement",
         _ => "set",
@@ -499,18 +430,6 @@ fn optional(text: &Option<String>) -> Value {
     match text {
         Some(text) => Value::String(text.clone()),
         None => Value::Null,
-    }
-}
-
-// AN IDENTITY IS A LIST OF PARTS, on the wire the same way Ruby's
-// `identity_paths` is — one element for the ordinary single-field case, empty
-// when nothing is declared. Rust's own IR still holds one path (the corpus
-// declares nothing richer), so this is the export-time shape, not a new
-// internal representation ; Ruby is the one growing composite identities.
-fn identity_list(path: &Option<String>) -> Value {
-    match path {
-        Some(path) => Value::Array(vec![Value::String(path.clone())]),
-        None => Value::Array(vec![]),
     }
 }
 

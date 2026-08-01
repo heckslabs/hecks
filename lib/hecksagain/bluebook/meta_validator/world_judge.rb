@@ -38,7 +38,7 @@ module Hecksagain
 
         def judge!
           domain = @world.domain
-          send_to("Deployment::World.Declare", domain, domain: v(domain),
+          send_to("World::World.Declare", domain, domain: v(domain),
                   realm: v(@world.realm), latest: v(@world.latest))
 
           Hash(@world.settings).each do |verb, values|
@@ -63,13 +63,13 @@ module Hecksagain
           # to hold the same string, and stays a value object. The two look alike
           # and are not — which is exactly why the judge asks the type rather than
           # the name.
-          send_to("Deployment::Wiring.Declare", id, id: id, world_id: domain,
+          send_to("World::Wiring.Declare", id, id: id, world_id: domain,
                   world: v(domain), verb: v(verb), adapter: v(Hash(values)[:adapter]))
 
           Hash(values).each do |key, value|
             next if key.to_sym == :adapter
 
-            send_to("Deployment::Wiring.Set", id, id: id, key: v(key), value: v(value))
+            send_to("World::Wiring.Set", id, id: id, key: v(key), value: v(value))
           end
         end
       end

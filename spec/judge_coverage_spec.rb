@@ -89,14 +89,14 @@ end
 
   # Every command on every aggregate of the meta-domain, spelled as the judge
   # would dispatch it. World and Wiring live in world.bluebook and are judged
-  # through their own door (MetaValidator.call_world), so `bluebook("Meta")`
+  # through their own door (MetaValidator.call_world), so `bluebook("Bluebook")`
   # leaves them out by construction rather than by exclusion list. Vocabulary
   # declares no commands, so it contributes nothing and needs no special case —
   # it is static declaration read from the IR by spec/vocabulary_conformance_spec.
   def declared_verbs
     Hecksagain::Bluebook::MetaValidator.grammar_registry
-      .bluebook("Meta").aggregates
-      .flat_map { |aggregate| aggregate.commands.map { |c| "Meta::#{aggregate.name}.#{c.hecks_name}" } }
+      .bluebook("Bluebook").aggregates
+      .flat_map { |aggregate| aggregate.commands.map { |c| "Bluebook::#{aggregate.name}.#{c.hecks_name}" } }
   end
 
   it "offers every verb the language declares" do
@@ -130,7 +130,7 @@ end
     # optimises away.
     verbs = offered_in_order
 
-    expect(verbs.rindex("Meta::Aggregate.Declare"))
-      .to be < verbs.index("Meta::Aggregate.Attribute")
+    expect(verbs.rindex("Bluebook::Aggregate.Declare"))
+      .to be < verbs.index("Bluebook::Aggregate.Attribute")
   end
 end

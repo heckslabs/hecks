@@ -48,7 +48,7 @@ module Hecksagain
         def initialize(runtime, chapter)
           @runtime = runtime
           @plan    = Plan.for(MetaValidator.grammar_registry)
-          @chapter = runtime.query("Meta::Bluebook.Called", name: { value: chapter }).first or
+          @chapter = runtime.query("Bluebook::Bluebook.Called", name: { value: chapter }).first or
             raise NotFound, "the meta-domain holds no bluebook called #{chapter.inspect}"
         end
 
@@ -73,7 +73,7 @@ module Hecksagain
         # is the one the language's own creating command carries, read from Plan.
         def declared(category, parent_id)
           key = @plan.category(category).parent_key
-          @runtime.query("Meta::#{category}.DeclaredIn", key.to_sym => { value: parent_id.to_s })
+          @runtime.query("Bluebook::#{category}.DeclaredIn", key.to_sym => { value: parent_id.to_s })
         end
 
         # ONE DECLARATION, BUILT FROM THE CONTRACT.

@@ -36,7 +36,18 @@ Hecks.bluebook "Expression" do
 
     value_object "Arity" do
       attribute :value, Integer
-      invariant("an operator takes at least one operand") { value > 0 }
+      # WRITTEN ACROSS LINES ON PURPOSE, and this is the only predicate in the
+      # corpus that is. A CONTINUATION line is where the two parsers used to
+      # disagree: Ruby collapsed it, Rust joined every line with ` && ` and so
+      # read `value > 0 && && value <= 3` — a different canonical form for the
+      # same source, which is an IR-parity split waiting for the first
+      # multi-line rule anyone wrote. Every predicate here was kept on one line
+      # to dodge that. The join is continuation-aware now, so this case holds
+      # the fix : if it regresses, `bin/parity` stage 1 splits on grammar.
+      invariant("an operator takes one, two or three operands") do
+        value > 0 &&
+          value <= 3
+      end
     end
 
     value_object "Target" do

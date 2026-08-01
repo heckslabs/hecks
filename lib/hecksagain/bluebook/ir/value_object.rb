@@ -3,21 +3,19 @@ module Hecksagain
     module IR
       Invariant = Struct.new(:description, :canonical, :predicate, keyword_init: true)
 
-      # A value object, as a RUBY CLASS.
+      # A value object — a DECLARATION HOLDER, never instantiated.
       #
-      # `ValueObjectBuilder` used to return an instance of this — a parallel data
-      # model describing a shape Ruby is perfectly capable of BEING. It returns a
-      # subclass now, so `Pizzas::Pizza::Price` is a real constant nested where
-      # the bluebook nests it, and the declaration lives on its singleton.
-      #
-      # What that buys is one lookup fewer. `Value.for_attribute` asked
-      # `aggregate.value_object(attribute.type)` — a search by name string
-      # through the aggregate's declared shapes. Once an attribute's type IS the
-      # class, there is nothing to search : Ruby's constant tree is the index.
+      # `ValueObjectBuilder` returns an anonymous subclass whose singleton
+      # carries the declaration : attributes, invariants, members. Nothing ever
+      # calls `.new` on one — coercion builds `Runtime::Value` wrappers, and
+      # invariants run as canonical text through the Evaluator. The runtime
+      # reaches a shape through `aggregate.value_object(name)`, the IR's own
+      # finder ; there is no constant nesting and no second index.
       #
       # `to_h` does not move. It is a byte-for-byte contract with the Rust parser
       # through `bin/parity`, so it keeps spelling the short declared name, which
-      # is what `hecks_name` carries. CLASSES IN THE GRAPH, STRINGS IN THE EXPORT.
+      # is what `hecks_name` carries. DECLARATIONS IN THE GRAPH, STRINGS IN THE
+      # EXPORT.
       class ValueObject
         extend Construct
 

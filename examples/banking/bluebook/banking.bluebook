@@ -748,8 +748,21 @@ Hecks.bluebook "Banking" do
     attribute :end_to_end,  EndToEndReference
     attribute :amount,      ExternalAmount
     attribute :beneficiary, BeneficiaryName
+    # WHICH WAY THE MONEY MOVED ON THE ACCOUNT — and the bank already has a set
+    # for that. It is the LEDGER's set, declared once on Account, so this names
+    # it instead of restating it : spelling `credit`/`debit` a second time inside
+    # this aggregate would be a copy of a set the domain already holds, and a
+    # copy nothing compares is a copy that drifts.
+    attribute :direction,   MovementDirection, admits: "Account::LedgerDirection"
 
     value_object "EndToEndReference" do
+      attribute :value, String
+    end
+
+    # A plain text holder. The VALUES it may carry are Account's business, which
+    # is exactly the split `admits` exists to express: the TYPE is local, the SET
+    # is named.
+    value_object "MovementDirection" do
       attribute :value, String
     end
 
@@ -774,8 +787,13 @@ Hecks.bluebook "Banking" do
       attribute :end_to_end, EndToEndReference
       attribute :amount, ExternalAmount
       attribute :beneficiary, BeneficiaryName
+      # Named on the ARGUMENT as well as on the head : the head says what the
+      # aggregate holds, this is where a caller hands one in, and a set that is
+      # only named where it is stored is not refusing anybody.
+      attribute :direction, MovementDirection, admits: "Account::LedgerDirection"
       then_set :amount, to: :amount
       then_set :beneficiary, to: :beneficiary
+      then_set :direction, to: :direction
       emits "ExternalTransferRequested"
     end
 

@@ -3,6 +3,7 @@
     {
       "attributes": [
         {
+          "admits": null,
           "default": null,
           "list": false,
           "name": "name",
@@ -11,6 +12,7 @@
           "type": "BluebookName"
         },
         {
+          "admits": null,
           "default": null,
           "list": false,
           "name": "vision",
@@ -19,6 +21,7 @@
           "type": "Vision"
         },
         {
+          "admits": null,
           "default": null,
           "list": false,
           "name": "classification",
@@ -27,6 +30,7 @@
           "type": "Classification"
         },
         {
+          "admits": null,
           "default": null,
           "list": false,
           "name": "version",
@@ -35,6 +39,7 @@
           "type": "Version"
         },
         {
+          "admits": null,
           "default": null,
           "list": true,
           "name": "normalisations",
@@ -47,6 +52,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "name",
@@ -55,6 +61,7 @@
               "type": "BluebookName"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "vision",
@@ -63,6 +70,7 @@
               "type": "Vision"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "classification",
@@ -71,6 +79,7 @@
               "type": "Classification"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "version",
@@ -96,6 +105,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "strategy",
@@ -104,6 +114,7 @@
               "type": "RuleText"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "source_token",
@@ -112,6 +123,7 @@
               "type": "RuleText"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "replacement",
@@ -120,6 +132,7 @@
               "type": "RuleText"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "boundary",
@@ -128,6 +141,7 @@
               "type": "RuleText"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "position",
@@ -174,6 +188,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "name",
@@ -199,6 +214,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -219,6 +235,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "strategy",
@@ -227,6 +244,7 @@
               "type": "String"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "source_token",
@@ -235,6 +253,7 @@
               "type": "String"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "replacement",
@@ -243,6 +262,7 @@
               "type": "String"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "boundary",
@@ -251,6 +271,7 @@
               "type": "String"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "position",
@@ -271,6 +292,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -294,6 +316,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -317,6 +340,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -340,6 +364,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -365,6 +390,7 @@
     {
       "attributes": [
         {
+          "admits": null,
           "default": null,
           "list": false,
           "name": "bluebook_id",
@@ -373,6 +399,7 @@
           "type": "Reference<Bluebook>"
         },
         {
+          "admits": null,
           "default": null,
           "list": false,
           "name": "name",
@@ -381,6 +408,7 @@
           "type": "AggregateName"
         },
         {
+          "admits": null,
           "default": null,
           "list": false,
           "name": "description",
@@ -389,6 +417,7 @@
           "type": "Description"
         },
         {
+          "admits": null,
           "default": null,
           "list": true,
           "name": "identified_by",
@@ -397,6 +426,7 @@
           "type": "IdentityPath"
         },
         {
+          "admits": null,
           "default": null,
           "list": true,
           "name": "attributes",
@@ -405,6 +435,7 @@
           "type": "Field"
         },
         {
+          "admits": null,
           "default": null,
           "list": true,
           "name": "value_objects",
@@ -413,6 +444,7 @@
           "type": "ValueName"
         },
         {
+          "admits": null,
           "default": null,
           "list": false,
           "name": "state_field",
@@ -421,6 +453,7 @@
           "type": "IdentityField"
         },
         {
+          "admits": null,
           "default": null,
           "list": false,
           "name": "state_start",
@@ -429,6 +462,7 @@
           "type": "IdentityField"
         },
         {
+          "admits": null,
           "default": null,
           "list": true,
           "name": "transitions",
@@ -437,6 +471,7 @@
           "type": "Transition"
         },
         {
+          "admits": null,
           "default": null,
           "list": false,
           "name": "position",
@@ -449,6 +484,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "bluebook_id",
@@ -457,6 +493,7 @@
               "type": "Reference<Bluebook>"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "name",
@@ -465,6 +502,7 @@
               "type": "AggregateName"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "description",
@@ -473,6 +511,7 @@
               "type": "Description"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "position",
@@ -498,6 +537,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "path",
@@ -532,6 +572,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "type",
@@ -540,6 +581,7 @@
               "type": "Reference<ValueObject>"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "name",
@@ -548,6 +590,7 @@
               "type": "FieldName"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "list",
@@ -556,6 +599,7 @@
               "type": "ListFlag"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "optional",
@@ -564,17 +608,28 @@
               "type": "ListFlag"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "pattern",
               "optional": true,
               "pattern": null,
-              "type": "ListFlag"
+              "type": "LiteralText"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "default",
+              "optional": true,
+              "pattern": null,
+              "type": "LiteralText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "admits",
               "optional": true,
               "pattern": null,
               "type": "LiteralText"
@@ -590,6 +645,7 @@
           "mutations": [
             {
               "fields": {
+                "admits": "admits",
                 "default": "default",
                 "list": "list",
                 "name": "name",
@@ -608,6 +664,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "points_at",
@@ -616,6 +673,7 @@
               "type": "Reference<Aggregate>"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "name",
@@ -624,6 +682,7 @@
               "type": "FieldName"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "list",
@@ -632,6 +691,7 @@
               "type": "ListFlag"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "optional",
@@ -640,17 +700,28 @@
               "type": "ListFlag"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "pattern",
               "optional": true,
               "pattern": null,
-              "type": "ListFlag"
+              "type": "LiteralText"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "default",
+              "optional": true,
+              "pattern": null,
+              "type": "LiteralText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "admits",
               "optional": true,
               "pattern": null,
               "type": "LiteralText"
@@ -666,6 +737,7 @@
           "mutations": [
             {
               "fields": {
+                "admits": "admits",
                 "default": "default",
                 "list": "list",
                 "name": "name",
@@ -684,6 +756,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "holds",
@@ -692,6 +765,7 @@
               "type": "Reference<Entity>"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "name",
@@ -700,6 +774,7 @@
               "type": "FieldName"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "list",
@@ -708,6 +783,7 @@
               "type": "ListFlag"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "optional",
@@ -716,17 +792,28 @@
               "type": "ListFlag"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "pattern",
               "optional": true,
               "pattern": null,
-              "type": "ListFlag"
+              "type": "LiteralText"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "default",
+              "optional": true,
+              "pattern": null,
+              "type": "LiteralText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "admits",
               "optional": true,
               "pattern": null,
               "type": "LiteralText"
@@ -742,6 +829,7 @@
           "mutations": [
             {
               "fields": {
+                "admits": "admits",
                 "default": "default",
                 "list": "list",
                 "name": "name",
@@ -760,6 +848,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "state_field",
@@ -768,6 +857,7 @@
               "type": "FieldName"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "state_start",
@@ -808,6 +898,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "command",
@@ -816,6 +907,7 @@
               "type": "FieldName"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "from_state",
@@ -824,6 +916,7 @@
               "type": "FieldName"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "to_state",
@@ -878,6 +971,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "name",
@@ -921,6 +1015,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "bluebook_id",
@@ -949,6 +1044,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -972,6 +1068,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -995,6 +1092,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -1015,6 +1113,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -1035,6 +1134,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "name",
@@ -1043,6 +1143,7 @@
               "type": "String"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "type",
@@ -1051,6 +1152,7 @@
               "type": "String"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "list",
@@ -1059,6 +1161,7 @@
               "type": "String"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "optional",
@@ -1067,6 +1170,7 @@
               "type": "String"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "pattern",
@@ -1075,10 +1179,20 @@
               "type": "String"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "default",
               "optional": false,
+              "pattern": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "admits",
+              "optional": true,
               "pattern": null,
               "type": "String"
             }
@@ -1095,6 +1209,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "name",
@@ -1115,6 +1230,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "command",
@@ -1123,6 +1239,7 @@
               "type": "String"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "from_state",
@@ -1131,6 +1248,7 @@
               "type": "String"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "to_state",
@@ -1151,6 +1269,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -1171,6 +1290,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -1194,6 +1314,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -1217,6 +1338,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -1237,6 +1359,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -1262,6 +1385,7 @@
     {
       "attributes": [
         {
+          "admits": null,
           "default": null,
           "list": false,
           "name": "aggregate_id",
@@ -1270,6 +1394,7 @@
           "type": "Reference<Aggregate>"
         },
         {
+          "admits": null,
           "default": null,
           "list": false,
           "name": "entity_id",
@@ -1278,6 +1403,7 @@
           "type": "Reference<Entity>"
         },
         {
+          "admits": null,
           "default": null,
           "list": false,
           "name": "name",
@@ -1286,6 +1412,7 @@
           "type": "CommandName"
         },
         {
+          "admits": null,
           "default": null,
           "list": false,
           "name": "role",
@@ -1294,6 +1421,7 @@
           "type": "Actor"
         },
         {
+          "admits": null,
           "default": null,
           "list": false,
           "name": "goal",
@@ -1302,6 +1430,7 @@
           "type": "Goal"
         },
         {
+          "admits": null,
           "default": null,
           "list": true,
           "name": "emits",
@@ -1310,6 +1439,7 @@
           "type": "Announcement"
         },
         {
+          "admits": null,
           "default": null,
           "list": false,
           "name": "references",
@@ -1318,6 +1448,7 @@
           "type": "EventName"
         },
         {
+          "admits": null,
           "default": null,
           "list": true,
           "name": "attributes",
@@ -1326,6 +1457,7 @@
           "type": "Argument"
         },
         {
+          "admits": null,
           "default": null,
           "list": true,
           "name": "givens",
@@ -1334,6 +1466,7 @@
           "type": "Rule"
         },
         {
+          "admits": null,
           "default": null,
           "list": true,
           "name": "mutations",
@@ -1342,6 +1475,7 @@
           "type": "Change"
         },
         {
+          "admits": null,
           "default": null,
           "list": false,
           "name": "position",
@@ -1354,6 +1488,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "aggregate_id",
@@ -1362,6 +1497,7 @@
               "type": "Reference<Aggregate>"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "entity_id",
@@ -1370,6 +1506,7 @@
               "type": "Reference<Entity>"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "name",
@@ -1378,6 +1515,7 @@
               "type": "CommandName"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "role",
@@ -1386,6 +1524,7 @@
               "type": "Actor"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "goal",
@@ -1394,6 +1533,7 @@
               "type": "Goal"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "position",
@@ -1419,6 +1559,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "name",
@@ -1427,6 +1568,7 @@
               "type": "ArgName"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "type",
@@ -1435,6 +1577,7 @@
               "type": "ArgType"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "list",
@@ -1443,6 +1586,7 @@
               "type": "ArgType"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "optional",
@@ -1451,6 +1595,7 @@
               "type": "ArgType"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "pattern",
@@ -1459,9 +1604,19 @@
               "type": "ArgType"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "default",
+              "optional": true,
+              "pattern": null,
+              "type": "ArgType"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "admits",
               "optional": true,
               "pattern": null,
               "type": "ArgType"
@@ -1477,6 +1632,7 @@
           "mutations": [
             {
               "fields": {
+                "admits": "admits",
                 "default": "default",
                 "list": "list",
                 "name": "name",
@@ -1495,6 +1651,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "points_at",
@@ -1503,6 +1660,7 @@
               "type": "Reference<Aggregate>"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "name",
@@ -1511,6 +1669,7 @@
               "type": "ArgName"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "list",
@@ -1519,6 +1678,7 @@
               "type": "ArgType"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "optional",
@@ -1527,6 +1687,7 @@
               "type": "ArgType"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "pattern",
@@ -1535,9 +1696,19 @@
               "type": "ArgType"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "default",
+              "optional": true,
+              "pattern": null,
+              "type": "ArgType"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "admits",
               "optional": true,
               "pattern": null,
               "type": "ArgType"
@@ -1553,6 +1724,7 @@
           "mutations": [
             {
               "fields": {
+                "admits": "admits",
                 "default": "default",
                 "list": "list",
                 "name": "name",
@@ -1571,6 +1743,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "description",
@@ -1579,6 +1752,7 @@
               "type": "RuleText"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "canonical",
@@ -1618,6 +1792,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "target",
@@ -1626,6 +1801,7 @@
               "type": "FieldRef"
             },
             {
+              "admits": "Vocabulary::MutationOp",
               "default": null,
               "list": false,
               "name": "op",
@@ -1634,6 +1810,7 @@
               "type": "OpName"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "field",
@@ -1642,6 +1819,7 @@
               "type": "FieldRef"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "kind",
@@ -1650,6 +1828,7 @@
               "type": "FieldRef"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "source",
@@ -1692,6 +1871,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "root",
@@ -1731,6 +1911,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "announces",
@@ -1777,6 +1958,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "aggregate_id",
@@ -1805,6 +1987,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -1828,6 +2011,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -1848,6 +2032,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -1868,6 +2053,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -1888,6 +2074,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "name",
@@ -1908,6 +2095,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "name",
@@ -1916,6 +2104,7 @@
               "type": "String"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "type",
@@ -1924,6 +2113,7 @@
               "type": "String"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "list",
@@ -1932,6 +2122,7 @@
               "type": "String"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "optional",
@@ -1940,6 +2131,7 @@
               "type": "String"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "pattern",
@@ -1948,10 +2140,20 @@
               "type": "String"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "default",
               "optional": false,
+              "pattern": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "admits",
+              "optional": true,
               "pattern": null,
               "type": "String"
             }
@@ -1968,6 +2170,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "description",
@@ -1976,6 +2179,7 @@
               "type": "String"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "canonical",
@@ -1996,6 +2200,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "target",
@@ -2004,6 +2209,7 @@
               "type": "String"
             },
             {
+              "admits": "Vocabulary::MutationOp",
               "default": null,
               "list": false,
               "name": "op",
@@ -2012,6 +2218,7 @@
               "type": "String"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "field",
@@ -2020,6 +2227,7 @@
               "type": "String"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "kind",
@@ -2028,6 +2236,7 @@
               "type": "String"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "source",
@@ -2048,6 +2257,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -2068,6 +2278,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -2088,6 +2299,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -2111,6 +2323,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -2131,6 +2344,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -2151,6 +2365,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -2171,6 +2386,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -2181,10 +2397,7 @@
           ],
           "closed_set": false,
           "invariants": [
-            {
-              "canonical": "value.to_s == \"set\" || value.to_s == \"append\" || value.to_s == \"increment\" || value.to_s == \"decrement\"",
-              "description": "an op is one the runtime applies"
-            }
+
           ],
           "members": [
 
@@ -2196,6 +2409,7 @@
     {
       "attributes": [
         {
+          "admits": null,
           "default": null,
           "list": false,
           "name": "aggregate_id",
@@ -2204,38 +2418,88 @@
           "type": "Reference<Aggregate>"
         },
         {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "entity_id",
+          "optional": false,
+          "pattern": null,
+          "type": "Reference<Entity>"
+        },
+        {
+          "admits": null,
           "default": null,
           "list": false,
           "name": "name",
           "optional": false,
           "pattern": null,
-          "type": "ValueObjectName"
+          "type": "QueryName"
         },
         {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "description",
+          "optional": false,
+          "pattern": null,
+          "type": "QueryText"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "order_field",
+          "optional": false,
+          "pattern": null,
+          "type": "QueryText"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "order_way",
+          "optional": false,
+          "pattern": null,
+          "type": "QueryText"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "limit",
+          "optional": false,
+          "pattern": null,
+          "type": "QueryText"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": true,
+          "name": "wheres",
+          "optional": false,
+          "pattern": null,
+          "type": "Filter"
+        },
+        {
+          "admits": null,
           "default": null,
           "list": true,
           "name": "attributes",
           "optional": false,
           "pattern": null,
-          "type": "ShapeField"
+          "type": "AskArgument"
         },
         {
+          "admits": null,
           "default": null,
           "list": true,
-          "name": "invariants",
+          "name": "options",
           "optional": false,
           "pattern": null,
-          "type": "Assertion"
+          "type": "AskOption"
         },
         {
-          "default": null,
-          "list": false,
-          "name": "rows",
-          "optional": false,
-          "pattern": null,
-          "type": "RowCount"
-        },
-        {
+          "admits": null,
           "default": null,
           "list": false,
           "name": "position",
@@ -2248,6 +2512,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "aggregate_id",
@@ -2256,6 +2521,634 @@
               "type": "Reference<Aggregate>"
             },
             {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "entity_id",
+              "optional": true,
+              "pattern": null,
+              "type": "Reference<Entity>"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "name",
+              "optional": false,
+              "pattern": null,
+              "type": "QueryName"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "description",
+              "optional": true,
+              "pattern": null,
+              "type": "QueryText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "order_field",
+              "optional": true,
+              "pattern": null,
+              "type": "QueryText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "order_way",
+              "optional": true,
+              "pattern": null,
+              "type": "QueryText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "limit",
+              "optional": true,
+              "pattern": null,
+              "type": "QueryText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "position",
+              "optional": true,
+              "pattern": null,
+              "type": "Position"
+            }
+          ],
+          "emits": [
+            "AskDeclared"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Open a query on an aggregate",
+          "mutations": [
+
+          ],
+          "name": "Declare",
+          "references": null,
+          "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "field",
+              "optional": false,
+              "pattern": null,
+              "type": "QueryText"
+            },
+            {
+              "admits": "Vocabulary::QueryComparator",
+              "default": null,
+              "list": false,
+              "name": "op",
+              "optional": false,
+              "pattern": null,
+              "type": "QueryText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "QueryText"
+            }
+          ],
+          "emits": [
+            "FilterAttached"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Attach one where-clause to the query",
+          "mutations": [
+            {
+              "fields": {
+                "field": "field",
+                "op": "op",
+                "value": "value"
+              },
+              "op": "append",
+              "target": "wheres"
+            }
+          ],
+          "name": "Filter",
+          "references": "Query",
+          "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "option",
+              "optional": false,
+              "pattern": null,
+              "type": "QueryText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "key",
+              "optional": false,
+              "pattern": null,
+              "type": "QueryText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": true,
+              "pattern": null,
+              "type": "QueryText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "at",
+              "optional": true,
+              "pattern": null,
+              "type": "QueryText"
+            }
+          ],
+          "emits": [
+            "OptionAttached"
+          ],
+          "givens": [
+            {
+              "canonical": "!option.value.to_s.empty?",
+              "description": "an option is named"
+            }
+          ],
+          "goal": "Attach one part of one specification option to the query",
+          "mutations": [
+            {
+              "fields": {
+                "at": "at",
+                "key": "key",
+                "option": "option",
+                "value": "value"
+              },
+              "op": "append",
+              "target": "options"
+            }
+          ],
+          "name": "Option",
+          "references": "Query",
+          "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "name",
+              "optional": false,
+              "pattern": null,
+              "type": "QueryText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "type",
+              "optional": false,
+              "pattern": null,
+              "type": "QueryText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "list",
+              "optional": false,
+              "pattern": null,
+              "type": "QueryText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "optional",
+              "optional": true,
+              "pattern": null,
+              "type": "QueryText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "pattern",
+              "optional": true,
+              "pattern": null,
+              "type": "QueryText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "default",
+              "optional": true,
+              "pattern": null,
+              "type": "QueryText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "admits",
+              "optional": true,
+              "pattern": null,
+              "type": "QueryText"
+            }
+          ],
+          "emits": [
+            "AskArgumentAttached"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Attach one parameter to the query",
+          "mutations": [
+            {
+              "fields": {
+                "admits": "admits",
+                "default": "default",
+                "list": "list",
+                "name": "name",
+                "optional": "optional",
+                "pattern": "pattern",
+                "type": "type"
+              },
+              "op": "append",
+              "target": "attributes"
+            }
+          ],
+          "name": "Argument",
+          "references": "Query",
+          "role": "Language"
+        }
+      ],
+      "description": "One query declared on an aggregate — what it filters on, how it orders, and how many it returns.",
+      "entities": [
+
+      ],
+      "identified_by": [
+        "owner_id",
+        "name.value"
+      ],
+      "lifecycle": null,
+      "name": "Query",
+      "queries": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "aggregate_id",
+              "optional": false,
+              "pattern": null,
+              "type": "QueryText"
+            }
+          ],
+          "description": null,
+          "limit": null,
+          "name": "DeclaredIn",
+          "order_by": {
+            "direction": "asc",
+            "field": "position"
+          },
+          "wheres": [
+            {
+              "field": "aggregate_id",
+              "op": "eq",
+              "value": ":aggregate_id"
+            }
+          ]
+        }
+      ],
+      "value_objects": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "a query is named"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "QueryName"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "QueryText"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "field",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            },
+            {
+              "admits": "Vocabulary::QueryComparator",
+              "default": null,
+              "list": false,
+              "name": "op",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Filter"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "name",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "type",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "list",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "optional",
+              "optional": true,
+              "pattern": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "pattern",
+              "optional": true,
+              "pattern": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "default",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "admits",
+              "optional": true,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "AskArgument"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "option",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "key",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "at",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "AskOption"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "Integer"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Position"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "aggregate_id",
+          "optional": false,
+          "pattern": null,
+          "type": "Reference<Aggregate>"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "name",
+          "optional": false,
+          "pattern": null,
+          "type": "ValueObjectName"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": true,
+          "name": "attributes",
+          "optional": false,
+          "pattern": null,
+          "type": "ShapeField"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": true,
+          "name": "invariants",
+          "optional": false,
+          "pattern": null,
+          "type": "Assertion"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "rows",
+          "optional": false,
+          "pattern": null,
+          "type": "RowCount"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "position",
+          "optional": false,
+          "pattern": null,
+          "type": "Position"
+        }
+      ],
+      "commands": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "aggregate_id",
+              "optional": false,
+              "pattern": null,
+              "type": "Reference<Aggregate>"
+            },
+            {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "name",
@@ -2264,6 +3157,7 @@
               "type": "ValueObjectName"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "position",
@@ -2289,6 +3183,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "name",
@@ -2297,6 +3192,7 @@
               "type": "ValueObjectName"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "type",
@@ -2305,6 +3201,7 @@
               "type": "ValueObjectName"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "list",
@@ -2313,6 +3210,7 @@
               "type": "ValueObjectName"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "optional",
@@ -2321,17 +3219,28 @@
               "type": "ValueObjectName"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "pattern",
               "optional": true,
               "pattern": null,
-              "type": "ValueObjectName"
+              "type": "ValueObjectText"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "default",
+              "optional": true,
+              "pattern": null,
+              "type": "ValueObjectText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "admits",
               "optional": true,
               "pattern": null,
               "type": "ValueObjectText"
@@ -2347,6 +3256,7 @@
           "mutations": [
             {
               "fields": {
+                "admits": "admits",
                 "default": "default",
                 "list": "list",
                 "name": "name",
@@ -2365,6 +3275,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "rows",
@@ -2400,6 +3311,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "description",
@@ -2408,6 +3320,7 @@
               "type": "ValueObjectText"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "canonical",
@@ -2459,6 +3372,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "aggregate_id",
@@ -2487,6 +3401,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -2507,6 +3422,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -2530,6 +3446,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "name",
@@ -2538,6 +3455,7 @@
               "type": "String"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "type",
@@ -2546,6 +3464,7 @@
               "type": "String"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "list",
@@ -2554,6 +3473,7 @@
               "type": "String"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "optional",
@@ -2562,6 +3482,7 @@
               "type": "String"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "pattern",
@@ -2570,10 +3491,20 @@
               "type": "String"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "default",
               "optional": false,
+              "pattern": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "admits",
+              "optional": true,
               "pattern": null,
               "type": "String"
             }
@@ -2590,6 +3521,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "description",
@@ -2598,6 +3530,7 @@
               "type": "String"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "canonical",
@@ -2618,6 +3551,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -2638,6 +3572,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -2660,6 +3595,1912 @@
     {
       "attributes": [
         {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "value_object_id",
+          "optional": false,
+          "pattern": null,
+          "type": "Reference<ValueObject>"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "shape",
+          "optional": false,
+          "pattern": null,
+          "type": "MemberText"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": true,
+          "name": "pairs",
+          "optional": false,
+          "pattern": null,
+          "type": "Pair"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "position",
+          "optional": false,
+          "pattern": null,
+          "type": "Position"
+        }
+      ],
+      "commands": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value_object_id",
+              "optional": false,
+              "pattern": null,
+              "type": "Reference<ValueObject>"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "shape",
+              "optional": false,
+              "pattern": null,
+              "type": "MemberText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "position",
+              "optional": true,
+              "pattern": null,
+              "type": "Position"
+            }
+          ],
+          "emits": [
+            "MemberDeclared"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Open one admitted row on a value object",
+          "mutations": [
+
+          ],
+          "name": "Declare",
+          "references": null,
+          "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "key",
+              "optional": false,
+              "pattern": null,
+              "type": "MemberText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "MemberText"
+            }
+          ],
+          "emits": [
+            "PairBound"
+          ],
+          "givens": [
+            {
+              "canonical": "!key.value.to_s.empty?",
+              "description": "an admitted row binds a named field"
+            }
+          ],
+          "goal": "Bind one field of the admitted row",
+          "mutations": [
+            {
+              "fields": {
+                "key": "key",
+                "value": "value"
+              },
+              "op": "append",
+              "target": "pairs"
+            }
+          ],
+          "name": "Pair",
+          "references": "Member",
+          "role": "Language"
+        }
+      ],
+      "description": "One admitted row of a value object's one_of — a whole combination of field values, not a per-field choice. Its own root because a row is a list of pairs inside a list of rows.",
+      "entities": [
+
+      ],
+      "identified_by": [
+        "value_object_id",
+        "position.value"
+      ],
+      "lifecycle": null,
+      "name": "Member",
+      "queries": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value_object_id",
+              "optional": false,
+              "pattern": null,
+              "type": "MemberText"
+            }
+          ],
+          "description": null,
+          "limit": null,
+          "name": "DeclaredIn",
+          "order_by": {
+            "direction": "asc",
+            "field": "position"
+          },
+          "wheres": [
+            {
+              "field": "value_object_id",
+              "op": "eq",
+              "value": ":value_object_id"
+            }
+          ]
+        }
+      ],
+      "value_objects": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "MemberText"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "key",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Pair"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "Integer"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Position"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "aggregate_id",
+          "optional": false,
+          "pattern": null,
+          "type": "Reference<Aggregate>"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "owner",
+          "optional": false,
+          "pattern": null,
+          "type": "EntityText"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "name",
+          "optional": false,
+          "pattern": null,
+          "type": "EntityName"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "description",
+          "optional": false,
+          "pattern": null,
+          "type": "EntityName"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": true,
+          "name": "identified_by",
+          "optional": false,
+          "pattern": null,
+          "type": "IdentityPath"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": true,
+          "name": "attributes",
+          "optional": false,
+          "pattern": null,
+          "type": "PieceField"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "state_field",
+          "optional": false,
+          "pattern": null,
+          "type": "EntityText"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "state_start",
+          "optional": false,
+          "pattern": null,
+          "type": "EntityText"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": true,
+          "name": "transitions",
+          "optional": false,
+          "pattern": null,
+          "type": "PieceTransition"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "position",
+          "optional": false,
+          "pattern": null,
+          "type": "Position"
+        }
+      ],
+      "commands": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "aggregate_id",
+              "optional": false,
+              "pattern": null,
+              "type": "Reference<Aggregate>"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "owner",
+              "optional": false,
+              "pattern": null,
+              "type": "EntityText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "name",
+              "optional": false,
+              "pattern": null,
+              "type": "EntityName"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "description",
+              "optional": true,
+              "pattern": null,
+              "type": "EntityName"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "position",
+              "optional": true,
+              "pattern": null,
+              "type": "Position"
+            }
+          ],
+          "emits": [
+            "PieceDeclared"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Open an entity inside an aggregate",
+          "mutations": [
+
+          ],
+          "name": "Declare",
+          "references": null,
+          "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "path",
+              "optional": false,
+              "pattern": null,
+              "type": "IdentityPath"
+            }
+          ],
+          "emits": [
+            "PieceIdentified"
+          ],
+          "givens": [
+            {
+              "canonical": "path.value.to_s.include?(\".\") || path.value.to_s.include?(\"_id\")",
+              "description": "an identity part reaches a scalar"
+            }
+          ],
+          "goal": "Attach one part of the entity's identity",
+          "mutations": [
+            {
+              "fields": {
+                "value": "path"
+              },
+              "op": "append",
+              "target": "identified_by"
+            }
+          ],
+          "name": "Identify",
+          "references": "Entity",
+          "role": "Language"
+        },
+        {
+          "attributes": [
+
+          ],
+          "emits": [
+            "PieceSealed"
+          ],
+          "givens": [
+            {
+              "canonical": "!identified_by.empty?",
+              "description": "an entity says what it is known by"
+            }
+          ],
+          "goal": "Close an entity — the checks that need every declaration present",
+          "mutations": [
+
+          ],
+          "name": "Seal",
+          "references": "Entity",
+          "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "name",
+              "optional": false,
+              "pattern": null,
+              "type": "EntityText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "type",
+              "optional": false,
+              "pattern": null,
+              "type": "EntityText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "list",
+              "optional": false,
+              "pattern": null,
+              "type": "EntityText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "optional",
+              "optional": true,
+              "pattern": null,
+              "type": "EntityText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "pattern",
+              "optional": true,
+              "pattern": null,
+              "type": "EntityText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "default",
+              "optional": true,
+              "pattern": null,
+              "type": "EntityText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "admits",
+              "optional": true,
+              "pattern": null,
+              "type": "EntityText"
+            }
+          ],
+          "emits": [
+            "PieceAttributeAttached"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Attach one attribute to the entity",
+          "mutations": [
+            {
+              "fields": {
+                "admits": "admits",
+                "default": "default",
+                "list": "list",
+                "name": "name",
+                "optional": "optional",
+                "pattern": "pattern",
+                "type": "type"
+              },
+              "op": "append",
+              "target": "attributes"
+            }
+          ],
+          "name": "Attribute",
+          "references": "Entity",
+          "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "state_field",
+              "optional": false,
+              "pattern": null,
+              "type": "EntityText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "state_start",
+              "optional": false,
+              "pattern": null,
+              "type": "EntityText"
+            }
+          ],
+          "emits": [
+            "PieceLifecycleNamed"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Name the field this entity's state machine runs on",
+          "mutations": [
+            {
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "state_field"
+              },
+              "target": "state_field"
+            },
+            {
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "state_start"
+              },
+              "target": "state_start"
+            }
+          ],
+          "name": "Lifecycle",
+          "references": "Entity",
+          "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "command",
+              "optional": false,
+              "pattern": null,
+              "type": "EntityText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "from_state",
+              "optional": true,
+              "pattern": null,
+              "type": "EntityText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "to_state",
+              "optional": false,
+              "pattern": null,
+              "type": "EntityText"
+            }
+          ],
+          "emits": [
+            "PieceTransitionAttached"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Attach one transition to the entity's state machine",
+          "mutations": [
+            {
+              "fields": {
+                "command": "command",
+                "from_state": "from_state",
+                "to_state": "to_state"
+              },
+              "op": "append",
+              "target": "transitions"
+            }
+          ],
+          "name": "Transition",
+          "references": "Entity",
+          "role": "Language"
+        }
+      ],
+      "description": "One entity inside an aggregate — an element with its own identity, state machine, commands and queries. Its own root because it repeats the aggregate's whole shape one level down.",
+      "entities": [
+
+      ],
+      "identified_by": [
+        "aggregate_id",
+        "name.value"
+      ],
+      "lifecycle": null,
+      "name": "Entity",
+      "queries": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "aggregate_id",
+              "optional": false,
+              "pattern": null,
+              "type": "EntityText"
+            }
+          ],
+          "description": null,
+          "limit": null,
+          "name": "DeclaredIn",
+          "order_by": {
+            "direction": "asc",
+            "field": "position"
+          },
+          "wheres": [
+            {
+              "field": "aggregate_id",
+              "op": "eq",
+              "value": ":aggregate_id"
+            }
+          ]
+        }
+      ],
+      "value_objects": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "an entity is named"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "EntityName"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "EntityText"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "IdentityPath"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "name",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "type",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "list",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "optional",
+              "optional": true,
+              "pattern": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "pattern",
+              "optional": true,
+              "pattern": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "default",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "admits",
+              "optional": true,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "PieceField"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "command",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "from_state",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "to_state",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "PieceTransition"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "Integer"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Position"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "bluebook_id",
+          "optional": false,
+          "pattern": null,
+          "type": "Reference<Bluebook>"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "name",
+          "optional": false,
+          "pattern": null,
+          "type": "PolicyName"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "aggregate",
+          "optional": false,
+          "pattern": null,
+          "type": "PolicyText"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "on_event",
+          "optional": false,
+          "pattern": null,
+          "type": "PolicyText"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "trigger_command",
+          "optional": false,
+          "pattern": null,
+          "type": "PolicyText"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "target_domain",
+          "optional": false,
+          "pattern": null,
+          "type": "PolicyText"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "position",
+          "optional": false,
+          "pattern": null,
+          "type": "Position"
+        }
+      ],
+      "commands": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "bluebook_id",
+              "optional": false,
+              "pattern": null,
+              "type": "Reference<Bluebook>"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "name",
+              "optional": false,
+              "pattern": null,
+              "type": "PolicyName"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "aggregate",
+              "optional": true,
+              "pattern": null,
+              "type": "PolicyText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "on_event",
+              "optional": false,
+              "pattern": null,
+              "type": "PolicyText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "trigger_command",
+              "optional": false,
+              "pattern": null,
+              "type": "PolicyText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "target_domain",
+              "optional": true,
+              "pattern": null,
+              "type": "PolicyText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "position",
+              "optional": true,
+              "pattern": null,
+              "type": "Position"
+            }
+          ],
+          "emits": [
+            "ReactionDeclared"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Declare a policy on a chapter",
+          "mutations": [
+
+          ],
+          "name": "Declare",
+          "references": null,
+          "role": "Language"
+        }
+      ],
+      "description": "One policy — the event it watches, the command it fires, and the domain that command belongs to.",
+      "entities": [
+
+      ],
+      "identified_by": [
+        "bluebook_id",
+        "name.value"
+      ],
+      "lifecycle": null,
+      "name": "Policy",
+      "queries": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "bluebook_id",
+              "optional": false,
+              "pattern": null,
+              "type": "PolicyText"
+            }
+          ],
+          "description": null,
+          "limit": null,
+          "name": "DeclaredIn",
+          "order_by": {
+            "direction": "asc",
+            "field": "position"
+          },
+          "wheres": [
+            {
+              "field": "bluebook_id",
+              "op": "eq",
+              "value": ":bluebook_id"
+            }
+          ]
+        }
+      ],
+      "value_objects": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "a policy is named"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "PolicyName"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "PolicyText"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "Integer"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Position"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "bluebook_id",
+          "optional": false,
+          "pattern": null,
+          "type": "Reference<Bluebook>"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "name",
+          "optional": false,
+          "pattern": null,
+          "type": "ProcessManagerName"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "correlates_by",
+          "optional": false,
+          "pattern": null,
+          "type": "ProcessManagerText"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "starts_on",
+          "optional": false,
+          "pattern": null,
+          "type": "ProcessManagerText"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "ends_on",
+          "optional": false,
+          "pattern": null,
+          "type": "ProcessManagerText"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": true,
+          "name": "states",
+          "optional": false,
+          "pattern": null,
+          "type": "SagaState"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "position",
+          "optional": false,
+          "pattern": null,
+          "type": "Position"
+        }
+      ],
+      "commands": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "bluebook_id",
+              "optional": false,
+              "pattern": null,
+              "type": "Reference<Bluebook>"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "name",
+              "optional": false,
+              "pattern": null,
+              "type": "ProcessManagerName"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "correlates_by",
+              "optional": false,
+              "pattern": null,
+              "type": "ProcessManagerText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "starts_on",
+              "optional": false,
+              "pattern": null,
+              "type": "ProcessManagerText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "ends_on",
+              "optional": true,
+              "pattern": null,
+              "type": "ProcessManagerText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "position",
+              "optional": true,
+              "pattern": null,
+              "type": "Position"
+            }
+          ],
+          "emits": [
+            "SagaDeclared"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Open a process manager on a chapter",
+          "mutations": [
+
+          ],
+          "name": "Declare",
+          "references": null,
+          "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "name",
+              "optional": false,
+              "pattern": null,
+              "type": "ProcessManagerText"
+            }
+          ],
+          "emits": [
+            "SagaStateAttached"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Attach one state to the process manager",
+          "mutations": [
+            {
+              "fields": {
+                "name": "name"
+              },
+              "op": "append",
+              "target": "states"
+            }
+          ],
+          "name": "State",
+          "references": "ProcessManager",
+          "role": "Language"
+        }
+      ],
+      "description": "One process manager — what correlates its instances, what starts and ends it, and the states it moves through.",
+      "entities": [
+
+      ],
+      "identified_by": [
+        "bluebook_id",
+        "name.value"
+      ],
+      "lifecycle": null,
+      "name": "ProcessManager",
+      "queries": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "bluebook_id",
+              "optional": false,
+              "pattern": null,
+              "type": "ProcessManagerText"
+            }
+          ],
+          "description": null,
+          "limit": null,
+          "name": "DeclaredIn",
+          "order_by": {
+            "direction": "asc",
+            "field": "position"
+          },
+          "wheres": [
+            {
+              "field": "bluebook_id",
+              "op": "eq",
+              "value": ":bluebook_id"
+            }
+          ]
+        }
+      ],
+      "value_objects": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "a process manager is named"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "ProcessManagerName"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "ProcessManagerText"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "name",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "SagaState"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "Integer"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Position"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "process_manager_id",
+          "optional": false,
+          "pattern": null,
+          "type": "Reference<ProcessManager>"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "event_type",
+          "optional": false,
+          "pattern": null,
+          "type": "HandlerText"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "from_state",
+          "optional": false,
+          "pattern": null,
+          "type": "HandlerText"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "to_state",
+          "optional": false,
+          "pattern": null,
+          "type": "HandlerText"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "position",
+          "optional": false,
+          "pattern": null,
+          "type": "Position"
+        }
+      ],
+      "commands": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "process_manager_id",
+              "optional": false,
+              "pattern": null,
+              "type": "Reference<ProcessManager>"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "event_type",
+              "optional": false,
+              "pattern": null,
+              "type": "HandlerText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "from_state",
+              "optional": false,
+              "pattern": null,
+              "type": "HandlerText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "to_state",
+              "optional": false,
+              "pattern": null,
+              "type": "HandlerText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "position",
+              "optional": true,
+              "pattern": null,
+              "type": "Position"
+            }
+          ],
+          "emits": [
+            "LegDeclared"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Open a handler inside a process manager",
+          "mutations": [
+
+          ],
+          "name": "Declare",
+          "references": null,
+          "role": "Language"
+        }
+      ],
+      "description": "One handler inside a process manager — the event it answers, the state move it makes, and the commands it sends. Its own root because a handler holds nested dispatches, which hold nested bindings.",
+      "entities": [
+
+      ],
+      "identified_by": [
+        "process_manager_id",
+        "event_type.value"
+      ],
+      "lifecycle": null,
+      "name": "Handler",
+      "queries": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "process_manager_id",
+              "optional": false,
+              "pattern": null,
+              "type": "HandlerText"
+            }
+          ],
+          "description": null,
+          "limit": null,
+          "name": "DeclaredIn",
+          "order_by": {
+            "direction": "asc",
+            "field": "position"
+          },
+          "wheres": [
+            {
+              "field": "process_manager_id",
+              "op": "eq",
+              "value": ":process_manager_id"
+            }
+          ]
+        }
+      ],
+      "value_objects": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "HandlerText"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "Integer"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Position"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "handler_id",
+          "optional": false,
+          "pattern": null,
+          "type": "Reference<Handler>"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "handler",
+          "optional": false,
+          "pattern": null,
+          "type": "DispatchText"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "command_name",
+          "optional": false,
+          "pattern": null,
+          "type": "DispatchText"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": true,
+          "name": "with_spec",
+          "optional": false,
+          "pattern": null,
+          "type": "Binding"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "position",
+          "optional": false,
+          "pattern": null,
+          "type": "Position"
+        }
+      ],
+      "commands": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "handler_id",
+              "optional": false,
+              "pattern": null,
+              "type": "Reference<Handler>"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "handler",
+              "optional": false,
+              "pattern": null,
+              "type": "DispatchText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "command_name",
+              "optional": false,
+              "pattern": null,
+              "type": "DispatchText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "position",
+              "optional": true,
+              "pattern": null,
+              "type": "Position"
+            }
+          ],
+          "emits": [
+            "SendDeclared"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Open a dispatch inside a handler",
+          "mutations": [
+
+          ],
+          "name": "Declare",
+          "references": null,
+          "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "key",
+              "optional": false,
+              "pattern": null,
+              "type": "DispatchText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "DispatchText"
+            }
+          ],
+          "emits": [
+            "BindingAttached"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Bind one argument of the dispatched command",
+          "mutations": [
+            {
+              "fields": {
+                "key": "key",
+                "value": "value"
+              },
+              "op": "append",
+              "target": "with_spec"
+            }
+          ],
+          "name": "Bind",
+          "references": "Dispatch",
+          "role": "Language"
+        }
+      ],
+      "description": "One command a handler dispatches, with the arguments it binds. Its own root because the bindings are an open map, which no value object can hold.",
+      "entities": [
+
+      ],
+      "identified_by": [
+        "handler_id",
+        "command_name.value"
+      ],
+      "lifecycle": null,
+      "name": "Dispatch",
+      "queries": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "handler_id",
+              "optional": false,
+              "pattern": null,
+              "type": "DispatchText"
+            }
+          ],
+          "description": null,
+          "limit": null,
+          "name": "DeclaredIn",
+          "order_by": {
+            "direction": "asc",
+            "field": "position"
+          },
+          "wheres": [
+            {
+              "field": "handler_id",
+              "op": "eq",
+              "value": ":handler_id"
+            }
+          ]
+        }
+      ],
+      "value_objects": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "DispatchText"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "key",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Binding"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "Integer"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Position"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "admits": null,
           "default": null,
           "list": false,
           "name": "name",
@@ -2687,6 +5528,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -2710,6 +5552,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "symbol",
@@ -2718,6 +5561,7 @@
               "type": "String"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "compares_less_than",
@@ -2726,6 +5570,7 @@
               "type": "String"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "compares_equal",
@@ -2734,6 +5579,7 @@
               "type": "String"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "negated",
@@ -2861,6 +5707,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "name",
@@ -2869,6 +5716,7 @@
               "type": "String"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "compares_via",
@@ -2918,6 +5766,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "type",
@@ -2926,6 +5775,7 @@
               "type": "String"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "strategy",
@@ -2965,6 +5815,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "type",
@@ -3020,6 +5871,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "type",
@@ -3057,6 +5909,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "name",
@@ -3106,6 +5959,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "name",
@@ -3137,6 +5991,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "name",
@@ -3145,6 +6000,7 @@
               "type": "String"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "sign",
@@ -3204,6 +6060,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "name",
@@ -3271,6 +6128,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "glob",
@@ -3320,6 +6178,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "step",
@@ -3411,6 +6270,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "step",
@@ -3490,6 +6350,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "name",
@@ -3557,6 +6418,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "name",
@@ -3584,610 +6446,7 @@
     {
       "attributes": [
         {
-          "default": null,
-          "list": false,
-          "name": "aggregate_id",
-          "optional": false,
-          "pattern": null,
-          "type": "Reference<Aggregate>"
-        },
-        {
-          "default": null,
-          "list": false,
-          "name": "entity_id",
-          "optional": false,
-          "pattern": null,
-          "type": "Reference<Entity>"
-        },
-        {
-          "default": null,
-          "list": false,
-          "name": "name",
-          "optional": false,
-          "pattern": null,
-          "type": "QueryName"
-        },
-        {
-          "default": null,
-          "list": false,
-          "name": "description",
-          "optional": false,
-          "pattern": null,
-          "type": "QueryText"
-        },
-        {
-          "default": null,
-          "list": false,
-          "name": "order_field",
-          "optional": false,
-          "pattern": null,
-          "type": "QueryText"
-        },
-        {
-          "default": null,
-          "list": false,
-          "name": "order_way",
-          "optional": false,
-          "pattern": null,
-          "type": "QueryText"
-        },
-        {
-          "default": null,
-          "list": false,
-          "name": "limit",
-          "optional": false,
-          "pattern": null,
-          "type": "QueryText"
-        },
-        {
-          "default": null,
-          "list": true,
-          "name": "wheres",
-          "optional": false,
-          "pattern": null,
-          "type": "Filter"
-        },
-        {
-          "default": null,
-          "list": true,
-          "name": "attributes",
-          "optional": false,
-          "pattern": null,
-          "type": "AskArgument"
-        },
-        {
-          "default": null,
-          "list": true,
-          "name": "options",
-          "optional": false,
-          "pattern": null,
-          "type": "AskOption"
-        },
-        {
-          "default": null,
-          "list": false,
-          "name": "position",
-          "optional": false,
-          "pattern": null,
-          "type": "Position"
-        }
-      ],
-      "commands": [
-        {
-          "attributes": [
-            {
-              "default": null,
-              "list": false,
-              "name": "aggregate_id",
-              "optional": false,
-              "pattern": null,
-              "type": "Reference<Aggregate>"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "entity_id",
-              "optional": true,
-              "pattern": null,
-              "type": "Reference<Entity>"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "name",
-              "optional": false,
-              "pattern": null,
-              "type": "QueryName"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "description",
-              "optional": true,
-              "pattern": null,
-              "type": "QueryText"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "order_field",
-              "optional": true,
-              "pattern": null,
-              "type": "QueryText"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "order_way",
-              "optional": true,
-              "pattern": null,
-              "type": "QueryText"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "limit",
-              "optional": true,
-              "pattern": null,
-              "type": "QueryText"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "position",
-              "optional": true,
-              "pattern": null,
-              "type": "Position"
-            }
-          ],
-          "emits": [
-            "AskDeclared"
-          ],
-          "givens": [
-
-          ],
-          "goal": "Open a query on an aggregate",
-          "mutations": [
-
-          ],
-          "name": "Declare",
-          "references": null,
-          "role": "Language"
-        },
-        {
-          "attributes": [
-            {
-              "default": null,
-              "list": false,
-              "name": "field",
-              "optional": false,
-              "pattern": null,
-              "type": "QueryText"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "op",
-              "optional": false,
-              "pattern": null,
-              "type": "QueryText"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "value",
-              "optional": false,
-              "pattern": null,
-              "type": "QueryText"
-            }
-          ],
-          "emits": [
-            "FilterAttached"
-          ],
-          "givens": [
-
-          ],
-          "goal": "Attach one where-clause to the query",
-          "mutations": [
-            {
-              "fields": {
-                "field": "field",
-                "op": "op",
-                "value": "value"
-              },
-              "op": "append",
-              "target": "wheres"
-            }
-          ],
-          "name": "Filter",
-          "references": "Query",
-          "role": "Language"
-        },
-        {
-          "attributes": [
-            {
-              "default": null,
-              "list": false,
-              "name": "option",
-              "optional": false,
-              "pattern": null,
-              "type": "QueryText"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "key",
-              "optional": false,
-              "pattern": null,
-              "type": "QueryText"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "value",
-              "optional": true,
-              "pattern": null,
-              "type": "QueryText"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "at",
-              "optional": true,
-              "pattern": null,
-              "type": "QueryText"
-            }
-          ],
-          "emits": [
-            "OptionAttached"
-          ],
-          "givens": [
-            {
-              "canonical": "!option.value.to_s.empty?",
-              "description": "an option is named"
-            }
-          ],
-          "goal": "Attach one part of one specification option to the query",
-          "mutations": [
-            {
-              "fields": {
-                "at": "at",
-                "key": "key",
-                "option": "option",
-                "value": "value"
-              },
-              "op": "append",
-              "target": "options"
-            }
-          ],
-          "name": "Option",
-          "references": "Query",
-          "role": "Language"
-        },
-        {
-          "attributes": [
-            {
-              "default": null,
-              "list": false,
-              "name": "name",
-              "optional": false,
-              "pattern": null,
-              "type": "QueryText"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "type",
-              "optional": false,
-              "pattern": null,
-              "type": "QueryText"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "list",
-              "optional": false,
-              "pattern": null,
-              "type": "QueryText"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "optional",
-              "optional": true,
-              "pattern": null,
-              "type": "QueryText"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "pattern",
-              "optional": true,
-              "pattern": null,
-              "type": "QueryText"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "default",
-              "optional": true,
-              "pattern": null,
-              "type": "QueryText"
-            }
-          ],
-          "emits": [
-            "AskArgumentAttached"
-          ],
-          "givens": [
-
-          ],
-          "goal": "Attach one parameter to the query",
-          "mutations": [
-            {
-              "fields": {
-                "default": "default",
-                "list": "list",
-                "name": "name",
-                "optional": "optional",
-                "pattern": "pattern",
-                "type": "type"
-              },
-              "op": "append",
-              "target": "attributes"
-            }
-          ],
-          "name": "Argument",
-          "references": "Query",
-          "role": "Language"
-        }
-      ],
-      "description": "One query declared on an aggregate — what it filters on, how it orders, and how many it returns.",
-      "entities": [
-
-      ],
-      "identified_by": [
-        "owner_id",
-        "name.value"
-      ],
-      "lifecycle": null,
-      "name": "Query",
-      "queries": [
-        {
-          "attributes": [
-            {
-              "default": null,
-              "list": false,
-              "name": "aggregate_id",
-              "optional": false,
-              "pattern": null,
-              "type": "QueryText"
-            }
-          ],
-          "description": null,
-          "limit": null,
-          "name": "DeclaredIn",
-          "order_by": {
-            "direction": "asc",
-            "field": "position"
-          },
-          "wheres": [
-            {
-              "field": "aggregate_id",
-              "op": "eq",
-              "value": ":aggregate_id"
-            }
-          ]
-        }
-      ],
-      "value_objects": [
-        {
-          "attributes": [
-            {
-              "default": null,
-              "list": false,
-              "name": "value",
-              "optional": false,
-              "pattern": null,
-              "type": "String"
-            }
-          ],
-          "closed_set": false,
-          "invariants": [
-            {
-              "canonical": "!value.to_s.empty?",
-              "description": "a query is named"
-            }
-          ],
-          "members": [
-
-          ],
-          "name": "QueryName"
-        },
-        {
-          "attributes": [
-            {
-              "default": null,
-              "list": false,
-              "name": "value",
-              "optional": false,
-              "pattern": null,
-              "type": "String"
-            }
-          ],
-          "closed_set": false,
-          "invariants": [
-
-          ],
-          "members": [
-
-          ],
-          "name": "QueryText"
-        },
-        {
-          "attributes": [
-            {
-              "default": null,
-              "list": false,
-              "name": "field",
-              "optional": false,
-              "pattern": null,
-              "type": "String"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "op",
-              "optional": false,
-              "pattern": null,
-              "type": "String"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "value",
-              "optional": false,
-              "pattern": null,
-              "type": "String"
-            }
-          ],
-          "closed_set": false,
-          "invariants": [
-
-          ],
-          "members": [
-
-          ],
-          "name": "Filter"
-        },
-        {
-          "attributes": [
-            {
-              "default": null,
-              "list": false,
-              "name": "name",
-              "optional": false,
-              "pattern": null,
-              "type": "String"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "type",
-              "optional": false,
-              "pattern": null,
-              "type": "String"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "list",
-              "optional": false,
-              "pattern": null,
-              "type": "String"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "optional",
-              "optional": true,
-              "pattern": null,
-              "type": "String"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "pattern",
-              "optional": true,
-              "pattern": null,
-              "type": "String"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "default",
-              "optional": false,
-              "pattern": null,
-              "type": "String"
-            }
-          ],
-          "closed_set": false,
-          "invariants": [
-
-          ],
-          "members": [
-
-          ],
-          "name": "AskArgument"
-        },
-        {
-          "attributes": [
-            {
-              "default": null,
-              "list": false,
-              "name": "option",
-              "optional": false,
-              "pattern": null,
-              "type": "String"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "key",
-              "optional": false,
-              "pattern": null,
-              "type": "String"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "value",
-              "optional": false,
-              "pattern": null,
-              "type": "String"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "at",
-              "optional": false,
-              "pattern": null,
-              "type": "String"
-            }
-          ],
-          "closed_set": false,
-          "invariants": [
-
-          ],
-          "members": [
-
-          ],
-          "name": "AskOption"
-        },
-        {
-          "attributes": [
-            {
-              "default": null,
-              "list": false,
-              "name": "value",
-              "optional": false,
-              "pattern": null,
-              "type": "Integer"
-            }
-          ],
-          "closed_set": false,
-          "invariants": [
-
-          ],
-          "members": [
-
-          ],
-          "name": "Position"
-        }
-      ]
-    },
-    {
-      "attributes": [
-        {
+          "admits": null,
           "default": null,
           "list": false,
           "name": "bluebook_id",
@@ -4196,951 +6455,7 @@
           "type": "Reference<Bluebook>"
         },
         {
-          "default": null,
-          "list": false,
-          "name": "name",
-          "optional": false,
-          "pattern": null,
-          "type": "PolicyName"
-        },
-        {
-          "default": null,
-          "list": false,
-          "name": "aggregate",
-          "optional": false,
-          "pattern": null,
-          "type": "PolicyText"
-        },
-        {
-          "default": null,
-          "list": false,
-          "name": "on_event",
-          "optional": false,
-          "pattern": null,
-          "type": "PolicyText"
-        },
-        {
-          "default": null,
-          "list": false,
-          "name": "trigger_command",
-          "optional": false,
-          "pattern": null,
-          "type": "PolicyText"
-        },
-        {
-          "default": null,
-          "list": false,
-          "name": "target_domain",
-          "optional": false,
-          "pattern": null,
-          "type": "PolicyText"
-        },
-        {
-          "default": null,
-          "list": false,
-          "name": "position",
-          "optional": false,
-          "pattern": null,
-          "type": "Position"
-        }
-      ],
-      "commands": [
-        {
-          "attributes": [
-            {
-              "default": null,
-              "list": false,
-              "name": "bluebook_id",
-              "optional": false,
-              "pattern": null,
-              "type": "Reference<Bluebook>"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "name",
-              "optional": false,
-              "pattern": null,
-              "type": "PolicyName"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "aggregate",
-              "optional": true,
-              "pattern": null,
-              "type": "PolicyText"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "on_event",
-              "optional": false,
-              "pattern": null,
-              "type": "PolicyText"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "trigger_command",
-              "optional": false,
-              "pattern": null,
-              "type": "PolicyText"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "target_domain",
-              "optional": true,
-              "pattern": null,
-              "type": "PolicyText"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "position",
-              "optional": true,
-              "pattern": null,
-              "type": "Position"
-            }
-          ],
-          "emits": [
-            "ReactionDeclared"
-          ],
-          "givens": [
-
-          ],
-          "goal": "Declare a policy on a chapter",
-          "mutations": [
-
-          ],
-          "name": "Declare",
-          "references": null,
-          "role": "Language"
-        }
-      ],
-      "description": "One policy — the event it watches, the command it fires, and the domain that command belongs to.",
-      "entities": [
-
-      ],
-      "identified_by": [
-        "bluebook_id",
-        "name.value"
-      ],
-      "lifecycle": null,
-      "name": "Policy",
-      "queries": [
-        {
-          "attributes": [
-            {
-              "default": null,
-              "list": false,
-              "name": "bluebook_id",
-              "optional": false,
-              "pattern": null,
-              "type": "PolicyText"
-            }
-          ],
-          "description": null,
-          "limit": null,
-          "name": "DeclaredIn",
-          "order_by": {
-            "direction": "asc",
-            "field": "position"
-          },
-          "wheres": [
-            {
-              "field": "bluebook_id",
-              "op": "eq",
-              "value": ":bluebook_id"
-            }
-          ]
-        }
-      ],
-      "value_objects": [
-        {
-          "attributes": [
-            {
-              "default": null,
-              "list": false,
-              "name": "value",
-              "optional": false,
-              "pattern": null,
-              "type": "String"
-            }
-          ],
-          "closed_set": false,
-          "invariants": [
-            {
-              "canonical": "!value.to_s.empty?",
-              "description": "a policy is named"
-            }
-          ],
-          "members": [
-
-          ],
-          "name": "PolicyName"
-        },
-        {
-          "attributes": [
-            {
-              "default": null,
-              "list": false,
-              "name": "value",
-              "optional": false,
-              "pattern": null,
-              "type": "String"
-            }
-          ],
-          "closed_set": false,
-          "invariants": [
-
-          ],
-          "members": [
-
-          ],
-          "name": "PolicyText"
-        },
-        {
-          "attributes": [
-            {
-              "default": null,
-              "list": false,
-              "name": "value",
-              "optional": false,
-              "pattern": null,
-              "type": "Integer"
-            }
-          ],
-          "closed_set": false,
-          "invariants": [
-
-          ],
-          "members": [
-
-          ],
-          "name": "Position"
-        }
-      ]
-    },
-    {
-      "attributes": [
-        {
-          "default": null,
-          "list": false,
-          "name": "bluebook_id",
-          "optional": false,
-          "pattern": null,
-          "type": "Reference<Bluebook>"
-        },
-        {
-          "default": null,
-          "list": false,
-          "name": "name",
-          "optional": false,
-          "pattern": null,
-          "type": "ProcessManagerName"
-        },
-        {
-          "default": null,
-          "list": false,
-          "name": "correlates_by",
-          "optional": false,
-          "pattern": null,
-          "type": "ProcessManagerText"
-        },
-        {
-          "default": null,
-          "list": false,
-          "name": "starts_on",
-          "optional": false,
-          "pattern": null,
-          "type": "ProcessManagerText"
-        },
-        {
-          "default": null,
-          "list": false,
-          "name": "ends_on",
-          "optional": false,
-          "pattern": null,
-          "type": "ProcessManagerText"
-        },
-        {
-          "default": null,
-          "list": true,
-          "name": "states",
-          "optional": false,
-          "pattern": null,
-          "type": "SagaState"
-        },
-        {
-          "default": null,
-          "list": false,
-          "name": "position",
-          "optional": false,
-          "pattern": null,
-          "type": "Position"
-        }
-      ],
-      "commands": [
-        {
-          "attributes": [
-            {
-              "default": null,
-              "list": false,
-              "name": "bluebook_id",
-              "optional": false,
-              "pattern": null,
-              "type": "Reference<Bluebook>"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "name",
-              "optional": false,
-              "pattern": null,
-              "type": "ProcessManagerName"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "correlates_by",
-              "optional": false,
-              "pattern": null,
-              "type": "ProcessManagerText"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "starts_on",
-              "optional": false,
-              "pattern": null,
-              "type": "ProcessManagerText"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "ends_on",
-              "optional": false,
-              "pattern": null,
-              "type": "ProcessManagerText"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "position",
-              "optional": true,
-              "pattern": null,
-              "type": "Position"
-            }
-          ],
-          "emits": [
-            "SagaDeclared"
-          ],
-          "givens": [
-
-          ],
-          "goal": "Open a process manager on a chapter",
-          "mutations": [
-
-          ],
-          "name": "Declare",
-          "references": null,
-          "role": "Language"
-        },
-        {
-          "attributes": [
-            {
-              "default": null,
-              "list": false,
-              "name": "name",
-              "optional": false,
-              "pattern": null,
-              "type": "ProcessManagerText"
-            }
-          ],
-          "emits": [
-            "SagaStateAttached"
-          ],
-          "givens": [
-
-          ],
-          "goal": "Attach one state to the process manager",
-          "mutations": [
-            {
-              "fields": {
-                "name": "name"
-              },
-              "op": "append",
-              "target": "states"
-            }
-          ],
-          "name": "State",
-          "references": "ProcessManager",
-          "role": "Language"
-        }
-      ],
-      "description": "One process manager — what correlates its instances, what starts and ends it, and the states it moves through.",
-      "entities": [
-
-      ],
-      "identified_by": [
-        "bluebook_id",
-        "name.value"
-      ],
-      "lifecycle": null,
-      "name": "ProcessManager",
-      "queries": [
-        {
-          "attributes": [
-            {
-              "default": null,
-              "list": false,
-              "name": "bluebook_id",
-              "optional": false,
-              "pattern": null,
-              "type": "ProcessManagerText"
-            }
-          ],
-          "description": null,
-          "limit": null,
-          "name": "DeclaredIn",
-          "order_by": {
-            "direction": "asc",
-            "field": "position"
-          },
-          "wheres": [
-            {
-              "field": "bluebook_id",
-              "op": "eq",
-              "value": ":bluebook_id"
-            }
-          ]
-        }
-      ],
-      "value_objects": [
-        {
-          "attributes": [
-            {
-              "default": null,
-              "list": false,
-              "name": "value",
-              "optional": false,
-              "pattern": null,
-              "type": "String"
-            }
-          ],
-          "closed_set": false,
-          "invariants": [
-            {
-              "canonical": "!value.to_s.empty?",
-              "description": "a process manager is named"
-            }
-          ],
-          "members": [
-
-          ],
-          "name": "ProcessManagerName"
-        },
-        {
-          "attributes": [
-            {
-              "default": null,
-              "list": false,
-              "name": "value",
-              "optional": false,
-              "pattern": null,
-              "type": "String"
-            }
-          ],
-          "closed_set": false,
-          "invariants": [
-
-          ],
-          "members": [
-
-          ],
-          "name": "ProcessManagerText"
-        },
-        {
-          "attributes": [
-            {
-              "default": null,
-              "list": false,
-              "name": "name",
-              "optional": false,
-              "pattern": null,
-              "type": "String"
-            }
-          ],
-          "closed_set": false,
-          "invariants": [
-
-          ],
-          "members": [
-
-          ],
-          "name": "SagaState"
-        },
-        {
-          "attributes": [
-            {
-              "default": null,
-              "list": false,
-              "name": "value",
-              "optional": false,
-              "pattern": null,
-              "type": "Integer"
-            }
-          ],
-          "closed_set": false,
-          "invariants": [
-
-          ],
-          "members": [
-
-          ],
-          "name": "Position"
-        }
-      ]
-    },
-    {
-      "attributes": [
-        {
-          "default": null,
-          "list": false,
-          "name": "process_manager_id",
-          "optional": false,
-          "pattern": null,
-          "type": "Reference<ProcessManager>"
-        },
-        {
-          "default": null,
-          "list": false,
-          "name": "event_type",
-          "optional": false,
-          "pattern": null,
-          "type": "HandlerText"
-        },
-        {
-          "default": null,
-          "list": false,
-          "name": "from_state",
-          "optional": false,
-          "pattern": null,
-          "type": "HandlerText"
-        },
-        {
-          "default": null,
-          "list": false,
-          "name": "to_state",
-          "optional": false,
-          "pattern": null,
-          "type": "HandlerText"
-        },
-        {
-          "default": null,
-          "list": false,
-          "name": "position",
-          "optional": false,
-          "pattern": null,
-          "type": "Position"
-        }
-      ],
-      "commands": [
-        {
-          "attributes": [
-            {
-              "default": null,
-              "list": false,
-              "name": "process_manager_id",
-              "optional": false,
-              "pattern": null,
-              "type": "Reference<ProcessManager>"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "event_type",
-              "optional": false,
-              "pattern": null,
-              "type": "HandlerText"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "from_state",
-              "optional": true,
-              "pattern": null,
-              "type": "HandlerText"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "to_state",
-              "optional": false,
-              "pattern": null,
-              "type": "HandlerText"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "position",
-              "optional": true,
-              "pattern": null,
-              "type": "Position"
-            }
-          ],
-          "emits": [
-            "LegDeclared"
-          ],
-          "givens": [
-
-          ],
-          "goal": "Open a handler inside a process manager",
-          "mutations": [
-
-          ],
-          "name": "Declare",
-          "references": null,
-          "role": "Language"
-        }
-      ],
-      "description": "One handler inside a process manager — the event it answers, the state move it makes, and the commands it sends. Its own root because a handler holds nested dispatches, which hold nested bindings.",
-      "entities": [
-
-      ],
-      "identified_by": [
-        "process_manager_id",
-        "event_type.value"
-      ],
-      "lifecycle": null,
-      "name": "Handler",
-      "queries": [
-        {
-          "attributes": [
-            {
-              "default": null,
-              "list": false,
-              "name": "process_manager_id",
-              "optional": false,
-              "pattern": null,
-              "type": "HandlerText"
-            }
-          ],
-          "description": null,
-          "limit": null,
-          "name": "DeclaredIn",
-          "order_by": {
-            "direction": "asc",
-            "field": "position"
-          },
-          "wheres": [
-            {
-              "field": "process_manager_id",
-              "op": "eq",
-              "value": ":process_manager_id"
-            }
-          ]
-        }
-      ],
-      "value_objects": [
-        {
-          "attributes": [
-            {
-              "default": null,
-              "list": false,
-              "name": "value",
-              "optional": false,
-              "pattern": null,
-              "type": "String"
-            }
-          ],
-          "closed_set": false,
-          "invariants": [
-
-          ],
-          "members": [
-
-          ],
-          "name": "HandlerText"
-        },
-        {
-          "attributes": [
-            {
-              "default": null,
-              "list": false,
-              "name": "value",
-              "optional": false,
-              "pattern": null,
-              "type": "Integer"
-            }
-          ],
-          "closed_set": false,
-          "invariants": [
-
-          ],
-          "members": [
-
-          ],
-          "name": "Position"
-        }
-      ]
-    },
-    {
-      "attributes": [
-        {
-          "default": null,
-          "list": false,
-          "name": "handler_id",
-          "optional": false,
-          "pattern": null,
-          "type": "Reference<Handler>"
-        },
-        {
-          "default": null,
-          "list": false,
-          "name": "handler",
-          "optional": false,
-          "pattern": null,
-          "type": "DispatchText"
-        },
-        {
-          "default": null,
-          "list": false,
-          "name": "command_name",
-          "optional": false,
-          "pattern": null,
-          "type": "DispatchText"
-        },
-        {
-          "default": null,
-          "list": true,
-          "name": "with_spec",
-          "optional": false,
-          "pattern": null,
-          "type": "Binding"
-        },
-        {
-          "default": null,
-          "list": false,
-          "name": "position",
-          "optional": false,
-          "pattern": null,
-          "type": "Position"
-        }
-      ],
-      "commands": [
-        {
-          "attributes": [
-            {
-              "default": null,
-              "list": false,
-              "name": "handler_id",
-              "optional": false,
-              "pattern": null,
-              "type": "Reference<Handler>"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "handler",
-              "optional": false,
-              "pattern": null,
-              "type": "DispatchText"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "command_name",
-              "optional": false,
-              "pattern": null,
-              "type": "DispatchText"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "position",
-              "optional": true,
-              "pattern": null,
-              "type": "Position"
-            }
-          ],
-          "emits": [
-            "SendDeclared"
-          ],
-          "givens": [
-
-          ],
-          "goal": "Open a dispatch inside a handler",
-          "mutations": [
-
-          ],
-          "name": "Declare",
-          "references": null,
-          "role": "Language"
-        },
-        {
-          "attributes": [
-            {
-              "default": null,
-              "list": false,
-              "name": "key",
-              "optional": false,
-              "pattern": null,
-              "type": "DispatchText"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "value",
-              "optional": false,
-              "pattern": null,
-              "type": "DispatchText"
-            }
-          ],
-          "emits": [
-            "BindingAttached"
-          ],
-          "givens": [
-
-          ],
-          "goal": "Bind one argument of the dispatched command",
-          "mutations": [
-            {
-              "fields": {
-                "key": "key",
-                "value": "value"
-              },
-              "op": "append",
-              "target": "with_spec"
-            }
-          ],
-          "name": "Bind",
-          "references": "Dispatch",
-          "role": "Language"
-        }
-      ],
-      "description": "One command a handler dispatches, with the arguments it binds. Its own root because the bindings are an open map, which no value object can hold.",
-      "entities": [
-
-      ],
-      "identified_by": [
-        "handler_id",
-        "command_name.value"
-      ],
-      "lifecycle": null,
-      "name": "Dispatch",
-      "queries": [
-        {
-          "attributes": [
-            {
-              "default": null,
-              "list": false,
-              "name": "handler_id",
-              "optional": false,
-              "pattern": null,
-              "type": "DispatchText"
-            }
-          ],
-          "description": null,
-          "limit": null,
-          "name": "DeclaredIn",
-          "order_by": {
-            "direction": "asc",
-            "field": "position"
-          },
-          "wheres": [
-            {
-              "field": "handler_id",
-              "op": "eq",
-              "value": ":handler_id"
-            }
-          ]
-        }
-      ],
-      "value_objects": [
-        {
-          "attributes": [
-            {
-              "default": null,
-              "list": false,
-              "name": "value",
-              "optional": false,
-              "pattern": null,
-              "type": "String"
-            }
-          ],
-          "closed_set": false,
-          "invariants": [
-
-          ],
-          "members": [
-
-          ],
-          "name": "DispatchText"
-        },
-        {
-          "attributes": [
-            {
-              "default": null,
-              "list": false,
-              "name": "key",
-              "optional": false,
-              "pattern": null,
-              "type": "String"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "value",
-              "optional": false,
-              "pattern": null,
-              "type": "String"
-            }
-          ],
-          "closed_set": false,
-          "invariants": [
-
-          ],
-          "members": [
-
-          ],
-          "name": "Binding"
-        },
-        {
-          "attributes": [
-            {
-              "default": null,
-              "list": false,
-              "name": "value",
-              "optional": false,
-              "pattern": null,
-              "type": "Integer"
-            }
-          ],
-          "closed_set": false,
-          "invariants": [
-
-          ],
-          "members": [
-
-          ],
-          "name": "Position"
-        }
-      ]
-    },
-    {
-      "attributes": [
-        {
-          "default": null,
-          "list": false,
-          "name": "bluebook_id",
-          "optional": false,
-          "pattern": null,
-          "type": "Reference<Bluebook>"
-        },
-        {
+          "admits": null,
           "default": null,
           "list": false,
           "name": "name",
@@ -5149,6 +6464,7 @@
           "type": "ReadModelName"
         },
         {
+          "admits": null,
           "default": null,
           "list": false,
           "name": "description",
@@ -5157,6 +6473,7 @@
           "type": "ProjectionPurpose"
         },
         {
+          "admits": null,
           "default": null,
           "list": false,
           "name": "query_name",
@@ -5165,6 +6482,7 @@
           "type": "ReadModelText"
         },
         {
+          "admits": null,
           "default": null,
           "list": false,
           "name": "reference_name",
@@ -5173,6 +6491,7 @@
           "type": "ReadModelText"
         },
         {
+          "admits": null,
           "default": null,
           "list": false,
           "name": "reference_target",
@@ -5181,6 +6500,7 @@
           "type": "ReadModelText"
         },
         {
+          "admits": null,
           "default": null,
           "list": true,
           "name": "aggregate_heads",
@@ -5189,6 +6509,7 @@
           "type": "Head"
         },
         {
+          "admits": null,
           "default": null,
           "list": true,
           "name": "options",
@@ -5197,6 +6518,7 @@
           "type": "ProjectionOption"
         },
         {
+          "admits": null,
           "default": null,
           "list": false,
           "name": "position",
@@ -5209,6 +6531,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "bluebook_id",
@@ -5217,6 +6540,7 @@
               "type": "Reference<Bluebook>"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "name",
@@ -5225,6 +6549,7 @@
               "type": "ReadModelName"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "description",
@@ -5233,6 +6558,7 @@
               "type": "ProjectionPurpose"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "query_name",
@@ -5241,6 +6567,7 @@
               "type": "ReadModelText"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "reference_name",
@@ -5249,6 +6576,7 @@
               "type": "ReadModelText"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "reference_target",
@@ -5257,6 +6585,7 @@
               "type": "ReadModelText"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "position",
@@ -5282,14 +6611,16 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "aggregate",
-              "optional": true,
+              "optional": false,
               "pattern": null,
               "type": "ReadModelText"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "as",
@@ -5298,6 +6629,7 @@
               "type": "ReadModelText"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "many",
@@ -5334,6 +6666,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "option",
@@ -5342,6 +6675,7 @@
               "type": "ReadModelText"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "key",
@@ -5350,6 +6684,7 @@
               "type": "ReadModelText"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -5358,6 +6693,7 @@
               "type": "ReadModelText"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "at",
@@ -5407,6 +6743,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "bluebook_id",
@@ -5435,6 +6772,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -5458,6 +6796,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -5478,6 +6817,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -5501,6 +6841,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "aggregate",
@@ -5509,6 +6850,7 @@
               "type": "String"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "as",
@@ -5517,6 +6859,7 @@
               "type": "String"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "many",
@@ -5537,6 +6880,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "option",
@@ -5545,6 +6889,7 @@
               "type": "String"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "key",
@@ -5553,6 +6898,7 @@
               "type": "String"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -5561,6 +6907,7 @@
               "type": "String"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "at",
@@ -5581,826 +6928,7 @@
         {
           "attributes": [
             {
-              "default": null,
-              "list": false,
-              "name": "value",
-              "optional": false,
-              "pattern": null,
-              "type": "Integer"
-            }
-          ],
-          "closed_set": false,
-          "invariants": [
-
-          ],
-          "members": [
-
-          ],
-          "name": "Position"
-        }
-      ]
-    },
-    {
-      "attributes": [
-        {
-          "default": null,
-          "list": false,
-          "name": "aggregate_id",
-          "optional": false,
-          "pattern": null,
-          "type": "Reference<Aggregate>"
-        },
-        {
-          "default": null,
-          "list": false,
-          "name": "owner",
-          "optional": false,
-          "pattern": null,
-          "type": "EntityText"
-        },
-        {
-          "default": null,
-          "list": false,
-          "name": "name",
-          "optional": false,
-          "pattern": null,
-          "type": "EntityName"
-        },
-        {
-          "default": null,
-          "list": false,
-          "name": "description",
-          "optional": false,
-          "pattern": null,
-          "type": "EntityName"
-        },
-        {
-          "default": null,
-          "list": true,
-          "name": "identified_by",
-          "optional": false,
-          "pattern": null,
-          "type": "IdentityPath"
-        },
-        {
-          "default": null,
-          "list": true,
-          "name": "attributes",
-          "optional": false,
-          "pattern": null,
-          "type": "PieceField"
-        },
-        {
-          "default": null,
-          "list": false,
-          "name": "state_field",
-          "optional": false,
-          "pattern": null,
-          "type": "EntityText"
-        },
-        {
-          "default": null,
-          "list": false,
-          "name": "state_start",
-          "optional": false,
-          "pattern": null,
-          "type": "EntityText"
-        },
-        {
-          "default": null,
-          "list": true,
-          "name": "transitions",
-          "optional": false,
-          "pattern": null,
-          "type": "PieceTransition"
-        },
-        {
-          "default": null,
-          "list": false,
-          "name": "position",
-          "optional": false,
-          "pattern": null,
-          "type": "Position"
-        }
-      ],
-      "commands": [
-        {
-          "attributes": [
-            {
-              "default": null,
-              "list": false,
-              "name": "aggregate_id",
-              "optional": false,
-              "pattern": null,
-              "type": "Reference<Aggregate>"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "owner",
-              "optional": false,
-              "pattern": null,
-              "type": "EntityText"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "name",
-              "optional": false,
-              "pattern": null,
-              "type": "EntityName"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "description",
-              "optional": true,
-              "pattern": null,
-              "type": "EntityName"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "position",
-              "optional": true,
-              "pattern": null,
-              "type": "Position"
-            }
-          ],
-          "emits": [
-            "PieceDeclared"
-          ],
-          "givens": [
-
-          ],
-          "goal": "Open an entity inside an aggregate",
-          "mutations": [
-
-          ],
-          "name": "Declare",
-          "references": null,
-          "role": "Language"
-        },
-        {
-          "attributes": [
-            {
-              "default": null,
-              "list": false,
-              "name": "path",
-              "optional": false,
-              "pattern": null,
-              "type": "IdentityPath"
-            }
-          ],
-          "emits": [
-            "PieceIdentified"
-          ],
-          "givens": [
-            {
-              "canonical": "path.value.to_s.include?(\".\") || path.value.to_s.include?(\"_id\")",
-              "description": "an identity part reaches a scalar"
-            }
-          ],
-          "goal": "Attach one part of the entity's identity",
-          "mutations": [
-            {
-              "fields": {
-                "value": "path"
-              },
-              "op": "append",
-              "target": "identified_by"
-            }
-          ],
-          "name": "Identify",
-          "references": "Entity",
-          "role": "Language"
-        },
-        {
-          "attributes": [
-
-          ],
-          "emits": [
-            "PieceSealed"
-          ],
-          "givens": [
-            {
-              "canonical": "!identified_by.empty?",
-              "description": "an entity says what it is known by"
-            }
-          ],
-          "goal": "Close an entity — the checks that need every declaration present",
-          "mutations": [
-
-          ],
-          "name": "Seal",
-          "references": "Entity",
-          "role": "Language"
-        },
-        {
-          "attributes": [
-            {
-              "default": null,
-              "list": false,
-              "name": "name",
-              "optional": false,
-              "pattern": null,
-              "type": "EntityText"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "type",
-              "optional": false,
-              "pattern": null,
-              "type": "EntityText"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "list",
-              "optional": false,
-              "pattern": null,
-              "type": "EntityText"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "optional",
-              "optional": true,
-              "pattern": null,
-              "type": "EntityText"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "pattern",
-              "optional": true,
-              "pattern": null,
-              "type": "EntityText"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "default",
-              "optional": true,
-              "pattern": null,
-              "type": "EntityText"
-            }
-          ],
-          "emits": [
-            "PieceAttributeAttached"
-          ],
-          "givens": [
-
-          ],
-          "goal": "Attach one attribute to the entity",
-          "mutations": [
-            {
-              "fields": {
-                "default": "default",
-                "list": "list",
-                "name": "name",
-                "optional": "optional",
-                "pattern": "pattern",
-                "type": "type"
-              },
-              "op": "append",
-              "target": "attributes"
-            }
-          ],
-          "name": "Attribute",
-          "references": "Entity",
-          "role": "Language"
-        },
-        {
-          "attributes": [
-            {
-              "default": null,
-              "list": false,
-              "name": "state_field",
-              "optional": false,
-              "pattern": null,
-              "type": "EntityText"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "state_start",
-              "optional": false,
-              "pattern": null,
-              "type": "EntityText"
-            }
-          ],
-          "emits": [
-            "PieceLifecycleNamed"
-          ],
-          "givens": [
-
-          ],
-          "goal": "Name the field this entity's state machine runs on",
-          "mutations": [
-            {
-              "op": "set",
-              "source": {
-                "kind": "argument",
-                "name": "state_field"
-              },
-              "target": "state_field"
-            },
-            {
-              "op": "set",
-              "source": {
-                "kind": "argument",
-                "name": "state_start"
-              },
-              "target": "state_start"
-            }
-          ],
-          "name": "Lifecycle",
-          "references": "Entity",
-          "role": "Language"
-        },
-        {
-          "attributes": [
-            {
-              "default": null,
-              "list": false,
-              "name": "command",
-              "optional": false,
-              "pattern": null,
-              "type": "EntityText"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "from_state",
-              "optional": true,
-              "pattern": null,
-              "type": "EntityText"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "to_state",
-              "optional": false,
-              "pattern": null,
-              "type": "EntityText"
-            }
-          ],
-          "emits": [
-            "PieceTransitionAttached"
-          ],
-          "givens": [
-
-          ],
-          "goal": "Attach one transition to the entity's state machine",
-          "mutations": [
-            {
-              "fields": {
-                "command": "command",
-                "from_state": "from_state",
-                "to_state": "to_state"
-              },
-              "op": "append",
-              "target": "transitions"
-            }
-          ],
-          "name": "Transition",
-          "references": "Entity",
-          "role": "Language"
-        }
-      ],
-      "description": "One entity inside an aggregate — an element with its own identity, state machine, commands and queries. Its own root because it repeats the aggregate's whole shape one level down.",
-      "entities": [
-
-      ],
-      "identified_by": [
-        "aggregate_id",
-        "name.value"
-      ],
-      "lifecycle": null,
-      "name": "Entity",
-      "queries": [
-        {
-          "attributes": [
-            {
-              "default": null,
-              "list": false,
-              "name": "aggregate_id",
-              "optional": false,
-              "pattern": null,
-              "type": "EntityText"
-            }
-          ],
-          "description": null,
-          "limit": null,
-          "name": "DeclaredIn",
-          "order_by": {
-            "direction": "asc",
-            "field": "position"
-          },
-          "wheres": [
-            {
-              "field": "aggregate_id",
-              "op": "eq",
-              "value": ":aggregate_id"
-            }
-          ]
-        }
-      ],
-      "value_objects": [
-        {
-          "attributes": [
-            {
-              "default": null,
-              "list": false,
-              "name": "value",
-              "optional": false,
-              "pattern": null,
-              "type": "String"
-            }
-          ],
-          "closed_set": false,
-          "invariants": [
-            {
-              "canonical": "!value.to_s.empty?",
-              "description": "an entity is named"
-            }
-          ],
-          "members": [
-
-          ],
-          "name": "EntityName"
-        },
-        {
-          "attributes": [
-            {
-              "default": null,
-              "list": false,
-              "name": "value",
-              "optional": false,
-              "pattern": null,
-              "type": "String"
-            }
-          ],
-          "closed_set": false,
-          "invariants": [
-
-          ],
-          "members": [
-
-          ],
-          "name": "EntityText"
-        },
-        {
-          "attributes": [
-            {
-              "default": null,
-              "list": false,
-              "name": "value",
-              "optional": false,
-              "pattern": null,
-              "type": "String"
-            }
-          ],
-          "closed_set": false,
-          "invariants": [
-
-          ],
-          "members": [
-
-          ],
-          "name": "IdentityPath"
-        },
-        {
-          "attributes": [
-            {
-              "default": null,
-              "list": false,
-              "name": "name",
-              "optional": false,
-              "pattern": null,
-              "type": "String"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "type",
-              "optional": false,
-              "pattern": null,
-              "type": "String"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "list",
-              "optional": false,
-              "pattern": null,
-              "type": "String"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "optional",
-              "optional": true,
-              "pattern": null,
-              "type": "String"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "pattern",
-              "optional": true,
-              "pattern": null,
-              "type": "String"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "default",
-              "optional": false,
-              "pattern": null,
-              "type": "String"
-            }
-          ],
-          "closed_set": false,
-          "invariants": [
-
-          ],
-          "members": [
-
-          ],
-          "name": "PieceField"
-        },
-        {
-          "attributes": [
-            {
-              "default": null,
-              "list": false,
-              "name": "command",
-              "optional": false,
-              "pattern": null,
-              "type": "String"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "from_state",
-              "optional": false,
-              "pattern": null,
-              "type": "String"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "to_state",
-              "optional": false,
-              "pattern": null,
-              "type": "String"
-            }
-          ],
-          "closed_set": false,
-          "invariants": [
-
-          ],
-          "members": [
-
-          ],
-          "name": "PieceTransition"
-        },
-        {
-          "attributes": [
-            {
-              "default": null,
-              "list": false,
-              "name": "value",
-              "optional": false,
-              "pattern": null,
-              "type": "Integer"
-            }
-          ],
-          "closed_set": false,
-          "invariants": [
-
-          ],
-          "members": [
-
-          ],
-          "name": "Position"
-        }
-      ]
-    },
-    {
-      "attributes": [
-        {
-          "default": null,
-          "list": false,
-          "name": "value_object_id",
-          "optional": false,
-          "pattern": null,
-          "type": "Reference<ValueObject>"
-        },
-        {
-          "default": null,
-          "list": false,
-          "name": "shape",
-          "optional": false,
-          "pattern": null,
-          "type": "MemberText"
-        },
-        {
-          "default": null,
-          "list": true,
-          "name": "pairs",
-          "optional": false,
-          "pattern": null,
-          "type": "Pair"
-        },
-        {
-          "default": null,
-          "list": false,
-          "name": "position",
-          "optional": false,
-          "pattern": null,
-          "type": "Position"
-        }
-      ],
-      "commands": [
-        {
-          "attributes": [
-            {
-              "default": null,
-              "list": false,
-              "name": "value_object_id",
-              "optional": false,
-              "pattern": null,
-              "type": "Reference<ValueObject>"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "shape",
-              "optional": false,
-              "pattern": null,
-              "type": "MemberText"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "position",
-              "optional": true,
-              "pattern": null,
-              "type": "Position"
-            }
-          ],
-          "emits": [
-            "MemberDeclared"
-          ],
-          "givens": [
-
-          ],
-          "goal": "Open one admitted row on a value object",
-          "mutations": [
-
-          ],
-          "name": "Declare",
-          "references": null,
-          "role": "Language"
-        },
-        {
-          "attributes": [
-            {
-              "default": null,
-              "list": false,
-              "name": "key",
-              "optional": false,
-              "pattern": null,
-              "type": "MemberText"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "value",
-              "optional": false,
-              "pattern": null,
-              "type": "MemberText"
-            }
-          ],
-          "emits": [
-            "PairBound"
-          ],
-          "givens": [
-            {
-              "canonical": "!key.value.to_s.empty?",
-              "description": "an admitted row binds a named field"
-            }
-          ],
-          "goal": "Bind one field of the admitted row",
-          "mutations": [
-            {
-              "fields": {
-                "key": "key",
-                "value": "value"
-              },
-              "op": "append",
-              "target": "pairs"
-            }
-          ],
-          "name": "Pair",
-          "references": "Member",
-          "role": "Language"
-        }
-      ],
-      "description": "One admitted row of a value object's one_of — a whole combination of field values, not a per-field choice. Its own root because a row is a list of pairs inside a list of rows.",
-      "entities": [
-
-      ],
-      "identified_by": [
-        "value_object_id",
-        "position.value"
-      ],
-      "lifecycle": null,
-      "name": "Member",
-      "queries": [
-        {
-          "attributes": [
-            {
-              "default": null,
-              "list": false,
-              "name": "value_object_id",
-              "optional": false,
-              "pattern": null,
-              "type": "MemberText"
-            }
-          ],
-          "description": null,
-          "limit": null,
-          "name": "DeclaredIn",
-          "order_by": {
-            "direction": "asc",
-            "field": "position"
-          },
-          "wheres": [
-            {
-              "field": "value_object_id",
-              "op": "eq",
-              "value": ":value_object_id"
-            }
-          ]
-        }
-      ],
-      "value_objects": [
-        {
-          "attributes": [
-            {
-              "default": null,
-              "list": false,
-              "name": "value",
-              "optional": false,
-              "pattern": null,
-              "type": "String"
-            }
-          ],
-          "closed_set": false,
-          "invariants": [
-
-          ],
-          "members": [
-
-          ],
-          "name": "MemberText"
-        },
-        {
-          "attributes": [
-            {
-              "default": null,
-              "list": false,
-              "name": "key",
-              "optional": false,
-              "pattern": null,
-              "type": "String"
-            },
-            {
-              "default": null,
-              "list": false,
-              "name": "value",
-              "optional": false,
-              "pattern": null,
-              "type": "String"
-            }
-          ],
-          "closed_set": false,
-          "invariants": [
-
-          ],
-          "members": [
-
-          ],
-          "name": "Pair"
-        },
-        {
-          "attributes": [
-            {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -6438,7 +6966,7 @@
     }
   ],
   "classification": "core",
-  "name": "Meta",
+  "name": "Bluebook",
   "policies": [
 
   ],

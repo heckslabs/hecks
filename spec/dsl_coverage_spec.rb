@@ -95,10 +95,13 @@ RSpec.describe "the DSL surface is fully covered" do
     end
   end
 
-  it "class construction stays private" do
+  it "builds no runtime surface at all — the door is the facade's, at bind" do
+    # The builder used to keep `define_readers`/`define_command` private ; now
+    # there is nothing to keep private, because a build produces only IR. The
+    # public surface is a per-boot projection installed by Loader.bind_runtime.
     builder = Hecksagain::Bluebook::DSL::AggregateBuilder
 
-    expect(builder.private_instance_methods(false)).to include(:define_readers, :define_command)
-    expect(builder.public_instance_methods(false)).not_to include(:define_readers, :define_command)
+    surface = builder.instance_methods(false) + builder.private_instance_methods(false)
+    expect(surface).not_to include(:define_readers, :define_command, :nest_value_objects)
   end
 end

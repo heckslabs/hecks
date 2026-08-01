@@ -18,19 +18,18 @@ require "spec_helper"
 # this fails ; declare one the evaluator does not implement and this fails.
 RSpec.describe "the declared vocabularies" do
 
-  # Read the declarations WITHOUT booting a second runtime into this process —
-  # the members are static IR, which is the whole point of declaring them with
-  # one_of rather than dispatching them.
+  # The grammar registry's Bluebook chapter IS the judged one now — grammar_registry runs
+  # the fixpoint at boot (judge the language through itself, keep the assembled
+  # graph), so the typed member values this file compares against each
+  # runtime's live constants (`compares_less_than: true`, not the source text
+  # "true") come straight off the singleton. This also makes the whole suite a
+  # tripwire : if the fixpoint swap ever regresses to the raw builder graph,
+  # every typed-vs-string assertion below fails at once — exactly what
+  # happened the one time this spec briefly read a raw chapter.
+  def self.judged_meta = Hecksagain::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
+
   def self.vocabularies
-    registry = Hecksagain::Runtime::Registry.new
-    Hecksagain.with_registry(registry) do
-      Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-      Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-      Kernel.load(Hecksagain::Bluebook::MetaValidator::GRAMMAR)
-    end
-    aggregate = registry.bluebook("Meta").aggregates.find { |a| a.name == "Vocabulary" }
+    aggregate = judged_meta.aggregates.find { |a| a.name == "Vocabulary" }
     # `hecks_name`, not `name`: a value object is a Ruby class, so `name` is the
     # constant path it lives at and the declared name is carried beside it.
     aggregate.value_objects.to_h { |vo| [vo.hecks_name, vo.members.map { |row| row.to_h.values.first }] }
@@ -41,15 +40,7 @@ RSpec.describe "the declared vocabularies" do
   # OTHER vocabulary is a flat list of names ; Comparison is not, since an
   # operator now also declares WHICH primitives it computes from.
   def self.full_rows(name)
-    registry = Hecksagain::Runtime::Registry.new
-    Hecksagain.with_registry(registry) do
-      Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-      Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-      Kernel.load(Hecksagain::Bluebook::MetaValidator::GRAMMAR)
-    end
-    aggregate = registry.bluebook("Meta").aggregates.find { |a| a.name == "Vocabulary" }
+    aggregate = judged_meta.aggregates.find { |a| a.name == "Vocabulary" }
     aggregate.value_objects.find { |vo| vo.hecks_name == name }.members.map(&:to_h)
   end
 
@@ -83,6 +74,22 @@ RSpec.describe "the declared vocabularies" do
       expect(declared(vocabulary)).to eq(live.call.map(&:to_s))
     end
   end
+
+  # THE LANGUAGE'S OWN DUPLICATE OF ITS OWN CLOSED SET — GONE, NOT GATED.
+  #
+  # A block here used to hold `Command::OpName`'s invariant
+  # (`set || append || increment || decrement`) equal to Vocabulary::MutationOp,
+  # because the language had no way to LINK the two: `reference_to` reaches
+  # aggregate roots and a vocabulary's sets are value objects inside one, while
+  # inline `one_of` synthesises a fresh set rather than naming an existing one.
+  #
+  # The language grew the word. `Change.op` says `admits: Vocabulary::MutationOp`
+  # and the invariant is deleted, so there is no second copy to hold honest —
+  # which is what this gate asked for in so many words. What replaces it is not
+  # another comparison: `bin/ir_structs` raises if an `admits` names a set the
+  # language does not declare, and spec/ir_structs_export_spec holds the emitted
+  # Rust to the generator's output, so dropping the link turns WhereClause.op
+  # back into a String and goes red there.
 
   # The name lists above only prove the SET of operators agrees. This proves
   # the SEMANTICS do too : Vocabulary::Comparison declares, per symbol, which

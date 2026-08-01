@@ -279,9 +279,14 @@ pub fn coerce_attribute(
         return Ok(value.clone());
     }
     let Some(type_name) = attribute.get("type").and_then(Value::as_str) else {
+        admit_declared_set(attribute, value)?;
         return Ok(value.clone());
     };
     let Some(value_object) = value_object_named(aggregate, type_name) else {
+        // A PLAIN FIELD STILL ADMITS WHAT IT SAYS IT ADMITS. Nothing to coerce
+        // here — no value object names this type — but the set is named on the
+        // attribute, not on the type, so the refusal belongs on this path too.
+        admit_declared_set(attribute, value)?;
         return Ok(value.clone());
     };
     if value.is_null() {
@@ -300,10 +305,16 @@ pub fn coerce_attribute(
             }
         }
         admit_member(&value_object, &completed)?;
+        check_admitted(&value_object, &completed)?;
         check_numeric_fields(&value_object, &completed)?;
         check_patterns(&value_object, &completed)?;
         enforce_invariants(&value_object, &completed)?;
-        return Ok(Value::Object(completed));
+        // AFTER coercion, not before: a scalar arrives wrapped in whatever
+        // holder its type names, and checking the raw payload would be checking
+        // the envelope.
+        let coerced = Value::Object(completed);
+        admit_declared_set(attribute, &coerced)?;
+        return Ok(coerced);
     }
 
     let vo_name = value_object
@@ -545,6 +556,7 @@ fn build_element(
     if let Some(value_object) = value_object_for(aggregate, target) {
         flatten_scalar_fields(aggregate, &value_object, &mut fields);
         admit_member(&value_object, &fields)?;
+        check_admitted(&value_object, &fields)?;
         enforce_invariants(&value_object, &fields)?;
     }
 
@@ -711,6 +723,218 @@ fn ruby_literal(token: &str) -> Value {
     Value::Object(fields)
 }
 
+/// Where a resolved `admits` keeps its members on the runtime's own copy of the
+/// IR. NEVER ON THE WIRE — `--dump` projects from the typed IR, not from here,
+/// and the wire carries the NAME so each runtime resolves against what it itself
+/// declares. This is a cache of that resolution, filled once at load.
+const ADMITTED: &str = "admitted_members";
+
+/// EVERY `admits` RESOLVED ONCE, when the runtime takes its IR.
+///
+/// Coercion happens deep inside `coerce_attribute`, which is handed ONE
+/// aggregate and has no way back up to the chapter — and the set an attribute
+/// admits belongs to a DIFFERENT aggregate, because that is the whole point of
+/// naming it rather than restating it. Ruby walks up through `hecks_owner` ;
+/// JSON has no parent pointers, so the walk happens once here instead of
+/// threading a domain through seven signatures that do not otherwise want one.
+pub fn resolve_admitted_sets(ir: Value) -> Value {
+    let Value::Object(domains) = ir else {
+        return ir;
+    };
+    Value::Object(
+        domains
+            .into_iter()
+            .map(|(name, domain)| {
+                let sets = admitted_sets_of(&domain);
+                (name, annotate_admits(domain, &sets))
+            })
+            .collect(),
+    )
+}
+
+/// Every closed set the chapter declares, keyed the way an `admits` names it.
+fn admitted_sets_of(domain: &Value) -> Map<String, Value> {
+    let mut sets = Map::new();
+    let Some(aggregates) = domain.get("aggregates").and_then(Value::as_array) else {
+        return sets;
+    };
+    for aggregate in aggregates {
+        let Some(aggregate_name) = aggregate.get("name").and_then(Value::as_str) else {
+            continue;
+        };
+        for value_object in aggregate
+            .get("value_objects")
+            .and_then(Value::as_array)
+            .unwrap_or(&vec![])
+        {
+            let (Some(set_name), Some(set)) = (
+                value_object.get("name").and_then(Value::as_str),
+                value_object.as_object(),
+            ) else {
+                continue;
+            };
+            let members = admitted_values(set);
+            if members.is_empty() {
+                continue;
+            }
+            sets.insert(
+                format!("{aggregate_name}::{set_name}"),
+                Value::Array(members.into_iter().map(Value::String).collect()),
+            );
+        }
+    }
+    sets
+}
+
+/// Walked generically rather than construct by construct: an attribute is an
+/// attribute wherever it is written — on a head, an argument, a piece, an ask,
+/// a value object's own field — and a walk that names the places it visits is a
+/// walk that misses the next place one is added.
+fn annotate_admits(node: Value, sets: &Map<String, Value>) -> Value {
+    match node {
+        Value::Object(map) => {
+            let mut out: Map<String, Value> = map
+                .into_iter()
+                .map(|(key, value)| (key, annotate_admits(value, sets)))
+                .collect();
+            if let Some(members) = out
+                .get("admits")
+                .and_then(Value::as_str)
+                .and_then(|named| sets.get(named))
+                .cloned()
+            {
+                out.insert(ADMITTED.to_string(), members);
+            }
+            Value::Object(out)
+        }
+        Value::Array(items) => Value::Array(
+            items
+                .into_iter()
+                .map(|item| annotate_admits(item, sets))
+                .collect(),
+        ),
+        other => other,
+    }
+}
+
+/// Mirrors Ruby's `Value.admit_declared_set` (`lib/hecksagain/runtime/value.rb`).
+///
+/// `admit_member` below refuses a non-member when the value object BEING BUILT
+/// is itself the closed set. This is the other direction: the value is ordinary
+/// text and the set it must belong to was declared once, elsewhere, and named.
+fn admit_declared_set(attribute: &Map<String, Value>, value: &Value) -> Result<(), String> {
+    let Some(named) = attribute.get("admits").and_then(Value::as_str) else {
+        return Ok(());
+    };
+    if value.is_null() {
+        return Ok(());
+    }
+    let field = attribute
+        .get("name")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    let Some(admitted) = attribute.get(ADMITTED).and_then(Value::as_array) else {
+        return Err(format!(
+            "{field} admits {named}, which this chapter does not declare — a closed set is \
+             named Aggregate::SetName, and it must be one the bluebook actually holds"
+        ));
+    };
+    let offered = admitted_scalar(value);
+    let offered_text = match &offered {
+        Value::String(text) => text.clone(),
+        Value::Null => String::new(),
+        other => other.to_string(),
+    };
+    if admitted
+        .iter()
+        .filter_map(Value::as_str)
+        .any(|value| value == offered_text)
+    {
+        return Ok(());
+    }
+    let rendered: Vec<String> = admitted
+        .iter()
+        .filter_map(Value::as_str)
+        .map(|value| format!("{value:?}"))
+        .collect();
+    let got = match &offered {
+        Value::String(text) => format!("{text:?}"),
+        Value::Null => "nil".to_string(),
+        other => other.to_string(),
+    };
+    Err(format!(
+        "{} admits {} — {} — got {}",
+        field,
+        named,
+        rendered.join(", "),
+        got
+    ))
+}
+
+/// An admitted value is a SCALAR however it arrived — bare on a plain field, or
+/// wrapped in the one-field holder its type names.
+fn admitted_scalar(value: &Value) -> Value {
+    match value.as_object() {
+        Some(fields) if fields.len() == 1 => fields.values().next().cloned().unwrap_or(Value::Null),
+        _ => value.clone(),
+    }
+}
+
+/// Mirrors Ruby's `Value.check_admitted`. A value object's own field may name a
+/// set too — `Query::Filter.op` is a plain String field that admits
+/// `Vocabulary::QueryComparator`, and no attribute passes through
+/// `coerce_attribute` on its way in.
+fn check_admitted(
+    value_object: &Map<String, Value>,
+    fields: &Map<String, Value>,
+) -> Result<(), String> {
+    for attribute in array(value_object, "attributes") {
+        let Some(attribute) = attribute.as_object() else {
+            continue;
+        };
+        if attribute.get("admits").and_then(Value::as_str).is_none() {
+            continue;
+        }
+        let Some(name) = attribute.get("name").and_then(Value::as_str) else {
+            continue;
+        };
+        admit_declared_set(
+            attribute,
+            &fields.get(name).cloned().unwrap_or(Value::Null),
+        )?;
+    }
+    Ok(())
+}
+
+/// The values a closed set admits, read through its discriminant — the first
+/// field, which is what a member row is keyed by.
+fn admitted_values(value_object: &Map<String, Value>) -> Vec<String> {
+    let members = array(value_object, "members");
+    if members.is_empty() {
+        return vec![];
+    }
+    let discriminant = array(value_object, "attributes")
+        .first()
+        .and_then(|a| a.get("name").and_then(Value::as_str))
+        .unwrap_or_default()
+        .to_string();
+    members
+        .iter()
+        .filter_map(Value::as_array)
+        .filter_map(|pairs| {
+            pairs.iter().filter_map(Value::as_array).find_map(|pair| {
+                match (
+                    pair.first().and_then(Value::as_str),
+                    pair.get(1).and_then(Value::as_str),
+                ) {
+                    (Some(field), Some(value)) if field == discriminant => Some(value.to_string()),
+                    _ => None,
+                }
+            })
+        })
+        .collect()
+}
+
 fn admit_member(
     value_object: &Map<String, Value>,
     fields: &Map<String, Value>,
@@ -851,5 +1075,76 @@ mod sign_tests {
         let mut names: Vec<&str> = MUTATION_OPS.iter().map(|op| op.name.as_str()).collect();
         names.sort();
         assert_eq!(names, vec!["append", "decrement", "increment", "set"]);
+    }
+
+    /// A closed set declared in a SIBLING aggregate, named rather than restated.
+    fn kitchen() -> Value {
+        serde_json::json!({ "Kitchen": { "aggregates": [
+            { "name": "Vocabulary", "attributes": [], "value_objects": [
+                { "name": "Doneness",
+                  "attributes": [{ "name": "name", "type": "String", "list": false,
+                                   "optional": false, "pattern": null, "admits": null }],
+                  "members": [[["name", "rare"]], [["name", "medium"]], [["name", "well"]]] }
+            ] },
+            { "name": "Steak", "value_objects": [], "attributes": [
+                { "name": "doneness", "type": "String", "list": false, "optional": false,
+                  "pattern": null, "admits": "Vocabulary::Doneness" }
+            ] }
+        ] } })
+    }
+
+    fn doneness_attribute(ir: &Value) -> Map<String, Value> {
+        ir["Kitchen"]["aggregates"][1]["attributes"][0]
+            .as_object()
+            .cloned()
+            .unwrap()
+    }
+
+    #[test]
+    fn an_admitted_set_is_resolved_from_the_aggregate_that_declares_it() {
+        let resolved = resolve_admitted_sets(kitchen());
+        let admitted = doneness_attribute(&resolved);
+        assert_eq!(
+            admitted.get(ADMITTED).unwrap(),
+            &serde_json::json!(["rare", "medium", "well"])
+        );
+    }
+
+    /// The message is held to Ruby's WORD FOR WORD (`Value.admit_declared_set`).
+    /// Two runtimes that refuse the same value for different reasons still read
+    /// as a split to anyone diffing the output, which is what bin/parity does.
+    #[test]
+    fn a_non_member_is_refused_in_the_same_words_ruby_refuses_it() {
+        let resolved = resolve_admitted_sets(kitchen());
+        let attribute = doneness_attribute(&resolved);
+
+        assert!(admit_declared_set(&attribute, &Value::String("medium".into())).is_ok());
+        assert_eq!(
+            admit_declared_set(&attribute, &Value::String("burnt".into())).unwrap_err(),
+            "doneness admits Vocabulary::Doneness — \"rare\", \"medium\", \"well\" — got \"burnt\""
+        );
+    }
+
+    /// A scalar arrives wrapped in whatever holder its type names, so the check
+    /// has to see through the envelope — the bug this had on its first pass.
+    #[test]
+    fn a_value_wrapped_in_its_holder_is_read_through_to_the_scalar() {
+        let resolved = resolve_admitted_sets(kitchen());
+        let attribute = doneness_attribute(&resolved);
+        let wrapped = serde_json::json!({ "value": "well" });
+
+        assert!(admit_declared_set(&attribute, &wrapped).is_ok());
+    }
+
+    /// A link that resolves to nothing is refused rather than ignored: a rule
+    /// checked against nothing reads like a rule and is not one.
+    #[test]
+    fn naming_a_set_the_chapter_does_not_declare_is_refused() {
+        let mut attribute = doneness_attribute(&resolve_admitted_sets(kitchen()));
+        attribute.insert("admits".into(), Value::String("Vocabulary::Nonesuch".into()));
+        attribute.remove(ADMITTED);
+
+        let refusal = admit_declared_set(&attribute, &Value::String("rare".into())).unwrap_err();
+        assert!(refusal.contains("which this chapter does not declare"), "{refusal}");
     }
 }

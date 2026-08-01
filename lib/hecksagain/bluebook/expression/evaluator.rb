@@ -7,7 +7,7 @@ module Hecksagain
         # Six operators, reduced to two primitives (less_than, equal) combined
         # with a small boolean algebra: compares_less_than/compares_equal choose
         # which primitive(s) OR together, negated inverts the result. Declared
-        # the same way in Vocabulary::Comparison (language/bluebook.bluebook) —
+        # the same way in Vocabulary::Comparison (language/bluebook/vocabulary.bluebook) —
         # spec/vocabulary_conformance_spec holds the two tables equal, field for
         # field, so a runtime cannot drift from what the language says an
         # operator computes.
@@ -134,7 +134,7 @@ module Hecksagain
         end
 
         # Declared the same way in Vocabulary::IncludeHaystack
-        # (language/bluebook.bluebook) — spec/vocabulary_conformance_spec
+        # (language/bluebook/vocabulary.bluebook) — spec/vocabulary_conformance_spec
         # holds this equal to the language, so the set of haystack types
         # `.include?` supports cannot drift from what the language says it
         # does.

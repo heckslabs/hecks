@@ -1,4 +1,4 @@
-Hecks.bluebook "Deployment" do
+Hecks.bluebook "World" do
   vision "The .world language, declared in itself. A world is a SIBLING of a bluebook, not part of one — the same domain runs in many worlds, and the values its adapters need belong to the deployment rather than to the domain. So it is described in its own file, as its own thing."
   core
 

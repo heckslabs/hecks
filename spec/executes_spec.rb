@@ -67,7 +67,7 @@ RSpec.describe "the language holds a bluebook, and gives it back" do
   end
 
   it "gives back the bluebook called Pizzas" do
-    rows = runtime.query("Meta::Bluebook.Called", name: { value: "Pizzas" })
+    rows = runtime.query("Bluebook::Bluebook.Called", name: { value: "Pizzas" })
 
     expect(rows.size).to eq(1)
     expect(text(rows.first[:name])).to eq(pizzas.name)
@@ -76,7 +76,7 @@ RSpec.describe "the language holds a bluebook, and gives it back" do
   end
 
   it "gives back every aggregate declared in it" do
-    rows = runtime.query("Meta::Aggregate.DeclaredIn", bluebook_id: { value: "Pizzas" })
+    rows = runtime.query("Bluebook::Aggregate.DeclaredIn", bluebook_id: { value: "Pizzas" })
 
     expect(rows.map { |row| text(row[:name]) }).to eq(pizzas.aggregates.map(&:name))
   end
@@ -85,7 +85,7 @@ RSpec.describe "the language holds a bluebook, and gives it back" do
     # The twelve DeclaredIn queries can walk the tree a level at a time, and a
     # caller stitching twelve reads together is a caller reimplementing this. The
     # language already knows how to say "gather these heads around that spine".
-    rows = runtime.query("Meta.whole_bluebook", bluebook: "Pizzas")
+    rows = runtime.query("Bluebook.whole_bluebook", bluebook: "Pizzas")
     whole = rows.first
 
     expect(whole.keys).to eq(
@@ -101,9 +101,9 @@ RSpec.describe "the language holds a bluebook, and gives it back" do
     # The IR is a contract field for field AND INDEX FOR INDEX, so the order a
     # bluebook declares its commands in is a fact about the source. `DeclaredIn`
     # preserves it.
-    # "Pizzas:Pizza" — the Aggregate-within-Meta record's OWN derived id
+    # "Pizzas:Pizza" — the Aggregate-within-Bluebook record's OWN derived id
     # (bluebook_id:name.value), not the real "Pizzas::Pizza" Ruby constant path.
-    rows = runtime.query("Meta::Command.DeclaredIn", aggregate_id: { value: "Pizzas:Pizza" })
+    rows = runtime.query("Bluebook::Command.DeclaredIn", aggregate_id: { value: "Pizzas:Pizza" })
 
     expect(rows.map { |row| text(row[:name]) })
       .to eq(pizzas.aggregate("Pizza").commands.map(&:hecks_name))
@@ -116,7 +116,7 @@ RSpec.describe "the language holds a bluebook, and gives it back" do
     # field an earlier one wrote depends on the order; a lifecycle takes the FIRST
     # transition that matches; a compensation credits the source before reversing
     # the transfer. Reorder any of those and the domain does something else.
-    whole    = runtime.query("Meta.whole_bluebook", bluebook: "Pizzas").first
+    whole    = runtime.query("Bluebook.whole_bluebook", bluebook: "Pizzas").first
     purchase = whole[:commands].find { |c| text(c[:name]) == "Purchase" }
     source   = pizzas.aggregate("Pizza").command("Purchase")
 
@@ -136,7 +136,7 @@ RSpec.describe "the language holds a bluebook, and gives it back" do
     # Which means the byte-for-byte proof compares with the head lists sorted on
     # both sides. That is not a weakening of the claim — it is the claim stated on
     # the axis the machine actually reads.
-    whole    = runtime.query("Meta.whole_bluebook", bluebook: "Pizzas").first
+    whole    = runtime.query("Bluebook.whole_bluebook", bluebook: "Pizzas").first
     declared = pizzas.aggregate("Pizza").commands.map(&:hecks_name)
 
     expect(whole[:commands].map { |c| text(c[:name]) }).to eq(declared.sort)
@@ -187,7 +187,7 @@ RSpec.describe "the language holds a bluebook, and gives it back" do
       raise "banking refused: #{judge.instance_variable_get(:@refusals).inspect}" unless
         judge.instance_variable_get(:@refusals).empty?
 
-      account = runtime.query("Meta::Aggregate.DeclaredIn", bluebook_id: { value: "Banking" })
+      account = runtime.query("Bluebook::Aggregate.DeclaredIn", bluebook_id: { value: "Banking" })
                        .find { |row| text(row[:name]) == "Account" }
       account[:attributes].to_h { |a| [text(a[:name]), text(a[:type])] }
     end
@@ -225,7 +225,7 @@ RSpec.describe "the language holds a bluebook, and gives it back" do
     # every writer goes through — and the read side would drift from the write
     # side exactly as the two runtimes' tables used to.
     expect(Hecksagain::Bluebook::MetaValidator.grammar_registry
-             .bluebook("Meta").aggregates
+             .bluebook("Bluebook").aggregates
              .flat_map { |a| a.queries.map { |q| "#{a.name}.#{q.name}" } })
       .to include("Bluebook.Called", "Aggregate.DeclaredIn")
   end

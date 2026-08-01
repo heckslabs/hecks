@@ -53,7 +53,7 @@ RSpec.describe "a bluebook dispatched in and read back out" do
   #
   # This used to canonicalise the PRESENTATION axis on both sides — which position
   # a command occupies in its aggregate's list — because `Reconstruction` read the
-  # chapter through `Meta.whole_bluebook`, and a read model sorts by id on purpose.
+  # chapter through the whole-bluebook read model, and a read model sorts by id on purpose.
   # So the comparison had to sort too, and said so out loud.
   #
   # The reconstruction reads level by level through `DeclaredIn` now, which

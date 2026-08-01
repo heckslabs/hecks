@@ -33,16 +33,17 @@ module Hecksagain
       # aggregate — the language does it six times, and means it: the command
       # `Argument` is the verb that appends to the `arguments` list whose element
       # type is the value object `Argument`, and `Plan` reads exactly that pairing.
-      # So `Meta::Command::Argument` cannot be both, and a single constant
+      # So `Bluebook::Command::Argument` cannot be both, and a single constant
       # namespace cannot index a kind-ambiguous name. The same follows for
-      # `hecks_fqn` : `Meta::Command.Argument` names both, which is why the judge's
+      # `hecks_fqn` : `Bluebook::Command.Argument` names both, which is why the judge's
       # ids only work per-category, each in its own repository. IDENTITY IS
       # (KIND, FQN), not fqn.
       #
-      # It is a class anyway, because that is where the EDGES live. `acts_on`
-      # answers with the aggregate class rather than the name of one, and the
-      # invocation door was never going to be a constant — `pizza.add_topping` is
-      # already the method the builder defines.
+      # It is a declaration holder anyway, because that is where the EDGES live.
+      # `acts_on` answers with the owning construct itself — the IR::Aggregate,
+      # or the entity holder for a piece's verb — rather than the name of one.
+      # The invocation door (`pizza.add_topping`) is the facade's business, a
+      # per-boot projection ; no verb method is defined here.
       class Command
         extend Construct
 
@@ -71,7 +72,7 @@ module Hecksagain
             @attributes_by_name = attributes.to_h { |held| [held.name, held] }
           end
 
-          # The construct this verb acts upon — the class, not its name.
+          # The construct this verb acts upon — the construct itself, not its name.
           #
           # A verb declared on an ENTITY always acts on that piece. It never
           # self-references, because an element is addressed THROUGH its parent —

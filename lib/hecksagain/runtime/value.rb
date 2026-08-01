@@ -17,12 +17,27 @@ module Hecksagain
         return hydrate_entity_list(aggregate, attribute, value) if attribute.list?
         return value unless aggregate.respond_to?(:value_object)
 
-        aggregate.value_object(attribute.type)
+        # THE SET THE ATTRIBUTE NAMES IS CHECKED WHERE THE ATTRIBUTE IS KNOWN.
+        # `build` below sees only the value object, never which attribute asked
+        # for it, so a command argument's `admits:` has to be read here — this
+        # is the door every argument and every head field comes through.
+        #
+        # AFTER coercion, not before: a scalar arrives wrapped in whatever holder
+        # its type names (`{value: "append"}` for an OpName), and checking the
+        # raw payload would be checking the envelope.
+        coerced = aggregate.value_object(attribute.type)
           .then do |value_object|
-            return value if value.is_a?(self) && value.type_name == value_object&.hecks_name
-
-            value_object ? build(value_object, fields_for(value_object, attribute.name, value)) : value
+            if value.is_a?(self) && value.type_name == value_object&.hecks_name
+              value
+            elsif value_object
+              build(value_object, fields_for(value_object, attribute.name, value))
+            else
+              value
+            end
           end
+
+        admit_declared_set(aggregate, attribute, coerced)
+        coerced
       end
 
       def self.fields_for(value_object, name, value)
@@ -43,6 +58,7 @@ module Hecksagain
           completed[attribute.name] = attribute.default unless completed.key?(attribute.name) || attribute.default.nil?
         end
         admit_member(value_object, fields)
+        check_admitted(value_object, fields)
         check_numeric_fields(value_object, fields)
         check_patterns(value_object, fields)
         value_object.invariants.each do |invariant|
@@ -89,6 +105,21 @@ module Hecksagain
       # Which regexes may be written at all is PatternSubset's job, enforced when
       # the bluebook is declared — so by the time a value arrives here the pattern
       # is already one both runtimes read the same way, and this is a plain match.
+      # A FIELD OF A VALUE OBJECT MAY NAME A SET TOO.
+      #
+      # Beside check_patterns and for the same reason: `Query::Filter.op` is a
+      # plain String field that admits `Vocabulary::QueryComparator`, and the
+      # value object is what gets built — no attribute passes through
+      # `for_attribute` on the way. Both doors, or the word means one thing on
+      # an argument and nothing on a field.
+      private_class_method def self.check_admitted(value_object, fields)
+        value_object.attributes.each do |attribute|
+          next unless attribute.admits
+
+          admit_declared_set(value_object, attribute, fields[attribute.name])
+        end
+      end
+
       private_class_method def self.check_patterns(value_object, fields)
         value_object.attributes.each do |attribute|
           pattern = attribute.pattern
@@ -173,7 +204,7 @@ module Hecksagain
       # refusal byte-identical. Silent when the target is another chapter's,
       # where this runtime cannot see what it is known by.
       def self.known_by(attribute)
-        target = attribute.type.resolve&.ir
+        target = attribute.type.resolve
         return "" unless target&.identified_by
 
         " (#{attribute.type.target_name} is known by #{target.identified_by})"
@@ -208,6 +239,76 @@ module Hecksagain
 
         raise InvariantViolation,
               "#{value_object.hecks_name} admits #{admitted.map(&:inspect).join(', ')} — got #{offered.inspect}"
+      end
+
+      # THE SAME REFUSAL, FOR A SET NAMED SOMEWHERE ELSE.
+      #
+      # `admit_member` above refuses a non-member when the value object BEING
+      # BUILT is itself the closed set — which is the only shape `one_of` can
+      # make, because it SYNTHESISES the set from the values written inline. An
+      # `admits:` attribute is the other direction: the value is an ordinary
+      # String or a plain text holder, and the set it must belong to was
+      # declared once, elsewhere, and is named rather than restated.
+      #
+      # Without this the word was a DECLARATION and nothing more — read by
+      # bin/ir_structs to type a Rust field, read by nobody at the door. A rule
+      # that cannot be the one to refuse is decoration, and this language has
+      # paid for that mistake before.
+      def self.admit_declared_set(owner, attribute, value)
+        return value if attribute.nil? || attribute.admits.nil? || value.nil?
+
+        admitted = admitted_members(owner, attribute)
+        offered  = admitted_scalar(value)
+        return value if admitted.include?(offered.to_s)
+
+        raise InvariantViolation,
+              "#{attribute.name} admits #{attribute.admits} — " \
+              "#{admitted.map(&:inspect).join(', ')} — got #{offered.inspect}"
+      end
+
+      # `Vocabulary::MutationOp` — the aggregate that HOLDS the set, then the
+      # set. Qualified because a closed set is a value object INSIDE an
+      # aggregate, which is exactly why `admits` could not be spelled as a
+      # reference: `reference_to` reaches aggregate heads and nothing below one.
+      #
+      # RESOLVED LATE, like `Reference#resolve` and for the same reason — the
+      # set may be declared further down the file than the attribute that names
+      # it. And REFUSED when it resolves to nothing, also like `Reference`: a
+      # link checked against nothing is worse than no link, because it reads
+      # like a rule.
+      def self.admitted_members(owner, attribute)
+        aggregate_name, set_name = attribute.admits.to_s.split("::", 2)
+        chapter = chapter_of(owner)
+        set     = set_name && chapter&.aggregate(aggregate_name)&.value_object(set_name)
+
+        unless set
+          raise InvariantViolation,
+                "#{attribute.name} admits #{attribute.admits}, which this chapter does not " \
+                "declare — a closed set is named Aggregate::SetName, and it must be one " \
+                "the bluebook actually holds"
+        end
+
+        discriminant = set.attributes.first.name
+        set.members.map { |member| member.to_h[discriminant].to_s }
+      end
+
+      # UP TO THE CHAPTER, from wherever the attribute was declared. A value
+      # object's owner is its aggregate and an aggregate's owner is its chapter,
+      # so the walk stops at the first construct that can answer for an
+      # aggregate BY NAME — which is the chapter, and only the chapter.
+      def self.chapter_of(construct)
+        node = construct
+        node = node.hecks_owner while node && !node.respond_to?(:aggregate) && node.respond_to?(:hecks_owner)
+        node.respond_to?(:aggregate) ? node : nil
+      end
+
+      # An admitted value is a SCALAR however it arrived — as a bare string on a
+      # plain field, or wrapped in the one-field holder its type names.
+      def self.admitted_scalar(value)
+        return value unless value.is_a?(self)
+
+        fields = value.to_h
+        fields.size == 1 ? fields.values.first : value
       end
 
       def self.canonical_fields(fields)

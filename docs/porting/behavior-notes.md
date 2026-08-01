@@ -90,7 +90,7 @@ just gets recorded rather than unwinding again. "The check is the guard" — no 
   `stamp_references`.) `resolve_references` skips a `nil` target *silently*, so a reference the
   stamping walk missed fails open instead of loud — stated plainly in-repo as "the exact shape of
   the bug that let an Account belong to an unregistered customer fourteen times over."
-- **A reference resolves lazily, through the aggregate's own class constant — never eagerly by
+- **A reference resolves lazily, through its own chapter's declared heads — never eagerly by
   regex.** (`lib/hecksagain/bluebook/ir/reference.rb`.) Used to be the raw string
   `"Reference<Customer>"`, independently parsed back apart by five different readers (a regex in the
   command interpreter, string equality in the read-model interpreter and the SQLite adapter, a
@@ -99,10 +99,11 @@ just gets recorded rather than unwinding again. "The check is the guard" — no 
   same file. `to_s` still spells `"Reference<Customer>"` on purpose — that's the wire contract
   `Attribute#to_h` exports for the Rust parser to read, independent of how Ruby resolves it
   internally.
-- **Constant lookup for a reference target must NOT walk up to `Object`.** (`reference.rb`'s
-  `resolve`, `false` passed to both `const_defined?`/`const_get`.) Without that, lookup falls back
-  to whatever aggregate class an *earlier-loaded chapter in the same process* happened to install as
-  a top-level constant, and a reference silently resolves to the wrong domain's class entirely.
+- **Reference-target lookup is scoped to the declaring chapter, and can reach nothing else.**
+  (`reference.rb`'s `resolve` walks `declared_in.hecks_owner` — the chapter's own IR — and asks it
+  by name.) A same-named aggregate in another loaded domain is structurally unreachable, not
+  defended against; an unstamped reference refuses loudly rather than resolving to nothing. A
+  porting runtime should reproduce the scope rule, not any particular lookup mechanism.
 - **`reference_to X, as: :name` means "a named attribute," never "the root this command acts on" —
   even when `X` is the command's own aggregate.** (Ruby: `dsl/command_builder.rb`; Rust:
   `projector/ir_json.rs`'s `acts_on_root`.) Without this distinction, a command self-referencing its

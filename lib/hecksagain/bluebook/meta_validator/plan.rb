@@ -29,7 +29,7 @@ module Hecksagain
       #     plan = Plan.for(MetaValidator.grammar_registry)
       #     plan.category("Command").parent            # => "Aggregate"
       #     plan.category("Command").appends["rules"]  # => Append(verb: "Rule", map: {...})
-      #     plan.verbs                                 # every Meta:: verb declared
+      #     plan.verbs                                 # every Bluebook:: verb declared
       #
       # This reads the language. It does not read a bluebook and it dispatches
       # nothing — that is the judge's job.
@@ -65,7 +65,7 @@ module Hecksagain
         end
 
         def self.for(registry)
-          new(registry.bluebook("Meta"))
+          new(registry.bluebook("Bluebook"))
         end
 
         attr_reader :categories
@@ -86,7 +86,7 @@ module Hecksagain
 
         # Every verb the language declares, spelled as the judge would dispatch it.
         def verbs
-          @categories.flat_map { |name, category| category.verbs.map { |verb| "Meta::#{name}.#{verb}" } }
+          @categories.flat_map { |name, category| category.verbs.map { |verb| "Bluebook::#{name}.#{verb}" } }
         end
 
         private

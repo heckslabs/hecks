@@ -3,6 +3,7 @@
     {
       "attributes": [
         {
+          "admits": null,
           "default": null,
           "list": false,
           "name": "number",
@@ -11,6 +12,7 @@
           "type": "TillNumber"
         },
         {
+          "admits": null,
           "default": {
             "cents": 0
           },
@@ -21,6 +23,7 @@
           "type": "Money"
         },
         {
+          "admits": null,
           "default": null,
           "list": true,
           "name": "marks",
@@ -29,6 +32,7 @@
           "type": "Mark"
         },
         {
+          "admits": null,
           "default": null,
           "list": false,
           "name": "note",
@@ -41,6 +45,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "number",
@@ -66,6 +71,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "amount",
@@ -74,6 +80,7 @@
               "type": "Money"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "note",
@@ -122,6 +129,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "amount",
@@ -203,6 +211,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -223,6 +232,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "cents",
@@ -246,6 +256,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "amount",
@@ -254,6 +265,7 @@
               "type": "Integer"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "direction",
@@ -274,6 +286,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "text",

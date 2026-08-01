@@ -5,7 +5,7 @@ module Hecksagain
       attr_reader :registry
 
       # Set by a spec to observe dispatch order (Vocabulary::AggregateDispatchOrder
-      # in language/bluebook.bluebook) ; nil in production, always — one array
+      # in language/bluebook/vocabulary.bluebook) ; nil in production, always — one array
       # push and a nil check per step is the entire cost of leaving this in.
       class << self
         attr_accessor :trace

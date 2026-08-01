@@ -84,7 +84,7 @@ fn boot_repository(
             crate::adapters::driven::heki::HekiRepository::new(
                 &aggregate.name,
                 dir,
-                aggregate.identified_by.clone(),
+                aggregate.identity_key(),
             )
             .map_err(|error| format!("cannot bind Heki at {dir} for {}: {error}", aggregate.name))?,
         ));
@@ -132,7 +132,7 @@ fn query_number(value: &Value) -> Option<f64> {
 
 // THE DECLARED PATH, if there is one — read off the wire's own shape rather
 // than a bare string. `identified_by` travels as a LIST now (Ruby's
-// `identity_paths`, matched byte-for-byte by `ir_json::identity_list`) : empty
+// `identity_paths`, and now Rust's own `ir::Aggregate::identified_by`) : empty
 // when nothing is declared, one element for the single-field identity this
 // runtime actually resolves. There is no "id" DEFAULT any more — that default
 // was a MINT, the exact ability this reader exists to not have. A construct
@@ -361,7 +361,7 @@ fn admissible_transition(
 impl Runtime {
     pub fn new(ir: Value) -> Self {
         Runtime {
-            ir,
+            ir: crate::runtime::mutations::resolve_admitted_sets(ir),
             store: BTreeMap::new(),
             adapters: BTreeMap::new(),
             mirrors: BTreeMap::new(),

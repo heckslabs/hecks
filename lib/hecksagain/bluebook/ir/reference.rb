@@ -10,37 +10,33 @@ module Hecksagain
       # interpreter and the SQLite adapter, and by `delete_prefix` in the bluebook
       # builder. Five readers of a spelling one writer invented.
       #
-      # It holds the TARGET instead, and answers `resolve` with the aggregate
-      # class. Resolution is LAZY and deliberately so: `reference_to Customer` may
-      # name an aggregate declared lower in the file — banking's Account points at
-      # Customer and survives only because Customer happens to be written above —
-      # so the edge cannot be a class at declaration time. It resolves through the
-      # chapter's namespace, which means Ruby's constant tree does the work and
-      # there is no table to keep.
+      # It holds the TARGET instead, and answers `resolve` with the target's
+      # IR::Aggregate. Resolution is LAZY and deliberately so: `reference_to
+      # Customer` may name an aggregate declared lower in the file — banking's
+      # Account points at Customer and survives only because Customer happens to
+      # be written above — so the edge cannot be resolved at declaration time.
+      # It resolves through the chapter's own IR (`IR::Bluebook#aggregate`),
+      # which is scoped by construction : the lookup cannot walk anywhere but
+      # this chapter's declared heads, so a same-named aggregate in another
+      # loaded domain is unreachable rather than defended against.
       #
       # `to_s` still spells `"Reference<Customer>"`, because `Attribute#to_h` is
-      # part of the byte-for-byte contract with the Rust parser. Classes in the
-      # graph, strings in the export.
+      # part of the byte-for-byte contract with the Rust parser. IR objects in
+      # the graph, strings in the export.
       class Reference
         attr_reader :target_name
 
-        # The aggregate class whose declaration carries this reference — the way
-        # up to the chapter, stamped by `AggregateBuilder#build` once every
-        # sibling has been read.
+        # The IR::Aggregate whose declaration carries this reference — the way
+        # up to the chapter, stamped once every sibling has been read.
         attr_accessor :declared_in
 
         def initialize(target_name)
           @target_name = Naming.demodulise(target_name).to_s
         end
 
-        # The aggregate class this points at, or nil when the target belongs to
+        # The IR::Aggregate this points at, or nil when the target belongs to
         # ANOTHER domain — a cross-domain target may legitimately not be loaded,
         # the same reading `across` policies get.
-        #
-        # `false` on both constant calls is load-bearing: without it the lookup
-        # walks up to Object, where a chapter loaded earlier in the process has
-        # installed its own aggregates as top-level constants, and a reference
-        # would silently resolve to another domain's class.
         def resolve
           unless declared_in
             raise DSL::Malformed,
@@ -49,10 +45,7 @@ module Hecksagain
                   "against nothing"
           end
 
-          chapter = declared_in.hecks_owner
-          return nil unless chapter&.const_defined?(@target_name, false)
-
-          chapter.const_get(@target_name, false)
+          declared_in.hecks_owner&.aggregate(@target_name)
         end
 
         # The IR spelling, which the export and the Rust parser share.

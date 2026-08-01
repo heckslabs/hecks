@@ -1,15 +1,11 @@
 module Hecksagain
   # The invisible field a built construct carries.
   #
-  # A construct is a Ruby class now — `Pizzas::Pizza`, `Pizzas::Pizza::Price` —
-  # so `Class#name` is RUBY's business and answers where the class lives. What a
-  # bluebook calls the thing is a different fact, and making `name` carry both
-  # means picking which one it does badly: shorten it and two aggregates each
-  # declaring `Money` both answer "Money", with `inspect` quietly disagreeing.
-  #
-  # So the bluebook identity is carried in its own field, under a `hecks_` prefix
-  # that no domain attribute can collide with. Invisible means exactly that: not
-  # an attribute, not a key in `to_h`, not a reader on instances. Framework
+  # A construct is a RECORD WITH AN OWNER CHAIN — the chapter (IR::Bluebook)
+  # owns its aggregates, an aggregate owns everything declared on it — and the
+  # bluebook identity is carried in its own field, under a `hecks_` prefix that
+  # no domain attribute can collide with. Invisible means exactly that: not an
+  # attribute, not a key in `to_h`, not a reader on instances. Framework
   # metadata about the construct, not part of the domain it describes.
   #
   # The identity is COMPUTED by walking owners rather than stamped, so nothing
@@ -20,16 +16,16 @@ module Hecksagain
   #     Pizzas::Pizza.Price        everything else joins its owner with .
   #
   # That spelling is not invented here. It is the id `MetaValidator::Judge`
-  # already mints in `#identify`, so a construct class and the meta-domain's
+  # already mints in `#identify`, so a construct and the meta-domain's
   # record OF that construct carry the same identity, and there is no
   # translation table between them to be quietly wrong in.
   #
   # Usage:
   #
-  #     price = Class.new(IR::ValueObject)
+  #     price = Class.new(IR::ValueObject)   # a declaration holder
   #     price.hecks_name  = "Price"
-  #     price.hecks_owner = pizza_class
-  #     price.hecks_fqn                   # => "Pizzas::Pizza.Price"
+  #     price.hecks_owner = pizza_ir         # the IR::Aggregate that declares it
+  #     price.hecks_fqn                      # => "Pizzas::Pizza.Price"
   module Construct
     # A construct asked for an identity it cannot compute.
     class Unowned < StandardError; end

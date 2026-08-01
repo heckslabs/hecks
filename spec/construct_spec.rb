@@ -2,21 +2,20 @@
 require "spec_helper"
 require "stringio"
 
-# A CONSTRUCT IS A RUBY CLASS, AND WHAT POINTS AT ONE IS AN EDGE.
+# A CONSTRUCT IS A RECORD WITH AN OWNER CHAIN, AND WHAT POINTS AT ONE IS AN EDGE.
 #
-# Value objects crossed over first: `ValueObjectBuilder` returns a subclass of
-# `IR::ValueObject` nested where the bluebook nests it, so `Pizzas::Pizza::Price`
-# is a real constant and Ruby's constant tree is the index — which is why
-# `Aggregate#value_object(name)` is on its way out rather than reimplemented.
+# The chain is IR objects end to end : the chapter (IR::Bluebook) owns its
+# aggregates, an aggregate owns its commands, value objects, entities and asks,
+# and `hecks_fqn` is COMPUTED by walking owners — the same spelling
+# `MetaValidator::Judge#identify` mints, so a construct and the language's
+# record OF that construct need no translation between them.
 #
-# `reference_to Customer` followed. It used to mint the STRING
-# "Reference<Customer>" from a constant just handed in, and five readers parsed
-# that spelling back apart. It holds an `IR::Reference` now, which RESOLVES to
-# the aggregate class through the chapter.
+# `reference_to Customer` is an `IR::Reference`, which RESOLVES to the target's
+# IR::Aggregate through the chapter's own declared heads — scoped by
+# construction, lazy on purpose (the target may be declared lower in the file).
 #
-# The reason the declared name is carried beside `Class#name` rather than
-# replacing it is here as an assertion rather than an argument: three aggregates
-# in banking each declare their own `Narrative`.
+# Three aggregates in banking each declare their own `Narrative`; the owner
+# chain is what keeps them three distinguishable facts.
 RSpec.describe "a construct's identity" do
   CONSTRUCT_PIZZAS  = InMemoryDomain::PIZZAS_BLUEBOOK
   CONSTRUCT_BANKING = File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/banking.bluebook").freeze
@@ -39,49 +38,42 @@ RSpec.describe "a construct's identity" do
     end
   end
 
-  # Memoised per example ON PURPOSE. Every load mints a fresh class graph and
-  # repoints the top-level constant at the newest, so two loads in one example
-  # yield two different `Price` classes.
+  # Memoised per example ON PURPOSE. Every load builds a fresh IR graph and the
+  # bind repoints the top-level door at the newest, so two loads in one example
+  # yield two different `Price` records.
   def pizzas  = @pizzas  ||= boot(CONSTRUCT_PIZZAS)
   def banking = @banking ||= boot(CONSTRUCT_BANKING)
 
-  def aggregate_class(runtime, domain, name)
-    runtime.registry.bluebook(domain).aggregate(name).ruby_class
+  def aggregate_ir(runtime, domain, name)
+    runtime.registry.bluebook(domain).aggregate(name)
   end
 
-  def pizza = aggregate_class(pizzas, "Pizzas", "Pizza")
+  def pizza = aggregate_ir(pizzas, "Pizzas", "Pizza")
 
   describe "the name it is declared by" do
-    it "spells an aggregate the way the aggregate already spelled itself" do
-      # `Aggregate.fqn` predates the mixin and computes "#{domain}::#{ir.name}".
-      # If these ever disagree there are two identities for one construct, which
-      # is what the invisible field exists to prevent.
-      expect(pizza.hecks_fqn).to eq(pizza.fqn)
+    it "spells an aggregate one way, from the owner chain alone" do
+      expect(pizza.hecks_name).to eq("Pizza")
       expect(pizza.hecks_fqn).to eq("Pizzas::Pizza")
     end
 
     it "spells a value object the way the meta-domain already ids one" do
       # `MetaValidator::Judge#identify` mints "#{parent_id}.#{name}" for every
-      # category below an aggregate. Same string, reached from the class graph
-      # instead of from a walk — so a construct and the language's record OF that
-      # construct need no translation between them.
-      expect(pizza::Price.hecks_fqn).to eq("Pizzas::Pizza.Price")
+      # category below an aggregate. Same string, reached by walking the IR's
+      # own owners — so a construct and the language's record OF that construct
+      # need no translation between them.
+      expect(pizza.value_object("Price").hecks_fqn).to eq("Pizzas::Pizza.Price")
     end
 
-    it "leaves Class#name telling the truth about where the class lives" do
-      expect(pizza::Price.name).to eq("Pizzas::Pizza::Price")
-      expect(pizza::Price.hecks_name).to eq("Price")
-    end
+    it "reaches a value object through the head that declares it" do
+      price = pizza.value_object("Price")
 
-    it "reaches a value object as a nested constant, with no lookup at all" do
-      expect(pizza.const_get(:Price)).to be(pizza::Price)
-      expect(pizza::Price).to be_a(Class)
-      expect(pizza::Price.attributes.map(&:name)).to eq([:cents])
+      expect(price.hecks_name).to eq("Price")
+      expect(price.attributes.map(&:name)).to eq([:cents])
     end
 
     it "keeps three same-named value objects distinguishable" do
       shapes = %w[Account ATMCard Transfer].map do |owner|
-        aggregate_class(banking, "Banking", owner)::Narrative
+        aggregate_ir(banking, "Banking", owner).value_object("Narrative")
       end
 
       expect(shapes.uniq.size).to eq(3)
@@ -108,14 +100,15 @@ RSpec.describe "a construct's identity" do
     # answered nil for everything would leave the whole suite green while the one
     # guarantee an aggregate reference is for quietly stopped holding. Which is
     # precisely how it came to be declared fourteen times and enforced nowhere.
-    it "resolves every reference in banking to a class in its own chapter" do
+    it "resolves every reference in banking to a head in its own chapter" do
       found = references_in(banking, "Banking")
 
       expect(found.size).to eq(16)
       found.each do |owner, attribute|
         resolved = attribute.type.resolve
 
-        expect(resolved).to be_a(Class), "#{owner}##{attribute.name} resolved to #{resolved.inspect}"
+        expect(resolved).to be_a(Hecksagain::Bluebook::IR::Aggregate),
+                            "#{owner}##{attribute.name} resolved to #{resolved.inspect}"
         expect(resolved.hecks_name).to eq(attribute.type.target_name)
         expect(resolved.hecks_owner.hecks_name).to eq("Banking")
       end
@@ -155,10 +148,10 @@ RSpec.describe "a construct's identity" do
     def add_topping = pizzas.registry.bluebook("Pizzas").aggregate("Pizza").command("AddTopping")
     def create      = pizzas.registry.bluebook("Pizzas").aggregate("Pizza").command("CreatePizza")
 
-    it "acts on the aggregate CLASS, not the name of one" do
+    it "acts on the aggregate itself, not the name of one" do
       expect(add_topping).to be_a(Class)
       expect(add_topping.hecks_name).to eq("AddTopping")
-      expect(add_topping.acts_on).to be(pizza)
+      expect(add_topping.acts_on).to be(pizzas.registry.bluebook("Pizzas").aggregate("Pizza"))
     end
 
     it "acts on nothing when it is the command that creates" do
@@ -176,11 +169,11 @@ RSpec.describe "a construct's identity" do
     # language does it six times ON PURPOSE: the command `Argument` is the verb
     # that appends to the `arguments` list whose element type is the value object
     # `Argument`, and `Plan` reads exactly that pairing to build the walk. So
-    # `Meta::Command::Argument` cannot be both, and `hecks_fqn` is not unique
+    # `Bluebook::Command::Argument` cannot be both, and `hecks_fqn` is not unique
     # either — identity is (KIND, FQN). The judge's ids collide the same way and
     # get away with it because each category has its own repository.
     it "shares its name with a value object, which is why it is not a constant" do
-      meta     = Hecksagain::Bluebook::MetaValidator.grammar_registry.bluebook("Meta")
+      meta     = Hecksagain::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
       command  = meta.aggregate("Command")
       verb     = command.command("Argument")
       shape    = command.value_object("Argument")
@@ -189,8 +182,8 @@ RSpec.describe "a construct's identity" do
       expect(verb.hecks_name).to eq(shape.hecks_name)
       # The same identity string for two different constructs — so the constant
       # tree cannot be the index for a kind-ambiguous name.
-      expect(shape.hecks_fqn).to eq("Meta::Command.Argument")
-      expect(command.ruby_class.const_get(:Argument)).to be(shape)
+      expect(shape.hecks_fqn).to eq("Bluebook::Command.Argument")
+      expect(command.value_object("Argument")).to be(shape)
     end
 
     it "refuses to state an identity it was never given" do
@@ -232,11 +225,11 @@ RSpec.describe "a construct's identity" do
 
     # WHY `Registry` KEEPS A CHAPTER TABLE, pinned so it is not "optimised" away.
     #
-    # Ruby's constant tree is the index for everything INSIDE an aggregate, because
-    # an aggregate class is a namespace nobody else owns. A chapter installs at TOP
-    # LEVEL, where the names are not ours — so `Namespace.install` warns and keeps
-    # the existing constant, and the chapter is never reachable that way. A domain
-    # is entered by name exactly once; everything below it is traversal.
+    # The DOOR installs at TOP LEVEL, where the names are not ours — so
+    # `Namespace.install` warns and keeps the existing constant, and the
+    # chapter's door is never reachable that way. The registry's own table is
+    # the index the runtime trusts ; a domain is entered by name exactly once,
+    # and everything below it is traversal through the IR.
     it "cannot be indexed by Ruby's constants, because top-level names are not ours" do
       captured = StringIO.new
       registry = Hecksagain::Runtime::Registry.new
@@ -258,6 +251,9 @@ RSpec.describe "a construct's identity" do
             end
           end
         end
+        # Installation happens at BIND, not at load — the door is a per-boot
+        # projection, and this is the moment it meets Ruby's own `Set`.
+        Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
       ensure
         $stderr = was
       end

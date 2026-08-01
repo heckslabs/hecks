@@ -54,7 +54,7 @@ Rust.
 bin/console
 ```
 
-Booting constructs the classes, so a domain is just Ruby:
+Booting installs the door, so a domain is just Ruby:
 
 ```ruby
 pizza = Pizza.create_pizza(name: "Margherita", price_cents: 1200)
@@ -68,10 +68,12 @@ Pizza.count         # => 1
 Pizza.find(pizza.id)
 ```
 
-A creating command is a class method and returns the new record. A command that
-references its aggregate is an instance method — identity is already known, so
-it is never passed by hand — and returns self, so commands chain. Dispatch is
-plumbing; nobody writing a domain should ever type it.
+A creating command is a module method and returns the new record in hand. A
+command that references its aggregate is a method on that record — identity is
+already known, so it is never passed by hand — and returns self, so commands
+chain. Dispatch is plumbing; nobody writing a domain should ever type it. (No
+domain classes exist behind this: the door is a per-boot facade of modules
+closing over the dispatcher, and the IR is the only graph the runtime runs.)
 
 ## Two runtimes, one answer
 
@@ -204,8 +206,9 @@ semantic core, and Rust is merely the first thing to read it.
 
 ## The shape
 
-- **An aggregate IS the port**, and the hexagon wires the real class —
-  `Pizzas::Pizza.persisted_by("Sqlite")` is a genuine method call.
+- **An aggregate IS the port**, and the hexagon wires it by name —
+  `Pizzas::Pizza.persisted_by("Sqlite")` reads as a method call and records a
+  bind, whether it lands on the installed door or on the load-time proxy.
 - **A family names a how-verb**, a signal, and config field *names*. It never
   names its adapters — the adapter declares the family, so a new backend is
   purely additive.

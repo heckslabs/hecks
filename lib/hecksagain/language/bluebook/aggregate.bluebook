@@ -1,0 +1,379 @@
+Hecks.bluebook "Bluebook" do
+  aggregate "Aggregate" do
+    description "One aggregate inside a chapter — the head a domain's declarations attach to."
+
+    reference_to Bluebook
+
+    # THE CHAPTER IT IS IN, AND ITS NAME. `Order` names nothing on its own — two
+    # chapters may both declare one — so the chapter is part of the identity, not
+    # context around it. This is the derivation `MetaValidator::Judge#identify`
+    # spelled by hand as "#{parent_id}::#{name}" for as long as the language could
+    # not say it.
+    identified_by do
+      bluebook_id
+      name.value
+    end
+
+    # SPELLED AS THE IR SPELLS THEM — see the note on Command's fields.
+    attribute :name,          AggregateName
+    attribute :description,   Description
+    # SEVERAL PATHS, because the identity is their JOIN. One is the ordinary case ;
+    # more than one is what anything named BENEATH another thing needs, and the
+    # language's own chapters are all of that kind — a command is not named by
+    # `Declare`, which every aggregate here spells, but by the aggregate it belongs
+    # to AND that name. Held as a list for the same reason attributes are : the
+    # order is a fact about the source, and the join reads in it.
+    attribute :identified_by, list_of(IdentityPath)
+    attribute :attributes,    list_of(Field)
+    attribute :value_objects, list_of(ValueName)
+    attribute :state_field,   IdentityField
+    attribute :state_start,   IdentityField
+    attribute :transitions,   list_of(Transition)
+
+    value_object "AggregateName" do
+      attribute :value, String
+      invariant("an aggregate is named") { !value.to_s.empty? }
+    end
+
+    value_object "Description" do
+      attribute :value, String
+      invariant("a description says something") { !value.to_s.empty? }
+    end
+
+    value_object "IdentityField" do
+      attribute :value, String
+    end
+
+    # ONE PART OF AN IDENTITY — a path down to the SCALAR that carries it, like
+    # "number.value". A part on its own is not an identity ; the identity is every
+    # part joined, in the order they were declared.
+    #
+    # Its field is `value`, like every other one-field value object in this
+    # language, because that is the name the judge wraps a cell under. Spelling it
+    # `path` made `path.path` read nothing, and a given that reads nothing does not
+    # fail — it refuses everything, which is a far quieter way to be wrong.
+    value_object "IdentityPath" do
+      attribute :value, String
+    end
+
+    value_object "Field" do
+      attribute :name,    String
+      attribute :type,    String
+      attribute :list,    String
+      attribute :optional, String, optional: true
+      attribute :pattern,  String, optional: true
+      # Held as a LITERAL, written so its type survives — 0.0 rather than "0.0".
+      # Without this an aggregate attribute's default was simply dropped, and the
+      # reconstruction hardcoded nil, which happened to match every corpus member
+      # and would have lied about the first one that declared a default.
+      attribute :default, String
+      # THE CLOSED SET THIS VALUE MUST BELONG TO, named where it was already
+      # declared — `Vocabulary::QueryComparator`. Qualified by the aggregate that
+      # holds it, because a closed set is a value object INSIDE an aggregate and
+      # the aggregate is the only thing a reference can reach ; `one_of` is the
+      # other word and it can only ever SYNTHESISE a new set, never name one
+      # twice. Absent for almost every attribute, so it is optional.
+      attribute :admits, String, optional: true
+    end
+
+    value_object "ValueName" do
+      attribute :name, String
+    end
+
+    value_object "Transition" do
+      attribute :command,    String
+      attribute :from_state, String
+      attribute :to_state,   String
+    end
+
+    command "Declare" do
+      role "Language"
+      goal "Open an aggregate inside a chapter"
+
+      reference_to Bluebook
+      attribute :name,          AggregateName
+      attribute :description,   Description, optional: true
+
+      attribute :position, Position, optional: true
+      emits "RootDeclared"
+    end
+
+    # ONE PART OF THE IDENTITY, attached the way one attribute is. It was an
+    # argument on Declare while an identity was a single field ; a list cannot be
+    # carried by one argument, and every other list in this language is filled by
+    # a verb of its own, so this is the shape that was already here.
+    command "Identify" do
+      role "Language"
+      goal "Attach one part of the aggregate's identity"
+
+      reference_to Aggregate
+      attribute :path, IdentityPath
+
+      # AN IDENTITY PART REACHES A SCALAR. This rule used to sit on Seal reading
+      # `empty? || == "id" || includes(".")` — two escapes and a check. The escapes
+      # were the whole of it : `empty?` let an aggregate say nothing and be given a
+      # minted `id`, and `== "id"` let it name that slot outright. Both are gone,
+      # so what is left is the rule itself, and it now runs on every part rather
+      # than on whichever one a single field happened to hold.
+      #
+      # TWO WAYS TO REACH ONE. A path opens a value object and names the field
+      # inside it — `number.value`. A REFERENCE is already a scalar : it holds
+      # another root's id, so there is nothing to open, which is precisely what the
+      # retired `== "id"` escape was true about and wrong to generalise from. The
+      # language MINTS the `_id` ending itself in `reference_to`, so reading it here
+      # is reading the language's own spelling, not guessing at a convention.
+      #
+      # Said with `include?` rather than `end_with?` because `include?` is a word
+      # the predicate sublanguage HAS and `end_with?` is not — and a given written
+      # in words the sublanguage cannot read does not fail loudly, it simply refuses
+      # everything, which is how the first draft of this rule refused `name.value`.
+      given("an identity part reaches a scalar") { path.value.to_s.include?(".") || path.value.to_s.include?("_id") }
+
+      then_set :identified_by, append: { value: :path }
+      emits "RootIdentified"
+    end
+
+    # The way back, one level down: the aggregates DECLARED IN a chapter, found by
+    # the chapter that declared them. The parent reference IS the query.
+    #
+    # `bluebook_id` is an IdentityField, not an AggregateName — it holds the id of
+    # the chapter above, and calling that a name for aggregates was sloppiness that
+    # would read as a lie the first time somebody looked.
+    # WHERE IT SITS AMONG ITS SIBLINGS. Declaration order is a FACT ABOUT THE
+    # SOURCE — Rust reads it straight out of the file, and the IR is a contract
+    # field for field AND INDEX FOR INDEX. So the language HOLDS it, instead of
+    # inheriting it from whatever order a store happens to iterate: an ask that
+    # does not say how it is ordered is answered in identity order, which is
+    # right for every other ask and fatal for the one that is the SOURCE.
+    value_object "Position" do
+      attribute :value, Integer
+    end
+
+    attribute :position, Position
+
+    query "DeclaredIn" do
+      attribute :bluebook_id, IdentityField
+      where(bluebook_id: :bluebook_id)
+      order_by :position
+    end
+
+    command "Attribute" do
+      role "Language"
+      goal "Attach one attribute to the aggregate"
+
+      reference_to Aggregate
+      # The TYPE is a reference to the value object it names. An attribute
+      # naming an undeclared value object then fails REFERENCE RESOLUTION —
+      # "no Shape with id …" — with no predicate at all.
+      #
+      # This is the rule "attributes must use value-object types", which could
+      # not be a `given` : it needs, for each element of a list, a check against
+      # another list, and the sublanguage has no quantifier and cannot see
+      # inside a list element. As a reference it stops being a predicate and
+      # becomes a consequence of the model.
+      reference_to ValueObject, as: :type
+      attribute :name,    FieldName
+      attribute :list,    ListFlag
+      attribute :optional, ListFlag, optional: true
+      # A PATTERN IS A REGEX, not a flag — see the note on ListFlag below.
+      attribute :pattern,  LiteralText, optional: true
+      attribute :default, LiteralText, optional: true
+      # FREE TEXT, not a reference. A closed set is a value object INSIDE an
+      # aggregate, and `reference_to` reaches heads only — so the qualified name
+      # is carried as text and checked where it is READ, by bin/ir_structs, which
+      # already raises for the other things the language cannot say about itself.
+      attribute :admits,  LiteralText, optional: true
+
+      then_set :attributes, append: { name: :name, type: :type, list: :list, default: :default, optional: :optional, pattern: :pattern, admits: :admits }
+
+      emits "AttributeAttached"
+    end
+
+    # An attribute that points at ANOTHER aggregate's head.
+    #
+    # `Attribute` types its type as `reference_to ValueObject`, which is what makes
+    # "attributes use value-object types" a consequence of the model rather than a
+    # predicate. A cross-aggregate reference cannot go through it: its type is
+    # `Reference<Customer>`, which is not a value object and never will be. So the
+    # judge SKIPPED every one of them, and the meta-domain did not hold
+    # Account#customer_id at all — the way back was lossy for exactly one
+    # construct, and the comment excusing it said "the language does not model
+    # reference-typed attributes yet".
+    command "Reference" do
+      role "Language"
+      goal "Attach an attribute that points at another aggregate's head"
+
+      reference_to Aggregate
+      # POINTS AT a declared head, and that is the whole rule.
+      #
+      # This carried `attribute :type, ReferenceType` — a STRING — with an invariant
+      # apologising for itself, because the shape that actually tells a reference
+      # from a value object (`Reference<Something>`) is unsayable in the predicate
+      # sublanguage. That was never a sublanguage gap; a string was simply the wrong
+      # model. As a reference it stops being a predicate and becomes a consequence
+      # of the model, exactly as Attribute's type does — and it is STRONGER than the
+      # prefix match, which only ever checked that the text looked right.
+      reference_to Aggregate, as: :points_at
+      attribute :name,    FieldName
+      attribute :list,    ListFlag
+      attribute :optional, ListFlag, optional: true
+      # A PATTERN IS A REGEX, not a flag — see the note on ListFlag below.
+      attribute :pattern,  LiteralText, optional: true
+      attribute :default, LiteralText, optional: true
+      attribute :admits,  LiteralText, optional: true
+
+      then_set :attributes, append: { name: :name, type: :points_at, list: :list, default: :default, optional: :optional, pattern: :pattern, admits: :admits }
+
+      emits "ReferenceAttached"
+    end
+
+    # An attribute whose type names a PIECE this aggregate holds.
+    #
+    # `Account#ledger` is a list of LedgerEntry — neither a value object nor another
+    # aggregate's head — so it fitted no verb and the walk skipped it, the last
+    # construct the way back could not carry. Same trick as Reference: point at the
+    # entity's own declaration, and "an aggregate holds a piece it declared" costs
+    # no predicate at all. Entities are declared before attributes are offered, so
+    # the reference resolves.
+    command "Holds" do
+      role "Language"
+      goal "Attach an attribute whose type is a piece of this aggregate"
+
+      reference_to Aggregate
+      reference_to Entity, as: :holds
+      attribute :name,    FieldName
+      attribute :list,    ListFlag
+      attribute :optional, ListFlag, optional: true
+      # A PATTERN IS A REGEX, not a flag — see the note on ListFlag below.
+      attribute :pattern,  LiteralText, optional: true
+      attribute :default, LiteralText, optional: true
+      attribute :admits,  LiteralText, optional: true
+
+      then_set :attributes, append: { name: :name, type: :holds, list: :list, default: :default, optional: :optional, pattern: :pattern, admits: :admits }
+
+      emits "PieceHeld"
+    end
+
+    # THE ONLY RULE THAT CAN REFUSE AN UNNAMED ATTRIBUTE, and it lives here.
+    #
+    # Attribute, Reference and Holds each carried `given("… is named")` beside
+    # this, and not one of them could ever fire: an EMPTY name builds the value
+    # object and this invariant refuses first, while an ABSENT name builds no
+    # value object and the given did not refuse at all — probed, not reasoned.
+    # Three rules that read as rules and were decoration. A predicate cannot
+    # guard what a type already guards.
+    value_object "FieldName" do
+      attribute :value, String
+      invariant("an attribute is named") { !value.to_s.empty? }
+    end
+
+    value_object "TypeName" do
+      attribute :value, String
+      invariant("a type is named") { !value.to_s.empty? }
+    end
+
+    # A literal written the way it can be read back — see Readings#encode_literal.
+    value_object "LiteralText" do
+      attribute :value, String
+    end
+
+    # TRUE OR FALSE, AND NOTHING ELSE. `list` and `optional` are the two fields
+    # this is about — they are the answers to a yes/no question, written as text
+    # because that is what the wire carries.
+    #
+    # `pattern` was typed with it too, which is not a loose typing but a FALSE
+    # one: a pattern holds a regex, and this invariant admits exactly two strings
+    # neither of which is one. It never fired only because no aggregate-level or
+    # entity-level attribute in the corpus declares a pattern — banking's one
+    # `pattern:` sits on a VALUE OBJECT field, which is built by
+    # `ValueObject.Field` and so went down a different command entirely. The
+    # first head that declared a pattern would have been refused by a rule about
+    # lists. It is `LiteralText` now, which is what the other four element
+    # builders already say a pattern is: free text.
+    value_object "ListFlag" do
+      attribute :value, String
+      invariant("list is true or false") { value.to_s == "true" || value.to_s == "false" }
+    end
+
+    command "Lifecycle" do
+      role "Language"
+      goal "Name the field this aggregate's state machine runs on"
+
+      reference_to Aggregate
+      attribute :state_field, FieldName
+      attribute :state_start, FieldName
+
+      then_set :state_field, to: :state_field
+      then_set :state_start, to: :state_start
+
+      emits "LifecycleNamed"
+    end
+
+    command "Transition" do
+      role "Language"
+      goal "Attach one transition to the state machine"
+
+      reference_to Aggregate
+      attribute :command,    FieldName
+      attribute :from_state, FieldName, optional: true
+      attribute :to_state,   FieldName
+
+      then_set :transitions, append: { command: :command, from_state: :from_state, to_state: :to_state }
+
+      emits "TransitionAttached"
+    end
+
+    command "Seal" do
+      role "Language"
+      goal "Close an aggregate — the checks that need every declaration present"
+
+      # The builders validate at `build`, once everything is collected. A given
+      # fires at DISPATCH, when later declarations do not exist yet. So the
+      # whole-document rules live on a command dispatched after the aggregate
+      # is fully declared. This is the shape the tier-3 rules need ; whether
+      # the sublanguage can express their CONTENT is the open question.
+      reference_to Aggregate
+
+      # THE RULE THAT WAS HERE WAS NOT TRUE, and nothing could tell us while Seal
+      # went undispatched. `given("an aggregate declares at least one attribute")`
+      # was invented for this command — it is not one of the rules ported from the
+      # builders, so no bluebook was ever written against it. The first time it
+      # ran it refused twenty-five of them, including every aggregate whose state
+      # is a `lifecycle` rather than an `attribute` : a state machine declares no
+      # attribute and is perfectly well formed.
+      #
+      # Seal stays. It is the right SHAPE for a whole-document rule — dispatched
+      # once every declaration is present — and it is now actually dispatched, so
+      # the next rule put here will be seen refusing instead of sitting decorative.
+      # The rule waiting for it is "a mutation names a field the aggregate has",
+      # which lives in AggregateBuilder today because saying it here needs to reach
+      # a list on another root.
+      # AN AGGREGATE SAYS WHAT IT IS KNOWN BY. Nothing falls back to `id` any more.
+      #
+      # The fallback was never a default — it was a MINT. An aggregate that said
+      # nothing got an id invented for it, so the same declaration named a
+      # different record on the next run, and nothing outside the runtime could
+      # name a record at all. The rule that stood here permitted it in as many
+      # words (`empty? || == "id"`), and the comment named exactly who was
+      # leaning on it : the language's own chapters, all fourteen of them.
+      #
+      # They derive now, like everything else does. What each PART must look like
+      # is Identify's rule ; this one only asks that there be one.
+      given("an aggregate says what it is known by") { !identified_by.empty? }
+
+      emits "RootSealed"
+    end
+
+    command "Value" do
+      role "Language"
+      goal "Declare a value object belonging to this aggregate"
+
+      reference_to Aggregate
+      attribute :name, FieldName
+
+      then_set :value_objects, append: { name: :name }
+
+      emits "ValueDeclared"
+    end
+  end
+end

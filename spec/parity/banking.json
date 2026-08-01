@@ -1,6 +1,6 @@
 {
   "name": "banking-parity",
-  "note": "Every declared banking command and query is exercised in both runtimes, including refusal paths. The adversarial cases assert that nested Narrative values are validated before an entity is appended, an amendment cannot reduce a ledger entry below zero, and a transfer cannot settle until a destination credit produced TransferCredited. Persistence retains every write as an append-only version entry while reads materialize the last entry for each identity.",
+  "note": "Every declared banking command and query is exercised in both runtimes, including refusal paths. The adversarial cases assert that nested Narrative values are validated before an entity is appended, an amendment cannot reduce a ledger entry below zero, and a transfer cannot settle until a destination credit produced TransferCredited. Persistence retains every write as an append-only version entry while reads materialize the last entry for each identity. One external transfer names a direction outside Account::LedgerDirection: `admits` is a rule about a set declared in ANOTHER aggregate, and a rule only one runtime enforces is one bluebook meaning two things — which is precisely what this file exists to catch.",
   "expectations": {
     "event_names": [
       "TransferCredited"
@@ -443,7 +443,8 @@
     },
     {
       "query": "Banking::Transfer.InFlight",
-      "args": {}
+      "args": {
+      }
     },
     {
       "verb": "Banking::Transfer.Reverse",
@@ -524,7 +525,8 @@
     },
     {
       "query": "Banking::Customer.Suspended",
-      "args": {}
+      "args": {
+      }
     },
     {
       "verb": "Banking::Customer.Reinstate",
@@ -710,7 +712,8 @@
     },
     {
       "query": "Banking::Account.Open",
-      "args": {}
+      "args": {
+      }
     },
     {
       "query": "Banking::Account.Overdrawn",
@@ -723,19 +726,23 @@
     },
     {
       "query": "Banking::Customer.InGoodStanding",
-      "args": {}
+      "args": {
+      }
     },
     {
       "query": "Banking::Customer.Suspended",
-      "args": {}
+      "args": {
+      }
     },
     {
       "query": "Banking::Transfer.InFlight",
-      "args": {}
+      "args": {
+      }
     },
     {
       "query": "Banking::Account.LedgerEntry.Reversed",
-      "args": {}
+      "args": {
+      }
     },
     {
       "verb": "Banking::Customer.Close",
@@ -964,15 +971,18 @@
     },
     {
       "query": "Banking::ATMCard.Active",
-      "args": {}
+      "args": {
+      }
     },
     {
       "query": "Banking::ATMCard.ByFee",
-      "args": {}
+      "args": {
+      }
     },
     {
       "query": "Banking::ATMCard.Withdrawal.Recent",
-      "args": {}
+      "args": {
+      }
     },
     {
       "verb": "Banking::ATMCard.Retire",
@@ -984,7 +994,8 @@
     },
     {
       "query": "Banking::ATMCard.Active",
-      "args": {}
+      "args": {
+      }
     },
     {
       "verb": "Banking::Customer.Register",
@@ -1548,7 +1559,8 @@
     },
     {
       "query": "Banking::Transfer.InFlight",
-      "args": {}
+      "args": {
+      }
     },
     {
       "verb": "Banking::Transfer.Reject",
@@ -1584,7 +1596,8 @@
     },
     {
       "query": "Banking::Transfer.InFlight",
-      "args": {}
+      "args": {
+      }
     },
     {
       "verb": "Banking::Transfer.Request",
@@ -1787,27 +1800,33 @@
     },
     {
       "query": "Banking::Account.Overdrawn",
-      "args": {}
+      "args": {
+      }
     },
     {
       "query": "Banking::Account.Open",
-      "args": {}
+      "args": {
+      }
     },
     {
       "query": "Banking::Customer.InGoodStanding",
-      "args": {}
+      "args": {
+      }
     },
     {
       "query": "Banking::ATMCard.Active",
-      "args": {}
+      "args": {
+      }
     },
     {
       "query": "Banking::ATMCard.ByFee",
-      "args": {}
+      "args": {
+      }
     },
     {
       "query": "Banking::Transfer.InFlight",
-      "args": {}
+      "args": {
+      }
     },
     {
       "verb": "Banking::Account.ApplyFee",
@@ -2073,11 +2092,13 @@
     },
     {
       "query": "Banking::CardPayment.Pending",
-      "args": {}
+      "args": {
+      }
     },
     {
       "query": "Banking::CardPayment.Disputed",
-      "args": {}
+      "args": {
+      }
     },
     {
       "verb": "Banking::ExternalTransfer.Request",
@@ -2091,6 +2112,9 @@
         "account_id": "acct-8",
         "end_to_end": {
           "value": "ext-recall"
+        },
+        "direction": {
+          "value": "debit"
         }
       }
     },
@@ -2130,6 +2154,9 @@
         "account_id": "acct-8",
         "end_to_end": {
           "value": "ext-return"
+        },
+        "direction": {
+          "value": "debit"
         }
       }
     },
@@ -2169,12 +2196,34 @@
         "account_id": "acct-8",
         "end_to_end": {
           "value": "ext-bad"
+        },
+        "direction": {
+          "value": "credit"
+        }
+      }
+    },
+    {
+      "verb": "Banking::ExternalTransfer.Request",
+      "args": {
+        "amount": {
+          "cents": 200
+        },
+        "beneficiary": {
+          "value": "Sideways Bank"
+        },
+        "account_id": "acct-8",
+        "end_to_end": {
+          "value": "ext-admits"
+        },
+        "direction": {
+          "value": "sideways"
         }
       }
     },
     {
       "query": "Banking::ExternalTransfer.Sent",
-      "args": {}
+      "args": {
+      }
     },
     {
       "verb": "Banking::ScheduledPayment.Schedule",
@@ -2264,7 +2313,8 @@
     },
     {
       "query": "Banking::ScheduledPayment.Due",
-      "args": {}
+      "args": {
+      }
     },
     {
       "query": "Banking.customer_portfolio",

@@ -62,7 +62,7 @@ RSpec.describe "the distance between the builder's graph and the language's" do
 
   # Walks OBJECT STATE. Deliberately not `to_h`: that is the wire spelling, and it
   # is where the types go.
-  SKIP = %i[@ruby_class @hecks_owner @declared_in @predicate].freeze
+  SKIP = %i[@hecks_owner @declared_in @predicate].freeze
 
   def state(node, path, out, depth = 0)
     return if depth > 14
@@ -74,8 +74,6 @@ RSpec.describe "the distance between the builder's graph and the language's" do
     when Hash  then node.each { |key, held| state(held, "#{path}.#{key}(#{key.class})", out, depth + 1) }
     when Proc  then out[path] = "(proc)"
     when Class
-      return out[path] = "aggregate-class" if node < Hecksagain::Aggregate
-
       ivars(node).each { |iv| state(node.instance_variable_get(iv), "#{path}.#{iv}", out, depth + 1) }
     else
       ivars(node).each { |iv| state(node.instance_variable_get(iv), "#{path}.#{iv}", out, depth + 1) }
@@ -116,15 +114,15 @@ RSpec.describe "the distance between the builder's graph and the language's" do
     end
   end
 
-  it "assembles a working runtime surface from what the language holds" do
+  it "assembles a working runtime graph from what the language holds" do
     built     = load_chapter(ORCHESTRATION_CORPUS.fetch("Pizzas")).bluebook("Pizzas")
     assembled = assembled_from_the_language(built)
-    pizza     = assembled.aggregate("Pizza").ruby_class
+    pizza     = assembled.aggregate("Pizza")
 
-    expect(pizza).to respond_to(:create_pizza)
-    expect(pizza.instance_methods).to include(:add_topping, :purchase, :toppings, :status)
-    expect(pizza::Price.hecks_fqn).to eq("Pizzas::Pizza.Price")
-    expect(assembled.aggregate("Pizza").command("AddTopping").acts_on).to be(pizza)
+    expect(pizza.command("CreatePizza").creates?).to be(true)
+    expect(pizza.command("AddTopping").acts_on).to be(pizza)
+    expect(pizza.attribute(:toppings)).not_to be_nil
+    expect(pizza.value_object("Price").hecks_fqn).to eq("Pizzas::Pizza.Price")
   end
 
   it "keeps the gap list empty, because there is nothing it cannot hold" do

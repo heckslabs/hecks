@@ -27,7 +27,6 @@ pub fn where_matches(
             Some(Value::Str(csv)) => csv.split(',').any(|x| x.trim() == target),
             _ => false,
         },
-        crate::ir::WhereOp::NoneInState => true,
     }
 }
 

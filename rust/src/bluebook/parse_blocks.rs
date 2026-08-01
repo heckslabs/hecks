@@ -23,7 +23,7 @@ pub fn parse_read_model(lines: &[&str]) -> (ReadModel, usize) {
                         let singular = crate::naming::snake(&aggregate);
                         if many { crate::naming::plural(&singular) } else { singular }
                     });
-                model.aggregate_heads.push(AggregateHead { aggregate, name, many });
+                model.aggregate_heads.push(AggregateHead { aggregate, r#as: name, many });
             }
         }
         i += 1;
@@ -31,80 +31,31 @@ pub fn parse_read_model(lines: &[&str]) -> (ReadModel, usize) {
     (model, i + 1)
 }
 
-pub fn parse_section(lines: &[&str]) -> (Section, usize) {
-    let first = lines[0].trim();
-    let title = extract_string(first).unwrap_or_default();
-    let mut rows: Vec<SectionRow> = Vec::new();
-    let mut i = 1;
-    let mut depth = 1usize;
-    while i < lines.len() && depth > 0 {
-        let line = lines[i].trim();
-        if line == "end" {
-            depth -= 1;
-            if depth == 0 {
-                break;
-            }
-            i += 1;
-            continue;
-        }
-        if depth == 1 && (line.starts_with("row ") || line.starts_with("row\t")) {
-            if let Some(row) = parse_section_row(line) {
-                rows.push(row);
-            }
-        } else if ends_with_do_block(line) {
-            depth += 1;
-        }
-        i += 1;
-    }
-    (Section { title, rows }, i + 1)
-}
-
-pub fn parse_section_row(line: &str) -> Option<SectionRow> {
-    let label = extract_string(line)?;
-    let after_label_close = {
-        let first_open = line.find('"')?;
-        let after = &line[first_open + 1..];
-        let close = after.find('"')?;
-        first_open + 1 + close + 1
-    };
-    let tail = line[after_label_close..].trim_start_matches(',').trim();
-    let field = if tail.starts_with('"') {
-        extract_string(tail)?
-    } else if tail.starts_with(':') {
-        extract_symbol(tail)?
-    } else {
-        let end = tail
-            .find(|c: char| !c.is_alphanumeric() && c != '_')
-            .unwrap_or(tail.len());
-        let f = tail[..end].trim();
-        if f.is_empty() {
-            return None;
-        }
-        f.to_string()
-    };
-    Some(SectionRow { label, field })
-}
-
-pub fn parse_command(lines: &[&str]) -> (Command, usize) {
+/// `owner` is the aggregate or entity this command hangs off — the parser needs
+/// it to tell the ROOT a command acts on from a reference-typed ARGUMENT, which
+/// is a distinction only the owner's own name can settle. See `settle_references`.
+pub fn parse_command(lines: &[&str], owner: &str) -> (Command, usize) {
     let first = lines[0].trim();
     let name = extract_string(first)
         .unwrap_or_else(|| first.split_whitespace().next().unwrap_or("").to_string());
 
     let mut cmd = Command {
         name,
-        description: None,
+        goal: None,
         role: None,
         attributes: vec![],
-        references: vec![],
-        emits: None,
-        emits_identified_by: None,
+        references: None,
+        emits: vec![],
         givens: vec![],
         mutations: vec![],
-        redirects_native: vec![],
     };
+    // Gathered apart from the arguments so the acted-on root can be lifted out
+    // and the rest PREPENDED, which is the order the IR has always carried.
+    let mut references: Vec<Attribute> = Vec::new();
 
     if first.contains("{") && first.contains("}") {
-        parse_inline_command(first, &mut cmd);
+        parse_inline_command(first, &mut cmd, &mut references);
+        settle_references(&mut cmd, references, owner);
         return (cmd, 1);
     }
 
@@ -147,23 +98,15 @@ pub fn parse_command(lines: &[&str]) -> (Command, usize) {
             } else if is_shorthand_line(line) {
                 match parse_shorthand(line) {
                     ShorthandResult::Attribute(a) => cmd.attributes.push(a),
-                    ShorthandResult::Reference(r) => cmd.references.push(r),
+                    ShorthandResult::Reference(r) => references.push(r),
                     ShorthandResult::None => {}
                 }
             } else if line.starts_with("role") {
                 cmd.role = parse_role_arg(line);
             } else if line.starts_with("goal") || line.starts_with("description") {
-                cmd.description = extract_string(line);
+                cmd.goal = extract_string(line);
             } else if line.starts_with("emits") {
-                cmd.emits = extract_string(line);
-                cmd.emits_identified_by = extract_kwarg_symbol(line, "identified_by");
-            } else if line.starts_with("redirects_native") {
-                cmd.redirects_native = line
-                    .split('"')
-                    .skip(1)
-                    .step_by(2)
-                    .map(|s| s.to_string())
-                    .collect();
+                cmd.emits.extend(extract_string(line));
             } else if line.starts_with("reference_to") {
                 if let Some(target) = extract_word_after(line, "reference_to") {
                     let name = if let Some(pos) = line.find(", as:") {
@@ -175,7 +118,7 @@ pub fn parse_command(lines: &[&str]) -> (Command, usize) {
                     } else {
                         format!("{}_id", crate::naming::snake(&target))
                     };
-                    cmd.references.push(Reference::single(name, target, None));
+                    references.push(reference_attribute(name, &target));
                 }
             } else if line.starts_with("given") && line.contains(" do ") && line.ends_with("end") {
                 let msg = extract_string(line);
@@ -185,8 +128,8 @@ pub fn parse_command(lines: &[&str]) -> (Command, usize) {
                     let expr = stripped[do_pos + " do ".len()..].trim().to_string();
                     if !expr.is_empty() {
                         cmd.givens.push(Given {
-                            expression: expr,
-                            message: msg,
+                            canonical: expr,
+                            description: msg,
                         });
                     }
                 }
@@ -211,11 +154,11 @@ pub fn parse_command(lines: &[&str]) -> (Command, usize) {
                     }
                     j += 1;
                 }
-                let expr = body.join(" && ");
+                let expr = join_predicate_lines(&body);
                 if !expr.is_empty() {
                     cmd.givens.push(Given {
-                        expression: expr,
-                        message: msg,
+                        canonical: expr,
+                        description: msg,
                     });
                 }
                 i = j + 1;
@@ -229,34 +172,43 @@ pub fn parse_command(lines: &[&str]) -> (Command, usize) {
                 let msg = extract_string(line_no_block);
                 let expr = block.unwrap_or_else(|| msg.clone().unwrap_or_default());
                 cmd.givens.push(Given {
-                    expression: expr,
-                    message: msg,
+                    canonical: expr,
+                    description: msg,
                 });
             } else if line.starts_with("then_set") {
                 if let Some(m) = parse_mutation(line) {
                     cmd.mutations.push(m);
                 }
-            } else if line.starts_with("then_toggle") {
-                if let Some(field) = extract_symbol(line) {
-                    cmd.mutations.push(Mutation {
-                        field,
-                        operation: MutationOp::Toggle,
-                        value: String::new(),
-                        invalid_op: None,
-                    });
-                }
-            } else if line.starts_with("then_delete") {
-                cmd.mutations.push(Mutation {
-                    field: String::new(),
-                    operation: MutationOp::Delete,
-                    value: String::new(),
-                    invalid_op: None,
-                });
             }
         }
         i += 1;
     }
+    settle_references(&mut cmd, references, owner);
     (cmd, i + 1)
+}
+
+/// UNTANGLE THE ROOT FROM THE ARGUMENTS, once, at parse time.
+///
+/// `reference_to` is one word in the language for two things: the aggregate a
+/// command acts ON, and an argument that happens to hold another aggregate's
+/// id. Ruby keeps them apart in the IR — `references` is a scalar, arguments
+/// are attributes — so Rust settles it here rather than re-deriving it every
+/// time the IR is projected.
+///
+/// Every reference that reads as the acted-on root is dropped from the
+/// arguments, and the FIRST of them names the root. The survivors are prepended
+/// to the declared arguments, which is the order the IR has always carried.
+fn settle_references(cmd: &mut Command, references: Vec<Attribute>, owner: &str) {
+    let (acting, mut arguments): (Vec<Attribute>, Vec<Attribute>) = references
+        .into_iter()
+        .partition(|reference| acts_on_root(reference, owner));
+
+    // `acts_on_root` only admits a reference whose target IS the owner, so the
+    // owner's name is the root's name.
+    cmd.references = acting.first().map(|_| owner.to_string());
+
+    arguments.append(&mut cmd.attributes);
+    cmd.attributes = arguments;
 }
 
 fn parse_role_arg(line: &str) -> Option<String> {
@@ -275,48 +227,14 @@ fn parse_role_arg(line: &str) -> Option<String> {
     }
 }
 
-pub fn parse_factory(lines: &[&str]) -> (Factory, usize) {
-    let first = lines[0].trim();
-    let produces = extract_produces(first);
-    let (cmd, consumed) = parse_command(lines);
-    let factory = Factory {
-        name: cmd.name,
-        description: cmd.description,
-        role: cmd.role,
-        produces,
-        attributes: cmd.attributes,
-        references: cmd.references,
-        emits: cmd.emits,
-        emits_identified_by: cmd.emits_identified_by,
-        givens: cmd.givens,
-        mutations: cmd.mutations,
-    };
-    (factory, consumed)
-}
-
-fn extract_produces(first: &str) -> Option<String> {
-    let pos = first.find("produces:")?;
-    let after = first[pos + "produces:".len()..].trim_start();
-    let end = after
-        .find(|c: char| !(c.is_alphanumeric() || c == '_' || c == ':'))
-        .unwrap_or(after.len());
-    let token = after[..end].trim().trim_end_matches(':');
-    if token.is_empty() {
-        None
-    } else {
-        Some(token.to_string())
-    }
-}
-
-fn parse_inline_command(line: &str, cmd: &mut Command) {
+fn parse_inline_command(line: &str, cmd: &mut Command, references: &mut Vec<Attribute>) {
     if let Some(block) = extract_block(line) {
         for part in block.split(';') {
             let part = part.trim();
             if part.starts_with("role") {
                 cmd.role = parse_role_arg(part);
             } else if part.starts_with("emits") {
-                cmd.emits = extract_string(part);
-                cmd.emits_identified_by = extract_kwarg_symbol(part, "identified_by");
+                cmd.emits.extend(extract_string(part));
             } else if part.starts_with("attribute") {
                 if let Some(attr) = parse_attribute(part) {
                     cmd.attributes.push(attr);
@@ -324,12 +242,12 @@ fn parse_inline_command(line: &str, cmd: &mut Command) {
             } else if part.starts_with("reference_to") {
                 if let Some(target) = extract_word_after(part, "reference_to") {
                     let snake = crate::naming::snake(&target);
-                    cmd.references.push(Reference::single(snake, target, None));
+                    references.push(reference_attribute(snake, &target));
                 }
             } else if is_shorthand_line(part) {
                 match parse_shorthand(part) {
                     ShorthandResult::Attribute(a) => cmd.attributes.push(a),
-                    ShorthandResult::Reference(r) => cmd.references.push(r),
+                    ShorthandResult::Reference(r) => references.push(r),
                     ShorthandResult::None => {}
                 }
             }
@@ -355,9 +273,6 @@ pub fn parse_query(lines: &[&str]) -> (Query, usize) {
         wheres: vec![],
         order_by: None,
         limit: None,
-        reduction: None,
-        group_by: None,
-        scope_to: None,
     };
 
     if let Some(open) = first.rfind('|') {
@@ -368,12 +283,13 @@ pub fn parse_query(lines: &[&str]) -> (Query, usize) {
                 if !nm.is_empty() {
                     q.attributes.push(Attribute {
                         name: nm,
-                        attr_type: "String".to_string(),
+                        r#type: "String".to_string(),
                         default: None,
                         list: false,
                         optional: false,
                         enum_values: vec![],
                         pattern: None,
+                        admits: None,
                     });
                 }
             }
@@ -412,32 +328,6 @@ pub fn parse_query(lines: &[&str]) -> (Query, usize) {
             } else if line.starts_with("limit") {
                 if let Some(ls) = parse_limit_line(line) {
                     q.limit = Some(ls);
-                }
-            } else if line == "count" || line.starts_with("count ") || line.starts_with("count\t") {
-                q.reduction = Some(Reduction::Count);
-            } else if line.starts_with("sum") {
-                if let Some(f) = extract_symbol(line) {
-                    q.reduction = Some(Reduction::Sum(f));
-                }
-            } else if line.starts_with("median") {
-                if let Some(f) = extract_symbol(line) {
-                    q.reduction = Some(Reduction::Median(f));
-                }
-            } else if line.starts_with("max") {
-                if let Some(f) = extract_symbol(line) {
-                    q.reduction = Some(Reduction::Max(f));
-                }
-            } else if line.starts_with("min") {
-                if let Some(f) = extract_symbol(line) {
-                    q.reduction = Some(Reduction::Min(f));
-                }
-            } else if line.starts_with("group_by") {
-                if let Some(f) = extract_symbol(line) {
-                    q.group_by = Some(f);
-                }
-            } else if line.starts_with("scope_to") {
-                if let Some(f) = extract_symbol(line) {
-                    q.scope_to = Some(f);
                 }
             } else if ends_with_do_block(line) {
                 depth += 1;
@@ -546,7 +436,6 @@ fn parse_comparator_hash(raw: &str) -> Option<(WhereOp, &str)> {
         "ne" => WhereOp::Ne,
         "eq" => WhereOp::Eq,
         "in" => WhereOp::In,
-        "none_in_state" => WhereOp::NoneInState,
         "contains" => WhereOp::Contains,
         _ => return None,
     };
@@ -604,17 +493,6 @@ fn split_member_pairs(s: &str) -> Vec<&str> {
     pairs
 }
 
-fn parse_derive_signature(header: &str) -> Option<(String, String)> {
-    let sig = header.trim();
-    let comma = sig.find(',')?;
-    let name = sig[..comma].trim().trim_start_matches(':').to_string();
-    let rtype = sig[comma + 1..].trim().to_string();
-    if name.is_empty() || rtype.is_empty() {
-        return None;
-    }
-    Some((name, rtype))
-}
-
 fn inline_do_pos(line: &str) -> Option<usize> {
     let after_message = match line.find('"') {
         Some(open) => line[open + 1..]
@@ -628,30 +506,13 @@ fn inline_do_pos(line: &str) -> Option<usize> {
         .map(|at| after_message + at)
 }
 
-fn split_block_params(body: &str) -> (Vec<String>, &str) {
-    let body = body.trim();
-    if let Some(rest) = body.strip_prefix('|') {
-        if let Some(close) = rest.find('|') {
-            let params = rest[..close]
-                .split(',')
-                .map(|p| p.trim().to_string())
-                .filter(|p| !p.is_empty())
-                .collect();
-            return (params, rest[close + 1..].trim());
-        }
-    }
-    (Vec::new(), body)
-}
-
 pub fn parse_value_object(lines: &[&str]) -> (ValueObject, usize) {
     let first = lines[0].trim();
     let name = extract_string(first).unwrap_or_default();
     let mut vo = ValueObject {
         name,
-        description: None,
         attributes: vec![],
         invariants: vec![],
-        derivations: vec![],
         members: vec![],
         closed_set: false,
     };
@@ -718,8 +579,8 @@ pub fn parse_value_object(lines: &[&str]) -> (ValueObject, usize) {
                 let expr = stripped[open + 1..].trim();
                 if !inv_name.is_empty() && !expr.is_empty() {
                     vo.invariants.push(Invariant {
-                        name: inv_name,
-                        expression: expr.to_string(),
+                        description: inv_name,
+                        canonical: expr.to_string(),
                     });
                 }
             }
@@ -734,8 +595,8 @@ pub fn parse_value_object(lines: &[&str]) -> (ValueObject, usize) {
                 let expr = stripped[do_pos + " do ".len()..].trim();
                 if !inv_name.is_empty() && !expr.is_empty() {
                     vo.invariants.push(Invariant {
-                        name: inv_name,
-                        expression: expr.to_string(),
+                        description: inv_name,
+                        canonical: expr.to_string(),
                     });
                 }
             }
@@ -761,64 +622,9 @@ pub fn parse_value_object(lines: &[&str]) -> (ValueObject, usize) {
             }
             if !inv_name.is_empty() && !body.is_empty() {
                 vo.invariants.push(Invariant {
-                    name: inv_name,
-                    expression: body.join(" && "),
+                    description: inv_name,
+                    canonical: join_predicate_lines(&body),
                 });
-            }
-            i = j + 1;
-            continue;
-        } else if depth == 1
-            && line.starts_with("derive")
-            && line.contains(" do ")
-            && line.ends_with("end")
-        {
-            if let (Some(do_pos), Some(stripped)) = (line.find(" do "), line.strip_suffix("end")) {
-                let header = &line["derive".len()..do_pos];
-                if let Some((name, rtype)) = parse_derive_signature(header) {
-                    let raw_body = stripped[do_pos + " do ".len()..].trim();
-                    let (params, expr) = split_block_params(raw_body);
-                    if !expr.is_empty() {
-                        vo.derivations.push(Derivation {
-                            name,
-                            return_type: rtype,
-                            params,
-                            expression: expr.to_string(),
-                        });
-                    }
-                }
-            }
-        } else if depth == 1 && line.starts_with("derive") && ends_with_do_block(line) {
-            let do_pos = line.find(" do").unwrap_or(line.len());
-            let header = &line["derive".len()..do_pos];
-            let after_do = line[do_pos + " do".len()..].trim();
-            let (params, _) = split_block_params(after_do);
-            let mut body: Vec<&str> = Vec::new();
-            let mut j = i + 1;
-            let mut d = 1;
-            while j < lines.len() && d > 0 {
-                let l = lines[j].trim();
-                if l == "end" {
-                    d -= 1;
-                    if d == 0 {
-                        break;
-                    }
-                } else if ends_with_do_block(l) {
-                    d += 1;
-                }
-                if d >= 1 && !l.is_empty() {
-                    body.push(l);
-                }
-                j += 1;
-            }
-            if let Some((name, rtype)) = parse_derive_signature(header) {
-                if !body.is_empty() {
-                    vo.derivations.push(Derivation {
-                        name,
-                        return_type: rtype,
-                        params,
-                        expression: body.join(" && "),
-                    });
-                }
             }
             i = j + 1;
             continue;
@@ -826,9 +632,6 @@ pub fn parse_value_object(lines: &[&str]) -> (ValueObject, usize) {
             depth += 1;
         }
         if depth == 1 {
-            if line.starts_with("description") {
-                vo.description = extract_string(line);
-            }
             if line.starts_with("attribute") {
                 if let Some(attr) = parse_attribute(line) {
                     vo.attributes.push(attr);
@@ -847,6 +650,7 @@ pub fn parse_value_object(lines: &[&str]) -> (ValueObject, usize) {
 pub fn parse_entity(lines: &[&str]) -> (Entity, usize) {
     let first = lines[0].trim();
     let name = extract_string(first).unwrap_or_default();
+    let owner = name.clone();
     let mut ent = Entity {
         name,
         description: None,
@@ -854,7 +658,7 @@ pub fn parse_entity(lines: &[&str]) -> (Entity, usize) {
         commands: vec![],
         queries: vec![],
         lifecycle: None,
-        identified_by: None,
+        identified_by: vec![],
     };
 
     let mut i = 1;
@@ -873,7 +677,7 @@ pub fn parse_entity(lines: &[&str]) -> (Entity, usize) {
 
         if depth == 1 {
             if line.starts_with("command") || is_shorthand_command(line) {
-                let (cmd, consumed) = parse_command(&lines[i..]);
+                let (cmd, consumed) = parse_command(&lines[i..], &owner);
                 ent.commands.push(cmd);
                 i += consumed;
                 continue;
@@ -899,9 +703,6 @@ pub fn parse_entity(lines: &[&str]) -> (Entity, usize) {
                     wheres: vec![],
                     order_by: None,
                     limit: None,
-                    reduction: None,
-                    group_by: None,
-                    scope_to: None,
                 });
             } else if line.starts_with("lifecycle") {
                 let (lc, consumed) = parse_lifecycle(&lines[i..]);
@@ -909,7 +710,7 @@ pub fn parse_entity(lines: &[&str]) -> (Entity, usize) {
                 i += consumed;
                 continue;
             } else if line.starts_with("identified_by") {
-                ent.identified_by = extract_identity_path(line);
+                ent.identified_by = extract_identity_path(line).into_iter().collect();
             } else if line.starts_with("description") {
                 ent.description = extract_string(line);
             } else if line.starts_with("attribute") {
@@ -950,10 +751,6 @@ pub fn parse_policy(lines: &[&str]) -> (Policy, usize) {
     let mut on_event = String::new();
     let mut trigger = String::new();
     let mut target_domain = None;
-    let mut with: Vec<(String, crate::ir::ValueSpec)> = vec![];
-    let mut wheres: Vec<crate::ir::WhereClause> = vec![];
-    let mut for_each: Option<crate::ir::ForEachSpec> = None;
-    let mut extra_dispatches: Vec<crate::ir::DispatchSpec> = vec![];
 
     let mut i = 1;
     while i < lines.len() {
@@ -970,53 +767,6 @@ pub fn parse_policy(lines: &[&str]) -> (Policy, usize) {
         if line.starts_with("across") {
             target_domain = extract_string(line);
         }
-        if line.starts_with("with") {
-            if let (Some(key), Some(value)) = (extract_string(line), extract_second_string(line)) {
-                with.push((key, crate::ir::ValueSpec::Literal { value }));
-            }
-        }
-        if line.starts_with("map ") {
-            let body = line.strip_prefix("map").unwrap_or("").trim();
-            for pair in split_member_pairs(body) {
-                if let Some(colon) = pair.find(':') {
-                    let key = pair[..colon].trim().to_string();
-                    let raw_val = pair[colon + 1..].trim();
-                    if key.is_empty() || raw_val.is_empty() {
-                        continue;
-                    }
-                    let spec = if let Some(sym) = raw_val.strip_prefix(':') {
-                        crate::ir::ValueSpec::FromEvent {
-                            name: sym.trim().to_string(),
-                            default: None,
-                        }
-                    } else if raw_val.starts_with('"') || raw_val.starts_with('\'') {
-                        crate::ir::ValueSpec::Literal {
-                            value: extract_string(raw_val).unwrap_or_default(),
-                        }
-                    } else {
-                        crate::ir::ValueSpec::Literal {
-                            value: raw_val.trim_matches(',').trim().to_string(),
-                        }
-                    };
-                    with.push((key, spec));
-                }
-            }
-        }
-        if line.starts_with("where") {
-            for w in parse_where_line(line, &[]) {
-                wheres.push(w);
-            }
-        }
-        if line.starts_with("for_each") {
-            if let Some(fe) = parse_for_each_clause(line) {
-                for_each = Some(fe);
-            }
-        }
-        if is_dispatch_start(line) {
-            if let Some(ds) = parse_dispatch_statement(line) {
-                extra_dispatches.push(ds);
-            }
-        }
         i += 1;
     }
     (
@@ -1025,10 +775,6 @@ pub fn parse_policy(lines: &[&str]) -> (Policy, usize) {
             on_event,
             trigger_command: trigger,
             target_domain,
-            with,
-            wheres,
-            for_each,
-            extra_dispatches,
         },
         i + 1,
     )
@@ -1100,6 +846,99 @@ pub fn parse_lifecycle(lines: &[&str]) -> (Lifecycle, usize) {
     )
 }
 
+/// Join a predicate's lines the way Ruby's extractor reads them.
+///
+/// Each line of a multi-line `given` / `invariant` body is normally a separate
+/// clause, so the default join is ` && `. But a line that ENDS with a boolean
+/// operator — or the next one that STARTS with it — is a CONTINUATION of the
+/// same expression, and inserting another operator produced:
+///
+///   Ruby   cents >= 0 && cents < 1000000
+///   Rust   cents >= 0 && && cents < 1000000
+///
+/// Ruby collapses the continuation, so the two runtimes read a DIFFERENT
+/// canonical form from the same source and IR parity split on any multi-line
+/// predicate. The corpus worked around it by keeping predicates on one line ;
+/// this removes the reason for the workaround.
+pub(crate) fn join_predicate_lines(body: &[&str]) -> String {
+    let mut out = String::new();
+    for line in body {
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        if out.is_empty() {
+            out.push_str(line);
+            continue;
+        }
+        if continues(&out) || continued_by(line) {
+            out.push(' ');
+        } else {
+            out.push_str(" && ");
+        }
+        out.push_str(line);
+    }
+    out
+}
+
+/// The text so far ends mid-expression, so the next line finishes it.
+fn continues(text: &str) -> bool {
+    let t = text.trim_end();
+    t.ends_with("&&") || t.ends_with("||")
+}
+
+/// The next line opens with the operator that joins it to what came before.
+fn continued_by(line: &str) -> bool {
+    let t = line.trim_start();
+    t.starts_with("&&") || t.starts_with("||")
+}
+
+#[cfg(test)]
+mod predicate_join_tests {
+    use super::join_predicate_lines;
+
+    /// THE SPLIT. A line ending in `&&` is a CONTINUATION, not a clause — the
+    /// old `body.join(" && ")` read `value > 0 && && value <= 3` where Ruby
+    /// reads one expression, so the two parsers disagreed about the same file.
+    #[test]
+    fn a_trailing_operator_is_a_continuation_not_a_clause() {
+        assert_eq!(
+            join_predicate_lines(&["value > 0 &&", "value <= 3"]),
+            "value > 0 && value <= 3"
+        );
+        assert_eq!(
+            join_predicate_lines(&["a.positive? ||", "b.positive?"]),
+            "a.positive? || b.positive?"
+        );
+    }
+
+    /// The operator may lead the next line instead of trailing the last one.
+    #[test]
+    fn a_leading_operator_is_a_continuation_too() {
+        assert_eq!(
+            join_predicate_lines(&["value > 0", "&& value <= 3"]),
+            "value > 0 && value <= 3"
+        );
+    }
+
+    /// AND THE REASON THE JOIN EXISTS: two separate statements ARE two clauses,
+    /// and still get the operator inserted between them.
+    #[test]
+    fn separate_statements_are_still_joined_with_and() {
+        assert_eq!(
+            join_predicate_lines(&["cents >= 0", "currency.size == 3"]),
+            "cents >= 0 && currency.size == 3"
+        );
+    }
+
+    #[test]
+    fn one_line_and_no_lines_are_unchanged() {
+        assert_eq!(join_predicate_lines(&["value > 0"]), "value > 0");
+        assert_eq!(join_predicate_lines(&[]), "");
+        assert_eq!(join_predicate_lines(&["", "  "]), "");
+    }
+}
+
 pub fn parse_attribute(line: &str) -> Option<Attribute> {
     let line = strip_trailing_comment(line);
     let parts: Vec<&str> = line.splitn(3, ',').collect();
@@ -1152,24 +991,37 @@ pub fn parse_attribute(line: &str) -> Option<Attribute> {
         (attr_type, vec![])
     };
     let pattern = parse_pattern_kwarg(line);
+    let admits = parse_quoted_kwarg(line, "admits:");
     Some(Attribute {
         name,
-        attr_type,
+        r#type: attr_type,
         default,
         list,
         optional,
         enum_values,
         pattern,
+        admits,
     })
 }
 
-fn parse_pattern_kwarg(line: &str) -> Option<String> {
-    let after = line.split("pattern:").nth(1)?.trim_start();
+/// A kwarg whose value is a QUOTED STRING — `admits: "Vocabulary::MutationOp"`.
+///
+/// Split out of `parse_pattern_kwarg`, which read exactly this shape and then
+/// went on to validate a regex. `admits` is the second reader of the shape and
+/// wants none of the validating, so the reading is the part they share.
+pub(crate) fn parse_quoted_kwarg(line: &str, kwarg: &str) -> Option<String> {
+    let after = line.split(kwarg).nth(1)?.trim_start();
     let quote = after.chars().next().filter(|c| *c == '\'' || *c == '"')?;
-    let body: String = after[quote.len_utf8()..]
-        .chars()
-        .take_while(|c| *c != quote)
-        .collect();
+    Some(
+        after[quote.len_utf8()..]
+            .chars()
+            .take_while(|c| *c != quote)
+            .collect(),
+    )
+}
+
+fn parse_pattern_kwarg(line: &str) -> Option<String> {
+    let body = parse_quoted_kwarg(line, "pattern:")?;
     match crate::pattern_subset::validate_pattern_subset(&body) {
         Ok(()) => Some(body),
         Err(rejection) => {
@@ -1213,70 +1065,6 @@ fn is_kwarg(s: &str) -> bool {
             .next()
             .is_some_and(|c| c.is_ascii_lowercase())
         && before.chars().all(|c| c.is_alphanumeric() || c == '_')
-}
-
-pub fn parse_fixture(line: &str) -> Fixture {
-    let aggregate_name = extract_string(line).unwrap_or_default();
-    let mut attributes = vec![];
-
-    if let Some(comma_pos) = line.find(',') {
-        let rest = &line[comma_pos + 1..];
-        for part in split_top_level_commas(rest) {
-            let part = part.trim();
-            if let Some(colon) = part.find(':') {
-                let key = part[..colon].trim().to_string();
-                let raw = part[colon + 1..].trim();
-                let val = if raw.starts_with('"') {
-                    extract_string(raw).unwrap_or_else(|| raw.to_string())
-                } else {
-                    raw.to_string()
-                };
-                attributes.push((key, val));
-            }
-        }
-    }
-
-    Fixture {
-        name: None,
-        aggregate_name,
-        attributes,
-    }
-}
-
-pub fn parse_fixture_block_body(lines: &[&str]) -> (String, Vec<(String, String)>, usize) {
-    let mut aggregate_name = String::new();
-    let mut attributes: Vec<(String, String)> = vec![];
-    let mut depth = 1usize;
-    let mut i = 0;
-    while i < lines.len() && depth > 0 {
-        let l = lines[i].trim();
-        if l == "end" {
-            depth -= 1;
-            if depth == 0 {
-                i += 1;
-                break;
-            }
-        } else if ends_with_do_block(l) {
-            depth += 1;
-        } else if depth == 1 && !l.is_empty() && !l.starts_with('#') {
-            let token_end = l.find(|c: char| c.is_whitespace()).unwrap_or(l.len());
-            let key = &l[..token_end];
-            let rest = l[token_end..].trim();
-            if key == "aggregate" {
-                aggregate_name = extract_string(rest).unwrap_or_default();
-            } else if !key.is_empty() && key.chars().next().is_some_and(|c| c.is_ascii_lowercase())
-            {
-                let val = if rest.starts_with('"') {
-                    extract_string(rest).unwrap_or_else(|| rest.to_string())
-                } else {
-                    rest.to_string()
-                };
-                attributes.push((key.to_string(), val));
-            }
-        }
-        i += 1;
-    }
-    (aggregate_name, attributes, i)
 }
 
 fn split_top_level_commas(s: &str) -> Vec<&str> {
@@ -1332,10 +1120,9 @@ pub fn parse_mutation(line: &str) -> Option<Mutation> {
                 .count();
             if raw[end..].starts_with(':') {
                 return Some(Mutation {
-                    field,
-                    operation: MutationOp::Set,
-                    value: String::new(),
-                    invalid_op: Some(raw[..end].to_string()),
+                    target: field,
+                    op: MutationOp::Set,
+                    source: String::new(),
                 });
             }
         }
@@ -1354,10 +1141,9 @@ pub fn parse_mutation(line: &str) -> Option<Mutation> {
         (MutationOp::Set, value)
     };
     Some(Mutation {
-        field,
-        operation: op,
-        value,
-        invalid_op: None,
+        target: field,
+        op,
+        source: value,
     })
 }
 
@@ -1428,10 +1214,6 @@ pub fn parse_process_manager(lines: &[&str]) -> (ProcessManager, usize) {
                             if is_dispatch_start(&joined) {
                                 if let Some(spec) = parse_dispatch_statement(&joined) {
                                     h.dispatches.push(spec);
-                                }
-                            } else if is_set_start(&joined) {
-                                if let Some((attr, spec)) = parse_set_statement(&joined) {
-                                    h.set_specs.push((attr, spec));
                                 }
                             }
                         }
@@ -1509,7 +1291,6 @@ fn parse_pm_handler(line: &str) -> Option<ProcessManagerHandler> {
         from_state: from,
         to_state: to,
         dispatches: vec![],
-        set_specs: vec![],
     })
 }
 
@@ -1521,25 +1302,6 @@ fn is_dispatch_start(trimmed: &str) -> bool {
 
 fn is_set_start(trimmed: &str) -> bool {
     trimmed.starts_with("set ") || trimmed.starts_with("set\t")
-}
-
-fn parse_set_statement(line: &str) -> Option<(String, ValueSpec)> {
-    let trimmed = line.trim();
-    if !is_set_start(trimmed) {
-        return None;
-    }
-    let rest = trimmed[3..].trim_start();
-    let comma = rest.find(',')?;
-    let attr_raw = rest[..comma].trim();
-    let attr = attr_raw
-        .trim_matches(|c| c == '"' || c == '\'' || c == ':')
-        .to_string();
-    if attr.is_empty() {
-        return None;
-    }
-    let val_raw = rest[comma + 1..].trim();
-    let spec = parse_value_spec(val_raw)?;
-    Some((attr, spec))
 }
 
 fn is_balanced(s: &str) -> bool {
@@ -1581,59 +1343,9 @@ fn parse_dispatch_statement(line: &str) -> Option<DispatchSpec> {
         }
     };
 
-    let for_each = parse_for_each_clause(tail);
-
     Some(DispatchSpec {
         command_name,
         with_spec,
-        for_each,
-    })
-}
-
-pub(crate) fn parse_for_each_clause(tail: &str) -> Option<ForEachSpec> {
-    let pos = tail.find("for_each:")?;
-    let after = &tail[pos + "for_each:".len()..];
-    let open = after.find('{')?;
-    let close = match_close_brace(&after[open..])? + open;
-    let body = after[open + 1..close].trim();
-    let from_pos = body.find("from:")?;
-    let value_raw = body[from_pos + "from:".len()..].trim();
-    let literal = extract_string(value_raw)?;
-    let parts: Vec<&str> = literal.split('.').collect();
-    let (mut source_context, mut source_aggregate, query_name) = match parts.as_slice() {
-        [agg, qry] if !agg.is_empty() && !qry.is_empty() => {
-            (None, agg.to_string(), qry.to_string())
-        }
-        [ctx, agg, qry] if !ctx.is_empty() && !agg.is_empty() && !qry.is_empty() => {
-            (Some(ctx.to_string()), agg.to_string(), qry.to_string())
-        }
-        _ => return None,
-    };
-    if source_aggregate.contains("::") {
-        let full = source_aggregate.clone();
-        let segs: Vec<&str> = full.split("::").collect();
-        let n = segs.len();
-        source_aggregate = segs[n - 1].to_string();
-        source_context = Some(segs[n - 2].to_string());
-    }
-    let query_inputs = match body.find("where:") {
-        Some(wp) => {
-            let after_w = &body[wp + "where:".len()..];
-            match after_w.find('{') {
-                Some(o) => {
-                    let c = match_close_brace(&after_w[o..])? + o;
-                    parse_with_hash(after_w[o + 1..c].trim())
-                }
-                None => Vec::new(),
-            }
-        }
-        None => Vec::new(),
-    };
-    Some(ForEachSpec {
-        source_context,
-        source_aggregate,
-        query_name,
-        query_inputs,
     })
 }
 
@@ -1738,115 +1450,6 @@ fn parse_sentinel_args(s: &str, fname: &str) -> Option<(String, Option<String>)>
     Some((name, default))
 }
 
-pub fn parse_cadence(lines: &[&str]) -> (Cadence, usize) {
-    let first = lines[0].trim();
-    let name = extract_string(first).unwrap_or_default();
-    let mut cad = Cadence {
-        name,
-        interval: String::new(),
-        dispatches: vec![],
-    };
-
-    let mut i = 1;
-    let mut depth = 1usize;
-    while i < lines.len() && depth > 0 {
-        let line = lines[i].trim();
-        if line == "end" {
-            depth -= 1;
-            if depth == 0 {
-                break;
-            }
-            i += 1;
-            continue;
-        }
-
-        if depth == 1 {
-            if line.starts_with("every") {
-                if let Some(s) = extract_string(line) {
-                    cad.interval = s;
-                }
-            } else if line.starts_with("dispatch ")
-                || line.starts_with("dispatch\t")
-                || line.starts_with("dispatch\"")
-            {
-                if let Some(d) = parse_cadence_dispatch_line(line) {
-                    cad.dispatches.push(d);
-                }
-            } else if ends_with_do_block(line) {
-                depth += 1;
-            }
-        } else if ends_with_do_block(line) {
-            depth += 1;
-        }
-
-        i += 1;
-    }
-    (cad, i + 1)
-}
-
-pub fn parse_cadence_dispatch_line(line: &str) -> Option<CadenceDispatch> {
-    let trimmed = line.trim();
-    let command_name = extract_string(trimmed)?;
-    let q1 = trimmed.find('"')?;
-    let q2 = trimmed[q1 + 1..].find('"')? + q1 + 1;
-    let after = trimmed[q2 + 1..].trim();
-    let mut attrs: Vec<(String, String)> = Vec::new();
-    if let Some(rest) = after.strip_prefix(',') {
-        let kwargs = rest.trim();
-        attrs = split_top_level_cadence(kwargs)
-            .into_iter()
-            .filter_map(|pair| {
-                let p = pair.trim();
-                let colon = p.find(':')?;
-                let key = p[..colon].trim().trim_matches(':').to_string();
-                let value = p[colon + 1..].trim().to_string();
-                if key.is_empty() || value.is_empty() {
-                    None
-                } else {
-                    Some((key, value))
-                }
-            })
-            .collect();
-    }
-    Some(CadenceDispatch {
-        command_name,
-        attrs,
-    })
-}
-
-fn split_top_level_cadence(s: &str) -> Vec<String> {
-    let mut out: Vec<String> = Vec::new();
-    let mut buf = String::new();
-    let mut depth: i32 = 0;
-    let mut in_str = false;
-    let mut prev = '\0';
-    for c in s.chars() {
-        match c {
-            '"' if prev != '\\' => {
-                in_str = !in_str;
-                buf.push(c);
-            }
-            '[' | '{' | '(' if !in_str => {
-                depth += 1;
-                buf.push(c);
-            }
-            ']' | '}' | ')' if !in_str => {
-                depth -= 1;
-                buf.push(c);
-            }
-            ',' if !in_str && depth == 0 => {
-                out.push(buf.trim().to_string());
-                buf.clear();
-            }
-            _ => buf.push(c),
-        }
-        prev = c;
-    }
-    if !buf.trim().is_empty() {
-        out.push(buf.trim().to_string());
-    }
-    out
-}
 pub fn consume_rule_block(lines: &[&str]) -> usize {
     let first = lines[0].trim();
     let rule_name = extract_string(first).unwrap_or_default();
@@ -2050,106 +1653,6 @@ fn count_rule_openers(line: &str) -> i32 {
     count
 }
 
-pub fn parse_view(lines: &[&str]) -> (View, usize) {
-    let first = lines[0].trim();
-    let name = extract_string(first).unwrap_or_default();
-    let mut v = View {
-        name,
-        show_all: false,
-        fields: vec![],
-    };
-
-    let mut i = 1;
-    let mut depth = 1;
-    while i < lines.len() && depth > 0 {
-        let line = lines[i].trim();
-        if line == "end" {
-            depth -= 1;
-            if depth == 0 {
-                break;
-            }
-            i += 1;
-            continue;
-        }
-        if depth == 1 {
-            if line == "show_all" || line.starts_with("show_all ") {
-                v.show_all = true;
-            } else if line.starts_with("show") || line.starts_with("plus") {
-                let mut buf = String::new();
-                let head_keyword_len = 4;
-                buf.push_str(&line[head_keyword_len..]);
-                while buf.trim_end().ends_with(',') && i + 1 < lines.len() {
-                    i += 1;
-                    buf.push(' ');
-                    buf.push_str(lines[i].trim());
-                }
-                absorb_view_fields(&buf, &mut v.fields);
-            } else if ends_with_do_block(line) {
-                depth += 1;
-            }
-        } else if ends_with_do_block(line) {
-            depth += 1;
-        }
-        i += 1;
-    }
-    (v, i + 1)
-}
-
-fn absorb_view_fields(tail: &str, fields: &mut Vec<String>) {
-    for raw in tail.split(',') {
-        let part = raw.trim().trim_end_matches(',').trim();
-        if part.is_empty() {
-            continue;
-        }
-        if part.ends_with(':') {
-            continue;
-        }
-        if !part.starts_with(':') {
-            continue;
-        }
-        let name = part.trim_start_matches(':').to_string();
-        if !name.is_empty() {
-            fields.push(name);
-        }
-    }
-}
-
-pub fn parse_invariant(lines: &[&str]) -> (Option<Invariant>, usize) {
-    let first = lines[0].trim();
-    let name = extract_string(first).unwrap_or_default();
-    let mut expression: Option<String> = None;
-    let mut i = 1;
-    let mut depth = 1usize;
-    while i < lines.len() && depth > 0 {
-        let line = lines[i].trim();
-        if line == "end" {
-            depth -= 1;
-            if depth == 0 {
-                break;
-            }
-            i += 1;
-            continue;
-        }
-        if depth == 1 && line.starts_with("holds_when") {
-            expression = extract_block(line);
-        } else if ends_with_do_block(line) {
-            depth += 1;
-        }
-        i += 1;
-    }
-    let consumed = i + 1;
-    match (name.is_empty(), expression) {
-        (false, Some(expr)) => (
-            Some(Invariant {
-                name,
-                expression: expr,
-            }),
-            consumed,
-        ),
-        _ => (None, consumed),
-    }
-}
-
 #[cfg(test)]
 mod dispatch_tests {
     use super::*;
@@ -2219,114 +1722,6 @@ mod dispatch_tests {
         assert!(!is_set_start("dispatch \"X.Y\""));
     }
 
-    #[test]
-    fn parses_set_with_literal() {
-        let (attr, spec) = parse_set_statement(r#"set :carrying, "body""#).unwrap();
-        assert_eq!(attr, "carrying");
-        assert!(matches!(spec, ValueSpec::Literal { ref value } if value == "body"));
-    }
-
-    #[test]
-    fn parses_set_with_from_event() {
-        let (attr, spec) =
-            parse_set_statement(r#"set :steering_target, from_event(:target)"#).unwrap();
-        assert_eq!(attr, "steering_target");
-        match spec {
-            ValueSpec::FromEvent { name, default } => {
-                assert_eq!(name, "target");
-                assert!(default.is_none());
-            }
-            other => panic!("expected FromEvent, got {:?}", other),
-        }
-    }
-
-    #[test]
-    fn parses_set_with_from_pm_and_default() {
-        let (attr, spec) =
-            parse_set_statement(r#"set :tick, from_pm(:tick, default: "0")"#).unwrap();
-        assert_eq!(attr, "tick");
-        match spec {
-            ValueSpec::FromPm { name, default } => {
-                assert_eq!(name, "tick");
-                assert_eq!(default.as_deref(), Some("0"));
-            }
-            other => panic!("expected FromPm, got {:?}", other),
-        }
-    }
-
-    #[test]
-    fn parses_set_with_string_attr_form() {
-        let (attr, spec) = parse_set_statement(r#"set "carrying", "body""#).unwrap();
-        assert_eq!(attr, "carrying");
-        assert!(matches!(spec, ValueSpec::Literal { ref value } if value == "body"));
-    }
-
-    #[test]
-    fn rejects_malformed_set_lines() {
-        assert!(parse_set_statement("set :carrying").is_none());
-        assert!(parse_set_statement(r#"set :, "body""#).is_none());
-        assert!(parse_set_statement(r#"dispatch "X.Y""#).is_none());
-    }
-
-    #[test]
-    fn parses_bare_dispatch_carries_no_for_each() {
-        let s = parse_dispatch_statement(r#"dispatch "Body.WakeUp""#).unwrap();
-        assert!(
-            s.for_each.is_none(),
-            "bare dispatch must leave for_each None"
-        );
-    }
-
-    #[test]
-    fn parses_dispatch_for_each_into_qualified_halves() {
-        let line = r#"dispatch "Synapse.Compost", for_each: { from: "Synapse.cold" }, with: { id: from_iter(:id) }"#;
-        let s = parse_dispatch_statement(line).unwrap();
-        assert_eq!(s.command_name, "Synapse.Compost");
-        let fe = s.for_each.as_ref().expect("for_each parsed");
-        assert_eq!(fe.source_aggregate, "Synapse");
-        assert_eq!(fe.query_name, "cold");
-        assert_eq!(s.with_spec.len(), 1);
-        assert_eq!(s.with_spec[0].0, "id");
-        match &s.with_spec[0].1 {
-            ValueSpec::FromIter { field } => assert_eq!(field, "id"),
-            other => panic!("expected FromIter, got {:?}", other),
-        }
-    }
-
-    #[test]
-    fn parses_dispatch_for_each_only_no_with() {
-        let line = r#"dispatch "Synapse.Compost", for_each: { from: "Synapse.cold" }"#;
-        let s = parse_dispatch_statement(line).unwrap();
-        let fe = s.for_each.as_ref().expect("for_each parsed");
-        assert_eq!(fe.source_aggregate, "Synapse");
-        assert_eq!(fe.query_name, "cold");
-        assert!(s.with_spec.is_empty());
-        assert!(
-            fe.query_inputs.is_empty(),
-            "no where: -> empty query_inputs"
-        );
-    }
-
-    #[test]
-    fn parses_for_each_where_binds_query_inputs_from_event() {
-        let line = r#"dispatch "Conductor::Lease.Reclaim", for_each: { from: "Conductor::Lease.HeldByWorker", where: { worker: from_event(:worker) } }, with: { id: from_iter(:worktree_path) }"#;
-        let s = parse_dispatch_statement(line).unwrap();
-        let fe = s.for_each.as_ref().expect("for_each parsed");
-        assert_eq!(fe.source_context.as_deref(), Some("Conductor"));
-        assert_eq!(fe.source_aggregate, "Lease");
-        assert_eq!(fe.query_name, "HeldByWorker");
-        assert_eq!(fe.query_inputs.len(), 1);
-        assert_eq!(fe.query_inputs[0].0, "worker");
-        match &fe.query_inputs[0].1 {
-            ValueSpec::FromEvent { name, .. } => assert_eq!(name, "worker"),
-            other => panic!("expected FromEvent, got {:?}", other),
-        }
-        assert_eq!(s.with_spec.len(), 1);
-        match &s.with_spec[0].1 {
-            ValueSpec::FromIter { field } => assert_eq!(field, "worktree_path"),
-            other => panic!("expected FromIter, got {:?}", other),
-        }
-    }
 
     #[test]
     fn parses_from_iter_value_spec_in_isolation() {
@@ -2337,69 +1732,6 @@ mod dispatch_tests {
         }
     }
 
-    #[test]
-    fn for_each_clause_rejects_unqualified_literal() {
-        let line = r#"dispatch "X.Y", for_each: { from: "cold" }"#;
-        let s = parse_dispatch_statement(line).unwrap();
-        assert!(s.for_each.is_none());
-    }
 
-    #[test]
-    fn parse_process_manager_captures_for_each_dispatch() {
-        let src = r#"process_manager "P" do
-  correlates_by :id
-  starts_on "Started"
-  state "rem"
-  on "Beat", transition: { rem: :rem } do
-    dispatch "Synapse.Compost", for_each: { from: "Synapse.cold" }, with: { id: from_iter(:id) }
-  end
-end
-"#;
-        let lines: Vec<&str> = src.lines().collect();
-        let (pm, _consumed) = parse_process_manager(&lines);
-        assert_eq!(pm.handlers.len(), 1);
-        let h = &pm.handlers[0];
-        assert_eq!(h.dispatches.len(), 1);
-        let d = &h.dispatches[0];
-        let fe = d.for_each.as_ref().expect("for_each captured");
-        assert_eq!(fe.source_aggregate, "Synapse");
-        assert_eq!(fe.query_name, "cold");
-    }
 
-    #[test]
-    fn parse_process_manager_captures_set_specs_in_declaration_order() {
-        let src = r#"process_manager "P" do
-  correlates_by :id
-  starts_on "Started"
-  state "rem"
-  on "TargetSighted", transition: { rem: :rem } do
-    set :steering_target, from_event(:target)
-    set :carrying, "body"
-    set :tick, from_pm(:tick, default: "0")
-    dispatch "Body.Steer", with: { target: from_pm(:steering_target) }
-  end
-end
-"#;
-        let lines: Vec<&str> = src.lines().collect();
-        let (pm, _consumed) = parse_process_manager(&lines);
-        assert_eq!(pm.handlers.len(), 1);
-        let h = &pm.handlers[0];
-        assert_eq!(h.event_type, "TargetSighted");
-        assert_eq!(
-            h.set_specs
-                .iter()
-                .map(|(k, _)| k.as_str())
-                .collect::<Vec<_>>(),
-            vec!["steering_target", "carrying", "tick"]
-        );
-        match &h.set_specs[2].1 {
-            ValueSpec::FromPm { name, default } => {
-                assert_eq!(name, "tick");
-                assert_eq!(default.as_deref(), Some("0"));
-            }
-            other => panic!("expected FromPm, got {:?}", other),
-        }
-        assert_eq!(h.dispatches.len(), 1);
-        assert_eq!(h.dispatches[0].command_name, "Body.Steer");
-    }
 }

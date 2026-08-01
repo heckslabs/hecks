@@ -8,18 +8,19 @@ use crate::parser_helpers::*;
 fn closed_set_value_object(name: &str, values: &[String]) -> ValueObject {
     ValueObject {
         name: name.to_string(),
-        description: None,
         attributes: vec![Attribute {
             name: "value".to_string(),
-            attr_type: "String".to_string(),
+            r#type: "String".to_string(),
             default: None,
             list: false,
             optional: false,
             enum_values: vec![],
             pattern: None,
+            // The synthesised set IS the closed set — its members are right
+            // here — so it names no other.
+            admits: None,
         }],
         invariants: vec![],
-        derivations: vec![],
         members: values
             .iter()
             .map(|value| vec![("value".to_string(), value.clone())])
@@ -32,22 +33,15 @@ pub fn parse(source: &str) -> Domain {
     let mut domain = Domain {
         name: String::new(),
         version: None,
-        category: None,
         vision: None,
         classification: None,
         aggregates: vec![],
         read_models: vec![],
         policies: vec![],
-        fixtures: vec![],
-        entrypoint: None,
-        sections: vec![],
         process_managers: vec![],
-        cadences: vec![],
-        block_grammars: vec![],
     };
 
     let source = strip_shebang(source);
-    let grammar = BlockGrammar::canonical_bluebook();
 
     let lines: Vec<&str> = source.lines().collect();
     let mut i = 0;
@@ -64,12 +58,6 @@ pub fn parse(source: &str) -> Domain {
             }
         }
 
-        if line.starts_with("category") && !line.starts_with("category,") {
-            if let Some(cat) = extract_string(line) {
-                domain.category = Some(cat);
-            }
-        }
-
         if line.starts_with("vision") {
             let (v, consumed) = extract_string_spanning(&lines, i);
             if let Some(v) = v {
@@ -83,20 +71,7 @@ pub fn parse(source: &str) -> Domain {
             domain.classification = Some(line.to_string());
         }
 
-        if line.starts_with("entrypoint") {
-            if let Some(ep) = extract_string(line) {
-                domain.entrypoint = Some(ep);
-            }
-        }
-
-        if line.starts_with("block_grammar") {
-            let (bg, consumed) = parse_block_grammar(&lines[i..]);
-            domain.block_grammars.push(bg);
-            i += consumed;
-            continue;
-        }
-
-        if let Some(consumed) = dispatch_block(line, &lines[i..], &grammar, &mut domain) {
+        if let Some(consumed) = dispatch_block(line, &lines[i..], &mut domain) {
             i += consumed;
             continue;
         }
@@ -107,17 +82,27 @@ pub fn parse(source: &str) -> Domain {
     domain
 }
 
-fn dispatch_block(
-    line: &str,
-    slice: &[&str],
-    grammar: &BlockGrammar,
-    domain: &mut Domain,
-) -> Option<usize> {
-    for entry in &grammar.blocks {
-        if !keyword_matches(line, &entry.keyword) {
-            continue;
-        }
-        return Some(invoke(entry.parser, slice, domain));
+fn dispatch_block(line: &str, slice: &[&str], domain: &mut Domain) -> Option<usize> {
+    if keyword_matches(line, "aggregate") {
+        let (agg, nested_policies, consumed) = parse_aggregate(slice);
+        domain.aggregates.push(agg);
+        domain.policies.extend(nested_policies);
+        return Some(consumed);
+    }
+    if keyword_matches(line, "read_model") {
+        let (model, consumed) = parse_read_model(slice);
+        domain.read_models.push(model);
+        return Some(consumed);
+    }
+    if keyword_matches(line, "policy") {
+        let (policy, consumed) = parse_policy(slice);
+        domain.policies.push(policy);
+        return Some(consumed);
+    }
+    if keyword_matches(line, "process_manager") {
+        let (pm, consumed) = parse_process_manager(slice);
+        domain.process_managers.push(pm);
+        return Some(consumed);
     }
     None
 }
@@ -132,127 +117,6 @@ fn keyword_matches(line: &str, keyword: &str) -> bool {
     }
     let next = after.as_bytes()[0];
     !(next as char).is_alphanumeric() && next != b'_'
-}
-
-fn invoke(parser: BlockParser, slice: &[&str], domain: &mut Domain) -> usize {
-    match parser {
-        BlockParser::Aggregate => {
-            let (mut agg, nested_policies, consumed) = parse_aggregate(slice);
-            if !domain.name.is_empty() {
-                agg.context = Some(domain.name.clone());
-            }
-            if domain.category.is_some() {
-                agg.category = domain.category.clone();
-            }
-            if domain.version.is_some() {
-                agg.bluebook_version = domain.version.clone();
-            }
-            domain.aggregates.push(agg);
-            domain.policies.extend(nested_policies);
-            consumed
-        }
-        BlockParser::ReadModel => {
-            let (model, consumed) = parse_read_model(slice);
-            domain.read_models.push(model);
-            consumed
-        }
-        BlockParser::Section => {
-            let (sec, consumed) = parse_section(slice);
-            domain.sections.push(sec);
-            consumed
-        }
-        BlockParser::Policy => {
-            let (policy, consumed) = parse_policy(slice);
-            domain.policies.push(policy);
-            consumed
-        }
-        BlockParser::ProcessManager => {
-            let (pm, consumed) = parse_process_manager(slice);
-            domain.process_managers.push(pm);
-            consumed
-        }
-        BlockParser::Cadence => {
-            let (cad, consumed) = parse_cadence(slice);
-            domain.cadences.push(cad);
-            consumed
-        }
-        BlockParser::Fixture => consume_do_block(slice),
-    }
-}
-
-fn consume_do_block(lines: &[&str]) -> usize {
-    let first = lines.first().map(|l| l.trim()).unwrap_or("");
-    if !ends_with_do_block(first) {
-        return 1;
-    }
-    let mut depth = 1usize;
-    let mut i = 0;
-    while i + 1 < lines.len() && depth > 0 {
-        i += 1;
-        let l = lines[i].trim();
-        if l == "end" {
-            depth -= 1;
-        } else if ends_with_do_block(l) {
-            depth += 1;
-        }
-    }
-    i + 1
-}
-
-pub fn parse_block_grammar(lines: &[&str]) -> (BlockGrammar, usize) {
-    let first = lines[0].trim();
-    let name = extract_string(first).unwrap_or_default();
-    let mut bg = BlockGrammar {
-        name,
-        blocks: vec![],
-    };
-
-    let mut i = 1;
-    let mut depth = 1usize;
-    while i < lines.len() && depth > 0 {
-        let line = lines[i].trim();
-        if line == "end" {
-            depth -= 1;
-            if depth == 0 {
-                break;
-            }
-            i += 1;
-            continue;
-        }
-        if depth == 1 && line.starts_with("block ") {
-            if let Some(entry) = parse_block_grammar_line(line) {
-                bg.blocks.push(entry);
-            }
-        } else if ends_with_do_block(line) {
-            depth += 1;
-        }
-        i += 1;
-    }
-    (bg, i + 1)
-}
-
-fn parse_block_grammar_line(line: &str) -> Option<BlockGrammarEntry> {
-    let keyword = extract_string(line)?;
-    let pos = line.find("parser:")?;
-    let after = line[pos + "parser:".len()..].trim();
-    let parser_name = if after.starts_with(':') {
-        after
-            .trim_start_matches(':')
-            .split(|c: char| c == ',' || c.is_whitespace())
-            .next()
-            .unwrap_or("")
-            .to_string()
-    } else if after.starts_with('"') {
-        extract_string(after)?
-    } else {
-        after
-            .split(|c: char| c == ',' || c.is_whitespace())
-            .next()
-            .unwrap_or("")
-            .to_string()
-    };
-    let parser = BlockParser::from_name(&parser_name)?;
-    Some(BlockGrammarEntry { keyword, parser })
 }
 
 pub fn strip_shebang(source: &str) -> &str {
@@ -271,25 +135,23 @@ fn parse_aggregate(lines: &[&str]) -> (Aggregate, Vec<Policy>, usize) {
     let desc = extract_second_string(first);
 
     let mut synthesised: Vec<ValueObject> = Vec::new();
+    // REFERENCES ARE ATTRIBUTES, collected apart only so they can be PREPENDED
+    // at the end. `reference_to` and `attribute` interleave freely in a
+    // bluebook, and the IR has always listed every reference before every
+    // declared field ; gathering them here reproduces that order at parse time
+    // rather than imposing it on the way out.
+    let mut references: Vec<Attribute> = Vec::new();
+    let owner = name.clone();
     let mut agg = Aggregate {
         name,
         description: desc,
-        context: None,
-        category: None,
-        bluebook_version: None,
-        realm_path: None,
         attributes: vec![],
-        factories: vec![],
         commands: vec![],
         queries: vec![],
         value_objects: vec![],
         entities: vec![],
-        references: vec![],
         lifecycle: None,
-        identified_by: None,
-        invariants: vec![],
-        views: vec![],
-        unknown_keywords: vec![],
+        identified_by: vec![],
     };
 
     let mut nested_policies: Vec<Policy> = vec![];
@@ -310,13 +172,8 @@ fn parse_aggregate(lines: &[&str]) -> (Aggregate, Vec<Policy>, usize) {
         }
 
         if depth == 1 {
-            if line.starts_with("factory ") || line.starts_with("create ") {
-                let (factory, consumed) = parse_factory(&lines[i..]);
-                agg.factories.push(factory);
-                i += consumed;
-                continue;
-            } else if line.starts_with("command") || is_shorthand_command(line) {
-                let (cmd, consumed) = parse_command(&lines[i..]);
+            if line.starts_with("command") || is_shorthand_command(line) {
+                let (cmd, consumed) = parse_command(&lines[i..], &owner);
                 agg.commands.push(cmd);
                 i += consumed;
                 continue;
@@ -347,7 +204,7 @@ fn parse_aggregate(lines: &[&str]) -> (Aggregate, Vec<Policy>, usize) {
                         // ORDER and split parity — the same bluebook has to
                         // yield the same IR, field for field and index for index.
                         synthesised.push(closed_set_value_object(&type_name, &attr.enum_values));
-                        attr.attr_type = type_name;
+                        attr.r#type = type_name;
                         attr.enum_values = vec![];
                     }
                     agg.attributes.push(attr);
@@ -363,34 +220,22 @@ fn parse_aggregate(lines: &[&str]) -> (Aggregate, Vec<Policy>, usize) {
             } else if line.starts_with("description") {
                 agg.description = extract_string(line);
             } else if line.starts_with("reference_to") {
-                absorb_reference_to(line, &mut agg);
+                absorb_reference_to(line, &mut references);
             } else if line.starts_with("has_many") {
-                absorb_has_many(line, &mut agg);
+                absorb_has_many(line, &mut references);
             } else if line.starts_with("has_one") {
-                absorb_has_one(line, &mut agg);
+                absorb_has_one(line, &mut agg, &mut references);
             } else if line.starts_with("belongs_to") {
-                absorb_belongs_to(line, &mut agg);
+                absorb_belongs_to(line, &mut agg, &mut references);
             } else if line.starts_with("lifecycle") {
                 let (lc, consumed) = parse_lifecycle(&lines[i..]);
                 agg.lifecycle = Some(lc);
                 i += consumed;
                 continue;
-            } else if line.starts_with("invariant") {
-                let (inv, consumed) = parse_invariant(&lines[i..]);
-                if let Some(inv) = inv {
-                    agg.invariants.push(inv);
-                }
-                i += consumed;
-                continue;
             } else if line.starts_with("identified_by") {
-                agg.identified_by = extract_identity_path(line);
-            } else if line.starts_with("view") && ends_with_do_block(line) {
-                let (v, consumed) = parse_view(&lines[i..]);
-                agg.views.push(v);
-                i += consumed;
-                continue;
+                agg.identified_by = extract_identity_path(line).into_iter().collect();
             } else if is_shorthand_line(line) {
-                absorb_shorthand(line, &mut agg);
+                absorb_shorthand(line, &mut agg, &mut references);
             } else if line.starts_with("query") {
                 if ends_with_do_block(line) {
                     let (q, consumed) = parse_query(&lines[i..]);
@@ -409,13 +254,6 @@ fn parse_aggregate(lines: &[&str]) -> (Aggregate, Vec<Policy>, usize) {
                 i += consumed;
                 continue;
             } else if ends_with_do_block(line) {
-                let word = line.split_whitespace().next().unwrap_or("");
-                if let Some(suggestion) = suggest_block_keyword(word) {
-                    agg.unknown_keywords.push(crate::ir::UnknownKeyword {
-                        keyword: word.to_string(),
-                        suggestion,
-                    });
-                }
                 depth += 1;
             }
         } else if ends_with_do_block(line) {
@@ -426,55 +264,15 @@ fn parse_aggregate(lines: &[&str]) -> (Aggregate, Vec<Policy>, usize) {
     }
 
     agg.value_objects.extend(synthesised);
+    references.append(&mut agg.attributes);
+    agg.attributes = references;
     (agg, nested_policies, i + 1)
 }
 
-const BLOCK_KEYWORDS: &[&str] = &[
-    "command",
-    "query",
-    "value_object",
-    "entity",
-    "invariant",
-    "view",
-    "rule",
-    "policy",
-    "factory",
-    "lifecycle",
-    "create",
-];
-
-fn suggest_block_keyword(word: &str) -> Option<String> {
-    if word.is_empty() || BLOCK_KEYWORDS.contains(&word) {
-        return None;
-    }
-    BLOCK_KEYWORDS
-        .iter()
-        .map(|kw| (*kw, levenshtein(word, kw)))
-        .filter(|(_, d)| *d <= 2)
-        .min_by_key(|(_, d)| *d)
-        .map(|(kw, _)| kw.to_string())
-}
-
-fn levenshtein(a: &str, b: &str) -> usize {
-    let a: Vec<char> = a.chars().collect();
-    let b: Vec<char> = b.chars().collect();
-    let mut prev: Vec<usize> = (0..=b.len()).collect();
-    let mut cur = vec![0usize; b.len() + 1];
-    for (i, ca) in a.iter().enumerate() {
-        cur[0] = i + 1;
-        for (j, cb) in b.iter().enumerate() {
-            let cost = if ca == cb { 0 } else { 1 };
-            cur[j + 1] = (prev[j + 1] + 1).min(cur[j] + 1).min(prev[j] + cost);
-        }
-        std::mem::swap(&mut prev, &mut cur);
-    }
-    prev[b.len()]
-}
-
-fn absorb_reference_to(line: &str, agg: &mut Aggregate) {
+fn absorb_reference_to(line: &str, references: &mut Vec<Attribute>) {
     if line.starts_with("reference_to(") {
         if let Some(r) = parse_shorthand_reference(line) {
-            agg.references.push(r);
+            references.push(r);
         }
     } else if let Some(target) = extract_word_after(line, "reference_to") {
         let name = if let Some(pos) = line.find(", as:") {
@@ -486,7 +284,7 @@ fn absorb_reference_to(line: &str, agg: &mut Aggregate) {
         } else {
             format!("{}_id", crate::naming::snake(&target))
         };
-        agg.references.push(Reference::single(name, target, None));
+        references.push(reference_attribute(name, &target));
     }
 }
 
@@ -500,10 +298,13 @@ fn singularize(plural: &str) -> String {
     }
 }
 
-fn split_qualified_type(token: &str) -> (Option<String>, String) {
+/// THE TYPE, UNQUALIFIED. `has_many Billing::Invoices` points at an Invoice ;
+/// which chapter it was declared in is not part of the reference's type, and
+/// never reached the IR — `Reference<Invoice>` is what both runtimes spell.
+fn unqualified_type(token: &str) -> String {
     match token.rsplit_once("::") {
-        Some((dom, t)) => (Some(dom.to_string()), t.to_string()),
-        None => (None, token.to_string()),
+        Some((_, held)) => held.to_string(),
+        None => token.to_string(),
     }
 }
 
@@ -512,71 +313,54 @@ fn parse_as_alias(line: &str) -> Option<String> {
         .and_then(|pos| extract_symbol(&line[pos + ", as:".len()..]))
 }
 
-fn parse_from_context(line: &str) -> Option<String> {
-    line.find("from:").and_then(|pos| {
-        line[pos + "from:".len()..]
-            .split_whitespace()
-            .next()
-            .map(|s| s.trim_matches(',').to_string())
-            .filter(|s| !s.is_empty())
-    })
-}
-
-fn absorb_has_many(line: &str, agg: &mut Aggregate) {
+fn absorb_has_many(line: &str, references: &mut Vec<Attribute>) {
     if let Some(token) = extract_word_after(line, "has_many") {
-        let (split_domain, plural) = split_qualified_type(&token);
-        let domain = parse_from_context(line).or(split_domain);
+        let plural = unqualified_type(&token);
         let target = singularize(&plural);
         let name = parse_as_alias(line).unwrap_or_else(|| crate::naming::snake(&plural));
-        agg.references.push(Reference::many(name, target, domain));
+        references.push(reference_attribute(name, &target));
     }
 }
 
-fn absorb_has_one(line: &str, agg: &mut Aggregate) {
+fn absorb_has_one(line: &str, agg: &mut Aggregate, references: &mut Vec<Attribute>) {
     if let Some(token) = extract_word_after(line, "has_one") {
-        let (split_domain, target) = split_qualified_type(&token);
-        let domain = parse_from_context(line).or(split_domain);
-        let name = parse_as_alias(line).unwrap_or_else(|| crate::naming::snake(&target));
-        agg.references
-            .push(Reference::has_one(name.clone(), target.clone(), domain));
-        if !agg.attributes.iter().any(|a| a.name == name) {
-            agg.attributes.push(Attribute {
-                name,
-                attr_type: target,
-                default: None,
-                list: false,
-                optional: false,
-                enum_values: vec![],
-                pattern: None,
-            });
-        }
+        absorb_held(line, &token, agg, references);
     }
 }
 
-fn absorb_belongs_to(line: &str, agg: &mut Aggregate) {
+fn absorb_belongs_to(line: &str, agg: &mut Aggregate, references: &mut Vec<Attribute>) {
     if let Some(token) = extract_word_after(line, "belongs_to") {
-        let (split_domain, target) = split_qualified_type(&token);
-        let domain = parse_from_context(line).or(split_domain);
-        let name = parse_as_alias(line).unwrap_or_else(|| crate::naming::snake(&target));
-        agg.references
-            .push(Reference::belongs_to(name.clone(), target.clone(), domain));
-        if !agg.attributes.iter().any(|a| a.name == name) {
-            agg.attributes.push(Attribute {
-                name,
-                attr_type: target,
-                default: None,
-                list: false,
-                optional: false,
-                enum_values: vec![],
-                pattern: None,
-            });
-        }
+        absorb_held(line, &token, agg, references);
     }
 }
-fn absorb_shorthand(line: &str, agg: &mut Aggregate) {
+
+/// `has_one` and `belongs_to` read IDENTICALLY — one held instance, named for
+/// it unless `as:` says otherwise. The two verbs differ in which side owns the
+/// key, which is a persistence reading nothing here has ever made: the IR they
+/// left was the same reference and the same declared attribute, so they share
+/// the one body rather than two that must be kept in step.
+fn absorb_held(line: &str, token: &str, agg: &mut Aggregate, references: &mut Vec<Attribute>) {
+    let target = unqualified_type(token);
+    let name = parse_as_alias(line).unwrap_or_else(|| crate::naming::snake(&target));
+    references.push(reference_attribute(name.clone(), &target));
+    if !agg.attributes.iter().any(|a| a.name == name) {
+        agg.attributes.push(Attribute {
+            name,
+            r#type: target,
+            default: None,
+            list: false,
+            optional: false,
+            enum_values: vec![],
+            pattern: None,
+            admits: None,
+        });
+    }
+}
+
+fn absorb_shorthand(line: &str, agg: &mut Aggregate, references: &mut Vec<Attribute>) {
     match parse_shorthand(line) {
         ShorthandResult::Attribute(a) => agg.attributes.push(a),
-        ShorthandResult::Reference(r) => agg.references.push(r),
+        ShorthandResult::Reference(r) => references.push(r),
         ShorthandResult::None => {}
     }
 }
@@ -597,9 +381,6 @@ fn push_query(line: &str, agg: &mut Aggregate, depth: &mut usize) {
         wheres: vec![],
         order_by: None,
         limit: None,
-        reduction: None,
-        group_by: None,
-        scope_to: None,
     });
     if ends_with_do_block(line) {
         *depth += 1;

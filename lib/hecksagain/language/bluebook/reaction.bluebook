@@ -1,0 +1,294 @@
+Hecks.bluebook "Bluebook" do
+  aggregate "Policy" do
+    description "One policy — the event it watches, the command it fires, and the domain that command belongs to."
+
+    reference_to Bluebook
+
+    # THE CHAPTER IT IS IN, AND ITS NAME. A policy hangs off the chapter rather
+    # than an aggregate, so the chapter is the part above it.
+    identified_by do
+      bluebook_id
+      name.value
+    end
+
+    attribute :name,            PolicyName
+    # WHICH HEAD DECLARED IT, empty for a reaction the chapter owns.
+    #
+    # A policy written inside an aggregate is hoisted onto the chapter by the
+    # builder, and the chapter is where the runtime reads it — so nothing was ever
+    # lost at runtime. What was lost is where it was WRITTEN, which is a fact about
+    # the source, and facts about the source are what this language holds.
+    # `Aggregate#to_h` does not carry it and does not need to: the wire format is the
+    # contract with the other runtime, and the language may hold more than it.
+    attribute :aggregate,       PolicyText
+    attribute :on_event,        PolicyText
+    attribute :trigger_command, PolicyText
+    attribute :target_domain,   PolicyText
+
+    value_object "PolicyName" do
+      attribute :value, String
+      invariant("a policy is named") { !value.to_s.empty? }
+    end
+
+    value_object "PolicyText" do
+      attribute :value, String
+    end
+
+    # The way back: everything DECLARED IN the chapter above. The parent
+    # reference IS the query.
+    # WHERE IT SITS AMONG ITS SIBLINGS. Declaration order is a FACT ABOUT THE
+    # SOURCE — Rust reads it straight out of the file, and the IR is a contract
+    # field for field AND INDEX FOR INDEX. So the language HOLDS it, instead of
+    # inheriting it from whatever order a store happens to iterate: an ask that
+    # does not say how it is ordered is answered in identity order, which is
+    # right for every other ask and fatal for the one that is the SOURCE.
+    value_object "Position" do
+      attribute :value, Integer
+    end
+
+    attribute :position, Position
+
+    query "DeclaredIn" do
+      attribute :bluebook_id, PolicyText
+      where(bluebook_id: :bluebook_id)
+      order_by :position
+    end
+    command "Declare" do
+      role "Language"
+      goal "Declare a policy on a chapter"
+
+      reference_to Bluebook
+      attribute :name,            PolicyName
+      attribute :aggregate,       PolicyText, optional: true
+      attribute :on_event,        PolicyText
+      attribute :trigger_command, PolicyText
+      attribute :target_domain,   PolicyText, optional: true
+
+      attribute :position, Position, optional: true
+      emits "ReactionDeclared"
+    end
+  end
+
+  aggregate "ProcessManager" do
+    description "One process manager — what correlates its instances, what starts and ends it, and the states it moves through."
+
+    reference_to Bluebook
+
+    # THE CHAPTER IT IS IN, AND ITS NAME — the same shape a policy takes, and for
+    # the same reason.
+    identified_by do
+      bluebook_id
+      name.value
+    end
+
+    attribute :name,      ProcessManagerName
+    attribute :correlates_by, ProcessManagerText
+    attribute :starts_on,     ProcessManagerText
+    attribute :ends_on,       ProcessManagerText
+    attribute :states,    list_of(SagaState)
+
+    value_object "ProcessManagerName" do
+      attribute :value, String
+      invariant("a process manager is named") { !value.to_s.empty? }
+    end
+
+    value_object "ProcessManagerText" do
+      attribute :value, String
+    end
+
+    value_object "SagaState" do
+      attribute :name, String
+    end
+
+    # The way back: everything DECLARED IN the chapter above. The parent
+    # reference IS the query.
+    # WHERE IT SITS AMONG ITS SIBLINGS. Declaration order is a FACT ABOUT THE
+    # SOURCE — Rust reads it straight out of the file, and the IR is a contract
+    # field for field AND INDEX FOR INDEX. So the language HOLDS it, instead of
+    # inheriting it from whatever order a store happens to iterate: an ask that
+    # does not say how it is ordered is answered in identity order, which is
+    # right for every other ask and fatal for the one that is the SOURCE.
+    value_object "Position" do
+      attribute :value, Integer
+    end
+
+    attribute :position, Position
+
+    query "DeclaredIn" do
+      attribute :bluebook_id, ProcessManagerText
+      where(bluebook_id: :bluebook_id)
+      order_by :position
+    end
+    command "Declare" do
+      role "Language"
+      goal "Open a process manager on a chapter"
+
+      reference_to Bluebook
+      attribute :name,      ProcessManagerName
+      attribute :correlates_by, ProcessManagerText
+      attribute :starts_on,     ProcessManagerText
+      # A PROCEDURE NEED NOT DECLARE AN ENDING. Both runtimes have always held
+      # this optional — Ruby's ProcessManagerBuilder defaults `@ends_on` to nil
+      # and validates only correlates_by/starts_on/states/handlers, and Rust's
+      # parser starts it at `None` and only fills it if the line is written. The
+      # language was the one saying it was required, and nothing in the corpus
+      # had to disagree because every procedure in it happens to end.
+      attribute :ends_on,       ProcessManagerText, optional: true
+
+      attribute :position, Position, optional: true
+      emits "SagaDeclared"
+    end
+
+    command "State" do
+      role "Language"
+      goal "Attach one state to the process manager"
+
+      reference_to ProcessManager
+      attribute :name, ProcessManagerText
+
+      then_set :states, append: { name: :name }
+
+      emits "SagaStateAttached"
+    end
+  end
+
+  aggregate "Handler" do
+    description "One handler inside a process manager — the event it answers, the state move it makes, and the commands it sends. Its own root because a handler holds nested dispatches, which hold nested bindings."
+
+    reference_to ProcessManager
+
+    # THE PROCESS MANAGER IT IS IN, AND THE EVENT IT ANSWERS. A saga answers each
+    # event once, so the event names the leg. The judge keyed this by POSITION
+    # ("#{parent}##{index}"), which is a mint : insert a leg above and every leg
+    # below is renamed. The event does not move.
+    identified_by do
+      process_manager_id
+      event_type.value
+    end
+
+    # No `saga` field. It named the old word for a process manager, held nothing —
+    # IR::ProcessManagerHandler has no such reader, so every Handler record's saga
+    # was empty — and repeated the parent that `process_manager_id` already
+    # carries. A field that names the wrong thing, holds nothing, and duplicates
+    # the reference beside it.
+    #
+    # `event_type` is an event name, or one of the Trigger vocabulary's members
+    # when the leg answers something no aggregate announces.
+    attribute :event_type, HandlerText
+    attribute :from_state, HandlerText
+    attribute :to_state,   HandlerText
+
+    value_object "HandlerText" do
+      attribute :value, String
+    end
+
+    # The way back: everything DECLARED IN the process manager above. The parent
+    # reference IS the query.
+    # WHERE IT SITS AMONG ITS SIBLINGS. Declaration order is a FACT ABOUT THE
+    # SOURCE — Rust reads it straight out of the file, and the IR is a contract
+    # field for field AND INDEX FOR INDEX. So the language HOLDS it, instead of
+    # inheriting it from whatever order a store happens to iterate: an ask that
+    # does not say how it is ordered is answered in identity order, which is
+    # right for every other ask and fatal for the one that is the SOURCE.
+    value_object "Position" do
+      attribute :value, Integer
+    end
+
+    attribute :position, Position
+
+    query "DeclaredIn" do
+      attribute :process_manager_id, HandlerText
+      where(process_manager_id: :process_manager_id)
+      order_by :position
+    end
+    command "Declare" do
+      role "Language"
+      goal "Open a handler inside a process manager"
+
+      reference_to ProcessManager
+      attribute :event_type, HandlerText
+      # A LEG ALWAYS SAYS WHERE IT MOVES FROM. There is no wildcard leg to be
+      # optional for: `on "Event", transition: { from => to }` is the only
+      # spelling either runtime reads, and both refuse anything else — Ruby's
+      # `single_transition` raises unless the hash holds exactly one from => to
+      # pair, and Rust's `parse_pm_handler` returns None when `transition:` is
+      # absent, so the handler is never built at all. `optional: true` here was
+      # the language admitting a leg neither runtime can parse.
+      attribute :from_state, HandlerText
+      attribute :to_state,   HandlerText
+
+      attribute :position, Position, optional: true
+      emits "LegDeclared"
+    end
+  end
+
+  aggregate "Dispatch" do
+    description "One command a handler dispatches, with the arguments it binds. Its own root because the bindings are an open map, which no value object can hold."
+
+    reference_to Handler
+
+    # THE HANDLER IT IS IN, AND THE COMMAND IT SENDS — keyed by position before,
+    # for the same want of a way to say this.
+    identified_by do
+      handler_id
+      command_name.value
+    end
+
+    attribute :handler,      DispatchText
+    attribute :command_name, DispatchText
+    attribute :with_spec,    list_of(Binding)
+
+    value_object "DispatchText" do
+      attribute :value, String
+    end
+
+    value_object "Binding" do
+      attribute :key,   String
+      attribute :value, String
+    end
+
+    # The way back: everything DECLARED IN the handler above. The parent
+    # reference IS the query.
+    # WHERE IT SITS AMONG ITS SIBLINGS. Declaration order is a FACT ABOUT THE
+    # SOURCE — Rust reads it straight out of the file, and the IR is a contract
+    # field for field AND INDEX FOR INDEX. So the language HOLDS it, instead of
+    # inheriting it from whatever order a store happens to iterate: an ask that
+    # does not say how it is ordered is answered in identity order, which is
+    # right for every other ask and fatal for the one that is the SOURCE.
+    value_object "Position" do
+      attribute :value, Integer
+    end
+
+    attribute :position, Position
+
+    query "DeclaredIn" do
+      attribute :handler_id, DispatchText
+      where(handler_id: :handler_id)
+      order_by :position
+    end
+    command "Declare" do
+      role "Language"
+      goal "Open a dispatch inside a handler"
+
+      reference_to Handler
+      attribute :handler,      DispatchText
+      attribute :command_name, DispatchText
+
+      attribute :position, Position, optional: true
+      emits "SendDeclared"
+    end
+
+    command "Bind" do
+      role "Language"
+      goal "Bind one argument of the dispatched command"
+
+      reference_to Dispatch
+      attribute :key,   DispatchText
+      attribute :value, DispatchText
+
+      then_set :with_spec, append: { key: :key, value: :value }
+
+      emits "BindingAttached"
+    end
+  end
+end

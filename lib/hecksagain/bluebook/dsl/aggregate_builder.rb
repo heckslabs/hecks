@@ -13,8 +13,6 @@ module Hecksagain
           @queries       = []
           @policies      = []
           @reference_targets = []
-          @klass         = Class.new(Aggregate)
-          @klass.hecks_name = name
         end
 
         def description(value)
@@ -66,19 +64,15 @@ module Hecksagain
         end
 
         def entity(name, &block)
-          piece = EntityBuilder.build(name, &block)
-          # A piece is declared IN this aggregate. Its own commands were given the
-          # piece as their owner when it was declared, so the chain is now
-          # chapter -> aggregate -> entity -> command, and every link can state
-          # an identity.
-          piece.hecks_owner = @klass
-          @entities << piece
+          # A piece is declared IN this aggregate — its owner is stamped by
+          # `IR::Aggregate#initialize`, once the aggregate exists. Its own
+          # commands were given the piece as their owner when it was declared,
+          # so the chain closes as chapter -> aggregate -> entity -> command.
+          @entities << EntityBuilder.build(name, &block)
         end
 
         def query(name, &block)
-          ask = QueryBuilder.build(name, &block)
-          ask.hecks_owner = @klass
-          @queries << ask
+          @queries << QueryBuilder.build(name, &block)
         end
 
         def policy(name, &block)
@@ -92,21 +86,15 @@ module Hecksagain
         end
 
         def command(name, &block)
-          command = CommandBuilder.build(name, owner: @name, &block)
-          # The verb is declared ON this aggregate, which is what `acts_on` answers
-          # with. An ENTITY's commands are deliberately not stamped here: they are
-          # declared on the entity, and an entity is still an IR object rather than
-          # a construct, so asking one for its identity refuses rather than
-          # answering "Deposit" and looking right.
-          command.hecks_owner = @klass
-          @commands << command
-          define_command(command)
+          # The verb is declared ON this aggregate — the owner `acts_on` answers
+          # with — stamped by `IR::Aggregate#initialize` once the aggregate
+          # exists. An ENTITY's commands take the entity as their owner instead,
+          # at the entity's own declaration.
+          @commands << CommandBuilder.build(name, owner: @name, &block)
         end
 
         def build
           seal_mutation_targets
-          nest_value_objects
-          stamp_references
 
           ir = IR::Aggregate.new(
             name:          @name,
@@ -122,9 +110,10 @@ module Hecksagain
             reference_targets: @reference_targets
           )
 
-          @klass.ir     = ir
-          ir.ruby_class = @klass
-          define_readers
+          # After the IR exists, on purpose : a reference is declared IN the
+          # aggregate, and the aggregate the IR graph knows is `ir`, not the
+          # builder.
+          stamp_references(ir)
           ir
         end
 
@@ -136,35 +125,18 @@ module Hecksagain
 
         private
 
-        # A value object is declared INSIDE an aggregate, so its class is nested
-        # inside the aggregate's — `Pizzas::Pizza::Price`. That nesting is what
-        # lets two aggregates each declare their own `Money` without collision,
-        # which the VO-placement convention deliberately allows.
-        #
-        # The owner is set as well as the constant, because `hecks_fqn` is
-        # computed by walking owners rather than stamped — the chapter above this
-        # aggregate does not exist yet, and will not until the whole file is read.
-        def nest_value_objects
-          (@value_objects + closed_sets).each do |shape|
-            shape.hecks_owner = @klass
-            name = shape.hecks_name
-            @klass.send(:remove_const, name) if @klass.const_defined?(name, false)
-            @klass.const_set(name, shape)
-          end
-        end
-
-        # Every reference is told which aggregate declares it, so it can find the
-        # chapter and resolve its target.
+        # Every reference is told which IR::Aggregate declares it, so it can
+        # find the chapter and resolve its target.
         #
         # Stamped HERE, at build, rather than at `reference_to`, because a command
-        # builder does not hold the aggregate's class and should not learn to. And
+        # builder does not hold the aggregate and should not learn to. And
         # deliberately across every list that can carry one — a reference the walk
         # missed would resolve to nil, and `resolve_references` SKIPS a nil target,
         # so the guarantee would go quiet instead of going red. That is the exact
         # shape of the bug that let an Account belong to an unregistered customer
         # fourteen times over.
-        def stamp_references
-          reference_bearing_attributes.each { |attribute| attribute.type.declared_in = @klass }
+        def stamp_references(ir)
+          reference_bearing_attributes.each { |attribute| attribute.type.declared_in = ir }
         end
 
         def reference_bearing_attributes
@@ -211,18 +183,6 @@ module Hecksagain
           end
         end
 
-        # The class defines its own surface now — `Aggregate.declare_reader` and
-        # `.declare_verb`. These used to build the methods here, reaching into
-        # @klass from outside, which meant the DSL was the only thing that could
-        # ever finish an aggregate. The assembler needs the same two calls.
-        def define_readers
-          attributes.each { |attribute| @klass.declare_reader(attribute.name) }
-          @klass.declare_reader(@lifecycle.field) if @lifecycle
-        end
-
-        def define_command(command)
-          @klass.declare_verb(command.hecks_name, creates: command.creates?)
-        end
       end
     end
   end

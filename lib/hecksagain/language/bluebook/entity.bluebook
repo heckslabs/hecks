@@ -1,0 +1,178 @@
+Hecks.bluebook "Bluebook" do
+  aggregate "Entity" do
+    description "One entity inside an aggregate — an element with its own identity, state machine, commands and queries. Its own root because it repeats the aggregate's whole shape one level down."
+
+    reference_to Aggregate
+
+    # THE AGGREGATE IT IS IN, AND ITS NAME. Note this is the identity of the RECORD
+    # describing a piece, which is a different thing from the identity that piece
+    # itself declares (`identified_by`, the list below).
+    identified_by do
+      aggregate_id
+      name.value
+    end
+
+    attribute :owner,         EntityText
+    attribute :name,          EntityName
+    attribute :description,   EntityName
+    # SEVERAL PATHS, joined — a piece spells an identity exactly as a head does,
+    # which is the whole point of it being its own root.
+    attribute :identified_by, list_of(IdentityPath)
+    attribute :attributes,    list_of(PieceField)
+    attribute :state_field, EntityText
+    attribute :state_start, EntityText
+    attribute :transitions, list_of(PieceTransition)
+
+    value_object "EntityName" do
+      attribute :value, String
+      invariant("an entity is named") { !value.to_s.empty? }
+    end
+
+    value_object "EntityText" do
+      attribute :value, String
+    end
+
+    # A piece's identity is made of parts the same way a head's is, so it holds
+    # the same shape. Declared here rather than shared because a value object
+    # belongs to the aggregate that uses it.
+    value_object "IdentityPath" do
+      attribute :value, String
+    end
+
+    value_object "PieceField" do
+      attribute :name,    String
+      attribute :type,    String
+      attribute :list,    String
+      attribute :optional, String, optional: true
+      attribute :pattern,  String, optional: true
+      attribute :default, String
+      # The closed set this value must belong to — see Aggregate::Field.
+      attribute :admits, String, optional: true
+    end
+
+    value_object "PieceTransition" do
+      attribute :command,    String
+      attribute :from_state, String
+      attribute :to_state,   String
+    end
+
+    # The way back: everything DECLARED IN the aggregate above. The parent
+    # reference IS the query.
+    # WHERE IT SITS AMONG ITS SIBLINGS. Declaration order is a FACT ABOUT THE
+    # SOURCE — Rust reads it straight out of the file, and the IR is a contract
+    # field for field AND INDEX FOR INDEX. So the language HOLDS it, instead of
+    # inheriting it from whatever order a store happens to iterate: an ask that
+    # does not say how it is ordered is answered in identity order, which is
+    # right for every other ask and fatal for the one that is the SOURCE.
+    value_object "Position" do
+      attribute :value, Integer
+    end
+
+    attribute :position, Position
+
+    query "DeclaredIn" do
+      attribute :aggregate_id, EntityText
+      where(aggregate_id: :aggregate_id)
+      order_by :position
+    end
+    command "Declare" do
+      role "Language"
+      goal "Open an entity inside an aggregate"
+
+      reference_to Aggregate
+      attribute :owner,         EntityText
+      attribute :name,          EntityName
+      attribute :description,   EntityName, optional: true
+
+      attribute :position, Position, optional: true
+      emits "PieceDeclared"
+    end
+
+    # ONE PART OF THE PIECE'S IDENTITY, attached exactly as an aggregate's is.
+    #
+    # A PIECE MUST SAY WHAT IT IS KNOWN BY — the rule, where the language keeps
+    # its rules. An entity is an element with an identity of ITS OWN ; that is
+    # the whole difference between a piece and a value object, so a command
+    # acting on one must be able to say which one. Undeclared, the two runtimes
+    # each invented a different answer (Ruby fell through to nothing, Rust
+    # assumed `id`) and agreed only because every entity in the corpus happened
+    # to declare it — `bin/undeclared` reported precisely that, a divergence the
+    # declaration was masking. Requiring it removes the default there was to
+    # disagree about. That requirement now sits on Seal, where a whole-document
+    # rule belongs ; what stays here is the shape of each part.
+    command "Identify" do
+      role "Language"
+      goal "Attach one part of the entity's identity"
+
+      reference_to Entity
+      attribute :path, IdentityPath
+
+      # Two ways to reach a scalar — see Aggregate.Identify, where the same rule
+      # is written out in full.
+      given("an identity part reaches a scalar") { path.value.to_s.include?(".") || path.value.to_s.include?("_id") }
+
+      then_set :identified_by, append: { value: :path }
+      emits "PieceIdentified"
+    end
+
+    command "Seal" do
+      role "Language"
+      goal "Close an entity — the checks that need every declaration present"
+
+      # A piece gets the whole-document shape a head has, for the same reason :
+      # "it said SOMETHING" cannot be asked while the parts are still arriving.
+      reference_to Entity
+
+      given("an entity says what it is known by") { !identified_by.empty? }
+
+      emits "PieceSealed"
+    end
+
+    command "Attribute" do
+      role "Language"
+      goal "Attach one attribute to the entity"
+
+      reference_to Entity
+      attribute :name,    EntityText
+      attribute :type,    EntityText
+      attribute :list,    EntityText
+      attribute :optional, EntityText, optional: true
+      attribute :pattern,  EntityText, optional: true
+      attribute :default, EntityText, optional: true
+      attribute :admits,  EntityText, optional: true
+
+      then_set :attributes, append: { name: :name, type: :type, list: :list, default: :default, optional: :optional, pattern: :pattern, admits: :admits }
+
+      emits "PieceAttributeAttached"
+    end
+
+
+    command "Lifecycle" do
+      role "Language"
+      goal "Name the field this entity's state machine runs on"
+
+      reference_to Entity
+      attribute :state_field, EntityText
+      attribute :state_start, EntityText
+
+      then_set :state_field, to: :state_field
+      then_set :state_start, to: :state_start
+
+      emits "PieceLifecycleNamed"
+    end
+
+    command "Transition" do
+      role "Language"
+      goal "Attach one transition to the entity's state machine"
+
+      reference_to Entity
+      attribute :command,    EntityText
+      attribute :from_state, EntityText, optional: true
+      attribute :to_state,   EntityText
+
+      then_set :transitions, append: { command: :command, from_state: :from_state, to_state: :to_state }
+
+      emits "PieceTransitionAttached"
+    end
+  end
+end

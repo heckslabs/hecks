@@ -5,7 +5,7 @@ module Hecksagain
       attr_reader :registry
 
       # The ops Runtime::CommandInterpreter applies. Declared the same way in
-      # Vocabulary::MutationOp (language/bluebook.bluebook) —
+      # Vocabulary::MutationOp (language/bluebook/vocabulary.bluebook) —
       # spec/vocabulary_conformance_spec holds the two tables equal, so
       # increment/decrement's sign cannot drift from what the language says
       # each op means. set/append carry no sign — they do no arithmetic.
@@ -110,13 +110,14 @@ module Hecksagain
         end
       end
 
-      # The reference RESOLVES itself — through the chapter's namespace, so Ruby's
-      # constant tree is the index. This used to regex the target's name out of
-      # "Reference<Customer>" and then search `registry.bluebook(domain).aggregates`
-      # for it: a spelling parsed, and a registry scanned, to reach a class the
-      # attribute was holding all along.
+      # The reference RESOLVES itself — through the chapter's own IR, so the
+      # bluebook's declared heads are the index. This used to regex the target's
+      # name out of "Reference<Customer>" and then search
+      # `registry.bluebook(domain).aggregates` for it — and later reached the
+      # target through Ruby's constant tree, a class thrown away for its `.ir`
+      # the moment it was found.
       def referenced_aggregate(attribute)
-        attribute.type.resolve&.ir
+        attribute.type.resolve
       end
 
 

@@ -11,7 +11,7 @@ RUNTIME = Hecks.boot(DOMAIN)
 
 RUNTIME.registry.bluebooks.each_value do |bluebook|
   aggregates = bluebook.aggregates.map do |aggregate|
-    "    #{aggregate.name}: #{aggregate.ruby_class.commands.join(', ')}"
+    "    #{aggregate.name}: #{aggregate.commands.map { |c| Hecksagain::Naming.snake(c.hecks_name) }.sort.join(', ')}"
   end
 
   puts <<~DOMAIN

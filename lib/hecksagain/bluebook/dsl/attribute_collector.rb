@@ -11,7 +11,28 @@ module Hecksagain
         # installed by whoever owns value objects (the aggregate).
         def closed_sets = @closed_sets ||= []
 
-        def attribute(name, type = String, default: nil, optional: false, pattern: nil)
+        # `admits:` names a closed set that is ALREADY DECLARED elsewhere —
+        #
+        #   attribute :op, String, admits: "Vocabulary::QueryComparator"
+        #
+        # which is the difference between it and `one_of`: `one_of` SYNTHESISES
+        # a fresh value object named for the attribute, so it can only ever name
+        # something new. `admits` points at a set the language already holds, so
+        # the same set can be named from many places without being written twice.
+        #
+        # QUALIFIED, because a closed set is a value object INSIDE an aggregate
+        # and `reference_to` reaches heads only — so this is text, checked where
+        # it is read (bin/ir_structs) rather than by reference resolution.
+        #
+        # AND WRITTEN AS TEXT, not as the constant path `Vocabulary::QueryComparator`
+        # it reads like. The constant spelling was tried — `ConstShim` returning
+        # a Module so Ruby's `::` reaches a second `const_missing` — and it
+        # cannot hold: `Facade::Surface` installs every aggregate name as a
+        # TOP-LEVEL constant, so the moment any facade exists, `Vocabulary`
+        # resolves to that module and the shim is never asked. A spelling that
+        # works only until a facade is built is worse than a quoted one.
+        def attribute(name, type = String, default: nil, optional: false, pattern: nil,
+                      admits: nil)
           # moved to the language: FieldName invariant, on Root.Attribute
 
           refuse_unshared_pattern(name, pattern) if pattern
@@ -24,7 +45,8 @@ module Hecksagain
             list:     list,
             default:  default,
             optional: optional,
-            pattern:  pattern
+            pattern:  pattern,
+            admits:   admits
           )
         end
 

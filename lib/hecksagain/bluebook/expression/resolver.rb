@@ -11,7 +11,7 @@ module Hecksagain
 
         # Which Comparison operator each sign test is sugar for, against the
         # literal 0 — declared the same way in Vocabulary::SignTest's
-        # compares_via (language/bluebook.bluebook) ; spec/vocabulary_conformance_spec
+        # compares_via (language/bluebook/vocabulary.bluebook) ; spec/vocabulary_conformance_spec
         # holds the two tables equal.
         SIGN_TEST_OPERATORS = {
           "positive?" => ">",
@@ -133,7 +133,7 @@ module Hecksagain
         end
 
         # Declared the same way in Vocabulary::SizedType
-        # (language/bluebook.bluebook) — spec/vocabulary_conformance_spec
+        # (language/bluebook/vocabulary.bluebook) — spec/vocabulary_conformance_spec
         # holds this equal to the language. Shared by .size and .empty?,
         # which admit the same set for the same reason.
         SIZED_TYPES = %w[Array String Hash].freeze
@@ -151,7 +151,7 @@ module Hecksagain
         end
 
         # Declared the same way in Vocabulary::ToStringType
-        # (language/bluebook.bluebook) — spec/vocabulary_conformance_spec
+        # (language/bluebook/vocabulary.bluebook) — spec/vocabulary_conformance_spec
         # holds this equal to the language.
         TO_STRING_TYPES = %w[String Integer Float TrueClass FalseClass NilClass].freeze
 

@@ -198,7 +198,7 @@ module Hecksagain
                                     end
           end
 
-          send_to("Meta::#{category}.#{plan.declare}", id, **payload.merge(extra))
+          send_to("Bluebook::#{category}.#{plan.declare}", id, **payload.merge(extra))
         end
 
         # A setter whose every source is absent is not dispatched. An aggregate
@@ -212,7 +212,7 @@ module Hecksagain
             end
             next if payload.values.all?(&:nil?)
 
-            send_to("Meta::#{category}.#{setter.verb}", id, id: id, **payload)
+            send_to("Bluebook::#{category}.#{setter.verb}", id, id: id, **payload)
           end
         end
 
@@ -226,14 +226,14 @@ module Hecksagain
                        cell(category, list_name, row, field, id, chosen))]
               end
 
-              send_to("Meta::#{category}.#{chosen.verb}", "#{id}##{list_name}[#{index}]",
+              send_to("Bluebook::#{category}.#{chosen.verb}", "#{id}##{list_name}[#{index}]",
                       id: id, **payload)
             end
           end
         end
 
         def sealers(plan, category, id)
-          plan.sealers.each { |verb| send_to("Meta::#{category}.#{verb}", id, id: id) }
+          plan.sealers.each { |verb| send_to("Bluebook::#{category}.#{verb}", id, id: id) }
         end
 
         # An aggregate's attribute names its value object by TYPE, and the language

@@ -5,7 +5,7 @@ module Hecksagain
       attr_reader :registry
 
       # Set by a spec to observe dispatch order (Vocabulary::EntityDispatchOrder
-      # in language/bluebook.bluebook) ; nil in production, always — see
+      # in language/bluebook/vocabulary.bluebook) ; nil in production, always — see
       # CommandInterpreter.trace, the same mechanism.
       class << self
         attr_accessor :trace

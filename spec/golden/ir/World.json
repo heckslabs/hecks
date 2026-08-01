@@ -3,6 +3,7 @@
     {
       "attributes": [
         {
+          "admits": null,
           "default": null,
           "list": false,
           "name": "domain",
@@ -11,6 +12,7 @@
           "type": "WorldName"
         },
         {
+          "admits": null,
           "default": null,
           "list": false,
           "name": "realm",
@@ -19,6 +21,7 @@
           "type": "Realm"
         },
         {
+          "admits": null,
           "default": null,
           "list": false,
           "name": "latest",
@@ -31,6 +34,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "domain",
@@ -39,6 +43,7 @@
               "type": "WorldName"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "realm",
@@ -47,6 +52,7 @@
               "type": "Realm"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "latest",
@@ -86,6 +92,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -109,6 +116,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -132,6 +140,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -157,6 +166,7 @@
     {
       "attributes": [
         {
+          "admits": null,
           "default": null,
           "list": false,
           "name": "world_id",
@@ -165,6 +175,7 @@
           "type": "Reference<World>"
         },
         {
+          "admits": null,
           "default": null,
           "list": false,
           "name": "world",
@@ -173,6 +184,7 @@
           "type": "WiringText"
         },
         {
+          "admits": null,
           "default": null,
           "list": false,
           "name": "verb",
@@ -181,6 +193,7 @@
           "type": "WiringText"
         },
         {
+          "admits": null,
           "default": null,
           "list": false,
           "name": "adapter",
@@ -189,6 +202,7 @@
           "type": "WiringText"
         },
         {
+          "admits": null,
           "default": null,
           "list": true,
           "name": "settings",
@@ -201,6 +215,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "world_id",
@@ -209,6 +224,7 @@
               "type": "Reference<World>"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "world",
@@ -217,6 +233,7 @@
               "type": "WiringText"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "verb",
@@ -225,6 +242,7 @@
               "type": "WiringText"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "adapter",
@@ -253,6 +271,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "key",
@@ -261,6 +280,7 @@
               "type": "WiringText"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -311,6 +331,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -331,6 +352,7 @@
         {
           "attributes": [
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "key",
@@ -339,6 +361,7 @@
               "type": "String"
             },
             {
+              "admits": null,
               "default": null,
               "list": false,
               "name": "value",
@@ -376,7 +399,7 @@
     }
   ],
   "classification": "core",
-  "name": "Deployment",
+  "name": "World",
   "policies": [
 
   ],

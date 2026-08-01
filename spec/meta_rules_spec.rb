@@ -16,14 +16,8 @@ RSpec.describe "the language's own rules" do
 
   def boot_meta
     registry = Hecksagain::Runtime::Registry.new
-    Hecksagain.with_registry(registry) do
-      Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-      Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-      Kernel.load(Hecksagain::Bluebook::MetaValidator::GRAMMAR)
-      Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
-    end
+    Hecksagain::Bluebook::MetaValidator.load_grammar_into(registry)
+    Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
   end
 
   def v(text) = { value: text.to_s }
@@ -42,44 +36,44 @@ RSpec.describe "the language's own rules" do
     # acts on — the runtime read an argument called `name` as the reference
     # lookup. It is reached by its own name now (Bluebook.identified_by {
     # name.value }), so the lookup collision is gone rather than ducked.
-    @bluebook_id = id_of("Meta::Bluebook.Declare", name: v("D"),
+    @bluebook_id = id_of("Bluebook::Bluebook.Declare", name: v("D"),
                          vision: v("a vision"), classification: v("core"))
-    @aggregate_id = id_of("Meta::Aggregate.Declare", bluebook_id: @bluebook_id,
+    @aggregate_id = id_of("Bluebook::Aggregate.Declare", bluebook_id: @bluebook_id,
                           name: v("A"), description: v("an aggregate"))
     # Fully declared, so tests that dispatch further commands against it (an
     # attribute, a command, a seal) are exercising ONE well-formed aggregate,
     # not the identity rule a few tests down deliberately withhold.
-    @runtime.dispatch("Meta::Aggregate.Identify", id: @aggregate_id, path: v("name.value"))
+    @runtime.dispatch("Bluebook::Aggregate.Identify", id: @aggregate_id, path: v("name.value"))
   end
 
   # ---- tier 1 : presence, as invariants on the value ------------------------
 
   it "refuses a chapter whose vision says nothing" do
-    expect { @runtime.dispatch("Meta::Bluebook.Declare", name: v("E"), vision: v(""), classification: v("core")) }
+    expect { @runtime.dispatch("Bluebook::Bluebook.Declare", name: v("E"), vision: v(""), classification: v("core")) }
       .to raise_error(Hecksagain::Runtime::InvariantViolation, /a vision says something/)
   end
 
   it "refuses an aggregate whose description says nothing" do
-    expect { @runtime.dispatch("Meta::Aggregate.Declare", bluebook_id: @bluebook_id,
+    expect { @runtime.dispatch("Bluebook::Aggregate.Declare", bluebook_id: @bluebook_id,
                                name: v("B"), description: v("")) }
       .to raise_error(Hecksagain::Runtime::InvariantViolation, /a description says something/)
   end
 
   it "refuses an attribute that is not named" do
-    expect { @runtime.dispatch("Meta::Aggregate.Attribute", id: @aggregate_id, name: v(""), type: "T", list: v("false")) }
+    expect { @runtime.dispatch("Bluebook::Aggregate.Attribute", id: @aggregate_id, name: v(""), type: "T", list: v("false")) }
       .to raise_error(Hecksagain::Runtime::InvariantViolation, /an attribute is named/)
   end
 
   # "attributes must use value-object types" is no longer a predicate — the
   # type IS a reference to the value object, so an undeclared one cannot resolve
   it "refuses an attribute whose type is not a declared value object" do
-    expect { @runtime.dispatch("Meta::Aggregate.Attribute", id: @aggregate_id, name: v("x"),
+    expect { @runtime.dispatch("Bluebook::Aggregate.Attribute", id: @aggregate_id, name: v("x"),
                                type: "#{@aggregate_id}.Nonexistent", list: v("false")) }
       .to raise_error(Hecksagain::Runtime::NotFound, /no ValueObject with/)
   end
 
   it "refuses a value object that is not named" do
-    expect { @runtime.dispatch("Meta::ValueObject.Declare", aggregate_id: @aggregate_id, name: v("")) }
+    expect { @runtime.dispatch("Bluebook::ValueObject.Declare", aggregate_id: @aggregate_id, name: v("")) }
       .to raise_error(Hecksagain::Runtime::InvariantViolation, /a value object is named/)
   end
 
@@ -88,58 +82,69 @@ RSpec.describe "the language's own rules" do
       # OWNED DIRECTLY BY THE AGGREGATE, so owner_id (what the identity is
       # built from) is the aggregate's own id — the same fact `aggregate_id`
       # carries here, since nothing about this command comes from an entity.
-      @command_id = id_of("Meta::Command.Declare", owner_id: @aggregate_id, aggregate_id: @aggregate_id,
+      @command_id = id_of("Bluebook::Command.Declare", owner_id: @aggregate_id, aggregate_id: @aggregate_id,
                           name: v("C"), role: v("Someone"), goal: v("do a thing"))
     end
 
     it "refuses a given with no description" do
-      expect { @runtime.dispatch("Meta::Command.Rule", id: @command_id, description: v(""), canonical: v("x > 1")) }
+      expect { @runtime.dispatch("Bluebook::Command.Rule", id: @command_id, description: v(""), canonical: v("x > 1")) }
         .to raise_error(Hecksagain::Runtime::GivenNotMet, /a rule says what it means/)
     end
 
     it "refuses a rule that did not survive extraction" do
-      expect { @runtime.dispatch("Meta::Command.Rule", id: @command_id, description: v("a rule"), canonical: v("")) }
+      expect { @runtime.dispatch("Bluebook::Command.Rule", id: @command_id, description: v("a rule"), canonical: v("")) }
         .to raise_error(Hecksagain::Runtime::GivenNotMet, /a rule survives extraction/)
     end
 
     it "refuses a mutation with no target" do
-      expect { @runtime.dispatch("Meta::Command.Change", id: @command_id, target: v(""), op: v("set"),
+      expect { @runtime.dispatch("Bluebook::Command.Change", id: @command_id, target: v(""), op: v("set"),
                                  field: v(""), kind: v("literal"), source: v('"x"')) }
         .to raise_error(Hecksagain::Runtime::GivenNotMet, /a mutation names a target/)
     end
 
+    # THE SAME REFUSAL, FROM A NAMED SET RATHER THAN A RESTATED ONE.
+    #
+    # `Command::OpName` used to carry `set || append || increment || decrement`
+    # in an invariant — Vocabulary::MutationOp written out a second time, one
+    # level in, where nothing compared the two. `Change.op` now says
+    # `admits: "Vocabulary::MutationOp"` and coercion refuses a non-member, so
+    # the rule still fires at the door and there is no second copy to drift.
+    #
+    # The message names the SET, which the invariant never could: the old one
+    # could only say "an op is one the runtime applies" and leave the reader to
+    # find out which.
     it "refuses a mutation whose op the runtime does not apply" do
-      expect { @runtime.dispatch("Meta::Command.Change", id: @command_id, target: v("x"), op: v("frobnicate"),
+      expect { @runtime.dispatch("Bluebook::Command.Change", id: @command_id, target: v("x"), op: v("frobnicate"),
                                  field: v(""), kind: v("literal"), source: v('"x"')) }
-        .to raise_error(Hecksagain::Runtime::InvariantViolation, /an op is one the runtime applies/)
+        .to raise_error(Hecksagain::Runtime::InvariantViolation, /op admits Vocabulary::MutationOp/)
     end
 
     it "refuses an unnamed event" do
-      expect { @runtime.dispatch("Meta::Command.Announce", id: @command_id, announces: v("")) }
+      expect { @runtime.dispatch("Bluebook::Command.Announce", id: @command_id, announces: v("")) }
         .to raise_error(Hecksagain::Runtime::GivenNotMet, /an event is named/)
     end
 
     # ---- tier 2 : once-only, read from the instance's own state -------------
 
     it "refuses a command that acts on a SECOND root" do
-      @runtime.dispatch("Meta::Command.ActsOn", id: @command_id, root: v("A"))
+      @runtime.dispatch("Bluebook::Command.ActsOn", id: @command_id, root: v("A"))
 
-      expect { @runtime.dispatch("Meta::Command.ActsOn", id: @command_id, root: v("B")) }
+      expect { @runtime.dispatch("Bluebook::Command.ActsOn", id: @command_id, root: v("B")) }
         .to raise_error(Hecksagain::Runtime::GivenNotMet, /a command acts on ONE root/)
     end
 
     it "refuses a reference that names nothing" do
-      expect { @runtime.dispatch("Meta::Command.ActsOn", id: @command_id, root: v("")) }
+      expect { @runtime.dispatch("Bluebook::Command.ActsOn", id: @command_id, root: v("")) }
         .to raise_error(Hecksagain::Runtime::GivenNotMet, /a command names what it acts on/)
     end
   end
 
   it "refuses a read model gathering heads before its reference" do
-    read_model_id = id_of("Meta::ReadModel.Declare", bluebook_id: @bluebook_id, name: v("P"),
+    read_model_id = id_of("Bluebook::ReadModel.Declare", bluebook_id: @bluebook_id, name: v("P"),
                           description: v("a projection"), query_name: v("p"),
                           reference_name: v(""), reference_target: v(""))
 
-    expect { @runtime.dispatch("Meta::ReadModel.Gather", id: read_model_id, aggregate: v("A"), as: v("a"), many: v("false")) }
+    expect { @runtime.dispatch("Bluebook::ReadModel.Gather", id: read_model_id, aggregate: v("A"), as: v("a"), many: v("false")) }
       .to raise_error(Hecksagain::Runtime::GivenNotMet, /gathers heads only after its reference/)
   end
 
@@ -154,10 +159,10 @@ RSpec.describe "the language's own rules" do
   # "says what it is known by" is Seal's rule now : Declare alone leaves the
   # list empty, and Seal is what notices.
   it "refuses an entity that does not say what it is known by" do
-    entity_id = id_of("Meta::Entity.Declare", aggregate_id: @aggregate_id, owner: v("A"),
+    entity_id = id_of("Bluebook::Entity.Declare", aggregate_id: @aggregate_id, owner: v("A"),
                       name: v("E"), description: v("a piece"), position: { value: 0 })
 
-    expect { @runtime.dispatch("Meta::Entity.Seal", id: entity_id) }
+    expect { @runtime.dispatch("Bluebook::Entity.Seal", id: entity_id) }
       .to raise_error(Hecksagain::Runtime::GivenNotMet, /an entity says what it is known by/)
   end
 
@@ -167,18 +172,18 @@ RSpec.describe "the language's own rules" do
   # whole object standing as the id. The rule now fires on EACH PART as it is
   # appended (`Entity.Identify`), not once at Declare.
   it "refuses an entity known by a whole value object rather than a field" do
-    entity_id = id_of("Meta::Entity.Declare", aggregate_id: @aggregate_id, owner: v("A"),
+    entity_id = id_of("Bluebook::Entity.Declare", aggregate_id: @aggregate_id, owner: v("A"),
                       name: v("E"), description: v("a piece"), position: { value: 0 })
 
-    expect { @runtime.dispatch("Meta::Entity.Identify", id: entity_id, path: v("sequence")) }
+    expect { @runtime.dispatch("Bluebook::Entity.Identify", id: entity_id, path: v("sequence")) }
       .to raise_error(Hecksagain::Runtime::GivenNotMet, /an identity part reaches a scalar/)
   end
 
   it "admits an entity that names the field it is known by" do
-    entity_id = id_of("Meta::Entity.Declare", aggregate_id: @aggregate_id, owner: v("A"),
+    entity_id = id_of("Bluebook::Entity.Declare", aggregate_id: @aggregate_id, owner: v("A"),
                       name: v("E"), description: v("a piece"), position: { value: 0 })
 
-    expect { @runtime.dispatch("Meta::Entity.Identify", id: entity_id, path: v("sequence.value")) }
+    expect { @runtime.dispatch("Bluebook::Entity.Identify", id: entity_id, path: v("sequence.value")) }
       .not_to raise_error
   end
 
@@ -186,18 +191,18 @@ RSpec.describe "the language's own rules" do
   # and "says what it is known by AT ALL" is Seal's, since Seal is the only
   # command dispatched once every part has had its chance to arrive.
   it "refuses an aggregate known by a whole value object rather than a field" do
-    aggregate_id = id_of("Meta::Aggregate.Declare", bluebook_id: @bluebook_id,
+    aggregate_id = id_of("Bluebook::Aggregate.Declare", bluebook_id: @bluebook_id,
                          name: v("C"), description: v("an aggregate"))
 
-    expect { @runtime.dispatch("Meta::Aggregate.Identify", id: aggregate_id, path: v("number")) }
+    expect { @runtime.dispatch("Bluebook::Aggregate.Identify", id: aggregate_id, path: v("number")) }
       .to raise_error(Hecksagain::Runtime::GivenNotMet, /an identity part reaches a scalar/)
   end
 
   it "admits an aggregate known by the field inside its value object" do
-    aggregate_id = id_of("Meta::Aggregate.Declare", bluebook_id: @bluebook_id,
+    aggregate_id = id_of("Bluebook::Aggregate.Declare", bluebook_id: @bluebook_id,
                          name: v("E"), description: v("an aggregate"))
 
-    expect { @runtime.dispatch("Meta::Aggregate.Identify", id: aggregate_id, path: v("number.value")) }
+    expect { @runtime.dispatch("Bluebook::Aggregate.Identify", id: aggregate_id, path: v("number.value")) }
       .not_to raise_error
   end
 
@@ -207,20 +212,20 @@ RSpec.describe "the language's own rules" do
   # judge held a command's reference as the STRING "Reference<Customer>" and a
   # `raise Malformed` beside the builder was the only thing checking it.
   it "refuses an argument that references a head nobody declared" do
-    command_id = id_of("Meta::Command.Declare", owner_id: @aggregate_id, aggregate_id: @aggregate_id,
+    command_id = id_of("Bluebook::Command.Declare", owner_id: @aggregate_id, aggregate_id: @aggregate_id,
                        name: v("C"), role: v("Clerk"), goal: v("do a thing"))
 
     expect do
-      @runtime.dispatch("Meta::Command.Reference", id: command_id, points_at: "#{@bluebook_id}::Nonexistent",
+      @runtime.dispatch("Bluebook::Command.Reference", id: command_id, points_at: "#{@bluebook_id}::Nonexistent",
                         name: v("customer_id"), list: v("false"), default: v(""))
     end.to raise_error(Hecksagain::Runtime::NotFound, /no Aggregate with/)
   end
 
   it "refuses an admitted row that binds no named field" do
-    value_object_id = id_of("Meta::ValueObject.Declare", aggregate_id: @aggregate_id, name: v("X"))
-    member_id = id_of("Meta::Member.Declare", value_object_id: value_object_id, shape: v("X"), position: { value: 0 })
+    value_object_id = id_of("Bluebook::ValueObject.Declare", aggregate_id: @aggregate_id, name: v("X"))
+    member_id = id_of("Bluebook::Member.Declare", value_object_id: value_object_id, shape: v("X"), position: { value: 0 })
 
-    expect { @runtime.dispatch("Meta::Member.Pair", id: member_id, key: v(""), value: v("q")) }
+    expect { @runtime.dispatch("Bluebook::Member.Pair", id: member_id, key: v(""), value: v("q")) }
       .to raise_error(Hecksagain::Runtime::GivenNotMet, /an admitted row binds a named field/)
   end
 
@@ -234,9 +239,9 @@ RSpec.describe "the language's own rules" do
   # saw the rule refuse the case it was written beside is not evidence the rule is
   # true.
   it "seals an aggregate that is fully declared" do
-    value_object_id = id_of("Meta::ValueObject.Declare", aggregate_id: @aggregate_id, name: v("X"))
-    @runtime.dispatch("Meta::Aggregate.Attribute", id: @aggregate_id, name: v("x"), type: value_object_id, list: v("false"))
+    value_object_id = id_of("Bluebook::ValueObject.Declare", aggregate_id: @aggregate_id, name: v("X"))
+    @runtime.dispatch("Bluebook::Aggregate.Attribute", id: @aggregate_id, name: v("x"), type: value_object_id, list: v("false"))
 
-    expect { @runtime.dispatch("Meta::Aggregate.Seal", id: @aggregate_id) }.not_to raise_error
+    expect { @runtime.dispatch("Bluebook::Aggregate.Seal", id: @aggregate_id) }.not_to raise_error
   end
 end

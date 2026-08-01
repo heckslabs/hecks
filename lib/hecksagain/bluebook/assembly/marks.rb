@@ -34,7 +34,15 @@ module Hecksagain
             # language cannot state about itself, however plainly the source
             # wrote it.
             optional: field[:optional] ? true : false,
-            pattern:  field[:pattern]
+            pattern:  field[:pattern],
+            # THE SAME LESSON, ONE FACT LATER. `admits` is not on `to_h` — the
+            # wire does not carry it, on purpose — but it must still survive the
+            # round trip, because the grammar registry keeps the ASSEMBLED graph
+            # and bin/ir_structs reads the link off that. Dropped here, the
+            # language could not say `admits` about itself no matter how plainly
+            # the source wrote it, which is word for word what the note above
+            # already learned about `optional`.
+            admits:   field[:admits]
           )
         end
 

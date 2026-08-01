@@ -48,38 +48,18 @@ module Hecksagain
           validate_reference_value_objects!
           policies = @aggregates.flat_map(&:policies) + @policies
 
+          # The chapter is the top of the construct chain — `IR::Bluebook` is a
+          # ROOT, and its constructor stamps every aggregate and read model with
+          # itself as owner, so every `hecks_fqn` below resolves by walking up
+          # to it. No constants are installed at load time : the public door is
+          # a per-boot projection, installed by `Loader.bind_runtime` once a
+          # dispatcher exists to close over (facade/surface.rb).
           bluebook = IR::Bluebook.new(name: @name, version: @version, vision: @vision,
                                       aggregates: @aggregates,
                                       read_models: @read_models,
                                       policies: policies,
                                       process_managers: @process_managers,
                                       classification: @classification)
-          namespace = Module.new
-          # The chapter is the top of the construct chain — it owns nothing above
-          # it, and every `hecks_fqn` below resolves by walking up to here.
-          namespace.extend(Construct)
-          namespace.hecks_name = @name
-          namespace.hecks_root = true
-
-          # A read model is declared by the CHAPTER, not by any one head, so its
-          # identity hangs off the chapter: "Pizzas.PizzaWithToppings".
-          @read_models.each { |model| model.hecks_owner = namespace }
-
-          @aggregates.each do |aggregate|
-            aggregate.ruby_class.domain = @name
-            aggregate.ruby_class.hecks_owner = namespace
-            namespace.const_set(aggregate.hecks_name, aggregate.ruby_class)
-          end
-
-          namespace.define_singleton_method(:vision)     { bluebook.vision }
-          namespace.define_singleton_method(:aggregates) { bluebook.aggregates.map(&:name).sort }
-
-          Namespace.install(Object, @name, namespace)
-          @aggregates.each do |aggregate|
-            next if aggregate.hecks_name == @name
-
-            Namespace.install(Object, aggregate.hecks_name, aggregate.ruby_class)
-          end
 
           # The language judges the bluebook, in the language. Last, so the
           # meta-domain sees a fully built IR — the whole-document rules need
@@ -131,8 +111,24 @@ module Hecksagain
                 "an entity command is addressed through its aggregate; #{violations.uniq.join('; ')}"
         end
 
+        # A CHAPTER MAY BE DECLARED IN SEVERAL FILES, meant to merge into ONE
+        # domain — `lib/hecksagain/language/bluebook/*.bluebook` all open
+        # `Hecks.bluebook "Bluebook" do ... end`. Each `Hecks.bluebook` call used to
+        # mint a fresh builder, so a second file with the same chapter name
+        # silently replaced the first's aggregates instead of adding to them.
+        #
+        # The registry now holds the builder OPEN across calls : the first file
+        # for a name creates it, every later file for the same name reuses the
+        # same instance, so `@aggregates`/`@read_models` accumulate. `#build` is
+        # safe to call once per file on the same builder — it constructs a fresh
+        # `IR::Bluebook` from whatever is currently held and re-`Namespace.install`s
+        # over the previous one, so the LAST file's call leaves every aggregate
+        # seen so far reachable, and each call's IR is a strict superset of the
+        # one before. `Registry#add_bluebook` still simply stores by name — with
+        # this in place, "last write wins" is the cumulative, correct write.
         def self.build(name, version: nil, &block)
-          builder  = new(name, version: version)
+          registry = Hecksagain.current_registry
+          builder  = registry ? registry.bluebook_builder(name) { new(name, version: version) } : new(name, version: version)
           # A bare constant in a bluebook — `attribute :name, PizzaName` — is a NAME,
           # not a reference to something Ruby has heard of. `const_missing` hands
           # over the symbol, and that is the whole answer: `IR::Attribute` spells it

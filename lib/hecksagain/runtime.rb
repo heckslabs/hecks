@@ -20,12 +20,14 @@
 #   runtime.dispatch("Pizzas::Pizza.CreatePizza", name: "Margherita")
 #
 # NOTE, and it is the reason this file exists : `current_registry` is still
-# process-global. Each boot builds a fresh Registry and fresh aggregate
-# classes, but `Namespace.install` rebinds the top-level constant to the
-# newest ones and `Loader.bind_runtime` stamps `ruby_class.runtime` class-side
-# — so two runtimes in one process share one name. Owning the state here is
-# the first move ; making the dispatcher reachable per-runtime rather than
-# through a constant is the second.
+# process-global. Each boot builds a fresh Registry, and `Loader.bind_runtime`
+# installs a fresh facade door whose modules close over THAT boot's dispatcher
+# — no class-level runtime binding remains, so two runtimes in one process no
+# longer share dispatch state, only the top-level NAME (the last-bound door
+# wins the constant, which is what per-boot install means). Owning the state
+# here was the first move ; the dispatcher reachable per-runtime rather than
+# through a constant was the second, and it is done — the door is the only
+# constant left, and it is a projection, not the runtime.
 
 require_relative "runtime/event"
 require_relative "runtime/value"

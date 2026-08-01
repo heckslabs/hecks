@@ -30,7 +30,7 @@ Checked in this order — each returns as soon as it matches:
 4. **`.include?(needle)`** — membership. The haystack (everything before `.include?(`) and the
    needle (the call's argument) are each parsed by the *inner* grammar below. Behavior is typed by
    the haystack's resolved value, per `Vocabulary::IncludeHaystack`
-   (`lib/hecksagain/language/bluebook.bluebook`):
+   (`lib/hecksagain/language/bluebook/vocabulary.bluebook`):
    - `Array` haystack → membership via the same `equal?` primitive comparisons use (numeric kinds
      equate across Integer/Float; a value never equals its own string form).
    - `String` haystack → substring match; a non-`String` needle is refused
@@ -118,7 +118,7 @@ whichever implementation you read first."
 
 ## Which rules are contractually fixed vs. incidental
 
-Every `Vocabulary::*` cited above is declared in `lib/hecksagain/language/bluebook.bluebook` and
+Every `Vocabulary::*` cited above is declared in `lib/hecksagain/language/bluebook/vocabulary.bluebook` and
 held equal to Ruby's live constant table by `spec/vocabulary_conformance_spec.rb` — those rules
 cannot silently drift in the two existing implementations, and a third implementation gets the exact
 same table for free from `rust/src/bluebook/expression/operators.json` (comparisons) and the
