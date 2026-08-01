@@ -149,11 +149,13 @@ pub fn refuse_unknown_arguments(
     let declared = known.join(", ");
 
     known.push("id".to_string());
-    if let Some(identity) = crate::dispatcher::identity_path(aggregate) {
-        // The HEAD, not the path. `identified_by { symbol.value }` means a caller
-        // passes `symbol:` — admitting "symbol.value" would refuse it as undeclared.
-        known.push(identity.split(char::from(46)).next().unwrap_or(identity).to_string());
-    }
+    // THE HEADS, not the paths — `identified_by { symbol.value }` means a caller
+    // passes `symbol:`, and admitting "symbol.value" would refuse it as
+    // undeclared. EVERY head, because a composite identity is addressed by all
+    // its parts: admitting only the first refused `number:` on a stall the
+    // caller had named correctly, and named the argument undeclared when the
+    // bluebook declares it as half the identity.
+    known.extend(crate::identity::heads(aggregate).into_iter().map(str::to_string));
     if let Some(target) = command.get("references").and_then(Value::as_str) {
         known.push(crate::naming::reference_key(target));
     }
@@ -501,10 +503,18 @@ fn build_element(
         // The HEAD, not the path. A piece is GIVEN its identity here, and
         // what is filled in is the attribute — the path only says which
         // field inside it stands as the id.
-        if let Some(key) = crate::dispatcher::identity_path(&entity)
-            .map(|identity| identity.split('.').next().unwrap_or(identity).to_string())
-        {
-            let key = key.as_str();
+        //
+        // ONLY WHEN THERE IS ONE HEAD TO GIVE, and this is a RULE rather than
+        // a gap. What is generated is a running number — "the next one in this
+        // list" — which is an answer for a piece known by its position and no
+        // answer at all for one known by two facts. Half of a composite is not
+        // an identity, so the caller supplies every part or the append is
+        // refused downstream by the invariants on the parts it left out.
+        // Ruby says the same by reading `entity.identified_by`, which is the
+        // single head and is nil the moment there are two. Taking the FIRST
+        // head here was a real divergence: Rust filled one part in and Ruby
+        // filled none.
+        if let [key] = crate::identity::heads(&entity)[..] {
             if !fields.contains_key(key) {
                 let generated = Value::from(current_len as i64 + 1);
                 let entity_attributes = array(&entity, "attributes");

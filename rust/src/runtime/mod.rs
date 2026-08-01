@@ -1,6 +1,7 @@
 pub use std::collections::HashMap;
 
 pub mod dispatcher;
+pub mod identity;
 pub mod mutations;
 pub mod value_bridge;
 

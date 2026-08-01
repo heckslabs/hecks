@@ -1,4 +1,5 @@
 use crate::heki::WriteContext;
+use crate::identity;
 use crate::interp_expr::State;
 use crate::interp_givens::evaluate_given;
 use crate::interp_mutations::{
@@ -130,24 +131,15 @@ fn query_number(value: &Value) -> Option<f64> {
     }
 }
 
-// THE DECLARED PATH, if there is one — read off the wire's own shape rather
-// than a bare string. `identified_by` travels as a LIST now (Ruby's
-// `identity_paths`, and now Rust's own `ir::Aggregate::identified_by`) : empty
-// when nothing is declared, one element for the single-field identity this
-// runtime actually resolves. There is no "id" DEFAULT any more — that default
-// was a MINT, the exact ability this reader exists to not have. A construct
-// with no declared identity gets `None` here, and every caller below has to
-// say what that means for it (usually : refuse, the same way Ruby's creating
-// branch always has).
-pub fn identity_path(construct: &Map<String, Value>) -> Option<&str> {
-    construct
-        .get("identified_by")
-        .and_then(Value::as_array)
-        .and_then(|paths| paths.first())
-        .and_then(Value::as_str)
-}
+// THE DECLARED PATH — `identity::paths` is where that question is answered
+// now, and this took the first element of the answer for the whole of it.
+// A second reader of one question is what drifts, and this one had: it made
+// "reads the first path" and "reads every path" indistinguishable as long as
+// every corpus member declared one, which they all did until
+// `examples/market`. The readers that still want a single path ask for
+// `identity::paths(..).first()` and say why in the same breath.
 
-fn query_text(value: &Value) -> String {
+pub(crate) fn query_text(value: &Value) -> String {
     match value {
         Value::Null => String::new(),
         Value::String(text) => text.clone(),
@@ -551,26 +543,13 @@ impl Runtime {
         self.trace_step("resolve_references");
         let args = &normalized_args;
 
-        let identity = identity_path(&aggregate)
-            .unwrap_or("")
-            .to_string();
-        // The parent's identity is a PATH too : the caller passes the head and
-        // the field is dug out, exactly as an aggregate command resolves it.
-        let (parent_head, parent_field) = match identity.split_once('.') {
-            Some((left, right)) => (left.to_string(), Some(right.to_string())),
-            None => (identity.clone(), None),
-        };
-        let parent_id = args
-            .get(&parent_head)
-            .or_else(|| args.get("id"))
-            .map(|value| match &parent_field {
-                Some(name) => value
-                    .get(name)
-                    .map(query_text)
-                    .unwrap_or_else(|| query_text(value)),
-                None => query_text(value),
-            })
-            .filter(|id| !id.is_empty())
+        // The parent's identity is derived exactly as an aggregate command
+        // derives its own — every declared path, dug and joined — so a piece
+        // hanging off a composite head is reached by naming both its parts.
+        // `id` stays as the fallback for a caller quoting an id back whole.
+        let identity = identity::reading(&aggregate);
+        let parent_id = identity::of(&aggregate, args)
+            .or_else(|| args.get("id").map(query_text).filter(|id| !id.is_empty()))
             .ok_or_else(|| {
                 format!(
                     "{command_name} acts on a {aggregate_name}'s {entity_name} — pass {identity}:"
@@ -601,36 +580,40 @@ impl Runtime {
             .and_then(|a| a.get("name").and_then(Value::as_str).map(str::to_string))
             .ok_or_else(|| format!("{} holds no list of {}", aggregate_name, entity_name))?;
 
-        // A PIECE's identity is a path too : the caller passes the head
-        // attribute and the id is the scalar dug out of it, exactly as a
-        // head resolves its own a few lines above.
-        let entity_identity = identity_path(&entity)
-            .unwrap_or("")
-            .to_string();
-        let (entity_key, entity_field) = match entity_identity.split_once('.') {
-            Some((left, right)) => (left.to_string(), Some(right.to_string())),
-            None => (entity_identity.clone(), None),
-        };
-        let want = args.get(&entity_key).cloned().ok_or_else(|| {
-            format!("{command_name} acts on one {entity_name} — pass {entity_identity}:")
-        })?;
-        // An entity's identity is a declared attribute like any other, so it is
-        // coerced through its own type BEFORE it is matched — EntityInterpreter
-        // #element_of has always done this. Matching the raw argument instead
-        // meant a LedgerSequence of 0 was reported as a missing element rather
-        // than as the invariant it actually violates, so the two runtimes
-        // refused the same dispatch for different reasons. It also makes a
-        // scalar stand in for a single-field value object here, the way it
-        // does everywhere else. Part of Vocabulary::EntityDispatchOrder's
-        // locate_element.
-        let want = match array(&entity, "attributes")
-            .into_iter()
-            .filter_map(|held| held.as_object().cloned())
-            .find(|held| held.get("name").and_then(Value::as_str) == Some(entity_key.as_str()))
-        {
-            Some(attribute) => coerce_attribute(&aggregate, &attribute, &want)?,
-            None => want,
-        };
+        // ONE ELEMENT, MATCHED ON EVERY PART OF ITS IDENTITY — not just the
+        // first. A piece's identity may be several paths, the same shape a
+        // head's can be, so a dispatch that names the element has to supply
+        // every part and every part has to agree with the stored one.
+        // `EntityInterpreter#element_of` is the same reading on the Ruby side.
+        //
+        // A PIECE's identity is a path like a head's : the caller passes the
+        // head attribute and the id is the scalar dug out of it.
+        let entity_reading = identity::reading(&entity);
+        let mut wants: Vec<(String, Option<String>, Value)> = Vec::new();
+        for path in identity::paths(&entity) {
+            let (head, field) = identity::split(path);
+            let raw = args.get(head).cloned().ok_or_else(|| {
+                format!("{command_name} acts on one {entity_name} — pass {entity_reading}:")
+            })?;
+            // An entity's identity is a declared attribute like any other, so
+            // it is coerced through its own type BEFORE it is matched —
+            // EntityInterpreter#element_of has always done this. Matching the
+            // raw argument instead meant a LedgerSequence of 0 was reported as
+            // a missing element rather than as the invariant it actually
+            // violates, so the two runtimes refused the same dispatch for
+            // different reasons. It also makes a scalar stand in for a
+            // single-field value object here, the way it does everywhere else.
+            // Part of Vocabulary::EntityDispatchOrder's locate_element.
+            let want = match array(&entity, "attributes")
+                .into_iter()
+                .filter_map(|held| held.as_object().cloned())
+                .find(|held| held.get("name").and_then(Value::as_str) == Some(head))
+            {
+                Some(attribute) => coerce_attribute(&aggregate, &attribute, &raw)?,
+                None => raw,
+            };
+            wants.push((head.to_string(), field.map(str::to_string), want));
+        }
 
         let mut elements = state
             .get(&list_attr)
@@ -639,15 +622,26 @@ impl Runtime {
             .unwrap_or_default();
         let position = elements
             .iter()
-            .position(|el| el.get(&entity_key) == Some(&want))
+            .position(|el| {
+                wants
+                    .iter()
+                    .all(|(head, _, want)| el.get(head) == Some(want))
+            })
             .ok_or_else(|| {
+                // AS TEXT, not as JSON. `identity_scalar` hands back a Value and
+                // Display on one QUOTES a string — Ruby interpolates the dug
+                // scalar, so `wednesday` read `"wednesday"` here. Invisible
+                // until a piece was identified by something other than a
+                // number: banking's LedgerEntry is a sequence, and a number
+                // renders the same either way.
+                let named = wants
+                    .iter()
+                    .map(|(_, field, want)| query_text(&identity_scalar(want, field.as_deref())))
+                    .collect::<Vec<_>>()
+                    .join(", ");
                 format!(
                     "no {} with {} {} on {} {:?}",
-                    entity_name,
-                    entity_identity,
-                    identity_scalar(&want, entity_field.as_deref()),
-                    aggregate_name,
-                    parent_id
+                    entity_name, entity_reading, named, aggregate_name, parent_id
                 )
             })?;
         let mut element = elements[position].as_object().cloned().unwrap_or_default();
@@ -975,22 +969,28 @@ impl Runtime {
         // sub-list row is identified by its PARENT and then by the entity's own
         // key, since two entities under different parents can share a sequence,
         // and a parent alone would leave every sibling tied.
-        // The HEAD, not the path : a row is a stored element, and what it
-        // keys is the attribute the identity is dug out of.
-        let entity_key = identity_path(&entity)
-            .unwrap_or("")
-            .split('.')
-            .next()
-            .unwrap_or("id")
-            .to_string();
+        // The HEADS, not the paths : a row is a stored element, and what it
+        // keys is the attribute the identity is dug out of. EVERY head, in
+        // declaration order, for the same reason the parent leads — a part
+        // that ties breaks no tie, and a piece known by two facts has a second
+        // one to try. `QueryInterpreter#ordered_elements` is the twin.
+        let entity_keys: Vec<String> = identity::heads(&entity)
+            .into_iter()
+            .map(str::to_string)
+            .collect();
         rows.sort_by(|a, b| {
             let left_parent = query_text(a.get(&parent_key).unwrap_or(&Value::Null));
             let right_parent = query_text(b.get(&parent_key).unwrap_or(&Value::Null));
-            left_parent.cmp(&right_parent).then_with(|| {
-                let left = a.get(&entity_key).cloned().unwrap_or(Value::Null);
-                let right = b.get(&entity_key).cloned().unwrap_or(Value::Null);
-                query_order(&left, &right)
-            })
+            let mut ordering = left_parent.cmp(&right_parent);
+            for key in &entity_keys {
+                if ordering != std::cmp::Ordering::Equal {
+                    break;
+                }
+                let left = a.get(key).cloned().unwrap_or(Value::Null);
+                let right = b.get(key).cloned().unwrap_or(Value::Null);
+                ordering = query_order(&left, &right);
+            }
+            ordering
         });
 
         if let Some(order) = declared.get("order_by").and_then(Value::as_object) {
@@ -1124,13 +1124,11 @@ impl Runtime {
             if key.is_empty() {
                 continue;
             }
-            // The HEAD names what a caller passes, so it is what a refusal names.
-            let identity = identity_path(&target)
-                .unwrap_or("")
-                .split('.')
-                .next()
-                .unwrap_or("id")
-                .to_string();
+            // The HEADS name what a caller passes, so they are what a refusal
+            // names — every one of them, because a composite is addressed by
+            // all its parts and naming only the first tells the caller to pass
+            // something that would not be enough.
+            let identity = identity::heads(&target).join(", ");
             let found = self
                 .all_records(domain, target_name, &target)
                 .into_iter()
@@ -1164,15 +1162,12 @@ impl Runtime {
         self.trace_step("resolve_references");
         let args = &normalized_args;
 
-        let identity = identity_path(&aggregate)
-            .unwrap_or("")
-            .to_string();
         let creates = command
             .get("references")
             .map(Value::is_null)
             .unwrap_or(true);
 
-        let (id, mut state) = self.hydrate(&aggregate, &command, args, &identity, creates)?;
+        let (id, mut state) = self.hydrate(&aggregate, &command, args, creates)?;
         self.trace_step("hydrate");
 
         for given in array(&command, "givens") {
@@ -1242,8 +1237,18 @@ impl Runtime {
             self.advance_sagas(event, &domain);
         }
 
+        // THE DERIVED ID, HANDED BACK UNDER THE PATH IT CAME FROM — and only
+        // when there is ONE path to hand it back under. A composite's id is the
+        // JOIN of its parts, so filing the whole join under any single part
+        // would name that part something it is not. Ruby says the same by
+        // saying nothing: `Instance#materialize_identity!` reads `identified_by`,
+        // which is the single head and is nil the moment an identity has two,
+        // so it returns early and leaves the state alone.
         let mut result = state;
-        result.insert(identity, Value::String(id));
+        let paths = identity::paths(&aggregate);
+        if let [only] = paths[..] {
+            result.insert(only.to_string(), Value::String(id));
+        }
         Ok(result)
     }
 
@@ -1252,7 +1257,6 @@ impl Runtime {
         aggregate: &Map<String, Value>,
         command: &Map<String, Value>,
         args: &State,
-        identity: &str,
         creates: bool,
     ) -> Result<(String, State), String> {
         let aggregate_name = aggregate
@@ -1265,41 +1269,26 @@ impl Runtime {
             .and_then(Value::as_str)
             .unwrap_or("command");
 
-        // NOTHING IS MINTED. An invented identity is neither derived from the
-        // record nor permanently associated with it — this counted, Ruby drew a
-        // random hex, and the same dispatch made two different records. A
-        // creating command that cannot say WHICH ONE THIS IS is refused, and an
-        // aggregate with no `identified_by` has to be told.
-        // A PATH names the field carrying the id : the caller passes the HEAD and
-        // the field is dug out, because an id is always a scalar.
-        let (head, field) = match identity.split_once(char::from(46)) {
-            Some((left, right)) => (left, Some(right)),
-            None => (identity, None),
-        };
-        let dig = |value: &Value| -> String {
-            match field {
-                Some(name) => value.get(name).map(query_text).unwrap_or_else(|| query_text(value)),
-                None => query_text(value),
-            }
-        };
+        // THE DECLARED PATHS, not just their heads — the same reading Ruby's
+        // `identity_reading` quotes back, so a refusal names exactly what the
+        // bluebook said ("row.value, number.value", not "row").
+        let reading = identity::reading(aggregate);
 
         if creates {
-            // FILTERED AFTER THE DIG, not before : the WRAPPER (`{value: ""}`)
-            // is a non-empty Hash and always passed `query_truthy`, so a blank
-            // SCALAR inside it — an expression whose source did not survive
-            // extraction — read as a perfectly good identity. "" is not a fact
-            // about anything ; the ELSE branch a few lines down has always
-            // filtered the dug scalar this way, and creation now matches it.
-            let id = args
-                .get(head)
-                .map(&dig)
-                .filter(|value| !value.is_empty())
-                .ok_or_else(|| {
-                    // THE DECLARED PATH, not just its head — the same reading
-                    // Ruby's `identity_reading` quotes back, so a refusal names
-                    // exactly what the bluebook said ("name.value", not "name").
-                    format!("{command_name} creates a {aggregate_name} — pass {identity}:")
-                })?;
+            // NOTHING IS MINTED. An invented identity is neither derived from
+            // the record nor permanently associated with it — Rust counted,
+            // Ruby drew a random hex, and the same dispatch made two different
+            // records. A creating command that cannot say WHICH ONE THIS IS is
+            // refused, and an aggregate with no `identified_by` has to be told.
+            //
+            // `identity::of` is the whole derivation now: it follows every
+            // declared path, refuses a part that is absent OR blank — `{value:
+            // ""}` is a non-empty wrapper around nothing, and "" is not a fact
+            // about anything — and joins what is left. Filtering after the dig
+            // is what that blank check is.
+            let id = identity::of(aggregate, args).ok_or_else(|| {
+                format!("{command_name} creates a {aggregate_name} — pass {reading}:")
+            })?;
             return Ok((id, defaults_for(aggregate)?));
         }
 
@@ -1308,42 +1297,55 @@ impl Runtime {
             .and_then(Value::as_str)
             .map(crate::naming::reference_key)
             .unwrap_or_default();
-        // Aggregate identity is represented by the identity value object's
-        // fields.  Validate it even when the command did not declare that
-        // field as payload, matching the Ruby dispatcher before it unwraps
+        // Validate the identity argument even when the command did not declare
+        // that field as payload, matching the Ruby dispatcher before it unwraps
         // the identity for lookup.
-        if let Some(value) = args.get(identity) {
+        //
+        // ONLY A PATH THAT NAMES NO FIELD, which is Ruby's rule and not an
+        // accident of this one being written against a single path.
+        // `Identity#from` digs a dotted path and hands back what it dug — a
+        // caller may pass the SCALAR straight over, so `name: "pizza-ghost"`
+        // against `identified_by { name.value }` is a lookup that finds
+        // nothing, not a malformed PizzaName. Coercing it here made Rust refuse
+        // the payload where Ruby refuses the record, and parity said so.
+        // A dotless path (`bluebook_id`) has no field to dig, so its head IS
+        // the value and Ruby coerces it against the declared attribute.
+        for path in identity::paths(aggregate) {
+            let (head, field) = identity::split(path);
+            if field.is_some() {
+                continue;
+            }
+            let Some(value) = args.get(head) else { continue };
             if let Some(attribute) = array(aggregate, "attributes")
                 .iter()
-                .find(|attribute| attribute.get("name").and_then(Value::as_str) == Some(identity))
+                .find(|attribute| attribute.get("name").and_then(Value::as_str) == Some(head))
                 .and_then(Value::as_object)
             {
                 coerce_attribute(aggregate, attribute, value)?;
             }
         }
-        let mut identity_keys = vec![head];
-        if identity == "id" {
-            identity_keys.push("id");
-        }
-        if !reference_key.is_empty() {
-            identity_keys.push(reference_key.as_str());
-        }
-        let id = identity_keys.into_iter()
-            .filter_map(|key| args.get(key))
-            .map(&dig)
-            .find(|value| !value.is_empty())
+
+        // A COMMAND THAT ACTS ON A RECORD MAY NAME IT BY THE ID IT DERIVED.
+        // Derivation first, then the id itself, then the reference key a
+        // command reaches through — Ruby's three, in Ruby's order. The
+        // fallbacks are whole ids already resolved (a walk that just declared
+        // one, a saga carrying it forward), so they are read as they arrive
+        // rather than dug: there is no path left to follow inside an answer.
+        let whole = |key: &str| -> Option<String> {
+            args.get(key).map(query_text).filter(|id| !id.is_empty())
+        };
+        let id = identity::of(aggregate, args)
+            .or_else(|| whole("id"))
+            .or_else(|| whole(&reference_key))
             .ok_or_else(|| {
-                format!(
-                    "{} acts on an existing {} — pass {}:",
-                    command_name, aggregate_name, identity
-                )
+                format!("{command_name} acts on an existing {aggregate_name} — pass {reading}:")
             })?;
 
         if let Some(adapter) = self.adapters.get(&aggregate_name) {
             let state = adapter
                 .find(&id)
                 .map(value_bridge::from_state)
-                .ok_or_else(|| format!("no {} with {} {:?}", aggregate_name, identity, id))?;
+                .ok_or_else(|| format!("no {} with {} {:?}", aggregate_name, reading, id))?;
             return Ok((id, state));
         }
 
@@ -1352,7 +1354,7 @@ impl Runtime {
             .keys()
             .find(|key| key.ends_with(&format!("::{}#{}", aggregate_name, id)))
             .cloned()
-            .ok_or_else(|| format!("no {} with {} {:?}", aggregate_name, identity, id))?;
+            .ok_or_else(|| format!("no {} with {} {:?}", aggregate_name, reading, id))?;
 
         Ok((id, self.store[&key].clone()))
     }
@@ -1938,17 +1940,21 @@ impl Runtime {
     /// "(Account is known by number)" — what to send instead. No article, on
     /// purpose: "an Account" and "a Customer" differ by the target's first
     /// letter, and both runtimes would have to agree on that rule to keep the
-    /// refusal byte-identical. The HEAD of the identity path, because that is
-    /// what Ruby's `identified_by` answers.
+    /// refusal byte-identical. The HEADS of the identity paths, because that is
+    /// what Ruby's `identity_heads` answers and what a caller passes — all of
+    /// them, since a target known by two facts and named by one tells the
+    /// caller to send something that would still not address it. Silent when
+    /// there is nothing declared to name, the way Ruby's guard is.
     fn known_by(&self, domain: &str, target: &str) -> String {
         let Ok(aggregate) = self.find_aggregate(domain, target, "") else {
             return String::new();
         };
-        let identity = identity_path(&aggregate)
-            .unwrap_or("");
-        let head = identity.split('.').next().unwrap_or(identity);
+        let heads = identity::heads(&aggregate);
+        if heads.is_empty() {
+            return String::new();
+        }
 
-        format!(" ({target} is known by {head})")
+        format!(" ({target} is known by {})", heads.join(", "))
     }
 
     fn find_aggregate(

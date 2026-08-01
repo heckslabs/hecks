@@ -65,14 +65,25 @@ pub enum ValueSpec {
 impl Aggregate {
     /// THE ONE PATH A REPOSITORY ADDRESSES RECORDS BY, or none declared.
     ///
-    /// A repository uses the identity as a KEY into a command's attributes, so
-    /// it needs a single name where the IR now carries a list. This resolves it
-    /// the same way `dispatcher::identity_path` resolves the same question off
-    /// the wire — the first declared path — so the struct reader and the JSON
-    /// reader can never address one aggregate two different ways. Composite
-    /// identities are a Ruby-side growth the corpus does not yet declare; when
-    /// they arrive, BOTH readers change together, and `Naming::IDENTITY_JOIN`
-    /// (`":"`, lib/hecksagain/naming.rb) is the join they will change to.
+    /// A repository uses the identity as a KEY into a command's attributes —
+    /// one COLUMN, one lookup name — so it needs a single path where the IR
+    /// carries a list.
+    ///
+    /// THE INTERPRETER NO LONGER READS IT THIS WAY. `identity::of` follows
+    /// every declared path and joins them (`Naming::IDENTITY_JOIN`, `":"`), and
+    /// the dispatcher hands a repository that JOINED id — so a store never
+    /// derives an identity and never needs two columns to hold one.
+    /// `spec/parity/domains/market` drives a composite head through SQLite,
+    /// which is the store that turns this into a real column, and both runtimes
+    /// write the same rows.
+    ///
+    /// What it still feeds is `PersistenceAdapter::id_for_command`, which reads
+    /// it as a key into a command's attributes and MINTS a counter when it finds
+    /// nothing. Nothing in the dispatch path calls that — the only caller in the
+    /// tree is its own test — which is why a key that can never match (`attrs`
+    /// are spelled by attribute name, this is a path) has gone unnoticed. That
+    /// is a question about the persistence contract rather than about this line,
+    /// and it is the last place in either runtime that can still mint an id.
     pub fn identity_key(&self) -> Option<String> {
         self.identified_by.first().cloned()
     }

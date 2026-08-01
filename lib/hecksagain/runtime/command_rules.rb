@@ -105,8 +105,15 @@ module Hecksagain
           next if key.to_s.empty?
           next if @registry.repository(domain, target).find(key)
 
+          # THE HEADS NAME WHAT A CALLER PASSES, so they are what a refusal
+          # names — every one of them. This read `identified_by`, which is the
+          # SINGLE head and is nil the moment an identity has two parts, so a
+          # composite target was reported as known by `id` — a field it does
+          # not have, and the one word this runtime is careful never to invent.
+          # Single-path targets read exactly as before, which is every member
+          # of the parity corpus but Market.
           raise NotFound,
-                "no #{target.name} with #{target.identified_by || :id} #{key.inspect}"
+                "no #{target.name} with #{target.identity_heads.join(', ')} #{key.inspect}"
         end
       end
 

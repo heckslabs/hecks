@@ -145,23 +145,70 @@ pub fn extract_symbol(line: &str) -> Option<String> {
     }
 }
 
-/// The two ways a construct says what it is known by, read in ONE place.
+/// THE PATHS A CONSTRUCT IS KNOWN BY, in declaration order, read in ONE place.
 ///
-/// `identified_by :sequence` names the attribute ; `identified_by { sequence.value }`
-/// names the scalar FIELD inside it. A head and a piece spell this identically, so
-/// they must READ it identically — the block form lived inlined in the aggregate
-/// parser, which is exactly why an entity could not say the same words.
-pub fn extract_identity_path(line: &str) -> Option<String> {
-    if line.contains(char::from(123)) {
-        return line
+/// Three spellings and ONE rule. Ruby never CALLS the block — it reads the
+/// source, collapses the whitespace and splits on spaces
+/// (`AggregateBuilder#identified_by`) — so the paths are simply the words the
+/// block holds:
+///
+///   identified_by :sequence            a symbol names the attribute
+///   identified_by { number.value }      one path, inline
+///   identified_by do … end              several paths, one to a line
+///
+/// A head and a piece spell this identically, so they must READ it identically.
+///
+/// THE BLOCK FORM WAS UNREADABLE HERE, and not by half — `do` opened a block the
+/// aggregate parser never consumed, so everything to the matching `end` was
+/// swallowed and the construct came back with no attributes, no commands and no
+/// value objects. Silent, because an empty aggregate does not look like a parse
+/// failure, and unreachable from the parity corpus because every example was
+/// identified by one path. The language's OWN chapters are composite throughout,
+/// and the meta-domain is the one bluebook Rust never parses.
+///
+/// `lines[0]` is the `identified_by` line. The count returned is every line
+/// consumed including that one — `parse_lifecycle`'s convention — so a caller
+/// advances by it and continues, whichever spelling it met.
+pub fn extract_identity_paths(lines: &[&str]) -> (Vec<String>, usize) {
+    let first = lines[0].trim();
+
+    if first.contains(char::from(123)) {
+        let inner = first
             .split(char::from(123))
             .nth(1)
             .and_then(|inner| inner.split(char::from(125)).next())
-            .map(|path| path.trim().to_string())
-            .filter(|path| !path.is_empty());
+            .unwrap_or_default();
+        return (identity_words(inner), 1);
     }
 
-    extract_symbol(line)
+    if !ends_with_do_block(first) {
+        return (extract_symbol(first).into_iter().collect(), 1);
+    }
+
+    let mut paths = vec![];
+    let mut consumed = 1;
+    while consumed < lines.len() {
+        let line = lines[consumed].trim();
+        consumed += 1;
+        if line == "end" {
+            break;
+        }
+        // Ruby's extractor hands back the block's source with its comments
+        // already gone, so a comment is not a path — and one that survived
+        // would arrive as words and be declared as identity parts.
+        if line.starts_with('#') {
+            continue;
+        }
+        paths.extend(identity_words(line));
+    }
+    (paths, consumed)
+}
+
+/// Whitespace collapsed, split on spaces — the shape Ruby's canonical form
+/// leaves the block's source in. One line may carry several paths for the same
+/// reason the block may: they are words either way.
+fn identity_words(text: &str) -> Vec<String> {
+    text.split_whitespace().map(str::to_string).collect()
 }
 
 pub fn extract_word_after(line: &str, keyword: &str) -> Option<String> {

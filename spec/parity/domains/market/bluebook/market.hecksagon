@@ -1,0 +1,3 @@
+Hecks.hecksagon "Market" do
+  Market::Stall.persisted_by("Heki")
+end

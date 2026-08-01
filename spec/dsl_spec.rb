@@ -129,9 +129,15 @@ RSpec.describe "the DSL surface" do
       end.to raise_error(Malformed, /an attribute is named/)
     end
 
+    # WHAT IT IS KNOWN BY, not "id". A ValueObject is known by its aggregate AND
+    # its name — `identified_by do aggregate_id ; name.value end` — and this said
+    # `id`, a field the category does not have, because the refusal read
+    # `identified_by`, which is the SINGLE head and goes nil the moment an
+    # identity has two parts. The quoted id was always the JOIN of those two
+    # ("Primitive:Thing" and "String"); now the message says so.
     it "refuses an aggregate attribute that is not a value object" do
       expect { build_aggregate("Primitive") { attribute :code, String } }
-        .to raise_error(Malformed, %r{no ValueObject with id "Primitive:Thing:String"})
+        .to raise_error(Malformed, %r{no ValueObject with aggregate_id, name "Primitive:Thing:String"})
     end
 
     # A PIECE IS REACHED THROUGH ITS AGGREGATE, so a command on one addresses
@@ -173,7 +179,8 @@ RSpec.describe "the DSL surface" do
             command("UseCode") { reference_to Code }
           end
         end
-      end.to raise_error(Malformed, /UseCode#attributes\[0\]: no Aggregate with id "HeadOnly:Code"/)
+      end.to raise_error(Malformed,
+                         /UseCode#attributes\[0\]: no Aggregate with bluebook_id, name "HeadOnly:Code"/)
     end
 
     it "refuses an unnamed event" do

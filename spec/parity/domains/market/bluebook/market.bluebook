@@ -1,0 +1,189 @@
+Hecks.bluebook "Market" do
+  vision "Let pitches on a market floor, where a pitch is named by its row AND its number and by neither one alone."
+  supporting
+
+  # THE CORPUS MEMBER THAT MAKES A COMPOSITE IDENTITY REACHABLE.
+  #
+  # Every other example is identified by ONE path, so `identity_paths.first`
+  # and `identity_paths` answer the same question everywhere and a runtime
+  # that only ever reads the first is indistinguishable from one that reads
+  # them all. The language's own chapters are composite throughout — an
+  # Aggregate is `bluebook_id` AND `name.value` — but the meta-domain is not
+  # in the parity corpus, so Rust reading only the first path went unseen.
+  #
+  # A market row is the smallest honest thing that has to be: stall 1 exists
+  # in row A and in row B, and they are not the same pitch. A runtime that
+  # keys on the number alone lets one and finds the other already let ; a
+  # runtime that keys on the row alone lets the whole row at once. The
+  # parity script drives exactly that pair.
+  aggregate "Stall" do
+    description "A pitch on the market floor — a row and a number, because neither names it alone."
+
+    identified_by do
+      row.value
+      number.value
+    end
+
+    attribute :row,        Row
+    attribute :number,     StallNumber
+    attribute :trader,     TraderName
+    attribute :rent_pence, Rent
+    attribute :bookings,   list_of(Booking)
+
+    # A COMPOSITE PIECE, for the same reason the head is one. A booking is a
+    # day AND a session, and neither names it alone: the same stall is booked
+    # on Monday morning and Monday afternoon, and on Tuesday morning. A
+    # runtime matching a piece on the first part of its identity finds the
+    # morning when told the afternoon.
+    #
+    # It sits under a composite HEAD on purpose, so locating one exercises
+    # both derivations at once — the parent's identity is joined from two
+    # paths before the element is matched on two more.
+    entity "Booking" do
+      identified_by do
+        day.value
+        session.value
+      end
+
+      attribute :day,     BookingDay
+      attribute :session, BookingSession
+      attribute :holder,  TraderName
+
+      lifecycle :state, default: "held" do
+        transition "Confirm" => "confirmed", from: "held"
+        transition "Release" => "released",  from: ["held", "confirmed"]
+      end
+
+      query "Held" do
+        where(state: "held")
+      end
+
+      command "Confirm" do
+        role "Clerk"
+        goal "Turn a held slot into a firm one"
+
+        attribute :day,     BookingDay
+        attribute :session, BookingSession
+
+        given("only a held slot is confirmed") { state == "held" }
+
+        emits "BookingConfirmed"
+      end
+
+      command "Release" do
+        role "Clerk"
+        goal "Give the slot back"
+
+        attribute :day,     BookingDay
+        attribute :session, BookingSession
+
+        given("a released slot is already gone") { state != "released" }
+
+        emits "BookingReleased"
+      end
+    end
+
+    value_object "Row" do
+      attribute :value, String
+
+      invariant("a row is lettered") { !value.to_s.empty? }
+    end
+
+    value_object "StallNumber" do
+      attribute :value, Integer
+
+      invariant("a stall is numbered from one") { value.positive? }
+    end
+
+    value_object "TraderName" do
+      attribute :value, String
+
+      invariant("a trader is named") { !value.to_s.empty? }
+    end
+
+    value_object "Rent" do
+      attribute :pence, Integer
+
+      invariant("rent is never negative") { pence >= 0 }
+    end
+
+    value_object "BookingDay" do
+      attribute :value, String
+
+      invariant("a booking names its day") { !value.to_s.empty? }
+    end
+
+    value_object "BookingSession" do
+      attribute :value, String
+
+      invariant("a session is morning or afternoon") do
+        value.to_s == "morning" || value.to_s == "afternoon"
+      end
+    end
+
+    lifecycle :status, default: "vacant" do
+      transition "Let"    => "let",    from: "vacant"
+      transition "Vacate" => "vacant", from: "let"
+    end
+
+    query "Vacant" do
+      where(status: "vacant")
+      order_by :number
+    end
+
+    command "OpenStall" do
+      role "Clerk"
+      goal "Put a pitch on the market floor"
+
+      attribute :row,        Row
+      attribute :number,     StallNumber
+      attribute :rent_pence, Rent
+
+      emits "StallOpened"
+    end
+
+    command "Let" do
+      role "Clerk"
+      goal "Let the pitch to a trader for the day"
+
+      reference_to Stall
+      attribute :trader, TraderName
+
+      given("a stall already let cannot be let again") { status == "vacant" }
+
+      then_set :trader, to: :trader
+
+      emits "StallLet"
+    end
+
+    command "Vacate" do
+      role "Clerk"
+      goal "Take the trader off the pitch"
+
+      reference_to Stall
+
+      given("only a let stall can be vacated") { status == "let" }
+
+      emits "StallVacated"
+    end
+
+    # EVERY PART SUPPLIED BY THE CALLER, because a composite piece gets no
+    # running number — "the next one in this list" is an answer for a piece
+    # known by its position and no answer at all for one known by two facts.
+    command "Book" do
+      role "Clerk"
+      goal "Hold a session on the pitch for a trader"
+
+      reference_to Stall
+      attribute :day,     BookingDay
+      attribute :session, BookingSession
+      attribute :holder,  TraderName
+
+      given("a vacant stall takes no bookings") { status == "let" }
+
+      then_set :bookings, append: { day: :day, session: :session, holder: :holder }
+
+      emits "BookingHeld"
+    end
+  end
+end

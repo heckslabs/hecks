@@ -710,7 +710,10 @@ pub fn parse_entity(lines: &[&str]) -> (Entity, usize) {
                 i += consumed;
                 continue;
             } else if line.starts_with("identified_by") {
-                ent.identified_by = extract_identity_path(line).into_iter().collect();
+                let (paths, consumed) = extract_identity_paths(&lines[i..]);
+                ent.identified_by = paths;
+                i += consumed;
+                continue;
             } else if line.starts_with("description") {
                 ent.description = extract_string(line);
             } else if line.starts_with("attribute") {

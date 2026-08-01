@@ -48,7 +48,7 @@ module Hecksagain
         end
 
         ordered = ordered_elements(rows, declared.order_by, declared.null_semantics,
-                                   parent_key, entity.identified_by)
+                                   parent_key, entity.identity_heads)
         declared.limit ? ordered.first(resolve_query_value(declared.limit.value, args).to_i) : ordered
       end
 
@@ -68,11 +68,20 @@ module Hecksagain
       # A sub-list row is identified by its PARENT and then its own key : two
       # entities under different parents can share a sequence, so the parent has
       # to lead or the tie is not broken at all.
-      def ordered_elements(rows, order_by, null_semantics, parent_key, entity_key)
+      #
+      # EVERY KEY THE PIECE IS KNOWN BY, in declaration order, for the same
+      # reason the parent leads: a part that ties is a part that breaks no tie.
+      # This took `identified_by`, which is the SINGLE head and is nil the
+      # moment an identity has two parts — and `cell(row, nil)` calls
+      # `nil.to_sym`, so a query against a composite piece did not sort wrongly,
+      # it raised. A piece known by one key sorts exactly as it did.
+      def ordered_elements(rows, order_by, null_semantics, parent_key, entity_keys)
         field = order_by&.field&.to_sym
         Ports::Query::Ordering.apply(
           rows, order_by, null_semantics,
-          identity: ->(row) { [row[parent_key].to_s, comparable(cell(row, entity_key))] }
+          identity: lambda { |row|
+            [row[parent_key].to_s, *Array(entity_keys).map { |key| comparable(cell(row, key)) }]
+          }
         ) { |row| comparable(row[field]) }
       end
 

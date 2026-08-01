@@ -203,11 +203,17 @@ module Hecksagain
       # letter, and both runtimes would have to agree on that rule to keep the
       # refusal byte-identical. Silent when the target is another chapter's,
       # where this runtime cannot see what it is known by.
+      #
+      # EVERY HEAD, because a caller has to pass every one. This read
+      # `identified_by`, which is the SINGLE head and is nil the moment an
+      # identity has two parts — so a composite target fell through the guard
+      # and the refusal went silent exactly where it had the most to say. A
+      # single-path target reads as it always did.
       def self.known_by(attribute)
-        target = attribute.type.resolve
-        return "" unless target&.identified_by
+        heads = Array(attribute.type.resolve&.identity_heads)
+        return "" if heads.empty?
 
-        " (#{attribute.type.target_name} is known by #{target.identified_by})"
+        " (#{attribute.type.target_name} is known by #{heads.join(', ')})"
       end
 
       def self.scalar(value)

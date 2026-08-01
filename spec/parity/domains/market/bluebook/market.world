@@ -1,0 +1,6 @@
+Hecks.world "Market" do
+  realm "Examples"
+  persisted_by("Heki") do
+    dir "data"
+  end
+end

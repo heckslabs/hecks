@@ -233,7 +233,10 @@ fn parse_aggregate(lines: &[&str]) -> (Aggregate, Vec<Policy>, usize) {
                 i += consumed;
                 continue;
             } else if line.starts_with("identified_by") {
-                agg.identified_by = extract_identity_path(line).into_iter().collect();
+                let (paths, consumed) = extract_identity_paths(&lines[i..]);
+                agg.identified_by = paths;
+                i += consumed;
+                continue;
             } else if is_shorthand_line(line) {
                 absorb_shorthand(line, &mut agg, &mut references);
             } else if line.starts_with("query") {

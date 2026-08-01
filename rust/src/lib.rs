@@ -30,6 +30,7 @@ pub use bluebook::world;
 pub use bluebook::expression::evaluator as interp_givens;
 pub use bluebook::expression::resolver as interp_expr;
 pub use runtime::dispatcher;
+pub use runtime::identity;
 pub use runtime::mutations as interp_mutations;
 pub use runtime::value_bridge;
 

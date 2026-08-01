@@ -117,9 +117,13 @@ run_variants() {
   source=$1
   script=$2
   run_domain "$source" "$script" Heki || return 1
-  if [ "$(basename "$source")" = "banking" ]; then
-    run_domain "$source" "$script" Sqlite || return 1
-  fi
+  # Market earns the second run for the other reason banking does: a composite
+  # identity is the only shape where a store keyed by ONE column has to hold a
+  # record whose id is the JOIN of two. Heki keys by the id it is handed and
+  # would never notice.
+  case "$(basename "$source")" in
+    banking|market) run_domain "$source" "$script" Sqlite || return 1 ;;
+  esac
 }
 
 failed=0
@@ -149,13 +153,18 @@ if [ $# -ge 1 ]; then
     run_variants "$domain" "$script" || failed=1
   fi
 else
-  for domain in "$ROOT"/examples/*/ "$ROOT"/lib/hecksagain/grammar/; do
+  # THREE KINDS OF CORPUS MEMBER. `examples/` is what a reader is shown ;
+  # `lib/hecksagain/grammar/` is a real part of the runtime that happens to be a
+  # chapter ; `spec/parity/domains/` is neither — a domain that exists ONLY to
+  # hold the two runtimes to a shape no example declares, and has no business
+  # being read as an example of anything. A composite identity was the first.
+  for domain in "$ROOT"/examples/*/ "$ROOT"/lib/hecksagain/grammar/ "$ROOT"/spec/parity/domains/*/; do
     domain=${domain%/}
     name=$(basename "$domain")
     script="$ROOT/spec/parity/$name.json"
     if [ ! -f "$script" ]; then
       echo "── $name"
-      echo "   NO SCRIPT at spec/parity/$name.json — write one, or remove the example."
+      echo "   NO SCRIPT at spec/parity/$name.json — write one, or remove the domain."
       failed=1
       continue
     fi

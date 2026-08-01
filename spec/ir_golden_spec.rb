@@ -33,6 +33,11 @@ RSpec.describe "the IR the builder produces, frozen" do
   LOADABLE = {
     "Pizzas"     => "examples/pizzas/bluebook/pizzas.bluebook",
     "Banking"    => "examples/banking/bluebook/banking.bluebook",
+    # THE ONLY COMPOSITE IDENTITY IN THE LOADABLE TREE. Every other chapter
+    # here is known by one path, so an `identified_by` list of one and a list
+    # of two are the same shape as far as this corpus can tell — which is the
+    # exact reason this file's own header gives for walking every chapter.
+    "Market"     => "spec/parity/domains/market/bluebook/market.bluebook",
     "Expression" => "lib/hecksagain/grammar/expression.bluebook",
     "TillRoom"   => "spec/fixtures/till.bluebook",
     "Wire"       => "spec/fixtures/settlement.bluebook",
