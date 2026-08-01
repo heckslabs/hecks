@@ -34,7 +34,7 @@ fn journal_head_round_trip_cold_reopen_and_query_pushdown() {
     let database = fresh_database(&mut admin);
 
     {
-        let mut repository = PostgresRepository::new("BlogEntry", &database, None, "").unwrap();
+        let mut repository = PostgresRepository::new("BlogEntry", &database, "").unwrap();
         let mut state = AggregateState::new("1");
         state.set("title", Value::Str("First Light".into()));
         state.set("status", Value::Str("published".into()));
@@ -65,11 +65,9 @@ fn journal_head_round_trip_cold_reopen_and_query_pushdown() {
     }
 
     // cold reopen — the head survives the adapter that wrote it
-    let mut reopened = PostgresRepository::new("BlogEntry", &database, None, "").unwrap();
+    let mut reopened = PostgresRepository::new("BlogEntry", &database, "").unwrap();
     assert_eq!(reopened.count(), 1);
     assert_eq!(reopened.find("1").unwrap().get("status").to_string(), "archived");
-    let minted = reopened.id_for_command(&std::collections::HashMap::new());
-    assert_eq!(minted, "2");
 
     // query pushdown: compiles the comparison into jsonb SQL
     use storehouse::ir::{WhereClause, WhereOp};
@@ -120,7 +118,7 @@ fn refuses_a_missing_database_and_an_unreachable_one() {
         "BlogEntry binds Postgres, which needs a database connection, but its world declares no \"database\"."
     );
 
-    let unreachable = PostgresRepository::new("BlogEntry", "postgres://localhost:1/nowhere", None, "").err().unwrap();
+    let unreachable = PostgresRepository::new("BlogEntry", "postgres://localhost:1/nowhere", "").err().unwrap();
     assert!(
         unreachable.starts_with("cannot bind Postgres at postgres://localhost:1/nowhere for BlogEntry:"),
         "got {unreachable}"
@@ -145,7 +143,7 @@ fn era_gate_recognizes_holds_and_refuses_toward_the_ruby_scaffold() {
     let v1 = "Hecks.bluebook \"Ledger\" do\n  aggregate \"Account\" do\n    attribute :cost, Money\n\n    value_object \"Money\" do\n      attribute :cents, Integer\n    end\n  end\nend\n";
     let v2 = "Hecks.bluebook \"Ledger\" do\n  aggregate \"Account\" do\n    attribute :amount, Money\n\n    value_object \"Money\" do\n      attribute :cents, Integer\n    end\n  end\nend\n";
 
-    let mut repository = PostgresRepository::new("Account", GATE_DB, None, "Ledger").unwrap();
+    let mut repository = PostgresRepository::new("Account", GATE_DB, "Ledger").unwrap();
     let v1_shape = storehouse_postgres::shape_of(v1);
     let v2_shape = storehouse_postgres::shape_of(v2);
 

@@ -32,7 +32,6 @@ use storehouse::heki;
 use storehouse::ir::{WhereClause, WhereOp};
 use storehouse::ports::persistence::ReplicationEntry;
 use storehouse::runtime::AggregateState;
-use storehouse::runtime::Value;
 use storehouse::value_bridge;
 
 pub struct PostgresRepository {
@@ -41,8 +40,6 @@ pub struct PostgresRepository {
     domain: String,
     era: i32,
     store: HashMap<String, AggregateState>,
-    next_id: u64,
-    identified_by: Option<String>,
 }
 
 fn quote_ident(name: &str) -> String {
@@ -81,7 +78,9 @@ fn integrity_refusal(domain: &str, ordinal: i32, edited_text: &str, stored_proje
 }
 
 impl PostgresRepository {
-    pub fn new(aggregate_type: &str, database: &str, identified_by: Option<String>, domain: &str) -> Result<Self, String> {
+    // NO `identified_by`: a repository is handed an id already derived by
+    // `identity::of`, so there was never a question the identity could answer.
+    pub fn new(aggregate_type: &str, database: &str, domain: &str) -> Result<Self, String> {
         let config = if database.starts_with("postgres://") || database.starts_with("postgresql://") {
             database.to_string()
         } else {
@@ -106,8 +105,6 @@ impl PostgresRepository {
             domain: domain.to_string(),
             era,
             store: HashMap::new(),
-            next_id: 1,
-            identified_by,
         };
         repository.load_persisted()?;
         Ok(repository)
@@ -269,30 +266,9 @@ impl PostgresRepository {
             let fields: serde_json::Map<String, serde_json::Value> =
                 serde_json::from_str(&state_json).map_err(|error| format!("cannot decode {} state: {error}", self.table))?;
             let state = value_bridge::to_state(&id, &fields);
-            if let Ok(n) = state.id.parse::<u64>() {
-                if n >= self.next_id {
-                    self.next_id = n + 1;
-                }
-            }
             self.store.insert(state.id.clone(), state);
         }
         Ok(())
-    }
-
-    pub fn id_for_command(&mut self, attrs: &HashMap<String, Value>) -> String {
-        if let Some(ref key) = self.identified_by {
-            if let Some(Value::Str(s)) = attrs.get(key) {
-                return s.clone();
-            }
-            if self.store.len() == 1 {
-                if let Some(existing) = self.store.values().next() {
-                    return existing.id.clone();
-                }
-            }
-        }
-        let id = self.next_id;
-        self.next_id += 1;
-        id.to_string()
     }
 
     fn append(&self, id: &str, operation: &str, state_json: Option<&str>, mirrors_json: &str) -> Result<(), String> {
@@ -437,12 +413,9 @@ impl PostgresRepository {
         )
     }
 
+    // A record is seeded under the id it already carries; the counter upkeep
+    // that used to be here was the mint's bookkeeping, not the store's.
     pub fn seed_record(&mut self, state: AggregateState) {
-        if let Ok(n) = state.id.parse::<u64>() {
-            if n >= self.next_id {
-                self.next_id = n + 1;
-            }
-        }
         self.store.insert(state.id.clone(), state);
     }
 }
@@ -459,12 +432,6 @@ impl storehouse::runtime::PersistenceAdapter for PostgresRepository {
     }
     fn count(&self) -> usize {
         self.store.len()
-    }
-    fn next_id_value(&self) -> u64 {
-        self.next_id
-    }
-    fn id_for_command(&mut self, attrs: &HashMap<String, Value>) -> String {
-        self.id_for_command(attrs)
     }
     fn save(&mut self, state: AggregateState, ctx: heki::WriteContext<'_>) -> Result<(), String> {
         self.save_with_mirrors(state, vec![], ctx)
@@ -569,11 +536,6 @@ impl storehouse::runtime::PersistenceAdapter for PostgresRepository {
     fn seed_record(&mut self, state: AggregateState) {
         self.seed_record(state)
     }
-    fn set_next_id(&mut self, value: u64) {
-        if value > self.next_id {
-            self.next_id = value;
-        }
-    }
 }
 
 pub fn postgres_factory(
@@ -587,7 +549,7 @@ pub fn postgres_factory(
         )
     })?;
     let domain = spec.option("domain").unwrap_or("").to_string();
-    let repository = PostgresRepository::new(&aggregate.name, database, aggregate.identity_key(), &domain)?;
+    let repository = PostgresRepository::new(&aggregate.name, database, &domain)?;
     Ok(Box::new(repository))
 }
 

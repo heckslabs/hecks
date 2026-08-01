@@ -1,5 +1,4 @@
 use super::AggregateState;
-use super::Value;
 use crate::heki;
 use crate::ir;
 use std::collections::HashMap;
@@ -21,9 +20,31 @@ pub trait PersistenceAdapter: Send {
 
     fn count(&self) -> usize;
 
-    fn next_id_value(&self) -> u64;
-
-    fn id_for_command(&mut self, attrs: &HashMap<String, Value>) -> String;
+    // NOTHING IS MINTED, AND NOW THE CONTRACT CANNOT.
+    //
+    // `id_for_command`, `next_id_value` and `set_next_id` used to sit here: a
+    // counter, and a method that read a key out of a command's attributes and
+    // fell back to incrementing it. Three separate things this runtime had
+    // spent the identity arc removing, in one method —
+    //
+    //   attrs.get(key)          a lookup that could NEVER match. The key was
+    //                           `Aggregate::identity_key()`, a declared PATH
+    //                           ("number.value") ; attrs are spelled by
+    //                           attribute name ("number").
+    //   store.len() == 1        a GUESS — "if there is exactly one record,
+    //                           you must mean that one."
+    //   next_id += 1            a MINT, the ability `hydrate` was rewritten to
+    //                           not have.
+    //
+    // It survived because NOTHING CALLED IT. The dispatcher derives the id
+    // (`identity::of`) and hands it over already resolved, so every adapter
+    // implemented this and no adapter was ever asked. The only callers in the
+    // tree were two tests asserting the minting. And it had no Ruby twin at
+    // all, so `bin/parity` could not have seen a divergence here however hard
+    // it looked.
+    //
+    // Postgres implemented it too, by copying the shape from SQLite — which is
+    // what a dead method on a live contract does: it recruits.
 
     fn save(&mut self, state: AggregateState, ctx: heki::WriteContext<'_>) -> Result<(), String>;
 
@@ -120,8 +141,6 @@ pub trait PersistenceAdapter: Send {
     ) -> Option<Vec<AggregateState>>;
 
     fn seed_record(&mut self, state: AggregateState);
-
-    fn set_next_id(&mut self, value: u64);
 }
 
 use crate::ir::Aggregate;

@@ -25,7 +25,7 @@ fn seeded(name: &str) -> SqliteRepository {
         ("status".to_string(), "VARCHAR(255)".to_string()),
         ("priority".to_string(), "INTEGER".to_string()),
     ];
-    let mut repo = SqliteRepository::new("Ticket", &path, None, cols, HashMap::new()).expect("open db");
+    let mut repo = SqliteRepository::new("Ticket", &path, cols, HashMap::new()).expect("open db");
     let rows = [
         ("1", "pending", 1),
         ("2", "paid", 10),
@@ -120,7 +120,7 @@ fn object_valued_column_matches_the_same_rows_as_the_oracle() {
     let path = db_path("object_column");
     let _ = std::fs::remove_file(&path);
     let cols = vec![("account".to_string(), "VARCHAR(255)".to_string())];
-    let mut repo = SqliteRepository::new("Card", &path, None, cols, HashMap::new()).expect("open db");
+    let mut repo = SqliteRepository::new("Card", &path, cols, HashMap::new()).expect("open db");
 
     for (id, account) in [("c1", "acct-1"), ("c2", "acct-2")] {
         let mut s = AggregateState::new(id);
@@ -180,7 +180,7 @@ fn numeric_range_null_priority_matches_oracle() {
         ("status".to_string(), "VARCHAR(255)".to_string()),
         ("priority".to_string(), "INTEGER".to_string()),
     ];
-    let mut repo = SqliteRepository::new("Ticket", &path, None, cols, HashMap::new()).expect("open db");
+    let mut repo = SqliteRepository::new("Ticket", &path, cols, HashMap::new()).expect("open db");
     let mut a = AggregateState::new("1");
     a.set("status", Value::Str("x".into()));
     a.set("priority", Value::Int(3));
@@ -250,7 +250,7 @@ fn priced(name: &str) -> SqliteRepository {
     let _ = std::fs::remove_file(&path);
     let cols = vec![("price".to_string(), "TEXT".to_string())];
     let paths = HashMap::from([("price".to_string(), "cents".to_string())]);
-    let mut repo = SqliteRepository::new("Pizza", &path, None, cols, paths).expect("open db");
+    let mut repo = SqliteRepository::new("Pizza", &path, cols, paths).expect("open db");
 
     let mut cheap = AggregateState::new("cheap");
     cheap.set("price", Value::Map(HashMap::from([("cents".to_string(), Value::Int(1200))])));

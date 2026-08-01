@@ -80,7 +80,7 @@ mod tests {
             .into_owned();
         let _ = std::fs::remove_file(&path);
         let cols = vec![("status".to_string(), "VARCHAR(255)".to_string())];
-        let repo = SqliteRepository::new("Ticket", &path, None, cols, HashMap::new()).unwrap();
+        let repo = SqliteRepository::new("Ticket", &path, cols, HashMap::new()).unwrap();
         repo.ensure_indexes(&["status".to_string()]);
 
         // THE QUERY THE REPOSITORY WOULD REALLY RUN, not one written here to

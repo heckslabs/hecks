@@ -19,8 +19,6 @@ pub struct SqliteRepository {
     pub(super) numeric_paths: HashMap<String, String>,
     float_columns: Vec<String>,
     pub(super) store: HashMap<String, AggregateState>,
-    next_id: u64,
-    identified_by: Option<String>,
 }
 
 impl SqliteRepository {
@@ -31,7 +29,6 @@ impl SqliteRepository {
     pub fn new(
         aggregate_type: &str,
         db_path: &str,
-        identified_by: Option<String>,
         columns: Vec<(String, String)>,
         numeric_paths: HashMap<String, String>,
     ) -> Result<Self, rusqlite::Error> {
@@ -62,8 +59,6 @@ impl SqliteRepository {
             numeric_paths,
             float_columns,
             store: HashMap::new(),
-            next_id: 1,
-            identified_by,
         };
         repo.load_persisted();
         Ok(repo)
@@ -132,30 +127,9 @@ impl SqliteRepository {
         });
         if let Ok(mapped) = rows {
             for state in mapped.flatten() {
-                if let Ok(n) = state.id.parse::<u64>() {
-                    if n >= self.next_id {
-                        self.next_id = n + 1;
-                    }
-                }
                 self.store.insert(state.id.clone(), state);
             }
         }
-    }
-
-    pub fn id_for_command(&mut self, attrs: &HashMap<String, Value>) -> String {
-        if let Some(ref key) = self.identified_by {
-            if let Some(Value::Str(s)) = attrs.get(key) {
-                return s.clone();
-            }
-            if self.store.len() == 1 {
-                if let Some(existing) = self.store.values().next() {
-                    return existing.id.clone();
-                }
-            }
-        }
-        let id = self.next_id;
-        self.next_id += 1;
-        id.to_string()
     }
 
     pub fn save_with_mirrors(&mut self, mut state: AggregateState, mirrors: Vec<String>, _ctx: heki::WriteContext<'_>) -> Result<(), String> {
@@ -265,23 +239,10 @@ impl SqliteRepository {
         self.store.len()
     }
 
+    // A record is seeded under the id it already carries; the counter upkeep
+    // that used to be here was the mint's bookkeeping, not the store's.
     pub fn seed_record(&mut self, state: AggregateState) {
-        if let Ok(n) = state.id.parse::<u64>() {
-            if n >= self.next_id {
-                self.next_id = n + 1;
-            }
-        }
         self.store.insert(state.id.clone(), state);
-    }
-
-    pub fn next_id_value(&self) -> u64 {
-        self.next_id
-    }
-
-    pub fn set_next_id(&mut self, value: u64) {
-        if value > self.next_id {
-            self.next_id = value;
-        }
     }
 }
 
@@ -297,12 +258,6 @@ impl storehouse::runtime::PersistenceAdapter for SqliteRepository {
     }
     fn count(&self) -> usize {
         self.count()
-    }
-    fn next_id_value(&self) -> u64 {
-        self.next_id_value()
-    }
-    fn id_for_command(&mut self, attrs: &HashMap<String, Value>) -> String {
-        self.id_for_command(attrs)
     }
     fn save(&mut self, state: AggregateState, ctx: heki::WriteContext<'_>) -> Result<(), String> {
         self.save(state, ctx)
@@ -326,9 +281,6 @@ impl storehouse::runtime::PersistenceAdapter for SqliteRepository {
     }
     fn seed_record(&mut self, state: AggregateState) {
         self.seed_record(state)
-    }
-    fn set_next_id(&mut self, value: u64) {
-        self.set_next_id(value)
     }
 }
 
@@ -434,7 +386,6 @@ pub fn sqlite_factory(
     let repo = SqliteRepository::new(
         &agg.name,
         db_path,
-        agg.identity_key(),
         columns,
         numeric_paths(agg),
     )

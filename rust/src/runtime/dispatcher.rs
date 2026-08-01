@@ -99,7 +99,6 @@ fn boot_repository(
             crate::adapters::driven::heki::HekiRepository::new(
                 &aggregate.name,
                 dir,
-                aggregate.identity_key(),
             )
             .map_err(|error| format!("cannot bind Heki at {dir} for {}: {error}", aggregate.name))?,
         ));
@@ -2416,8 +2415,6 @@ mod query_semantics_tests {
         fn find_mut(&mut self, id: &str) -> Option<&mut AggregateState> { self.records.get_mut(id) }
         fn all(&self) -> Vec<&AggregateState> { self.records.values().collect() }
         fn count(&self) -> usize { self.records.len() }
-        fn next_id_value(&self) -> u64 { 1 }
-        fn id_for_command(&mut self, _attrs: &HashMap<String, crate::runtime::Value>) -> String { "1".to_string() }
         fn save(&mut self, state: AggregateState, _ctx: WriteContext<'_>) -> Result<(), String> {
             self.records.insert(state.id.clone(), state);
             Ok(())
@@ -2432,7 +2429,6 @@ mod query_semantics_tests {
             })
         }
         fn seed_record(&mut self, state: AggregateState) { self.records.insert(state.id.clone(), state); }
-        fn set_next_id(&mut self, _value: u64) {}
     }
 
     fn answered_with(answer: Option<Vec<String>>) -> Vec<String> {
@@ -2502,8 +2498,6 @@ mod query_semantics_tests {
         fn find_mut(&mut self, id: &str) -> Option<&mut AggregateState> { self.records.get_mut(id) }
         fn all(&self) -> Vec<&AggregateState> { self.records.values().collect() }
         fn count(&self) -> usize { self.records.len() }
-        fn next_id_value(&self) -> u64 { 1 }
-        fn id_for_command(&mut self, _attrs: &HashMap<String, crate::runtime::Value>) -> String { "1".to_string() }
         fn save(&mut self, state: AggregateState, _ctx: WriteContext<'_>) -> Result<(), String> {
             self.entries.push(ReplicationEntry { operation: "save".to_string(), id: state.id.clone(), state: Some(state.clone()), mirrors: vec![] });
             self.records.insert(state.id.clone(), state);
@@ -2517,7 +2511,6 @@ mod query_semantics_tests {
         fn replication_entries(&self) -> Result<Vec<ReplicationEntry>, String> { Ok(self.entries.clone()) }
         fn query(&self, _wheres: &[crate::ir::WhereClause], _attrs: &HashMap<String, String>) -> Option<Vec<AggregateState>> { None }
         fn seed_record(&mut self, state: AggregateState) { self.records.insert(state.id.clone(), state); }
-        fn set_next_id(&mut self, _value: u64) {}
     }
 
     #[test]

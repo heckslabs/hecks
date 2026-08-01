@@ -1,6 +1,6 @@
 use super::heki;
 use crate::ports::persistence::ReplicationEntry;
-use crate::runtime::{value_bridge, AggregateState, PersistenceAdapter, Value};
+use crate::runtime::{value_bridge, AggregateState, PersistenceAdapter};
 use serde_json::json;
 use std::collections::HashMap;
 use std::fs::OpenOptions;
@@ -9,13 +9,15 @@ use std::io::{BufRead, BufReader, Write};
 pub struct HekiRepository {
     path: String,
     journal_path: String,
-    identified_by: Option<String>,
     store: HashMap<String, AggregateState>,
-    next_id: u64,
 }
 
 impl HekiRepository {
-    pub fn new(aggregate: &str, dir: &str, identified_by: Option<String>) -> Result<Self, String> {
+    // NO `identified_by`. A repository is handed an id that is already
+    // derived — `identity::of` follows every declared path and joins them —
+    // so it never had a question the identity could answer. The field existed
+    // for `id_for_command` alone, and that minted.
+    pub fn new(aggregate: &str, dir: &str) -> Result<Self, String> {
         let path = format!(
             "{}/{}.heki",
             dir.trim_end_matches('/'),
@@ -30,15 +32,9 @@ impl HekiRepository {
         let journal_path = format!("{}.journal", path);
         let raw = heki::read(&path)?;
         let mut store = HashMap::new();
-        let mut next_id = 1u64;
 
         for (id, record) in raw {
             let fields: serde_json::Map<String, serde_json::Value> = record.into_iter().collect();
-            if let Ok(n) = id.parse::<u64>() {
-                if n >= next_id {
-                    next_id = n + 1;
-                }
-            }
             store.insert(id.clone(), value_bridge::to_state(&id, &fields));
         }
         Self::replay_journal(&journal_path, &mut store)?;
@@ -46,9 +42,7 @@ impl HekiRepository {
         Ok(Self {
             path,
             journal_path,
-            identified_by,
             store,
-            next_id,
         })
     }
 
@@ -189,27 +183,6 @@ impl PersistenceAdapter for HekiRepository {
         self.store.len()
     }
 
-    fn next_id_value(&self) -> u64 {
-        self.next_id
-    }
-
-    fn id_for_command(&mut self, attrs: &HashMap<String, Value>) -> String {
-        if let Some(ref key) = self.identified_by {
-            if let Some(Value::Str(supplied)) = attrs.get(key) {
-                return supplied.clone();
-            }
-            if self.store.len() == 1 {
-                if let Some(existing) = self.store.values().next() {
-                    return existing.id.clone();
-                }
-            }
-        }
-
-        let id = self.next_id;
-        self.next_id += 1;
-        id.to_string()
-    }
-
     fn save(&mut self, state: AggregateState, _ctx: heki::WriteContext<'_>) -> Result<(), String> {
         self.save_with_mirrors(state, vec![], _ctx)
     }
@@ -240,30 +213,25 @@ impl PersistenceAdapter for HekiRepository {
         None
     }
 
+    // A record is seeded under the id it already carries. The counter upkeep
+    // that used to be here — "raise the next id above this one" — was the
+    // mint's bookkeeping, not the store's.
     fn seed_record(&mut self, state: AggregateState) {
-        if let Ok(n) = state.id.parse::<u64>() {
-            if n >= self.next_id {
-                self.next_id = n + 1;
-            }
-        }
         self.store.insert(state.id.clone(), state);
-    }
-
-    fn set_next_id(&mut self, value: u64) {
-        if value > self.next_id {
-            self.next_id = value;
-        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    // `Value` is no longer in this file's own imports — the only signature
+    // that needed it was `id_for_command`.
+    use crate::runtime::Value;
 
     #[test]
     fn an_authoritative_append_carries_its_mirror_intent() {
         let dir = std::env::temp_dir().join(format!("hecksagain-heki-mirror-{}", crate::util::uuid_v4()));
-        let mut repository = HekiRepository::new("Account", dir.to_str().unwrap(), None).unwrap();
+        let mut repository = HekiRepository::new("Account", dir.to_str().unwrap()).unwrap();
         let mut state = AggregateState::new("a");
         state.set("balance", Value::Int(500));
 
