@@ -1,0 +1,109 @@
+#!/usr/bin/env ruby
+
+# The recovery path after a held-text integrity refusal. The digest is
+# tamper-EVIDENCE — it catches accident and drift, not an adversary
+# (anyone who can edit the text can recompute the digest beside it).
+# When it fires, the honest resolution is a human reading the text as
+# it now stands and acknowledging it, on the record — never a psql
+# UPDATE. This tool shows the text and the digests, refuses without
+# --accept, and records an attestation (old digest, new digest, when)
+# in an append-only log beside the store.
+#
+#   bin/reattest_era <domain> <era ordinal> [--accept]
+
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+
+require "hecksagain"
+require "json"
+
+accept = ARGV.delete("--accept")
+domain_path = ARGV.shift
+ordinal = ARGV.shift&.to_i
+abort "usage: bin/reattest_era <domain> <era ordinal> [--accept]" unless domain_path && ordinal&.positive?
+
+loading = Hecksagain::Ports::Loading.bootstrap
+directory = loading.bluebook_directory(domain_path)
+registry = Hecksagain::Runtime::Registry.new(root: File.dirname(directory))
+Hecksagain.with_registry(registry) do
+  loading.load_library
+  loading.load_project(loading.shared_root(nil, directory))
+  # no translations: an unresolved edge must not block attesting a text
+  loading.load_each(directory, %w[*.port *.adapter *.bluebook *.hecksagon *.world])
+end
+
+bluebook = registry.bluebooks.values.first or abort "no bluebook in #{directory}"
+first = bluebook.aggregates.first or abort "#{bluebook.name} declares no aggregates"
+adapter_name = Hecksagain::Ports::Persistence::BindingPolicy.resolve(registry, bluebook.name, first).adapter
+capable =
+  begin
+    adapter_class = registry.adapter_class(adapter_name)
+    adapter_class.respond_to?(:lineage_capable?) && adapter_class.lineage_capable?
+  rescue StandardError
+    false
+  end
+
+if capable
+  settings = registry.world(bluebook.name)&.for_binding(Hecksagain::Ports::Persistence::VERB, adapter_name) || {}
+  db = Hecksagain::Adapters::Postgres.connect_for(bluebook.name, settings)
+  lineage = Hecksagain::Adapters::Postgres::Lineage.new(db, bluebook.name)
+  lineage.ensure_base!
+  era = lineage.raw_era(ordinal) or abort "#{bluebook.name} holds no era #{ordinal}"
+  text = era[:held_text]
+  stored = era[:held_digest]
+  stored_hash = era[:hash]
+  stored_projection = era[:held_projection] && JSON.parse(era[:held_projection])
+  reattest = -> { lineage.reattest!(ordinal) }
+else
+  store = Hecksagain::Ports::Persistence::EraStore.new(registry.root, bluebook.name)
+  text = store.raw_text(ordinal) or abort "#{bluebook.name} holds no era #{ordinal}"
+  stored = store.stored_digest(ordinal)
+  stored_hash = store.names.dig(ordinal, :hash)
+  stored_projection = store.stored_projection(ordinal)
+  reattest = -> { store.reattest!(ordinal) }
+end
+
+computed = Digest::SHA256.hexdigest(text)
+if stored == computed
+  puts "#{bluebook.name} era #{ordinal}: the held text matches its digest — nothing to re-attest."
+  exit 0
+end
+
+puts "#{bluebook.name} era #{ordinal}: the held text does NOT match its recorded digest."
+puts "  recorded: #{stored || '(none)'}"
+puts "  computed: #{computed}"
+
+# Before anything else: did the edit change the era's SHAPE, or only
+# its text? A shape change refuses hard — no --accept passes it.
+begin
+  verdict = Hecksagain::Translation::Reattest.shape_guard!(
+    domain: bluebook.name, ordinal: ordinal, text: text,
+    stored_hash: stored_hash, stored_projection: stored_projection
+  )
+  case verdict
+  when :cosmetic
+    puts "  shape:    unchanged — the edit is cosmetic (the text still projects to era #{ordinal}'s minted name)"
+  when :unnamed
+    puts "  shape:    era #{ordinal} was never named, so no shape comparison is possible — read carefully"
+  end
+rescue Hecksagain::Runtime::WiringError => error
+  puts
+  puts "REFUSED: #{error.message}"
+  exit 1
+end
+puts
+puts "The held text AS IT NOW STANDS — the original is gone; this is what you would be attesting to:"
+puts "─" * 72
+puts text
+puts "─" * 72
+
+unless accept
+  puts
+  puts "REFUSED: nothing changed. If you have read the text above and accept it as this era's"
+  puts "frozen source, run again with --accept. The attestation (old digest, new digest, when)"
+  puts "goes on the record either way you decide."
+  exit 1
+end
+
+fresh = reattest.call
+puts
+puts "ATTESTED: era #{ordinal} re-frozen as #{fresh[0, 12]}… — the old and new digests are recorded."

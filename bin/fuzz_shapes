@@ -1,0 +1,213 @@
+#!/usr/bin/env ruby
+
+# Differential shape fuzzing: the bump/no-bump boundary is
+# parity-critical, and a curated fixture corpus only proves the cases
+# its curators thought of. This DERIVES the assertion instead: mutate
+# real corpus bluebooks programmatically (seeded, reproducible), and
+# hold both runtimes' storage-shape projections byte-equal on every
+# mutant that still loads. Any single divergent verdict is a divergent
+# era — the failure the whole design exists to prevent.
+#
+# The seed ROTATES daily (and is always printed) so the gate keeps
+# hunting; any run is reproducible by pinning HECKS_FUZZ_SEED. Every
+# split is captured into spec/fixtures/shape_escapes/ — a permanent,
+# replayed-first regression corpus: the fuzzer's job is to MANUFACTURE
+# fixtures, and every escape becomes a named test.
+#
+#   HECKS_FUZZ_SEED=20260801 HECKS_FUZZ_COUNT=20 bin/fuzz_shapes
+
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+
+require "hecksagain"
+require "json"
+require "tmpdir"
+require "fileutils"
+
+ROOT = File.expand_path("..", __dir__)
+BINARY = File.join(ROOT, "rust", "target", "release", "hecksagain")
+SEED = Integer(ENV.fetch("HECKS_FUZZ_SEED", Time.now.utc.strftime("%Y%m%d")))
+COUNT = Integer(ENV.fetch("HECKS_FUZZ_COUNT", "20"))
+ESCAPES = File.join(ROOT, "spec", "fixtures", "shape_escapes")
+
+unless File.executable?(BINARY)
+  system("cargo build --release --workspace --quiet", chdir: File.join(ROOT, "rust")) ||
+    abort("no rust binary at #{BINARY} and the build failed")
+end
+
+SOURCES = (
+  Dir[File.join(ROOT, "examples", "*", "bluebook", "*.bluebook")] +
+  Dir[File.join(ROOT, "lib", "hecksagain", "grammar", "*.bluebook")] +
+  [File.join(ROOT, "spec", "fixtures", "eras", "base.bluebook")]
+).sort
+
+# ── mutations ─────────────────────────────────────────────────────────
+# Text-level, deliberately crude: a mutant that no longer loads in Ruby
+# is skipped, so the only mutants that count are real bluebooks neither
+# implementer hand-picked.
+
+def mutate(text, rng, tag)
+  lines = text.lines
+  case rng.rand(8)
+  when 0 # rename an attribute
+    index = pick(lines, rng) { |line| line =~ /^\s*attribute :(\w+),/ }
+    return nil unless index
+
+    lines[index] = lines[index].sub(/attribute :(\w+),/) { "attribute :#{Regexp.last_match(1)}_#{tag}," }
+  when 1 # swap two adjacent attribute lines
+    index = pick(lines, rng) { |line| line =~ /^\s*attribute :/ }
+    return nil unless index && lines[index + 1] =~ /^\s*attribute :/
+
+    lines[index], lines[index + 1] = lines[index + 1], lines[index]
+  when 2 # rename a declared type everywhere it appears
+    types = text.scan(/value_object "(\w+)"/).flatten.uniq
+    return nil if types.empty?
+
+    type = types[rng.rand(types.size)]
+    return lines.join.gsub(/\b#{type}\b/, "#{type}#{tag.capitalize}")
+  when 3 # toggle cardinality
+    index = pick(lines, rng) { |line| line =~ /^\s*attribute :\w+,\s+list_of\((\w+)\)/ }
+    if index
+      lines[index] = lines[index].sub(/list_of\((\w+)\)/) { Regexp.last_match(1) }
+    else
+      index = pick(lines, rng) { |line| line =~ /^\s*attribute :\w+,\s+([A-Z]\w+)\s*$/ }
+      return nil unless index
+
+      lines[index] = lines[index].sub(/,\s+([A-Z]\w+)\s*$/) { ", list_of(#{Regexp.last_match(1)})\n" }
+    end
+  when 4 # delete an attribute
+    index = pick(lines, rng) { |line| line =~ /^\s*attribute :/ }
+    return nil unless index
+
+    lines.delete_at(index)
+  when 5 # duplicate an attribute under a fresh name
+    index = pick(lines, rng) { |line| line =~ /^\s*attribute :(\w+),/ }
+    return nil unless index
+
+    copy = lines[index].sub(/attribute :(\w+),/) { "attribute :#{Regexp.last_match(1)}_#{tag}," }
+    lines.insert(index + 1, copy)
+  when 6 # change a default value (behavior — must never bump, and must
+         # never split the runtimes either way)
+    index = pick(lines, rng) { |line| line =~ /default: "(\w+)"/ }
+    return nil unless index
+
+    lines[index] = lines[index].sub(/default: "(\w+)"/) { %(default: "#{Regexp.last_match(1)}_#{tag}") }
+  when 7 # delete a single-line invariant or given (behavior only)
+    index = pick(lines, rng) { |line| line =~ /^\s*(invariant|given)\(.*\{.*\}\s*$/ }
+    return nil unless index
+
+    lines.delete_at(index)
+  end
+  lines.join
+end
+
+def pick(lines, rng)
+  indexes = lines.each_index.select { |index| yield(lines[index]) }
+  return nil if indexes.empty?
+
+  indexes[rng.rand(indexes.size)]
+end
+
+# ── the differential ─────────────────────────────────────────────────
+
+def sort_deep(node)
+  case node
+  when Hash then node.sort_by { |key, _| key.to_s }.to_h { |key, value| [key, sort_deep(value)] }
+  when Array then node.map { |item| sort_deep(item) }
+  else node
+  end
+end
+
+def ruby_projection(source, path)
+  registry = Hecksagain::Runtime::Registry.new
+  loading = Hecksagain::Ports::Loading.bootstrap
+  Hecksagain.with_registry(registry) do
+    loading.load_library
+    Kernel.eval(source, TOPLEVEL_BINDING, path, 1)
+  end
+  bluebook = registry.bluebooks.values.first
+  return nil unless bluebook
+
+  Hecksagain::Runtime::StorageShape.project(bluebook)
+rescue StandardError, SyntaxError
+  nil
+end
+
+failed = false
+total = 0
+refused = 0
+
+# ── the escape corpus, replayed first ────────────────────────────────
+# Every past split lives here as a committed fixture; a regression on
+# any of them fails before a single random mutant runs.
+Dir[File.join(ESCAPES, "*.bluebook")].sort.each do |escape|
+  source = File.read(escape)
+  ruby_shape = ruby_projection(source, escape)
+  unless ruby_shape
+    puts "NOTICE: escape #{File.basename(escape)} no longer loads in Ruby — decide whether it is stale"
+    next
+  end
+  rust_raw = `#{BINARY} --dump-shape #{escape}`
+  rust_agrees = $?.success? && sort_deep(JSON.parse(JSON.generate(ruby_shape))) == sort_deep(JSON.parse(rust_raw))
+  unless rust_agrees
+    puts "SPLIT — captured escape #{File.basename(escape)} REGRESSED"
+    failed = true
+  end
+end
+puts "── escape corpus: #{Dir[File.join(ESCAPES, '*.bluebook')].size} replayed" unless failed
+
+Dir.mktmpdir("hecks-fuzz-") do |dir|
+  SOURCES.each do |source_path|
+    text = File.read(source_path)
+    rng = Random.new(SEED + source_path.sum)
+    tested = 0
+    attempts = 0
+    while tested < COUNT && attempts < COUNT * 8
+      attempts += 1
+      mutant = mutate(text, rng, "m#{attempts}")
+      next unless mutant
+
+      path = File.join(dir, "#{File.basename(source_path, '.bluebook')}_#{attempts}.bluebook")
+      File.write(path, mutant)
+
+      ruby_shape = ruby_projection(mutant, path)
+      unless ruby_shape
+        # Ruby refused this mutant; Rust's host-language parser is
+        # infallible by design, so load/refuse parity is NOT yet
+        # checkable here — counted and reported rather than silently
+        # dropped (see the gaps ledger; the translation sublanguage
+        # already has load/refuse parity, the host language awaits the
+        # specializer).
+        refused += 1
+        next
+      end
+
+      rust_raw = `#{BINARY} --dump-shape #{path}`
+      unless $?.success?
+        puts "SPLIT — rust could not project #{path} (ruby could)"
+        failed = true
+        next
+      end
+      rust_shape = JSON.parse(rust_raw)
+
+      unless sort_deep(JSON.parse(JSON.generate(ruby_shape))) == sort_deep(rust_shape)
+        require "digest"
+        FileUtils.mkdir_p(ESCAPES)
+        captured = File.join(ESCAPES, "escape_#{Digest::SHA256.hexdigest(mutant)[0, 8]}.bluebook")
+        File.write(captured, mutant)
+        puts "SPLIT — the runtimes project this mutant differently; captured as #{captured}"
+        puts "        commit it: it is now a permanent regression fixture, replayed before every run"
+        failed = true
+      end
+      tested += 1
+    end
+    total += tested
+    puts "── #{File.basename(source_path)}: #{tested} mutants, verdicts agree" unless failed
+  end
+end
+
+puts "#{refused} mutants Ruby refused to load (host-language load/refuse parity is a named gap)" if refused.positive?
+if failed
+  puts "SHAPE FUZZ FAILED — the runtimes disagree about what counts as structural. Reproduce with HECKS_FUZZ_SEED=#{SEED}."
+  exit 1
+end
+puts "AGREED — #{total} mutated bluebooks (seed #{SEED}, rotating daily; pin with HECKS_FUZZ_SEED), one storage-shape verdict everywhere."

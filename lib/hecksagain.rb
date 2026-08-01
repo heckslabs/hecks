@@ -38,6 +38,7 @@ require_relative "hecksagain/bluebook/assembly/build"
 require_relative "hecksagain/bluebook/assembly/marks"
 require_relative "hecksagain/bluebook/assembly/aggregate_assembly"
 require_relative "hecksagain/bluebook/assembly"
+require_relative "hecksagain/bluebook/ir/translation"
 require_relative "hecksagain/bluebook/project_loader"
 require_relative "hecksagain/router"
 
@@ -67,11 +68,16 @@ require_relative "hecksagain/bluebook/dsl/hecksagon_builder"
 require_relative "hecksagain/bluebook/dsl/port_builder"
 require_relative "hecksagain/bluebook/dsl/adapter_builder"
 require_relative "hecksagain/bluebook/dsl/world_builder"
+require_relative "hecksagain/bluebook/dsl/translation_builder"
 
 require_relative "hecksagain/runtime"
+require_relative "hecksagain/translation/scaffold"
+require_relative "hecksagain/translation/audit"
+require_relative "hecksagain/translation/reattest"
 
 require_relative "hecksagain/adapters/driven/memory/memory"
 require_relative "hecksagain/adapters/driven/sqlite/sqlite"
+require_relative "hecksagain/adapters/driven/postgres/postgres"
 require_relative "hecksagain/adapters/driven/heki/heki"
 require_relative "hecksagain/adapters/driven/prism/prism"
 require_relative "hecksagain/adapters/driven/folder/folder"
@@ -101,6 +107,7 @@ module Hecksagain
     def port(name, &block)    = collect(:add_port,    Bluebook::DSL::PortBuilder.build(name, &block))
     def adapter(name, &block)   = collect(:add_adapter,   Bluebook::DSL::AdapterBuilder.build(name, &block))
     def world(name, &block)     = collect(:add_world,     Bluebook::DSL::WorldBuilder.build(name, &block))
+    def data_translation(name, from:, to:, &block) = collect(:add_translation, Bluebook::DSL::TranslationBuilder.build(name, from: from, to: to, &block))
 
     private
 

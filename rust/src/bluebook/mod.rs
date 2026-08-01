@@ -11,4 +11,5 @@ pub mod parser_helpers;
 pub mod pattern_subset;
 pub mod project_loader;
 pub mod router;
+pub mod translation;
 pub mod world;

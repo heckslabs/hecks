@@ -169,6 +169,7 @@ Hecks.bluebook "Bluebook" do
         member glob: "*.port"
         member glob: "*.adapter"
         member glob: "*.bluebook"
+        member glob: "translations/*.bluebook"
         member glob: "*.hecksagon"
         member glob: "*.world"
       end

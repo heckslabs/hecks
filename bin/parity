@@ -5,6 +5,19 @@ BINARY="$ROOT/rust/target/release/hecksagain"
 
 (cd "$ROOT/rust" && cargo build --release --workspace --quiet) || exit 1
 
+# Drop and recreate the parity database — the Postgres variant's
+# equivalent of `rm -rf data`. Configured-but-unreachable refuses loudly.
+pg_reset() {
+  dbname=${HECKS_PARITY_POSTGRES##*/}
+  admin="${HECKS_PARITY_POSTGRES%/*}/postgres"
+  psql -q "$admin" -v ON_ERROR_STOP=1 \
+    -c "DROP DATABASE IF EXISTS $dbname WITH (FORCE)" \
+    -c "CREATE DATABASE $dbname" >/dev/null 2>&1 || {
+      echo "   POSTGRES UNREACHABLE — HECKS_PARITY_POSTGRES=$HECKS_PARITY_POSTGRES is set but $admin did not answer."
+      return 1
+    }
+}
+
 run_domain() {
   source_domain=$1
   script=$2
@@ -22,6 +35,16 @@ run_domain() {
     # because nothing ever ran this branch.
     perl -0pi -e 's/"Heki"/"SqlitePersistence"/g; s/dir "data"/database "data\/parity.sqlite3"/g' \
       "$domain/bluebook"/*.hecksagon "$domain/bluebook"/*.world || return 1
+  fi
+  if [ "$variant" = "postgres" ]; then
+    # Rebind the AUTHORITATIVE persistence only; a SqliteProjection bind
+    # keeps its own database, so the substitution targets persisted_by
+    # blocks rather than every database line.
+    perl -0pi -e 's/persisted_by\("(Heki|SqlitePersistence)"\)/persisted_by("Postgres")/g; s/(persisted_by\("Postgres"\) do\s*\n\s*)(?:dir|database) "[^"]*"/${1}database "$ENV{HECKS_PARITY_POSTGRES}"/g' \
+      "$domain/bluebook"/*.hecksagon "$domain/bluebook"/*.world || return 1
+    # The IR stage below boots the rewritten domain too — the database
+    # must exist before ANY boot, not just before the run stages.
+    pg_reset || return 1
   fi
 
   bluebook=$(ls "$domain"/bluebook/*.bluebook 2>/dev/null | head -1)
@@ -44,12 +67,30 @@ run_domain() {
   fi
   echo "   parsers agree — same IR from $(basename "$bluebook")"
 
+  # Translation edges are their own sublanguage with their own parser in
+  # each runtime — diff their IR the same way, whenever the domain
+  # carries a translations/ folder beside its bluebook.
+  translations_dir="$(dirname "$bluebook")/translations"
+  if ls "$translations_dir"/*.bluebook >/dev/null 2>&1; then
+    "$ROOT/bin/ir" --translations "$domain" > "$prefix.ruby.tr.json" || return 1
+    "$BINARY" --dump-translation "$translations_dir" > "$prefix.rust.tr.json" || return 1
+    "$ROOT/bin/canonicalise" "$prefix.ruby.tr.json" > "$prefix.ruby.tr.c.json"
+    "$ROOT/bin/canonicalise" "$prefix.rust.tr.json" > "$prefix.rust.tr.c.json"
+    if ! diff -u "$prefix.ruby.tr.c.json" "$prefix.rust.tr.c.json"; then
+      echo "   SPLIT — the two parsers read the translation edges differently."
+      return 1
+    fi
+    echo "   translations agree — same edge IR from translations/"
+  fi
+
   rm -rf "$domain/data"
+  if [ "$variant" = "postgres" ]; then pg_reset || return 1; fi
   "$ROOT/bin/run" "$domain" "$script" > "$prefix.ruby.raw.json" || return 1
   "$ROOT/bin/stores" "$domain" > "$prefix.ruby.rows" 2>/dev/null || true
   "$ROOT/bin/history" "$domain" > "$prefix.ruby.history.raw.json" || return 1
 
   rm -rf "$domain/data"
+  if [ "$variant" = "postgres" ]; then pg_reset || return 1; fi
   "$BINARY" "$bluebook" "$script" > "$prefix.rust.raw.json" || return 1
   "$ROOT/bin/stores" "$domain" > "$prefix.rust.rows" 2>/dev/null || true
   "$ROOT/bin/history" "$domain" > "$prefix.rust.history.raw.json" || return 1
@@ -124,6 +165,146 @@ run_variants() {
   case "$(basename "$source")" in
     banking|market) run_domain "$source" "$script" Sqlite || return 1 ;;
   esac
+  # The Postgres variant runs wherever a domain declares explicit wiring
+  # (a hecksagon to rebind) and a database was provided. Absent the URL,
+  # the walk skips it with the notice printed at the top; configured but
+  # unreachable, pg_reset refuses loudly instead.
+  if [ -n "$HECKS_PARITY_POSTGRES" ] && ls "$source"/bluebook/*.hecksagon >/dev/null 2>&1; then
+    run_domain "$source" "$script" Postgres || return 1
+  fi
+}
+
+if [ -z "$HECKS_PARITY_POSTGRES" ]; then
+  echo "NOTICE: HECKS_PARITY_POSTGRES is not set — the Postgres parity variant is skipped."
+  echo "        Provide a connection URL (e.g. HECKS_PARITY_POSTGRES=postgres://localhost/parity;"
+  echo "        a local install or 'docker run -p 5432:5432 postgres' both work)."
+fi
+
+# The two-era lineage fixture: era bump → scaffold → audit → mint →
+# old-era writes (the fork) → tail-merge. Gates: byte-identical refusals
+# in both runtimes (drift, capability, unresolved, merge-conflict),
+# cross-runtime diffs of the era-2 run/history/stores over identically
+# prepared databases, and ancestor-partition immutability across the
+# whole dance.
+run_lineage() {
+  src="$ROOT/examples/lineage"
+  staged="/tmp/parity.lineage.domain"
+  prefix="/tmp/parity.output.lineage"
+  edge_file=$(ls "$src/bluebook/translations/")
+  rm -f "$prefix".*
+  rm -rf "$staged"
+  cp -R "$src" "$staged"
+  perl -0pi -e 's|database "[^"]*"|database "$ENV{HECKS_PARITY_POSTGRES}"|' "$staged/bluebook/lineage.world"
+
+  echo "── lineage (Postgres) — the era dance"
+
+  stage_era_1() {
+    cp "$staged/v1/lineage.bluebook" "$staged/bluebook/lineage.bluebook"
+    cp "$staged/v1/lineage.hecksagon" "$staged/bluebook/lineage.hecksagon"
+    rm -rf "$staged/bluebook/translations"
+  }
+  stage_era_2() {
+    cp "$src/bluebook/lineage.bluebook" "$staged/bluebook/lineage.bluebook"
+    cp "$src/bluebook/lineage.hecksagon" "$staged/bluebook/lineage.hecksagon"
+  }
+
+  # ── refusal bytes: drift (both runtimes), unresolved (both runtimes)
+  pg_reset || return 1
+  stage_era_1
+  "$ROOT/bin/run" "$staged" "$ROOT/spec/parity/fixtures/lineage_v1.json" >/dev/null 2>&1 || { echo "   FAILED — era-1 writes did not run"; return 1; }
+  stage_era_2
+  want_drift="cannot boot Lineage: the shape changed (era 2) and no translation edge covers it — run bin/scaffold_translation to write the edge, check it with bin/translation_audit, then boot again"
+  "$ROOT/bin/run" "$staged" "$ROOT/spec/parity/lineage.json" 2>&1 | grep -qF "$want_drift" || { echo "   SPLIT — ruby drift refusal bytes"; return 1; }
+  "$BINARY" "$staged/bluebook/lineage.bluebook" "$ROOT/spec/parity/lineage.json" 2>&1 | grep -qF "$want_drift" || { echo "   SPLIT — rust drift refusal bytes"; return 1; }
+  echo "   drift refuses toward the scaffold — byte-identical in both runtimes"
+
+  mkdir -p "$staged/bluebook/translations"
+  printf 'Hecks.data_translation "Lineage", from: "x", to: "y" do\n  aggregate "Account" do\n    unresolved :cost, candidates: [:amount]\n  end\nend\n' \
+    > "$staged/bluebook/translations/2-unresolved.bluebook"
+  want_unresolved="Account's translation leaves :cost unresolved (candidates: :amount) — replace unresolved with a rename, move, convert, or drop before booting."
+  "$ROOT/bin/run" "$staged" "$ROOT/spec/parity/lineage.json" 2>&1 | grep -qF "$want_unresolved" || { echo "   SPLIT — ruby unresolved refusal bytes"; return 1; }
+  "$BINARY" "$staged/bluebook/lineage.bluebook" "$ROOT/spec/parity/lineage.json" 2>&1 | grep -qF "$want_unresolved" || { echo "   SPLIT — rust unresolved refusal bytes"; return 1; }
+  rm "$staged/bluebook/translations/2-unresolved.bluebook"
+  echo "   unresolved refuses at load — byte-identical in both runtimes"
+
+  # ── capability refusal bytes: the same drift under a file adapter
+  heki="/tmp/parity.lineage.heki.domain"
+  rm -rf "$heki"
+  cp -R "$src" "$heki"
+  rm -rf "$heki/bluebook/translations"
+  perl -0pi -e 's/persisted_by\("Postgres"\) do\s*\n\s*database "[^"]*"/persisted_by("Heki") do\n    dir "data"/g' "$heki/bluebook/lineage.world"
+  perl -0pi -e 's/persisted_by\("Postgres"\)/persisted_by("Heki")/g' "$heki/bluebook/lineage.hecksagon" "$heki/v1/lineage.hecksagon"
+  cp "$heki/v1/lineage.bluebook" "$heki/bluebook/lineage.bluebook"
+  cp "$heki/v1/lineage.hecksagon" "$heki/bluebook/lineage.hecksagon"
+  "$ROOT/bin/run" "$heki" "$ROOT/spec/parity/fixtures/lineage_v1.json" >/dev/null 2>&1 || { echo "   FAILED — heki era-1 writes did not run"; return 1; }
+  cp "$src/bluebook/lineage.bluebook" "$heki/bluebook/lineage.bluebook"
+  cp "$src/bluebook/lineage.hecksagon" "$heki/bluebook/lineage.hecksagon"
+  perl -0pi -e 's/persisted_by\("Postgres"\)/persisted_by("Heki")/g' "$heki/bluebook/lineage.hecksagon"
+  want_capability="cannot boot Account: the shape changed (era 2) and Heki cannot translate — bind Postgres, or reset the data"
+  "$ROOT/bin/run" "$heki" "$ROOT/spec/parity/lineage.json" 2>&1 | grep -qF "$want_capability" || { echo "   SPLIT — ruby capability refusal bytes"; return 1; }
+  "$BINARY" "$heki/bluebook/lineage.bluebook" "$ROOT/spec/parity/lineage.json" 2>&1 | grep -qF "$want_capability" || { echo "   SPLIT — rust capability refusal bytes"; return 1; }
+  echo "   a file adapter refuses the same drift toward Postgres — byte-identical in both runtimes"
+
+  # ── the authoring loop: scaffold, resolve, audit; rust refuses until minted
+  "$ROOT/bin/scaffold_translation" "$staged" >/dev/null 2>&1 || { echo "   FAILED — scaffold refused"; return 1; }
+  cp "$src/bluebook/translations/$edge_file" "$staged/bluebook/translations/$edge_file"
+  "$ROOT/bin/translation_audit" "$staged" > "$prefix.audit" 2>/dev/null || { echo "   FAILED — audit refused:"; cat "$prefix.audit"; return 1; }
+  want_unminted="cannot boot Lineage: era 2 is not minted — minting is Ruby-only; boot the domain from Ruby to mint it, then boot here again"
+  "$BINARY" "$staged/bluebook/lineage.bluebook" "$ROOT/spec/parity/lineage.json" 2>&1 | grep -qF "$want_unminted" || { echo "   SPLIT — rust unminted refusal bytes"; return 1; }
+  echo "   scaffold + audit pass; an unminted era refuses from rust toward ruby"
+
+  # ── the era-2 run, cross-runtime: identically prepared databases,
+  #    ruby runs once, rust runs once, every gate diffed
+  for runtime in ruby rust; do
+    pg_reset || return 1
+    stage_era_1
+    "$ROOT/bin/run" "$staged" "$ROOT/spec/parity/fixtures/lineage_v1.json" >/dev/null 2>&1 || { echo "   FAILED — era-1 writes ($runtime leg)"; return 1; }
+    stage_era_2
+    mkdir -p "$staged/bluebook/translations"
+    cp "$src/bluebook/translations/$edge_file" "$staged/bluebook/translations/$edge_file"
+    "$ROOT/bin/ir" "$staged" >/dev/null 2>&1 || { echo "   FAILED — mint boot ($runtime leg)"; return 1; }
+    if [ "$runtime" = "ruby" ]; then
+      "$ROOT/bin/run" "$staged" "$ROOT/spec/parity/lineage.json" > "$prefix.$runtime.raw.json" 2>/dev/null || { echo "   FAILED — ruby era-2 run"; return 1; }
+    else
+      "$BINARY" "$staged/bluebook/lineage.bluebook" "$ROOT/spec/parity/lineage.json" > "$prefix.$runtime.raw.json" || { echo "   FAILED — rust era-2 run"; return 1; }
+    fi
+    "$ROOT/bin/history" "$staged" > "$prefix.$runtime.history.raw.json" 2>/dev/null || return 1
+    "$ROOT/bin/stores" "$staged" > "$prefix.$runtime.rows" 2>/dev/null || return 1
+    "$ROOT/bin/canonicalise" "$prefix.$runtime.raw.json" > "$prefix.$runtime.json"
+    "$ROOT/bin/canonicalise" "$prefix.$runtime.history.raw.json" > "$prefix.$runtime.history.json"
+    "$ROOT/bin/canonicalise" "$prefix.$runtime.rows" > "$prefix.$runtime.rows.json"
+  done
+  diff -u "$prefix.ruby.json" "$prefix.rust.json" || { echo "   SPLIT — the runtimes disagreed on the era-2 run"; return 1; }
+  diff -u "$prefix.ruby.history.json" "$prefix.rust.history.json" || { echo "   SPLIT — different journal histories after the era-2 run"; return 1; }
+  diff -u "$prefix.ruby.rows.json" "$prefix.rust.rows.json" || { echo "   SPLIT — different translated heads after the era-2 run"; return 1; }
+  echo "   era-2 run agrees — output, journal history, and translated stores"
+
+  # ── the fork: the old checkout keeps writing; then the tail-merge
+  psql -q "$HECKS_PARITY_POSTGRES" -t -c "SELECT ordinal, md5(state::text) FROM hecks_journal_lineage WHERE era = 1 ORDER BY ordinal" > "$prefix.ancestor.before"
+  old="/tmp/parity.lineage.old.domain"
+  rm -rf "$old"
+  cp -R "$staged" "$old"
+  cp "$old/v1/lineage.bluebook" "$old/bluebook/lineage.bluebook"
+  cp "$old/v1/lineage.hecksagon" "$old/bluebook/lineage.hecksagon"
+  rm -rf "$old/bluebook/translations"
+  "$ROOT/bin/run" "$old" "$ROOT/spec/parity/fixtures/lineage_v1_tail.json" >/dev/null 2>&1 || { echo "   FAILED — the old world could not keep writing its era"; return 1; }
+  diverged=$(psql -q "$HECKS_PARITY_POSTGRES" -t -A -c "SELECT count(*) FROM hecks_journal_lineage WHERE era = 1 AND ordinal > (SELECT watermark FROM hecks_eras WHERE domain = 'Lineage' AND ordinal = 2)")
+  [ "$diverged" = "2" ] || { echo "   FAILED — divergence not observable (saw $diverged, wanted 2)"; return 1; }
+  echo "   the old world diverges deliberately — $diverged post-cut writes, observable"
+
+  want_conflict="cannot merge the tail of Lineage: touched by both worlds since the cut — account#acct-1. Name each winner (--winner <id>=old or --winner <id>=new), then run bin/merge_tail again"
+  "$ROOT/bin/merge_tail" "$staged" 2>&1 | grep -qF "$want_conflict" || { echo "   SPLIT — merge-conflict refusal bytes"; return 1; }
+  "$ROOT/bin/merge_tail" "$staged" --winner acct-1=new >/dev/null 2>&1 || { echo "   FAILED — merge with a declared winner"; return 1; }
+  merged=$(psql -q "$HECKS_PARITY_POSTGRES" -t -A -c "SELECT count(*) FROM account_head WHERE id = 'acct-9'")
+  [ "$merged" = "1" ] || { echo "   FAILED — the merged tail did not reach the head"; return 1; }
+  echo "   tail-merge refuses the conflict by name, then interleaves the declared winner"
+
+  max_before=$(awk -F'|' '$1+0 > 0 {max = $1+0} END {print max}' "$prefix.ancestor.before")
+  psql -q "$HECKS_PARITY_POSTGRES" -t -c "SELECT ordinal, md5(state::text) FROM hecks_journal_lineage WHERE era = 1 AND ordinal <= $max_before ORDER BY ordinal" > "$prefix.ancestor.after"
+  diff -u "$prefix.ancestor.before" "$prefix.ancestor.after" || { echo "   SPLIT — an ancestor-partition row changed; originals are immutable"; return 1; }
+  echo "   ancestor partition immutable — every pre-fork row byte-identical through the dance"
+
+  return 0
 }
 
 failed=0
@@ -154,13 +335,18 @@ if [ $# -ge 1 ]; then
   fi
 else
   # THREE KINDS OF CORPUS MEMBER. `examples/` is what a reader is shown ;
-  # `lib/hecksagain/grammar/` is a real part of the runtime that happens to be a
-  # chapter ; `spec/parity/domains/` is neither — a domain that exists ONLY to
-  # hold the two runtimes to a shape no example declares, and has no business
-  # being read as an example of anything. A composite identity was the first.
-  for domain in "$ROOT"/examples/*/ "$ROOT"/lib/hecksagain/grammar/ "$ROOT"/spec/parity/domains/*/; do
+  # `lib/hecksagain/grammar/` is a real part of the runtime that happens to be
+  # a chapter (each staged alone below) ; `spec/parity/domains/` is neither —
+  # a domain that exists ONLY to hold the two runtimes to a shape no example
+  # declares, and has no business being read as an example of anything. A
+  # composite identity was the first.
+  for domain in "$ROOT"/examples/*/ "$ROOT"/spec/parity/domains/*/; do
     domain=${domain%/}
     name=$(basename "$domain")
+    # examples/lineage is the two-era Postgres fixture, driven by its own
+    # gated stage below — a world that binds Postgres cannot be a member
+    # of the zero-infrastructure walk.
+    [ "$name" = "lineage" ] && continue
     script="$ROOT/spec/parity/$name.json"
     if [ ! -f "$script" ]; then
       echo "── $name"
@@ -171,6 +357,40 @@ else
     run_variants "$domain" "$script" || failed=1
     echo
   done
+
+  # Each grammar chapter is its own corpus member. The grammar folder
+  # holds one bluebook PER SUBLANGUAGE (expression, translation, ...),
+  # but a domain directory can only be walked as one runtime boot — so
+  # each chapter is staged alone into a scratch directory and run under
+  # its own script, spec/parity/<chapter>.json. A chapter added to the
+  # folder with no script fails the walk rather than sliding outside it.
+  for bluebook in "$ROOT"/lib/hecksagain/grammar/*.bluebook; do
+    stem=$(basename "$bluebook" .bluebook)
+    staged="/tmp/parity.corpus/$stem"
+    rm -rf "$staged"
+    mkdir -p "$staged/bluebook"
+    cp "$bluebook" "$staged/bluebook/"
+    script="$ROOT/spec/parity/$stem.json"
+    if [ ! -f "$script" ]; then
+      echo "── $stem"
+      echo "   NO SCRIPT at spec/parity/$stem.json — write one, or remove the chapter."
+      failed=1
+      continue
+    fi
+    run_variants "$staged" "$script" || failed=1
+    echo
+  done
+
+  # The bump/no-bump boundary, held by DERIVED assertions: seeded
+  # mutants of the corpus, one storage-shape verdict from both runtimes.
+  # Zero infrastructure — this stage runs everywhere.
+  "$ROOT/bin/fuzz_shapes" || failed=1
+  echo
+
+  if [ -n "$HECKS_PARITY_POSTGRES" ]; then
+    run_lineage || failed=1
+    echo
+  fi
 fi
 
 if [ "$failed" -eq 0 ]; then

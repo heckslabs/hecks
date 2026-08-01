@@ -16,6 +16,29 @@ fn main() {
         return;
     }
 
+    if arguments.len() == 3 && arguments[1] == "--dump-shape" {
+        let source = fs::read_to_string(&arguments[2]).unwrap_or_else(|error| {
+            eprintln!("cannot read {}: {}", arguments[2], error);
+            std::process::exit(1);
+        });
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&storehouse::runtime::storage_shape::project(
+                &parser::parse(&source)
+            ))
+            .unwrap()
+        );
+        return;
+    }
+
+    if arguments.len() == 3 && arguments[1] == "--dump-translation" {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&read_translations(&arguments[2])).unwrap()
+        );
+        return;
+    }
+
     if arguments.len() == 3 && arguments[1] == "--wiring" {
         let source = fs::read_to_string(&arguments[2]).unwrap_or_else(|error| {
             eprintln!("cannot read {}: {}", arguments[2], error);
@@ -37,11 +60,13 @@ fn main() {
     if arguments.len() < 3 {
         eprintln!("usage: hecksagain <domain.bluebook> <script.json>");
         eprintln!("       hecksagain --dump <bluebook>");
+        eprintln!("       hecksagain --dump-translation <translations dir | edge.bluebook>");
         std::process::exit(2);
     }
 
     let script = read_json(&arguments[2]);
     storehouse_sqlite::register();
+    storehouse_postgres::register();
     let mut runtime = Runtime::boot(&arguments[1]).unwrap_or_else(|reason| {
         eprintln!("{reason}");
         std::process::exit(1);
@@ -232,6 +257,50 @@ fn read_bluebook(path: &str) -> Value {
     });
 
     ir_json::domain_to_value(&parser::parse(&source))
+}
+
+/// Translation IR for one edge file, or every edge in a `translations/`
+/// directory — always an array, matching `bin/ir --translations` on the
+/// Ruby side so the parity stage can diff the two readings directly.
+fn read_translations(path: &str) -> Value {
+    let path_buf = std::path::PathBuf::from(path);
+    let files: Vec<std::path::PathBuf> = if path_buf.is_dir() {
+        let mut found: Vec<std::path::PathBuf> = fs::read_dir(&path_buf)
+            .unwrap_or_else(|error| {
+                eprintln!("cannot read {}: {}", path, error);
+                std::process::exit(1);
+            })
+            .filter_map(Result::ok)
+            .map(|entry| entry.path())
+            .filter(|candidate| {
+                candidate
+                    .extension()
+                    .is_some_and(|extension| extension == "bluebook")
+            })
+            .collect();
+        found.sort();
+        found
+    } else {
+        vec![path_buf]
+    };
+
+    let translations: Vec<Value> = files
+        .into_iter()
+        .map(|file| {
+            let source = fs::read_to_string(&file).unwrap_or_else(|error| {
+                eprintln!("cannot read {}: {}", file.display(), error);
+                std::process::exit(1);
+            });
+            let translation = storehouse::bluebook::translation::parser::parse(&source)
+                .unwrap_or_else(|error| {
+                    eprintln!("{error}");
+                    std::process::exit(1);
+                });
+            storehouse::bluebook::translation::json::translation_to_value(&translation)
+        })
+        .collect();
+
+    Value::Array(translations)
 }
 
 fn read_json(path: &str) -> Value {

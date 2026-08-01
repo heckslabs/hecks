@@ -22,6 +22,10 @@ pub struct Runtime {
     pub events: Vec<Value>,
     pub reactions: Vec<Value>,
     pub sagas: Vec<Value>,
+    /// Every `translations/*.bluebook` beside the booted bluebook —
+    /// loaded at boot exactly as Ruby's folder glob loads them, so a
+    /// malformed edge file refuses a Rust boot as loudly as a Ruby one.
+    pub translations: Vec<crate::bluebook::translation::ir::Translation>,
     saga_instances: BTreeMap<String, BTreeMap<String, (String, Map<String, Value>)>>,
     reaction_depth: usize,
     // Set by a test to observe dispatch order (Vocabulary::AggregateDispatchOrder /
@@ -58,6 +62,7 @@ fn boot_repository(
     aggregate: &crate::ir::Aggregate,
     bluebook_path: &str,
     persistence: crate::ports::persistence::Persistence,
+    domain_name: &str,
 ) -> Result<Box<dyn PersistenceAdapter>, String> {
     let adapter = persistence.adapter.to_lowercase();
     if adapter == "memory" {
@@ -65,7 +70,16 @@ fn boot_repository(
     }
 
     let mut options = persistence.settings.clone();
+    // The domain rides along: a lineage adapter journals per DOMAIN,
+    // and the world's own settings never carry that name.
+    options.insert("domain".to_string(), domain_name.to_string());
     for field in ["dir", "database"] {
+        // Postgres's `database` is a connection identifier (a URL or a
+        // database name), never a file — only file-backed adapters
+        // resolve these settings relative to the bluebook.
+        if adapter == "postgres" || options.get(field).is_some_and(|value| value.contains("://")) {
+            continue;
+        }
         if let Some(path) = persistence.path(bluebook_path, field) {
             options.insert(field.to_string(), path.to_string_lossy().to_string());
         }
@@ -350,6 +364,28 @@ fn admissible_transition(
     ))
 }
 
+/// Loading existing state runs the same default-fill a fresh instance
+/// gets: an attribute the record predates — a newly-required field with
+/// a declared `default:`, a list added since the record was written —
+/// arrives filled instead of absent. Only declared defaults fill in; an
+/// attribute with no default stays exactly as stored. Mirrors Ruby's
+/// `Instance.hydrate_with_defaults`.
+fn fill_hydrate_defaults(aggregate: &Map<String, Value>, mut state: State) -> State {
+    // A default that cannot even build refuses loudly on every create;
+    // here it simply fills nothing rather than turning a read into a
+    // crash.
+    let Ok(defaults) = defaults_for(aggregate) else {
+        return state;
+    };
+    for (name, value) in defaults {
+        if value.is_null() || state.contains_key(&name) {
+            continue;
+        }
+        state.insert(name, value);
+    }
+    state
+}
+
 impl Runtime {
     pub fn new(ir: Value) -> Self {
         Runtime {
@@ -360,6 +396,7 @@ impl Runtime {
             events: Vec::new(),
             reactions: Vec::new(),
             sagas: Vec::new(),
+            translations: Vec::new(),
             saga_instances: BTreeMap::new(),
             reaction_depth: 0,
             dispatch_trace: None,
@@ -392,20 +429,109 @@ impl Runtime {
         let source = fs::read_to_string(bluebook_path)
             .map_err(|error| format!("cannot read {}: {error}", bluebook_path.display()))?;
         let domain = crate::bluebook::parser::parse(&source);
+        // Interim host-language strictness — see runtime::strict_boot.
+        if let Some(miss) = crate::runtime::strict_boot::scan(&source) {
+            return Err(format!(
+                "cannot boot {}::{}: this runtime could not read '{}' (did you mean '{}'?) — \
+                 a construct it cannot read refuses rather than half-reads; \
+                 host-language strictness is partial until the specializer",
+                domain.name, miss.aggregate, miss.keyword, miss.suggestion
+            ));
+        }
         let mut runtime = Self::new(crate::projector::ir_json::domain_to_value(&domain));
         let source_text = bluebook_path.to_string_lossy();
 
+        if let Some(directory) = bluebook_path.parent() {
+            for (_, translation_source) in
+                crate::bluebook::project_loader::translation_sources(directory)?
+            {
+                runtime
+                    .translations
+                    .push(crate::bluebook::translation::parser::parse(&translation_source)?);
+            }
+        }
+
+        let mut adapter_names = BTreeMap::new();
+        let mut capable = BTreeMap::new();
+        let mut ephemeral = false;
         for aggregate in &domain.aggregates {
             let bindings = crate::ports::persistence::resolve_all_for(&source_text, &aggregate.name)?;
+            if aggregate.name == domain.aggregates[0].name {
+                ephemeral = bindings
+                    .authoritative
+                    .settings
+                    .get("eras")
+                    .is_some_and(|declared| declared == "ephemeral");
+            }
+            adapter_names.insert(aggregate.name.clone(), bindings.authoritative.adapter.clone());
             if bindings.authoritative.adapter.to_lowercase() != "memory" {
-                let repository = boot_repository(aggregate, &source_text, bindings.authoritative)?;
+                let repository = boot_repository(aggregate, &source_text, bindings.authoritative, &domain.name)?;
                 runtime.attach(&aggregate.name, repository);
             }
             for mirror in bindings.mirrors {
                 let name = mirror.adapter.clone();
-                runtime.attach_mirror(&aggregate.name, name, boot_repository(aggregate, &source_text, mirror)?);
+                runtime.attach_mirror(&aggregate.name, name, boot_repository(aggregate, &source_text, mirror, &domain.name)?);
             }
+            capable.insert(
+                aggregate.name.clone(),
+                runtime.adapters.get(&aggregate.name).map(|adapter| adapter.lineage_capable()).unwrap_or(false),
+            );
             runtime.recover_mirrors(&aggregate.name)?;
+        }
+
+        // The era gate runs for EVERY adapter. A lineage-capable
+        // adapter (Postgres) holds its era facts as rows beside its
+        // data and gets the whole domain delegated to its own gate —
+        // which recognizes stored eras structurally and refuses toward
+        // the Ruby scaffold on anything unminted, since era identity is
+        // minted on the Ruby side alone. Everything else goes through
+        // the file store, anchored two levels above the bluebook file —
+        // the same `<domain>/data/eras/...` root Ruby's Loader derives.
+        let context = crate::runtime::era_check::EraContext {
+            domain: &domain,
+            translations: &runtime.translations,
+            adapters: &adapter_names,
+            capable: &capable,
+        };
+        if capable.values().any(|declared| *declared) {
+            if ephemeral {
+                return Err(format!(
+                    "{} binds Postgres with eras \"ephemeral\" — the enforcement-grade adapter \
+                     never forgets an era; drop the setting, or bind a file adapter for iteration",
+                    domain.name
+                ));
+            }
+            crate::runtime::era_check::check_compute_rules(&context)?;
+            let current_shape = crate::runtime::storage_shape::project(&domain);
+            let translations = runtime.translations.clone();
+            let capable_aggregate = domain
+                .aggregates
+                .iter()
+                .find(|aggregate| capable.get(&aggregate.name).copied().unwrap_or(false))
+                .map(|aggregate| aggregate.name.clone());
+            if let Some(name) = capable_aggregate {
+                let resolved = match runtime.adapters.get_mut(&name) {
+                    Some(adapter) => adapter.era_gate(&domain.name, &source, &current_shape, &translations)?,
+                    None => None,
+                };
+                if let Some(era) = resolved {
+                    for aggregate in &domain.aggregates {
+                        if capable.get(&aggregate.name).copied().unwrap_or(false) {
+                            if let Some(adapter) = runtime.adapters.get_mut(&aggregate.name) {
+                                adapter.adopt_era(era);
+                            }
+                        }
+                    }
+                }
+            }
+        } else if ephemeral {
+            // A DECLARED-ephemeral domain iterates freely: no held
+            // texts, no drift refusals — the world file says, in
+            // versioned text, that this data is disposable. The compute
+            // gate still applies; nothing else does.
+            crate::runtime::era_check::check_compute_rules(&context)?;
+        } else if let Some(root) = bluebook_path.parent().and_then(std::path::Path::parent) {
+            crate::runtime::era_check::check(&context, root, &source)?;
         }
 
         Ok(runtime)
@@ -512,7 +638,7 @@ impl Runtime {
                 for state in adapter.all() {
                     found.insert(
                         format!("{}::{}#{}", domain_name, name, state.id),
-                        value_bridge::from_state(state),
+                        fill_hydrate_defaults(aggregate, value_bridge::from_state(state)),
                     );
                 }
             }
@@ -1062,20 +1188,20 @@ impl Runtime {
         &mut self,
         domain: &str,
         aggregate_name: &str,
-        _aggregate: &Map<String, Value>,
+        aggregate: &Map<String, Value>,
     ) -> Vec<(String, State)> {
         if let Some(adapter) = self.adapters.get(aggregate_name) {
             return adapter
                 .all()
                 .into_iter()
-                .map(|s| (s.id.clone(), value_bridge::from_state(s)))
+                .map(|s| (s.id.clone(), fill_hydrate_defaults(aggregate, value_bridge::from_state(s))))
                 .collect();
         }
         let prefix = format!("{}::{}#", domain, aggregate_name);
         self.store
             .iter()
             .filter(|(key, _)| key.starts_with(&prefix))
-            .map(|(key, state)| (key[prefix.len()..].to_string(), state.clone()))
+            .map(|(key, state)| (key[prefix.len()..].to_string(), fill_hydrate_defaults(aggregate, state.clone())))
             .collect()
     }
 
@@ -1346,7 +1472,7 @@ impl Runtime {
                 .find(&id)
                 .map(value_bridge::from_state)
                 .ok_or_else(|| format!("no {} with {} {:?}", aggregate_name, reading, id))?;
-            return Ok((id, state));
+            return Ok((id, fill_hydrate_defaults(aggregate, state)));
         }
 
         let key = self
@@ -1356,7 +1482,7 @@ impl Runtime {
             .cloned()
             .ok_or_else(|| format!("no {} with {} {:?}", aggregate_name, reading, id))?;
 
-        Ok((id, self.store[&key].clone()))
+        Ok((id, fill_hydrate_defaults(aggregate, self.store[&key].clone())))
     }
 
     fn react_to(&mut self, event: &Value, domain: &str) {
@@ -2130,6 +2256,46 @@ mod query_semantics_tests {
         assert_eq!(query_text(&json!("abc")), "abc");
         assert_eq!(query_text(&json!(true)), "true");
         assert_eq!(query_text(&json!(false)), "false");
+    }
+
+    /// Loading existing state runs the same default-fill a fresh
+    /// instance gets — a declared default the record predates fills in;
+    /// a stored value is never overwritten; an attribute with no default
+    /// stays exactly as stored. Mirrors Ruby's
+    /// `Instance.hydrate_with_defaults` (spec/hydrate_defaults_spec.rb).
+    #[test]
+    fn hydrating_stored_state_fills_declared_defaults_only() {
+        let aggregate = json!({
+            "name": "Account",
+            "attributes": [
+                { "name": "balance", "type": "Money" },
+                { "name": "standing", "type": "Standing", "default": { "value": "good" } },
+                { "name": "notes", "type": "Note", "list": true }
+            ],
+            "value_objects": [
+                { "name": "Money", "attributes": [{ "name": "cents", "type": "Integer" }] },
+                { "name": "Standing", "attributes": [{ "name": "value", "type": "String" }] },
+                { "name": "Note", "attributes": [{ "name": "text", "type": "String" }] }
+            ],
+            "lifecycle": { "field": "status", "default": "open" }
+        });
+        let aggregate = aggregate.as_object().unwrap();
+
+        let mut stored = Map::new();
+        stored.insert("balance".to_string(), json!({ "cents": 100 }));
+        let filled = fill_hydrate_defaults(aggregate, stored);
+        assert_eq!(filled.get("standing"), Some(&json!({ "value": "good" })));
+        assert_eq!(filled.get("notes"), Some(&json!([])));
+        assert_eq!(filled.get("status"), Some(&json!("open")));
+        assert_eq!(filled.get("balance"), Some(&json!({ "cents": 100 })));
+
+        let mut stored = Map::new();
+        stored.insert("standing".to_string(), json!({ "value": "delinquent" }));
+        stored.insert("status".to_string(), json!("closed"));
+        let filled = fill_hydrate_defaults(aggregate, stored);
+        assert_eq!(filled.get("standing"), Some(&json!({ "value": "delinquent" })));
+        assert_eq!(filled.get("status"), Some(&json!("closed")));
+        assert_eq!(filled.get("balance"), None);
     }
 
     #[test]

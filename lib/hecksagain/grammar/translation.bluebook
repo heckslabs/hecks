@@ -1,0 +1,198 @@
+
+Hecks.bluebook "Translation" do
+  vision "The declared bridge from one era of a domain's storage shape to the next — every rule checkable, every loss written down, carried as one edge file both runtimes read identically."
+  generic
+
+  aggregate "Rule" do
+    description "One admitted way a value survives a shape change — its kind, where it reads from, where it writes to, and how it executes in every target that must apply it."
+
+    identified_by { source.value }
+
+    attribute :kind,        Kind
+    attribute :source,      SourcePath
+    attribute :destination, DestinationPath
+    attribute :executions,  list_of(Execution)
+
+    lifecycle :status, default: "proposed" do
+      transition "Admit"  => "admitted", from: "proposed"
+      transition "Retire" => "retired",  from: "admitted"
+    end
+
+    value_object "Kind" do
+      attribute :value, String
+      invariant("a rule is one of the declared kinds") do
+        value.to_s == "rename" || value.to_s == "move" || value.to_s == "convert" || value.to_s == "drop" || value.to_s == "retype" || value.to_s == "retired" || value.to_s == "compute" || value.to_s == "unresolved"
+      end
+    end
+
+    value_object "SourcePath" do
+      attribute :value, String
+      invariant("a rule reads from somewhere") { !value.to_s.empty? }
+    end
+
+    value_object "DestinationPath" do
+      attribute :value, String
+    end
+
+    value_object "Target" do
+      attribute :value, String
+    end
+
+    value_object "Form" do
+      attribute :value, String
+    end
+
+    value_object "Execution" do
+      attribute :target, String
+      attribute :form,   String
+
+      invariant("an execution must name its target") { !target.to_s.empty? }
+      invariant("an execution must have a form")     { !form.to_s.empty? }
+    end
+
+    command "Propose" do
+      role "Author"
+      goal "Put one way of surviving a shape change forward"
+
+      attribute :kind,        Kind
+      attribute :source,      SourcePath
+      attribute :destination, DestinationPath
+
+      emits "RuleProposed"
+    end
+
+    command "Execute" do
+      role "Author"
+      goal "Declare how this rule runs in one target"
+
+      reference_to Rule
+      attribute :target, Target
+      attribute :form,   Form
+
+      given("a retired rule takes no new executions") { status != "retired" }
+
+      then_set :executions, append: { target: :target, form: :form }
+
+      emits "RuleExecuted"
+    end
+
+    command "Admit" do
+      role "Author"
+      goal "Accept the rule — it executes identically in every target"
+
+      reference_to Rule
+
+      given("a rule must execute in every target before it is admitted") { executions.size >= 2 }
+
+      emits "RuleAdmitted"
+    end
+
+    command "Retire" do
+      role "Author"
+      goal "Remove the rule from the language"
+
+      reference_to Rule
+
+      emits "RuleRetired"
+    end
+  end
+
+  aggregate "Map" do
+    description "One translation edge between two minted eras — the ordered declarations that carry a domain's data across one shape change, sealed before anything boots through it."
+
+    identified_by { domain.value }
+
+    attribute :domain,       DomainName
+    attribute :from_shape,   ShapeHash
+    attribute :to_shape,     ShapeHash
+    attribute :declarations, list_of(Declaration)
+
+    lifecycle :status, default: "drafted" do
+      transition "Seal"      => "sealed",     from: "drafted"
+      transition "Supersede" => "superseded", from: "sealed"
+    end
+
+    value_object "DomainName" do
+      attribute :value, String
+      invariant("an edge names the domain it translates") { !value.to_s.empty? }
+    end
+
+    value_object "ShapeHash" do
+      attribute :value, String
+      invariant("an era is named by its minted hash") { !value.to_s.empty? }
+    end
+
+    value_object "Kind" do
+      attribute :value, String
+    end
+
+    value_object "SourcePath" do
+      attribute :value, String
+    end
+
+    value_object "DestinationPath" do
+      attribute :value, String
+    end
+
+    value_object "Reason" do
+      attribute :value, String
+      invariant("a superseded edge says why") { !value.to_s.empty? }
+    end
+
+    value_object "Declaration" do
+      attribute :kind,        String
+      attribute :source,      String
+      attribute :destination, String
+
+      invariant("a declaration knows its kind") { !kind.to_s.empty? }
+    end
+
+    command "Draft" do
+      role "Author"
+      goal "Open the edge between two eras"
+
+      attribute :domain,     DomainName
+      attribute :from_shape, ShapeHash
+      attribute :to_shape,   ShapeHash
+
+      emits "MapDrafted"
+    end
+
+    command "Declare" do
+      role "Author"
+      goal "Write one rule into the edge"
+
+      reference_to Map
+      attribute :kind,        Kind
+      attribute :source,      SourcePath
+      attribute :destination, DestinationPath
+
+      given("a sealed edge takes no further declarations") { status == "drafted" }
+
+      then_set :declarations, append: { kind: :kind, source: :source, destination: :destination }
+
+      emits "RuleDeclared"
+    end
+
+    command "Seal" do
+      role "Author"
+      goal "Declare the edge complete — data can cross it"
+
+      reference_to Map
+
+      given("an empty edge explains nothing") { declarations.size >= 1 }
+
+      emits "MapSealed"
+    end
+
+    command "Supersede" do
+      role "Author"
+      goal "Record that a corrected edge replaced this one"
+
+      reference_to Map
+      attribute :reason, Reason
+
+      emits "MapSuperseded"
+    end
+  end
+end

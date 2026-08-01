@@ -1,4 +1,5 @@
 Hecks.adapter "Heki" do
   port   "persistence"
   field  :dir
+  field  :eras
 end

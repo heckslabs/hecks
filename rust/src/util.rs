@@ -50,3 +50,14 @@ mod tests {
         assert_eq!(id.as_bytes()[14], b'4');
     }
 }
+
+/// Raw-byte SHA-256, hex — the held-era-text INTEGRITY digest. This is
+/// deliberately not era naming: era identity hashes the canonical
+/// projection and is minted once, Ruby-side only. This is a plain
+/// tamper check over bytes.
+pub fn sha256_hex(bytes: &[u8]) -> String {
+    use sha2::{Digest, Sha256};
+    let mut hasher = Sha256::new();
+    hasher.update(bytes);
+    hasher.finalize().iter().map(|byte| format!("{byte:02x}")).collect()
+}

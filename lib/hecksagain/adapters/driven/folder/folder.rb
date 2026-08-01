@@ -1,7 +1,7 @@
 module Hecksagain
   module Adapters
     class Folder
-      DOMAIN_ORDER = %w[*.port *.adapter *.bluebook *.hecksagon *.world].freeze
+      DOMAIN_ORDER = %w[*.port *.adapter *.bluebook translations/*.bluebook *.hecksagon *.world].freeze
       PORTS        = "ports"
       ADAPTERS     = "adapters"
 

@@ -5,6 +5,12 @@ pub use persistence_adapter::ReplicationEntry;
 mod persistence;
 pub use persistence::{resolve_all_for, resolve_for, Persistence, PersistenceBindings, DEFAULT_ADAPTER};
 
+mod lineage;
+pub use lineage::Lineage;
+
+mod era_store;
+pub use era_store::EraStore;
+
 #[allow(dead_code)]
 pub mod persistence_adapter;
 

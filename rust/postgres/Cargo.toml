@@ -1,0 +1,13 @@
+[package]
+name = "storehouse-postgres"
+version = "0.1.0"
+edition = "2021"
+description = "Postgres persistence adapter for storehouse — implements the PersistenceAdapter port and, alone among adapters, the lineage capability. Host-only; never linked by the wasm Worker."
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+storehouse = { path = ".." }
+postgres = "0.19"
+serde_json = "1"

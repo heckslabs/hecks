@@ -1,0 +1,10 @@
+{
+  "name": "lineage-merged-check",
+  "note": "Read-only look at the merged head.",
+  "steps": [
+    {
+      "query": "Lineage::Account.StillOpen",
+      "args": {}
+    }
+  ]
+}

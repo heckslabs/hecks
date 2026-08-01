@@ -1,3 +1,4 @@
 Hecks.adapter "Memory" do
   port   "persistence"
+  field  :eras
 end

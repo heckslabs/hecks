@@ -1,0 +1,23 @@
+#!/usr/bin/env ruby
+
+# The storage-shape projection of one bluebook file, as JSON — the Ruby
+# side of what `hecksagain --dump-shape` prints, so the two runtimes'
+# bump/no-bump boundary can be diffed directly (bin/fuzz_shapes does so
+# over mutated corpora).
+
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+
+require "hecksagain"
+require "json"
+
+path = ARGV.shift or abort "usage: bin/shape <bluebook>"
+
+registry = Hecksagain::Runtime::Registry.new
+loading = Hecksagain::Ports::Loading.bootstrap
+Hecksagain.with_registry(registry) do
+  loading.load_library
+  Kernel.eval(File.read(path), TOPLEVEL_BINDING, File.expand_path(path), 1)
+end
+
+bluebook = registry.bluebooks.values.first or abort "#{path} declares no bluebook"
+puts JSON.pretty_generate(Hecksagain::Runtime::StorageShape.project(bluebook))

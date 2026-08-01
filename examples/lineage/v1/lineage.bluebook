@@ -1,0 +1,55 @@
+Hecks.bluebook "Lineage" do
+  vision "One domain, told across two eras — the corpus member that proves a shape change is survivable."
+  generic
+
+  aggregate "Acct" do
+    identified_by { number.value }
+
+    attribute :number,      AccountNumber
+    attribute :cost,        Money
+    attribute :kind,        Kind
+    attribute :legacy_note, Note
+
+    lifecycle :status, default: "open" do
+      transition "Close" => "closed", from: "open"
+    end
+
+    value_object "AccountNumber" do
+      attribute :value, String
+    end
+
+    value_object "Money" do
+      attribute :cents,    Integer
+      attribute :currency, String
+    end
+
+    value_object "Kind" do
+      attribute :label, String
+    end
+
+    value_object "Note" do
+      attribute :text, String
+    end
+
+    command "Open" do
+      role "Clerk"
+      goal "Put an account on the books"
+
+      attribute :number,      AccountNumber
+      attribute :cost,        Money
+      attribute :kind,        Kind
+      attribute :legacy_note, Note
+
+      emits "AcctOpened"
+    end
+
+    command "Close" do
+      role "Clerk"
+      goal "Take an account off the books"
+
+      reference_to Acct
+
+      emits "AcctClosed"
+    end
+  end
+end

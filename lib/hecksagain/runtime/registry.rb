@@ -4,7 +4,7 @@ module Hecksagain
 
     class Registry
       attr_reader :root, :bluebooks, :hecksagons, :ports, :adapters, :worlds, :event_log,
-                  :reaction_log, :saga_log, :saga_instances
+                  :reaction_log, :saga_log, :saga_instances, :translations
 
       def initialize(root: nil)
         @root         = root
@@ -13,6 +13,7 @@ module Hecksagain
         @ports     = {}
         @adapters     = {}
         @worlds       = {}
+        @translations = []
         @event_log    = []
         @reaction_log = []
         @saga_log = []
@@ -36,6 +37,13 @@ module Hecksagain
       def add_port(item)    = @ports[item.name]   = item
       def add_adapter(item)   = @adapters[item.name]   = item
       def add_world(item)     = @worlds[item.domain]   = item
+      def add_translation(item) = @translations << item
+
+      # {domain name => era ordinal} as resolved by the boot-time era
+      # gate. A lineage adapter writes into ITS OWN era's partition —
+      # which, for an old checkout booting a held-but-superseded shape,
+      # is not the newest one.
+      def resolved_eras = @resolved_eras ||= {}
 
       def bluebook(name)  = @bluebooks[name.to_s]
       def hecksagon(name) = @hecksagons[name.to_s]

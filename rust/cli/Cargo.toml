@@ -15,4 +15,5 @@ path = "src/main.rs"
 [dependencies]
 storehouse = { path = ".." }
 storehouse-sqlite = { path = "../sqlite" }
+storehouse-postgres = { path = "../postgres" }
 serde_json = "1"

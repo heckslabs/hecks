@@ -6163,6 +6163,12 @@
             [
               [
                 "glob",
+                "translations/*.bluebook"
+              ]
+            ],
+            [
+              [
+                "glob",
                 "*.hecksagon"
               ]
             ],

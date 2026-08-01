@@ -31,5 +31,11 @@ regex = "1"
 # written by one runtime is readable by the other.
 flate2 = "1"
 
+# sha2 — raw-byte INTEGRITY digests over held era texts, verified at
+# boot. Deliberately NOT era naming: era identity hashes the canonical
+# projection and is minted once, Ruby-side only; this is a plain
+# tamper check over bytes, implementation-trivial in any runtime.
+sha2 = "0.10"
+
 [workspace]
-members = ["sqlite", "cli"]
+members = ["sqlite", "postgres", "cli"]

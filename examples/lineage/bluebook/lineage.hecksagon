@@ -1,0 +1,3 @@
+Hecks.hecksagon "Lineage" do
+  Lineage::Account.persisted_by("Postgres")
+end

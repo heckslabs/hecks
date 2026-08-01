@@ -43,6 +43,9 @@ require_relative "runtime/read_model_interpreter"
 require_relative "runtime/policy_interpreter"
 require_relative "runtime/saga_interpreter"
 require_relative "runtime/dispatcher"
+require_relative "runtime/era_guard"
+require_relative "runtime/storage_shape"
+require_relative "runtime/era_check"
 require_relative "runtime/loader"
 
 module Hecksagain

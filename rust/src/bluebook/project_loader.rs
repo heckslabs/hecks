@@ -42,6 +42,11 @@ impl Entry {
 pub struct ProjectLoader {
     pub root: PathBuf,
     pub entries: BTreeMap<String, Entry>,
+    /// Every `translations/*.bluebook` edge file discovered beside a
+    /// domain's bluebooks — the same glob Ruby's `Folder::DOMAIN_ORDER`
+    /// already walks, so a translation a Ruby boot loads is never one a
+    /// Rust boot silently cannot see.
+    pub translations: Vec<crate::bluebook::translation::ir::Translation>,
 }
 
 impl ProjectLoader {
@@ -56,6 +61,7 @@ impl ProjectLoader {
         let mut loader = Self {
             root: root.clone(),
             entries: BTreeMap::new(),
+            translations: vec![],
         };
         for directory in bluebook_directories(&root)? {
             let worlds = worlds(&directory)?;
@@ -66,6 +72,11 @@ impl ProjectLoader {
                     &directory,
                     &source_path,
                 )?;
+            }
+            for (_, source) in translation_sources(&directory)? {
+                loader
+                    .translations
+                    .push(crate::bluebook::translation::parser::parse(&source)?);
             }
         }
         Ok(loader)
@@ -256,6 +267,35 @@ fn has_bluebook(directory: &Path) -> bool {
         })
 }
 
+/// `<bluebook dir>/translations/*.bluebook`, sorted — the edge files a
+/// domain's shape changes are declared in. Ruby's loader has globbed
+/// this folder since the language landed; without the same walk here, a
+/// file Ruby refuses to boot on would simply not exist to Rust.
+pub fn translation_sources(directory: &Path) -> Result<Vec<(PathBuf, String)>, String> {
+    let translations = directory.join("translations");
+    if !translations.is_dir() {
+        return Ok(vec![]);
+    }
+    let mut paths: Vec<PathBuf> = fs::read_dir(&translations)
+        .map_err(|error| format!("cannot read {}: {error}", translations.display()))?
+        .filter_map(Result::ok)
+        .map(|entry| entry.path())
+        .filter(|path| {
+            path.extension()
+                .is_some_and(|extension| extension == "bluebook")
+        })
+        .collect();
+    paths.sort();
+    paths
+        .into_iter()
+        .map(|path| {
+            fs::read_to_string(&path)
+                .map(|source| (path.clone(), source))
+                .map_err(|error| format!("cannot read {}: {error}", path.display()))
+        })
+        .collect()
+}
+
 fn bluebook_sources(directory: &Path) -> Result<Vec<(PathBuf, String)>, String> {
     let mut paths: Vec<PathBuf> = fs::read_dir(directory)
         .map_err(|error| format!("cannot read {}: {error}", directory.display()))?
@@ -407,6 +447,50 @@ end
                 "Acme::Banking@v2::Account.Credit",
             ]
         );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    /// The glob Ruby's `Folder::DOMAIN_ORDER` has walked since the
+    /// translation language landed — a translation Ruby loads at boot
+    /// must never be one Rust silently cannot see, and a malformed edge
+    /// file must refuse the load, not vanish from it.
+    #[test]
+    fn discovers_translation_edges_beside_a_domain_s_bluebooks() {
+        let root = temporary_project("translations");
+        write_bluebook(
+            &root,
+            "catalog",
+            r#"
+Hecks.bluebook "Catalog" do
+  aggregate "Book" do
+    command "Add" do
+    end
+  end
+end
+"#,
+        );
+        write_world(&root, "catalog", "Catalog", None);
+        let translations = root.join("catalog").join("bluebook").join("translations");
+        fs::create_dir_all(&translations).unwrap();
+        fs::write(
+            translations.join("2-b81d04.bluebook"),
+            "Hecks.data_translation \"Catalog\", from: \"a3f9c2\", to: \"b81d04\" do\n  aggregate \"Book\" do\n    rename :cost, to: :amount\n  end\nend\n",
+        )
+        .unwrap();
+
+        let loader = ProjectLoader::load(&root).unwrap();
+        assert_eq!(loader.translations.len(), 1);
+        assert_eq!(loader.translations[0].domain, "Catalog");
+        assert_eq!(loader.translations[0].for_aggregate("Book").unwrap().renames, vec![("cost".to_string(), "amount".to_string())]);
+
+        fs::write(
+            translations.join("3-broken.bluebook"),
+            "Hecks.data_translation \"Catalog\", from: \"b81d04\", to: \"c92e15\" do\n  aggregate \"Book\" do\n    rename :cost\n  end\nend\n",
+        )
+        .unwrap();
+        let error = ProjectLoader::load(&root).unwrap_err();
+        assert_eq!(error, "a rename needs a destination name (to:)");
+
         fs::remove_dir_all(root).unwrap();
     }
 

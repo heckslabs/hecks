@@ -88,6 +88,76 @@ RSpec.describe "the DSL surface" do
       expect([bind.aggregate, bind.verb, bind.adapter]).to eq(["Hexed::Thing", "posted_by", "Carrier"])
     end
 
+    it ".data_translation registers a rename, a move, a convert, and a drop between two eras" do
+      registry = in_registry do
+        Hecks.data_translation("Translated", from: "1", to: "2") do
+          aggregate("Thing", was: "Widget") do
+            rename :cost, to: :amount
+            move "price.cents", to: "price_cents"
+            convert "kind.label", to: "kind.label", values: { "old" => "new" }
+            drop :legacy_note
+          end
+        end
+      end
+      translation = registry.translations.first
+      thing = translation.for_aggregate("Thing")
+
+      expect([translation.domain, translation.from, translation.to]).to eq(["Translated", "1", "2"])
+      expect([thing.was, thing.renames]).to eq(["Widget", { cost: :amount }])
+      expect(thing.moves.map { |move| [move.from, move.to] }).to eq([["price.cents", "price_cents"]])
+      expect(thing.converts.map { |c| [c.from, c.to, c.values] }).to eq([["kind.label", "kind.label", { "old" => "new" }]])
+      expect(thing.drops).to eq([:legacy_note])
+    end
+
+    it ".data_translation registers a retype and a retired aggregate" do
+      registry = in_registry do
+        Hecks.data_translation("Translated", from: "1", to: "2") do
+          aggregate("Thing") { retype "Money", to: "Cash" }
+          retired "Ledger"
+        end
+      end
+      translation = registry.translations.first
+
+      expect(translation.for_aggregate("Thing").retypes.map { |r| [r.from, r.to] }).to eq([["Money", "Cash"]])
+      expect(translation.retired).to eq(["Ledger"])
+    end
+
+    it ".data_translation registers a compute with its SQL expression" do
+      registry = in_registry do
+        Hecks.data_translation("Translated", from: "1", to: "2") do
+          aggregate("Thing") { compute "price_cents", to: "price_dollars", sql: "price_cents::numeric / 100" }
+        end
+      end
+      computed = registry.translations.first.for_aggregate("Thing").computes.first
+
+      expect([computed.from, computed.to, computed.sql])
+        .to eq(["price_cents", "price_dollars", "price_cents::numeric / 100"])
+    end
+
+    it ".data_translation refuses an unresolved placeholder and an unknown rule" do
+      expect do
+        in_registry do
+          Hecks.data_translation("Translated", from: "1", to: "2") do
+            aggregate("Thing") { unresolved :cost, candidates: [:amount] }
+          end
+        end
+      end.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /leaves :cost unresolved/)
+
+      expect do
+        in_registry do
+          Hecks.data_translation("Translated", from: "1", to: "2") do
+            aggregate("Thing") { renmae :cost, to: :amount }
+          end
+        end
+      end.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /got 'renmae'/)
+
+      expect do
+        in_registry do
+          Hecks.data_translation("Translated", from: "1", to: "2") { banana "Thing" }
+        end
+      end.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /does not understand 'banana'/)
+    end
+
     it ".boot loads a domain directory and returns the door" do
       runtime = Hecks.boot(File.expand_path("../examples/pizzas", __dir__))
       expect(runtime).to be_a(Hecksagain::Runtime::Dispatcher)

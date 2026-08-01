@@ -1,0 +1,264 @@
+{
+  "name": "translation-parity",
+  "note": "The chapter that DEFINES the translation sublanguage, read by both parsers — added to the corpus the day it was written, so it can never sit outside the walk the way expression.bluebook once did. Every step walks a declared gate: admitting a rule before it executes in two targets, declaring into a sealed edge, sealing an empty edge, proposing a kind the language does not have.",
+  "steps": [
+    {
+      "verb": "Translation::Rule.Propose",
+      "args": {
+        "kind": {
+          "value": "rename"
+        },
+        "source": {
+          "value": "cost"
+        },
+        "destination": {
+          "value": "amount"
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Admit",
+      "args": {
+        "source": {
+          "value": "cost"
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Execute",
+      "args": {
+        "source": {
+          "value": "cost"
+        },
+        "target": {
+          "value": "port"
+        },
+        "form": {
+          "value": "state[:amount] = state.delete(:cost)"
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Execute",
+      "args": {
+        "source": {
+          "value": "cost"
+        },
+        "target": {
+          "value": "postgres"
+        },
+        "form": {
+          "value": "state - 'cost' || jsonb_build_object('amount', state->'cost')"
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Admit",
+      "args": {
+        "source": {
+          "value": "cost"
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Admit",
+      "args": {
+        "source": {
+          "value": "cost"
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Retire",
+      "args": {
+        "source": {
+          "value": "cost"
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Execute",
+      "args": {
+        "source": {
+          "value": "cost"
+        },
+        "target": {
+          "value": "sqlite"
+        },
+        "form": {
+          "value": "unreachable"
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Propose",
+      "args": {
+        "kind": {
+          "value": "transmogrify"
+        },
+        "source": {
+          "value": "cost"
+        },
+        "destination": {
+          "value": "amount"
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Propose",
+      "args": {
+        "kind": {
+          "value": "compute"
+        },
+        "source": {
+          "value": "price_cents"
+        },
+        "destination": {
+          "value": "price_dollars"
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Execute",
+      "args": {
+        "source": {
+          "value": "price_cents"
+        },
+        "target": {
+          "value": "postgres"
+        },
+        "form": {
+          "value": "price_cents::numeric / 100"
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Execute",
+      "args": {
+        "source": {
+          "value": "price_cents"
+        },
+        "target": {
+          "value": "audit"
+        },
+        "form": {
+          "value": "layer-3 human-sampled review"
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Admit",
+      "args": {
+        "source": {
+          "value": "price_cents"
+        }
+      }
+    },
+    {
+      "verb": "Translation::Map.Draft",
+      "args": {
+        "domain": {
+          "value": "Banking"
+        },
+        "from_shape": {
+          "value": "a3f9c2"
+        },
+        "to_shape": {
+          "value": "b81d04"
+        }
+      }
+    },
+    {
+      "verb": "Translation::Map.Seal",
+      "args": {
+        "domain": {
+          "value": "Banking"
+        }
+      }
+    },
+    {
+      "verb": "Translation::Map.Declare",
+      "args": {
+        "domain": {
+          "value": "Banking"
+        },
+        "kind": {
+          "value": "rename"
+        },
+        "source": {
+          "value": "cost"
+        },
+        "destination": {
+          "value": "amount"
+        }
+      }
+    },
+    {
+      "verb": "Translation::Map.Declare",
+      "args": {
+        "domain": {
+          "value": "Banking"
+        },
+        "kind": {
+          "value": "drop"
+        },
+        "source": {
+          "value": "legacy_note"
+        },
+        "destination": {
+          "value": ""
+        }
+      }
+    },
+    {
+      "verb": "Translation::Map.Seal",
+      "args": {
+        "domain": {
+          "value": "Banking"
+        }
+      }
+    },
+    {
+      "verb": "Translation::Map.Declare",
+      "args": {
+        "domain": {
+          "value": "Banking"
+        },
+        "kind": {
+          "value": "convert"
+        },
+        "source": {
+          "value": "code"
+        },
+        "destination": {
+          "value": "code"
+        }
+      }
+    },
+    {
+      "verb": "Translation::Map.Draft",
+      "args": {
+        "domain": {
+          "value": ""
+        },
+        "from_shape": {
+          "value": "a3f9c2"
+        },
+        "to_shape": {
+          "value": "b81d04"
+        }
+      }
+    },
+    {
+      "verb": "Translation::Map.Supersede",
+      "args": {
+        "domain": {
+          "value": "Banking"
+        },
+        "reason": {
+          "value": "the convert table missed a value; a corrected edge replaced this one"
+        }
+      }
+    }
+  ]
+}

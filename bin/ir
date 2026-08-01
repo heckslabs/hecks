@@ -5,7 +5,12 @@ $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
 require "hecksagain"
 
+translations_only = ARGV.delete("--translations")
 domain  = ARGV.shift || File.expand_path("../examples/pizzas", __dir__)
 runtime = Hecks.boot(domain)
 
-puts Hecksagain::Projector::Exporter.json(runtime.registry)
+if translations_only
+  puts Hecksagain::Projector::Exporter.translations_json(runtime.registry)
+else
+  puts Hecksagain::Projector::Exporter.json(runtime.registry)
+end

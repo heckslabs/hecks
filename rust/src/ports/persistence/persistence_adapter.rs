@@ -51,6 +51,48 @@ pub trait PersistenceAdapter: Send {
         Ok(vec![])
     }
 
+    /// An ancestor's own, already-resolved records, for an aggregate that
+    /// was renamed — the hook a renamed aggregate uses to find data it
+    /// left behind under its old storage name. The default says "this
+    /// adapter has no ancestor to offer," matching Ruby's
+    /// `adapter.respond_to?(:ancestor_entries)` capability check: most
+    /// adapters simply don't override this, and lineage seeds nothing
+    /// from an ancestor rather than refusing.
+    fn ancestor_records(&self, _ancestor_storage_name: &str) -> Result<Vec<AggregateState>, String> {
+        Ok(vec![])
+    }
+
+    /// Whether this adapter may ACT on shape drift — translate, fork,
+    /// merge. Only Postgres ever declares it; every other adapter's
+    /// era check refuses toward Postgres instead. Mirrors Ruby's
+    /// class-level `lineage_capable?` capability idiom.
+    fn lineage_capable(&self) -> bool {
+        false
+    }
+
+    /// The adapter-side era gate for a lineage-capable adapter: era
+    /// facts live as rows beside the data, so the boot check delegates
+    /// the whole domain here instead of the file store. The default is
+    /// a no-op — only Postgres overrides it, and even there a Rust boot
+    /// never mints: era identity is Ruby-scaffold-only, so an unminted
+    /// era refuses toward the Ruby side. Returns the RESOLVED era: an
+    /// old checkout booting a held-but-superseded shape is permitted,
+    /// and gets its own era back so its writes land in its own
+    /// partition.
+    fn era_gate(
+        &mut self,
+        _domain_name: &str,
+        _current_text: &str,
+        _current_shape: &serde_json::Value,
+        _translations: &[crate::bluebook::translation::ir::Translation],
+    ) -> Result<Option<i32>, String> {
+        Ok(None)
+    }
+
+    /// Adopt the era the gate resolved — every one of the domain's
+    /// lineage adapters writes into that era's partition from here on.
+    fn adopt_era(&mut self, _era: i32) {}
+
     /// CANDIDATES, NEVER FINAL ROWS.
     ///
     /// `Some(rows)` promises `rows` is a SUPERSET of every stored row satisfying

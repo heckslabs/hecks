@@ -1,0 +1,59 @@
+Hecks.bluebook "Lineage" do
+  vision "One domain, told across two eras — the corpus member that proves a shape change is survivable."
+  generic
+
+  aggregate "Account" do
+    identified_by { number.value }
+
+    attribute :number,       AccountNumber
+    attribute :amount,       Money
+    attribute :kind,         Kind
+    attribute :denomination, Denomination
+
+    lifecycle :status, default: "open" do
+      transition "Close" => "closed", from: "open"
+    end
+
+    value_object "AccountNumber" do
+      attribute :value, String
+    end
+
+    value_object "Money" do
+      attribute :cents, Integer
+    end
+
+    value_object "Kind" do
+      attribute :label, String
+    end
+
+    value_object "Denomination" do
+      attribute :code, String
+    end
+
+    command "Open" do
+      role "Clerk"
+      goal "Put an account on the books"
+
+      attribute :number,       AccountNumber
+      attribute :amount,       Money
+      attribute :kind,         Kind
+      attribute :denomination, Denomination
+
+      emits "AccountOpened"
+    end
+
+    command "Close" do
+      role "Clerk"
+      goal "Take an account off the books"
+
+      reference_to Account
+
+      emits "AccountClosed"
+    end
+
+    query "StillOpen" do
+      where(status: "open")
+      order_by :number
+    end
+  end
+end

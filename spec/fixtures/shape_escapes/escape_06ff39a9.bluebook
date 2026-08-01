@@ -1,0 +1,934 @@
+Hecks.bluebook "Banking" do
+  vision "Customers hold accounts, accounts move money, and every movement is a transfer that can fail halfway. The domain that has to get it right twice — once in the rules, once in the recovery."
+  core
+
+  read_model "CustomerPortfolio" do
+    description "A customer's cross-account position, rebuilt from aggregate heads."
+    reference_to Customer
+    include Customer
+    include Account
+    include ATMCard
+    include Transfer
+    include CardPayment
+    include ExternalTransfer
+    include ScheduledPayment
+  end
+
+  aggregate "Customer" do
+    description "A person the bank holds a relationship with. Suspended rather than deleted — a bank forgets nothing."
+
+    identified_by { reference.value }
+
+    attribute :reference, CustomerNumber
+    attribute :name,      PersonName
+    attribute :email,     EmailAddress
+    attribute :standing,  CustomerStanding
+
+    value_object "CustomerNumber" do
+      attribute :value, String
+      invariant("a customer reference is present") { !value.to_s.empty? }
+    end
+
+    value_object "CustomerStanding" do
+      attribute :value, String, default: "good"
+      invariant("a standing is named") { !value.to_s.empty? }
+    end
+
+    value_object "PersonName" do
+      attribute :given,  String
+      attribute :family, String
+
+      invariant("a given name is present")  { !given.to_s.empty? }
+      invariant("a family name is present") { !family.to_s.empty? }
+    end
+
+    value_object "EmailAddress" do
+      # THE SHAPE, DECLARED. This was `address.include?("@")` — a rule about
+      # spelling, hand-rolled as a predicate because the language had no way to
+      # say it. A pattern says it once, and says it strictly : "a b@c.d" and
+      # "a@b" passed the old invariant and are not addresses.
+      #
+      # Spelled with explicit ranges rather than \S, because the perl classes are
+      # ASCII in Ruby and Unicode in Rust — see PatternSubset, which refuses them
+      # when the bluebook is declared rather than letting the two runtimes
+      # disagree about a customer later.
+      attribute :address, String, pattern: '^[^@ ]+@[^@ ]+\.[^@ ]+$'
+    end
+
+    lifecycle :status, default: "active" do
+      transition "Suspend"   => "suspended", from: "active"
+      transition "Reinstate" => "active",    from: "suspended"
+      transition "Close"     => "closed",    from: ["active", "suspended"]
+    end
+
+    command "Register" do
+      role "Branch clerk"
+      goal "Take on a new customer"
+
+      attribute :reference, CustomerNumber
+      attribute :name,      PersonName
+      attribute :email,     EmailAddress
+
+      then_set :reference, to: :reference
+      then_set :name,      to: :name
+      then_set :email,     to: :email
+
+      emits "CustomerRegistered"
+    end
+
+    command "Suspend" do
+      role "Compliance officer"
+      goal "Stop a customer transacting while something is investigated"
+
+      reference_to Customer
+      attribute :standing, CustomerStanding
+
+      then_set :standing, to: :standing
+
+      emits "CustomerSuspended"
+    end
+
+    command "Reinstate" do
+      role "Compliance officer"
+      goal "Let a cleared customer transact again"
+
+      reference_to Customer
+      then_set :standing, to: { value: "good" }
+
+      emits "CustomerReinstated"
+    end
+
+    command "Close" do
+      role "Branch clerk"
+      goal "End the relationship"
+
+      reference_to Customer
+      emits "CustomerClosed"
+    end
+
+    query "InGoodStanding" do
+      description "The everyday customer roll — active, and nothing outstanding against them."
+      where(status: "active", standing: "good")
+      order_by :reference
+    end
+
+    query "Suspended" do
+      description "The compliance queue, newest concern first."
+      where(status: "suspended")
+      order_by :reference, :desc
+      limit 50
+    end
+  end
+
+  aggregate "Account" do
+    description "A balance belonging to one customer, and the ledger that explains how it got there."
+
+    identified_by { number.value }
+
+    reference_to Customer
+
+    attribute :number,       AccountNumber
+    attribute :balance,      Money
+    attribute :kind,         AccountKind
+    attribute :daily_limit,  DailyLimit
+    attribute :ledger,       list_of(LedgerEntry)
+    attribute :fees_cents,   Money
+    attribute :interest_cents, Money
+
+    value_object "AccountNumber" do
+      attribute :value, String
+      invariant("an account number is present") { !value.to_s.empty? }
+    end
+
+    value_object "DailyLimit" do
+      attribute :cents, Integer, default: 0
+      invariant("a daily limit is non-negative") { !cents.negative? }
+    end
+
+    value_object "LedgerSequence" do
+      attribute :value, Integer
+      invariant("a ledger sequence is positive") { value.positive? }
+    end
+
+    value_object "LedgerDirection" do
+      attribute :value, String
+
+      one_of do
+        member value: "credit"
+        member value: "debit"
+      end
+    end
+
+    value_object "Money" do
+      attribute :cents,    Integer, default: 0
+      attribute :currency, String,  default: "USD"
+
+      invariant("a currency is a three-letter code") { currency.to_s.size == 3 }
+    end
+
+    value_object "PositiveMoney" do
+      attribute :cents,    Integer
+      attribute :currency, String, default: "USD"
+
+      invariant("an amount is positive") { cents.positive? }
+      invariant("a currency is a three-letter code") { currency.to_s.size == 3 }
+    end
+
+    value_object "AccountKind" do
+      attribute :name, String
+
+      one_of do
+        member name: "current"
+        member name: "savings"
+        member name: "reserve"
+      end
+    end
+
+    value_object "Narrative" do
+      attribute :text, String
+
+      invariant("a movement explains itself") { !text.to_s.empty? }
+    end
+
+    entity "LedgerEntry" do
+      description "One movement across the account, in the order it was posted."
+
+      identified_by { sequence.value }
+
+      attribute :sequence,  LedgerSequence
+      attribute :amount,    Money
+      attribute :narrative, Narrative
+      attribute :direction, LedgerDirection
+
+      lifecycle :state, default: "posted" do
+        transition "Reverse" => "reversed", from: "posted"
+        transition "Amend"   => "posted",   from: "posted"
+      end
+
+      command "Amend" do
+        role "Back office"
+        goal "Correct a movement posted for the wrong amount"
+
+        attribute :adjustment, Money
+        attribute :narrative,  Narrative
+
+        given("an amendment leaves a non-negative amount") { amount.cents + adjustment.cents >= 0 }
+
+        then_set :amount,    increment: :adjustment
+        then_set :narrative, to: :narrative
+
+        emits "LedgerEntryAmended"
+      end
+
+      command "Reverse" do
+        role "Back office"
+        goal "Undo a movement that should not have been posted"
+
+        attribute :narrative, Narrative
+        then_set :narrative, to: :narrative
+
+        emits "LedgerEntryReversed"
+      end
+
+      query "Reversed" do
+        description "Entries that were undone — the audit trail nobody wants to need."
+        where(state: "reversed")
+      end
+    end
+
+    lifecycle :status, default: "open" do
+      transition "Freeze"  => "frozen", from: "open"
+      transition "Unfreeze" => "open",  from: "frozen"
+      transition "CloseAccount" => "closed", from: ["open", "frozen"]
+    end
+
+    command "Open" do
+      role "Branch clerk"
+      goal "Give a customer somewhere to keep money"
+
+      reference_to Customer
+      attribute :number,      AccountNumber
+      attribute :kind,        AccountKind
+      attribute :daily_limit, DailyLimit
+
+      then_set :number,      to: :number
+      then_set :kind,        to: :kind
+      then_set :daily_limit, to: :daily_limit
+
+      emits "AccountOpened"
+    end
+
+    command "Credit" do
+      role "Teller"
+      goal "Put money in"
+
+      reference_to Account
+      attribute :amount,    PositiveMoney
+      attribute :narrative, Narrative
+
+      given("the account is open")      { status == "open" }
+      then_set :balance, increment: :amount
+      then_set :ledger,  append: { amount: :amount, narrative: :narrative, direction: { value: "credit" } }
+
+      emits "AccountCredited"
+    end
+
+    command "Debit" do
+      role "Teller"
+      goal "Take money out, if it is there to take"
+
+      reference_to Account
+      attribute :amount,    PositiveMoney
+      attribute :narrative, Narrative
+
+      given("the account is open")       { status == "open" }
+      given("the balance covers it")     { balance.cents >= amount.cents }
+      given("the daily limit allows it") { daily_limit.cents >= amount.cents }
+
+      then_set :balance, decrement: :amount
+      then_set :ledger,  append: { amount: :amount, narrative: :narrative, direction: { value: "debit" } }
+
+      emits "AccountDebited"
+    end
+
+    command "Freeze" do
+      role "Compliance officer"
+      goal "Stop an account moving while something is investigated"
+
+      reference_to Account
+      emits "AccountFrozen"
+    end
+
+    command "Unfreeze" do
+      role "Compliance officer"
+      goal "Release a cleared account"
+
+      reference_to Account
+      emits "AccountUnfrozen"
+    end
+
+    command "CloseAccount" do
+      role "Branch clerk"
+      goal "Close an account that has been emptied"
+
+      reference_to Account
+
+      given("an account closes empty") { balance.cents.zero? }
+
+      emits "AccountClosed"
+    end
+
+    command "ApplyFee" do
+      reference_to Account
+      attribute :amount, PositiveMoney
+      attribute :narrative, Narrative
+      given("the balance covers a fee") { balance.cents >= amount.cents }
+      then_set :balance, decrement: :amount
+      then_set :fees_cents, increment: :amount
+      emits "FeeApplied"
+    end
+
+    command "CorrectFee" do
+      reference_to Account
+      attribute :amount, PositiveMoney
+      given("a correction cannot exceed collected fees") { fees_cents.cents >= amount.cents }
+      then_set :balance, increment: :amount
+      then_set :fees_cents, decrement: :amount
+      emits "FeeCorrected"
+    end
+
+    command "AccrueInterest" do
+      reference_to Account
+      attribute :amount, PositiveMoney
+      then_set :balance, increment: :amount
+      then_set :interest_cents, increment: :amount
+      emits "InterestAccrued"
+    end
+
+    command "CorrectInterest" do
+      reference_to Account
+      attribute :amount, PositiveMoney
+      given("a correction cannot exceed accrued interest") { interest_cents.cents >= amount.cents }
+      given("the balance covers an interest correction") { balance.cents >= amount.cents }
+      then_set :balance, decrement: :amount
+      then_set :interest_cents, decrement: :amount
+      emits "InterestCorrected"
+    end
+
+    query "Open" do
+      description "Accounts that can transact today."
+      where(status: "open")
+      order_by :number
+    end
+
+    query "Overdrawn" do
+      description "Accounts below a floor the caller supplies — the morning risk report."
+      attribute :floor, Money
+      where(balance: { lt: :floor })
+      order_by :balance
+      limit 100
+    end
+
+    policy "ReviewOnFreeze" do
+      on      "Account.AccountFrozen"
+      trigger "Compliance.OpenReview"
+      across  "Compliance"
+    end
+  end
+
+  aggregate "ATMCard" do
+    description "A card issued against an account, and the cash taken with it."
+
+    identified_by { serial.value }
+
+    reference_to Account
+
+    attribute :serial,      CardSerial
+    attribute :nickname,    CardNickname
+    attribute :daily_fee,   DailyFee
+    attribute :withdrawals, list_of(Withdrawal)
+
+    value_object "CardSerial" do
+      attribute :value, String
+      invariant("a card serial is present") { !value.to_s.empty? }
+    end
+
+    value_object "CardNickname" do
+      attribute :value, String
+    end
+
+    value_object "DailyFee" do
+      attribute :amount, Float, default: 0.0
+      invariant("a daily fee is non-negative") { amount >= 0 }
+    end
+
+    value_object "WithdrawalSequence" do
+      attribute :value, Integer
+      invariant("a withdrawal sequence is positive") { value.positive? }
+    end
+
+    value_object "WithdrawalAmount" do
+      attribute :cents, Integer
+      invariant("a withdrawal amount is positive") { cents.positive? }
+    end
+
+    value_object "Narrative" do
+      attribute :text, String
+
+      invariant("a withdrawal explains itself") { !text.to_s.empty? }
+    end
+
+    entity "Withdrawal" do
+      description "One handful of cash, in the order it was taken."
+
+      identified_by { sequence.value }
+
+      attribute :sequence,  WithdrawalSequence
+      attribute :cents,     WithdrawalAmount
+      attribute :narrative, Narrative
+
+      lifecycle :state, default: "taken" do
+        transition "Dispute" => "disputed", from: "taken"
+      end
+
+      command "Dispute" do
+        role "Customer"
+        goal "Challenge a withdrawal that was not mine"
+
+        attribute :narrative, Narrative
+        then_set :narrative, to: :narrative
+
+        emits "WithdrawalDisputed"
+      end
+
+      query "Recent" do
+        description "The first two withdrawals still standing, whatever else was taken."
+        where(state: "taken")
+        limit 2
+      end
+    end
+
+    lifecycle :status, default: "issued" do
+      transition "Activate" => "active",  from: "issued"
+      transition "Retire"   => "retired", from: ["issued", "active"]
+    end
+
+    command "Issue" do
+      role "Branch clerk"
+      goal "Put a card in a customer's hand"
+
+      reference_to Account
+      attribute :serial,    CardSerial
+      attribute :daily_fee, DailyFee
+
+      then_set :serial,    to: :serial
+      then_set :daily_fee, to: :daily_fee
+
+      emits "ATMCardIssued"
+    end
+
+    command "Rename" do
+      role "Customer"
+      goal "Name a card so it is recognisable"
+
+      reference_to ATMCard
+      attribute :nickname, CardNickname
+      then_set :nickname, to: :nickname
+
+      emits "ATMCardRenamed"
+    end
+
+    command "Withdraw" do
+      role "Customer"
+      goal "Take cash out at a machine"
+
+      reference_to ATMCard
+      attribute :cents,     WithdrawalAmount
+      attribute :narrative, Narrative
+
+      then_set :withdrawals, append: { cents: :cents, narrative: :narrative }
+
+      emits "CashWithdrawn"
+    end
+
+    command "Activate" do
+      role "Customer"
+      goal "Start using a card"
+
+      reference_to ATMCard
+      emits "ATMCardActivated"
+    end
+
+    command "Retire" do
+      role "Back office"
+      goal "Take a card out of service"
+
+      reference_to ATMCard
+      emits "ATMCardRetired"
+    end
+
+    query "Active" do
+      description "Live cards in nickname order — a card nobody named sorts before every card that has one."
+      where(status: "active")
+      order_by :nickname
+    end
+
+    query "ByFee" do
+      description "Live cards by what they cost to hold, cheapest first — a fee is a Float, so the order is numeric and not alphabetical."
+      where(status: "active")
+      order_by :daily_fee
+      limit 3
+    end
+  end
+
+  aggregate "Transfer" do
+    description "Money leaving one account for another. Two movements that must both happen, or neither."
+
+    identified_by { reference.value }
+
+    reference_to Account, as: :source
+    reference_to Account, as: :destination
+
+    attribute :reference, TransferReference
+    attribute :amount,    TransferMoney
+
+    value_object "TransferReference" do
+      attribute :value, String
+      invariant("a transfer is referenced") { !value.to_s.empty? }
+    end
+    attribute :narrative, Narrative
+
+    value_object "TransferMoney" do
+      attribute :cents, Integer
+      invariant("a transfer amount is positive") { cents.positive? }
+    end
+
+    value_object "Narrative" do
+      attribute :text, String
+
+      invariant("a transfer explains itself") { !text.to_s.empty? }
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "Debited"  => "debited",   from: "requested"
+      transition "Credited" => "credited",  from: "debited"
+      transition "Settle"   => "settled",   from: "credited"
+      transition "Reverse"  => "reversed",  from: "debited"
+      transition "Reject"   => "rejected",  from: "requested"
+    end
+
+    command "Request" do
+      role "Customer"
+      goal "Send money to another account"
+
+      reference_to Account, as: :source
+      reference_to Account, as: :destination
+      attribute :reference,   TransferReference
+      attribute :amount,      TransferMoney
+      attribute :narrative,   Narrative
+
+      # A REFERENCE IS THE ACCOUNT'S NUMBER, so these read it as one. They said
+      # `source.value` while a reference was stored as an object wrapping that
+      # number — describing the wrapper rather than the account, and a clerk
+      # would not say it that way either.
+      given("a transfer names its source")  { !source.to_s.empty? }
+      given("a transfer goes somewhere")    { !destination.to_s.empty? }
+      given("a transfer moves BETWEEN accounts") { source != destination }
+
+      then_set :amount,      to: :amount
+      then_set :narrative,   to: :narrative
+      then_set :source,      to: :source
+      then_set :destination, to: :destination
+
+      emits "TransferRequested"
+    end
+
+    command "Debited" do
+      role "System"
+      goal "Record that the source account has given up the money"
+
+      reference_to Transfer
+      emits "TransferDebited"
+    end
+
+    command "Settle" do
+      role "System"
+      goal "Record that the destination has received it"
+
+      reference_to Transfer
+      emits "TransferSettled"
+    end
+
+    command "Credited" do
+      role "System"
+      goal "Record that the destination credit committed"
+
+      reference_to Transfer
+      emits "TransferCredited"
+    end
+
+    command "Reverse" do
+      role "System"
+      goal "Put the money back when the credit could not be made"
+
+      reference_to Transfer
+      emits "TransferReversed"
+    end
+
+    command "Reject" do
+      role "System"
+      goal "Refuse a transfer before any money moved"
+
+      reference_to Transfer
+      emits "TransferRejected"
+    end
+
+    query "InFlight" do
+      description "Transfers that have left one account and not arrived at the other. The list that must always empty."
+      where(status: "debited")
+      order_by :status
+    end
+  end
+
+  aggregate "CardPayment" do
+    description "A card authorisation that either settles, is voided before settlement, or becomes a post-settlement dispute."
+
+    identified_by { authorisation.value }
+
+    reference_to Account
+    reference_to Customer, as: :disputed_by
+    attribute :authorisation, AuthorisationCode
+    attribute :amount,   PaymentAmount
+
+    value_object "AuthorisationCode" do
+      attribute :value, String
+    end
+    attribute :merchant, MerchantName
+
+    value_object "PaymentAmount" do
+      attribute :cents, Integer
+      invariant("a payment amount is positive") { cents.positive? }
+    end
+
+    value_object "MerchantName" do
+      attribute :value, String
+      invariant("a merchant name is present") { !value.to_s.empty? }
+    end
+
+    lifecycle :status, default: "authorized" do
+      transition "Capture" => "captured", from: "authorized"
+      transition "Void" => "voided", from: "authorized"
+      transition "Refund" => "refunded", from: "captured"
+      transition "Reverse" => "reversed", from: "captured"
+      transition "Dispute" => "disputed", from: ["captured", "refunded"]
+      transition "Chargeback" => "charged_back", from: "disputed"
+      transition "RejectDispute" => "captured", from: "disputed"
+    end
+
+    command "Authorize" do
+      reference_to Account
+      attribute :authorisation, AuthorisationCode
+      attribute :amount, PaymentAmount
+      attribute :merchant, MerchantName
+      then_set :amount, to: :amount
+      then_set :merchant, to: :merchant
+      emits "CardAuthorized"
+    end
+
+    command "Capture" do
+      reference_to CardPayment
+      emits "CardCaptured"
+    end
+
+    command "Void" do
+      reference_to CardPayment
+      emits "CardVoided"
+    end
+
+    command "Refund" do
+      reference_to CardPayment
+      emits "CardRefunded"
+    end
+
+    command "Reverse" do
+      reference_to CardPayment
+      emits "CardReversed"
+    end
+
+    command "Dispute" do
+      role "Customer"
+      goal "Challenge a payment that already settled"
+
+      # The only command in the corpus carrying BOTH a self reference and a
+      # cross-aggregate one, and it is here because the fact is real : a dispute
+      # is raised BY someone, and on a joint account that someone is not
+      # derivable from the payment. The CardPayment knows its Account and the
+      # Account knows a Customer, but not which of them challenged the charge.
+      #
+      # Both branches of CommandBuilder#reference_to fire here. CardPayment
+      # matches the owner, so it sets @references and Dispute is NOT creating ;
+      # Customer does not match, so it becomes a Reference<Customer> attribute.
+      # Everywhere else in the corpus those two paths are exercised apart — a
+      # cross-reference always sits on a creating command or an aggregate head —
+      # so nothing distinguished `creates?` reading a self-reference from
+      # `creates?` reading any reference at all.
+      reference_to CardPayment
+      reference_to Customer, as: :disputed_by
+
+      then_set :disputed_by, to: :disputed_by
+
+      emits "CardDisputed"
+    end
+
+    command "Chargeback" do
+      reference_to CardPayment
+      emits "CardChargedBack"
+    end
+
+    command "RejectDispute" do
+      reference_to CardPayment
+      emits "CardDisputeRejected"
+    end
+
+    query "Pending" do
+      where(status: "authorized")
+    end
+
+    query "Disputed" do
+      where(status: "disputed")
+    end
+  end
+
+  aggregate "ExternalTransfer" do
+    description "A transfer sent beyond the bank, where a recall is an instruction and a return is the external network's outcome."
+
+    identified_by { end_to_end.value }
+
+    reference_to Account
+    attribute :end_to_end,  EndToEndReference
+    attribute :amount,      ExternalAmount
+    attribute :beneficiary, BeneficiaryName
+    # WHICH WAY THE MONEY MOVED ON THE ACCOUNT — and the bank already has a set
+    # for that. It is the LEDGER's set, declared once on Account, so this names
+    # it instead of restating it : spelling `credit`/`debit` a second time inside
+    # this aggregate would be a copy of a set the domain already holds, and a
+    # copy nothing compares is a copy that drifts.
+    attribute :direction,   MovementDirection, admits: "Account::LedgerDirection"
+
+    value_object "EndToEndReference" do
+      attribute :value, String
+    end
+
+    # A plain text holder. The VALUES it may carry are Account's business, which
+    # is exactly the split `admits` exists to express: the TYPE is local, the SET
+    # is named.
+    value_object "MovementDirection" do
+      attribute :value, String
+    end
+
+    value_object "ExternalAmount" do
+      attribute :cents, Integer
+      invariant("an external transfer amount is positive") { cents.positive? }
+    end
+
+    value_object "BeneficiaryName" do
+      attribute :value, String
+      invariant("a beneficiary name is present") { !value.to_s.empty? }
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "Send" => "sent", from: "requested"
+      transition "Recall" => "recalled", from: "sent"
+      transition "Return" => "returned", from: "sent"
+    end
+
+    command "Request" do
+      reference_to Account
+      attribute :end_to_end, EndToEndReference
+      attribute :amount, ExternalAmount
+      attribute :beneficiary, BeneficiaryName
+      # Named on the ARGUMENT as well as on the head : the head says what the
+      # aggregate holds, this is where a caller hands one in, and a set that is
+      # only named where it is stored is not refusing anybody.
+      attribute :direction, MovementDirection, admits: "Account::LedgerDirection"
+      then_set :amount, to: :amount
+      then_set :beneficiary, to: :beneficiary
+      then_set :direction, to: :direction
+      emits "ExternalTransferRequested"
+    end
+
+    command "Send" do
+      reference_to ExternalTransfer
+      emits "ExternalTransferSent"
+    end
+
+    command "Recall" do
+      reference_to ExternalTransfer
+      emits "ExternalTransferRecalled"
+    end
+
+    command "Return" do
+      reference_to ExternalTransfer
+      emits "ExternalTransferReturned"
+    end
+
+    query "Sent" do
+      where(status: "sent")
+    end
+  end
+
+  aggregate "ScheduledPayment" do
+    description "An instruction held for a future date, which may execute once or be cancelled before it does."
+
+    reference_to Account
+    attribute :amount,    ScheduledAmount
+    identified_by { instruction.value }
+
+    attribute :instruction, InstructionReference
+    attribute :recipient, PaymentRecipient
+    attribute :due_on,    PaymentDueDate
+
+    value_object "InstructionReference" do
+      attribute :value, String
+    end
+
+    value_object "ScheduledAmount" do
+      attribute :cents, Integer
+      invariant("a scheduled payment amount is positive") { cents.positive? }
+    end
+
+    value_object "PaymentRecipient" do
+      attribute :value_m12, String
+      invariant("a payment recipient is present") { !value.to_s.empty? }
+    end
+
+    value_object "PaymentDueDate" do
+      attribute :value, String
+      invariant("a payment due date is present") { !value.to_s.empty? }
+    end
+
+    lifecycle :status, default: "scheduled" do
+      transition "Execute" => "executed", from: "scheduled"
+      transition "Cancel" => "cancelled", from: "scheduled"
+    end
+
+    command "Schedule" do
+      reference_to Account
+      attribute :instruction, InstructionReference
+      attribute :amount, ScheduledAmount
+      attribute :recipient, PaymentRecipient
+      attribute :due_on, PaymentDueDate
+      then_set :amount, to: :amount
+      then_set :recipient, to: :recipient
+      then_set :due_on, to: :due_on
+      emits "PaymentScheduled"
+    end
+
+    command "Execute" do
+      reference_to ScheduledPayment
+      emits "ScheduledPaymentExecuted"
+    end
+
+    command "Cancel" do
+      reference_to ScheduledPayment
+      emits "ScheduledPaymentCancelled"
+    end
+
+    query "Due" do
+      where(status: "scheduled")
+      order_by :due_on
+    end
+  end
+
+
+  policy "FreezeAccountsOnSuspension" do
+    on      "CustomerSuspended"
+    trigger "Account.Freeze"
+  end
+
+  policy "NotifyOnClosure" do
+    on      "AccountClosed"
+    trigger "Notifications.Send"
+    across  "Notifications"
+  end
+
+  process_manager "Settlement" do
+    correlates_by :transfer
+    starts_on "TransferRequested"
+    ends_on   "TransferSettled"
+
+    state "requested"
+    state "awaiting_credit"
+    state "settled"
+    state "reversed"
+
+    on "TransferRequested", transition: { "requested" => "requested" } do
+      # Debit never declared :destination — the credit leg reads it from the saga's
+      # memory of the opening payload.
+      dispatch "Banking::Account.Debit", with: { number: :source, amount: :amount, narrative: { text: "transfer out" }, transfer: :transfer }
+    end
+
+    on "AccountDebited", transition: { "requested" => "awaiting_credit" } do
+      dispatch "Banking::Transfer.Debited", with: { transfer: :transfer }
+      dispatch "Banking::Account.Credit", with: { number: :destination, amount: :amount, narrative: { text: "transfer in" }, transfer: :transfer }
+    end
+
+    on "AccountCredited", transition: { "awaiting_credit" => "awaiting_credit" } do
+      dispatch "Banking::Transfer.Credited", with: { transfer: :transfer }
+    end
+
+    on "TransferCredited", transition: { "awaiting_credit" => "settled" } do
+      dispatch "Banking::Transfer.Settle", with: { transfer: :transfer }
+    end
+
+    # The compensating leg, triggered by a REFUSAL rather than an event. It hung
+    # off "TransferReversed" before, which only arrives if somebody dispatches
+    # Transfer.Reverse by hand — so a destination that would not take the money
+    # left the debit standing, the settlement stuck in awaiting_credit, and the
+    # amount nowhere. The reversal was written and never armed.
+    on :refused, transition: { "awaiting_credit" => "reversed" } do
+      dispatch "Banking::Account.Credit", with: { number: :source, amount: :amount, narrative: { text: "transfer reversed" } }
+      dispatch "Banking::Transfer.Reverse", with: { transfer: :transfer }
+    end
+  end
+end

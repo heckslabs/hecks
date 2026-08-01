@@ -11,7 +11,14 @@ module Hecksagain
           settings = (registry.world(domain)&.for_binding(settings_verb, bind.adapter) || {})
                      .reject { |key, _| key.to_sym == :role }
           registry.check_settings(bind, settings)
-          adapter = registry.adapter_class(bind.adapter).new(aggregate: aggregate, settings: settings, root: registry.root)
+          # The domain and the resolved era ride along after the
+          # declared-settings check: a lineage adapter journals per
+          # DOMAIN and writes into its own ERA's partition — neither of
+          # which a world's settings carry.
+          adapter = registry.adapter_class(bind.adapter)
+                            .new(aggregate: aggregate,
+                                 settings: settings.merge(domain: domain.to_s, era: registry.resolved_eras[domain.to_s]),
+                                 root: registry.root)
           repository = AppendOnly.new(adapter)
           recover ? repository.recover! : repository
         end

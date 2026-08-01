@@ -2,6 +2,7 @@
 
 source "https://rubygems.org"
 
+gem "pg", "~> 1.5"
 gem "sqlite3", "~> 2.0"
 
 group :development, :test do

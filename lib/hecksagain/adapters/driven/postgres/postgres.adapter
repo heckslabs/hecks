@@ -1,0 +1,5 @@
+Hecks.adapter "Postgres" do
+  port  "persistence"
+  field :database
+  field :role
+end

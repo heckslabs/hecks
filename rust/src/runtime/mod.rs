@@ -1,7 +1,11 @@
 pub use std::collections::HashMap;
 
 pub mod dispatcher;
+pub mod era_check;
+pub mod era_guard;
 pub mod identity;
+pub mod storage_shape;
+pub mod strict_boot;
 pub mod mutations;
 pub mod value_bridge;
 

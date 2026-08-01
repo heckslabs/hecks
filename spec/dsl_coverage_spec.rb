@@ -6,7 +6,7 @@ RSpec.describe "the DSL surface is fully covered" do
   COVERED = {
     "Hecksagain (module surface)" => [
       Hecksagain.singleton_class,
-      %i[boot with_registry bluebook hecksagon port adapter world current_registry]
+      %i[boot with_registry bluebook hecksagon port adapter world data_translation current_registry]
     ],
     "BluebookBuilder" => [
       Hecksagain::Bluebook::DSL::BluebookBuilder,
@@ -48,6 +48,14 @@ RSpec.describe "the DSL surface is fully covered" do
     "HecksagonBuilder" => [
       Hecksagain::Bluebook::DSL::HecksagonBuilder,
       %i[binds]
+    ],
+    "TranslationBuilder" => [
+      Hecksagain::Bluebook::DSL::TranslationBuilder,
+      %i[aggregate retired method_missing]
+    ],
+    "TranslationAggregateBuilder" => [
+      Hecksagain::Bluebook::DSL::TranslationAggregateBuilder,
+      %i[rename move convert drop retype compute unresolved method_missing]
     ]
   }.freeze
 

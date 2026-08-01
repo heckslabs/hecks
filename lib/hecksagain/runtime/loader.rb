@@ -13,6 +13,11 @@ module Hecksagain
           loading.load_domain(directory)
         end
 
+        # The era gate runs BEFORE verify! builds repositories: minting an
+        # era (Postgres) must have created its partition and head views
+        # before any adapter opens them, and a refused era must refuse
+        # before any adapter touches data.
+        EraCheck.check!(registry, directory)
         registry.verify!
         bind_runtime(Dispatcher.new(registry))
       end

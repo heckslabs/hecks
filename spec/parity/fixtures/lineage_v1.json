@@ -1,0 +1,28 @@
+{
+  "name": "lineage-era-1",
+  "note": "The old world's writes — two accounts opened under the era-1 shape, one closed, all of it destined to be translated at inclusion rather than rewritten.",
+  "steps": [
+    {
+      "verb": "Lineage::Acct.Open",
+      "args": {
+        "number": { "value": "acct-1" },
+        "cost": { "cents": 100, "currency": "USD" },
+        "kind": { "label": "biz" },
+        "legacy_note": { "text": "carried from the ledger book" }
+      }
+    },
+    {
+      "verb": "Lineage::Acct.Open",
+      "args": {
+        "number": { "value": "acct-2" },
+        "cost": { "cents": 250, "currency": "EUR" },
+        "kind": { "label": "pers" },
+        "legacy_note": { "text": "opened by post" }
+      }
+    },
+    {
+      "verb": "Lineage::Acct.Close",
+      "args": { "number": { "value": "acct-2" } }
+    }
+  ]
+}

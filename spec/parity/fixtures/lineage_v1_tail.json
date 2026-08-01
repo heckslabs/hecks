@@ -1,0 +1,24 @@
+{
+  "name": "lineage-era-1-tail",
+  "note": "The old world, still running after the cut: one clean tail write (acct-9) and one deliberate collision (acct-1, which the new world already touched) — the merge must refuse the second by name.",
+  "steps": [
+    {
+      "verb": "Lineage::Acct.Open",
+      "args": {
+        "number": { "value": "acct-9" },
+        "cost": { "cents": 5, "currency": "EUR" },
+        "kind": { "label": "pers" },
+        "legacy_note": { "text": "late arrival" }
+      }
+    },
+    {
+      "verb": "Lineage::Acct.Open",
+      "args": {
+        "number": { "value": "acct-1" },
+        "cost": { "cents": 111, "currency": "USD" },
+        "kind": { "label": "biz" },
+        "legacy_note": { "text": "the old world edits it too" }
+      }
+    }
+  ]
+}
