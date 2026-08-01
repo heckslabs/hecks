@@ -1,0 +1,119 @@
+Hecks.bluebook "Relay", version: "v2" do
+  vision "One thing happening announces two facts, and each is somebody else's cue."
+  supporting
+
+  # THE CORPUS MEMBER THAT MAKES A SECOND EVENT REACHABLE.
+  #
+  # `emits` is `list_of(Announcement)` and has been since the language could
+  # say so. A hundred and thirty-one commands across eight chapters emitted
+  # exactly ONE event each, so "the first event" and "every event" were the
+  # same function on the whole corpus — the shape `identified_by` was in until
+  # `market`, and the reason spec/plurality_coverage_spec.rb exists.
+  #
+  # Both runtimes loop, so this is not expected to find a broken emit. What it
+  # reaches is the REACTION path: two events out of ONE dispatch, each with a
+  # policy waiting, which is where ORDER becomes observable. The second policy
+  # acts on the record the first one creates, so a runtime that announces
+  # AlarmRaised before SightingRaised escalates an alarm that does not exist yet
+  # and refuses. Both runtimes must agree on which, and `bin/parity` diffs the
+  # reactions list, so the ordering is compared and not merely assumed.
+  aggregate "Sighting" do
+    description "Something the floor noticed, announced once and heard twice."
+
+    identified_by { code.value }
+
+    attribute :code, SightingCode
+
+    value_object "SightingCode" do
+      attribute :value, String
+
+      invariant("a sighting is coded") { !value.to_s.empty? }
+    end
+
+    lifecycle :state, default: "raised" do
+      transition "Clear" => "cleared", from: "raised"
+    end
+
+    command "Raise" do
+      role "Operator"
+      goal "Report what the floor noticed"
+
+      attribute :code, SightingCode
+
+      # TWO ANNOUNCEMENTS FROM ONE COMMAND — the whole point of this chapter.
+      # They are heard by two different policies, and the second depends on
+      # what the first one did.
+      emits "SightingRaised"
+      emits "AlarmDue"
+    end
+
+    command "Clear" do
+      role "Operator"
+      goal "Stand the signal down"
+
+      reference_to Sighting
+
+      given("only a raised sighting clears") { state == "raised" }
+
+      emits "SightingCleared"
+    end
+  end
+
+  aggregate "Alarm" do
+    description "What somebody has to do about a signal — opened by one announcement, escalated by the other."
+
+    identified_by { code.value }
+
+    attribute :code,  AlarmCode
+    attribute :tier,  Tier
+
+    value_object "AlarmCode" do
+      attribute :value, String
+
+      invariant("an alarm is coded") { !value.to_s.empty? }
+    end
+
+    value_object "Tier" do
+      attribute :value, Integer
+
+      invariant("a tier starts at one") { value >= 1 }
+    end
+
+    lifecycle :status, default: "open" do
+      transition "Escalate" => "escalated", from: "open"
+    end
+
+    command "Open" do
+      role "Controller"
+      goal "Take the signal on"
+
+      attribute :code, AlarmCode
+
+      emits "AlarmOpened"
+    end
+
+    # ADDRESSED, NOT CREATED. It reaches an Alarm that the first announcement's
+    # policy has already opened — so if the two events ever arrive the other way
+    # round, this refuses instead, and says so in both runtimes identically.
+    command "Escalate" do
+      role "Controller"
+      goal "Raise the alarm a tier"
+
+      reference_to Alarm
+
+      given("only an open alarm escalates") { status == "open" }
+
+      emits "AlarmEscalated"
+    end
+  end
+
+  policy "OpenAlarmOnSighting" do
+    on      "SightingRaised"
+    trigger "Alarm.Open"
+  end
+
+  policy "EscalateOnAlarmDue" do
+    on      "AlarmDue"
+    trigger "Alarm.Escalate"
+  end
+end

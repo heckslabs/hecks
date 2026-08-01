@@ -64,12 +64,11 @@ RSpec.describe "every list the language declares, filled more than once" do
   # known-UNCHECKED, which is the honest word and the reason they are written
   # down rather than skipped.
   ALLOWED_SINGLETON = {
-    "emits" =>
-      "A command announcing TWO events. Both runtimes loop (`command.emits.map`, " \
-      "`for emitted in array(command, \"emits\")`), so the shape is probably fine — but " \
-      "131 commands across eight chapters emit exactly one, so the REACTION path has " \
-      "never seen two events from one dispatch, and policy ordering and reaction depth " \
-      "under that are untested in either runtime.",
+    # `emits` was here. `spec/parity/domains/relay` covers it now: one `Raise`
+    # announces SightingRaised AND AlarmDue, a policy waits on each, and the
+    # second acts on the record the first one creates — so the ORDER the two are
+    # heard in decides the outcome rather than only the trace, and both runtimes
+    # are held to it. This entry was deleted because the guard below demanded it.
     "entities" =>
       "An aggregate holding TWO entities. Every head in the corpus holds at most one, " \
       "so `entity_for` and the list-attribute lookup have never had to choose.",

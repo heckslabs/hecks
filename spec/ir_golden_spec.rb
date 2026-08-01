@@ -38,6 +38,9 @@ RSpec.describe "the IR the builder produces, frozen" do
     # of two are the same shape as far as this corpus can tell — which is the
     # exact reason this file's own header gives for walking every chapter.
     "Market"     => "spec/parity/domains/market/bluebook/market.bluebook",
+    # THE ONLY COMMAND IN THE TREE THAT ANNOUNCES TWICE. Same argument as
+    # Market's: `emits` is a list every other chapter fills with exactly one.
+    "Relay"      => "spec/parity/domains/relay/bluebook/relay.bluebook",
     "Expression" => "lib/hecksagain/grammar/expression.bluebook",
     "TillRoom"   => "spec/fixtures/till.bluebook",
     "Wire"       => "spec/fixtures/settlement.bluebook",

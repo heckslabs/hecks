@@ -1,0 +1,54 @@
+{
+  "name": "relay-parity",
+  "note": "TWO EVENTS OUT OF ONE DISPATCH, each with a policy waiting. `Raise` announces SightingRaised and AlarmDue; the first opens an Alarm, the second escalates the Alarm the first one opened. So the ORDER the two announcements are heard in is observable in the outcome, not just in the trace: heard the other way round, Escalate finds no Alarm and refuses. bin/parity diffs the reactions list, so both runtimes must agree on the order AND on what each reaction did.",
+  "steps": [
+    {
+      "verb": "Relay::Sighting.Raise",
+      "note": "ONE dispatch, TWO announcements, TWO reactions. Alarm 'smoke-1' must end up escalated — which can only happen if Open was heard before Escalate.",
+      "args": {
+        "code": { "value": "smoke-1" }
+      }
+    },
+    {
+      "verb": "Relay::Sighting.Raise",
+      "note": "A second, independent sighting — so the reaction path is not exercised only once, and two alarms exist to tell apart.",
+      "args": {
+        "code": { "value": "smoke-2" }
+      }
+    },
+    {
+      "verb": "Relay::Alarm.Escalate",
+      "note": "REFUSED — smoke-1 was already escalated by its own AlarmDue reaction. The given fires by hand exactly as it fired inside the reaction.",
+      "args": {
+        "code": { "value": "smoke-1" }
+      }
+    },
+    {
+      "verb": "Relay::Alarm.Escalate",
+      "note": "REFUSED — no Alarm was ever opened for a sighting that never happened.",
+      "args": {
+        "code": { "value": "never-seen" }
+      }
+    },
+    {
+      "verb": "Relay::Sighting.Clear",
+      "args": {
+        "code": { "value": "smoke-1" }
+      }
+    },
+    {
+      "verb": "Relay::Sighting.Clear",
+      "note": "REFUSED — a cleared sighting does not clear twice.",
+      "args": {
+        "code": { "value": "smoke-1" }
+      }
+    },
+    {
+      "verb": "Relay::Sighting.Raise",
+      "note": "REFUSED by the invariant — a sighting is coded, and \"\" is not a code.",
+      "args": {
+        "code": { "value": "" }
+      }
+    }
+  ]
+}
