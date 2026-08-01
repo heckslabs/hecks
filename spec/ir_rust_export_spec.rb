@@ -21,9 +21,28 @@ require "spec_helper"
 # `bin/parity`'s byte-for-byte contract pointed at the projection instead of at
 # the parser. Determinism is not correctness; that one is correctness.
 RSpec.describe "the projected Rust domains" do
-  PROJECTED = { "Pizzas" => ["examples/pizzas", "rust/src/bluebook/projected/pizzas.rs"] }.freeze
+  # EVERY CHAPTER RUST CAN HOLD. Pizzas alone exercised mutations, an append,
+  # invariants, a closed set and a lifecycle — and none of the paths carrying
+  # entities, sagas, dispatch bindings or read models. Projecting the rest found
+  # three inversion bugs in one sitting, all of them the encoding-loss family
+  # this codebase already names.
+  #
+  # `Reflex` is absent on purpose: it declares every query option the language
+  # holds and Rust's `Query` struct carries none of them, so there is nowhere to
+  # project them to. See the note in projected/mod.rs.
+  PROJECTED = {
+    "Banking"    => ["examples/banking/bluebook/banking.bluebook",              "banking"],
+    "Expression" => ["lib/hecksagain/grammar/expression.bluebook",              "expression"],
+    "Market"     => ["spec/parity/domains/market/bluebook/market.bluebook",     "market"],
+    "Pizzas"     => ["examples/pizzas/bluebook/pizzas.bluebook",                "pizzas"],
+    "Relay"      => ["spec/parity/domains/relay/bluebook/relay.bluebook",       "relay"],
+    "TillRoom"   => ["spec/fixtures/till.bluebook",                             "till_room"],
+    "Wire"       => ["spec/fixtures/settlement.bluebook",                       "wire"]
+  }.freeze
 
-  PROJECTED.each do |name, (source, output)|
+  PROJECTED.each do |name, (source, stem)|
+    output = "rust/src/bluebook/projected/#{stem}.rs"
+
     it "#{output} matches bin/ir_rust's current output" do
       root       = InMemoryDomain::ROOT
       checked_in = File.read(File.join(root, output))

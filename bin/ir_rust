@@ -32,7 +32,7 @@
 # `bin/parity` holds the two parsers to, pointed at the projection instead.
 # spec/ir_rust_export_spec.rb runs it.
 #
-#     bin/ir_rust examples/pizzas > rust/src/bluebook/projected/pizzas.rs
+#     bin/ir_rust examples/pizzas/bluebook/pizzas.bluebook > rust/src/bluebook/projected/pizzas.rs
 #
 # WHOLE FILE, NEVER A PATCH — the same rule the other two generators carry.
 
@@ -40,11 +40,40 @@ $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 require "hecksagain"
 require "json"
 
-root = ARGV[0] or abort "usage: bin/ir_rust <domain-directory>"
+path = ARGV[0] or abort "usage: bin/ir_rust <bluebook>"
 
-registry = Hecksagain.boot(root).registry
-chapter  = registry.bluebooks.values.first or abort "#{root} declares no bluebook"
-ir       = JSON.parse(JSON.generate(chapter.to_h))
+# A BLUEBOOK, NOT A BOOTED DOMAIN. This took a domain DIRECTORY and called
+# `Hecks.boot`, which needs a world and a hecksagon to say where every aggregate
+# is stored — and a projection does not care where anything is stored. Three
+# things follow from asking for less:
+#
+#   every chapter is projectable    a fixture has no world, and neither does the
+#                                   language's own. Requiring a boot is why this
+#                                   could only ever reach `examples/`.
+#   nothing is minted               `Hecks.boot` MINTS AN ERA under the domain's
+#                                   `data/`, so generating twice made the second
+#                                   run refuse with shape drift. A generator that
+#                                   writes to the tree it reads is a generator
+#                                   nobody can run twice.
+#   the same door the goldens use   `ir_golden_spec` loads chapters exactly this
+#                                   way, so the projection and the frozen IR it
+#                                   is checked against come from ONE reading.
+ROOT = File.expand_path("..", __dir__)
+PORTS = %w[
+  lib/hecksagain/ports/persistence/persistence.port
+  lib/hecksagain/ports/extraction/extraction.port
+  lib/hecksagain/adapters/driven/memory/memory.adapter
+  lib/hecksagain/adapters/driven/prism/prism.adapter
+].freeze
+
+registry = Hecksagain::Runtime::Registry.new
+Hecksagain.with_registry(registry) do
+  PORTS.each { |port| Kernel.load(File.join(ROOT, port)) }
+  Kernel.load(File.expand_path(path))
+end
+
+chapter = registry.bluebooks.values.first or abort "#{path} declares no bluebook"
+ir      = JSON.parse(JSON.generate(chapter.to_h))
 
 # ---------------------------------------------------------------- emitters
 
@@ -69,18 +98,61 @@ def flag(value) = value ? "true" : "false"
 # `out` — so the inversion reads the quotes rather than guessing.
 def mutation_source(mutation)
   if mutation["op"] == "append"
-    pairs = (mutation["fields"] || {}).map do |field, bound|
-      literal = bound.to_s.start_with?('"')
-      "#{field}: #{literal ? bound : ":#{bound}"}"
-    end
+    pairs = (mutation["fields"] || {}).map { |field, bound| "#{field}: #{binding_source(bound)}" }
     return "{ #{pairs.join(', ')} }"
   end
 
   source = mutation["source"] || {}
   return ":#{source['name']}" if source["kind"] == "argument"
 
-  held = source["value"]
-  held.is_a?(String) ? held.inspect : held.inspect
+  # THROUGH `literal_text`, NOT `inspect`. A literal object mutation source —
+  # `then_set :grade, to: { value: "good" }` — inspects as `{"value"=>"good"}`,
+  # and Rust's `ir_json::literal` reads an object by splitting on `:`. It found
+  # no key, returned an empty map, and the projected banking lost the value
+  # while every other chapter passed. The bluebook spelling is what Rust's
+  # parser reads, so the bluebook spelling is what gets projected.
+  literal_text(source["value"])
+end
+
+# ONE APPENDED BINDING, in the spelling the bluebook used.
+#
+# THREE CASES, and only two were obvious. `Readings#encode_literal` renders a
+# binding self-describingly, so the wire says which it is:
+#
+#   "\"out\""            a literal STRING  -> already the bluebook spelling
+#   "{:value=>\"credit\"}"  a literal OBJECT  -> Ruby's `inspect`, which is NOT
+#                                            what Rust's parser reads. It reads
+#                                            `{ value: "credit" }` and renders it
+#                                            back to inspect form itself, so the
+#                                            projection has to invert that.
+#   "topping"            an ARGUMENT       -> a leading colon makes it one again
+#
+# The middle case cost the projected banking a mangled `{:=>value=>"credit"}`:
+# an object-literal binding is not a quoted string, so it read as an argument
+# named `{:value=>"credit"}`. Only banking declares one, which is why seven
+# chapters projected cleanly around it.
+def binding_source(bound)
+  text = bound.to_s
+  return text if text.start_with?('"')
+  return bluebook_object(text) if text.start_with?("{")
+
+  ":#{text}"
+end
+
+# RUBY'S INSPECT, BACK INTO THE SPELLING A BLUEBOOK USES.
+#
+# `{:text=>"transfer out"}` is how Ruby renders an object literal onto the wire;
+# `{ text: "transfer out" }` is what Rust's parser reads, and `ruby_literal` is
+# what turns the second into the first. Feeding Rust the inspect form instead
+# makes `ruby_literal` split on the WRONG colon and produce
+# `{:=>text=>"transfer out"}` — a value that is not wrong so much as not
+# anything.
+def bluebook_object(text)
+  pairs = text.delete_prefix("{").delete_suffix("}").split(",").map do |entry|
+    key, value = entry.split("=>", 2)
+    "#{key.to_s.strip.delete_prefix(':')}: #{value.to_s.strip}"
+  end
+  "{ #{pairs.join(', ')} }"
 end
 
 MUTATION_OPS = { "set" => "Set", "increment" => "Increment", "decrement" => "Decrement",
@@ -215,9 +287,18 @@ end
 # parser read — a leading colon means an argument the event carried, anything
 # else is a literal — which is the distinction `IR.render_value` draws and the
 # walk once read past.
+# ALWAYS A LITERAL, and the colon stays on.
+#
+# `ValueSpec::FromEvent` is not what a plain `:source` parses to — Rust builds it
+# only from the explicit `from_event(...)` sentinel, and renders it back as a
+# BARE name. A binding written `:source` is a `Literal` holding ":source", colon
+# and all, because that is the text `IR.render_value` put on the wire and the
+# colon is what tells an argument from a string.
+#
+# An object literal is inverted for the same reason `binding_source` inverts one.
 def value_spec(text)
-  text.to_s.start_with?(":") ? "ValueSpec::FromEvent { name: #{rs(text.to_s[1..])}, default: None }"
-                             : "ValueSpec::Literal { value: #{rs(text)} }"
+  held = text.to_s
+  "ValueSpec::Literal { value: #{rs(held.start_with?('{') ? bluebook_object(held) : held)} }"
 end
 
 def dispatch(held)
