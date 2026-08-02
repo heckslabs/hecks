@@ -66,6 +66,43 @@ RSpec.describe "lineage in the Postgres adapter",
     end
   BLUEBOOK
 
+  # A THIRD era, so the layered build has something to layer ON: era 3
+  # is the first mint that can read era 2's matview instead of raw
+  # history.
+  V3_SOURCE = <<~BLUEBOOK.freeze
+    Hecks.bluebook "Ledger" do
+      aggregate "Account" do
+        identified_by { kind.label }
+
+        attribute :balance, Money
+        attribute :kind, Kind
+        attribute :denomination, Denomination
+
+        value_object "Money" do
+          attribute :cents, Integer
+        end
+
+        value_object "Kind" do
+          attribute :label, String
+        end
+
+        value_object "Denomination" do
+          attribute :code, String
+        end
+      end
+    end
+  BLUEBOOK
+
+  def edge_source_v3(from:, to:)
+    <<~RUBY
+      Hecks.data_translation("Ledger", from: #{from.inspect}, to: #{to.inspect}) do
+        aggregate("Account") do
+          rename :amount, to: :balance
+        end
+      end
+    RUBY
+  end
+
   before(:all) do
     admin = PG.connect(dbname: "postgres")
     admin.exec("DROP DATABASE IF EXISTS #{LINEAGE_DB} WITH (FORCE)")
@@ -102,13 +139,46 @@ RSpec.describe "lineage in the Postgres adapter",
     file&.close!
   end
 
-  def check!(source, translation_source: nil)
+  def check!(source, translation_source: nil, role: nil)
     registry = load_registry(source, translation_source: translation_source)
     bluebook = registry.bluebooks.values.first
+    settings = { database: LINEAGE_DB }
+    settings[:role] = role if role
     Hecksagain::Adapters::Postgres::LineageManager.check!(
-      registry: registry, bluebook: bluebook, current_text: source, settings: { database: LINEAGE_DB }
+      registry: registry, bluebook: bluebook, current_text: source, settings: settings
     )
     registry
+  end
+
+  # A deployment's app role: a NON-owner, which is the only kind of
+  # connection the era fence can act on (the owner bypasses RLS).
+  LINEAGE_ROLE = "hecksagain_lineage_spec_app".freeze
+
+  def reset_app_role!
+    db = PG.connect(dbname: LINEAGE_DB)
+    begin
+      db.exec("DROP OWNED BY #{LINEAGE_ROLE}")
+    rescue PG::Error # rubocop:disable Lint/SuppressedException
+    end
+    db.close
+    admin = PG.connect(dbname: "postgres")
+    admin.exec("DROP ROLE IF EXISTS #{LINEAGE_ROLE}")
+    admin.exec("CREATE ROLE #{LINEAGE_ROLE} LOGIN")
+    admin.close
+    db = PG.connect(dbname: LINEAGE_DB)
+    db.exec("GRANT CONNECT ON DATABASE #{LINEAGE_DB} TO #{LINEAGE_ROLE}")
+    db.exec("GRANT USAGE ON SCHEMA public TO #{LINEAGE_ROLE}")
+    db.close
+  end
+
+  def as_app_role(sql)
+    db = PG.connect(dbname: LINEAGE_DB, user: LINEAGE_ROLE)
+    db.exec(sql)
+    :allowed
+  rescue PG::Error => error
+    error.message.strip
+  ensure
+    db&.close
   end
 
   def hash_of(source)
@@ -615,6 +685,189 @@ RSpec.describe "lineage in the Postgres adapter",
     v2_quote = drifted.bluebooks.values.first.aggregate("Quote")
     head = Hecksagain::Adapters::Postgres.new(aggregate: v2_quote, settings: { database: LINEAGE_DB, domain: "Pricing" })
     expect(head.find("q1").price_dollars.to_h).to eq(value: 12.5)
+  end
+
+  it "fences a deployment's app role at the era its checkout speaks — and the fence is written through, not read off the catalog" do
+    reset_app_role!
+    write_v1_record
+    from = label_of(V1_SOURCE)
+    to = label_of(V2_SOURCE)
+    check!(V2_SOURCE, translation_source: edge_source(from: from, to: to), role: LINEAGE_ROLE)
+
+    journal = "hecks_journal_ledger"
+
+    # The fenced role must be able to BOOT, or the fence constrains
+    # nobody: ensure_base!'s ALTER TABLE and REVOKE are owner-only, and
+    # a deployment's app role is deliberately not the owner.
+    app = PG.connect(dbname: LINEAGE_DB, user: LINEAGE_ROLE)
+    expect { Hecksagain::Adapters::Postgres::Lineage.new(app, "Ledger").ensure_base! }.not_to raise_error
+    app.close
+
+    append = lambda do |era|
+      as_app_role(
+        "INSERT INTO #{journal} (era, aggregate, aggregate_id, operation, state) " \
+        "VALUES (#{era}, 'account', 'fenced-#{era}', 'save', '{}'::jsonb)"
+      )
+    end
+
+    # the era this checkout speaks
+    expect(append.call(2)).to eq(:allowed)
+
+    # the ANCESTOR era — the fork's other world. A per-partition GRANT
+    # cannot express this: Postgres checks INSERT on the partitioned
+    # parent for a routed insert and never consults the partition, so
+    # the old shape of this fence either blocked everything or allowed
+    # every era. This asserts the refusal by attempting the write.
+    expect(append.call(1)).to match(/row-level security policy/i)
+
+    # nor is a partition a back door: the role is granted on the parent
+    # only, so addressing a leaf directly gets it nowhere
+    expect(
+      as_app_role("INSERT INTO #{journal}_era_1 (era, aggregate, aggregate_id, operation, state) " \
+                  "VALUES (1, 'acct', 'leaf', 'save', '{}'::jsonb)")
+    ).to match(/permission denied/i)
+
+    # and the journal is still append-only to it
+    expect(as_app_role("UPDATE #{journal} SET operation = 'delete'")).to match(/permission denied|row-level security/i)
+    expect(as_app_role("DELETE FROM #{journal}")).to match(/permission denied|row-level security/i)
+
+    # the owner is NOT fenced — mint and merge must reach every era
+    owner = PG.connect(dbname: LINEAGE_DB)
+    expect do
+      owner.exec("INSERT INTO #{journal} (era, aggregate, aggregate_id, operation, state) " \
+                 "VALUES (1, 'acct', 'owner-write', 'save', '{}'::jsonb)")
+    end.not_to raise_error
+    owner.close
+  end
+
+  it "an old checkout keeps writing its own era THROUGH a mint — the fork survives the window, it does not merely bracket it" do
+    write_v1_record
+    l1 = label_of(V1_SOURCE)
+    l2 = label_of(V2_SOURCE)
+    check!(V2_SOURCE, translation_source: edge_source(from: l1, to: l2))
+    l3 = label_of(V3_SOURCE)
+
+    # Hold a mint-shaped transaction open at exactly the point the tail
+    # materialization would run: the next era's partition is attached,
+    # nothing is committed.
+    blocker = PG.connect(dbname: LINEAGE_DB)
+    blocker.exec("BEGIN")
+    Hecksagain::Adapters::Postgres::Lineage.new(blocker, "Ledger").ensure_partition!(3)
+
+    # the lock that attach took, named — ShareUpdateExclusive conflicts
+    # with neither reads nor inserts; AccessExclusive (what
+    # CREATE ... PARTITION OF takes) conflicts with both
+    probe = PG.connect(dbname: LINEAGE_DB)
+    mode = probe.exec_params(
+      "SELECT l.mode FROM pg_locks l JOIN pg_class c ON c.oid = l.relation " \
+      "WHERE c.relname = $1 AND l.mode LIKE '%Exclusive%' ORDER BY l.mode LIMIT 1",
+      ["hecks_journal_ledger"]
+    )[0]&.fetch("mode")
+    expect(mode).to eq("ShareUpdateExclusiveLock")
+
+    writer = PG.connect(dbname: LINEAGE_DB)
+    writer.exec("SET lock_timeout = '2s'")
+    write = lambda do
+      writer.exec(
+        "INSERT INTO hecks_journal_ledger (era, aggregate, aggregate_id, operation, state) " \
+        "VALUES (2, 'account', 'during-mint', 'save', '{}'::jsonb)"
+      )
+      :allowed
+    rescue PG::Error => error
+      error.message.strip
+    end
+
+    # the old checkout writes its own era straight through the mint
+    expect(write.call).to eq(:allowed)
+
+    blocker.exec("ROLLBACK")
+    blocker.close
+    probe.close
+    writer.close
+  end
+
+  it "builds era 3 from era 2's matview, not from raw history — and the layered answer equals the full one" do
+    write_v1_record
+    l1 = label_of(V1_SOURCE)
+    l2 = label_of(V2_SOURCE)
+    l3 = label_of(V3_SOURCE)
+    check!(V2_SOURCE, translation_source: edge_source(from: l1, to: l2))
+
+    # more era-2 traffic, so the layer has both a matview AND live rows
+    # of its own to fold in
+    registry = load_registry(V2_SOURCE)
+    account = registry.bluebooks.values.first.aggregate("Account")
+    adapter = Hecksagain::Adapters::Postgres.new(aggregate: account, settings: { database: LINEAGE_DB, domain: "Ledger" })
+    adapter.save(Hecksagain::Runtime::Instance.new(
+                   aggregate: account, id: "business",
+                   state: { amount: { "cents" => 250 }, kind: { "label" => "business" },
+                            denomination: { "code" => "USD" } }
+                 ))
+
+    edges = "#{edge_source(from: l1, to: l2)}\n#{edge_source_v3(from: l2, to: l3)}"
+    check!(V3_SOURCE, translation_source: edges)
+
+    db = PG.connect(dbname: LINEAGE_DB)
+    layered = db.exec("SELECT aggregate_id, operation, state FROM #{PG::Connection.quote_ident("account_lineage_3_#{l3}")} ORDER BY aggregate_id").values
+
+    # the definition actually used era 2's matview rather than the journal
+    definition = db.exec_params("SELECT definition FROM pg_matviews WHERE matviewname = $1",
+                                ["account_lineage_3_#{l3}"])[0]["definition"]
+    expect(definition).to include("account_lineage_2_#{l2}")
+
+    # ...and it agrees with the from-scratch build, row for row
+    lineage = Hecksagain::Adapters::Postgres::Lineage.new(db, "Ledger")
+    chain = Hecksagain::Adapters::Postgres::LineageManager.edge_chain(
+      load_registry(V3_SOURCE, translation_source: edges), load_registry(V3_SOURCE).bluebooks.values.first,
+      lineage.eras[0..-2], l3
+    )
+    full = db.exec("SELECT aggregate_id, operation, state FROM (#{lineage.chain_sql(account, 3, chain)}) full_build ORDER BY aggregate_id").values
+    db.close
+
+    expect(layered).to eq(full)
+    expect(layered).not_to be_empty
+  end
+
+  it "the layered build still honours the cut — an era-2 checkout writing after era 3 was minted never reaches era 3's head" do
+    write_v1_record
+    l1 = label_of(V1_SOURCE)
+    l2 = label_of(V2_SOURCE)
+    l3 = label_of(V3_SOURCE)
+    check!(V2_SOURCE, translation_source: edge_source(from: l1, to: l2))
+    edges = "#{edge_source(from: l1, to: l2)}\n#{edge_source_v3(from: l2, to: l3)}"
+    check!(V3_SOURCE, translation_source: edges)
+
+    # the fork: an old era-2 checkout keeps writing its own partition
+    # AFTER era 3 cut its watermark. The layer beneath era 3's matview
+    # is era 2's matview — so if the cut were re-derived at query time
+    # (or forgotten in the layer), this write would leak upward.
+    stale = Hecksagain::Adapters::Postgres.new(
+      aggregate: load_registry(V2_SOURCE).bluebooks.values.first.aggregate("Account"),
+      settings: { database: LINEAGE_DB, domain: "Ledger", era: 2 }
+    )
+    stale.save(Hecksagain::Runtime::Instance.new(
+                 aggregate: load_registry(V2_SOURCE).bluebooks.values.first.aggregate("Account"),
+                 id: "business", state: { amount: { "cents" => 999 }, kind: { "label" => "business" },
+                                          denomination: { "code" => "ZZZ" } }
+               ))
+
+    db = PG.connect(dbname: LINEAGE_DB)
+    # THE REFRESH IS THE POINT. Materialization alone freezes the tail,
+    # so a post-cut write cannot leak whether or not the cut is in the
+    # definition — which makes the naive version of this test vacuous.
+    # The cut only earns its keep when the definition is re-evaluated,
+    # and the header promises it holds "even on a full REFRESH". So
+    # refresh, and hold it to that.
+    db.exec("REFRESH MATERIALIZED VIEW #{PG::Connection.quote_ident("account_lineage_3_#{l3}")}")
+    head = db.exec("SELECT id, state FROM account_head ORDER BY id").values
+    diverged = Hecksagain::Adapters::Postgres::Lineage.new(db, "Ledger").diverged_count(2)
+    db.close
+
+    # the post-cut write is real and observable as divergence...
+    expect(diverged).to eq(1)
+    # ...and it is NOT in the new world's head
+    expect(head.map(&:last).join).not_to include("999")
+    expect(head.map(&:last).join).not_to include("ZZZ")
   end
 
   it "journal rows accept no UPDATE or DELETE from PUBLIC — immutability by privilege" do

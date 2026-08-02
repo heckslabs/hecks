@@ -40,7 +40,19 @@ module Hecksagain
         def head_view(storage_name) = "#{storage_name}_head"
         def matview(storage_name, era, label) = "#{storage_name}_lineage_#{era}_#{label}"
 
+        # Provisioning is the OWNER's job, and a deployment's app role is
+        # deliberately not the owner — it may append and read, and it
+        # owns nothing. By the time such a role connects, the base is
+        # already built, so its boot verifies rather than builds.
+        #
+        # Without this guard the per-era fence below is unreachable: the
+        # ALTER TABLE and REVOKE here are owner-only, so the very role
+        # grant_era! exists to constrain could never finish booting
+        # ("must be owner of table hecks_eras"). A fence nothing can
+        # reach is not a fence.
         def ensure_base!
+          return unless provisioner?
+
           @db.exec(<<~SQL)
             CREATE TABLE IF NOT EXISTS hecks_eras (
               domain    text NOT NULL,
@@ -106,11 +118,61 @@ module Hecksagain
           install_transforms!
         end
 
+        # Nothing provisioned yet — build it. Provisioned and owned —
+        # keep it current. Provisioned by SOMEONE ELSE — this is an app
+        # role, and the owner has already done this work.
+        def provisioner?
+          rows = @db.exec_params(
+            "SELECT pg_get_userbyid(relowner) = current_user AS owned FROM pg_class WHERE relname = $1",
+            [journal]
+          )
+          rows.ntuples.zero? || rows[0]["owned"] == "t"
+        end
+
+        # BUILD, THEN ATTACH — never CREATE ... PARTITION OF. The two
+        # produce the same partition; only the lock differs, and that
+        # difference is the whole availability story of a mint:
+        #
+        #   CREATE TABLE ... PARTITION OF  → AccessExclusiveLock (parent)
+        #   CREATE, then ALTER ... ATTACH  → ShareUpdateExclusiveLock
+        #
+        # AccessExclusive conflicts with every insert in the hierarchy —
+        # routed through the parent OR addressed to an existing leaf —
+        # so attaching the new era inside the mint transaction stopped
+        # every writer for the WHOLE mint, tail materialization
+        # included. ShareUpdateExclusive conflicts with neither, so the
+        # old checkout keeps writing its own era straight through the
+        # build and only pauses for the head swap at the end.
+        #
+        # That is what makes the fork real DURING a mint rather than
+        # merely before and after one. Measured, and pinned by the spec
+        # — which writes through a live mint rather than reading a lock
+        # mode out of the catalog.
         def ensure_partition!(era)
+          return if partition_attached?(era)
+
           @db.exec(<<~SQL)
-            CREATE TABLE IF NOT EXISTS #{quote(partition(era))}
-              PARTITION OF #{quoted_journal} FOR VALUES IN (#{era.to_i})
+            CREATE TABLE IF NOT EXISTS #{quote(partition(era))} (
+              LIKE #{quoted_journal} INCLUDING DEFAULTS
+            )
           SQL
+          @db.exec(<<~SQL)
+            ALTER TABLE #{quoted_journal}
+              ATTACH PARTITION #{quote(partition(era))} FOR VALUES IN (#{era.to_i})
+          SQL
+        end
+
+        # Attached, not merely present: a crash between the CREATE and
+        # the ATTACH leaves a table that is not yet part of the journal,
+        # and the next boot must finish the job rather than skip it.
+        def partition_attached?(era)
+          @db.exec_params(
+            "SELECT 1 FROM pg_inherits i " \
+            "JOIN pg_class child ON child.oid = i.inhrelid " \
+            "JOIN pg_class parent ON parent.oid = i.inhparent " \
+            "WHERE child.relname = $1 AND parent.relname = $2",
+            [partition(era), journal]
+          ).ntuples.positive?
         end
 
         # ── eras ────────────────────────────────────────────────────────
@@ -318,16 +380,45 @@ module Hecksagain
           raise Runtime::WiringError, "cannot mint era #{ordinal} of #{@domain}: #{error.message.strip}"
         end
 
-        # Per-era INSERT grants: the app role (a NON-owner) may append
-        # into exactly one partition — the era its checkout speaks. An
-        # OLD checkout keeps its own role's grant on its own partition
-        # (the fork, Phase 5); this connection's role moves forward.
+        # The per-era INSERT fence: the app role (a NON-owner) may append
+        # into exactly one era — the one its checkout speaks. An OLD
+        # checkout keeps its own role's fence at its own era (the fork);
+        # this connection's role moves forward.
+        #
+        # A ROW POLICY, not a partition grant. Postgres checks INSERT
+        # privilege on the partitioned PARENT for a routed insert and
+        # never consults the partition's own grants, so the obvious
+        # per-partition GRANT/REVOKE is inert in both directions: grant
+        # only on the partition and the role cannot write at all; grant
+        # on the parent so it can, and it may write into EVERY era,
+        # ancestors included. Measured, not reasoned about — see the
+        # spec, which writes through the fence rather than asserting the
+        # catalog. WITH CHECK is evaluated per ROW on the parent, which
+        # is exactly the boundary this needs.
+        #
+        # The table owner bypasses RLS by default, and that is load
+        # bearing: mint and merge run as the owner and must be able to
+        # write any era (the merge re-enters a winner's state into the
+        # CURRENT era, and compile_head! reads every ancestor).
         def grant_era!(ordinal, role)
           quoted_role = quote(role)
-          @db.exec("REVOKE INSERT ON #{quote(partition(ordinal - 1))} FROM #{quoted_role}") if ordinal > 1
-          @db.exec("GRANT INSERT ON #{quote(partition(ordinal))} TO #{quoted_role}")
-          @db.exec("GRANT SELECT ON #{quoted_journal} TO #{quoted_role}")
+          @db.exec("GRANT INSERT, SELECT ON #{quoted_journal} TO #{quoted_role}")
           @db.exec("GRANT USAGE ON SEQUENCE #{quote(sequence)} TO #{quoted_role}")
+          @db.exec("ALTER TABLE #{quoted_journal} ENABLE ROW LEVEL SECURITY")
+
+          # Policies are named per ROLE, so advancing this role's era
+          # leaves every other role's fence exactly where it stands —
+          # which is what lets an old checkout keep writing its own era
+          # while a new one moves on.
+          append = quote("hecks_append_#{role}")
+          @db.exec("DROP POLICY IF EXISTS #{append} ON #{quoted_journal}")
+          @db.exec(
+            "CREATE POLICY #{append} ON #{quoted_journal} FOR INSERT TO #{quoted_role} " \
+            "WITH CHECK (era = #{ordinal.to_i})"
+          )
+          read = quote("hecks_read_#{role}")
+          @db.exec("DROP POLICY IF EXISTS #{read} ON #{quoted_journal}")
+          @db.exec("CREATE POLICY #{read} ON #{quoted_journal} FOR SELECT TO #{quoted_role} USING (true)")
         end
 
         # ── fork observability ─────────────────────────────────────────
@@ -394,7 +485,9 @@ module Hecksagain
           aggregates.each do |aggregate|
             @db.exec("DROP VIEW IF EXISTS #{quote(head_view(aggregate.storage_name))}")
             @db.exec("DROP MATERIALIZED VIEW IF EXISTS #{quote(matview(aggregate.storage_name, era, label))}")
-            compile_head!(aggregate, era, label, edges)
+            # full: the watermarks just moved — every ancestor matview's
+            # cut is stale, so there is nothing safe to layer on.
+            compile_head!(aggregate, era, label, edges, full: true)
           end
 
           winners.each do |id, side|
@@ -484,9 +577,89 @@ module Hecksagain
         # correct position for both rules in one pass. Chaining the
         # original edges in mint order reproduces the true execution
         # exactly and needs no such reasoning.
+        # ONLY THE LATEST ANCESTOR ENTRY PER ID IS OBSERVABLE. The head,
+        # the tail-merge, and the audit all reduce by
+        # DISTINCT ON (aggregate_id) ORDER BY ordinal DESC before anyone
+        # reads a state, so an entry with a newer sibling can never
+        # reach a reader. Translating those siblings computes and stores
+        # rows nothing can observe — on an append-only journal a record
+        # edited a hundred times cost a hundred translations to serve
+        # one.
+        #
+        # So the tail is reduced BEFORE the chain, not after. The
+        # translated output is identical (the reducer is idempotent and
+        # the survivor is the same row either way); only the work
+        # changes, from |journal entries| to |distinct records|.
+        #
+        # `era` must survive the reduction: each edge's CASE reads it to
+        # decide whether a row is old enough to need that edge applied.
+        def latest_per_id(tail)
+          return tail if tail.to_s.empty?
+
+          "SELECT DISTINCT ON (aggregate_id) ordinal, era, aggregate, aggregate_id, operation, state " \
+            "FROM (#{tail}) tail_entries ORDER BY aggregate_id, ordinal DESC"
+        end
+
+        # THE LAYERED BUILD — era N from era N-1's matview, not from raw
+        # history. Returns nil when it cannot apply, and the caller
+        # falls back to the full chain above.
+        #
+        # The algebra it rests on, both halves load-bearing:
+        #
+        #   1. THE CUTS DO NOT MOVE. ancestor_tail_sql cuts ancestor k at
+        #      W(k+1) — the watermark recorded when era k+1 was minted.
+        #      Those are the SAME literals in the era N-1 build and the
+        #      era N build, so era N-1's matview already carries exactly
+        #      the cut era N needs for eras 1..N-2. Only era N-1's own
+        #      rows are new, and they are cut at W(N). The watermark is
+        #      still a literal baked into a definition; it is simply
+        #      baked into the layer beneath. (This is why the tail-merge
+        #      must pass full: — it moves every watermark at once.)
+        #
+        #   2. REDUCING IS ASSOCIATIVE. reduce(A ∪ B) == reduce(reduce(A) ∪ B),
+        #      because the survivor is max-ordinal-per-id either way. So
+        #      reducing per layer is the same answer as reducing the
+        #      whole tail once.
+        #
+        # And every row on both sides of the union is already in era
+        # N-1's shape — the matview because it was chained through edge
+        # N-2, era N-1's own rows because that is the shape they were
+        # written under — so the final edge applies uniformly, with no
+        # per-era CASE. That equality is asserted, not argued: the spec
+        # builds a third era both ways and diffs them.
+        def layered_chain_sql(aggregate, era, edges)
+          return nil if era < 3 || edges.size < 2
+
+          held = eras
+          prior = held.find { |candidate| candidate[:ordinal] == era - 1 }
+          return nil unless prior && prior[:label]
+
+          prior_view = matview(aggregate.storage_name, era - 1, prior[:label])
+          return nil unless view_exists?(prior_view)
+
+          names = names_by_era(aggregate, edges)
+          cut = held.find { |candidate| candidate[:ordinal] == era }&.dig(:watermark)
+          declared = edges.last[:translation].for_aggregate(names[:current][edges.size])
+          expression = declared ? compile_rules(declared) : "state"
+
+          <<~SQL
+            WITH layered AS (
+              SELECT DISTINCT ON (aggregate_id) ordinal, aggregate_id, operation, state FROM (
+                SELECT ordinal, aggregate_id, operation, state FROM #{quote(prior_view)}
+                UNION ALL
+                SELECT ordinal, aggregate_id, operation, state FROM #{quoted_journal}
+                WHERE era = #{era - 1} AND aggregate = #{text_literal(names[:storage][era - 2])}#{cut ? " AND ordinal <= #{cut}" : ''}
+              ) layers ORDER BY aggregate_id, ordinal DESC
+            )
+            SELECT ordinal, aggregate_id, operation,
+                   CASE WHEN operation = 'save' THEN #{expression} ELSE state END AS state
+            FROM layered
+          SQL
+        end
+
         def chain_sql(aggregate, era, edges)
           names = names_by_era(aggregate, edges)
-          tail = ancestor_tail_sql(names, era)
+          tail = latest_per_id(ancestor_tail_sql(names, era))
           chain = edges.each_with_index.map do |edge, index|
             declared = edge[:translation].for_aggregate(names[:current][index + 1])
             expression = declared ? compile_rules(declared) : "state"
@@ -547,12 +720,22 @@ module Hecksagain
         # re-derives the cut will silently leak the old world's post-cut
         # writes into the new head. Rebuilding the definition (mint,
         # merge) is the only way the cut may move.
-        def compile_head!(aggregate, era, label, edges)
+        # `full:` forces a rebuild from the raw journal. The tail-merge
+        # needs it: it moves EVERY watermark to the new tip, so every
+        # ancestor matview's cut goes stale in the same statement, and
+        # layering on one would carry a cut that no longer exists.
+        def compile_head!(aggregate, era, label, edges, full: false)
           storage_name = aggregate.storage_name
           view = matview(storage_name, era, label)
+          body =
+            if !full && (layered = layered_chain_sql(aggregate, era, edges))
+              layered
+            else
+              chain_sql(aggregate, era, edges)
+            end
           @db.exec(<<~SQL)
             CREATE MATERIALIZED VIEW #{quote(view)} AS
-            #{chain_sql(aggregate, era, edges)}
+            #{body}
           SQL
 
           @db.exec("DROP VIEW IF EXISTS #{quote(head_view(storage_name))}")
