@@ -276,19 +276,36 @@ impl PostgresRepository {
         Ok(())
     }
 
+    // HELD FOR THE WHOLE TRANSACTION, not just around the INSERT — the
+    // ordinal is assigned by the column's own `nextval()` default, inside
+    // this same statement, so the lock has to already be held before that
+    // default evaluates. A DIFFERENT key from mint/merge's
+    // `hecks_eras:domain` (see lineage.rb's Ruby twin of this comment) :
+    // this serializes plain writes against EACH OTHER, never against a
+    // mint — a plain write must never block on one, which is exactly the
+    // guarantee `postgres_lineage_spec.rb`'s "an old checkout keeps writing
+    // its own era THROUGH a mint" pins the absence of.
     fn append(&self, id: &str, operation: &str, state_json: Option<&str>, mirrors_json: &str) -> Result<(), String> {
-        self.client
-            .lock()
-            .expect("postgres client poisoned")
-            .execute(
-                &format!(
-                    "INSERT INTO {} (era, aggregate, aggregate_id, operation, state, mirrors) \
-                     VALUES ($1, $2, $3, $4, $5::text::jsonb, $6::text::jsonb)",
-                    quote_ident(&self.journal())
-                ),
-                &[&self.era, &self.table, &id, &operation, &state_json, &mirrors_json],
-            )
-            .map_err(|error| format!("cannot append {} history: {error}", self.table))?;
+        let mut client = self.client.lock().expect("postgres client poisoned");
+        let mut tx = client
+            .transaction()
+            .map_err(|error| format!("cannot begin append transaction: {error}"))?;
+        tx.execute(
+            "SELECT pg_advisory_xact_lock(hashtext('hecks_ordinal:' || $1))",
+            &[&self.domain],
+        )
+        .map_err(|error| format!("cannot acquire ordinal lock: {error}"))?;
+        tx.execute(
+            &format!(
+                "INSERT INTO {} (era, aggregate, aggregate_id, operation, state, mirrors) \
+                 VALUES ($1, $2, $3, $4, $5::text::jsonb, $6::text::jsonb)",
+                quote_ident(&self.journal())
+            ),
+            &[&self.era, &self.table, &id, &operation, &state_json, &mirrors_json],
+        )
+        .map_err(|error| format!("cannot append {} history: {error}", self.table))?;
+        tx.commit()
+            .map_err(|error| format!("cannot commit append transaction: {error}"))?;
         Ok(())
     }
 

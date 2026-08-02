@@ -135,13 +135,26 @@ module Hecksagain
         @db.exec_params(sql, binds).map { |row| instance(row) }
       end
 
+      # HELD FOR THE WHOLE TRANSACTION, not just around the INSERT — the
+      # ordinal is assigned by the column's own `nextval()` default, inside
+      # this same statement, so the lock has to already be held before that
+      # default evaluates. A DIFFERENT key from `mint_era!`/`merge_tail!`'s
+      # `hecks_eras:domain` : this serializes plain writes against EACH
+      # OTHER, never against a mint. See lineage.rb's own comment for why
+      # only that half of the race is closed.
       def append(entry)
-        @db.exec_params(
-          "INSERT INTO #{@lineage.quoted_journal} (era, aggregate, aggregate_id, operation, state, mirrors) " \
-          "VALUES ($1, $2, $3, $4, $5, $6)",
-          [@era, table, entry.id, entry.operation,
-           entry.state && JSON.generate(entry.state), entry.mirrors && JSON.generate(entry.mirrors)]
-        )
+        @db.transaction do
+          @db.exec_params(
+            "SELECT pg_advisory_xact_lock(hashtext('hecks_ordinal:' || $1))",
+            [@lineage.domain]
+          )
+          @db.exec_params(
+            "INSERT INTO #{@lineage.quoted_journal} (era, aggregate, aggregate_id, operation, state, mirrors) " \
+            "VALUES ($1, $2, $3, $4, $5, $6)",
+            [@era, table, entry.id, entry.operation,
+             entry.state && JSON.generate(entry.state), entry.mirrors && JSON.generate(entry.mirrors)]
+          )
+        end
         entry
       end
 

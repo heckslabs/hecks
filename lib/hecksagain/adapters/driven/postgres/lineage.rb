@@ -40,9 +40,30 @@ module Hecksagain
       # an actual Postgres superuser (or a role granted BYPASSRLS)
       # sits above FORCE and keeps writing at will, forever.
       #
-      # Lineage order is ordinal-assignment order: the ordinal comes
-      # from a sequence, sequences are non-transactional, and that is
-      # accepted and documented rather than papered over.
+      # Lineage order is ordinal-assignment order: the ordinal comes from a
+      # sequence, and a sequence's `nextval()` is never rolled back with its
+      # transaction — accepted and documented rather than papered over.
+      #
+      # ONE PART OF THAT IS CLOSED. Two concurrent PLAIN writes could call
+      # `nextval()` in one order and COMMIT in the other — nothing about a
+      # single autocommit INSERT statement stops a slower one from finishing
+      # after a faster one that started later — so "ordinal order" and
+      # "commit order" were formally two different total orders even with no
+      # mint anywhere near either write. `Postgres#append` now holds
+      # `pg_advisory_xact_lock(hashtext('hecks_ordinal:' || domain))` for the
+      # length of its own transaction, a DIFFERENT key from `mint_era!` and
+      # `merge_tail!`'s `hecks_eras:domain` — so plain writes serialize
+      # against EACH OTHER only, never against a mint, and ordinal order
+      # equals commit order for them now.
+      #
+      # THE OTHER PART IS NOT, ON PURPOSE. A stale-era write during the
+      # narrow window before a mint's fence-move commits is the SAME race by
+      # a different name — and closing it would mean a plain write
+      # serializing against a mint, which is exactly the guarantee
+      # `postgres_lineage_spec.rb`'s "an old checkout keeps writing its own
+      # era THROUGH a mint" pins the ABSENCE of. That race stays the
+      # residual `diverged_count`/`merge_tail!` exist to reconcile, not
+      # something a plain write should ever block for.
       class Lineage
         JOURNAL_COLUMNS = "ordinal, era, aggregate, aggregate_id, operation, state, mirrors".freeze
 

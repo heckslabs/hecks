@@ -923,6 +923,42 @@ RSpec.describe "lineage in the Postgres adapter",
     writer.close
   end
 
+  # `Postgres#append` holds `pg_advisory_xact_lock(hashtext('hecks_ordinal:'
+  # || domain))` for its whole transaction now — a DIFFERENT key from the
+  # mint/merge lock above, so it closes ordinal-vs-commit-order only among
+  # PLAIN writes, never against a mint. Proven by holding that same lock by
+  # hand and showing a real `adapter.save` blocks on it, then proceeds the
+  # instant it's released — the only way `nextval()` and the row it feeds
+  # can be guaranteed to happen in the same order as an unrelated
+  # concurrent write's.
+  it "serializes concurrent plain writes against EACH OTHER — ordinal order can no longer diverge from commit order" do
+    registry = check!(V1_SOURCE)
+    adapter  = adapter_for(registry, "Acct")
+
+    holder = PG.connect(dbname: LINEAGE_DB)
+    holder.exec("BEGIN")
+    holder.exec_params("SELECT pg_advisory_xact_lock(hashtext('hecks_ordinal:' || $1))", ["Ledger"])
+
+    instance = Hecksagain::Runtime::Instance.new(
+      aggregate: registry.bluebooks.values.first.aggregate("Acct"), id: "a2",
+      state: { cost: { "cents" => 1, "currency" => "USD" }, kind: { "label" => "biz" }, legacy_note: { "text" => "x" } }
+    )
+    blocked = Thread.new { adapter.save(instance) }
+
+    sleep 0.3
+    expect(blocked).to be_alive # still waiting on the lock ; the write has not happened
+
+    holder.exec("COMMIT")
+    blocked.join(2)
+    expect(blocked).not_to be_alive # released the instant the lock was — not before
+
+    row = PG.connect(dbname: LINEAGE_DB).exec_params(
+      "SELECT ordinal FROM hecks_journal_ledger WHERE aggregate_id = 'a2'"
+    )[0]
+    expect(row).not_to be_nil
+    holder.close
+  end
+
   it "a role rebooting into its OWN now-superseded era cannot write it — nothing about that boot may reopen the schema a mint already closed" do
     reset_app_role!
     check!(V1_SOURCE, role: LINEAGE_ROLE)

@@ -253,3 +253,62 @@ fn era_gate_refuses_a_near_miss_typo_toward_the_generic_wording() {
     let _ = admin.batch_execute(&format!("DROP DATABASE IF EXISTS {GATE_DB} WITH (FORCE)"));
 }
 
+// `append` holds `pg_advisory_xact_lock(hashtext('hecks_ordinal:' ||
+// domain))` for its whole transaction now — a DIFFERENT key from the
+// mint/merge lock, so this closes ordinal-vs-commit-order only among PLAIN
+// writes, never against a mint. Proven the same way the Ruby twin of this
+// test is (`postgres_lineage_spec.rb`, "serializes concurrent plain writes
+// against EACH OTHER"): hold that same lock by hand and show a real save
+// blocks on it, then proceeds the instant it's released.
+#[test]
+fn append_serializes_concurrent_plain_writes_against_each_other() {
+    let Some(mut admin) = admin() else {
+        eprintln!("no reachable Postgres — start one to run this test");
+        return;
+    };
+    const DB: &str = "hecksagain_rust_ordinal_lock_test";
+    let _ = admin.batch_execute(&format!("DROP DATABASE IF EXISTS {DB} WITH (FORCE)"));
+    admin.batch_execute(&format!("CREATE DATABASE {DB}")).unwrap();
+
+    // Boots the journal/sequence into existence before the lock-holder and
+    // the background writer both race to do it independently.
+    drop(PostgresRepository::new("Acct", DB, "Ledger").unwrap());
+
+    let mut holder = Client::connect(&format!("host=localhost dbname={DB}"), NoTls).unwrap();
+    holder.execute("BEGIN", &[]).unwrap();
+    holder
+        .execute(
+            "SELECT pg_advisory_xact_lock(hashtext('hecks_ordinal:' || $1))",
+            &[&"Ledger"],
+        )
+        .unwrap();
+
+    let handle = std::thread::spawn(move || {
+        let mut repository = PostgresRepository::new("Acct", DB, "Ledger").unwrap();
+        let mut state = AggregateState::new("a2");
+        state.set("title", Value::Str("blocked-write".into()));
+        repository
+            .save(state, WriteContext::OutOfBand { reason: "concurrency test" })
+            .unwrap();
+    });
+
+    std::thread::sleep(std::time::Duration::from_millis(300));
+    assert!(
+        !handle.is_finished(),
+        "expected the write to still be blocked on the ordinal lock"
+    );
+
+    holder.execute("COMMIT", &[]).unwrap();
+    handle.join().expect("blocked write should complete once the lock releases");
+
+    let row = holder
+        .query_opt(
+            "SELECT ordinal FROM hecks_journal_ledger WHERE aggregate_id = 'a2'",
+            &[],
+        )
+        .unwrap();
+    assert!(row.is_some(), "the write should have landed once unblocked");
+
+    drop(holder);
+    let _ = admin.batch_execute(&format!("DROP DATABASE IF EXISTS {DB} WITH (FORCE)"));
+}
