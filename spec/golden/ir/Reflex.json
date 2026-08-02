@@ -81,7 +81,7 @@
             }
           ],
           "name": "Log",
-          "references": null,
+          "references": "Light",
           "role": "System"
         }
       ],
@@ -229,6 +229,24 @@
             }
           ],
           "emits": [
+            "Installed"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Hang a bell that can be rung",
+          "mutations": [
+
+          ],
+          "name": "Install",
+          "references": null,
+          "role": "Operator"
+        },
+        {
+          "attributes": [
+
+          ],
+          "emits": [
             "Rang"
           ],
           "givens": [
@@ -239,7 +257,7 @@
 
           ],
           "name": "Ring",
-          "references": null,
+          "references": "Echo",
           "role": "Operator"
         }
       ],

@@ -236,6 +236,7 @@ Hecks.bluebook "Bluebook" do
       attribute :name, String
       one_of do
         member name: "AbsentArgument"
+        member name: "AlreadyExists"
         member name: "GivenNotMet"
         member name: "InvariantViolation"
         member name: "LifecycleRefused"

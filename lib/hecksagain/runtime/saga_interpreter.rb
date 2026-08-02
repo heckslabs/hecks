@@ -34,12 +34,36 @@ module Hecksagain
       # the one field both runtimes can render identically.
       def saga_correlation(pm, event)
         path  = pm.correlates_by.to_s.split(".")
+        # A LATER EVENT MAY ALREADY HOLD THE SCALAR. `reference.value` digs a
+        # value object's field out of a FRESH declaration (TransferRequested's
+        # `reference` IS a TransferReference) — but a downstream event this
+        # same value was smuggled through as a passthrough argument
+        # (AccountDebited's `reference:`, resolved by `dispatch_args` to the
+        # bare correlation string) carries it as a scalar already, with
+        # nothing left to dig. `"xfer-1".respond_to?(:[])` is true — String
+        # has its OWN `[]` (substring indexing) — so checking for keyed
+        # lookup explicitly, rather than "responds to `[]` at all", is what
+        # stops the second segment from being read as a symbol index into a
+        # string that has already arrived.
         value = path.reduce(event.payload) do |held, segment|
-          held.respond_to?(:[]) ? held[segment.to_sym] : nil
+          held.is_a?(Hash) || held.is_a?(Value) ? held[segment.to_sym] : held
         end
         return value unless value.to_s.empty?
 
-        Naming.reference_key(event.aggregate) == pm.correlates_by.to_sym ? event.id : nil
+        # A SELF-REFERENCING LEG carries the correlation forward under ITS
+        # OWN reference key ("wire", "transfer") — the address
+        # `hydrate`'s "acts on an existing aggregate" branch demands when the
+        # aggregate's declared identity path is not what a `with:` binding
+        # supplied — not under whatever the correlates_by field happens to be
+        # called ("reference.value"). That key is constant across every
+        # self-referencing command on the tracked aggregate regardless of
+        # which field first carried the value in, and it never collides with
+        # an unrelated aggregate's own event: `Account.Debit` addresses by
+        # its OWN declared identity path ("number"), never by
+        # `reference_key`, so nothing is found there for an event that does
+        # not belong to this saga.
+        own_key = Naming.reference_key(event.aggregate).to_sym
+        event.payload[own_key]
       end
 
       def begin_saga(pm, event)
@@ -145,7 +169,7 @@ module Hecksagain
       def dispatch_args(pm, spec, event, instance, correlation)
         spec.with_spec.to_h do |key, value|
           resolved = if !value.is_a?(Symbol) then value
-                     elsif value == pm.correlates_by then correlation
+                     elsif value == pm.correlation_head then correlation
                      elsif event.payload.key?(value) then event.payload[value]
                      else instance[:memory][value]
                      end

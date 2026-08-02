@@ -530,6 +530,28 @@ impl Runtime {
                 parsed
             }
         };
+        // THE FIELD, NAMED — never the value object that carries it, the same
+        // rule `ProcessManagerBuilder#validate!` holds Ruby to. A bare
+        // `correlates_by :end_to_end` reads whatever the payload holds under
+        // that key AS the correlation key, and Ruby and Rust disagree about
+        // what a non-scalar key even is. Checked here rather than inside
+        // `parser::parse` for the same reason `strict_boot` lives here: a
+        // fresh parse is host-language strictness, not the second parser
+        // `--dump` exists to be.
+        if let Some(process_manager) = domain
+            .process_managers
+            .iter()
+            .find(|process_manager| !process_manager.correlates_by.contains('.'))
+        {
+            return Err(format!(
+                "cannot boot {}::{}: correlates_by {:?} names a whole field rather than one of its \
+                 scalars — say which one, e.g. \"{}.value\"",
+                domain.name,
+                process_manager.name,
+                process_manager.correlates_by,
+                process_manager.correlates_by
+            ));
+        }
         // The name is kept before the domain moves into the runtime — boot
         // still needs it to bind repositories, and the runtime owns it now.
         let domain_name = domain.name.clone();
@@ -1455,6 +1477,20 @@ impl Runtime {
         Ok(result)
     }
 
+    // THE SAME QUESTION THE "ACTS ON AN EXISTING" BRANCH BELOW ANSWERS BY
+    // FINDING A RECORD, ASKED WITHOUT NEEDING ONE BACK — an adapter-backed
+    // aggregate is checked through the adapter, an in-memory one through the
+    // compiled store, matching the two lookup paths `hydrate`'s non-creating
+    // branch already reads.
+    fn record_exists(&self, aggregate_name: &str, id: &str) -> bool {
+        if let Some(adapter) = self.adapters.get(aggregate_name) {
+            return adapter.find(id).is_some();
+        }
+        self.store
+            .keys()
+            .any(|key| key.ends_with(&format!("::{aggregate_name}#{id}")))
+    }
+
     fn hydrate(
         &mut self,
         aggregate: &Map<String, Value>,
@@ -1495,6 +1531,16 @@ impl Runtime {
                 None => identity::of(aggregate, args),
             }
             .ok_or_else(|| format!("{command_name} creates a {aggregate_name} — pass {reading}:"))?;
+            // A SECOND CREATION IS NOT A FRESH ONE — the same check the
+            // "acts on an existing" branch below already makes to FIND a
+            // record, made here to REFUSE one. A branch and box number are a
+            // small, finite set a caller can collide with by mistake in a
+            // way a minted reference cannot.
+            if self.record_exists(&aggregate_name, &id) {
+                return Err(format!(
+                    "{command_name} creates a {aggregate_name} that already exists — {reading} {id:?}"
+                ));
+            }
             return Ok((id, defaults_for(aggregate)?));
         }
 
@@ -1633,9 +1679,18 @@ impl Runtime {
     fn correlation(pm: &Value, event: &Value) -> Option<String> {
         let field = pm.get("correlates_by").and_then(Value::as_str)?;
         let payload = event.get("payload");
-        let held = field
-            .split('.')
-            .fold(payload, |held, segment| held.and_then(|v| v.get(segment)));
+        // A LATER EVENT MAY ALREADY HOLD THE SCALAR, matching Ruby's own
+        // `saga_correlation` — `reference.value` digs a value object's field
+        // out of a FRESH declaration, but a downstream event this same value
+        // was smuggled through as a passthrough argument carries it as a
+        // scalar already, with nothing left to dig. `Value::get` on a
+        // `Value::String` returns `None` rather than panicking, so without
+        // this check the digger would silently stop finding the correlation
+        // instead of crashing the way Ruby's did — descending only while
+        // there is still an object to descend into.
+        let held = field.split('.').fold(payload, |held, segment| {
+            held.and_then(|v| if v.is_object() { v.get(segment) } else { Some(v) })
+        });
         if let Some(value) = held {
             if !value.is_null() {
                 let text = value
@@ -1648,19 +1703,28 @@ impl Runtime {
             }
         }
 
+        // A SELF-REFERENCING LEG carries the correlation forward under ITS
+        // OWN reference key ("wire", "transfer") — matching Ruby's own
+        // `saga_correlation` — not under whatever the correlates_by field
+        // happens to be called. Constant across every self-referencing
+        // command on the tracked aggregate, and never a false match for an
+        // unrelated aggregate's event: a command addresses by its OWN
+        // declared identity path first, never by `reference_key`, so nothing
+        // is found here for an event that does not belong to this saga.
         let own_key = event
             .get("aggregate")
             .and_then(Value::as_str)
             .map(crate::naming::reference_key)
             .unwrap_or_default();
-        if own_key != field {
-            return None;
-        }
-        let id = event.get("id").and_then(Value::as_str).unwrap_or_default();
-        if id.is_empty() {
+        let value = event
+            .get("payload")
+            .and_then(|payload| payload.get(&own_key))
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        if value.is_empty() {
             None
         } else {
-            Some(id.to_string())
+            Some(value.to_string())
         }
     }
 
@@ -1819,7 +1883,14 @@ impl Runtime {
             .cloned()
             .unwrap_or_default();
 
-        let correlates_by = self
+        // THE HEAD OF THE DOTTED PATH, not `correlates_by` itself — a
+        // different question, matching `IR::ProcessManager#correlation_head`
+        // on the Ruby side. `correlates_by` says which scalar a FRESH event
+        // correlates on (dug through a value object's dot). This says what a
+        // DOWNSTREAM DISPATCH is allowed to call the already-resolved scalar
+        // it carries forward — a plain identifier, never a value object, so
+        // it never needed the dot.
+        let correlates_head = self
             .ir
             .get(domain)
             .and_then(|b| b.get("process_managers"))
@@ -1830,6 +1901,9 @@ impl Runtime {
             })
             .and_then(|p| p.get("correlates_by"))
             .and_then(Value::as_str)
+            .unwrap_or_default()
+            .split('.')
+            .next()
             .unwrap_or_default()
             .to_string();
         let mut args = Map::new();
@@ -1846,7 +1920,7 @@ impl Runtime {
                 continue;
             };
             let value = match token.strip_prefix(':') {
-                Some(name) if name == correlates_by => Value::String(correlation.to_string()),
+                Some(name) if name == correlates_head => Value::String(correlation.to_string()),
                 Some(name) => payload
                     .get(name)
                     .or_else(|| memory.get(name))
@@ -2068,6 +2142,12 @@ impl Runtime {
     /// threads its correlation key through every leg it dispatches so the event
     /// each leg emits carries it and the next step can be correlated — so the key
     /// arrives on commands that never declare it, and legitimately.
+    ///
+    /// THE HEAD, not the full dotted `correlates_by` — matching
+    /// `IR::ProcessManager#correlation_head`. The allowed argument name is
+    /// the plain identifier a `with:` value carries the already-resolved
+    /// scalar under, never the dotted path used to dig a fresh event's
+    /// payload.
     fn correlation_keys(&self, domain: &str) -> Vec<String> {
         self.ir
             .get(domain)
@@ -2077,7 +2157,7 @@ impl Runtime {
                 sagas
                     .iter()
                     .filter_map(|saga| saga.get("correlates_by").and_then(Value::as_str))
-                    .map(str::to_string)
+                    .map(|field| field.split('.').next().unwrap_or(field).to_string())
                     .collect()
             })
             .unwrap_or_default()

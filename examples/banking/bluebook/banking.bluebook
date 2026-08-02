@@ -1178,7 +1178,13 @@ Hecks.bluebook "Banking", version: "v1" do
   end
 
   process_manager "Settlement" do
-    correlates_by :transfer
+    # THE FIELD, NAMED — Transfer.Request declares `attribute :reference,
+    # TransferReference`, which is also what Transfer's own `identified_by
+    # { reference.value }` derives its id from, so this reads the exact same
+    # scalar the old bare `:transfer` reached only by coincidence (the
+    # aggregate's own reference key happening to spell the same as the
+    # correlation name). Named, not guessed.
+    correlates_by :"reference.value"
     starts_on "TransferRequested"
     ends_on   "TransferSettled"
 
@@ -1189,21 +1195,28 @@ Hecks.bluebook "Banking", version: "v1" do
 
     on "TransferRequested", transition: { "requested" => "requested" } do
       # Debit never declared :destination — the credit leg reads it from the saga's
-      # memory of the opening payload.
-      dispatch "Banking::Account.Debit", with: { number: :source, amount: :amount, narrative: { text: "transfer out" }, transfer: :transfer }
+      # memory of the opening payload. `reference:` carries the correlation
+      # forward — Account.Debit does not reference Transfer, so this is pure
+      # passthrough, not an addressing key.
+      dispatch "Banking::Account.Debit", with: { number: :source, amount: :amount, narrative: { text: "transfer out" }, reference: :reference }
     end
 
     on "AccountDebited", transition: { "requested" => "awaiting_credit" } do
-      dispatch "Banking::Transfer.Debited", with: { transfer: :transfer }
-      dispatch "Banking::Account.Credit", with: { number: :destination, amount: :amount, narrative: { text: "transfer in" }, transfer: :transfer }
+      # `transfer:` HERE IS DIFFERENT — Transfer.Debited references Transfer
+      # itself, so `transfer:` is its own reference key (Naming.reference_key
+      # ("Banking::Transfer") == "transfer"), addressing which record to act
+      # on. The VALUE stays `:reference`, reading the correlation the same
+      # way every other leg does.
+      dispatch "Banking::Transfer.Debited", with: { transfer: :reference }
+      dispatch "Banking::Account.Credit", with: { number: :destination, amount: :amount, narrative: { text: "transfer in" }, reference: :reference }
     end
 
     on "AccountCredited", transition: { "awaiting_credit" => "awaiting_credit" } do
-      dispatch "Banking::Transfer.Credited", with: { transfer: :transfer }
+      dispatch "Banking::Transfer.Credited", with: { transfer: :reference }
     end
 
     on "TransferCredited", transition: { "awaiting_credit" => "settled" } do
-      dispatch "Banking::Transfer.Settle", with: { transfer: :transfer }
+      dispatch "Banking::Transfer.Settle", with: { transfer: :reference }
     end
 
     # The compensating leg, triggered by a REFUSAL rather than an event. It hung
@@ -1213,7 +1226,7 @@ Hecks.bluebook "Banking", version: "v1" do
     # amount nowhere. The reversal was written and never armed.
     on :refused, transition: { "awaiting_credit" => "reversed" } do
       dispatch "Banking::Account.Credit", with: { number: :source, amount: :amount, narrative: { text: "transfer reversed" } }
-      dispatch "Banking::Transfer.Reverse", with: { transfer: :transfer }
+      dispatch "Banking::Transfer.Reverse", with: { transfer: :reference }
     end
   end
 

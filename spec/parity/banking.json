@@ -37,6 +37,18 @@
       {
         "verb": "Banking::ScheduledPayment.Schedule",
         "includes": "a scheduled payment amount is positive"
+      },
+      {
+        "verb": "Banking::Customer.Register",
+        "includes": "that already exists"
+      },
+      {
+        "verb": "Banking::Account.Open",
+        "includes": "that already exists"
+      },
+      {
+        "verb": "Banking::ATMCard.Issue",
+        "includes": "that already exists"
       }
     ],
     "instances": {
@@ -71,7 +83,7 @@
         "status": "vacant"
       }
     },
-    "events": 113
+    "events": 110
   },
   "steps": [
     {
