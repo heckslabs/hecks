@@ -16,3 +16,11 @@ pub const BLUEBOOK_WORDS: &[(&str, &str)] = &[
     ("read_model", "ReadModel"),
 ];
 
+pub const AGGREGATE_WORDS: &[(&str, &str)] = &[
+    ("command", "Command"),
+    ("entity", "Entity"),
+    ("policy", "Policy"),
+    ("query", "Query"),
+    ("value_object", "ValueObject"),
+];
+

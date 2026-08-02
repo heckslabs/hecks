@@ -5,12 +5,12 @@ require "spec_helper"
 # own `Syntax::Keyword` declaration (language/bluebook/syntax.bluebook, rows
 # where `opens` is not empty).
 #
-# The first rung of projecting the PARSER rather than its shapes: `parser.rs`'s
-# `dispatch_block` used to hand-maintain the four-word Bluebook-context list
-# this generates (`aggregate`, `read_model`, `policy`, `process_manager`), one
-# `if keyword_matches(...)` per word. Only the RECOGNITION moved — which word a
-# line starts with, and which category it opens. What happens once a category
-# opens stays hand-written in `dispatch_block`'s own match arms.
+# The first rung of projecting the PARSER rather than its shapes. `parser.rs`'s
+# `dispatch_block` used to hand-maintain the four-word Bluebook-context list ;
+# `parse_aggregate` its own five-word Aggregate-context one, three of them
+# checked with no word-boundary guard at all. Only the RECOGNITION moved —
+# which word a line starts with, and which category it opens. What happens
+# once a category opens stays hand-written in each function's own match arms.
 #
 # Nothing else catches a forgotten regeneration — the Rust build succeeds
 # either way, it would just be compiling a stale word list.

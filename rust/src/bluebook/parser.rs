@@ -199,21 +199,58 @@ fn parse_aggregate(lines: &[&str]) -> (Aggregate, Vec<Policy>, usize) {
         }
 
         if depth == 1 {
-            if line.starts_with("command") {
-                let (cmd, consumed) = parse_command(&lines[i..], &owner);
-                agg.commands.push(cmd);
-                i += consumed;
-                continue;
-            } else if line.starts_with("value_object") {
-                let (vo, consumed) = parse_value_object(&lines[i..]);
-                agg.value_objects.push(vo);
-                i += consumed;
-                continue;
-            } else if line.starts_with("entity") {
-                let (ent, consumed) = parse_entity(&lines[i..]);
-                agg.entities.push(ent);
-                i += consumed;
-                continue;
+            // WHICH WORD, GENERATED ; WHAT OPENING IT MEANS, HAND-WRITTEN. Same
+            // shape as `dispatch_block` — see its own comment. Three of these
+            // five used to be checked with a bare `line.starts_with(literal)`,
+            // no word-boundary guard at all ; normalized to `keyword_matches`
+            // (the same helper `dispatch_block` already used) now that
+            // recognition is one lookup instead of five separate literals. No
+            // real bluebook exercises the difference — nothing else in the
+            // corpus shares any of these five words as a PREFIX — but a
+            // generated table wants one consistent comparison, not five.
+            if let Some(opens) = crate::bluebook::ir_dispatch_words::AGGREGATE_WORDS
+                .iter()
+                .find(|(word, _)| keyword_matches(line, word))
+                .map(|(_, opens)| *opens)
+            {
+                match opens {
+                    "Command" => {
+                        let (cmd, consumed) = parse_command(&lines[i..], &owner);
+                        agg.commands.push(cmd);
+                        i += consumed;
+                        continue;
+                    }
+                    "ValueObject" => {
+                        let (vo, consumed) = parse_value_object(&lines[i..]);
+                        agg.value_objects.push(vo);
+                        i += consumed;
+                        continue;
+                    }
+                    "Entity" => {
+                        let (ent, consumed) = parse_entity(&lines[i..]);
+                        agg.entities.push(ent);
+                        i += consumed;
+                        continue;
+                    }
+                    "Query" => {
+                        if ends_with_do_block(line) {
+                            let (q, consumed) = parse_query(&lines[i..]);
+                            agg.queries.push(q);
+                            i += consumed;
+                            continue;
+                        }
+                        push_query(line, &mut agg, &mut depth);
+                    }
+                    "Policy" => {
+                        let (policy, consumed) = parse_policy(&lines[i..]);
+                        nested_policies.push(policy);
+                        i += consumed;
+                        continue;
+                    }
+                    other => unreachable!(
+                        "AGGREGATE_WORDS opens {other:?}, which parse_aggregate does not handle"
+                    ),
+                }
             } else if line.starts_with("attribute") {
                 if let Some(mut attr) = parse_attribute(line) {
                     // An inline closed set desugars to a value object named for
@@ -262,19 +299,6 @@ fn parse_aggregate(lines: &[&str]) -> (Aggregate, Vec<Policy>, usize) {
             } else if line.starts_with("identified_by") {
                 let (paths, consumed) = extract_identity_paths(&lines[i..]);
                 agg.identified_by = paths;
-                i += consumed;
-                continue;
-            } else if line.starts_with("query") {
-                if ends_with_do_block(line) {
-                    let (q, consumed) = parse_query(&lines[i..]);
-                    agg.queries.push(q);
-                    i += consumed;
-                    continue;
-                }
-                push_query(line, &mut agg, &mut depth);
-            } else if line.starts_with("policy ") || line.starts_with("policy\t") {
-                let (policy, consumed) = parse_policy(&lines[i..]);
-                nested_policies.push(policy);
                 i += consumed;
                 continue;
             } else if ends_with_do_block(line) {

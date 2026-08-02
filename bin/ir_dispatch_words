@@ -27,6 +27,20 @@
 # the explicit list to grow, in the same spirit as bin/ir_structs' own
 # explicit `ROOTS`/`CATEGORIES` rather than a sorted glob.
 #
+# AGGREGATE'S FIVE ARE NOT ISOLATED THE WAY BLUEBOOK'S FOUR WERE. Bluebook's
+# opens-bearing words live in their own small function (`dispatch_block`),
+# checked uniformly (`keyword_matches`) and nothing else. Aggregate's five
+# (`command`, `entity`, `policy`, `query`, `value_object`) are interleaved in
+# ONE loop with eight words that fill a field instead of opening a category
+# (`attribute`, `description`, `identified_by`, `reference_to`, `has_many`,
+# `has_one`, `belongs_to`, `lifecycle`), and three of the five were checked
+# with a bare `line.starts_with(literal)` — no word-boundary guard at all —
+# while a fourth (`policy`) used a hand-rolled space-or-tab check instead of
+# the shared `keyword_matches` helper. Normalized to `keyword_matches`
+# uniformly when this context's table was wired in : verified against the
+# whole corpus, since tightening a loose prefix check is a real behavior
+# change in principle even where no real bluebook exercises the difference.
+#
 # WHOLE FILE, NEVER A PATCH — same rule as bin/ir_syntax, bin/ir_vocabulary,
 # and bin/ir_structs.
 #
@@ -45,7 +59,7 @@ syntax = Hecksagain::Bluebook::MetaValidator
 
 keyword = syntax.value_object("Keyword") or raise "the language declares no Syntax::Keyword to project"
 
-CONTEXTS = %w[Bluebook].freeze
+CONTEXTS = %w[Bluebook Aggregate].freeze
 
 def table_name(context) = "#{Hecksagain::Naming.snake(context).upcase}_WORDS"
 
