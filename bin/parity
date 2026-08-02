@@ -411,10 +411,17 @@ else
   # THREE KINDS OF CORPUS MEMBER. `examples/` is what a reader is shown ;
   # `lib/hecksagain/grammar/` is a real part of the runtime that happens to be
   # a chapter (each staged alone below) ; `spec/parity/domains/` is neither —
-  # a domain that exists ONLY to hold the two runtimes to a shape no example
-  # declares, and has no business being read as an example of anything. A
-  # composite identity was the first.
-  for domain in "$ROOT"/examples/*/ "$ROOT"/spec/parity/domains/*/; do
+  # a home for a domain that would exist ONLY to hold the two runtimes to a
+  # shape no example declares, and has no business being read as an example
+  # of anything. Empty now: `market` (composite identity) and `relay`
+  # (plural emits/read_models/process_managers) were the domains that lived
+  # here, and both folded into banking once it grew the same forms itself —
+  # so the directory may not exist at all, and the glob below has to survive
+  # that rather than expand to its own literal pattern (POSIX `sh` has no
+  # nullglob) and walk a domain named `*`.
+  domains="$ROOT/examples/*/"
+  [ -d "$ROOT/spec/parity/domains" ] && domains="$domains $ROOT/spec/parity/domains/*/"
+  for domain in $domains; do
     domain=${domain%/}
     name=$(basename "$domain")
     # examples/lineage is the two-era Postgres fixture, driven by its own

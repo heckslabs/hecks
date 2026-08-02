@@ -18,8 +18,9 @@ require "json"
 # parse it — Ruby through `BluebookBuilder.new(name, version:)`, Rust through
 # `extract_kwarg_string(line, "version")` — and not one of the ten chapters in
 # the tree declared one. Two parsers agreeing about a keyword neither had ever
-# been handed. It is `spec/parity/domains/relay` that declares one now, and the
-# two do agree; that was worth finding out rather than assuming.
+# been handed. `spec/parity/domains/relay` was the first corpus member to
+# declare one, proving the two agree, before that domain folded into banking
+# (`Hecks.bluebook "Banking", version: "v1"`) and carried the proof forward.
 #
 # WHY THIS IS MEASURED ON THE WIRE AND NOT FROM THE LANGUAGE. The language's
 # `optional` marks a COMMAND ARGUMENT that may be left out — a dispatch-time

@@ -36,10 +36,8 @@ RSpec.describe "the projected Rust domains" do
   PROJECTED = {
     "Banking"    => ["examples/banking/bluebook/banking.bluebook",              "banking"],
     "Expression" => ["lib/hecksagain/grammar/expression.bluebook",              "expression"],
-    "Market"     => ["spec/parity/domains/market/bluebook/market.bluebook",     "market"],
     "Pizzas"     => ["examples/pizzas/bluebook/pizzas.bluebook",                "pizzas"],
     "Reflex"     => ["spec/fixtures/reflex.bluebook",                          "reflex"],
-    "Relay"      => ["spec/parity/domains/relay/bluebook/relay.bluebook",       "relay"],
     "TillRoom"   => ["spec/fixtures/till.bluebook",                             "till_room"],
     "Wire"       => ["spec/fixtures/settlement.bluebook",                       "wire"]
   }.freeze

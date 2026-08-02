@@ -62,30 +62,17 @@ RSpec.describe "the judge's coverage of the language" do
     spy.verbs
   end
 
-# THE UNION OF THE CORPUS, not banking alone.
-#
-# Banking carries every CATEGORY, which is why the order examples below read it —
-# but it declares no query options, so `Query.Option` and `ReadModel.Option` were
-# never offered and this gate called them decoration. It was right to: a verb
-# nothing dispatches carries rules that cannot fire. The answer is to exercise
-# them somewhere, not to excuse them, so `reflex` declares an ask with every
-# option a query can carry and the coverage question becomes "does the judge
-# reach this verb for ANY bluebook", which is what it always meant.
-def offered_verbs = (offered_in_order + offered_in_order(reflex)).uniq
-
-def reflex
-  @reflex ||= begin
-    registry = Hecksagain::Runtime::Registry.new
-    Hecksagain.with_registry(registry) do
-      Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-      Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-      Kernel.load(File.join(InMemoryDomain::ROOT, "spec/fixtures/reflex.bluebook"))
-    end
-    registry.bluebook("Reflex")
-  end
-end
+  # BANKING ALONE, now — it used to declare no query options, so
+  # `Query.Option` and `ReadModel.Option` were never offered and this gate
+  # called them decoration (correctly: a verb nothing dispatches carries
+  # rules that cannot fire). The fix was to exercise them somewhere rather
+  # than excuse them; that used to mean unioning in `reflex.bluebook`
+  # (the one chapter that declared every option a query or read_model can
+  # carry), but banking now carries both itself — `Account.Overdrawn`'s
+  # `freshness`/`use_index`, `SafeDepositBox.Rented`'s
+  # `authorize`/`consistency`, `ComplianceDashboard`'s own
+  # `freshness`/`use_index` — so the union is gone with it.
+  def offered_verbs = offered_in_order
 
   # Every command on every aggregate of the meta-domain, spelled as the judge
   # would dispatch it. World and Wiring live in world.bluebook and are judged

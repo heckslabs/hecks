@@ -32,15 +32,13 @@ RSpec.describe "the IR the builder produces, frozen" do
   # Chapters that load from a file, name => path.
   LOADABLE = {
     "Pizzas"     => "examples/pizzas/bluebook/pizzas.bluebook",
+    # THE FLAGSHIP DOMAIN, CARRYING WHAT MARKET AND RELAY USED TO ALONE.
+    # Composite identity (`SafeDepositBox`, branch_code + box_number), a
+    # command that announces twice (`Surrender`), two entities on one head,
+    # a second read_model and a second process_manager — every rare form this
+    # corpus's coverage gates exist to catch, now exercised by the real
+    # domain rather than a fixture invented solely to hold it.
     "Banking"    => "examples/banking/bluebook/banking.bluebook",
-    # THE ONLY COMPOSITE IDENTITY IN THE LOADABLE TREE. Every other chapter
-    # here is known by one path, so an `identified_by` list of one and a list
-    # of two are the same shape as far as this corpus can tell — which is the
-    # exact reason this file's own header gives for walking every chapter.
-    "Market"     => "spec/parity/domains/market/bluebook/market.bluebook",
-    # THE ONLY COMMAND IN THE TREE THAT ANNOUNCES TWICE. Same argument as
-    # Market's: `emits` is a list every other chapter fills with exactly one.
-    "Relay"      => "spec/parity/domains/relay/bluebook/relay.bluebook",
     "Expression" => "lib/hecksagain/grammar/expression.bluebook",
     "TillRoom"   => "spec/fixtures/till.bluebook",
     "Wire"       => "spec/fixtures/settlement.bluebook",

@@ -1,9 +1,0 @@
-Hecks.world "QueryOps" do
-  realm "Specs"
-
-  # The query-semantics tests boot this fixture concurrently and swap
-  # in their own adapter after boot — persistence here is a prop, not
-  # the subject. Memory carries no eras, so nothing is held and the
-  # parallel boots stay out of each other's way.
-  persisted_by("Memory")
-end

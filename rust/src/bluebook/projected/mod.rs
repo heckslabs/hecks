@@ -11,7 +11,6 @@
 // against Ruby's own `to_h`.
 pub mod banking;
 pub mod expression;
-pub mod market;
 pub mod pizzas;
 // REFLEX JOINED THE OTHERS once `Query`/`ReadModel` grew the eight
 // specification options — offset, cursor, nulls, consistency, freshness,
@@ -21,7 +20,6 @@ pub mod pizzas;
 // zero-infrastructure parity corpus (`spec/parity/domains/`) — that was never
 // about the options, and staying there is unrelated to this module.
 pub mod reflex;
-pub mod relay;
 pub mod till_room;
 pub mod wire;
 
@@ -46,10 +44,8 @@ pub fn by_source(source: &str) -> Option<crate::ir::Domain> {
     let (sha, domain): (&str, fn() -> crate::ir::Domain) = match name.as_str() {
         "Banking" => (banking::SOURCE_SHA, banking::domain),
         "Expression" => (expression::SOURCE_SHA, expression::domain),
-        "Market" => (market::SOURCE_SHA, market::domain),
         "Pizzas" => (pizzas::SOURCE_SHA, pizzas::domain),
         "Reflex" => (reflex::SOURCE_SHA, reflex::domain),
-        "Relay" => (relay::SOURCE_SHA, relay::domain),
         "TillRoom" => (till_room::SOURCE_SHA, till_room::domain),
         "Wire" => (wire::SOURCE_SHA, wire::domain),
         _ => return None,
@@ -73,10 +69,8 @@ pub fn by_name(name: &str) -> Option<crate::ir::Domain> {
     match name {
         "Banking" => Some(banking::domain()),
         "Expression" => Some(expression::domain()),
-        "Market" => Some(market::domain()),
         "Pizzas" => Some(pizzas::domain()),
         "Reflex" => Some(reflex::domain()),
-        "Relay" => Some(relay::domain()),
         "TillRoom" => Some(till_room::domain()),
         "Wire" => Some(wire::domain()),
         _ => None,
@@ -85,7 +79,7 @@ pub fn by_name(name: &str) -> Option<crate::ir::Domain> {
 
 /// Every chapter this binary carries, in the order they are declared above.
 pub fn names() -> Vec<&'static str> {
-    vec!["Banking", "Expression", "Market", "Pizzas", "Reflex", "Relay", "TillRoom", "Wire"]
+    vec!["Banking", "Expression", "Pizzas", "Reflex", "TillRoom", "Wire"]
 }
 
 /// THE CHAPTER A SOURCE DECLARES, without parsing it.
@@ -125,10 +119,8 @@ mod tests {
         let chapters: Vec<(&str, super::super::ir::Domain)> = vec![
             ("Banking", super::banking::domain()),
             ("Expression", super::expression::domain()),
-            ("Market", super::market::domain()),
             ("Pizzas", super::pizzas::domain()),
             ("Reflex", super::reflex::domain()),
-            ("Relay", super::relay::domain()),
             ("TillRoom", super::till_room::domain()),
             ("Wire", super::wire::domain()),
         ];

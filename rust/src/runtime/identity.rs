@@ -11,9 +11,11 @@
 //! another thing needs them — the language's own chapters are composite
 //! throughout, an Aggregate being `bluebook_id` AND `name.value` — and Rust
 //! read only the first, which is indistinguishable from reading them all as
-//! long as every corpus member declares one. `examples/market` is the corpus
-//! member that tells them apart: stall 1 in row A and stall 1 in row B are not
-//! the same pitch, and keying on either path alone answers with the wrong one.
+//! long as every corpus member declares one. `Market::Stall` was the corpus
+//! member that first told them apart (stall 1 in row A and stall 1 in row B
+//! are not the same pitch); banking's own `SafeDepositBox` (branch_code +
+//! box_number — box 12 downtown and box 12 uptown are not the same box)
+//! carries the same proof now that market has folded into it.
 
 use crate::bluebook::expression::resolver::State;
 use serde_json::{Map, Value};

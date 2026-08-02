@@ -22,6 +22,12 @@ Hecks.bluebook "Banking", version: "v1" do
     reference_to Account
     include Account
     include CardPayment
+
+    # A REVIEW WORKS FROM A SNAPSHOT, not a page reloaded mid-read while a
+    # dispute updates underneath it — the same reasoning as Overdrawn's own,
+    # a projection over on the read_model rather than a query.
+    freshness :eventual, max_age: 60
+    use_index :account_index
   end
 
   aggregate "Customer" do

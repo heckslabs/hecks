@@ -226,7 +226,10 @@ pub fn parse_command(lines: &[&str], owner: &str) -> (Command, usize) {
 /// keeps declaration order, and the two only agreed because every command in the
 /// corpus happened to declare `reference_to` before its plain attributes. A
 /// command that declares an argument first and a cross-reference second put the
-/// two runtimes' IR out of order, and `market`'s `Let` is that command.
+/// two runtimes' IR out of order — found via `Market::Stall.Let` before that
+/// domain folded into banking; nothing in the current corpus declares them in
+/// that order, so the shape stays named here rather than pointing at a
+/// fixture that no longer exists to be read.
 fn settle_references(cmd: &mut Command, owner: &str) {
     let mut acting = false;
     let kept: Vec<Attribute> = cmd

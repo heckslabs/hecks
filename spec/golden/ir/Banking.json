@@ -4496,6 +4496,15 @@
         }
       ],
       "description": "One account, its own status, and any card charges disputed against it — the working set for a compliance review.",
+      "freshness": {
+        "max_age": "60",
+        "mode": "eventual"
+      },
+      "index_hints": [
+        {
+          "name": "account_index"
+        }
+      ],
       "name": "ComplianceDashboard",
       "query_name": "compliance_dashboard",
       "reference_name": "account",

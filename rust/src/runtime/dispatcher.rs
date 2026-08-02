@@ -167,9 +167,11 @@ fn query_number(value: &Value) -> Option<f64> {
 // now, and this took the first element of the answer for the whole of it.
 // A second reader of one question is what drifts, and this one had: it made
 // "reads the first path" and "reads every path" indistinguishable as long as
-// every corpus member declared one, which they all did until
-// `examples/market`. The readers that still want a single path ask for
-// `identity::paths(..).first()` and say why in the same breath.
+// every corpus member declared one, which they all did until `Market::Stall`
+// first proved composite identity reachable — banking's own `SafeDepositBox`
+// (branch_code + box_number) carries it now. The readers that still want a
+// single path ask for `identity::paths(..).first()` and say why in the same
+// breath.
 
 pub(crate) fn query_text(value: &Value) -> String {
     match value {
@@ -2420,9 +2422,11 @@ mod query_semantics_tests {
     // declared — "5" for the number 5 — indistinguishable on the wire from a
     // String field's own value. `query_number` recovers the number FROM
     // either side, which is what makes a literal (not just a kwarg
-    // reference) usable in gt/gte/lt/lte at all — this was the actual gap:
-    // the corpus's only `lt` usage is a kwarg, so a literal number never
-    // exercised this path before spec/fixtures/query_ops.bluebook existed.
+    // reference) usable in gt/gte/lt/lte at all — the actual gap this closes:
+    // every comparator banking declares (Overdrawn, HighBalance,
+    // StrictlyAbove, AtMost) takes its bound as a kwarg, so a literal number
+    // still never reaches this path through the real corpus. Exercised here
+    // directly instead.
     #[test]
     fn a_numeric_string_compares_as_the_number_it_spells() {
         assert!(query_less_than(&json!(1), &json!("2")));

@@ -110,15 +110,16 @@ RSpec.describe "every pair of declared forms, met on one aggregate" do
                      "delete the ALLOWED_APART entry, the claim is tested now"
   end
 
-  # The measurement has to be able to fail. Market's Stall is the aggregate that
-  # carries the rare forms together; if it stops, the walk has broken rather than
-  # the corpus.
+  # The measurement has to be able to fail. Banking's SafeDepositBox is the
+  # aggregate that carries the rare forms together now — Market::Stall proved
+  # the same six reachable before that domain folded into banking; if this
+  # stops, the walk has broken rather than the corpus.
   it "measures an aggregate it knows carries several rare forms at once" do
-    stall = aggregates.find { |name, _| name == "Market::Stall" }
-    expect(stall).not_to be_nil, "Market::Stall is gone from the goldens"
+    box = aggregates.find { |name, _| name == "Banking::SafeDepositBox" }
+    expect(box).not_to be_nil, "Banking::SafeDepositBox is gone from the goldens"
 
     rare = %w[composite_id two_entities composite_piece multi_emit reference_attr closed_set]
-    expect(rare.select { |form| stall.last[form] }).to eq(rare),
-                                                       "Market::Stall no longer carries #{rare.reject { |f| stall.last[f] }.join(', ')}"
+    expect(rare.select { |form| box.last[form] }).to eq(rare),
+                                                     "Banking::SafeDepositBox no longer carries #{rare.reject { |f| box.last[f] }.join(', ')}"
   end
 end

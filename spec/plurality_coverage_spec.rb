@@ -63,15 +63,20 @@ RSpec.describe "every list the language declares, filled more than once" do
   ALLOWED_SINGLETON = {
     # EMPTY, and every entry that was here is now a corpus member instead.
     #
-    #   emits             relay: one Raise announces twice, a policy on each
-    #   entities          market: a Stall holds a Booking and an Inspection,
-    #                     identified by two paths and one
-    #   process_managers  relay: two procedures over one event stream,
-    #                     correlating independently
-    #   read_models       relay: two boards projecting different roots
-    #   index_hints       reflex: two hints on one ask (a fixture, because the
-    #                     Rust Query struct does not carry query options — the
-    #                     honest home for a form only one runtime reads)
+    #   emits             banking: SafeDepositBox.Surrender announces twice,
+    #                     a policy on each (market and relay proved this
+    #                     reachable first; both have since folded into banking)
+    #   entities          banking: SafeDepositBox holds a Visit and a
+    #                     KeyIssuance, identified by two paths and one
+    #   process_managers  banking: Settlement and ExternalSettlement, two
+    #                     sagas correlating independently over different
+    #                     event streams
+    #   read_models       banking: CustomerPortfolio and ComplianceDashboard,
+    #                     projecting different roots
+    #   index_hints       reflex: two hints on one ask — still the only
+    #                     corpus member declaring two, now that Rust's Query
+    #                     struct carries the field; nothing about banking's
+    #                     own indexed queries needed a second hint
     #
     # Each was deleted because the guard below demanded it once the corpus grew.
   }.freeze
