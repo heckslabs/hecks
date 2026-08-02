@@ -1183,11 +1183,46 @@ pub fn parse_attribute(line: &str) -> Option<Attribute> {
 /// everywhere else this codebase draws that distinction, but a flag has only
 /// the one field to be absent OR present-and-something, so there is no third
 /// state for it to lose.
+///
+/// Asserts `kwarg` against `ir_syntax_flags::FLAG_ARGUMENTS` — projected from
+/// `Syntax::Argument`'s own `kind: "flag"` rows — before reading anything. A
+/// call naming a kwarg the language does NOT declare as a flag is not a typo
+/// this function can quietly get right ; it would read "true"/anything-else
+/// as a bool for an argument the language calls a `text`, `symbol`, or other
+/// kind entirely, the same encoding-loss shape this codebase keeps finding.
 pub(crate) fn parse_flag_kwarg(line: &str, kwarg: &str) -> bool {
+    let name = kwarg.trim_end_matches(':');
+    assert!(
+        crate::bluebook::ir_syntax_flags::FLAG_ARGUMENTS.contains(&name),
+        "parse_flag_kwarg called on {kwarg:?}, which Syntax::Argument does not declare as kind \
+         \"flag\" — the reader and the declaration have drifted"
+    );
+
     line.contains(kwarg)
         && extract_after(line, kwarg)
             .map(|a| a.trim_start().starts_with("true"))
             .unwrap_or(false)
+}
+
+#[cfg(test)]
+mod flag_kwarg_tests {
+    use super::parse_flag_kwarg;
+
+    #[test]
+    fn reads_true_and_defaults_absent_to_false() {
+        assert!(parse_flag_kwarg("optional: true", "optional:"));
+        assert!(!parse_flag_kwarg("optional: false", "optional:"));
+        assert!(!parse_flag_kwarg("attribute :name, String", "optional:"));
+    }
+
+    /// The mirror of `command_reference_optional_test.rs`'s own finding —
+    /// that one caught a flag silently NEVER read ; this one is for a flag
+    /// reader pointed at a kwarg the language never declared that shape for.
+    #[test]
+    #[should_panic(expected = "does not declare as kind \"flag\"")]
+    fn panics_on_a_kwarg_the_language_does_not_declare_a_flag() {
+        parse_flag_kwarg(r#"bluebook "X", version: "1""#, "version:");
+    }
 }
 
 pub(crate) fn parse_quoted_kwarg(line: &str, kwarg: &str) -> Option<String> {
