@@ -1,3 +1,7 @@
+require_relative "../../../../ports/persistence/era_tamper"
+require_relative "../../../../runtime/registry"
+require_relative "../../../../runtime/storage_shape"
+
 module Hecksagain
   module Adapters
     class Postgres

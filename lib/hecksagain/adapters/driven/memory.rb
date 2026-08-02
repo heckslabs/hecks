@@ -1,3 +1,7 @@
+require_relative "../../ports/persistence/append_only"
+require_relative "../../ports/query/in_memory"
+require_relative "../../runtime/instance"
+
 module Hecksagain
   module Adapters
     class Memory

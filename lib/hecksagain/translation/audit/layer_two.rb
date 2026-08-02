@@ -1,3 +1,6 @@
+require_relative "../../ports/persistence/append_only"
+require_relative "../../ports/persistence/lineage"
+
 module Hecksagain
   module Translation
     module Audit

@@ -1,3 +1,5 @@
+require_relative "append_only"
+
 module Hecksagain
   module Ports
     module Persistence

@@ -1,3 +1,5 @@
+require_relative "../adapters/driven/folder"
+
 module Hecksagain
   module Ports
     module Loading

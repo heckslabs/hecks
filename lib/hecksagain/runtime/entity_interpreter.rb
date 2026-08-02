@@ -1,4 +1,9 @@
 require_relative "interpreting"
+require_relative "../naming"
+require_relative "errors"
+require_relative "identity"
+require_relative "instance"
+require_relative "value"
 
 module Hecksagain
   module Runtime

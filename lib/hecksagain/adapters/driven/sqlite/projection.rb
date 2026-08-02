@@ -1,3 +1,11 @@
+require_relative "../../../runtime/instance"
+require_relative "../../../runtime/value"
+
+# The subclass needs its parent — and sqlite.rb requires this file at
+# its BOTTOM, after class Sqlite is defined, so the require cycle this
+# creates resolves correctly from either entry point.
+require_relative "../sqlite"
+
 module Hecksagain
   module Adapters
     # Rebuilds a read store from the authoritative journal, entry by entry.

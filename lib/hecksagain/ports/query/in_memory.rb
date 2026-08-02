@@ -1,3 +1,6 @@
+require_relative "ordering"
+require_relative "../../runtime/value"
+
 module Hecksagain
   module Ports
     module Query

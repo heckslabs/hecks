@@ -5,6 +5,10 @@ require "fileutils"
 require_relative "sql_query_builder"
 require_relative "sqlite/schema_builder"
 require_relative "sqlite/codec"
+require_relative "../../ports/persistence/append_only"
+require_relative "../../query_specification/common/null_policy"
+require_relative "../../runtime/event"
+require_relative "../../runtime/instance"
 
 module Hecksagain
   module Adapters

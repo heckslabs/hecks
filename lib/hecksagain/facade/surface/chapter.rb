@@ -1,3 +1,6 @@
+require_relative "../../bluebook/dsl/binding_proxy"
+require_relative "../../bluebook/dsl/hecksagon_builder"
+
 module Hecksagain
   module Facade
     module Surface

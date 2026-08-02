@@ -1,3 +1,5 @@
+require_relative "../../runtime/registry"
+
 module Hecksagain
   module Ports
     module Persistence

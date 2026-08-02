@@ -6,6 +6,7 @@ require_relative "query_interpreter"
 require_relative "read_model_interpreter"
 require_relative "policy_interpreter"
 require_relative "saga_interpreter"
+require_relative "../naming"
 
 module Hecksagain
   module Runtime

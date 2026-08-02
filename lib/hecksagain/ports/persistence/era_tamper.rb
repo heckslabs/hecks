@@ -1,5 +1,7 @@
 require "json"
 require "tempfile"
+require_relative "../../runtime/era_guard"
+require_relative "../../runtime/storage_shape"
 
 module Hecksagain
   module Ports

@@ -1,3 +1,9 @@
+require_relative "../naming"
+require_relative "../ports/query"
+require_relative "../ports/query/ordering"
+require_relative "errors"
+require_relative "value"
+
 
 module Hecksagain
   module Runtime

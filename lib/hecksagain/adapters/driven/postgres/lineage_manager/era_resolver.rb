@@ -1,3 +1,6 @@
+require_relative "../lineage"
+require_relative "../../../../runtime/storage_shape"
+
 module Hecksagain
   module Adapters
     class Postgres

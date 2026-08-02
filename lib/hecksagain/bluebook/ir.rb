@@ -9,6 +9,12 @@ module Hecksagain
   end
 end
 
+# Every declaration file extends Construct at class body — and Query
+# subclasses QuerySpecification's Options there too. They cannot say so
+# themselves (contents frozen) — the namespace file says it for them.
+require_relative "../construct"
+require_relative "../query_specification"
+
 require_relative "ir/reference"
 require_relative "ir/attribute"
 require_relative "ir/value_object"

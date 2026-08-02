@@ -1,3 +1,5 @@
+require_relative "../common/options"
+
 module Hecksagain
   module QuerySpecification
     module ReadModel

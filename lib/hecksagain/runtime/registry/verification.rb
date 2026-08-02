@@ -1,3 +1,5 @@
+require_relative "../../bluebook/ir/hexagon"
+
 module Hecksagain
   module Runtime
     class Registry

@@ -1,6 +1,10 @@
 require_relative "interpreting"
 require_relative "command_interpreter/argument_gate"
 require_relative "command_interpreter/mutation_applier"
+require_relative "../rendering"
+require_relative "errors"
+require_relative "identity"
+require_relative "instance"
 
 module Hecksagain
   module Runtime

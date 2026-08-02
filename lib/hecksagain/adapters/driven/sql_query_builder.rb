@@ -1,3 +1,7 @@
+require_relative "../../query_specification/common/null_policy"
+require_relative "../../runtime/errors"
+require_relative "../../runtime/value"
+
 module Hecksagain
   module Adapters
     # The one SQL query compilation, shared by the SQLite and Postgres

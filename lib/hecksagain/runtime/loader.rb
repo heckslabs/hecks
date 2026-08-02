@@ -1,3 +1,9 @@
+require_relative "../facade/surface"
+require_relative "../ports/loading"
+require_relative "dispatcher"
+require_relative "era_check"
+require_relative "registry"
+
 module Hecksagain
   module Runtime
     class Loader

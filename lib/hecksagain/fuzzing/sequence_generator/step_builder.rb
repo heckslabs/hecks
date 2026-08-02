@@ -1,3 +1,8 @@
+require_relative "../../bluebook/expression/resolver"
+require_relative "../invalid_value_generator"
+require_relative "../value_generator"
+require_relative "../../runtime/errors"
+
 module Hecksagain
   module Fuzzing
     class SequenceGenerator

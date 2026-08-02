@@ -1,3 +1,5 @@
+require_relative "../../../ports/persistence/append_only"
+
 module Hecksagain
   module Adapters
     class Heki

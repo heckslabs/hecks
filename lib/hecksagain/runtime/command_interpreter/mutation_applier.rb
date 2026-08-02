@@ -1,3 +1,5 @@
+require_relative "../value"
+
 module Hecksagain
   module Runtime
     class CommandInterpreter

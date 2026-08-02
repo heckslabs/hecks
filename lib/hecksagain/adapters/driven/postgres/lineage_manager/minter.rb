@@ -1,3 +1,8 @@
+require_relative "../../../../runtime/registry"
+require_relative "../../../../runtime/storage_shape"
+require_relative "../../../../translation/audit"
+require_relative "../../../../translation/scaffold"
+
 module Hecksagain
   module Adapters
     class Postgres

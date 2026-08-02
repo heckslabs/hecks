@@ -1,3 +1,5 @@
+require_relative "../../../runtime/value"
+
 module Hecksagain
   module Adapters
     class Sqlite
