@@ -24,7 +24,7 @@ RSpec.describe "Banking across persistence adapters" do
 
     Hecksagain.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-      Kernel.load(File.join(InMemoryDomain::ROOT, "lib/hecksagain/ports/projection/projection.port"))
+      Kernel.load(File.join(InMemoryDomain::ROOT, "lib/hecksagain/ports/projection.port"))
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(ADAPTERS.fetch(adapter)) unless adapter == "Memory"

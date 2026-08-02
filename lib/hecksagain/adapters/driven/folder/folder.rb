@@ -11,7 +11,7 @@ module Hecksagain
       end
 
       def load_library
-        load_each(library(PORTS),    %w[*/*.port])
+        load_each(library(PORTS),    %w[*.port])
         load_each(library(ADAPTERS), %w[*/*.adapter */*/*.adapter])
       end
 

@@ -8,11 +8,11 @@ module Hecksagain
   end
 end
 
-require_relative "binding_policy"
-require_relative "lineage"
-require_relative "era_tamper"
-require_relative "repository_factory"
-require_relative "append_only"
+require_relative "persistence/binding_policy"
+require_relative "persistence/lineage"
+require_relative "persistence/era_tamper"
+require_relative "persistence/repository_factory"
+require_relative "persistence/append_only"
 
 module Hecksagain
   module Ports
