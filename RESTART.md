@@ -1,8 +1,10 @@
 # Restart prompt — hecksagain, projecting the parser
 
-Paste this into a fresh session. Read `README.md` and `HANDOVER.md` first; **HANDOVER
-is stale in places** (it predates the projection work and still says "Do not call Rust
-a projection"). This file is newer and wins where they disagree.
+Paste this into a fresh session. Read `README.md` first, then this. `HANDOVER.md` is
+gone — its opening claim ("Do not call Rust a projection. Nothing generates it") had
+been false for a week, and a handover wrong in its first paragraph is worse than none.
+Everything from it still worth having is in "Findings worth not rediscovering" at the
+bottom of this file; the original is in git history if you want the rest.
 
 ---
 
