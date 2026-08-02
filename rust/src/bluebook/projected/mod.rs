@@ -23,6 +23,46 @@ pub mod relay;
 pub mod till_room;
 pub mod wire;
 
+/// THE PROJECTED DOMAIN FOR A CHAPTER, if one was compiled in.
+///
+/// `Runtime::boot` asks this before it parses. A hit means the domain arrives as
+/// Rust values that were checked against Ruby's own IR at build time, so nothing
+/// is read out of the source at all — which also means `strict_boot`'s scan is
+/// moot for that chapter: it exists because Rust's PARSER silently drops
+/// constructs it cannot read, and a projection drops nothing.
+///
+/// A miss parses, exactly as before. Projecting a domain is an optimisation of
+/// trust, not a requirement: an unprojected chapter still boots.
+pub fn by_name(name: &str) -> Option<crate::ir::Domain> {
+    match name {
+        "Banking" => Some(banking::domain()),
+        "Expression" => Some(expression::domain()),
+        "Market" => Some(market::domain()),
+        "Pizzas" => Some(pizzas::domain()),
+        "Relay" => Some(relay::domain()),
+        "TillRoom" => Some(till_room::domain()),
+        "Wire" => Some(wire::domain()),
+        _ => None,
+    }
+}
+
+/// THE CHAPTER A SOURCE DECLARES, without parsing it.
+///
+/// `Hecks.bluebook "Pizzas" do` — the first quoted string on the first
+/// `Hecks.bluebook` line. Enough to look a projection up, and deliberately not
+/// enough to be a second parser: a source this cannot read simply misses, and
+/// misses parse.
+pub fn chapter_name(source: &str) -> Option<String> {
+    source.lines().find_map(|line| {
+        let line = line.trim_start();
+        if !line.starts_with("Hecks.bluebook") {
+            return None;
+        }
+        let after = line.split_once('"')?.1;
+        after.split_once('"').map(|(name, _)| name.to_string())
+    })
+}
+
 #[cfg(test)]
 mod tests {
     /// EVERY PROJECTED DOMAIN IS HELD TO RUBY, not merely to itself.

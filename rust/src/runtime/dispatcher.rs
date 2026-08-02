@@ -427,16 +427,36 @@ impl Runtime {
         }
         let source = fs::read_to_string(bluebook_path)
             .map_err(|error| format!("cannot read {}: {error}", bluebook_path.display()))?;
-        let domain = crate::bluebook::parser::parse(&source);
-        // Interim host-language strictness — see runtime::strict_boot.
-        if let Some(miss) = crate::runtime::strict_boot::scan(&source) {
-            return Err(format!(
-                "cannot boot {}::{}: this runtime could not read '{}' (did you mean '{}'?) — \
-                 a construct it cannot read refuses rather than half-reads; \
-                 host-language strictness is partial until the specializer",
-                domain.name, miss.aggregate, miss.keyword, miss.suggestion
-            ));
-        }
+        // A PROJECTED DOMAIN IS PREFERRED, AND NOT PARSED.
+        //
+        // `bin/ir_rust` compiles a chapter in as Rust values, checked against
+        // Ruby's own frozen IR at build time. When one exists, the source is
+        // never read for meaning — so `strict_boot` does not apply to it. That
+        // scan exists because Rust's PARSER silently drops constructs it cannot
+        // read; a projection drops nothing, which is the point of having one.
+        //
+        // A chapter with no projection parses exactly as before. `--dump` parses
+        // either way, so `bin/parity`'s first stage still holds the two PARSERS
+        // to each other while the run stages exercise this path.
+        let projected = crate::bluebook::projected::chapter_name(&source)
+            .and_then(|name| crate::bluebook::projected::by_name(&name));
+
+        let domain = match projected {
+            Some(domain) => domain,
+            None => {
+                let parsed = crate::bluebook::parser::parse(&source);
+                // Interim host-language strictness — see runtime::strict_boot.
+                if let Some(miss) = crate::runtime::strict_boot::scan(&source) {
+                    return Err(format!(
+                        "cannot boot {}::{}: this runtime could not read '{}' (did you mean '{}'?) — \
+                         a construct it cannot read refuses rather than half-reads; \
+                         host-language strictness is partial until the specializer",
+                        parsed.name, miss.aggregate, miss.keyword, miss.suggestion
+                    ));
+                }
+                parsed
+            }
+        };
         let mut runtime = Self::new(crate::projector::ir_json::domain_to_value(&domain));
         let source_text = bluebook_path.to_string_lossy();
 
