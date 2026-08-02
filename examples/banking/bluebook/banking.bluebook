@@ -397,6 +397,20 @@ Hecks.bluebook "Banking", version: "v1" do
       order_by :balance, :desc
     end
 
+    query "StrictlyAbove" do
+      description "Accounts holding MORE than a floor the caller supplies — the referral list without the accounts sitting exactly on the line."
+      attribute :floor, Money
+      where(balance: { gt: :floor })
+      order_by :balance, :desc
+    end
+
+    query "AtMost" do
+      description "Accounts holding no more than a cap the caller supplies — the small-balance closure candidates."
+      attribute :cap, Money
+      where(balance: { lte: :cap })
+      order_by :balance
+    end
+
     query "Reachable" do
       description "Accounts that still exist as far as a caller is concerned — anything short of closed."
       where(status: { in: "open,frozen" })

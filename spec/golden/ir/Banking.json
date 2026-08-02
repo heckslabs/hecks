@@ -1194,6 +1194,60 @@
         },
         {
           "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "floor",
+              "optional": false,
+              "pattern": null,
+              "type": "Money"
+            }
+          ],
+          "description": "Accounts holding MORE than a floor the caller supplies — the referral list without the accounts sitting exactly on the line.",
+          "limit": null,
+          "name": "StrictlyAbove",
+          "order_by": {
+            "direction": "desc",
+            "field": "balance"
+          },
+          "wheres": [
+            {
+              "field": "balance",
+              "op": "gt",
+              "value": ":floor"
+            }
+          ]
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "cap",
+              "optional": false,
+              "pattern": null,
+              "type": "Money"
+            }
+          ],
+          "description": "Accounts holding no more than a cap the caller supplies — the small-balance closure candidates.",
+          "limit": null,
+          "name": "AtMost",
+          "order_by": {
+            "direction": "asc",
+            "field": "balance"
+          },
+          "wheres": [
+            {
+              "field": "balance",
+              "op": "lte",
+              "value": ":cap"
+            }
+          ]
+        },
+        {
+          "attributes": [
 
           ],
           "description": "Accounts that still exist as far as a caller is concerned — anything short of closed.",

@@ -2487,6 +2487,24 @@
     {
       "query": "Banking::CardPayment.Flagged",
       "args": {}
+    },
+    {
+      "query": "Banking::Account.StrictlyAbove",
+      "args": {
+        "floor": {
+          "cents": 1000,
+          "currency": "USD"
+        }
+      }
+    },
+    {
+      "query": "Banking::Account.AtMost",
+      "args": {
+        "cap": {
+          "cents": 1000,
+          "currency": "USD"
+        }
+      }
     }
   ]
 }

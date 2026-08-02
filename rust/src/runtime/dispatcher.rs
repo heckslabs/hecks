@@ -2524,14 +2524,14 @@ mod query_semantics_tests {
     }
 
     fn answered_with(answer: Option<Vec<String>>) -> Vec<String> {
-        let mut runtime = Runtime::boot("../spec/fixtures/query_ops.bluebook").unwrap();
+        let mut runtime = Runtime::boot("../examples/banking/bluebook/banking.bluebook").unwrap();
         runtime.adapters.insert(
-            "Item".to_string(),
+            "Account".to_string(),
             Box::new(NarrowingAdapter::holding(&["a", "b", "c"], answer)),
         );
 
         runtime
-            .query("QueryOps::Item.Eq", &State::new())
+            .query("Banking::Account.Open", &State::new())
             .unwrap()
             .into_iter()
             .filter_map(|row| row.get("id").and_then(Value::as_str).map(str::to_string))
