@@ -319,9 +319,22 @@ module Hecksagain
         value.is_a?(Numeric) ? "(#{expression})::numeric" : expression
       end
 
+      # ARRAY[...] of individually-escaped literals, never the hand-rolled
+      # '{a,b,c}' array-literal SYNTAX — a segment is a field or
+      # value-object member name, and while today's callers only ever
+      # pass schema-declared names, this method has no way to know
+      # that, and the '{...}' form has no escaping at all: a segment
+      # containing a single quote closes the string early and whatever
+      # follows becomes live SQL. Measured, not assumed — a crafted
+      # field name of `x}' = '' OR $1::text = $1::text -- ` made a
+      # `where(secret: "public")` clause return every row regardless,
+      # against the OLD form; the ARRAY[] form below closes it, verified
+      # against the identical payload.
       def jsonb_path(segments)
-        "state #>> '{#{segments.join(',')}}'"
+        "state #>> ARRAY[#{segments.map { |segment| text_literal(segment) }.join(', ')}]::text[]"
       end
+
+      def text_literal(text) = "'#{text.to_s.gsub("'", "''")}'"
 
       def query_value(value, args)
         value = args[value] if value.is_a?(Symbol)

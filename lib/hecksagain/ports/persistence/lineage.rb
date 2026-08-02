@@ -143,7 +143,7 @@ module Hecksagain
           value, present = extract(state, old_top, old_member)
           return unless present
 
-          insert(state, new_top.to_sym, new_member, value)
+          insert(state, new_top.to_sym, new_member, value, rule: "move #{move.from} to: #{move.to}")
         end
 
         # A convert is a move whose value has nothing in common with its
@@ -164,7 +164,7 @@ module Hecksagain
                   "convert's values: table. Add #{raw.inspect} => ... to cover it."
           end
 
-          insert(state, new_top.to_sym, new_member, convert.values[raw])
+          insert(state, new_top.to_sym, new_member, convert.values[raw], rule: "convert #{convert.from} to: #{convert.to}")
         end
 
         def extract(state, top, member)
@@ -179,8 +179,27 @@ module Hecksagain
           [value, true]
         end
 
-        def insert(state, top, member, value)
+        # ADVERSARIAL FINDING, not a hypothetical: a destination whose
+        # top segment ALREADY holds a value — most commonly a reference,
+        # stored as a bare scalar id — used to be silently clobbered with
+        # an empty hash the moment a dotted destination needed to nest
+        # under it (`state[top] ||= {}` only guards nil/false, so a
+        # truthy non-Hash sailed straight through to `state[top][member] =`,
+        # i.e. `"team-1"["detail"] =`, which is String#[]=  and raised an
+        # unrelated-looking IndexError). Whether it crashed or silently
+        # replaced the value, this is a `drop` that never declared
+        # itself — the one thing this language exists to make explicit
+        # (see apply_convert's own refusal above, the same shape). Refuse
+        # by name instead, on both sides: the SQL half (hecks_tr_insert)
+        # raises the identical wording.
+        def insert(state, top, member, value, rule:)
           return state[top] = value unless member
+
+          if state.key?(top) && !state[top].is_a?(Hash)
+            raise Runtime::WiringError,
+                  "cannot #{rule}: #{top} already holds #{state[top].inspect}, not a value this can nest " \
+                  "under — moving into it would discard that value silently. Rename or drop #{top} first."
+          end
 
           state[top] ||= {}
           state[top][member] = value

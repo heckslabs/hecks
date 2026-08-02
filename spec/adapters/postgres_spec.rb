@@ -158,6 +158,38 @@ RSpec.describe Hecksagain::Adapters::Postgres,
         .to raise_error(ArgumentError, 'Postgres query adapter does not support "between"')
     end
 
+    # ADVERSARIAL, not incidental: today's only caller compiles field
+    # names from the bluebook's own declared schema, but jsonb_path has
+    # no way to know that, and its OLD form — a hand-rolled '{a,b}'
+    # array-literal STRING with zero escaping — trusted a field name to
+    # never contain a quote. It can: a crafted field name closed the
+    # string early and turned the remainder into live SQL. This is not
+    # a hypothetical — the exact payload below made a
+    # where(secret: "public") clause return a row with a DIFFERENT
+    # secret value, tautologically bypassing the filter, before
+    # jsonb_path was rewritten to build the array from individually
+    # escaped literals (ARRAY[...], the same technique lineage.rb's
+    # path_literal already used for translation-rule paths).
+    it "a crafted field name cannot break out of the compiled jsonb path" do
+      adapter.save(instance("secret", status: "TOPSECRET"))
+
+      injected_field = "x}' = '' OR $1::text = $1::text -- "
+      clause = Struct.new(:field, :op, :value).new(injected_field, "eq", "available")
+      declared = Struct.new(:wheres, :order_by, :limit, :offset, :null_semantics).new([clause], nil, nil, nil, nil)
+
+      # neither an error NOR a bypass — a field this malformed simply
+      # cannot match anything, which is the correct, boring outcome
+      expect(adapter.query(declared, {})).to eq([])
+    end
+
+    it "a crafted field name cannot break the array-literal syntax into an error either" do
+      injected_field = "status'} OR 1=1 --"
+      clause = Struct.new(:field, :op, :value).new(injected_field, "eq", "available")
+      declared = Struct.new(:wheres, :order_by, :limit, :offset, :null_semantics).new([clause], nil, nil, nil, nil)
+
+      expect(adapter.query(declared, {})).to eq([])
+    end
+
     # eq and lt were the only operators ever exercised against Postgres —
     # the rest of the comparator matrix was tested only against Memory
     # (spec/query_comparators_spec.rb). One real adapter should prove

@@ -446,6 +446,64 @@ RSpec.describe "lineage in the Postgres adapter",
     db.close
   end
 
+  # ADVERSARIAL, not incidental: found by deliberately constructing a
+  # move destination that collides with an existing scalar (most
+  # realistically, a has_one/belongs_to reference — a bare id, never an
+  # object). The SQL side used to silently overwrite that scalar with
+  # an empty object rather than lose the mint over it; now it refuses
+  # by name, matching the Ruby reference transform's own refusal pinned
+  # in spec/translation_language_spec.rb.
+  it "a move whose destination collides with an existing scalar refuses the mint by name, not silently" do
+    collide_v1 = <<~BLUEBOOK
+      Hecks.bluebook "Collide" do
+        aggregate "Acct" do
+          identified_by { kind.value }
+          attribute :amount, Money
+          attribute :kind, Kind
+          belongs_to :Team
+          value_object "Money" do
+            attribute :cents, Integer
+          end
+          value_object "Kind" do
+            attribute :value, String
+          end
+        end
+        aggregate "Team" do
+          identified_by { name.value }
+          attribute :name, TeamName
+          value_object "TeamName" do
+            attribute :value, String
+          end
+        end
+      end
+    BLUEBOOK
+    collide_v2 = collide_v1.sub('aggregate "Acct"', 'aggregate "Account"')
+
+    reg1 = check!(collide_v1)
+    acct = reg1.bluebooks.values.first.aggregate("Acct")
+    Hecksagain::Adapters::Postgres.new(aggregate: acct, settings: { database: LINEAGE_DB, domain: "Collide" })
+                                   .save(Hecksagain::Runtime::Instance.new(
+                                     aggregate: acct, id: "a1",
+                                     state: { amount: { "cents" => 500 }, kind: { "value" => "biz" }, team: "team-1" }
+                                   ))
+
+    from = label_of(collide_v1)
+    to = label_of(collide_v2)
+    edge = <<~RUBY
+      Hecks.data_translation("Collide", from: #{from.inspect}, to: #{to.inspect}) do
+        aggregate("Account", was: "Acct") do
+          rename :team, to: :team_ref
+          move "amount.cents", to: "team_ref.detail"
+        end
+      end
+    RUBY
+
+    expect { check!(collide_v2, translation_source: edge) }.to raise_error(
+      Hecksagain::Runtime::WiringError,
+      /cannot move amount\.cents to: team_ref\.detail: team_ref already holds "team-1", not a value this can nest under/
+    )
+  end
+
   it "however a post-cut row lands in a superseded era, the reconciliation machinery does not lose it or leak it" do
     # This tests what happens GIVEN such a row exists — not whether an
     # ordinary role can create one (the fence tests already prove it
@@ -875,6 +933,51 @@ RSpec.describe "lineage in the Postgres adapter",
                  "VALUES (1, 'acct', 'owner-write', 'save', '{}'::jsonb)")
     end.not_to raise_error
     owner.close
+  end
+
+  # ADVERSARIAL: not "does the plain case work" (already proven above)
+  # but "does something CLEVERER get past it." Each of these is a real
+  # technique for routing an INSERT around a naive check — a CTE hides
+  # the write inside a SELECT, a function body runs with its OWN
+  # apparent scope, COPY is a wholly different code path from INSERT.
+  # Verified empirically before writing this: COPY's outcome is NOT
+  # what a first attempt suggested (see the commit message) — Postgres
+  # refuses COPY FROM outright the moment RLS is enabled on the target,
+  # a built-in protection this design gets for free, not one it
+  # implements. Recorded here so nobody "fixes" that by relaxing FORCE
+  # ROW LEVEL SECURITY without knowing why COPY behaves this way.
+  it "a fenced role cannot route an era-1 write around the fence through a CTE, a function body, or COPY" do
+    reset_app_role!
+    write_v1_record
+    from = label_of(V1_SOURCE)
+    to = label_of(V2_SOURCE)
+    check!(V2_SOURCE, translation_source: edge_source(from: from, to: to), role: LINEAGE_ROLE)
+
+    journal = "hecks_journal_ledger"
+
+    expect(
+      as_app_role(
+        "WITH x AS (INSERT INTO #{journal} (era, aggregate, aggregate_id, operation, state) " \
+        "VALUES (1, 'account', 'cte', 'save', '{}'::jsonb) RETURNING 1) SELECT * FROM x"
+      )
+    ).to match(/row-level security/i)
+
+    expect(
+      as_app_role(
+        "DO $$ BEGIN INSERT INTO #{journal} (era, aggregate, aggregate_id, operation, state) " \
+        "VALUES (1, 'account', 'do-block', 'save', '{}'::jsonb); END $$"
+      )
+    ).to match(/row-level security/i)
+
+    db = PG.connect(dbname: LINEAGE_DB, user: LINEAGE_ROLE)
+    begin
+      db.exec("COPY #{journal} (era, aggregate, aggregate_id, operation, state) FROM STDIN")
+      raise "COPY should not even be attempted under RLS"
+    rescue PG::Error => error
+      expect(error.message).to match(/COPY FROM not supported with row-level security/i)
+    ensure
+      db&.close
+    end
   end
 
   it "an old checkout keeps writing its own era THROUGH a mint — the fork survives the window, it does not merely bracket it" do
