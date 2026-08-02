@@ -66,9 +66,12 @@
       },
       "Banking::ScheduledPayment#schedule-cancel": {
         "status": "cancelled"
+      },
+      "Banking::SafeDepositBox#DOWNTOWN:12": {
+        "status": "vacant"
       }
     },
-    "events": 104
+    "events": 113
   },
   "steps": [
     {
@@ -2299,6 +2302,191 @@
       "args": {
         "customer": "CUST-0001"
       }
+    },
+    {
+      "verb": "Banking::SafeDepositBox.Rent",
+      "args": {
+        "branch_code": {
+          "value": "DOWNTOWN"
+        },
+        "box_number": {
+          "value": 12
+        },
+        "size": {
+          "value": "medium"
+        },
+        "customer_id": "CUST-0001"
+      }
+    },
+    {
+      "verb": "Banking::SafeDepositBox.LogVisit",
+      "args": {
+        "branch_code": {
+          "value": "DOWNTOWN"
+        },
+        "box_number": {
+          "value": 12
+        },
+        "date": {
+          "value": "2026-01-05"
+        },
+        "sequence": {
+          "value": 1
+        }
+      }
+    },
+    {
+      "verb": "Banking::SafeDepositBox.LogVisit",
+      "args": {
+        "branch_code": {
+          "value": "DOWNTOWN"
+        },
+        "box_number": {
+          "value": 12
+        },
+        "date": {
+          "value": "2026-01-05"
+        },
+        "sequence": {
+          "value": 2
+        },
+        "note": {
+          "text": "Second visit, same day"
+        }
+      }
+    },
+    {
+      "verb": "Banking::SafeDepositBox.Visit.Annotate",
+      "args": {
+        "branch_code": {
+          "value": "DOWNTOWN"
+        },
+        "box_number": {
+          "value": 12
+        },
+        "date": {
+          "value": "2026-01-05"
+        },
+        "sequence": {
+          "value": 1
+        },
+        "note": {
+          "text": "Flagged for a follow-up"
+        }
+      }
+    },
+    {
+      "verb": "Banking::SafeDepositBox.IssueKey",
+      "args": {
+        "branch_code": {
+          "value": "DOWNTOWN"
+        },
+        "box_number": {
+          "value": 12
+        },
+        "serial": {
+          "value": "KEY-1"
+        }
+      }
+    },
+    {
+      "verb": "Banking::SafeDepositBox.KeyIssuance.Return",
+      "args": {
+        "branch_code": {
+          "value": "DOWNTOWN"
+        },
+        "box_number": {
+          "value": 12
+        },
+        "serial": {
+          "value": "KEY-1"
+        }
+      }
+    },
+    {
+      "verb": "Banking::SafeDepositBox.KeyIssuance.Return",
+      "args": {
+        "branch_code": {
+          "value": "DOWNTOWN"
+        },
+        "box_number": {
+          "value": 12
+        },
+        "serial": {
+          "value": "KEY-1"
+        }
+      }
+    },
+    {
+      "query": "Banking::SafeDepositBox.Rented",
+      "args": {}
+    },
+    {
+      "query": "Banking::SafeDepositBox.Visit.Recent",
+      "args": {}
+    },
+    {
+      "verb": "Banking::SafeDepositBox.Surrender",
+      "args": {
+        "branch_code": {
+          "value": "DOWNTOWN"
+        },
+        "box_number": {
+          "value": 12
+        }
+      }
+    },
+    {
+      "verb": "Banking::SafeDepositBox.Surrender",
+      "args": {
+        "branch_code": {
+          "value": "DOWNTOWN"
+        },
+        "box_number": {
+          "value": 12
+        }
+      }
+    },
+    {
+      "query": "Banking::Customer.NotGoodStanding",
+      "args": {}
+    },
+    {
+      "query": "Banking::Account.HighBalance",
+      "args": {
+        "floor": {
+          "cents": 1000,
+          "currency": "USD"
+        }
+      }
+    },
+    {
+      "query": "Banking::Account.Reachable",
+      "args": {}
+    },
+    {
+      "verb": "Banking::CardPayment.Authorize",
+      "args": {
+        "account_id": "acct-1",
+        "authorisation": {
+          "value": "auth-tagged"
+        },
+        "amount": {
+          "cents": 4200
+        },
+        "merchant": {
+          "value": "Risky Co"
+        },
+        "tags": [
+          {
+            "value": "high_risk"
+          }
+        ]
+      }
+    },
+    {
+      "query": "Banking::CardPayment.Flagged",
+      "args": {}
     }
   ]
 }

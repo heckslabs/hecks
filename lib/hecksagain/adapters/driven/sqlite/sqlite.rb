@@ -271,7 +271,14 @@ module Hecksagain
       end
 
       def encode(attr, value)
-        return JSON.generate(value || []) if attr.list?
+        # NEVER SET IS NOT EMPTY. `then_set ... append:` starts a list at `[]`
+        # the moment the first element lands, but a list attribute nothing has
+        # ever appended to — the shape every OTHER aggregate in the corpus
+        # happened not to carry, until one declared a list-typed head
+        # attribute that no creating command populates by default — has to
+        # stay NULL to answer the same as Memory does. Forcing it to `[]`
+        # here is how a persistence topology invented data no dispatch wrote.
+        return (value.nil? ? nil : JSON.generate(value)) if attr.list?
         return JSON.generate(value) if value.is_a?(Hash) || value.is_a?(Runtime::Value)
 
         value
@@ -293,7 +300,7 @@ module Hecksagain
           raw = row[attr.name.to_s]
           state[attr.name] =
             if attr.list?
-              raw ? JSON.parse(raw, symbolize_names: true) : []
+              raw ? JSON.parse(raw, symbolize_names: true) : nil
             elsif value_object?(attr)
               raw ? JSON.parse(raw, symbolize_names: true) : nil
             else
@@ -403,7 +410,7 @@ module Hecksagain
           state[name] = if attribute.nil?
                           raw
                         elsif attribute.list?
-                                   raw ? JSON.parse(raw, symbolize_names: true) : []
+                                   raw ? JSON.parse(raw, symbolize_names: true) : nil
                                  elsif !aggregate.value_object(attribute.type).nil?
                                    raw ? JSON.parse(raw, symbolize_names: true) : nil
                                  else

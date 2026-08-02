@@ -1352,7 +1352,17 @@ pub fn parse_process_manager(lines: &[&str]) -> (ProcessManager, usize) {
 
         if depth == 1 {
             if line.starts_with("correlates_by") {
-                if let Some(sym) = extract_symbol(line) {
+                // A DOTTED FIELD NAME NEEDS RUBY'S QUOTED-SYMBOL SPELLING —
+                // `:"end_to_end.value"` — because a bare `:end_to_end.value`
+                // is not a symbol literal at all. `extract_symbol` only reads
+                // the bare form, so the quoted one is parsed here instead.
+                let body = line.trim_start_matches("correlates_by").trim();
+                let sym = body
+                    .strip_prefix(":\"")
+                    .and_then(|quoted| quoted.split('"').next())
+                    .map(str::to_string)
+                    .or_else(|| extract_symbol(line));
+                if let Some(sym) = sym {
                     pm.correlates_by = sym;
                 }
             } else if line.starts_with("starts_on") {
@@ -1665,4 +1675,36 @@ mod dispatch_tests {
         );
     }
 
+    #[test]
+    fn parses_from_iter_value_spec_in_isolation() {
+        let spec = parse_value_spec("from_iter(:strength)").unwrap();
+        match spec {
+            ValueSpec::FromIter { field } => assert_eq!(field, "strength"),
+            other => panic!("expected FromIter, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn correlates_by_reads_a_quoted_dotted_symbol() {
+        let src = vec![
+            "process_manager \"X\" do",
+            "correlates_by :\"end_to_end.value\"",
+            "starts_on \"Y\"",
+            "end",
+        ];
+        let (pm, _) = parse_process_manager(&src);
+        assert_eq!(pm.correlates_by, "end_to_end.value");
+    }
+
+    #[test]
+    fn correlates_by_still_reads_a_bare_symbol() {
+        let src = vec![
+            "process_manager \"X\" do",
+            "correlates_by :transfer",
+            "starts_on \"Y\"",
+            "end",
+        ];
+        let (pm, _) = parse_process_manager(&src);
+        assert_eq!(pm.correlates_by, "transfer");
+    }
 }

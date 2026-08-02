@@ -1622,9 +1622,19 @@ impl Runtime {
         }
     }
 
+    // A DOTTED PATH NAMES THE SCALAR FIELD, matching Ruby's own
+    // `saga_correlation` — `correlates_by :"end_to_end.value"` walks the
+    // payload to the one field both runtimes can render identically, rather
+    // than keying a saga on a whole value object (Ruby keys on the object
+    // itself, Rust on its JSON text — the two disagree unless a scalar is
+    // named directly).
     fn correlation(pm: &Value, event: &Value) -> Option<String> {
         let field = pm.get("correlates_by").and_then(Value::as_str)?;
-        if let Some(value) = event.get("payload").and_then(|p| p.get(field)) {
+        let payload = event.get("payload");
+        let held = field
+            .split('.')
+            .fold(payload, |held, segment| held.and_then(|v| v.get(segment)));
+        if let Some(value) = held {
             if !value.is_null() {
                 let text = value
                     .as_str()

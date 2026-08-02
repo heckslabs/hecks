@@ -3,6 +3,15 @@
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 BINARY="$ROOT/rust/target/release/hecksagain"
 
+# ALWAYS REBUILT, NEVER ASSUMED. `$BINARY` is a compiled artifact, not
+# something this script can trust to already match the source tree — a
+# manual `cargo build` run outside this script (bare `--release`, no
+# `--workspace`, or from a different directory) can leave `target/release/`
+# holding a binary from a previous edit, and every check below would then be
+# diffing a stale Rust against a fresh Ruby and reporting a real-looking
+# SPLIT for a bug that was already fixed. `--workspace` is required — the
+# CLI binary lives in the `cli` member, and building without it silently
+# skips rebuilding the binary this whole script runs.
 (cd "$ROOT/rust" && cargo build --release --workspace --quiet) || exit 1
 
 # Postgres needs no more configuration than Heki or Sqlite do. Those two

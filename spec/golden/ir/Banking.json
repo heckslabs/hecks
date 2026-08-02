@@ -265,6 +265,25 @@
               "value": "suspended"
             }
           ]
+        },
+        {
+          "attributes": [
+
+          ],
+          "description": "Everyone who is not in the everyday roll — suspended, under review, or anything else that is not simply \"good\".",
+          "limit": null,
+          "name": "NotGoodStanding",
+          "order_by": {
+            "direction": "asc",
+            "field": "reference"
+          },
+          "wheres": [
+            {
+              "field": "standing",
+              "op": "ne",
+              "value": "good"
+            }
+          ]
         }
       ],
       "value_objects": [
@@ -1121,6 +1140,15 @@
             }
           ],
           "description": "Accounts below a floor the caller supplies — the morning risk report.",
+          "freshness": {
+            "max_age": "300",
+            "mode": "eventual"
+          },
+          "index_hints": [
+            {
+              "name": "balance_index"
+            }
+          ],
           "limit": {
             "value": "100"
           },
@@ -1134,6 +1162,52 @@
               "field": "balance",
               "op": "lt",
               "value": ":floor"
+            }
+          ]
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "floor",
+              "optional": false,
+              "pattern": null,
+              "type": "Money"
+            }
+          ],
+          "description": "Accounts holding at least a floor the caller supplies — the private-banking referral list.",
+          "limit": null,
+          "name": "HighBalance",
+          "order_by": {
+            "direction": "desc",
+            "field": "balance"
+          },
+          "wheres": [
+            {
+              "field": "balance",
+              "op": "gte",
+              "value": ":floor"
+            }
+          ]
+        },
+        {
+          "attributes": [
+
+          ],
+          "description": "Accounts that still exist as far as a caller is concerned — anything short of closed.",
+          "limit": null,
+          "name": "Reachable",
+          "order_by": {
+            "direction": "asc",
+            "field": "number"
+          },
+          "wheres": [
+            {
+              "field": "status",
+              "op": "in",
+              "value": "open,frozen"
             }
           ]
         }
@@ -2338,6 +2412,15 @@
           "optional": false,
           "pattern": null,
           "type": "MerchantName"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": true,
+          "name": "tags",
+          "optional": false,
+          "pattern": null,
+          "type": "Tag"
         }
       ],
       "commands": [
@@ -2378,6 +2461,15 @@
               "optional": false,
               "pattern": null,
               "type": "MerchantName"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": true,
+              "name": "tags",
+              "optional": true,
+              "pattern": null,
+              "type": "Tag"
             }
           ],
           "emits": [
@@ -2403,6 +2495,14 @@
                 "name": "merchant"
               },
               "target": "merchant"
+            },
+            {
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "tags"
+              },
+              "target": "tags"
             }
           ],
           "name": "Authorize",
@@ -2637,6 +2737,22 @@
               "value": "disputed"
             }
           ]
+        },
+        {
+          "attributes": [
+
+          ],
+          "description": "Charges carrying a risk tag, for the fraud queue.",
+          "limit": null,
+          "name": "Flagged",
+          "order_by": null,
+          "wheres": [
+            {
+              "field": "tags",
+              "op": "contains",
+              "value": "high_risk"
+            }
+          ]
         }
       ],
       "value_objects": [
@@ -2708,6 +2824,30 @@
 
           ],
           "name": "MerchantName"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "a tag is not the empty string"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "Tag"
         }
       ]
     },
@@ -3351,6 +3491,655 @@
           "name": "PaymentDueDate"
         }
       ]
+    },
+    {
+      "attributes": [
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "customer_id",
+          "optional": false,
+          "pattern": null,
+          "type": "Reference<Customer>"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "branch_code",
+          "optional": false,
+          "pattern": null,
+          "type": "BranchCode"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "box_number",
+          "optional": false,
+          "pattern": null,
+          "type": "BoxNumber"
+        },
+        {
+          "admits": null,
+          "default": {
+            "value": "small"
+          },
+          "list": false,
+          "name": "size",
+          "optional": false,
+          "pattern": null,
+          "type": "Size"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": true,
+          "name": "visits",
+          "optional": false,
+          "pattern": null,
+          "type": "Visit"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": true,
+          "name": "keys",
+          "optional": false,
+          "pattern": null,
+          "type": "KeyIssuance"
+        }
+      ],
+      "commands": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "customer_id",
+              "optional": false,
+              "pattern": null,
+              "type": "Reference<Customer>"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "branch_code",
+              "optional": false,
+              "pattern": null,
+              "type": "BranchCode"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "box_number",
+              "optional": false,
+              "pattern": null,
+              "type": "BoxNumber"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "size",
+              "optional": false,
+              "pattern": null,
+              "type": "Size"
+            }
+          ],
+          "emits": [
+            "BoxRented"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Assign the box to a customer",
+          "mutations": [
+            {
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "size"
+              },
+              "target": "size"
+            }
+          ],
+          "name": "Rent",
+          "references": null,
+          "role": "Branch clerk"
+        },
+        {
+          "attributes": [
+
+          ],
+          "emits": [
+            "BoxSurrendered",
+            "KeyReturnDue"
+          ],
+          "givens": [
+            {
+              "canonical": "status == \"rented\"",
+              "description": "only a rented box is surrendered"
+            }
+          ],
+          "goal": "Give the box back and take the keys off the account",
+          "mutations": [
+
+          ],
+          "name": "Surrender",
+          "references": "SafeDepositBox",
+          "role": "Customer"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "date",
+              "optional": false,
+              "pattern": null,
+              "type": "VisitDate"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "sequence",
+              "optional": false,
+              "pattern": null,
+              "type": "VisitSequence"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "note",
+              "optional": true,
+              "pattern": null,
+              "type": "VisitNote"
+            }
+          ],
+          "emits": [
+            "BoxOpened"
+          ],
+          "givens": [
+            {
+              "canonical": "status == \"rented\"",
+              "description": "only a rented box is opened"
+            }
+          ],
+          "goal": "Record that the box was opened",
+          "mutations": [
+            {
+              "fields": {
+                "date": "date",
+                "note": "note",
+                "sequence": "sequence"
+              },
+              "op": "append",
+              "target": "visits"
+            }
+          ],
+          "name": "LogVisit",
+          "references": "SafeDepositBox",
+          "role": "Vault officer"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "serial",
+              "optional": false,
+              "pattern": null,
+              "type": "KeySerial"
+            }
+          ],
+          "emits": [
+            "KeyIssued"
+          ],
+          "givens": [
+
+          ],
+          "goal": "Cut a key for the box",
+          "mutations": [
+            {
+              "fields": {
+                "serial": "serial"
+              },
+              "op": "append",
+              "target": "keys"
+            }
+          ],
+          "name": "IssueKey",
+          "references": "SafeDepositBox",
+          "role": "Vault officer"
+        }
+      ],
+      "description": "A steel box in the vault, held under one customer's name and opened only against the branch and number stamped on its face.",
+      "entities": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "date",
+              "optional": false,
+              "pattern": null,
+              "type": "VisitDate"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "sequence",
+              "optional": false,
+              "pattern": null,
+              "type": "VisitSequence"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "note",
+              "optional": true,
+              "pattern": null,
+              "type": "VisitNote"
+            }
+          ],
+          "commands": [
+            {
+              "attributes": [
+                {
+                  "admits": null,
+                  "default": null,
+                  "list": false,
+                  "name": "date",
+                  "optional": false,
+                  "pattern": null,
+                  "type": "VisitDate"
+                },
+                {
+                  "admits": null,
+                  "default": null,
+                  "list": false,
+                  "name": "sequence",
+                  "optional": false,
+                  "pattern": null,
+                  "type": "VisitSequence"
+                },
+                {
+                  "admits": null,
+                  "default": null,
+                  "list": false,
+                  "name": "note",
+                  "optional": false,
+                  "pattern": null,
+                  "type": "VisitNote"
+                }
+              ],
+              "emits": [
+                "VisitAnnotated"
+              ],
+              "givens": [
+
+              ],
+              "goal": "Note something unusual about a visit after the fact",
+              "mutations": [
+                {
+                  "op": "set",
+                  "source": {
+                    "kind": "argument",
+                    "name": "note"
+                  },
+                  "target": "note"
+                }
+              ],
+              "name": "Annotate",
+              "references": null,
+              "role": "Vault officer"
+            }
+          ],
+          "description": "One opening of the box, in the order it happened that day.",
+          "identified_by": [
+            "date.value",
+            "sequence.value"
+          ],
+          "lifecycle": {
+            "default": "logged",
+            "field": "state",
+            "transitions": [
+              {
+                "command": "Annotate",
+                "from_state": "logged",
+                "to_state": "logged"
+              }
+            ]
+          },
+          "name": "Visit",
+          "queries": [
+            {
+              "attributes": [
+
+              ],
+              "description": "The last few visits, whatever the box has seen.",
+              "limit": {
+                "value": "5"
+              },
+              "name": "Recent",
+              "order_by": null,
+              "wheres": [
+                {
+                  "field": "state",
+                  "op": "eq",
+                  "value": "logged"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "serial",
+              "optional": false,
+              "pattern": null,
+              "type": "KeySerial"
+            }
+          ],
+          "commands": [
+            {
+              "attributes": [
+                {
+                  "admits": null,
+                  "default": null,
+                  "list": false,
+                  "name": "serial",
+                  "optional": false,
+                  "pattern": null,
+                  "type": "KeySerial"
+                }
+              ],
+              "emits": [
+                "KeyReturned"
+              ],
+              "givens": [
+                {
+                  "canonical": "status == \"issued\"",
+                  "description": "only an issued key is returned"
+                }
+              ],
+              "goal": "Take a key back when a holder is done with it",
+              "mutations": [
+
+              ],
+              "name": "Return",
+              "references": null,
+              "role": "Vault officer"
+            }
+          ],
+          "description": "One key cut for the box, held by whoever last signed for it.",
+          "identified_by": [
+            "serial.value"
+          ],
+          "lifecycle": {
+            "default": "issued",
+            "field": "status",
+            "transitions": [
+              {
+                "command": "Return",
+                "from_state": "issued",
+                "to_state": "returned"
+              }
+            ]
+          },
+          "name": "KeyIssuance",
+          "queries": [
+
+          ]
+        }
+      ],
+      "identified_by": [
+        "branch_code.value",
+        "box_number.value"
+      ],
+      "lifecycle": {
+        "default": "vacant",
+        "field": "status",
+        "transitions": [
+          {
+            "command": "Rent",
+            "from_state": "vacant",
+            "to_state": "rented"
+          },
+          {
+            "command": "Surrender",
+            "from_state": "rented",
+            "to_state": "vacant"
+          }
+        ]
+      },
+      "name": "SafeDepositBox",
+      "queries": [
+        {
+          "attributes": [
+
+          ],
+          "authorization": {
+            "policy": "vault_access",
+            "tenant": "branch_code"
+          },
+          "consistency": {
+            "mode": "snapshot",
+            "timeout": null
+          },
+          "description": "Boxes currently assigned to a customer, for the annual access audit.",
+          "limit": null,
+          "name": "Rented",
+          "order_by": {
+            "direction": "asc",
+            "field": "branch_code"
+          },
+          "wheres": [
+            {
+              "field": "status",
+              "op": "eq",
+              "value": "rented"
+            }
+          ]
+        }
+      ],
+      "value_objects": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "a branch is coded"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "BranchCode"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "Integer"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "value.positive?",
+              "description": "a box is numbered from one"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "BoxNumber"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "Integer"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "value.positive?",
+              "description": "a visit sequence is positive"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "VisitSequence"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "a visit names its date"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "VisitDate"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "text",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "VisitNote"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "a key is serialed"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "KeySerial"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "value",
+                "small"
+              ]
+            ],
+            [
+              [
+                "value",
+                "medium"
+              ]
+            ],
+            [
+              [
+                "value",
+                "large"
+              ]
+            ]
+          ],
+          "name": "Size"
+        }
+      ]
     }
   ],
   "canonical_form": [
@@ -3387,6 +4176,18 @@
     {
       "name": "NotifyOnClosure",
       "on_event": "AccountClosed",
+      "target_domain": "Notifications",
+      "trigger_command": "Notifications.Send"
+    },
+    {
+      "name": "ReviewOnBoxSurrender",
+      "on_event": "BoxSurrendered",
+      "target_domain": "Compliance",
+      "trigger_command": "Compliance.OpenReview"
+    },
+    {
+      "name": "FlagKeyReturn",
+      "on_event": "KeyReturnDue",
       "target_domain": "Notifications",
       "trigger_command": "Notifications.Send"
     }
@@ -3535,6 +4336,51 @@
         "settled",
         "reversed"
       ]
+    },
+    {
+      "correlates_by": "end_to_end.value",
+      "ends_on": "ExternalTransferSent",
+      "handlers": [
+        {
+          "dispatches": [
+            {
+              "command_name": "Banking::ExternalTransfer.Send",
+              "with_spec": [
+                [
+                  "end_to_end",
+                  ":end_to_end"
+                ]
+              ]
+            }
+          ],
+          "event_type": "ExternalTransferRequested",
+          "from_state": "requested",
+          "to_state": "requested"
+        },
+        {
+          "dispatches": [
+            {
+              "command_name": "Banking::ExternalTransfer.Return",
+              "with_spec": [
+                [
+                  "end_to_end",
+                  ":end_to_end"
+                ]
+              ]
+            }
+          ],
+          "event_type": "refused",
+          "from_state": "requested",
+          "to_state": "returned"
+        }
+      ],
+      "name": "ExternalSettlement",
+      "starts_on": "ExternalTransferRequested",
+      "states": [
+        "requested",
+        "sent",
+        "returned"
+      ]
     }
   ],
   "read_models": [
@@ -3581,8 +4427,27 @@
       "query_name": "customer_portfolio",
       "reference_name": "customer",
       "reference_target": "Customer"
+    },
+    {
+      "aggregate_heads": [
+        {
+          "aggregate": "Account",
+          "as": "account",
+          "many": false
+        },
+        {
+          "aggregate": "CardPayment",
+          "as": "card_payments",
+          "many": true
+        }
+      ],
+      "description": "One account, its own status, and any card charges disputed against it — the working set for a compliance review.",
+      "name": "ComplianceDashboard",
+      "query_name": "compliance_dashboard",
+      "reference_name": "account",
+      "reference_target": "Account"
     }
   ],
-  "version": null,
+  "version": "v1",
   "vision": "Customers hold accounts, accounts move money, and every movement is a transfer that can fail halfway. The domain that has to get it right twice — once in the rules, once in the recovery."
 }

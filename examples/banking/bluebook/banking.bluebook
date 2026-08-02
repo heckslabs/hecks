@@ -1,4 +1,4 @@
-Hecks.bluebook "Banking" do
+Hecks.bluebook "Banking", version: "v1" do
   vision "Customers hold accounts, accounts move money, and every movement is a transfer that can fail halfway. The domain that has to get it right twice — once in the rules, once in the recovery."
   core
 
@@ -12,6 +12,16 @@ Hecks.bluebook "Banking" do
     include CardPayment
     include ExternalTransfer
     include ScheduledPayment
+  end
+
+  # A SECOND ROOT, ON PURPOSE. CustomerPortfolio gathers around a customer;
+  # this gathers around an account — the compliance officer's actual unit of
+  # work, since a hold or a dispute is filed against an account, not a person.
+  read_model "ComplianceDashboard" do
+    description "One account, its own status, and any card charges disputed against it — the working set for a compliance review."
+    reference_to Account
+    include Account
+    include CardPayment
   end
 
   aggregate "Customer" do
@@ -117,6 +127,12 @@ Hecks.bluebook "Banking" do
       where(status: "suspended")
       order_by :reference, :desc
       limit 50
+    end
+
+    query "NotGoodStanding" do
+      description "Everyone who is not in the everyday roll — suspended, under review, or anything else that is not simply \"good\"."
+      where(standing: { ne: "good" })
+      order_by :reference
     end
   end
 
@@ -367,6 +383,24 @@ Hecks.bluebook "Banking" do
       where(balance: { lt: :floor })
       order_by :balance
       limit 100
+      # A MORNING REPORT DOES NOT NEED THE LEDGER MID-WRITE. Read against
+      # yesterday's close rather than blocking on whatever posted a second
+      # ago, and use the index the report always hits.
+      freshness :eventual, max_age: 300
+      use_index :balance_index
+    end
+
+    query "HighBalance" do
+      description "Accounts holding at least a floor the caller supplies — the private-banking referral list."
+      attribute :floor, Money
+      where(balance: { gte: :floor })
+      order_by :balance, :desc
+    end
+
+    query "Reachable" do
+      description "Accounts that still exist as far as a caller is concerned — anything short of closed."
+      where(status: { in: "open,frozen" })
+      order_by :number
     end
 
     policy "ReviewOnFreeze" do
@@ -655,6 +689,17 @@ Hecks.bluebook "Banking" do
       invariant("a merchant name is present") { !value.to_s.empty? }
     end
 
+    # WHAT THE MERCHANT CATEGORY CODE SAYS ABOUT THIS CHARGE — a plain word,
+    # not a closed set: the risk desk adds a tag before the language has a
+    # name for it, and a scheme this narrow would refuse the very charge it
+    # exists to flag.
+    attribute :tags, list_of(Tag)
+
+    value_object "Tag" do
+      attribute :value, String
+      invariant("a tag is not the empty string") { !value.to_s.empty? }
+    end
+
     lifecycle :status, default: "authorized" do
       transition "Capture" => "captured", from: "authorized"
       transition "Void" => "voided", from: "authorized"
@@ -670,8 +715,10 @@ Hecks.bluebook "Banking" do
       attribute :authorisation, AuthorisationCode
       attribute :amount, PaymentAmount
       attribute :merchant, MerchantName
+      attribute :tags, list_of(Tag), optional: true
       then_set :amount, to: :amount
       then_set :merchant, to: :merchant
+      then_set :tags, to: :tags
       emits "CardAuthorized"
     end
 
@@ -736,6 +783,11 @@ Hecks.bluebook "Banking" do
 
     query "Disputed" do
       where(status: "disputed")
+    end
+
+    query "Flagged" do
+      description "Charges carrying a risk tag, for the fraud queue."
+      where(tags: { contains: "high_risk" })
     end
   end
 
@@ -880,6 +932,205 @@ Hecks.bluebook "Banking" do
     end
   end
 
+  aggregate "SafeDepositBox" do
+    description "A steel box in the vault, held under one customer's name and opened only against the branch and number stamped on its face."
+
+    reference_to Customer
+
+    # A BOX NUMBER REPEATS ACROSS BRANCHES — box 12 in the downtown vault and
+    # box 12 in the uptown vault are not the same box, so neither the branch
+    # nor the number alone says which one this is. The first composite
+    # identity in the flagship domain, carried on a head that also holds a
+    # cross-reference, two entities (one of them composite in its own right),
+    # and a closed set — the convergence market's Stall existed only to prove
+    # was reachable at all.
+    identified_by do
+      branch_code.value
+      box_number.value
+    end
+
+    attribute :branch_code, BranchCode
+    attribute :box_number,  BoxNumber
+    # THE INLINE SHORTHAND, not a hand-declared value_object + one_of block —
+    # AccountKind and LedgerDirection already exercise the block form
+    # elsewhere in this chapter, so this is the other spelling: `one_of`
+    # called directly as an attribute's type, synthesising "Size" for itself.
+    attribute :size,   one_of("small", "medium", "large"), default: { value: "small" }
+    attribute :visits, list_of(Visit)
+    attribute :keys,   list_of(KeyIssuance)
+
+    value_object "BranchCode" do
+      attribute :value, String
+      invariant("a branch is coded") { !value.to_s.empty? }
+    end
+
+    value_object "BoxNumber" do
+      attribute :value, Integer
+      invariant("a box is numbered from one") { value.positive? }
+    end
+
+    value_object "VisitSequence" do
+      attribute :value, Integer
+      invariant("a visit sequence is positive") { value.positive? }
+    end
+
+    value_object "VisitDate" do
+      attribute :value, String
+      invariant("a visit names its date") { !value.to_s.empty? }
+    end
+
+    value_object "VisitNote" do
+      attribute :text, String
+    end
+
+    value_object "KeySerial" do
+      attribute :value, String
+      invariant("a key is serialed") { !value.to_s.empty? }
+    end
+
+    # A COMPOSITE PIECE under a composite HEAD — the same double-join market's
+    # Booking exercised, and real for the same reason a booking was: a box may
+    # be opened twice in one day (two visitors, or one visitor twice), so the
+    # day alone does not name a visit either.
+    entity "Visit" do
+      description "One opening of the box, in the order it happened that day."
+
+      identified_by do
+        date.value
+        sequence.value
+      end
+
+      attribute :date,     VisitDate
+      attribute :sequence, VisitSequence
+      # MAY BE LEFT OUT — most openings are routine, and the exception is what
+      # gets written down.
+      attribute :note,     VisitNote, optional: true
+
+      lifecycle :state, default: "logged" do
+        transition "Annotate" => "logged", from: "logged"
+      end
+
+      command "Annotate" do
+        role "Vault officer"
+        goal "Note something unusual about a visit after the fact"
+
+        attribute :date,     VisitDate
+        attribute :sequence, VisitSequence
+        attribute :note,     VisitNote
+
+        then_set :note, to: :note
+
+        emits "VisitAnnotated"
+      end
+
+      query "Recent" do
+        description "The last few visits, whatever the box has seen."
+        where(state: "logged")
+        limit 5
+      end
+    end
+
+    # THE SECOND PIECE ON THIS HEAD, identified by a SINGLE path where Visit's
+    # is two — the same deliberate mismatch market's Stall carried between
+    # Booking and Inspection, so a runtime reaching for "the entity" rather
+    # than the named one picks the wrong shape and says so.
+    entity "KeyIssuance" do
+      description "One key cut for the box, held by whoever last signed for it."
+
+      identified_by { serial.value }
+
+      attribute :serial, KeySerial
+
+      lifecycle :status, default: "issued" do
+        transition "Return" => "returned", from: "issued"
+      end
+
+      command "Return" do
+        role "Vault officer"
+        goal "Take a key back when a holder is done with it"
+
+        attribute :serial, KeySerial
+
+        given("only an issued key is returned") { status == "issued" }
+
+        emits "KeyReturned"
+      end
+    end
+
+    lifecycle :status, default: "vacant" do
+      transition "Rent"      => "rented", from: "vacant"
+      transition "Surrender" => "vacant", from: "rented"
+    end
+
+    command "Rent" do
+      role "Branch clerk"
+      goal "Assign the box to a customer"
+
+      reference_to Customer
+      attribute :branch_code, BranchCode
+      attribute :box_number,  BoxNumber
+      attribute :size,        Size
+
+      then_set :size, to: :size
+
+      emits "BoxRented"
+    end
+
+    command "Surrender" do
+      role "Customer"
+      goal "Give the box back and take the keys off the account"
+
+      reference_to SafeDepositBox
+
+      given("only a rented box is surrendered") { status == "rented" }
+
+      # TWO FACTS FROM ONE ACT, on a head that is composite-identified and
+      # holds two entities — the surrender itself, and the keys it leaves
+      # outstanding until the vault confirms every one of them is back.
+      emits "BoxSurrendered"
+      emits "KeyReturnDue"
+    end
+
+    command "LogVisit" do
+      role "Vault officer"
+      goal "Record that the box was opened"
+
+      reference_to SafeDepositBox
+      attribute :date,     VisitDate
+      attribute :sequence, VisitSequence
+      attribute :note,     VisitNote, optional: true
+
+      given("only a rented box is opened") { status == "rented" }
+
+      then_set :visits, append: { date: :date, sequence: :sequence, note: :note }
+
+      emits "BoxOpened"
+    end
+
+    command "IssueKey" do
+      role "Vault officer"
+      goal "Cut a key for the box"
+
+      reference_to SafeDepositBox
+      attribute :serial, KeySerial
+
+      then_set :keys, append: { serial: :serial }
+
+      emits "KeyIssued"
+    end
+
+    query "Rented" do
+      description "Boxes currently assigned to a customer, for the annual access audit."
+      where(status: "rented")
+      order_by :branch_code
+      # A VAULT RECORD IS NOT A CASUAL READ. Named against the branch a caller
+      # is standing in, and snapshotted so the audit sees one consistent
+      # moment rather than a box that changed hands mid-read.
+      authorize :vault_access, tenant: :branch_code
+      consistency :snapshot
+    end
+  end
+
 
   policy "FreezeAccountsOnSuspension" do
     on      "CustomerSuspended"
@@ -888,6 +1139,20 @@ Hecks.bluebook "Banking" do
 
   policy "NotifyOnClosure" do
     on      "AccountClosed"
+    trigger "Notifications.Send"
+    across  "Notifications"
+  end
+
+  # TWO POLICIES OFF ONE COMMAND'S TWO ANNOUNCEMENTS — Surrender's own comment
+  # names why both facts are real; this is where each finds its audience.
+  policy "ReviewOnBoxSurrender" do
+    on      "BoxSurrendered"
+    trigger "Compliance.OpenReview"
+    across  "Compliance"
+  end
+
+  policy "FlagKeyReturn" do
+    on      "KeyReturnDue"
     trigger "Notifications.Send"
     across  "Notifications"
   end
@@ -929,6 +1194,40 @@ Hecks.bluebook "Banking" do
     on :refused, transition: { "awaiting_credit" => "reversed" } do
       dispatch "Banking::Account.Credit", with: { number: :source, amount: :amount, narrative: { text: "transfer reversed" } }
       dispatch "Banking::Transfer.Reverse", with: { transfer: :transfer }
+    end
+  end
+
+  # A SECOND SAGA, correlating on a DIFFERENT key over a DIFFERENT event
+  # stream — ExternalTransfer has carried Send/Recall/Return since the chapter
+  # began, and nothing ever dispatched them: a request just sat "requested"
+  # until a human moved it by hand. This is the automation Settlement already
+  # proved out, pointed at the network leg instead of the internal one.
+  #
+  # THE FIELD, NAMED — not the value object that carries it. `end_to_end` is
+  # declared as a VALUE OBJECT, and Ruby and Rust disagree about what a
+  # non-scalar correlation key even IS (Ruby keys the saga on the whole
+  # object, Rust on its JSON text — relay's own comment names this exact
+  # split). `:"end_to_end.value"` reaches past the wrapper for the one
+  # field both runtimes can render identically, the same way `identified_by
+  # { end_to_end.value }` already does on the aggregate this saga watches.
+  process_manager "ExternalSettlement" do
+    correlates_by :"end_to_end.value"
+    starts_on "ExternalTransferRequested"
+    ends_on   "ExternalTransferSent"
+
+    state "requested"
+    state "sent"
+    state "returned"
+
+    on "ExternalTransferRequested", transition: { "requested" => "requested" } do
+      dispatch "Banking::ExternalTransfer.Send", with: { end_to_end: :end_to_end }
+    end
+
+    # THE COMPENSATING LEG, the same shape Settlement's own carries: a
+    # refusal, not an event nothing emits, arms the return instead of leaving
+    # the request stranded "requested" until someone notices.
+    on :refused, transition: { "requested" => "returned" } do
+      dispatch "Banking::ExternalTransfer.Return", with: { end_to_end: :end_to_end }
     end
   end
 end

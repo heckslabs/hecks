@@ -26,8 +26,17 @@ module Hecksagain
 
       private
 
+      # A DOTTED PATH NAMES THE SCALAR FIELD, rather than asking a value object
+      # to stand in for one. `correlates_by :end_to_end` would key a saga on
+      # the whole ExternalTransfer::EndToEndReference — and Ruby and Rust
+      # disagree about what a non-scalar correlation key even IS (Ruby keys on
+      # the object itself, Rust on its JSON text). `:"end_to_end.value"` reads
+      # the one field both runtimes can render identically.
       def saga_correlation(pm, event)
-        value = event.payload[pm.correlates_by]
+        path  = pm.correlates_by.to_s.split(".")
+        value = path.reduce(event.payload) do |held, segment|
+          held.respond_to?(:[]) ? held[segment.to_sym] : nil
+        end
         return value unless value.to_s.empty?
 
         Naming.reference_key(event.aggregate) == pm.correlates_by.to_sym ? event.id : nil
