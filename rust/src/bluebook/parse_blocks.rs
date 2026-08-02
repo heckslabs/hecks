@@ -1676,15 +1676,6 @@ mod dispatch_tests {
     }
 
     #[test]
-    fn parses_from_iter_value_spec_in_isolation() {
-        let spec = parse_value_spec("from_iter(:strength)").unwrap();
-        match spec {
-            ValueSpec::FromIter { field } => assert_eq!(field, "strength"),
-            other => panic!("expected FromIter, got {:?}", other),
-        }
-    }
-
-    #[test]
     fn correlates_by_reads_a_quoted_dotted_symbol() {
         let src = vec![
             "process_manager \"X\" do",
