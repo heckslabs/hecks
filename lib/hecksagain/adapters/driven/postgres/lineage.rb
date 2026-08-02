@@ -24,14 +24,21 @@ module Hecksagain
       # materializes: ONE shared row policy admits INSERTs to whichever
       # era was just established (era 1 at first hold, era N at mint),
       # and advancing it is part of the SAME transaction that builds the
-      # new era's matview. There is no persisted per-role fork — a
-      # deployment's app role writes the current era or nothing, from
-      # the moment that transaction commits, whichever role happens to
-      # be asking. A stale-era write during the narrow window before
-      # that commit (ordinals are sequence-assigned, not transactional —
-      # see below) is exactly what diverged_count/merge_tail exist to
-      # reconcile; it is the residual of an unavoidable race, not a
-      # supported way to keep operating two schemas side by side.
+      # new era's matview. There is no persisted per-role fork — any
+      # granted role, app or the table's own OWNER (FORCE ROW LEVEL
+      # SECURITY applies this to the owner too, not only ordinary
+      # roles), writes the current era or nothing, from the moment that
+      # transaction commits. A stale-era write during the narrow window
+      # before that commit — RLS is checked once, when the statement
+      # EXECUTES, never re-checked at commit, so a transaction that
+      # inserted while the old era was still current can still land
+      # after a concurrent mint has already moved the fence on — is
+      # exactly what diverged_count/merge_tail exist to reconcile; it is
+      # the residual of an unavoidable race (ordinals are
+      # sequence-assigned, not transactional — see below), not a
+      # supported way to keep operating two schemas side by side. Only
+      # an actual Postgres superuser (or a role granted BYPASSRLS)
+      # sits above FORCE and keeps writing at will, forever.
       #
       # Lineage order is ordinal-assignment order: the ordinal comes
       # from a sequence, sequences are non-transactional, and that is
@@ -128,12 +135,47 @@ module Hecksagain
           # role connects as a NON-owner and gets exactly INSERT, per
           # era, at mint time.
           @db.exec("REVOKE UPDATE, DELETE ON #{quoted_journal} FROM PUBLIC")
-          # RLS goes on AT PROVISIONING, never mid-life. Enabling it
-          # later denies every role that has no policy yet — so a fence
-          # switched on by the first mint would lock out the very
-          # checkout the fork exists to keep writing. The owner bypasses
-          # RLS, so this costs the provisioner and the mint nothing.
-          @db.exec("ALTER TABLE #{quoted_journal} ENABLE ROW LEVEL SECURITY")
+          # RLS goes on AT PROVISIONING, never mid-life — enabling it
+          # later would deny every role that has no policy yet, on
+          # whatever the shape of the schema happened to be at that
+          # moment.
+          #
+          # FORCE, not merely ENABLE: without it, the table OWNER is
+          # exempt from every policy here, by Postgres default — which
+          # would leave the schema writable forever to whoever holds
+          # the owner's credentials, the one connection this whole
+          # design cannot fence. Checked, not assumed: mint_era! never
+          # inserts into the journal at all (only hecks_eras/
+          # hecks_era_texts, neither RLS-protected), and merge_tail!'s
+          # one journal INSERT targets the CURRENT era, which the fence
+          # already admits for anyone with base privileges — so FORCE
+          # costs the owner nothing operations here actually need.
+          #
+          # This still exempts an actual Postgres SUPERUSER (or any
+          # role granted BYPASSRLS) unconditionally — FORCE only
+          # narrows what ENABLE already narrows for the owner
+          # specifically, and superuser bypass sits above both. Running
+          # migrations as a real superuser (self-hosted Postgres, most
+          # commonly) leaves this gap open regardless; a managed
+          # provider's admin account is typically NOT a superuser, and
+          # is exactly what FORCE closes.
+          #
+          # GUARDED, not reissued unconditionally — measured, not
+          # assumed: `ALTER TABLE ... ENABLE/FORCE ROW LEVEL SECURITY`
+          # takes AccessExclusiveLock EVEN WHEN THE SETTING IS ALREADY
+          # CORRECT (Postgres does not skip the lock just because the
+          # statement would be a no-op). ensure_base! runs on EVERY
+          # boot by the owning role, not only the first — so an
+          # unconditional reissue here would mean every ordinary
+          # reboot of the deployment's own identity re-freezes every
+          # concurrent writer, on any era, for as long as that ALTER
+          # TABLE has to wait its turn. Read the current state first;
+          # touch the catalog only on the boot that actually needs to.
+          current = @db.exec_params(
+            "SELECT relrowsecurity, relforcerowsecurity FROM pg_class WHERE relname = $1", [journal]
+          )[0]
+          @db.exec("ALTER TABLE #{quoted_journal} ENABLE ROW LEVEL SECURITY") unless current["relrowsecurity"] == "t"
+          @db.exec("ALTER TABLE #{quoted_journal} FORCE ROW LEVEL SECURITY") unless current["relforcerowsecurity"] == "t"
           install_transforms!
         end
 
@@ -389,14 +431,30 @@ module Hecksagain
           archive_text!(ordinal, held_text)
           ensure_partition!(ordinal)
           grant_role!(role) if role
-          # UNCONDITIONAL — this is the line that drops writing to the
-          # old schema. It does not wait for a role to be configured on
-          # THIS boot, because the cutoff is a fact about the era, not
-          # about who happened to mint it: an old checkout's role,
-          # granted by some earlier boot this one knows nothing about,
-          # must lose write access the instant this transaction commits.
-          advance_era!(ordinal)
           aggregates.each { |aggregate| compile_head!(aggregate, ordinal, label, edges) }
+          # LAST, right before COMMIT — not merely unconditional. Once
+          # acquired, a lock is held until the TRANSACTION ends, not
+          # just for the statement that took it — so advance_era!'s
+          # DROP POLICY/CREATE POLICY (AccessExclusiveLock, same family
+          # as ALTER TABLE, and unavoidably so: Postgres has no lighter
+          # form for changing a policy, unlike the partition attach
+          # below) blocks every concurrent writer for as long as it sits
+          # BEFORE the expensive step. Ordered here, that block is the
+          # width of a few catalog statements plus the commit itself,
+          # not the width of compile_head!'s matview build. Measured:
+          # moving this above compile_head! (an earlier ordering, caught
+          # only once a genuine concurrent-write test was built rather
+          # than assumed) reintroduced exactly the mint-stops-the-world
+          # cost ensure_partition!'s build-then-ATTACH exists to avoid.
+          #
+          # UNCONDITIONAL regardless of position — this is the line that
+          # drops writing to the old schema. It does not wait for a role
+          # to be configured on THIS boot, because the cutoff is a fact
+          # about the era, not about who happened to mint it: an old
+          # checkout's role, granted by some earlier boot this one knows
+          # nothing about, must lose write access the instant this
+          # transaction commits.
+          advance_era!(ordinal)
           @db.exec("COMMIT")
           true
         rescue PG::LockNotAvailable

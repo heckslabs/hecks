@@ -17,6 +17,19 @@ RSpec.describe "lineage in the Postgres adapter",
                skip: (postgres_available ? false : "no reachable Postgres — start one to run this spec") do
   LINEAGE_DB = "hecksagain_lineage_spec".freeze
 
+  # The genuine table owner for this whole file — an ordinary,
+  # NON-superuser role. Every check!/adapter_for/merge! call below
+  # connects as this role, not as whatever OS account runs the spec
+  # suite, because a local dev Postgres user is commonly a superuser
+  # (verified: mine is), and a superuser bypasses RLS unconditionally —
+  # FORCE ROW LEVEL SECURITY has no lever against that at all. Without
+  # a real non-superuser owner, "the owner is now fenced too" is
+  # untestable in this environment: every assertion of it would
+  # silently pass for the wrong reason.
+  LINEAGE_OWNER = "hecksagain_lineage_owner".freeze
+
+  def owner_url = "postgres://#{LINEAGE_OWNER}@localhost/#{LINEAGE_DB}"
+
   V1_SOURCE = <<~BLUEBOOK.freeze
     Hecks.bluebook "Ledger" do
       aggregate "Acct" do
@@ -107,7 +120,19 @@ RSpec.describe "lineage in the Postgres adapter",
     admin = PG.connect(dbname: "postgres")
     admin.exec("DROP DATABASE IF EXISTS #{LINEAGE_DB} WITH (FORCE)")
     admin.exec("CREATE DATABASE #{LINEAGE_DB}")
+    admin.exec("DROP ROLE IF EXISTS #{LINEAGE_OWNER}")
+    # Plain CREATE ROLE ... LOGIN — no SUPERUSER, no BYPASSRLS. Either
+    # attribute would make FORCE ROW LEVEL SECURITY a no-op for this
+    # role, same as it already is for the ambient dev connection.
+    admin.exec("CREATE ROLE #{LINEAGE_OWNER} LOGIN")
     admin.close
+    grant = PG.connect(dbname: LINEAGE_DB)
+    grant.exec("GRANT CONNECT ON DATABASE #{LINEAGE_DB} TO #{LINEAGE_OWNER}")
+    grant.close
+    # the per-schema grant below is re-issued in `before do`, since that
+    # hook drops and recreates `public` before every example — a schema
+    # created via CREATE SCHEMA carries no default PUBLIC privileges,
+    # so a grant made only here would be wiped before the first test ran
   end
 
   after(:all) do
@@ -120,6 +145,7 @@ RSpec.describe "lineage in the Postgres adapter",
     scrub = PG.connect(dbname: LINEAGE_DB)
     scrub.exec("DROP SCHEMA public CASCADE")
     scrub.exec("CREATE SCHEMA public")
+    scrub.exec("GRANT USAGE, CREATE ON SCHEMA public TO #{LINEAGE_OWNER}")
     scrub.close
   end
 
@@ -142,7 +168,7 @@ RSpec.describe "lineage in the Postgres adapter",
   def check!(source, translation_source: nil, role: nil)
     registry = load_registry(source, translation_source: translation_source)
     bluebook = registry.bluebooks.values.first
-    settings = { database: LINEAGE_DB }
+    settings = { database: owner_url }
     settings[:role] = role if role
     Hecksagain::Adapters::Postgres::LineageManager.check!(
       registry: registry, bluebook: bluebook, current_text: source, settings: settings
@@ -190,7 +216,7 @@ RSpec.describe "lineage in the Postgres adapter",
 
   def adapter_for(registry, aggregate_name)
     aggregate = registry.bluebooks.values.first.aggregate(aggregate_name)
-    Hecksagain::Adapters::Postgres.new(aggregate: aggregate, settings: { database: LINEAGE_DB, domain: "Ledger" })
+    Hecksagain::Adapters::Postgres.new(aggregate: aggregate, settings: { database: owner_url, domain: "Ledger" })
   end
 
   def write_v1_record(state = nil)
@@ -396,7 +422,22 @@ RSpec.describe "lineage in the Postgres adapter",
     db.close
   end
 
-  it "permits an old checkout to keep booting its superseded era, writing its own partition — the fork" do
+  it "however a post-cut row lands in a superseded era, the reconciliation machinery does not lose it or leak it" do
+    # This tests what happens GIVEN such a row exists — not whether an
+    # ordinary role can create one (the fence tests already prove it
+    # cannot: "the fence is a fact about the ERA", "a role rebooting
+    # into its OWN now-superseded era"). A genuine, non-superuser writer
+    # racing a live mint IS possible in principle — RLS is checked once,
+    # at statement execution, never re-checked at commit, so a write
+    # that executes while an era is still current can still commit
+    # after the fence moves on — but empirically that window is now the
+    # width of a few catalog statements (see "an ordinary writer is
+    # never blocked by a mint" below), not something a test can reliably
+    # steer a write into without instrumenting production code purely
+    # to slow it down for the test's convenience. So the row here is
+    # inserted directly, as the table owner — standing in for "however
+    # it got here" — and what is actually under test is everything
+    # downstream: the frozen tail, diverged_count, and merge_tail.
     write_v1_record
     from = label_of(V1_SOURCE)
     to = label_of(V2_SOURCE)
@@ -405,20 +446,22 @@ RSpec.describe "lineage in the Postgres adapter",
     old_registry = check!(V1_SOURCE)
     expect(old_registry.resolved_eras["Ledger"]).to eq(1)
 
-    old_world = Hecksagain::Adapters::Postgres.new(
-      aggregate: old_registry.bluebooks.values.first.aggregate("Acct"),
-      settings: { database: LINEAGE_DB, domain: "Ledger", era: 1 }
-    )
-    old_world.save(Hecksagain::Runtime::Instance.new(
-      aggregate: old_registry.bluebooks.values.first.aggregate("Acct"), id: "a9",
-      state: { cost: { "cents" => 5, "currency" => "USD" }, kind: { "label" => "biz" }, legacy_note: { "text" => "late" } }
-    ))
-
     db = PG.connect(dbname: LINEAGE_DB)
+    db.exec_params(
+      "INSERT INTO hecks_journal_ledger (era, aggregate, aggregate_id, operation, state) VALUES (1, 'acct', $1, 'save', $2)",
+      ["a9", JSON.generate(cost: { "cents" => 5, "currency" => "USD" }, kind: { "label" => "biz" }, legacy_note: { "text" => "late" })]
+    )
+
     # the post-cut write landed in the era-1 partition...
     eras_of_a9 = db.exec("SELECT era FROM hecks_journal_ledger WHERE aggregate_id = 'a9'").map { |row| row["era"] }
     expect(eras_of_a9).to eq(["1"])
-    # ...the old world sees it...
+    # ...a checkout still reading era 1 sees it (its own head view, keyed
+    # to "Acct"'s storage name, is untouched by the mint that renamed
+    # the aggregate to "Account")...
+    old_world = Hecksagain::Adapters::Postgres.new(
+      aggregate: old_registry.bluebooks.values.first.aggregate("Acct"),
+      settings: { database: owner_url, domain: "Ledger", era: 1 }
+    )
     expect(old_world.find("a9").cost.to_h).to eq(cents: 5, currency: "USD")
     # ...the new head does NOT (the watermark is baked into the matview)...
     new_head = db.exec("SELECT count(*) FROM account_head WHERE id = 'a9'")[0]["count"]
@@ -427,6 +470,75 @@ RSpec.describe "lineage in the Postgres adapter",
     lineage = Hecksagain::Adapters::Postgres::Lineage.new(db, "Ledger")
     expect(lineage.diverged_count(1)).to eq(1)
     db.close
+  end
+
+  it "an ordinary writer is never blocked by a mint — advance_era!'s AccessExclusiveLock is held for the commit, not the matview build" do
+    write_v1_record
+    from = label_of(V1_SOURCE)
+    to = label_of(V2_SOURCE)
+
+    # seed a real ancestor tail so compile_head!'s matview build takes
+    # measurable time — a mint over a handful of rows proves nothing
+    # about whether a SLOW build widens the write-blocking window
+    db = PG.connect(dbname: LINEAGE_DB)
+    3_000.times do |i|
+      db.exec_params(
+        "INSERT INTO hecks_journal_ledger (era, aggregate, aggregate_id, operation, state) VALUES (1, 'acct', $1, 'save', $2)",
+        ["bulk-#{i}", JSON.generate(cost: { "cents" => i, "currency" => "USD" }, kind: { "label" => "biz" }, legacy_note: { "text" => "x" })]
+      )
+    end
+    db.close
+
+    # Two different outcomes for a writer aimed at era 1, and only one
+    # of them is a bug. LOCK contention (the writer waited on
+    # advance_era!'s AccessExclusiveLock and timed out) would mean the
+    # reordering failed. A ROW-LEVEL SECURITY refusal, once the mint has
+    # actually committed and moved the fence to era 2, is the CORRECT
+    # and expected outcome the rest of this file already tests — this
+    # spec only needs to prove it is never the FIRST kind.
+    stop = false
+    ok = 0
+    lock_blocked = 0
+    fence_refused = 0
+    writer = Thread.new do
+      w = PG.connect(owner_url)
+      w.exec("SET lock_timeout = '500ms'")
+      # An aggregate name the bluebook never declares. The mint's audit
+      # iterates bluebook.aggregates ("Acct"/"Account") and compares the
+      # journal's id set for EACH of those, read live, twice — any
+      # writer touching one of those names interferes with that
+      # comparison for a reason unrelated to what this spec is about
+      # (see "however a post-cut row lands" above, and the run that
+      # failed before this fix — writing a stable id under "acct" still
+      # tripped Layer 2's per-id value check). A row under an
+      # undeclared name is invisible to the audit entirely, and still
+      # exercises the SAME table's locks: ensure_partition!/
+      # advance_era!/compile_head! operate on the whole partition, not
+      # on rows matching a particular aggregate.
+      until stop
+        begin
+          w.exec("INSERT INTO hecks_journal_ledger (era, aggregate, aggregate_id, operation, state) " \
+                 "VALUES (1, 'unrelated_probe', 'live', 'save', '{}'::jsonb)")
+          ok += 1
+        rescue PG::Error => error
+          if error.message =~ /lock timeout|canceling statement/i
+            lock_blocked += 1
+          else
+            fence_refused += 1
+          end
+        end
+      end
+      w.close
+    end
+    sleep 0.05 # let the writer get a few writes in before the mint starts
+
+    check!(V2_SOURCE, translation_source: edge_source(from: from, to: to))
+
+    stop = true
+    writer.join
+
+    expect(ok).to be > 0
+    expect(lock_blocked).to eq(0)
   end
 
   def fork_worlds
