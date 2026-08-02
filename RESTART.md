@@ -177,3 +177,99 @@ two runtimes to a shape no example declares.
 4. **Bluebook first.** If it is about bluebooks, `bluebook.bluebook` is where it goes.
 5. **Don't trust green, and don't trust a filename.** Every real defect this session was
    found by measuring a diff or probing by hand — never by the suite going red.
+
+---
+
+# Findings worth not rediscovering
+
+Salvaged from `HANDOVER.md` before it was deleted (it predated the projection work
+and its opening claim — "Do not call Rust a projection" — had gone false). These are
+the parts that are still true and still expensive to relearn. The full original is in
+git history.
+
+## The house failure mode: a defect written down as expected behaviour
+
+Five in one session, each PASSING because the thing asserting it agreed with the bug —
+a spec asserting a mutation into a field its fixture never declared; banking crediting
+an account with `colour: "red"` and writing the bug into its own narrative; a saga spec
+titled "the compensation puts the money back" where the TEST put it back by hand; a
+transfer hand-driven into a frozen destination and recorded as settled; a `given` on
+`Aggregate.Seal` that was invented for Seal, never dispatched, and not even true.
+
+It recurred in the projection session twice more: `GOLDEN=rewrite` before the suite
+absorbed an emptied saga binding as expected output, and two `dsl_spec` cases pinned
+`no ValueObject with id "…"` for a category that has no `id`.
+
+**Don't trust green, and don't trust a filename.** Every real defect has been found by
+probing by hand or measuring a diff — never by the suite going red.
+
+## Both runtimes can be wrong identically, and parity certifies it
+
+A read model's gathered heads derived their name with `snake(target) + "s"` in BOTH
+runtimes, so the meta-domain handed back `querys`, `entitys`, `policys` — green on
+every one. `bin/parity` can only prove Ruby and Rust AGREE; it can never catch a bug
+they share, because there is no third oracle. That gap is not closable by more corpus
+or more fuzzing — it is what the hand-written-Go-then-specialize ratchet is for.
+
+## Encoding losses are the largest family of bug in this codebase
+
+Every one has the same shape: reading an OBJECT where the IR's `to_h` holds the
+SPELLING. `order_by`/`limit` stored as `"#<struct LimitSpec value=3>"` because
+`Array(an_object)` WRAPS rather than destructures; a where-clause value losing the
+colon that tells `":ceiling"` the argument from `"ceiling"` the string; an append's
+bindings stored raw so a literal was indistinguishable from an argument; a default and
+a literal mutation source through `to_s`. **When in doubt, offer what `to_h` spells.**
+
+The projection session added three more of exactly this family, all in `bin/ir_rust`'s
+inversions: a literal-object mutation source rendered as Ruby `inspect` where Rust
+reads the bluebook spelling; an object literal in an append binding read as an argument
+NAMED `{:value=>"credit"}`; and `:source` projected as `FromEvent`, which renders bare,
+when a plain `:source` is a `Literal` that KEEPS its colon.
+
+## Not all order matters
+
+BEHAVIOUR-BEARING order must survive: mutations apply in sequence, a lifecycle takes the
+FIRST matching transition, a compensation credits before it reverses. PRESENTATION order
+need not: nothing looks a command up by position. "Index for index" is a property of the
+COMPARISON, not of the IR.
+
+## Ask whether a rule is unsayable or just badly modelled
+
+The reference-shape rule looked like a sublanguage gap (`start_with?` unavailable). It
+was a STRING where a reference belonged. `reference_to Aggregate, as: :points_at` is
+stronger than a prefix match, because a prefix match only checks the text looks right.
+
+## An argument with nowhere to land does not persist
+
+Bit twice in one day. `disputed_by` was accepted, resolved, gated the command — and
+vanished, because the aggregate had no field for it. Then `Command.Declare` took
+`entity_id`, dispatched it correctly, and every entity command came back unowned,
+because the Command AGGREGATE had no `entity_id` either. **A command argument and the
+field it writes into are two declarations; having one is not having the other.**
+
+## Vocabulary that is still pattern names, not words a bank says
+
+`ProcessManager`, `Handler`, `Dispatch`, and the `lifecycle`/`saga` vocabulary. The
+collapse they hide: a procedure is an aggregate advanced by EVENTS instead of commands,
+`correlates_by` is a `reference_to`, and a status is an attribute whose values are a
+closed set with declared moves. An arc, not a rename.
+
+## The unwind is COARSE and the corpus cannot tell
+
+`on :refused` is ONE compensation for a whole procedure; banking hand-lists two undos in
+the right order, and the runtime does not know which legs completed. Right for two prior
+steps, wrong for four. Discriminating case: three undoable steps where only the first
+two complete.
+
+## Smaller ones
+
+- **A refusal is not an event.** `on :refused` is the compensating leg's trigger, bound
+  to `IR::ProcessManager::REFUSED`.
+- **Procedure and saga are different things.** A procedure coordinates; it is a saga when
+  it also undoes. `IR::Saga` is a READING of the source, deliberately not in `to_h`, and
+  `saga` appears in no `.bluebook`.
+- **`grep saga` matches "heckSAGAin".** Use `\bsagas?\b`.
+- **Hand-probes dirty `examples/*/data/`.** `git checkout -- examples/` after any script
+  that boots a real domain.
+- **`bin/parity` cleans up its temp dirs** — `/tmp/parity.*.json` files are STALE. Read
+  `bin/parity`'s own output or drive the domain live.
