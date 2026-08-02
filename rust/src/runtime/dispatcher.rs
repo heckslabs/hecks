@@ -87,6 +87,114 @@ const MAX_REACTION_DEPTH: usize = 5;
 /// compensation IS an ordinary leg; only its trigger differs.
 const REFUSED: &str = "refused";
 
+// Matches Ruby's `IR::Attribute::PRIMITIVES` — spec/vocabulary_conformance
+// holds the two lists equal.
+const CORRELATION_KEY_PRIMITIVES: &[&str] = &["String", "Integer", "Float", "TrueClass", "FalseClass"];
+
+/// The Rust twin of `BluebookBuilder#correlation_key_violation` — same
+/// algorithm, same reasons, walked over typed structs instead of IR objects.
+/// `None` means the path resolves to a real scalar (or resolves to nothing
+/// at all, which is not this check's business — see the fallback-tier note
+/// where this is called).
+fn correlation_key_violation(domain: &crate::ir::Domain, pm: &crate::ir::ProcessManager) -> Option<String> {
+    let mut segments = pm.correlates_by.split('.');
+    let head = segments.next()?;
+    let rest: Vec<&str> = segments.collect();
+    let events = reacted_events(pm);
+
+    for (owner, command) in emitting_commands(domain, &events) {
+        let Some(attribute) = command.attributes.iter().find(|a| a.name == head) else { continue };
+
+        if let Some(reason) = list_or_scalar_violation(owner, attribute, &rest) {
+            return Some(reason);
+        }
+    }
+    None
+}
+
+fn reacted_events(pm: &crate::ir::ProcessManager) -> Vec<&str> {
+    let mut events: Vec<&str> = vec![pm.starts_on.as_str()];
+    events.extend(pm.ends_on.as_deref());
+    events.extend(pm.handlers.iter().map(|h| h.event_type.as_str()));
+
+    events
+        .into_iter()
+        .filter(|event| *event != REFUSED)
+        .map(|event| event.rsplit("::").next().unwrap_or(event))
+        .collect()
+}
+
+fn emitting_commands<'a>(
+    domain: &'a crate::ir::Domain,
+    events: &[&str],
+) -> Vec<(&'a crate::ir::Aggregate, &'a crate::ir::Command)> {
+    domain
+        .aggregates
+        .iter()
+        .flat_map(|aggregate| {
+            let entity_commands = aggregate.entities.iter().flat_map(|entity| entity.commands.iter());
+            aggregate
+                .commands
+                .iter()
+                .chain(entity_commands)
+                .map(move |command| (aggregate, command))
+        })
+        .filter(|(_, command)| command.emits.iter().any(|emitted| events.contains(&emitted.as_str())))
+        .collect()
+}
+
+fn list_or_scalar_violation(
+    owner: &crate::ir::Aggregate,
+    attribute: &crate::ir::Attribute,
+    segments: &[&str],
+) -> Option<String> {
+    if attribute.list {
+        return Some(format!(
+            "{} is a list — a correlation key must name one instance's own field, not a whole collection",
+            attribute.name
+        ));
+    }
+    walk_scalar(owner, &attribute.r#type, segments)
+}
+
+/// Walks the remaining dotted segments through nested value objects — see
+/// `BluebookBuilder#walk_scalar` for the Ruby twin this mirrors field for
+/// field.
+fn walk_scalar(owner: &crate::ir::Aggregate, type_name: &str, segments: &[&str]) -> Option<String> {
+    if segments.is_empty() {
+        if CORRELATION_KEY_PRIMITIVES.contains(&type_name) {
+            return None;
+        }
+        return Some(format!(
+            "{type_name} is a value object, not a scalar — name one of its own fields, e.g. {}.value",
+            type_name.to_lowercase()
+        ));
+    }
+
+    if CORRELATION_KEY_PRIMITIVES.contains(&type_name) {
+        return Some(format!(
+            "{type_name} is already a scalar — {} has nothing left to reach",
+            segments.join(".")
+        ));
+    }
+
+    let Some(shape) = owner.value_objects.iter().find(|vo| vo.name == type_name) else {
+        return Some(format!("{type_name} is not a value object this domain declares"));
+    };
+
+    let (segment, rest) = segments.split_first()?;
+    let Some(attribute) = shape.attributes.iter().find(|a| a.name == *segment) else {
+        return Some(format!("{type_name} has no field {segment:?}"));
+    };
+    if attribute.list {
+        return Some(format!(
+            "{type_name}.{segment} is a list — a correlation key must name one instance's own field, not a whole collection"
+        ));
+    }
+
+    walk_scalar(owner, &attribute.r#type, rest)
+}
+
 fn state_row((id, mut state): (String, State)) -> Value {
     state.insert("id".to_string(), Value::String(id));
     Value::Object(state)
@@ -584,6 +692,25 @@ impl Runtime {
                 process_manager.correlates_by,
                 process_manager.correlates_by
             ));
+        }
+        // `correlates_by` NAMES A SCALAR, NOW CHECKED RATHER THAN TRUSTED —
+        // the Rust twin of `BluebookBuilder#validate_correlation_keys!`. The
+        // dot check above is syntactic; this walks the path for real, against
+        // whichever command actually emits an event this process manager
+        // reacts to, and refuses if it still lands on a value object
+        // (RESTART.md's named gap: Ruby keys a saga on the object itself,
+        // Rust on its JSON text). A path whose first segment no emitting
+        // command declares is skipped, not refused — correlation has two
+        // fallback tiers below the payload dig (a stamp, then the emitting
+        // aggregate's own reference key), so an absent field is not this
+        // check's business, only a resolvable-but-non-scalar one is.
+        for process_manager in &domain.process_managers {
+            if let Some(reason) = correlation_key_violation(&domain, process_manager) {
+                return Err(format!(
+                    "cannot boot {}::{}: correlates_by {:?}, but {reason}",
+                    domain.name, process_manager.name, process_manager.correlates_by
+                ));
+            }
         }
         // The name is kept before the domain moves into the runtime — boot
         // still needs it to bind repositories, and the runtime owns it now.

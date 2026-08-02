@@ -46,6 +46,7 @@ module Hecksagain
           # moved to the language: an attribute type is a reference to its Shape,
           # so an undeclared value object fails reference resolution
           validate_reference_value_objects!
+          validate_correlation_keys!
           policies = @aggregates.flat_map(&:policies) + @policies
 
           # The chapter is the top of the construct chain — `IR::Bluebook` is a
@@ -109,6 +110,106 @@ module Hecksagain
 
           raise Malformed,
                 "an entity command is addressed through its aggregate; #{violations.uniq.join('; ')}"
+        end
+
+        # `correlates_by` NAMES A SCALAR, NOW CHECKED RATHER THAN TRUSTED.
+        #
+        # ProcessManagerBuilder#validate! already refuses a bare, undotted
+        # spelling — a SYNTACTIC guarantee that the declaration cannot leave
+        # the question open. It cannot go further: a process manager is built
+        # in isolation, before this chapter's aggregates exist to check
+        # against. Here, with the whole document assembled, the dotted path
+        # is walked for real — against whichever command actually emits an
+        # event this process manager reacts to — so a path that still lands
+        # on a value object (RESTART.md's named gap: Ruby keys a saga on the
+        # object itself, Rust on its JSON text) is refused before either
+        # runtime ever has to decide what a non-scalar correlation key means.
+        #
+        # A command that does not declare the path's first segment at all is
+        # silently skipped, not refused — correlation has two other fallback
+        # tiers below the payload dig (a correlation stamp, then the emitting
+        # aggregate's own reference key; saga_interpreter/correlation.rb), so
+        # an absent field is not this check's business. Only a field that
+        # resolves, and resolves to something other than a scalar, is.
+        def validate_correlation_keys!
+          @process_managers.each do |pm|
+            next unless pm.correlates_by
+
+            reason = correlation_key_violation(pm)
+            next unless reason
+
+            raise ProcessManagerBuilder::InvalidProcessManager,
+                  "#{pm.name} correlates_by #{pm.correlates_by.inspect}, but #{reason}"
+          end
+        end
+
+        def correlation_key_violation(pm)
+          head, *rest = pm.correlates_by.to_s.split(".")
+          events = reacted_events(pm)
+
+          emitting_commands(events).each do |owner, command|
+            attribute = command.attributes.find { |a| a.name == head.to_sym }
+            next unless attribute
+
+            reason = list_or_scalar_violation(owner, attribute, rest)
+            return reason if reason
+          end
+
+          nil
+        end
+
+        def reacted_events(pm)
+          ([pm.starts_on, pm.ends_on] + pm.handlers.map(&:event_type))
+            .compact
+            .reject { |event| event == IR::ProcessManager::REFUSED }
+            .map { |event| event.to_s.split("::").last }
+            .uniq
+        end
+
+        def emitting_commands(events)
+          @aggregates.flat_map do |aggregate|
+            commands = aggregate.commands + aggregate.entities.flat_map(&:commands)
+            commands.select { |command| (command.emits.map(&:to_s) & events).any? }
+                    .map { |command| [aggregate, command] }
+          end
+        end
+
+        def list_or_scalar_violation(owner, attribute, segments)
+          return "#{attribute.name} is a list — a correlation key must name one instance's own field, " \
+                 "not a whole collection" if attribute.list?
+
+          walk_scalar(owner, attribute.type.to_s, segments)
+        end
+
+        # Walks the remaining dotted segments through nested value objects.
+        # `type_name` starts as the head attribute's own declared type ; each
+        # step either bottoms out at a real scalar (nil — no violation) or
+        # names why it cannot: still a value object with no more path left,
+        # a value object this domain never declared, a field that value
+        # object does not have, or a segment left over after already
+        # reaching a scalar.
+        def walk_scalar(owner, type_name, segments)
+          if segments.empty?
+            return nil if IR::Attribute::PRIMITIVES.include?(type_name)
+
+            return "#{type_name} is a value object, not a scalar — name one of its own fields, " \
+                   "e.g. #{type_name.downcase}.value"
+          end
+
+          if IR::Attribute::PRIMITIVES.include?(type_name)
+            return "#{type_name} is already a scalar — #{segments.join('.')} has nothing left to reach"
+          end
+
+          shape = owner.value_object(type_name)
+          return "#{type_name} is not a value object this domain declares" unless shape
+
+          segment, *rest = segments
+          attribute = shape.attributes.find { |a| a.name == segment.to_sym }
+          return "#{type_name} has no field #{segment.inspect}" unless attribute
+          return "#{type_name}.#{segment} is a list — a correlation key must name one instance's own field, " \
+                 "not a whole collection" if attribute.list?
+
+          walk_scalar(owner, attribute.type.to_s, rest)
         end
 
         # A CHAPTER MAY BE DECLARED IN SEVERAL FILES, meant to merge into ONE

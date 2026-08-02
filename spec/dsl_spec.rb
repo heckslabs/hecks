@@ -696,6 +696,91 @@ RSpec.describe "the DSL surface" do
       end.to raise_error(/never declared as a state/)
     end
 
+    it "process_manager refuses correlates_by that resolves to a value object, not a scalar" do
+      # ProcessManagerBuilder#validate! only knows the spelling has a dot ;
+      # the whole-document check knows what that dot actually reaches.
+      # `ref.amount` is a real field on a real value object — `Ref` genuinely
+      # declares `amount` — but `amount`'s own type, `Amount`, is ANOTHER
+      # value object, not a scalar. The dot ran out one VO short of a real
+      # field, the same class of mistake `identified_by` already refuses on
+      # the aggregate side.
+      expect do
+        build_bluebook("NonScalarKey") do
+          aggregate "Thing" do
+            identified_by { id.value }
+            attribute :id, ThingId
+
+            value_object "ThingId" do
+              attribute :value, String
+            end
+
+            value_object "Ref" do
+              attribute :amount, Amount
+            end
+
+            value_object "Amount" do
+              attribute :cents, Integer
+            end
+
+            command "Start" do
+              attribute :id,  ThingId
+              attribute :ref, Ref
+              emits "Started"
+            end
+          end
+
+          process_manager "Broken" do
+            correlates_by :"ref.amount"
+            starts_on "Started"
+            state "a"
+            state "b"
+            on "Started", transition: { "a" => "b" } do
+              dispatch "Thing.Start"
+            end
+          end
+        end
+      end.to raise_error(/Amount is a value object, not a scalar/)
+    end
+
+    it "process_manager refuses correlates_by naming a field no emitting command declares that shape for" do
+      expect do
+        build_bluebook("StrandedKey") do
+          aggregate "Thing" do
+            identified_by { id.value }
+            attribute :id, ThingId
+
+            value_object "ThingId" do
+              attribute :value, String
+            end
+
+            value_object "Ref" do
+              attribute :amount, Amount
+            end
+
+            value_object "Amount" do
+              attribute :cents, Integer
+            end
+
+            command "Start" do
+              attribute :id,  ThingId
+              attribute :ref, Ref
+              emits "Started"
+            end
+          end
+
+          process_manager "Broken" do
+            correlates_by :"ref.currency"
+            starts_on "Started"
+            state "a"
+            state "b"
+            on "Started", transition: { "a" => "b" } do
+              dispatch "Thing.Start"
+            end
+          end
+        end
+      end.to raise_error(/Ref has no field "currency"/)
+    end
+
     it "aggregate adds an aggregate" do
       # `identified_by` reads its OWN source line via Prism, so it needs a line to
       # itself — stacking it on the SAME line as the block that opens it makes
