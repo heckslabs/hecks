@@ -35,8 +35,21 @@ RSpec.describe "the language holds a bluebook, and gives it back" do
 
   # Dispatch a real bluebook into the meta-domain and KEEP the runtime, which is
   # the only difference between judging and holding.
+  #
+  # `pizzas` REFERENCED FIRST, on purpose. It loads Pizzas through the normal
+  # `MetaValidator.call` path, which judges (and so DISPATCHES a
+  # `Bluebook.Declare` for "Pizzas") into `grammar_registry`'s own shared
+  # repositories — the same registry `fresh_runtime` wraps, not a copy.
+  # Resetting repositories AFTER that means the manual `judge!` below dispatches
+  # its own `Bluebook.Declare` into a clean store ; resetting BEFORE meant the
+  # two declarations collided, and the collision guard (added once creating a
+  # command twice was refused rather than silently overwritten) is what turned
+  # a harmless double-write into a real failure — this was always two
+  # declarations of the same record, just invisible until refusing the second
+  # one became the honest behaviour.
   def held
     @held ||= begin
+      pizzas
       runtime = Hecksagain::Bluebook::MetaValidator.fresh_runtime
       judge   = Hecksagain::Bluebook::MetaValidator::Judge.allocate
       judge.instance_variable_set(:@bluebook, pizzas)
@@ -172,8 +185,10 @@ RSpec.describe "the language holds a bluebook, and gives it back" do
     end
   end
 
+  # `banking` referenced first — same reason as `held`'s own comment above.
   def held_account_attributes
     @held_account_attributes ||= begin
+      banking
       runtime = Hecksagain::Bluebook::MetaValidator.fresh_runtime
       judge   = Hecksagain::Bluebook::MetaValidator::Judge.allocate
       judge.instance_variable_set(:@bluebook, banking)
