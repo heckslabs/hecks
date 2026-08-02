@@ -58,7 +58,7 @@ module Hecksagain
       end
 
       def library(folder)
-        File.expand_path("../../../#{folder}", __dir__)
+        File.expand_path("../../#{folder}", __dir__)
       end
     end
   end

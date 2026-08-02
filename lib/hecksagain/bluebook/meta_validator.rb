@@ -179,8 +179,8 @@ module Hecksagain
         Hecksagain.with_registry(registry) do
           Kernel.load(File.expand_path("../ports/persistence.port", __dir__))
           Kernel.load(File.expand_path("../ports/extraction.port", __dir__))
-          Kernel.load(File.expand_path("../adapters/driven/memory/memory.adapter", __dir__))
-          Kernel.load(File.expand_path("../adapters/driven/prism/prism.adapter", __dir__))
+          Kernel.load(File.expand_path("../adapters/driven/memory.adapter", __dir__))
+          Kernel.load(File.expand_path("../adapters/driven/prism.adapter", __dir__))
           GRAMMAR_FILES.each { |file| Kernel.load(file) }
           Kernel.load(WORLD_GRAMMAR)
         end

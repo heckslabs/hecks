@@ -4,28 +4,16 @@ require_relative "hecksagain/naming"
 require_relative "hecksagain/fqn"
 require_relative "hecksagain/construct"
 require_relative "hecksagain/facade"
-require_relative "hecksagain/query_specification/common/specification"
-require_relative "hecksagain/query_specification/common/null_policy"
-require_relative "hecksagain/query_specification/common/dsl"
-require_relative "hecksagain/query_specification/read_model/specification"
+require_relative "hecksagain/query_specification"
 
 require_relative "hecksagain/ports"
 require_relative "hecksagain/bluebook"
 require_relative "hecksagain/router"
 
 require_relative "hecksagain/runtime"
-require_relative "hecksagain/translation/scaffold"
-require_relative "hecksagain/translation/audit"
-require_relative "hecksagain/translation/reattest"
-
-require_relative "hecksagain/adapters/driven/memory/memory"
-require_relative "hecksagain/adapters/driven/sqlite/sqlite"
-require_relative "hecksagain/adapters/driven/postgres/postgres"
-require_relative "hecksagain/adapters/driven/heki/heki"
-require_relative "hecksagain/adapters/driven/prism/prism"
-require_relative "hecksagain/adapters/driven/folder/folder"
-
-require_relative "hecksagain/projector/exporter"
+require_relative "hecksagain/translation"
+require_relative "hecksagain/adapters"
+require_relative "hecksagain/projector"
 
 module Hecksagain
   VERSION = "2026.07.25.1"

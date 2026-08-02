@@ -16,8 +16,8 @@ module InMemoryDomain
   PIZZAS_BLUEBOOK  = File.join(ROOT, "examples/pizzas/bluebook/pizzas.bluebook")
   PERSISTENCE_PORT = File.join(ROOT, "lib/hecksagain/ports/persistence.port")
   EXTRACTION_PORT  = File.join(ROOT, "lib/hecksagain/ports/extraction.port")
-  MEMORY_ADAPTER   = File.join(ROOT, "lib/hecksagain/adapters/driven/memory/memory.adapter")
-  PRISM_ADAPTER    = File.join(ROOT, "lib/hecksagain/adapters/driven/prism/prism.adapter")
+  MEMORY_ADAPTER   = File.join(ROOT, "lib/hecksagain/adapters/driven/memory.adapter")
+  PRISM_ADAPTER    = File.join(ROOT, "lib/hecksagain/adapters/driven/prism.adapter")
 
   def boot_in_memory
     registry = Hecksagain::Runtime::Registry.new

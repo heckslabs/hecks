@@ -4,8 +4,7 @@
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
 require "hecksagain"
-require "hecksagain/fuzzing/value_generator"
-require "hecksagain/fuzzing/sequence_generator"
+require "hecksagain/fuzzing"
 require "json"
 
 domain = ARGV.shift or abort "usage: bin/generate <domain> [--seed N] [--steps N]"
