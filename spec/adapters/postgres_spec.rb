@@ -157,5 +157,185 @@ RSpec.describe Hecksagain::Adapters::Postgres,
       expect { adapter.query(declared, {}) }
         .to raise_error(ArgumentError, 'Postgres query adapter does not support "between"')
     end
+
+    # eq and lt were the only operators ever exercised against Postgres —
+    # the rest of the comparator matrix was tested only against Memory
+    # (spec/query_comparators_spec.rb). One real adapter should prove
+    # the other five compile and answer correctly too.
+    def where(clause_field, op, clause_value, order: nil, limit: nil, offset: nil)
+      declared = Struct.new(:wheres, :order_by, :limit, :offset, :null_semantics).new(
+        [Struct.new(:field, :op, :value).new(clause_field, op, clause_value)],
+        order && Struct.new(:field, :direction).new(*order), limit, offset, nil
+      )
+      adapter.query(declared, {}).map(&:id)
+    end
+
+    it "compiles ne" do
+      expect(where("status", "ne", "sold")).to eq(%w[p1 p2])
+    end
+
+    it "compiles gt/gte/lte through a value object's numeric member" do
+      expect(where("price_cents", "gt", { cents: 1200 })).to eq(%w[p2])
+      expect(where("price_cents", "gte", { cents: 1200 })).to eq(%w[p1 p2])
+      expect(where("price_cents", "lte", { cents: 1200 })).to eq(%w[p1 p3])
+    end
+
+    # NOTE ON SEMANTICS, not just mechanics: the reference (in-memory)
+    # interpreter's "contains" means CSV/list membership — `members(held)
+    # .include?(want.to_s)`, query_interpreter.rb:102-114 — while this
+    # compiles to a literal SQL substring search, `position($1 in
+    # expression) > 0`. Those agree by coincidence on a single-token
+    # field (no commas to split on) but are not the same operator for
+    # anything with a comma in it. That divergence predates this spec and
+    # is a real, separate question — flagging it here rather than baking
+    # one interpretation into an unrelated fix. This test verifies only
+    # that Postgres's OWN documented behavior (substring, on a plain
+    # scalar field — a value-object member would also need query_value's
+    # hash-unwrapping to resolve a string, which it does not: it only
+    # extracts a NUMERIC member and returns nil otherwise) compiles and
+    # executes correctly.
+    it "compiles contains as a literal SQL substring match on a plain scalar field" do
+      expect(where("status", "contains", "avail")).to eq(%w[p1 p2])
+    end
+
+    it "compiles offset alongside limit" do
+      offset_spec = Hecksagain::QuerySpecification::Common::OffsetSpec.new(value: 1)
+      declared = Struct.new(:wheres, :order_by, :limit, :offset, :null_semantics).new(
+        [], Struct.new(:field, :direction).new("price_cents", :asc), nil, offset_spec, nil
+      )
+      expect(adapter.query(declared, {}).map(&:id)).to eq(%w[p1 p2])
+    end
+
+    it "places nulls per the declared policy, not Postgres's own ASC/DESC default" do
+      adapter.save(instance("p4", name: { value: "Unpurchased" }, price_cents: { cents: 500 }, status: "available"))
+      adapter.save(instance("p1", name: { value: "Margherita" }, price_cents: { cents: 1200 },
+                                    status: "available", customer_name: { value: "Alex" }))
+
+      first_mode = Struct.new(:mode).new("first")
+      declared = Struct.new(:wheres, :order_by, :limit, :offset, :null_semantics).new(
+        [], Struct.new(:field, :direction).new("customer_name", :asc), nil, nil, first_mode
+      )
+      # p2/p3 never had customer_name set at all — null, and NULLS FIRST
+      # puts them ahead of p1's real value regardless of Postgres's own
+      # per-direction default (which would otherwise put nulls LAST on
+      # ASC, disagreeing with the other adapters).
+      expect(adapter.query(declared, {}).map(&:id).first(2)).to contain_exactly("p2", "p3")
+      expect(adapter.query(declared, {}).map(&:id).last).to eq("p1")
+    end
+  end
+
+  # `has_one`/`belongs_to`/`has_many` (DSL sugar over reference_to — see
+  # aggregate_builder.rb) all compile to a scalar Reference<T> attribute,
+  # stored as a bare id (never wrapped — Runtime::Value refuses a
+  # reference arriving as a hash). No fixture anywhere declared one
+  # before this, and none was exercised against Postgres: `where` on
+  # such a field compiled to `state #>> '{field,value}'`, digging for a
+  # nested "value" key that a bare scalar never has, and silently
+  # matched nothing. Falsified before trusting it: reverting the fix in
+  # query_expression reproduces the empty result exactly.
+  describe "a has_one/belongs_to reference field, queried through Postgres" do
+    REFS_SOURCE = <<~BLUEBOOK.freeze
+      Hecks.bluebook "Refs" do
+        aggregate "Ticket" do
+          identified_by { number.value }
+          attribute :number, TicketNumber
+          belongs_to :Team
+          has_many :Invoices
+
+          value_object "TicketNumber" do
+            attribute :value, String
+          end
+        end
+
+        aggregate "Team" do
+          identified_by { name.value }
+          attribute :name, TeamName
+
+          value_object "TeamName" do
+            attribute :value, String
+          end
+        end
+
+        aggregate "Invoice" do
+          identified_by { reference.value }
+          attribute :reference, InvoiceReference
+
+          value_object "InvoiceReference" do
+            attribute :value, String
+          end
+        end
+      end
+    BLUEBOOK
+
+    let(:refs_registry) do
+      registry = Hecksagain::Runtime::Registry.new
+      loading = Hecksagain::Ports::Loading.bootstrap
+      file = Tempfile.new(["refs-", ".bluebook"])
+      file.write(REFS_SOURCE)
+      file.flush
+      Hecksagain.with_registry(registry) do
+        loading.load_library
+        Kernel.eval(REFS_SOURCE, TOPLEVEL_BINDING, file.path, 1)
+      end
+      registry
+    ensure
+      file&.close!
+    end
+
+    let(:ticket) { refs_registry.bluebooks.values.first.aggregate("Ticket") }
+    let(:refs_adapter) { described_class.new(aggregate: ticket, settings: { database: SPEC_DB, domain: "Refs" }) }
+
+    it "declares a scalar reference, not a collection — the plural name is the only thing that changed" do
+      expect(ticket.attribute(:team).reference?).to be(true)
+      expect(ticket.attribute(:team).list?).to be(false)
+    end
+
+    it "stores the reference as a bare id" do
+      refs_adapter.save(Hecksagain::Runtime::Instance.new(
+        aggregate: ticket, id: "t1", state: { number: { "value" => "t1" }, team: "team-a" }
+      ))
+
+      db = PG.connect(dbname: SPEC_DB)
+      raw = JSON.parse(db.exec("SELECT state FROM ticket_head WHERE id = 't1'")[0]["state"])
+      db.close
+      expect(raw["team"]).to eq("team-a")
+    end
+
+    it "matches a where clause on the reference field" do
+      refs_adapter.save(Hecksagain::Runtime::Instance.new(
+        aggregate: ticket, id: "t1", state: { number: { "value" => "t1" }, team: "team-a" }
+      ))
+      refs_adapter.save(Hecksagain::Runtime::Instance.new(
+        aggregate: ticket, id: "t2", state: { number: { "value" => "t2" }, team: "team-b" }
+      ))
+
+      declared = Struct.new(:wheres, :order_by, :limit, :offset, :null_semantics).new(
+        [Struct.new(:field, :op, :value).new("team", "eq", "team-a")], nil, nil, nil, nil
+      )
+      expect(refs_adapter.query(declared, {}).map(&:id)).to eq(["t1"])
+    end
+
+    # has_many's own naming logic (demodulise + singularize, distinct DSL
+    # code from has_one/belongs_to) is what most invites the "list_of a
+    # reference" misreading the name suggests — proven wrong at the DSL
+    # level already (aggregate_builder.rb), but never before against a
+    # real save/query round trip through any adapter.
+    it "has_many :Invoices singularizes to a scalar invoices reference, queryable the same way" do
+      expect(ticket.attribute(:invoices).reference?).to be(true)
+      expect(ticket.attribute(:invoices).list?).to be(false)
+      expect(ticket.attribute(:invoices).type.to_s).to eq("Reference<Invoice>")
+
+      refs_adapter.save(Hecksagain::Runtime::Instance.new(
+        aggregate: ticket, id: "t1", state: { number: { "value" => "t1" }, invoices: "inv-1" }
+      ))
+      refs_adapter.save(Hecksagain::Runtime::Instance.new(
+        aggregate: ticket, id: "t2", state: { number: { "value" => "t2" }, invoices: "inv-2" }
+      ))
+
+      declared = Struct.new(:wheres, :order_by, :limit, :offset, :null_semantics).new(
+        [Struct.new(:field, :op, :value).new("invoices", "eq", "inv-1")], nil, nil, nil, nil
+      )
+      expect(refs_adapter.query(declared, {}).map(&:id)).to eq(["t1"])
+    end
   end
 end

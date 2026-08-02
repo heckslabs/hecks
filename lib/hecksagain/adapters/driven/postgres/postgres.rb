@@ -227,12 +227,25 @@ module Hecksagain
       # Sqlite adapter exactly: a value-object field compares through
       # the member the bound value (or the declared types) say is
       # numeric, falling back to the one-field convention `value`.
+      #
+      # A REFERENCE IS AN ID, stored as a bare scalar (never wrapped —
+      # `Runtime::Value.refuse_object_reference` guarantees it), so it
+      # takes this SAME plain-column path as any other non-value-object
+      # attribute. There is no reference-specific case below this point
+      # to reach: `!attribute.reference?` here would exclude it into the
+      # value-object member-picking logic instead, compiling to
+      # `state #>> '{field,value}'` against a row that has no nested
+      # "value" key — a path that can never match. Measured, not
+      # assumed: a `where` on a has_one/belongs_to/reference_to field
+      # returned zero rows against real data until this was removed;
+      # Rust's pushdown never had the bug (it falls back to the plain
+      # field via COALESCE when the nested read comes back null).
       def query_expression(field, value: nil)
         name, *path = field.to_s.split(".")
         attribute = @aggregate.attribute(name)
 
         return jsonb_path([name]) if path.empty? && @aggregate.lifecycle&.field.to_s == name
-        return jsonb_path([name]) if path.empty? && attribute && !value_object?(attribute) && !attribute.reference?
+        return jsonb_path([name]) if path.empty? && attribute && !value_object?(attribute)
 
         member = if path.empty? && value
                    hash = value.is_a?(Runtime::Value) ? value.to_h : value
