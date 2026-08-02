@@ -4,25 +4,37 @@
 //! half-read that only drops behavior projects to the SAME storage
 //! shape and boots cleanly under an invalid domain definition. Until
 //! the specializer derives both parsers from one definition, refuse
-//! at least the detectable class: a block keyword the parser skips
-//! but recognizes as a near-miss.
+//! at least the detectable class: a word at aggregate-body level the
+//! parser does not recognize but is close enough to be a near-miss of
+//! one it does.
 //!
 //! A standalone text scan, deliberately: the IR structs are generated
 //! from the language definition now, so parse-time bookkeeping has
 //! nowhere to live on the Aggregate itself.
 //!
-//! `BLOCK_KEYWORDS` used to be hand-written here, "because nothing
-//! declares what the keywords are" — its own comment, before
-//! `language/bluebook/syntax.bluebook` existed. It had drifted: five of
-//! its twelve words (`view`, `rule`, `factory`, `create`, and
-//! `invariant` — a real word, but typed in a value object rather than
-//! an aggregate) were not words the language admits at aggregate-body
-//! level at all, so each was treated as a KNOWN keyword and let straight
-//! through the check meant to catch exactly that. It is
-//! `bluebook::ir_syntax::BLOCK_KEYWORDS` now — projected from the
-//! language, held equal to it by spec/syntax_conformance_spec.rb.
+//! `AGGREGATE_KEYWORDS` used to be a twelve-word, BLOCK-OPENING-ONLY
+//! list hand-written here, "because nothing declares what the keywords
+//! are" — its own comment, before `language/bluebook/syntax.bluebook`
+//! existed. It had drifted: five of its twelve words (`view`, `rule`,
+//! `factory`, `create`, and `invariant` — a real word, but typed in a
+//! value object rather than an aggregate) were not words the language
+//! admits at aggregate-body level at all, so each was treated as a
+//! KNOWN keyword and let straight through the check meant to catch
+//! exactly that. It is `bluebook::ir_syntax::AGGREGATE_KEYWORDS` now —
+//! every word the language admits directly in an aggregate's own body,
+//! projected from the language and held equal to it (in both
+//! directions) by spec/syntax_conformance_spec.rb.
+//!
+//! THE FIRST PROJECTION ONLY COVERED WORDS THAT OPEN A `do` BLOCK,
+//! because the scan's own line-matching only ever looked at lines
+//! ending in `do`. `attribute`, `description`, and the bare-symbol form
+//! of `identified_by` never open one, so a typo of one of THEM
+//! (`atribute :cost, Money`) fell through the same hole the
+//! block-keyword list was built to close — silently, exactly like any
+//! other alien construct. The scan now checks every non-blank,
+//! non-comment line at depth zero, not only the ones that open a block.
 
-use crate::bluebook::ir_syntax::BLOCK_KEYWORDS;
+use crate::bluebook::ir_syntax::AGGREGATE_KEYWORDS;
 
 pub struct NearMiss {
     pub aggregate: String,
@@ -30,7 +42,7 @@ pub struct NearMiss {
     pub suggestion: String,
 }
 
-/// First near-miss block keyword at aggregate-body level, if any.
+/// First near-miss keyword at aggregate-body level, if any.
 pub fn scan(source: &str) -> Option<NearMiss> {
     let mut aggregate: Option<String> = None;
     let mut depth = 0usize;
@@ -51,17 +63,17 @@ pub fn scan(source: &str) -> Option<NearMiss> {
             }
             continue;
         }
-        if ends_with_do_block(line) {
-            if depth == 0 {
-                let word = line.split_whitespace().next().unwrap_or("");
-                if let Some(suggestion) = suggest_block_keyword(word) {
-                    return Some(NearMiss {
-                        aggregate: aggregate.clone().unwrap_or_default(),
-                        keyword: word.to_string(),
-                        suggestion,
-                    });
-                }
+        if depth == 0 && !line.is_empty() && !line.starts_with('#') {
+            let word = line.split_whitespace().next().unwrap_or("");
+            if let Some(suggestion) = suggest_keyword(word) {
+                return Some(NearMiss {
+                    aggregate: aggregate.clone().unwrap_or_default(),
+                    keyword: word.to_string(),
+                    suggestion,
+                });
             }
+        }
+        if ends_with_do_block(line) {
             depth += 1;
         }
     }
@@ -78,11 +90,11 @@ fn extract_quoted(line: &str) -> Option<String> {
     Some(line[start..end].to_string())
 }
 
-fn suggest_block_keyword(word: &str) -> Option<String> {
-    if word.is_empty() || BLOCK_KEYWORDS.contains(&word) {
+fn suggest_keyword(word: &str) -> Option<String> {
+    if word.is_empty() || AGGREGATE_KEYWORDS.contains(&word) {
         return None;
     }
-    BLOCK_KEYWORDS
+    AGGREGATE_KEYWORDS
         .iter()
         .map(|kw| (*kw, levenshtein(word, kw)))
         .filter(|(_, d)| *d <= 2)

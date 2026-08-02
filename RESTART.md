@@ -12,7 +12,7 @@ bottom of this file; the original is in git history if you want the rest.
 
 `main` at `2bf5cd5`, pushed, clean. Gates:
 
-    bundle exec rspec                             728 examples, 0 failures
+    bundle exec rspec                             733 examples, 0 failures
     cd rust && cargo test --release --workspace   passing, 0 warnings
     bin/parity                                    AGREED, 15 stages, 120 mutants
 
@@ -70,29 +70,49 @@ red.
   (`where`, `order_by`, `limit`), same builder module, different landing. That was a
   comment in `readings.rb`; it is a column now.
 
-### The next rung, done
+### The next rung, done — twice over
 
-`bin/ir_syntax` projects `Syntax::Keyword` (rows where `context: "Aggregate"` and
-`body` is `"keywords"` or `"source"`) into `rust/src/bluebook/ir_syntax.rs`'s
-`BLOCK_KEYWORDS` — seven words: `command`, `entity`, `identified_by`, `lifecycle`,
-`policy`, `query`, `value_object`. `runtime::strict_boot` reads it from there instead
-of carrying its own copy. `spec/ir_syntax_export_spec.rb` holds the checked-in file to
-the generator ; `spec/syntax_conformance_spec.rb`'s last example holds the generator's
-own selection rule to exactly what got projected, so a change to either without the
-other goes red.
+`bin/ir_syntax` projects `Syntax::Keyword`, filtered to `context: "Aggregate"`, into
+`rust/src/bluebook/ir_syntax.rs`'s `AGGREGATE_KEYWORDS`. `runtime::strict_boot` reads
+it from there instead of carrying its own copy. `spec/ir_syntax_export_spec.rb` holds
+the checked-in file to the generator ; `spec/syntax_conformance_spec.rb`'s last example
+holds the generator's own selection rule to exactly what got projected, so a change to
+either without the other goes red.
 
-**Probed, not just built green**: a `factory do … end` block used to be silently
-treated as a KNOWN keyword (it was on the old hand-written list) and so was immune to
-the near-miss check meant to catch exactly this. It now falls through to the
-PRE-EXISTING, NAMED gap instead — the parser silently drops a construct it does not
-recognize, same as any other alien word — which is the honest failure mode and not a
-new one. Fixing that silent-drop gap is a different, larger task (full load/refuse
-parity, named in strict_boot's own doc comment) and was not attempted here.
+**First pass** — just the seven words that open a `do` block (`command`, `entity`,
+`identified_by`, `lifecycle`, `policy`, `query`, `value_object`), replacing a
+hand-written twelve-word list that had drifted: five of its words (`view`, `rule`,
+`factory`, `create`, `invariant` — real, but typed in a value object, not an
+aggregate) were not language keywords at all, so each was treated as KNOWN and passed
+straight through the check meant to catch a typo of one.
+
+**Second pass** — widened to all ten words the language admits at aggregate-body
+level, block-opening or not. The first pass only checked lines ending in `do`, so a
+typo of `attribute`, `description`, or the bare-symbol form of `identified_by` fell
+through the same hole silently. The scan now checks every non-blank, non-comment
+line at depth zero.
+
+**Probed both times, not just built green.** First: a `factory do … end` block used
+to be silently treated as KNOWN (on the old hand-written list) and so was immune to
+the check meant to catch exactly this — it now falls through to the PRE-EXISTING,
+NAMED gap instead (the parser silently drops a construct it does not recognize, same
+as any other alien word), which is the honest failure mode and not a new one. Second:
+confirmed `atribute :cost, Money` now refuses at boot with a suggestion
+(`rust/tests/strict_boot_test.rs` carries both cases as permanent regressions).
+Fixing the silent-drop gap itself — full load/refuse parity — is a different, larger
+task, named in `strict_boot`'s own doc comment, and was not attempted here.
 
 `bin/ir_structs`'s emitted header stays the map of where the language still comes up
 short (`Lifecycle`, `OrderBy`, `Direction`, `LimitSpec`, `ValueSpec` have no language
 source; `Query.limit`, `ValueObject.members`, `Policy.aggregate` are real
-divergences) — that generator is untouched by this rung.
+divergences) — that generator is untouched by either pass.
+
+**What's next, not yet started**: `parser.rs`/`parse_blocks.rs` carry roughly 35 more
+hardcoded keyword checks the language does not yet describe — including
+`has_many`/`has_one`/`belongs_to`/`subscribe`, which the README already names as
+vocabulary Rust cherry-picked ahead of Ruby (unported, not drift). Reconciling those
+needs a scoping pass first, to sort real gaps in `syntax.bluebook` from words that are
+honestly Rust-only for now.
 
 **Scope that was deliberately left out**, and it is named rather than half-done: only
 the `.bluebook` surface is declared. `.port`, `.adapter`, `.hecksagon`, `.world` and

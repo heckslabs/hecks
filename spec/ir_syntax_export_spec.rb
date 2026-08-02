@@ -1,8 +1,9 @@
 require "spec_helper"
 
-# rust/src/bluebook/ir_syntax.rs is bin/ir_syntax's output — the list of words
-# that open a `do` block at aggregate-body level, projected from the language's
-# own `Syntax::Keyword` declaration (language/bluebook/syntax.bluebook).
+# rust/src/bluebook/ir_syntax.rs is bin/ir_syntax's output — every word the
+# language admits directly in an aggregate's own body, block-opening or not,
+# projected from the language's own `Syntax::Keyword` declaration
+# (language/bluebook/syntax.bluebook).
 #
 # Nothing else catches a forgotten regeneration — the Rust build succeeds
 # either way, it would just be compiling a stale copy of the list the language

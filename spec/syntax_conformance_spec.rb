@@ -383,32 +383,32 @@ RSpec.describe "the declared syntax" do
 
   # ------------------------------------------------------------ the near-miss list
 
-  # `runtime::strict_boot`'s BLOCK_KEYWORDS used to be hand-written, "because
+  # `runtime::strict_boot`'s keyword list used to be hand-written, "because
   # nothing declares what the keywords are" — its own comment. It had drifted:
   # five of its twelve words (`view`, `rule`, `factory`, `create`, and
   # `invariant` — a real word, but typed in a value object rather than an
   # aggregate) were not words the language admits at aggregate-body level at
   # all, so each was treated as a KNOWN keyword and let straight through the
   # check meant to catch exactly that — `factory do` would have been waved
-  # through and then raised a Ruby-side NoMethodError with no warning.
+  # through and then raised a Ruby-side NoMethodError with no warning. That
+  # first pass ALSO only covered words that open a `do` block ; `attribute`,
+  # `description`, and the bare-symbol form of `identified_by` never do, so a
+  # typo of one of them fell through the same hole, unfiltered by body.
   #
-  # `bin/ir_syntax` now PROJECTS the list from these same rows into
+  # `bin/ir_syntax` now PROJECTS the whole list from these same rows into
   # rust/src/bluebook/ir_syntax.rs, and `strict_boot` reads it from there — so
   # this is no longer two copies to hold equal. It is one copy, checked twice:
   # spec/ir_syntax_export_spec.rb holds the checked-in Rust to the generator's
   # output ; this holds the generator's own selection rule (context Aggregate,
-  # body keywords or source) to exactly what the projected file contains, so a
-  # change to either the rule or the file without the other goes red.
-  it "projects exactly the block keywords it declares at aggregate-body level" do
+  # every body) to exactly what the projected file contains, so a change to
+  # either the rule or the file without the other goes red.
+  it "projects exactly the words it declares at aggregate-body level" do
     source    = File.read(File.join(InMemoryDomain::ROOT, "rust/src/bluebook/ir_syntax.rs"))
-    listed    = source[/const BLOCK_KEYWORDS: &\[&str\] = &\[(.*?)\];/m, 1]
+    listed    = source[/const AGGREGATE_KEYWORDS: &\[&str\] = &\[(.*?)\];/m, 1]
     projected = listed.scan(/"([^"]+)"/).flatten
 
-    opens_a_block = declared_in("Aggregate")
-                      .select { |row| %w[keywords source].include?(row[:body]) }
-                      .map { |row| row[:word] }
-                      .uniq.sort
+    every_word = declared_in("Aggregate").map { |row| row[:word] }.uniq.sort
 
-    expect(projected).to eq(opens_a_block)
+    expect(projected).to eq(every_word)
   end
 end
