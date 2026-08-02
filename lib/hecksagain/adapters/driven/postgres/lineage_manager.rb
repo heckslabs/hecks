@@ -24,11 +24,16 @@ module Hecksagain
           db = Postgres.connect_for(bluebook.name, settings)
           lineage = Lineage.new(db, bluebook.name)
           lineage.ensure_base!
+          role = settings[:role] || settings["role"]
 
           held = lineage.eras
           if held.empty?
             lineage.hold_first!(current_text, projection: Runtime::StorageShape.project(bluebook))
             bluebook.aggregates.each { |aggregate| lineage.ensure_first_head!(aggregate.storage_name) }
+            # Era 1 is HELD, never minted — so this is the only place its
+            # role can be fenced. Without it the first checkout holds no
+            # policy, and the first mint's RLS denies it.
+            lineage.grant_era!(1, role) if role
             return
           end
 
@@ -38,6 +43,9 @@ module Hecksagain
           latest, latest_shape = shapes.last
           if latest_shape == current_shape
             bluebook.aggregates.each { |aggregate| lineage.ensure_first_head!(aggregate.storage_name) } if latest[:ordinal] == 1
+            # Re-affirm on every quiet boot: idempotent, and it is what
+            # keeps a role fenced at an era it did not mint.
+            lineage.grant_era!(latest[:ordinal], role) if role
             registry.resolved_eras[bluebook.name] = latest[:ordinal]
             return
           end
@@ -46,17 +54,22 @@ module Hecksagain
           if matched
             # A held-but-superseded era — an old checkout still running.
             # Permitted, on Postgres alone: the old world keeps booting
-            # its era and writing its own partition under its own
-            # grants; the new head's watermark already excludes those
-            # post-cut writes, and the divergence stays observable until
-            # a deliberate tail-merge.
+            # its era and writing its own partition under its own fence;
+            # the new head's watermark already excludes those post-cut
+            # writes, and the divergence stays observable until a
+            # deliberate tail-merge.
+            #
+            # Fencing HERE is what makes the fork real: this role is
+            # pinned to the era it actually speaks, and the newer role's
+            # policy — named for that other role — is untouched.
+            lineage.grant_era!(matched[:ordinal], role) if role
             registry.resolved_eras[bluebook.name] = matched[:ordinal]
             return
           end
 
           registry.resolved_eras[bluebook.name] =
             mint!(registry, bluebook, current_text, lineage, latest,
-                  role: settings[:role] || settings["role"], directory: directory)
+                  role: role, directory: directory)
         ensure
           db&.close
         end

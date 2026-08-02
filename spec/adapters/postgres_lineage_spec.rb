@@ -786,6 +786,62 @@ RSpec.describe "lineage in the Postgres adapter",
     writer.close
   end
 
+  it "two roles, two eras: the old checkout keeps writing its own era after a newer one mints — the fork, at the privilege level" do
+    old_role = "#{LINEAGE_ROLE}_old"
+    new_role = "#{LINEAGE_ROLE}_new"
+    admin = PG.connect(dbname: "postgres")
+    [old_role, new_role].each do |role|
+      scrub = PG.connect(dbname: LINEAGE_DB)
+      begin
+        scrub.exec("DROP OWNED BY #{role}")
+      rescue PG::Error # rubocop:disable Lint/SuppressedException
+      end
+      scrub.close
+      admin.exec("DROP ROLE IF EXISTS #{role}")
+      admin.exec("CREATE ROLE #{role} LOGIN")
+    end
+    admin.close
+    grants = PG.connect(dbname: LINEAGE_DB)
+    [old_role, new_role].each do |role|
+      grants.exec("GRANT CONNECT ON DATABASE #{LINEAGE_DB} TO #{role}")
+      grants.exec("GRANT USAGE ON SCHEMA public TO #{role}")
+    end
+    grants.close
+
+    # the old deployment boots era 1 under its own role
+    check!(V1_SOURCE, role: old_role)
+    write_v1_record
+
+    writes = lambda do |role, era|
+      db = PG.connect(dbname: LINEAGE_DB, user: role)
+      db.exec("INSERT INTO hecks_journal_ledger (era, aggregate, aggregate_id, operation, state) " \
+              "VALUES (#{era}, 'account', 'by-#{role}', 'save', '{}'::jsonb)")
+      :allowed
+    rescue PG::Error => error
+      error.message.strip
+    ensure
+      db&.close
+    end
+
+    expect(writes.call(old_role, 1)).to eq(:allowed)
+
+    # the NEW deployment boots the drifted shape under a DIFFERENT role
+    # and mints era 2
+    from = label_of(V1_SOURCE)
+    to = label_of(V2_SOURCE)
+    check!(V2_SOURCE, translation_source: edge_source(from: from, to: to), role: new_role)
+
+    # both worlds keep their own era — this is the fork, and before the
+    # fence was applied outside mint_era! the old role was denied here
+    # the moment RLS came on
+    expect(writes.call(old_role, 1)).to eq(:allowed)
+    expect(writes.call(new_role, 2)).to eq(:allowed)
+
+    # and neither can reach into the other's era
+    expect(writes.call(old_role, 2)).to match(/row-level security/i)
+    expect(writes.call(new_role, 1)).to match(/row-level security/i)
+  end
+
   it "builds era 3 from era 2's matview, not from raw history — and the layered answer equals the full one" do
     write_v1_record
     l1 = label_of(V1_SOURCE)

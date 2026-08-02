@@ -115,6 +115,12 @@ module Hecksagain
           # role connects as a NON-owner and gets exactly INSERT, per
           # era, at mint time.
           @db.exec("REVOKE UPDATE, DELETE ON #{quoted_journal} FROM PUBLIC")
+          # RLS goes on AT PROVISIONING, never mid-life. Enabling it
+          # later denies every role that has no policy yet — so a fence
+          # switched on by the first mint would lock out the very
+          # checkout the fork exists to keep writing. The owner bypasses
+          # RLS, so this costs the provisioner and the mint nothing.
+          @db.exec("ALTER TABLE #{quoted_journal} ENABLE ROW LEVEL SECURITY")
           install_transforms!
         end
 
@@ -400,11 +406,21 @@ module Hecksagain
         # bearing: mint and merge run as the owner and must be able to
         # write any era (the merge re-enters a winner's state into the
         # CURRENT era, and compile_head! reads every ancestor).
+        # Called on EVERY boot that names a role, not only on a mint. A
+        # fence applied only at mint time leaves era 1 unfenced (era 1
+        # is held, never minted) and leaves an old checkout's role
+        # holding nothing — so the first mint's RLS would deny it, which
+        # is exactly the moment the fork is supposed to begin.
+        #
+        # Owner-only work, so a non-owner app boot skips it: the
+        # provisioner has already fenced that role, and re-affirming is
+        # idempotent anyway.
         def grant_era!(ordinal, role)
+          return unless provisioner?
+
           quoted_role = quote(role)
           @db.exec("GRANT INSERT, SELECT ON #{quoted_journal} TO #{quoted_role}")
           @db.exec("GRANT USAGE ON SEQUENCE #{quote(sequence)} TO #{quoted_role}")
-          @db.exec("ALTER TABLE #{quoted_journal} ENABLE ROW LEVEL SECURITY")
 
           # Policies are named per ROLE, so advancing this role's era
           # leaves every other role's fence exactly where it stands —
