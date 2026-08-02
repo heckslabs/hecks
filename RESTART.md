@@ -10,9 +10,12 @@ bottom of this file; the original is in git history if you want the rest.
 
 ## Where things stand
 
-`main` at `2bf5cd5`, pushed, clean. Gates:
+`main` at `874a8fe`, 8 commits ahead of `origin/main`, not yet pushed. Working tree
+clean, but this repo has had a SECOND concurrent session active on it (its commits are
+interleaved with the ones this file otherwise describes — `457bc96`, `1dd3224`) ; check
+`git log` rather than trusting this file's account of exactly what landed when. Gates:
 
-    bundle exec rspec                             744 examples, 0 failures
+    bundle exec rspec                             754 examples, 0 failures
     cd rust && cargo test --release --workspace   passing, 0 warnings
     bin/parity                                    AGREED, 15 stages, 120 mutants
 
@@ -252,6 +255,68 @@ the `.bluebook` surface is declared. `.port`, `.adapter`, `.hecksagon`, `.world`
 files; the conformance spec excludes each by name with its reason.
 
 Bluebook first, and it is not optional — `bluebook.bluebook` is where this goes.
+
+## The parser itself, being projected — word recognition, done; arguments, not yet
+
+The actual goal named at the top of this file: not shapes, the PARSER. Six commits
+(`b8771c1`, `fc52cff`, `2d7294f`, `83c492a`, `5a755d0`, `874a8fe`), one context each,
+same discipline every time — generate the WORD-TO-CATEGORY table from
+`Syntax::Keyword` (rows where `opens` is not empty), swap a hand-written literal
+check for a lookup against it, leave what happens once a category opens completely
+hand-written. `bin/ir_dispatch_words` → `rust/src/bluebook/ir_dispatch_words.rs`,
+held equal by `spec/ir_dispatch_words_export_spec.rb`.
+
+**Bluebook** (4 words, `dispatch_block`) was the easy case — already its own small,
+uniformly-checked function. **Aggregate** (5 words) and **Entity** (2 words) needed
+disentangling recognition from argument-filling within one bigger loop, and along the
+way found three words checked with a bare `starts_with(literal)` — no word-boundary
+guard at all — normalized to the shared `keyword_matches` (verified safe: nothing else
+in the corpus shares any of these words as a prefix, checked by hand before trusting
+the tightening). **ProcessManager** (1 word) and **Handler** (1 word) each had their
+own hand-rolled boundary check (`starts_with("on ") || starts_with("on\t")`;
+`starts_with("dispatch ") || starts_with("dispatch\t") || starts_with("dispatch\"")`)
+replaced by the same generated lookup. **OneOf** (1 word, `member`) is the one case
+where the code never branches on the generated category at all — Rust has no separate
+`Member` struct to branch to (pairs live inline on the owning `ValueObject`) — so only
+the recognition moved, not a dispatch decision.
+
+**That is every context `Syntax::Keyword` declares an opens-bearing word for.** Command,
+Query, Policy, ReadModel, ValueObject, and Type have none — every word in those
+contexts fills a field rather than opening a nested category, which is a different
+generation problem (see below), not a missed context.
+
+Verified the same way every time, and it is worth naming why it could be : each slice
+is a **zero (or near-zero) behavior-change refactor** — the words recognized and the
+functions called do not differ, only where the word list lives and (for the boundary-
+check normalizations) whether a theoretical false-positive prefix match is now caught.
+That means the FULL existing suite is free, complete verification with nothing new to
+write beyond the export-equality spec : `bundle exec rspec` (754, 0 failures across all
+six), `cargo test --release --workspace` (clean, zero warnings, all six), `bin/parity`
+AGREED end to end on every run that didn't hit unrelated Postgres noise (a concurrent
+session's own `bin/parity` runs collided on shared `/tmp/parity.output.*` paths and on
+the local Postgres instance itself — RESTART's own named trap about stale temp files,
+now observed from the OTHER side. A rerun always came back clean; the actual
+comparisons that DID print during the noisy runs — "runtimes agree", "histories
+agree" — passed regardless).
+
+**The next rung is materially harder and was scoped out of every one of these six
+commits on purpose : ARGUMENT generation.** Turning a declared `kind`
+(`text`/`symbol`/`constant`/`flag`/`literal`/`pairs`/`list`/`number`) into actual
+parsing code, per word, per context. Unlike word recognition — where a wrong
+generated table just fails to recognize something, loudly, the same way a stale
+hand-written list would — a wrong ARGUMENT generator can produce a parser that reads
+a value WRONG rather than not at all, which is a categorically worse failure mode (the
+encoding-loss family this whole codebase keeps finding, now with a generator able to
+manufacture a new instance of it). Do not attempt this by cloning the word-recognition
+pattern at a larger scope. It needs its own design pass : which `kind`s are simple
+enough to generate a real reader for (`flag` — a bare true/false — is probably the
+smallest possible next slice), which need to stay hand-written a while longer
+(`pairs` already has per-word variation — `then_set`'s `append:` vs `on`'s
+`transition:` bind their pairs to completely different fields), and a verification
+discipline that catches a WRONG reading, not just a MISSING one (the corpus alone is
+not enough — see "both runtimes can be wrong identically" below ; a generator and a
+hand-written parser reading the same wrong thing would agree with each other and
+still be wrong).
 
 ## WHAT THE PROJECTION IS ACTUALLY WORTH (do not oversell it)
 
