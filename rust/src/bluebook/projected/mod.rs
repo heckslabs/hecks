@@ -23,16 +23,49 @@ pub mod relay;
 pub mod till_room;
 pub mod wire;
 
-/// THE PROJECTED DOMAIN FOR A CHAPTER, if one was compiled in.
+/// THE PROJECTED DOMAIN FOR A SOURCE, if this binary carries its projection.
 ///
-/// `Runtime::boot` asks this before it parses. A hit means the domain arrives as
-/// Rust values that were checked against Ruby's own IR at build time, so nothing
-/// is read out of the source at all — which also means `strict_boot`'s scan is
-/// moot for that chapter: it exists because Rust's PARSER silently drops
-/// constructs it cannot read, and a projection drops nothing.
+/// SEALED TO THE SOURCE, not merely named after it. Keyed on the chapter name
+/// alone, a projection answers for any bluebook that calls itself the same
+/// thing — a test fixture named `Banking` silently got the real banking — and
+/// it keeps answering after its own source is edited, booting a stale domain
+/// while every file on disk says otherwise. Both are the same mistake: a
+/// projection is a specialization OF A PARTICULAR SOURCE, and a lookup that
+/// does not say so is a lookup that can be wrong without anyone noticing.
 ///
-/// A miss parses, exactly as before. Projecting a domain is an optimisation of
-/// trust, not a requirement: an unprojected chapter still boots.
+/// So the digest decides. A hit means this binary holds the projection of
+/// exactly these bytes, checked against Ruby's own IR when it was generated. A
+/// miss — different chapter, edited source, no projection at all — parses,
+/// which is always correct and merely slower.
+pub fn by_source(source: &str) -> Option<crate::ir::Domain> {
+    let name = chapter_name(source)?;
+    let digest = crate::util::sha256_hex(source.as_bytes());
+
+    let (sha, domain): (&str, fn() -> crate::ir::Domain) = match name.as_str() {
+        "Banking" => (banking::SOURCE_SHA, banking::domain),
+        "Expression" => (expression::SOURCE_SHA, expression::domain),
+        "Market" => (market::SOURCE_SHA, market::domain),
+        "Pizzas" => (pizzas::SOURCE_SHA, pizzas::domain),
+        "Relay" => (relay::SOURCE_SHA, relay::domain),
+        "TillRoom" => (till_room::SOURCE_SHA, till_room::domain),
+        "Wire" => (wire::SOURCE_SHA, wire::domain),
+        _ => return None,
+    };
+
+    (sha == digest).then(domain)
+}
+
+/// A PROJECTED DOMAIN BY NAME, for a caller that holds no source at all.
+///
+/// `by_source` is the boot path's question — "is this the projection of the
+/// bytes I am booting?" — and it needs the bytes. This is the other question:
+/// "does this binary carry a chapter called X?", asked by a host that never had
+/// a file. Nothing on disk is consulted, so nothing on disk has to exist.
+///
+/// The seal does not apply because there is no source to seal against: a caller
+/// here is ASKING for the compiled-in domain rather than being handed one in
+/// place of what they asked for. That is the whole difference, and it is why
+/// these are two functions and not one with a flag.
 pub fn by_name(name: &str) -> Option<crate::ir::Domain> {
     match name {
         "Banking" => Some(banking::domain()),
@@ -44,6 +77,11 @@ pub fn by_name(name: &str) -> Option<crate::ir::Domain> {
         "Wire" => Some(wire::domain()),
         _ => None,
     }
+}
+
+/// Every chapter this binary carries, in the order they are declared above.
+pub fn names() -> Vec<&'static str> {
+    vec!["Banking", "Expression", "Market", "Pizzas", "Relay", "TillRoom", "Wire"]
 }
 
 /// THE CHAPTER A SOURCE DECLARES, without parsing it.
@@ -107,6 +145,44 @@ mod tests {
                 panic!("the projected {name} differs from Ruby's frozen IR at {path}");
             }
         }
+    }
+
+    /// A DOMAIN THAT DISPATCHES WITH NOTHING ON DISK.
+    ///
+    /// The point of compiling a domain in, and the thing `boot` could not do:
+    /// no path, no `.bluebook`, no world, no directory walked. If this ever
+    /// needs a file to pass, the asterisk is back.
+    #[test]
+    fn a_projected_domain_dispatches_without_a_file() {
+        let mut runtime = match crate::dispatcher::Runtime::boot_projected("Pizzas") {
+            Ok(runtime) => runtime,
+            Err(why) => panic!("Pizzas is compiled into this binary: {why}"),
+        };
+
+        let mut args = serde_json::Map::new();
+        args.insert("name".into(), serde_json::json!({ "value": "Margherita" }));
+        args.insert("price_cents".into(), serde_json::json!({ "cents": 1200 }));
+        args.insert("size".into(), serde_json::json!({ "value": "large" }));
+
+        let state = runtime
+            .dispatch("Pizzas::Pizza.CreatePizza", &args)
+            .expect("a compiled-in domain dispatches");
+
+        assert_eq!(state.get("status"), Some(&serde_json::json!("available")),
+                   "the lifecycle default came from the projection");
+        assert_eq!(runtime.events.len(), 1, "PizzaCreated was announced");
+    }
+
+    /// AND REFUSES BY NAME when the binary does not carry the chapter, saying
+    /// what it does carry rather than failing to find a file nobody named.
+    #[test]
+    fn an_unprojected_chapter_says_what_is_carried() {
+        let refusal = match crate::dispatcher::Runtime::boot_projected("Nowhere") {
+            Err(why) => why,
+            Ok(_) => panic!("a chapter this binary does not carry must refuse"),
+        };
+        assert!(refusal.contains("carries no projection"), "{refusal}");
+        assert!(refusal.contains("Pizzas"), "it names what it does hold: {refusal}");
     }
 
     /// WHERE THEY DIFFER, not that they differ. `assert_eq!` on a chapter is

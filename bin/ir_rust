@@ -39,6 +39,7 @@
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 require "hecksagain"
 require "json"
+require "digest"
 
 path = ARGV[0] or abort "usage: bin/ir_rust <bluebook>"
 
@@ -71,6 +72,8 @@ Hecksagain.with_registry(registry) do
   PORTS.each { |port| Kernel.load(File.join(ROOT, port)) }
   Kernel.load(File.expand_path(path))
 end
+
+source_sha = Digest::SHA256.hexdigest(File.read(File.expand_path(path)))
 
 chapter = registry.bluebooks.values.first or abort "#{path} declares no bluebook"
 ir      = JSON.parse(JSON.generate(chapter.to_h))
@@ -340,6 +343,20 @@ puts <<~HEADER
   #![allow(clippy::needless_update)]
 
   use crate::ir::*;
+
+  /// THE SOURCE THIS WAS PROJECTED FROM, by digest.
+  ///
+  /// A projection is a specialization OF A PARTICULAR SOURCE, and saying so is
+  /// what keeps it honest. Looked up by chapter NAME alone it would answer for
+  /// any bluebook that happens to call itself the same thing — a test fixture
+  /// named `Banking` got the real banking, silently — and it would keep
+  /// answering after its own source was edited, booting a stale domain while
+  /// every file on disk said otherwise.
+  ///
+  /// `by_source` checks this before handing the domain over, so a projection is
+  /// used when it is THE projection of what is being booted, and the parser is
+  /// used otherwise.
+  pub const SOURCE_SHA: &str = "#{source_sha}";
 
   pub fn domain() -> Domain {
       Domain {

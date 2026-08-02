@@ -15,6 +15,25 @@ use std::fs;
 use std::sync::Arc;
 
 pub struct Runtime {
+    /// THE DOMAIN, TYPED — and `ir` is DERIVED from it, not held beside it.
+    ///
+    /// Every reader below still goes through the JSON, which is where this
+    /// project's recurring bug lives: the struct says `identified_by:
+    /// Vec<String>` and a reader asked it for `as_str`, got None on an array,
+    /// and compiled. 195 such reads remain across this file and mutations.rs,
+    /// and converting them blind would be worse than leaving them — a half
+    /// converted runtime has TWO sources of truth, which is the thing this
+    /// codebase is most careful never to have.
+    ///
+    /// So this is the seam rather than the conversion: the typed domain is
+    /// here, `ir` is computed from it in `new`, and a reader moves over one at
+    /// a time. `identity_paths` is the first, because it is the one that bit.
+    ///
+    /// ONE CAVEAT, STATED: `resolve_admitted_sets` annotates the JSON after it
+    /// is derived, so `ir` is derived-THEN-annotated rather than a pure
+    /// projection of `domain`. A reader that needs `admits` must still use the
+    /// JSON, and nothing checks the two agree about anything else.
+    domain: crate::ir::Domain,
     ir: Value,
     store: BTreeMap<String, State>,
     adapters: BTreeMap<String, Box<dyn PersistenceAdapter>>,
@@ -386,8 +405,10 @@ fn fill_hydrate_defaults(aggregate: &Map<String, Value>, mut state: State) -> St
 }
 
 impl Runtime {
-    pub fn new(ir: Value) -> Self {
+    pub fn new(domain: crate::ir::Domain) -> Self {
+        let ir = crate::projector::ir_json::domain_to_value(&domain);
         Runtime {
+            domain,
             ir: crate::runtime::mutations::resolve_admitted_sets(ir),
             store: BTreeMap::new(),
             adapters: BTreeMap::new(),
@@ -403,6 +424,29 @@ impl Runtime {
         }
     }
 
+    /// THE DECLARED IDENTITY PATHS, READ OFF THE TYPED DOMAIN.
+    ///
+    /// The first reader moved off the wire, and deliberately this one: it is
+    /// where `identified_by` was asked for `as_str`, answered None on an array,
+    /// and fell through to a minted "id" — silently, and it compiled. Here
+    /// `identified_by` is a `Vec<String>` and there is no way to ask it that
+    /// question at all.
+    ///
+    /// Falls back to the wire for a chapter the typed domain does not hold — a
+    /// cross-domain dispatch reaches aggregates from another chapter and the
+    /// runtime holds one. The fallback IS the old reading, so nothing regresses:
+    /// the JSON path is narrower than it was, not gone.
+    fn declared_identity(&self, domain: &str, aggregate: &str) -> Option<Vec<String>> {
+        if domain != self.domain.name {
+            return None;
+        }
+        self.domain
+            .aggregates
+            .iter()
+            .find(|held| held.name == aggregate)
+            .map(|held| held.identified_by.clone())
+    }
+
     fn trace_step(&mut self, name: &'static str) {
         if let Some(trace) = &mut self.dispatch_trace {
             trace.push(name);
@@ -413,6 +457,34 @@ impl Runtime {
     /// neighbouring world and hecksagon files. Hosts register impure adapter
     /// factories (for example Sqlite) before booting; Memory and Heki are
     /// available in the core runtime itself.
+    /// BOOT A COMPILED-IN DOMAIN, WITH NO FILE ANYWHERE.
+    ///
+    /// `boot` takes a PATH, and every projected domain still needed its
+    /// `.bluebook` to exist — read for its chapter name, and its directory
+    /// walked for the neighbouring world. So "compiled in" carried an asterisk:
+    /// the parse was gone, the file was not.
+    ///
+    /// This is the same runtime with the asterisk removed. The domain comes
+    /// from the binary; nothing is read, nothing is walked, and no path is
+    /// named. What a caller gives up is the deployment: adapters are attached
+    /// by the host afterwards, because a world is a fact about WHERE this runs
+    /// and this function deliberately knows nothing about that. In-memory until
+    /// somebody says otherwise.
+    ///
+    /// `boot` stays the path for a domain on disk, which is the developing
+    /// case: edit a bluebook, run it, no regeneration step. Two doors, and the
+    /// projection is what makes the second one possible.
+    pub fn boot_projected(chapter: &str) -> Result<Self, String> {
+        let domain = crate::bluebook::projected::by_name(chapter).ok_or_else(|| {
+            format!(
+                "this binary carries no projection of {chapter:?} — it holds {}. \
+                 Project one with `bin/ir_rust <bluebook>`, or boot from the file.",
+                crate::bluebook::projected::names().join(", ")
+            )
+        })?;
+        Ok(Self::new(domain))
+    }
+
     pub fn boot(bluebook_path: impl AsRef<std::path::Path>) -> Result<Self, String> {
         let bluebook_path = bluebook_path.as_ref();
         if bluebook_path
@@ -438,8 +510,7 @@ impl Runtime {
         // A chapter with no projection parses exactly as before. `--dump` parses
         // either way, so `bin/parity`'s first stage still holds the two PARSERS
         // to each other while the run stages exercise this path.
-        let projected = crate::bluebook::projected::chapter_name(&source)
-            .and_then(|name| crate::bluebook::projected::by_name(&name));
+        let projected = crate::bluebook::projected::by_source(&source);
 
         let domain = match projected {
             Some(domain) => domain,
@@ -457,7 +528,11 @@ impl Runtime {
                 parsed
             }
         };
-        let mut runtime = Self::new(crate::projector::ir_json::domain_to_value(&domain));
+        // The name is kept before the domain moves into the runtime — boot
+        // still needs it to bind repositories, and the runtime owns it now.
+        let domain_name = domain.name.clone();
+        let aggregates = domain.aggregates.clone();
+        let mut runtime = Self::new(domain);
         let source_text = bluebook_path.to_string_lossy();
 
         if let Some(directory) = bluebook_path.parent() {
@@ -473,9 +548,9 @@ impl Runtime {
         let mut adapter_names = BTreeMap::new();
         let mut capable = BTreeMap::new();
         let mut ephemeral = false;
-        for aggregate in &domain.aggregates {
+        for aggregate in &aggregates {
             let bindings = crate::ports::persistence::resolve_all_for(&source_text, &aggregate.name)?;
-            if aggregate.name == domain.aggregates[0].name {
+            if aggregate.name == aggregates[0].name {
                 ephemeral = bindings
                     .authoritative
                     .settings
@@ -484,12 +559,12 @@ impl Runtime {
             }
             adapter_names.insert(aggregate.name.clone(), bindings.authoritative.adapter.clone());
             if bindings.authoritative.adapter.to_lowercase() != "memory" {
-                let repository = boot_repository(aggregate, &source_text, bindings.authoritative, &domain.name)?;
+                let repository = boot_repository(aggregate, &source_text, bindings.authoritative, &domain_name)?;
                 runtime.attach(&aggregate.name, repository);
             }
             for mirror in bindings.mirrors {
                 let name = mirror.adapter.clone();
-                runtime.attach_mirror(&aggregate.name, name, boot_repository(aggregate, &source_text, mirror, &domain.name)?);
+                runtime.attach_mirror(&aggregate.name, name, boot_repository(aggregate, &source_text, mirror, &domain_name)?);
             }
             capable.insert(
                 aggregate.name.clone(),
@@ -507,7 +582,7 @@ impl Runtime {
         // the file store, anchored two levels above the bluebook file —
         // the same `<domain>/data/eras/...` root Ruby's Loader derives.
         let context = crate::runtime::era_check::EraContext {
-            domain: &domain,
+            domain: &runtime.domain,
             translations: &runtime.translations,
             adapters: &adapter_names,
             capable: &capable,
@@ -517,24 +592,23 @@ impl Runtime {
                 return Err(format!(
                     "{} binds Postgres with eras \"ephemeral\" — the enforcement-grade adapter \
                      never forgets an era; drop the setting, or bind a file adapter for iteration",
-                    domain.name
+                    domain_name
                 ));
             }
             crate::runtime::era_check::check_compute_rules(&context)?;
-            let current_shape = crate::runtime::storage_shape::project(&domain);
+            let current_shape = crate::runtime::storage_shape::project(&runtime.domain);
             let translations = runtime.translations.clone();
-            let capable_aggregate = domain
-                .aggregates
+            let capable_aggregate = aggregates
                 .iter()
                 .find(|aggregate| capable.get(&aggregate.name).copied().unwrap_or(false))
                 .map(|aggregate| aggregate.name.clone());
             if let Some(name) = capable_aggregate {
                 let resolved = match runtime.adapters.get_mut(&name) {
-                    Some(adapter) => adapter.era_gate(&domain.name, &source, &current_shape, &translations)?,
+                    Some(adapter) => adapter.era_gate(&domain_name, &source, &current_shape, &translations)?,
                     None => None,
                 };
                 if let Some(era) = resolved {
-                    for aggregate in &domain.aggregates {
+                    for aggregate in &aggregates {
                         if capable.get(&aggregate.name).copied().unwrap_or(false) {
                             if let Some(adapter) = runtime.adapters.get_mut(&aggregate.name) {
                                 adapter.adopt_era(era);
@@ -1312,7 +1386,10 @@ impl Runtime {
             .map(Value::is_null)
             .unwrap_or(true);
 
-        let (id, mut state) = self.hydrate(&aggregate, &command, args, creates)?;
+        // THE TYPED PATHS WHERE THEY EXIST — see `declared_identity`. The wire
+        // is the fallback, not the source, for this one question.
+        let declared = self.declared_identity(&domain, &aggregate_name);
+        let (id, mut state) = self.hydrate(&aggregate, &command, args, creates, declared.as_deref())?;
         self.trace_step("hydrate");
 
         for given in array(&command, "givens") {
@@ -1403,6 +1480,7 @@ impl Runtime {
         command: &Map<String, Value>,
         args: &State,
         creates: bool,
+        declared: Option<&[String]>,
     ) -> Result<(String, State), String> {
         let aggregate_name = aggregate
             .get("name")
@@ -1431,9 +1509,11 @@ impl Runtime {
             // ""}` is a non-empty wrapper around nothing, and "" is not a fact
             // about anything — and joins what is left. Filtering after the dig
             // is what that blank check is.
-            let id = identity::of(aggregate, args).ok_or_else(|| {
-                format!("{command_name} creates a {aggregate_name} — pass {reading}:")
-            })?;
+            let id = match declared {
+                Some(paths) => identity::of_paths(paths, args),
+                None => identity::of(aggregate, args),
+            }
+            .ok_or_else(|| format!("{command_name} creates a {aggregate_name} — pass {reading}:"))?;
             return Ok((id, defaults_for(aggregate)?));
         }
 
@@ -1479,7 +1559,10 @@ impl Runtime {
         let whole = |key: &str| -> Option<String> {
             args.get(key).map(query_text).filter(|id| !id.is_empty())
         };
-        let id = identity::of(aggregate, args)
+        let id = match declared {
+            Some(paths) => identity::of_paths(paths, args),
+            None => identity::of(aggregate, args),
+        }
             .or_else(|| whole("id"))
             .or_else(|| whole(&reference_key))
             .ok_or_else(|| {
@@ -2541,7 +2624,18 @@ mod query_semantics_tests {
             records: HashMap::from([("a".to_string(), state.clone())]),
             entries: vec![ReplicationEntry { operation: "save".to_string(), id: "a".to_string(), state: Some(state), mirrors: vec!["Sqlite".to_string()] }],
         };
-        let mut runtime = Runtime::new(json!({}));
+        // An empty domain: this test drives mirror recovery, which reads no
+        // declarations at all.
+        let mut runtime = Runtime::new(crate::ir::Domain {
+            name: "Test".to_string(),
+            vision: None,
+            classification: None,
+            version: None,
+            aggregates: vec![],
+            policies: vec![],
+            process_managers: vec![],
+            read_models: vec![],
+        });
         runtime.attach("Account", Box::new(primary));
         runtime.attach_mirror("Account", "Sqlite".to_string(), Box::new(JournalAdapter::empty()));
 

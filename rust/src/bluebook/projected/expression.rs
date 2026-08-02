@@ -15,6 +15,20 @@
 
 use crate::ir::*;
 
+/// THE SOURCE THIS WAS PROJECTED FROM, by digest.
+///
+/// A projection is a specialization OF A PARTICULAR SOURCE, and saying so is
+/// what keeps it honest. Looked up by chapter NAME alone it would answer for
+/// any bluebook that happens to call itself the same thing — a test fixture
+/// named `Banking` got the real banking, silently — and it would keep
+/// answering after its own source was edited, booting a stale domain while
+/// every file on disk said otherwise.
+///
+/// `by_source` checks this before handing the domain over, so a projection is
+/// used when it is THE projection of what is being booted, and the parser is
+/// used otherwise.
+pub const SOURCE_SHA: &str = "6b4c0adc8374ea0e6ac314f8bfdf3233fc4e199502c86ae90bfc8c9309c9f7d7";
+
 pub fn domain() -> Domain {
     Domain {
         name: "Expression".to_string(),

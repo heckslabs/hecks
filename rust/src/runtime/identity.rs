@@ -80,17 +80,21 @@ pub fn part(args: &State, path: &str) -> Option<String> {
     })
 }
 
-/// THE IDENTITY IS THE JOIN OF ITS PARTS, in declaration order.
+/// THE SAME DERIVATION, FROM DECLARED PATHS RATHER THAN FROM THE WIRE.
 ///
-/// A part the payload does not carry makes the WHOLE identity unresolvable
-/// rather than half of one. Half an identity names nothing, and joining what
-/// did arrive would silently name a DIFFERENT record on every dispatch — the
-/// precise failure that minting an id caused, arrived at by another road.
+/// `of` reads `identified_by` out of a JSON map, which is where this whole arc's
+/// defect lived: the struct says `Vec<String>` and the reader asked for
+/// `as_str`, got None on an array, fell through to a default, and COMPILED. No
+/// test could have been written against a bug that has no failing input — only a
+/// corpus member with two paths could show it, and there was none.
 ///
-/// A BLANK PART NAMES NOTHING, the same as an absent one: `""` is not a fact
-/// about anything, and Ruby's `Identity.of` filters it for the same reason.
-pub fn of(construct: &Map<String, Value>, args: &State) -> Option<String> {
-    let paths = paths(construct);
+/// Handed the paths themselves, that question cannot be asked wrongly. The
+/// typed domain hands `&aggregate.identified_by` straight over: a `Vec<String>`
+/// is a list, taking `.first()` of it is a visible choice somebody has to write,
+/// and there is no spelling of `as_str` that silently means "none".
+///
+/// `of` now calls this, so both routes share one derivation and cannot drift.
+pub fn of_paths(paths: &[String], args: &State) -> Option<String> {
     if paths.is_empty() {
         return None;
     }
@@ -104,6 +108,20 @@ pub fn of(construct: &Map<String, Value>, args: &State) -> Option<String> {
         parts.push(held);
     }
     Some(parts.join(IDENTITY_JOIN))
+}
+
+/// THE IDENTITY IS THE JOIN OF ITS PARTS, in declaration order.
+///
+/// A part the payload does not carry makes the WHOLE identity unresolvable
+/// rather than half of one. Half an identity names nothing, and joining what
+/// did arrive would silently name a DIFFERENT record on every dispatch — the
+/// precise failure that minting an id caused, arrived at by another road.
+///
+/// A BLANK PART NAMES NOTHING, the same as an absent one: `""` is not a fact
+/// about anything, and Ruby's `Identity.of` filters it for the same reason.
+pub fn of(construct: &Map<String, Value>, args: &State) -> Option<String> {
+    let declared: Vec<String> = paths(construct).into_iter().map(str::to_string).collect();
+    of_paths(&declared, args)
 }
 
 /// A path is a head and the walk into it. One split, so every reader takes the
