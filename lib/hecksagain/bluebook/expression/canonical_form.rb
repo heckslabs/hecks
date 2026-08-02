@@ -1,3 +1,5 @@
+require "json"
+
 module Hecksagain
   module Bluebook
     module Expression
@@ -6,10 +8,13 @@ module Hecksagain
 
         STRATEGIES = %w[collapse_whitespace replace].freeze
 
-        RULES = [
-          Rule.new(strategy: "collapse_whitespace", source_token: "", replacement: "", boundary: "none", position: 1),
-          Rule.new(strategy: "replace", source_token: ".length", replacement: ".size", boundary: "word", position: 2)
-        ].freeze
+        # READ, NOT RESTATED — the admitted normalisation rules, projected
+        # from the grammar chapter by bin/expression_projection exactly as
+        # the evaluator's operator table is. See Evaluator::PROJECTION for
+        # why a projection rather than a boot.
+        RULES = JSON.parse(
+          File.read(File.join(__dir__, "projection.json")), symbolize_names: true
+        ).fetch(:normalisations).map { |row| Rule.new(**row) }.freeze
 
         module_function
 

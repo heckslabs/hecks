@@ -1,3 +1,5 @@
+require "json"
+
 module Hecksagain
   module Bluebook
     module Expression
@@ -6,19 +8,25 @@ module Hecksagain
 
         # Six operators, reduced to two primitives (less_than, equal) combined
         # with a small boolean algebra: compares_less_than/compares_equal choose
-        # which primitive(s) OR together, negated inverts the result. Declared
-        # the same way in Vocabulary::Comparison (language/bluebook/vocabulary.bluebook) —
-        # spec/vocabulary_conformance_spec holds the two tables equal, field for
-        # field, so a runtime cannot drift from what the language says an
-        # operator computes.
-        OPERATORS = [
-          Operator.new(symbol: ">=", compares_less_than: true,  compares_equal: false, negated: true),
-          Operator.new(symbol: "<=", compares_less_than: true,  compares_equal: true,  negated: false),
-          Operator.new(symbol: "<",  compares_less_than: true,  compares_equal: false, negated: false),
-          Operator.new(symbol: ">",  compares_less_than: true,  compares_equal: true,  negated: true),
-          Operator.new(symbol: "==", compares_less_than: false, compares_equal: true,  negated: false),
-          Operator.new(symbol: "!=", compares_less_than: false, compares_equal: true,  negated: true)
-        ].freeze
+        # which primitive(s) OR together, negated inverts the result.
+        #
+        # READ, NOT RESTATED. This table is the checked-in projection of the
+        # grammar chapter's admitted set (bin/expression_projection — the same
+        # relationship Rust's operators.json has to bin/operators), joined with
+        # the algebra Vocabulary::Comparison declares. The evaluator cannot
+        # boot the chapter that configures it — the Prism adapter normalises
+        # every predicate through CanonicalForm while a bluebook loads — so
+        # the projection is how the domain reaches here: regenerated when the
+        # ledger changes, held fresh by spec/operators_export_spec.rb, and
+        # held to the live machinery by spec/operator_conformance_spec.rb.
+        PROJECTION = JSON.parse(
+          File.read(File.join(__dir__, "projection.json")), symbolize_names: true
+        ).freeze
+
+        OPERATORS = PROJECTION.fetch(:operators)
+                              .select { |row| row[:category] == "comparison" }
+                              .map { |row| Operator.new(**row.slice(:symbol, :compares_less_than, :compares_equal, :negated)) }
+                              .freeze
 
         COMPARISONS = OPERATORS.map(&:symbol).freeze
 

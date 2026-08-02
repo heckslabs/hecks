@@ -10,8 +10,9 @@ require "json"
 # checked-in file equal to what its script produces right now.
 RSpec.describe "the exported tables" do
   {
-    "rust/src/bluebook/expression/operators.json" => "bin/operators",
-    "rust/src/runtime/mutation_ops.json"           => "bin/mutation_ops"
+    "rust/src/bluebook/expression/operators.json"      => "bin/operators",
+    "rust/src/runtime/mutation_ops.json"               => "bin/mutation_ops",
+    "lib/hecksagain/bluebook/expression/projection.json" => "bin/expression_projection --stdout"
   }.each do |checked_in_path, script|
     it "#{checked_in_path} matches #{script}'s current output" do
       root       = InMemoryDomain::ROOT

@@ -1,25 +1,46 @@
 #!/usr/bin/env ruby
 
 # Dumps the comparison-operator table both runtimes' `compare` reads instead
-# of hardcoding a six-way case statement. Ruby reads Evaluator::OPERATORS
-# directly ; Rust cannot run this file, so its copy is this script's output,
-# checked in at rust/src/bluebook/expression/operators.json and embedded at
-# compile time. Regenerate with:
+# of hardcoding a six-way case statement. Rust cannot run this file, so its
+# copy is this script's output, checked in at
+# rust/src/bluebook/expression/operators.json and embedded at compile time;
+# Ruby's copy is bin/expression_projection's output, read at require time.
+# Regenerate with:
 #
 #   bin/operators > rust/src/bluebook/expression/operators.json
 #
-# spec/vocabulary_conformance_spec.rb holds Evaluator::OPERATORS equal to
-# what the language declares (Vocabulary::Comparison) ; spec/operators_export_spec.rb
-# holds the checked-in JSON equal to this script's own output, so regenerate
-# it any time OPERATORS changes.
+# THE DOMAIN IS THE SOURCE. Which operators exist, and in what check order,
+# comes from the grammar chapter's own admitted set — the ledger replayed
+# through its Admit gates (Hecksagain::Grammar.admitted_operators). What each
+# operator COMPUTES — the less_than/equal/negated algebra — stays declared in
+# Vocabulary::Comparison, and this script is the join: the two declarations
+# own different halves of one operator, and the seam between them is held by
+# spec/operator_conformance_spec.rb's triangle. An admitted comparison the
+# vocabulary does not declare refuses here rather than emitting a row with
+# invented algebra.
+#
+# spec/operators_export_spec.rb holds the checked-in JSON equal to this
+# script's own output, so regenerate it any time the ledger or the
+# vocabulary changes.
 
 require "json"
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 require "hecksagain"
+require "hecksagain/grammar"
 
-rows = Hecksagain::Bluebook::Expression::Evaluator::OPERATORS.map do |op|
-  { symbol: op.symbol, compares_less_than: op.compares_less_than,
-    compares_equal: op.compares_equal, negated: op.negated }
+judged     = Hecksagain::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
+vocabulary = judged.aggregates.find { |a| a.name == "Vocabulary" }
+algebra    = vocabulary.value_objects.find { |vo| vo.hecks_name == "Comparison" }
+                       .members.to_h { |row| [row.to_h.values.first, row.to_h] }
+
+rows = Hecksagain::Grammar.admitted_operators
+                          .select { |op| op[:category] == "comparison" }
+                          .map do |op|
+  declared = algebra.fetch(op[:symbol]) do
+    abort "#{op[:symbol]} is admitted but Vocabulary::Comparison declares no algebra for it"
+  end
+  { symbol: op[:symbol], compares_less_than: declared[:compares_less_than],
+    compares_equal: declared[:compares_equal], negated: declared[:negated] }
 end
 
 puts JSON.pretty_generate(rows)

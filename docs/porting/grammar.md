@@ -19,8 +19,17 @@ to be a content-management domain about operators that nothing read; it is now *
 by checking**: `lib/hecksagain/grammar/expression_operators.json` replays every operator through the
 chapter's own Propose → Render (ruby, rust) → Admit commands, and `spec/operator_conformance_spec.rb`
 holds the evaluator's tables equal to the admitted set, both directions — an operator the ledger
-never admitted does not exist to the evaluator. This document remains the parser's spec; the
-chapter is the ledger the parser is audited against.
+never admitted does not exist to the evaluator. And since then, **read by projection**: the
+evaluator's and canonical form's tables are `lib/hecksagain/bluebook/expression/projection.json`,
+regenerated from the admitted set by `bin/expression_projection` (the same relationship Rust's
+`operators.json` has to `bin/operators` — the domain owns which operators exist and in what check
+order; `Vocabulary::Comparison` owns the algebra each computes; the generators are the join). This
+document remains the parser's spec; the chapter is the source its tables are projected from.
+
+One boundary found by measurement: an operator the chapter's OWN guards evaluate through — `!=`
+appears in `status != "retired"` — is load-bearing for the self-description and cannot simply be
+retired; a projection without it cannot even boot the chapter. Retiring such a word would first
+mean rewriting the chapter's guards without it.
 
 ## Outer grammar (boolean / comparison)
 

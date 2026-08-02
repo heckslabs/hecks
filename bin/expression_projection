@@ -1,0 +1,75 @@
+#!/usr/bin/env ruby
+
+# The Ruby side of what bin/operators is for Rust: the expression
+# machinery's tables, projected from the grammar chapter's admitted set
+# and checked in, so the evaluator and the canonical form READ the
+# domain rather than restating it. Regenerate with:
+#
+#   bin/expression_projection            # rewrites the file in place
+#   bin/expression_projection --stdout   # prints instead (the spec's diff mode)
+#
+# WRITES ITS OWN FILE, NEVER `>` — this generator's output IS the file
+# the framework reads at require time, and a shell redirection truncates
+# that file before Ruby ever boots: the empty file kills the require and
+# the run dies with nothing written. Measured, not assumed — the first
+# regeneration attempt did exactly that. So the default mode boots off
+# the checked-in table, derives the fresh one from the DOMAIN (never
+# from what it just read), and replaces the file atomically.
+#
+# IF THE CHECKED-IN FILE IS EVER BROKEN, `git restore` it — this script
+# cannot rebuild from a projection that no longer parses the chapter's
+# own guards. Which is a fact about the LANGUAGE, found the hard way:
+# the chapter's `status != "retired"` givens evaluate through the very
+# operator table being projected, so a projection missing `!=` cannot
+# even boot the chapter to fix itself. A word the language's own
+# self-description uses is load-bearing and cannot simply be retired.
+#
+# Operators carry the vocabulary's comparison algebra through the same
+# join bin/operators makes (the domain owns WHICH and IN WHAT ORDER;
+# Vocabulary::Comparison owns WHAT IT COMPUTES); normalisations are the
+# admitted rules in position order. spec/operators_export_spec.rb holds
+# the checked-in file equal to this script's --stdout output; the
+# machinery refuses to load without the file, which is the point — a
+# table nobody regenerates is a table the Admit gates never saw.
+
+require "json"
+require "tempfile"
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+require "hecksagain"
+require "hecksagain/grammar"
+
+dispatcher = Hecksagain::Grammar.expression
+
+judged     = Hecksagain::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
+vocabulary = judged.aggregates.find { |a| a.name == "Vocabulary" }
+algebra    = vocabulary.value_objects.find { |vo| vo.hecks_name == "Comparison" }
+                       .members.to_h { |row| [row.to_h.values.first, row.to_h] }
+
+operators = Hecksagain::Grammar.admitted_operators(dispatcher).map do |op|
+  row = { symbol: op[:symbol], category: op[:category],
+          precedence: op[:precedence], arity: op[:arity] }
+  next row unless op[:category] == "comparison"
+
+  declared = algebra.fetch(op[:symbol]) do
+    abort "#{op[:symbol]} is admitted but Vocabulary::Comparison declares no algebra for it"
+  end
+  row.merge(compares_less_than: declared[:compares_less_than],
+            compares_equal: declared[:compares_equal], negated: declared[:negated])
+end
+
+content = JSON.pretty_generate(
+  operators: operators,
+  normalisations: Hecksagain::Grammar.admitted_normalisations(dispatcher)
+) + "\n"
+
+if ARGV.include?("--stdout")
+  print content
+else
+  target = File.expand_path("../lib/hecksagain/bluebook/expression/projection.json", __dir__)
+  Tempfile.create("projection", File.dirname(target)) do |tmp|
+    tmp.write(content)
+    tmp.flush
+    File.rename(tmp.path, target)
+  end
+  puts "wrote #{target}"
+end

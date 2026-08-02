@@ -1,0 +1,110 @@
+{
+  "operators": [
+    {
+      "symbol": "||",
+      "category": "logical",
+      "precedence": 1,
+      "arity": 2
+    },
+    {
+      "symbol": "&&",
+      "category": "logical",
+      "precedence": 2,
+      "arity": 2
+    },
+    {
+      "symbol": ".include?",
+      "category": "membership",
+      "precedence": 3,
+      "arity": 2
+    },
+    {
+      "symbol": ">=",
+      "category": "comparison",
+      "precedence": 4,
+      "arity": 2,
+      "compares_less_than": true,
+      "compares_equal": false,
+      "negated": true
+    },
+    {
+      "symbol": "<=",
+      "category": "comparison",
+      "precedence": 4,
+      "arity": 2,
+      "compares_less_than": true,
+      "compares_equal": true,
+      "negated": false
+    },
+    {
+      "symbol": "<",
+      "category": "comparison",
+      "precedence": 4,
+      "arity": 2,
+      "compares_less_than": true,
+      "compares_equal": false,
+      "negated": false
+    },
+    {
+      "symbol": ">",
+      "category": "comparison",
+      "precedence": 4,
+      "arity": 2,
+      "compares_less_than": true,
+      "compares_equal": true,
+      "negated": true
+    },
+    {
+      "symbol": "==",
+      "category": "comparison",
+      "precedence": 4,
+      "arity": 2,
+      "compares_less_than": false,
+      "compares_equal": true,
+      "negated": false
+    },
+    {
+      "symbol": "!=",
+      "category": "comparison",
+      "precedence": 4,
+      "arity": 2,
+      "compares_less_than": false,
+      "compares_equal": true,
+      "negated": true
+    },
+    {
+      "symbol": "!",
+      "category": "logical",
+      "precedence": 5,
+      "arity": 1
+    },
+    {
+      "symbol": "+",
+      "category": "arithmetic",
+      "precedence": 6,
+      "arity": 2
+    },
+    {
+      "symbol": ".modulo",
+      "category": "arithmetic",
+      "precedence": 6,
+      "arity": 2
+    }
+  ],
+  "normalisations": [
+    {
+      "strategy": "collapse_whitespace",
+      "source_token": "",
+      "replacement": "",
+      "boundary": "none",
+      "position": 1
+    },
+    {
+      "strategy": "replace",
+      "source_token": ".length",
+      "replacement": ".size",
+      "boundary": "word",
+      "position": 2
+    }
+  ]
+}
