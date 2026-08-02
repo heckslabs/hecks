@@ -1,20 +1,25 @@
 use crate::ir::{
-    Aggregate, Attribute, Command, Direction, Domain, Entity, Lifecycle, MutationOp, Policy,
-    ProcessManager, ProcessManagerHandler, Query, Transition, ValueObject, ValueSpec, WhereClause,
-    WhereOp,
+    Aggregate, Attribute, AuthorizationSpec, Command, ConsistencySpec, CursorSpec, Direction,
+    Domain, Entity, FreshnessSpec, IndexHint, InspectionSpec, Lifecycle, MutationOp,
+    NullSemanticsSpec, OffsetSpec, Policy, ProcessManager, ProcessManagerHandler, Query,
+    ReadModel, Transition, ValueObject, ValueSpec, WhereClause, WhereOp,
 };
 use serde_json::{json, Map, Value};
 
 pub fn domain_to_value(domain: &Domain) -> Value {
     let aggregates: Vec<Value> = domain.aggregates.iter().map(aggregate_to_value).collect();
-    let read_models: Vec<Value> = domain.read_models.iter().map(|model| json!({
-        "name": model.name, "description": optional(&model.description),
-        "reference_name": model.reference_name, "reference_target": model.reference_target,
-        "aggregate_heads": model.aggregate_heads.iter().map(|head| json!({
-            "aggregate": head.aggregate, "as": head.r#as, "many": head.many
-        })).collect::<Vec<_>>(),
-        "query_name": crate::naming::snake(&model.name)
-    })).collect();
+    let read_models: Vec<Value> = domain.read_models.iter().map(|model| {
+        let mut value = json!({
+            "name": model.name, "description": optional(&model.description),
+            "reference_name": model.reference_name, "reference_target": model.reference_target,
+            "aggregate_heads": model.aggregate_heads.iter().map(|head| json!({
+                "aggregate": head.aggregate, "as": head.r#as, "many": head.many
+            })).collect::<Vec<_>>(),
+            "query_name": crate::naming::snake(&model.name)
+        });
+        merge_query_options(value.as_object_mut().expect("read_model value is an object"), model.into());
+        value
+    }).collect();
 
     let mut domains = Map::new();
     domains.insert(
@@ -70,7 +75,7 @@ fn entity_to_value(entity: &Entity) -> Value {
 }
 
 fn query_to_value(query: &Query) -> Value {
-    json!({
+    let mut value = json!({
         "name": query.name,
         "description": optional(&query.description),
         "attributes": query.attributes.iter().map(attribute_to_value).collect::<Vec<_>>(),
@@ -80,7 +85,105 @@ fn query_to_value(query: &Query) -> Value {
             "direction": match o.direction { Direction::Desc => "desc", _ => "asc" }
         })),
         "limit": query.limit.as_ref().map(|l| json!({ "value": l.value }))
-    })
+    });
+    merge_query_options(value.as_object_mut().expect("query_to_value builds an object"), query.into());
+    value
+}
+
+// THE EIGHT SPECIFICATION OPTIONS, OMITTED WHEN UNSET — not carried as `null`.
+// Ruby's `extra_options_to_h` drops a key from the wire entirely when its value
+// is nil (or `[]`, or `null_semantics` at its untouched "native" default), so a
+// query or read model that never declares `offset` has NO `offset` key at all,
+// not one holding `null`. `Query` and `ReadModel` share the same eight fields
+// (both inherit `QuerySpecification::Common::Options` on the Ruby side), so this
+// one function serves both via the small `QueryOptions` borrow below.
+struct QueryOptions<'a> {
+    offset: &'a Option<OffsetSpec>,
+    cursor: &'a Option<CursorSpec>,
+    consistency: &'a Option<ConsistencySpec>,
+    freshness: &'a Option<FreshnessSpec>,
+    authorization: &'a Option<AuthorizationSpec>,
+    null_semantics: &'a Option<NullSemanticsSpec>,
+    inspection: &'a Option<InspectionSpec>,
+    index_hints: &'a [IndexHint],
+}
+
+impl<'a> From<&'a Query> for QueryOptions<'a> {
+    fn from(query: &'a Query) -> Self {
+        QueryOptions {
+            offset: &query.offset,
+            cursor: &query.cursor,
+            consistency: &query.consistency,
+            freshness: &query.freshness,
+            authorization: &query.authorization,
+            null_semantics: &query.null_semantics,
+            inspection: &query.inspection,
+            index_hints: &query.index_hints,
+        }
+    }
+}
+
+impl<'a> From<&'a ReadModel> for QueryOptions<'a> {
+    fn from(model: &'a ReadModel) -> Self {
+        QueryOptions {
+            offset: &model.offset,
+            cursor: &model.cursor,
+            consistency: &model.consistency,
+            freshness: &model.freshness,
+            authorization: &model.authorization,
+            null_semantics: &model.null_semantics,
+            inspection: &model.inspection,
+            index_hints: &model.index_hints,
+        }
+    }
+}
+
+fn merge_query_options(map: &mut Map<String, Value>, options: QueryOptions) {
+    if let Some(offset) = options.offset {
+        map.insert("offset".into(), json!({ "value": offset.value }));
+    }
+    if let Some(cursor) = options.cursor {
+        map.insert("cursor".into(), json!({ "value": cursor.value }));
+    }
+    if let Some(consistency) = options.consistency {
+        map.insert(
+            "consistency".into(),
+            json!({ "mode": consistency.mode, "timeout": consistency.timeout }),
+        );
+    }
+    if let Some(freshness) = options.freshness {
+        map.insert(
+            "freshness".into(),
+            json!({ "mode": freshness.mode, "max_age": freshness.max_age }),
+        );
+    }
+    if let Some(authorization) = options.authorization {
+        map.insert(
+            "authorization".into(),
+            json!({ "policy": authorization.policy, "tenant": authorization.tenant }),
+        );
+    }
+    if let Some(null_semantics) = options.null_semantics {
+        map.insert(
+            "null_semantics".into(),
+            json!({ "mode": null_semantics.mode }),
+        );
+    }
+    if let Some(inspection) = options.inspection {
+        map.insert("inspection".into(), json!({ "mode": inspection.mode }));
+    }
+    if !options.index_hints.is_empty() {
+        map.insert(
+            "index_hints".into(),
+            Value::Array(
+                options
+                    .index_hints
+                    .iter()
+                    .map(|hint| json!({ "name": hint.name }))
+                    .collect(),
+            ),
+        );
+    }
 }
 
 fn where_to_value(clause: &WhereClause) -> Value {

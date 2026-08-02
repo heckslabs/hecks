@@ -12,13 +12,15 @@
 pub mod banking;
 pub mod expression;
 pub mod market;
-// REFLEX IS NOT HERE, and the reason is its own bluebook's: it declares every
-// QUERY OPTION the language holds — authorize, offset, cursor, nulls,
-// consistency, freshness, inspect_query, use_index — and Rust's `Query` struct
-// carries none of them. There is nowhere to project them TO. That chapter is
-// deliberately outside the parity corpus for the same reason, and a projection
-// that dropped the options silently would claim an agreement Rust cannot make.
 pub mod pizzas;
+// REFLEX JOINED THE OTHERS once `Query`/`ReadModel` grew the eight
+// specification options — offset, cursor, nulls, consistency, freshness,
+// authorize, inspect_query, use_index. It used to be the one chapter this
+// module could not carry: it declares every option the language holds, and
+// projecting it would have had nowhere to put them. It still sits outside the
+// zero-infrastructure parity corpus (`spec/parity/domains/`) — that was never
+// about the options, and staying there is unrelated to this module.
+pub mod reflex;
 pub mod relay;
 pub mod till_room;
 pub mod wire;
@@ -46,6 +48,7 @@ pub fn by_source(source: &str) -> Option<crate::ir::Domain> {
         "Expression" => (expression::SOURCE_SHA, expression::domain),
         "Market" => (market::SOURCE_SHA, market::domain),
         "Pizzas" => (pizzas::SOURCE_SHA, pizzas::domain),
+        "Reflex" => (reflex::SOURCE_SHA, reflex::domain),
         "Relay" => (relay::SOURCE_SHA, relay::domain),
         "TillRoom" => (till_room::SOURCE_SHA, till_room::domain),
         "Wire" => (wire::SOURCE_SHA, wire::domain),
@@ -72,6 +75,7 @@ pub fn by_name(name: &str) -> Option<crate::ir::Domain> {
         "Expression" => Some(expression::domain()),
         "Market" => Some(market::domain()),
         "Pizzas" => Some(pizzas::domain()),
+        "Reflex" => Some(reflex::domain()),
         "Relay" => Some(relay::domain()),
         "TillRoom" => Some(till_room::domain()),
         "Wire" => Some(wire::domain()),
@@ -81,7 +85,7 @@ pub fn by_name(name: &str) -> Option<crate::ir::Domain> {
 
 /// Every chapter this binary carries, in the order they are declared above.
 pub fn names() -> Vec<&'static str> {
-    vec!["Banking", "Expression", "Market", "Pizzas", "Relay", "TillRoom", "Wire"]
+    vec!["Banking", "Expression", "Market", "Pizzas", "Reflex", "Relay", "TillRoom", "Wire"]
 }
 
 /// THE CHAPTER A SOURCE DECLARES, without parsing it.
@@ -123,6 +127,7 @@ mod tests {
             ("Expression", super::expression::domain()),
             ("Market", super::market::domain()),
             ("Pizzas", super::pizzas::domain()),
+            ("Reflex", super::reflex::domain()),
             ("Relay", super::relay::domain()),
             ("TillRoom", super::till_room::domain()),
             ("Wire", super::wire::domain()),

@@ -34,8 +34,8 @@ pub use super::ir_vocabulary::{MutationOp, WhereOp};
 // now says `admits: Vocabulary::QueryComparator`, and what comes out is
 // identical, field for field, to the struct deleted from here.
 pub use super::ir_structs::{
-    Aggregate, Command, Domain, Entity, Given, ProcessManager, ProcessManagerHandler, ReadModel,
-    Transition, WhereClause,
+    Aggregate, Command, Domain, Entity, Given, ProcessManager, ProcessManagerHandler, Transition,
+    WhereClause,
 };
 
 #[derive(Debug, Clone)]
@@ -110,6 +110,21 @@ pub struct Query {
     pub wheres: Vec<WhereClause>,
     pub order_by: Option<OrderBy>,
     pub limit: Option<LimitSpec>,
+    // THE EIGHT SPECIFICATION OPTIONS Ruby's `QuerySpecification::Common::Options`
+    // has carried since the language could say them — offset/cursor/consistency/
+    // freshness/authorize/nulls/inspect_query/use_index. Absent, not `None`, on the
+    // wire: Ruby's `extra_options_to_h` drops a key entirely when its value is nil
+    // (or `[]`, or null_semantics at its native default), so a query that never
+    // declares one of these carries no key for it at all — see `ir_json.rs`'s
+    // `query_options_to_value` for the matching omission on this side.
+    pub offset: Option<OffsetSpec>,
+    pub cursor: Option<CursorSpec>,
+    pub consistency: Option<ConsistencySpec>,
+    pub freshness: Option<FreshnessSpec>,
+    pub authorization: Option<AuthorizationSpec>,
+    pub null_semantics: Option<NullSemanticsSpec>,
+    pub inspection: Option<InspectionSpec>,
+    pub index_hints: Vec<IndexHint>,
 }
 
 #[derive(Debug, Clone)]
@@ -172,6 +187,88 @@ pub enum Direction {
 #[derive(Debug, Clone)]
 pub struct LimitSpec {
     pub value: String,
+}
+
+// THE OPTION STRUCTS THEMSELVES. Each mirrors one `QuerySpecification::Common`
+// struct field for field — `OffsetSpec`/`CursorSpec`/`ConsistencySpec`/
+// `FreshnessSpec`/`AuthorizationSpec`/`NullSemantics`/`InspectionSpec`/
+// `IndexHint` — with the same asymmetry Ruby's own `to_h` methods carry: most
+// stringify with plain `.to_s` (a declared symbol loses its leading colon),
+// but `OffsetSpec`/`CursorSpec` stringify with `render_value`, which keeps the
+// colon on a symbol. `cursor :after` is the one place that colon actually
+// shows on the wire — every other field's declared as a symbol too but its
+// Ruby struct strips it. Rust's parser (`parse_blocks.rs`) does the same
+// per-field stripping so the two sides render identical strings.
+#[derive(Debug, Clone)]
+pub struct OffsetSpec {
+    pub value: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct CursorSpec {
+    pub value: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct ConsistencySpec {
+    pub mode: String,
+    pub timeout: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct FreshnessSpec {
+    pub mode: String,
+    pub max_age: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct AuthorizationSpec {
+    pub policy: String,
+    pub tenant: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct NullSemanticsSpec {
+    pub mode: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct InspectionSpec {
+    pub mode: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct IndexHint {
+    pub name: String,
+}
+
+// `ReadModel` STAYS HAND-WRITTEN, joining `Query` for the same reason. The
+// language's own self-description (`lib/hecksagain/language/bluebook/projection.bluebook`)
+// models a read model's options as one generic fold — `options: list_of(ProjectionOption)`,
+// four flat strings (option/key/value/at) — because that is how the META-VALIDATOR
+// judges an `offset`/`cursor`/... line while it is being declared. But the REAL
+// runtime object booted from a `.bluebook` file (`Hecksagain::Bluebook::IR::ReadModel`)
+// inherits `QuerySpecification::ReadModel::Specification`, the identical typed
+// carrier `Query` inherits — so the wire `ReadModel` produces is shaped like
+// `Query`'s, not like the meta-domain's fold. `bin/ir_structs` can only read the
+// meta-domain, so it would generate the fold's shape and be wrong about the
+// wire; pulled out of `ROOTS` and hand-written here instead, the same call this
+// file already made for `Query` over `limit`.
+#[derive(Debug, Clone)]
+pub struct ReadModel {
+    pub name: String,
+    pub description: Option<String>,
+    pub reference_name: String,
+    pub reference_target: String,
+    pub aggregate_heads: Vec<AggregateHead>,
+    pub offset: Option<OffsetSpec>,
+    pub cursor: Option<CursorSpec>,
+    pub consistency: Option<ConsistencySpec>,
+    pub freshness: Option<FreshnessSpec>,
+    pub authorization: Option<AuthorizationSpec>,
+    pub null_semantics: Option<NullSemanticsSpec>,
+    pub inspection: Option<InspectionSpec>,
+    pub index_hints: Vec<IndexHint>,
 }
 
 impl fmt::Display for Domain {

@@ -361,6 +361,14 @@ fn push_query(line: &str, agg: &mut Aggregate, depth: &mut usize) {
         wheres: vec![],
         order_by: None,
         limit: None,
+        offset: None,
+        cursor: None,
+        consistency: None,
+        freshness: None,
+        authorization: None,
+        null_semantics: None,
+        inspection: None,
+        index_hints: vec![],
     });
     if ends_with_do_block(line) {
         *depth += 1;

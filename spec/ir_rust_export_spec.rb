@@ -27,14 +27,18 @@ RSpec.describe "the projected Rust domains" do
   # three inversion bugs in one sitting, all of them the encoding-loss family
   # this codebase already names.
   #
-  # `Reflex` is absent on purpose: it declares every query option the language
-  # holds and Rust's `Query` struct carries none of them, so there is nowhere to
-  # project them to. See the note in projected/mod.rs.
+  # `Reflex` used to be absent on purpose: it declares every query option the
+  # language holds, and Rust's `Query`/`ReadModel` structs carried none of
+  # them, so there was nowhere to project them to. Once both grew the eight
+  # specification options, Reflex joined the rest — proving the gap closed the
+  # same way every other claim here is proven, by projecting the chapter that
+  # exercises it and diffing against Ruby's own frozen IR.
   PROJECTED = {
     "Banking"    => ["examples/banking/bluebook/banking.bluebook",              "banking"],
     "Expression" => ["lib/hecksagain/grammar/expression.bluebook",              "expression"],
     "Market"     => ["spec/parity/domains/market/bluebook/market.bluebook",     "market"],
     "Pizzas"     => ["examples/pizzas/bluebook/pizzas.bluebook",                "pizzas"],
+    "Reflex"     => ["spec/fixtures/reflex.bluebook",                          "reflex"],
     "Relay"      => ["spec/parity/domains/relay/bluebook/relay.bluebook",       "relay"],
     "TillRoom"   => ["spec/fixtures/till.bluebook",                             "till_room"],
     "Wire"       => ["spec/fixtures/settlement.bluebook",                       "wire"]

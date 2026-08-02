@@ -80,7 +80,7 @@ ELEMENT_NAME = {
 # exclusion is a REASON, printed into the emitted header. Two kinds of reason:
 # the language has no source for the shape, or the language and Rust genuinely
 # disagree and the disagreement is a finding rather than a mapping rule.
-ROOTS    = %w[Bluebook Aggregate Entity Command ReadModel ProcessManager Handler].freeze
+ROOTS    = %w[Bluebook Aggregate Entity Command ProcessManager Handler].freeze
 ELEMENTS = [%w[Command Rule], %w[Aggregate Transition], %w[Query Filter]].freeze
 
 NOT_PROJECTED = {
@@ -96,7 +96,8 @@ NOT_PROJECTED = {
   "Attribute" => "DIVERGENCE — `enum_values`, and the flags. The language declares seven plain-String fields (name/type/list/optional/pattern/default/admits) and Rust carries all seven — `admits` reached the wire once it became a RULE both runtimes enforce, and this generator reads it to type a field besides (see WhereClause). Rust also carries `enum_values: Vec<String>` the language never declares, and reads `list`/`optional` as bool where the language admits only Strings. The five element declarations now agree that `pattern` and `default` are free text — Aggregate's three builders typed `pattern` as a ListFlag, which admits only \"true\"/\"false\" and so was false about a regex rather than merely loose — but they still disagree about `name`, `type` and the two flags, so no single type rule reads all five.",
   "Invariant" => "DIVERGENCE — `description`. `Command::Rule` and `ValueObject::Assertion` are byte-identical declarations built by byte-identical commands (description OPTIONAL, canonical required), yet Rust holds Given.description as Option<String> and Invariant.description as String. The dedupe rule says these are one struct; Rust says they are two. Given is projected, Invariant is not.",
   "Mutation" => "DIVERGENCE — arity. The language declares Change with five fields (target, op, field, kind, source); Rust's Mutation carries three (target, op, source) and types op as the MutationOp closed set. `field` and `kind` are declared and unread.",
-  "AggregateHead" => "DIVERGENCE — `many`. The language declares it as a plain ReadModelText and Rust reads it as a bool, with no ListFlag-style invariant behind it to read. `aggregate` used to be the second half of this: declared OPTIONAL on ReadModel.Gather against Rust's required String, and neither runtime can build a head without one, so the language was corrected and only the flag is left."
+  "AggregateHead" => "DIVERGENCE — `many`. The language declares it as a plain ReadModelText and Rust reads it as a bool, with no ListFlag-style invariant behind it to read. `aggregate` used to be the second half of this: declared OPTIONAL on ReadModel.Gather against Rust's required String, and neither runtime can build a head without one, so the language was corrected and only the flag is left.",
+  "ReadModel" => "DIVERGENCE — `options`, and joins `Query` for the same reason `limit` pulled Query out. The language models a read model's specification options as one generic fold (`options: list_of(ProjectionOption)`, four flat strings) because that is what the META-VALIDATOR judges an `offset`/`cursor`/... declaration against. The REAL runtime `IR::ReadModel` inherits `QuerySpecification::ReadModel::Specification` — the identical typed carrier Query inherits — so the wire it produces is shaped like Query's eight option fields, not like the meta-domain's fold. This generator can only read the meta-domain, so projecting `ReadModel` here would build the fold's shape and be wrong about the wire."
 }.freeze
 
 # RUST'S RESERVED WORDS, not a rename table. A field the language spells `type`

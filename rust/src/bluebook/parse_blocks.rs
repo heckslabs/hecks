@@ -3,7 +3,21 @@ use crate::parser_helpers::*;
 
 pub fn parse_read_model(lines: &[&str]) -> (ReadModel, usize) {
     let first = lines[0].trim();
-    let mut model = ReadModel { name: extract_string(first).unwrap_or_default(), description: None, reference_name: String::new(), reference_target: String::new(), aggregate_heads: vec![] };
+    let mut model = ReadModel {
+        name: extract_string(first).unwrap_or_default(),
+        description: None,
+        reference_name: String::new(),
+        reference_target: String::new(),
+        aggregate_heads: vec![],
+        offset: None,
+        cursor: None,
+        consistency: None,
+        freshness: None,
+        authorization: None,
+        null_semantics: None,
+        inspection: None,
+        index_hints: vec![],
+    };
     if !ends_with_do_block(first) { return (model, 1); }
     let mut i = 1;
     while i < lines.len() {
@@ -26,6 +40,17 @@ pub fn parse_read_model(lines: &[&str]) -> (ReadModel, usize) {
                 model.aggregate_heads.push(AggregateHead { aggregate, r#as: name, many });
             }
         }
+        apply_option_line(
+            line,
+            &mut model.offset,
+            &mut model.cursor,
+            &mut model.consistency,
+            &mut model.freshness,
+            &mut model.authorization,
+            &mut model.null_semantics,
+            &mut model.inspection,
+            &mut model.index_hints,
+        );
         i += 1;
     }
     (model, i + 1)
@@ -278,6 +303,14 @@ pub fn parse_query(lines: &[&str]) -> (Query, usize) {
         wheres: vec![],
         order_by: None,
         limit: None,
+        offset: None,
+        cursor: None,
+        consistency: None,
+        freshness: None,
+        authorization: None,
+        null_semantics: None,
+        inspection: None,
+        index_hints: vec![],
     };
 
     if let Some(open) = first.rfind('|') {
@@ -334,6 +367,17 @@ pub fn parse_query(lines: &[&str]) -> (Query, usize) {
                 if let Some(ls) = parse_limit_line(line) {
                     q.limit = Some(ls);
                 }
+            } else if apply_option_line(
+                line,
+                &mut q.offset,
+                &mut q.cursor,
+                &mut q.consistency,
+                &mut q.freshness,
+                &mut q.authorization,
+                &mut q.null_semantics,
+                &mut q.inspection,
+                &mut q.index_hints,
+            ) {
             } else if ends_with_do_block(line) {
                 depth += 1;
             }
@@ -343,6 +387,103 @@ pub fn parse_query(lines: &[&str]) -> (Query, usize) {
         i += 1;
     }
     (q, i + 1)
+}
+
+// THE EIGHT SPECIFICATION OPTIONS, shared verbatim between `Query` and
+// `ReadModel` — the same body Ruby's `QuerySpecification::Common::DSL` mixes
+// into both. One function tries every keyword against a line and reports
+// whether it matched, so the two callers (`parse_query`, `parse_read_model`)
+// stay a single `else if` each rather than two copies of eight branches.
+#[allow(clippy::too_many_arguments)]
+fn apply_option_line(
+    line: &str,
+    offset: &mut Option<OffsetSpec>,
+    cursor: &mut Option<CursorSpec>,
+    consistency: &mut Option<ConsistencySpec>,
+    freshness: &mut Option<FreshnessSpec>,
+    authorization: &mut Option<AuthorizationSpec>,
+    null_semantics: &mut Option<NullSemanticsSpec>,
+    inspection: &mut Option<InspectionSpec>,
+    index_hints: &mut Vec<IndexHint>,
+) -> bool {
+    if line.starts_with("offset") {
+        *offset = parse_offset_line(line);
+    } else if line.starts_with("cursor") {
+        *cursor = parse_cursor_line(line);
+    } else if line.starts_with("consistency") {
+        *consistency = parse_consistency_line(line);
+    } else if line.starts_with("freshness") {
+        *freshness = parse_freshness_line(line);
+    } else if line.starts_with("authorize") {
+        *authorization = parse_authorize_line(line);
+    } else if line.starts_with("nulls") {
+        *null_semantics = parse_nulls_line(line);
+    } else if line.starts_with("inspect_query") {
+        *inspection = parse_inspect_query_line(line);
+    } else if line.starts_with("use_index") {
+        if let Some(hint) = parse_use_index_line(line) {
+            index_hints.push(hint);
+        }
+    } else {
+        return false;
+    }
+    true
+}
+
+// STRIPS A LEADING COLON. Every one of these eight fields is DECLARED as a
+// symbol (`:snapshot`, `:operator_access`, ...), and Ruby's own `to_h` methods
+// disagree about whether the colon survives: `OffsetSpec`/`CursorSpec` render
+// through `QuerySpecification.render_value`, which keeps it ; every other
+// struct (`ConsistencySpec`, `FreshnessSpec`, `AuthorizationSpec`,
+// `NullSemantics`, `InspectionSpec`, `IndexHint`) calls plain `.to_s`, which
+// does not. So `parse_cursor_line` keeps the colon `extract_word_after`
+// already captures, and every other parser here strips it.
+fn strip_symbol_colon(value: String) -> String {
+    value.trim_start_matches(':').to_string()
+}
+
+pub fn parse_offset_line(line: &str) -> Option<OffsetSpec> {
+    extract_word_after(line, "offset").map(|value| OffsetSpec { value })
+}
+
+pub fn parse_cursor_line(line: &str) -> Option<CursorSpec> {
+    extract_word_after(line, "cursor").map(|value| CursorSpec { value })
+}
+
+pub fn parse_consistency_line(line: &str) -> Option<ConsistencySpec> {
+    let mode = strip_symbol_colon(extract_word_after(line, "consistency")?);
+    let timeout = extract_word_after(line, "timeout:");
+    Some(ConsistencySpec { mode, timeout })
+}
+
+pub fn parse_freshness_line(line: &str) -> Option<FreshnessSpec> {
+    let mode = strip_symbol_colon(extract_word_after(line, "freshness")?);
+    let max_age = extract_word_after(line, "max_age:");
+    Some(FreshnessSpec { mode, max_age })
+}
+
+pub fn parse_authorize_line(line: &str) -> Option<AuthorizationSpec> {
+    let policy = strip_symbol_colon(extract_word_after(line, "authorize")?);
+    let tenant = extract_word_after(line, "tenant:").map(strip_symbol_colon);
+    Some(AuthorizationSpec { policy, tenant })
+}
+
+pub fn parse_nulls_line(line: &str) -> Option<NullSemanticsSpec> {
+    extract_word_after(line, "nulls")
+        .map(strip_symbol_colon)
+        .map(|mode| NullSemanticsSpec { mode })
+}
+
+pub fn parse_inspect_query_line(line: &str) -> Option<InspectionSpec> {
+    extract_word_after(line, "inspect_query")
+        .map(strip_symbol_colon)
+        .map(|mode| InspectionSpec { mode })
+}
+
+pub fn parse_use_index_line(line: &str) -> Option<IndexHint> {
+    extract_word_after(line, "use_index")
+        .map(strip_symbol_colon)
+        .map(|name| IndexHint { name })
 }
 
 pub fn parse_where_line(line: &str, param_names: &[String]) -> Vec<WhereClause> {
@@ -700,6 +841,14 @@ pub fn parse_entity(lines: &[&str]) -> (Entity, usize) {
                     wheres: vec![],
                     order_by: None,
                     limit: None,
+                    offset: None,
+                    cursor: None,
+                    consistency: None,
+                    freshness: None,
+                    authorization: None,
+                    null_semantics: None,
+                    inspection: None,
+                    index_hints: vec![],
                 });
             } else if line.starts_with("lifecycle") {
                 let (lc, consumed) = parse_lifecycle(&lines[i..]);

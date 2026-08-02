@@ -102,8 +102,20 @@
 //     OPTIONAL on ReadModel.Gather against Rust's required String, and neither
 //     runtime can build a head without one, so the language was corrected and
 //     only the flag is left.
+//
+//   ReadModel
+//     DIVERGENCE — `options`, and joins `Query` for the same reason `limit`
+//     pulled Query out. The language models a read model's specification
+//     options as one generic fold (`options: list_of(ProjectionOption)`, four
+//     flat strings) because that is what the META-VALIDATOR judges an
+//     `offset`/`cursor`/... declaration against. The REAL runtime
+//     `IR::ReadModel` inherits `QuerySpecification::ReadModel::Specification` —
+//     the identical typed carrier Query inherits — so the wire it produces is
+//     shaped like Query's eight option fields, not like the meta-domain's fold.
+//     This generator can only read the meta-domain, so projecting `ReadModel`
+//     here would build the fold's shape and be wrong about the wire.
 
-use super::ir::{AggregateHead, Attribute, DispatchSpec, Lifecycle, Mutation, Policy, Query, ValueObject, WhereOp};
+use super::ir::{Attribute, DispatchSpec, Lifecycle, Mutation, Policy, Query, ReadModel, ValueObject, WhereOp};
 
 /// `Command::Rule`, as the language declares it.
 #[derive(Debug, Clone)]
@@ -218,21 +230,6 @@ pub struct Command {
     pub givens: Vec<Given>,
     /// list_of(Change)
     pub mutations: Vec<Mutation>,
-}
-
-/// `Bluebook::ReadModel`, as the language declares it.
-#[derive(Debug, Clone)]
-pub struct ReadModel {
-    /// ReadModelName
-    pub name: String,
-    /// ProjectionPurpose
-    pub description: Option<String>,
-    /// ReadModelText
-    pub reference_name: String,
-    /// ReadModelText
-    pub reference_target: String,
-    /// list_of(Head)
-    pub aggregate_heads: Vec<AggregateHead>,
 }
 
 /// `Bluebook::ProcessManager`, as the language declares it.

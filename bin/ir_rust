@@ -223,11 +223,46 @@ def limit(held)
   held.nil? ? "None" : "Some(LimitSpec { value: #{rs(held['value'])} })"
 end
 
+# THE EIGHT SPECIFICATION OPTIONS, shared verbatim between `query` and
+# `read_model` — the wire either carries a key or omits it entirely (Ruby's
+# `extra_options_to_h` drops nil/`[]`/native-default keys rather than nulling
+# them), and `held['offset']` reads `nil` either way, so "absent" and
+# "explicitly null" need no separate case here.
+def offset(held) = held.nil? ? "None" : "Some(OffsetSpec { value: #{rs(held['value'])} })"
+def cursor(held) = held.nil? ? "None" : "Some(CursorSpec { value: #{rs(held['value'])} })"
+def consistency(held)
+  return "None" if held.nil?
+
+  "Some(ConsistencySpec { mode: #{rs(held['mode'])}, timeout: #{opt(held['timeout'])} })"
+end
+def freshness(held)
+  return "None" if held.nil?
+
+  "Some(FreshnessSpec { mode: #{rs(held['mode'])}, max_age: #{opt(held['max_age'])} })"
+end
+def authorization(held)
+  return "None" if held.nil?
+
+  "Some(AuthorizationSpec { policy: #{rs(held['policy'])}, tenant: #{opt(held['tenant'])} })"
+end
+def null_semantics(held) = held.nil? ? "None" : "Some(NullSemanticsSpec { mode: #{rs(held['mode'])} })"
+def inspection(held) = held.nil? ? "None" : "Some(InspectionSpec { mode: #{rs(held['mode'])} })"
+def index_hints(held) = vec((held || []).map { |h| "IndexHint { name: #{rs(h['name'])} }" })
+
+def option_fields(held)
+  "offset: #{offset(held['offset'])}, cursor: #{cursor(held['cursor'])}, " \
+    "consistency: #{consistency(held['consistency'])}, freshness: #{freshness(held['freshness'])}, " \
+    "authorization: #{authorization(held['authorization'])}, " \
+    "null_semantics: #{null_semantics(held['null_semantics'])}, " \
+    "inspection: #{inspection(held['inspection'])}, index_hints: #{index_hints(held['index_hints'])}"
+end
+
 def query(held)
   "Query { name: #{rs(held['name'])}, description: #{opt(held['description'])}, " \
     "attributes: #{vec((held['attributes'] || []).map { |a| attribute(a) })}, " \
     "wheres: #{vec((held['wheres'] || []).map { |w| where_clause(w) })}, " \
-    "order_by: #{order_by(held['order_by'])}, limit: #{limit(held['limit'])} }"
+    "order_by: #{order_by(held['order_by'])}, limit: #{limit(held['limit'])}, " \
+    "#{option_fields(held)} }"
 end
 
 def transition(held)
@@ -283,7 +318,8 @@ end
 def read_model(held)
   "ReadModel { name: #{rs(held['name'])}, description: #{opt(held['description'])}, " \
     "reference_name: #{rs(held['reference_name'])}, reference_target: #{rs(held['reference_target'])}, " \
-    "aggregate_heads: #{vec((held['aggregate_heads'] || []).map { |h| aggregate_head(h) })} }"
+    "aggregate_heads: #{vec((held['aggregate_heads'] || []).map { |h| aggregate_head(h) })}, " \
+    "#{option_fields(held)} }"
 end
 
 # A BINDING'S VALUE, as `ValueSpec`. The wire carries the same text Rust's
