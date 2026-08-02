@@ -896,12 +896,14 @@ module Hecksagain
             expression = "hecks_tr_rename(#{expression}, #{text_literal(old_name)}, #{text_literal(new_name)})"
           end
           declared.moves.each do |move|
-            expression = "hecks_tr_move(#{expression}, #{path_literal(move.from)}, #{path_literal(move.to)})"
+            expression = "hecks_tr_move(#{expression}, #{path_literal(move.from)}, #{path_literal(move.to)}, " \
+                         "#{text_literal("move #{move.from} to: #{move.to}")})"
           end
           declared.converts.each do |convert|
             pairs = JSON.generate(convert.values.map { |key, value| [key, value] })
             expression = "hecks_tr_convert(#{expression}, #{path_literal(convert.from)}, #{path_literal(convert.to)}, " \
-                         "#{text_literal(pairs)}::jsonb, #{text_literal(convert.from)})"
+                         "#{text_literal(pairs)}::jsonb, #{text_literal(convert.from)}, " \
+                         "#{text_literal("convert #{convert.from} to: #{convert.to}")})"
           end
           declared.drops.each do |name|
             expression = "hecks_tr_drop(#{expression}, #{path_literal(name)})"
@@ -920,7 +922,8 @@ module Hecksagain
           from = compute.from.to_s
           to = compute.to.to_s
           "(SELECT CASE WHEN __s ? #{text_literal(from)} THEN " \
-            "hecks_tr_insert(__s - #{text_literal(from)}, #{path_literal(to)}, to_jsonb((#{compute.sql}))) " \
+            "hecks_tr_insert(__s - #{text_literal(from)}, #{path_literal(to)}, to_jsonb((#{compute.sql})), " \
+            "#{text_literal("compute #{from} to: #{to}")}) " \
             "ELSE __s END " \
             "FROM (SELECT (#{expression}) AS __s) __outer, " \
             "LATERAL (SELECT (__s ->> #{text_literal(from)}) AS #{quote(from)}) __fields)"
@@ -968,14 +971,27 @@ module Hecksagain
               END IF;
             END $fn$
           SQL
+          # ADVERSARIAL FINDING: a destination whose top segment already
+          # holds a value — most commonly a reference, a bare scalar id
+          # — used to be silently overwritten with an empty object the
+          # moment a dotted destination needed to nest under it. That is
+          # a drop that never declared itself, the one thing this
+          # language exists to make explicit (see hecks_tr_convert's own
+          # refusal below, the same shape) — refused here instead, with
+          # the Ruby reference transform (ports/persistence/lineage.rb's
+          # `insert`) raising the identical wording.
           @db.exec(<<~SQL)
-            CREATE OR REPLACE FUNCTION hecks_tr_insert(state jsonb, path text[], value jsonb) RETURNS jsonb
+            CREATE OR REPLACE FUNCTION hecks_tr_insert(state jsonb, path text[], value jsonb, rule_label text) RETURNS jsonb
             LANGUAGE plpgsql IMMUTABLE AS $fn$
             BEGIN
               IF array_length(path, 1) = 1 THEN
                 RETURN state || jsonb_build_object(path[1], value);
               END IF;
-              IF state -> path[1] IS NULL OR jsonb_typeof(state -> path[1]) <> 'object' THEN
+              IF state ? path[1] AND jsonb_typeof(state -> path[1]) <> 'object' THEN
+                RAISE EXCEPTION 'cannot %: % already holds %, not a value this can nest under — moving into it would discard that value silently. Rename or drop % first.',
+                  rule_label, path[1], state -> path[1], path[1];
+              END IF;
+              IF state -> path[1] IS NULL THEN
                 state := state || jsonb_build_object(path[1], '{}'::jsonb);
               END IF;
               RETURN jsonb_set(state, path, value);
@@ -990,17 +1006,17 @@ module Hecksagain
             $fn$
           SQL
           @db.exec(<<~SQL)
-            CREATE OR REPLACE FUNCTION hecks_tr_move(state jsonb, from_path text[], to_path text[]) RETURNS jsonb
+            CREATE OR REPLACE FUNCTION hecks_tr_move(state jsonb, from_path text[], to_path text[], rule_label text) RETURNS jsonb
             LANGUAGE plpgsql IMMUTABLE AS $fn$
             DECLARE extracted record;
             BEGIN
               SELECT * INTO extracted FROM hecks_tr_extract(state, from_path);
               IF NOT extracted.present THEN RETURN state; END IF;
-              RETURN hecks_tr_insert(extracted.remaining, to_path, extracted.value);
+              RETURN hecks_tr_insert(extracted.remaining, to_path, extracted.value, rule_label);
             END $fn$
           SQL
           @db.exec(<<~SQL)
-            CREATE OR REPLACE FUNCTION hecks_tr_convert(state jsonb, from_path text[], to_path text[], pairs jsonb, from_label text) RETURNS jsonb
+            CREATE OR REPLACE FUNCTION hecks_tr_convert(state jsonb, from_path text[], to_path text[], pairs jsonb, from_label text, rule_label text) RETURNS jsonb
             LANGUAGE plpgsql IMMUTABLE AS $fn$
             DECLARE extracted record; pair jsonb;
             BEGIN
@@ -1008,7 +1024,7 @@ module Hecksagain
               IF NOT extracted.present THEN RETURN state; END IF;
               FOR pair IN SELECT * FROM jsonb_array_elements(pairs) LOOP
                 IF pair -> 0 = extracted.value THEN
-                  RETURN hecks_tr_insert(extracted.remaining, to_path, pair -> 1);
+                  RETURN hecks_tr_insert(extracted.remaining, to_path, pair -> 1, rule_label);
                 END IF;
               END LOOP;
               RAISE EXCEPTION 'cannot translate %: % has no mapping in its convert''s values: table. Add % => ... to cover it.',

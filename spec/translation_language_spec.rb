@@ -129,6 +129,54 @@ RSpec.describe "the translation language" do
     end
   end
 
+  # ADVERSARIAL, not incidental: found by deliberately constructing a
+  # destination that collides with an existing value, not by any
+  # example in the corpus. `state[top] ||= {}` only guards nil/false, so
+  # a destination whose top segment ALREADY held a value — most
+  # commonly a reference, stored as a bare scalar id — sailed straight
+  # through to `state[top][member] =`, i.e. `"team-1"["detail"] =` on a
+  # plain Ruby String, raising an unrelated-looking IndexError instead
+  # of the clean, named refusal every other "this would lose data
+  # silently" case in this language gets (see convert's own refusal,
+  # the identical shape). Both runtimes now raise the same wording —
+  # this spec pins the Ruby half; spec/adapters/postgres_lineage_spec.rb
+  # pins the SQL half through a real mint.
+  describe "a move/convert whose destination collides with an existing non-object value" do
+    it "refuses by name instead of crashing with an unrelated error" do
+      translation = build_translation do
+        aggregate("Account") { move "amount.cents", to: "team_ref.detail" }
+      end
+      declared = translation.for_aggregate("Account")
+      lineage = Hecksagain::Ports::Persistence::Lineage.new(
+        declared.renames, declared.moves, declared.converts, declared.drops
+      )
+      entry = Hecksagain::Ports::Persistence::Entry.new(
+        operation: "save", id: "a1", state: { amount: { "cents" => 500 }, team_ref: "team-1" }
+      )
+
+      expect { lineage.translate(entry) }.to raise_error(
+        Hecksagain::Runtime::WiringError,
+        "cannot move amount.cents to: team_ref.detail: team_ref already holds \"team-1\", not a value " \
+        "this can nest under — moving into it would discard that value silently. Rename or drop team_ref first."
+      )
+    end
+
+    it "a destination nesting under an EXISTING OBJECT sibling is unaffected — only a non-object collides" do
+      translation = build_translation do
+        aggregate("Account") { move "amount.cents", to: "kind.stashed" }
+      end
+      declared = translation.for_aggregate("Account")
+      lineage = Hecksagain::Ports::Persistence::Lineage.new(
+        declared.renames, declared.moves, declared.converts, declared.drops
+      )
+      entry = Hecksagain::Ports::Persistence::Entry.new(
+        operation: "save", id: "a1", state: { amount: { "cents" => 500 }, kind: { "value" => "biz" } }
+      )
+
+      expect(lineage.translate(entry).state).to eq(kind: { "value" => "biz", "stashed" => 500 })
+    end
+  end
+
   describe "EraGuard with the new rule kinds" do
     def eval_bluebook(registry, source, path)
       loading = Hecksagain::Ports::Loading.bootstrap
