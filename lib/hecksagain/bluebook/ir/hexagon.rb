@@ -17,11 +17,12 @@ module Hecksagain
       end
 
       class Hecksagon
-        attr_reader :domain, :binds
+        attr_reader :domain, :binds, :subscriptions
 
-        def initialize(domain:, binds: [])
-          @domain = domain.to_s
-          @binds  = binds
+        def initialize(domain:, binds: [], subscriptions: [])
+          @domain        = domain.to_s
+          @binds         = binds
+          @subscriptions = subscriptions
         end
 
         def bind_for(aggregate_name, verb)
@@ -36,7 +37,7 @@ module Hecksagain
           end
         end
 
-        def to_h = { domain: @domain, binds: @binds.map(&:to_h) }
+        def to_h = { domain: @domain, binds: @binds.map(&:to_h), subscriptions: @subscriptions.map(&:to_s) }
       end
 
       class World

@@ -88,6 +88,19 @@ RSpec.describe "the DSL surface" do
       expect([bind.aggregate, bind.verb, bind.adapter]).to eq(["Hexed::Thing", "posted_by", "Carrier"])
     end
 
+    it ".hecksagon registers subscriptions, taken from outside the domain's own bluebook" do
+      registry = in_registry do
+        Hecks.hecksagon("Hexed") do
+          Hexed::Thing.posted_by("Carrier")
+          subscribe "OutsideEventHappened"
+          subscribe "AnotherOutsideEvent"
+        end
+      end
+
+      expect(registry.hecksagon("Hexed").subscriptions)
+        .to eq(["OutsideEventHappened", "AnotherOutsideEvent"])
+    end
+
     it ".data_translation registers a rename, a move, a convert, and a drop between two eras" do
       registry = in_registry do
         Hecks.data_translation("Translated", from: "1", to: "2") do

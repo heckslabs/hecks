@@ -49,7 +49,7 @@ RSpec.describe "the IR the builder produces, frozen" do
   # loading it would recurse, so they come from the bootstrap registry. They are
   # in the corpus because the refactor changes how every chapter is built, and
   # the language is the chapter it would be worst to break quietly.
-  LANGUAGES = %w[Bluebook World].freeze
+  LANGUAGES = %w[Bluebook World Hecksagon].freeze
 
   def load_chapter(file)
     registry = Hecksagain::Runtime::Registry.new

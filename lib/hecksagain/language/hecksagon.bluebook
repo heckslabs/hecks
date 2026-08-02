@@ -1,0 +1,84 @@
+Hecks.bluebook "Hecksagon" do
+  vision "The .hecksagon language, declared in itself. A hecksagon is a SIBLING of a bluebook, not part of one — it binds a domain's aggregates to the ports/adapters that carry them, and those bindings belong to the deployment's wiring rather than to the domain's own rules. So it is described in its own file, as its own thing, the same reasoning world.bluebook already carries for .world."
+  core
+
+  aggregate "Hecksagon" do
+    description "One .hecksagon — the events a domain subscribes to, and the root every binding hangs off. A sibling artifact to the bluebook, not part of it."
+
+    identified_by { domain.value }
+
+    attribute :domain,        HecksagonName
+    attribute :subscriptions, list_of(Subscription)
+
+    value_object "HecksagonName" do
+      attribute :value, String
+      invariant("a hecksagon names its domain") { !value.to_s.empty? }
+    end
+
+    value_object "Subscription" do
+      attribute :value, String
+      invariant("a subscription names an event") { !value.to_s.empty? }
+    end
+
+    command "Declare" do
+      role "Deployment"
+      goal "Open a hecksagon for a domain"
+
+      attribute :domain, HecksagonName
+
+      emits "HecksagonDeclared"
+    end
+
+    command "Subscribe" do
+      role "Deployment"
+      goal "Take a hecksagon's own event, from outside the domain's own bluebook"
+
+      reference_to Hecksagon
+      attribute :event, Subscription
+
+      then_set :subscriptions, append: { value: :event }
+
+      emits "SubscriptionAdded"
+    end
+  end
+
+  aggregate "AdapterBinding" do
+    description "One aggregate-to-adapter binding inside a hecksagon — the verb it answers, the adapter it names. Its own root because a hecksagon's binds are an open set of verbs (one per declared port), which no value object can hold — the same reasoning Wiring carries for a world's settings."
+
+    reference_to Hecksagon
+
+    # THE HECKSAGON IT IS IN, THE AGGREGATE IT NAMES, THE VERB IT ANSWERS.
+    # One hecksagon binds one adapter per (aggregate, verb) pair — that is
+    # what a binding IS — so the triple identifies it.
+    identified_by do
+      hecksagon_id
+      aggregate.value
+      verb.value
+    end
+
+    attribute :hecksagon, BindingText
+    attribute :aggregate, BindingText
+    attribute :verb,      BindingText
+    attribute :adapter,   BindingText
+    attribute :role,      BindingText, optional: true
+
+    value_object "BindingText" do
+      attribute :value, String
+    end
+
+    command "Bind" do
+      role "Deployment"
+      goal "Name the adapter one aggregate answers one verb through"
+
+      reference_to Hecksagon
+      attribute :aggregate, BindingText
+      attribute :verb,      BindingText
+      attribute :adapter,   BindingText
+      attribute :role,      BindingText, optional: true
+
+      given("a binding names its verb") { !verb.value.to_s.empty? }
+
+      emits "Bound"
+    end
+  end
+end

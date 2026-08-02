@@ -1,0 +1,348 @@
+{
+  "aggregates": [
+    {
+      "attributes": [
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "domain",
+          "optional": false,
+          "pattern": null,
+          "type": "HecksagonName"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": true,
+          "name": "subscriptions",
+          "optional": false,
+          "pattern": null,
+          "type": "Subscription"
+        }
+      ],
+      "commands": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "domain",
+              "optional": false,
+              "pattern": null,
+              "type": "HecksagonName"
+            }
+          ],
+          "emits": [
+            "HecksagonDeclared"
+          ],
+          "ensures": [
+
+          ],
+          "givens": [
+
+          ],
+          "goal": "Open a hecksagon for a domain",
+          "mutations": [
+
+          ],
+          "name": "Declare",
+          "references": null,
+          "role": "Deployment"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "event",
+              "optional": false,
+              "pattern": null,
+              "type": "Subscription"
+            }
+          ],
+          "emits": [
+            "SubscriptionAdded"
+          ],
+          "ensures": [
+
+          ],
+          "givens": [
+
+          ],
+          "goal": "Take a hecksagon's own event, from outside the domain's own bluebook",
+          "mutations": [
+            {
+              "fields": {
+                "value": "event"
+              },
+              "op": "append",
+              "target": "subscriptions"
+            }
+          ],
+          "name": "Subscribe",
+          "references": "Hecksagon",
+          "role": "Deployment"
+        }
+      ],
+      "description": "One .hecksagon — the events a domain subscribes to, and the root every binding hangs off. A sibling artifact to the bluebook, not part of it.",
+      "entities": [
+
+      ],
+      "identified_by": [
+        "domain.value"
+      ],
+      "lifecycle": null,
+      "name": "Hecksagon",
+      "queries": [
+
+      ],
+      "value_objects": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "a hecksagon names its domain"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "HecksagonName"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "a subscription names an event"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "Subscription"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "hecksagon_id",
+          "optional": false,
+          "pattern": null,
+          "type": "Reference<Hecksagon>"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "hecksagon",
+          "optional": false,
+          "pattern": null,
+          "type": "BindingText"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "aggregate",
+          "optional": false,
+          "pattern": null,
+          "type": "BindingText"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "verb",
+          "optional": false,
+          "pattern": null,
+          "type": "BindingText"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "adapter",
+          "optional": false,
+          "pattern": null,
+          "type": "BindingText"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "role",
+          "optional": true,
+          "pattern": null,
+          "type": "BindingText"
+        }
+      ],
+      "commands": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "hecksagon_id",
+              "optional": false,
+              "pattern": null,
+              "type": "Reference<Hecksagon>"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "aggregate",
+              "optional": false,
+              "pattern": null,
+              "type": "BindingText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "verb",
+              "optional": false,
+              "pattern": null,
+              "type": "BindingText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "adapter",
+              "optional": false,
+              "pattern": null,
+              "type": "BindingText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "role",
+              "optional": true,
+              "pattern": null,
+              "type": "BindingText"
+            }
+          ],
+          "emits": [
+            "Bound"
+          ],
+          "ensures": [
+
+          ],
+          "givens": [
+            {
+              "canonical": "!verb.value.to_s.empty?",
+              "description": "a binding names its verb"
+            }
+          ],
+          "goal": "Name the adapter one aggregate answers one verb through",
+          "mutations": [
+
+          ],
+          "name": "Bind",
+          "references": null,
+          "role": "Deployment"
+        }
+      ],
+      "description": "One aggregate-to-adapter binding inside a hecksagon — the verb it answers, the adapter it names. Its own root because a hecksagon's binds are an open set of verbs (one per declared port), which no value object can hold — the same reasoning Wiring carries for a world's settings.",
+      "entities": [
+
+      ],
+      "identified_by": [
+        "hecksagon_id",
+        "aggregate.value",
+        "verb.value"
+      ],
+      "lifecycle": null,
+      "name": "AdapterBinding",
+      "queries": [
+
+      ],
+      "value_objects": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "BindingText"
+        }
+      ]
+    }
+  ],
+  "canonical_form": [
+    {
+      "boundary": "none",
+      "position": "1",
+      "replacement": "",
+      "source_token": "",
+      "strategy": "collapse_whitespace"
+    },
+    {
+      "boundary": "word",
+      "position": "2",
+      "replacement": ".size",
+      "source_token": ".length",
+      "strategy": "replace"
+    }
+  ],
+  "classification": "core",
+  "name": "Hecksagon",
+  "policies": [
+
+  ],
+  "process_managers": [
+
+  ],
+  "read_models": [
+
+  ],
+  "version": null,
+  "vision": "The .hecksagon language, declared in itself. A hecksagon is a SIBLING of a bluebook, not part of one — it binds a domain's aggregates to the ports/adapters that carry them, and those bindings belong to the deployment's wiring rather than to the domain's own rules. So it is described in its own file, as its own thing, the same reasoning world.bluebook already carries for .world."
+}

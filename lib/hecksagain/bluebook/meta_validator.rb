@@ -40,13 +40,21 @@ module Hecksagain
                         .map { |name| File.join(GRAMMAR_DIR, "#{name}.bluebook") }.freeze
       # a world is a SIBLING artifact, described in its own file
       WORLD_GRAMMAR = File.expand_path("../language/world.bluebook", __dir__).freeze
+      # so is a hecksagon — the same reasoning, one file over
+      HECKSAGON_GRAMMAR = File.expand_path("../language/hecksagon.bluebook", __dir__).freeze
 
       # The chapters that ARE the language — loaded raw during bootstrap, then
       # judged through themselves and replaced by their own assembled graphs
       # (see grammar_registry). Each is named after its file : Bluebook describes
       # bluebooks (language/bluebook/) ; World describes worlds (world.bluebook),
-      # and backs the WorldJudge door.
-      LANGUAGE_CHAPTERS = %w[Bluebook World].freeze
+      # and backs the WorldJudge door ; Hecksagon describes hecksagons
+      # (hecksagon.bluebook) — declared for the same self-description reasons as
+      # World, but WITHOUT a judge door of its own : nothing dispatches a real
+      # .hecksagon file through it yet, so HecksagonBuilder's own behavior is
+      # unchanged. What this buys is what syntax.bluebook needed — a real shape
+      # `subscribe`'s `fills: "subscriptions"` can point at — not new validation
+      # on top of the corpus's existing .hecksagon files.
+      LANGUAGE_CHAPTERS = %w[Bluebook World Hecksagon].freeze
 
       # The meta-domain is itself a bluebook. Judging it while loading it would
       # recurse, so the load path marks the bootstrap and skips — but the skip
@@ -183,6 +191,7 @@ module Hecksagain
           Kernel.load(File.expand_path("../adapters/driven/prism.adapter", __dir__))
           GRAMMAR_FILES.each { |file| Kernel.load(file) }
           Kernel.load(WORLD_GRAMMAR)
+          Kernel.load(HECKSAGON_GRAMMAR)
         end
         registry
       ensure

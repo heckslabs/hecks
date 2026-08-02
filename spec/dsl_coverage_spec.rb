@@ -47,7 +47,7 @@ RSpec.describe "the DSL surface is fully covered" do
     ],
     "HecksagonBuilder" => [
       Hecksagain::Bluebook::DSL::HecksagonBuilder,
-      %i[binds]
+      %i[binds subscribe subscriptions]
     ],
     "TranslationBuilder" => [
       Hecksagain::Bluebook::DSL::TranslationBuilder,

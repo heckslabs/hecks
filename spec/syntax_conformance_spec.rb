@@ -84,7 +84,9 @@ RSpec.describe "the declared syntax" do
     "ProcessManager" => D::ProcessManagerBuilder,
     "Handler"        => D::ProcessManagerBuilder::HandlerBuilder,
     "ReadModel"      => D::ReadModelBuilder,
-    "Type"           => D::AttributeCollector
+    "Type"           => D::AttributeCollector,
+    "Hecksagon"      => D::HecksagonBuilder,
+    "World"          => D::WorldBuilder
   }.freeze
 
   # PUBLIC AND NOT A WORD — each with its reason, because an unexplained
@@ -98,10 +100,16 @@ RSpec.describe "the declared syntax" do
   #   boot / with_registry / current_registry
   #     the loading and runtime facade on `Hecks`, not declarations at all.
   #
-  #   port / adapter / hecksagon / world / data_translation
+  #   port / adapter / data_translation
   #     SIBLING ARTIFACTS, and the stated scope exclusion — each has its own file
   #     extension, its own builder and its own load step. A parser projected from
   #     this table reads `.bluebook`.
+  #
+  #   hecksagon / world (as File-level ENTRY POINTS, not as artifacts)
+  #     no longer excluded — see the `hecksagon`/`world` rows syntax.bluebook now
+  #     declares, and the Hecksagon/World builder mappings above. What stays
+  #     excluded is each body's OPEN verb vocabulary (method_missing/ConstShim),
+  #     named per-context below rather than by blanket File-level exclusion.
   NOT_A_WORD = {
     "Bluebook" => {
       classification: "an attr_reader BluebookBuilder.build reads when merging one chapter across files"
@@ -112,9 +120,20 @@ RSpec.describe "the declared syntax" do
       current_registry: "the runtime facade, not a declaration",
       port:             "a sibling artifact — .port has its own builder and its own file",
       adapter:          "a sibling artifact — .adapter has its own builder and its own file",
-      hecksagon:        "a sibling artifact — .hecksagon has its own builder and its own file",
-      world:            "a sibling artifact — .world has its own builder and its own file",
       data_translation: "a sibling artifact — translations/ has its own builder and its own file"
+    },
+    "Hecksagon" => {
+      binds:         "the builder's own collected Bind records, read by whoever owns them",
+      subscriptions: "the builder's own collected subscription strings, read by whoever owns them"
+    },
+    "World" => {
+      # THE OPEN VERB-SETTINGS CATCH-ALL. `posted_by("Carrier") { office
+      # "EC1" }` reaches WorldBuilder#method_missing — the verb is
+      # whichever port a domain declares, not a closed set this table
+      # could enumerate. Same boundary as .hecksagon's Const.verb(...)
+      # form, named in syntax.bluebook's own comment on the `world` row.
+      method_missing: "the open port-verb settings catch-all — .world's adapter-binding " \
+                      "vocabulary is per-application, not a fixed set the language can enumerate"
     },
     "*" => {
       build:              "the builder's closing act, called by self.build",
@@ -371,7 +390,10 @@ RSpec.describe "the declared syntax" do
   # it — so its words are checked against both. `Type` is a position, not a
   # record, so nothing it declares may claim to fill anything.
   CATEGORY_OF = {
-    "File"           => %w[Bluebook],
+    # `hecksagon`/`world` are File-context words too, and fill fields on
+    # THEIR OWN chapters' aggregates, not Bluebook's — broadened the same
+    # way Lifecycle already checks against two categories, not one.
+    "File"           => %w[Bluebook Hecksagon World],
     "Bluebook"       => %w[Bluebook],
     "Aggregate"      => %w[Aggregate],
     "Entity"         => %w[Entity],
@@ -384,11 +406,24 @@ RSpec.describe "the declared syntax" do
     "ProcessManager" => %w[ProcessManager],
     "Handler"        => %w[Dispatch],
     "ReadModel"      => %w[ReadModel],
-    "Type"           => []
+    "Type"           => [],
+    "Hecksagon"      => %w[Hecksagon],
+    "World"          => %w[World]
   }.freeze
 
+  # Hecksagon and World are SIBLING chapters, not aggregates inside
+  # Bluebook — so the fields a File/Hecksagon/World-context word may fill
+  # come from three separate chapters' registries, merged. A duplicate
+  # aggregate name across chapters is not a case this project has (each
+  # chapter's own aggregate names are already distinct), so a plain merge
+  # is exact, not an approximation.
+  def self.all_meta_aggregates
+    registry = Hecksagain::Bluebook::MetaValidator.grammar_registry
+    %w[Bluebook Hecksagon World].flat_map { |chapter| registry.bluebook(chapter).aggregates }
+  end
+
   it "fills only fields the language declares" do
-    fields = meta.aggregates.to_h { |a| [a.hecks_name, a.attributes.map { |at| at.name.to_s }] }
+    fields = self.class.all_meta_aggregates.to_h { |a| [a.hecks_name, a.attributes.map { |at| at.name.to_s }] }
 
     KEYWORDS.reject { |row| row[:fills].empty? }.each do |row|
       landing = CATEGORY_OF.fetch(row[:context])
@@ -402,7 +437,7 @@ RSpec.describe "the declared syntax" do
   end
 
   it "opens only categories the language declares" do
-    declared = meta.aggregates.map(&:hecks_name)
+    declared = self.class.all_meta_aggregates.map(&:hecks_name)
     opened   = KEYWORDS.map { |row| row[:opens] }.reject(&:empty?).uniq
 
     expect(opened - declared).to be_empty

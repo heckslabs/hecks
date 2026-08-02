@@ -78,6 +78,8 @@ Hecks.bluebook "Bluebook" do
         member name: "Handler"
         member name: "ReadModel"
         member name: "Type"
+        member name: "Hecksagon"
+        member name: "World"
       end
     end
 
@@ -197,6 +199,19 @@ Hecks.bluebook "Bluebook" do
         # `Hecks` receiver rather than an enclosing builder, which is the only
         # thing that makes File different from the contexts below it.
         member word: "bluebook",        context: "File",     body: "keywords", inner: "Bluebook",       opens: "Bluebook",       fills: ""
+
+        # `.hecksagon` and `.world` are SIBLING artifacts, and only their
+        # ENTRY POINTS and their few genuinely FIXED words are here — see
+        # hecksagon.bluebook/world.bluebook's own AdapterBinding/Wiring
+        # aggregates for why the rest of each body cannot be. `Aggregate.
+        # persisted_by("MemoryAdapter")` and `posted_by("Carrier") { office
+        # "EC1" }` are OPEN vocabulary: the verb is whichever port a domain
+        # happens to declare (`Hecks.port("post") { verb "posted_by" }`),
+        # not a closed set this table could enumerate without inventing a
+        # ceiling on how many ports a domain may ever declare. That is a
+        # real grammar boundary, named rather than half-covered.
+        member word: "hecksagon",       context: "File",     body: "keywords", inner: "Hecksagon",      opens: "Hecksagon",      fills: ""
+        member word: "world",           context: "File",     body: "keywords", inner: "World",          opens: "World",          fills: ""
 
         member word: "vision",          context: "Bluebook", body: "none",     inner: "",               opens: "",               fills: "vision"
         # THREE WORDS FOR ONE FIELD. `core`, `supporting` and `generic` are the
@@ -337,6 +352,16 @@ Hecks.bluebook "Bluebook" do
         member word: "list_of",         context: "Type", body: "none", inner: "", opens: "", fills: ""
         member word: "one_of",          context: "Type", body: "none", inner: "", opens: "", fills: ""
         member word: "ensures", context: "Command", body: "source", inner: "", opens: "", fills: "ensures"
+
+        # THE ONE FIXED WORD .hecksagon'S BODY HAS. Everything else in a
+        # hecksagon is the open Const.verb("Adapter") form named above.
+        member word: "subscribe",       context: "Hecksagon", body: "none", inner: "", opens: "", fills: "subscriptions"
+
+        # THE TWO FIXED WORDS .world'S BODY HAS, beyond the same open
+        # verb-settings form (`posted_by("Carrier") { office "EC1" }`) named
+        # above.
+        member word: "realm",           context: "World",     body: "none", inner: "", opens: "", fills: "realm"
+        member word: "latest",          context: "World",     body: "none", inner: "", opens: "", fills: "latest"
       end
     end
 
@@ -545,6 +570,12 @@ Hecks.bluebook "Bluebook" do
 
         member keyword: "list_of",         context: "Type", at: "1", named: "", kind: "constant", required: "true", fills: ""
         member keyword: "one_of",          context: "Type", at: "1", named: "", kind: "literal",  required: "true", fills: ""
+
+        member keyword: "hecksagon",       context: "File", at: "1", named: "", kind: "text", required: "true", fills: "domain"
+        member keyword: "world",           context: "File", at: "1", named: "", kind: "text", required: "true", fills: "domain"
+        member keyword: "subscribe",       context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "subscriptions"
+        member keyword: "realm",           context: "World", at: "1", named: "", kind: "text", required: "true", fills: "realm"
+        member keyword: "latest",          context: "World", at: "1", named: "", kind: "text", required: "true", fills: "latest"
       end
     end
   end
