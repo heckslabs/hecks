@@ -8,3 +8,5 @@ end
 require_relative "fuzzing/value_generator"
 require_relative "fuzzing/invalid_value_generator"
 require_relative "fuzzing/sequence_generator"
+require_relative "fuzzing/replay"
+require_relative "fuzzing/properties"

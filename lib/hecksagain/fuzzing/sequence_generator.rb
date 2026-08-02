@@ -56,6 +56,16 @@ module Hecksagain
         new(domain_path, seed: seed, steps: steps).call
       end
 
+      # How many EVENTS the generated sequence actually produced — not
+      # steps, not successful dispatches, but the sum of every Result#events
+      # length across the run. This is the count bin/fuzz declares as the
+      # script's own `expectations.events` claim: whatever Ruby achieved
+      # DURING generation becomes the claim Rust is held to when bin/parity
+      # replays the same script fresh. Zero means the sequence never
+      # reached an interesting state — a fuzzer-effectiveness fact, not a
+      # cross-runtime one.
+      attr_reader :event_count
+
       def initialize(domain_path, seed:, steps:)
         @domain_path      = domain_path
         @seed             = seed
@@ -64,6 +74,7 @@ module Hecksagain
         @known_ids        = Hash.new { |h, k| h[k] = [] }
         @entity_known_ids = Hash.new { |h, k| h[k] = [] }
         @exercised        = Set.new
+        @event_count      = 0
       end
 
       def call

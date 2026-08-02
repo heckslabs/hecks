@@ -23,7 +23,10 @@ module Hecksagain
           add_identity!(args, entry)
 
           outcome = safe_call { runtime.dispatch(entry[:verb], **symbolize(args)) }
-          record_outcome(catalog, entry, args) if outcome
+          if outcome
+            record_outcome(catalog, entry, args)
+            @event_count += outcome.events.length
+          end
           { "verb" => entry[:verb], "args" => args }
         end
 
