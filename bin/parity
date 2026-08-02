@@ -5,15 +5,30 @@ BINARY="$ROOT/rust/target/release/hecksagain"
 
 (cd "$ROOT/rust" && cargo build --release --workspace --quiet) || exit 1
 
+# Postgres needs no more configuration than Heki or Sqlite do. Those two
+# write into the staged domain and nobody sets a variable for them; this
+# one gets a conventional local database, created and dropped by
+# pg_reset like any other parity scratch space.
+#
+# HECKS_PARITY_POSTGRES overrides the URL — a CI service container, a
+# non-default port. It is NOT how the variant is turned on. Requiring it
+# to be SET was the bug: an unset variable skipped every Postgres gate,
+# the era dance included, and the run still exited 0. A commit that
+# broke the era dance passed twice that way before a run with the
+# variable set caught it.
+HECKS_PARITY_POSTGRES=${HECKS_PARITY_POSTGRES:-postgres://localhost/hecks_parity}
+export HECKS_PARITY_POSTGRES
+PG_ADMIN="${HECKS_PARITY_POSTGRES%/*}/postgres"
+if psql -q "$PG_ADMIN" -c 'SELECT 1' >/dev/null 2>&1; then PG_AVAILABLE=1; else PG_AVAILABLE=; fi
+
 # Drop and recreate the parity database — the Postgres variant's
-# equivalent of `rm -rf data`. Configured-but-unreachable refuses loudly.
+# equivalent of `rm -rf data`. Reachable-then-failing refuses loudly.
 pg_reset() {
   dbname=${HECKS_PARITY_POSTGRES##*/}
-  admin="${HECKS_PARITY_POSTGRES%/*}/postgres"
-  psql -q "$admin" -v ON_ERROR_STOP=1 \
+  psql -q "$PG_ADMIN" -v ON_ERROR_STOP=1 \
     -c "DROP DATABASE IF EXISTS $dbname WITH (FORCE)" \
     -c "CREATE DATABASE $dbname" >/dev/null 2>&1 || {
-      echo "   POSTGRES UNREACHABLE — HECKS_PARITY_POSTGRES=$HECKS_PARITY_POSTGRES is set but $admin did not answer."
+      echo "   POSTGRES UNREACHABLE — $PG_ADMIN answered the probe but not this reset."
       return 1
     }
 }
@@ -187,18 +202,19 @@ run_variants() {
     banking|market) run_domain "$source" "$script" Sqlite || return 1 ;;
   esac
   # The Postgres variant runs wherever a domain declares explicit wiring
-  # (a hecksagon to rebind) and a database was provided. Absent the URL,
-  # the walk skips it with the notice printed at the top; configured but
-  # unreachable, pg_reset refuses loudly instead.
-  if [ -n "$HECKS_PARITY_POSTGRES" ] && ls "$source"/bluebook/*.hecksagon >/dev/null 2>&1; then
+  # (a hecksagon to rebind) and a Postgres answered. The only reason to
+  # skip is that there is no server here — an environmental fact, not a
+  # configuration one.
+  if [ -n "$PG_AVAILABLE" ] && ls "$source"/bluebook/*.hecksagon >/dev/null 2>&1; then
     run_domain "$source" "$script" Postgres || return 1
   fi
 }
 
-if [ -z "$HECKS_PARITY_POSTGRES" ]; then
-  echo "NOTICE: HECKS_PARITY_POSTGRES is not set — the Postgres parity variant is skipped."
-  echo "        Provide a connection URL (e.g. HECKS_PARITY_POSTGRES=postgres://localhost/parity;"
-  echo "        a local install or 'docker run -p 5432:5432 postgres' both work)."
+if [ -z "$PG_AVAILABLE" ]; then
+  echo "NOTICE: no Postgres answered at $PG_ADMIN — the Postgres variant AND the era dance are skipped."
+  echo "        Everything below this line therefore says nothing about eras."
+  echo "        A local install or 'docker run -p 5432:5432 postgres' both work;"
+  echo "        HECKS_PARITY_POSTGRES overrides the URL."
 fi
 
 # The two-era lineage fixture: era bump → scaffold → audit → mint →
@@ -436,7 +452,7 @@ else
   "$ROOT/bin/fuzz_shapes" || failed=1
   echo
 
-  if [ -n "$HECKS_PARITY_POSTGRES" ]; then
+  if [ -n "$PG_AVAILABLE" ]; then
     run_lineage || failed=1
     echo
   fi
