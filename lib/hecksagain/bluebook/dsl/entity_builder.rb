@@ -12,17 +12,17 @@ module Hecksagain
 
         def description(value) = @description = value
 
-        # A PIECE is known by a field exactly as a head is. `identified_by
-        # :sequence` names the attribute and lets the whole value object stand
-        # as the id ; `identified_by { sequence.value }` names the SCALAR inside
-        # it, which is what an id actually is — a LedgerEntry is entry 3, not
-        # entry {"value":3}. The block is recovered through the same extraction
+        # A PIECE is known by a field, not by a whole value object.
+        # `identified_by { sequence.value }` names the SCALAR inside it, which
+        # is what an id actually is — a LedgerEntry is entry 3, not entry
+        # {"value":3}. The block is recovered through the same extraction
         # port an aggregate's is, so the two constructs cannot drift apart in
         # how they spell an identity — INCLUDING the several-path form, which a
         # piece may say for the same reason a head may.
-        def identified_by(field = nil, &path)
-          declared = path ? Ports::Extraction.canonical(path) : field
-          paths    = declared.to_s.split(" ").reject(&:empty?)
+        def identified_by(&path)
+          raise Malformed, "#{@name}.identified_by names no field" unless path
+
+          paths = Ports::Extraction.canonical(path).to_s.split(" ").reject(&:empty?)
           raise Malformed, "#{@name}.identified_by names no field" if paths.empty?
 
           @identity_paths = paths

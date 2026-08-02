@@ -306,7 +306,7 @@ mod tests {
             r#"
   aggregate "Book" do
     attribute :code, String
-    identified_by :code
+    identified_by { code }
     command "Add" do
       attribute :code, String
     end
@@ -324,7 +324,7 @@ mod tests {
             r#"
   aggregate "Invoice" do
     attribute :number, String
-    identified_by :number
+    identified_by { number }
     command "Issue" do
       attribute :number, String
     end
@@ -410,7 +410,7 @@ mod tests {
             r#"
   aggregate "Book" do
     attribute :code, String
-    identified_by :code
+    identified_by { code }
     command "Add" do
       attribute :code, String
     end
@@ -451,7 +451,7 @@ mod tests {
             r#"
   aggregate "Account" do
     attribute :code, String
-    identified_by :code
+    identified_by { code }
     command "LegacyOpen" do
       attribute :code, String
     end
@@ -467,7 +467,7 @@ mod tests {
             r#"
   aggregate "Account" do
     attribute :code, String
-    identified_by :code
+    identified_by { code }
     command "Open" do
       attribute :code, String
     end

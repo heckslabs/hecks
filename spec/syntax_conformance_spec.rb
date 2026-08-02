@@ -272,9 +272,8 @@ RSpec.describe "the declared syntax" do
 
   # THE DANGEROUS DIRECTION. A builder DEMANDING an argument the language calls
   # optional is a bluebook that parses everywhere and loads nowhere, so this is
-  # checked one way on purpose: an optional parameter may be declared required
-  # (that is what makes `identified_by :field` a form of its own), but a required
-  # one may never be declared optional.
+  # checked one way on purpose: an optional parameter may be declared required,
+  # but a required one may never be declared optional.
   it "never calls an argument optional that the builder demands" do
     ARGUMENTS.group_by { |row| [row[:keyword], row[:context]] }.each do |(word, context), args|
       params = method_for(word, context).parameters

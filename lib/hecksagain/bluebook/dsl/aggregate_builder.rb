@@ -45,9 +45,10 @@ module Hecksagain
         # `number` to exist — the same reason `balance >= amount` works in a given.
         # The canonical form collapses the block's newlines to single spaces, so
         # the paths arrive here already separated and in the order written.
-        def identified_by(field = nil, &path)
-          declared = path ? Ports::Extraction.canonical(path) : field
-          paths    = declared.to_s.split(" ").reject(&:empty?)
+        def identified_by(&path)
+          raise Malformed, "#{@name}.identified_by names no field" unless path
+
+          paths = Ports::Extraction.canonical(path).to_s.split(" ").reject(&:empty?)
           raise Malformed, "#{@name}.identified_by names no field" if paths.empty?
 
           @identity_paths = paths

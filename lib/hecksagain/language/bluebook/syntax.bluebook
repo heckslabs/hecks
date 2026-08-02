@@ -141,8 +141,11 @@ Hecks.bluebook "Bluebook" do
     #            only opens something)
     #
     # ONE ROW PER (WORD, CONTEXT, FORM), so a word admitting two forms has two
-    # rows — `identified_by` is the only one, and its second form is discussed
-    # where it appears. The same word in two contexts is two rows and often two
+    # rows. `identified_by` used to be the one case of this — a bare-symbol
+    # form the builder accepted and the language's own `Identify` given
+    # refused, "written by nobody" per zero corpus usage — deleted from both
+    # once found, rather than kept as a form the two halves of the project
+    # disagreed about. The same word in two contexts is two rows and often two
     # different `fills`, which is the whole reason `context` is part of the key :
     # `order_by` fills `order_field` on an ask and an option row on a read model.
     #
@@ -181,15 +184,6 @@ Hecks.bluebook "Bluebook" do
 
         member word: "description",     context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "description"
         member word: "identified_by",   context: "Aggregate", body: "source",   inner: "",              opens: "",               fills: "identified_by"
-        # THE SECOND FORM, ADMITTED BY THE BUILDER AND WRITTEN BY NOBODY.
-        # `identified_by :sequence` is accepted — `field.to_s.split(" ")` — and
-        # EntityBuilder's own comment advertises it as "names the attribute and
-        # lets the whole value object stand as the id". The language refuses it:
-        # `Identify`'s given asks that a part reach a SCALAR (`include?(".") ||
-        # include?("_id")`), and a bare `:sequence` reaches neither. So the form
-        # is here because the surface admits it, and it is the first thing this
-        # table found that two halves of the project disagree about.
-        member word: "identified_by",   context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "identified_by"
         member word: "reference_to",    context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "attributes"
         # `has_many`, `has_one`, `belongs_to` — relationship vocabulary Hecks
         # already grew and Rust's parser already read, ported into this Ruby
@@ -218,7 +212,6 @@ Hecks.bluebook "Bluebook" do
         # eleven.
         member word: "description",     context: "Entity", body: "none",     inner: "",           opens: "",         fills: "description"
         member word: "identified_by",   context: "Entity", body: "source",   inner: "",           opens: "",         fills: "identified_by"
-        member word: "identified_by",   context: "Entity", body: "none",     inner: "",           opens: "",         fills: "identified_by"
         member word: "command",         context: "Entity", body: "keywords", inner: "Command",    opens: "Command",  fills: ""
         member word: "query",           context: "Entity", body: "keywords", inner: "Query",      opens: "Query",    fills: ""
         member word: "lifecycle",       context: "Entity", body: "keywords", inner: "Lifecycle",  opens: "",         fills: "state_field"
@@ -366,7 +359,6 @@ Hecks.bluebook "Bluebook" do
         member keyword: "process_manager", context: "Bluebook", at: "1", named: "",        kind: "text",     required: "true",  fills: "name"
 
         member keyword: "description",     context: "Aggregate", at: "1", named: "",         kind: "text",     required: "true",  fills: "description"
-        member keyword: "identified_by",   context: "Aggregate", at: "1", named: "",         kind: "symbol",   required: "true",  fills: "identified_by"
         # THE TARGET IS A CONSTANT AND THE FIELD IT MAKES IS MINTED. `reference_to
         # Customer` attaches an attribute spelled `customer_id` — the language
         # mints the `_id` ending itself, which is why Identify's rule can read it
@@ -402,7 +394,6 @@ Hecks.bluebook "Bluebook" do
         member keyword: "attribute",       context: "Aggregate", at: "",  named: "admits",   kind: "text",     required: "false", fills: "admits"
 
         member keyword: "description",     context: "Entity", at: "1", named: "",         kind: "text",     required: "true",  fills: "description"
-        member keyword: "identified_by",   context: "Entity", at: "1", named: "",         kind: "symbol",   required: "true",  fills: "identified_by"
         member keyword: "command",         context: "Entity", at: "1", named: "",         kind: "text",     required: "true",  fills: "name"
         member keyword: "query",           context: "Entity", at: "1", named: "",         kind: "text",     required: "true",  fills: "name"
         member keyword: "lifecycle",       context: "Entity", at: "1", named: "",         kind: "symbol",   required: "true",  fills: "state_field"

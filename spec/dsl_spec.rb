@@ -183,8 +183,8 @@ RSpec.describe "the DSL surface" do
         .to raise_error(Malformed, /a description says something/)
     end
 
-    it "refuses an identity that names no field" do
-      expect { build_aggregate("Unkeyed") { identified_by "" } }
+    it "refuses an identity with no block at all" do
+      expect { build_aggregate("Unkeyed") { identified_by } }
         .to raise_error(Malformed, /names no field/)
     end
 

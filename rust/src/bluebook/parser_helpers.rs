@@ -147,16 +147,25 @@ pub fn extract_symbol(line: &str) -> Option<String> {
 
 /// THE PATHS A CONSTRUCT IS KNOWN BY, in declaration order, read in ONE place.
 ///
-/// Three spellings and ONE rule. Ruby never CALLS the block — it reads the
+/// Two spellings and ONE rule. Ruby never CALLS the block — it reads the
 /// source, collapses the whitespace and splits on spaces
 /// (`AggregateBuilder#identified_by`) — so the paths are simply the words the
 /// block holds:
 ///
-///   identified_by :sequence            a symbol names the attribute
 ///   identified_by { number.value }      one path, inline
 ///   identified_by do … end              several paths, one to a line
 ///
 /// A head and a piece spell this identically, so they must READ it identically.
+///
+/// A THIRD SPELLING — `identified_by :sequence`, a bare symbol naming the
+/// whole attribute rather than a scalar inside it — used to be read here too.
+/// Ruby's own builder accepted it and the language's `Identify` given refused
+/// it (a bare symbol reaches neither a `.` nor an `_id`), zero corpus usage on
+/// either side ; deleted from both once found, rather than left as a form the
+/// two halves of the project disagreed about. This function no longer
+/// recognizes it — an `identified_by` line that is neither `{...}` nor a
+/// `do...end` block falls through as an alien construct, the same honest
+/// silent-skip every other unrecognized line gets.
 ///
 /// THE BLOCK FORM WAS UNREADABLE HERE, and not by half — `do` opened a block the
 /// aggregate parser never consumed, so everything to the matching `end` was
@@ -182,7 +191,7 @@ pub fn extract_identity_paths(lines: &[&str]) -> (Vec<String>, usize) {
     }
 
     if !ends_with_do_block(first) {
-        return (extract_symbol(first).into_iter().collect(), 1);
+        return (vec![], 1);
     }
 
     let mut paths = vec![];
