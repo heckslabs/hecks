@@ -4,6 +4,7 @@ require_relative "value/invariant_violation"
 module Hecksagain
   module Runtime
     class UnknownVerb < StandardError; end
+    class EnsuresNotMet < StandardError; end
     class GivenNotMet < StandardError; end
     class NotFound    < StandardError; end
     class LifecycleRefused < StandardError; end
@@ -48,7 +49,7 @@ module Hecksagain
     # its first run : every corpus refusal must be a class named here, and 23
     # of banking's were InvariantViolation.
     DOMAIN_REFUSALS = [
-      AbsentArgument, AlreadyExists, GivenNotMet, InvariantViolation, LifecycleRefused, NotFound,
+      AbsentArgument, AlreadyExists, EnsuresNotMet, GivenNotMet, InvariantViolation, LifecycleRefused, NotFound,
       TypeMismatch, UnknownArgument, UnknownVerb
     ].freeze
   end

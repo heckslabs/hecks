@@ -198,6 +198,7 @@ Hecks.bluebook "Bluebook" do
         member step: "assign_creation_attributes"
         member step: "apply_mutations"
         member step: "advance_lifecycle"
+        member step: "enforce_ensures"
         member step: "save"
         member step: "emit"
       end
@@ -224,6 +225,7 @@ Hecks.bluebook "Bluebook" do
         member step: "admissible_transition"
         member step: "apply_mutations"
         member step: "advance_lifecycle"
+        member step: "enforce_ensures"
         member step: "save"
         member step: "emit"
       end
@@ -237,6 +239,7 @@ Hecks.bluebook "Bluebook" do
       one_of do
         member name: "AbsentArgument"
         member name: "AlreadyExists"
+        member name: "EnsuresNotMet"
         member name: "GivenNotMet"
         member name: "InvariantViolation"
         member name: "LifecycleRefused"

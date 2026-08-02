@@ -39,6 +39,9 @@
           "emits": [
             "DrawerOpened"
           ],
+          "ensures": [
+
+          ],
           "givens": [
 
           ],
@@ -64,6 +67,9 @@
           ],
           "emits": [
             "PutIn"
+          ],
+          "ensures": [
+
           ],
           "givens": [
             {
@@ -101,6 +107,9 @@
           "emits": [
             "Taken"
           ],
+          "ensures": [
+
+          ],
           "givens": [
             {
               "canonical": "status == \"open\"",
@@ -133,6 +142,9 @@
           "emits": [
             "DrawerShut"
           ],
+          "ensures": [
+
+          ],
           "givens": [
 
           ],
@@ -150,6 +162,9 @@
           ],
           "emits": [
             "DrawerReopened"
+          ],
+          "ensures": [
+
           ],
           "givens": [
 
@@ -319,6 +334,9 @@
           "emits": [
             "WireAsked"
           ],
+          "ensures": [
+
+          ],
           "givens": [
             {
               "canonical": "amount.cents.positive?",
@@ -363,6 +381,9 @@
           "emits": [
             "WireMoved"
           ],
+          "ensures": [
+
+          ],
           "givens": [
 
           ],
@@ -381,6 +402,9 @@
           "emits": [
             "WireLanded"
           ],
+          "ensures": [
+
+          ],
           "givens": [
 
           ],
@@ -398,6 +422,9 @@
           ],
           "emits": [
             "WireReturned"
+          ],
+          "ensures": [
+
           ],
           "givens": [
 

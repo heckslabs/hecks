@@ -33,8 +33,18 @@ module Hecksagain
         view = Instance.new(aggregate: entity, id: element_identity(entity, element).to_s, state: element)
         step(:enforce_givens) { @rules.enforce_givens(view, command, args) }
         transition = step(:admissible_transition) { @rules.admissible_transition(entity, command, view) }
+        old_element = element.dup unless command.ensures.empty?
         step(:apply_mutations) { command.mutations.each { |mutation| apply_to_element(aggregate, entity, element, mutation, args) } }
         step(:advance_lifecycle) { element[entity.lifecycle.field] = transition.target } if transition
+        # `view` was hydrated ONCE, at locate_element, into its OWN state
+        # hash (Value.hydrate builds a fresh Hash — never aliased with
+        # `element`) — exactly right for enforce_givens, which must read
+        # pre-mutation. An ensures reads the SETTLED record, so it needs a
+        # view hydrated from `element` as it stands now, mutations included.
+        step(:enforce_ensures) do
+          settled = Instance.new(aggregate: entity, id: view.id, state: element)
+          @rules.enforce_ensures(settled, command, args, old: old_element)
+        end
 
         step(:save) { repository.save(instance) }
 
@@ -51,8 +61,9 @@ module Hecksagain
         parent_id = Identity.of(aggregate, args) ||
                     Identity.from(aggregate, args, :id) ||
                     raise(NotFound, "#{command_name} acts on a #{aggregate.hecks_name}'s #{entity_name} — pass #{Identity.reading(aggregate)}:")
-        repository.find(parent_id) ||
-          raise(NotFound, "no #{aggregate.hecks_name} with #{Identity.reading(aggregate)} #{parent_id.inspect}")
+        found = repository.find(parent_id) ||
+                raise(NotFound, "no #{aggregate.hecks_name} with #{Identity.reading(aggregate)} #{parent_id.inspect}")
+        found.dup
       end
 
       # ONE ELEMENT, MATCHED ON EVERY PART OF ITS IDENTITY — not just the first.
@@ -71,10 +82,26 @@ module Hecksagain
           [head, path, Value.for_attribute(aggregate, entity.attribute(head), raw)]
         end
 
-        Array(instance[list_attr.name]).find { |el| wants.all? { |head, _path, want| el[head] == want } } ||
-          raise(NotFound, "no #{entity_name} with #{Identity.reading(entity)} " \
+        original = Array(instance[list_attr.name])
+        position = original.find_index { |el| wants.all? { |head, _path, want| el[head] == want } }
+        unless position
+          raise NotFound, "no #{entity_name} with #{Identity.reading(entity)} " \
                           "#{wants.map { |_h, path, want| Identity.scalar(path, want) }.join(', ')} " \
-                          "on #{aggregate.hecks_name} #{instance.id.inspect}")
+                          "on #{aggregate.hecks_name} #{instance.id.inspect}"
+        end
+
+        # ONE LEVEL DEEPER THAN Instance#dup, for the same reason: a list
+        # attribute holds Hashes, and `apply_to_element` mutates the found
+        # one IN PLACE — the update mechanism for an entity, not a bug. But
+        # in place means aliased with the adapter's own record until this
+        # copies the array and the target element before handing either
+        # back, and writes the fresh array into `instance` so the copy is
+        # what persists on success and NOTHING aliased survives a refusal.
+        copied  = original.dup
+        element = copied[position].dup
+        copied[position] = element
+        instance[list_attr.name] = copied
+        element
       end
 
       # THE ELEMENT'S OWN IDENTITY, joined from its parts — the entity-level

@@ -73,6 +73,9 @@
           "emits": [
             "CustomerRegistered"
           ],
+          "ensures": [
+
+          ],
           "givens": [
 
           ],
@@ -122,6 +125,9 @@
           "emits": [
             "CustomerSuspended"
           ],
+          "ensures": [
+
+          ],
           "givens": [
 
           ],
@@ -146,6 +152,9 @@
           ],
           "emits": [
             "CustomerReinstated"
+          ],
+          "ensures": [
+
           ],
           "givens": [
 
@@ -173,6 +182,9 @@
           ],
           "emits": [
             "CustomerClosed"
+          ],
+          "ensures": [
+
           ],
           "givens": [
 
@@ -513,6 +525,9 @@
           "emits": [
             "AccountOpened"
           ],
+          "ensures": [
+
+          ],
           "givens": [
 
           ],
@@ -571,6 +586,9 @@
           "emits": [
             "AccountCredited"
           ],
+          "ensures": [
+
+          ],
           "givens": [
             {
               "canonical": "status == \"open\"",
@@ -625,6 +643,16 @@
           "emits": [
             "AccountDebited"
           ],
+          "ensures": [
+            {
+              "canonical": "old.balance.cents == balance.cents + amount.cents",
+              "description": "the balance fell by exactly the amount"
+            },
+            {
+              "canonical": "balance.cents >= 0",
+              "description": "no debit leaves the balance negative"
+            }
+          ],
           "givens": [
             {
               "canonical": "status == \"open\"",
@@ -670,6 +698,9 @@
           "emits": [
             "AccountFrozen"
           ],
+          "ensures": [
+
+          ],
           "givens": [
 
           ],
@@ -688,6 +719,9 @@
           "emits": [
             "AccountUnfrozen"
           ],
+          "ensures": [
+
+          ],
           "givens": [
 
           ],
@@ -705,6 +739,9 @@
           ],
           "emits": [
             "AccountClosed"
+          ],
+          "ensures": [
+
           ],
           "givens": [
             {
@@ -743,6 +780,9 @@
           ],
           "emits": [
             "FeeApplied"
+          ],
+          "ensures": [
+
           ],
           "givens": [
             {
@@ -788,6 +828,9 @@
           "emits": [
             "FeeCorrected"
           ],
+          "ensures": [
+
+          ],
           "givens": [
             {
               "canonical": "fees_cents.cents >= amount.cents",
@@ -832,6 +875,9 @@
           "emits": [
             "InterestAccrued"
           ],
+          "ensures": [
+
+          ],
           "givens": [
 
           ],
@@ -872,6 +918,9 @@
           ],
           "emits": [
             "InterestCorrected"
+          ],
+          "ensures": [
+
           ],
           "givens": [
             {
@@ -973,6 +1022,9 @@
               "emits": [
                 "LedgerEntryAmended"
               ],
+              "ensures": [
+
+              ],
               "givens": [
                 {
                   "canonical": "amount.cents + adjustment.cents >= 0",
@@ -1016,6 +1068,9 @@
               ],
               "emits": [
                 "LedgerEntryReversed"
+              ],
+              "ensures": [
+
               ],
               "givens": [
 
@@ -1587,6 +1642,9 @@
           "emits": [
             "ATMCardIssued"
           ],
+          "ensures": [
+
+          ],
           "givens": [
 
           ],
@@ -1627,6 +1685,9 @@
           ],
           "emits": [
             "ATMCardRenamed"
+          ],
+          "ensures": [
+
           ],
           "givens": [
 
@@ -1670,6 +1731,9 @@
           "emits": [
             "CashWithdrawn"
           ],
+          "ensures": [
+
+          ],
           "givens": [
 
           ],
@@ -1695,6 +1759,9 @@
           "emits": [
             "ATMCardActivated"
           ],
+          "ensures": [
+
+          ],
           "givens": [
 
           ],
@@ -1712,6 +1779,9 @@
           ],
           "emits": [
             "ATMCardRetired"
+          ],
+          "ensures": [
+
           ],
           "givens": [
 
@@ -1772,6 +1842,9 @@
               ],
               "emits": [
                 "WithdrawalDisputed"
+              ],
+              "ensures": [
+
               ],
               "givens": [
 
@@ -2141,6 +2214,9 @@
           "emits": [
             "TransferRequested"
           ],
+          "ensures": [
+
+          ],
           "givens": [
             {
               "canonical": "!source.to_s.empty?",
@@ -2201,6 +2277,9 @@
           "emits": [
             "TransferDebited"
           ],
+          "ensures": [
+
+          ],
           "givens": [
 
           ],
@@ -2218,6 +2297,9 @@
           ],
           "emits": [
             "TransferSettled"
+          ],
+          "ensures": [
+
           ],
           "givens": [
 
@@ -2237,6 +2319,9 @@
           "emits": [
             "TransferCredited"
           ],
+          "ensures": [
+
+          ],
           "givens": [
 
           ],
@@ -2255,6 +2340,9 @@
           "emits": [
             "TransferReversed"
           ],
+          "ensures": [
+
+          ],
           "givens": [
 
           ],
@@ -2272,6 +2360,9 @@
           ],
           "emits": [
             "TransferRejected"
+          ],
+          "ensures": [
+
           ],
           "givens": [
 
@@ -2529,6 +2620,9 @@
           "emits": [
             "CardAuthorized"
           ],
+          "ensures": [
+
+          ],
           "givens": [
 
           ],
@@ -2570,6 +2664,9 @@
           "emits": [
             "CardCaptured"
           ],
+          "ensures": [
+
+          ],
           "givens": [
 
           ],
@@ -2587,6 +2684,9 @@
           ],
           "emits": [
             "CardVoided"
+          ],
+          "ensures": [
+
           ],
           "givens": [
 
@@ -2606,6 +2706,9 @@
           "emits": [
             "CardRefunded"
           ],
+          "ensures": [
+
+          ],
           "givens": [
 
           ],
@@ -2623,6 +2726,9 @@
           ],
           "emits": [
             "CardReversed"
+          ],
+          "ensures": [
+
           ],
           "givens": [
 
@@ -2650,6 +2756,9 @@
           "emits": [
             "CardDisputed"
           ],
+          "ensures": [
+
+          ],
           "givens": [
 
           ],
@@ -2675,6 +2784,9 @@
           "emits": [
             "CardChargedBack"
           ],
+          "ensures": [
+
+          ],
           "givens": [
 
           ],
@@ -2692,6 +2804,9 @@
           ],
           "emits": [
             "CardDisputeRejected"
+          ],
+          "ensures": [
+
           ],
           "givens": [
 
@@ -3005,6 +3120,9 @@
           "emits": [
             "ExternalTransferRequested"
           ],
+          "ensures": [
+
+          ],
           "givens": [
 
           ],
@@ -3046,6 +3164,9 @@
           "emits": [
             "ExternalTransferSent"
           ],
+          "ensures": [
+
+          ],
           "givens": [
 
           ],
@@ -3064,6 +3185,9 @@
           "emits": [
             "ExternalTransferRecalled"
           ],
+          "ensures": [
+
+          ],
           "givens": [
 
           ],
@@ -3081,6 +3205,9 @@
           ],
           "emits": [
             "ExternalTransferReturned"
+          ],
+          "ensures": [
+
           ],
           "givens": [
 
@@ -3334,6 +3461,9 @@
           "emits": [
             "PaymentScheduled"
           ],
+          "ensures": [
+
+          ],
           "givens": [
 
           ],
@@ -3375,6 +3505,9 @@
           "emits": [
             "ScheduledPaymentExecuted"
           ],
+          "ensures": [
+
+          ],
           "givens": [
 
           ],
@@ -3392,6 +3525,9 @@
           ],
           "emits": [
             "ScheduledPaymentCancelled"
+          ],
+          "ensures": [
+
           ],
           "givens": [
 
@@ -3648,6 +3784,9 @@
           "emits": [
             "BoxRented"
           ],
+          "ensures": [
+
+          ],
           "givens": [
 
           ],
@@ -3673,6 +3812,9 @@
           "emits": [
             "BoxSurrendered",
             "KeyReturnDue"
+          ],
+          "ensures": [
+
           ],
           "givens": [
             {
@@ -3721,6 +3863,9 @@
           "emits": [
             "BoxOpened"
           ],
+          "ensures": [
+
+          ],
           "givens": [
             {
               "canonical": "status == \"rented\"",
@@ -3757,6 +3902,9 @@
           ],
           "emits": [
             "KeyIssued"
+          ],
+          "ensures": [
+
           ],
           "givens": [
 
@@ -3842,6 +3990,9 @@
               "emits": [
                 "VisitAnnotated"
               ],
+              "ensures": [
+
+              ],
               "givens": [
 
               ],
@@ -3926,6 +4077,9 @@
               ],
               "emits": [
                 "KeyReturned"
+              ],
+              "ensures": [
+
               ],
               "givens": [
                 {

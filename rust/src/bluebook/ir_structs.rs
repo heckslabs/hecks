@@ -228,6 +228,8 @@ pub struct Command {
     pub attributes: Vec<Attribute>,
     /// list_of(Rule)
     pub givens: Vec<Given>,
+    /// list_of(Rule)
+    pub ensures: Vec<Given>,
     /// list_of(Change)
     pub mutations: Vec<Mutation>,
 }

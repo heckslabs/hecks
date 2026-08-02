@@ -916,6 +916,11 @@ impl Runtime {
         let transition_to = admissible_transition(&entity, command_name, &element)?;
         self.trace_step("admissible_transition");
 
+        let old_element = if array(&command, "ensures").is_empty() {
+            None
+        } else {
+            Some(element.clone())
+        };
         for mutation in array(&command, "mutations") {
             let target = mutation
                 .get("target")
@@ -951,6 +956,19 @@ impl Runtime {
             element.insert(field, Value::String(to_state));
             self.trace_step("advance_lifecycle");
         }
+        for rule in array(&command, "ensures") {
+            let canonical = rule.get("canonical").and_then(Value::as_str).unwrap_or("");
+            let mut attrs = args.clone();
+            attrs.insert(
+                "old".to_string(),
+                Value::Object(old_element.clone().unwrap_or_default()),
+            );
+            if !evaluate_given(canonical, &element, &attrs)? {
+                let description = rule.get("description").and_then(Value::as_str).unwrap_or("");
+                return Err(format!("{} refused — {}", command_name, description));
+            }
+        }
+        self.trace_step("enforce_ensures");
 
         elements[position] = Value::Object(element);
         state.insert(list_attr, Value::Array(elements));
@@ -1448,6 +1466,13 @@ impl Runtime {
             assign_creation_attributes(&mut state, &aggregate, &command, args)?;
             self.trace_step("assign_creation_attributes");
         }
+        // The state as the givens saw it — what `old` names inside an
+        // ensures. Cloned only when the command declares one.
+        let old_state = if array(&command, "ensures").is_empty() {
+            None
+        } else {
+            Some(state.clone())
+        };
         for mutation in array(&command, "mutations") {
             apply_mutation(&mut state, &aggregate, &mutation, args)?;
         }
@@ -1456,6 +1481,19 @@ impl Runtime {
             state.insert(field, Value::String(to_state));
             self.trace_step("advance_lifecycle");
         }
+        for rule in array(&command, "ensures") {
+            let canonical = rule.get("canonical").and_then(Value::as_str).unwrap_or("");
+            let mut attrs = args.clone();
+            attrs.insert(
+                "old".to_string(),
+                Value::Object(old_state.clone().unwrap_or_default()),
+            );
+            if !evaluate_given(canonical, &state, &attrs)? {
+                let description = rule.get("description").and_then(Value::as_str).unwrap_or("");
+                return Err(format!("{} refused — {}", command_name, description));
+            }
+        }
+        self.trace_step("enforce_ensures");
 
         if self.adapters.contains_key(&aggregate_name) {
             self.save_with_mirrors(
@@ -2824,6 +2862,7 @@ mod dispatch_order_tests {
                 "assign_creation_attributes",
                 "apply_mutations",
                 "advance_lifecycle",
+                "enforce_ensures",
                 "save",
                 "emit",
             ]
@@ -2906,6 +2945,7 @@ fn a_wrapped_reference_is_refused_in_the_same_words_as_ruby() {
                 "admissible_transition",
                 "apply_mutations",
                 "advance_lifecycle",
+                "enforce_ensures",
                 "save",
                 "emit",
             ]

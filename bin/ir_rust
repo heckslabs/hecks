@@ -283,6 +283,7 @@ def command(held)
     "references: #{opt(held['references'])}, " \
     "emits: #{vec((held['emits'] || []).map { |e| rs(e) })}, " \
     "givens: #{vec((held['givens'] || []).map { |g| given(g) })}, " \
+    "ensures: #{vec((held['ensures'] || []).map { |g| given(g) })}, " \
     "mutations: #{vec((held['mutations'] || []).map { |m| mutation(m) })} }"
 end
 

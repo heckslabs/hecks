@@ -8,6 +8,7 @@ module Hecksagain
           @name      = name
           @owner     = owner
           @givens    = []
+          @ensures   = []
           @mutations = []
           @emits     = []
         end
@@ -71,6 +72,28 @@ module Hecksagain
           )
         end
 
+        # The POSTCONDITION — a given for the far side of the mutations,
+        # evaluated against the settled record with `old` naming the state
+        # as it stood before them: `ensures("...") { old.balance.cents ==
+        # balance.cents + amount.cents }`. Same extraction, same Rule
+        # shape, same refusal form; EnsuresNotMet instead of GivenNotMet.
+        def ensures(description, &predicate)
+          canonical = Ports::Extraction.canonical(predicate)
+
+          if canonical.to_s.empty?
+            raise Malformed,
+                  "#{@name}'s ensures #{description.inspect} did not survive " \
+                  "extraction — a postcondition is carried as text, and this " \
+                  "one has none"
+          end
+
+          @ensures << IR::Given.new(
+            description: description,
+            canonical:   canonical,
+            predicate:   predicate
+          )
+        end
+
         # `sets` is the word; `then_set` is the spelling every existing
         # bluebook was written under (Syntax::Keyword carries the rename as
         # `was:`), and it stays answered here forever — a renamed word's old
@@ -114,6 +137,7 @@ module Hecksagain
             goal:       @goal,
             attributes: attributes,
             givens:     @givens,
+            ensures:    @ensures,
             mutations:  @mutations,
             emits:      @emits,
             references: @references

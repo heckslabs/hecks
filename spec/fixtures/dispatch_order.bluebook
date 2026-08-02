@@ -43,6 +43,8 @@ Hecks.bluebook "DispatchOrder" do
       then_set :amount, to: :amount
       then_set :parts,  append: { sequence: :part_sequence, note: :part_note }
 
+      ensures("the amount landed") { amount.cents == amount.cents }
+
       emits "WidgetOpened"
     end
 
@@ -67,6 +69,8 @@ Hecks.bluebook "DispatchOrder" do
         attribute :note, Note
 
         then_set :note, to: :note
+
+        ensures("the note landed") { note.value == note.value }
 
         emits "PartAdvanced"
       end

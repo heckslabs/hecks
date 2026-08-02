@@ -75,11 +75,12 @@ module Hecksagain
             references: [:references, :plain],
             attributes: [:attributes, [:each, :shape_field]],
             givens:     [:givens,     [:each, :given]],
+            ensures:    [:ensures,    [:each, :given]],
             mutations:  [:mutations,  [:each, :mutation]],
             emits:      [:emits,      :plain]
           },
           rows: { mutations: :mutation_rows },
-          reads: { attributes: [:each, :shape_field], givens: [:each, :rule], mutations: [:call, :mutations], emits: :names },
+          reads: { attributes: [:each, :shape_field], givens: [:each, :rule], ensures: [:each, :rule], mutations: [:call, :mutations], emits: :names },
           derived: { position: :walk }
         ),
 

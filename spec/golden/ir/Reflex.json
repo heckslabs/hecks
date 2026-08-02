@@ -37,6 +37,9 @@
           "emits": [
             "Flipped"
           ],
+          "ensures": [
+
+          ],
           "givens": [
 
           ],
@@ -62,6 +65,9 @@
 
           ],
           "emits": [
+
+          ],
+          "ensures": [
 
           ],
           "givens": [
@@ -231,6 +237,9 @@
           "emits": [
             "Installed"
           ],
+          "ensures": [
+
+          ],
           "givens": [
 
           ],
@@ -248,6 +257,9 @@
           ],
           "emits": [
             "Rang"
+          ],
+          "ensures": [
+
           ],
           "givens": [
 
@@ -337,6 +349,9 @@
           ],
           "emits": [
             "Raised"
+          ],
+          "ensures": [
+
           ],
           "givens": [
 

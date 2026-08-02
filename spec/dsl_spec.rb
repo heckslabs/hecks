@@ -281,6 +281,19 @@ RSpec.describe "the DSL surface" do
         .to raise_error(Malformed, /an event is named/)
     end
 
+    it "carries an ensures as canonical text beside the givens" do
+      # The postcondition rides the same Rule shape preconditions do —
+      # extracted, canonicalised, serialized — and `old` is just a word
+      # in the text until enforcement resolves it.
+      spelled = build_command("Ensured") do
+        ensures("it landed") { old.balance.cents <= balance.cents }
+      end
+
+      expect(spelled.ensures.map(&:canonical)).to eq(["old.balance.cents <= balance.cents"])
+      expect(spelled.to_h[:ensures]).to eq([{ description: "it landed",
+                                              canonical: "old.balance.cents <= balance.cents" }])
+    end
+
     it "refuses a mutation that names no operation" do
       expect { build_command("Inert") { then_set :status } }
         .to raise_error(Malformed, /names no operation/)

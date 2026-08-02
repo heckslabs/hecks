@@ -64,6 +64,9 @@
           "emits": [
             "WorldDeclared"
           ],
+          "ensures": [
+
+          ],
           "givens": [
 
           ],
@@ -254,6 +257,9 @@
           "emits": [
             "WiringDeclared"
           ],
+          "ensures": [
+
+          ],
           "givens": [
             {
               "canonical": "!verb.value.to_s.empty?",
@@ -291,6 +297,9 @@
           ],
           "emits": [
             "SettingGiven"
+          ],
+          "ensures": [
+
           ],
           "givens": [
             {

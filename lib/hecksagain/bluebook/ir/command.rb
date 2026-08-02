@@ -48,22 +48,23 @@ module Hecksagain
         extend Construct
 
         class << self
-          attr_reader :role, :goal, :attributes, :givens, :mutations, :emits, :references
+          attr_reader :role, :goal, :attributes, :givens, :ensures, :mutations, :emits, :references
 
-          def declare(name:, role: nil, goal: nil, attributes: [], givens: [],
+          def declare(name:, role: nil, goal: nil, attributes: [], givens: [], ensures: [],
                       mutations: [], emits: [], references: nil)
             verb = Class.new(self)
             verb.hecks_name = name.to_s
             verb.absorb(role: role, goal: goal, attributes: attributes, givens: givens,
-                        mutations: mutations, emits: emits, references: references&.to_s)
+                        ensures: ensures, mutations: mutations, emits: emits, references: references&.to_s)
             verb
           end
 
-          def absorb(role:, goal:, attributes:, givens:, mutations:, emits:, references:)
+          def absorb(role:, goal:, attributes:, givens:, ensures:, mutations:, emits:, references:)
             @role       = role
             @goal       = goal
             @attributes = attributes
             @givens     = givens
+            @ensures    = ensures
             @mutations  = mutations
             @emits      = emits
             @references = references
@@ -101,6 +102,7 @@ module Hecksagain
               references: references,
               attributes: attributes.map(&:to_h),
               givens:     givens.map { |rule| { description: rule.description, canonical: rule.canonical } },
+              ensures:    ensures.map { |rule| { description: rule.description, canonical: rule.canonical } },
               mutations:  mutations.map(&:to_h),
               emits:      emits
             }

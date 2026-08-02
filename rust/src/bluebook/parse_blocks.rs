@@ -73,6 +73,7 @@ pub fn parse_command(lines: &[&str], owner: &str) -> (Command, usize) {
         references: None,
         emits: vec![],
         givens: vec![],
+        ensures: vec![],
         mutations: vec![],
     };
     if first.contains("{") && first.contains("}") {
@@ -105,6 +106,7 @@ pub fn parse_command(lines: &[&str], owner: &str) -> (Command, usize) {
                 || (!line.starts_with("attribute")
                     && !line.starts_with("role")
                     && !line.starts_with("given")
+                    && !line.starts_with("ensures")
                     && !line.starts_with("then_")))
         {
             depth += 1;
@@ -155,6 +157,19 @@ pub fn parse_command(lines: &[&str], owner: &str) -> (Command, usize) {
                         });
                     }
                 }
+            } else if line.starts_with("ensures") && line.contains(" do ") && line.ends_with("end") {
+                let msg = extract_string(line);
+                if let (Some(do_pos), Some(stripped)) =
+                    (inline_do_pos(line), line.strip_suffix("end"))
+                {
+                    let expr = stripped[do_pos + " do ".len()..].trim().to_string();
+                    if !expr.is_empty() {
+                        cmd.ensures.push(Given {
+                            canonical: expr,
+                            description: msg,
+                        });
+                    }
+                }
             } else if line.starts_with("given") && ends_with_do_block(line) {
                 let msg = extract_string(line);
                 let mut body: Vec<&str> = Vec::new();
@@ -185,6 +200,36 @@ pub fn parse_command(lines: &[&str], owner: &str) -> (Command, usize) {
                 }
                 i = j + 1;
                 continue;
+            } else if line.starts_with("ensures") && ends_with_do_block(line) {
+                let msg = extract_string(line);
+                let mut body: Vec<&str> = Vec::new();
+                let mut j = i + 1;
+                let mut d = 1;
+                while j < lines.len() && d > 0 {
+                    let l = lines[j].trim();
+                    if ends_with_do_block(l) {
+                        d += 1;
+                    }
+                    if l == "end" {
+                        d -= 1;
+                        if d == 0 {
+                            break;
+                        }
+                    }
+                    if !l.is_empty() && !l.starts_with('#') {
+                        body.push(l);
+                    }
+                    j += 1;
+                }
+                let expr = join_predicate_lines(&body);
+                if !expr.is_empty() {
+                    cmd.ensures.push(Given {
+                        canonical: expr,
+                        description: msg,
+                    });
+                }
+                i = j + 1;
+                continue;
             } else if line.starts_with("given") {
                 let block = extract_block(line);
                 let line_no_block = match line.find('{') {
@@ -194,6 +239,21 @@ pub fn parse_command(lines: &[&str], owner: &str) -> (Command, usize) {
                 let msg = extract_string(line_no_block);
                 let expr = block.unwrap_or_else(|| msg.clone().unwrap_or_default());
                 cmd.givens.push(Given {
+                    canonical: expr,
+                    description: msg,
+                });
+            } else if line.starts_with("ensures") {
+                // The postcondition — same Rule shape as a given, the far
+                // side of the mutations; the two do-form arms above mirror
+                // the given do-forms the same way this mirrors its brace arm.
+                let block = extract_block(line);
+                let line_no_block = match line.find('{') {
+                    Some(open) => &line[..open],
+                    None => line,
+                };
+                let msg = extract_string(line_no_block);
+                let expr = block.unwrap_or_else(|| msg.clone().unwrap_or_default());
+                cmd.ensures.push(Given {
                     canonical: expr,
                     description: msg,
                 });

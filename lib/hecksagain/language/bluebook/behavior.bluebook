@@ -38,6 +38,10 @@ Hecks.bluebook "Bluebook" do
     attribute :references, EventName
     attribute :attributes, list_of(Argument)
     attribute :givens,     list_of(Rule)
+    # THE POSTCONDITIONS — same Rule shape as givens, checked on the other
+    # side of the mutations: a given says what must hold to begin, an
+    # ensures says what must hold to have finished. Meyer's third leg.
+    attribute :ensures,    list_of(Rule)
     attribute :mutations,  list_of(Change)
 
     value_object "CommandName" do
@@ -215,6 +219,22 @@ Hecks.bluebook "Bluebook" do
       then_set :givens, append: { description: :description, canonical: :canonical }
 
       emits "RuleAttached"
+    end
+
+    command "Ensure" do
+      role "Language"
+      goal "Attach one postcondition to the command"
+
+      reference_to Command
+      attribute :description, RuleText, optional: true
+      attribute :canonical,   RuleText
+
+      given("a rule says what it means")  { !description.value.to_s.empty? }
+      given("a rule survives extraction") { !canonical.value.to_s.empty? }
+
+      then_set :ensures, append: { description: :description, canonical: :canonical }
+
+      emits "EnsureAttached"
     end
 
     value_object "RuleText" do

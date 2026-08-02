@@ -310,6 +310,9 @@ Hecks.bluebook "Banking", version: "v1" do
       then_set :balance, decrement: :amount
       then_set :ledger,  append: { amount: :amount, narrative: :narrative, direction: { value: "debit" } }
 
+      ensures("the balance fell by exactly the amount") { old.balance.cents == balance.cents + amount.cents }
+      ensures("no debit leaves the balance negative")   { balance.cents >= 0 }
+
       emits "AccountDebited"
     end
 

@@ -91,6 +91,9 @@
           "emits": [
             "ChapterDeclared"
           ],
+          "ensures": [
+
+          ],
           "givens": [
 
           ],
@@ -152,6 +155,9 @@
           ],
           "emits": [
             "NormalisationAttached"
+          ],
+          "ensures": [
+
           ],
           "givens": [
 
@@ -523,6 +529,9 @@
           "emits": [
             "RootDeclared"
           ],
+          "ensures": [
+
+          ],
           "givens": [
 
           ],
@@ -548,6 +557,9 @@
           ],
           "emits": [
             "RootIdentified"
+          ],
+          "ensures": [
+
           ],
           "givens": [
             {
@@ -637,6 +649,9 @@
           ],
           "emits": [
             "AttributeAttached"
+          ],
+          "ensures": [
+
           ],
           "givens": [
 
@@ -730,6 +745,9 @@
           "emits": [
             "ReferenceAttached"
           ],
+          "ensures": [
+
+          ],
           "givens": [
 
           ],
@@ -822,6 +840,9 @@
           "emits": [
             "PieceHeld"
           ],
+          "ensures": [
+
+          ],
           "givens": [
 
           ],
@@ -868,6 +889,9 @@
           ],
           "emits": [
             "LifecycleNamed"
+          ],
+          "ensures": [
+
           ],
           "givens": [
 
@@ -928,6 +952,9 @@
           "emits": [
             "TransitionAttached"
           ],
+          "ensures": [
+
+          ],
           "givens": [
 
           ],
@@ -953,6 +980,9 @@
           ],
           "emits": [
             "RootSealed"
+          ],
+          "ensures": [
+
           ],
           "givens": [
             {
@@ -982,6 +1012,9 @@
           ],
           "emits": [
             "ValueDeclared"
+          ],
+          "ensures": [
+
           ],
           "givens": [
 
@@ -1469,6 +1502,15 @@
           "admits": null,
           "default": null,
           "list": true,
+          "name": "ensures",
+          "optional": false,
+          "pattern": null,
+          "type": "Rule"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": true,
           "name": "mutations",
           "optional": false,
           "pattern": null,
@@ -1544,6 +1586,9 @@
           ],
           "emits": [
             "VerbDeclared"
+          ],
+          "ensures": [
+
           ],
           "givens": [
 
@@ -1624,6 +1669,9 @@
           ],
           "emits": [
             "ArgumentAttached"
+          ],
+          "ensures": [
+
           ],
           "givens": [
 
@@ -1717,6 +1765,9 @@
           "emits": [
             "ArgumentReferenceAttached"
           ],
+          "ensures": [
+
+          ],
           "givens": [
 
           ],
@@ -1764,6 +1815,9 @@
           "emits": [
             "RuleAttached"
           ],
+          "ensures": [
+
+          ],
           "givens": [
             {
               "canonical": "!description.value.to_s.empty?",
@@ -1786,6 +1840,58 @@
             }
           ],
           "name": "Rule",
+          "references": "Command",
+          "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "description",
+              "optional": true,
+              "pattern": null,
+              "type": "RuleText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "canonical",
+              "optional": false,
+              "pattern": null,
+              "type": "RuleText"
+            }
+          ],
+          "emits": [
+            "EnsureAttached"
+          ],
+          "ensures": [
+
+          ],
+          "givens": [
+            {
+              "canonical": "!description.value.to_s.empty?",
+              "description": "a rule says what it means"
+            },
+            {
+              "canonical": "!canonical.value.to_s.empty?",
+              "description": "a rule survives extraction"
+            }
+          ],
+          "goal": "Attach one postcondition to the command",
+          "mutations": [
+            {
+              "fields": {
+                "canonical": "canonical",
+                "description": "description"
+              },
+              "op": "append",
+              "target": "ensures"
+            }
+          ],
+          "name": "Ensure",
           "references": "Command",
           "role": "Language"
         },
@@ -1840,6 +1946,9 @@
           "emits": [
             "ChangeAttached"
           ],
+          "ensures": [
+
+          ],
           "givens": [
             {
               "canonical": "!target.value.to_s.empty?",
@@ -1883,6 +1992,9 @@
           "emits": [
             "ReferenceNamed"
           ],
+          "ensures": [
+
+          ],
           "givens": [
             {
               "canonical": "!root.value.to_s.empty?",
@@ -1922,6 +2034,9 @@
           ],
           "emits": [
             "AnnouncementNamed"
+          ],
+          "ensures": [
+
           ],
           "givens": [
             {
@@ -2587,6 +2702,9 @@
           "emits": [
             "AskDeclared"
           ],
+          "ensures": [
+
+          ],
           "givens": [
 
           ],
@@ -2630,6 +2748,9 @@
           ],
           "emits": [
             "FilterAttached"
+          ],
+          "ensures": [
+
           ],
           "givens": [
 
@@ -2691,6 +2812,9 @@
           ],
           "emits": [
             "OptionAttached"
+          ],
+          "ensures": [
+
           ],
           "givens": [
             {
@@ -2783,6 +2907,9 @@
           ],
           "emits": [
             "AskArgumentAttached"
+          ],
+          "ensures": [
+
           ],
           "givens": [
 
@@ -3169,6 +3296,9 @@
           "emits": [
             "ShapeDeclared"
           ],
+          "ensures": [
+
+          ],
           "givens": [
 
           ],
@@ -3249,6 +3379,9 @@
           "emits": [
             "ShapeFieldAttached"
           ],
+          "ensures": [
+
+          ],
           "givens": [
 
           ],
@@ -3286,6 +3419,9 @@
           ],
           "emits": [
             "ShapeClosed"
+          ],
+          "ensures": [
+
           ],
           "givens": [
             {
@@ -3331,6 +3467,9 @@
           ],
           "emits": [
             "AssertionAttached"
+          ],
+          "ensures": [
+
           ],
           "givens": [
             {
@@ -3665,6 +3804,9 @@
           "emits": [
             "MemberDeclared"
           ],
+          "ensures": [
+
+          ],
           "givens": [
 
           ],
@@ -3699,6 +3841,9 @@
           ],
           "emits": [
             "PairBound"
+          ],
+          "ensures": [
+
           ],
           "givens": [
             {
@@ -3981,6 +4126,9 @@
           "emits": [
             "PieceDeclared"
           ],
+          "ensures": [
+
+          ],
           "givens": [
 
           ],
@@ -4006,6 +4154,9 @@
           ],
           "emits": [
             "PieceIdentified"
+          ],
+          "ensures": [
+
           ],
           "givens": [
             {
@@ -4033,6 +4184,9 @@
           ],
           "emits": [
             "PieceSealed"
+          ],
+          "ensures": [
+
           ],
           "givens": [
             {
@@ -4117,6 +4271,9 @@
           "emits": [
             "PieceAttributeAttached"
           ],
+          "ensures": [
+
+          ],
           "givens": [
 
           ],
@@ -4163,6 +4320,9 @@
           ],
           "emits": [
             "PieceLifecycleNamed"
+          ],
+          "ensures": [
+
           ],
           "givens": [
 
@@ -4222,6 +4382,9 @@
           ],
           "emits": [
             "PieceTransitionAttached"
+          ],
+          "ensures": [
+
           ],
           "givens": [
 
@@ -4622,6 +4785,9 @@
           "emits": [
             "ReactionDeclared"
           ],
+          "ensures": [
+
+          ],
           "givens": [
 
           ],
@@ -4869,6 +5035,9 @@
           "emits": [
             "SagaDeclared"
           ],
+          "ensures": [
+
+          ],
           "givens": [
 
           ],
@@ -4894,6 +5063,9 @@
           ],
           "emits": [
             "SagaStateAttached"
+          ],
+          "ensures": [
+
           ],
           "givens": [
 
@@ -5142,6 +5314,9 @@
           "emits": [
             "LegDeclared"
           ],
+          "ensures": [
+
+          ],
           "givens": [
 
           ],
@@ -5329,6 +5504,9 @@
           "emits": [
             "SendDeclared"
           ],
+          "ensures": [
+
+          ],
           "givens": [
 
           ],
@@ -5363,6 +5541,9 @@
           ],
           "emits": [
             "BindingAttached"
+          ],
+          "ensures": [
+
           ],
           "givens": [
 
@@ -6261,6 +6442,12 @@
             [
               [
                 "step",
+                "enforce_ensures"
+              ]
+            ],
+            [
+              [
+                "step",
                 "save"
               ]
             ],
@@ -6341,6 +6528,12 @@
             [
               [
                 "step",
+                "enforce_ensures"
+              ]
+            ],
+            [
+              [
+                "step",
                 "save"
               ]
             ],
@@ -6380,6 +6573,12 @@
               [
                 "name",
                 "AlreadyExists"
+              ]
+            ],
+            [
+              [
+                "name",
+                "EnsuresNotMet"
               ]
             ],
             [
@@ -8877,6 +9076,32 @@
               [
                 "fills",
                 ""
+              ]
+            ],
+            [
+              [
+                "word",
+                "ensures"
+              ],
+              [
+                "context",
+                "Command"
+              ],
+              [
+                "body",
+                "source"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "ensures"
               ]
             ]
           ],
@@ -12841,6 +13066,9 @@
           "emits": [
             "ProjectionDeclared"
           ],
+          "ensures": [
+
+          ],
           "givens": [
 
           ],
@@ -12884,6 +13112,9 @@
           ],
           "emits": [
             "HeadGathered"
+          ],
+          "ensures": [
+
           ],
           "givens": [
             {
@@ -12948,6 +13179,9 @@
           ],
           "emits": [
             "OptionAttached"
+          ],
+          "ensures": [
+
           ],
           "givens": [
             {

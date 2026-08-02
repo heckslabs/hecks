@@ -33,8 +33,14 @@ module Hecksagain
         step(:enforce_givens) { @rules.enforce_givens(instance, command, args) }
         transition = step(:admissible_transition) { @rules.admissible_transition(aggregate, command, instance) }
         step(:assign_creation_attributes) { assign_creation_attributes(instance, aggregate, command, args) } if command.creates?
+        # The state as the givens saw it — what `old` names inside an
+        # ensures. A shallow dup suffices: mutations REPLACE fields (set,
+        # arithmetic via Value#with, append builds a new array), never
+        # edit a held value in place.
+        old_state = instance.state.dup unless command.ensures.empty?
         step(:apply_mutations) { command.mutations.each { |mutation| apply(instance, aggregate, mutation, args) } }
         step(:advance_lifecycle) { instance[aggregate.lifecycle.field] = transition.target } if transition
+        step(:enforce_ensures) { @rules.enforce_ensures(instance, command, args, old: old_state) }
 
         step(:save) { repository.save(instance) }
 
@@ -83,7 +89,8 @@ module Hecksagain
                identity_from(aggregate, args, :id) ||
                identity_from(aggregate, args, reference_key(command)) ||
                raise(NotFound, "#{command.hecks_name} acts on an existing #{aggregate.hecks_name} — pass #{identity_reading(aggregate)}:")
-          repository.find(id) || raise(NotFound, "no #{aggregate.hecks_name} with #{identity_reading(aggregate)} #{Rendering.describe(id)}")
+          found = repository.find(id) || raise(NotFound, "no #{aggregate.hecks_name} with #{identity_reading(aggregate)} #{Rendering.describe(id)}")
+          found.dup
         end
       end
 

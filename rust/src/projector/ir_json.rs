@@ -310,6 +310,17 @@ fn command_to_value(command: &Command) -> Value {
         })
         .collect();
 
+    let ensures: Vec<Value> = command
+        .ensures
+        .iter()
+        .map(|rule| {
+            json!({
+                "description": optional(&rule.description),
+                "canonical": canonicalise(&rule.canonical)
+            })
+        })
+        .collect();
+
     json!({
         "name": command.name,
         "role": optional(&command.role),
@@ -317,6 +328,7 @@ fn command_to_value(command: &Command) -> Value {
         "references": optional(&command.references),
         "attributes": command.attributes.iter().map(attribute_to_value).collect::<Vec<_>>(),
         "givens": givens,
+        "ensures": ensures,
         "mutations": command.mutations.iter().map(mutation_to_value).collect::<Vec<_>>(),
         "emits": command.emits
     })

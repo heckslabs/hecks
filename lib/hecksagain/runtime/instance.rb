@@ -67,6 +67,24 @@ module Hecksagain
 
       def to_h = { id: @id }.merge(@state)
 
+      # A COPY A MUTATION MAY TOUCH. Every adapter but Memory hands `find`
+      # a freshly-decoded Instance already; Memory's holds the record it
+      # eventually saves — the SAME state Hash, aliased. Before `ensures`
+      # existed, nothing could refuse between apply_mutations and save, so
+      # that aliasing was invisible: a dispatch either ran to completion or
+      # raised before touching state at all. `ensures` is the first refusal
+      # to sit AFTER mutation, and it found the bug the moment it did — an
+      # in-memory record left half-mutated by a dispatch that then refused.
+      # `command_interpreter`/`entity_interpreter` hydrate an EXISTING
+      # record through this, never through the adapter's own return value
+      # directly, so a refused ensures leaves the stored record untouched
+      # regardless of which adapter is holding it.
+      def dup
+        copy = super
+        copy.state = @state.dup
+        copy
+      end
+
       def inspect
         fields = @state.map { |k, v| "#{k}=#{v.inspect}" }.join(" ")
         "#<#{@aggregate.hecks_name} #{@id} #{fields}>"

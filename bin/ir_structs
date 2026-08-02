@@ -146,7 +146,16 @@ def builder_of(cat, shape)
     attributes_of(cmd).map { |a| a[:name].to_s }.sort == wanted
   end
   raise "no command on #{cat} builds #{shape.hecks_name} (#{wanted.join(', ')})" if matches.empty?
-  raise "#{matches.size} commands on #{cat} build #{shape.hecks_name}" if matches.size > 1
+
+  # TWO VERBS MAY BUILD ONE SHAPE — Command.Rule and Command.Ensure both
+  # append a Rule row, to different lists. The struct cares only about
+  # OPTIONALITY, so agreement is the requirement, not uniqueness: verbs
+  # that disagree about which fields may be omitted would project two
+  # different structs under one name, and that still fails loudly.
+  tables = matches.map { |cmd| attributes_of(cmd).map { |a| [a[:name].to_s, a[:optional] ? true : false] }.sort }
+  if tables.uniq.size > 1
+    raise "#{matches.size} commands on #{cat} build #{shape.hecks_name} and disagree on optionality"
+  end
 
   matches.first
 end

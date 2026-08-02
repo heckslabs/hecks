@@ -336,6 +336,7 @@ Hecks.bluebook "Bluebook" do
         # rows, this one takes its rows as arguments.
         member word: "list_of",         context: "Type", body: "none", inner: "", opens: "", fills: ""
         member word: "one_of",          context: "Type", body: "none", inner: "", opens: "", fills: ""
+        member word: "ensures", context: "Command", body: "source", inner: "", opens: "", fills: "ensures"
       end
     end
 

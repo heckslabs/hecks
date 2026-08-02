@@ -50,9 +50,10 @@ RSpec.describe Hecksagain::Bluebook::MetaValidator::Plan do
       # is not a name the walk ever has to match.
       appends = plan.category("Command").appends
 
-      expect(appends.keys).to match_array(%w[attributes givens mutations emits])
+      expect(appends.keys).to match_array(%w[attributes givens ensures mutations emits])
       expect(appends["attributes"].verb).to eq("Argument")
       expect(appends["givens"].verb).to eq("Rule")
+      expect(appends["ensures"].verb).to eq("Ensure")
       expect(appends["mutations"].verb).to eq("Change")
     end
 

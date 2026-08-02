@@ -16,6 +16,27 @@ module Hecksagain
           end
         end
 
+        # The far side of the contract: evaluated against the SETTLED record
+        # — after mutations and the lifecycle move, before anything persists
+        # — with `old` carrying the state as the givens saw it. Injected into
+        # the attrs at evaluation time only; the payload gate never sees it.
+        #
+        # `old` — and every dispatch ARGUMENT — wins over a same-named STATE
+        # field in expression scope (Resolver#fetch checks attrs first). An
+        # ensures naming a field the command also takes as an argument (or,
+        # on an entity, a field that doubles as the addressing argument
+        # element_of reads) will read the ARGUMENT, not the settled value.
+        # Not new to ensures — `given` lives under the same rule — but an
+        # ensures is more likely to collide, since it typically re-reads a
+        # field the command just took in to mutate it.
+        def enforce_ensures(subject, command, args, old:)
+          command.ensures.each do |rule|
+            next if Bluebook::Expression::Evaluator.call(rule.canonical, subject, args.merge(old: old))
+
+            raise EnsuresNotMet, "#{command.hecks_name} refused — #{rule.description}"
+          end
+        end
+
         def admissible_transition(declaring, command, subject)
           lifecycle = declaring.lifecycle
           return nil unless lifecycle

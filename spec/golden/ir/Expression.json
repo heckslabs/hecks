@@ -91,6 +91,9 @@
           "emits": [
             "OperatorProposed"
           ],
+          "ensures": [
+
+          ],
           "givens": [
 
           ],
@@ -126,6 +129,9 @@
           "emits": [
             "OperatorRendered"
           ],
+          "ensures": [
+
+          ],
           "givens": [
             {
               "canonical": "status != \"retired\"",
@@ -154,6 +160,9 @@
           "emits": [
             "OperatorAdmitted"
           ],
+          "ensures": [
+
+          ],
           "givens": [
             {
               "canonical": "renderings.size >= 2",
@@ -174,6 +183,9 @@
           ],
           "emits": [
             "OperatorRetired"
+          ],
+          "ensures": [
+
           ],
           "givens": [
 
@@ -519,6 +531,9 @@
           "emits": [
             "NormalisationProposed"
           ],
+          "ensures": [
+
+          ],
           "givens": [
             {
               "canonical": "strategy.value == \"collapse_whitespace\" || strategy.value == \"replace\"",
@@ -561,6 +576,9 @@
           "emits": [
             "NormalisationRead"
           ],
+          "ensures": [
+
+          ],
           "givens": [
             {
               "canonical": "status != \"retired\"",
@@ -589,6 +607,9 @@
           "emits": [
             "NormalisationAdmitted"
           ],
+          "ensures": [
+
+          ],
           "givens": [
             {
               "canonical": "readings.size >= 2",
@@ -609,6 +630,9 @@
           ],
           "emits": [
             "NormalisationRetired"
+          ],
+          "ensures": [
+
           ],
           "givens": [
 
@@ -1069,6 +1093,9 @@
           "emits": [
             "ExpressionExtracted"
           ],
+          "ensures": [
+
+          ],
           "givens": [
 
           ],
@@ -1104,6 +1131,9 @@
           "emits": [
             "ReferenceNoted"
           ],
+          "ensures": [
+
+          ],
           "givens": [
 
           ],
@@ -1128,6 +1158,9 @@
           ],
           "emits": [
             "ExpressionAdmitted"
+          ],
+          "ensures": [
+
           ],
           "givens": [
             {
@@ -1161,6 +1194,9 @@
           ],
           "emits": [
             "ExpressionRejected"
+          ],
+          "ensures": [
+
           ],
           "givens": [
 
@@ -1482,6 +1518,9 @@
           "emits": [
             "AgreementAsked"
           ],
+          "ensures": [
+
+          ],
           "givens": [
 
           ],
@@ -1517,6 +1556,9 @@
           "emits": [
             "VerdictRecorded"
           ],
+          "ensures": [
+
+          ],
           "givens": [
             {
               "canonical": "status == \"open\"",
@@ -1544,6 +1586,9 @@
           ],
           "emits": [
             "AgreementSettled"
+          ],
+          "ensures": [
+
           ],
           "givens": [
             {
@@ -1573,6 +1618,9 @@
           ],
           "emits": [
             "AgreementSplit"
+          ],
+          "ensures": [
+
           ],
           "givens": [
 
