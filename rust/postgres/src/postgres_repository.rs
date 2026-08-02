@@ -62,17 +62,22 @@ struct EraRow {
 fn integrity_refusal(domain: &str, ordinal: i32, edited_text: &str, stored_projection: Option<&serde_json::Value>) -> String {
     let base = format!("cannot boot {domain}: the held text of era {ordinal} was edited after it was frozen");
     if let Some(stored) = stored_projection {
-        let edited = crate::shape_of(edited_text);
-        if edited == *stored {
+        // `None` here is the near-miss case `shape_of` itself cannot see —
+        // see `shape_of_checked`'s own comment. Falling to the generic
+        // wording below is the same move Ruby's `EraTamper#project` makes
+        // when `Kernel.eval` cannot make sense of the edited text at all.
+        if let Some(edited) = crate::shape_of_checked(edited_text) {
+            if edited == *stored {
+                return format!(
+                    "{base} — the edit is cosmetic to the storage shape; \
+                     re-attest it (bin/reattest_era), or restore the original text from the era archive"
+                );
+            }
             return format!(
-                "{base} — the edit is cosmetic to the storage shape; \
-                 re-attest it (bin/reattest_era), or restore the original text from the era archive"
+                "{base} AND the edit changed the storage shape — \
+                 re-attestation will refuse it; restore the original text from the era archive"
             );
         }
-        return format!(
-            "{base} AND the edit changed the storage shape — \
-             re-attestation will refuse it; restore the original text from the era archive"
-        );
     }
     format!("{base} — held era texts are storage facts; restore the original text, or reset the data")
 }

@@ -211,3 +211,45 @@ fn era_gate_recognizes_holds_and_refuses_toward_the_ruby_scaffold() {
     drop(repository);
     let _ = admin.batch_execute(&format!("DROP DATABASE IF EXISTS {GATE_DB} WITH (FORCE)"));
 }
+
+// `integrity_refusal` used to reach only two verdicts for an edited held
+// text — cosmetic or shape-changed — because `shape_of` never refuses: the
+// core parser is permissive and silently drops what it cannot read, so a
+// held text edited into a keyword typo still projected to SOME shape.
+// `shape_of_checked` closes the one detectable class of that gap
+// (`strict_boot::scan`'s near-miss keywords), so an edit like this now
+// reaches the SAME generic wording Ruby's `Kernel.eval`-based strictness
+// already gets it to, rather than being misreported as a shape change.
+#[test]
+fn era_gate_refuses_a_near_miss_typo_toward_the_generic_wording() {
+    let Some(mut admin) = admin() else {
+        eprintln!("no reachable Postgres — start one to run this test");
+        return;
+    };
+    const GATE_DB: &str = "hecksagain_rust_gate_typo_test";
+    let _ = admin.batch_execute(&format!("DROP DATABASE IF EXISTS {GATE_DB} WITH (FORCE)"));
+    admin.batch_execute(&format!("CREATE DATABASE {GATE_DB}")).unwrap();
+
+    let v1 = "Hecks.bluebook \"Ledger\" do\n  aggregate \"Account\" do\n    attribute :cost, Money\n\n    value_object \"Money\" do\n      attribute :cents, Integer\n    end\n  end\nend\n";
+    let typoed = "Hecks.bluebook \"Ledger\" do\n  aggregate \"Account\" do\n    atribute :cost, Money\n\n    value_object \"Money\" do\n      attribute :cents, Integer\n    end\n  end\nend\n";
+
+    let mut repository = PostgresRepository::new("Account", GATE_DB, "Ledger").unwrap();
+    let v1_shape = storehouse_postgres::shape_of(v1);
+
+    assert_eq!(repository.era_gate("Ledger", v1, &v1_shape, &[]).unwrap(), Some(1));
+    let mut check = Client::connect(&format!("host=localhost dbname={GATE_DB}"), NoTls).unwrap();
+
+    check
+        .execute("UPDATE hecks_eras SET held_text = $1 WHERE domain = 'Ledger' AND ordinal = 1", &[&typoed])
+        .unwrap();
+    let refusal = repository.era_gate("Ledger", v1, &v1_shape, &[]).unwrap_err();
+    assert_eq!(
+        refusal,
+        "cannot boot Ledger: the held text of era 1 was edited after it was frozen — held era texts are storage facts; restore the original text, or reset the data"
+    );
+
+    drop(check);
+    drop(repository);
+    let _ = admin.batch_execute(&format!("DROP DATABASE IF EXISTS {GATE_DB} WITH (FORCE)"));
+}
+

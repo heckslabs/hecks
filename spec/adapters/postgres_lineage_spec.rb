@@ -290,6 +290,30 @@ RSpec.describe "lineage in the Postgres adapter",
     expect { check!(V1_SOURCE) }.not_to raise_error
   end
 
+  # `EraTamper#project` returns nil (rather than a shape) when the edited
+  # text cannot be made sense of at all — here, a misspelled DSL method
+  # inside the aggregate body raises `NoMethodError` mid-`Kernel.eval`. The
+  # refusal falls to the generic wording rather than claiming a shape
+  # comparison it never actually managed to make. Rust closes the
+  # equivalent gap for its own permissive parser via `shape_of_checked` and
+  # `strict_boot::scan` — this is the Ruby side of that same pin.
+  it "refuses an edit that cannot be parsed at all, toward the generic wording" do
+    check!(V1_SOURCE)
+    db = PG.connect(dbname: LINEAGE_DB)
+
+    unparseable = V1_SOURCE.sub("attribute :cost, Money", "atribute :cost, Money")
+    db.exec_params("UPDATE hecks_eras SET held_text = $1 WHERE domain = 'Ledger' AND ordinal = 1", [unparseable])
+    expect { check!(V1_SOURCE) }.to raise_error(
+      Hecksagain::Runtime::WiringError,
+      "cannot boot Ledger: the held text of era 1 was edited after it was frozen — held era texts are " \
+      "storage facts; restore the original text, or reset the data"
+    )
+
+    db.exec_params("UPDATE hecks_eras SET held_text = $1 WHERE domain = 'Ledger' AND ordinal = 1", [V1_SOURCE])
+    db.close
+    expect { check!(V1_SOURCE) }.not_to raise_error
+  end
+
   it "re-attesting an edited hecks_eras row re-freezes it, with the attestation on the record" do
     check!(V1_SOURCE)
     db = PG.connect(dbname: LINEAGE_DB)
