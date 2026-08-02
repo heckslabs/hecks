@@ -170,6 +170,67 @@ mod tests {
         assert_eq!(runtime.events.len(), 1, "PizzaCreated was announced");
     }
 
+    /// THE POSTCONDITION, THROUGH THE COMPILED PATH SPECIFICALLY — not
+    /// just carried as data (`every_projected_domain_says_what_ruby_says`
+    /// already proves that) but actually EVALUATED by a dispatch that
+    /// never read a byte of banking.bluebook. `Runtime::boot` and
+    /// `boot_projected` converge on the same `dispatch`/`dispatch_entity`
+    /// — enforce_ensures is not special-cased per boot path — so this is
+    /// the same claim `ensures_test.rs` makes for the PARSED path, aimed
+    /// at the projection instead. Debit's own postconditions
+    /// (`old.balance.cents == balance.cents + amount.cents`, `balance.cents
+    /// >= 0`) hold by construction for a correct debit, exactly like the
+    /// Ruby dogfood in spec/runtime/command_rules_spec.rb — DbC's point is
+    /// a postcondition that never fires in a correct run, so this proves
+    /// the projected path evaluates it without wrongly refusing, which a
+    /// subtle dispatch-order bug in the compiled path could still get
+    /// wrong even with the data present.
+    #[test]
+    fn a_projected_domain_s_ensures_actually_evaluate() {
+        let mut runtime = crate::dispatcher::Runtime::boot_projected("Banking")
+            .expect("Banking is compiled into this binary");
+
+        let mut register = serde_json::Map::new();
+        register.insert("reference".into(), serde_json::json!({ "value": "c1" }));
+        register.insert("name".into(), serde_json::json!({ "given": "A", "family": "Customer" }));
+        register.insert("email".into(), serde_json::json!({ "address": "a@example.com" }));
+        runtime
+            .dispatch("Banking::Customer.Register", &register)
+            .expect("Register never refuses here");
+
+        let mut open = serde_json::Map::new();
+        open.insert("customer_id".into(), serde_json::json!("c1"));
+        open.insert("number".into(), serde_json::json!({ "value": "a1" }));
+        open.insert("kind".into(), serde_json::json!({ "name": "current" }));
+        open.insert("daily_limit".into(), serde_json::json!({ "cents": 50_000 }));
+        runtime
+            .dispatch("Banking::Account.Open", &open)
+            .expect("Open never refuses here");
+
+        let mut credit = serde_json::Map::new();
+        credit.insert("number".into(), serde_json::json!({ "value": "a1" }));
+        credit.insert("amount".into(), serde_json::json!({ "cents": 10_000, "currency": "USD" }));
+        credit.insert("narrative".into(), serde_json::json!({ "text": "Opening" }));
+        runtime
+            .dispatch("Banking::Account.Credit", &credit)
+            .expect("Credit never refuses here");
+
+        let mut debit = serde_json::Map::new();
+        debit.insert("number".into(), serde_json::json!({ "value": "a1" }));
+        debit.insert("amount".into(), serde_json::json!({ "cents": 4_000 }));
+        debit.insert("narrative".into(), serde_json::json!({ "text": "Withdrawal" }));
+
+        let state = runtime
+            .dispatch("Banking::Account.Debit", &debit)
+            .expect("a holding postcondition, evaluated through the PROJECTED path, does not refuse");
+
+        assert_eq!(
+            state.get("balance").and_then(|balance| balance.get("cents")),
+            Some(&serde_json::json!(6_000)),
+            "the mutation Debit's own ensures checks — decremented by exactly the amount"
+        );
+    }
+
     /// AND REFUSES BY NAME when the binary does not carry the chapter, saying
     /// what it does carry rather than failing to find a file nobody named.
     #[test]
