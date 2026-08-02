@@ -30,10 +30,9 @@ module Hecksagain
           if held.empty?
             lineage.hold_first!(current_text, projection: Runtime::StorageShape.project(bluebook))
             bluebook.aggregates.each { |aggregate| lineage.ensure_first_head!(aggregate.storage_name) }
-            # Era 1 is HELD, never minted — so this is the only place its
-            # role can be fenced. Without it the first checkout holds no
-            # policy, and the first mint's RLS denies it.
-            lineage.grant_era!(1, role) if role
+            # hold_first! already established era 1 as current for
+            # EVERY role; this one just needs its own privileges.
+            lineage.grant_role!(role) if role
             return
           end
 
@@ -43,9 +42,9 @@ module Hecksagain
           latest, latest_shape = shapes.last
           if latest_shape == current_shape
             bluebook.aggregates.each { |aggregate| lineage.ensure_first_head!(aggregate.storage_name) } if latest[:ordinal] == 1
-            # Re-affirm on every quiet boot: idempotent, and it is what
-            # keeps a role fenced at an era it did not mint.
-            lineage.grant_era!(latest[:ordinal], role) if role
+            # A quiet reboot changes no era, so there is nothing to
+            # advance — only this role's own privileges, if it is new.
+            lineage.grant_role!(role) if role
             registry.resolved_eras[bluebook.name] = latest[:ordinal]
             return
           end
@@ -53,16 +52,15 @@ module Hecksagain
           matched, = shapes.find { |_, shape| shape == current_shape }
           if matched
             # A held-but-superseded era — an old checkout still running.
-            # Permitted, on Postgres alone: the old world keeps booting
-            # its era and writing its own partition under its own fence;
-            # the new head's watermark already excludes those post-cut
-            # writes, and the divergence stays observable until a
-            # deliberate tail-merge.
-            #
-            # Fencing HERE is what makes the fork real: this role is
-            # pinned to the era it actually speaks, and the newer role's
-            # policy — named for that other role — is untouched.
-            lineage.grant_era!(matched[:ordinal], role) if role
+            # It may keep BOOTING and READING (Postgres is the one
+            # adapter that recognizes this rather than refusing), but it
+            # may not keep WRITING: the shared era fence was already
+            # advanced past this ordinal by whichever mint superseded
+            # it, and nothing here may roll that back. Granting only
+            # this role's privileges, never advance_era!, is what keeps
+            # that true — see advance_era!'s own warning against being
+            # called with a superseded ordinal.
+            lineage.grant_role!(role) if role
             registry.resolved_eras[bluebook.name] = matched[:ordinal]
             return
           end

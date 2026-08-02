@@ -713,11 +713,12 @@ RSpec.describe "lineage in the Postgres adapter",
     # the era this checkout speaks
     expect(append.call(2)).to eq(:allowed)
 
-    # the ANCESTOR era — the fork's other world. A per-partition GRANT
-    # cannot express this: Postgres checks INSERT on the partitioned
-    # parent for a routed insert and never consults the partition, so
-    # the old shape of this fence either blocked everything or allowed
-    # every era. This asserts the refusal by attempting the write.
+    # the SUPERSEDED era — writing to the old schema drops the instant
+    # this mint materialized it. A per-partition GRANT cannot express
+    # this: Postgres checks INSERT on the partitioned parent for a
+    # routed insert and never consults the partition, so the old shape
+    # of this fence either blocked everything or allowed every era.
+    # This asserts the refusal by attempting the write.
     expect(append.call(1)).to match(/row-level security policy/i)
 
     # nor is a partition a back door: the role is granted on the parent
@@ -786,7 +787,27 @@ RSpec.describe "lineage in the Postgres adapter",
     writer.close
   end
 
-  it "two roles, two eras: the old checkout keeps writing its own era after a newer one mints — the fork, at the privilege level" do
+  it "a role rebooting into its OWN now-superseded era cannot write it — nothing about that boot may reopen the schema a mint already closed" do
+    reset_app_role!
+    check!(V1_SOURCE, role: LINEAGE_ROLE)
+    write_v1_record
+
+    from = label_of(V1_SOURCE)
+    to = label_of(V2_SOURCE)
+    check!(V2_SOURCE, translation_source: edge_source(from: from, to: to)) # a plain owner mint, no role at all
+
+    # the SAME role reboots and correctly recognizes itself as
+    # superseded (the "matched" branch) — nothing about ITS OWN
+    # settings changed; the schema moved out from under it
+    check!(V1_SOURCE, role: LINEAGE_ROLE)
+
+    expect(
+      as_app_role("INSERT INTO hecks_journal_ledger (era, aggregate, aggregate_id, operation, state) " \
+                  "VALUES (1, 'account', 'after-reboot', 'save', '{}'::jsonb)")
+    ).to match(/row-level security/i)
+  end
+
+  it "the fence is a fact about the ERA, not the role — a mint by one role cuts EVERY role off the schema it just replaced" do
     old_role = "#{LINEAGE_ROLE}_old"
     new_role = "#{LINEAGE_ROLE}_new"
     admin = PG.connect(dbname: "postgres")
@@ -831,14 +852,18 @@ RSpec.describe "lineage in the Postgres adapter",
     to = label_of(V2_SOURCE)
     check!(V2_SOURCE, translation_source: edge_source(from: from, to: to), role: new_role)
 
-    # both worlds keep their own era — this is the fork, and before the
-    # fence was applied outside mint_era! the old role was denied here
-    # the moment RLS came on
-    expect(writes.call(old_role, 1)).to eq(:allowed)
+    # the new role writes what it just minted...
     expect(writes.call(new_role, 2)).to eq(:allowed)
 
-    # and neither can reach into the other's era
-    expect(writes.call(old_role, 2)).to match(/row-level security/i)
+    # ...and so, unprompted, does the OLD role: the fence is a fact
+    # about the ERA, not about WHICH role is asking, so any role ever
+    # granted INSERT may write whatever is current the instant it
+    # becomes current. There is no "its own era" left to keep.
+    expect(writes.call(old_role, 2)).to eq(:allowed)
+
+    # what is gone, for EITHER role, is the schema era 2 replaced —
+    # nobody may write era 1 once era 2 has materialized.
+    expect(writes.call(old_role, 1)).to match(/row-level security/i)
     expect(writes.call(new_role, 1)).to match(/row-level security/i)
   end
 

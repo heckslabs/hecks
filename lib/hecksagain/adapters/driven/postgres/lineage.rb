@@ -20,6 +20,19 @@ module Hecksagain
       # old-era writes cannot leak into the new head even on REFRESH.
       # Live current-era writes overlay it through the head view.
       #
+      # Writing to a superseded schema drops the instant the new one
+      # materializes: ONE shared row policy admits INSERTs to whichever
+      # era was just established (era 1 at first hold, era N at mint),
+      # and advancing it is part of the SAME transaction that builds the
+      # new era's matview. There is no persisted per-role fork — a
+      # deployment's app role writes the current era or nothing, from
+      # the moment that transaction commits, whichever role happens to
+      # be asking. A stale-era write during the narrow window before
+      # that commit (ordinals are sequence-assigned, not transactional —
+      # see below) is exactly what diverged_count/merge_tail exist to
+      # reconcile; it is the residual of an unavoidable race, not a
+      # supported way to keep operating two schemas side by side.
+      #
       # Lineage order is ordinal-assignment order: the ordinal comes
       # from a sequence, sequences are non-transactional, and that is
       # accepted and documented rather than papered over.
@@ -294,6 +307,9 @@ module Hecksagain
             [@domain, text, Digest::SHA256.hexdigest(text), projection && JSON.generate(projection)]
           )
           archive_text!(1, text)
+          # Era 1 is the current era from its first moment — established
+          # here, not left to whichever role happens to boot first.
+          advance_era!(1)
         end
 
         def archive_text!(ordinal, text)
@@ -372,7 +388,14 @@ module Hecksagain
           )
           archive_text!(ordinal, held_text)
           ensure_partition!(ordinal)
-          grant_era!(ordinal, role) if role
+          grant_role!(role) if role
+          # UNCONDITIONAL — this is the line that drops writing to the
+          # old schema. It does not wait for a role to be configured on
+          # THIS boot, because the cutoff is a fact about the era, not
+          # about who happened to mint it: an old checkout's role,
+          # granted by some earlier boot this one knows nothing about,
+          # must lose write access the instant this transaction commits.
+          advance_era!(ordinal)
           aggregates.each { |aggregate| compile_head!(aggregate, ordinal, label, edges) }
           @db.exec("COMMIT")
           true
@@ -386,55 +409,62 @@ module Hecksagain
           raise Runtime::WiringError, "cannot mint era #{ordinal} of #{@domain}: #{error.message.strip}"
         end
 
-        # The per-era INSERT fence: the app role (a NON-owner) may append
-        # into exactly one era — the one its checkout speaks. An OLD
-        # checkout keeps its own role's fence at its own era (the fork);
-        # this connection's role moves forward.
-        #
-        # A ROW POLICY, not a partition grant. Postgres checks INSERT
-        # privilege on the partitioned PARENT for a routed insert and
-        # never consults the partition's own grants, so the obvious
-        # per-partition GRANT/REVOKE is inert in both directions: grant
-        # only on the partition and the role cannot write at all; grant
-        # on the parent so it can, and it may write into EVERY era,
-        # ancestors included. Measured, not reasoned about — see the
-        # spec, which writes through the fence rather than asserting the
-        # catalog. WITH CHECK is evaluated per ROW on the parent, which
-        # is exactly the boundary this needs.
-        #
-        # The table owner bypasses RLS by default, and that is load
-        # bearing: mint and merge run as the owner and must be able to
-        # write any era (the merge re-enters a winner's state into the
-        # CURRENT era, and compile_head! reads every ancestor).
-        # Called on EVERY boot that names a role, not only on a mint. A
-        # fence applied only at mint time leaves era 1 unfenced (era 1
-        # is held, never minted) and leaves an old checkout's role
-        # holding nothing — so the first mint's RLS would deny it, which
-        # is exactly the moment the fork is supposed to begin.
+        # Base privileges for a deployment's app role — a NON-owner,
+        # which may append and read once the shared era fence below
+        # admits it, and owns nothing. Idempotent, and unconcerned with
+        # WHICH era is current: that is advance_era!'s job, not this
+        # one's, so a role can be onboarded at any time without
+        # disturbing who may write what right now.
         #
         # Owner-only work, so a non-owner app boot skips it: the
-        # provisioner has already fenced that role, and re-affirming is
+        # provisioner has already granted that role, and re-affirming is
         # idempotent anyway.
-        def grant_era!(ordinal, role)
+        def grant_role!(role)
           return unless provisioner?
 
           quoted_role = quote(role)
           @db.exec("GRANT INSERT, SELECT ON #{quoted_journal} TO #{quoted_role}")
           @db.exec("GRANT USAGE ON SEQUENCE #{quote(sequence)} TO #{quoted_role}")
+        end
 
-          # Policies are named per ROLE, so advancing this role's era
-          # leaves every other role's fence exactly where it stands —
-          # which is what lets an old checkout keep writing its own era
-          # while a new one moves on.
-          append = quote("hecks_append_#{role}")
-          @db.exec("DROP POLICY IF EXISTS #{append} ON #{quoted_journal}")
+        # THE current-era fence — ONE policy, shared by every granted
+        # role, not one per role. Advancing it is what drops writing to
+        # the old schema the instant the new one materializes: the
+        # moment this commits, no role — old or new, whether or not it
+        # did anything to earn this mint — may insert anything but the
+        # era named here. There is no persisted fork: a checkout that
+        # keeps a role fenced to a stale era does not exist in this
+        # design, because there is no such thing as a role fenced to an
+        # era at all — only the ONE era everyone currently shares.
+        #
+        # A ROW POLICY, not a partition grant. Postgres checks INSERT
+        # privilege on the partitioned PARENT for a routed insert and
+        # never consults the partition's own grants, so a per-partition
+        # GRANT/REVOKE is inert in both directions: grant only on the
+        # partition and nobody can write at all; grant on the parent and
+        # they may write into EVERY era, ancestors included. Measured,
+        # not reasoned about — see the spec, which writes through the
+        # fence rather than asserting the catalog.
+        #
+        # The table owner bypasses RLS by default, and that is load
+        # bearing: mint and merge run as the owner and must be able to
+        # write any era (the merge re-enters a winner's state into the
+        # CURRENT era, and compile_head! reads every ancestor).
+        #
+        # CALL ONLY WITH THE NEW CURRENT ORDINAL — from hold_first! (era
+        # 1) or mint_era! (era N). Calling this with a SUPERSEDED
+        # ordinal — from a boot that merely recognizes an old checkout —
+        # would roll the fence backward and silently reopen the old
+        # schema for everyone. That path grants a role's PRIVILEGES
+        # (grant_role!) and stops there on purpose.
+        def advance_era!(ordinal)
+          @db.exec("DROP POLICY IF EXISTS hecks_current_era ON #{quoted_journal}")
           @db.exec(
-            "CREATE POLICY #{append} ON #{quoted_journal} FOR INSERT TO #{quoted_role} " \
+            "CREATE POLICY hecks_current_era ON #{quoted_journal} FOR INSERT TO PUBLIC " \
             "WITH CHECK (era = #{ordinal.to_i})"
           )
-          read = quote("hecks_read_#{role}")
-          @db.exec("DROP POLICY IF EXISTS #{read} ON #{quoted_journal}")
-          @db.exec("CREATE POLICY #{read} ON #{quoted_journal} FOR SELECT TO #{quoted_role} USING (true)")
+          @db.exec("DROP POLICY IF EXISTS hecks_read_all ON #{quoted_journal}")
+          @db.exec("CREATE POLICY hecks_read_all ON #{quoted_journal} FOR SELECT TO PUBLIC USING (true)")
         end
 
         # ── fork observability ─────────────────────────────────────────
