@@ -1,4 +1,5 @@
 require_relative "invariant_violation"
+require_relative "../refusal_wording"
 
 module Hecksagain
   module Runtime
@@ -16,7 +17,9 @@ module Hecksagain
           return if admitted.include?(offered.to_s)
 
           raise InvariantViolation,
-                "#{value_object.hecks_name} admits #{admitted.map(&:inspect).join(', ')} — got #{offered.inspect}"
+                RefusalWording.render("InvariantViolation", "closed_set_member",
+                                      type: value_object.hecks_name,
+                                      admitted: admitted.map(&:inspect).join(", "), offered: offered.inspect)
         end
 
         # THE SAME REFUSAL, FOR A SET NAMED SOMEWHERE ELSE.
@@ -40,8 +43,9 @@ module Hecksagain
           return value if admitted.include?(offered.to_s)
 
           raise InvariantViolation,
-                "#{attribute.name} admits #{attribute.admits} — " \
-                "#{admitted.map(&:inspect).join(', ')} — got #{offered.inspect}"
+                RefusalWording.render("InvariantViolation", "admits_declared_set",
+                                      name: attribute.name, admits: attribute.admits,
+                                      admitted: admitted.map(&:inspect).join(", "), offered: offered.inspect)
         end
 
         # `Vocabulary::MutationOp` — the aggregate that HOLDS the set, then the
@@ -61,9 +65,8 @@ module Hecksagain
 
           unless set
             raise InvariantViolation,
-                  "#{attribute.name} admits #{attribute.admits}, which this chapter does not " \
-                  "declare — a closed set is named Aggregate::SetName, and it must be one " \
-                  "the bluebook actually holds"
+                  RefusalWording.render("InvariantViolation", "undeclared_set",
+                                        name: attribute.name, admits: attribute.admits)
           end
 
           discriminant = set.attributes.first.name

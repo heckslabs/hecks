@@ -1,5 +1,6 @@
 require_relative "../../rendering"
 require_relative "../errors"
+require_relative "../refusal_wording"
 require_relative "../value"
 
 module Hecksagain
@@ -57,10 +58,12 @@ module Hecksagain
           end
 
           unless amount.is_a?(Integer)
-            raise TypeMismatch, "#{op} of #{target} needs an Integer, got #{Rendering.describe(amount)}"
+            raise TypeMismatch, RefusalWording.render("TypeMismatch", "arithmetic_amount",
+                                                       op: op, target: target, offered: Rendering.describe(amount))
           end
           unless current.is_a?(Integer)
-            raise TypeMismatch, "#{op} of #{target} needs an Integer #{target}, got #{Rendering.describe(current)}"
+            raise TypeMismatch, RefusalWording.render("TypeMismatch", "arithmetic_current",
+                                                       op: op, target: target, offered: Rendering.describe(current))
           end
 
           current + (sign * amount)
@@ -74,7 +77,7 @@ module Hecksagain
           end
           unless shared_numeric.size == 1
             raise TypeMismatch,
-                  "#{op} of #{target} needs a value object with one shared Integer field"
+                  RefusalWording.render("TypeMismatch", "arithmetic_shared_field", op: op, target: target)
           end
 
           field = shared_numeric.first

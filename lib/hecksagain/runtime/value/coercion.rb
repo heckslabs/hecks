@@ -1,6 +1,7 @@
 require_relative "../../bluebook/expression/evaluator"
 require_relative "../../rendering"
 require_relative "../errors"
+require_relative "../refusal_wording"
 require_relative "invariant_violation"
 
 module Hecksagain
@@ -55,7 +56,9 @@ module Hecksagain
           return value.to_h if value.is_a?(self)
 
           raise TypeMismatch,
-                "#{name} is a #{value_object.hecks_name} — pass its fields as an object, not #{Rendering.describe(value)}"
+                RefusalWording.render("TypeMismatch", "value_object_shape",
+                                      name: name, type: value_object.hecks_name,
+                                      offered: Rendering.describe(value))
         end
 
         def build(value_object, fields)
@@ -135,8 +138,9 @@ module Hecksagain
           return unless value.is_a?(Hash) || value.is_a?(self)
 
           raise TypeMismatch,
-                "#{command.hecks_name} refused — a reference is an id, and " \
-                "#{attribute.name} arrived as an object#{known_by(attribute)}"
+                RefusalWording.render("TypeMismatch", "reference_as_object",
+                                      command: command.hecks_name, attribute: attribute.name,
+                                      known_by: known_by(attribute))
         end
 
         # "(Account is known by number)" — what to send instead. No article, on
@@ -163,7 +167,7 @@ module Hecksagain
           fields = value.to_h
           return fields.values.first if fields.size == 1
 
-          raise TypeMismatch, "#{value.type_name} has multiple fields and cannot stand in for a scalar"
+          raise TypeMismatch, RefusalWording.render("TypeMismatch", "multi_field_scalar", type: value.type_name)
         end
 
         def from_identifier(aggregate, attribute, identifier)
@@ -173,7 +177,7 @@ module Hecksagain
           fields = value_object.attributes
           return build(value_object, { fields.first.name => identifier }) if fields.size == 1
 
-          raise TypeMismatch, "#{value_object.hecks_name} is a composite identity — an identity must have exactly one field"
+          raise TypeMismatch, RefusalWording.render("TypeMismatch", "composite_identity", type: value_object.hecks_name)
         end
 
         def canonical_fields(fields)
@@ -200,7 +204,9 @@ module Hecksagain
             next if given.nil? || given.is_a?(expected)
 
             raise TypeMismatch,
-                  "#{value_object.hecks_name}.#{attribute.name} expects #{attribute.type}, got #{Rendering.describe(given)}"
+                  RefusalWording.render("TypeMismatch", "numeric_field",
+                                        type: value_object.hecks_name, field: attribute.name,
+                                        expected: attribute.type, offered: Rendering.describe(given))
           end
         end
 
@@ -224,8 +230,9 @@ module Hecksagain
             next if given.is_a?(String) && Regexp.new(pattern).match?(given)
 
             raise TypeMismatch,
-                  "#{value_object.hecks_name}.#{attribute.name} must match #{pattern}, " \
-                  "got #{Rendering.describe(given)}"
+                  RefusalWording.render("TypeMismatch", "pattern_mismatch",
+                                        type: value_object.hecks_name, field: attribute.name,
+                                        pattern: pattern, offered: Rendering.describe(given))
           end
         end
       end

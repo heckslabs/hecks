@@ -7,6 +7,7 @@ pub mod identity;
 pub mod storage_shape;
 pub mod strict_boot;
 pub mod mutations;
+pub mod refusal_wording;
 pub mod value_bridge;
 
 #[allow(dead_code)]

@@ -1,4 +1,5 @@
 require_relative "errors"
+require_relative "refusal_wording"
 require_relative "command_rules"
 require_relative "command_interpreter"
 require_relative "entity_interpreter"
@@ -54,7 +55,8 @@ module Hecksagain
             @entities.call(domain, aggregate, command_name, args)
           else
             command = aggregate.command(command_name) ||
-                      raise(UnknownVerb, "#{aggregate_name} has no command #{command_name.inspect}")
+                      raise(UnknownVerb, RefusalWording.render("UnknownVerb", "aggregate_no_command",
+                                                                aggregate: aggregate_name, command: command_name.inspect))
             @commands.call(domain, aggregate, command, args)
           end
 
@@ -76,8 +78,11 @@ module Hecksagain
       def query(verb, **args)
         domain, query_name = verb.to_s.split(".", 2)
         if query_name && !domain.include?("::")
-          bluebook = @registry.bluebook(domain) || raise(UnknownVerb, "no domain #{domain.inspect} loaded (verb #{verb})")
-          model = bluebook.read_model(query_name) || raise(UnknownVerb, "#{domain} has no read model #{query_name.inspect}")
+          bluebook = @registry.bluebook(domain) ||
+                     raise(UnknownVerb, RefusalWording.render("UnknownVerb", "no_domain", domain: domain.inspect, verb: verb))
+          model = bluebook.read_model(query_name) ||
+                  raise(UnknownVerb, RefusalWording.render("UnknownVerb", "no_read_model",
+                                                            domain: domain, query: query_name.inspect))
           return @read_models.call(domain, model, args)
         end
 
@@ -102,14 +107,15 @@ module Hecksagain
 
       def parse(verb)
         Naming.split_verb(verb) ||
-          raise(UnknownVerb, "#{verb.inspect} is not a fully-qualified verb (Domain::Aggregate.Command)")
+          raise(UnknownVerb, RefusalWording.render("UnknownVerb", "not_fully_qualified", verb: verb.inspect))
       end
 
       def resolve_aggregate(domain, aggregate_name, verb)
         bluebook = @registry.bluebook(domain) ||
-                   raise(UnknownVerb, "no domain #{domain.inspect} loaded (verb #{verb})")
+                   raise(UnknownVerb, RefusalWording.render("UnknownVerb", "no_domain", domain: domain.inspect, verb: verb))
         bluebook.aggregate(aggregate_name) ||
-          raise(UnknownVerb, "#{domain} has no aggregate #{aggregate_name.inspect}")
+          raise(UnknownVerb, RefusalWording.render("UnknownVerb", "no_aggregate",
+                                                    domain: domain, aggregate: aggregate_name.inspect))
       end
     end
   end

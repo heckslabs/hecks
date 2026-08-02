@@ -1,6 +1,7 @@
 require_relative "../rendering"
 require_relative "errors"
 require_relative "value"
+require_relative "refusal_wording"
 
 module Hecksagain
   module Runtime
@@ -46,7 +47,9 @@ module Hecksagain
       end
 
       def fetch(bluebook, domain, aggregate_name, id)
-        @registry.read_repository(domain, bluebook.aggregate(aggregate_name)).find(id) || raise(NotFound, "no #{aggregate_name} with reference #{Rendering.describe(id)}")
+        @registry.read_repository(domain, bluebook.aggregate(aggregate_name)).find(id) ||
+          raise(NotFound, RefusalWording.render("NotFound", "read_model_reference_missing",
+                                                 aggregate: aggregate_name, offered: Rendering.describe(id)))
       end
       def records(bluebook, domain, aggregate_name)
         aggregate = bluebook.aggregate(aggregate_name)
@@ -71,8 +74,8 @@ module Hecksagain
         return unless offered.is_a?(Hash) || offered.is_a?(Value)
 
         raise TypeMismatch,
-              "#{model.query_name} refused — a reference is an id, and " \
-              "#{model.reference_name} arrived as an object"
+              RefusalWording.render("TypeMismatch", "read_model_object_reference",
+                                    query: model.query_name, field: model.reference_name)
       end
 
       # A reference is the id, in the argument and in the stored row alike.

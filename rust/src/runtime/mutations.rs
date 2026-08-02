@@ -2,6 +2,7 @@ use crate::bluebook::expression::resolver::describe;
 use crate::dispatcher::array;
 use crate::interp_expr::State;
 use crate::interp_givens::evaluate_given;
+use crate::runtime::refusal_wording;
 use serde_json::{Map, Value};
 use std::sync::LazyLock;
 
@@ -175,11 +176,11 @@ pub fn refuse_unknown_arguments(
     }
 
     let command_name = command.get("name").and_then(Value::as_str).unwrap_or("");
-    Err(format!(
-        "{} does not declare {} — it takes {}",
-        command_name,
-        unknown.join(", "),
-        declared
+    let unknown_joined = unknown.join(", ");
+    Err(refusal_wording::render(
+        "UnknownArgument",
+        "unknown_args",
+        &[("command", command_name), ("unknown", &unknown_joined), ("declared", &declared)],
     ))
 }
 
@@ -229,11 +230,12 @@ pub fn refuse_absent_arguments(command: &Map<String, Value>, args: &State) -> Re
     }
 
     let command_name = command.get("name").and_then(Value::as_str).unwrap_or("");
-    Err(format!(
-        "{} was not given {} — it takes {}",
-        command_name,
-        absent.join(", "),
-        declared.join(", ")
+    let absent_joined = absent.join(", ");
+    let declared_joined = declared.join(", ");
+    Err(refusal_wording::render(
+        "AbsentArgument",
+        "absent_args",
+        &[("command", command_name), ("absent", &absent_joined), ("declared", &declared_joined)],
     ))
 }
 
@@ -327,11 +329,11 @@ pub fn coerce_attribute(
         .get("name")
         .and_then(Value::as_str)
         .unwrap_or_default();
-    Err(format!(
-        "{} is a {} — pass its fields as an object, not {}",
-        name,
-        vo_name,
-        value
+    let offered = value.to_string();
+    Err(refusal_wording::render(
+        "TypeMismatch",
+        "value_object_shape",
+        &[("name", name), ("type", vo_name), ("offered", &offered)],
     ))
 }
 
@@ -400,8 +402,10 @@ pub fn arithmetic(
     let amount_int = integer_field(&amount, state.get(target));
     let Some(amount_int) = amount_int else {
         if amount.is_object() && state.get(target).is_some_and(Value::is_object) {
-            return Err(format!(
-                "{operation} of {target} needs a value object with one shared Integer field"
+            return Err(refusal_wording::render(
+                "TypeMismatch",
+                "arithmetic_shared_field",
+                &[("op", operation), ("target", target)],
             ));
         }
         // describe(), not to_string() : Ruby words this with Rendering.describe and
@@ -409,9 +413,11 @@ pub fn arithmetic(
         // which JSON spells "null" — and nil is precisely the value an absent
         // argument now arrives as, so raw to_string() here would have replaced one
         // split with another.
-        return Err(format!(
-            "{operation} of {target} needs an Integer, got {}",
-            describe(&amount)
+        let offered = describe(&amount);
+        return Err(refusal_wording::render(
+            "TypeMismatch",
+            "arithmetic_amount",
+            &[("op", operation), ("target", target), ("offered", &offered)],
         ));
     };
 
@@ -426,9 +432,11 @@ pub fn arithmetic(
         integer_field(&current, Some(&amount))
     };
     let Some(current_int) = current_int else {
-        return Err(format!(
-            "{operation} of {target} needs an Integer {target}, got {}",
-            describe(&current)
+        let offered = describe(&current);
+        return Err(refusal_wording::render(
+            "TypeMismatch",
+            "arithmetic_current",
+            &[("op", operation), ("target", target), ("offered", &offered)],
         ));
     };
 
@@ -613,9 +621,11 @@ fn check_numeric_fields(
             given.is_number()
         };
         if numeric && !ok {
-            return Err(format!(
-                "{vo_name}.{name} expects {type_name}, got {}",
-                render_scalar(given)
+            let offered = render_scalar(given);
+            return Err(refusal_wording::render(
+                "TypeMismatch",
+                "numeric_field",
+                &[("type", vo_name), ("field", name), ("expected", type_name), ("offered", &offered)],
             ));
         }
     }
@@ -658,9 +668,11 @@ fn check_patterns(
             None => false,
         };
         if !satisfied {
-            return Err(format!(
-                "{vo_name}.{name} must match {pattern}, got {}",
-                render_scalar(given)
+            let offered = render_scalar(given);
+            return Err(refusal_wording::render(
+                "TypeMismatch",
+                "pattern_mismatch",
+                &[("type", vo_name), ("field", name), ("pattern", pattern), ("offered", &offered)],
             ));
         }
     }
@@ -844,9 +856,10 @@ fn admit_declared_set(attribute: &Map<String, Value>, value: &Value) -> Result<(
         .and_then(Value::as_str)
         .unwrap_or_default();
     let Some(admitted) = attribute.get(ADMITTED).and_then(Value::as_array) else {
-        return Err(format!(
-            "{field} admits {named}, which this chapter does not declare — a closed set is \
-             named Aggregate::SetName, and it must be one the bluebook actually holds"
+        return Err(refusal_wording::render(
+            "InvariantViolation",
+            "undeclared_set",
+            &[("name", field), ("admits", named)],
         ));
     };
     let offered = admitted_scalar(value);
@@ -872,12 +885,11 @@ fn admit_declared_set(attribute: &Map<String, Value>, value: &Value) -> Result<(
         Value::Null => "nil".to_string(),
         other => other.to_string(),
     };
-    Err(format!(
-        "{} admits {} — {} — got {}",
-        field,
-        named,
-        rendered.join(", "),
-        got
+    let rendered_joined = rendered.join(", ");
+    Err(refusal_wording::render(
+        "InvariantViolation",
+        "admits_declared_set",
+        &[("name", field), ("admits", named), ("admitted", &rendered_joined), ("offered", &got)],
     ))
 }
 
@@ -992,11 +1004,11 @@ fn admit_member(
         Value::Null => "nil".to_string(),
         other => other.to_string(),
     };
-    Err(format!(
-        "{} admits {} — got {}",
-        name,
-        rendered.join(", "),
-        got
+    let rendered_joined = rendered.join(", ");
+    Err(refusal_wording::render(
+        "InvariantViolation",
+        "closed_set_member",
+        &[("type", name), ("admitted", &rendered_joined), ("offered", &got)],
     ))
 }
 

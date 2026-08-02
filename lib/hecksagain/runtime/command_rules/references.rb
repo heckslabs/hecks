@@ -1,4 +1,5 @@
 require_relative "../errors"
+require_relative "../refusal_wording"
 
 module Hecksagain
   module Runtime
@@ -44,7 +45,9 @@ module Hecksagain
             # Single-path targets read exactly as before, which is every member
             # of the parity corpus but Market.
             raise NotFound,
-                  "no #{target.name} with #{target.identity_heads.join(', ')} #{key.inspect}"
+                  RefusalWording.render("NotFound", "reference_target_missing",
+                                        target: target.name, heads: target.identity_heads.join(", "),
+                                        key: key.inspect)
           end
         end
 

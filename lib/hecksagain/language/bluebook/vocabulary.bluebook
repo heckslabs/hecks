@@ -250,6 +250,104 @@ Hecks.bluebook "Bluebook" do
       end
     end
 
+    # THE WORDING ITSELF, for every DomainRefusal site that is not already
+    # data — `given`/`ensures`/a declared `invariant` already carry their own
+    # description, read at dispatch time off the command or value object that
+    # declared them. Everything here is different in kind: a LANGUAGE-LEVEL
+    # refusal, the same wording for every domain, not authored per-bluebook —
+    # closer to Comparison/SignTest beside it than to a given. So it follows
+    # THEIR pattern, not given's: declared here for a human to read and a
+    # conformance spec to hold equal, and a hand-typed table in each runtime
+    # (RefusalWording, Ruby ; refusal_wording.rs, Rust) is what a dispatch
+    # actually reads — the same reason Evaluator::SIGN_TEST_OPERATORS is
+    # hand-typed rather than read live off this very chapter at every call.
+    #
+    # `{name}` markers are placeholders — plain text substitution, not
+    # expression syntax ; a template is read, never evaluated. Two call
+    # sites that happen to raise the same sentence share one `site` row
+    # (entity_interpreter.rb and command_interpreter.rb's own "not found"
+    # messages, for instance) rather than being declared as two facts that
+    # would have to be kept identical by hand.
+    value_object "RefusalTemplate" do
+      attribute :refusal,  String, admits: "Vocabulary::DomainRefusal"
+      attribute :site,     String
+      attribute :template, String
+
+      one_of do
+        member refusal: "NotFound", site: "creating_no_identity",
+               template: "{command} creates a {aggregate} — pass {identity}:"
+        member refusal: "AlreadyExists", site: "creating_duplicate",
+               template: "{command} creates a {aggregate} that already exists — {identity} {offered}"
+        member refusal: "NotFound", site: "acting_no_identity",
+               template: "{command} acts on an existing {aggregate} — pass {identity}:"
+        member refusal: "NotFound", site: "record_missing",
+               template: "no {aggregate} with {identity} {offered}"
+        member refusal: "NotFound", site: "entity_parent_no_identity",
+               template: "{command} acts on a {aggregate}'s {entity} — pass {identity}:"
+        member refusal: "UnknownVerb", site: "entity_unknown",
+               template: "{aggregate} has no entity {entity}"
+        member refusal: "NotFound", site: "entity_element_no_identity",
+               template: "{command} acts on one {entity} — pass {identity}:"
+        member refusal: "NotFound", site: "entity_element_missing",
+               template: "no {entity} with {identity} {wants} on {aggregate} {parent_id}"
+        member refusal: "NotFound", site: "reference_target_missing",
+               template: "no {target} with {heads} {key}"
+        member refusal: "NotFound", site: "read_model_reference_missing",
+               template: "no {aggregate} with reference {offered}"
+        member refusal: "TypeMismatch", site: "read_model_object_reference",
+               template: "{query} refused — a reference is an id, and {field} arrived as an object"
+        member refusal: "UnknownVerb", site: "no_query",
+               template: "{aggregate} has no query {query}"
+        member refusal: "UnknownVerb", site: "entity_query_missing",
+               template: "{entity} has no query {query}"
+        member refusal: "UnknownVerb", site: "entity_holds_no_list",
+               template: "{aggregate} holds no list of {entity}"
+        member refusal: "UnknownVerb", site: "entity_no_command",
+               template: "{entity} has no command {command}"
+        member refusal: "UnknownVerb", site: "aggregate_no_command",
+               template: "{aggregate} has no command {command}"
+        member refusal: "UnknownVerb", site: "no_domain",
+               template: "no domain {domain} loaded (verb {verb})"
+        member refusal: "UnknownVerb", site: "no_read_model",
+               template: "{domain} has no read model {query}"
+        member refusal: "UnknownVerb", site: "not_fully_qualified",
+               template: "{verb} is not a fully-qualified verb (Domain::Aggregate.Command)"
+        member refusal: "UnknownVerb", site: "no_aggregate",
+               template: "{domain} has no aggregate {aggregate}"
+        member refusal: "LifecycleRefused", site: "transition_blocked",
+               template: "{command} refused — {field} is {current}, and {command} moves it only from {allowed}"
+        member refusal: "TypeMismatch", site: "value_object_shape",
+               template: "{name} is a {type} — pass its fields as an object, not {offered}"
+        member refusal: "TypeMismatch", site: "reference_as_object",
+               template: "{command} refused — a reference is an id, and {attribute} arrived as an object{known_by}"
+        member refusal: "TypeMismatch", site: "multi_field_scalar",
+               template: "{type} has multiple fields and cannot stand in for a scalar"
+        member refusal: "TypeMismatch", site: "composite_identity",
+               template: "{type} is a composite identity — an identity must have exactly one field"
+        member refusal: "TypeMismatch", site: "numeric_field",
+               template: "{type}.{field} expects {expected}, got {offered}"
+        member refusal: "TypeMismatch", site: "pattern_mismatch",
+               template: "{type}.{field} must match {pattern}, got {offered}"
+        member refusal: "TypeMismatch", site: "arithmetic_amount",
+               template: "{op} of {target} needs an Integer, got {offered}"
+        member refusal: "TypeMismatch", site: "arithmetic_current",
+               template: "{op} of {target} needs an Integer {target}, got {offered}"
+        member refusal: "TypeMismatch", site: "arithmetic_shared_field",
+               template: "{op} of {target} needs a value object with one shared Integer field"
+        member refusal: "UnknownArgument", site: "unknown_args",
+               template: "{command} does not declare {unknown} — it takes {declared}"
+        member refusal: "AbsentArgument", site: "absent_args",
+               template: "{command} was not given {absent} — it takes {declared}"
+        member refusal: "InvariantViolation", site: "closed_set_member",
+               template: "{type} admits {admitted} — got {offered}"
+        member refusal: "InvariantViolation", site: "admits_declared_set",
+               template: "{name} admits {admits} — {admitted} — got {offered}"
+        member refusal: "InvariantViolation", site: "undeclared_set",
+               template: "{name} admits {admits}, which this chapter does not declare — a closed set is named " \
+                         "Aggregate::SetName, and it must be one the bluebook actually holds"
+      end
+    end
+
     # SagaInterpreter::REFUSED, and its counterpart in the Rust dispatcher.
     #
     # A leg answers an EVENT — `on "AccountDebited"` — or it answers one of these,

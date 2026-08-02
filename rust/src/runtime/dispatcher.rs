@@ -6,6 +6,7 @@ use crate::interp_mutations::{
     apply_mutation, arithmetic, assign_creation_attributes, coerce_attribute, defaults_for,
     normalize_command_args, refuse_absent_arguments, refuse_unknown_arguments, resolve_source,
 };
+use crate::runtime::refusal_wording;
 use crate::runtime::PersistenceAdapter;
 use crate::value_bridge;
 use serde_json::{json, Map, Value};
@@ -501,9 +502,17 @@ fn admissible_transition(
             }
         }
     }
-    Err(format!(
-        "{command_name} refused — {field} is {current:?}, and {command_name} moves it only from {}",
-        allowed.join(" or ")
+    let current_shown = format!("{current:?}");
+    let allowed_shown = allowed.join(" or ");
+    Err(refusal_wording::render(
+        "LifecycleRefused",
+        "transition_blocked",
+        &[
+            ("command", command_name),
+            ("field", field),
+            ("current", &current_shown),
+            ("allowed", &allowed_shown),
+        ],
     ))
 }
 
@@ -933,22 +942,37 @@ impl Runtime {
         let parent_id = identity::of(&aggregate, args)
             .or_else(|| args.get("id").map(query_text).filter(|id| !id.is_empty()))
             .ok_or_else(|| {
-                format!(
-                    "{command_name} acts on a {aggregate_name}'s {entity_name} — pass {identity}:"
+                refusal_wording::render(
+                    "NotFound",
+                    "entity_parent_no_identity",
+                    &[
+                        ("command", command_name),
+                        ("aggregate", aggregate_name),
+                        ("entity", entity_name),
+                        ("identity", &identity),
+                    ],
                 )
             })?;
 
         let mut state = if let Some(adapter) = self.adapters.get(aggregate_name) {
-            adapter
-                .find(&parent_id)
-                .map(value_bridge::from_state)
-                .ok_or_else(|| format!("no {} with {} {:?}", aggregate_name, identity, parent_id))?
+            adapter.find(&parent_id).map(value_bridge::from_state).ok_or_else(|| {
+                let offered = format!("{parent_id:?}");
+                refusal_wording::render(
+                    "NotFound",
+                    "record_missing",
+                    &[("aggregate", aggregate_name), ("identity", &identity), ("offered", &offered)],
+                )
+            })?
         } else {
             let key = format!("{}::{}#{}", domain, aggregate_name, parent_id);
-            self.store
-                .get(&key)
-                .cloned()
-                .ok_or_else(|| format!("no {} with {} {:?}", aggregate_name, identity, parent_id))?
+            self.store.get(&key).cloned().ok_or_else(|| {
+                let offered = format!("{parent_id:?}");
+                refusal_wording::render(
+                    "NotFound",
+                    "record_missing",
+                    &[("aggregate", aggregate_name), ("identity", &identity), ("offered", &offered)],
+                )
+            })?
         };
         self.trace_step("hydrate_parent");
 
@@ -960,7 +984,13 @@ impl Runtime {
                     && a.get("type").and_then(Value::as_str) == Some(entity_name)
             })
             .and_then(|a| a.get("name").and_then(Value::as_str).map(str::to_string))
-            .ok_or_else(|| format!("{} holds no list of {}", aggregate_name, entity_name))?;
+            .ok_or_else(|| {
+                refusal_wording::render(
+                    "UnknownVerb",
+                    "entity_holds_no_list",
+                    &[("aggregate", aggregate_name), ("entity", entity_name)],
+                )
+            })?;
 
         // ONE ELEMENT, MATCHED ON EVERY PART OF ITS IDENTITY — not just the
         // first. A piece's identity may be several paths, the same shape a
@@ -975,7 +1005,11 @@ impl Runtime {
         for path in identity::paths(&entity) {
             let (head, field) = identity::split(path);
             let raw = args.get(head).cloned().ok_or_else(|| {
-                format!("{command_name} acts on one {entity_name} — pass {entity_reading}:")
+                refusal_wording::render(
+                    "NotFound",
+                    "entity_element_no_identity",
+                    &[("command", command_name), ("entity", entity_name), ("identity", &entity_reading)],
+                )
             })?;
             // An entity's identity is a declared attribute like any other, so
             // it is coerced through its own type BEFORE it is matched —
@@ -1021,9 +1055,17 @@ impl Runtime {
                     .map(|(_, field, want)| query_text(&identity_scalar(want, field.as_deref())))
                     .collect::<Vec<_>>()
                     .join(", ");
-                format!(
-                    "no {} with {} {} on {} {:?}",
-                    entity_name, entity_reading, named, aggregate_name, parent_id
+                let parent_id_shown = format!("{parent_id:?}");
+                refusal_wording::render(
+                    "NotFound",
+                    "entity_element_missing",
+                    &[
+                        ("entity", entity_name),
+                        ("identity", &entity_reading),
+                        ("wants", &named),
+                        ("aggregate", aggregate_name),
+                        ("parent_id", &parent_id_shown),
+                    ],
                 )
             })?;
         let mut element = elements[position].as_object().cloned().unwrap_or_default();
@@ -1257,15 +1299,24 @@ impl Runtime {
         let model = array(&declared_domain, "read_models").into_iter()
             .find(|model| model.get("query_name").and_then(Value::as_str) == Some(query_name))
             .and_then(|model| model.as_object().cloned())
-            .ok_or_else(|| format!("{domain} has no read model {query_name:?}"))?;
+            .ok_or_else(|| {
+                let query_shown = format!("{query_name:?}");
+                refusal_wording::render(
+                    "UnknownVerb",
+                    "no_read_model",
+                    &[("domain", domain), ("query", &query_shown)],
+                )
+            })?;
         let reference_name = model.get("reference_name").and_then(Value::as_str).unwrap_or("reference");
         // AN ASK'S REFERENCE IS AN ID TOO. Without this, `query_text` below would
         // quietly open a wrapped one and answer, while Ruby read it whole and
         // found nothing — a split that shows only when a stale caller exists.
         // ReadModelInterpreter#refuse_object_reference is the same sentence.
         if args.get(reference_name).map(Value::is_object).unwrap_or(false) {
-            return Err(format!(
-                "{query_name} refused — a reference is an id, and {reference_name} arrived as an object"
+            return Err(refusal_wording::render(
+                "TypeMismatch",
+                "read_model_object_reference",
+                &[("query", query_name), ("field", reference_name)],
             ));
         }
         let reference_id = args.get(reference_name).map(query_text).unwrap_or_default();
@@ -1283,7 +1334,14 @@ impl Runtime {
             let mut rows = self.all_records(domain, aggregate_name, &aggregate);
             if aggregate_name == model.get("reference_target").and_then(Value::as_str).unwrap_or_default() {
                 rows.retain(|(id, _)| id == &reference_id);
-                if rows.is_empty() { return Err(format!("no {aggregate_name} with reference {reference_id:?}")); }
+                if rows.is_empty() {
+                    let offered = format!("{reference_id:?}");
+                    return Err(refusal_wording::render(
+                        "NotFound",
+                        "read_model_reference_missing",
+                        &[("aggregate", aggregate_name), ("offered", &offered)],
+                    ));
+                }
             } else {
                 rows.retain(|(_, state)| projected.iter().any(|(source_name, source_rows)| {
                     let reference_type = format!("Reference<{source_name}>");
@@ -1322,7 +1380,13 @@ impl Runtime {
                     && a.get("type").and_then(Value::as_str) == Some(entity_name)
             })
             .and_then(|a| a.get("name").and_then(Value::as_str).map(str::to_string))
-            .ok_or_else(|| format!("{} holds no list of {}", aggregate_name, entity_name))?;
+            .ok_or_else(|| {
+                refusal_wording::render(
+                    "UnknownVerb",
+                    "entity_holds_no_list",
+                    &[("aggregate", aggregate_name), ("entity", entity_name)],
+                )
+            })?;
 
         let parent_key = crate::naming::reference_key(aggregate_name);
         let wheres = array(&declared, "wheres");
@@ -1535,7 +1599,12 @@ impl Runtime {
                 .into_iter()
                 .any(|(id, _)| id == key);
             if !found {
-                return Err(format!("no {target_name} with {identity} {key:?}"));
+                let key_shown = format!("{key:?}");
+                return Err(refusal_wording::render(
+                    "NotFound",
+                    "reference_target_missing",
+                    &[("target", target_name), ("heads", &identity), ("key", &key_shown)],
+                ));
             }
         }
         Ok(())
@@ -1549,7 +1618,14 @@ impl Runtime {
         let aggregate = self.find_aggregate(&domain, &aggregate_name, verb)?;
         let command = self
             .find_command(&domain, &aggregate_name, &aggregate, &command_name)
-            .ok_or_else(|| format!("{} has no command {:?}", aggregate_name, command_name))?;
+            .ok_or_else(|| {
+                let shown = format!("{command_name:?}");
+                refusal_wording::render(
+                    "UnknownVerb",
+                    "aggregate_no_command",
+                    &[("aggregate", &aggregate_name), ("command", &shown)],
+                )
+            })?;
         refuse_unknown_arguments(&aggregate, &command, args, &self.correlation_keys(&domain))?;
         self.trace_step("refuse_unknown_arguments");
         // Unknown first, deliberately : a payload that both misspells one name and
@@ -1730,15 +1806,29 @@ impl Runtime {
                 Some(paths) => identity::of_paths(paths, args),
                 None => identity::of(aggregate, args),
             }
-            .ok_or_else(|| format!("{command_name} creates a {aggregate_name} — pass {reading}:"))?;
+            .ok_or_else(|| {
+                refusal_wording::render(
+                    "NotFound",
+                    "creating_no_identity",
+                    &[("command", command_name), ("aggregate", &aggregate_name), ("identity", &reading)],
+                )
+            })?;
             // A SECOND CREATION IS NOT A FRESH ONE — the same check the
             // "acts on an existing" branch below already makes to FIND a
             // record, made here to REFUSE one. A branch and box number are a
             // small, finite set a caller can collide with by mistake in a
             // way a minted reference cannot.
             if self.record_exists(&aggregate_name, &id) {
-                return Err(format!(
-                    "{command_name} creates a {aggregate_name} that already exists — {reading} {id:?}"
+                let offered = format!("{id:?}");
+                return Err(refusal_wording::render(
+                    "AlreadyExists",
+                    "creating_duplicate",
+                    &[
+                        ("command", command_name),
+                        ("aggregate", &aggregate_name),
+                        ("identity", &reading),
+                        ("offered", &offered),
+                    ],
                 ));
             }
             return Ok((id, defaults_for(aggregate)?));
@@ -1793,14 +1883,22 @@ impl Runtime {
             .or_else(|| whole("id"))
             .or_else(|| whole(&reference_key))
             .ok_or_else(|| {
-                format!("{command_name} acts on an existing {aggregate_name} — pass {reading}:")
+                refusal_wording::render(
+                    "NotFound",
+                    "acting_no_identity",
+                    &[("command", command_name), ("aggregate", &aggregate_name), ("identity", &reading)],
+                )
             })?;
 
         if let Some(adapter) = self.adapters.get(&aggregate_name) {
-            let state = adapter
-                .find(&id)
-                .map(value_bridge::from_state)
-                .ok_or_else(|| format!("no {} with {} {:?}", aggregate_name, reading, id))?;
+            let state = adapter.find(&id).map(value_bridge::from_state).ok_or_else(|| {
+                let offered = format!("{id:?}");
+                refusal_wording::render(
+                    "NotFound",
+                    "record_missing",
+                    &[("aggregate", &aggregate_name), ("identity", &reading), ("offered", &offered)],
+                )
+            })?;
             return Ok((id, fill_hydrate_defaults(aggregate, state)));
         }
 
@@ -1809,7 +1907,14 @@ impl Runtime {
             .keys()
             .find(|key| key.ends_with(&format!("::{}#{}", aggregate_name, id)))
             .cloned()
-            .ok_or_else(|| format!("no {} with {} {:?}", aggregate_name, reading, id))?;
+            .ok_or_else(|| {
+                let offered = format!("{id:?}");
+                refusal_wording::render(
+                    "NotFound",
+                    "record_missing",
+                    &[("aggregate", &aggregate_name), ("identity", &reading), ("offered", &offered)],
+                )
+            })?;
 
         Ok((id, fill_hydrate_defaults(aggregate, self.store[&key].clone())))
     }
@@ -2460,9 +2565,11 @@ impl Runtime {
                 continue;
             }
 
-            return Err(format!(
-                "{command_name} refused — a reference is an id, and {name} arrived as an object{}",
-                self.known_by(domain, target)
+            let known_by = self.known_by(domain, target);
+            return Err(refusal_wording::render(
+                "TypeMismatch",
+                "reference_as_object",
+                &[("command", command_name), ("attribute", name), ("known_by", &known_by)],
             ));
         }
         Ok(())
@@ -2495,10 +2602,14 @@ impl Runtime {
         verb: &str,
     ) -> Result<Arc<Map<String, Value>>, String> {
         self.cached_lookup(format!("aggregate:{domain}:{name}"), || {
-            let bluebook = self
-                .ir
-                .get(domain)
-                .ok_or_else(|| format!("no domain {domain:?} loaded (verb {verb})"))?;
+            let bluebook = self.ir.get(domain).ok_or_else(|| {
+                let domain_shown = format!("{domain:?}");
+                refusal_wording::render(
+                    "UnknownVerb",
+                    "no_domain",
+                    &[("domain", &domain_shown), ("verb", verb)],
+                )
+            })?;
 
             bluebook
                 .get("aggregates")
@@ -2510,7 +2621,14 @@ impl Runtime {
                 })
                 .and_then(Value::as_object)
                 .cloned()
-                .ok_or_else(|| format!("{} has no aggregate {:?}", domain, name))
+                .ok_or_else(|| {
+                    let name_shown = format!("{name:?}");
+                    refusal_wording::render(
+                        "UnknownVerb",
+                        "no_aggregate",
+                        &[("domain", domain), ("aggregate", &name_shown)],
+                    )
+                })
         })
     }
 
@@ -2528,7 +2646,14 @@ impl Runtime {
                     .into_iter()
                     .find(|e| e.get("name").and_then(Value::as_str) == Some(entity_name))
                     .and_then(|e| e.as_object().cloned())
-                    .ok_or_else(|| format!("{} has no entity {:?}", aggregate_name, entity_name))
+                    .ok_or_else(|| {
+                        let entity_shown = format!("{entity_name:?}");
+                        refusal_wording::render(
+                            "UnknownVerb",
+                            "entity_unknown",
+                            &[("aggregate", aggregate_name), ("entity", &entity_shown)],
+                        )
+                    })
             },
         )
     }
@@ -2565,7 +2690,14 @@ impl Runtime {
                     .into_iter()
                     .find(|c| c.get("name").and_then(Value::as_str) == Some(command_name))
                     .and_then(|c| c.as_object().cloned())
-                    .ok_or_else(|| format!("{} has no command {:?}", entity_name, command_name))
+                    .ok_or_else(|| {
+                        let command_shown = format!("{command_name:?}");
+                        refusal_wording::render(
+                            "UnknownVerb",
+                            "entity_no_command",
+                            &[("entity", entity_name), ("command", &command_shown)],
+                        )
+                    })
             },
         )
     }
@@ -2584,7 +2716,14 @@ impl Runtime {
                     .into_iter()
                     .find(|q| q.get("name").and_then(Value::as_str) == Some(query_name))
                     .and_then(|q| q.as_object().cloned())
-                    .ok_or_else(|| format!("{} has no query {:?}", aggregate_name, query_name))
+                    .ok_or_else(|| {
+                        let query_shown = format!("{query_name:?}");
+                        refusal_wording::render(
+                            "UnknownVerb",
+                            "no_query",
+                            &[("aggregate", aggregate_name), ("query", &query_shown)],
+                        )
+                    })
             },
         )
     }
@@ -2604,7 +2743,14 @@ impl Runtime {
                     .into_iter()
                     .find(|q| q.get("name").and_then(Value::as_str) == Some(query_name))
                     .and_then(|q| q.as_object().cloned())
-                    .ok_or_else(|| format!("{} has no query {:?}", entity_name, query_name))
+                    .ok_or_else(|| {
+                        let query_shown = format!("{query_name:?}");
+                        refusal_wording::render(
+                            "UnknownVerb",
+                            "entity_query_missing",
+                            &[("entity", entity_name), ("query", &query_shown)],
+                        )
+                    })
             },
         )
     }
@@ -2629,8 +2775,10 @@ fn ruby_literal_value(token: &str) -> Value {
 }
 
 fn parse_verb(verb: &str) -> Result<(String, String, String), String> {
-    let (domain, aggregate, command) = crate::naming::split_verb(verb)
-        .ok_or_else(|| format!("{:?} is not a fully-qualified verb", verb))?;
+    let (domain, aggregate, command) = crate::naming::split_verb(verb).ok_or_else(|| {
+        let verb_shown = format!("{verb:?}");
+        refusal_wording::render("UnknownVerb", "not_fully_qualified", &[("verb", &verb_shown)])
+    })?;
 
     Ok((
         domain.to_string(),

@@ -5,6 +5,7 @@ require_relative "../rendering"
 require_relative "errors"
 require_relative "identity"
 require_relative "instance"
+require_relative "refusal_wording"
 
 module Hecksagain
   module Runtime
@@ -63,7 +64,9 @@ module Hecksagain
           # whose removal made the runtimes disagree were both `identified_by`,
           # and they disagreed because removing them fell through to here.
           id = identity_of(aggregate, args) ||
-               raise(NotFound, "#{command.hecks_name} creates a #{aggregate.hecks_name} — pass #{identity_reading(aggregate)}:")
+               raise(NotFound, RefusalWording.render("NotFound", "creating_no_identity",
+                                                      command: command.hecks_name, aggregate: aggregate.hecks_name,
+                                                      identity: identity_reading(aggregate)))
           # A SECOND CREATION IS NOT A FRESH ONE. Nothing here checked whether
           # the derived id already named a record, so the same creating
           # command dispatched twice with the same identity silently built a
@@ -71,8 +74,12 @@ module Hecksagain
           # box was rented to, gone without a refusal. A branch and box
           # number are a small, finite set a caller can collide with by
           # mistake in a way a minted reference cannot.
-          raise(AlreadyExists, "#{command.hecks_name} creates a #{aggregate.hecks_name} that already exists — " \
-                                "#{identity_reading(aggregate)} #{Rendering.describe(id)}") if repository.find(id)
+          if repository.find(id)
+            raise(AlreadyExists, RefusalWording.render("AlreadyExists", "creating_duplicate",
+                                                        command: command.hecks_name, aggregate: aggregate.hecks_name,
+                                                        identity: identity_reading(aggregate),
+                                                        offered: Rendering.describe(id)))
+          end
 
           Instance.new(aggregate: aggregate, id: id)
         else
@@ -88,8 +95,14 @@ module Hecksagain
           id = identity_of(aggregate, args) ||
                identity_from(aggregate, args, :id) ||
                identity_from(aggregate, args, reference_key(command)) ||
-               raise(NotFound, "#{command.hecks_name} acts on an existing #{aggregate.hecks_name} — pass #{identity_reading(aggregate)}:")
-          found = repository.find(id) || raise(NotFound, "no #{aggregate.hecks_name} with #{identity_reading(aggregate)} #{Rendering.describe(id)}")
+               raise(NotFound, RefusalWording.render("NotFound", "acting_no_identity",
+                                                      command: command.hecks_name, aggregate: aggregate.hecks_name,
+                                                      identity: identity_reading(aggregate)))
+          found = repository.find(id) ||
+                  raise(NotFound, RefusalWording.render("NotFound", "record_missing",
+                                                         aggregate: aggregate.hecks_name,
+                                                         identity: identity_reading(aggregate),
+                                                         offered: Rendering.describe(id)))
           found.dup
         end
       end

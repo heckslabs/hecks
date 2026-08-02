@@ -1,9 +1,11 @@
 require_relative "interpreting"
 require_relative "../naming"
+require_relative "../rendering"
 require_relative "errors"
 require_relative "identity"
 require_relative "instance"
 require_relative "value"
+require_relative "refusal_wording"
 
 module Hecksagain
   module Runtime
@@ -20,9 +22,11 @@ module Hecksagain
       def call(domain, aggregate, dotted, args)
         entity_name, command_name = Naming.split_dotted(dotted)
         entity  = aggregate.entities.find { |piece| piece.hecks_name == entity_name } ||
-                  raise(UnknownVerb, "#{aggregate.hecks_name} has no entity #{entity_name.inspect}")
+                  raise(UnknownVerb, RefusalWording.render("UnknownVerb", "entity_unknown",
+                                                            aggregate: aggregate.hecks_name, entity: entity_name.inspect))
         command = entity.command(command_name) ||
-                  raise(UnknownVerb, "#{entity_name} has no command #{command_name.inspect}")
+                  raise(UnknownVerb, RefusalWording.render("UnknownVerb", "entity_no_command",
+                                                            entity: entity_name, command: command_name.inspect))
 
         args       = step(:normalize_args) { normalize_args(aggregate, command, args) }
         step(:resolve_references) { @rules.resolve_references(domain, command, args) }
@@ -60,9 +64,14 @@ module Hecksagain
       def parent(repository, aggregate, entity_name, command_name, args)
         parent_id = Identity.of(aggregate, args) ||
                     Identity.from(aggregate, args, :id) ||
-                    raise(NotFound, "#{command_name} acts on a #{aggregate.hecks_name}'s #{entity_name} — pass #{Identity.reading(aggregate)}:")
+                    raise(NotFound, RefusalWording.render("NotFound", "entity_parent_no_identity",
+                                                           command: command_name, aggregate: aggregate.hecks_name,
+                                                           entity: entity_name, identity: Identity.reading(aggregate)))
         found = repository.find(parent_id) ||
-                raise(NotFound, "no #{aggregate.hecks_name} with #{Identity.reading(aggregate)} #{parent_id.inspect}")
+                raise(NotFound, RefusalWording.render("NotFound", "record_missing",
+                                                       aggregate: aggregate.hecks_name,
+                                                       identity: Identity.reading(aggregate),
+                                                       offered: Rendering.describe(parent_id)))
         found.dup
       end
 
@@ -72,12 +81,15 @@ module Hecksagain
       # part has to agree with the stored one.
       def element_of(aggregate, entity, entity_name, command_name, instance, args)
         list_attr = aggregate.attributes.find { |a| a.list? && a.type.to_s == entity_name } ||
-                    raise(UnknownVerb, "#{aggregate.hecks_name} holds no list of #{entity_name}")
+                    raise(UnknownVerb, RefusalWording.render("UnknownVerb", "entity_holds_no_list",
+                                                              aggregate: aggregate.hecks_name, entity: entity_name))
 
         wants = entity.identity_paths.map do |path|
           head = path.to_s.split(".").first.to_sym
           raw  = args[head] ||
-                 raise(NotFound, "#{command_name} acts on one #{entity_name} — pass #{Identity.reading(entity)}:")
+                 raise(NotFound, RefusalWording.render("NotFound", "entity_element_no_identity",
+                                                        command: command_name, entity: entity_name,
+                                                        identity: Identity.reading(entity)))
 
           [head, path, Value.for_attribute(aggregate, entity.attribute(head), raw)]
         end
@@ -85,9 +97,12 @@ module Hecksagain
         original = Array(instance[list_attr.name])
         position = original.find_index { |el| wants.all? { |head, _path, want| el[head] == want } }
         unless position
-          raise NotFound, "no #{entity_name} with #{Identity.reading(entity)} " \
-                          "#{wants.map { |_h, path, want| Identity.scalar(path, want) }.join(', ')} " \
-                          "on #{aggregate.hecks_name} #{instance.id.inspect}"
+          raise NotFound, RefusalWording.render(
+            "NotFound", "entity_element_missing",
+            entity: entity_name, identity: Identity.reading(entity),
+            wants: wants.map { |_h, path, want| Identity.scalar(path, want) }.join(", "),
+            aggregate: aggregate.hecks_name, parent_id: instance.id.inspect
+          )
         end
 
         # ONE LEVEL DEEPER THAN Instance#dup, for the same reason: a list

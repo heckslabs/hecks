@@ -6629,6 +6629,534 @@
         {
           "attributes": [
             {
+              "admits": "Vocabulary::DomainRefusal",
+              "default": null,
+              "list": false,
+              "name": "refusal",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "site",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "template",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "refusal",
+                "NotFound"
+              ],
+              [
+                "site",
+                "creating_no_identity"
+              ],
+              [
+                "template",
+                "{command} creates a {aggregate} — pass {identity}:"
+              ]
+            ],
+            [
+              [
+                "refusal",
+                "AlreadyExists"
+              ],
+              [
+                "site",
+                "creating_duplicate"
+              ],
+              [
+                "template",
+                "{command} creates a {aggregate} that already exists — {identity} {offered}"
+              ]
+            ],
+            [
+              [
+                "refusal",
+                "NotFound"
+              ],
+              [
+                "site",
+                "acting_no_identity"
+              ],
+              [
+                "template",
+                "{command} acts on an existing {aggregate} — pass {identity}:"
+              ]
+            ],
+            [
+              [
+                "refusal",
+                "NotFound"
+              ],
+              [
+                "site",
+                "record_missing"
+              ],
+              [
+                "template",
+                "no {aggregate} with {identity} {offered}"
+              ]
+            ],
+            [
+              [
+                "refusal",
+                "NotFound"
+              ],
+              [
+                "site",
+                "entity_parent_no_identity"
+              ],
+              [
+                "template",
+                "{command} acts on a {aggregate}'s {entity} — pass {identity}:"
+              ]
+            ],
+            [
+              [
+                "refusal",
+                "UnknownVerb"
+              ],
+              [
+                "site",
+                "entity_unknown"
+              ],
+              [
+                "template",
+                "{aggregate} has no entity {entity}"
+              ]
+            ],
+            [
+              [
+                "refusal",
+                "NotFound"
+              ],
+              [
+                "site",
+                "entity_element_no_identity"
+              ],
+              [
+                "template",
+                "{command} acts on one {entity} — pass {identity}:"
+              ]
+            ],
+            [
+              [
+                "refusal",
+                "NotFound"
+              ],
+              [
+                "site",
+                "entity_element_missing"
+              ],
+              [
+                "template",
+                "no {entity} with {identity} {wants} on {aggregate} {parent_id}"
+              ]
+            ],
+            [
+              [
+                "refusal",
+                "NotFound"
+              ],
+              [
+                "site",
+                "reference_target_missing"
+              ],
+              [
+                "template",
+                "no {target} with {heads} {key}"
+              ]
+            ],
+            [
+              [
+                "refusal",
+                "NotFound"
+              ],
+              [
+                "site",
+                "read_model_reference_missing"
+              ],
+              [
+                "template",
+                "no {aggregate} with reference {offered}"
+              ]
+            ],
+            [
+              [
+                "refusal",
+                "TypeMismatch"
+              ],
+              [
+                "site",
+                "read_model_object_reference"
+              ],
+              [
+                "template",
+                "{query} refused — a reference is an id, and {field} arrived as an object"
+              ]
+            ],
+            [
+              [
+                "refusal",
+                "UnknownVerb"
+              ],
+              [
+                "site",
+                "no_query"
+              ],
+              [
+                "template",
+                "{aggregate} has no query {query}"
+              ]
+            ],
+            [
+              [
+                "refusal",
+                "UnknownVerb"
+              ],
+              [
+                "site",
+                "entity_query_missing"
+              ],
+              [
+                "template",
+                "{entity} has no query {query}"
+              ]
+            ],
+            [
+              [
+                "refusal",
+                "UnknownVerb"
+              ],
+              [
+                "site",
+                "entity_holds_no_list"
+              ],
+              [
+                "template",
+                "{aggregate} holds no list of {entity}"
+              ]
+            ],
+            [
+              [
+                "refusal",
+                "UnknownVerb"
+              ],
+              [
+                "site",
+                "entity_no_command"
+              ],
+              [
+                "template",
+                "{entity} has no command {command}"
+              ]
+            ],
+            [
+              [
+                "refusal",
+                "UnknownVerb"
+              ],
+              [
+                "site",
+                "aggregate_no_command"
+              ],
+              [
+                "template",
+                "{aggregate} has no command {command}"
+              ]
+            ],
+            [
+              [
+                "refusal",
+                "UnknownVerb"
+              ],
+              [
+                "site",
+                "no_domain"
+              ],
+              [
+                "template",
+                "no domain {domain} loaded (verb {verb})"
+              ]
+            ],
+            [
+              [
+                "refusal",
+                "UnknownVerb"
+              ],
+              [
+                "site",
+                "no_read_model"
+              ],
+              [
+                "template",
+                "{domain} has no read model {query}"
+              ]
+            ],
+            [
+              [
+                "refusal",
+                "UnknownVerb"
+              ],
+              [
+                "site",
+                "not_fully_qualified"
+              ],
+              [
+                "template",
+                "{verb} is not a fully-qualified verb (Domain::Aggregate.Command)"
+              ]
+            ],
+            [
+              [
+                "refusal",
+                "UnknownVerb"
+              ],
+              [
+                "site",
+                "no_aggregate"
+              ],
+              [
+                "template",
+                "{domain} has no aggregate {aggregate}"
+              ]
+            ],
+            [
+              [
+                "refusal",
+                "LifecycleRefused"
+              ],
+              [
+                "site",
+                "transition_blocked"
+              ],
+              [
+                "template",
+                "{command} refused — {field} is {current}, and {command} moves it only from {allowed}"
+              ]
+            ],
+            [
+              [
+                "refusal",
+                "TypeMismatch"
+              ],
+              [
+                "site",
+                "value_object_shape"
+              ],
+              [
+                "template",
+                "{name} is a {type} — pass its fields as an object, not {offered}"
+              ]
+            ],
+            [
+              [
+                "refusal",
+                "TypeMismatch"
+              ],
+              [
+                "site",
+                "reference_as_object"
+              ],
+              [
+                "template",
+                "{command} refused — a reference is an id, and {attribute} arrived as an object{known_by}"
+              ]
+            ],
+            [
+              [
+                "refusal",
+                "TypeMismatch"
+              ],
+              [
+                "site",
+                "multi_field_scalar"
+              ],
+              [
+                "template",
+                "{type} has multiple fields and cannot stand in for a scalar"
+              ]
+            ],
+            [
+              [
+                "refusal",
+                "TypeMismatch"
+              ],
+              [
+                "site",
+                "composite_identity"
+              ],
+              [
+                "template",
+                "{type} is a composite identity — an identity must have exactly one field"
+              ]
+            ],
+            [
+              [
+                "refusal",
+                "TypeMismatch"
+              ],
+              [
+                "site",
+                "numeric_field"
+              ],
+              [
+                "template",
+                "{type}.{field} expects {expected}, got {offered}"
+              ]
+            ],
+            [
+              [
+                "refusal",
+                "TypeMismatch"
+              ],
+              [
+                "site",
+                "pattern_mismatch"
+              ],
+              [
+                "template",
+                "{type}.{field} must match {pattern}, got {offered}"
+              ]
+            ],
+            [
+              [
+                "refusal",
+                "TypeMismatch"
+              ],
+              [
+                "site",
+                "arithmetic_amount"
+              ],
+              [
+                "template",
+                "{op} of {target} needs an Integer, got {offered}"
+              ]
+            ],
+            [
+              [
+                "refusal",
+                "TypeMismatch"
+              ],
+              [
+                "site",
+                "arithmetic_current"
+              ],
+              [
+                "template",
+                "{op} of {target} needs an Integer {target}, got {offered}"
+              ]
+            ],
+            [
+              [
+                "refusal",
+                "TypeMismatch"
+              ],
+              [
+                "site",
+                "arithmetic_shared_field"
+              ],
+              [
+                "template",
+                "{op} of {target} needs a value object with one shared Integer field"
+              ]
+            ],
+            [
+              [
+                "refusal",
+                "UnknownArgument"
+              ],
+              [
+                "site",
+                "unknown_args"
+              ],
+              [
+                "template",
+                "{command} does not declare {unknown} — it takes {declared}"
+              ]
+            ],
+            [
+              [
+                "refusal",
+                "AbsentArgument"
+              ],
+              [
+                "site",
+                "absent_args"
+              ],
+              [
+                "template",
+                "{command} was not given {absent} — it takes {declared}"
+              ]
+            ],
+            [
+              [
+                "refusal",
+                "InvariantViolation"
+              ],
+              [
+                "site",
+                "closed_set_member"
+              ],
+              [
+                "template",
+                "{type} admits {admitted} — got {offered}"
+              ]
+            ],
+            [
+              [
+                "refusal",
+                "InvariantViolation"
+              ],
+              [
+                "site",
+                "admits_declared_set"
+              ],
+              [
+                "template",
+                "{name} admits {admits} — {admitted} — got {offered}"
+              ]
+            ],
+            [
+              [
+                "refusal",
+                "InvariantViolation"
+              ],
+              [
+                "site",
+                "undeclared_set"
+              ],
+              [
+                "template",
+                "{name} admits {admits}, which this chapter does not declare — a closed set is named Aggregate::SetName, and it must be one the bluebook actually holds"
+              ]
+            ]
+          ],
+          "name": "RefusalTemplate"
+        },
+        {
+          "attributes": [
+            {
               "admits": null,
               "default": null,
               "list": false,

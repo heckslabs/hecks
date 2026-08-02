@@ -1,6 +1,7 @@
 require_relative "../../bluebook/expression/evaluator"
 require_relative "../../rendering"
 require_relative "../errors"
+require_relative "../refusal_wording"
 
 module Hecksagain
   module Runtime
@@ -50,8 +51,10 @@ module Hecksagain
 
           allowed = candidates.flat_map { |t| Array(t.from) }.uniq
           raise LifecycleRefused,
-                "#{command.hecks_name} refused — #{lifecycle.field} is #{Rendering.describe(current)}, and " \
-                "#{command.hecks_name} moves it only from #{allowed.map(&:inspect).join(' or ')}"
+                RefusalWording.render("LifecycleRefused", "transition_blocked",
+                                      command: command.hecks_name, field: lifecycle.field,
+                                      current: Rendering.describe(current),
+                                      allowed: allowed.map(&:inspect).join(" or "))
         end
       end
     end

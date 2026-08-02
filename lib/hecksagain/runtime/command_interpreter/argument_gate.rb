@@ -1,5 +1,6 @@
 require_relative "../../naming"
 require_relative "../errors"
+require_relative "../refusal_wording"
 
 module Hecksagain
   module Runtime
@@ -28,8 +29,9 @@ module Hecksagain
           return if unknown.empty?
 
           raise UnknownArgument,
-                "#{command.hecks_name} does not declare #{unknown.join(', ')} — " \
-                "it takes #{command.attributes.map(&:name).join(', ')}"
+                RefusalWording.render("UnknownArgument", "unknown_args",
+                                      command: command.hecks_name, unknown: unknown.join(", "),
+                                      declared: command.attributes.map(&:name).join(", "))
         end
 
         # And it takes ALL of them. The other half of the same sentence, missing
@@ -57,8 +59,9 @@ module Hecksagain
           return if absent.empty?
 
           raise AbsentArgument,
-                "#{command.hecks_name} was not given #{absent.join(', ')} — " \
-                "it takes #{command.attributes.map(&:name).join(', ')}"
+                RefusalWording.render("AbsentArgument", "absent_args",
+                                      command: command.hecks_name, absent: absent.join(", "),
+                                      declared: command.attributes.map(&:name).join(", "))
         end
 
         # What a process manager correlates by is ROUTING, not description. A saga
