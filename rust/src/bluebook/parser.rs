@@ -82,29 +82,46 @@ pub fn parse(source: &str) -> Domain {
     domain
 }
 
+/// WHICH WORD, GENERATED ; WHAT HAPPENS WHEN IT MATCHES, HAND-WRITTEN. The
+/// four-word list this used to hand-maintain (`aggregate`, `read_model`,
+/// `policy`, `process_manager`, each its own `if keyword_matches(...)`) is
+/// `bluebook::ir_dispatch_words::BLUEBOOK_WORDS` now — projected from the
+/// language's own declared syntax (`Syntax::Keyword`, rows where `opens` is
+/// not empty). The word this line starts with can drift from what the
+/// language admits ; what building each category MEANS (which Rust function
+/// parses it, which field of `Domain` it lands in) cannot be generated
+/// without inventing what the language does not say, so that part stays
+/// exactly as it was.
 fn dispatch_block(line: &str, slice: &[&str], domain: &mut Domain) -> Option<usize> {
-    if keyword_matches(line, "aggregate") {
-        let (agg, nested_policies, consumed) = parse_aggregate(slice);
-        domain.aggregates.push(agg);
-        domain.policies.extend(nested_policies);
-        return Some(consumed);
+    let opens = crate::bluebook::ir_dispatch_words::BLUEBOOK_WORDS
+        .iter()
+        .find(|(word, _)| keyword_matches(line, word))
+        .map(|(_, opens)| *opens)?;
+
+    match opens {
+        "Aggregate" => {
+            let (agg, nested_policies, consumed) = parse_aggregate(slice);
+            domain.aggregates.push(agg);
+            domain.policies.extend(nested_policies);
+            Some(consumed)
+        }
+        "ReadModel" => {
+            let (model, consumed) = parse_read_model(slice);
+            domain.read_models.push(model);
+            Some(consumed)
+        }
+        "Policy" => {
+            let (policy, consumed) = parse_policy(slice);
+            domain.policies.push(policy);
+            Some(consumed)
+        }
+        "ProcessManager" => {
+            let (pm, consumed) = parse_process_manager(slice);
+            domain.process_managers.push(pm);
+            Some(consumed)
+        }
+        other => unreachable!("BLUEBOOK_WORDS opens {other:?}, which dispatch_block does not handle"),
     }
-    if keyword_matches(line, "read_model") {
-        let (model, consumed) = parse_read_model(slice);
-        domain.read_models.push(model);
-        return Some(consumed);
-    }
-    if keyword_matches(line, "policy") {
-        let (policy, consumed) = parse_policy(slice);
-        domain.policies.push(policy);
-        return Some(consumed);
-    }
-    if keyword_matches(line, "process_manager") {
-        let (pm, consumed) = parse_process_manager(slice);
-        domain.process_managers.push(pm);
-        return Some(consumed);
-    }
-    None
 }
 
 fn keyword_matches(line: &str, keyword: &str) -> bool {
