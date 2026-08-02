@@ -33,3 +33,7 @@ pub const PROCESS_MANAGER_WORDS: &[(&str, &str)] = &[
     ("on", "Handler"),
 ];
 
+pub const HANDLER_WORDS: &[(&str, &str)] = &[
+    ("dispatch", "Dispatch"),
+];
+

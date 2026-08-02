@@ -1470,10 +1470,19 @@ fn parse_pm_handler(line: &str) -> Option<ProcessManagerHandler> {
     })
 }
 
+/// WHICH WORD, GENERATED ; WHAT MATCHING IT MEANS, HAND-WRITTEN — the same
+/// shape as `parse_aggregate`'s table lookup, though there is only ever one
+/// row to check here (`dispatch` opens `Dispatch`, the whole of what
+/// `Syntax::Keyword` declares for `Handler` context). The three-way
+/// `starts_with("dispatch ") || starts_with("dispatch\t") ||
+/// starts_with("dispatch\"")` this replaces was a hand-rolled subset of
+/// exactly what `keyword_matches` already checks (any non-alphanumeric,
+/// non-underscore byte after the word — a space, a tab, or an opening quote
+/// are three instances of that one rule, not three separate rules).
 fn is_dispatch_start(trimmed: &str) -> bool {
-    trimmed.starts_with("dispatch ")
-        || trimmed.starts_with("dispatch\t")
-        || trimmed.starts_with("dispatch\"")
+    crate::bluebook::ir_dispatch_words::HANDLER_WORDS
+        .iter()
+        .any(|(word, _)| keyword_matches(trimmed, word))
 }
 
 fn is_balanced(s: &str) -> bool {
