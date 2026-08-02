@@ -1,3 +1,7 @@
+require_relative "../../runtime/errors"
+require_relative "../../runtime/instance"
+require_relative "../../runtime/value/invariant_violation"
+
 module Hecksagain
   module Translation
     module Audit

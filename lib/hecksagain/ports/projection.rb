@@ -1,3 +1,7 @@
+require_relative "persistence"
+require_relative "persistence/repository_factory"
+require_relative "../runtime/registry"
+
 module Hecksagain
   module Ports
     # Projection is a read-side port. Its stores are rebuildable consumers of

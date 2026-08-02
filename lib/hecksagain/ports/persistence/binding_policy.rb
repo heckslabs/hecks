@@ -1,3 +1,6 @@
+require_relative "../../bluebook/ir/hexagon"
+require_relative "../../runtime/registry"
+
 module Hecksagain
   module Ports
     module Persistence

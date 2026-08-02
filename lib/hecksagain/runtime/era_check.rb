@@ -1,3 +1,8 @@
+require_relative "../ports/persistence"
+require_relative "../ports/persistence/binding_policy"
+require_relative "../ports/persistence/lineage"
+require_relative "registry"
+
 module Hecksagain
   module Runtime
     # The boot-time era gate, run for the adapters that HAVE eras — the

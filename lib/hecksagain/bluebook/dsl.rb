@@ -9,6 +9,13 @@ module Hecksagain
   end
 end
 
+# The query/read-model builders reach QuerySpecification at class-body
+# level and cannot say so themselves (contents frozen) — the namespace
+# file says it for them. The builders also build IR, at build time.
+require_relative "../construct"
+require_relative "../query_specification"
+require_relative "ir"
+
 require_relative "dsl/malformed"
 require_relative "dsl/const_shim"
 require_relative "dsl/attribute_collector"

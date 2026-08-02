@@ -1,3 +1,5 @@
+require_relative "../../../../naming"
+
 module Hecksagain
   module Adapters
     class Postgres

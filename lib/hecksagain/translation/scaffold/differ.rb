@@ -1,3 +1,5 @@
+require_relative "../../runtime/storage_shape"
+
 module Hecksagain
   module Translation
     module Scaffold

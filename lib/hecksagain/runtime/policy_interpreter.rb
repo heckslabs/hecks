@@ -1,3 +1,6 @@
+require_relative "../naming"
+require_relative "errors"
+
 
 module Hecksagain
   module Runtime

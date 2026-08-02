@@ -1,3 +1,6 @@
+require_relative "../naming"
+require_relative "value"
+
 module Hecksagain
   module Runtime
     # THE SCALAR AN IDENTITY PATH NAMES.

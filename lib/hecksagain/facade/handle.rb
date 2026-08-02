@@ -1,3 +1,5 @@
+require_relative "../naming"
+
 module Hecksagain
   module Facade
     # ONE record in hand — the object `Pizza.create_pizza(...)` and

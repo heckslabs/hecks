@@ -1,4 +1,5 @@
 require "prism"
+require_relative "../../bluebook/expression/canonical_form"
 
 module Hecksagain
   module Adapters

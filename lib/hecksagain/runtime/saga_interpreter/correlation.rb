@@ -1,3 +1,6 @@
+require_relative "../../naming"
+require_relative "../value"
+
 module Hecksagain
   module Runtime
     class SagaInterpreter

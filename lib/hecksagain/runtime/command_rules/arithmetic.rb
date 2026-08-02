@@ -1,3 +1,7 @@
+require_relative "../../rendering"
+require_relative "../errors"
+require_relative "../value"
+
 module Hecksagain
   module Runtime
     class CommandRules

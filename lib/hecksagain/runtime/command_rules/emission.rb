@@ -1,3 +1,5 @@
+require_relative "../event"
+
 module Hecksagain
   module Runtime
     class CommandRules

@@ -1,3 +1,8 @@
+require_relative "../../bluebook/dsl/hecksagon_builder"
+require_relative "../../bluebook/ir/hexagon"
+require_relative "../handle"
+require_relative "../../naming"
+
 module Hecksagain
   module Facade
     module Surface

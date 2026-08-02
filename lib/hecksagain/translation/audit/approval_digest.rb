@@ -1,4 +1,5 @@
 require "digest"
+require_relative "../../projector/exporter"
 
 module Hecksagain
   module Translation

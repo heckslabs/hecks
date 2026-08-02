@@ -1,3 +1,5 @@
+require_relative "null_semantics"
+
 module Hecksagain
   module QuerySpecification
     module Common

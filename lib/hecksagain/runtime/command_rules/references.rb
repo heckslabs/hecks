@@ -1,3 +1,5 @@
+require_relative "../errors"
+
 module Hecksagain
   module Runtime
     class CommandRules

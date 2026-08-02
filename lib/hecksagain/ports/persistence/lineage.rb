@@ -1,3 +1,7 @@
+require_relative "../../naming"
+require_relative "append_only"
+require_relative "../../runtime/registry"
+
 module Hecksagain
   module Ports
     module Persistence

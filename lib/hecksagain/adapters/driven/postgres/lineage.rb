@@ -7,6 +7,7 @@ require_relative "lineage/mint_transaction"
 require_relative "lineage/tail_merge"
 require_relative "lineage/head_compiler"
 require_relative "lineage/transform_installer"
+require_relative "../../../naming"
 
 module Hecksagain
   module Adapters

@@ -1,3 +1,5 @@
+require_relative "value"
+
 module Hecksagain
   module Runtime
     # What every stepwise interpreter shares: the traced step, and the

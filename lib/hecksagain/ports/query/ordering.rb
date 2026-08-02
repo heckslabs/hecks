@@ -1,3 +1,5 @@
+require_relative "../../query_specification/common/null_policy"
+
 module Hecksagain
   module Ports
     module Query

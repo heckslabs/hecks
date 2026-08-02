@@ -1,5 +1,9 @@
 require "fileutils"
 require_relative "era_guard/shape_diff"
+require_relative "../naming"
+require_relative "../ports/loading"
+require_relative "../ports/persistence/lineage"
+require_relative "registry"
 
 module Hecksagain
   module Runtime

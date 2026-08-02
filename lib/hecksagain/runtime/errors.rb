@@ -1,3 +1,5 @@
+require_relative "value/invariant_violation"
+
 
 module Hecksagain
   module Runtime

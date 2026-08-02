@@ -1,3 +1,9 @@
+require_relative "../../../../ports/persistence/lineage"
+require_relative "../../../../runtime/era_guard"
+require_relative "../../../../runtime/identity"
+require_relative "../../../../runtime/registry"
+require_relative "../../../../translation/audit"
+
 module Hecksagain
   module Adapters
     class Postgres

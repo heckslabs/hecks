@@ -1,3 +1,5 @@
+require_relative "../fqn"
+
 module Hecksagain
   class Router
     # Installs optional Ruby syntax over an already-loaded router. FQN

@@ -1,3 +1,8 @@
+require_relative "../../bluebook/expression/evaluator"
+require_relative "../../rendering"
+require_relative "../errors"
+require_relative "invariant_violation"
+
 module Hecksagain
   module Runtime
     class Value

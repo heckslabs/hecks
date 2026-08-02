@@ -1,3 +1,5 @@
+require_relative "../value_generator"
+
 module Hecksagain
   module Fuzzing
     class SequenceGenerator

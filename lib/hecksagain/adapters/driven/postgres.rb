@@ -4,6 +4,10 @@ require "json"
 require_relative "sql_query_builder"
 require_relative "postgres/lineage"
 require_relative "postgres/lineage_manager"
+require_relative "../../ports/persistence/append_only"
+require_relative "../../runtime/event"
+require_relative "../../runtime/instance"
+require_relative "../../runtime/registry"
 
 module Hecksagain
   module Adapters

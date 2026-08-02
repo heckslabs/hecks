@@ -1,3 +1,7 @@
+require_relative "../../bluebook/expression/evaluator"
+require_relative "../../rendering"
+require_relative "../errors"
+
 module Hecksagain
   module Runtime
     class CommandRules

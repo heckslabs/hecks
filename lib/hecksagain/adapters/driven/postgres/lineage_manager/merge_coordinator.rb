@@ -1,3 +1,7 @@
+require_relative "../lineage"
+require_relative "../../../../runtime/registry"
+require_relative "../../../../translation/audit"
+
 module Hecksagain
   module Adapters
     class Postgres

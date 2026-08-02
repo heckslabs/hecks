@@ -1,4 +1,7 @@
 require_relative "saga_interpreter/correlation"
+require_relative "../bluebook/ir/process_manager"
+require_relative "errors"
+require_relative "value"
 
 module Hecksagain
   module Runtime
