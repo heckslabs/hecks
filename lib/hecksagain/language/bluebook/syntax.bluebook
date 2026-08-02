@@ -191,6 +191,19 @@ Hecks.bluebook "Bluebook" do
         # table found that two halves of the project disagree about.
         member word: "identified_by",   context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "identified_by"
         member word: "reference_to",    context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "attributes"
+        # `has_many`, `has_one`, `belongs_to` — relationship vocabulary Hecks
+        # already grew and Rust's parser already read, ported into this Ruby
+        # only once this table existed to declare it by. All three FILL the
+        # same field `reference_to` does : each builds one Reference-typed
+        # attribute, so a judge reading the built IR cannot tell which word
+        # declared it, and does not need to. The naming DIFFERENCE from
+        # `reference_to` — no minted `_id` suffix, and `has_many`'s target is
+        # the singular of what was written — is a Ruby-builder default, not a
+        # fact this table can carry ; the ATTRIBUTE it lands on is the whole
+        # of what a projected parser needs to know.
+        member word: "has_many",        context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "attributes"
+        member word: "has_one",         context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "attributes"
+        member word: "belongs_to",      context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "attributes"
         member word: "lifecycle",       context: "Aggregate", body: "keywords", inner: "Lifecycle",     opens: "",               fills: "state_field"
         member word: "entity",          context: "Aggregate", body: "keywords", inner: "Entity",        opens: "Entity",         fills: ""
         member word: "query",           context: "Aggregate", body: "keywords", inner: "Query",         opens: "Query",          fills: ""
@@ -360,6 +373,17 @@ Hecks.bluebook "Bluebook" do
         # as the language's own spelling rather than as a convention.
         member keyword: "reference_to",    context: "Aggregate", at: "1", named: "",         kind: "constant", required: "true",  fills: "type"
         member keyword: "reference_to",    context: "Aggregate", at: "",  named: "as",       kind: "symbol",   required: "false", fills: "name"
+        # THE SAME TWO ARGUMENTS `reference_to` TAKES — a target and an
+        # optional alias. What `as:` fills differs in the Ruby builder (no
+        # `_id` mint), but that default-naming rule is not a fact this table
+        # carries for `reference_to` either ; `fills` names the FIELD an
+        # argument lands on, and for all four words that field is the same.
+        member keyword: "has_many",        context: "Aggregate", at: "1", named: "",         kind: "constant", required: "true",  fills: "type"
+        member keyword: "has_many",        context: "Aggregate", at: "",  named: "as",       kind: "symbol",   required: "false", fills: "name"
+        member keyword: "has_one",         context: "Aggregate", at: "1", named: "",         kind: "constant", required: "true",  fills: "type"
+        member keyword: "has_one",         context: "Aggregate", at: "",  named: "as",       kind: "symbol",   required: "false", fills: "name"
+        member keyword: "belongs_to",      context: "Aggregate", at: "1", named: "",         kind: "constant", required: "true",  fills: "type"
+        member keyword: "belongs_to",      context: "Aggregate", at: "",  named: "as",       kind: "symbol",   required: "false", fills: "name"
         member keyword: "lifecycle",       context: "Aggregate", at: "1", named: "",         kind: "symbol",   required: "true",  fills: "state_field"
         member keyword: "lifecycle",       context: "Aggregate", at: "",  named: "default",  kind: "literal",  required: "true",  fills: "state_start"
         member keyword: "entity",          context: "Aggregate", at: "1", named: "",         kind: "text",     required: "true",  fills: "name"

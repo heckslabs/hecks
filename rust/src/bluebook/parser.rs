@@ -129,18 +129,28 @@ pub fn strip_shebang(source: &str) -> &str {
     source
 }
 
+/// `attribute`, `reference_to`, `has_many`, `has_one`, `belongs_to`, and the
+/// shorthand forms all push into ONE `agg.attributes`, in the order lines are
+/// encountered — matching Ruby's `AttributeCollector`, where every one of
+/// them calls the same `attribute()` onto the same array.
+///
+/// USED TO COLLECT REFERENCES INTO A SEPARATE VECTOR, PREPENDED at the end,
+/// on the claim that "the IR has always listed every reference before every
+/// declared field". The claim was false, not merely stale : every real
+/// aggregate in this corpus happens to write `reference_to` immediately
+/// after `identified_by`, before any plain `attribute` — so declaration order
+/// and "references first" were the same order every time, and nothing ever
+/// told them apart. Ruby's own builder proves it — `attribute :id` then
+/// `reference_to Target` then `attribute :label` comes back `[:id,
+/// :target_id, :label]`, not references-first. Found by hand-probing
+/// `has_many`/`has_one`/`belongs_to` against a bluebook that (reasonably)
+/// declared an identity attribute before its relationships.
 fn parse_aggregate(lines: &[&str]) -> (Aggregate, Vec<Policy>, usize) {
     let first = lines[0].trim();
     let name = extract_string(first).unwrap_or_default();
     let desc = extract_second_string(first);
 
     let mut synthesised: Vec<ValueObject> = Vec::new();
-    // REFERENCES ARE ATTRIBUTES, collected apart only so they can be PREPENDED
-    // at the end. `reference_to` and `attribute` interleave freely in a
-    // bluebook, and the IR has always listed every reference before every
-    // declared field ; gathering them here reproduces that order at parse time
-    // rather than imposing it on the way out.
-    let mut references: Vec<Attribute> = Vec::new();
     let owner = name.clone();
     let mut agg = Aggregate {
         name,
@@ -220,13 +230,13 @@ fn parse_aggregate(lines: &[&str]) -> (Aggregate, Vec<Policy>, usize) {
             } else if line.starts_with("description") {
                 agg.description = extract_string(line);
             } else if line.starts_with("reference_to") {
-                absorb_reference_to(line, &mut references);
+                absorb_reference_to(line, &mut agg.attributes);
             } else if line.starts_with("has_many") {
-                absorb_has_many(line, &mut references);
+                absorb_has_many(line, &mut agg.attributes);
             } else if line.starts_with("has_one") {
-                absorb_has_one(line, &mut agg, &mut references);
+                absorb_has_one(line, &mut agg.attributes);
             } else if line.starts_with("belongs_to") {
-                absorb_belongs_to(line, &mut agg, &mut references);
+                absorb_belongs_to(line, &mut agg.attributes);
             } else if line.starts_with("lifecycle") {
                 let (lc, consumed) = parse_lifecycle(&lines[i..]);
                 agg.lifecycle = Some(lc);
@@ -238,7 +248,7 @@ fn parse_aggregate(lines: &[&str]) -> (Aggregate, Vec<Policy>, usize) {
                 i += consumed;
                 continue;
             } else if is_shorthand_line(line) {
-                absorb_shorthand(line, &mut agg, &mut references);
+                absorb_shorthand(line, &mut agg.attributes);
             } else if line.starts_with("query") {
                 if ends_with_do_block(line) {
                     let (q, consumed) = parse_query(&lines[i..]);
@@ -267,8 +277,6 @@ fn parse_aggregate(lines: &[&str]) -> (Aggregate, Vec<Policy>, usize) {
     }
 
     agg.value_objects.extend(synthesised);
-    references.append(&mut agg.attributes);
-    agg.attributes = references;
     (agg, nested_policies, i + 1)
 }
 
@@ -291,16 +299,6 @@ fn absorb_reference_to(line: &str, references: &mut Vec<Attribute>) {
     }
 }
 
-fn singularize(plural: &str) -> String {
-    if plural.len() > 3 && plural.ends_with("ies") {
-        format!("{}y", &plural[..plural.len() - 3])
-    } else if plural.len() > 1 && plural.ends_with('s') {
-        plural[..plural.len() - 1].to_string()
-    } else {
-        plural.to_string()
-    }
-}
-
 /// THE TYPE, UNQUALIFIED. `has_many Billing::Invoices` points at an Invoice ;
 /// which chapter it was declared in is not part of the reference's type, and
 /// never reached the IR — `Reference<Invoice>` is what both runtimes spell.
@@ -319,21 +317,21 @@ fn parse_as_alias(line: &str) -> Option<String> {
 fn absorb_has_many(line: &str, references: &mut Vec<Attribute>) {
     if let Some(token) = extract_word_after(line, "has_many") {
         let plural = unqualified_type(&token);
-        let target = singularize(&plural);
+        let target = crate::naming::singularize(&plural);
         let name = parse_as_alias(line).unwrap_or_else(|| crate::naming::snake(&plural));
         references.push(reference_attribute(name, &target));
     }
 }
 
-fn absorb_has_one(line: &str, agg: &mut Aggregate, references: &mut Vec<Attribute>) {
+fn absorb_has_one(line: &str, references: &mut Vec<Attribute>) {
     if let Some(token) = extract_word_after(line, "has_one") {
-        absorb_held(line, &token, agg, references);
+        absorb_held(line, &token, references);
     }
 }
 
-fn absorb_belongs_to(line: &str, agg: &mut Aggregate, references: &mut Vec<Attribute>) {
+fn absorb_belongs_to(line: &str, references: &mut Vec<Attribute>) {
     if let Some(token) = extract_word_after(line, "belongs_to") {
-        absorb_held(line, &token, agg, references);
+        absorb_held(line, &token, references);
     }
 }
 
@@ -342,28 +340,28 @@ fn absorb_belongs_to(line: &str, agg: &mut Aggregate, references: &mut Vec<Attri
 /// key, which is a persistence reading nothing here has ever made: the IR they
 /// left was the same reference and the same declared attribute, so they share
 /// the one body rather than two that must be kept in step.
-fn absorb_held(line: &str, token: &str, agg: &mut Aggregate, references: &mut Vec<Attribute>) {
+///
+/// USED TO ALSO PUSH A SECOND ATTRIBUTE onto `agg.attributes` directly — the
+/// bare target type, same name, guarded by "unless already present". The
+/// guard could never fire : `references` and `agg.attributes` are two
+/// separate vectors, only concatenated at the very END of `parse_aggregate`
+/// (`references.append(&mut agg.attributes)`), so the just-pushed reference
+/// was never visible to a check against `agg.attributes` alone. Every
+/// `has_one`/`belongs_to` would have left TWO attributes of the same name —
+/// `Reference<Target>` and bare `Target` — and neither runtime nor any test
+/// ever exercised the words to notice, because Ruby had not landed them yet.
+/// Ruby's `reference_to` (which these are sugar over on that side) produces
+/// exactly one attribute ; this now matches it.
+fn absorb_held(line: &str, token: &str, references: &mut Vec<Attribute>) {
     let target = unqualified_type(token);
     let name = parse_as_alias(line).unwrap_or_else(|| crate::naming::snake(&target));
-    references.push(reference_attribute(name.clone(), &target));
-    if !agg.attributes.iter().any(|a| a.name == name) {
-        agg.attributes.push(Attribute {
-            name,
-            r#type: target,
-            default: None,
-            list: false,
-            optional: false,
-            enum_values: vec![],
-            pattern: None,
-            admits: None,
-        });
-    }
+    references.push(reference_attribute(name, &target));
 }
 
-fn absorb_shorthand(line: &str, agg: &mut Aggregate, references: &mut Vec<Attribute>) {
+fn absorb_shorthand(line: &str, attributes: &mut Vec<Attribute>) {
     match parse_shorthand(line) {
-        ShorthandResult::Attribute(a) => agg.attributes.push(a),
-        ShorthandResult::Reference(r) => references.push(r),
+        ShorthandResult::Attribute(a) => attributes.push(a),
+        ShorthandResult::Reference(r) => attributes.push(r),
         ShorthandResult::None => {}
     }
 }

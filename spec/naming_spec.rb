@@ -73,4 +73,34 @@ RSpec.describe Hecksagain::Naming do
       end
     end
   end
+
+  # NOT in the shared contract above, the same way `.plural` beside it in the
+  # source is not : both are used to derive one aggregate's name from
+  # another's, which the SAME cross-runtime rule (`snake`, `reference_key`, …)
+  # is checked against everywhere else, so a divergence here would already
+  # show up as a parity split rather than a silent one. Kept as its own direct
+  # spec, mirrored by `singularize`'s test module in rust/src/naming.rs — Ruby
+  # `has_many`/`has_one`/`belongs_to` and Rust's `parser::absorb_has_many` must
+  # resolve `has_many Invoices` to the same target on both sides.
+  describe ".singularize" do
+    it "turns ies into y" do
+      expect(described_class.singularize("Invoices")).to eq("Invoice")
+      expect(described_class.singularize("Stories")).to eq("Story")
+    end
+
+    it "drops a trailing s" do
+      expect(described_class.singularize("Tasks")).to eq("Task")
+      expect(described_class.singularize("Boards")).to eq("Board")
+    end
+
+    it "leaves a word with no recognised suffix alone" do
+      expect(described_class.singularize("Sheep")).to eq("Sheep")
+      expect(described_class.singularize("Children")).to eq("Children")
+    end
+
+    it "survives the degenerate inputs" do
+      expect(described_class.singularize("")).to eq("")
+      expect(described_class.singularize("s")).to eq("s")
+    end
+  end
 end

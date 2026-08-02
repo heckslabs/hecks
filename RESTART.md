@@ -12,7 +12,7 @@ bottom of this file; the original is in git history if you want the rest.
 
 `main` at `2bf5cd5`, pushed, clean. Gates:
 
-    bundle exec rspec                             733 examples, 0 failures
+    bundle exec rspec                             741 examples, 0 failures
     cd rust && cargo test --release --workspace   passing, 0 warnings
     bin/parity                                    AGREED, 15 stages, 120 mutants
 
@@ -107,12 +107,72 @@ short (`Lifecycle`, `OrderBy`, `Direction`, `LimitSpec`, `ValueSpec` have no lan
 source; `Query.limit`, `ValueObject.members`, `Policy.aggregate` are real
 divergences) — that generator is untouched by either pass.
 
-**What's next, not yet started**: `parser.rs`/`parse_blocks.rs` carry roughly 35 more
-hardcoded keyword checks the language does not yet describe — including
-`has_many`/`has_one`/`belongs_to`/`subscribe`, which the README already names as
-vocabulary Rust cherry-picked ahead of Ruby (unported, not drift). Reconciling those
-needs a scoping pass first, to sort real gaps in `syntax.bluebook` from words that are
-honestly Rust-only for now.
+## `has_many` / `has_one` / `belongs_to` — ported, and what porting them found
+
+README's unported-vocabulary note is closed for three of its four words. `subscribe`
+stayed out on purpose — it belongs to `.hecksagon`, a sibling artifact this arc has
+never covered, and porting it would reopen that scope decision rather than extend
+this one.
+
+**Ruby**: `AggregateBuilder#has_many/has_one/belongs_to`, all sugar over
+`reference_to` — same `Reference<Target>` attribute, differing only in the DEFAULT
+name (no `_id` mint, and `has_many`'s target is the singular of what was written).
+`has_many` deliberately matches Rust's EXISTING shape — a single reference, not a
+list. `list_of(Reference<X>)` has no precedent anywhere in this IR (`list_of` is
+checked everywhere as a list of value objects — `bin/ir_structs`, `ir_json`, both
+dispatchers), so a real one-to-many is a separate arc, not a rename of what already
+parses. `Naming.singularize` is new too, mirrored exactly by Rust's (moved from
+`parser.rs` into `naming.rs`, public now).
+
+**`syntax.bluebook`** grew three `Keyword` rows and six `Argument` rows in the
+Aggregate context — the same shape `reference_to`'s own rows already had, since the
+underlying attribute a judge reads is identical regardless of which word declared it.
+
+**Two real, previously-latent Rust bugs surfaced by porting, not by inspection** —
+both zero-tested until this session, both caught by hand-probing a bluebook where
+`bin/ir` (Ruby) and `--dump` (Rust) diverged:
+
+1. **`absorb_held` built TWO attributes per `has_one`/`belongs_to`.** It pushed a
+   `Reference<Target>` into one vector and, guarded by "unless already present," a
+   BARE `Target`-typed one of the same name into a different vector — and the guard
+   could never fire, because the two vectors were only concatenated at the very end
+   of `parse_aggregate`. Fixed by deleting the second push ; `rust/tests/has_relationship_test.rs`
+   pins it (reverted-and-confirmed-failing during this session, then restored).
+2. **Every aggregate's attributes were secretly reordered.** `parse_aggregate`
+   collected `reference_to`/`has_many`/`has_one`/`belongs_to` into a SEPARATE vector,
+   PREPENDED at the end, on a comment claiming "the IR has always listed every
+   reference before every declared field." Ruby proved the claim false, not merely
+   stale — `attribute :id` then `reference_to X` then `attribute :label` comes back
+   `[:id, :target_id, :label]`, true declaration order, not references-first. Every
+   real aggregate in the corpus happens to write its references immediately after
+   `identified_by`, before any plain `attribute`, so declaration order and
+   "references first" were the same order every time and nothing told them apart.
+   Fixed by removing the separate vector entirely — `reference_to` and its three new
+   siblings now push straight into `agg.attributes`, matching Ruby's single
+   `AttributeCollector` array exactly. Pinned in `has_relationship_test.rs`.
+
+Both fixes were probed by hand before being trusted : a scratch bluebook exercising
+all three words, `bin/ir` vs `rust/target/release/hecksagain --dump`, canonicalised
+and diffed — SPLIT before either fix, byte-identical after. **Rebuild the CLI binary
+before trusting `--dump`** — mid-session, a stale binary from an earlier
+bug-reintroduction probe gave a false SPLIT that had nothing to do with the code.
+
+Gates after both fixes: `bundle exec rspec` 741/0 (up from 733 — three new `dsl_spec`
+examples, four `naming_spec` cases, a golden Bluebook.json rewrite for the two new
+syntax rows, and a `dsl_coverage_spec` allowlist update), `cargo test --release
+--workspace` clean (five new tests in `has_relationship_test.rs`, four in
+`naming.rs`), `bin/parity` AGREED across the whole corpus — the ordering fix touches
+every aggregate that has ever declared a reference, so the corpus-wide run is what
+actually matters here, not the new fixture alone.
+
+## `parser.rs`/`parse_blocks.rs` — the reconciliation pass, not yet started
+
+Roughly 35 hardcoded keyword checks remain that `syntax.bluebook` does not describe.
+Most are legitimate Rust-only vocabulary now that `has_many`/`has_one`/`belongs_to`
+are closed — check what's left before assuming another gap : `from_event`/`from_pm`/
+`from_iter` (dispatch-binding readings, not bluebook keywords at all), and whatever
+in `hecksagon_parser.rs` belongs to the sibling-artifact exclusion already on record.
+Scope this before extending `syntax.bluebook` further.
 
 **Scope that was deliberately left out**, and it is named rather than half-done: only
 the `.bluebook` surface is declared. `.port`, `.adapter`, `.hecksagon`, `.world` and

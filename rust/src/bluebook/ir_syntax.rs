@@ -14,9 +14,12 @@
 
 pub const AGGREGATE_KEYWORDS: &[&str] = &[
     "attribute",
+    "belongs_to",
     "command",
     "description",
     "entity",
+    "has_many",
+    "has_one",
     "identified_by",
     "lifecycle",
     "policy",

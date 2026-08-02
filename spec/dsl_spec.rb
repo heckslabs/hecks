@@ -936,6 +936,77 @@ RSpec.describe "the DSL surface" do
       expect(aggregate.attribute(:pizza_id).to_h[:type]).to eq("Reference<Pizza>")
     end
 
+    # `has_many`, `has_one`, `belongs_to` — sugar Hecks already grew and
+    # Rust's parser already read, ported here for the first time. Each
+    # builds exactly the Reference-typed attribute `reference_to` does ; what
+    # differs is the DEFAULT NAME, which carries no `_id` mint.
+    it "has_one is a single reference, named for the target with no _id mint" do
+      aggregate = build_bluebook("Owning") do
+        aggregate("Profile") do
+          identified_by { id.value }
+          description "A profile"
+        end
+        aggregate("Account") do
+          identified_by { id.value }
+          has_one Profile
+        end
+      end.aggregate("Account")
+
+      expect(aggregate.attribute(:profile).type.target_name).to eq("Profile")
+      expect(aggregate.attribute(:profile).to_h[:type]).to eq("Reference<Profile>")
+    end
+
+    it "belongs_to reads identically to has_one" do
+      aggregate = build_bluebook("Dependent") do
+        aggregate("Team") do
+          identified_by { id.value }
+          description "A team"
+        end
+        aggregate("Player") do
+          identified_by { id.value }
+          belongs_to Team
+        end
+      end.aggregate("Player")
+
+      expect(aggregate.attribute(:team).type.target_name).to eq("Team")
+      expect(aggregate.attribute(:team).to_h[:type]).to eq("Reference<Team>")
+    end
+
+    it "has_many singularizes the target and names the attribute for the plural written" do
+      aggregate = build_bluebook("Holding") do
+        aggregate("Invoice") do
+          identified_by { id.value }
+          description "An invoice"
+        end
+        aggregate("Ledger") do
+          identified_by { id.value }
+          has_many Invoices
+        end
+      end.aggregate("Ledger")
+
+      expect(aggregate.attribute(:invoices).type.target_name).to eq("Invoice")
+      expect(aggregate.attribute(:invoices).to_h[:type]).to eq("Reference<Invoice>")
+    end
+
+    it "has_many, has_one, and belongs_to all take as: to override the default name" do
+      aggregate = build_bluebook("Aliased") do
+        aggregate("Warehouse") do
+          identified_by { id.value }
+          description "A warehouse"
+        end
+        aggregate("Shipment") do
+          identified_by { id.value }
+          has_many Warehouses, as: :origins
+          has_one  Warehouse,  as: :dispatch_point
+          belongs_to Warehouse, as: :destination
+        end
+      end.aggregate("Shipment")
+
+      expect(aggregate.attribute(:origins).type.target_name).to eq("Warehouse")
+      expect(aggregate.attribute(:dispatch_point).type.target_name).to eq("Warehouse")
+      expect(aggregate.attribute(:destination).type.target_name).to eq("Warehouse")
+    end
+
     it "value_object declares a VO inside the aggregate that uses it" do
       aggregate = build_aggregate("Valued") { value_object("Part") { attribute :size, Integer } }
       expect(aggregate.value_object("Part").attribute(:size).type).to eq("Integer")

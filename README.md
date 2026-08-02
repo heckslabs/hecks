@@ -43,10 +43,17 @@ Rust.
 >
 > A related thing to know when reading this tree: parts of the Rust side were
 > cherry-picked from Hecks ahead of the Ruby here, so it can carry vocabulary
-> the Ruby has not yet grown. `has_many` / `has_one` / `belongs_to` are the
-> current example — the Rust parser reads them, Hecks's Ruby DSL has them, and
-> hecksagain's Ruby does not yet. Those are unported features, not drift, but
-> until the Ruby lands them a bluebook using one parses on one side only.
+> the Ruby has not yet grown. `has_many` / `has_one` / `belongs_to` were the
+> longest-standing example of this — the Rust parser read them, Hecks's Ruby
+> DSL had them, and hecksagain's Ruby did not, so a bluebook using one parsed
+> on one side only. Ruby has them now, as sugar over `reference_to`. Porting
+> them was also how two zero-tested Rust bugs surfaced: `has_one`/`belongs_to`
+> built two attributes where Ruby builds one, and every aggregate's attributes
+> were silently reordered relative to the source the moment a plain field was
+> declared before a reference — invisible because the whole corpus happens to
+> write references first. See `RESTART.md` for the rest. `subscribe`
+> (`.hecksagon`'s word, not a bluebook one) remains unported, by scope rather
+> than oversight.
 
 ## Try it
 

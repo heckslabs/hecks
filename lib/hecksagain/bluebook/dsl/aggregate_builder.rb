@@ -59,6 +59,32 @@ module Hecksagain
           attribute(as || :"#{Naming.snake(target)}_id", IR::Reference.new(target))
         end
 
+        # `has_many`, `has_one`, `belongs_to` — relationship vocabulary Hecks
+        # already grew (README's cherry-pick note) and Rust's parser already
+        # read, but this Ruby never declared: a bluebook using one parsed on
+        # ONE SIDE ONLY. All three are sugar over `reference_to`, differing
+        # from its default only in the attribute name they mint : no `_id`
+        # suffix (matching Hecks and Rust's own reading of them, not
+        # `reference_to`'s own `_id` mint), and `has_many`'s target is the
+        # SINGULAR of what was written (`has_many Invoices` points at Invoice).
+        #
+        # `has_many` keeps Rust's EXISTING shape — a single reference, not a
+        # list. `list_of(Reference<X>)` has no precedent anywhere in this IR :
+        # `list_of` is checked everywhere as a list of VALUE OBJECTS
+        # (bin/ir_structs, ir_json, both dispatchers' mutation and read
+        # paths). A real one-to-many is a separate arc, not a rename of what
+        # already parses.
+        def has_many(type, as: nil)
+          plural = Naming.demodulise(type)
+          reference_to(Naming.singularize(plural), as: as || Naming.snake(plural).to_sym)
+        end
+
+        def has_one(type, as: nil)
+          reference_to(type, as: as || Naming.snake(Naming.demodulise(type)).to_sym)
+        end
+
+        def belongs_to(type, as: nil) = has_one(type, as: as)
+
         def lifecycle(field, default:, &block)
           @lifecycle = LifecycleBuilder.build(field, default: default, &block)
         end

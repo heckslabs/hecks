@@ -45,6 +45,24 @@ pub fn plural(word: &str) -> String {
     format!("{word}s")
 }
 
+/// `has_many`'s undo — the plural WRITTEN, back to the singular the target
+/// aggregate is actually named. Deliberately the crude half of a pair:
+/// `plural` above earns its precision (three suffix rules) because getting a
+/// COLLECTION name wrong reads as a typo forever ; this only ever recovers a
+/// name someone already wrote as a real aggregate, so "ies -> y, trailing s
+/// dropped" is the whole rule. Used to live private to the bluebook parser ;
+/// moved here so Ruby's `Naming.singularize` has one rule to mirror, not a
+/// second copy of it.
+pub fn singularize(word: &str) -> String {
+    if word.len() > 3 && word.ends_with("ies") {
+        format!("{}y", &word[..word.len() - 3])
+    } else if word.len() > 1 && word.ends_with('s') {
+        word[..word.len() - 1].to_string()
+    } else {
+        word.to_string()
+    }
+}
+
 pub fn reference_key(type_name: &str) -> String {
     snake(demodulise(type_name))
 }
@@ -146,6 +164,30 @@ mod tests {
     #[test]
     fn demodulise_keeps_only_the_last_segment() {
         assert_eq!(demodulise("A::B::C"), "C");
+    }
+
+    #[test]
+    fn singularize_turns_ies_into_y() {
+        assert_eq!(singularize("Invoices"), "Invoice");
+        assert_eq!(singularize("Stories"), "Story");
+    }
+
+    #[test]
+    fn singularize_drops_a_trailing_s() {
+        assert_eq!(singularize("Tasks"), "Task");
+        assert_eq!(singularize("Boards"), "Board");
+    }
+
+    #[test]
+    fn singularize_leaves_a_word_with_no_recognised_suffix_alone() {
+        assert_eq!(singularize("Sheep"), "Sheep");
+        assert_eq!(singularize("Children"), "Children");
+    }
+
+    #[test]
+    fn singularize_survives_the_degenerate_inputs() {
+        assert_eq!(singularize(""), "");
+        assert_eq!(singularize("s"), "s");
     }
 
     #[test]

@@ -52,6 +52,21 @@ module Hecksagain
       "#{word}s"
     end
 
+    # `has_many`'s undo — the plural WRITTEN, back to the singular the target
+    # aggregate is actually named. Deliberately the crude half of a pair: `plural`
+    # above earns its precision (three suffix rules) because getting a COLLECTION
+    # name wrong reads as a typo forever ; this only ever recovers a name someone
+    # already wrote as a real aggregate, so "ies -> y, trailing s dropped" is the
+    # whole rule — the same one Rust's `parser::singularize` carries, mirrored
+    # exactly so `has_many Invoices` resolves to the same target on both sides.
+    def singularize(text)
+      word = text.to_s
+      return "#{word[0..-4]}y" if word.length > 3 && word.end_with?("ies")
+      return word[0..-2]       if word.length > 1 && word.end_with?("s")
+
+      word
+    end
+
     def reference_key(type)
       snake(demodulise(type)).to_sym
     end
