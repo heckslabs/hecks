@@ -136,7 +136,10 @@ and bounded by what the interpreter floor can evaluate:
 Leaves are literals, dotted value-object paths, `.size`/`.length`,
 `.positive?`/`.negative?`/`.zero?`, and `.modulo(n)`. An operator is admitted
 only once it reads in EVERY target — one with no Rust rendering is not a slow
-operator, it is not an operator.
+operator, it is not an operator. That sentence is checked, not aspired to:
+every operator the evaluator runs passes through the grammar chapter's own
+Admit gate on each suite run (`lib/hecksagain/grammar/expression_operators.json`,
+held by `spec/operator_conformance_spec.rb`).
 
 ## Porting to a new language
 

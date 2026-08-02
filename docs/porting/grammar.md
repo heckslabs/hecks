@@ -14,8 +14,13 @@ encoded as check order — the first pattern that matches wins, so order *is* th
 
 A related but different artifact: `lib/hecksagain/grammar/expression.bluebook` is the language's own
 self-description of admitted operators as *data* (an `Operator` aggregate with a `proposed →
-admitted → retired` lifecycle, tracking precedence/category/arity/renderings per operator). That's a
-content-management domain about operators, not the parser itself — this document is the parser.
+admitted → retired` lifecycle, tracking precedence/category/arity/renderings per operator). It used
+to be a content-management domain about operators that nothing read; it is now **held to the parser
+by checking**: `lib/hecksagain/grammar/expression_operators.json` replays every operator through the
+chapter's own Propose → Render (ruby, rust) → Admit commands, and `spec/operator_conformance_spec.rb`
+holds the evaluator's tables equal to the admitted set, both directions — an operator the ledger
+never admitted does not exist to the evaluator. This document remains the parser's spec; the
+chapter is the ledger the parser is audited against.
 
 ## Outer grammar (boolean / comparison)
 

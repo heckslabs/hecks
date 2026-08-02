@@ -1,0 +1,760 @@
+{
+  "name": "expression-operators",
+  "note": "The admission ledger \u2014 every operator and normalisation rule the expression machinery runs, driven through the grammar chapter's own lifecycle. Propose, then a rendering per target, then Admit, so the 'reads in every target' guard gates each admission for real. spec/operator_conformance_spec.rb replays this and holds the evaluator's tables equal to what survives \u2014 an operator absent here is not a slow operator, it is not an operator.",
+  "steps": [
+    {
+      "verb": "Expression::Operator.Propose",
+      "args": {
+        "symbol": {
+          "value": "||"
+        },
+        "category": {
+          "value": "logical"
+        },
+        "precedence": {
+          "value": 1
+        },
+        "arity": {
+          "value": 2
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": "||"
+        },
+        "target": {
+          "value": "ruby"
+        },
+        "form": {
+          "value": "a || b"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": "||"
+        },
+        "target": {
+          "value": "rust"
+        },
+        "form": {
+          "value": "a || b"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Admit",
+      "args": {
+        "symbol": {
+          "value": "||"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Propose",
+      "args": {
+        "symbol": {
+          "value": "&&"
+        },
+        "category": {
+          "value": "logical"
+        },
+        "precedence": {
+          "value": 2
+        },
+        "arity": {
+          "value": 2
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": "&&"
+        },
+        "target": {
+          "value": "ruby"
+        },
+        "form": {
+          "value": "a && b"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": "&&"
+        },
+        "target": {
+          "value": "rust"
+        },
+        "form": {
+          "value": "a && b"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Admit",
+      "args": {
+        "symbol": {
+          "value": "&&"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Propose",
+      "args": {
+        "symbol": {
+          "value": ".include?"
+        },
+        "category": {
+          "value": "membership"
+        },
+        "precedence": {
+          "value": 3
+        },
+        "arity": {
+          "value": 2
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".include?"
+        },
+        "target": {
+          "value": "ruby"
+        },
+        "form": {
+          "value": "haystack.include?(needle)"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".include?"
+        },
+        "target": {
+          "value": "rust"
+        },
+        "form": {
+          "value": "haystack.include?(needle)"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Admit",
+      "args": {
+        "symbol": {
+          "value": ".include?"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Propose",
+      "args": {
+        "symbol": {
+          "value": ">="
+        },
+        "category": {
+          "value": "comparison"
+        },
+        "precedence": {
+          "value": 4
+        },
+        "arity": {
+          "value": 2
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ">="
+        },
+        "target": {
+          "value": "ruby"
+        },
+        "form": {
+          "value": "a >= b"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ">="
+        },
+        "target": {
+          "value": "rust"
+        },
+        "form": {
+          "value": "a >= b"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Admit",
+      "args": {
+        "symbol": {
+          "value": ">="
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Propose",
+      "args": {
+        "symbol": {
+          "value": "<="
+        },
+        "category": {
+          "value": "comparison"
+        },
+        "precedence": {
+          "value": 4
+        },
+        "arity": {
+          "value": 2
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": "<="
+        },
+        "target": {
+          "value": "ruby"
+        },
+        "form": {
+          "value": "a <= b"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": "<="
+        },
+        "target": {
+          "value": "rust"
+        },
+        "form": {
+          "value": "a <= b"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Admit",
+      "args": {
+        "symbol": {
+          "value": "<="
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Propose",
+      "args": {
+        "symbol": {
+          "value": "<"
+        },
+        "category": {
+          "value": "comparison"
+        },
+        "precedence": {
+          "value": 4
+        },
+        "arity": {
+          "value": 2
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": "<"
+        },
+        "target": {
+          "value": "ruby"
+        },
+        "form": {
+          "value": "a < b"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": "<"
+        },
+        "target": {
+          "value": "rust"
+        },
+        "form": {
+          "value": "a < b"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Admit",
+      "args": {
+        "symbol": {
+          "value": "<"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Propose",
+      "args": {
+        "symbol": {
+          "value": ">"
+        },
+        "category": {
+          "value": "comparison"
+        },
+        "precedence": {
+          "value": 4
+        },
+        "arity": {
+          "value": 2
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ">"
+        },
+        "target": {
+          "value": "ruby"
+        },
+        "form": {
+          "value": "a > b"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ">"
+        },
+        "target": {
+          "value": "rust"
+        },
+        "form": {
+          "value": "a > b"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Admit",
+      "args": {
+        "symbol": {
+          "value": ">"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Propose",
+      "args": {
+        "symbol": {
+          "value": "=="
+        },
+        "category": {
+          "value": "comparison"
+        },
+        "precedence": {
+          "value": 4
+        },
+        "arity": {
+          "value": 2
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": "=="
+        },
+        "target": {
+          "value": "ruby"
+        },
+        "form": {
+          "value": "a == b"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": "=="
+        },
+        "target": {
+          "value": "rust"
+        },
+        "form": {
+          "value": "a == b"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Admit",
+      "args": {
+        "symbol": {
+          "value": "=="
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Propose",
+      "args": {
+        "symbol": {
+          "value": "!="
+        },
+        "category": {
+          "value": "comparison"
+        },
+        "precedence": {
+          "value": 4
+        },
+        "arity": {
+          "value": 2
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": "!="
+        },
+        "target": {
+          "value": "ruby"
+        },
+        "form": {
+          "value": "a != b"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": "!="
+        },
+        "target": {
+          "value": "rust"
+        },
+        "form": {
+          "value": "a != b"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Admit",
+      "args": {
+        "symbol": {
+          "value": "!="
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Propose",
+      "args": {
+        "symbol": {
+          "value": "!"
+        },
+        "category": {
+          "value": "logical"
+        },
+        "precedence": {
+          "value": 5
+        },
+        "arity": {
+          "value": 1
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": "!"
+        },
+        "target": {
+          "value": "ruby"
+        },
+        "form": {
+          "value": "!a"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": "!"
+        },
+        "target": {
+          "value": "rust"
+        },
+        "form": {
+          "value": "!a"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Admit",
+      "args": {
+        "symbol": {
+          "value": "!"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Propose",
+      "args": {
+        "symbol": {
+          "value": "+"
+        },
+        "category": {
+          "value": "arithmetic"
+        },
+        "precedence": {
+          "value": 6
+        },
+        "arity": {
+          "value": 2
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": "+"
+        },
+        "target": {
+          "value": "ruby"
+        },
+        "form": {
+          "value": "a + b"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": "+"
+        },
+        "target": {
+          "value": "rust"
+        },
+        "form": {
+          "value": "a + b"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Admit",
+      "args": {
+        "symbol": {
+          "value": "+"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Propose",
+      "args": {
+        "symbol": {
+          "value": ".modulo"
+        },
+        "category": {
+          "value": "arithmetic"
+        },
+        "precedence": {
+          "value": 6
+        },
+        "arity": {
+          "value": 2
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".modulo"
+        },
+        "target": {
+          "value": "ruby"
+        },
+        "form": {
+          "value": "a.modulo(b)"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".modulo"
+        },
+        "target": {
+          "value": "rust"
+        },
+        "form": {
+          "value": "a.modulo(b)"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Admit",
+      "args": {
+        "symbol": {
+          "value": ".modulo"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Normalisation.Propose",
+      "args": {
+        "name": {
+          "value": "collapse_whitespace"
+        },
+        "strategy": {
+          "value": "collapse_whitespace"
+        },
+        "source_token": {
+          "value": ""
+        },
+        "replacement": {
+          "value": ""
+        },
+        "boundary": {
+          "value": "none"
+        },
+        "position": {
+          "value": 1
+        }
+      }
+    },
+    {
+      "verb": "Expression::Normalisation.Read",
+      "args": {
+        "name": {
+          "value": "collapse_whitespace"
+        },
+        "target": {
+          "value": "ruby"
+        },
+        "form": {
+          "value": "text.gsub(/\\s+/, \" \")"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Normalisation.Read",
+      "args": {
+        "name": {
+          "value": "collapse_whitespace"
+        },
+        "target": {
+          "value": "rust"
+        },
+        "form": {
+          "value": "WHITESPACE.replace_all(text, \" \")"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Normalisation.Admit",
+      "args": {
+        "name": {
+          "value": "collapse_whitespace"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Normalisation.Propose",
+      "args": {
+        "name": {
+          "value": "length_to_size"
+        },
+        "strategy": {
+          "value": "replace"
+        },
+        "source_token": {
+          "value": ".length"
+        },
+        "replacement": {
+          "value": ".size"
+        },
+        "boundary": {
+          "value": "word"
+        },
+        "position": {
+          "value": 2
+        }
+      }
+    },
+    {
+      "verb": "Expression::Normalisation.Read",
+      "args": {
+        "name": {
+          "value": "length_to_size"
+        },
+        "target": {
+          "value": "ruby"
+        },
+        "form": {
+          "value": "text.gsub(/\\.length(?![[:alnum:]_])/, \".size\")"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Normalisation.Read",
+      "args": {
+        "name": {
+          "value": "length_to_size"
+        },
+        "target": {
+          "value": "rust"
+        },
+        "form": {
+          "value": "replace_word_bounded(text, \".length\", \".size\")"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Normalisation.Admit",
+      "args": {
+        "name": {
+          "value": "length_to_size"
+        }
+      }
+    }
+  ]
+}
