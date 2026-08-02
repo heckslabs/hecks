@@ -178,6 +178,18 @@ Ruby and Rust, which is this project's single most recurring bug class.
 Eras are a Postgres concern only. Memory, Sqlite, and Heki carry no era
 concept at all — a domain there boots the text it is handed.
 
+## Language versions
+
+The language applies the same discipline to itself. Every word of the
+bluebook surface carries a lifecycle in `syntax.bluebook` — proposed,
+admitted, deprecated, retired — and a proposed or retired word reaches no
+projected parser table: to a projected reader it does not exist. A renamed
+word keeps its old spelling in `was:`, and the old spelling parses forever
+in both runtimes (`sets` is the word; `then_set` is the era the whole
+corpus was written under, and the corpus still boots). The chapter declares
+its own version, and `bin/evolve` walks a change through the stations —
+snapshot, rewrite, regenerate, gate, restore-on-red.
+
 ## The library
 
 ```

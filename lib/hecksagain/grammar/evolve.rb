@@ -28,7 +28,7 @@ module Hecksagain
         block.scan(/^\s*member (.+)$/).map do |(cells)|
           row = cells.scan(/(\w+): "((?:[^"\\]|\\.)*)"/).to_h
           { word: row["word"], context: row["context"],
-            status: row.fetch("status", "admitted") }
+            status: row.fetch("status", "admitted"), was: row["was"] }
         end
       end
 
@@ -71,6 +71,33 @@ module Hecksagain
         end.join
 
         File.write(path, source.sub(block, updated))
+      end
+
+      # A rename respells the row's word and holds the old spelling in
+      # `was:` — one hop only. Renaming an already-renamed word refuses
+      # until the language grows real eras for its own words; renaming
+      # onto a spelling the context already declares refuses too. The
+      # word's Argument rows follow it — arguments belong to the word,
+      # not to its spelling.
+      def rename(word:, context:, to:, path: syntax_path)
+        row = keyword_rows(path).find { |r| r[:word] == word && r[:context] == context }
+        raise Refusal, "#{context}.#{word} is not declared" unless row
+        raise Refusal, "#{context}.#{word} was already #{row[:was]} — one rename hop, then eras" if row[:was]
+        if keyword_rows(path).any? { |r| r[:word] == to && r[:context] == context }
+          raise Refusal, "#{context}.#{to} is already declared — a rename cannot land on a living word"
+        end
+
+        source = File.read(path)
+        block  = keyword_block(source)
+        updated = block.lines.map do |line|
+          next line unless member_row?(line, word, context)
+
+          line.sub(%(word: "#{word}"), %(word: "#{to}"))
+              .sub(/\n\z/, %(, was: "#{word}"\n))
+        end.join
+        source = source.sub(block, updated)
+        source = source.gsub(%(keyword: "#{word}",), %(keyword: "#{to}",))
+        File.write(path, source)
       end
 
       def member_row?(line, word, context)

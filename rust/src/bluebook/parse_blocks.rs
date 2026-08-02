@@ -197,7 +197,10 @@ pub fn parse_command(lines: &[&str], owner: &str) -> (Command, usize) {
                     canonical: expr,
                     description: msg,
                 });
-            } else if line.starts_with("then_set") {
+            } else if line.starts_with("then_set") || line.starts_with("sets ") || line.starts_with("sets(") {
+                // `sets` is the word, `then_set` the spelling every existing
+                // bluebook was written under — Syntax::Keyword carries the
+                // rename as `was:`, and both eras parse here forever.
                 if let Some(m) = parse_mutation(line) {
                     cmd.mutations.push(m);
                 }

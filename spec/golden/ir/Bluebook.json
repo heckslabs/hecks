@@ -6831,6 +6831,15 @@
               "optional": false,
               "pattern": null,
               "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "was",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
             }
           ],
           "closed_set": true,
@@ -7673,7 +7682,7 @@
             [
               [
                 "word",
-                "then_set"
+                "sets"
               ],
               [
                 "context",
@@ -7694,6 +7703,10 @@
               [
                 "fills",
                 "mutations"
+              ],
+              [
+                "was",
+                "then_set"
               ]
             ],
             [
@@ -10332,7 +10345,7 @@
             [
               [
                 "keyword",
-                "then_set"
+                "sets"
               ],
               [
                 "context",
@@ -10362,7 +10375,7 @@
             [
               [
                 "keyword",
-                "then_set"
+                "sets"
               ],
               [
                 "context",
@@ -10392,7 +10405,7 @@
             [
               [
                 "keyword",
-                "then_set"
+                "sets"
               ],
               [
                 "context",
@@ -10422,7 +10435,7 @@
             [
               [
                 "keyword",
-                "then_set"
+                "sets"
               ],
               [
                 "context",
@@ -10452,7 +10465,7 @@
             [
               [
                 "keyword",
-                "then_set"
+                "sets"
               ],
               [
                 "context",

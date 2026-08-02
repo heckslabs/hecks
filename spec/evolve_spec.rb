@@ -36,7 +36,7 @@ RSpec.describe "the evolve surgery" do
       rows = Hecksagain::Grammar::Evolve.keyword_rows(path)
       row = rows.find { |candidate| candidate[:word] == "annotate" }
 
-      expect(row).to eq(word: "annotate", context: "Aggregate", status: "proposed")
+      expect(row).to eq(word: "annotate", context: "Aggregate", status: "proposed", was: nil)
       expect(rows.last).to eq(row)
     end
   end
@@ -66,18 +66,42 @@ RSpec.describe "the evolve surgery" do
 
   it "deprecates and retires by spelling the station" do
     with_copy do |path|
-      Hecksagain::Grammar::Evolve.set_status(word: "then_set", context: "Command",
+      Hecksagain::Grammar::Evolve.set_status(word: "given", context: "Command",
                                              to: "deprecated", path: path)
       row = Hecksagain::Grammar::Evolve.keyword_rows(path)
-                                       .find { |r| r[:word] == "then_set" && r[:context] == "Command" }
+                                       .find { |r| r[:word] == "given" && r[:context] == "Command" }
       expect(row[:status]).to eq("deprecated")
+    end
+  end
+
+  it "renames by respelling the row and holding the old spelling in was" do
+    with_copy do |path|
+      Hecksagain::Grammar::Evolve.rename(word: "emits", context: "Command", to: "announces", path: path)
+      rows = Hecksagain::Grammar::Evolve.keyword_rows(path)
+
+      expect(rows.find { |r| r[:word] == "announces" && r[:context] == "Command" }[:was]).to eq("emits")
+      expect(rows.none? { |r| r[:word] == "emits" && r[:context] == "Command" }).to be(true)
+    end
+  end
+
+  it "refuses a second rename hop, and a rename onto a living word" do
+    with_copy do |path|
+      Hecksagain::Grammar::Evolve.rename(word: "emits", context: "Command", to: "announces", path: path)
+
+      expect do
+        Hecksagain::Grammar::Evolve.rename(word: "announces", context: "Command", to: "declares", path: path)
+      end.to raise_error(Hecksagain::Grammar::Evolve::Refusal, /one rename hop/)
+
+      expect do
+        Hecksagain::Grammar::Evolve.rename(word: "given", context: "Command", to: "role", path: path)
+      end.to raise_error(Hecksagain::Grammar::Evolve::Refusal, /living word/)
     end
   end
 
   it "refuses a station the language does not admit, and a word it does not hold" do
     with_copy do |path|
       expect do
-        Hecksagain::Grammar::Evolve.set_status(word: "then_set", context: "Command",
+        Hecksagain::Grammar::Evolve.set_status(word: "given", context: "Command",
                                                to: "banished", path: path)
       end.to raise_error(Hecksagain::Grammar::Evolve::Refusal, /not a station/)
 

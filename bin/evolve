@@ -89,8 +89,10 @@ case command
 when "status"
   rows = Evolve.keyword_rows
   moving = rows.reject { |row| row[:status] == "admitted" }
-  puts "#{rows.size} keyword rows; #{moving.size} not simply admitted"
+  renamed = rows.reject { |row| row[:was].to_s.empty? }
+  puts "#{rows.size} keyword rows; #{moving.size} not simply admitted; #{renamed.size} renamed"
   moving.each { |row| puts "  #{row[:status].ljust(10)} #{row[:context]}.#{row[:word]}" }
+  renamed.each { |row| puts "  renamed    #{row[:context]}.#{row[:word]} (was #{row[:was]})" }
 when "propose"
   word = ARGV.shift or abort "propose what word?"
   context = option("context") or abort "--context is required — a word is a word somewhere"
@@ -110,6 +112,17 @@ when "admit", "deprecate", "retire"
   word = ARGV.shift or abort "#{command} what word?"
   context = option("context") or abort "--context is required"
   guarded(word, context) { Evolve.set_status(word: word, context: context, to: to) }
+when "rename"
+  word = ARGV.shift or abort "rename what word?"
+  context = option("context") or abort "--context is required"
+  to = option("to") or abort "--to is required — a rename goes somewhere"
+  ok = guarded(word, context) { Evolve.rename(word: word, context: context, to: to) }
+  if ok
+    puts "Renamed. The old spelling keeps parsing — that is the point. Before this holds:"
+    puts "  1. alias the new word to the old in the #{context} builder (alias_method :#{to}, :#{word})"
+    puts "  2. teach rust/src/bluebook the new spelling beside the old"
+    puts "  3. add the identical-IR example to spec/dsl_spec.rb, then run bin/parity"
+  end
 else
   abort "usage: bin/evolve status|propose|admit|deprecate|retire <word> --context <Context> " \
         "[--body none|keywords|source|rows] [--inner X] [--opens X] [--fills x]"

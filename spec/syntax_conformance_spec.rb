@@ -224,7 +224,8 @@ RSpec.describe "the declared syntax" do
     next if builder.equal?(D::AttributeCollector)
 
     it "declares every word #{builder} answers (#{contexts.join(', ')})" do
-      declared = contexts.flat_map { |ctx| declared_in(ctx).map { |row| row[:word].to_sym } }.uniq
+      declared = contexts.flat_map { |ctx| declared_in(ctx).flat_map { |row| [row[:word], row[:was].to_s].reject(&:empty?) } }
+                         .map(&:to_sym).uniq
 
       if builder.is_a?(Class) && builder.include?(D::AttributeCollector)
         declared += LIVE_KEYWORDS.select { |row| row[:context] == "Type" }
@@ -239,6 +240,31 @@ RSpec.describe "the declared syntax" do
                                             "a bluebook could use them and nothing projected from the " \
                                             "language would know they exist"
     end
+  end
+
+  # THE RENAME COLUMN'S OWN GATES. A live row carrying `was:` is a word
+  # the language RESPELLED — and the promise of the column is that the
+  # old era keeps booting: the builder answers both spellings, the old
+  # spelling is not smuggled back in as its own row, and nothing renames
+  # a word to itself.
+  it "answers every renamed word in both its spellings" do
+    LIVE_KEYWORDS.reject { |row| row[:was].to_s.empty? }.each do |row|
+      answered = self.class.words_answered_by(row[:context])
+      expect(answered).to include(row[:word].to_sym),
+                          "#{row[:context]}.#{row[:word]} — the new spelling has no builder"
+      expect(answered).to include(row[:was].to_sym),
+                          "#{row[:context]}.#{row[:word]} was #{row[:was]}, and the old "                           "spelling stopped parsing — a rename never strands the old era"
+      expect(row[:was]).not_to eq(row[:word]), "#{row[:context]}.#{row[:word]} renames itself"
+    end
+  end
+
+  it "keeps no renamed-away spelling as a row of its own" do
+    respelled = KEYWORDS.reject { |row| row[:was].to_s.empty? }
+                        .map { |row| [row[:was], row[:context]] }
+    ghosts = respelled & KEYWORDS.map { |row| [row[:word], row[:context]] }
+
+    expect(ghosts).to be_empty,
+                      "old spellings declared twice — as was: and as a row: #{ghosts.inspect}"
   end
 
   # THE LIFECYCLE'S OWN TWO DIRECTIONS. A proposed word is declared and

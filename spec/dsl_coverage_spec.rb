@@ -23,7 +23,7 @@ RSpec.describe "the DSL surface is fully covered" do
     ],
     "CommandBuilder" => [
       Hecksagain::Bluebook::DSL::CommandBuilder,
-      %i[role goal reference_to given then_set emits attribute list_of attributes]
+      %i[role goal reference_to given then_set sets emits attribute list_of attributes]
     ],
     "PortBuilder" => [
       Hecksagain::Bluebook::DSL::PortBuilder,

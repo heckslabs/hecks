@@ -71,6 +71,10 @@ module Hecksagain
           )
         end
 
+        # `sets` is the word; `then_set` is the spelling every existing
+        # bluebook was written under (Syntax::Keyword carries the rename as
+        # `was:`), and it stays answered here forever — a renamed word's old
+        # era keeps booting, which is the whole point of the rename column.
         def then_set(target, to: nil, append: nil, increment: nil, decrement: nil)
           # moved to the language: given "a mutation names a target", on Verb.Change
 
@@ -92,6 +96,7 @@ module Hecksagain
           op, source = named.first
           @mutations << IR::Mutation.new(target: target.to_sym, op: op, source: source)
         end
+        alias_method :sets, :then_set
 
         # No raise here. "an event is named" is declared in the language itself —
         # language/bluebook/behavior.bluebook, on Command.Announce — and MetaValidator is what

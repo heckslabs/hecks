@@ -286,6 +286,16 @@ RSpec.describe "the DSL surface" do
         .to raise_error(Malformed, /names no operation/)
     end
 
+    it "builds the same mutation under sets and then_set — a rename, not a fork" do
+      # `sets` is the word; `then_set` is the era every existing bluebook was
+      # written under (Syntax::Keyword carries the rename as `was:`). The two
+      # spellings must build byte-identical IR, or the rename column is a lie.
+      renamed = build_command("Spelled") { sets :balance, increment: :amount }
+      original = build_command("Spelled2") { then_set :balance, increment: :amount }
+
+      expect(renamed.mutations.map(&:to_h)).to eq(original.mutations.map(&:to_h))
+    end
+
     it "refuses a mutation that names two operations" do
       expect { build_command("Torn") { then_set :balance, to: 5, increment: :amount } }
         .to raise_error(Malformed, /one mutation, one meaning/)

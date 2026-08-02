@@ -183,6 +183,14 @@ Hecks.bluebook "Bluebook" do
       attribute :opens,   String
       attribute :fills,   String
       attribute :status,  String, default: "admitted", admits: "Syntax::Status"
+      # THE RENAME COLUMN — the language's own `was:`, one level up from the
+      # data translations that taught it the shape. A row whose word was
+      # respelled keeps the old spelling here; the old spelling stays
+      # answered by the builder and emitted into every projection, so a
+      # bluebook written under it keeps booting — in both runtimes —
+      # forever. One hop only: renaming an already-renamed word refuses
+      # until the language grows real eras for its own words.
+      attribute :was,     String
 
       one_of do
         # The outside of every body. `Hecks.bluebook` is reached through the
@@ -242,7 +250,11 @@ Hecks.bluebook "Bluebook" do
         member word: "goal",            context: "Command", body: "none",   inner: "", opens: "", fills: "goal"
         member word: "reference_to",    context: "Command", body: "none",   inner: "", opens: "", fills: "references"
         member word: "given",           context: "Command", body: "source", inner: "", opens: "", fills: "givens"
-        member word: "then_set",        context: "Command", body: "none",   inner: "", opens: "", fills: "mutations"
+        # RENAMED, NOT REPLACED. `sets :balance, increment: :amount` is the
+        # spelling; `then_set` is the era every existing bluebook was written
+        # under, and every one of them still boots — the corpus itself is the
+        # proof the rename machinery is safe.
+        member word: "sets",            context: "Command", body: "none",   inner: "", opens: "", fills: "mutations", was: "then_set"
         member word: "emits",           context: "Command", body: "none",   inner: "", opens: "", fills: "emits"
         member word: "attribute",       context: "Command", body: "none",   inner: "", opens: "", fills: "attributes"
 
@@ -436,11 +448,11 @@ Hecks.bluebook "Bluebook" do
         member keyword: "reference_to",    context: "Command", at: "",  named: "as",        kind: "symbol",   required: "false", fills: "name"
         member keyword: "reference_to",    context: "Command", at: "",  named: "optional",  kind: "flag",     required: "false", fills: "optional"
         member keyword: "given",           context: "Command", at: "1", named: "",          kind: "text",     required: "true",  fills: "description"
-        member keyword: "then_set",        context: "Command", at: "1", named: "",          kind: "symbol",   required: "true",  fills: "target"
-        member keyword: "then_set",        context: "Command", at: "",  named: "to",        kind: "symbol",   required: "false", fills: "source"
-        member keyword: "then_set",        context: "Command", at: "",  named: "append",    kind: "pairs",    required: "false", fills: ""
-        member keyword: "then_set",        context: "Command", at: "",  named: "increment", kind: "symbol",   required: "false", fills: "source"
-        member keyword: "then_set",        context: "Command", at: "",  named: "decrement", kind: "symbol",   required: "false", fills: "source"
+        member keyword: "sets",            context: "Command", at: "1", named: "",          kind: "symbol",   required: "true",  fills: "target"
+        member keyword: "sets",            context: "Command", at: "",  named: "to",        kind: "symbol",   required: "false", fills: "source"
+        member keyword: "sets",            context: "Command", at: "",  named: "append",    kind: "pairs",    required: "false", fills: ""
+        member keyword: "sets",            context: "Command", at: "",  named: "increment", kind: "symbol",   required: "false", fills: "source"
+        member keyword: "sets",            context: "Command", at: "",  named: "decrement", kind: "symbol",   required: "false", fills: "source"
         member keyword: "emits",           context: "Command", at: "1", named: "",          kind: "text",     required: "true",  fills: "emits"
         member keyword: "attribute",       context: "Command", at: "1", named: "",          kind: "symbol",   required: "true",  fills: "name"
         member keyword: "attribute",       context: "Command", at: "2", named: "",          kind: "constant", required: "false", fills: "type"

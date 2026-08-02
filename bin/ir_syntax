@@ -58,7 +58,8 @@ words = keyword.members
                # projected reader it does not exist. Deprecated still reads.
                .reject { |row| %w[proposed retired].include?(row[:status].to_s) }
                .select { |row| row.fetch(:context) == "Aggregate" }
-               .map { |row| row.fetch(:word) }
+               # A renamed word's OLD spelling stays recognized — see `was:`.
+               .flat_map { |row| [row.fetch(:word), row[:was].to_s.empty? ? nil : row[:was]].compact }
                .uniq
                .sort
 
