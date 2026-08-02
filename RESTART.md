@@ -12,7 +12,7 @@ bottom of this file; the original is in git history if you want the rest.
 
 `main` at `2bf5cd5`, pushed, clean. Gates:
 
-    bundle exec rspec                             741 examples, 0 failures
+    bundle exec rspec                             744 examples, 0 failures
     cd rust && cargo test --release --workspace   passing, 0 warnings
     bin/parity                                    AGREED, 15 stages, 120 mutants
 
@@ -208,14 +208,27 @@ pass cross-referenced the declaration against what Rust does. Fixed by threading
 every other caller — an aggregate's own `reference_to`, `has_many`/`has_one`/
 `belongs_to` — passes `false`, since Ruby never lets them take it either).
 
-**Already-documented, left alone**: `from_event`/`from_pm`/`from_iter` (dispatch
-binding value readings — `bin/ir_structs`' own exclusion header already names this
-divergence ; zero corpus usage, no Ruby equivalent, but not silently dead the way
-`rule`/shorthand were — the language's own `Binding` shape is honestly two plain
-strings, and this is Rust reading a value STRING more richly, not swallowing a
-construct). Reflex's missing query options (`offset`/`cursor`/`consistency`/
-`freshness`/`authorize`/`nulls`/`inspect_query`/`use_index` on `Query`/`ReadModel`) —
-same header, same reason, untouched.
+**`from_event`/`from_pm`/`from_iter` — deleted, not merely left alone.** Documented,
+which is why the first pass didn't touch them ; asked to look again, and the
+documentation turned out to be the last thing standing. Traced end to end
+(`dispatcher.rs::deliver_saga_dispatch`, the ACTUAL runtime path — not the parser) :
+Ruby's `dispatch_args` resolves a bare `:symbol` binding event-payload-first, then
+process-manager memory, with no syntax distinguishing the two ; Rust's real
+dispatcher does the identical thing, byte for byte, off the same colon-prefixed
+text. `from_event(...)`/`from_pm(...)`/`from_iter(...)` explicit sentinel syntax
+was Rust's OWN richer parse of the same binding value — no Ruby method by any of
+those three names exists in this project or in Hecks, zero corpus usage, and worse,
+BROKEN if anyone had used it : `bin/ir_rust`'s own domain generator never built one
+(its comment says so — "ALWAYS A LITERAL, and the colon stays on"), and the wire
+flattening (`ir_json::value_spec_text`) dropped the leading colon for
+`FromEvent`/`FromPm` while `Literal` kept it, so the explicit form would have
+silently round-tripped into being read as a plain string instead of an event/memory
+lookup. `ValueSpec` is gone ; `DispatchSpec.with_spec` is `Vec<(String, String)>`,
+matching what the language actually declares `Binding` to be. `bin/ir_rust` and
+`bin/ir_structs` updated and regenerated (`projected/banking.rs`, `projected/wire.rs`
+— the only two chapters that use `with_spec` at all). Gates: rspec 744/0, cargo
+clean, every non-Postgres `bin/parity` stage AGREED (Postgres itself was flaky on
+clean `HEAD` too — a shared local instance, unrelated to this).
 
 Every deletion and fix is pinned : `rust/tests/command_reference_optional_test.rs`
 (the `optional:` fix, reverted-and-confirmed-failing then restored, same discipline
@@ -267,9 +280,10 @@ smaller than the commit messages suggest. Carry the honest version:
     bin/ir_vocabulary  Vocabulary -> 2 Rust enums                (rust/src/bluebook/ir_vocabulary.rs)
     bin/ir_rust <bluebook>  a DOMAIN -> Rust values              (rust/src/bluebook/projected/*.rs)
 
-Seven chapters compile in: Banking, Expression, Market, Pizzas, Relay, TillRoom, Wire.
-**Reflex is excluded BY NAME** — it declares every query option the language holds and
-Rust's `Query` struct carries none, so there is nowhere to project them.
+Eight chapters compile in: Banking, Expression, Market, Pizzas, Reflex, Relay, TillRoom,
+Wire. **Reflex's exclusion is CLOSED** (a session concurrent with this one — see
+`spec/ir_rust_export_spec.rb`'s own updated comment) : `Query`/`ReadModel` grew the
+eight specification options, so there is somewhere to project them to now.
 
 - `Runtime::boot` prefers a projection over parsing; `Runtime::boot_projected(chapter)`
   boots with NO file at all. `bin/parity` runs the whole corpus with Rust booting from
@@ -350,8 +364,9 @@ two runtimes to a shape no example declares.
   scalar" is the rule the identity arc established. What a correlation key may BE is a
   language question. Recorded in `relay.bluebook`; relay correlates on the root instead.
 - **`boot_projected` attaches no adapters** — hecks takes wiring as values too.
-- **Reflex's exclusion is a Rust gap**, not a generator quirk: `Query` lacks the option
-  fields the language declares.
+- **Reflex's exclusion — CLOSED**, concurrent with this session: `Query`/`ReadModel`
+  grew the eight specification options, so Reflex now projects like every other
+  chapter. Left here so the entry isn't silently wrong ; not this session's work.
 - **Minting stays Ruby-only** until `bin/parity` can mint from BOTH runtimes and diff.
 
 ## Standing rules that still hold

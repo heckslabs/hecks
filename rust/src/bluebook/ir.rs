@@ -38,28 +38,28 @@ pub use super::ir_structs::{
     WhereClause,
 };
 
+/// `with_spec`'s VALUE is the same text `IR.render_value` put on the wire —
+/// a leading colon means an argument the event (or process manager memory)
+/// carried, anything else is a literal — and neither runtime has ever needed
+/// more than that to dispatch.
+///
+/// Used to be `Vec<(String, ValueSpec)>`, where `ValueSpec` was an enum with
+/// `FromEvent`/`FromPm`/`FromIter` variants alongside `Literal` — a Rust-only
+/// reading of a bluebook's `from_event(...)`/`from_pm(...)`/`from_iter(...)`
+/// sentinel syntax. No Ruby method by any of those three names exists in this
+/// project or in Hecks ; `bin/ir_rust`'s own generator comment said as much —
+/// "ALWAYS A LITERAL, and the colon stays on" — because Ruby's wire format
+/// never carries anything else. Worse than merely unreachable : the wire
+/// flattening (`ir_json::value_spec_text`) dropped the leading colon for
+/// `FromEvent`/`FromPm` while `Literal` kept it, so the one time this path was
+/// traced end to end, the explicit sentinel form would have silently
+/// round-tripped into being read as a plain string instead of an event/memory
+/// lookup — the opposite of what it was for. `with_spec` now carries exactly
+/// what the language declares `Binding`'s value to be : a plain string.
 #[derive(Debug, Clone)]
 pub struct DispatchSpec {
     pub command_name: String,
-    pub with_spec: Vec<(String, ValueSpec)>,
-}
-
-#[derive(Debug, Clone)]
-pub enum ValueSpec {
-    Literal {
-        value: String,
-    },
-    FromEvent {
-        name: String,
-        default: Option<String>,
-    },
-    FromPm {
-        name: String,
-        default: Option<String>,
-    },
-    FromIter {
-        field: String,
-    },
+    pub with_spec: Vec<(String, String)>,
 }
 
 // NO `identity_key`. Both `Aggregate` and `Entity` used to answer "the one

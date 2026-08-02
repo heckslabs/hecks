@@ -1503,8 +1503,8 @@ fn match_close_brace(s: &str) -> Option<usize> {
     None
 }
 
-fn parse_with_hash(body: &str) -> Vec<(String, ValueSpec)> {
-    let mut out: Vec<(String, ValueSpec)> = Vec::new();
+fn parse_with_hash(body: &str) -> Vec<(String, String)> {
+    let mut out: Vec<(String, String)> = Vec::new();
     for raw_entry in split_top_level_commas(body) {
         let entry = raw_entry.trim().trim_end_matches(',').trim();
         if entry.is_empty() {
@@ -1522,69 +1522,30 @@ fn parse_with_hash(body: &str) -> Vec<(String, ValueSpec)> {
         if key.is_empty() {
             continue;
         }
-        if let Some(spec) = parse_value_spec(val_raw) {
-            out.push((key, spec));
+        if let Some(value) = parse_binding_value(val_raw) {
+            out.push((key, value));
         }
     }
     out
 }
 
-fn parse_value_spec(raw: &str) -> Option<ValueSpec> {
+/// `Dispatch.Bind`'s `value` — the same text `IR.render_value` put on the
+/// wire, and nothing richer. A leading colon (`:source`) means an argument
+/// the event or process manager memory carries ; anything else, including a
+/// nested object literal, is read as-is and interpreted at actual dispatch
+/// time (`dispatcher.rs::deliver_saga_dispatch`), not here.
+fn parse_binding_value(raw: &str) -> Option<String> {
     let s = raw.trim();
-    if s.starts_with("from_event") {
-        let (name, default) = parse_sentinel_args(s, "from_event")?;
-        Some(ValueSpec::FromEvent { name, default })
-    } else if s.starts_with("from_pm") {
-        let (name, default) = parse_sentinel_args(s, "from_pm")?;
-        Some(ValueSpec::FromPm { name, default })
-    } else if s.starts_with("from_iter") {
-        let (name, _default) = parse_sentinel_args(s, "from_iter")?;
-        Some(ValueSpec::FromIter { field: name })
-    } else if s.starts_with('"') || s.starts_with('\'') {
-        let value = extract_string(s).unwrap_or_default();
-        Some(ValueSpec::Literal { value })
+    if s.starts_with('"') || s.starts_with('\'') {
+        extract_string(s)
     } else {
         let token = s.trim_end_matches(',').trim().to_string();
         if token.is_empty() {
-            return None;
-        }
-        Some(ValueSpec::Literal { value: token })
-    }
-}
-
-fn parse_sentinel_args(s: &str, fname: &str) -> Option<(String, Option<String>)> {
-    let after = &s[fname.len()..];
-    let open = after.find('(')?;
-    let close = after[open..].rfind(')')? + open;
-    let inner = after[open + 1..close].trim();
-    if inner.is_empty() {
-        return None;
-    }
-
-    let parts = split_top_level_commas(inner);
-    let mut iter = parts.into_iter();
-    let name_raw = iter.next()?.trim().to_string();
-    let name = name_raw
-        .trim_start_matches(':')
-        .trim_matches(|c: char| c == '"' || c == '\'')
-        .to_string();
-    if name.is_empty() {
-        return None;
-    }
-
-    let mut default: Option<String> = None;
-    for rest in iter {
-        let r = rest.trim();
-        if let Some(rest_after) = r.strip_prefix("default:") {
-            let v = rest_after.trim();
-            if v.starts_with('"') || v.starts_with('\'') {
-                default = extract_string(v);
-            } else if !v.is_empty() {
-                default = Some(v.trim_end_matches(',').trim().to_string());
-            }
+            None
+        } else {
+            Some(token)
         }
     }
-    Some((name, default))
 }
 
 
@@ -1599,37 +1560,29 @@ mod dispatch_tests {
         assert!(s.with_spec.is_empty());
     }
 
+    /// A QUOTED STRING has its quotes stripped ; a BARE SYMBOL keeps its
+    /// colon, because the colon is what tells an argument the event or
+    /// process manager memory carries from a string that just happens to
+    /// share its shape — `dispatcher.rs::deliver_saga_dispatch` reads that
+    /// colon at actual dispatch time. Neither runtime has ever needed a
+    /// third case : `from_event(...)`/`from_pm(...)`/`from_iter(...)` sentinel
+    /// syntax used to be read into a distinct `ValueSpec` here, but no Ruby
+    /// method by any of those three names exists in this project or in Hecks,
+    /// and `bin/ir_rust`'s own generator only ever emitted a literal. Deleted ;
+    /// see the comment on `DispatchSpec` in `ir.rs`.
     #[test]
-    fn parses_dispatch_with_literal_and_from_event() {
-        let line = r#"dispatch "Body.Tick", with: { name: "body", tick: from_event(:tick) }"#;
+    fn parses_a_quoted_literal_and_a_bare_symbol() {
+        let line = r#"dispatch "Body.Tick", with: { name: "body", tick: :tick }"#;
         let s = parse_dispatch_statement(line).unwrap();
         assert_eq!(s.command_name, "Body.Tick");
         assert_eq!(s.with_spec.len(), 2);
-        assert_eq!(s.with_spec[0].0, "name");
-        assert!(matches!(s.with_spec[0].1, ValueSpec::Literal { ref value } if value == "body"));
-        assert_eq!(s.with_spec[1].0, "tick");
-        assert!(
-            matches!(s.with_spec[1].1, ValueSpec::FromEvent { ref name, default: None } if name == "tick")
-        );
-    }
-
-    #[test]
-    fn parses_from_pm_with_default() {
-        let line = r#"dispatch "X.Y", with: { carrying: from_pm(:carrying, default: "—") }"#;
-        let s = parse_dispatch_statement(line).unwrap();
-        assert_eq!(s.with_spec.len(), 1);
-        match &s.with_spec[0].1 {
-            ValueSpec::FromPm { name, default } => {
-                assert_eq!(name, "carrying");
-                assert_eq!(default.as_deref(), Some("—"));
-            }
-            other => panic!("expected FromPm, got {:?}", other),
-        }
+        assert_eq!(s.with_spec[0], ("name".to_string(), "body".to_string()));
+        assert_eq!(s.with_spec[1], ("tick".to_string(), ":tick".to_string()));
     }
 
     #[test]
     fn tolerates_variable_whitespace_around_with() {
-        let line = r#"dispatch "X.Y",          with: { tick: from_event(:tick) }"#;
+        let line = r#"dispatch "X.Y",          with: { tick: :tick }"#;
         let s = parse_dispatch_statement(line).unwrap();
         assert_eq!(s.with_spec.len(), 1);
         assert_eq!(s.with_spec[0].0, "tick");
@@ -1647,16 +1600,5 @@ mod dispatch_tests {
             vec!["a", "b", "c"]
         );
     }
-
-    #[test]
-    fn parses_from_iter_value_spec_in_isolation() {
-        let spec = parse_value_spec("from_iter(:strength)").unwrap();
-        match spec {
-            ValueSpec::FromIter { field } => assert_eq!(field, "strength"),
-            other => panic!("expected FromIter, got {:?}", other),
-        }
-    }
-
-
 
 }

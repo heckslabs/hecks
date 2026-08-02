@@ -34,11 +34,6 @@
 //     no language source. Query.limit is a QueryText — a plain string — so the
 //     language would project `Option<String>`, not a struct.
 //
-//   ValueSpec
-//     no language source at all. from_event/from_pm/from_iter are a Rust-side
-//     reading of a dispatch binding; the language declares Binding as two plain
-//     strings.
-//
 //   Query
 //     DIVERGENCE — `limit`. The language declares Query.limit as QueryText
 //     (optional on Declare), which projects to Option<String>; Rust holds
@@ -62,10 +57,15 @@
 //     Ruby's comment, not this generator's, that should decide when it ends.
 //
 //   DispatchSpec
-//     DIVERGENCE — `with_spec`. The language declares list_of(Binding) where
-//     Binding is two plain strings, so it projects to Vec<Binding>; Rust holds
-//     Vec<(String, ValueSpec)> and reads each value as a
-//     from_event/from_pm/literal spec.
+//     not in ROOTS, so not attempted here, but no longer a value-level
+//     divergence either: `with_spec` used to be Vec<(String, ValueSpec)>, an
+//     enum reading richer structure (from_event/from_pm/from_iter) out of a
+//     binding's value than the language ever declares — bin/ir_rust's own
+//     domain generator never once built a FromEvent/FromPm/FromIter, because
+//     Ruby's wire format has no source for them. `with_spec` is Vec<(String,
+//     String)> now, matching `list_of(Binding)` field for field ; the one thing
+//     left unaligned is representation, a tuple where the language's `Binding`
+//     is a two-field named shape, not semantics.
 //
 //   Attribute
 //     DIVERGENCE — `enum_values`, and the flags. The language declares seven

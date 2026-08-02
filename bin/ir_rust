@@ -322,26 +322,29 @@ def read_model(held)
     "#{option_fields(held)} }"
 end
 
-# A BINDING'S VALUE, as `ValueSpec`. The wire carries the same text Rust's
-# parser read — a leading colon means an argument the event carried, anything
-# else is a literal — which is the distinction `IR.render_value` draws and the
-# walk once read past.
-# ALWAYS A LITERAL, and the colon stays on.
+# A BINDING'S VALUE. The wire carries the same text Rust's parser read — a
+# leading colon means an argument the event or process manager memory
+# carries, anything else is a literal — the distinction
+# `dispatcher.rs::deliver_saga_dispatch` draws at ACTUAL dispatch time, not
+# here. ALWAYS A LITERAL, and the colon stays on : a binding written
+# `:source` is a plain String holding ":source", colon and all, because that
+# is the text `IR.render_value` put on the wire.
 #
-# `ValueSpec::FromEvent` is not what a plain `:source` parses to — Rust builds it
-# only from the explicit `from_event(...)` sentinel, and renders it back as a
-# BARE name. A binding written `:source` is a `Literal` holding ":source", colon
-# and all, because that is the text `IR.render_value` put on the wire and the
-# colon is what tells an argument from a string.
+# Used to render `ValueSpec::Literal { value: ... }` — an enum with
+# `FromEvent`/`FromPm`/`FromIter` variants beside `Literal`, none of which
+# this generator ever built one of, because Ruby's wire format never carries
+# anything but a plain string for a binding's value. `with_spec` is
+# `Vec<(String, String)>` now, matching what the language actually declares
+# `Binding`'s value to be.
 #
 # An object literal is inverted for the same reason `binding_source` inverts one.
-def value_spec(text)
+def dispatch_binding_value(text)
   held = text.to_s
-  "ValueSpec::Literal { value: #{rs(held.start_with?('{') ? bluebook_object(held) : held)} }"
+  rs(held.start_with?('{') ? bluebook_object(held) : held)
 end
 
 def dispatch(held)
-  bindings = (held["with_spec"] || []).map { |key, value| "(#{rs(key)}, #{value_spec(value)})" }
+  bindings = (held["with_spec"] || []).map { |key, value| "(#{rs(key)}, #{dispatch_binding_value(value)})" }
   "DispatchSpec { command_name: #{rs(held['command_name'])}, with_spec: #{vec(bindings)} }"
 end
 

@@ -2,7 +2,7 @@ use crate::ir::{
     Aggregate, Attribute, AuthorizationSpec, Command, ConsistencySpec, CursorSpec, Direction,
     Domain, Entity, FreshnessSpec, IndexHint, InspectionSpec, Lifecycle, MutationOp,
     NullSemanticsSpec, OffsetSpec, Policy, ProcessManager, ProcessManagerHandler, Query,
-    ReadModel, Transition, ValueObject, ValueSpec, WhereClause, WhereOp,
+    ReadModel, Transition, ValueObject, WhereClause, WhereOp,
 };
 use serde_json::{json, Map, Value};
 
@@ -231,19 +231,10 @@ fn pm_handler_to_value(handler: &ProcessManagerHandler) -> Value {
         "dispatches": handler.dispatches.iter().map(|d| json!({
             "command_name": d.command_name,
             "with_spec": d.with_spec.iter()
-                .map(|(key, spec)| json!([key, value_spec_text(spec)]))
+                .map(|(key, value)| json!([key, ruby_literal(value)]))
                 .collect::<Vec<_>>()
         })).collect::<Vec<_>>()
     })
-}
-
-fn value_spec_text(spec: &ValueSpec) -> String {
-    match spec {
-        ValueSpec::Literal { value } => ruby_literal(value),
-        ValueSpec::FromEvent { name, .. } => name.clone(),
-        ValueSpec::FromPm { name, .. } => name.clone(),
-        ValueSpec::FromIter { field } => field.clone(),
-    }
 }
 
 fn lifecycle_to_value(lifecycle: &Lifecycle) -> Value {
