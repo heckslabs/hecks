@@ -43,6 +43,16 @@ pub struct Runtime {
     /// field, and move to this one at a time (M6b). Once every caller has
     /// moved, the JSON annotation step in `new` below can go.
     admitted_sets: std::collections::HashMap<String, Vec<String>>,
+    /// THE TYPED TWIN OF `resolved_cache` BELOW — an aggregate, found once
+    /// off `self.domain` and cached by (domain, name), the same shape as
+    /// the JSON cache for the same reason: dispatch reaches for its
+    /// aggregate on nearly every step, and `Arc` lets a caller hold it
+    /// across a later `&mut self` call (the JSON cache exists for exactly
+    /// this borrow-checker reason, not for JSON-parsing cost). Entities,
+    /// commands and queries are NOT separately cached — once the owning
+    /// Aggregate is in hand, finding one inside its own (small) `Vec` is
+    /// cheaper than the HashMap lookup would be.
+    typed_aggregate_cache: RefCell<HashMap<String, Arc<crate::ir::Aggregate>>>,
     store: BTreeMap<String, State>,
     adapters: BTreeMap<String, Box<dyn PersistenceAdapter>>,
     mirrors: BTreeMap<String, Vec<(String, Box<dyn PersistenceAdapter>)>>,
@@ -565,6 +575,7 @@ impl Runtime {
             pending_correlation: None,
             dispatch_trace: None,
             resolved_cache: RefCell::new(HashMap::new()),
+            typed_aggregate_cache: RefCell::new(HashMap::new()),
         }
     }
 
@@ -2763,6 +2774,128 @@ impl Runtime {
             },
         )
     }
+
+    // ── the typed lookups — M6b's replacement for the JSON find_* cluster
+    // above. Same names, `_typed` suffixed, same cached-Arc shape for the
+    // same borrow-checker reason ; reads `self.domain` instead of `self.ir`.
+    // Entities/commands/queries aren't separately cached — see
+    // `typed_aggregate_cache`'s own doc comment on `Runtime` for why.
+
+    fn find_aggregate_typed(
+        &self,
+        domain: &str,
+        name: &str,
+        verb: &str,
+    ) -> Result<Arc<crate::ir::Aggregate>, String> {
+        let key = format!("{domain}:{name}");
+        if let Some(hit) = self.typed_aggregate_cache.borrow().get(&key) {
+            return Ok(hit.clone());
+        }
+        // A booted Runtime holds exactly one domain, so this is a name
+        // MATCH check, not a lookup among several — but a caller can still
+        // pass the wrong one (a verb naming a different domain than what
+        // booted), and that has to refuse the same way find_domain's JSON
+        // path does, not silently fall through to "no such aggregate".
+        if domain != self.domain.name {
+            let domain_shown = format!("{domain:?}");
+            return Err(refusal_wording::render(
+                "UnknownVerb",
+                "no_domain",
+                &[("domain", &domain_shown), ("verb", verb)],
+            ));
+        }
+        let Some(found) = self.domain.aggregates.iter().find(|a| a.name == name) else {
+            let name_shown = format!("{name:?}");
+            return Err(refusal_wording::render(
+                "UnknownVerb",
+                "no_aggregate",
+                &[("domain", domain), ("aggregate", &name_shown)],
+            ));
+        };
+        let resolved = Arc::new(found.clone());
+        self.typed_aggregate_cache.borrow_mut().insert(key, resolved.clone());
+        Ok(resolved)
+    }
+
+    fn find_entity_typed(
+        aggregate: &crate::ir::Aggregate,
+        entity_name: &str,
+    ) -> Result<Arc<crate::ir::Entity>, String> {
+        aggregate
+            .entities
+            .iter()
+            .find(|e| e.name == entity_name)
+            .map(|e| Arc::new(e.clone()))
+            .ok_or_else(|| {
+                let entity_shown = format!("{entity_name:?}");
+                refusal_wording::render(
+                    "UnknownVerb",
+                    "entity_unknown",
+                    &[("aggregate", aggregate.name.as_str()), ("entity", &entity_shown)],
+                )
+            })
+    }
+
+    fn find_command_typed(aggregate: &crate::ir::Aggregate, name: &str) -> Option<Arc<crate::ir::Command>> {
+        aggregate.commands.iter().find(|c| c.name == name).map(|c| Arc::new(c.clone()))
+    }
+
+    fn find_entity_command_typed(
+        entity: &crate::ir::Entity,
+        command_name: &str,
+    ) -> Result<Arc<crate::ir::Command>, String> {
+        entity
+            .commands
+            .iter()
+            .find(|c| c.name == command_name)
+            .map(|c| Arc::new(c.clone()))
+            .ok_or_else(|| {
+                let command_shown = format!("{command_name:?}");
+                refusal_wording::render(
+                    "UnknownVerb",
+                    "entity_no_command",
+                    &[("entity", entity.name.as_str()), ("command", &command_shown)],
+                )
+            })
+    }
+
+    fn find_query_typed(
+        aggregate: &crate::ir::Aggregate,
+        query_name: &str,
+    ) -> Result<Arc<crate::ir::Query>, String> {
+        aggregate
+            .queries
+            .iter()
+            .find(|q| q.name == query_name)
+            .map(|q| Arc::new(q.clone()))
+            .ok_or_else(|| {
+                let query_shown = format!("{query_name:?}");
+                refusal_wording::render(
+                    "UnknownVerb",
+                    "no_query",
+                    &[("aggregate", aggregate.name.as_str()), ("query", &query_shown)],
+                )
+            })
+    }
+
+    fn find_entity_query_typed(
+        entity: &crate::ir::Entity,
+        query_name: &str,
+    ) -> Result<Arc<crate::ir::Query>, String> {
+        entity
+            .queries
+            .iter()
+            .find(|q| q.name == query_name)
+            .map(|q| Arc::new(q.clone()))
+            .ok_or_else(|| {
+                let query_shown = format!("{query_name:?}");
+                refusal_wording::render(
+                    "UnknownVerb",
+                    "entity_query_missing",
+                    &[("entity", entity.name.as_str()), ("query", &query_shown)],
+                )
+            })
+    }
 }
 
 fn ruby_literal_value(token: &str) -> Value {
@@ -3351,5 +3484,55 @@ mod correlation_stamp_tests {
                 "self.events must never carry a correlation field: {event:?}"
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod typed_lookup_tests {
+    use super::*;
+
+    // Every typed find_*_typed function, proven against the same real
+    // fixture dispatch_order_tests boots — not yet called by dispatch()/
+    // dispatch_entity() (M6b's actual sweep), but already correct and
+    // cached, ready for the callers to move over.
+    #[test]
+    fn find_aggregate_typed_resolves_and_caches() {
+        let runtime = Runtime::boot("../spec/fixtures/dispatch_order.bluebook").unwrap();
+
+        let first = runtime.find_aggregate_typed("DispatchOrder", "Widget", "DispatchOrder::Widget.Open").unwrap();
+        assert_eq!(first.name, "Widget");
+
+        let second = runtime.find_aggregate_typed("DispatchOrder", "Widget", "DispatchOrder::Widget.Open").unwrap();
+        assert!(Arc::ptr_eq(&first, &second), "a second lookup must hit the cache, not re-scan");
+    }
+
+    #[test]
+    fn find_aggregate_typed_refuses_the_wrong_domain_and_the_wrong_aggregate() {
+        let runtime = Runtime::boot("../spec/fixtures/dispatch_order.bluebook").unwrap();
+
+        let wrong_domain = runtime.find_aggregate_typed("Nonesuch", "Widget", "Nonesuch::Widget.Open").unwrap_err();
+        assert!(wrong_domain.contains("no domain"), "{wrong_domain}");
+
+        let wrong_aggregate =
+            runtime.find_aggregate_typed("DispatchOrder", "Nonesuch", "DispatchOrder::Nonesuch.Open").unwrap_err();
+        assert!(wrong_aggregate.contains("has no aggregate"), "{wrong_aggregate}");
+    }
+
+    #[test]
+    fn find_entity_command_query_typed_resolve_a_real_piece() {
+        let runtime = Runtime::boot("../spec/fixtures/dispatch_order.bluebook").unwrap();
+        let aggregate = runtime.find_aggregate_typed("DispatchOrder", "Widget", "").unwrap();
+
+        let command = Runtime::find_command_typed(&aggregate, "Open");
+        assert!(command.is_some(), "Widget.Open must resolve");
+
+        let entity = Runtime::find_entity_typed(&aggregate, "Part").unwrap();
+        assert_eq!(entity.name, "Part");
+
+        let piece_command = Runtime::find_entity_command_typed(&entity, "Advance").unwrap();
+        assert_eq!(piece_command.name, "Advance");
+
+        let missing_entity = Runtime::find_entity_typed(&aggregate, "Nonesuch").unwrap_err();
+        assert!(missing_entity.contains("Widget") && missing_entity.contains("no entity"), "{missing_entity}");
     }
 }
