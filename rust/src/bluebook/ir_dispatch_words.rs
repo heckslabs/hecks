@@ -29,3 +29,7 @@ pub const ENTITY_WORDS: &[(&str, &str)] = &[
     ("query", "Query"),
 ];
 
+pub const PROCESS_MANAGER_WORDS: &[(&str, &str)] = &[
+    ("on", "Handler"),
+];
+

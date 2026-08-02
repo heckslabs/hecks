@@ -1347,7 +1347,25 @@ pub fn parse_process_manager(lines: &[&str]) -> (ProcessManager, usize) {
                 if let Some(s) = extract_string(line) {
                     pm.states.push(s);
                 }
-            } else if line.starts_with("on ") || line.starts_with("on\t") {
+            // WHICH WORD, GENERATED ; WHAT OPENING IT MEANS, HAND-WRITTEN — same
+            // shape as `parse_aggregate`'s own table lookup, for the one word
+            // (`on`) that opens something here. `unreachable!` still guards a
+            // second opens-bearing word arriving in this context with no
+            // handling added for it, the same rigor as everywhere else this
+            // pattern is used, even though today there is only one row. The
+            // manual `starts_with("on ") || starts_with("on\t")` check this
+            // replaces missed a BARE `on` with nothing after (never real usage
+            // — `on` always dispatches with an event name) ; `keyword_matches`
+            // covers it too, a strict widening rather than a behavior change
+            // for anything the corpus writes.
+            } else if let Some(opens) = crate::bluebook::ir_dispatch_words::PROCESS_MANAGER_WORDS
+                .iter()
+                .find(|(word, _)| keyword_matches(line, word))
+                .map(|(_, opens)| *opens)
+            {
+                if opens != "Handler" {
+                    unreachable!("PROCESS_MANAGER_WORDS opens {opens:?}, which parse_process_manager does not handle");
+                }
                 let mut handler = parse_pm_handler(line);
                 if ends_with_do_block(line) {
                     let on_indent = lines[i].len() - lines[i].trim_start().len();
