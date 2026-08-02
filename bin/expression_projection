@@ -16,13 +16,16 @@
 # the checked-in table, derives the fresh one from the DOMAIN (never
 # from what it just read), and replaces the file atomically.
 #
-# IF THE CHECKED-IN FILE IS EVER BROKEN, `git restore` it — this script
-# cannot rebuild from a projection that no longer parses the chapter's
-# own guards. Which is a fact about the LANGUAGE, found the hard way:
-# the chapter's `status != "retired"` givens evaluate through the very
-# operator table being projected, so a projection missing `!=` cannot
-# even boot the chapter to fix itself. A word the language's own
-# self-description uses is load-bearing and cannot simply be retired.
+# TWO GUARDS STAND WHERE THE WEDGE WAS FOUND. The chapter's own
+# `status != "retired"` givens evaluate through the very operator table
+# being projected — a projection missing a SELF-BEARING operator cannot
+# even boot the chapter to fix itself. So: (1) this script refuses to
+# WRITE a projection whose admitted set drops an operator the language's
+# own predicates evaluate through (Grammar.self_bearing_operators names
+# each one with a usage site); and (2) `--bootstrap` rebuilds the
+# projection from the LEDGER alone, before the framework loads — so a
+# projection that is already broken is repaired by the tool, not by git
+# archaeology.
 #
 # Operators carry the vocabulary's comparison algebra through the same
 # join bin/operators makes (the domain owns WHICH and IN WHAT ORDER;
@@ -34,6 +37,56 @@
 
 require "json"
 require "tempfile"
+
+TARGET = File.expand_path("../lib/hecksagain/bluebook/expression/projection.json", __dir__)
+
+def write_atomically(content)
+  Tempfile.create("projection", File.dirname(TARGET)) do |tmp|
+    tmp.write(content)
+    tmp.flush
+    File.rename(tmp.path, TARGET)
+  end
+end
+
+# STAGE ZERO, BEFORE THE FRAMEWORK — the framework cannot load while the
+# projection is broken, so this path must not load it. The ledger holds
+# which operators exist and in what order; the algebra comes from the
+# OTHER runtime's checked-in stage zero (rust operators.json), the two
+# being held equal whenever the suite runs. Rebuild, then run this
+# script again WITHOUT --bootstrap so the domain-derived fixpoint
+# confirms the repair.
+if ARGV.include?("--bootstrap")
+  root   = File.expand_path("..", __dir__)
+  ledger = JSON.parse(File.read(File.join(root, "lib/hecksagain/grammar/expression_operators.json")))
+  algebra = JSON.parse(File.read(File.join(root, "rust/src/bluebook/expression/operators.json")))
+                .to_h { |row| [row.fetch("symbol"), row] }
+
+  operators = []
+  normalisations = []
+  ledger.fetch("steps").each do |step|
+    args = step.fetch("args")
+    case step.fetch("verb")
+    when "Expression::Operator.Propose"
+      row = { symbol: args.dig("symbol", "value"), category: args.dig("category", "value"),
+              precedence: args.dig("precedence", "value"), arity: args.dig("arity", "value") }
+      if row[:category] == "comparison"
+        declared = algebra.fetch(row[:symbol])
+        row.merge!(compares_less_than: declared.fetch("compares_less_than"),
+                   compares_equal: declared.fetch("compares_equal"), negated: declared.fetch("negated"))
+      end
+      operators << row
+    when "Expression::Normalisation.Propose"
+      normalisations << { strategy: args.dig("strategy", "value"), source_token: args.dig("source_token", "value"),
+                          replacement: args.dig("replacement", "value"), boundary: args.dig("boundary", "value"),
+                          position: args.dig("position", "value") }
+    end
+  end
+
+  write_atomically(JSON.pretty_generate(operators: operators, normalisations: normalisations) + "\n")
+  puts "bootstrapped #{TARGET} from the ledger — now run bin/expression_projection to confirm the fixpoint"
+  exit
+end
+
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 require "hecksagain"
 require "hecksagain/grammar"
@@ -57,6 +110,19 @@ operators = Hecksagain::Grammar.admitted_operators(dispatcher).map do |op|
             compares_equal: declared[:compares_equal], negated: declared[:negated])
 end
 
+# THE SELF-BEARING REFUSAL — see the header. A projection that drops an
+# operator the language's own predicates evaluate through would wedge
+# every future boot; refuse to write it, naming each operator and where
+# the language stands on it.
+admitted = operators.map { |row| row[:symbol] }
+stranded = Hecksagain::Grammar.self_bearing_operators.reject { |symbol, _| admitted.include?(symbol) }
+unless stranded.empty?
+  abort stranded.map { |symbol, sites|
+    "#{symbol} is self-bearing — the language's own predicates evaluate through it " \
+    "(#{sites.first(3).join('; ')}) — rewrite those guards before retiring it"
+  }.join("\n")
+end
+
 content = JSON.pretty_generate(
   operators: operators,
   normalisations: Hecksagain::Grammar.admitted_normalisations(dispatcher)
@@ -65,11 +131,6 @@ content = JSON.pretty_generate(
 if ARGV.include?("--stdout")
   print content
 else
-  target = File.expand_path("../lib/hecksagain/bluebook/expression/projection.json", __dir__)
-  Tempfile.create("projection", File.dirname(target)) do |tmp|
-    tmp.write(content)
-    tmp.flush
-    File.rename(tmp.path, target)
-  end
-  puts "wrote #{target}"
+  write_atomically(content)
+  puts "wrote #{TARGET}"
 end

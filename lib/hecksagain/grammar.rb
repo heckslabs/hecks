@@ -77,6 +77,95 @@ module Hecksagain
       registry.repository("Expression", aggregate).all
     end
 
+    # THE OPERATORS THE LANGUAGE STANDS ON. Every guard and invariant in
+    # the language's own chapters — the meta-domain (Bluebook, World) and
+    # the grammar chapters beside this file — evaluates through the very
+    # operator table the ledger admits. An operator one of those
+    # predicates uses is SELF-BEARING: retire it and the language can no
+    # longer read its own rules — found the hard way, as a projection
+    # missing `!=` that could not boot the chapter to fix itself. This
+    # derives the set, with a usage site per operator, so the generator
+    # and the conformance spec can refuse the retirement BY NAME instead
+    # of wedging.
+    def self_bearing_operators
+      sites = Hash.new { |h, k| h[k] = [] }
+
+      chapters = Bluebook::MetaValidator.grammar_registry
+                                        .then { |reg| %w[Bluebook World].map { |name| reg.bluebook(name) } }
+      chapters += grammar_chapters
+
+      chapters.compact.each do |chapter|
+        chapter.aggregates.each do |aggregate|
+          aggregate.commands.each do |command|
+            command.givens.each do |given|
+              operators_in(given.canonical).each do |symbol|
+                sites[symbol] << "#{chapter.name} #{aggregate.name}.#{command.hecks_name}"
+              end
+            end
+          end
+          aggregate.value_objects.each do |value_object|
+            value_object.invariants.each do |invariant|
+              operators_in(invariant.canonical).each do |symbol|
+                sites[symbol] << "#{chapter.name} #{aggregate.name}::#{value_object.hecks_name}"
+              end
+            end
+          end
+        end
+      end
+
+      sites.transform_values(&:uniq)
+    end
+
+    # Every grammar/*.bluebook chapter, booted the same way the corpus
+    # boots them — each alone, in a scratch registry.
+    def grammar_chapters
+      Dir[File.join(DIR, "*.bluebook")].sort.map do |chapter|
+        registry = Runtime::Registry.new
+        root = File.expand_path("../..", __dir__)
+        Hecksagain.with_registry(registry) do
+          Kernel.load(File.join(root, "lib/hecksagain/ports/persistence.port"))
+          Kernel.load(File.join(root, "lib/hecksagain/ports/extraction.port"))
+          Kernel.load(File.join(root, "lib/hecksagain/adapters/driven/memory.adapter"))
+          Kernel.load(File.join(root, "lib/hecksagain/adapters/driven/prism.adapter"))
+          Kernel.load(chapter)
+        end
+        registry.bluebooks.values.first
+      end
+    end
+
+    # Which admitted operators one canonical text evaluates through —
+    # the evaluator's own parse, walked for its operator nodes, leaves
+    # walked for the resolver's arithmetic.
+    def operators_in(canonical)
+      evaluator = Bluebook::Expression::Evaluator
+      node = begin
+        evaluator.parse(canonical)
+      rescue StandardError
+        return []
+      end
+      walk_operators(node, evaluator).uniq
+    end
+
+    def walk_operators(node, evaluator)
+      resolver = Bluebook::Expression::Resolver
+      case node
+      when evaluator::Or  then ["||"] + walk_operators(node.left, evaluator) + walk_operators(node.right, evaluator)
+      when evaluator::And then ["&&"] + walk_operators(node.left, evaluator) + walk_operators(node.right, evaluator)
+      when evaluator::Not then ["!"] + walk_operators(node.node, evaluator)
+      when evaluator::Compare
+        [node.operator.symbol] + walk_operators(node.left, evaluator) + walk_operators(node.right, evaluator)
+      when evaluator::Include
+        [".include?"] + walk_operators(node.haystack, evaluator) + walk_operators(node.needle, evaluator)
+      when evaluator::Resolve then walk_operators(node.expr, evaluator)
+      when resolver::Addition then ["+"] + walk_operators(node.left, evaluator) + walk_operators(node.right, evaluator)
+      when resolver::Modulo   then [".modulo"] + walk_operators(node.receiver, evaluator) + walk_operators(node.divisor, evaluator)
+      when Struct
+        node.members.flat_map { |member| walk_operators(node[member], evaluator) }
+      else
+        []
+      end
+    end
+
     def symbolize(value)
       case value
       when Hash  then value.to_h { |k, v| [k.to_sym, symbolize(v)] }

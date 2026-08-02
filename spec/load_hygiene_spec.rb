@@ -60,6 +60,30 @@ RSpec.describe "load hygiene" do
                       "#{broken.sort.join("\n")}"
   end
 
+  it "lets no two spec files disagree about a top-level constant" do
+    # A constant assigned inside an RSpec.describe block lands at TOP
+    # LEVEL — the block captures its file's lexical scope — so two spec
+    # files using the same constant name silently share one, last-loaded
+    # wins, and the loser fails somewhere else entirely (measured: a raw
+    # KEYWORDS here replaced a stringified KEYWORDS there and surfaced
+    # as an order-dependent NoMethodError two files away). Same name,
+    # same value is harmless and allowed; same name, different
+    # definition site with different content is the bug class.
+    definitions = Hash.new { |h, k| h[k] = [] }
+    Dir[File.join(ROOT_DIR, "spec", "**", "*_spec.rb")].sort.each do |file|
+      File.read(file).scan(/^  ([A-Z][A-Z_0-9]*) *=/) do |(name)|
+        definitions[name] << File.basename(file)
+      end
+    end
+
+    shared_values = %w[BANKING_BLUEBOOK ROOT_DIR]
+    colliding = definitions.select { |name, files| files.uniq.size > 1 && !shared_values.include?(name) }
+
+    expect(colliding).to be_empty,
+                         "spec files sharing a top-level constant name:\n" +
+                         colliding.map { |name, files| "  #{name}: #{files.uniq.join(', ')}" }.join("\n")
+  end
+
   it "loads the whole framework with the subsystem wrappers in reverse order" do
     wrappers = File.read(File.join(LIB, "hecksagain.rb"))
                .scan(%r{^require_relative "(hecksagain/[^"]+)"}).flatten

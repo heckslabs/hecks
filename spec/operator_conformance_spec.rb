@@ -191,6 +191,25 @@ RSpec.describe "the operator domain" do
     expect(declared).to eq(CanonicalForm::RULES.map { |rule| rule.to_h })
   end
 
+  it "admits every operator the language itself stands on" do
+    # THE SELF-BEARING SET, derived rather than remembered: every guard
+    # and invariant in the language's own chapters evaluates through the
+    # operator table this ledger admits, so retiring one of THOSE
+    # operators would leave the language unable to read its own rules —
+    # found the hard way, as a projection missing != that could not boot
+    # the chapter to fix itself. bin/expression_projection refuses to
+    # write such a projection; this is the same refusal, in-suite, ahead
+    # of any regeneration.
+    require "hecksagain/grammar"
+    stranded = Hecksagain::Grammar.self_bearing_operators
+                                  .reject { |symbol, _| symbols(ADMITTED).include?(symbol) }
+
+    expect(stranded).to be_empty,
+                        stranded.map { |symbol, sites|
+                          "#{symbol} is self-bearing (#{sites.first(2).join('; ')}) and not admitted"
+                        }.join("\n")
+  end
+
   describe "the gates, seen refusing" do
     it "refuses to admit an operator that does not read in every target" do
       throwaway = self.class.boot_expression
