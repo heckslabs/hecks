@@ -50,6 +50,21 @@ module Hecksagain
         end
         return value unless value.to_s.empty?
 
+        # THE STAMP — `deliver_saga_dispatch` marks its own event before this
+        # saga's next step ever asks, for a leg whose command declares
+        # NEITHER the correlation field itself nor the emitting aggregate's
+        # own reference key (the two tiers above). docs/porting/behavior-
+        # notes.md named the old payload-only lookup "the weakest part of
+        # the design" : a correlation key arriving on a command only because
+        # `correlation_keys` widens the undeclared-argument allow-list
+        # domain-wide. This is the additive fix — a leg that carries nothing
+        # correlation-shaped at all still correlates, because the saga that
+        # dispatched it already knows the answer. Keyed by `correlation_head`
+        # rather than a bare scalar so an event stamped by one saga cannot be
+        # misread by an unrelated one correlating on a different field.
+        stamped = event.correlation && event.correlation[pm.correlation_head.to_s]
+        return stamped unless stamped.nil? || stamped.to_s.empty?
+
         # A SELF-REFERENCING LEG carries the correlation forward under ITS
         # OWN reference key ("wire", "transfer") — the address
         # `hydrate`'s "acts on an existing aggregate" branch demands when the
@@ -122,7 +137,8 @@ module Hecksagain
         end
 
         begin
-          @door.reenter(qualified(spec.command_name, domain), **args)
+          @door.reenter(qualified(spec.command_name, domain),
+                        saga_correlation: { pm.correlation_head.to_s => correlation }, **args)
           @registry.saga_log << record.merge(delivered: true)
         rescue *DOMAIN_REFUSALS => error
           # Same rule as the policy interpreter : a refusal by the target is

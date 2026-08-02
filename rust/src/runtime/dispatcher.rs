@@ -47,6 +47,21 @@ pub struct Runtime {
     pub translations: Vec<crate::bluebook::translation::ir::Translation>,
     saga_instances: BTreeMap<String, BTreeMap<String, (String, Map<String, Value>)>>,
     reaction_depth: usize,
+    /// SET AROUND ONE DISPATCH CALL, by `deliver_saga_dispatch` — the
+    /// correlation key that dispatch is a LEG of, if any. `(correlation
+    /// head, value)`. Read by the event-construction sites in `dispatch` and
+    /// `dispatch_entity`, which stamp it onto whatever event(s) that one call
+    /// announces (see `correlation`'s own doc comment for why: the payload
+    /// and own-key tiers both require the command to carry the field, which
+    /// most legs never do). NOT part of `self.events` — stamped onto the
+    /// `announced` copy used for reactions/sagas only, after the archival
+    /// copy is already pushed, so it never reaches `bin/run`'s dump and
+    /// never touches what `bin/parity` diffs.
+    ///
+    /// Saved and restored around each dispatch the same way `reaction_depth`
+    /// is, because a leg's own event can recursively trigger further saga
+    /// dispatches (a DIFFERENT correlation) before this call returns.
+    pending_correlation: Option<(String, String)>,
     // Set by a test to observe dispatch order (Vocabulary::AggregateDispatchOrder /
     // EntityDispatchOrder in language/bluebook.bluebook) ; None in production,
     // always — one Vec push and a match per step is the entire cost of leaving
@@ -421,6 +436,7 @@ impl Runtime {
             translations: Vec::new(),
             saga_instances: BTreeMap::new(),
             reaction_depth: 0,
+            pending_correlation: None,
             dispatch_trace: None,
             resolved_cache: RefCell::new(HashMap::new()),
         }
@@ -453,6 +469,23 @@ impl Runtime {
         if let Some(trace) = &mut self.dispatch_trace {
             trace.push(name);
         }
+    }
+
+    /// Stamps `pending_correlation` onto the `announced` copy of an event
+    /// AFTER the archival copy has already been pushed to `self.events` —
+    /// see `pending_correlation`'s own doc comment for why the two copies
+    /// must diverge.
+    fn stamp_pending_correlation(&self, event: &mut Value) {
+        let Some((field, value)) = &self.pending_correlation else {
+            return;
+        };
+        let object = event.as_object_mut().expect("event is an object");
+        object
+            .entry("correlation")
+            .or_insert_with(|| Value::Object(Map::new()))
+            .as_object_mut()
+            .expect("correlation is an object")
+            .insert(field.clone(), Value::String(value.clone()));
     }
 
     /// Load one native Bluebook and attach the persistence declared by its
@@ -940,13 +973,14 @@ impl Runtime {
         let mut announced: Vec<Value> = Vec::new();
         for emitted in array(&command, "emits") {
             if let Some(name) = emitted.as_str() {
-                let event = json!({
+                let mut event = json!({
                     "name": name,
                     "aggregate": format!("{}::{}", domain, aggregate_name),
                     "id": parent_id,
                     "payload": Value::Object(args.clone()),
                 });
                 self.events.push(event.clone());
+                self.stamp_pending_correlation(&mut event);
                 announced.push(event);
             }
         }
@@ -1441,7 +1475,7 @@ impl Runtime {
         let mut announced: Vec<Value> = Vec::new();
         for emitted in array(&command, "emits") {
             if let Some(name) = emitted.as_str() {
-                let event = json!({
+                let mut event = json!({
                     "name": name,
                     "aggregate": format!("{}::{}", domain, aggregate_name),
                     "id": id,
@@ -1449,6 +1483,7 @@ impl Runtime {
                 });
 
                 self.events.push(event.clone());
+                self.stamp_pending_correlation(&mut event);
                 announced.push(event);
             }
         }
@@ -1703,6 +1738,29 @@ impl Runtime {
             }
         }
 
+        // THE STAMP — `deliver_saga_dispatch` marks its own event before this
+        // saga's next step ever asks, for a leg whose command declares
+        // NEITHER the correlation field itself nor the emitting aggregate's
+        // own reference key (the two tiers above and below). docs/porting/
+        // behavior-notes.md named the payload-only lookup "the weakest part
+        // of the design" : a correlation key arriving on a command only
+        // because `correlation_keys` widens the undeclared-argument allow-
+        // list domain-wide. This is the additive fix — a leg that carries
+        // nothing correlation-shaped at all still correlates, because the
+        // saga that dispatched it already knows the answer. Keyed by the
+        // correlation HEAD rather than a bare scalar so an event stamped by
+        // one saga cannot be misread by an unrelated one.
+        let root = field.split('.').next().unwrap_or(field);
+        if let Some(stamped) = event
+            .get("correlation")
+            .and_then(|c| c.get(root))
+            .and_then(Value::as_str)
+        {
+            if !stamped.is_empty() {
+                return Some(stamped.to_string());
+            }
+        }
+
         // A SELF-REFERENCING LEG carries the correlation forward under ITS
         // OWN reference key ("wire", "transfer") — matching Ruby's own
         // `saga_correlation` — not under whatever the correlates_by field
@@ -1944,7 +2002,16 @@ impl Runtime {
             Err(format!("reaction depth {MAX_REACTION_DEPTH} reached"))
         } else {
             self.reaction_depth += 1;
+            // Saved and restored around this call, not just set : a leg's own
+            // event can recursively trigger a DIFFERENT saga's dispatch (a
+            // different correlation) before `self.dispatch` returns here, and
+            // that inner call must not leave its correlation stamped on
+            // whatever this call's own remaining `emits` still have to
+            // announce.
+            let previous_correlation = self.pending_correlation.take();
+            self.pending_correlation = Some((correlates_head.clone(), correlation.to_string()));
             let result = self.dispatch(&target, &args);
+            self.pending_correlation = previous_correlation;
             self.reaction_depth -= 1;
             result.map(|_| ())
         };
@@ -2880,5 +2947,85 @@ mod resolved_cache_tests {
             Arc::ptr_eq(&first, &second),
             "find_aggregate should return the same cached Arc on a second call, not re-resolve"
         );
+    }
+}
+
+#[cfg(test)]
+mod correlation_stamp_tests {
+    use super::*;
+
+    // `correlation`'s payload tier and own-key fallback are exercised by the
+    // ExternalSettlement/Settlement corpus already. This is the THIRD tier —
+    // stamped by `deliver_saga_dispatch` via `pending_correlation` when a
+    // leg's own command declares neither the correlation field itself nor
+    // anything the payload/own-key lookups above can reach. Reached only
+    // when both prior tiers find nothing, and keyed by correlation HEAD so
+    // an event stamped by one saga can't be misread by an unrelated one.
+    #[test]
+    fn correlates_on_a_stamp_when_neither_prior_tier_finds_anything() {
+        let pm = json!({ "correlates_by": "code.value" });
+        let event = json!({
+            "aggregate": "Alarm",
+            "id": "evt-2",
+            "payload": { "label": { "value": "backup" } },
+            "correlation": { "code": "smoke-1" }
+        });
+
+        assert_eq!(Runtime::correlation(&pm, &event), Some("smoke-1".to_string()));
+    }
+
+    #[test]
+    fn a_stamp_under_a_different_head_is_not_read_as_this_pm_s_own() {
+        let pm = json!({ "correlates_by": "code.value" });
+        let event = json!({
+            "aggregate": "Alarm",
+            "id": "evt-2",
+            "payload": {},
+            "correlation": { "wire": "wire-1" }
+        });
+
+        assert_eq!(Runtime::correlation(&pm, &event), None);
+    }
+
+    // Not a unit test of `correlation` in isolation — this proves the actual
+    // WIRING: `deliver_saga_dispatch` sets `pending_correlation`,
+    // `stamp_pending_correlation` reaches the right event copy, and
+    // `self.events` (what `bin/run`'s dump and `bin/parity` diff) stays
+    // clean of it throughout. `spec/fixtures/correlation_stamp.bluebook` is
+    // the Rust-side twin of `correlation_key_spec.rb`'s "a saga leg that
+    // never declares the correlation key at all" — same shape, same claim.
+    #[test]
+    fn a_saga_leg_that_never_declares_the_key_still_ends_the_right_instance() {
+        let mut runtime = Runtime::boot("../spec/fixtures/correlation_stamp.bluebook").unwrap();
+
+        let args: State = serde_json::from_value(json!({ "code": { "value": "smoke-1" } })).unwrap();
+        runtime
+            .dispatch("CorrelationStamp::Sighting.Raise", &args)
+            .unwrap();
+
+        let born = runtime.sagas.iter().any(|entry| {
+            entry.get("process_manager").and_then(Value::as_str) == Some("Watch")
+                && entry.get("instance").and_then(Value::as_str) == Some("smoke-1")
+                && entry.get("born").and_then(Value::as_bool) == Some(true)
+        });
+        assert!(born, "expected a born Watch instance keyed by smoke-1, got {:?}", runtime.sagas);
+
+        let ended = runtime.sagas.iter().any(|entry| {
+            entry.get("process_manager").and_then(Value::as_str) == Some("Watch")
+                && entry.get("instance").and_then(Value::as_str) == Some("smoke-1")
+                && entry.get("ended").and_then(Value::as_bool) == Some(true)
+        });
+        assert!(ended, "expected the same instance to end, got {:?}", runtime.sagas);
+
+        // THE ARCHIVAL COPY STAYS CLEAN. `self.events` is what `bin/run`'s
+        // dump and `bin/parity` diff — a `correlation` key leaking in here
+        // would be an observable, comparable wire change, not the internal
+        // bookkeeping detail it's meant to be.
+        for event in &runtime.events {
+            assert!(
+                event.get("correlation").is_none(),
+                "self.events must never carry a correlation field: {event:?}"
+            );
+        }
     }
 }

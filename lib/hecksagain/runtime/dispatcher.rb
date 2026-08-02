@@ -44,7 +44,7 @@ module Hecksagain
       def sagas = @registry.saga_log
       def verbs = @registry.verbs
 
-      def dispatch(verb, **args)
+      def dispatch(verb, saga_correlation: nil, **args)
         domain, aggregate_name, command_name = parse(verb)
         aggregate = resolve_aggregate(domain, aggregate_name, verb)
 
@@ -56,6 +56,14 @@ module Hecksagain
                       raise(UnknownVerb, "#{aggregate_name} has no command #{command_name.inspect}")
             @commands.call(domain, aggregate, command, args)
           end
+
+        # STAMPED BEFORE reactions and sagas see these events, not after —
+        # `SagaInterpreter#advance` runs on THIS domain's `announced` events
+        # within this very call, and a step further down the same saga has to
+        # find the stamp already there. See `Event#correlation`'s own comment.
+        if saga_correlation
+          announced.each { |event| (event.correlation ||= {}).merge!(saga_correlation) }
+        end
 
         announced.each { |event| @policies.react(event, domain) }
 
@@ -78,10 +86,10 @@ module Hecksagain
         @queries.call(domain, aggregate, query_name, args)
       end
 
-      def reenter(verb, **args)
+      def reenter(verb, saga_correlation: nil, **args)
         depth = @reaction_depth.to_i
         @reaction_depth = depth + 1
-        dispatch(verb, **args)
+        dispatch(verb, saga_correlation: saga_correlation, **args)
       ensure
         @reaction_depth = depth
       end

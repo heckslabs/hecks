@@ -1,0 +1,56 @@
+Hecks.bluebook "CorrelationStamp" do
+  vision "A saga leg whose own command never declares the correlation key at all, correlating purely by the stamp deliver_saga_dispatch leaves on the event it causes."
+  generic
+
+  aggregate "Sighting" do
+    identified_by { code.value }
+
+    attribute :code, SightingCode
+
+    value_object "SightingCode" do
+      attribute :value, String
+
+      invariant("a sighting is coded") { !value.to_s.empty? }
+    end
+
+    command "Raise" do
+      attribute :code, SightingCode
+      emits "SightingRaised"
+    end
+  end
+
+  aggregate "Alarm" do
+    identified_by { label.value }
+
+    attribute :label, AlarmLabel
+
+    value_object "AlarmLabel" do
+      attribute :value, String
+
+      invariant("an alarm is labeled") { !value.to_s.empty? }
+    end
+
+    # NEVER DECLARES `code` — the argument this leg's dispatch binds is
+    # `label`, a literal wholly unconnected to the sighting that caused it.
+    command "Open" do
+      attribute :label, AlarmLabel
+      emits "AlarmOpened"
+    end
+  end
+
+  process_manager "Watch" do
+    correlates_by :"code.value"
+    starts_on "SightingRaised"
+    ends_on   "AlarmOpened"
+
+    state "watching"
+
+    on "SightingRaised", transition: { "watching" => "watching" } do
+      # A LITERAL, so AlarmOpened's payload carries `label`, never `code` —
+      # the payload-lookup tier finds nothing here on purpose. Nor does the
+      # own-reference-key fallback : Alarm's own reference key is "alarm",
+      # not "code". Only the stamp resolves it.
+      dispatch "Alarm.Open", with: { label: { value: "backup" } }
+    end
+  end
+end
