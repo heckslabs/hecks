@@ -59,7 +59,7 @@ syntax = Hecksagain::Bluebook::MetaValidator
 
 keyword = syntax.value_object("Keyword") or raise "the language declares no Syntax::Keyword to project"
 
-CONTEXTS = %w[Bluebook Aggregate].freeze
+CONTEXTS = %w[Bluebook Aggregate Entity].freeze
 
 def table_name(context) = "#{Hecksagain::Naming.snake(context).upcase}_WORDS"
 

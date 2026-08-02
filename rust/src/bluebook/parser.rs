@@ -124,7 +124,7 @@ fn dispatch_block(line: &str, slice: &[&str], domain: &mut Domain) -> Option<usi
     }
 }
 
-fn keyword_matches(line: &str, keyword: &str) -> bool {
+pub(crate) fn keyword_matches(line: &str, keyword: &str) -> bool {
     if !line.starts_with(keyword) {
         return false;
     }

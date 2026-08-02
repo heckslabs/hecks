@@ -1,4 +1,5 @@
 use crate::ir::*;
+use crate::parser::keyword_matches;
 use crate::parser_helpers::*;
 
 pub fn parse_read_model(lines: &[&str]) -> (ReadModel, usize) {
@@ -814,42 +815,58 @@ pub fn parse_entity(lines: &[&str]) -> (Entity, usize) {
         }
 
         if depth == 1 {
-            if line.starts_with("command") {
-                let (cmd, consumed) = parse_command(&lines[i..], &owner);
-                ent.commands.push(cmd);
-                i += consumed;
-                continue;
-            } else if line.starts_with("query") {
-                if ends_with_do_block(line) {
-                    let (q, consumed) = parse_query(&lines[i..]);
-                    ent.queries.push(q);
-                    i += consumed;
-                    continue;
+            // WHICH WORD, GENERATED ; WHAT OPENING IT MEANS, HAND-WRITTEN — same
+            // shape as `parse_aggregate`'s own table lookup. `command` and
+            // `query` used a bare `line.starts_with(literal)` before ;
+            // normalized to `keyword_matches` for the same reason.
+            if let Some(opens) = crate::bluebook::ir_dispatch_words::ENTITY_WORDS
+                .iter()
+                .find(|(word, _)| keyword_matches(line, word))
+                .map(|(_, opens)| *opens)
+            {
+                match opens {
+                    "Command" => {
+                        let (cmd, consumed) = parse_command(&lines[i..], &owner);
+                        ent.commands.push(cmd);
+                        i += consumed;
+                        continue;
+                    }
+                    "Query" => {
+                        if ends_with_do_block(line) {
+                            let (q, consumed) = parse_query(&lines[i..]);
+                            ent.queries.push(q);
+                            i += consumed;
+                            continue;
+                        }
+                        let q_name = extract_string(line).unwrap_or_else(|| {
+                            line.split_whitespace()
+                                .nth(1)
+                                .unwrap_or("")
+                                .trim_matches('"')
+                                .to_string()
+                        });
+                        let q_desc = extract_second_string(line);
+                        ent.queries.push(Query {
+                            name: q_name,
+                            description: q_desc,
+                            attributes: vec![],
+                            wheres: vec![],
+                            order_by: None,
+                            limit: None,
+                            offset: None,
+                            cursor: None,
+                            consistency: None,
+                            freshness: None,
+                            authorization: None,
+                            null_semantics: None,
+                            inspection: None,
+                            index_hints: vec![],
+                        });
+                    }
+                    other => unreachable!(
+                        "ENTITY_WORDS opens {other:?}, which parse_entity does not handle"
+                    ),
                 }
-                let q_name = extract_string(line).unwrap_or_else(|| {
-                    line.split_whitespace()
-                        .nth(1)
-                        .unwrap_or("")
-                        .trim_matches('"')
-                        .to_string()
-                });
-                let q_desc = extract_second_string(line);
-                ent.queries.push(Query {
-                    name: q_name,
-                    description: q_desc,
-                    attributes: vec![],
-                    wheres: vec![],
-                    order_by: None,
-                    limit: None,
-                    offset: None,
-                    cursor: None,
-                    consistency: None,
-                    freshness: None,
-                    authorization: None,
-                    null_semantics: None,
-                    inspection: None,
-                    index_hints: vec![],
-                });
             } else if line.starts_with("lifecycle") {
                 let (lc, consumed) = parse_lifecycle(&lines[i..]);
                 ent.lifecycle = Some(lc);

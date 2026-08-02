@@ -24,3 +24,8 @@ pub const AGGREGATE_WORDS: &[(&str, &str)] = &[
     ("value_object", "ValueObject"),
 ];
 
+pub const ENTITY_WORDS: &[(&str, &str)] = &[
+    ("command", "Command"),
+    ("query", "Query"),
+];
+
