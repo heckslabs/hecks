@@ -62,16 +62,23 @@ RSpec.describe "load hygiene" do
 
   it "lets no two spec files disagree about a top-level constant" do
     # A constant assigned inside an RSpec.describe block lands at TOP
-    # LEVEL — the block captures its file's lexical scope — so two spec
+    # LEVEL — the block captures its file's lexical scope, at ANY
+    # nesting depth (a describe block is not a module or class, so
+    # constant assignment always falls through to Object) — so two spec
     # files using the same constant name silently share one, last-loaded
-    # wins, and the loser fails somewhere else entirely (measured: a raw
-    # KEYWORDS here replaced a stringified KEYWORDS there and surfaced
-    # as an order-dependent NoMethodError two files away). Same name,
-    # same value is harmless and allowed; same name, different
-    # definition site with different content is the bug class.
+    # wins, and the loser fails somewhere else entirely (measured TWICE:
+    # a raw KEYWORDS here replaced a stringified KEYWORDS there and
+    # surfaced as an order-dependent NoMethodError two files away ; a
+    # CORPUS four levels deep in model_check_spec.rb collided with
+    # domain_refusal_spec's, invisible to an EARLIER version of this
+    # very check because that one only matched 2-space indent — a
+    # nested describe's constants sat one level deeper and were never
+    # scanned at all). Matched at ANY indentation now, for that reason.
+    # Same name, same value is harmless and allowed; same name,
+    # different definition site with different content is the bug class.
     definitions = Hash.new { |h, k| h[k] = [] }
     Dir[File.join(ROOT_DIR, "spec", "**", "*_spec.rb")].sort.each do |file|
-      File.read(file).scan(/^  ([A-Z][A-Z_0-9]*) *=/) do |(name)|
+      File.read(file).scan(/^\s+([A-Z][A-Z_0-9]*) *=[^=]/) do |(name)|
         definitions[name] << File.basename(file)
       end
     end

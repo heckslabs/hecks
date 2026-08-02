@@ -1,0 +1,69 @@
+Hecks.bluebook "LifecycleFindings" do
+  vision "One aggregate, one entity, four lifecycle finding kinds — each construct exists to fire exactly one."
+  core
+
+  aggregate "Widget" do
+    identified_by { number.value }
+
+    attribute :number, Number
+    attribute :parts,  list_of(Part)
+
+    value_object "Number" do
+      attribute :value, String
+    end
+
+    # UNREACHABLE STATE + DEAD TRANSITION, one declaration doing both:
+    # "orphaned" is a target no OTHER transition ever reaches, so the
+    # transition INTO it can never fire — the same finding seen from
+    # each side (the state that is never reached, and the transition
+    # that can never fire because its own source is never reached).
+    lifecycle :status, default: "new" do
+      transition "Activate" => "active",   from: "new"
+      transition "Retire"   => "orphaned", from: "abandoned"
+      # UNKNOWN COMMAND: nothing on Widget is ever called "Vanish".
+      transition "Vanish"   => "gone",     from: "active"
+    end
+
+    command "Open" do
+      role "Tester"
+      goal "Bring a widget into being"
+      attribute :number, Number
+      emits "Opened"
+    end
+
+    command "Activate" do
+      role "Tester"
+      goal "Move it to active"
+      reference_to Widget
+      emits "Activated"
+    end
+
+    command "Retire" do
+      role "Tester"
+      goal "Declared, but its transition's own from: is never reached — dead by construction"
+      reference_to Widget
+      emits "Retired"
+    end
+
+    entity "Part" do
+      identified_by { serial.value }
+      attribute :serial, Serial
+
+      # STUCK STATE: reachable ("mounted" is the default), but nothing
+      # ever transitions out of it — a WARNING, not an error.
+      lifecycle :status, default: "mounted" do
+      end
+
+      command "Mount" do
+        role "Tester"
+        goal "no-op, exists so the entity has at least one command"
+        attribute :serial, Serial
+        emits "Mounted"
+      end
+    end
+
+    value_object "Serial" do
+      attribute :value, String
+    end
+  end
+end

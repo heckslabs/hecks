@@ -1,0 +1,41 @@
+Hecks.bluebook "PolicyFindings" do
+  vision "One aggregate and two policies — one deaf, one aimed at nothing."
+  core
+
+  aggregate "Note" do
+    identified_by { number.value }
+
+    attribute :number, Number
+
+    value_object "Number" do
+      attribute :value, String
+    end
+
+    command "Write" do
+      role "Tester"
+      goal "Bring a note into being"
+      attribute :number, Number
+      emits "NoteWritten"
+    end
+
+    command "Stamp" do
+      role "Tester"
+      goal "A real command, so the trigger-resolves test has something true to contrast against"
+      reference_to Note
+      emits "NoteStamped"
+    end
+  end
+
+  # DEAF POLICY: nothing in this domain ever emits "NoteArchived".
+  policy "OnArchive" do
+    on      "NoteArchived"
+    trigger "Note.Stamp"
+  end
+
+  # UNKNOWN TRIGGER: "Note.Vanish" resolves to no command this domain
+  # declares — the event is real, the target is not.
+  policy "OnWrite" do
+    on      "NoteWritten"
+    trigger "Note.Vanish"
+  end
+end

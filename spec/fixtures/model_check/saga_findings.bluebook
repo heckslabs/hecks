@@ -1,0 +1,61 @@
+Hecks.bluebook "SagaFindings" do
+  vision "One aggregate and one process manager, wired to fire every saga finding kind at once."
+  core
+
+  aggregate "Leg" do
+    identified_by { reference.value }
+
+    attribute :reference, Reference
+
+    value_object "Reference" do
+      attribute :value, String
+    end
+
+    command "Request" do
+      role "Tester"
+      goal "Start a leg"
+      attribute :reference, Reference
+      emits "LegRequested"
+    end
+
+    # Deliberately emits nothing the process manager below listens for
+    # beyond "LegRequested" — no "LegAdvanced", no "LegFinished" — so the
+    # saga's own handler chain and its ends_on both hang.
+    command "Advance" do
+      role "Tester"
+      goal "A real command the saga never dispatches — proves unknown_dispatch by omission is NOT a finding, only a wrong name is"
+      reference_to Leg
+      emits "LegNeverWired"
+    end
+  end
+
+  process_manager "LegSaga" do
+    correlates_by :"reference.value"
+    starts_on "LegRequested"
+    # DEAF TRIGGER: nothing in this domain ever emits "LegFinished".
+    ends_on   "LegFinished"
+
+    state "requested"
+    # UNREACHABLE PM STATE: nothing transitions into "advanced" — the
+    # only handler below is a self-loop on "requested".
+    state "advanced"
+    # DEAD COMPENSATION: the refused leg leaves "advanced", which the
+    # handler chain above already never reaches.
+    state "compensated"
+
+    on "LegRequested", transition: { "requested" => "requested" } do
+      # UNKNOWN DISPATCH: no aggregate in this domain answers to this
+      # spelling — "Leg.Launch" does not exist ("Leg.Request" does).
+      dispatch "SagaFindings::Leg.Launch", with: { reference: :reference }
+    end
+
+    # DEAF HANDLER: nothing ever emits "LegAdvanced" either.
+    on "LegAdvanced", transition: { "requested" => "advanced" } do
+      dispatch "SagaFindings::Leg.Advance", with: { reference: :reference }
+    end
+
+    on :refused, transition: { "advanced" => "compensated" } do
+      dispatch "SagaFindings::Leg.Advance", with: { reference: :reference }
+    end
+  end
+end
