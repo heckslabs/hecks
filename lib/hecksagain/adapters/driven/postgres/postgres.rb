@@ -114,6 +114,17 @@ module Hecksagain
           when "contains"
             binds << value.to_s
             clauses << "position($#{binds.size} in #{expression}) > 0"
+          when "in"
+            # The same comma-separated convention every other where-clause
+            # comparator uses (Ports::Query::InMemory, QueryInterpreter,
+            # SQLite's own `in` case, Rust's dispatcher.rs).
+            members = value.to_s.split(",").map(&:strip).reject(&:empty?)
+            if members.empty?
+              clauses << "FALSE"
+            else
+              placeholders = members.map { |member| binds << member; "$#{binds.size}" }
+              clauses << "#{expression} IN (#{placeholders.join(', ')})"
+            end
           else
             raise ArgumentError, "Postgres query adapter does not support #{clause.op.inspect}"
           end

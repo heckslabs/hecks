@@ -198,6 +198,17 @@ RSpec.describe Hecksagain::Adapters::Postgres,
       expect(where("status", "contains", "avail")).to eq(%w[p1 p2])
     end
 
+    it "compiles in as a SQL IN clause, same comma-separated convention as everywhere else" do
+      expect(where("status", "in", "available,sold")).to eq(%w[p1 p2 p3])
+      expect(where("status", "in", "sold")).to eq(%w[p3])
+    end
+
+    # Same reading as the in-memory interpreter's `members(want).include?` —
+    # an empty candidate set matches nothing, not everything.
+    it "an empty in-list matches no rows rather than every row" do
+      expect(where("status", "in", "")).to eq([])
+    end
+
     it "compiles offset alongside limit" do
       offset_spec = Hecksagain::QuerySpecification::Common::OffsetSpec.new(value: 1)
       declared = Struct.new(:wheres, :order_by, :limit, :offset, :null_semantics).new(
