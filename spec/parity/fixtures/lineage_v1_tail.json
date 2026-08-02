@@ -1,6 +1,6 @@
 {
   "name": "lineage-era-1-tail",
-  "note": "The old world, still running after the cut: one clean tail write (acct-9) and one deliberate collision (acct-1, which the new world already touched) — the merge must refuse the second by name.",
+  "note": "The old world, still running after the cut: one clean tail write (acct-9) and one deliberate collision (acct-1, which the new world also touched, via Close — the merge must refuse it by name). Close, not a second Open: acct-1 already exists in era 1's own data, so re-Opening it collided with the creating-command guard (a creating command refuses a second creation against the same identity) rather than exercising the fork — conflict detection is by ID (Lineage::conflict_ids INTERSECTs touched ids across the cut), not by value, so a legitimate mutation on both sides still triggers the same refusal this fixture is for.",
   "steps": [
     {
       "verb": "Lineage::Acct.Open",
@@ -12,12 +12,9 @@
       }
     },
     {
-      "verb": "Lineage::Acct.Open",
+      "verb": "Lineage::Acct.Close",
       "args": {
-        "number": { "value": "acct-1" },
-        "cost": { "cents": 111, "currency": "USD" },
-        "kind": { "label": "biz" },
-        "legacy_note": { "text": "the old world edits it too" }
+        "number": { "value": "acct-1" }
       }
     }
   ]
