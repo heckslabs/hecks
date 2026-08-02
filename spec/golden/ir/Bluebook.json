@@ -6675,6 +6675,50 @@
             [
               [
                 "name",
+                "proposed"
+              ]
+            ],
+            [
+              [
+                "name",
+                "admitted"
+              ]
+            ],
+            [
+              [
+                "name",
+                "deprecated"
+              ]
+            ],
+            [
+              [
+                "name",
+                "retired"
+              ]
+            ]
+          ],
+          "name": "Status"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "name",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "name",
                 "text"
               ]
             ],
@@ -6775,6 +6819,15 @@
               "default": null,
               "list": false,
               "name": "fills",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            },
+            {
+              "admits": "Syntax::Status",
+              "default": "admitted",
+              "list": false,
+              "name": "status",
               "optional": false,
               "pattern": null,
               "type": "String"
@@ -8877,6 +8930,15 @@
               "default": null,
               "list": false,
               "name": "fills",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            },
+            {
+              "admits": "Syntax::Status",
+              "default": "admitted",
+              "list": false,
+              "name": "status",
               "optional": false,
               "pattern": null,
               "type": "String"
@@ -13213,6 +13275,6 @@
       "reference_target": "Bluebook"
     }
   ],
-  "version": null,
+  "version": "1",
   "vision": "The bluebook language, declared in itself. Loading a domain becomes dispatching commands into this meta-domain ; the IR it stores must equal the IR the DSL builder produces. The floor that stays hand-written is the interpreter — evaluating a predicate held as data — and IO."
 }

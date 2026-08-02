@@ -66,6 +66,9 @@ def table_name(context) = "#{Hecksagain::Naming.snake(context).upcase}_WORDS"
 def words_for(keyword, context)
   rows = keyword.members
                 .map(&:to_h)
+                # A proposed or retired word reaches no projected table — to a
+                # projected reader it does not exist. Deprecated still reads.
+                .reject { |row| %w[proposed retired].include?(row[:status].to_s) }
                 .select { |row| row.fetch(:context) == context && !row.fetch(:opens).to_s.empty? }
                 .uniq { |row| row.fetch(:word) }
                 .sort_by { |row| row.fetch(:word) }

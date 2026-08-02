@@ -54,6 +54,9 @@ keyword = syntax.value_object("Keyword") or raise "the language declares no Synt
 # this list from being consulted there.
 words = keyword.members
                .map(&:to_h)
+               # A proposed or retired word reaches no projected table — to a
+               # projected reader it does not exist. Deprecated still reads.
+               .reject { |row| %w[proposed retired].include?(row[:status].to_s) }
                .select { |row| row.fetch(:context) == "Aggregate" }
                .map { |row| row.fetch(:word) }
                .uniq

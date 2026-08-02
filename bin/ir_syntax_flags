@@ -44,6 +44,9 @@ argument = syntax.value_object("Argument") or raise "the language declares no Sy
 def flag_argument_names(argument)
   rows = argument.members
                  .map(&:to_h)
+                 # A proposed or retired argument reaches no projected table —
+                 # to a projected reader it does not exist. Deprecated reads.
+                 .reject { |row| %w[proposed retired].include?(row[:status].to_s) }
                  .select { |row| row.fetch(:kind) == "flag" }
                  .reject { |row| row.fetch(:named).to_s.empty? }
                  .uniq { |row| row.fetch(:named) }

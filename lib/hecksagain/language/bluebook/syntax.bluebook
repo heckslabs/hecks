@@ -105,6 +105,26 @@ Hecks.bluebook "Bluebook" do
       end
     end
 
+    # WHERE A WORD STANDS IN ITS OWN LIFE. The same shape the expression
+    # grammar's Operator carries (proposed → admitted → retired), plus
+    # `deprecated` — a word still read but on its way out, which an operator
+    # never needed because nothing outside this repo writes expressions yet.
+    # A row DEFAULTS to admitted, so the table below stays a table of words
+    # rather than a table of words-with-ceremony; only a word entering or
+    # leaving the language spells its status. The projections read this:
+    # a proposed or retired word reaches no generated parser table, so to
+    # every projected reader it simply does not exist — the operator rule,
+    # at the syntax layer.
+    value_object "Status" do
+      attribute :name, String
+      one_of do
+        member name: "proposed"
+        member name: "admitted"
+        member name: "deprecated"
+        member name: "retired"
+      end
+    end
+
     # WHAT AN ARGUMENT LOOKS LIKE WHEN IT IS TYPED. Lexical, not semantic — two
     # arguments of the same kind are read the same way and mean whatever the
     # field they fill means.
@@ -162,6 +182,7 @@ Hecks.bluebook "Bluebook" do
       attribute :inner,   String
       attribute :opens,   String
       attribute :fills,   String
+      attribute :status,  String, default: "admitted", admits: "Syntax::Status"
 
       one_of do
         # The outside of every body. `Hecks.bluebook` is reached through the
@@ -347,6 +368,7 @@ Hecks.bluebook "Bluebook" do
       attribute :kind,     String, admits: "Syntax::ArgumentKind"
       attribute :required, String
       attribute :fills,    String
+      attribute :status,   String, default: "admitted", admits: "Syntax::Status"
 
       one_of do
         member keyword: "bluebook",        context: "File",     at: "1", named: "",        kind: "text",     required: "true",  fills: "name"

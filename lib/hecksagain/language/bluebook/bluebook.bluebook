@@ -1,4 +1,4 @@
-Hecks.bluebook "Bluebook" do
+Hecks.bluebook "Bluebook", version: "1" do
   vision "The bluebook language, declared in itself. Loading a domain becomes dispatching commands into this meta-domain ; the IR it stores must equal the IR the DSL builder produces. The floor that stays hand-written is the interpreter — evaluating a predicate held as data — and IO."
   core
 
