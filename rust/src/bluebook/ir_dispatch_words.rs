@@ -37,3 +37,7 @@ pub const HANDLER_WORDS: &[(&str, &str)] = &[
     ("dispatch", "Dispatch"),
 ];
 
+pub const ONE_OF_WORDS: &[(&str, &str)] = &[
+    ("member", "Member"),
+];
+

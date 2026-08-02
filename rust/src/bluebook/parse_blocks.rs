@@ -686,7 +686,20 @@ pub fn parse_value_object(lines: &[&str]) -> (ValueObject, usize) {
                     }
                 } else if ends_with_do_block(l) {
                     d += 1;
-                } else if l.starts_with("member ") || l.starts_with("member(") {
+                // WHICH WORD, GENERATED ; WHAT MATCHING IT MEANS, HAND-WRITTEN.
+                // `ONE_OF_WORDS` names `Member` as what `member` opens, the
+                // same fact `Syntax::Keyword` declares — but Rust never builds
+                // a separate `Member` struct (its pairs live inline on the
+                // `ValueObject` they belong to, per bin/ir_structs' own
+                // exclusion), so there is only one possible destination and
+                // the code below is unchanged ; only the recognition itself
+                // (which used to be a hand-rolled `starts_with("member ") ||
+                // starts_with("member(")`, a strict subset of what
+                // `keyword_matches` already checks) is generated.
+                } else if crate::bluebook::ir_dispatch_words::ONE_OF_WORDS
+                    .iter()
+                    .any(|(word, _)| keyword_matches(l, word))
+                {
                     let body = l
                         .trim_start_matches("member")
                         .trim_start_matches('(')
