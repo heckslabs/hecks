@@ -36,6 +36,13 @@ pub struct Runtime {
     /// JSON, and nothing checks the two agree about anything else.
     domain: crate::ir::Domain,
     ir: Value,
+    /// THE TYPED TWIN OF THE JSON ANNOTATION ABOVE — every closed set an
+    /// `admits` can name, resolved once here from `domain` rather than from
+    /// `ir`. Exists alongside the JSON annotation, not instead of it yet:
+    /// `admit_declared_set`'s callers still read `ir`'s `admitted_members`
+    /// field, and move to this one at a time (M6b). Once every caller has
+    /// moved, the JSON annotation step in `new` below can go.
+    admitted_sets: std::collections::HashMap<String, Vec<String>>,
     store: BTreeMap<String, State>,
     adapters: BTreeMap<String, Box<dyn PersistenceAdapter>>,
     mirrors: BTreeMap<String, Vec<(String, Box<dyn PersistenceAdapter>)>>,
@@ -541,9 +548,11 @@ fn fill_hydrate_defaults(aggregate: &Map<String, Value>, mut state: State) -> St
 impl Runtime {
     pub fn new(domain: crate::ir::Domain) -> Self {
         let ir = crate::projector::ir_json::domain_to_value(&domain);
+        let admitted_sets = crate::runtime::mutations::admitted_sets_of_domain(&domain);
         Runtime {
-            domain,
             ir: crate::runtime::mutations::resolve_admitted_sets(ir),
+            admitted_sets,
+            domain,
             store: BTreeMap::new(),
             adapters: BTreeMap::new(),
             mirrors: BTreeMap::new(),

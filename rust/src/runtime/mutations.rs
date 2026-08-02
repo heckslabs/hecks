@@ -928,6 +928,176 @@ fn check_admitted(
     Ok(())
 }
 
+/// Every closed set the chapter declares, keyed the way an `admits` names
+/// it — the TYPED twin of `admitted_sets_of` above, read off `crate::ir::
+/// Domain` instead of the flattened JSON. Computed once at `Runtime::new`
+/// and held on `Runtime.admitted_sets`, so `admit_declared_set`'s callers
+/// can move off the JSON-embedded `admitted_members` annotation one at a
+/// time (M6b) without first having to solve where the resolved data comes
+/// from. Deliberately NOT written back onto `crate::ir::Attribute` itself —
+/// a side table keyed by the `admits` NAME needs no new field on a struct
+/// used everywhere, and no constructor site has to learn about it.
+pub fn admitted_sets_of_domain(domain: &crate::ir::Domain) -> std::collections::HashMap<String, Vec<String>> {
+    let mut sets = std::collections::HashMap::new();
+    for aggregate in &domain.aggregates {
+        for value_object in &aggregate.value_objects {
+            let members = admitted_values_typed(value_object);
+            if members.is_empty() {
+                continue;
+            }
+            sets.insert(format!("{}::{}", aggregate.name, value_object.name), members);
+        }
+    }
+    sets
+}
+
+/// The TYPED twin of `admitted_values` below — `ValueObject.members` is
+/// already `Vec<Vec<(String, String)>>`, so there is no JSON array/pair
+/// shape to re-derive, only the discriminant lookup itself.
+fn admitted_values_typed(value_object: &crate::ir::ValueObject) -> Vec<String> {
+    if value_object.members.is_empty() {
+        return vec![];
+    }
+    let Some(discriminant) = value_object.attributes.first().map(|a| a.name.clone()) else {
+        return vec![];
+    };
+    value_object
+        .members
+        .iter()
+        .filter_map(|pairs| {
+            pairs
+                .iter()
+                .find(|(field, _)| *field == discriminant)
+                .map(|(_, value)| value.clone())
+        })
+        .collect()
+}
+
+#[cfg(test)]
+mod admitted_sets_typed_tests {
+    use super::*;
+    use crate::ir::{Attribute, Domain, ValueObject};
+
+    /// The TYPED twin of `sign_tests::kitchen()` below — same closed set,
+    /// same cross-aggregate `admits` link, built from `crate::ir::Domain`
+    /// structs instead of JSON, so `admitted_sets_of_domain` can be proven
+    /// against a real typed shape rather than only against itself.
+    fn kitchen_domain() -> Domain {
+        let doneness = ValueObject {
+            name: "Doneness".to_string(),
+            attributes: vec![Attribute {
+                name: "name".to_string(),
+                r#type: "String".to_string(),
+                default: None,
+                list: false,
+                optional: false,
+                enum_values: vec![],
+                pattern: None,
+                admits: None,
+            }],
+            invariants: vec![],
+            members: vec![
+                vec![("name".to_string(), "rare".to_string())],
+                vec![("name".to_string(), "medium".to_string())],
+                vec![("name".to_string(), "well".to_string())],
+            ],
+            closed_set: true,
+        };
+        let vocabulary = crate::ir::Aggregate {
+            name: "Vocabulary".to_string(),
+            description: None,
+            identified_by: vec![],
+            attributes: vec![],
+            lifecycle: None,
+            commands: vec![],
+            queries: vec![],
+            value_objects: vec![doneness],
+            entities: vec![],
+        };
+        let steak = crate::ir::Aggregate {
+            name: "Steak".to_string(),
+            description: None,
+            identified_by: vec![],
+            attributes: vec![Attribute {
+                name: "doneness".to_string(),
+                r#type: "String".to_string(),
+                default: None,
+                list: false,
+                optional: false,
+                enum_values: vec![],
+                pattern: None,
+                admits: Some("Vocabulary::Doneness".to_string()),
+            }],
+            lifecycle: None,
+            commands: vec![],
+            queries: vec![],
+            value_objects: vec![],
+            entities: vec![],
+        };
+        Domain {
+            name: "Kitchen".to_string(),
+            vision: None,
+            classification: None,
+            version: None,
+            aggregates: vec![vocabulary, steak],
+            policies: vec![],
+            process_managers: vec![],
+            read_models: vec![],
+        }
+    }
+
+    #[test]
+    fn resolves_a_closed_set_declared_in_a_sibling_aggregate() {
+        let sets = admitted_sets_of_domain(&kitchen_domain());
+        assert_eq!(
+            sets.get("Vocabulary::Doneness"),
+            Some(&vec!["rare".to_string(), "medium".to_string(), "well".to_string()])
+        );
+    }
+
+    #[test]
+    fn agrees_with_the_json_walk_over_the_same_shape() {
+        // The JSON twin of `kitchen_domain()` above — sign_tests::kitchen()
+        // is private to its own module, so this is its own copy rather than
+        // a visibility change to reach across test modules for one fixture.
+        let kitchen_json = serde_json::json!({ "aggregates": [
+            { "name": "Vocabulary", "attributes": [], "value_objects": [
+                { "name": "Doneness",
+                  "attributes": [{ "name": "name", "type": "String", "list": false,
+                                   "optional": false, "pattern": null, "admits": null }],
+                  "members": [[["name", "rare"]], [["name", "medium"]], [["name", "well"]]] }
+            ] },
+            { "name": "Steak", "value_objects": [], "attributes": [
+                { "name": "doneness", "type": "String", "list": false, "optional": false,
+                  "pattern": null, "admits": "Vocabulary::Doneness" }
+            ] }
+        ] });
+
+        let typed = admitted_sets_of_domain(&kitchen_domain());
+        let json = admitted_sets_of(&kitchen_json);
+
+        let mut typed_doneness = typed.get("Vocabulary::Doneness").cloned().unwrap_or_default();
+        let mut json_doneness: Vec<String> = json
+            .get("Vocabulary::Doneness")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .filter_map(|value| value.as_str().map(str::to_string))
+            .collect();
+        typed_doneness.sort();
+        json_doneness.sort();
+        assert_eq!(typed_doneness, json_doneness);
+    }
+
+    #[test]
+    fn a_value_object_with_no_one_of_admits_nothing() {
+        let mut domain = kitchen_domain();
+        domain.aggregates[0].value_objects[0].members = vec![];
+        let sets = admitted_sets_of_domain(&domain);
+        assert!(!sets.contains_key("Vocabulary::Doneness"));
+    }
+}
+
 /// The values a closed set admits, read through its discriminant — the first
 /// field, which is what a member row is keyed by.
 fn admitted_values(value_object: &Map<String, Value>) -> Vec<String> {
