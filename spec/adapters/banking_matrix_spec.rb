@@ -6,9 +6,9 @@ RSpec.describe "Banking across persistence adapters" do
   ADAPTER_MATRIX_BLUEBOOK = File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/banking.bluebook")
   ADAPTERS = {
     "Memory" => InMemoryDomain::MEMORY_ADAPTER,
-    "Heki"   => File.join(InMemoryDomain::ROOT, "lib/hecksagain/adapters/driven/heki/heki.adapter"),
-    "SqlitePersistence" => File.join(InMemoryDomain::ROOT, "lib/hecksagain/adapters/driven/sqlite/sqlite.adapter"),
-    "SqliteProjection" => File.join(InMemoryDomain::ROOT, "lib/hecksagain/adapters/driven/sqlite/sqlite.adapter")
+    "Heki"   => File.join(InMemoryDomain::ROOT, "lib/hecksagain/adapters/driven/heki.adapter"),
+    "SqlitePersistence" => File.join(InMemoryDomain::ROOT, "lib/hecksagain/adapters/driven/sqlite.adapter"),
+    "SqliteProjection" => File.join(InMemoryDomain::ROOT, "lib/hecksagain/adapters/driven/sqlite.adapter")
   }.freeze
   AUTHORITATIVE_ADAPTERS = %w[Memory Heki SqlitePersistence].freeze
 
@@ -24,7 +24,7 @@ RSpec.describe "Banking across persistence adapters" do
 
     Hecksagain.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-      Kernel.load(File.join(InMemoryDomain::ROOT, "lib/hecksagain/ports/projection/projection.port"))
+      Kernel.load(File.join(InMemoryDomain::ROOT, "lib/hecksagain/ports/projection.port"))
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(ADAPTERS.fetch(adapter)) unless adapter == "Memory"

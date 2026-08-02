@@ -1,8 +1,9 @@
 require "pg"
 require "json"
 
-require_relative "lineage"
-require_relative "lineage_manager"
+require_relative "sql_query_builder"
+require_relative "postgres/lineage"
+require_relative "postgres/lineage_manager"
 
 module Hecksagain
   module Adapters
@@ -11,7 +12,7 @@ module Hecksagain
     # (translate, fork, merge) where every other adapter can only refuse
     # toward it.
     #
-    # Storage model (see lineage.rb for the DDL):
+    # Storage model (see postgres/lineage.rb for the DDL):
     # - One journal per DOMAIN, list-partitioned by era, one ordinal
     #   sequence spanning partitions. Appends go there; nothing updates
     #   or deletes a journal row (immutability by privilege — UPDATE and
@@ -26,11 +27,13 @@ module Hecksagain
     #   history gate above all — must compare CANONICALIZED state, never
     #   raw bytes; `bin/canonicalise` deep-sorts keys, which is exactly
     #   why the gate survives this normalization.
-    # - Query pushdown follows Ruby's existing contract: every declared
+    # - Query pushdown is the shared SqlQueryBuilder: every declared
     #   operator compiles fully into SQL, or the query refuses loudly.
     #   (The Rust SQLite crate's oracle-subset contract is unrelated
     #   prior art, deliberately not adopted.)
     class Postgres
+      include SqlQueryBuilder
+
       attr_reader :aggregate
 
       # The capability idiom: only Postgres answers true, and only
@@ -95,64 +98,13 @@ module Hecksagain
 
       def count = @db.exec(%(SELECT COUNT(*) FROM #{quoted_head}))[0]["count"].to_i
 
-      def query(declared, args = {}, context: {})
-        sql = +"SELECT id, state FROM #{quoted_head}"
-        clauses = []
-        binds = []
-        declared.wheres.each do |clause|
-          value = query_value(clause.value, args)
-          expression = query_expression(clause.field, value: value)
-          if (null_predicate = QuerySpecification::Common::NullPolicy.sql_predicate(expression, clause.op, value))
-            clauses << null_predicate.first
-            next
-          end
-          case clause.op.to_s
-          when "eq", "ne", "gt", "gte", "lt", "lte"
-            operator = { "eq" => "=", "ne" => "<>", "gt" => ">", "gte" => ">=", "lt" => "<", "lte" => "<=" }.fetch(clause.op.to_s)
-            binds << value
-            clauses << "#{comparable_expression(expression, value)} #{operator} $#{binds.size}"
-          when "contains"
-            binds << value.to_s
-            clauses << "position($#{binds.size} in #{expression}) > 0"
-          when "in"
-            # The same comma-separated convention every other where-clause
-            # comparator uses (Ports::Query::InMemory, QueryInterpreter,
-            # SQLite's own `in` case, Rust's dispatcher.rs).
-            members = value.to_s.split(",").map(&:strip).reject(&:empty?)
-            if members.empty?
-              clauses << "FALSE"
-            else
-              placeholders = members.map { |member| binds << member; "$#{binds.size}" }
-              clauses << "#{expression} IN (#{placeholders.join(', ')})"
-            end
-          else
-            raise ArgumentError, "Postgres query adapter does not support #{clause.op.inspect}"
-          end
-        end
-        sql << " WHERE #{clauses.join(' AND ')}" unless clauses.empty?
-        if declared.order_by
-          sql << " ORDER BY #{order_clause(declared.order_by, declared.null_semantics)}"
-        else
-          sql << " ORDER BY id"
-        end
-        if declared.limit
-          binds << query_value(declared.limit.value, args).to_i
-          sql << " LIMIT $#{binds.size}"
-        end
-        if declared.offset
-          binds << query_value(declared.offset.value, args).to_i
-          sql << " OFFSET $#{binds.size}"
-        end
-        @db.exec_params(sql, binds).map { |row| instance(row) }
-      end
-
       # HELD FOR THE WHOLE TRANSACTION, not just around the INSERT — the
       # ordinal is assigned by the column's own `nextval()` default, inside
       # this same statement, so the lock has to already be held before that
       # default evaluates. A DIFFERENT key from `mint_era!`/`merge_tail!`'s
       # `hecks_eras:domain` : this serializes plain writes against EACH
-      # OTHER, never against a mint. See lineage.rb's own comment for why
-      # only that half of the race is closed.
+      # OTHER, never against a mint. See postgres/lineage.rb's own comment
+      # for why only that half of the race is closed.
       def append(entry)
         @db.transaction do
           @db.exec_params(
@@ -232,6 +184,39 @@ module Hecksagain
 
       private
 
+      # ── SqlQueryBuilder's dialect hooks ─────────────────────────────
+
+      def select_list = "id, state"
+      def from_relation = quoted_head
+      def dialect_name = "Postgres"
+      def empty_in_clause = "FALSE"
+
+      def placeholder(binds, value)
+        binds << value
+        "$#{binds.size}"
+      end
+
+      def contains_clause(expression, placeholder)
+        "position(#{placeholder} in #{expression}) > 0"
+      end
+
+      def plain_column(name) = jsonb_path([name])
+
+      def nested_expression(name, path, member)
+        segments = path.empty? ? [name, (member || "value").to_s] : [name, *path]
+        jsonb_path(segments)
+      end
+
+      def comparable_expression(expression, value)
+        value.is_a?(Numeric) ? "(#{expression})::numeric" : expression
+      end
+
+      def execute_query(sql, binds)
+        @db.exec_params(sql, binds).map { |row| instance(row) }
+      end
+
+      # ── the rest of the dialect ─────────────────────────────────────
+
       def instance(row)
         Runtime::Instance.new(aggregate: @aggregate, id: row["id"], state: decode(row["state"]))
       end
@@ -245,44 +230,6 @@ module Hecksagain
 
       def quote_ident(name) = PG::Connection.quote_ident(name.to_s)
       def quoted_head = quote_ident(@lineage.head_view(table))
-
-      # Every declared field compiles into a jsonb path over `state` —
-      # or the query never runs. The member-picking rules mirror the
-      # Sqlite adapter exactly: a value-object field compares through
-      # the member the bound value (or the declared types) say is
-      # numeric, falling back to the one-field convention `value`.
-      #
-      # A REFERENCE IS AN ID, stored as a bare scalar (never wrapped —
-      # `Runtime::Value.refuse_object_reference` guarantees it), so it
-      # takes this SAME plain-column path as any other non-value-object
-      # attribute. There is no reference-specific case below this point
-      # to reach: `!attribute.reference?` here would exclude it into the
-      # value-object member-picking logic instead, compiling to
-      # `state #>> '{field,value}'` against a row that has no nested
-      # "value" key — a path that can never match. Measured, not
-      # assumed: a `where` on a has_one/belongs_to/reference_to field
-      # returned zero rows against real data until this was removed;
-      # Rust's pushdown never had the bug (it falls back to the plain
-      # field via COALESCE when the nested read comes back null).
-      def query_expression(field, value: nil)
-        name, *path = field.to_s.split(".")
-        attribute = @aggregate.attribute(name)
-
-        return jsonb_path([name]) if path.empty? && @aggregate.lifecycle&.field.to_s == name
-        return jsonb_path([name]) if path.empty? && attribute && !value_object?(attribute)
-
-        member = if path.empty? && value
-                   hash = value.is_a?(Runtime::Value) ? value.to_h : value
-                   numeric = hash.is_a?(Hash) && hash.find { |_key, item| item.is_a?(Numeric) }
-                   numeric ? numeric.first : nil
-                 end
-        member ||= if path.empty? && attribute && value_object?(attribute)
-                     object = @aggregate.value_object(attribute.type)
-                     object.attributes.find { |candidate| %w[Integer Float].include?(candidate.type) }&.name
-                   end
-        segments = path.empty? ? [name, (member || "value").to_s] : [name, *path]
-        jsonb_path(segments)
-      end
 
       def order_expression(field)
         expression = query_expression(field)
@@ -315,10 +262,6 @@ module Hecksagain
         %w[Integer Float].include?(object.attribute(member.to_sym)&.type.to_s)
       end
 
-      def comparable_expression(expression, value)
-        value.is_a?(Numeric) ? "(#{expression})::numeric" : expression
-      end
-
       # ARRAY[...] of individually-escaped literals, never the hand-rolled
       # '{a,b,c}' array-literal SYNTAX — a segment is a field or
       # value-object member name, and while today's callers only ever
@@ -335,20 +278,6 @@ module Hecksagain
       end
 
       def text_literal(text) = "'#{text.to_s.gsub("'", "''")}'"
-
-      def query_value(value, args)
-        value = args[value] if value.is_a?(Symbol)
-        hash = value.is_a?(Runtime::Value) ? value.to_h : value
-        return hash.find { |_key, item| item.is_a?(Numeric) }&.last if hash.is_a?(Hash)
-
-        Runtime::Value.scalar(value)
-      rescue Runtime::TypeMismatch
-        value.is_a?(Hash) && value.size == 1 ? value.values.first : value
-      end
-
-      def value_object?(attr)
-        !attr.list? && !@aggregate.value_object(attr.type).nil?
-      end
 
       def create_event_table!
         @db.exec(<<~SQL)

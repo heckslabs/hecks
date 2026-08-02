@@ -1,15 +1,19 @@
+require_relative "interpreting"
+require_relative "command_interpreter/argument_gate"
+require_relative "command_interpreter/mutation_applier"
 
 module Hecksagain
   module Runtime
+    # The dispatch pipeline for a command on an aggregate head. The payload
+    # gate lives in command_interpreter/argument_gate.rb, the mutation walk
+    # in command_interpreter/mutation_applier.rb; what stays here is the
+    # order of the steps and how a record is addressed.
     class CommandInterpreter
-      attr_reader :registry
+      include Interpreting
+      include ArgumentGate
+      include MutationApplier
 
-      # Set by a spec to observe dispatch order (Vocabulary::AggregateDispatchOrder
-      # in language/bluebook/vocabulary.bluebook) ; nil in production, always — one array
-      # push and a nil check per step is the entire cost of leaving this in.
-      class << self
-        attr_accessor :trace
-      end
+      attr_reader :registry
 
       def initialize(registry, rules:)
         @registry = registry
@@ -34,16 +38,6 @@ module Hecksagain
       end
 
       private
-
-      # Logged AFTER the step's own work, so a step that wraps sub-steps (see
-      # normalize_args, which traces refuse_unknown_arguments internally) logs
-      # itself once everything inside it has already logged — trace order is
-      # completion order, which is dispatch order.
-      def step(name)
-        result = yield
-        self.class.trace << name if self.class.trace
-        result
-      end
 
       def hydrate(repository, aggregate, command, args)
         if command.creates?
@@ -89,91 +83,13 @@ module Hecksagain
         end
       end
 
-      def reference_key(command)
-        target = command.references.to_s
-        return nil if target.empty?
-
-        Naming.reference_key(target)
-      end
-
-      # A command takes the arguments it declares, and no others. Anything else
-      # used to ride along in the payload untouched — normalize_args walks the
-      # DECLARED attributes, so a name the command never had was simply never
-      # looked at. A misspelled argument did nothing, in silence.
-      #
-      # The keys that are legitimately not attributes are the ones that ADDRESS
-      # the aggregate rather than describe it : `id`, whatever the aggregate is
-      # identified by, and the reference key of the root a command reaches
-      # through. Refusing those would refuse every dispatch there is.
-      def refuse_unknown_arguments(domain, aggregate, command, args)
-        addressing = [:id, *aggregate.identity_heads, reference_key(command)] + correlation_keys(domain)
-        known      = (command.attributes.map(&:name) + addressing).compact.map(&:to_sym)
-        # SORTED. Payload order is whatever the caller happened to write, and the
-        # two runtimes iterate a map differently — an unsorted list makes the same
-        # refusal read differently in Ruby and Rust, and parity says so.
-        unknown = (args.keys.map(&:to_sym) - known).sort
-        return if unknown.empty?
-
-        raise UnknownArgument,
-              "#{command.hecks_name} does not declare #{unknown.join(', ')} — " \
-              "it takes #{command.attributes.map(&:name).join(', ')}"
-      end
-
-      # And it takes ALL of them. The other half of the same sentence, missing
-      # until fuzz went looking : a name the command never declared was refused,
-      # while a name it DID declare could simply be left out.
-      #
-      # Ruby happened to refuse `Customer.Register` without its `name` — but by
-      # ACCIDENT, and with a lie for a message. `then_set :name, to: :name` found
-      # nothing to resolve, passed the literal symbol on, and coercion reported
-      # `name is a PersonName — pass its fields as an object`, which describes a
-      # mistake the caller did not make. Rust had no such accident and wrote
-      # `name: null`. So neither runtime was refusing the real mistake, and the
-      # seam between the two accidents is what showed up as a parity SPLIT.
-      #
-      # No command attribute anywhere in the corpus carries a default — checked,
-      # all eight chapters, zero — so there is no optional argument for this to
-      # step on. Every declared attribute is a fact the command needs.
-      def refuse_absent_arguments(command, args)
-        given    = args.keys.map(&:to_sym)
-        required = command.attributes.reject(&:optional?).map { |attribute| attribute.name.to_sym }
-        # SORTED, for the same reason the unknown list is : declaration order is
-        # stable but the two runtimes reach it differently, and a refusal has to
-        # read identically in both or parity says so.
-        absent = (required - given).sort
-        return if absent.empty?
-
-        raise AbsentArgument,
-              "#{command.hecks_name} was not given #{absent.join(', ')} — " \
-              "it takes #{command.attributes.map(&:name).join(', ')}"
-      end
-
-      # What a process manager correlates by is ROUTING, not description. A saga
-      # threads its correlation key through every leg it dispatches so the event
-      # each leg emits carries it and the next step can be correlated — so the key
-      # arrives on commands that never declare it, and legitimately.
-      #
-      # This is the weakest part of the gate. Correlation is the SAGA's business,
-      # and the better shape is for the saga to stamp its own key onto the event
-      # it caused rather than smuggle it through the command's payload. Until it
-      # does, refusing the key here would break every saga in the corpus.
-      def correlation_keys(domain)
-        Array(@registry.bluebook(domain)&.process_managers)
-          .filter_map { |saga| saga.correlates_by && saga.correlation_head }
-      end
-
       def normalize_args(domain, aggregate, command, args)
         step(:refuse_unknown_arguments) { refuse_unknown_arguments(domain, aggregate, command, args) }
         # Unknown first, deliberately : a payload that both misspells one name and
         # omits another is more usefully told about the name that does not exist.
         step(:refuse_absent_arguments)  { refuse_absent_arguments(command, args) }
 
-        command.attributes.each_with_object(args.dup) do |attribute, normalized|
-          next unless normalized.key?(attribute.name)
-
-          Value.refuse_object_reference(command, attribute, normalized[attribute.name])
-          normalized[attribute.name] = Value.for_attribute(aggregate, attribute, normalized[attribute.name])
-        end
+        coerce_declared_arguments(aggregate, command, args)
       end
 
       # THE JOIN, THE DIG, AND THE READING — all shared with `EntityInterpreter`
@@ -183,66 +99,6 @@ module Hecksagain
       def identity_of(aggregate, args)   = Identity.of(aggregate, args)
       def identity_from(aggregate, args, key) = Identity.from(aggregate, args, key)
       def identity_reading(construct)    = Identity.reading(construct)
-
-          def assign_creation_attributes(instance, aggregate, command, args)
-        command.attributes.each do |attr|
-          next unless aggregate.attribute(attr.name)
-          next unless args.key?(attr.name)
-
-          instance[attr.name] = Value.for(aggregate, attr.name, args[attr.name])
-        end
-      end
-
-      def apply(instance, aggregate, mutation, args)
-        case mutation.op
-        when :set
-          value = @rules.resolve_source(mutation.source, args)
-          instance[mutation.target] = Value.for(aggregate, mutation.target, value)
-        when :append
-          instance[mutation.target] = appended(instance, aggregate, mutation, args)
-        when :increment, :decrement
-          amount = @rules.resolve_source(mutation.source, args)
-          attribute = aggregate.attribute(mutation.target)
-          amount = Value.for_attribute(aggregate, attribute, amount) if attribute
-          instance[mutation.target] = @rules.arithmetic(
-            instance[mutation.target],
-            amount,
-            mutation.target,
-            @rules.sign_of(mutation.op)
-          )
-        end
-      end
-
-      def appended(instance, aggregate, mutation, args)
-        fields       = mutation.source.transform_values { |source| source.is_a?(Symbol) ? args[source] : source }
-        element_type = aggregate.attribute(mutation.target)&.type
-        value_object = aggregate.value_object(element_type)
-        if value_object
-          value_object.attributes.each do |attribute|
-            fields[attribute.name] = Value.scalar(fields[attribute.name]) if fields[attribute.name].is_a?(Value)
-          end
-        end
-        element      = value_object ? Value.build(value_object, fields) : entity_element(aggregate, element_type, instance[mutation.target], fields)
-
-        Array(instance[mutation.target]) + [element]
-      end
-
-      def entity_element(aggregate, element_type, current, fields)
-        entity = aggregate.entities.find { |piece| piece.hecks_name == element_type.to_s }
-        return fields unless entity
-
-        entity.attributes.each do |attribute|
-          next unless fields.key?(attribute.name)
-
-          fields[attribute.name] = Value.for_attribute(aggregate, attribute, fields[attribute.name])
-        end
-        if entity.identified_by && !fields.key?(entity.identified_by)
-          attribute = entity.attribute(entity.identified_by)
-          fields[entity.identified_by] = Value.from_identifier(aggregate, attribute, Array(current).size + 1)
-        end
-        fields[entity.lifecycle.field] ||= entity.lifecycle.default if entity.lifecycle
-        fields
-      end
     end
   end
 end

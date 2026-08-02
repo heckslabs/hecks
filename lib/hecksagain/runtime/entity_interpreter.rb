@@ -1,15 +1,11 @@
+require_relative "interpreting"
 
 module Hecksagain
   module Runtime
     class EntityInterpreter
-      attr_reader :registry
+      include Interpreting
 
-      # Set by a spec to observe dispatch order (Vocabulary::EntityDispatchOrder
-      # in language/bluebook/vocabulary.bluebook) ; nil in production, always — see
-      # CommandInterpreter.trace, the same mechanism.
-      class << self
-        attr_accessor :trace
-      end
+      attr_reader :registry
 
       def initialize(registry, rules:)
         @registry = registry
@@ -41,12 +37,6 @@ module Hecksagain
       end
 
       private
-
-      def step(name)
-        result = yield
-        self.class.trace << name if self.class.trace
-        result
-      end
 
       # THE PARENT AGGREGATE, addressed exactly as `CommandInterpreter#hydrate`
       # addresses one acting on itself — derive from the declared identity first
@@ -119,12 +109,7 @@ module Hecksagain
       end
 
       def normalize_args(aggregate, command, args)
-        command.attributes.each_with_object(args.dup) do |attribute, normalized|
-          next unless normalized.key?(attribute.name)
-
-          Value.refuse_object_reference(command, attribute, normalized[attribute.name])
-          normalized[attribute.name] = Value.for_attribute(aggregate, attribute, normalized[attribute.name])
-        end
+        coerce_declared_arguments(aggregate, command, args)
       end
     end
   end

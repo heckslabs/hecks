@@ -11,7 +11,7 @@ module Hecksagain
       end
 
       def load_library
-        load_each(library(PORTS),    %w[*/*.port])
+        load_each(library(PORTS),    %w[*.port])
         load_each(library(ADAPTERS), %w[*/*.adapter */*/*.adapter])
       end
 
@@ -58,7 +58,7 @@ module Hecksagain
       end
 
       def library(folder)
-        File.expand_path("../../../#{folder}", __dir__)
+        File.expand_path("../../#{folder}", __dir__)
       end
     end
   end

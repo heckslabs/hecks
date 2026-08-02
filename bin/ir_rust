@@ -61,10 +61,10 @@ path = ARGV[0] or abort "usage: bin/ir_rust <bluebook>"
 #                                   is checked against come from ONE reading.
 ROOT = File.expand_path("..", __dir__)
 PORTS = %w[
-  lib/hecksagain/ports/persistence/persistence.port
-  lib/hecksagain/ports/extraction/extraction.port
-  lib/hecksagain/adapters/driven/memory/memory.adapter
-  lib/hecksagain/adapters/driven/prism/prism.adapter
+  lib/hecksagain/ports/persistence.port
+  lib/hecksagain/ports/extraction.port
+  lib/hecksagain/adapters/driven/memory.adapter
+  lib/hecksagain/adapters/driven/prism.adapter
 ].freeze
 
 registry = Hecksagain::Runtime::Registry.new
