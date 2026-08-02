@@ -182,7 +182,7 @@ fn parse_aggregate(lines: &[&str]) -> (Aggregate, Vec<Policy>, usize) {
         }
 
         if depth == 1 {
-            if line.starts_with("command") || is_shorthand_command(line) {
+            if line.starts_with("command") {
                 let (cmd, consumed) = parse_command(&lines[i..], &owner);
                 agg.commands.push(cmd);
                 i += consumed;
@@ -247,8 +247,6 @@ fn parse_aggregate(lines: &[&str]) -> (Aggregate, Vec<Policy>, usize) {
                 agg.identified_by = paths;
                 i += consumed;
                 continue;
-            } else if is_shorthand_line(line) {
-                absorb_shorthand(line, &mut agg.attributes);
             } else if line.starts_with("query") {
                 if ends_with_do_block(line) {
                     let (q, consumed) = parse_query(&lines[i..]);
@@ -257,10 +255,6 @@ fn parse_aggregate(lines: &[&str]) -> (Aggregate, Vec<Policy>, usize) {
                     continue;
                 }
                 push_query(line, &mut agg, &mut depth);
-            } else if line.starts_with("rule ") || line.starts_with("rule\t") {
-                let consumed = consume_rule_block(&lines[i..]);
-                i += consumed;
-                continue;
             } else if line.starts_with("policy ") || line.starts_with("policy\t") {
                 let (policy, consumed) = parse_policy(&lines[i..]);
                 nested_policies.push(policy);
@@ -281,21 +275,14 @@ fn parse_aggregate(lines: &[&str]) -> (Aggregate, Vec<Policy>, usize) {
 }
 
 fn absorb_reference_to(line: &str, references: &mut Vec<Attribute>) {
-    if line.starts_with("reference_to(") {
-        if let Some(r) = parse_shorthand_reference(line) {
-            references.push(r);
-        }
-    } else if let Some(target) = extract_word_after(line, "reference_to") {
+    if let Some(target) = extract_word_after(line, "reference_to") {
         let name = if let Some(pos) = line.find(", as:") {
             let after = &line[pos + ", as:".len()..];
-            extract_symbol(after).unwrap_or_else(|| format!("{}_id", crate::naming::snake(&target)))
-        } else if let Some(pos) = line.find(", role:") {
-            let after = &line[pos + ", role:".len()..];
             extract_symbol(after).unwrap_or_else(|| format!("{}_id", crate::naming::snake(&target)))
         } else {
             format!("{}_id", crate::naming::snake(&target))
         };
-        references.push(reference_attribute(name, &target));
+        references.push(reference_attribute(name, &target, false));
     }
 }
 
@@ -319,7 +306,7 @@ fn absorb_has_many(line: &str, references: &mut Vec<Attribute>) {
         let plural = unqualified_type(&token);
         let target = crate::naming::singularize(&plural);
         let name = parse_as_alias(line).unwrap_or_else(|| crate::naming::snake(&plural));
-        references.push(reference_attribute(name, &target));
+        references.push(reference_attribute(name, &target, false));
     }
 }
 
@@ -355,15 +342,7 @@ fn absorb_belongs_to(line: &str, references: &mut Vec<Attribute>) {
 fn absorb_held(line: &str, token: &str, references: &mut Vec<Attribute>) {
     let target = unqualified_type(token);
     let name = parse_as_alias(line).unwrap_or_else(|| crate::naming::snake(&target));
-    references.push(reference_attribute(name, &target));
-}
-
-fn absorb_shorthand(line: &str, attributes: &mut Vec<Attribute>) {
-    match parse_shorthand(line) {
-        ShorthandResult::Attribute(a) => attributes.push(a),
-        ShorthandResult::Reference(r) => attributes.push(r),
-        ShorthandResult::None => {}
-    }
+    references.push(reference_attribute(name, &target, false));
 }
 
 fn push_query(line: &str, agg: &mut Aggregate, depth: &mut usize) {

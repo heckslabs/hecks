@@ -165,14 +165,73 @@ syntax rows, and a `dsl_coverage_spec` allowlist update), `cargo test --release
 every aggregate that has ever declared a reference, so the corpus-wide run is what
 actually matters here, not the new fixture alone.
 
-## `parser.rs`/`parse_blocks.rs` — the reconciliation pass, not yet started
+## `parser.rs`/`parse_blocks.rs` — reconciled
 
-Roughly 35 hardcoded keyword checks remain that `syntax.bluebook` does not describe.
-Most are legitimate Rust-only vocabulary now that `has_many`/`has_one`/`belongs_to`
-are closed — check what's left before assuming another gap : `from_event`/`from_pm`/
-`from_iter` (dispatch-binding readings, not bluebook keywords at all), and whatever
-in `hecksagon_parser.rs` belongs to the sibling-artifact exclusion already on record.
-Scope this before extending `syntax.bluebook` further.
+The ~35 hardcoded keyword checks are done. Every one now maps to a word
+`syntax.bluebook` declares, a documented out-of-scope reading, or plain string-parsing
+mechanics (comment-stripping, `&&`/`||` continuation joins, literal decoding) — no
+ghost words, no fake keyword arguments, no branch that swallows a construct silently.
+
+**Most of the ~35 were not undeclared vocabulary — they were DEAD CODE**, traced to a
+single commit (`dfa1a11`, "bring the Hecks rust parser over whole") and never touched
+since. Two whole subsystems, deleted (~430 net lines):
+
+- **`rule "Name" do requires { … } end`** — parsed at Aggregate/ValueObject/Entity
+  level, panicked if the body wasn't a single expression, and **built nothing into
+  the IR even when well-formed**. No `rule` method exists on any builder in this
+  project or in Hecks. Zero corpus usage.
+- **Shorthand syntax** — bare `String name` instead of `attribute :name, String`, and
+  a PascalCase-name-implies-command heuristic (`is_shorthand_command`). Its own type
+  table listed `Boolean`/`JSON`/`Date`/`DateTime` — not real primitives ; the
+  language's own `Vocabulary::Primitive` admits five, and none of those four. Its
+  keyword-exclusion list carried `vow`/`fixture`/`category`, matching no real word
+  anywhere. Zero corpus usage, no Ruby equivalent. `reference_to`'s parenthetical
+  form (`reference_to(Customer)`) rode on this same apparatus, along with an invented
+  `.as(...)` chained-call form and a `role:` kwarg matching nothing in either
+  builder's real signature — all removed together. `set` inside a `ProcessManager`
+  handler body (`is_set_start`) was the same story, smaller: joined across lines,
+  never acted on, no Ruby method, zero corpus usage.
+
+**One real, narrow bug, found and fixed**: `parse_command` accepted `description` as
+a silent synonym for `goal`. Neither `hecksagain`'s nor Hecks's `CommandBuilder` has a
+`description` method — Rust was quietly more permissive than Ruby, the exact
+asymmetry `bin/parity`'s own README names as "the failure most worth catching."
+Removed ; only `goal` is recognized now, matching Ruby exactly.
+
+**One real, narrow gap, found and fixed**: `Command#reference_to`'s `optional:`
+argument — declared in `syntax.bluebook` (added during the vocabulary-port session,
+real on `CommandBuilder#reference_to(type, as: nil, optional: false)`) — was never
+actually read by Rust. `reference_attribute` always built `optional: false`
+regardless of what the line said. Zero corpus usage, so nothing caught it until this
+pass cross-referenced the declaration against what Rust does. Fixed by threading
+`optional` through `reference_attribute` (real only for `Command#reference_to` ;
+every other caller — an aggregate's own `reference_to`, `has_many`/`has_one`/
+`belongs_to` — passes `false`, since Ruby never lets them take it either).
+
+**Already-documented, left alone**: `from_event`/`from_pm`/`from_iter` (dispatch
+binding value readings — `bin/ir_structs`' own exclusion header already names this
+divergence ; zero corpus usage, no Ruby equivalent, but not silently dead the way
+`rule`/shorthand were — the language's own `Binding` shape is honestly two plain
+strings, and this is Rust reading a value STRING more richly, not swallowing a
+construct). Reflex's missing query options (`offset`/`cursor`/`consistency`/
+`freshness`/`authorize`/`nulls`/`inspect_query`/`use_index` on `Query`/`ReadModel`) —
+same header, same reason, untouched.
+
+Every deletion and fix is pinned : `rust/tests/command_reference_optional_test.rs`
+(the `optional:` fix, reverted-and-confirmed-failing then restored, same discipline
+as the vocabulary-port session) ; the full suite run at whole-corpus scope
+(`bin/parity` AGREED, 120 mutants) since removing dead branches touches every
+aggregate that could theoretically have hit them, not just a fixture.
+
+Gates: `bundle exec rspec` 741/0 (unchanged — nothing Ruby-side moved), `cargo test
+--release --workspace` clean, zero warnings (down ~430 net lines with no new dead
+code left behind), `bin/parity` AGREED.
+
+**What's next**: `.hecksagon`'s `subscribe` and the sibling-artifact surface remain
+out of scope, as decided when `syntax.bluebook` was first scoped to `.bluebook` only.
+With the vocabulary gap and the dead-code gap both closed, the case for actually
+GENERATING the parser from `syntax.bluebook` — rather than hand-writing it and
+checking it — is real rather than aspirational. That is the next rung, not this one.
 
 **Scope that was deliberately left out**, and it is named rather than half-done: only
 the `.bluebook` surface is declared. `.port`, `.adapter`, `.hecksagon`, `.world` and

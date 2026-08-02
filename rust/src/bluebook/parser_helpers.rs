@@ -271,115 +271,25 @@ pub fn ends_with_do_block(line: &str) -> bool {
     false
 }
 
-const SHORTHAND_TYPES: &[&str] = &[
-    "String", "Integer", "Float", "Boolean", "JSON", "Date", "DateTime",
-];
-
-const KEYWORDS: &[&str] = &[
-    "aggregate",
-    "policy",
-    "lifecycle",
-    "value_object",
-    "vow",
-    "fixture",
-    "category",
-    "vision",
-    "description",
-    "Hecks",
-    "String",
-    "Integer",
-    "Float",
-    "Boolean",
-    "JSON",
-    "Date",
-    "DateTime",
-];
-
-pub fn is_shorthand_line(line: &str) -> bool {
-    SHORTHAND_TYPES
-        .iter()
-        .any(|t| line.starts_with(t) && line[t.len()..].starts_with([' ', '\t']))
-        || line.starts_with("list_of(")
-        || line.starts_with("reference_to(")
-}
-
-pub fn is_shorthand_command(line: &str) -> bool {
-    let first_word = line.split_whitespace().next().unwrap_or("");
-    if first_word.len() < 2 {
-        return false;
-    }
-    let chars: Vec<char> = first_word.chars().collect();
-    let is_pascal = chars[0].is_uppercase() && chars[1..].iter().any(|c| c.is_lowercase());
-    is_pascal && (line.ends_with(" do") || line.contains('{')) && !KEYWORDS.contains(&first_word)
-}
-
-pub fn parse_shorthand_attribute(line: &str) -> Option<crate::ir::Attribute> {
-    let list = line.starts_with("list_of(");
-    let attr_type = if list {
-        let open = line.find('(')? + 1;
-        let close = line.find(')')?;
-        line[open..close].trim().to_string()
-    } else {
-        let end = line.find([' ', '\t'])?;
-        line[..end].to_string()
-    };
-    let name = extract_symbol(line)?;
-    let default = if line.contains("default:") {
-        let pos = line.find("default:")?;
-        let after = line[pos + "default:".len()..].trim();
-        if let Some(rest) = after.strip_prefix('"') {
-            let end = rest.find('"')?;
-            Some(rest[..end].to_string())
-        } else {
-            let token = after
-                .split(|c: char| c == ',' || c.is_whitespace())
-                .next()
-                .unwrap_or("")
-                .to_string();
-            if token.is_empty() {
-                None
-            } else {
-                Some(token)
-            }
-        }
-    } else {
-        None
-    };
-    let optional = line.contains("optional:")
-        && line
-            .split("optional:")
-            .nth(1)
-            .map(|a| a.trim_start().starts_with("true"))
-            .unwrap_or(false);
-    Some(crate::ir::Attribute {
-        name,
-        r#type: attr_type,
-        default,
-        list,
-        optional,
-        enum_values: vec![],
-        pattern: None,
-        // READ HERE TOO, unlike `pattern` beside it. `admits` is a RULE, and a
-        // rule the long spelling enforces and the shorthand quietly drops is the
-        // same bluebook meaning two things — which is the whole reason this fact
-        // crosses the wire at all.
-        admits: super::parse_blocks::parse_quoted_kwarg(line, "admits:"),
-    })
-}
-
 /// A REFERENCE IS AN ATTRIBUTE — `Reference<Customer>` is a type, not a second
 /// kind of declaration. Ruby's builder reaches this through the shared
 /// attribute collector, so the two sides carry one shape and not two.
-pub fn reference_attribute(name: String, target: &str) -> crate::ir::Attribute {
+///
+/// `optional` is real only on `Command#reference_to` — a cross-referenced
+/// argument may or may not be given, same as any other attribute a command
+/// declares. Every OTHER caller (an aggregate's own `reference_to`, and
+/// `has_many`/`has_one`/`belongs_to`, none of which Ruby lets take
+/// `optional:`) passes `false`.
+pub fn reference_attribute(name: String, target: &str, optional: bool) -> crate::ir::Attribute {
     crate::ir::Attribute {
         name,
         r#type: format!("Reference<{target}>"),
         default: None,
         list: false,
-        // A reference is an ID, never defaulted, never pattern-matched and
-        // never a member of a closed set — but it travels the same collector as
-        // every other attribute, so it carries the same keys.
-        optional: false,
+        // Never defaulted, never pattern-matched, never a member of a closed
+        // set — but it travels the same collector as every other attribute,
+        // so it carries the same keys.
+        optional,
         enum_values: vec![],
         pattern: None,
         admits: None,
@@ -415,54 +325,3 @@ pub fn acts_on_root(attribute: &crate::ir::Attribute, owner: &str) -> bool {
     }
 }
 
-pub fn parse_shorthand_reference(line: &str) -> Option<crate::ir::Attribute> {
-    let open = line.find('(')? + 1;
-    let close = line.find(')')?;
-    let inside = &line[open..close];
-    let after_close = &line[close + 1..];
-    let target = inside.split(',').next()?.trim().to_string();
-
-    let name = if line.contains(".as(") {
-        let as_pos = line.find(".as(")?;
-        extract_symbol(&line[as_pos..]).unwrap_or_else(|| crate::naming::snake(&target))
-    } else if let Some(pos) = inside.find(", as:") {
-        let after = &inside[pos + ", as:".len()..];
-        extract_symbol(after).unwrap_or_else(|| crate::naming::snake(&target))
-    } else if let Some(pos) = inside.find("as:") {
-        let after = &inside[pos + "as:".len()..];
-        extract_symbol(after).unwrap_or_else(|| crate::naming::snake(&target))
-    } else if let Some(role_pos) = inside.find("role:") {
-        let after_kwarg = &inside[role_pos + "role:".len()..];
-        extract_symbol(after_kwarg).unwrap_or_else(|| crate::naming::snake(&target))
-    } else if after_close.trim_start().starts_with(':') {
-        extract_symbol(after_close).unwrap_or_else(|| crate::naming::snake(&target))
-    } else {
-        crate::naming::snake(&target)
-    };
-
-    Some(reference_attribute(name, &target))
-}
-
-pub enum ShorthandResult {
-    Attribute(crate::ir::Attribute),
-    /// Still told apart from a plain attribute, because a reference is
-    /// PREPENDED to the attribute list rather than appended — see
-    /// `parser::parse_aggregate`.
-    Reference(crate::ir::Attribute),
-    None,
-}
-
-pub fn parse_shorthand(line: &str) -> ShorthandResult {
-    if !is_shorthand_line(line) {
-        return ShorthandResult::None;
-    }
-    if line.starts_with("reference_to(") {
-        parse_shorthand_reference(line)
-            .map(ShorthandResult::Reference)
-            .unwrap_or(ShorthandResult::None)
-    } else {
-        parse_shorthand_attribute(line)
-            .map(ShorthandResult::Attribute)
-            .unwrap_or(ShorthandResult::None)
-    }
-}
