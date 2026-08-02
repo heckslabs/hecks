@@ -89,6 +89,42 @@
       "category": "arithmetic",
       "precedence": 6,
       "arity": 2
+    },
+    {
+      "symbol": ".positive?",
+      "category": "sign_test",
+      "precedence": 7,
+      "arity": 1
+    },
+    {
+      "symbol": ".negative?",
+      "category": "sign_test",
+      "precedence": 7,
+      "arity": 1
+    },
+    {
+      "symbol": ".zero?",
+      "category": "sign_test",
+      "precedence": 7,
+      "arity": 1
+    },
+    {
+      "symbol": ".empty?",
+      "category": "sized",
+      "precedence": 8,
+      "arity": 1
+    },
+    {
+      "symbol": ".to_s",
+      "category": "to_string",
+      "precedence": 9,
+      "arity": 1
+    },
+    {
+      "symbol": ".size",
+      "category": "sized",
+      "precedence": 8,
+      "arity": 1
     }
   ],
   "normalisations": [

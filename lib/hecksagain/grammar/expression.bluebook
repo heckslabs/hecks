@@ -6,12 +6,27 @@ Hecks.bluebook "Expression" do
   aggregate "Operator" do
     description "One admitted operation — its symbol, its precedence, and how it reads in every target that must evaluate it."
 
+    # WHAT IS NOT HERE, on purpose. docs/porting/grammar.md's outer grammar
+    # has two rules that are not operators: parenthesization (a structural
+    # strip-and-recurse, no symbol of its own) and the bare-leaf fallback
+    # (whatever matches nothing else falls through to the inner grammar).
+    # Its inner grammar has three more: integer/float/string/bool/nil
+    # literals and the dotted-lookup fallback are TERMINAL productions —
+    # they recognize text, they do not combine operands, and they have
+    # nothing meaningful to render per target (a literal's spelling does
+    # not differ between Ruby and Rust the way an operation's might).
+    # Forcing them into this shape would stretch `renderings` and the
+    # Arity invariant past what they mean. They stay declared only in
+    # grammar.md's prose — named here rather than silently left out.
     identified_by { symbol.value }
 
     attribute :symbol,     OperatorSymbol
     attribute :category,   Category
     attribute :precedence, Precedence
     attribute :arity,      Arity
+    attribute :grammar,    Grammar
+    attribute :strategy,   Strategy
+    attribute :position,   Position
     attribute :renderings, list_of(Rendering)
 
     lifecycle :status, default: "proposed" do
@@ -50,6 +65,38 @@ Hecks.bluebook "Expression" do
       end
     end
 
+    # OUTER checks a leaf against `.include?`/comparators/`!` before falling
+    # through to INNER's arithmetic/dotted-lookup grammar — the two-grammar
+    # split docs/porting/grammar.md describes. Which one an operator belongs
+    # to is not derivable from its symbol alone (`+` reads like it could be
+    # either), so it is its own column rather than inferred.
+    value_object "Grammar" do
+      attribute :value, String
+      invariant("an operator belongs to one of the two stacked grammars") { !value.to_s.empty? }
+    end
+
+    # HOW the check recognizes this operator's text, not WHERE it binds
+    # (that's precedence) or WHEN it's tried (that's position). Four shapes
+    # cover every admitted operator: split at a top-level occurrence
+    # (`||`, comparators), strip a leading marker (`!`), strip a trailing
+    # suffix (`.empty?`), or match a call-with-argument pattern
+    # (`.include?(needle)`).
+    value_object "Strategy" do
+      attribute :value, String
+      invariant("an operator names how its check recognizes it") { !value.to_s.empty? }
+    end
+
+    # THE WITHIN-GRAMMAR CHECK ORDER — what precedence alone cannot say,
+    # since the six comparators all share one precedence tier and something
+    # still has to break the tie (grammar.md: `>=` before `<=` before `<`
+    # before `>` before `==` before `!=`, so `<` splitting does not fire
+    # inside `>=`). Scoped per `grammar`, mirroring Normalisation's own
+    # Position column below — each grammar starts its own count at 1.
+    value_object "Position" do
+      attribute :value, Integer
+      invariant("an operator sits somewhere in its grammar's check order") { value > 0 }
+    end
+
     value_object "Target" do
       attribute :value, String
     end
@@ -74,6 +121,15 @@ Hecks.bluebook "Expression" do
       attribute :category,   Category
       attribute :precedence, Precedence
       attribute :arity,      Arity
+      attribute :grammar,    Grammar
+      attribute :strategy,   Strategy
+      attribute :position,   Position
+
+      given("an operator belongs to the outer or the inner grammar") do
+        grammar.value == "outer" || grammar.value == "inner"
+      end
+
+      given("an operator's check strategy is one the parser actually has") { strategy.value == "top_level_split" || strategy.value == "prefix_match" || strategy.value == "suffix_match" || strategy.value == "call_pattern_match" }
 
       emits "OperatorProposed"
     end

@@ -41,6 +41,33 @@
         {
           "admits": null,
           "default": null,
+          "list": false,
+          "name": "grammar",
+          "optional": false,
+          "pattern": null,
+          "type": "Grammar"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "strategy",
+          "optional": false,
+          "pattern": null,
+          "type": "Strategy"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "position",
+          "optional": false,
+          "pattern": null,
+          "type": "Position"
+        },
+        {
+          "admits": null,
+          "default": null,
           "list": true,
           "name": "renderings",
           "optional": false,
@@ -86,6 +113,33 @@
               "optional": false,
               "pattern": null,
               "type": "Arity"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "grammar",
+              "optional": false,
+              "pattern": null,
+              "type": "Grammar"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "strategy",
+              "optional": false,
+              "pattern": null,
+              "type": "Strategy"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "position",
+              "optional": false,
+              "pattern": null,
+              "type": "Position"
             }
           ],
           "emits": [
@@ -95,7 +149,14 @@
 
           ],
           "givens": [
-
+            {
+              "canonical": "grammar.value == \"outer\" || grammar.value == \"inner\"",
+              "description": "an operator belongs to the outer or the inner grammar"
+            },
+            {
+              "canonical": "strategy.value == \"top_level_split\" || strategy.value == \"prefix_match\" || strategy.value == \"suffix_match\" || strategy.value == \"call_pattern_match\"",
+              "description": "an operator's check strategy is one the parser actually has"
+            }
           ],
           "goal": "Put an operation forward for the sublanguage",
           "mutations": [
@@ -322,6 +383,78 @@
 
           ],
           "name": "Arity"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "an operator belongs to one of the two stacked grammars"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "Grammar"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "an operator names how its check recognizes it"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "Strategy"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "Integer"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "value > 0",
+              "description": "an operator sits somewhere in its grammar's check order"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "Position"
         },
         {
           "attributes": [

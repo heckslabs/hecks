@@ -1,6 +1,6 @@
 {
   "name": "expression-parity",
-  "note": "The chapter that DEFINES the sublanguage, read by both parsers. It was outside the corpus until now, which is how it came to be written in an invariant form Rust could only half-read : six rules in Ruby, two in Rust, shipped and unseen. Every step here walks a declared gate \u2014 admitting an operator before it renders in two targets, answering a settled agreement, admitting an expression whose source did not survive extraction \u2014 because a chapter about rules is worth nothing if its own rules do not fire.",
+  "note": "The chapter that DEFINES the sublanguage, read by both parsers. It was outside the corpus until now, which is how it came to be written in an invariant form Rust could only half-read : six rules in Ruby, two in Rust, shipped and unseen. Every step here walks a declared gate — admitting an operator before it renders in two targets, answering a settled agreement, admitting an expression whose source did not survive extraction — because a chapter about rules is worth nothing if its own rules do not fire.",
   "expectations": {
     "events": 26
   },
@@ -18,6 +18,15 @@
           "value": 2
         },
         "arity": {
+          "value": 2
+        },
+        "grammar": {
+          "value": "outer"
+        },
+        "strategy": {
+          "value": "top_level_split"
+        },
+        "position": {
           "value": 2
         }
       }
@@ -110,6 +119,15 @@
         },
         "arity": {
           "value": 2
+        },
+        "grammar": {
+          "value": "outer"
+        },
+        "strategy": {
+          "value": "top_level_split"
+        },
+        "position": {
+          "value": 1
         }
       }
     },

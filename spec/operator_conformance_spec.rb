@@ -111,6 +111,39 @@ RSpec.describe "the operator domain" do
     expect(symbols(admitted("comparison"))).to eq(declared)
   end
 
+  # docs/porting/grammar.md's own claim, made checkable: "order IS the
+  # grammar." `position` is scoped per `grammar` (outer/inner each start
+  # their own count at 1) and must be dense — a gap or a duplicate would
+  # mean either a slot the parser skips or two operators claiming the same
+  # turn, neither of which the ledger can represent honestly.
+  def by_grammar(grammar) = ADMITTED.select { |op| op[:grammar].value == grammar }
+                                    .sort_by { |op| op[:position].value }
+
+  it "gives every grammar a dense, gap-free position — no skipped or doubled turn" do
+    %w[outer inner].each do |grammar|
+      positions = by_grammar(grammar).map { |op| op[:position].value }
+      expect(positions).to eq((1..positions.size).to_a), "#{grammar} grammar positions: #{positions.inspect}"
+    end
+  end
+
+  it "orders the outer grammar exactly the way grammar.md documents it" do
+    # rule 1 (parenthesization) and rule 7 (bare-leaf fallback) are
+    # structural, not operators — see the exclusion comment on the
+    # aggregate itself. This is rules 2-6, in order.
+    expect(symbols(by_grammar("outer"))).to eq(
+      ["||", "&&", ".include?", ">=", "<=", "<", ">", "==", "!=", "!"]
+    )
+  end
+
+  it "orders the inner grammar exactly the way grammar.md documents it" do
+    # rule 1 (.length), 2-5 (literals), and 12 (dotted lookup) are
+    # terminal productions, not operators — same exclusion. This is rules
+    # 6-11, in order.
+    expect(symbols(by_grammar("inner"))).to eq(
+      ["+", ".positive?", ".negative?", ".zero?", ".empty?", ".to_s", ".modulo", ".size"]
+    )
+  end
+
   it "lets no proposed or retired operator into any live table" do
     # THE MILESTONE'S CLAIM. A proposed operator is not slower or gated —
     # it does not exist to the evaluator until the ledger admits it, and
@@ -128,12 +161,18 @@ RSpec.describe "the operator domain" do
   # cases — so each is held by a behavioral probe, and direction B is
   # the probe table's keys equalling the admitted set.
   PROBES = {
-    "||"        => -> { Evaluator.parse("a || b").is_a?(Evaluator::Or) },
-    "&&"        => -> { Evaluator.parse("a && b").is_a?(Evaluator::And) },
-    "!"         => -> { Evaluator.parse("!a").is_a?(Evaluator::Not) },
-    ".include?" => -> { Evaluator.parse("list.include?(x)").is_a?(Evaluator::Include) },
-    "+"         => -> { Resolver.parse("a + b").is_a?(Resolver::Addition) },
-    ".modulo"   => -> { Resolver.parse("a.modulo(b)").is_a?(Resolver::Modulo) }
+    "||"         => -> { Evaluator.parse("a || b").is_a?(Evaluator::Or) },
+    "&&"         => -> { Evaluator.parse("a && b").is_a?(Evaluator::And) },
+    "!"          => -> { Evaluator.parse("!a").is_a?(Evaluator::Not) },
+    ".include?"  => -> { Evaluator.parse("list.include?(x)").is_a?(Evaluator::Include) },
+    "+"          => -> { Resolver.parse("a + b").is_a?(Resolver::Addition) },
+    ".modulo"    => -> { Resolver.parse("a.modulo(b)").is_a?(Resolver::Modulo) },
+    ".positive?" => -> { Resolver.parse("a.positive?").is_a?(Resolver::SignTest) },
+    ".negative?" => -> { Resolver.parse("a.negative?").is_a?(Resolver::SignTest) },
+    ".zero?"     => -> { Resolver.parse("a.zero?").is_a?(Resolver::SignTest) },
+    ".empty?"    => -> { Resolver.parse("a.empty?").is_a?(Resolver::Empty) },
+    ".to_s"      => -> { Resolver.parse("a.to_s").is_a?(Resolver::ToS) },
+    ".size"      => -> { Resolver.parse("a.size").is_a?(Resolver::Size) }
   }.freeze
 
   it "implements every admitted structural operator, and no other" do
@@ -215,7 +254,9 @@ RSpec.describe "the operator domain" do
       throwaway = self.class.boot_expression
       throwaway.dispatch("Expression::Operator.Propose",
                          symbol: { value: "**" }, category: { value: "arithmetic" },
-                         precedence: { value: 6 }, arity: { value: 2 })
+                         precedence: { value: 6 }, arity: { value: 2 },
+                         grammar: { value: "inner" }, strategy: { value: "top_level_split" },
+                         position: { value: 9 })
 
       expect { throwaway.dispatch("Expression::Operator.Admit", symbol: { value: "**" }) }
         .to raise_error(Hecksagain::Runtime::GivenNotMet,
@@ -226,7 +267,9 @@ RSpec.describe "the operator domain" do
       throwaway = self.class.boot_expression
       throwaway.dispatch("Expression::Operator.Propose",
                          symbol: { value: "**" }, category: { value: "arithmetic" },
-                         precedence: { value: 6 }, arity: { value: 2 })
+                         precedence: { value: 6 }, arity: { value: 2 },
+                         grammar: { value: "inner" }, strategy: { value: "top_level_split" },
+                         position: { value: 9 })
       throwaway.dispatch("Expression::Operator.Render",
                          symbol: { value: "**" }, target: { value: "ruby" }, form: { value: "a ** b" })
       throwaway.dispatch("Expression::Operator.Render",
