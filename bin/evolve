@@ -12,6 +12,13 @@
 #   bin/evolve deprecate <word> --context X        admitted -> deprecated
 #   bin/evolve retire  <word> --context X          deprecated/admitted -> retired
 #
+# A word's ARGUMENTS carry the same lifecycle, one level down — a keyword
+# may have several (one row per position, one per named kwarg), so an
+# argument is addressed by --keyword/--context plus --at or --named:
+#
+#   bin/evolve argument-propose <keyword> --context X --kind K [--at N] [--named NAME] [--required true|false] [--fills F]
+#   bin/evolve argument-admit|argument-deprecate|argument-retire <keyword> --context X [--at N] [--named NAME]
+#
 # Every mutating command does the same dance: snapshot the touched
 # files, rewrite the row, regenerate what the row feeds (the three
 # syntax projections and the golden Bluebook.json), then run the gates —
@@ -32,14 +39,19 @@ SNAPSHOT_PATHS = [
   "spec/golden/ir/Bluebook.json",
   "rust/src/bluebook/ir_syntax.rs",
   "rust/src/bluebook/ir_syntax_flags.rs",
+  "rust/src/bluebook/ir_syntax_text.rs",
+  "rust/src/bluebook/ir_syntax_number.rs",
   "rust/src/bluebook/ir_dispatch_words.rs"
 ].map { |rel| File.join(ROOT, rel) }.freeze
 
 GATES = %w[
   spec/syntax_conformance_spec.rb
   spec/syntax_lifecycle_spec.rb
+  spec/rust_syntax_conformance_spec.rb
   spec/ir_syntax_export_spec.rb
   spec/ir_syntax_flags_export_spec.rb
+  spec/ir_syntax_text_export_spec.rb
+  spec/ir_syntax_number_export_spec.rb
   spec/ir_dispatch_words_export_spec.rb
   spec/ir_golden_spec.rb
 ].freeze
@@ -54,6 +66,8 @@ end
 def regenerate!
   { "bin/ir_syntax"         => "rust/src/bluebook/ir_syntax.rs",
     "bin/ir_syntax_flags"   => "rust/src/bluebook/ir_syntax_flags.rs",
+    "bin/ir_syntax_text"    => "rust/src/bluebook/ir_syntax_text.rs",
+    "bin/ir_syntax_number"  => "rust/src/bluebook/ir_syntax_number.rs",
     "bin/ir_dispatch_words" => "rust/src/bluebook/ir_dispatch_words.rs" }.each do |script, target|
     output = `#{File.join(ROOT, script)}`
     abort "#{script} refused — nothing was written" unless $?.success?
@@ -123,7 +137,35 @@ when "rename"
     puts "  2. teach rust/src/bluebook the new spelling beside the old"
     puts "  3. add the identical-IR example to spec/dsl_spec.rb, then run bin/parity"
   end
+when "argument-propose"
+  keyword = ARGV.shift or abort "argument-propose which keyword's argument?"
+  context = option("context") or abort "--context is required"
+  kind = option("kind") or abort "--kind is required — text|symbol|number|flag|literal|constant|pairs|list"
+  ok = guarded("#{keyword} argument", context) do
+    Evolve.propose_argument(keyword: keyword, context: context, kind: kind,
+                            required: option("required", "false"),
+                            at: option("at", ""), named: option("named", ""),
+                            fills: option("fills", ""))
+  end
+  if ok
+    puts "Proposed. It reaches no projection until admitted. Before `bin/evolve argument-admit`:"
+    puts "  1. teach the #{context} builder's #{keyword} method the argument"
+    puts "  2. teach rust/src/bluebook the same argument, if its kind is generated (flag/text/number)"
+    puts "  3. run bin/parity"
+  end
+when "argument-admit", "argument-deprecate", "argument-retire"
+  to = { "argument-admit" => "admitted", "argument-deprecate" => "deprecated",
+         "argument-retire" => "retired" }.fetch(command)
+  keyword = ARGV.shift or abort "#{command} which keyword's argument?"
+  context = option("context") or abort "--context is required"
+  guarded("#{keyword} argument", context) do
+    Evolve.set_argument_status(keyword: keyword, context: context, to: to,
+                               at: option("at", ""), named: option("named", ""))
+  end
 else
   abort "usage: bin/evolve status|propose|admit|deprecate|retire <word> --context <Context> " \
-        "[--body none|keywords|source|rows] [--inner X] [--opens X] [--fills x]"
+        "[--body none|keywords|source|rows] [--inner X] [--opens X] [--fills x]\n" \
+        "   or: bin/evolve argument-propose|argument-admit|argument-deprecate|argument-retire " \
+        "<keyword> --context <Context> [--kind K] [--at N] [--named NAME] [--required true|false] " \
+        "[--fills F]"
 end

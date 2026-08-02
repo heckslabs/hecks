@@ -30,11 +30,19 @@ require "spec_helper"
 RSpec.describe "Rust's parser holds the language's argument names" do
   def self.meta = Hecksagain::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
 
+  # A proposed argument has no reader YET and a retired one has no reader
+  # ANY MORE — holding either to Rust's actual reads would make the
+  # lifecycle unusable, the same reason spec/syntax_conformance_spec's
+  # LIVE_ARGUMENTS excludes them. An absent status reads as admitted (the
+  # grown-column convention).
+  def self.live?(row) = %w[admitted deprecated].include?(row[:status].to_s.empty? ? "admitted" : row[:status].to_s)
+
   def self.declared_named_arguments
     syntax = meta.aggregates.find { |a| a.hecks_name == "Syntax" }
     argument = syntax.value_objects.find { |vo| vo.hecks_name == "Argument" }
     argument.members
             .map(&:to_h)
+            .select { |row| live?(row) }
             .map { |row| row[:named].to_s }
             .reject(&:empty?)
             .uniq
@@ -78,34 +86,57 @@ RSpec.describe "Rust's parser holds the language's argument names" do
     argument = syntax.value_objects.find { |vo| vo.hecks_name == "Argument" }
     argument.members
             .map(&:to_h)
-            .select { |row| row[:kind].to_s == kind }
+            .select { |row| live?(row) && row[:kind].to_s == kind }
             .map { |row| row[:named].to_s }
             .reject(&:empty?)
             .uniq
             .sort
   end
 
-  DECLARED_FLAG = declared_kind("flag")
+  # `from:` IS DECLARED TWICE, ON PURPOSE. `transition`'s `from:` is
+  # legitimately both kind "text" (one prior state) and kind "list"
+  # (several) — the one named argument in the corpus where "kind" depends
+  # on how many values are given, not on which argument it is. Excluded
+  # from bin/ir_syntax_text's table for the same reason RESERVED_KEY exists
+  # in spec/syntax_conformance_spec: a name this ambiguous cannot be held to
+  # a single kind's assertion.
+  DUAL_KIND_NAMES = %w[from].freeze
 
-  def self.rust_flag_reads
+  def self.rust_asserted_reads(assert_fn)
     sources = RUST_FILES.map { |name| File.read(File.join(InMemoryDomain::ROOT, "rust/src/bluebook/#{name}")) }
 
-    sources.flat_map { |src| src.scan(/parse_flag_kwarg\(\s*\w+,\s*"([a-z_]+):"/).flatten }.uniq.sort
+    # `parse_flag_kwarg(line, "optional:")` takes the line and the kwarg ;
+    # `assert_text_kwarg("admits:")`/`assert_number_kwarg("max_age:")` take
+    # only the kwarg — one regex covers both call shapes.
+    sources.flat_map { |src| src.scan(/#{assert_fn}\(\s*(?:\w+,\s*)?"([a-z_]+):?"\s*\)/).flatten }.uniq.sort
   end
 
-  RUST_FLAG_READS = rust_flag_reads
+  # Both directions, for every kind Rust's reader can actually be held to —
+  # `flag` (its own reader, `parse_flag_kwarg`) and `text`/`number` (shared
+  # extractors, so an explicit `assert_*_kwarg` call in front of the read is
+  # what stands in for a dedicated reader — see assert_text_kwarg's own
+  # comment in parse_blocks.rs).
+  KIND_ASSERTIONS = {
+    "flag"   => "parse_flag_kwarg",
+    "text"   => "assert_text_kwarg",
+    "number" => "assert_number_kwarg"
+  }.freeze
 
-  it "reads every flag-kind argument through parse_flag_kwarg, and nothing else through it" do
-    expect(RUST_FLAG_READS - DECLARED_FLAG).to be_empty,
-                                               "parse_flag_kwarg reads #{(RUST_FLAG_READS - DECLARED_FLAG).inspect}, " \
-                                               "which Syntax::Argument does not declare as kind \"flag\" — the " \
-                                               "reader and the declaration disagree about what shape this argument is"
+  KIND_ASSERTIONS.each do |kind, assert_fn|
+    it "reads every #{kind}-kind argument through #{assert_fn}, and nothing else through it" do
+      declared = self.class.declared_kind(kind) - DUAL_KIND_NAMES
+      read     = self.class.rust_asserted_reads(assert_fn)
 
-    expect(DECLARED_FLAG - RUST_FLAG_READS).to be_empty,
-                                               "the language declares #{(DECLARED_FLAG - RUST_FLAG_READS).inspect} " \
-                                               "as kind \"flag\", and nothing in parser.rs or parse_blocks.rs reads " \
-                                               "it through parse_flag_kwarg — either it is read as plain text " \
-                                               "(silently accepting more than true/false) or not read at all"
+      expect(read - declared).to be_empty,
+                                 "#{assert_fn} reads #{(read - declared).inspect}, which Syntax::Argument " \
+                                 "does not declare as kind #{kind.inspect} — the reader and the declaration " \
+                                 "disagree about what shape this argument is"
+
+      expect(declared - read).to be_empty,
+                                 "the language declares #{(declared - read).inspect} as kind #{kind.inspect}, " \
+                                 "and nothing in parser.rs or parse_blocks.rs reads it through #{assert_fn} — " \
+                                 "either it is read without the kind check, or not read at all"
+    end
   end
 
   it "reads at least one kwarg name from each source file, so a moved function doesn't silently empty this" do

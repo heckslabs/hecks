@@ -53,6 +53,7 @@ pub fn parse(source: &str) -> Domain {
             if let Some(name) = extract_string(line) {
                 domain.name = name;
             }
+            crate::bluebook::parse_blocks::assert_text_kwarg("version");
             if let Some(v) = extract_kwarg_string(line, "version") {
                 domain.version = Some(v);
             }

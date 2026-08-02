@@ -516,12 +516,14 @@ pub fn parse_cursor_line(line: &str) -> Option<CursorSpec> {
 
 pub fn parse_consistency_line(line: &str) -> Option<ConsistencySpec> {
     let mode = strip_symbol_colon(extract_word_after(line, "consistency")?);
+    assert_number_kwarg("timeout:");
     let timeout = extract_word_after(line, "timeout:");
     Some(ConsistencySpec { mode, timeout })
 }
 
 pub fn parse_freshness_line(line: &str) -> Option<FreshnessSpec> {
     let mode = strip_symbol_colon(extract_word_after(line, "freshness")?);
+    assert_number_kwarg("max_age:");
     let max_age = extract_word_after(line, "max_age:");
     Some(FreshnessSpec { mode, max_age })
 }
@@ -1222,6 +1224,7 @@ pub fn parse_attribute(line: &str) -> Option<Attribute> {
         (attr_type, vec![])
     };
     let pattern = parse_pattern_kwarg(line);
+    assert_text_kwarg("admits:");
     let admits = parse_quoted_kwarg(line, "admits:");
     Some(Attribute {
         name,
@@ -1267,6 +1270,33 @@ pub(crate) fn parse_flag_kwarg(line: &str, kwarg: &str) -> bool {
             .unwrap_or(false)
 }
 
+/// Asserts `kwarg` against `ir_syntax_text::TEXT_ARGUMENTS` — the same
+/// discipline `parse_flag_kwarg` holds flag-kind arguments to, one kind
+/// further. Unlike `flag`, no single function owns every text-kind read
+/// (`parse_quoted_kwarg` and `extract_kwarg_string` both do, depending on
+/// the call site), so this asserts and lets the caller's own existing
+/// extractor do the actual reading — the read does not change, only the
+/// check in front of it.
+pub(crate) fn assert_text_kwarg(kwarg: &str) {
+    let name = kwarg.trim_end_matches(':');
+    assert!(
+        crate::bluebook::ir_syntax_text::TEXT_ARGUMENTS.contains(&name),
+        "reads {kwarg:?} as kind \"text\", which Syntax::Argument does not declare — the reader \
+         and the declaration have drifted"
+    );
+}
+
+/// Asserts `kwarg` against `ir_syntax_number::NUMBER_ARGUMENTS` — see
+/// `assert_text_kwarg` above for why this asserts rather than reads.
+pub(crate) fn assert_number_kwarg(kwarg: &str) {
+    let name = kwarg.trim_end_matches(':');
+    assert!(
+        crate::bluebook::ir_syntax_number::NUMBER_ARGUMENTS.contains(&name),
+        "reads {kwarg:?} as kind \"number\", which Syntax::Argument does not declare — the reader \
+         and the declaration have drifted"
+    );
+}
+
 #[cfg(test)]
 mod flag_kwarg_tests {
     use super::parse_flag_kwarg;
@@ -1300,6 +1330,7 @@ pub(crate) fn parse_quoted_kwarg(line: &str, kwarg: &str) -> Option<String> {
 }
 
 fn parse_pattern_kwarg(line: &str) -> Option<String> {
+    assert_text_kwarg("pattern:");
     let body = parse_quoted_kwarg(line, "pattern:")?;
     match crate::pattern_subset::validate_pattern_subset(&body) {
         Ok(()) => Some(body),

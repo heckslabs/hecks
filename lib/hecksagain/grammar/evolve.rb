@@ -77,8 +77,8 @@ module Hecksagain
       # `was:` — one hop only. Renaming an already-renamed word refuses
       # until the language grows real eras for its own words; renaming
       # onto a spelling the context already declares refuses too. The
-      # word's Argument rows follow it — arguments belong to the word,
-      # not to its spelling.
+      # word's Argument rows follow it — row-aware now, not the blind
+      # substitution this used to be (see `cascade_argument_rename`).
       def rename(word:, context:, to:, path: syntax_path)
         row = keyword_rows(path).find { |r| r[:word] == word && r[:context] == context }
         raise Refusal, "#{context}.#{word} is not declared" unless row
@@ -96,8 +96,9 @@ module Hecksagain
               .sub(/\n\z/, %(, was: "#{word}"\n))
         end.join
         source = source.sub(block, updated)
-        source = source.gsub(%(keyword: "#{word}",), %(keyword: "#{to}",))
         File.write(path, source)
+
+        cascade_argument_rename(keyword: word, context: context, to: to, path: path)
       end
 
       def member_row?(line, word, context)
@@ -109,6 +110,99 @@ module Hecksagain
       def keyword_block(source)
         start = source.index(/^\s*value_object "Keyword" do$/)
         raise Refusal, "syntax.bluebook declares no Keyword value object" unless start
+
+        one_of = source.index(/^\s*one_of do$/, start)
+        closing = source.index(/^\s*end\s*$/, one_of)
+        closing = source.index(/\n/, closing) + 1
+        source[start...closing]
+      end
+
+      # ── the Argument rows — a word's own arguments, at last with tooling
+      # of their own rather than the rename-only cascade above. A word may
+      # carry SEVERAL argument rows (one per position, one per named
+      # kwarg), so identity here is the full (keyword, context, at, named)
+      # tuple, not the two-field key a Keyword row answers to.
+
+      def argument_rows(path = syntax_path)
+        block = argument_block(File.read(path))
+        block.scan(/^\s*member (.+)$/).map do |(cells)|
+          row = cells.scan(/(\w+): "((?:[^"\\]|\\.)*)"/).to_h
+          { keyword: row["keyword"], context: row["context"], at: row["at"].to_s,
+            named: row["named"].to_s, kind: row["kind"], required: row["required"],
+            fills: row["fills"].to_s, status: row.fetch("status", "admitted") }
+        end
+      end
+
+      def propose_argument(keyword:, context:, kind:, required: "false", at: "", named: "", fills: "",
+                           path: syntax_path)
+        if argument_rows(path).any? { |r| argument_identity(r) == [keyword, context, at, named] }
+          raise Refusal, "#{context}.#{keyword}'s argument at #{at.inspect}/named #{named.inspect} is " \
+                        "already declared — one row per (keyword, context, at, named)"
+        end
+
+        source = File.read(path)
+        block  = argument_block(source)
+        indent = block[/^(\s*)member /, 1] || "        "
+        row = %(#{indent}member keyword: "#{keyword}", context: "#{context}", at: "#{at}", ) +
+              %(named: "#{named}", kind: "#{kind}", required: "#{required}", fills: "#{fills}", ) +
+              %(status: "proposed"\n)
+
+        closing = block.rindex(/^\s*end\s*$/)
+        updated = block[0...closing] + row + block[closing..]
+        File.write(path, source.sub(block, updated))
+      end
+
+      def set_argument_status(keyword:, context:, to:, at: "", named: "", path: syntax_path)
+        unless %w[proposed admitted deprecated retired].include?(to)
+          raise Refusal, "#{to.inspect} is not a station an argument's life admits"
+        end
+
+        source = File.read(path)
+        block  = argument_block(source)
+        rows   = block.lines.select { |line| argument_row?(line, keyword, context, at, named) }
+        raise Refusal, "#{context}.#{keyword}'s argument at #{at.inspect}/named #{named.inspect} is not " \
+                      "declared" if rows.empty?
+
+        updated = block.lines.map do |line|
+          next line unless argument_row?(line, keyword, context, at, named)
+
+          stripped = line.sub(/,\s*status: "[^"]*"/, "")
+          to == "admitted" ? stripped : stripped.sub(/\n\z/, %(, status: "#{to}"\n))
+        end.join
+
+        File.write(path, source.sub(block, updated))
+      end
+
+      def argument_row?(line, keyword, context, at, named)
+        line =~ /^\s*member / &&
+          line.include?(%(keyword: "#{keyword}")) && line.include?(%(context: "#{context}")) &&
+          line.include?(%(at: "#{at}")) && line.include?(%(named: "#{named}"))
+      end
+
+      def argument_identity(row) = [row[:keyword], row[:context], row[:at], row[:named]]
+
+      # The rename cascade, ROW-AWARE — only the rows that actually belong
+      # to the renamed word, spelling updated in place, rather than a
+      # blind `gsub` on every `keyword: "word",` substring in the file
+      # (which a coincidentally-matching row elsewhere could have
+      # corrupted, and which read nothing before writing).
+      def cascade_argument_rename(keyword:, context:, to:, path: syntax_path)
+        source = File.read(path)
+        block  = argument_block(source)
+        updated = block.lines.map do |line|
+          next line unless line =~ /^\s*member / &&
+                           line.include?(%(keyword: "#{keyword}")) && line.include?(%(context: "#{context}"))
+
+          line.sub(%(keyword: "#{keyword}"), %(keyword: "#{to}"))
+        end.join
+        File.write(path, source.sub(block, updated))
+      end
+
+      # From `value_object "Argument"` to the end of its one_of block —
+      # the only region these methods may touch.
+      def argument_block(source)
+        start = source.index(/^\s*value_object "Argument" do$/)
+        raise Refusal, "syntax.bluebook declares no Argument value object" unless start
 
         one_of = source.index(/^\s*one_of do$/, start)
         closing = source.index(/^\s*end\s*$/, one_of)
