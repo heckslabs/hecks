@@ -139,10 +139,7 @@ pub fn parse_command(lines: &[&str], owner: &str) -> (Command, usize) {
                     // the corpus has exercised it yet, but the language
                     // declares it (Command.reference_to's `optional:` row in
                     // syntax.bluebook) and Ruby honors it.
-                    let optional = line.contains("optional:")
-                        && extract_after(line, "optional:")
-                            .map(|a| a.trim_start().starts_with("true"))
-                            .unwrap_or(false);
+                    let optional = parse_flag_kwarg(line, "optional:");
                     cmd.attributes.push(reference_attribute(name, &target, optional));
                 }
             } else if line.starts_with("given") && line.contains(" do ") && line.ends_with("end") {
@@ -1141,10 +1138,7 @@ pub fn parse_attribute(line: &str) -> Option<Attribute> {
         raw.to_string()
     };
 
-    let optional = line.contains("optional:")
-        && extract_after(line, "optional:")
-            .map(|a| a.trim_start().starts_with("true"))
-            .unwrap_or(false);
+    let optional = parse_flag_kwarg(line, "optional:");
     let default = if line.contains("default:") {
         Some(extract_after(line, "default:")?.trim().to_string())
     } else {
@@ -1180,6 +1174,19 @@ pub fn parse_attribute(line: &str) -> Option<Attribute> {
 /// Split out of `parse_pattern_kwarg`, which read exactly this shape and then
 /// went on to validate a regex. `admits` is the second reader of the shape and
 /// wants none of the validating, so the reading is the part they share.
+/// A KWARG WHOSE VALUE IS `true` OR `false` — `optional:` on an `attribute` or
+/// a `reference_to`, the FLAG argument kind `Syntax::Argument` declares.
+/// Absent entirely reads as `false` : ABSENT IS NOT EMPTY, same reading as
+/// everywhere else this codebase draws that distinction, but a flag has only
+/// the one field to be absent OR present-and-something, so there is no third
+/// state for it to lose.
+pub(crate) fn parse_flag_kwarg(line: &str, kwarg: &str) -> bool {
+    line.contains(kwarg)
+        && extract_after(line, kwarg)
+            .map(|a| a.trim_start().starts_with("true"))
+            .unwrap_or(false)
+}
+
 pub(crate) fn parse_quoted_kwarg(line: &str, kwarg: &str) -> Option<String> {
     let after = line.split(kwarg).nth(1)?.trim_start();
     let quote = after.chars().next().filter(|c| *c == '\'' || *c == '"')?;
