@@ -6,7 +6,7 @@ RSpec.describe "Banking across persistence adapters" do
   ADAPTER_MATRIX_BLUEBOOK = File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/banking.bluebook")
   ADAPTERS = {
     "Memory" => InMemoryDomain::MEMORY_ADAPTER,
-    "Heki"   => File.join(InMemoryDomain::ROOT, "lib/hecksagain/adapters/driven/heki/heki.adapter"),
+    "Heki"   => File.join(InMemoryDomain::ROOT, "lib/hecksagain/adapters/driven/heki.adapter"),
     "SqlitePersistence" => File.join(InMemoryDomain::ROOT, "lib/hecksagain/adapters/driven/sqlite/sqlite.adapter"),
     "SqliteProjection" => File.join(InMemoryDomain::ROOT, "lib/hecksagain/adapters/driven/sqlite/sqlite.adapter")
   }.freeze
