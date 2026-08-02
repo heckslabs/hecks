@@ -56,15 +56,13 @@ RSpec.describe "the syntax lifecycle" do
     end
   end
 
-  it "keeps every current word admitted — nothing is mid-transition" do
-    # The day a word is proposed or deprecated, this example changes with
-    # it, deliberately: a transition should be visible in the suite, not
-    # only in the table.
-    in_transition = (WORD_ROWS + ARGUMENT_ROWS).reject { |row| status_of(row) == "admitted" }
-    expect(in_transition).to be_empty,
-                             "words mid-transition: " \
-                             "#{in_transition.map { |row| row[:word] || row[:keyword] }.inspect}"
-  end
+  # ("Nothing mid-transition" was pinned here once — an empty-set gate on
+  # any non-admitted row. bin/evolve made it wrong: a proposal must be able
+  # to land green. Its job passed to syntax_conformance_spec's lifecycle
+  # directions — a proposed word must be UNANSWERED by its builder, a
+  # retired one must be unanswered again, and a live word is held to the
+  # builder exactly as before. The suite still names every transition; it
+  # just no longer forbids being in one.)
 
   it "projects no proposed or retired word into any generated table" do
     # The generators reject them at the source; this holds the rule from

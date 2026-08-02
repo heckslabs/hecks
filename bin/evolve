@@ -1,0 +1,116 @@
+#!/usr/bin/env ruby
+
+# The language-change convention, made executable. Adding a word to the
+# bluebook surface has always been a many-file walk — syntax row, Ruby
+# builder, Rust parser arm, regenerated projections, moved golden — held
+# together by memory and review. This tool walks it, in the lifecycle
+# the syntax table now carries:
+#
+#   bin/evolve status                             where every word stands
+#   bin/evolve propose <word> --context Aggregate  a row enters, proposed
+#   bin/evolve admit   <word> --context Aggregate  proposed -> admitted
+#   bin/evolve deprecate <word> --context X        admitted -> deprecated
+#   bin/evolve retire  <word> --context X          deprecated/admitted -> retired
+#
+# Every mutating command does the same dance: snapshot the touched
+# files, rewrite the row, regenerate what the row feeds (the three
+# syntax projections and the golden Bluebook.json), then run the gates —
+# syntax conformance, the lifecycle spec, the export freshness specs.
+# Green: the change stands, and the tool prints what remains by hand
+# (a proposed word still needs its builder and its Rust arm before
+# admission will hold). Red: every file is restored byte-for-byte and
+# the failures print as the checklist they are. The tool never leaves a
+# tree the suite has not accepted.
+
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+require "hecksagain/grammar/evolve"
+
+ROOT = File.expand_path("..", __dir__)
+
+SNAPSHOT_PATHS = [
+  "lib/hecksagain/language/bluebook/syntax.bluebook",
+  "spec/golden/ir/Bluebook.json",
+  "rust/src/bluebook/ir_syntax.rs",
+  "rust/src/bluebook/ir_syntax_flags.rs",
+  "rust/src/bluebook/ir_dispatch_words.rs"
+].map { |rel| File.join(ROOT, rel) }.freeze
+
+GATES = %w[
+  spec/syntax_conformance_spec.rb
+  spec/syntax_lifecycle_spec.rb
+  spec/ir_syntax_export_spec.rb
+  spec/ir_syntax_flags_export_spec.rb
+  spec/ir_dispatch_words_export_spec.rb
+  spec/ir_golden_spec.rb
+].freeze
+
+Evolve = Hecksagain::Grammar::Evolve
+
+def option(name, default = nil)
+  index = ARGV.index("--#{name}")
+  index ? ARGV[index + 1] : default
+end
+
+def regenerate!
+  { "bin/ir_syntax"         => "rust/src/bluebook/ir_syntax.rs",
+    "bin/ir_syntax_flags"   => "rust/src/bluebook/ir_syntax_flags.rs",
+    "bin/ir_dispatch_words" => "rust/src/bluebook/ir_dispatch_words.rs" }.each do |script, target|
+    output = `#{File.join(ROOT, script)}`
+    abort "#{script} refused — nothing was written" unless $?.success?
+    File.write(File.join(ROOT, target), output)
+  end
+  system({ "GOLDEN" => "rewrite" },
+         "bundle", "exec", "rspec", "spec/ir_golden_spec.rb",
+         chdir: ROOT, out: File::NULL, err: File::NULL)
+end
+
+def gates_pass?
+  system("bundle", "exec", "rspec", *GATES, chdir: ROOT)
+end
+
+def guarded(word, context)
+  snapshots = SNAPSHOT_PATHS.to_h { |path| [path, File.read(path)] }
+  yield
+  regenerate!
+  if gates_pass?
+    puts "\n#{context}.#{word} — the gates hold. Regenerated projections and the golden are in the tree."
+    true
+  else
+    snapshots.each { |path, content| File.write(path, content) }
+    puts "\nRESTORED — the gates refused, and the failures above are the checklist. " \
+         "Nothing was changed."
+    false
+  end
+end
+
+command = ARGV.shift
+
+case command
+when "status"
+  rows = Evolve.keyword_rows
+  moving = rows.reject { |row| row[:status] == "admitted" }
+  puts "#{rows.size} keyword rows; #{moving.size} not simply admitted"
+  moving.each { |row| puts "  #{row[:status].ljust(10)} #{row[:context]}.#{row[:word]}" }
+when "propose"
+  word = ARGV.shift or abort "propose what word?"
+  context = option("context") or abort "--context is required — a word is a word somewhere"
+  ok = guarded(word, context) do
+    Evolve.propose(word: word, context: context,
+                   body: option("body", "none"), inner: option("inner", ""),
+                   opens: option("opens", ""), fills: option("fills", ""))
+  end
+  if ok
+    puts "Proposed. It reaches no projection until admitted. Before `bin/evolve admit`:"
+    puts "  1. teach the #{context} builder the word (and its spec/dsl_spec example)"
+    puts "  2. teach rust/src/bluebook/parser.rs the same word"
+    puts "  3. run bin/parity"
+  end
+when "admit", "deprecate", "retire"
+  to = { "admit" => "admitted", "deprecate" => "deprecated", "retire" => "retired" }.fetch(command)
+  word = ARGV.shift or abort "#{command} what word?"
+  context = option("context") or abort "--context is required"
+  guarded(word, context) { Evolve.set_status(word: word, context: context, to: to) }
+else
+  abort "usage: bin/evolve status|propose|admit|deprecate|retire <word> --context <Context> " \
+        "[--body none|keywords|source|rows] [--inner X] [--opens X] [--fills x]"
+end

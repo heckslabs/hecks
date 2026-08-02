@@ -45,6 +45,22 @@ RSpec.describe "the declared syntax" do
   BODIES        = rows("Body").map { |row| row[:name] }
   ARGUMENT_KIND = rows("ArgumentKind").map { |row| row[:name] }
 
+  # A word's LIFE decides which gates hold it. Admitted and deprecated
+  # words are LIVE — a builder answers them, and every builder⇄row gate
+  # below runs over these. A proposed word has no builder YET and a
+  # retired one has no builder ANY MORE, so holding either to a builder
+  # would make the lifecycle unusable: bin/evolve could never land a
+  # proposal green. They get their own gates instead (the last two
+  # examples of the word⇄builder section). An absent status reads as
+  # admitted — the grown-column convention, see syntax_lifecycle_spec.
+  def self.status_of(row) = row[:status].to_s.empty? ? "admitted" : row[:status].to_s
+
+  def self.live?(row) = %w[admitted deprecated].include?(status_of(row))
+
+  LIVE_KEYWORDS  = KEYWORDS.select { |row| live?(row) }
+  LIVE_KEYS      = LIVE_KEYWORDS.map { |row| [row[:word], row[:context]] }.uniq
+  LIVE_ARGUMENTS = ARGUMENTS.select { |row| live?(row) && LIVE_KEYS.include?([row[:keyword], row[:context]]) }
+
   # WHERE EACH CONTEXT'S WORDS ARE ANSWERED. `File` is the only one not answered
   # by a builder — `Hecks.bluebook` is reached through a module — and `Type` is
   # the only one whose "builder" is a mixin rather than a class, because the type
@@ -136,7 +152,7 @@ RSpec.describe "the declared syntax" do
     builder.instance_method(word)
   end
 
-  def declared_in(context) = KEYWORDS.select { |row| row[:context] == context }
+  def declared_in(context) = LIVE_KEYWORDS.select { |row| row[:context] == context }
 
   # ---------------------------------------------------------------- the cells
 
@@ -211,7 +227,7 @@ RSpec.describe "the declared syntax" do
       declared = contexts.flat_map { |ctx| declared_in(ctx).map { |row| row[:word].to_sym } }.uniq
 
       if builder.is_a?(Class) && builder.include?(D::AttributeCollector)
-        declared += KEYWORDS.select { |row| row[:context] == "Type" }
+        declared += LIVE_KEYWORDS.select { |row| row[:context] == "Type" }
                             .map { |row| row[:word].to_sym }
                             .select { |word| builder.instance_method(word).owner.equal?(D::AttributeCollector) }
       end
@@ -225,6 +241,28 @@ RSpec.describe "the declared syntax" do
     end
   end
 
+  # THE LIFECYCLE'S OWN TWO DIRECTIONS. A proposed word is declared and
+  # not yet implemented — a builder already answering it means it earned
+  # admission, and the row should say so. A retired word is the reverse:
+  # a builder still answering it means it never actually left.
+  it "leaves every proposed word unanswered — answered means admit it" do
+    early = KEYWORDS.select { |row| self.class.status_of(row) == "proposed" }
+                    .select { |row| self.class.words_answered_by(row[:context]).include?(row[:word].to_sym) }
+
+    expect(early).to be_empty,
+                     early.map { |row| "#{row[:context]}.#{row[:word]}" }.join(", ") +
+                     " — proposed, but the builder already answers; run bin/evolve admit"
+  end
+
+  it "leaves every retired word unanswered — answered means it never left" do
+    lingering = KEYWORDS.select { |row| self.class.status_of(row) == "retired" }
+                        .select { |row| self.class.words_answered_by(row[:context]).include?(row[:word].to_sym) }
+
+    expect(lingering).to be_empty,
+                         lingering.map { |row| "#{row[:context]}.#{row[:word]}" }.join(", ") +
+                         " — retired, but the builder still answers"
+  end
+
   # ------------------------------------------------------ arguments ⇄ signature
 
   it "joins every argument row to a word" do
@@ -235,7 +273,7 @@ RSpec.describe "the declared syntax" do
   end
 
   it "declares every keyword argument each word's builder takes, and no other" do
-    ARGUMENTS.group_by { |row| [row[:keyword], row[:context]] }.each do |(word, context), args|
+    LIVE_ARGUMENTS.group_by { |row| [row[:keyword], row[:context]] }.each do |(word, context), args|
       params  = method_for(word, context).parameters
       taken   = params.select { |kind, _| %i[key keyreq].include?(kind) }.map { |_, name| name.to_s }
       spelled = args.reject { |row| row[:named].empty? }.map { |row| row[:named] }.uniq
@@ -251,7 +289,7 @@ RSpec.describe "the declared syntax" do
   end
 
   it "declares no more positionals than each word's builder takes" do
-    ARGUMENTS.group_by { |row| [row[:keyword], row[:context]] }.each do |(word, context), args|
+    LIVE_ARGUMENTS.group_by { |row| [row[:keyword], row[:context]] }.each do |(word, context), args|
       positional = args.reject { |row| row[:at].empty? }
       next if positional.empty?
 
@@ -275,7 +313,7 @@ RSpec.describe "the declared syntax" do
   # checked one way on purpose: an optional parameter may be declared required,
   # but a required one may never be declared optional.
   it "never calls an argument optional that the builder demands" do
-    ARGUMENTS.group_by { |row| [row[:keyword], row[:context]] }.each do |(word, context), args|
+    LIVE_ARGUMENTS.group_by { |row| [row[:keyword], row[:context]] }.each do |(word, context), args|
       params = method_for(word, context).parameters
 
       params.each_with_index do |(kind, name), index|
