@@ -10,27 +10,25 @@
 //! A standalone text scan, deliberately: the IR structs are generated
 //! from the language definition now, so parse-time bookkeeping has
 //! nowhere to live on the Aggregate itself.
+//!
+//! `BLOCK_KEYWORDS` used to be hand-written here, "because nothing
+//! declares what the keywords are" — its own comment, before
+//! `language/bluebook/syntax.bluebook` existed. It had drifted: five of
+//! its twelve words (`view`, `rule`, `factory`, `create`, and
+//! `invariant` — a real word, but typed in a value object rather than
+//! an aggregate) were not words the language admits at aggregate-body
+//! level at all, so each was treated as a KNOWN keyword and let straight
+//! through the check meant to catch exactly that. It is
+//! `bluebook::ir_syntax::BLOCK_KEYWORDS` now — projected from the
+//! language, held equal to it by spec/syntax_conformance_spec.rb.
+
+use crate::bluebook::ir_syntax::BLOCK_KEYWORDS;
 
 pub struct NearMiss {
     pub aggregate: String,
     pub keyword: String,
     pub suggestion: String,
 }
-
-const BLOCK_KEYWORDS: &[&str] = &[
-    "command",
-    "query",
-    "value_object",
-    "entity",
-    "invariant",
-    "view",
-    "rule",
-    "policy",
-    "factory",
-    "lifecycle",
-    "create",
-    "identified_by",
-];
 
 /// First near-miss block keyword at aggregate-body level, if any.
 pub fn scan(source: &str) -> Option<NearMiss> {

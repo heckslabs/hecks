@@ -6,7 +6,7 @@ module Hecksagain
     # Judges a bluebook by DISPATCHING it into the language declared in itself.
     #
     # `lib/hecksagain/language/bluebook/` declares what a bluebook IS —
-    # Chapter, Root, Verb, Shape, Ask, Piece, and the rest, split across eight
+    # Chapter, Root, Verb, Shape, Ask, Piece, and the rest, split across nine
     # files by function and merged into one chapter at load time (see
     # GRAMMAR_FILES below) — and carries the language's rules as `given` and
     # `invariant` rather than as `raise Malformed` scattered across seven
@@ -23,12 +23,12 @@ module Hecksagain
     # judged in a fresh in-memory store so no domain can see another's records.
     module MetaValidator
       # THE CHAPTER, SPLIT BY FUNCTION, MERGED AT LOAD TIME. One 1973-line file
-      # became eight, grouped by what each piece of the language IS (a root, what
+      # became nine, grouped by what each piece of the language IS (a root, what
       # it can do, what it is made of, what reacts to it, its closed vocabulary,
       # the read-back) rather than left as one undifferentiated block. Every file
       # opens the SAME `Hecks.bluebook "Bluebook" do ... end` ; `BluebookBuilder.build`
       # keeps one builder open per chapter name across calls (see its own comment),
-      # so loading all eight in order accumulates one domain, not eight.
+      # so loading all nine in order accumulates one domain, not nine.
       #
       # ORDER IS AN EXPLICIT LIST, not a sorted glob. Declaration order is a fact
       # about the source — the golden IR fixture pins the exact sequence — and a
@@ -36,7 +36,7 @@ module Hecksagain
       # by accident. This is the array to edit when a file is added, removed, or
       # reordered.
       GRAMMAR_DIR   = File.expand_path("../language/bluebook", __dir__).freeze
-      GRAMMAR_FILES = %w[bluebook aggregate behavior shape entity reaction vocabulary projection]
+      GRAMMAR_FILES = %w[bluebook aggregate behavior shape entity reaction vocabulary syntax projection]
                         .map { |name| File.join(GRAMMAR_DIR, "#{name}.bluebook") }.freeze
       # a world is a SIBLING artifact, described in its own file
       WORLD_GRAMMAR = File.expand_path("../language/world.bluebook", __dir__).freeze
@@ -158,7 +158,7 @@ module Hecksagain
       end
 
       # THE ONE PLACE THE GRAMMAR'S OWN BOOT SEQUENCE IS SPELLED — ports, the
-      # memory/prism adapters, the (now eight-file) chapter itself, then the
+      # memory/prism adapters, the (now nine-file) chapter itself, then the
       # sibling world grammar. `grammar_registry` uses this for its memoised
       # singleton ; anything that needs an ISOLATED registry (a spec wanting a
       # fresh store per example, say) calls this directly instead of hand-

@@ -12,47 +12,92 @@ bottom of this file; the original is in git history if you want the rest.
 
 `main` at `2bf5cd5`, pushed, clean. Gates:
 
-    bundle exec rspec                             700 examples, 0 failures
+    bundle exec rspec                             728 examples, 0 failures
     cd rust && cargo test --release --workspace   passing, 0 warnings
     bin/parity                                    AGREED, 15 stages, 120 mutants
 
 `core.hooksPath` is LOCAL config — a fresh clone needs
 `git config core.hooksPath .githooks` or the pre-push parity gate is silent.
 
-## THE NEXT TASK, AND ITS BLOCKER
+## THE NEXT TASK — the blocker is gone, the parser is not
 
 **Goal: project the PARSER from the language.** That is where the value is — the
 shapes projection buys almost nothing (see "what the projection is actually worth"
 below), and every bug this arc found lived in hand-written parsing and reading.
 
-**It is blocked, and the blocker is the task.** The language declares SHAPE, not
-SPELLING. `lib/hecksagain/language/bluebook/*.bluebook` say an `Aggregate` has
-`identified_by: list_of(IdentityPath)` and a `Field` has a name, a type and a
-cardinality. Nothing anywhere says that the field is spelled `identified_by`, that a
-block opens with `do`, or that a symbol argument starts with `:`. Grep those files for
-keyword/token/syntax and the only hit is a comment.
+**The blocker was that the language declared SHAPE and not SPELLING.** It does both
+now. `lib/hecksagain/language/bluebook/syntax.bluebook` declares a `Syntax` aggregate
+holding two closed sets — `Keyword` (77 rows: the word, the body it may be typed in,
+what block it opens, the category it declares, the field it fills) and `Argument` (120
+rows: positional or named, what it looks like typed, required or not, what it fills) —
+plus `Context`, `Body` and `ArgumentKind` for the cells to admit into.
 
-So a projected parser needs the language to declare its own syntax FIRST. That is a
-language-design change, not a generator.
+**No commands, on purpose**, the same reading as `Vocabulary` beside it: a domain does
+not declare its own syntax, so nothing dispatches this, `Plan` skips it by
+construction, and it costs nothing in the judge or in `WholeBluebook`. `bin/ir_structs`
+subtracts it beside `Vocabulary` and `Member`, with the reason in the header.
 
-**Why this is exactly the right diagnosis, not a dodge:** when `identified_by` became
-`list_of(IdentityPath)`, the PROJECTED struct regenerated to `Vec<String>` and was
-correct with nobody touching it. Both hand-written halves broke — Rust's parser could
-not read `identified_by do` at all (it swallowed whole aggregate bodies, silently) and
-the dispatcher read the field with `as_str`, got `None` on an array, and fell through
-to a minted `"id"`. The declared half survived; the undeclared halves did not.
+`spec/syntax_conformance_spec.rb` is what keeps it from being decoration — 38 examples
+reading the declaration out of the IR and holding the live builders to it IN BOTH
+DIRECTIONS. Probed, not assumed: a declared word no builder answers goes red, a builder
+grown a word the language does not declare goes red, a `fills` naming a field that does
+not exist goes red, a keyword argument the builder takes and the language omits goes
+red.
 
-### The first step
+### What writing it found (the value was in the audit, as predicted)
 
-Give the language a syntax layer: each category's fields gaining the KEYWORD that
-spells them, and which forms they accept (inline `{ … }`, block `do … end`, bare
-symbol). Two existing hand-written inventories to lift from rather than invent:
+- **`strict_boot.rs`'s near-miss list is wrong, in the dangerous direction.** Five of
+  its twelve block keywords are not words of the language at aggregate-body level —
+  `view`, `rule`, `factory`, `create` are words this Ruby never had, and `invariant` is
+  a real word in the WRONG BODY (a value object, not an aggregate). A word ON that list
+  is treated as KNOWN and passed, so `factory do` is waved through by the check that
+  exists to catch it. Pinned as `NEAR_MISS_DIVERGENCE` in the conformance spec;
+  shrinking that constant is the fix.
+- **`identified_by :sequence` is admitted by both builders and refused by the
+  language.** `EntityBuilder`'s own comment advertises it ("names the attribute and lets
+  the whole value object stand as the id"); `Identify`'s given asks that a part reach a
+  scalar (`include?(".") || include?("_id")`), which a bare symbol does not. The form is
+  declared because the surface admits it. The comment is stale.
+- **`one_of` means two different things and one of them is unreachable.**
+  `ValueObjectBuilder` defines `one_of(&block)` over `AttributeCollector`'s
+  `one_of(*values)`, so inside a value-object body the inline type form is shadowed and
+  `attribute :size, one_of("small", "large")` raises. Legal at aggregate level, illegal
+  one level in, and nothing said so.
+- **`member` outside `one_of` is accepted.** `one_of` instance_evals its block on the
+  builder itself, so the nesting is a convention of the spelling that the host-language
+  builder cannot enforce — and a parser projected from these rows would.
+- **A read model's filters are options where an ask's are fields.** Same three words
+  (`where`, `order_by`, `limit`), same builder module, different landing. That was a
+  comment in `readings.rb`; it is a column now.
 
-- `rust/src/runtime/strict_boot.rs` — a keyword list with "did you mean" suggestions.
-  It exists ONLY because nothing declares what the keywords are.
-- `bin/ir_structs`'s emitted header — the map of where the language already comes up
-  short (`Lifecycle`, `OrderBy`, `Direction`, `LimitSpec`, `ValueSpec` have no language
-  source; `Query.limit`, `ValueObject.members`, `Policy.aggregate` are real divergences).
+### The next rung, done
+
+`bin/ir_syntax` projects `Syntax::Keyword` (rows where `context: "Aggregate"` and
+`body` is `"keywords"` or `"source"`) into `rust/src/bluebook/ir_syntax.rs`'s
+`BLOCK_KEYWORDS` — seven words: `command`, `entity`, `identified_by`, `lifecycle`,
+`policy`, `query`, `value_object`. `runtime::strict_boot` reads it from there instead
+of carrying its own copy. `spec/ir_syntax_export_spec.rb` holds the checked-in file to
+the generator ; `spec/syntax_conformance_spec.rb`'s last example holds the generator's
+own selection rule to exactly what got projected, so a change to either without the
+other goes red.
+
+**Probed, not just built green**: a `factory do … end` block used to be silently
+treated as a KNOWN keyword (it was on the old hand-written list) and so was immune to
+the near-miss check meant to catch exactly this. It now falls through to the
+PRE-EXISTING, NAMED gap instead — the parser silently drops a construct it does not
+recognize, same as any other alien word — which is the honest failure mode and not a
+new one. Fixing that silent-drop gap is a different, larger task (full load/refuse
+parity, named in strict_boot's own doc comment) and was not attempted here.
+
+`bin/ir_structs`'s emitted header stays the map of where the language still comes up
+short (`Lifecycle`, `OrderBy`, `Direction`, `LimitSpec`, `ValueSpec` have no language
+source; `Query.limit`, `ValueObject.members`, `Policy.aggregate` are real
+divergences) — that generator is untouched by this rung.
+
+**Scope that was deliberately left out**, and it is named rather than half-done: only
+the `.bluebook` surface is declared. `.port`, `.adapter`, `.hecksagon`, `.world` and
+`translations/*.bluebook` are sibling artifacts with their own builders and their own
+files; the conformance spec excludes each by name with its reason.
 
 Bluebook first, and it is not optional — `bluebook.bluebook` is where this goes.
 

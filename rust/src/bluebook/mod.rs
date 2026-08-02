@@ -4,6 +4,7 @@ pub mod hecksagon_ir;
 pub mod hecksagon_parser;
 pub mod ir;
 pub mod ir_structs;
+pub mod ir_syntax;
 pub mod ir_vocabulary;
 pub mod parse_blocks;
 pub mod parser;
