@@ -7,8 +7,8 @@ RSpec.describe "Banking across persistence adapters" do
   ADAPTERS = {
     "Memory" => InMemoryDomain::MEMORY_ADAPTER,
     "Heki"   => File.join(InMemoryDomain::ROOT, "lib/hecksagain/adapters/driven/heki.adapter"),
-    "SqlitePersistence" => File.join(InMemoryDomain::ROOT, "lib/hecksagain/adapters/driven/sqlite/sqlite.adapter"),
-    "SqliteProjection" => File.join(InMemoryDomain::ROOT, "lib/hecksagain/adapters/driven/sqlite/sqlite.adapter")
+    "SqlitePersistence" => File.join(InMemoryDomain::ROOT, "lib/hecksagain/adapters/driven/sqlite.adapter"),
+    "SqliteProjection" => File.join(InMemoryDomain::ROOT, "lib/hecksagain/adapters/driven/sqlite.adapter")
   }.freeze
   AUTHORITATIVE_ADAPTERS = %w[Memory Heki SqlitePersistence].freeze
 

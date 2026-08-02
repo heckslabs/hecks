@@ -9,8 +9,8 @@ module Hecksagain
 end
 
 require_relative "driven/memory"
-require_relative "driven/sqlite/sqlite"
-require_relative "driven/postgres/postgres"
+require_relative "driven/sqlite"
+require_relative "driven/postgres"
 require_relative "driven/heki"
 require_relative "driven/prism"
 require_relative "driven/folder"
