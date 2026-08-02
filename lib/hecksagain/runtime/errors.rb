@@ -16,6 +16,10 @@ module Hecksagain
     # that never arrived. Between them they say a command takes exactly the
     # arguments it declares — no others, and all of them.
     class AbsentArgument < StandardError; end
+    # A creating command whose derived identity already names a record. The
+    # record it would have overwritten stands ; the dispatch that tried to
+    # mint a second one over it is what refuses.
+    class AlreadyExists < StandardError; end
 
     # The domain saying NO — the errors a reaction may legitimately meet and
     # record as an undelivered outcome. A policy whose target refuses is a fact
@@ -42,7 +46,7 @@ module Hecksagain
     # its first run : every corpus refusal must be a class named here, and 23
     # of banking's were InvariantViolation.
     DOMAIN_REFUSALS = [
-      AbsentArgument, GivenNotMet, InvariantViolation, LifecycleRefused, NotFound,
+      AbsentArgument, AlreadyExists, GivenNotMet, InvariantViolation, LifecycleRefused, NotFound,
       TypeMismatch, UnknownArgument, UnknownVerb
     ].freeze
   end

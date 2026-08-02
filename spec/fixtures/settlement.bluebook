@@ -124,7 +124,12 @@ Hecks.bluebook "Wire" do
   end
 
   process_manager "Carry" do
-    correlates_by :wire
+    # THE FIELD, NAMED — Wire.Ask declares `attribute :reference,
+    # WireReference`, the same field Wire's own `identified_by { reference.value }`
+    # derives its id from, so this reaches the exact scalar the old bare
+    # `:wire` reached only by coincidence (the aggregate's own reference key
+    # happening to spell the same as the correlation name).
+    correlates_by :"reference.value"
     starts_on "WireAsked"
     ends_on   "WireLanded"
 
@@ -134,16 +139,23 @@ Hecks.bluebook "Wire" do
     state "returned"
 
     on "WireAsked", transition: { "asked" => "asked" } do
-      dispatch "Wire::Drawer.Take", with: { number: :source, amount: :amount, wire: :wire }
+      # `reference:` carries the correlation forward — Drawer does not
+      # reference Wire, so this is pure passthrough, not an addressing key.
+      dispatch "Wire::Drawer.Take", with: { number: :source, amount: :amount, reference: :reference }
     end
 
     on "Taken", transition: { "asked" => "carrying" } do
-      dispatch "Wire::Wire.Moved",  with: { wire: :wire }
-      dispatch "Wire::Drawer.Put",  with: { number: :destination, amount: :amount, wire: :wire }
+      # `wire:` HERE IS DIFFERENT — Wire.Moved references Wire itself, so
+      # `wire:` is its own reference key (Naming.reference_key("Wire::Wire")
+      # == "wire"), addressing which record to act on. The VALUE stays
+      # `:reference`, reading the correlation the same way every other leg
+      # does.
+      dispatch "Wire::Wire.Moved",  with: { wire: :reference }
+      dispatch "Wire::Drawer.Put",  with: { number: :destination, amount: :amount, reference: :reference }
     end
 
     on "PutIn", transition: { "carrying" => "landed" } do
-      dispatch "Wire::Wire.Landed", with: { wire: :wire }
+      dispatch "Wire::Wire.Landed", with: { wire: :reference }
     end
 
     # The compensating leg, and its trigger is a REFUSAL rather than an event —
@@ -152,8 +164,8 @@ Hecks.bluebook "Wire" do
     # stalled and dispatch Wire.Returned by hand ; until they did, the money was
     # out of the source drawer and nowhere else.
     on :refused, transition: { "carrying" => "returned" } do
-      dispatch "Wire::Drawer.Put",    with: { number: :source, amount: :amount, wire: :wire }
-      dispatch "Wire::Wire.Returned", with: { wire: :wire }
+      dispatch "Wire::Drawer.Put",    with: { number: :source, amount: :amount, reference: :reference }
+      dispatch "Wire::Wire.Returned", with: { wire: :reference }
     end
   end
 end

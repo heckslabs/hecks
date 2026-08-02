@@ -60,6 +60,16 @@ module Hecksagain
           # and they disagreed because removing them fell through to here.
           id = identity_of(aggregate, args) ||
                raise(NotFound, "#{command.hecks_name} creates a #{aggregate.hecks_name} — pass #{identity_reading(aggregate)}:")
+          # A SECOND CREATION IS NOT A FRESH ONE. Nothing here checked whether
+          # the derived id already named a record, so the same creating
+          # command dispatched twice with the same identity silently built a
+          # SECOND `Instance` and overwrote the first at save — the tenant a
+          # box was rented to, gone without a refusal. A branch and box
+          # number are a small, finite set a caller can collide with by
+          # mistake in a way a minted reference cannot.
+          raise(AlreadyExists, "#{command.hecks_name} creates a #{aggregate.hecks_name} that already exists — " \
+                                "#{identity_reading(aggregate)} #{Rendering.describe(id)}") if repository.find(id)
+
           Instance.new(aggregate: aggregate, id: id)
         else
           # A COMMAND THAT ACTS ON A RECORD MAY NAME IT BY THE ID IT DERIVED.
@@ -149,7 +159,7 @@ module Hecksagain
       # does, refusing the key here would break every saga in the corpus.
       def correlation_keys(domain)
         Array(@registry.bluebook(domain)&.process_managers)
-          .filter_map { |saga| saga.correlates_by&.to_sym }
+          .filter_map { |saga| saga.correlates_by && saga.correlation_head }
       end
 
       def normalize_args(domain, aggregate, command, args)

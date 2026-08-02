@@ -42,14 +42,20 @@ RSpec.describe "a policy" do
 
   it "fires once per matching event, not once per declaration site" do
     runtime = boot_reflex
+    # TWO DISTINCT LIGHTS — `name:` is what Light is identified by; `id:` was
+    # never anything but an unread decoy. The second dispatch used to collide
+    # with the first (same `name:`, silently overwritten) and still pass,
+    # because nothing checked whether a creating command's identity already
+    # existed. AlreadyExists (see command_interpreter.rb) caught it.
     runtime.dispatch("Reflex::Light.Flip", name: { value: "light-1" }, id: "light-1")
-    runtime.dispatch("Reflex::Light.Flip", name: { value: "light-1" }, id: "light-2")
+    runtime.dispatch("Reflex::Light.Flip", name: { value: "light-2" }, id: "light-2")
 
     expect(runtime.reactions.size).to eq(2)
   end
 
   it "stops a reaction that feeds itself, and says so" do
     runtime = boot_reflex
+    runtime.dispatch("Reflex::Echo.Install", name: { value: "bell-1" })
     runtime.dispatch("Reflex::Echo.Ring", name: { value: "bell-1" })
 
     expect(runtime.reactions.size).to eq(Hecksagain::Runtime::Dispatcher::MAX_REACTION_DEPTH + 1)

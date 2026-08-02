@@ -69,6 +69,16 @@ module Hecksagain
 
         def handler_for(event) = @handlers.find { |h| h.event_type == event.to_s }
 
+        # THE HEAD OF THE DOTTED PATH, and a different question from
+        # `correlates_by` itself. `correlates_by` says which SCALAR a fresh
+        # event correlates on — the dotted path a value object has to be dug
+        # through to reach. This says what a DOWNSTREAM DISPATCH is allowed to
+        # call the already-resolved scalar it carries forward (an argument
+        # name legal on any command in the domain, and the symbol a `with:`
+        # value has to spell to receive the correlation) — a plain identifier
+        # a value object was never involved in, so it never needed the dot.
+        def correlation_head = @correlates_by.to_s.split(".").first.to_sym
+
         # A PROCEDURE coordinates: legs, states, who goes next. It is a SAGA when
         # it also knows how to undo itself.
         #

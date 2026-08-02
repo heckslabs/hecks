@@ -4248,7 +4248,7 @@
   ],
   "process_managers": [
     {
-      "correlates_by": "transfer",
+      "correlates_by": "reference.value",
       "ends_on": "TransferSettled",
       "handlers": [
         {
@@ -4269,8 +4269,8 @@
                   "{:text=>\"transfer out\"}"
                 ],
                 [
-                  "transfer",
-                  ":transfer"
+                  "reference",
+                  ":reference"
                 ]
               ]
             }
@@ -4286,7 +4286,7 @@
               "with_spec": [
                 [
                   "transfer",
-                  ":transfer"
+                  ":reference"
                 ]
               ]
             },
@@ -4306,8 +4306,8 @@
                   "{:text=>\"transfer in\"}"
                 ],
                 [
-                  "transfer",
-                  ":transfer"
+                  "reference",
+                  ":reference"
                 ]
               ]
             }
@@ -4323,7 +4323,7 @@
               "with_spec": [
                 [
                   "transfer",
-                  ":transfer"
+                  ":reference"
                 ]
               ]
             }
@@ -4339,7 +4339,7 @@
               "with_spec": [
                 [
                   "transfer",
-                  ":transfer"
+                  ":reference"
                 ]
               ]
             }
@@ -4372,7 +4372,7 @@
               "with_spec": [
                 [
                   "transfer",
-                  ":transfer"
+                  ":reference"
                 ]
               ]
             }

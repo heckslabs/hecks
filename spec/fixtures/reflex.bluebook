@@ -29,9 +29,14 @@ Hecks.bluebook "Reflex" do
       emits "Flipped"
     end
 
+    # MUTATING, NOT CREATING — the policy this triggers re-dispatches it
+    # against the SAME light `Flip` just created, and a creating command now
+    # refuses a second creation over the same identity (see AlreadyExists).
     command "Log" do
       role "System"
       goal "Record that the flip was noticed"
+
+      reference_to Light
 
       then_set :condition, to: { value: "logged" }
     end
@@ -90,11 +95,26 @@ Hecks.bluebook "Reflex" do
       attribute :value, Integer
     end
 
+    command "Install" do
+      role "Operator"
+      goal "Hang a bell that can be rung"
+
+      attribute :name, BellName
+
+      emits "Installed"
+    end
+
+    # MUTATING, NOT CREATING — a self-triggering policy re-dispatches this
+    # with the same identity every time the reaction feeds itself, and a
+    # creating command refuses a second creation over the same identity now
+    # (see AlreadyExists). The infinite-loop guard this fixture exists to
+    # prove (`MAX_REACTION_DEPTH`) needs the SAME record ringable arbitrarily
+    # many times, which is exactly what a mutating command is for.
     command "Ring" do
       role "Operator"
       goal "Ring the bell, which rings the bell"
 
-      attribute :name, BellName
+      reference_to Echo
 
       emits "Rang"
     end

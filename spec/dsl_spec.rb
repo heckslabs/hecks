@@ -623,7 +623,7 @@ RSpec.describe "the DSL surface" do
     it "process_manager declares a correlated conversation with its own states" do
       checkout = build_bluebook("Converse") do
         process_manager "Checkout" do
-          correlates_by :order_id
+          correlates_by :"order.id"
           starts_on "OrderPlaced"
           ends_on   "OrderCompleted"
           state "awaiting_payment"
@@ -635,7 +635,7 @@ RSpec.describe "the DSL surface" do
         end
       end.process_managers.first
 
-      expect([checkout.correlates_by, checkout.starts_on]).to eq([:order_id, "OrderPlaced"])
+      expect([checkout.correlates_by, checkout.starts_on]).to eq([:"order.id", "OrderPlaced"])
       expect(checkout.states).to eq(["awaiting_payment", "paid"])
 
       handler = checkout.handler_for("PaymentAuthorized")
@@ -648,7 +648,7 @@ RSpec.describe "the DSL surface" do
       expect do
         build_bluebook("Stateless") do
           process_manager "Broken" do
-            correlates_by :id
+            correlates_by :"id.value"
             starts_on "Started"
             on "Next", transition: { "a" => "b" } do
               dispatch "X.Y"
@@ -662,7 +662,7 @@ RSpec.describe "the DSL surface" do
       expect do
         build_bluebook("Undeclared") do
           process_manager "Broken" do
-            correlates_by :id
+            correlates_by :"id.value"
             starts_on "Started"
             state "a"
             on "Next", transition: { "a" => "nowhere" } do

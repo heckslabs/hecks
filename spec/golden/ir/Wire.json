@@ -512,7 +512,7 @@
   ],
   "process_managers": [
     {
-      "correlates_by": "wire",
+      "correlates_by": "reference.value",
       "ends_on": "WireLanded",
       "handlers": [
         {
@@ -529,8 +529,8 @@
                   ":amount"
                 ],
                 [
-                  "wire",
-                  ":wire"
+                  "reference",
+                  ":reference"
                 ]
               ]
             }
@@ -546,7 +546,7 @@
               "with_spec": [
                 [
                   "wire",
-                  ":wire"
+                  ":reference"
                 ]
               ]
             },
@@ -562,8 +562,8 @@
                   ":amount"
                 ],
                 [
-                  "wire",
-                  ":wire"
+                  "reference",
+                  ":reference"
                 ]
               ]
             }
@@ -579,7 +579,7 @@
               "with_spec": [
                 [
                   "wire",
-                  ":wire"
+                  ":reference"
                 ]
               ]
             }
@@ -602,8 +602,8 @@
                   ":amount"
                 ],
                 [
-                  "wire",
-                  ":wire"
+                  "reference",
+                  ":reference"
                 ]
               ]
             },
@@ -612,7 +612,7 @@
               "with_spec": [
                 [
                   "wire",
-                  ":wire"
+                  ":reference"
                 ]
               ]
             }
