@@ -65,6 +65,49 @@ RSpec.describe "Rust's parser holds the language's argument names" do
 
   RUST_REFERENCED = rust_referenced_kwargs
 
+  # THE ONE KIND DISTINCTION RUST'S READER ACTUALLY MAKES. Every other kwarg
+  # is read as generic text (`extract_kwarg_string`/`extract_after`/
+  # `parse_quoted_kwarg` — a quoted string or a bare token, kind-blind by
+  # construction, matching the file's own "flat" reasoning above). `flag` is
+  # the one kind with its own reader shape (`true`/`false`, never a string),
+  # so it is the one place "declares kind X" and "reads argument shape X"
+  # can actually be held to each other today — the model M3b's later kinds
+  # extend, one reader shape at a time.
+  def self.declared_kind(kind)
+    syntax   = meta.aggregates.find { |a| a.hecks_name == "Syntax" }
+    argument = syntax.value_objects.find { |vo| vo.hecks_name == "Argument" }
+    argument.members
+            .map(&:to_h)
+            .select { |row| row[:kind].to_s == kind }
+            .map { |row| row[:named].to_s }
+            .reject(&:empty?)
+            .uniq
+            .sort
+  end
+
+  DECLARED_FLAG = declared_kind("flag")
+
+  def self.rust_flag_reads
+    sources = RUST_FILES.map { |name| File.read(File.join(InMemoryDomain::ROOT, "rust/src/bluebook/#{name}")) }
+
+    sources.flat_map { |src| src.scan(/parse_flag_kwarg\(\s*\w+,\s*"([a-z_]+):"/).flatten }.uniq.sort
+  end
+
+  RUST_FLAG_READS = rust_flag_reads
+
+  it "reads every flag-kind argument through parse_flag_kwarg, and nothing else through it" do
+    expect(RUST_FLAG_READS - DECLARED_FLAG).to be_empty,
+                                               "parse_flag_kwarg reads #{(RUST_FLAG_READS - DECLARED_FLAG).inspect}, " \
+                                               "which Syntax::Argument does not declare as kind \"flag\" — the " \
+                                               "reader and the declaration disagree about what shape this argument is"
+
+    expect(DECLARED_FLAG - RUST_FLAG_READS).to be_empty,
+                                               "the language declares #{(DECLARED_FLAG - RUST_FLAG_READS).inspect} " \
+                                               "as kind \"flag\", and nothing in parser.rs or parse_blocks.rs reads " \
+                                               "it through parse_flag_kwarg — either it is read as plain text " \
+                                               "(silently accepting more than true/false) or not read at all"
+  end
+
   it "reads at least one kwarg name from each source file, so a moved function doesn't silently empty this" do
     expect(RUST_REFERENCED).not_to be_empty
   end
