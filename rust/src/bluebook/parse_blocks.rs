@@ -418,8 +418,23 @@ pub fn parse_query(lines: &[&str]) -> (Query, usize) {
             continue;
         }
         if depth == 1 {
-            if line.starts_with("description") {
-                q.description = extract_string(line);
+            if let Some(binding) = crate::bluebook::generic_bind::find_binding("Query", line)
+                .filter(|b| matches!(b.keyword, "description" | "order_by" | "limit"))
+            {
+                let bindings = crate::bluebook::generic_bind::bind_keyword(binding, line);
+                if let Some(v) = bindings.text("description") {
+                    q.description = Some(v);
+                }
+                if let Some(field) = bindings.text("order_field") {
+                    let direction = match bindings.text("order_way").as_deref() {
+                        Some("desc" | "Desc" | "DESC") => Direction::Desc,
+                        _ => Direction::Asc,
+                    };
+                    q.order_by = Some(OrderBy { field, direction });
+                }
+                if let Some(value) = bindings.text("limit") {
+                    q.limit = Some(LimitSpec { value });
+                }
             } else if line.starts_with("attribute") {
                 if let Some(attr) = parse_attribute(line) {
                     q.attributes.push(attr);
@@ -429,14 +444,6 @@ pub fn parse_query(lines: &[&str]) -> (Query, usize) {
                     q.attributes.iter().map(|a| a.name.clone()).collect();
                 for w in parse_where_line(line, &param_names) {
                     q.wheres.push(w);
-                }
-            } else if line.starts_with("order_by") {
-                if let Some(ob) = parse_order_by_line(line) {
-                    q.order_by = Some(ob);
-                }
-            } else if line.starts_with("limit") {
-                if let Some(ls) = parse_limit_line(line) {
-                    q.limit = Some(ls);
                 }
             } else if apply_option_line(
                 line,
@@ -628,37 +635,6 @@ fn parse_comparator_hash(raw: &str) -> Option<(WhereOp, &str)> {
         _ => return None,
     };
     Some((op, value_part))
-}
-
-pub fn parse_order_by_line(line: &str) -> Option<OrderBy> {
-    let body = line.trim_start_matches("order_by").trim();
-    let body = body.trim_start_matches('(').trim_end_matches(')');
-    let parts: Vec<&str> = body.split(',').map(|s| s.trim()).collect();
-    let field_part = parts.first()?;
-    let field = field_part.trim_start_matches(':').to_string();
-    if field.is_empty() {
-        return None;
-    }
-    let direction = match parts.get(1).map(|s| s.trim_start_matches(':')) {
-        Some("desc") | Some("Desc") | Some("DESC") => Direction::Desc,
-        _ => Direction::Asc,
-    };
-    Some(OrderBy { field, direction })
-}
-
-pub fn parse_limit_line(line: &str) -> Option<LimitSpec> {
-    let body = line.trim_start_matches("limit").trim();
-    let body = body.trim_start_matches('(').trim_end_matches(')');
-    let token = body
-        .split(|c: char| c == ',' || c.is_whitespace())
-        .next()?
-        .trim();
-    if token.is_empty() {
-        return None;
-    }
-    Some(LimitSpec {
-        value: token.to_string(),
-    })
 }
 
 fn split_member_pairs(s: &str) -> Vec<&str> {
