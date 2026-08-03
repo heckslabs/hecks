@@ -29,6 +29,14 @@ use crate::ir::*;
 /// used otherwise.
 pub const SOURCE_SHA: &str = "4ec6ed6bb48915dcc6504e4ce7ea6477ede5b89da31f96a7efc5e2069950ef1d";
 
+/// THIS FILE'S OWN CHAPTER NAME, as plain text — not recoverable from the
+/// module's own file name (`till_room.rs` does not losslessly invert to
+/// `"TillRoom"`), and `bin/ir_rust_registry` needs it as text, not as
+/// something only `domain()` knows once called. Read by that generator to
+/// build `projected/registry.rs`'s own table ; nothing in this file reads
+/// it back.
+pub const CHAPTER: &str = "Expression";
+
 pub fn domain() -> Domain {
     Domain {
         name: "Expression".to_string(),
