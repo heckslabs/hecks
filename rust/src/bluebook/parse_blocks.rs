@@ -994,14 +994,20 @@ pub fn parse_policy(lines: &[&str]) -> (Policy, usize) {
         if line == "end" {
             break;
         }
-        if line.starts_with("on") {
-            on_event = extract_string(line).unwrap_or_default();
-        }
-        if line.starts_with("trigger") {
-            trigger = extract_string(line).unwrap_or_default();
-        }
-        if line.starts_with("across") {
-            target_domain = extract_string(line);
+        // `on`/`trigger`/`across` — every one of Policy's own words, table-
+        // driven off Syntax::Argument (crate::bluebook::generic_bind) rather
+        // than three separate `line.starts_with` reads.
+        if let Some(binding) = crate::bluebook::generic_bind::find_binding("Policy", line) {
+            let bindings = crate::bluebook::generic_bind::bind_keyword(binding, line);
+            if let Some(v) = bindings.text("on_event") {
+                on_event = v;
+            }
+            if let Some(v) = bindings.text("trigger_command") {
+                trigger = v;
+            }
+            if let Some(v) = bindings.text("target_domain") {
+                target_domain = Some(v);
+            }
         }
         i += 1;
     }
@@ -1483,31 +1489,21 @@ pub fn parse_process_manager(lines: &[&str]) -> (ProcessManager, usize) {
         }
 
         if depth == 1 {
-            if line.starts_with("correlates_by") {
-                // A DOTTED FIELD NAME NEEDS RUBY'S QUOTED-SYMBOL SPELLING —
-                // `:"end_to_end.value"` — because a bare `:end_to_end.value`
-                // is not a symbol literal at all. `extract_symbol` only reads
-                // the bare form, so the quoted one is parsed here instead.
-                let body = line.trim_start_matches("correlates_by").trim();
-                let sym = body
-                    .strip_prefix(":\"")
-                    .and_then(|quoted| quoted.split('"').next())
-                    .map(str::to_string)
-                    .or_else(|| extract_symbol(line));
-                if let Some(sym) = sym {
-                    pm.correlates_by = sym;
+            if let Some(binding) = crate::bluebook::generic_bind::find_binding("ProcessManager", line)
+                .filter(|b| matches!(b.keyword, "correlates_by" | "starts_on" | "ends_on" | "state"))
+            {
+                let bindings = crate::bluebook::generic_bind::bind_keyword(binding, line);
+                if let Some(v) = bindings.text("correlates_by") {
+                    pm.correlates_by = v;
                 }
-            } else if line.starts_with("starts_on") {
-                if let Some(s) = extract_string(line) {
-                    pm.starts_on = s;
+                if let Some(v) = bindings.text("starts_on") {
+                    pm.starts_on = v;
                 }
-            } else if line.starts_with("ends_on") {
-                if let Some(s) = extract_string(line) {
-                    pm.ends_on = Some(s);
+                if let Some(v) = bindings.text("ends_on") {
+                    pm.ends_on = Some(v);
                 }
-            } else if line.starts_with("state ") || line.starts_with("state\t") {
-                if let Some(s) = extract_string(line) {
-                    pm.states.push(s);
+                if let Some(v) = bindings.text("states") {
+                    pm.states.push(v);
                 }
             // WHICH WORD, GENERATED ; WHAT OPENING IT MEANS, HAND-WRITTEN — same
             // shape as `parse_aggregate`'s own table lookup, for the one word
@@ -1575,52 +1571,18 @@ pub fn parse_process_manager(lines: &[&str]) -> (ProcessManager, usize) {
 fn parse_pm_handler(line: &str) -> Option<ProcessManagerHandler> {
     // `on "EventName", transition: {…}` — or `on :refused, transition: {…}`.
     //
-    // A SYMBOL trigger is not an event name: `:refused` is the procedure noticing
-    // that a leg it dispatched was declined, and no aggregate announces it. It
-    // has to be read before extract_string, which takes the first QUOTED string
-    // on the line and so reaches straight past the symbol to pick up the
-    // transition's from-state. That read banking's compensating leg as
-    // `event_type: "awaiting_credit"` and split the two parsers.
-    let head = line.trim().strip_prefix("on")?.trim_start();
-    let event_type = if let Some(symbol) = head.strip_prefix(':') {
-        symbol
-            .split(|c: char| c == ',' || c.is_whitespace())
-            .next()?
-            .to_string()
-    } else {
-        extract_string(line)?
-    };
-    let trans_pos = line.find("transition:")?;
-    let after = &line[trans_pos + "transition:".len()..];
-    let open = after.find('{')?;
-    let close = after[open..].find('}')? + open;
-    let body = after[open + 1..close].trim();
-    let state_token = |raw: &str| {
-        raw.trim()
-            .trim_end_matches(',')
-            .trim()
-            .trim_start_matches(':')
-            .trim_matches('"')
-            .trim()
-            .to_string()
-    };
-
-    let (from, to) = if body.contains("=>") {
-        let mut parts = body.splitn(2, "=>");
-        let from = state_token(parts.next()?);
-        let to = state_token(parts.next()?);
-        (from, to)
-    } else {
-        let colon = body.find(':')?;
-        let from = body[..colon].trim().to_string();
-        let rhs = body[colon + 1..].trim().trim_start_matches(':').trim();
-        let to = rhs
-            .split(|c: char| c == ',' || c.is_whitespace())
-            .next()
-            .unwrap_or("")
-            .to_string();
-        (from, to)
-    };
+    // A SYMBOL trigger is not an event name: `:refused` is the procedure
+    // noticing that a leg it dispatched was declined, and no aggregate
+    // announces it — `Syntax::Argument` declares this slot as two rows
+    // (`text`/`symbol`, neither required alone, a real corpus finding from
+    // M4 of the generic-bluebook-reader arc) and `bind_keyword` tries both,
+    // only the one matching the token's own syntax winning.
+    let binding = crate::bluebook::generic_bind::find_binding("ProcessManager", line)?;
+    let bindings = crate::bluebook::generic_bind::bind_keyword(binding, line);
+    let event_type = bindings.text("event_type")?;
+    let pair = bindings.pairs.get("transition")?.first()?;
+    let from = crate::bluebook::generic_bind::state_token(&pair.key);
+    let to = crate::bluebook::generic_bind::state_token(&pair.value);
     if from.is_empty() || to.is_empty() {
         return None;
     }

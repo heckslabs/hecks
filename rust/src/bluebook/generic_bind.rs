@@ -85,6 +85,44 @@ pub struct Bindings {
     pub pairs: HashMap<String, Vec<Pair>>,
 }
 
+impl Bindings {
+    /// A bound field's text, if it bound at all — the ordinary case for
+    /// scalar String fields (`Command.role`, `Policy.on_event`, ...), which
+    /// is most of them.
+    pub fn text(&self, field: &str) -> Option<String> {
+        self.fields.get(field).and_then(BoundValue::as_text).map(str::to_string)
+    }
+
+    /// A bound flag field, defaulting to `false` when absent — matching
+    /// every declared `flag`-kind argument's own convention (`optional:`
+    /// unset means not optional), the same default `parse_flag_kwarg`
+    /// already returns.
+    pub fn flag(&self, field: &str) -> bool {
+        matches!(self.fields.get(field), Some(BoundValue::Flag(true)))
+    }
+
+    /// A bound list field, if it bound at all.
+    pub fn list(&self, field: &str) -> Option<&[String]> {
+        match self.fields.get(field) {
+            Some(BoundValue::List(items)) => Some(items.as_slice()),
+            _ => None,
+        }
+    }
+}
+
+/// THE (keyword, context) LOOKUP a real `parse_X` cutover needs before it
+/// can call `bind_keyword` at all — the caller already knows its own
+/// context (it is the function whose body this line was found in), so this
+/// only has to find WHICH keyword the line starts with, the same
+/// `keyword_matches` word-boundary check `dispatch_block`/`parse_aggregate`
+/// already use for category-opening words, extended here to every word
+/// `ir_syntax_bindings` covers, category-opening or not.
+pub fn find_binding(context: &str, line: &str) -> Option<&'static KeywordBinding> {
+    crate::bluebook::ir_syntax_bindings::KEYWORD_BINDINGS
+        .iter()
+        .find(|binding| binding.context == context && crate::bluebook::parser::keyword_matches(line, binding.keyword))
+}
+
 /// SPLITS A LINE INTO ITS OWN TOP-LEVEL ARGUMENTS, positional and named —
 /// the one part of this module that is not a thin wrapper, because nothing
 /// existing did this GENERICALLY (every hand-written `parse_X` walks its own
@@ -140,6 +178,25 @@ fn pairs_blob(text: &str) -> &str {
     }
 }
 
+/// CLEANS ONE `fields`-shaped PAIR'S OWN KEY OR VALUE into a plain scalar
+/// token — trailing comma, leading colon, and surrounding quotes stripped.
+/// Matches `parse_pm_handler`'s own former `state_token` byte for byte : a
+/// `fields`-shaped pair (`on`'s `transition:`, `Lifecycle`'s own
+/// `transition`) always becomes a plain state/command name, unlike
+/// `elements`/`verbatim` pairs, which must keep their raw text (`where`'s
+/// own nested comparator-hash detection, `with:`'s deliberately
+/// uninterpreted capture) — so this is NOT applied inside `split_pairs`
+/// itself, only by callers that know their `pairs_shape` is `fields`.
+pub fn state_token(raw: &str) -> String {
+    raw.trim()
+        .trim_end_matches(',')
+        .trim()
+        .trim_start_matches(':')
+        .trim_matches('"')
+        .trim()
+        .to_string()
+}
+
 /// ONE `pairs` BLOB, SPLIT INTO ITS OWN PAIRS — `key: value` (a real Ruby
 /// hash pair) or `key => value` (the hash-rocket form `transition`'s own
 /// positional pair uses). Neither side is interpreted ; a caller reads
@@ -182,7 +239,21 @@ fn bind_scalar(kind: &str, token: &str) -> Option<BoundValue> {
         // on a token with no leading colon) and clobbers whichever row ran
         // first, the same failure mode `list`'s own bracket requirement
         // guards against below.
-        "symbol" => token.trim().strip_prefix(':').map(|rest| BoundValue::Text(rest.to_string())),
+        // A BARE symbol (`:name`) OR A QUOTED ONE (`:"a.dotted.path"`) —
+        // Ruby's own symbol literal syntax admits both, and a dotted field
+        // name (`correlates_by :"end_to_end.value"`) is not a valid BARE
+        // symbol at all (`:end_to_end.value` is not one token to Ruby),
+        // so it is always written quoted. The quoted form's own quotes are
+        // stripped here, not left for the caller to notice they are still
+        // there.
+        "symbol" => {
+            let rest = token.trim().strip_prefix(':')?;
+            let text = match rest.strip_prefix('"') {
+                Some(quoted) => quoted.split('"').next().unwrap_or(quoted).to_string(),
+                None => rest.to_string(),
+            };
+            Some(BoundValue::Text(text))
+        }
         "constant" | "number" | "literal" => {
             Some(BoundValue::Text(token.trim().trim_start_matches(':').to_string()))
         }

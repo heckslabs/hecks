@@ -21,6 +21,17 @@ require "spec_helper"
 # again ; a kwarg the language declares that NOTHING in Rust reads is a real
 # argument silently unhandled, the other half of the same gap.
 #
+# A THIRD READING SHAPE JOINED THE FIRST TWO once the generic-bluebook-reader
+# arc's binder (generic_bind.rs, driven by rust/src/bluebook/
+# ir_syntax_bindings.rs) started cutting real `parse_X` functions over : a
+# kwarg a CUT-OVER keyword reads no longer appears as a literal string
+# ANYWHERE in parser.rs/parse_blocks.rs at all — the name lives only in the
+# GENERATED table now, read generically by `find_binding`/`bind_keyword`.
+# That is still Rust reading it, just not as a hand-typed literal, so
+# `ir_syntax_bindings.rs`'s own `named: "..."` entries count as evidence
+# here exactly the way a literal `"optional:"` always did — the same
+# language, one more legitimate spelling of "Rust reads this."
+#
 # DELIBERATELY FLAT, not scoped per (keyword, context) the way
 # spec/syntax_conformance_spec's own argument checks are. Rust's kwarg readers
 # are not context-aware — `parse_flag_kwarg(line, "optional:")` reads the same
@@ -53,12 +64,15 @@ RSpec.describe "Rust's parser holds the language's argument names" do
 
   RUST_FILES = %w[parser.rs parse_blocks.rs].freeze
 
-  # EVERY KWARG NAME RUST'S PARSER ACTUALLY READS, in either spelling it uses :
-  # a literal with the colon baked in (`"optional:"`), or a helper call naming
+  # EVERY KWARG NAME RUST'S PARSER ACTUALLY READS, in any of THREE spellings :
+  # a literal with the colon baked in (`"optional:"`), a helper call naming
   # the bare word and adding the colon itself (`extract_kwarg_string(line,
-  # "version")`). Read as TEXT, not executed — the same technique
-  # spec/syntax_conformance_spec's near-miss example already uses to hold a
-  # Rust source file to the declaration.
+  # "version")`), or — for a cut-over keyword — a `named: "..."` entry in the
+  # GENERATED binding table (`ir_syntax_bindings.rs`), which `find_binding`/
+  # `bind_keyword` (generic_bind.rs) read generically rather than any one
+  # call site naming the string literally. Read as TEXT, not executed — the
+  # same technique spec/syntax_conformance_spec's near-miss example already
+  # uses to hold a Rust source file to the declaration.
   def self.rust_referenced_kwargs
     sources = RUST_FILES.map { |name| File.read(File.join(InMemoryDomain::ROOT, "rust/src/bluebook/#{name}")) }
 
@@ -67,8 +81,11 @@ RSpec.describe "Rust's parser holds the language's argument names" do
       src.scan(/(?:extract_kwarg_string|extract_after|parse_flag_kwarg|parse_quoted_kwarg)\(\s*\w+,\s*"([a-z_]+):?"/)
          .flatten
     end
+    generated = File.read(File.join(InMemoryDomain::ROOT, "rust/src/bluebook/ir_syntax_bindings.rs"))
+                     .scan(/named: "([a-z_]+)"/)
+                     .flatten
 
-    (embedded + helper_calls).uniq.sort
+    (embedded + helper_calls + generated).uniq.sort
   end
 
   RUST_REFERENCED = rust_referenced_kwargs
