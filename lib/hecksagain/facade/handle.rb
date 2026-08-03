@@ -24,6 +24,7 @@ module Hecksagain
         @ir         = ir
         @id         = instance.id
         @state      = instance.state
+        define_verb_methods
       end
 
       def [](key) = @state[key.to_sym]
@@ -55,20 +56,17 @@ module Hecksagain
       end
       alias to_s inspect
 
-      # Readers first — a held field, or a declared field not yet written (nil,
-      # the way a defined reader answered) — then the aggregate's own
-      # non-creating verbs. Anything else is a genuine NoMethodError.
+      # A declared field not yet written arrives here too (nil, the way a
+      # defined reader answered). Verbs are NOT handled here — see
+      # `define_verb_methods` for why.
       def method_missing(name, *args, **kwargs, &block)
         return @state[name] if @state.key?(name) || reader?(name)
-
-        verb = verb_named(name)
-        return run(verb, **kwargs) if verb
 
         super
       end
 
       def respond_to_missing?(name, include_private = false)
-        @state.key?(name) || reader?(name) || !verb_named(name).nil? || super
+        @state.key?(name) || reader?(name) || super
       end
 
       private
@@ -79,9 +77,22 @@ module Hecksagain
         !@ir.attribute(name).nil? || @ir.lifecycle&.field&.to_sym == name
       end
 
-      def verb_named(name)
-        @ir.commands.find do |command|
-          !command.creates? && Naming.snake(command.hecks_name) == name.to_s
+      # NON-CREATING VERBS ARE DEFINED, NOT DISPATCHED THROUGH method_missing.
+      #
+      # method_missing only runs once Ruby finds no REAL method already
+      # answering the name — and every object already answers `freeze` and
+      # `send` (Kernel/Object), among others. A verb whose snake-cased name
+      # collides with one of those — `Account::Freeze` -> `freeze`,
+      # `ExternalTransfer::Send` -> `send` in the banking corpus, both real —
+      # silently ran the Kernel method instead of dispatching: no error, no
+      # refusal, the call just did the wrong thing. AggregateDoor's creating
+      # verbs never had this problem because it already defines a real
+      # singleton method per verb; this closes the same gap here.
+      def define_verb_methods
+        @ir.commands.reject(&:creates?).each do |command|
+          define_singleton_method(Naming.snake(command.hecks_name)) do |**args|
+            run(command, **args)
+          end
         end
       end
 
