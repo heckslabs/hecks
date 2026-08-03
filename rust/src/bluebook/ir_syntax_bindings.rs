@@ -309,6 +309,7 @@ KeywordBinding {
     keyword: "on", context: "ProcessManager", append_to: "",
     arguments: &[
         ArgumentBinding { at: "1", named: "", kind: "text", required: true, fills: "event_type", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "" },
+        ArgumentBinding { at: "1", named: "", kind: "symbol", required: false, fills: "event_type", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "" },
         ArgumentBinding { at: "", named: "transition", kind: "pairs", required: true, fills: "", selects: "", pair_key_fills: "from_state", pair_value_fills: "to_state", pairs_shape: "fields" },
     ],
 },

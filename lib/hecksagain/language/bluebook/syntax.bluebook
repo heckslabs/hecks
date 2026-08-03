@@ -570,7 +570,22 @@ Hecks.bluebook "Bluebook" do
         member keyword: "starts_on",       context: "ProcessManager", at: "1", named: "",           kind: "text",   required: "true", fills: "starts_on"
         member keyword: "ends_on",         context: "ProcessManager", at: "1", named: "",           kind: "text",   required: "true", fills: "ends_on"
         member keyword: "state",           context: "ProcessManager", at: "1", named: "",           kind: "text",   required: "true", fills: "states"
+        # TWO FORMS, THE SAME SLOT — a real corpus finding (M4 of the
+        # generic-bluebook-reader arc), not a guess. `on "SightingRaised"`
+        # names an announced event ; `on :refused` is the procedure noticing
+        # a leg it dispatched was declined, and no aggregate announces THAT,
+        # so it is spelled as the sentinel symbol rather than a quoted name.
+        # UNLIKE `transition`'s own `from:` (genuinely optional — a
+        # transition may name no `from:` at all), this SLOT is mandatory :
+        # every `on` line names one or the other. `required` stays on the
+        # `text` row alone (the common case, and the one the builder's own
+        # positional parameter is checked against) rather than on both —
+        # marking both `false` would let a bluebook that names NEITHER form
+        # parse here and still refuse to load in Ruby, the exact gap
+        # spec/syntax_conformance_spec's "never calls an argument optional
+        # that the builder demands" exists to catch.
         member keyword: "on",              context: "ProcessManager", at: "1", named: "",           kind: "text",   required: "true", fills: "event_type"
+        member keyword: "on",              context: "ProcessManager", at: "1", named: "",           kind: "symbol", required: "false", fills: "event_type"
         member keyword: "on",              context: "ProcessManager", at: "",  named: "transition", kind: "pairs",  required: "true", fills: "", pair_key_fills: "from_state", pair_value_fills: "to_state", pairs_shape: "fields"
 
         member keyword: "dispatch",        context: "Handler", at: "1", named: "",     kind: "text",  required: "true",  fills: "command_name"

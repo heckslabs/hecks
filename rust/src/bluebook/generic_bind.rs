@@ -174,7 +174,16 @@ fn bind_scalar(kind: &str, token: &str) -> Option<BoundValue> {
     match kind {
         "flag" => Some(BoundValue::Flag(token.trim().starts_with("true"))),
         "text" => extract_string(token).map(BoundValue::Text),
-        "symbol" | "constant" | "number" | "literal" => {
+        // REQUIRES THE LEADING COLON — the one thing that actually spells a
+        // Ruby symbol, and what tells `on`'s two declared event_type rows
+        // (`text` for `"SightingRaised"`, `symbol` for the `:refused`
+        // sentinel — a real corpus finding, M4) apart. Without this guard a
+        // quoted string ALSO matches (`trim_start_matches(':')` is a no-op
+        // on a token with no leading colon) and clobbers whichever row ran
+        // first, the same failure mode `list`'s own bracket requirement
+        // guards against below.
+        "symbol" => token.trim().strip_prefix(':').map(|rest| BoundValue::Text(rest.to_string())),
+        "constant" | "number" | "literal" => {
             Some(BoundValue::Text(token.trim().trim_start_matches(':').to_string()))
         }
         // STRICTLY BRACKETED — `transition`'s own `from:` is declared TWICE,
