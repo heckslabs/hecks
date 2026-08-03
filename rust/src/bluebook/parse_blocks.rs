@@ -439,11 +439,34 @@ pub fn parse_query(lines: &[&str]) -> (Query, usize) {
                 if let Some(attr) = parse_attribute(line) {
                     q.attributes.push(attr);
                 }
-            } else if line.starts_with("where") {
-                let param_names: Vec<String> =
-                    q.attributes.iter().map(|a| a.name.clone()).collect();
-                for w in parse_where_line(line, &param_names) {
-                    q.wheres.push(w);
+            } else if let Some(binding) = crate::bluebook::generic_bind::find_binding("Query", line)
+                .filter(|b| b.keyword == "where")
+            {
+                // THE LINE-SPLIT IS GENERIC (`bind_keyword`'s own `elements`
+                // pairs_shape — one WhereClause per top-level pair) ; each
+                // pair's own VALUE still needs `extract_where_value`'s
+                // param-name-aware reading (a bare token that matches one of
+                // THIS query's own declared attributes is re-prefixed with
+                // `:`, a fact only the caller has), so that interpretation
+                // stays exactly as it was, just fed from `bind_keyword`'s
+                // pairs instead of a hand-rolled split.
+                let param_names: Vec<String> = q.attributes.iter().map(|a| a.name.clone()).collect();
+                let bindings = crate::bluebook::generic_bind::bind_keyword(binding, line);
+                for pair in bindings.pairs.get("").into_iter().flatten() {
+                    let field = pair.key.clone();
+                    if field.is_empty() {
+                        continue;
+                    }
+                    let raw = pair.value.trim();
+                    if raw.starts_with('{') {
+                        if let Some((op, inner)) = parse_comparator_hash(raw) {
+                            let value = extract_where_value(inner, &param_names);
+                            q.wheres.push(WhereClause { field, op, value });
+                            continue;
+                        }
+                    }
+                    let value = extract_where_value(raw, &param_names);
+                    q.wheres.push(WhereClause { field, op: WhereOp::Eq, value });
                 }
             } else if apply_option_line(
                 line,
@@ -533,45 +556,6 @@ fn apply_option_line(
 // `bind_keyword` in `apply_option_line`).
 pub fn parse_cursor_line(line: &str) -> Option<CursorSpec> {
     extract_word_after(line, "cursor").map(|value| CursorSpec { value })
-}
-
-pub fn parse_where_line(line: &str, param_names: &[String]) -> Vec<WhereClause> {
-    let mut body = line.trim_start_matches("where").trim_start();
-    let parenthesized = body.starts_with('(');
-    if parenthesized {
-        body = body.trim_start_matches('(');
-        if let Some(close) = body.rfind(')') {
-            body = &body[..close];
-        }
-    }
-    let mut out = Vec::new();
-    for part in split_top_level_commas(body) {
-        let part = part.trim();
-        if part.is_empty() {
-            continue;
-        }
-        if let Some(colon) = part.find(':') {
-            let field = part[..colon].trim().to_string();
-            let raw = part[colon + 1..].trim();
-            if field.is_empty() {
-                continue;
-            }
-            if raw.starts_with('{') {
-                if let Some((op, inner)) = parse_comparator_hash(raw) {
-                    let value = extract_where_value(inner, param_names);
-                    out.push(WhereClause { field, op, value });
-                    continue;
-                }
-            }
-            let value = extract_where_value(raw, param_names);
-            out.push(WhereClause {
-                field,
-                op: WhereOp::Eq,
-                value,
-            });
-        }
-    }
-    out
 }
 
 fn extract_where_value(raw: &str, param_names: &[String]) -> String {
