@@ -118,7 +118,7 @@
 use super::ir::{Attribute, DispatchSpec, Lifecycle, Mutation, Policy, Query, ReadModel, ValueObject, WhereOp};
 
 /// `Command::Rule`, as the language declares it.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Given {
     /// String, optional on Command.Rule
     pub description: Option<String>,
@@ -127,7 +127,7 @@ pub struct Given {
 }
 
 /// `Aggregate::Transition`, as the language declares it.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Transition {
     /// String, required on Aggregate.Transition
     pub command: String,
@@ -138,7 +138,7 @@ pub struct Transition {
 }
 
 /// `Query::Filter`, as the language declares it.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct WhereClause {
     /// String, required on Query.Filter
     pub field: String,
@@ -149,7 +149,7 @@ pub struct WhereClause {
 }
 
 /// `Bluebook::Bluebook`, as the language declares it.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Domain {
     /// BluebookName
     pub name: String,
@@ -170,7 +170,7 @@ pub struct Domain {
 }
 
 /// `Bluebook::Aggregate`, as the language declares it.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Aggregate {
     /// AggregateName
     pub name: String,
@@ -193,7 +193,7 @@ pub struct Aggregate {
 }
 
 /// `Bluebook::Entity`, as the language declares it.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Entity {
     /// EntityName
     pub name: String,
@@ -212,7 +212,7 @@ pub struct Entity {
 }
 
 /// `Bluebook::Command`, as the language declares it.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Command {
     /// CommandName
     pub name: String,
@@ -235,7 +235,7 @@ pub struct Command {
 }
 
 /// `Bluebook::ProcessManager`, as the language declares it.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ProcessManager {
     /// ProcessManagerName
     pub name: String,
@@ -252,7 +252,7 @@ pub struct ProcessManager {
 }
 
 /// `Bluebook::Handler`, as the language declares it.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ProcessManagerHandler {
     /// HandlerText
     pub event_type: String,

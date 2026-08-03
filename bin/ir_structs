@@ -273,7 +273,8 @@ def borrow(type)
 end
 
 def render(rust_name, source, rows)
-  lines = ["/// `#{source}`, as the language declares it.", "#[derive(Debug, Clone)]",
+  lines = ["/// `#{source}`, as the language declares it.",
+           "#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]",
            "pub struct #{rust_name} {"]
   rows.each do |field, type, origin|
     borrow(type)

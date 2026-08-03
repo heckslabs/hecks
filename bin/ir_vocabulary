@@ -44,7 +44,7 @@ enums = PROJECTIONS.map do |declared, rust_name|
 
   <<~ENUM.chomp
     /// `Vocabulary::#{declared}`, as the language declares it.
-    #[derive(Debug, Clone)]
+    #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
     pub enum #{rust_name} {
     #{variants.map { |variant| "    #{variant}," }.join("\n")}
     }

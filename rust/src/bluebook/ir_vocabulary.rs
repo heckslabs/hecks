@@ -10,7 +10,7 @@
 // Rust cannot disagree about what these sets admit.
 
 /// `Vocabulary::MutationOp`, as the language declares it.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum MutationOp {
     Set,
     Append,
@@ -19,7 +19,7 @@ pub enum MutationOp {
 }
 
 /// `Vocabulary::QueryComparator`, as the language declares it.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum WhereOp {
     Eq,
     Ne,

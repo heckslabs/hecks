@@ -1,10 +1,19 @@
 //! Detects when a bluebook's storage shape has drifted from what its
 //! data was written under — a rename or restructure with nothing to
 //! explain it. Refuses at boot, before a command can run into the gap.
-//! Mirrors lib/hecksagain/runtime/era_guard.rb, with one simplification
-//! Rust's architecture affords for free: `crate::bluebook::parser::parse`
-//! is a pure function with no registry side effects, so re-parsing held
-//! text needs no scratch-registry dance at all.
+//! Mirrors lib/hecksagain/runtime/era_guard.rb.
+//!
+//! HOLDS A SHAPE SNAPSHOT, NOT RAW TEXT — the WRITE side never needed the
+//! parser at all: it already has the just-booted `Domain` in hand, the
+//! same one this function is diffing. Only a re-derivation of a PAST
+//! snapshot ever needed it, and only because what was held was text.
+//! Held as JSON (`serde_json`, straight off `Domain`'s own derive — not
+//! `ir_json.rs`'s hand-tuned wire format, which nothing else needs to
+//! read this file to match) instead, so a rename/restructure diff never
+//! depends on `bluebook::parser` being compiled into a binary at all.
+//! Not a migration: `check` has no caller anywhere in this tree yet but
+//! its own tests, so there is no real `data/eras/*.bluebook` written
+//! under the old scheme to carry forward.
 
 use crate::bluebook::translation::ir::Translation;
 use crate::ir::{Aggregate, Attribute, Domain};
@@ -12,21 +21,23 @@ use crate::ports::persistence::Lineage;
 use std::fs;
 use std::path::Path;
 
-pub fn check(domain: &Domain, translations: &[Translation], domain_root: &Path, current_text: &str) -> Result<(), String> {
+pub fn check(domain: &Domain, translations: &[Translation], domain_root: &Path) -> Result<(), String> {
     let era_dir = domain_root.join("data").join("eras");
-    let held_path = era_dir.join(format!("{}.bluebook", crate::naming::snake(&domain.name)));
+    let held_path = era_dir.join(format!("{}.json", crate::naming::snake(&domain.name)));
 
     fs::create_dir_all(&era_dir).map_err(|error| format!("cannot create {}: {error}", era_dir.display()))?;
 
     if !held_path.exists() {
-        fs::write(&held_path, current_text)
+        let snapshot = serde_json::to_string(domain).map_err(|error| format!("cannot encode {}: {error}", held_path.display()))?;
+        fs::write(&held_path, snapshot)
             .map_err(|error| format!("cannot write {}: {error}", held_path.display()))?;
         return Ok(());
     }
 
-    let held_text = fs::read_to_string(&held_path)
+    let held_json = fs::read_to_string(&held_path)
         .map_err(|error| format!("cannot read {}: {error}", held_path.display()))?;
-    let held_domain = crate::bluebook::parser::parse(&held_text);
+    let held_domain: Domain = serde_json::from_str(&held_json)
+        .map_err(|error| format!("cannot decode {}: {error}", held_path.display()))?;
 
     let mut drifted = false;
 
@@ -60,7 +71,8 @@ pub fn check(domain: &Domain, translations: &[Translation], domain_root: &Path, 
     check_vanished_aggregates(domain, translations, &held_domain)?;
 
     if drifted {
-        fs::write(&held_path, current_text)
+        let snapshot = serde_json::to_string(domain).map_err(|error| format!("cannot encode {}: {error}", held_path.display()))?;
+        fs::write(&held_path, snapshot)
             .map_err(|error| format!("cannot write {}: {error}", held_path.display()))?;
     }
 
@@ -296,13 +308,13 @@ end
     fn check_era(label: &str, current: &str, translation_source: Option<&str>) -> Result<(), String> {
         let root = temp_root(label);
         let v1 = crate::bluebook::parser::parse(V1);
-        check(&v1, &[], &root, V1).unwrap();
+        check(&v1, &[], &root).unwrap();
 
         let drifted = crate::bluebook::parser::parse(current);
         let translations: Vec<Translation> = translation_source
             .map(|source| vec![crate::bluebook::translation::parser::parse(source).unwrap()])
             .unwrap_or_default();
-        let verdict = check(&drifted, &translations, &root, current);
+        let verdict = check(&drifted, &translations, &root);
         let _ = fs::remove_dir_all(&root);
         verdict
     }

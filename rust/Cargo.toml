@@ -37,6 +37,13 @@ wire = []
 [dependencies]
 serde_json = "1"
 
+# serde's own derive — era_guard.rs holds its snapshot of a past boot's
+# shape as JSON now (not raw text, re-parsed), so `ir::Domain`'s own graph
+# needs to round-trip through serde directly, not just through
+# `serde_json::Value` the way `ir_json.rs`'s hand-tuned wire format already
+# does.
+serde = { version = "1", features = ["derive"] }
+
 # regex — a declared `pattern:` has to be MATCHED, not just parsed, and this is
 # the engine pattern_subset was written against : every construct it refuses is
 # refused because THIS crate and Ruby's Onigmo would disagree about it. The

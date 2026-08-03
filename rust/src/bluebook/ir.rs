@@ -56,7 +56,7 @@ pub use super::ir_structs::{
 /// round-tripped into being read as a plain string instead of an event/memory
 /// lookup — the opposite of what it was for. `with_spec` now carries exactly
 /// what the language declares `Binding`'s value to be : a plain string.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DispatchSpec {
     pub command_name: String,
     pub with_spec: Vec<(String, String)>,
@@ -71,7 +71,7 @@ pub struct DispatchSpec {
 // a wrong answer nobody heard.
 
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct AggregateHead {
     pub aggregate: String,
     /// SPELLED `as`, the way Ruby spells it and the way the wire has always
@@ -81,7 +81,7 @@ pub struct AggregateHead {
     pub many: bool,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Attribute {
     pub name: String,
     /// SPELLED `type`, matching Ruby, escaped because Rust reserves the word.
@@ -102,7 +102,7 @@ pub struct Attribute {
     pub admits: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Query {
     pub name: String,
     pub description: Option<String>,
@@ -127,14 +127,14 @@ pub struct Query {
     pub index_hints: Vec<IndexHint>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Mutation {
     pub target: String,
     pub op: MutationOp,
     pub source: String,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ValueObject {
     pub name: String,
     pub attributes: Vec<Attribute>,
@@ -147,7 +147,7 @@ pub struct ValueObject {
     pub closed_set: bool,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Policy {
     pub name: String,
     pub on_event: String,
@@ -165,26 +165,26 @@ impl Policy {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Lifecycle {
     pub field: String,
     pub default: String,
     pub transitions: Vec<Transition>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct OrderBy {
     pub field: String,
     pub direction: Direction,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum Direction {
     Asc,
     Desc,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct LimitSpec {
     pub value: String,
 }
@@ -199,45 +199,45 @@ pub struct LimitSpec {
 // shows on the wire — every other field's declared as a symbol too but its
 // Ruby struct strips it. Rust's parser (`parse_blocks.rs`) does the same
 // per-field stripping so the two sides render identical strings.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct OffsetSpec {
     pub value: String,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CursorSpec {
     pub value: String,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ConsistencySpec {
     pub mode: String,
     pub timeout: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct FreshnessSpec {
     pub mode: String,
     pub max_age: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct AuthorizationSpec {
     pub policy: String,
     pub tenant: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct NullSemanticsSpec {
     pub mode: String,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct InspectionSpec {
     pub mode: String,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct IndexHint {
     pub name: String,
 }
@@ -254,7 +254,7 @@ pub struct IndexHint {
 // meta-domain, so it would generate the fold's shape and be wrong about the
 // wire; pulled out of `ROOTS` and hand-written here instead, the same call this
 // file already made for `Query` over `limit`.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ReadModel {
     pub name: String,
     pub description: Option<String>,
@@ -317,7 +317,7 @@ impl fmt::Display for Domain {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Invariant {
     pub description: String,
     pub canonical: String,
