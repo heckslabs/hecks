@@ -119,12 +119,19 @@ pub fn parse_command(lines: &[&str], owner: &str) -> (Command, usize) {
                 if let Some(attr) = parse_attribute(line) {
                     cmd.attributes.push(attr);
                 }
-            } else if line.starts_with("role") {
-                cmd.role = parse_role_arg(line);
-            } else if line.starts_with("goal") {
-                cmd.goal = extract_string(line);
-            } else if line.starts_with("emits") {
-                cmd.emits.extend(extract_string(line));
+            } else if let Some(binding) = crate::bluebook::generic_bind::find_binding("Command", line)
+                .filter(|b| matches!(b.keyword, "role" | "goal" | "emits"))
+            {
+                let bindings = crate::bluebook::generic_bind::bind_keyword(binding, line);
+                if let Some(v) = bindings.text("role") {
+                    cmd.role = Some(v);
+                }
+                if let Some(v) = bindings.text("goal") {
+                    cmd.goal = Some(v);
+                }
+                if let Some(v) = bindings.text("emits") {
+                    cmd.emits.push(v);
+                }
             } else if line.starts_with("reference_to") {
                 if let Some(target) = extract_word_after(line, "reference_to") {
                     let name = if let Some(pos) = line.find(", as:") {
