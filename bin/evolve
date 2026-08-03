@@ -40,8 +40,8 @@ SNAPSHOT_PATHS = [
   "rust/src/bluebook/ir_syntax.rs",
   "rust/src/bluebook/ir_syntax_flags.rs",
   "rust/src/bluebook/ir_syntax_text.rs",
-  "rust/src/bluebook/ir_syntax_number.rs",
-  "rust/src/bluebook/ir_dispatch_words.rs"
+  "rust/src/bluebook/ir_dispatch_words.rs",
+  "rust/src/bluebook/ir_syntax_bindings.rs"
 ].map { |rel| File.join(ROOT, rel) }.freeze
 
 GATES = %w[
@@ -51,8 +51,8 @@ GATES = %w[
   spec/ir_syntax_export_spec.rb
   spec/ir_syntax_flags_export_spec.rb
   spec/ir_syntax_text_export_spec.rb
-  spec/ir_syntax_number_export_spec.rb
   spec/ir_dispatch_words_export_spec.rb
+  spec/ir_syntax_bindings_export_spec.rb
   spec/ir_golden_spec.rb
 ].freeze
 
@@ -67,8 +67,8 @@ def regenerate!
   { "bin/ir_syntax"         => "rust/src/bluebook/ir_syntax.rs",
     "bin/ir_syntax_flags"   => "rust/src/bluebook/ir_syntax_flags.rs",
     "bin/ir_syntax_text"    => "rust/src/bluebook/ir_syntax_text.rs",
-    "bin/ir_syntax_number"  => "rust/src/bluebook/ir_syntax_number.rs",
-    "bin/ir_dispatch_words" => "rust/src/bluebook/ir_dispatch_words.rs" }.each do |script, target|
+    "bin/ir_dispatch_words" => "rust/src/bluebook/ir_dispatch_words.rs",
+    "bin/ir_syntax_bindings" => "rust/src/bluebook/ir_syntax_bindings.rs" }.each do |script, target|
     output = `#{File.join(ROOT, script)}`
     abort "#{script} refused — nothing was written" unless $?.success?
     File.write(File.join(ROOT, target), output)

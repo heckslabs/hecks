@@ -123,20 +123,27 @@ RSpec.describe "Rust's parser holds the language's argument names" do
     sources = RUST_FILES.map { |name| File.read(File.join(InMemoryDomain::ROOT, "rust/src/bluebook/#{name}")) }
 
     # `parse_flag_kwarg(line, "optional:")` takes the line and the kwarg ;
-    # `assert_text_kwarg("admits:")`/`assert_number_kwarg("max_age:")` take
-    # only the kwarg — one regex covers both call shapes.
+    # `assert_text_kwarg("admits:")` takes only the kwarg — one regex covers
+    # both call shapes.
     sources.flat_map { |src| src.scan(/#{assert_fn}\(\s*(?:\w+,\s*)?"([a-z_]+):?"\s*\)/).flatten }.uniq.sort
   end
 
-  # Both directions, for every kind Rust's reader can actually be held to —
-  # `flag` (its own reader, `parse_flag_kwarg`) and `text`/`number` (shared
-  # extractors, so an explicit `assert_*_kwarg` call in front of the read is
-  # what stands in for a dedicated reader — see assert_text_kwarg's own
-  # comment in parse_blocks.rs).
+  # Both directions, for every kind Rust's HAND-WRITTEN reader can still be
+  # held to this way — `flag` (its own reader, `parse_flag_kwarg`) and `text`
+  # (a shared extractor, so an explicit `assert_text_kwarg` call in front of
+  # the read is what stands in for a dedicated reader — see that function's
+  # own comment in parse_blocks.rs). `number` USED TO be here the same way,
+  # via `assert_number_kwarg` — retired once the generic-bluebook-reader
+  # arc's binder (generic_bind.rs) cut over its only two callers
+  # (consistency's timeout:, freshness's max_age:) and left it with none.
+  # Both are now read generically, the same evidence the "hardcodes no kwarg
+  # name"/"declares no named argument" checks above already accept
+  # (`ir_syntax_bindings.rs`'s own `named: "..."` entries) — a kind-specific
+  # assertion has nothing left to hold once NEITHER declared number-kind
+  # kwarg is read any other way.
   KIND_ASSERTIONS = {
-    "flag"   => "parse_flag_kwarg",
-    "text"   => "assert_text_kwarg",
-    "number" => "assert_number_kwarg"
+    "flag" => "parse_flag_kwarg",
+    "text" => "assert_text_kwarg"
   }.freeze
 
   KIND_ASSERTIONS.each do |kind, assert_fn|

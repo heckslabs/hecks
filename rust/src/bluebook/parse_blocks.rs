@@ -477,86 +477,55 @@ fn apply_option_line(
     inspection: &mut Option<InspectionSpec>,
     index_hints: &mut Vec<IndexHint>,
 ) -> bool {
-    if line.starts_with("offset") {
-        *offset = parse_offset_line(line);
-    } else if line.starts_with("cursor") {
+    // `cursor` ALONE STAYS HAND-WRITTEN — `CursorSpec.value` is the one
+    // field among these eight whose colon Ruby's own wire format KEEPS
+    // (`render_value`, not plain `.to_s` — see `strip_symbol_colon`'s own
+    // comment), while the generic binder's `symbol` kind always strips it.
+    // `offset`'s token is always a bare number with no colon to begin with,
+    // so it is not exposed to the same risk despite sharing the comment's
+    // "render_value keeps it" reasoning.
+    if line.starts_with("cursor") {
         *cursor = parse_cursor_line(line);
-    } else if line.starts_with("consistency") {
-        *consistency = parse_consistency_line(line);
-    } else if line.starts_with("freshness") {
-        *freshness = parse_freshness_line(line);
-    } else if line.starts_with("authorize") {
-        *authorization = parse_authorize_line(line);
-    } else if line.starts_with("nulls") {
-        *null_semantics = parse_nulls_line(line);
-    } else if line.starts_with("inspect_query") {
-        *inspection = parse_inspect_query_line(line);
-    } else if line.starts_with("use_index") {
-        if let Some(hint) = parse_use_index_line(line) {
-            index_hints.push(hint);
-        }
-    } else {
+        return true;
+    }
+    let Some(binding) = crate::bluebook::generic_bind::find_binding("Query", line)
+        .filter(|b| matches!(b.keyword, "offset" | "consistency" | "freshness" | "authorize" | "nulls" | "inspect_query" | "use_index"))
+    else {
         return false;
+    };
+    let bindings = crate::bluebook::generic_bind::bind_keyword(binding, line);
+    match binding.keyword {
+        "offset" => *offset = bindings.text("value").map(|value| OffsetSpec { value }),
+        "consistency" => {
+            *consistency = bindings.text("mode").map(|mode| ConsistencySpec { mode, timeout: bindings.text("timeout") })
+        }
+        "freshness" => {
+            *freshness = bindings.text("mode").map(|mode| FreshnessSpec { mode, max_age: bindings.text("max_age") })
+        }
+        "authorize" => {
+            *authorization =
+                bindings.text("policy").map(|policy| AuthorizationSpec { policy, tenant: bindings.text("tenant") })
+        }
+        "nulls" => *null_semantics = bindings.text("mode").map(|mode| NullSemanticsSpec { mode }),
+        "inspect_query" => *inspection = bindings.text("mode").map(|mode| InspectionSpec { mode }),
+        "use_index" => {
+            if let Some(name) = bindings.text("name") {
+                index_hints.push(IndexHint { name });
+            }
+        }
+        other => unreachable!("apply_option_line's own filter admitted {other:?}, which it does not handle"),
     }
     true
 }
 
-// STRIPS A LEADING COLON. Every one of these eight fields is DECLARED as a
-// symbol (`:snapshot`, `:operator_access`, ...), and Ruby's own `to_h` methods
-// disagree about whether the colon survives: `OffsetSpec`/`CursorSpec` render
-// through `QuerySpecification.render_value`, which keeps it ; every other
-// struct (`ConsistencySpec`, `FreshnessSpec`, `AuthorizationSpec`,
-// `NullSemantics`, `InspectionSpec`, `IndexHint`) calls plain `.to_s`, which
-// does not. So `parse_cursor_line` keeps the colon `extract_word_after`
-// already captures, and every other parser here strips it.
-fn strip_symbol_colon(value: String) -> String {
-    value.trim_start_matches(':').to_string()
-}
-
-pub fn parse_offset_line(line: &str) -> Option<OffsetSpec> {
-    extract_word_after(line, "offset").map(|value| OffsetSpec { value })
-}
-
+// `CursorSpec.value` IS THE ONE FIELD LEFT that keeps `parse_cursor_line`
+// hand-written (see `apply_option_line`'s own comment) — Ruby's own wire
+// format KEEPS its colon (`render_value`, not plain `.to_s`), unlike the
+// generic binder's `symbol` kind, which always strips one. The other seven
+// option words all read through the generic binder now (`find_binding`+
+// `bind_keyword` in `apply_option_line`).
 pub fn parse_cursor_line(line: &str) -> Option<CursorSpec> {
     extract_word_after(line, "cursor").map(|value| CursorSpec { value })
-}
-
-pub fn parse_consistency_line(line: &str) -> Option<ConsistencySpec> {
-    let mode = strip_symbol_colon(extract_word_after(line, "consistency")?);
-    assert_number_kwarg("timeout:");
-    let timeout = extract_word_after(line, "timeout:");
-    Some(ConsistencySpec { mode, timeout })
-}
-
-pub fn parse_freshness_line(line: &str) -> Option<FreshnessSpec> {
-    let mode = strip_symbol_colon(extract_word_after(line, "freshness")?);
-    assert_number_kwarg("max_age:");
-    let max_age = extract_word_after(line, "max_age:");
-    Some(FreshnessSpec { mode, max_age })
-}
-
-pub fn parse_authorize_line(line: &str) -> Option<AuthorizationSpec> {
-    let policy = strip_symbol_colon(extract_word_after(line, "authorize")?);
-    let tenant = extract_word_after(line, "tenant:").map(strip_symbol_colon);
-    Some(AuthorizationSpec { policy, tenant })
-}
-
-pub fn parse_nulls_line(line: &str) -> Option<NullSemanticsSpec> {
-    extract_word_after(line, "nulls")
-        .map(strip_symbol_colon)
-        .map(|mode| NullSemanticsSpec { mode })
-}
-
-pub fn parse_inspect_query_line(line: &str) -> Option<InspectionSpec> {
-    extract_word_after(line, "inspect_query")
-        .map(strip_symbol_colon)
-        .map(|mode| InspectionSpec { mode })
-}
-
-pub fn parse_use_index_line(line: &str) -> Option<IndexHint> {
-    extract_word_after(line, "use_index")
-        .map(strip_symbol_colon)
-        .map(|name| IndexHint { name })
 }
 
 pub fn parse_where_line(line: &str, param_names: &[String]) -> Vec<WhereClause> {
@@ -1295,17 +1264,6 @@ pub(crate) fn assert_text_kwarg(kwarg: &str) {
     assert!(
         crate::bluebook::ir_syntax_text::TEXT_ARGUMENTS.contains(&name),
         "reads {kwarg:?} as kind \"text\", which Syntax::Argument does not declare — the reader \
-         and the declaration have drifted"
-    );
-}
-
-/// Asserts `kwarg` against `ir_syntax_number::NUMBER_ARGUMENTS` — see
-/// `assert_text_kwarg` above for why this asserts rather than reads.
-pub(crate) fn assert_number_kwarg(kwarg: &str) {
-    let name = kwarg.trim_end_matches(':');
-    assert!(
-        crate::bluebook::ir_syntax_number::NUMBER_ARGUMENTS.contains(&name),
-        "reads {kwarg:?} as kind \"number\", which Syntax::Argument does not declare — the reader \
          and the declaration have drifted"
     );
 }
