@@ -334,17 +334,17 @@ Two enrichments to `.find` were considered and rejected:
 
 ## Explicitly open, not designed here
 
-- **Batch reads across a reference — a real SQL `JOIN`.** Verified directly: the only
-  real `JOIN` anywhere in the adapter layer is Postgres introspecting its own
-  `pg_class`/`pg_inherits` system catalog for the era/lineage machinery; nothing in
-  `query_specification` crosses a `reference_to` into another aggregate's table.
-  `.find`/plain chaining (above) is the right tool for one record, on demand — it does
-  not and should not solve the *list* case: `Transfer.all.each { |t| t.source_account.customer.name }`
-  is genuine N+1, one query becoming up to 2N+1. The right shape is a **new, explicit
-  extension to `query`** (a `join`-declaring clause, compiled to a real `JOIN` on an
-  adapter that supports one, refused at declaration time on one that doesn't) — kept
-  structurally separate from `.find`, the same way `.find` and `query` were already
-  kept separate for filtering. Not designed further than that shape here.
+- **Batch reads across a reference are already built — as `read_model`, not `query`.**
+  Corrected after checking: `read_model` is a real, separate construct
+  (`ReadModelBuilder`), with a live consumer (`adapters/driven/sqlite/projection.rb`)
+  and real corpus usage (`CustomerPortfolio`: `reference_to Customer`, then `include
+  Account`/`include ATMCard`/`include Transfer`; `ComplianceDashboard`: `reference_to
+  Account`, `include CardPayment`). `.find`/plain chaining (above) is still the right
+  tool for one record, on demand; `read_model` is the already-built tool for the batch
+  case a raw `JOIN` would otherwise solve. Genuinely open, not fabricated: whether
+  `include`'s semantics on an absent match behave like an inner or a left join wasn't
+  traced end to end here — worth confirming directly in `sqlite/projection.rb` before
+  relying on it for a case where zero matches must not drop the root record.
 - **The read side, more broadly.** `query`/read-model declarations (`query "InGoodStanding"`, the
   richer option vocabulary in `reflex.bluebook`) have no generated-route or
   generated-view story yet. `show` is the one slice that's load-bearing today (nothing
