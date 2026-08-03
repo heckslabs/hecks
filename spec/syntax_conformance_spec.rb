@@ -461,12 +461,21 @@ RSpec.describe "the declared syntax" do
                                     "could not declare them"
   end
 
-  # A `pairs` argument decides which field each pair lands in from the pair's own
-  # key, so one cell cannot name it. A `Type` argument fills no field at all — a
-  # type is not a field. Everything else names exactly one.
+  # A `pairs` argument decides which field EACH PAIR lands in from the pair's
+  # own key, so one cell cannot name that — UNLESS the pairs argument's own
+  # RESULT (the whole compound or list it builds) lands on one real field,
+  # which two of the four `pairs_shape`s do: `verbatim` (`dispatch`'s `with:`
+  # → `with_spec`, captured as-is) and `elements` (`where` → `wheres`, one
+  # new element per pair). `fields` (a pair's key/value become two NAMED
+  # SUB-FIELDS of a compound something else already fills) and `sibling` (the
+  # key names a field of another, already-declared construct) still cannot
+  # name a single field here, the original reasoning unchanged. A `Type`
+  # argument fills no field at all — a type is not a field. Everything else
+  # names exactly one.
   it "names what each argument fills, except where nothing can" do
     ARGUMENTS.each do |row|
-      unnameable = row[:kind] == "pairs" || row[:context] == "Type"
+      pairs_names_its_result = row[:kind] == "pairs" && %w[verbatim elements].include?(row[:pairs_shape].to_s)
+      unnameable = (row[:kind] == "pairs" && !pairs_names_its_result) || row[:context] == "Type"
 
       if unnameable
         expect(row[:fills]).to eq(""),

@@ -7512,6 +7512,50 @@
               "admits": null,
               "default": null,
               "list": false,
+              "name": "name",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "name",
+                "fields"
+              ]
+            ],
+            [
+              [
+                "name",
+                "elements"
+              ]
+            ],
+            [
+              [
+                "name",
+                "verbatim"
+              ]
+            ],
+            [
+              [
+                "name",
+                "sibling"
+              ]
+            ]
+          ],
+          "name": "PairsShape"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
               "name": "word",
               "optional": false,
               "pattern": null,
@@ -9843,6 +9887,42 @@
               "type": "String"
             },
             {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "selects",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "pair_key_fills",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "pair_value_fills",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            },
+            {
+              "admits": "Syntax::PairsShape",
+              "default": null,
+              "list": false,
+              "name": "pairs_shape",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            },
+            {
               "admits": "Syntax::Status",
               "default": "admitted",
               "list": false,
@@ -11295,6 +11375,10 @@
               [
                 "fills",
                 "source"
+              ],
+              [
+                "selects",
+                "op=set"
               ]
             ],
             [
@@ -11325,6 +11409,14 @@
               [
                 "fills",
                 ""
+              ],
+              [
+                "selects",
+                "op=append"
+              ],
+              [
+                "pairs_shape",
+                "sibling"
               ]
             ],
             [
@@ -11355,6 +11447,10 @@
               [
                 "fills",
                 "source"
+              ],
+              [
+                "selects",
+                "op=increment"
               ]
             ],
             [
@@ -11385,6 +11481,10 @@
               [
                 "fills",
                 "source"
+              ],
+              [
+                "selects",
+                "op=decrement"
               ]
             ],
             [
@@ -11835,6 +11935,10 @@
               [
                 "fills",
                 ""
+              ],
+              [
+                "pairs_shape",
+                "sibling"
               ]
             ],
             [
@@ -11865,6 +11969,18 @@
               [
                 "fills",
                 ""
+              ],
+              [
+                "pair_key_fills",
+                "command"
+              ],
+              [
+                "pair_value_fills",
+                "to_state"
+              ],
+              [
+                "pairs_shape",
+                "fields"
               ]
             ],
             [
@@ -12195,6 +12311,18 @@
               [
                 "fills",
                 ""
+              ],
+              [
+                "pair_key_fills",
+                "from_state"
+              ],
+              [
+                "pair_value_fills",
+                "to_state"
+              ],
+              [
+                "pairs_shape",
+                "fields"
               ]
             ],
             [
@@ -12254,7 +12382,11 @@
               ],
               [
                 "fills",
-                ""
+                "with_spec"
+              ],
+              [
+                "pairs_shape",
+                "verbatim"
               ]
             ],
             [
@@ -12494,7 +12626,19 @@
               ],
               [
                 "fills",
-                ""
+                "wheres"
+              ],
+              [
+                "pair_key_fills",
+                "field"
+              ],
+              [
+                "pair_value_fills",
+                "value"
+              ],
+              [
+                "pairs_shape",
+                "elements"
               ]
             ],
             [

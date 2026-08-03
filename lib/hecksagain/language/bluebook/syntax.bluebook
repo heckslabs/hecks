@@ -148,6 +148,45 @@ Hecks.bluebook "Bluebook" do
       end
     end
 
+    # WHAT A `pairs` ARGUMENT'S OWN PAIR(S) DO. Found by tracing every real
+    # `pairs` reader (parse_where_line, parse_pm_handler, parse_lifecycle,
+    # parse_with_hash, `one_of`'s member builder, `sets`' append: builder) —
+    # four genuinely different shapes were hiding under one `kind`:
+    #
+    #   fields    ONE pair, contributing two NAMED SUB-FIELDS to the single
+    #             compound this keyword invocation is already building — the
+    #             same role a positional argument plays, just sourced from a
+    #             pair instead of a bare token. `on`'s `transition:` sets
+    #             `from_state`/`to_state` on the ProcessManagerHandler its
+    #             OWN `event_type` argument is also filling ; Lifecycle's
+    #             `transition` sets `command`/`to_state` on the Transition
+    #             its own `from:` argument also fills.
+    #   elements  EACH pair independently becomes a NEW compound, appended to
+    #             the keyword's own list field (`where`'s own `fills:
+    #             "wheres"`, declared at the Keyword level, same as
+    #             `attribute`'s). `where(balance: {gte: 100}, status: "open")`
+    #             is two WhereClauses from one line, not one.
+    #   verbatim  each pair is captured as-is, key and value both left as
+    #             text — `dispatch`'s `with:` : resolution (`:name` reference
+    #             vs literal) happens at DISPATCH time, not parse time, so
+    #             there is nothing to interpret here at all.
+    #   sibling   the pair's KEY names a field of an ALREADY-DECLARED sibling
+    #             construct — `member`'s keys are the enclosing value
+    #             object's own attributes ; `sets`' `append:` keys are the
+    #             target entity/value-object's own attributes. Not a static
+    #             fact this table can enumerate (the valid keys differ per
+    #             domain) — named here so a reader knows to resolve
+    #             dynamically rather than assume an omission.
+    value_object "PairsShape" do
+      attribute :name, String
+      one_of do
+        member name: "fields"
+        member name: "elements"
+        member name: "verbatim"
+        member name: "sibling"
+      end
+    end
+
     # EVERY WORD THE BLUEBOOK SURFACE ADMITS.
     #
     #   word     the spelling
@@ -406,6 +445,22 @@ Hecks.bluebook "Bluebook" do
       attribute :kind,     String, admits: "Syntax::ArgumentKind"
       attribute :required, String
       attribute :fills,    String
+      # OP-SELECTION — WHICH NAMED ARGUMENT FIRED CHOOSES A VALUE FOR
+      # ANOTHER FIELD, format "field=value" ("op=increment"). `sets`' four
+      # named forms (to/append/increment/decrement) each fill `source`, and
+      # the CHOICE of which one appeared fills `op` — a fact no other column
+      # could carry, since `fills` already names where the ARGUMENT'S OWN
+      # value lands. Empty for every argument that isn't one of a closed set
+      # of named alternatives feeding a sibling field this way.
+      attribute :selects,          String
+      # THE TWO ROLES A `pairs` ARGUMENT'S OWN PAIR PLAYS, read together with
+      # `pairs_shape` below — see that value object's own comment for the
+      # four shapes. Empty for anything that is not `kind: "pairs"`, and for
+      # a `sibling`-shaped pairs argument (the target field varies per pair,
+      # per domain — nothing here could name it).
+      attribute :pair_key_fills,   String
+      attribute :pair_value_fills, String
+      attribute :pairs_shape,      String, admits: "Syntax::PairsShape"
       attribute :status,   String, default: "admitted", admits: "Syntax::Status"
 
       one_of do
@@ -475,10 +530,10 @@ Hecks.bluebook "Bluebook" do
         member keyword: "reference_to",    context: "Command", at: "",  named: "optional",  kind: "flag",     required: "false", fills: "optional"
         member keyword: "given",           context: "Command", at: "1", named: "",          kind: "text",     required: "true",  fills: "description"
         member keyword: "sets",            context: "Command", at: "1", named: "",          kind: "symbol",   required: "true",  fills: "target"
-        member keyword: "sets",            context: "Command", at: "",  named: "to",        kind: "symbol",   required: "false", fills: "source"
-        member keyword: "sets",            context: "Command", at: "",  named: "append",    kind: "pairs",    required: "false", fills: ""
-        member keyword: "sets",            context: "Command", at: "",  named: "increment", kind: "symbol",   required: "false", fills: "source"
-        member keyword: "sets",            context: "Command", at: "",  named: "decrement", kind: "symbol",   required: "false", fills: "source"
+        member keyword: "sets",            context: "Command", at: "",  named: "to",        kind: "symbol",   required: "false", fills: "source", selects: "op=set"
+        member keyword: "sets",            context: "Command", at: "",  named: "append",    kind: "pairs",    required: "false", fills: "", selects: "op=append", pairs_shape: "sibling"
+        member keyword: "sets",            context: "Command", at: "",  named: "increment", kind: "symbol",   required: "false", fills: "source", selects: "op=increment"
+        member keyword: "sets",            context: "Command", at: "",  named: "decrement", kind: "symbol",   required: "false", fills: "source", selects: "op=decrement"
         member keyword: "emits",           context: "Command", at: "1", named: "",          kind: "text",     required: "true",  fills: "emits"
         member keyword: "attribute",       context: "Command", at: "1", named: "",          kind: "symbol",   required: "true",  fills: "name"
         member keyword: "attribute",       context: "Command", at: "2", named: "",          kind: "constant", required: "false", fills: "type"
@@ -495,9 +550,9 @@ Hecks.bluebook "Bluebook" do
         member keyword: "attribute",       context: "ValueObject", at: "",  named: "admits",   kind: "text",     required: "false", fills: "admits"
         member keyword: "invariant",       context: "ValueObject", at: "1", named: "",         kind: "text",     required: "true",  fills: "description"
 
-        member keyword: "member",          context: "OneOf",     at: "1", named: "",     kind: "pairs", required: "true",  fills: ""
+        member keyword: "member",          context: "OneOf",     at: "1", named: "",     kind: "pairs", required: "true",  fills: "", pairs_shape: "sibling"
 
-        member keyword: "transition",      context: "Lifecycle", at: "1", named: "",     kind: "pairs", required: "true",  fills: ""
+        member keyword: "transition",      context: "Lifecycle", at: "1", named: "",     kind: "pairs", required: "true",  fills: "", pair_key_fills: "command", pair_value_fills: "to_state", pairs_shape: "fields"
         # SPELLED LIKE A KEYWORD ARGUMENT, RECEIVED AS DATA. `transition` takes
         # ONE Hash and deletes `:from` out of it, so `from:` is a reserved key of
         # the pairs argument rather than a Ruby keyword parameter — the one place
@@ -516,10 +571,10 @@ Hecks.bluebook "Bluebook" do
         member keyword: "ends_on",         context: "ProcessManager", at: "1", named: "",           kind: "text",   required: "true", fills: "ends_on"
         member keyword: "state",           context: "ProcessManager", at: "1", named: "",           kind: "text",   required: "true", fills: "states"
         member keyword: "on",              context: "ProcessManager", at: "1", named: "",           kind: "text",   required: "true", fills: "event_type"
-        member keyword: "on",              context: "ProcessManager", at: "",  named: "transition", kind: "pairs",  required: "true", fills: ""
+        member keyword: "on",              context: "ProcessManager", at: "",  named: "transition", kind: "pairs",  required: "true", fills: "", pair_key_fills: "from_state", pair_value_fills: "to_state", pairs_shape: "fields"
 
         member keyword: "dispatch",        context: "Handler", at: "1", named: "",     kind: "text",  required: "true",  fills: "command_name"
-        member keyword: "dispatch",        context: "Handler", at: "",  named: "with", kind: "pairs", required: "false", fills: ""
+        member keyword: "dispatch",        context: "Handler", at: "",  named: "with", kind: "pairs", required: "false", fills: "with_spec", pairs_shape: "verbatim"
 
         member keyword: "description",     context: "Query", at: "1", named: "",         kind: "text",     required: "true",  fills: "description"
         member keyword: "attribute",       context: "Query", at: "1", named: "",         kind: "symbol",   required: "true",  fills: "name"
@@ -528,7 +583,7 @@ Hecks.bluebook "Bluebook" do
         member keyword: "attribute",       context: "Query", at: "",  named: "optional", kind: "flag",     required: "false", fills: "optional"
         member keyword: "attribute",       context: "Query", at: "",  named: "pattern",  kind: "text",     required: "false", fills: "pattern"
         member keyword: "attribute",       context: "Query", at: "",  named: "admits",   kind: "text",     required: "false", fills: "admits"
-        member keyword: "where",           context: "Query", at: "1", named: "",         kind: "pairs",    required: "true",  fills: ""
+        member keyword: "where",           context: "Query", at: "1", named: "",         kind: "pairs",    required: "true",  fills: "wheres", pair_key_fills: "field", pair_value_fills: "value", pairs_shape: "elements"
         # THE DIRECTION IS A SECOND POSITIONAL AND DEFAULTS TO :asc — the only
         # two-positional word in the language, and the reason `second` had to be
         # a column rather than an assumption of arity one.
