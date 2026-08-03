@@ -48,10 +48,24 @@ pub fn paths(construct: &Map<String, Value>) -> Vec<&str> {
 /// of the payload. A composite has several, and admitting only the first
 /// refuses a perfectly good dispatch as an undeclared argument.
 pub fn heads(construct: &Map<String, Value>) -> Vec<&str> {
-    paths(construct)
-        .into_iter()
-        .map(|path| path.split('.').next().unwrap_or(path))
-        .collect()
+    paths(construct).into_iter().map(head_of).collect()
+}
+
+fn head_of(path: &str) -> &str {
+    path.split('.').next().unwrap_or(path)
+}
+
+/// THE TYPED TWIN OF `heads` — reads the paths themselves, the same
+/// `of`/`of_paths` split above. Takes `&aggregate.identified_by` /
+/// `&entity.identified_by` directly rather than digging them back out of a
+/// JSON map.
+pub fn heads_of_paths(paths: &[String]) -> Vec<&str> {
+    paths.iter().map(|p| head_of(p.as_str())).collect()
+}
+
+/// THE TYPED TWIN OF `reading` — same join, from declared paths directly.
+pub fn reading_of_paths(paths: &[String]) -> String {
+    paths.join(", ")
 }
 
 /// HOW AN IDENTITY READS WHEN A RUNTIME HAS TO NAME IT IN A REFUSAL — the

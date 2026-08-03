@@ -374,7 +374,16 @@ fn mutation_to_value(mutation: &crate::ir::Mutation) -> Value {
     json!({ "target": target, "op": op, "source": source })
 }
 
-fn canonicalise(source: &str) -> String {
+// `pub(crate)`, not private: M6b's typed dispatch path evaluates `given`/
+// `ensures`/`invariant` canonical text read straight off `crate::ir`, which
+// holds it exactly as declared — this normalisation is what makes it safe to
+// feed the evaluator regardless of source whitespace, the same guarantee the
+// JSON wire got for free by being built through this function already. The
+// evaluator itself accepts both `.length` and `.size` unnormalised, so this
+// is defence in depth (whitespace runs, stray control characters) rather
+// than a semantic requirement — but reusing the one proven implementation
+// costs nothing and rules the question out rather than assuming the answer.
+pub(crate) fn canonicalise(source: &str) -> String {
     let mut rules: Vec<&Rule> = RULES.iter().collect();
     rules.sort_by_key(|rule| rule.position);
     let folded = rules

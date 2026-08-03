@@ -1,9 +1,10 @@
 use crate::bluebook::expression::resolver::describe;
-use crate::dispatcher::array;
 use crate::interp_expr::State;
 use crate::interp_givens::evaluate_given;
+use crate::ir::{Aggregate, Attribute, Command, Entity, Mutation, MutationOp, ValueObject};
 use crate::runtime::refusal_wording;
 use serde_json::{Map, Value};
+use std::collections::HashMap;
 use std::sync::LazyLock;
 
 // increment/decrement share one arithmetic primitive, differing only by
@@ -14,21 +15,21 @@ use std::sync::LazyLock;
 // file's copy is that table's JSON export, embedded at compile time.
 // Regenerate with `bin/mutation_ops > rust/src/runtime/mutation_ops.json`
 // any time MUTATION_OPS changes.
-struct MutationOp {
+struct MutationOpSign {
     name: String,
     sign: Option<i64>,
 }
 
 static MUTATION_OPS_JSON: &str = include_str!("mutation_ops.json");
 
-static MUTATION_OPS: LazyLock<Vec<MutationOp>> = LazyLock::new(|| {
+static MUTATION_OPS: LazyLock<Vec<MutationOpSign>> = LazyLock::new(|| {
     let parsed: Value =
         serde_json::from_str(MUTATION_OPS_JSON).expect("mutation_ops.json must parse as JSON");
     parsed
         .as_array()
         .expect("mutation_ops.json must hold an array")
         .iter()
-        .map(|row| MutationOp {
+        .map(|row| MutationOpSign {
             name: row["name"].as_str().expect("name").to_string(),
             sign: row["sign"].as_i64(),
         })
@@ -43,81 +44,109 @@ fn sign_of(operation: &str) -> i64 {
         .unwrap_or(-1)
 }
 
-pub fn defaults_for(aggregate: &Map<String, Value>) -> Result<State, String> {
+/// A closed-set-or-literal declaration parsed straight off its RAW
+/// declaration text — `Attribute.default` and `Mutation.source` (the
+/// non-argument case) both hold exactly what the bluebook wrote, unparsed.
+/// Mirrors `ir_json::literal` byte for byte : that function exists to give
+/// the WIRE the same reading, and reusing the derivation here (rather than
+/// re-deriving it) is what keeps the two guaranteed to agree rather than
+/// merely hoped to.
+fn parse_literal(text: &str) -> Value {
+    let text = text.trim();
+    if text.is_empty() {
+        return Value::Null;
+    }
+    if text.len() >= 2 && text.starts_with('"') && text.ends_with('"') {
+        return Value::String(text[1..text.len() - 1].to_string());
+    }
+    if text.starts_with('{') && text.ends_with('}') {
+        let mut map = Map::new();
+        for entry in text[1..text.len() - 1].split(',') {
+            let Some((key, value)) = entry.split_once(':') else {
+                continue;
+            };
+            let key = key.trim().trim_start_matches(':').trim_matches('"');
+            if !key.is_empty() {
+                map.insert(key.to_string(), parse_literal(value.trim()));
+            }
+        }
+        return Value::Object(map);
+    }
+    if let Ok(number) = text.parse::<i64>() {
+        return Value::from(number);
+    }
+    if let Ok(number) = text.parse::<f64>() {
+        return Value::from(number);
+    }
+    match text {
+        "true" => Value::Bool(true),
+        "false" => Value::Bool(false),
+        "nil" | "null" => Value::Null,
+        other => Value::String(other.to_string()),
+    }
+}
+
+pub fn defaults_for(aggregate: &Aggregate, admitted_sets: &HashMap<String, Vec<String>>) -> Result<State, String> {
     let mut state = Map::new();
 
-    for attribute in array(aggregate, "attributes") {
-        let name = attribute
-            .get("name")
-            .and_then(Value::as_str)
-            .unwrap_or_default()
-            .to_string();
-        let is_list = attribute
-            .get("list")
-            .and_then(Value::as_bool)
-            .unwrap_or(false);
-
-        let value = if is_list {
+    for attribute in &aggregate.attributes {
+        let value = if attribute.list {
             Value::Array(Vec::new())
         } else {
-            default_value(aggregate, &attribute)?
+            default_value(aggregate, attribute, admitted_sets)?
         };
-        state.insert(name, value);
+        state.insert(attribute.name.clone(), value);
     }
 
-    if let Some(lifecycle) = aggregate.get("lifecycle").and_then(Value::as_object) {
-        if let (Some(field), Some(default)) = (
-            lifecycle.get("field").and_then(Value::as_str),
-            lifecycle.get("default"),
-        ) {
-            state.insert(field.to_string(), default.clone());
-        }
+    if let Some(lifecycle) = &aggregate.lifecycle {
+        state.insert(lifecycle.field.clone(), Value::String(lifecycle.default.clone()));
     }
     Ok(state)
 }
 
-fn default_value(aggregate: &Map<String, Value>, attribute: &Value) -> Result<Value, String> {
-    if let Some(default) = attribute.get("default").filter(|default| !default.is_null()) {
-        return coerce_attribute(aggregate, attribute.as_object().unwrap_or(&Map::new()), default);
+fn default_value(
+    aggregate: &Aggregate,
+    attribute: &Attribute,
+    admitted_sets: &HashMap<String, Vec<String>>,
+) -> Result<Value, String> {
+    // A declared default is read through `parse_literal` the same way the
+    // WIRE would read it (`ir_json::literal`) — including the possibility
+    // that the declared text itself spells "nil"/"null"/"" and parses BACK
+    // to Null, which counts as no default just as an absent one does.
+    let declared_default = attribute.default.as_deref().map(parse_literal).unwrap_or(Value::Null);
+    if !declared_default.is_null() {
+        return coerce_attribute(aggregate, attribute, &declared_default, admitted_sets);
     }
 
-    let Some(type_name) = attribute.get("type").and_then(Value::as_str) else {
+    let Some(value_object) = value_object_named(aggregate, &attribute.r#type) else {
         return Ok(Value::Null);
     };
-    let Some(value_object) = value_object_named(aggregate, type_name) else {
-        return Ok(Value::Null);
-    };
-    if !array(&value_object, "attributes").iter().all(|field| {
-        field.get("default").is_some_and(|default| !default.is_null())
-    }) {
+    let all_fields_default = value_object.attributes.iter().all(|field| {
+        !field.default.as_deref().map(parse_literal).unwrap_or(Value::Null).is_null()
+    });
+    if !all_fields_default {
         return Ok(Value::Null);
     }
 
-    coerce_attribute(aggregate, attribute.as_object().unwrap_or(&Map::new()), &Value::Object(Map::new()))
+    coerce_attribute(aggregate, attribute, &Value::Object(Map::new()), admitted_sets)
 }
 
 pub fn assign_creation_attributes(
     state: &mut State,
-    aggregate: &Map<String, Value>,
-    command: &Map<String, Value>,
+    aggregate: &Aggregate,
+    command: &Command,
     args: &State,
+    admitted_sets: &HashMap<String, Vec<String>>,
 ) -> Result<(), String> {
-    let declared: Vec<String> = array(aggregate, "attributes")
-        .iter()
-        .filter_map(|a| a.get("name").and_then(Value::as_str).map(str::to_string))
-        .collect();
+    let declared: Vec<&str> = aggregate.attributes.iter().map(|a| a.name.as_str()).collect();
 
-    for attribute in array(command, "attributes") {
-        let name = match attribute.get("name").and_then(Value::as_str) {
-            Some(name) => name.to_string(),
-            None => continue,
-        };
-        if !declared.contains(&name) {
+    for attribute in &command.attributes {
+        if !declared.contains(&attribute.name.as_str()) {
             continue;
         }
-        if let Some(value) = args.get(&name) {
-            let coerced = coerce(aggregate, &name, value)?;
-            state.insert(name, coerced);
+        if let Some(value) = args.get(&attribute.name) {
+            let coerced = coerce(aggregate, &attribute.name, value, admitted_sets)?;
+            state.insert(attribute.name.clone(), coerced);
         }
     }
     Ok(())
@@ -137,16 +166,12 @@ pub fn assign_creation_attributes(
 /// Called for AGGREGATE commands only, mirroring Ruby: the entity interpreter
 /// has no such gate, and adding one here would split the runtimes.
 pub fn refuse_unknown_arguments(
-    aggregate: &Map<String, Value>,
-    command: &Map<String, Value>,
+    aggregate: &Aggregate,
+    command: &Command,
     args: &State,
     correlation: &[String],
 ) -> Result<(), String> {
-    let mut known: Vec<String> = array(command, "attributes")
-        .iter()
-        .filter_map(|attribute| attribute.get("name").and_then(Value::as_str))
-        .map(str::to_string)
-        .collect();
+    let mut known: Vec<String> = command.attributes.iter().map(|a| a.name.clone()).collect();
     let declared = known.join(", ");
 
     known.push("id".to_string());
@@ -156,8 +181,12 @@ pub fn refuse_unknown_arguments(
     // its parts: admitting only the first refused `number:` on a stall the
     // caller had named correctly, and named the argument undeclared when the
     // bluebook declares it as half the identity.
-    known.extend(crate::identity::heads(aggregate).into_iter().map(str::to_string));
-    if let Some(target) = command.get("references").and_then(Value::as_str) {
+    known.extend(
+        crate::identity::heads_of_paths(&aggregate.identified_by)
+            .into_iter()
+            .map(str::to_string),
+    );
+    if let Some(target) = &command.references {
         known.push(crate::naming::reference_key(target));
     }
     known.extend(correlation.iter().cloned());
@@ -175,12 +204,11 @@ pub fn refuse_unknown_arguments(
         return Ok(());
     }
 
-    let command_name = command.get("name").and_then(Value::as_str).unwrap_or("");
     let unknown_joined = unknown.join(", ");
     Err(refusal_wording::render(
         "UnknownArgument",
         "unknown_args",
-        &[("command", command_name), ("unknown", &unknown_joined), ("declared", &declared)],
+        &[("command", &command.name), ("unknown", &unknown_joined), ("declared", &declared)],
     ))
 }
 
@@ -197,31 +225,22 @@ pub fn refuse_unknown_arguments(
 ///
 /// No command attribute anywhere in the corpus carries a default — checked, all
 /// eight chapters, zero — so there is no optional argument for this to step on.
-pub fn refuse_absent_arguments(command: &Map<String, Value>, args: &State) -> Result<(), String> {
-    let declared: Vec<String> = array(command, "attributes")
-        .iter()
-        .filter_map(|attribute| attribute.get("name").and_then(Value::as_str))
-        .map(str::to_string)
-        .collect();
+pub fn refuse_absent_arguments(command: &Command, args: &State) -> Result<(), String> {
+    let declared: Vec<&str> = command.attributes.iter().map(|a| a.name.as_str()).collect();
 
     // SORTED, for the same reason the unknown list is : declaration order is stable
     // but the two runtimes reach it differently, and a refusal has to read
     // identically in both or parity says so.
-    let required: Vec<String> = array(command, "attributes")
+    let required: Vec<&str> = command
+        .attributes
         .iter()
-        .filter(|attribute| {
-            !attribute
-                .get("optional")
-                .and_then(Value::as_bool)
-                .unwrap_or(false)
-        })
-        .filter_map(|attribute| attribute.get("name").and_then(Value::as_str))
-        .map(str::to_string)
+        .filter(|attribute| !attribute.optional)
+        .map(|a| a.name.as_str())
         .collect();
 
     let mut absent: Vec<&str> = required
         .iter()
-        .map(String::as_str)
+        .copied()
         .filter(|name| !args.contains_key(*name))
         .collect();
     absent.sort_unstable();
@@ -229,68 +248,57 @@ pub fn refuse_absent_arguments(command: &Map<String, Value>, args: &State) -> Re
         return Ok(());
     }
 
-    let command_name = command.get("name").and_then(Value::as_str).unwrap_or("");
     let absent_joined = absent.join(", ");
     let declared_joined = declared.join(", ");
     Err(refusal_wording::render(
         "AbsentArgument",
         "absent_args",
-        &[("command", command_name), ("absent", &absent_joined), ("declared", &declared_joined)],
+        &[("command", &command.name), ("absent", &absent_joined), ("declared", &declared_joined)],
     ))
 }
 
 pub fn normalize_command_args(
-    aggregate: &Map<String, Value>,
-    command: &Map<String, Value>,
+    aggregate: &Aggregate,
+    command: &Command,
     args: &State,
+    admitted_sets: &HashMap<String, Vec<String>>,
 ) -> Result<State, String> {
     let mut normalized = args.clone();
-    for attribute in array(command, "attributes") {
-        let Some(name) = attribute.get("name").and_then(Value::as_str) else {
+    for attribute in &command.attributes {
+        let Some(value) = normalized.get(&attribute.name).cloned() else {
             continue;
         };
-        let Some(value) = normalized.get(name).cloned() else {
-            continue;
-        };
-        let attribute = attribute.as_object().cloned().unwrap_or_default();
-        normalized.insert(name.to_string(), coerce_attribute(aggregate, &attribute, &value)?);
+        normalized.insert(attribute.name.clone(), coerce_attribute(aggregate, attribute, &value, admitted_sets)?);
     }
     Ok(normalized)
 }
 
-fn coerce(aggregate: &Map<String, Value>, name: &str, value: &Value) -> Result<Value, String> {
-    let attribute = array(aggregate, "attributes")
-        .into_iter()
-        .find(|attribute| attribute.get("name").and_then(Value::as_str) == Some(name))
-        .and_then(|attribute| attribute.as_object().cloned());
-    let Some(attribute) = attribute else {
+fn coerce(
+    aggregate: &Aggregate,
+    name: &str,
+    value: &Value,
+    admitted_sets: &HashMap<String, Vec<String>>,
+) -> Result<Value, String> {
+    let Some(attribute) = aggregate.attributes.iter().find(|a| a.name == name) else {
         return Ok(value.clone());
     };
-
-    coerce_attribute(aggregate, &attribute, value)
+    coerce_attribute(aggregate, attribute, value, admitted_sets)
 }
 
 pub fn coerce_attribute(
-    aggregate: &Map<String, Value>,
-    attribute: &Map<String, Value>,
+    aggregate: &Aggregate,
+    attribute: &Attribute,
     value: &Value,
+    admitted_sets: &HashMap<String, Vec<String>>,
 ) -> Result<Value, String> {
-    if attribute
-        .get("list")
-        .and_then(Value::as_bool)
-        .unwrap_or(false)
-    {
+    if attribute.list {
         return Ok(value.clone());
     }
-    let Some(type_name) = attribute.get("type").and_then(Value::as_str) else {
-        admit_declared_set(attribute, value)?;
-        return Ok(value.clone());
-    };
-    let Some(value_object) = value_object_named(aggregate, type_name) else {
+    let Some(value_object) = value_object_named(aggregate, &attribute.r#type) else {
         // A PLAIN FIELD STILL ADMITS WHAT IT SAYS IT ADMITS. Nothing to coerce
         // here — no value object names this type — but the set is named on the
         // attribute, not on the type, so the refusal belongs on this path too.
-        admit_declared_set(attribute, value)?;
+        admit_declared_set(attribute, value, admitted_sets)?;
         return Ok(value.clone());
     };
     if value.is_null() {
@@ -298,18 +306,16 @@ pub fn coerce_attribute(
     }
     if let Some(object) = value.as_object() {
         let mut completed = object.clone();
-        for field in array(&value_object, "attributes") {
-            let Some(name) = field.get("name").and_then(Value::as_str) else {
-                continue;
-            };
-            if !completed.contains_key(name) {
-                if let Some(default) = field.get("default").filter(|default| !default.is_null()) {
-                    completed.insert(name.to_string(), default.clone());
+        for field in &value_object.attributes {
+            if !completed.contains_key(&field.name) {
+                let default = field.default.as_deref().map(parse_literal).unwrap_or(Value::Null);
+                if !default.is_null() {
+                    completed.insert(field.name.clone(), default);
                 }
             }
         }
         admit_member(&value_object, &completed)?;
-        check_admitted(&value_object, &completed)?;
+        check_admitted(&value_object, &completed, admitted_sets)?;
         check_numeric_fields(&value_object, &completed)?;
         check_patterns(&value_object, &completed)?;
         enforce_invariants(&value_object, &completed)?;
@@ -317,58 +323,45 @@ pub fn coerce_attribute(
         // holder its type names, and checking the raw payload would be checking
         // the envelope.
         let coerced = Value::Object(completed);
-        admit_declared_set(attribute, &coerced)?;
+        admit_declared_set(attribute, &coerced, admitted_sets)?;
         return Ok(coerced);
     }
 
-    let vo_name = value_object
-        .get("name")
-        .and_then(Value::as_str)
-        .unwrap_or("");
-    let name = attribute
-        .get("name")
-        .and_then(Value::as_str)
-        .unwrap_or_default();
     let offered = value.to_string();
     Err(refusal_wording::render(
         "TypeMismatch",
         "value_object_shape",
-        &[("name", name), ("type", vo_name), ("offered", &offered)],
+        &[("name", &attribute.name), ("type", &value_object.name), ("offered", &offered)],
     ))
 }
 
 pub fn apply_mutation(
     state: &mut State,
-    aggregate: &Map<String, Value>,
-    mutation: &Value,
+    aggregate: &Aggregate,
+    mutation: &Mutation,
     args: &State,
+    admitted_sets: &HashMap<String, Vec<String>>,
 ) -> Result<(), String> {
-    let target = mutation
-        .get("target")
-        .and_then(Value::as_str)
-        .unwrap_or_default()
-        .to_string();
-    let operation = mutation.get("op").and_then(Value::as_str).unwrap_or("set");
-
-    match operation {
-        "append" => {
+    match mutation.op {
+        MutationOp::Append => {
             let mut items = state
-                .get(&target)
+                .get(&mutation.target)
                 .and_then(Value::as_array)
                 .cloned()
                 .unwrap_or_default();
-            let element = build_element(aggregate, &target, mutation, args, items.len())?;
+            let element = build_element(aggregate, &mutation.target, mutation, args, items.len(), admitted_sets)?;
             items.push(element);
-            state.insert(target, Value::Array(items));
+            state.insert(mutation.target.clone(), Value::Array(items));
         }
-        "increment" | "decrement" => {
-            let updated = arithmetic(state, &target, operation, mutation, args)?;
-            state.insert(target, updated);
+        MutationOp::Increment | MutationOp::Decrement => {
+            let operation = if matches!(mutation.op, MutationOp::Increment) { "increment" } else { "decrement" };
+            let updated = arithmetic(state, &mutation.target, operation, mutation, args)?;
+            state.insert(mutation.target.clone(), updated);
         }
-        _ => {
+        MutationOp::Set => {
             let value = resolve_source(mutation, args);
-            let coerced = coerce(aggregate, &target, &value)?;
-            state.insert(target, coerced);
+            let coerced = coerce(aggregate, &mutation.target, &value, admitted_sets)?;
+            state.insert(mutation.target.clone(), coerced);
         }
     }
     Ok(())
@@ -382,7 +375,7 @@ pub fn arithmetic(
     state: &State,
     target: &str,
     operation: &str,
-    mutation: &Value,
+    mutation: &Mutation,
     args: &State,
 ) -> Result<Value, String> {
     // An ABSENT argument used to be IMITATED here rather than fixed. Ruby's
@@ -464,47 +457,77 @@ fn integer_field(value: &Value, counterpart: Option<&Value>) -> Option<i64> {
     }
 }
 
-pub fn resolve_source(mutation: &Value, args: &State) -> Value {
-    let source = match mutation.get("source") {
-        Some(source) => source,
-        None => return Value::Null,
-    };
-
-    match source.get("kind").and_then(Value::as_str) {
-        Some("argument") => {
-            let name = source
-                .get("name")
-                .and_then(Value::as_str)
-                .unwrap_or_default();
-            args.get(name).cloned().unwrap_or(Value::Null)
-        }
-        _ => source.get("value").cloned().unwrap_or(Value::Null),
+/// `mutation.source`, AS DECLARED — a leading `:` means an argument the
+/// command's payload carries, anything else is a literal read the same way
+/// `Attribute.default` is (`parse_literal`, mirroring `ir_json::literal`).
+pub fn resolve_source(mutation: &Mutation, args: &State) -> Value {
+    let text = mutation.source.trim();
+    if let Some(name) = text.strip_prefix(':') {
+        return args.get(name).cloned().unwrap_or(Value::Null);
     }
+    parse_literal(text)
+}
+
+/// One `field: token` pair out of an `append: { ... }` mapping's declared
+/// source text — mirrors the round trip `ir_json::mutation_to_value`'s
+/// Append branch and this file's own JSON-path `build_element` used to make
+/// together (write the argument out as Ruby-hash-literal text, then read it
+/// back in), collapsed into reading the declaration directly. A TOP-LEVEL
+/// token is an argument name, a quoted string, or an integer ; a NESTED
+/// `{...}` value is read through to a plain string field for field, same as
+/// the old read side did — no further coercion, no argument lookup inside
+/// it. That asymmetry is not a shortcut taken here : it is what the two-step
+/// text round trip already did, so preserving it is what keeps `direction: {
+/// value: "credit" }` reading the same value it always has.
+fn append_field_value(raw_argument: &str, args: &State) -> Value {
+    let argument = raw_argument.trim().trim_start_matches(':').trim();
+
+    if argument.starts_with('{') && argument.ends_with('}') {
+        let mut fields = Map::new();
+        for pair in argument[1..argument.len() - 1].split(',') {
+            let Some((key, value)) = pair.split_once(':') else {
+                continue;
+            };
+            let key = key.trim();
+            if key.is_empty() {
+                continue;
+            }
+            let value = value.trim().trim_matches('"');
+            fields.insert(key.to_string(), Value::String(value.to_string()));
+        }
+        return Value::Object(fields);
+    }
+
+    if argument.len() >= 2 && argument.starts_with('"') && argument.ends_with('"') {
+        return Value::String(argument[1..argument.len() - 1].to_string());
+    }
+    if let Ok(number) = argument.parse::<i64>() {
+        return Value::from(number);
+    }
+    args.get(argument).cloned().unwrap_or(Value::Null)
 }
 
 fn build_element(
-    aggregate: &Map<String, Value>,
+    aggregate: &Aggregate,
     target: &str,
-    mutation: &Value,
+    mutation: &Mutation,
     args: &State,
     current_len: usize,
+    admitted_sets: &HashMap<String, Vec<String>>,
 ) -> Result<Value, String> {
     let mut fields = Map::new();
 
-    if let Some(mapping) = mutation.get("fields").and_then(Value::as_object) {
-        for (field, token) in mapping {
-            let token = token.as_str().unwrap_or_default();
-            let value = if token.starts_with("{") && token.ends_with("}") {
-                ruby_literal(token)
-            } else if token.len() >= 2 && token.starts_with('"') && token.ends_with('"') {
-                Value::String(token[1..token.len() - 1].to_string())
-            } else if let Ok(number) = token.parse::<i64>() {
-                Value::from(number)
-            } else {
-                args.get(token).cloned().unwrap_or(Value::Null)
-            };
-            fields.insert(field.clone(), value);
+    let body = mutation.source.trim().trim_start_matches('{').trim_end_matches('}');
+    for pair in body.split(',') {
+        let Some((field, argument)) = pair.split_once(':') else {
+            continue;
+        };
+        let field = field.trim();
+        let argument = argument.trim();
+        if field.is_empty() || argument.is_empty() {
+            continue;
         }
+        fields.insert(field.to_string(), append_field_value(argument, args));
     }
 
     if let Some(entity) = entity_for(aggregate, target) {
@@ -522,59 +545,38 @@ fn build_element(
         // single head and is nil the moment there are two. Taking the FIRST
         // head here was a real divergence: Rust filled one part in and Ruby
         // filled none.
-        if let [key] = crate::identity::heads(&entity)[..] {
+        if let [key] = crate::identity::heads_of_paths(&entity.identified_by)[..] {
             if !fields.contains_key(key) {
                 let generated = Value::from(current_len as i64 + 1);
-                let entity_attributes = array(&entity, "attributes");
-                let identity_attribute = entity_attributes
-                    .iter()
-                    .find(|attribute| attribute.get("name").and_then(Value::as_str) == Some(key))
-                    .and_then(Value::as_object);
+                let identity_attribute = entity.attributes.iter().find(|a| a.name == key);
                 let value = identity_attribute
-                    .and_then(|attribute| attribute.get("type").and_then(Value::as_str))
-                    .and_then(|type_name| value_object_named(aggregate, type_name))
+                    .and_then(|attribute| value_object_named(aggregate, &attribute.r#type))
                     .and_then(|value_object| {
-                        let value_attributes = array(&value_object, "attributes");
-                        let field = value_attributes
-                            .first()?
-                            .get("name")?
-                            .as_str()?;
-                        Some(Value::Object(Map::from_iter([(field.to_string(), generated.clone())])))
+                        let field = value_object.attributes.first()?.name.clone();
+                        Some(Value::Object(Map::from_iter([(field, generated.clone())])))
                     })
                     .unwrap_or(generated);
                 fields.insert(key.to_string(), value);
             }
         }
-        if let Some(lifecycle) = entity.get("lifecycle").and_then(Value::as_object) {
-            if let (Some(field), Some(default)) = (
-                lifecycle.get("field").and_then(Value::as_str),
-                lifecycle.get("default"),
-            ) {
-                fields
-                    .entry(field.to_string())
-                    .or_insert_with(|| default.clone());
-            }
+        if let Some(lifecycle) = &entity.lifecycle {
+            fields
+                .entry(lifecycle.field.clone())
+                .or_insert_with(|| Value::String(lifecycle.default.clone()));
         }
 
-        for attribute in array(&entity, "attributes") {
-            let Some(name) = attribute.get("name").and_then(Value::as_str) else {
+        for attribute in &entity.attributes {
+            let Some(value) = fields.get(&attribute.name).cloned() else {
                 continue;
             };
-            let Some(value) = fields.get(name).cloned() else {
-                continue;
-            };
-            let attribute = attribute.as_object().cloned().unwrap_or_default();
-            fields.insert(
-                name.to_string(),
-                coerce_attribute(aggregate, &attribute, &value)?,
-            );
+            fields.insert(attribute.name.clone(), coerce_attribute(aggregate, attribute, &value, admitted_sets)?);
         }
     }
 
     if let Some(value_object) = value_object_for(aggregate, target) {
         flatten_scalar_fields(aggregate, &value_object, &mut fields);
         admit_member(&value_object, &fields)?;
-        check_admitted(&value_object, &fields)?;
+        check_admitted(&value_object, &fields, admitted_sets)?;
         enforce_invariants(&value_object, &fields)?;
     }
 
@@ -591,31 +593,18 @@ fn build_element(
 ///
 /// Checked BEFORE invariants, because an invariant reading a mistyped field is
 /// exactly what used to explode. The message is byte-identical to Ruby's.
-fn check_numeric_fields(
-    value_object: &Map<String, Value>,
-    fields: &Map<String, Value>,
-) -> Result<(), String> {
-    let vo_name = value_object
-        .get("name")
-        .and_then(Value::as_str)
-        .unwrap_or_default();
-    for attribute in array(value_object, "attributes") {
-        let Some(name) = attribute.get("name").and_then(Value::as_str) else {
-            continue;
-        };
-        let Some(type_name) = attribute.get("type").and_then(Value::as_str) else {
-            continue;
-        };
-        let numeric = match type_name {
+fn check_numeric_fields(value_object: &ValueObject, fields: &Map<String, Value>) -> Result<(), String> {
+    for attribute in &value_object.attributes {
+        let numeric = match attribute.r#type.as_str() {
             "Integer" => true,
             "Float" => true,
             _ => continue,
         };
-        let Some(given) = fields.get(name) else { continue };
+        let Some(given) = fields.get(&attribute.name) else { continue };
         if given.is_null() {
             continue;
         }
-        let ok = if type_name == "Integer" {
+        let ok = if attribute.r#type == "Integer" {
             given.is_i64() || given.is_u64()
         } else {
             given.is_number()
@@ -625,7 +614,7 @@ fn check_numeric_fields(
             return Err(refusal_wording::render(
                 "TypeMismatch",
                 "numeric_field",
-                &[("type", vo_name), ("field", name), ("expected", type_name), ("offered", &offered)],
+                &[("type", &value_object.name), ("field", &attribute.name), ("expected", &attribute.r#type), ("offered", &offered)],
             ));
         }
     }
@@ -642,23 +631,12 @@ fn check_numeric_fields(
 /// Which regexes may be written at all is pattern_subset's job — so by the time
 /// a value arrives here the pattern is already one both runtimes read the same
 /// way, and this is a plain match. The message is byte-identical to Ruby's.
-fn check_patterns(
-    value_object: &Map<String, Value>,
-    fields: &Map<String, Value>,
-) -> Result<(), String> {
-    let vo_name = value_object
-        .get("name")
-        .and_then(Value::as_str)
-        .unwrap_or_default();
-
-    for attribute in array(value_object, "attributes") {
-        let Some(name) = attribute.get("name").and_then(Value::as_str) else {
+fn check_patterns(value_object: &ValueObject, fields: &Map<String, Value>) -> Result<(), String> {
+    for attribute in &value_object.attributes {
+        let Some(pattern) = attribute.pattern.as_deref() else {
             continue;
         };
-        let Some(pattern) = attribute.get("pattern").and_then(Value::as_str) else {
-            continue;
-        };
-        let Some(given) = fields.get(name) else { continue };
+        let Some(given) = fields.get(&attribute.name) else { continue };
         if given.is_null() {
             continue;
         }
@@ -672,7 +650,7 @@ fn check_patterns(
             return Err(refusal_wording::render(
                 "TypeMismatch",
                 "pattern_mismatch",
-                &[("type", vo_name), ("field", name), ("pattern", pattern), ("offered", &offered)],
+                &[("type", &value_object.name), ("field", &attribute.name), ("pattern", pattern), ("offered", &offered)],
             ));
         }
     }
@@ -704,23 +682,13 @@ fn render_scalar(value: &Value) -> String {
 /// nested value object is left intact. A multi-field value object standing in
 /// for a scalar is left untouched here rather than guessed at; Ruby raises
 /// `TypeMismatch` for that case and no corpus step reaches it yet.
-fn flatten_scalar_fields(
-    aggregate: &Map<String, Value>,
-    value_object: &Map<String, Value>,
-    fields: &mut Map<String, Value>,
-) {
-    for attribute in array(value_object, "attributes") {
-        let Some(name) = attribute.get("name").and_then(Value::as_str) else {
-            continue;
-        };
-        let declared_scalar = match attribute.get("type").and_then(Value::as_str) {
-            Some(type_name) => value_object_named(aggregate, type_name).is_none(),
-            None => true,
-        };
+fn flatten_scalar_fields(aggregate: &Aggregate, value_object: &ValueObject, fields: &mut Map<String, Value>) {
+    for attribute in &value_object.attributes {
+        let declared_scalar = value_object_named(aggregate, &attribute.r#type).is_none();
         if !declared_scalar {
             continue;
         }
-        let Some(Value::Object(supplied)) = fields.get(name) else {
+        let Some(Value::Object(supplied)) = fields.get(&attribute.name) else {
             continue;
         };
         if supplied.len() != 1 {
@@ -729,214 +697,19 @@ fn flatten_scalar_fields(
         let Some(scalar) = supplied.values().next().cloned() else {
             continue;
         };
-        fields.insert(name.to_string(), scalar);
+        fields.insert(attribute.name.clone(), scalar);
     }
-}
-
-fn ruby_literal(token: &str) -> Value {
-    let mut fields = Map::new();
-    for pair in token[1..token.len() - 1].split(',') {
-        let Some((key, value)) = pair.split_once("=>") else { continue };
-        fields.insert(
-            key.trim().trim_start_matches(':').to_string(),
-            Value::String(value.trim().trim_matches('"').to_string()),
-        );
-    }
-    Value::Object(fields)
-}
-
-/// Where a resolved `admits` keeps its members on the runtime's own copy of the
-/// IR. NEVER ON THE WIRE — `--dump` projects from the typed IR, not from here,
-/// and the wire carries the NAME so each runtime resolves against what it itself
-/// declares. This is a cache of that resolution, filled once at load.
-const ADMITTED: &str = "admitted_members";
-
-/// EVERY `admits` RESOLVED ONCE, when the runtime takes its IR.
-///
-/// Coercion happens deep inside `coerce_attribute`, which is handed ONE
-/// aggregate and has no way back up to the chapter — and the set an attribute
-/// admits belongs to a DIFFERENT aggregate, because that is the whole point of
-/// naming it rather than restating it. Ruby walks up through `hecks_owner` ;
-/// JSON has no parent pointers, so the walk happens once here instead of
-/// threading a domain through seven signatures that do not otherwise want one.
-pub fn resolve_admitted_sets(ir: Value) -> Value {
-    let Value::Object(domains) = ir else {
-        return ir;
-    };
-    Value::Object(
-        domains
-            .into_iter()
-            .map(|(name, domain)| {
-                let sets = admitted_sets_of(&domain);
-                (name, annotate_admits(domain, &sets))
-            })
-            .collect(),
-    )
-}
-
-/// Every closed set the chapter declares, keyed the way an `admits` names it.
-fn admitted_sets_of(domain: &Value) -> Map<String, Value> {
-    let mut sets = Map::new();
-    let Some(aggregates) = domain.get("aggregates").and_then(Value::as_array) else {
-        return sets;
-    };
-    for aggregate in aggregates {
-        let Some(aggregate_name) = aggregate.get("name").and_then(Value::as_str) else {
-            continue;
-        };
-        for value_object in aggregate
-            .get("value_objects")
-            .and_then(Value::as_array)
-            .unwrap_or(&vec![])
-        {
-            let (Some(set_name), Some(set)) = (
-                value_object.get("name").and_then(Value::as_str),
-                value_object.as_object(),
-            ) else {
-                continue;
-            };
-            let members = admitted_values(set);
-            if members.is_empty() {
-                continue;
-            }
-            sets.insert(
-                format!("{aggregate_name}::{set_name}"),
-                Value::Array(members.into_iter().map(Value::String).collect()),
-            );
-        }
-    }
-    sets
-}
-
-/// Walked generically rather than construct by construct: an attribute is an
-/// attribute wherever it is written — on a head, an argument, a piece, an ask,
-/// a value object's own field — and a walk that names the places it visits is a
-/// walk that misses the next place one is added.
-fn annotate_admits(node: Value, sets: &Map<String, Value>) -> Value {
-    match node {
-        Value::Object(map) => {
-            let mut out: Map<String, Value> = map
-                .into_iter()
-                .map(|(key, value)| (key, annotate_admits(value, sets)))
-                .collect();
-            if let Some(members) = out
-                .get("admits")
-                .and_then(Value::as_str)
-                .and_then(|named| sets.get(named))
-                .cloned()
-            {
-                out.insert(ADMITTED.to_string(), members);
-            }
-            Value::Object(out)
-        }
-        Value::Array(items) => Value::Array(
-            items
-                .into_iter()
-                .map(|item| annotate_admits(item, sets))
-                .collect(),
-        ),
-        other => other,
-    }
-}
-
-/// Mirrors Ruby's `Value.admit_declared_set` (`lib/hecksagain/runtime/value.rb`).
-///
-/// `admit_member` below refuses a non-member when the value object BEING BUILT
-/// is itself the closed set. This is the other direction: the value is ordinary
-/// text and the set it must belong to was declared once, elsewhere, and named.
-fn admit_declared_set(attribute: &Map<String, Value>, value: &Value) -> Result<(), String> {
-    let Some(named) = attribute.get("admits").and_then(Value::as_str) else {
-        return Ok(());
-    };
-    if value.is_null() {
-        return Ok(());
-    }
-    let field = attribute
-        .get("name")
-        .and_then(Value::as_str)
-        .unwrap_or_default();
-    let Some(admitted) = attribute.get(ADMITTED).and_then(Value::as_array) else {
-        return Err(refusal_wording::render(
-            "InvariantViolation",
-            "undeclared_set",
-            &[("name", field), ("admits", named)],
-        ));
-    };
-    let offered = admitted_scalar(value);
-    let offered_text = match &offered {
-        Value::String(text) => text.clone(),
-        Value::Null => String::new(),
-        other => other.to_string(),
-    };
-    if admitted
-        .iter()
-        .filter_map(Value::as_str)
-        .any(|value| value == offered_text)
-    {
-        return Ok(());
-    }
-    let rendered: Vec<String> = admitted
-        .iter()
-        .filter_map(Value::as_str)
-        .map(|value| format!("{value:?}"))
-        .collect();
-    let got = match &offered {
-        Value::String(text) => format!("{text:?}"),
-        Value::Null => "nil".to_string(),
-        other => other.to_string(),
-    };
-    let rendered_joined = rendered.join(", ");
-    Err(refusal_wording::render(
-        "InvariantViolation",
-        "admits_declared_set",
-        &[("name", field), ("admits", named), ("admitted", &rendered_joined), ("offered", &got)],
-    ))
-}
-
-/// An admitted value is a SCALAR however it arrived — bare on a plain field, or
-/// wrapped in the one-field holder its type names.
-fn admitted_scalar(value: &Value) -> Value {
-    match value.as_object() {
-        Some(fields) if fields.len() == 1 => fields.values().next().cloned().unwrap_or(Value::Null),
-        _ => value.clone(),
-    }
-}
-
-/// Mirrors Ruby's `Value.check_admitted`. A value object's own field may name a
-/// set too — `Query::Filter.op` is a plain String field that admits
-/// `Vocabulary::QueryComparator`, and no attribute passes through
-/// `coerce_attribute` on its way in.
-fn check_admitted(
-    value_object: &Map<String, Value>,
-    fields: &Map<String, Value>,
-) -> Result<(), String> {
-    for attribute in array(value_object, "attributes") {
-        let Some(attribute) = attribute.as_object() else {
-            continue;
-        };
-        if attribute.get("admits").and_then(Value::as_str).is_none() {
-            continue;
-        }
-        let Some(name) = attribute.get("name").and_then(Value::as_str) else {
-            continue;
-        };
-        admit_declared_set(
-            attribute,
-            &fields.get(name).cloned().unwrap_or(Value::Null),
-        )?;
-    }
-    Ok(())
 }
 
 /// Every closed set the chapter declares, keyed the way an `admits` names
-/// it — the TYPED twin of `admitted_sets_of` above, read off `crate::ir::
-/// Domain` instead of the flattened JSON. Computed once at `Runtime::new`
-/// and held on `Runtime.admitted_sets`, so `admit_declared_set`'s callers
-/// can move off the JSON-embedded `admitted_members` annotation one at a
-/// time (M6b) without first having to solve where the resolved data comes
-/// from. Deliberately NOT written back onto `crate::ir::Attribute` itself —
-/// a side table keyed by the `admits` NAME needs no new field on a struct
-/// used everywhere, and no constructor site has to learn about it.
+/// it — read off `crate::ir::Domain` directly. Computed once at
+/// `Runtime::new` and held on `Runtime.admitted_sets`, threaded through
+/// every coercion/admission function below rather than read off a JSON
+/// annotation : `admit_declared_set`'s callers used to read a
+/// `admitted_members` field the JSON `ir` was annotated with after the fact
+/// (M6a's `resolve_admitted_sets`) ; M6b moved every one of them here, so
+/// that annotation step is gone from `Runtime::new` and this is the only
+/// derivation left.
 pub fn admitted_sets_of_domain(domain: &crate::ir::Domain) -> std::collections::HashMap<String, Vec<String>> {
     let mut sets = std::collections::HashMap::new();
     for aggregate in &domain.aggregates {
@@ -951,9 +724,8 @@ pub fn admitted_sets_of_domain(domain: &crate::ir::Domain) -> std::collections::
     sets
 }
 
-/// The TYPED twin of `admitted_values` below — `ValueObject.members` is
-/// already `Vec<Vec<(String, String)>>`, so there is no JSON array/pair
-/// shape to re-derive, only the discriminant lookup itself.
+/// The values a closed set admits, read through its discriminant — the first
+/// field, which is what a member row is keyed by.
 fn admitted_values_typed(value_object: &crate::ir::ValueObject) -> Vec<String> {
     if value_object.members.is_empty() {
         return vec![];
@@ -971,6 +743,150 @@ fn admitted_values_typed(value_object: &crate::ir::ValueObject) -> Vec<String> {
                 .map(|(_, value)| value.clone())
         })
         .collect()
+}
+
+/// Mirrors Ruby's `Value.admit_declared_set` (`lib/hecksagain/runtime/value.rb`).
+///
+/// `admit_member` below refuses a non-member when the value object BEING BUILT
+/// is itself the closed set. This is the other direction: the value is ordinary
+/// text and the set it must belong to was declared once, elsewhere, and named.
+fn admit_declared_set(
+    attribute: &Attribute,
+    value: &Value,
+    admitted_sets: &HashMap<String, Vec<String>>,
+) -> Result<(), String> {
+    let Some(named) = attribute.admits.as_deref() else {
+        return Ok(());
+    };
+    if value.is_null() {
+        return Ok(());
+    }
+    let Some(admitted) = admitted_sets.get(named) else {
+        return Err(refusal_wording::render(
+            "InvariantViolation",
+            "undeclared_set",
+            &[("name", &attribute.name), ("admits", named)],
+        ));
+    };
+    let offered = admitted_scalar(value);
+    let offered_text = match &offered {
+        Value::String(text) => text.clone(),
+        Value::Null => String::new(),
+        other => other.to_string(),
+    };
+    if admitted.iter().any(|value| value == &offered_text) {
+        return Ok(());
+    }
+    let rendered: Vec<String> = admitted.iter().map(|value| format!("{value:?}")).collect();
+    let got = match &offered {
+        Value::String(text) => format!("{text:?}"),
+        Value::Null => "nil".to_string(),
+        other => other.to_string(),
+    };
+    let rendered_joined = rendered.join(", ");
+    Err(refusal_wording::render(
+        "InvariantViolation",
+        "admits_declared_set",
+        &[("name", &attribute.name), ("admits", named), ("admitted", &rendered_joined), ("offered", &got)],
+    ))
+}
+
+/// An admitted value is a SCALAR however it arrived — bare on a plain field, or
+/// wrapped in the one-field holder its type names.
+fn admitted_scalar(value: &Value) -> Value {
+    match value.as_object() {
+        Some(fields) if fields.len() == 1 => fields.values().next().cloned().unwrap_or(Value::Null),
+        _ => value.clone(),
+    }
+}
+
+/// Mirrors Ruby's `Value.check_admitted`. A value object's own field may name a
+/// set too — `Query::Filter.op` is a plain String field that admits
+/// `Vocabulary::QueryComparator`, and no attribute passes through
+/// `coerce_attribute` on its way in.
+fn check_admitted(
+    value_object: &ValueObject,
+    fields: &Map<String, Value>,
+    admitted_sets: &HashMap<String, Vec<String>>,
+) -> Result<(), String> {
+    for attribute in &value_object.attributes {
+        if attribute.admits.is_none() {
+            continue;
+        }
+        admit_declared_set(attribute, &fields.get(&attribute.name).cloned().unwrap_or(Value::Null), admitted_sets)?;
+    }
+    Ok(())
+}
+
+fn admit_member(value_object: &ValueObject, fields: &Map<String, Value>) -> Result<(), String> {
+    if value_object.members.is_empty() {
+        return Ok(());
+    }
+    let Some(discriminant) = value_object.attributes.first().map(|a| a.name.clone()) else {
+        return Ok(());
+    };
+    let admitted: Vec<String> = value_object
+        .members
+        .iter()
+        .filter_map(|pairs| {
+            pairs
+                .iter()
+                .find(|(field, _)| *field == discriminant)
+                .map(|(_, value)| value.clone())
+        })
+        .collect();
+    let offered = fields.get(&discriminant).cloned().unwrap_or(Value::Null);
+    let offered_text = match &offered {
+        Value::String(text) => text.clone(),
+        Value::Null => String::new(),
+        other => other.to_string(),
+    };
+    if admitted.iter().any(|value| *value == offered_text) {
+        return Ok(());
+    }
+    let rendered: Vec<String> = admitted.iter().map(|value| format!("{value:?}")).collect();
+    let got = match &offered {
+        Value::String(text) => format!("{text:?}"),
+        Value::Null => "nil".to_string(),
+        other => other.to_string(),
+    };
+    let rendered_joined = rendered.join(", ");
+    Err(refusal_wording::render(
+        "InvariantViolation",
+        "closed_set_member",
+        &[("type", &value_object.name), ("admitted", &rendered_joined), ("offered", &got)],
+    ))
+}
+
+fn enforce_invariants(value_object: &ValueObject, fields: &Map<String, Value>) -> Result<(), String> {
+    let empty = Map::new();
+    for invariant in &value_object.invariants {
+        let canonical = crate::projector::ir_json::canonicalise(&invariant.canonical);
+        if evaluate_given(&canonical, fields, &empty)? {
+            continue;
+        }
+        return Err(format!(
+            "{} invariant violated — {} (given {})",
+            value_object.name,
+            invariant.description,
+            Value::Object(fields.clone())
+        ));
+    }
+    Ok(())
+}
+
+pub fn entity_for<'a>(aggregate: &'a Aggregate, target: &str) -> Option<&'a Entity> {
+    let element_type = aggregate.attributes.iter().find(|a| a.name == target)?.r#type.as_str();
+    aggregate.entities.iter().find(|e| e.name == element_type)
+}
+
+fn value_object_named<'a>(aggregate: &'a Aggregate, name: &str) -> Option<&'a ValueObject> {
+    aggregate.value_objects.iter().find(|v| v.name == name)
+}
+
+fn value_object_for<'a>(aggregate: &'a Aggregate, target: &str) -> Option<&'a ValueObject> {
+    let element_type = aggregate.attributes.iter().find(|a| a.name == target)?.r#type.as_str();
+    value_object_named(aggregate, element_type)
 }
 
 #[cfg(test)]
@@ -1056,194 +972,59 @@ mod admitted_sets_typed_tests {
     }
 
     #[test]
-    fn agrees_with_the_json_walk_over_the_same_shape() {
-        // The JSON twin of `kitchen_domain()` above — sign_tests::kitchen()
-        // is private to its own module, so this is its own copy rather than
-        // a visibility change to reach across test modules for one fixture.
-        let kitchen_json = serde_json::json!({ "aggregates": [
-            { "name": "Vocabulary", "attributes": [], "value_objects": [
-                { "name": "Doneness",
-                  "attributes": [{ "name": "name", "type": "String", "list": false,
-                                   "optional": false, "pattern": null, "admits": null }],
-                  "members": [[["name", "rare"]], [["name", "medium"]], [["name", "well"]]] }
-            ] },
-            { "name": "Steak", "value_objects": [], "attributes": [
-                { "name": "doneness", "type": "String", "list": false, "optional": false,
-                  "pattern": null, "admits": "Vocabulary::Doneness" }
-            ] }
-        ] });
-
-        let typed = admitted_sets_of_domain(&kitchen_domain());
-        let json = admitted_sets_of(&kitchen_json);
-
-        let mut typed_doneness = typed.get("Vocabulary::Doneness").cloned().unwrap_or_default();
-        let mut json_doneness: Vec<String> = json
-            .get("Vocabulary::Doneness")
-            .and_then(Value::as_array)
-            .into_iter()
-            .flatten()
-            .filter_map(|value| value.as_str().map(str::to_string))
-            .collect();
-        typed_doneness.sort();
-        json_doneness.sort();
-        assert_eq!(typed_doneness, json_doneness);
-    }
-
-    #[test]
     fn a_value_object_with_no_one_of_admits_nothing() {
         let mut domain = kitchen_domain();
         domain.aggregates[0].value_objects[0].members = vec![];
         let sets = admitted_sets_of_domain(&domain);
         assert!(!sets.contains_key("Vocabulary::Doneness"));
     }
-}
 
-/// The values a closed set admits, read through its discriminant — the first
-/// field, which is what a member row is keyed by.
-fn admitted_values(value_object: &Map<String, Value>) -> Vec<String> {
-    let members = array(value_object, "members");
-    if members.is_empty() {
-        return vec![];
+    fn doneness_attribute(domain: &Domain) -> Attribute {
+        domain.aggregates[1].attributes[0].clone()
     }
-    let discriminant = array(value_object, "attributes")
-        .first()
-        .and_then(|a| a.get("name").and_then(Value::as_str))
-        .unwrap_or_default()
-        .to_string();
-    members
-        .iter()
-        .filter_map(Value::as_array)
-        .filter_map(|pairs| {
-            pairs.iter().filter_map(Value::as_array).find_map(|pair| {
-                match (
-                    pair.first().and_then(Value::as_str),
-                    pair.get(1).and_then(Value::as_str),
-                ) {
-                    (Some(field), Some(value)) if field == discriminant => Some(value.to_string()),
-                    _ => None,
-                }
-            })
-        })
-        .collect()
-}
 
-fn admit_member(
-    value_object: &Map<String, Value>,
-    fields: &Map<String, Value>,
-) -> Result<(), String> {
-    let members = array(value_object, "members");
-    if members.is_empty() {
-        return Ok(());
+    /// The message is held to Ruby's WORD FOR WORD (`Value.admit_declared_set`).
+    /// Two runtimes that refuse the same value for different reasons still read
+    /// as a split to anyone diffing the output, which is what bin/parity does.
+    #[test]
+    fn a_non_member_is_refused_in_the_same_words_ruby_refuses_it() {
+        let domain = kitchen_domain();
+        let attribute = doneness_attribute(&domain);
+        let admitted_sets = admitted_sets_of_domain(&domain);
+
+        assert!(admit_declared_set(&attribute, &Value::String("medium".into()), &admitted_sets).is_ok());
+        assert_eq!(
+            admit_declared_set(&attribute, &Value::String("burnt".into()), &admitted_sets).unwrap_err(),
+            "doneness admits Vocabulary::Doneness — \"rare\", \"medium\", \"well\" — got \"burnt\""
+        );
     }
-    let discriminant = array(value_object, "attributes")
-        .first()
-        .and_then(|a| a.get("name").and_then(Value::as_str))
-        .unwrap_or_default()
-        .to_string();
-    let admitted: Vec<String> = members
-        .iter()
-        .filter_map(Value::as_array)
-        .filter_map(|pairs| {
-            pairs.iter().filter_map(Value::as_array).find_map(|pair| {
-                match (
-                    pair.first().and_then(Value::as_str),
-                    pair.get(1).and_then(Value::as_str),
-                ) {
-                    (Some(field), Some(value)) if field == discriminant => Some(value.to_string()),
-                    _ => None,
-                }
-            })
-        })
-        .collect();
-    let offered = fields.get(&discriminant).cloned().unwrap_or(Value::Null);
-    let offered_text = match &offered {
-        Value::String(text) => text.clone(),
-        Value::Null => String::new(),
-        other => other.to_string(),
-    };
-    if admitted.iter().any(|value| *value == offered_text) {
-        return Ok(());
+
+    /// A scalar arrives wrapped in whatever holder its type names, so the check
+    /// has to see through the envelope — the bug this had on its first pass.
+    #[test]
+    fn a_value_wrapped_in_its_holder_is_read_through_to_the_scalar() {
+        let domain = kitchen_domain();
+        let attribute = doneness_attribute(&domain);
+        let admitted_sets = admitted_sets_of_domain(&domain);
+        let wrapped = serde_json::json!({ "value": "well" });
+
+        assert!(admit_declared_set(&attribute, &wrapped, &admitted_sets).is_ok());
     }
-    let name = value_object
-        .get("name")
-        .and_then(Value::as_str)
-        .unwrap_or_default();
-    let rendered: Vec<String> = admitted.iter().map(|value| format!("{value:?}")).collect();
-    let got = match &offered {
-        Value::String(text) => format!("{text:?}"),
-        Value::Null => "nil".to_string(),
-        other => other.to_string(),
-    };
-    let rendered_joined = rendered.join(", ");
-    Err(refusal_wording::render(
-        "InvariantViolation",
-        "closed_set_member",
-        &[("type", name), ("admitted", &rendered_joined), ("offered", &got)],
-    ))
-}
 
-fn enforce_invariants(
-    value_object: &Map<String, Value>,
-    fields: &Map<String, Value>,
-) -> Result<(), String> {
-    let empty = Map::new();
-    for invariant in array(value_object, "invariants") {
-        let canonical = invariant
-            .get("canonical")
-            .and_then(Value::as_str)
-            .unwrap_or("");
-        if evaluate_given(canonical, fields, &empty)? {
-            continue;
-        }
-        let description = invariant
-            .get("description")
-            .and_then(Value::as_str)
-            .unwrap_or_default();
-        let name = value_object
-            .get("name")
-            .and_then(Value::as_str)
-            .unwrap_or_default();
-        return Err(format!(
-            "{} invariant violated — {} (given {})",
-            name,
-            description,
-            Value::Object(fields.clone())
-        ));
+    /// A link that resolves to nothing is refused rather than ignored: a rule
+    /// checked against nothing reads like a rule and is not one.
+    #[test]
+    fn naming_a_set_the_chapter_does_not_declare_is_refused() {
+        let domain = kitchen_domain();
+        let mut attribute = doneness_attribute(&domain);
+        attribute.admits = Some("Vocabulary::Nonesuch".to_string());
+        // Named but never declared : the admitted_sets table built for THIS
+        // domain has no such key, matching a chapter that never declares it.
+        let admitted_sets = admitted_sets_of_domain(&domain);
+
+        let refusal = admit_declared_set(&attribute, &Value::String("rare".into()), &admitted_sets).unwrap_err();
+        assert!(refusal.contains("which this chapter does not declare"), "{refusal}");
     }
-    Ok(())
-}
-
-pub fn entity_for(aggregate: &Map<String, Value>, target: &str) -> Option<Map<String, Value>> {
-    let element_type = array(aggregate, "attributes")
-        .iter()
-        .find(|a| a.get("name").and_then(Value::as_str) == Some(target))?
-        .get("type")
-        .and_then(Value::as_str)?
-        .to_string();
-
-    array(aggregate, "entities")
-        .iter()
-        .find(|e| e.get("name").and_then(Value::as_str) == Some(element_type.as_str()))
-        .and_then(|e| e.as_object().cloned())
-}
-
-fn value_object_named(aggregate: &Map<String, Value>, name: &str) -> Option<Map<String, Value>> {
-    array(aggregate, "value_objects")
-        .iter()
-        .find(|v| v.get("name").and_then(Value::as_str) == Some(name))?
-        .as_object()
-        .cloned()
-}
-
-fn value_object_for(aggregate: &Map<String, Value>, target: &str) -> Option<Map<String, Value>> {
-    let element_type = array(aggregate, "attributes")
-        .into_iter()
-        .find(|a| a.get("name").and_then(Value::as_str) == Some(target))?
-        .get("type")
-        .and_then(Value::as_str)?
-        .to_string();
-
-    value_object_named(aggregate, &element_type)
 }
 
 #[cfg(test)]
@@ -1267,76 +1048,5 @@ mod sign_tests {
         let mut names: Vec<&str> = MUTATION_OPS.iter().map(|op| op.name.as_str()).collect();
         names.sort();
         assert_eq!(names, vec!["append", "decrement", "increment", "set"]);
-    }
-
-    /// A closed set declared in a SIBLING aggregate, named rather than restated.
-    fn kitchen() -> Value {
-        serde_json::json!({ "Kitchen": { "aggregates": [
-            { "name": "Vocabulary", "attributes": [], "value_objects": [
-                { "name": "Doneness",
-                  "attributes": [{ "name": "name", "type": "String", "list": false,
-                                   "optional": false, "pattern": null, "admits": null }],
-                  "members": [[["name", "rare"]], [["name", "medium"]], [["name", "well"]]] }
-            ] },
-            { "name": "Steak", "value_objects": [], "attributes": [
-                { "name": "doneness", "type": "String", "list": false, "optional": false,
-                  "pattern": null, "admits": "Vocabulary::Doneness" }
-            ] }
-        ] } })
-    }
-
-    fn doneness_attribute(ir: &Value) -> Map<String, Value> {
-        ir["Kitchen"]["aggregates"][1]["attributes"][0]
-            .as_object()
-            .cloned()
-            .unwrap()
-    }
-
-    #[test]
-    fn an_admitted_set_is_resolved_from_the_aggregate_that_declares_it() {
-        let resolved = resolve_admitted_sets(kitchen());
-        let admitted = doneness_attribute(&resolved);
-        assert_eq!(
-            admitted.get(ADMITTED).unwrap(),
-            &serde_json::json!(["rare", "medium", "well"])
-        );
-    }
-
-    /// The message is held to Ruby's WORD FOR WORD (`Value.admit_declared_set`).
-    /// Two runtimes that refuse the same value for different reasons still read
-    /// as a split to anyone diffing the output, which is what bin/parity does.
-    #[test]
-    fn a_non_member_is_refused_in_the_same_words_ruby_refuses_it() {
-        let resolved = resolve_admitted_sets(kitchen());
-        let attribute = doneness_attribute(&resolved);
-
-        assert!(admit_declared_set(&attribute, &Value::String("medium".into())).is_ok());
-        assert_eq!(
-            admit_declared_set(&attribute, &Value::String("burnt".into())).unwrap_err(),
-            "doneness admits Vocabulary::Doneness — \"rare\", \"medium\", \"well\" — got \"burnt\""
-        );
-    }
-
-    /// A scalar arrives wrapped in whatever holder its type names, so the check
-    /// has to see through the envelope — the bug this had on its first pass.
-    #[test]
-    fn a_value_wrapped_in_its_holder_is_read_through_to_the_scalar() {
-        let resolved = resolve_admitted_sets(kitchen());
-        let attribute = doneness_attribute(&resolved);
-        let wrapped = serde_json::json!({ "value": "well" });
-
-        assert!(admit_declared_set(&attribute, &wrapped).is_ok());
-    }
-
-    /// A link that resolves to nothing is refused rather than ignored: a rule
-    /// checked against nothing reads like a rule and is not one.
-    #[test]
-    fn naming_a_set_the_chapter_does_not_declare_is_refused() {
-        let mut attribute = doneness_attribute(&resolve_admitted_sets(kitchen()));
-        attribute.insert("admits".into(), Value::String("Vocabulary::Nonesuch".into()));
-        attribute.remove(ADMITTED);
-
-        let refusal = admit_declared_set(&attribute, &Value::String("rare".into())).unwrap_err();
-        assert!(refusal.contains("which this chapter does not declare"), "{refusal}");
     }
 }

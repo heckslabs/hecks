@@ -6,6 +6,7 @@ use crate::interp_mutations::{
     apply_mutation, arithmetic, assign_creation_attributes, coerce_attribute, defaults_for,
     normalize_command_args, refuse_absent_arguments, refuse_unknown_arguments, resolve_source,
 };
+use crate::ir::{Direction, MutationOp};
 use crate::runtime::refusal_wording;
 use crate::runtime::PersistenceAdapter;
 use crate::value_bridge;
@@ -18,37 +19,27 @@ use std::sync::Arc;
 pub struct Runtime {
     /// THE DOMAIN, TYPED — and `ir` is DERIVED from it, not held beside it.
     ///
-    /// Every reader below still goes through the JSON, which is where this
-    /// project's recurring bug lives: the struct says `identified_by:
-    /// Vec<String>` and a reader asked it for `as_str`, got None on an array,
-    /// and compiled. 195 such reads remain across this file and mutations.rs,
-    /// and converting them blind would be worse than leaving them — a half
-    /// converted runtime has TWO sources of truth, which is the thing this
-    /// codebase is most careful never to have.
-    ///
-    /// So this is the seam rather than the conversion: the typed domain is
-    /// here, `ir` is computed from it in `new`, and a reader moves over one at
-    /// a time. `identity_paths` is the first, because it is the one that bit.
-    ///
-    /// ONE CAVEAT, STATED: `resolve_admitted_sets` annotates the JSON after it
-    /// is derived, so `ir` is derived-THEN-annotated rather than a pure
-    /// projection of `domain`. A reader that needs `admits` must still use the
-    /// JSON, and nothing checks the two agree about anything else.
+    /// dispatch/dispatch_entity/hydrate and every mutations.rs coercion
+    /// helper read this now (M6b), not `ir` — the bug class this arc exists
+    /// to close (a typed `Vec<String>` field read back through `.as_str()`,
+    /// answering `None` on an array, compiling anyway) has no seam left to
+    /// live in along the dispatch core path. `ir` remains for the ~150
+    /// scattered reads M6b's second wave hasn't reached yet (mirror/
+    /// replication recovery, saga/correlation lookups, `query_read_model`),
+    /// and for `bin/parity`'s byte-diffing, which needs the wire shape
+    /// regardless of what the live runtime reads.
     domain: crate::ir::Domain,
     ir: Value,
-    /// THE TYPED TWIN OF THE JSON ANNOTATION ABOVE — every closed set an
-    /// `admits` can name, resolved once here from `domain` rather than from
-    /// `ir`. Exists alongside the JSON annotation, not instead of it yet:
-    /// `admit_declared_set`'s callers still read `ir`'s `admitted_members`
-    /// field, and move to this one at a time (M6b). Once every caller has
-    /// moved, the JSON annotation step in `new` below can go.
+    /// THE TYPED TWIN OF WHAT USED TO BE A JSON ANNOTATION — every closed
+    /// set an `admits` can name, resolved once here from `domain`.
+    /// `admit_declared_set`'s callers all read this now (M6b); the JSON
+    /// annotation step (`resolve_admitted_sets` walking `ir` after the fact
+    /// to attach `admitted_members`) is gone from `new` below — this was its
+    /// only reader.
     admitted_sets: std::collections::HashMap<String, Vec<String>>,
-    /// THE TYPED TWIN OF `resolved_cache` BELOW — an aggregate, found once
-    /// off `self.domain` and cached by (domain, name), the same shape as
-    /// the JSON cache for the same reason: dispatch reaches for its
-    /// aggregate on nearly every step, and `Arc` lets a caller hold it
-    /// across a later `&mut self` call (the JSON cache exists for exactly
-    /// this borrow-checker reason, not for JSON-parsing cost). Entities,
+    /// An aggregate, found once off `self.domain` and cached by (domain,
+    /// name) — dispatch reaches for its aggregate on nearly every step, and
+    /// `Arc` lets a caller hold it across a later `&mut self` call. Entities,
     /// commands and queries are NOT separately cached — once the owning
     /// Aggregate is in hand, finding one inside its own (small) `Vec` is
     /// cheaper than the HashMap lookup would be.
@@ -86,15 +77,6 @@ pub struct Runtime {
     // this in. Mirrors CommandInterpreter.trace / EntityInterpreter.trace on
     // the Ruby side.
     pub dispatch_trace: Option<Vec<&'static str>>,
-    // Resolved aggregate/entity/command/query/domain subtrees, keyed by a
-    // discriminated string ("aggregate:{domain}:{name}", etc.) — `ir` is set
-    // once in `new` and never mutated, so a lookup's answer never changes
-    // after the first resolve. A `RefCell` (not the `Mutex` AST_CACHE uses),
-    // since a `Runtime` is never shared across threads — this field is
-    // per-instance, not a global static, on purpose: two `Runtime`s can load
-    // the same domain name with different declared content (tests do), so a
-    // global keyed only on name would leak one instance's answer into another's.
-    resolved_cache: RefCell<HashMap<String, Arc<Map<String, Value>>>>,
 }
 
 const MAX_REACTION_DEPTH: usize = 5;
@@ -341,20 +323,6 @@ pub(crate) fn query_text(value: &Value) -> String {
 /// the bluebook loads, so a path is always there to dig.
 /// `EntityInterpreter#identity_scalar` is the same reading on the Ruby side — a
 /// piece is entry 3, never entry {"value":3}.
-/// The declared op string, as the IR spells it.
-fn where_op(op: &str) -> Option<crate::ir::WhereOp> {
-    Some(match op {
-        "eq" => crate::ir::WhereOp::Eq,
-        "ne" => crate::ir::WhereOp::Ne,
-        "lt" => crate::ir::WhereOp::Lt,
-        "lte" => crate::ir::WhereOp::Lte,
-        "gt" => crate::ir::WhereOp::Gt,
-        "gte" => crate::ir::WhereOp::Gte,
-        "in" => crate::ir::WhereOp::In,
-        "contains" => crate::ir::WhereOp::Contains,
-        _ => return None,
-    })
-}
 
 /// A query's arguments, rendered the way the adapter will compare them.
 ///
@@ -467,27 +435,22 @@ fn query_order(left: &Value, right: &Value) -> std::cmp::Ordering {
     }
 }
 
+// TAKES THE LIFECYCLE DIRECTLY, not the aggregate/entity that declares it —
+// the only field this ever read, and `Aggregate`/`Entity` are distinct typed
+// structs (unlike their JSON shape, which let one JSON-Map-taking function
+// serve both). One function over `Option<&Lifecycle>` serves both callers
+// again, matching the JSON version's genericity without needing a trait.
 fn admissible_transition(
-    aggregate: &Map<String, Value>,
+    lifecycle: Option<&crate::ir::Lifecycle>,
     command_name: &str,
     state: &State,
 ) -> Result<Option<(String, String)>, String> {
-    let Some(lifecycle) = aggregate.get("lifecycle").and_then(Value::as_object) else {
+    let Some(lifecycle) = lifecycle else {
         return Ok(None);
     };
-    let field = lifecycle
-        .get("field")
-        .and_then(Value::as_str)
-        .unwrap_or_default();
-    let transitions: Vec<&Value> = lifecycle
-        .get("transitions")
-        .and_then(Value::as_array)
-        .map(|t| {
-            t.iter()
-                .filter(|t| t.get("command").and_then(Value::as_str) == Some(command_name))
-                .collect()
-        })
-        .unwrap_or_default();
+    let field = lifecycle.field.as_str();
+    let transitions: Vec<&crate::ir::Transition> =
+        lifecycle.transitions.iter().filter(|t| t.command == command_name).collect();
     if transitions.is_empty() {
         return Ok(None);
     }
@@ -497,22 +460,17 @@ fn admissible_transition(
         .and_then(Value::as_str)
         .unwrap_or_default()
         .to_string();
-    let admitted = transitions.iter().find(|t| match t.get("from_state") {
-        None | Some(Value::Null) => true,
-        Some(from) => from.as_str() == Some(current.as_str()),
+    let admitted = transitions.iter().find(|t| match &t.from_state {
+        None => true,
+        Some(from) => from.as_str() == current.as_str(),
     });
     if let Some(t) = admitted {
-        let to = t
-            .get("to_state")
-            .and_then(Value::as_str)
-            .unwrap_or_default()
-            .to_string();
-        return Ok(Some((field.to_string(), to)));
+        return Ok(Some((field.to_string(), t.to_state.clone())));
     }
 
     let mut allowed: Vec<String> = Vec::new();
     for t in &transitions {
-        if let Some(from) = t.get("from_state").and_then(Value::as_str) {
+        if let Some(from) = &t.from_state {
             let shown = format!("{from:?}");
             if !allowed.contains(&shown) {
                 allowed.push(shown);
@@ -539,11 +497,12 @@ fn admissible_transition(
 /// arrives filled instead of absent. Only declared defaults fill in; an
 /// attribute with no default stays exactly as stored. Mirrors Ruby's
 /// `Instance.hydrate_with_defaults`.
-fn fill_hydrate_defaults(aggregate: &Map<String, Value>, mut state: State) -> State {
-    // A default that cannot even build refuses loudly on every create;
-    // here it simply fills nothing rather than turning a read into a
-    // crash.
-    let Ok(defaults) = defaults_for(aggregate) else {
+fn fill_hydrate_defaults_typed(
+    aggregate: &crate::ir::Aggregate,
+    admitted_sets: &HashMap<String, Vec<String>>,
+    mut state: State,
+) -> State {
+    let Ok(defaults) = defaults_for(aggregate, admitted_sets) else {
         return state;
     };
     for (name, value) in defaults {
@@ -560,7 +519,7 @@ impl Runtime {
         let ir = crate::projector::ir_json::domain_to_value(&domain);
         let admitted_sets = crate::runtime::mutations::admitted_sets_of_domain(&domain);
         Runtime {
-            ir: crate::runtime::mutations::resolve_admitted_sets(ir),
+            ir,
             admitted_sets,
             domain,
             store: BTreeMap::new(),
@@ -574,32 +533,8 @@ impl Runtime {
             reaction_depth: 0,
             pending_correlation: None,
             dispatch_trace: None,
-            resolved_cache: RefCell::new(HashMap::new()),
             typed_aggregate_cache: RefCell::new(HashMap::new()),
         }
-    }
-
-    /// THE DECLARED IDENTITY PATHS, READ OFF THE TYPED DOMAIN.
-    ///
-    /// The first reader moved off the wire, and deliberately this one: it is
-    /// where `identified_by` was asked for `as_str`, answered None on an array,
-    /// and fell through to a minted "id" — silently, and it compiled. Here
-    /// `identified_by` is a `Vec<String>` and there is no way to ask it that
-    /// question at all.
-    ///
-    /// Falls back to the wire for a chapter the typed domain does not hold — a
-    /// cross-domain dispatch reaches aggregates from another chapter and the
-    /// runtime holds one. The fallback IS the old reading, so nothing regresses:
-    /// the JSON path is narrower than it was, not gone.
-    fn declared_identity(&self, domain: &str, aggregate: &str) -> Option<Vec<String>> {
-        if domain != self.domain.name {
-            return None;
-        }
-        self.domain
-            .aggregates
-            .iter()
-            .find(|held| held.name == aggregate)
-            .map(|held| held.identified_by.clone())
     }
 
     fn trace_step(&mut self, name: &'static str) {
@@ -902,30 +837,15 @@ impl Runtime {
         }
 
         let mut found = BTreeMap::new();
-        for (domain_name, domain) in self.ir.as_object().cloned().unwrap_or_default() {
-            for aggregate in domain
-                .get("aggregates")
-                .and_then(Value::as_array)
-                .cloned()
-                .unwrap_or_default()
-            {
-                let Some(aggregate) = aggregate.as_object() else {
-                    continue;
-                };
-                let name = aggregate
-                    .get("name")
-                    .and_then(Value::as_str)
-                    .unwrap_or_default();
-
-                let Some(adapter) = self.adapters.get(name) else {
-                    continue;
-                };
-                for state in adapter.all() {
-                    found.insert(
-                        format!("{}::{}#{}", domain_name, name, state.id),
-                        fill_hydrate_defaults(aggregate, value_bridge::from_state(state)),
-                    );
-                }
+        for aggregate in &self.domain.aggregates {
+            let Some(adapter) = self.adapters.get(aggregate.name.as_str()) else {
+                continue;
+            };
+            for state in adapter.all() {
+                found.insert(
+                    format!("{}::{}#{}", self.domain.name, aggregate.name, state.id),
+                    fill_hydrate_defaults_typed(aggregate, &self.admitted_sets, value_bridge::from_state(state)),
+                );
             }
         }
         found
@@ -939,12 +859,11 @@ impl Runtime {
         args: &State,
     ) -> Result<State, String> {
         let (entity_name, command_name) = crate::naming::split_dotted(dotted);
-        let aggregate = self.find_aggregate(domain, aggregate_name, dotted)?;
-        let entity = self.find_entity(domain, aggregate_name, &aggregate, entity_name)?;
-        let command =
-            self.find_entity_command(domain, aggregate_name, entity_name, &entity, command_name)?;
+        let aggregate = self.find_aggregate_typed(domain, aggregate_name, dotted)?;
+        let entity = Runtime::find_entity_typed(&aggregate, entity_name)?;
+        let command = Runtime::find_entity_command_typed(&entity, command_name)?;
         self.refuse_object_references(domain, &command, args)?;
-        let normalized_args = normalize_command_args(&aggregate, &command, args)?;
+        let normalized_args = normalize_command_args(&aggregate, &command, args, &self.admitted_sets)?;
         self.trace_step("normalize_args");
         // An entity command can declare a reference-typed attribute the same
         // way an aggregate command can (CommandRules#resolve_references is
@@ -958,8 +877,8 @@ impl Runtime {
         // derives its own — every declared path, dug and joined — so a piece
         // hanging off a composite head is reached by naming both its parts.
         // `id` stays as the fallback for a caller quoting an id back whole.
-        let identity = identity::reading(&aggregate);
-        let parent_id = identity::of(&aggregate, args)
+        let identity = identity::reading_of_paths(&aggregate.identified_by);
+        let parent_id = identity::of_paths(&aggregate.identified_by, args)
             .or_else(|| args.get("id").map(query_text).filter(|id| !id.is_empty()))
             .ok_or_else(|| {
                 refusal_wording::render(
@@ -996,14 +915,11 @@ impl Runtime {
         };
         self.trace_step("hydrate_parent");
 
-        let list_attr = array(&aggregate, "attributes")
-            .into_iter()
-            .filter_map(|a| a.as_object().cloned())
-            .find(|a| {
-                a.get("list").and_then(Value::as_bool).unwrap_or(false)
-                    && a.get("type").and_then(Value::as_str) == Some(entity_name)
-            })
-            .and_then(|a| a.get("name").and_then(Value::as_str).map(str::to_string))
+        let list_attr = aggregate
+            .attributes
+            .iter()
+            .find(|a| a.list && a.r#type == entity_name)
+            .map(|a| a.name.clone())
             .ok_or_else(|| {
                 refusal_wording::render(
                     "UnknownVerb",
@@ -1020,9 +936,9 @@ impl Runtime {
         //
         // A PIECE's identity is a path like a head's : the caller passes the
         // head attribute and the id is the scalar dug out of it.
-        let entity_reading = identity::reading(&entity);
+        let entity_reading = identity::reading_of_paths(&entity.identified_by);
         let mut wants: Vec<(String, Option<String>, Value)> = Vec::new();
-        for path in identity::paths(&entity) {
+        for path in &entity.identified_by {
             let (head, field) = identity::split(path);
             let raw = args.get(head).cloned().ok_or_else(|| {
                 refusal_wording::render(
@@ -1040,12 +956,8 @@ impl Runtime {
             // different reasons. It also makes a scalar stand in for a
             // single-field value object here, the way it does everywhere else.
             // Part of Vocabulary::EntityDispatchOrder's locate_element.
-            let want = match array(&entity, "attributes")
-                .into_iter()
-                .filter_map(|held| held.as_object().cloned())
-                .find(|held| held.get("name").and_then(Value::as_str) == Some(head))
-            {
-                Some(attribute) => coerce_attribute(&aggregate, &attribute, &raw)?,
+            let want = match entity.attributes.iter().find(|held| held.name == head) {
+                Some(attribute) => coerce_attribute(&aggregate, attribute, &raw, &self.admitted_sets)?,
                 None => raw,
             };
             wants.push((head.to_string(), field.map(str::to_string), want));
@@ -1091,52 +1003,39 @@ impl Runtime {
         let mut element = elements[position].as_object().cloned().unwrap_or_default();
         self.trace_step("locate_element");
 
-        for given in array(&command, "givens") {
-            let canonical = given.get("canonical").and_then(Value::as_str).unwrap_or("");
-            if !evaluate_given(canonical, &element, args)? {
-                let description = given
-                    .get("description")
-                    .and_then(Value::as_str)
-                    .unwrap_or("");
+        for given in &command.givens {
+            let canonical = crate::projector::ir_json::canonicalise(&given.canonical);
+            if !evaluate_given(&canonical, &element, args)? {
+                let description = given.description.as_deref().unwrap_or("");
                 return Err(format!("{} refused — {}", command_name, description));
             }
         }
         self.trace_step("enforce_givens");
-        let transition_to = admissible_transition(&entity, command_name, &element)?;
+        let transition_to = admissible_transition(entity.lifecycle.as_ref(), command_name, &element)?;
         self.trace_step("admissible_transition");
 
-        let old_element = if array(&command, "ensures").is_empty() {
+        let old_element = if command.ensures.is_empty() {
             None
         } else {
             Some(element.clone())
         };
-        for mutation in array(&command, "mutations") {
-            let target = mutation
-                .get("target")
-                .and_then(Value::as_str)
-                .unwrap_or_default()
-                .to_string();
-            match mutation.get("op").and_then(Value::as_str) {
-                Some("increment") | Some("decrement") => {
-                    let operation = mutation
-                        .get("op")
-                        .and_then(Value::as_str)
-                        .unwrap_or("increment");
-                    let updated = arithmetic(&element, &target, operation, &mutation, args)?;
-                    element.insert(target, updated);
+        for mutation in &command.mutations {
+            match mutation.op {
+                MutationOp::Increment | MutationOp::Decrement => {
+                    let operation = if matches!(mutation.op, MutationOp::Increment) { "increment" } else { "decrement" };
+                    let updated = arithmetic(&element, &mutation.target, operation, mutation, args)?;
+                    element.insert(mutation.target.clone(), updated);
                 }
                 _ => {
-                    let value = resolve_source(&mutation, args);
-                    let coerced = array(&entity, "attributes")
-                        .into_iter()
-                        .find(|attribute| {
-                            attribute.get("name").and_then(Value::as_str) == Some(target.as_str())
-                        })
-                        .and_then(|attribute| attribute.as_object().cloned())
-                        .map(|attribute| coerce_attribute(&aggregate, &attribute, &value))
+                    let value = resolve_source(mutation, args);
+                    let coerced = entity
+                        .attributes
+                        .iter()
+                        .find(|attribute| attribute.name == mutation.target)
+                        .map(|attribute| coerce_attribute(&aggregate, attribute, &value, &self.admitted_sets))
                         .transpose()?
                         .unwrap_or(value);
-                    element.insert(target, coerced);
+                    element.insert(mutation.target.clone(), coerced);
                 }
             }
         }
@@ -1145,15 +1044,15 @@ impl Runtime {
             element.insert(field, Value::String(to_state));
             self.trace_step("advance_lifecycle");
         }
-        for rule in array(&command, "ensures") {
-            let canonical = rule.get("canonical").and_then(Value::as_str).unwrap_or("");
+        for rule in &command.ensures {
+            let canonical = crate::projector::ir_json::canonicalise(&rule.canonical);
             let mut attrs = args.clone();
             attrs.insert(
                 "old".to_string(),
                 Value::Object(old_element.clone().unwrap_or_default()),
             );
-            if !evaluate_given(canonical, &element, &attrs)? {
-                let description = rule.get("description").and_then(Value::as_str).unwrap_or("");
+            if !evaluate_given(&canonical, &element, &attrs)? {
+                let description = rule.description.as_deref().unwrap_or("");
                 return Err(format!("{} refused — {}", command_name, description));
             }
         }
@@ -1178,18 +1077,16 @@ impl Runtime {
         self.trace_step("save");
 
         let mut announced: Vec<Value> = Vec::new();
-        for emitted in array(&command, "emits") {
-            if let Some(name) = emitted.as_str() {
-                let mut event = json!({
-                    "name": name,
-                    "aggregate": format!("{}::{}", domain, aggregate_name),
-                    "id": parent_id,
-                    "payload": Value::Object(args.clone()),
-                });
-                self.events.push(event.clone());
-                self.stamp_pending_correlation(&mut event);
-                announced.push(event);
-            }
+        for name in &command.emits {
+            let mut event = json!({
+                "name": name,
+                "aggregate": format!("{}::{}", domain, aggregate_name),
+                "id": parent_id,
+                "payload": Value::Object(args.clone()),
+            });
+            self.events.push(event.clone());
+            self.stamp_pending_correlation(&mut event);
+            announced.push(event);
         }
         self.trace_step("emit");
 
@@ -1212,11 +1109,11 @@ impl Runtime {
             }
         }
         let (domain, aggregate_name, query_name) = parse_verb(verb)?;
-        let aggregate = self.find_aggregate(&domain, &aggregate_name, verb)?;
+        let aggregate = self.find_aggregate_typed(&domain, &aggregate_name, verb)?;
         if query_name.contains('.') {
             return self.query_entity(&domain, &aggregate_name, &aggregate, &query_name, args);
         }
-        let declared = self.find_query(&domain, &aggregate_name, &aggregate, &query_name)?;
+        let declared = Runtime::find_query_typed(&aggregate, &query_name)?;
 
         // A query's arguments are coerced against their declared types exactly as
         // a command's are — mirrors Ruby's QueryInterpreter#normalize_args. Without
@@ -1225,42 +1122,34 @@ impl Runtime {
         // agreeing about nothing. Reads enter through the aggregate, so they meet
         // the same gate writes do.
         let mut args = args.clone();
-        for attribute in array(&declared, "attributes") {
-            let Some(name) = attribute.get("name").and_then(Value::as_str) else {
+        for attribute in &declared.attributes {
+            let Some(given) = args.get(&attribute.name).cloned() else {
                 continue;
             };
-            let Some(given) = args.get(name).cloned() else {
-                continue;
-            };
-            let attribute = attribute.as_object().cloned().unwrap_or_default();
-            let coerced = coerce_attribute(&aggregate, &attribute, &given)?;
-            args.insert(name.to_string(), coerced);
+            let coerced = coerce_attribute(&aggregate, attribute, &given, &self.admitted_sets)?;
+            args.insert(attribute.name.clone(), coerced);
         }
         let args = &args;
 
-        let wheres = array(&declared, "wheres");
         let mut matched: Vec<(String, State)> = Vec::new();
         // CANDIDATES, then the SAME predicate as ever. An adapter that can narrow
         // says so ; the filter below still decides, so the answer is unchanged by
         // whatever the adapter could or could not push. Only the aggregate path
         // pushes — see `candidate_records`.
-        for (key, state) in self.candidate_records(&domain, &aggregate_name, &aggregate, &wheres, args) {
-            let holds = wheres.iter().all(|clause| {
-                let field = clause
-                    .get("field")
-                    .and_then(Value::as_str)
-                    .unwrap_or_default();
-                let held = state.get(field).cloned().unwrap_or(Value::Null);
-                let want = resolve_query_value(clause.get("value"), args);
-                match clause.get("op").and_then(Value::as_str) {
-                    Some("ne") => query_value(&held) != query_value(&want),
-                    Some("lt") => query_less_than(&held, &want),
-                    Some("lte") => query_at_most(&held, &want),
-                    Some("gt") => query_greater_than(&held, &want),
-                    Some("gte") => query_at_least(&held, &want),
-                    Some("in") => query_members(&want).contains(&query_text(&held)),
-                    Some("contains") => query_members(&held).contains(&query_text(&want)),
-                    _ => query_value(&held) == query_value(&want),
+        for (key, state) in self.candidate_records_typed(&domain, &aggregate_name, &aggregate, &declared.wheres, args) {
+            let holds = declared.wheres.iter().all(|clause| {
+                let held = state.get(&clause.field).cloned().unwrap_or(Value::Null);
+                let clause_value = Value::String(clause.value.clone());
+                let want = resolve_query_value(Some(&clause_value), args);
+                match clause.op {
+                    crate::ir::WhereOp::Ne => query_value(&held) != query_value(&want),
+                    crate::ir::WhereOp::Lt => query_less_than(&held, &want),
+                    crate::ir::WhereOp::Lte => query_at_most(&held, &want),
+                    crate::ir::WhereOp::Gt => query_greater_than(&held, &want),
+                    crate::ir::WhereOp::Gte => query_at_least(&held, &want),
+                    crate::ir::WhereOp::In => query_members(&want).contains(&query_text(&held)),
+                    crate::ir::WhereOp::Contains => query_members(&held).contains(&query_text(&want)),
+                    crate::ir::WhereOp::Eq => query_value(&held) == query_value(&want),
                 }
             });
             if holds {
@@ -1276,26 +1165,21 @@ impl Runtime {
         // here, so the declared pass keeps this base underneath it.
         matched.sort_by(|(a_id, _), (b_id, _)| a_id.cmp(b_id));
 
-        if let Some(order) = declared.get("order_by").and_then(Value::as_object) {
-            let field = order
-                .get("field")
-                .and_then(Value::as_str)
-                .unwrap_or_default()
-                .to_string();
+        if let Some(order) = &declared.order_by {
             matched.sort_by(|(a_id, a), (b_id, b)| {
-                let left = a.get(&field).cloned().unwrap_or(Value::Null);
-                let right = b.get(&field).cloned().unwrap_or(Value::Null);
+                let left = a.get(&order.field).cloned().unwrap_or(Value::Null);
+                let right = b.get(&order.field).cloned().unwrap_or(Value::Null);
                 query_order(&left, &right).then_with(|| a_id.cmp(b_id))
             });
-            if order.get("direction").and_then(Value::as_str) == Some("desc") {
+            if matches!(order.direction, Direction::Desc) {
                 matched.reverse();
             }
         }
 
-        let capped: Vec<(String, State)> = match declared.get("limit").and_then(|l| l.get("value"))
-        {
+        let capped: Vec<(String, State)> = match &declared.limit {
             Some(limit) => {
-                let n = query_limit(&resolve_query_value(Some(limit), args));
+                let limit_value = Value::String(limit.value.clone());
+                let n = query_limit(&resolve_query_value(Some(&limit_value), args));
                 matched.into_iter().take(n).collect()
             }
             None => matched,
@@ -1315,10 +1199,23 @@ impl Runtime {
     }
 
     fn query_read_model(&mut self, domain: &str, query_name: &str, args: &State) -> Result<Vec<Value>, String> {
-        let declared_domain = self.find_domain(domain)?;
-        let model = array(&declared_domain, "read_models").into_iter()
-            .find(|model| model.get("query_name").and_then(Value::as_str) == Some(query_name))
-            .and_then(|model| model.as_object().cloned())
+        if domain != self.domain.name {
+            let domain_shown = format!("{domain:?}");
+            return Err(refusal_wording::render(
+                "UnknownVerb",
+                "no_domain",
+                &[("domain", &domain_shown), ("verb", query_name)],
+            ));
+        }
+        // Cloned, not borrowed: the loop below needs `&mut self` (through
+        // `all_records_typed`) while still reading `model` — same reason
+        // `find_aggregate_typed` hands back an `Arc` rather than a borrow.
+        let model = self
+            .domain
+            .read_models
+            .iter()
+            .find(|model| crate::naming::snake(&model.name) == query_name)
+            .cloned()
             .ok_or_else(|| {
                 let query_shown = format!("{query_name:?}");
                 refusal_wording::render(
@@ -1327,7 +1224,7 @@ impl Runtime {
                     &[("domain", domain), ("query", &query_shown)],
                 )
             })?;
-        let reference_name = model.get("reference_name").and_then(Value::as_str).unwrap_or("reference");
+        let reference_name = model.reference_name.as_str();
         // AN ASK'S REFERENCE IS AN ID TOO. Without this, `query_text` below would
         // quietly open a wrapped one and answer, while Ruby read it whole and
         // found nothing — a split that shows only when a stale caller exists.
@@ -1342,17 +1239,17 @@ impl Runtime {
         let reference_id = args.get(reference_name).map(query_text).unwrap_or_default();
         let mut projected: Vec<(String, Vec<(String, State)>)> = Vec::new();
         let mut report = Map::new();
-        for head in array(&model, "aggregate_heads") {
-            let head = head.as_object().ok_or_else(|| "read model head must be an object".to_string())?;
-            let aggregate_name = head.get("aggregate").and_then(Value::as_str).unwrap_or_default();
-            let name = head.get("as").and_then(Value::as_str).unwrap_or_default().to_string();
-            // find_aggregate is cache-backed, and this is the same aggregate
-            // whether the row is the reference target or a projected source —
-            // resolved once here and reused for both branches below (the
-            // original called the equivalent lookup twice in the else branch).
-            let aggregate = self.find_aggregate(domain, aggregate_name, query_name)?;
-            let mut rows = self.all_records(domain, aggregate_name, &aggregate);
-            if aggregate_name == model.get("reference_target").and_then(Value::as_str).unwrap_or_default() {
+        for head in &model.aggregate_heads {
+            let aggregate_name = head.aggregate.as_str();
+            let name = head.r#as.clone();
+            // find_aggregate_typed is cache-backed, and this is the same
+            // aggregate whether the row is the reference target or a
+            // projected source — resolved once here and reused for both
+            // branches below (the original called the equivalent lookup
+            // twice in the else branch).
+            let aggregate = self.find_aggregate_typed(domain, aggregate_name, query_name)?;
+            let mut rows = self.all_records_typed(domain, aggregate_name, &aggregate);
+            if aggregate_name == model.reference_target {
                 rows.retain(|(id, _)| id == &reference_id);
                 if rows.is_empty() {
                     let offered = format!("{reference_id:?}");
@@ -1365,16 +1262,15 @@ impl Runtime {
             } else {
                 rows.retain(|(_, state)| projected.iter().any(|(source_name, source_rows)| {
                     let reference_type = format!("Reference<{source_name}>");
-                    let fields: Vec<String> = array(&aggregate, "attributes").into_iter()
-                        .filter(|attribute| attribute.get("type").and_then(Value::as_str) == Some(reference_type.as_str()))
-                        .filter_map(|attribute| attribute.get("name").and_then(Value::as_str).map(str::to_string))
+                    let fields: Vec<&str> = aggregate.attributes.iter()
+                        .filter(|attribute| attribute.r#type == reference_type)
+                        .map(|attribute| attribute.name.as_str())
                         .collect();
-                    fields.iter().any(|field| source_rows.iter().any(|(id, _)| state.get(field).map(query_text).as_deref() == Some(id.as_str())))
+                    fields.iter().any(|field| source_rows.iter().any(|(id, _)| state.get(*field).map(query_text).as_deref() == Some(id.as_str())))
                 }));
             }
             rows.sort_by(|(left, _), (right, _)| left.cmp(right));
-            let many = head.get("many").and_then(Value::as_bool).unwrap_or(false);
-            report.insert(name.clone(), if many { Value::Array(rows.iter().cloned().map(state_row).collect()) } else { rows.first().cloned().map(state_row).unwrap_or(Value::Null) });
+            report.insert(name.clone(), if head.many { Value::Array(rows.iter().cloned().map(state_row).collect()) } else { rows.first().cloned().map(state_row).unwrap_or(Value::Null) });
             projected.push((aggregate_name.to_string(), rows));
         }
         Ok(vec![Value::Object(report)])
@@ -1384,22 +1280,18 @@ impl Runtime {
         &mut self,
         domain: &str,
         aggregate_name: &str,
-        aggregate: &Map<String, Value>,
+        aggregate: &crate::ir::Aggregate,
         dotted: &str,
         args: &State,
     ) -> Result<Vec<Value>, String> {
         let (entity_name, query_name) = crate::naming::split_dotted(dotted);
-        let entity = self.find_entity(domain, aggregate_name, aggregate, entity_name)?;
-        let declared =
-            self.find_entity_query(domain, aggregate_name, entity_name, &entity, query_name)?;
-        let list_attr = array(aggregate, "attributes")
-            .into_iter()
-            .filter_map(|a| a.as_object().cloned())
-            .find(|a| {
-                a.get("list").and_then(Value::as_bool).unwrap_or(false)
-                    && a.get("type").and_then(Value::as_str) == Some(entity_name)
-            })
-            .and_then(|a| a.get("name").and_then(Value::as_str).map(str::to_string))
+        let entity = Runtime::find_entity_typed(aggregate, entity_name)?;
+        let declared = Runtime::find_entity_query_typed(&entity, query_name)?;
+        let list_attr = aggregate
+            .attributes
+            .iter()
+            .find(|a| a.list && a.r#type == entity_name)
+            .map(|a| a.name.clone())
             .ok_or_else(|| {
                 refusal_wording::render(
                     "UnknownVerb",
@@ -1409,9 +1301,8 @@ impl Runtime {
             })?;
 
         let parent_key = crate::naming::reference_key(aggregate_name);
-        let wheres = array(&declared, "wheres");
         let mut rows: Vec<Value> = Vec::new();
-        for (parent_id, state) in self.all_records(domain, aggregate_name, aggregate) {
+        for (parent_id, state) in self.all_records_typed(domain, aggregate_name, aggregate) {
             for element in state
                 .get(&list_attr)
                 .and_then(Value::as_array)
@@ -1421,22 +1312,19 @@ impl Runtime {
                 let Some(element) = element.as_object() else {
                     continue;
                 };
-                let holds = wheres.iter().all(|clause| {
-                    let field = clause
-                        .get("field")
-                        .and_then(Value::as_str)
-                        .unwrap_or_default();
-                    let held = element.get(field).cloned().unwrap_or(Value::Null);
-                    let want = resolve_query_value(clause.get("value"), args);
-                    match clause.get("op").and_then(Value::as_str) {
-                        Some("ne") => query_value(&held) != query_value(&want),
-                        Some("lt") => query_less_than(&held, &want),
-                        Some("lte") => query_at_most(&held, &want),
-                        Some("gt") => query_greater_than(&held, &want),
-                        Some("gte") => query_at_least(&held, &want),
-                        Some("in") => query_members(&want).contains(&query_text(&held)),
-                        Some("contains") => query_members(&held).contains(&query_text(&want)),
-                        _ => query_value(&held) == query_value(&want),
+                let holds = declared.wheres.iter().all(|clause| {
+                    let held = element.get(&clause.field).cloned().unwrap_or(Value::Null);
+                    let clause_value = Value::String(clause.value.clone());
+                    let want = resolve_query_value(Some(&clause_value), args);
+                    match clause.op {
+                        crate::ir::WhereOp::Ne => query_value(&held) != query_value(&want),
+                        crate::ir::WhereOp::Lt => query_less_than(&held, &want),
+                        crate::ir::WhereOp::Lte => query_at_most(&held, &want),
+                        crate::ir::WhereOp::Gt => query_greater_than(&held, &want),
+                        crate::ir::WhereOp::Gte => query_at_least(&held, &want),
+                        crate::ir::WhereOp::In => query_members(&want).contains(&query_text(&held)),
+                        crate::ir::WhereOp::Contains => query_members(&held).contains(&query_text(&want)),
+                        crate::ir::WhereOp::Eq => query_value(&held) == query_value(&want),
                     }
                 });
                 if holds {
@@ -1459,7 +1347,7 @@ impl Runtime {
         // declaration order, for the same reason the parent leads — a part
         // that ties breaks no tie, and a piece known by two facts has a second
         // one to try. `QueryInterpreter#ordered_elements` is the twin.
-        let entity_keys: Vec<String> = identity::heads(&entity)
+        let entity_keys: Vec<String> = identity::heads_of_paths(&entity.identified_by)
             .into_iter()
             .map(str::to_string)
             .collect();
@@ -1478,23 +1366,19 @@ impl Runtime {
             ordering
         });
 
-        if let Some(order) = declared.get("order_by").and_then(Value::as_object) {
-            let field = order
-                .get("field")
-                .and_then(Value::as_str)
-                .unwrap_or_default()
-                .to_string();
+        if let Some(order) = &declared.order_by {
             rows.sort_by(|a, b| {
-                let left = a.get(&field).cloned().unwrap_or(Value::Null);
-                let right = b.get(&field).cloned().unwrap_or(Value::Null);
+                let left = a.get(&order.field).cloned().unwrap_or(Value::Null);
+                let right = b.get(&order.field).cloned().unwrap_or(Value::Null);
                 query_order(&left, &right)
             });
-            if order.get("direction").and_then(Value::as_str) == Some("desc") {
+            if matches!(order.direction, Direction::Desc) {
                 rows.reverse();
             }
         }
-        if let Some(limit) = declared.get("limit").and_then(|l| l.get("value")) {
-            rows.truncate(query_limit(&resolve_query_value(Some(limit), args)));
+        if let Some(limit) = &declared.limit {
+            let limit_value = Value::String(limit.value.clone());
+            rows.truncate(query_limit(&resolve_query_value(Some(&limit_value), args)));
         }
         Ok(rows)
     }
@@ -1510,57 +1394,46 @@ impl Runtime {
     /// and the builder filters by column NAME alone — so a piece's field sharing
     /// a parent column's name would narrow the parent set by a clause meant for
     /// the child. A read model has no clauses at all.
-    fn candidate_records(
+    fn candidate_records_typed(
         &mut self,
         domain: &str,
         aggregate_name: &str,
-        aggregate: &Map<String, Value>,
-        wheres: &[Value],
+        aggregate: &crate::ir::Aggregate,
+        wheres: &[crate::ir::WhereClause],
         args: &State,
     ) -> Vec<(String, State)> {
-        let clauses: Vec<crate::ir::WhereClause> = wheres
-            .iter()
-            .filter_map(|clause| {
-                Some(crate::ir::WhereClause {
-                    field: clause.get("field")?.as_str()?.to_string(),
-                    op: where_op(clause.get("op").and_then(Value::as_str)?)?,
-                    value: clause.get("value")?.as_str()?.to_string(),
-                })
-            })
-            .collect();
-
-        let narrowed = (!clauses.is_empty())
+        let narrowed = (!wheres.is_empty())
             .then(|| self.adapters.get(aggregate_name))
             .flatten()
-            .and_then(|adapter| adapter.query(&clauses, &pushdown_attrs(args)));
+            .and_then(|adapter| adapter.query(wheres, &pushdown_attrs(args)));
 
         match narrowed {
             Some(states) => states
                 .into_iter()
                 .map(|state| (state.id.clone(), value_bridge::from_state(&state)))
                 .collect(),
-            None => self.all_records(domain, aggregate_name, aggregate),
+            None => self.all_records_typed(domain, aggregate_name, aggregate),
         }
     }
 
-    fn all_records(
+    fn all_records_typed(
         &mut self,
         domain: &str,
         aggregate_name: &str,
-        aggregate: &Map<String, Value>,
+        aggregate: &crate::ir::Aggregate,
     ) -> Vec<(String, State)> {
         if let Some(adapter) = self.adapters.get(aggregate_name) {
             return adapter
                 .all()
                 .into_iter()
-                .map(|s| (s.id.clone(), fill_hydrate_defaults(aggregate, value_bridge::from_state(s))))
+                .map(|s| (s.id.clone(), fill_hydrate_defaults_typed(aggregate, &self.admitted_sets, value_bridge::from_state(s))))
                 .collect();
         }
         let prefix = format!("{}::{}#", domain, aggregate_name);
         self.store
             .iter()
             .filter(|(key, _)| key.starts_with(&prefix))
-            .map(|(key, state)| (key[prefix.len()..].to_string(), fill_hydrate_defaults(aggregate, state.clone())))
+            .map(|(key, state)| (key[prefix.len()..].to_string(), fill_hydrate_defaults_typed(aggregate, &self.admitted_sets, state.clone())))
             .collect()
     }
 
@@ -1578,27 +1451,22 @@ impl Runtime {
     fn resolve_references(
         &mut self,
         domain: &str,
-        command: &Map<String, Value>,
+        command: &crate::ir::Command,
         args: &State,
     ) -> Result<(), String> {
-        for attribute in array(command, "attributes") {
-            let Some(name) = attribute.get("name").and_then(Value::as_str) else {
-                continue;
-            };
-            let Some(type_name) = attribute.get("type").and_then(Value::as_str) else {
-                continue;
-            };
-            let Some(target_name) = type_name
+        for attribute in &command.attributes {
+            let Some(target_name) = attribute
+                .r#type
                 .strip_prefix("Reference<")
                 .and_then(|rest| rest.strip_suffix('>'))
             else {
                 continue;
             };
-            let Some(held) = args.get(name) else { continue };
+            let Some(held) = args.get(&attribute.name) else { continue };
             if held.is_null() {
                 continue;
             }
-            let Ok(target) = self.find_aggregate(domain, target_name, name) else {
+            let Ok(target) = self.find_aggregate_typed(domain, target_name, &attribute.name) else {
                 continue;
             };
             // The id itself. This opened a one-field object first, which is the
@@ -1613,9 +1481,9 @@ impl Runtime {
             // names — every one of them, because a composite is addressed by
             // all its parts and naming only the first tells the caller to pass
             // something that would not be enough.
-            let identity = identity::heads(&target).join(", ");
+            let identity = identity::heads_of_paths(&target.identified_by).join(", ");
             let found = self
-                .all_records(domain, target_name, &target)
+                .all_records_typed(domain, target_name, &target)
                 .into_iter()
                 .any(|(id, _)| id == key);
             if !found {
@@ -1635,17 +1503,15 @@ impl Runtime {
         if command_name.contains('.') {
             return self.dispatch_entity(&domain, &aggregate_name, &command_name, args);
         }
-        let aggregate = self.find_aggregate(&domain, &aggregate_name, verb)?;
-        let command = self
-            .find_command(&domain, &aggregate_name, &aggregate, &command_name)
-            .ok_or_else(|| {
-                let shown = format!("{command_name:?}");
-                refusal_wording::render(
-                    "UnknownVerb",
-                    "aggregate_no_command",
-                    &[("aggregate", &aggregate_name), ("command", &shown)],
-                )
-            })?;
+        let aggregate = self.find_aggregate_typed(&domain, &aggregate_name, verb)?;
+        let command = Runtime::find_command_typed(&aggregate, &command_name).ok_or_else(|| {
+            let shown = format!("{command_name:?}");
+            refusal_wording::render(
+                "UnknownVerb",
+                "aggregate_no_command",
+                &[("aggregate", &aggregate_name), ("command", &shown)],
+            )
+        })?;
         refuse_unknown_arguments(&aggregate, &command, args, &self.correlation_keys(&domain))?;
         self.trace_step("refuse_unknown_arguments");
         // Unknown first, deliberately : a payload that both misspells one name and
@@ -1653,66 +1519,57 @@ impl Runtime {
         refuse_absent_arguments(&command, args)?;
         self.trace_step("refuse_absent_arguments");
         self.refuse_object_references(&domain, &command, args)?;
-        let normalized_args = normalize_command_args(&aggregate, &command, args)?;
+        let normalized_args = normalize_command_args(&aggregate, &command, args, &self.admitted_sets)?;
         self.trace_step("normalize_args");
         self.resolve_references(&domain, &command, &normalized_args)?;
         self.trace_step("resolve_references");
         let args = &normalized_args;
 
-        let creates = command
-            .get("references")
-            .map(Value::is_null)
-            .unwrap_or(true);
+        let creates = command.references.is_none();
 
-        // THE TYPED PATHS WHERE THEY EXIST — see `declared_identity`. The wire
-        // is the fallback, not the source, for this one question.
-        let declared = self.declared_identity(&domain, &aggregate_name);
-        let (id, mut state) = self.hydrate(&aggregate, &command, args, creates, declared.as_deref())?;
+        let (id, mut state) = self.hydrate(&aggregate, &command, args, creates)?;
         self.trace_step("hydrate");
 
-        for given in array(&command, "givens") {
-            let canonical = given.get("canonical").and_then(Value::as_str).unwrap_or("");
-            if !evaluate_given(canonical, &state, args)? {
-                let description = given
-                    .get("description")
-                    .and_then(Value::as_str)
-                    .unwrap_or("");
+        for given in &command.givens {
+            let canonical = crate::projector::ir_json::canonicalise(&given.canonical);
+            if !evaluate_given(&canonical, &state, args)? {
+                let description = given.description.as_deref().unwrap_or("");
                 return Err(format!("{} refused — {}", command_name, description));
             }
         }
         self.trace_step("enforce_givens");
 
-        let transition_to = admissible_transition(&aggregate, &command_name, &state)?;
+        let transition_to = admissible_transition(aggregate.lifecycle.as_ref(), &command_name, &state)?;
         self.trace_step("admissible_transition");
 
         if creates {
-            assign_creation_attributes(&mut state, &aggregate, &command, args)?;
+            assign_creation_attributes(&mut state, &aggregate, &command, args, &self.admitted_sets)?;
             self.trace_step("assign_creation_attributes");
         }
         // The state as the givens saw it — what `old` names inside an
         // ensures. Cloned only when the command declares one.
-        let old_state = if array(&command, "ensures").is_empty() {
+        let old_state = if command.ensures.is_empty() {
             None
         } else {
             Some(state.clone())
         };
-        for mutation in array(&command, "mutations") {
-            apply_mutation(&mut state, &aggregate, &mutation, args)?;
+        for mutation in &command.mutations {
+            apply_mutation(&mut state, &aggregate, mutation, args, &self.admitted_sets)?;
         }
         self.trace_step("apply_mutations");
         if let Some((field, to_state)) = transition_to {
             state.insert(field, Value::String(to_state));
             self.trace_step("advance_lifecycle");
         }
-        for rule in array(&command, "ensures") {
-            let canonical = rule.get("canonical").and_then(Value::as_str).unwrap_or("");
+        for rule in &command.ensures {
+            let canonical = crate::projector::ir_json::canonicalise(&rule.canonical);
             let mut attrs = args.clone();
             attrs.insert(
                 "old".to_string(),
                 Value::Object(old_state.clone().unwrap_or_default()),
             );
-            if !evaluate_given(canonical, &state, &attrs)? {
-                let description = rule.get("description").and_then(Value::as_str).unwrap_or("");
+            if !evaluate_given(&canonical, &state, &attrs)? {
+                let description = rule.description.as_deref().unwrap_or("");
                 return Err(format!("{} refused — {}", command_name, description));
             }
         }
@@ -1734,19 +1591,17 @@ impl Runtime {
         self.trace_step("save");
 
         let mut announced: Vec<Value> = Vec::new();
-        for emitted in array(&command, "emits") {
-            if let Some(name) = emitted.as_str() {
-                let mut event = json!({
-                    "name": name,
-                    "aggregate": format!("{}::{}", domain, aggregate_name),
-                    "id": id,
-                    "payload": Value::Object(args.clone()),
-                });
+        for name in &command.emits {
+            let mut event = json!({
+                "name": name,
+                "aggregate": format!("{}::{}", domain, aggregate_name),
+                "id": id,
+                "payload": Value::Object(args.clone()),
+            });
 
-                self.events.push(event.clone());
-                self.stamp_pending_correlation(&mut event);
-                announced.push(event);
-            }
+            self.events.push(event.clone());
+            self.stamp_pending_correlation(&mut event);
+            announced.push(event);
         }
         self.trace_step("emit");
 
@@ -1766,9 +1621,8 @@ impl Runtime {
         // which is the single head and is nil the moment an identity has two,
         // so it returns early and leaves the state alone.
         let mut result = state;
-        let paths = identity::paths(&aggregate);
-        if let [only] = paths[..] {
-            result.insert(only.to_string(), Value::String(id));
+        if let [only] = aggregate.identified_by.as_slice() {
+            result.insert(only.clone(), Value::String(id));
         }
         Ok(result)
     }
@@ -1789,26 +1643,18 @@ impl Runtime {
 
     fn hydrate(
         &mut self,
-        aggregate: &Map<String, Value>,
-        command: &Map<String, Value>,
+        aggregate: &crate::ir::Aggregate,
+        command: &crate::ir::Command,
         args: &State,
         creates: bool,
-        declared: Option<&[String]>,
     ) -> Result<(String, State), String> {
-        let aggregate_name = aggregate
-            .get("name")
-            .and_then(Value::as_str)
-            .unwrap_or("")
-            .to_string();
-        let command_name = command
-            .get("name")
-            .and_then(Value::as_str)
-            .unwrap_or("command");
+        let aggregate_name = aggregate.name.as_str();
+        let command_name = command.name.as_str();
 
         // THE DECLARED PATHS, not just their heads — the same reading Ruby's
         // `identity_reading` quotes back, so a refusal names exactly what the
         // bluebook said ("row.value, number.value", not "row").
-        let reading = identity::reading(aggregate);
+        let reading = identity::reading_of_paths(&aggregate.identified_by);
 
         if creates {
             // NOTHING IS MINTED. An invented identity is neither derived from
@@ -1817,20 +1663,16 @@ impl Runtime {
             // records. A creating command that cannot say WHICH ONE THIS IS is
             // refused, and an aggregate with no `identified_by` has to be told.
             //
-            // `identity::of` is the whole derivation now: it follows every
-            // declared path, refuses a part that is absent OR blank — `{value:
-            // ""}` is a non-empty wrapper around nothing, and "" is not a fact
-            // about anything — and joins what is left. Filtering after the dig
-            // is what that blank check is.
-            let id = match declared {
-                Some(paths) => identity::of_paths(paths, args),
-                None => identity::of(aggregate, args),
-            }
-            .ok_or_else(|| {
+            // `identity::of_paths` is the whole derivation now: it follows
+            // every declared path, refuses a part that is absent OR blank —
+            // `{value: ""}` is a non-empty wrapper around nothing, and "" is
+            // not a fact about anything — and joins what is left. Filtering
+            // after the dig is what that blank check is.
+            let id = identity::of_paths(&aggregate.identified_by, args).ok_or_else(|| {
                 refusal_wording::render(
                     "NotFound",
                     "creating_no_identity",
-                    &[("command", command_name), ("aggregate", &aggregate_name), ("identity", &reading)],
+                    &[("command", command_name), ("aggregate", aggregate_name), ("identity", &reading)],
                 )
             })?;
             // A SECOND CREATION IS NOT A FRESH ONE — the same check the
@@ -1838,25 +1680,25 @@ impl Runtime {
             // record, made here to REFUSE one. A branch and box number are a
             // small, finite set a caller can collide with by mistake in a
             // way a minted reference cannot.
-            if self.record_exists(&aggregate_name, &id) {
+            if self.record_exists(aggregate_name, &id) {
                 let offered = format!("{id:?}");
                 return Err(refusal_wording::render(
                     "AlreadyExists",
                     "creating_duplicate",
                     &[
                         ("command", command_name),
-                        ("aggregate", &aggregate_name),
+                        ("aggregate", aggregate_name),
                         ("identity", &reading),
                         ("offered", &offered),
                     ],
                 ));
             }
-            return Ok((id, defaults_for(aggregate)?));
+            return Ok((id, defaults_for(aggregate, &self.admitted_sets)?));
         }
 
         let reference_key = command
-            .get("references")
-            .and_then(Value::as_str)
+            .references
+            .as_deref()
             .map(crate::naming::reference_key)
             .unwrap_or_default();
         // Validate the identity argument even when the command did not declare
@@ -1872,18 +1714,14 @@ impl Runtime {
         // the payload where Ruby refuses the record, and parity said so.
         // A dotless path (`bluebook_id`) has no field to dig, so its head IS
         // the value and Ruby coerces it against the declared attribute.
-        for path in identity::paths(aggregate) {
+        for path in &aggregate.identified_by {
             let (head, field) = identity::split(path);
             if field.is_some() {
                 continue;
             }
             let Some(value) = args.get(head) else { continue };
-            if let Some(attribute) = array(aggregate, "attributes")
-                .iter()
-                .find(|attribute| attribute.get("name").and_then(Value::as_str) == Some(head))
-                .and_then(Value::as_object)
-            {
-                coerce_attribute(aggregate, attribute, value)?;
+            if let Some(attribute) = aggregate.attributes.iter().find(|a| a.name == head) {
+                coerce_attribute(aggregate, attribute, value, &self.admitted_sets)?;
             }
         }
 
@@ -1896,30 +1734,27 @@ impl Runtime {
         let whole = |key: &str| -> Option<String> {
             args.get(key).map(query_text).filter(|id| !id.is_empty())
         };
-        let id = match declared {
-            Some(paths) => identity::of_paths(paths, args),
-            None => identity::of(aggregate, args),
-        }
+        let id = identity::of_paths(&aggregate.identified_by, args)
             .or_else(|| whole("id"))
             .or_else(|| whole(&reference_key))
             .ok_or_else(|| {
                 refusal_wording::render(
                     "NotFound",
                     "acting_no_identity",
-                    &[("command", command_name), ("aggregate", &aggregate_name), ("identity", &reading)],
+                    &[("command", command_name), ("aggregate", aggregate_name), ("identity", &reading)],
                 )
             })?;
 
-        if let Some(adapter) = self.adapters.get(&aggregate_name) {
+        if let Some(adapter) = self.adapters.get(aggregate_name) {
             let state = adapter.find(&id).map(value_bridge::from_state).ok_or_else(|| {
                 let offered = format!("{id:?}");
                 refusal_wording::render(
                     "NotFound",
                     "record_missing",
-                    &[("aggregate", &aggregate_name), ("identity", &reading), ("offered", &offered)],
+                    &[("aggregate", aggregate_name), ("identity", &reading), ("offered", &offered)],
                 )
             })?;
-            return Ok((id, fill_hydrate_defaults(aggregate, state)));
+            return Ok((id, fill_hydrate_defaults_typed(aggregate, &self.admitted_sets, state)));
         }
 
         let key = self
@@ -1932,11 +1767,11 @@ impl Runtime {
                 refusal_wording::render(
                     "NotFound",
                     "record_missing",
-                    &[("aggregate", &aggregate_name), ("identity", &reading), ("offered", &offered)],
+                    &[("aggregate", aggregate_name), ("identity", &reading), ("offered", &offered)],
                 )
             })?;
 
-        Ok((id, fill_hydrate_defaults(aggregate, self.store[&key].clone())))
+        Ok((id, fill_hydrate_defaults_typed(aggregate, &self.admitted_sets, self.store[&key].clone())))
     }
 
     fn react_to(&mut self, event: &Value, domain: &str) {
@@ -2506,48 +2341,14 @@ impl Runtime {
     /// scalar under, never the dotted path used to dig a fresh event's
     /// payload.
     fn correlation_keys(&self, domain: &str) -> Vec<String> {
-        self.ir
-            .get(domain)
-            .and_then(|bluebook| bluebook.get("process_managers"))
-            .and_then(Value::as_array)
-            .map(|sagas| {
-                sagas
-                    .iter()
-                    .filter_map(|saga| saga.get("correlates_by").and_then(Value::as_str))
-                    .map(|field| field.split('.').next().unwrap_or(field).to_string())
-                    .collect()
-            })
-            .unwrap_or_default()
-    }
-
-    // Every resolved subtree below is a pure function of (ir, key) — ir is set
-    // once in `new` and never mutated after — so the first resolve's answer is
-    // final. Only successful resolutions are cached (the `?` on `resolve()?`
-    // propagates before the insert): a failed lookup is an error path, not the
-    // hot path, so it stays a cheap re-scan rather than needing an Option-typed
-    // cache entry. The RefCell borrow is dropped before `resolve` runs, so a
-    // resolver that itself resolves another cached key can't double-borrow.
-    fn cached_lookup(
-        &self,
-        key: String,
-        resolve: impl FnOnce() -> Result<Map<String, Value>, String>,
-    ) -> Result<Arc<Map<String, Value>>, String> {
-        if let Some(hit) = self.resolved_cache.borrow().get(&key) {
-            return Ok(hit.clone());
+        if domain != self.domain.name {
+            return Vec::new();
         }
-        let resolved = Arc::new(resolve()?);
-        self.resolved_cache.borrow_mut().insert(key, resolved.clone());
-        Ok(resolved)
-    }
-
-    fn find_domain(&self, domain: &str) -> Result<Arc<Map<String, Value>>, String> {
-        self.cached_lookup(format!("domain:{domain}"), || {
-            self.ir
-                .get(domain)
-                .and_then(Value::as_object)
-                .cloned()
-                .ok_or_else(|| format!("no domain {domain:?} loaded"))
-        })
+        self.domain
+            .process_managers
+            .iter()
+            .map(|pm| identity::split(&pm.correlates_by).0.to_string())
+            .collect()
     }
 
     /// A REFERENCE IS AN ID, SO AN OBJECT IS NOT ONE.
@@ -2565,23 +2366,18 @@ impl Runtime {
     fn refuse_object_references(
         &self,
         domain: &str,
-        command: &Map<String, Value>,
+        command: &crate::ir::Command,
         args: &State,
     ) -> Result<(), String> {
-        let command_name = command.get("name").and_then(Value::as_str).unwrap_or_default();
-        for attribute in array(command, "attributes") {
-            let Some(name) = attribute.get("name").and_then(Value::as_str) else {
-                continue;
-            };
+        for attribute in &command.attributes {
             let Some(target) = attribute
-                .get("type")
-                .and_then(Value::as_str)
-                .and_then(|held| held.strip_prefix("Reference<"))
+                .r#type
+                .strip_prefix("Reference<")
                 .and_then(|held| held.strip_suffix('>'))
             else {
                 continue;
             };
-            if !args.get(name).map(Value::is_object).unwrap_or(false) {
+            if !args.get(&attribute.name).map(Value::is_object).unwrap_or(false) {
                 continue;
             }
 
@@ -2589,7 +2385,7 @@ impl Runtime {
             return Err(refusal_wording::render(
                 "TypeMismatch",
                 "reference_as_object",
-                &[("command", command_name), ("attribute", name), ("known_by", &known_by)],
+                &[("command", &command.name), ("attribute", &attribute.name), ("known_by", &known_by)],
             ));
         }
         Ok(())
@@ -2604,10 +2400,10 @@ impl Runtime {
     /// caller to send something that would still not address it. Silent when
     /// there is nothing declared to name, the way Ruby's guard is.
     fn known_by(&self, domain: &str, target: &str) -> String {
-        let Ok(aggregate) = self.find_aggregate(domain, target, "") else {
+        let Ok(aggregate) = self.find_aggregate_typed(domain, target, "") else {
             return String::new();
         };
-        let heads = identity::heads(&aggregate);
+        let heads = identity::heads_of_paths(&aggregate.identified_by);
         if heads.is_empty() {
             return String::new();
         }
@@ -2615,169 +2411,11 @@ impl Runtime {
         format!(" ({target} is known by {})", heads.join(", "))
     }
 
-    fn find_aggregate(
-        &self,
-        domain: &str,
-        name: &str,
-        verb: &str,
-    ) -> Result<Arc<Map<String, Value>>, String> {
-        self.cached_lookup(format!("aggregate:{domain}:{name}"), || {
-            let bluebook = self.ir.get(domain).ok_or_else(|| {
-                let domain_shown = format!("{domain:?}");
-                refusal_wording::render(
-                    "UnknownVerb",
-                    "no_domain",
-                    &[("domain", &domain_shown), ("verb", verb)],
-                )
-            })?;
-
-            bluebook
-                .get("aggregates")
-                .and_then(Value::as_array)
-                .and_then(|aggregates| {
-                    aggregates
-                        .iter()
-                        .find(|a| a.get("name").and_then(Value::as_str) == Some(name))
-                })
-                .and_then(Value::as_object)
-                .cloned()
-                .ok_or_else(|| {
-                    let name_shown = format!("{name:?}");
-                    refusal_wording::render(
-                        "UnknownVerb",
-                        "no_aggregate",
-                        &[("domain", domain), ("aggregate", &name_shown)],
-                    )
-                })
-        })
-    }
-
-    fn find_entity(
-        &self,
-        domain: &str,
-        aggregate_name: &str,
-        aggregate: &Map<String, Value>,
-        entity_name: &str,
-    ) -> Result<Arc<Map<String, Value>>, String> {
-        self.cached_lookup(
-            format!("entity:{domain}:{aggregate_name}:{entity_name}"),
-            || {
-                array(aggregate, "entities")
-                    .into_iter()
-                    .find(|e| e.get("name").and_then(Value::as_str) == Some(entity_name))
-                    .and_then(|e| e.as_object().cloned())
-                    .ok_or_else(|| {
-                        let entity_shown = format!("{entity_name:?}");
-                        refusal_wording::render(
-                            "UnknownVerb",
-                            "entity_unknown",
-                            &[("aggregate", aggregate_name), ("entity", &entity_shown)],
-                        )
-                    })
-            },
-        )
-    }
-
-    fn find_command(
-        &self,
-        domain: &str,
-        aggregate_name: &str,
-        aggregate: &Map<String, Value>,
-        name: &str,
-    ) -> Option<Arc<Map<String, Value>>> {
-        self.cached_lookup(format!("command:{domain}:{aggregate_name}:{name}"), || {
-            array(aggregate, "commands")
-                .into_iter()
-                .find(|c| c.get("name").and_then(Value::as_str) == Some(name))
-                .and_then(|c| c.as_object().cloned())
-                .ok_or_else(String::new)
-        })
-        .ok()
-    }
-
-    fn find_entity_command(
-        &self,
-        domain: &str,
-        aggregate_name: &str,
-        entity_name: &str,
-        entity: &Map<String, Value>,
-        command_name: &str,
-    ) -> Result<Arc<Map<String, Value>>, String> {
-        self.cached_lookup(
-            format!("entity_command:{domain}:{aggregate_name}:{entity_name}:{command_name}"),
-            || {
-                array(entity, "commands")
-                    .into_iter()
-                    .find(|c| c.get("name").and_then(Value::as_str) == Some(command_name))
-                    .and_then(|c| c.as_object().cloned())
-                    .ok_or_else(|| {
-                        let command_shown = format!("{command_name:?}");
-                        refusal_wording::render(
-                            "UnknownVerb",
-                            "entity_no_command",
-                            &[("entity", entity_name), ("command", &command_shown)],
-                        )
-                    })
-            },
-        )
-    }
-
-    fn find_query(
-        &self,
-        domain: &str,
-        aggregate_name: &str,
-        aggregate: &Map<String, Value>,
-        query_name: &str,
-    ) -> Result<Arc<Map<String, Value>>, String> {
-        self.cached_lookup(
-            format!("query:{domain}:{aggregate_name}:{query_name}"),
-            || {
-                array(aggregate, "queries")
-                    .into_iter()
-                    .find(|q| q.get("name").and_then(Value::as_str) == Some(query_name))
-                    .and_then(|q| q.as_object().cloned())
-                    .ok_or_else(|| {
-                        let query_shown = format!("{query_name:?}");
-                        refusal_wording::render(
-                            "UnknownVerb",
-                            "no_query",
-                            &[("aggregate", aggregate_name), ("query", &query_shown)],
-                        )
-                    })
-            },
-        )
-    }
-
-    fn find_entity_query(
-        &self,
-        domain: &str,
-        aggregate_name: &str,
-        entity_name: &str,
-        entity: &Map<String, Value>,
-        query_name: &str,
-    ) -> Result<Arc<Map<String, Value>>, String> {
-        self.cached_lookup(
-            format!("entity_query:{domain}:{aggregate_name}:{entity_name}:{query_name}"),
-            || {
-                array(entity, "queries")
-                    .into_iter()
-                    .find(|q| q.get("name").and_then(Value::as_str) == Some(query_name))
-                    .and_then(|q| q.as_object().cloned())
-                    .ok_or_else(|| {
-                        let query_shown = format!("{query_name:?}");
-                        refusal_wording::render(
-                            "UnknownVerb",
-                            "entity_query_missing",
-                            &[("entity", entity_name), ("query", &query_shown)],
-                        )
-                    })
-            },
-        )
-    }
-
     // ── the typed lookups — M6b's replacement for the JSON find_* cluster
-    // above. Same names, `_typed` suffixed, same cached-Arc shape for the
-    // same borrow-checker reason ; reads `self.domain` instead of `self.ir`.
+    // that used to live here (find_aggregate/find_entity/find_command/
+    // find_entity_command/find_query/find_entity_query, each backed by
+    // `cached_lookup` over `self.ir`). Every caller has moved to these, so
+    // that cluster and its cache are gone — `resolved_cache` went with it.
     // Entities/commands/queries aren't separately cached — see
     // `typed_aggregate_cache`'s own doc comment on `Runtime` for why.
 
@@ -2929,12 +2567,6 @@ fn parse_verb(verb: &str) -> Result<(String, String, String), String> {
     ))
 }
 
-pub fn array(node: &Map<String, Value>, key: &str) -> Vec<Value> {
-    node.get(key)
-        .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default()
-}
 
 #[cfg(test)]
 mod query_semantics_tests {
@@ -2960,25 +2592,48 @@ mod query_semantics_tests {
     /// `Instance.hydrate_with_defaults` (spec/hydrate_defaults_spec.rb).
     #[test]
     fn hydrating_stored_state_fills_declared_defaults_only() {
-        let aggregate = json!({
-            "name": "Account",
-            "attributes": [
-                { "name": "balance", "type": "Money" },
-                { "name": "standing", "type": "Standing", "default": { "value": "good" } },
-                { "name": "notes", "type": "Note", "list": true }
+        fn attribute(name: &str, r#type: &str, default: Option<&str>, list: bool) -> crate::ir::Attribute {
+            crate::ir::Attribute {
+                name: name.to_string(),
+                r#type: r#type.to_string(),
+                default: default.map(str::to_string),
+                list,
+                optional: false,
+                enum_values: vec![],
+                pattern: None,
+                admits: None,
+            }
+        }
+        fn value_object(name: &str, attributes: Vec<crate::ir::Attribute>) -> crate::ir::ValueObject {
+            crate::ir::ValueObject { name: name.to_string(), attributes, invariants: vec![], members: vec![], closed_set: false }
+        }
+
+        let aggregate = crate::ir::Aggregate {
+            name: "Account".to_string(),
+            description: None,
+            identified_by: vec![],
+            attributes: vec![
+                attribute("balance", "Money", None, false),
+                // Ruby-hash-literal declaration text, the same shape
+                // `parse_literal` reads any other declared default through.
+                attribute("standing", "Standing", Some("{value: \"good\"}"), false),
+                attribute("notes", "Note", None, true),
             ],
-            "value_objects": [
-                { "name": "Money", "attributes": [{ "name": "cents", "type": "Integer" }] },
-                { "name": "Standing", "attributes": [{ "name": "value", "type": "String" }] },
-                { "name": "Note", "attributes": [{ "name": "text", "type": "String" }] }
+            lifecycle: Some(crate::ir::Lifecycle { field: "status".to_string(), default: "open".to_string(), transitions: vec![] }),
+            commands: vec![],
+            queries: vec![],
+            value_objects: vec![
+                value_object("Money", vec![attribute("cents", "Integer", None, false)]),
+                value_object("Standing", vec![attribute("value", "String", None, false)]),
+                value_object("Note", vec![attribute("text", "String", None, false)]),
             ],
-            "lifecycle": { "field": "status", "default": "open" }
-        });
-        let aggregate = aggregate.as_object().unwrap();
+            entities: vec![],
+        };
+        let admitted_sets = HashMap::new();
 
         let mut stored = Map::new();
         stored.insert("balance".to_string(), json!({ "cents": 100 }));
-        let filled = fill_hydrate_defaults(aggregate, stored);
+        let filled = fill_hydrate_defaults_typed(&aggregate, &admitted_sets, stored);
         assert_eq!(filled.get("standing"), Some(&json!({ "value": "good" })));
         assert_eq!(filled.get("notes"), Some(&json!([])));
         assert_eq!(filled.get("status"), Some(&json!("open")));
@@ -2987,7 +2642,7 @@ mod query_semantics_tests {
         let mut stored = Map::new();
         stored.insert("standing".to_string(), json!({ "value": "delinquent" }));
         stored.insert("status".to_string(), json!("closed"));
-        let filled = fill_hydrate_defaults(aggregate, stored);
+        let filled = fill_hydrate_defaults_typed(&aggregate, &admitted_sets, stored);
         assert_eq!(filled.get("standing"), Some(&json!({ "value": "delinquent" })));
         assert_eq!(filled.get("status"), Some(&json!("closed")));
         assert_eq!(filled.get("balance"), None);
@@ -3366,43 +3021,6 @@ fn a_wrapped_reference_is_refused_in_the_same_words_as_ruby() {
                 "save",
                 "emit",
             ]
-        );
-    }
-}
-
-#[cfg(test)]
-mod resolved_cache_tests {
-    use super::*;
-
-    // Same shape as evaluator.rs's AST_CACHE identity check: proves
-    // find_aggregate resolves the aggregate's declared shape once per
-    // (domain, name) and reuses it — not once per dispatch — which is the
-    // whole point of caching it instead of re-cloning the aggregate subtree
-    // on every call.
-    #[test]
-    fn dispatching_twice_reuses_the_same_resolved_aggregate() {
-        let mut runtime = Runtime::boot("../spec/fixtures/dispatch_order.bluebook").unwrap();
-
-        let open: State = serde_json::from_value(json!({
-            "id": "w1",
-            "label": {"value": "x"},
-            "amount": {"value": 5},
-            "part_sequence": {"value": 1},
-            "part_note": {"value": "start"}
-        }))
-        .unwrap();
-        runtime.dispatch("DispatchOrder::Widget.Open", &open).unwrap();
-
-        let first = runtime
-            .find_aggregate("DispatchOrder", "Widget", "probe")
-            .unwrap();
-        let second = runtime
-            .find_aggregate("DispatchOrder", "Widget", "probe")
-            .unwrap();
-
-        assert!(
-            Arc::ptr_eq(&first, &second),
-            "find_aggregate should return the same cached Arc on a second call, not re-resolve"
         );
     }
 }
