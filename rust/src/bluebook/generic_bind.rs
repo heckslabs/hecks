@@ -17,11 +17,19 @@
 //! generic replacement for that shape of work, not a duplicate of the old
 //! one.
 //!
-//! NOT YET WIRED IN. This is the binder alone, proven against hand-picked
-//! lines. Cutting a real `parse_X` function over to call it — deleting the
-//! hand-written extraction it replaces — is the next milestone, verified
-//! first by a corpus-wide differential check (parity between the old
-//! hand-written reading and this one) before anything is deleted.
+//! WIRED IN (M5) for every keyword whose argument-binding is "simple" —
+//! `Policy`, `ProcessManager` (including its `on` handler and `dispatch`),
+//! `Command`'s `role`/`goal`/`emits`, `Query`/`ReadModel`'s options and
+//! `where`, `Lifecycle`'s `transition` — via `find_binding` (below) plus a
+//! real `parse_X` function calling `bind_keyword` directly, hand-written
+//! extraction deleted at each cutover once the full test/parity suite
+//! proved it byte-identical. `attribute` (M6) stays hand-written — see its
+//! own doc comment in `parse_blocks.rs` for the three separate reasons
+//! found, not assumed. `member`/`sets`' `append:` need a different
+//! mechanism entirely (M7's sibling-schema resolver) : their pairs' keys
+//! name a field of an already-declared SIBLING construct, which this
+//! module's own `bind_keyword` has no way to resolve — it only knows the
+//! line in front of it, not what else the file has declared.
 
 use crate::bluebook::ir_syntax_bindings::KeywordBinding;
 use crate::bluebook::parse_blocks::{is_kwarg, split_top_level_commas};
@@ -254,9 +262,18 @@ fn bind_scalar(kind: &str, token: &str) -> Option<BoundValue> {
             };
             Some(BoundValue::Text(text))
         }
-        "constant" | "number" | "literal" => {
-            Some(BoundValue::Text(token.trim().trim_start_matches(':').to_string()))
-        }
+        "constant" | "number" => Some(BoundValue::Text(token.trim().trim_start_matches(':').to_string())),
+        // RAW, NOT EVEN A COLON STRIPPED — a `literal` is "written so its TYPE
+        // survives" (syntax.bluebook's own `ArgumentKind` comment: `0` stays
+        // `0`, not `"0"`), read downstream by a real literal parser
+        // (mutations.rs's `parse_literal` in Rust, `IR.render_value`'s
+        // inverse in Ruby) that expects exactly the declaration's own text —
+        // the same "carries the wire text verbatim, interpreted later, not
+        // here" principle `with:`'s own pairs_shape already established.
+        // Stripping a leading colon here would be wrong the same way it
+        // would be for `with:`'s values, just never yet exercised by a real
+        // cutover (`attribute`'s own `default:` is the first).
+        "literal" => Some(BoundValue::Text(token.trim().trim_end_matches([',', ' ']).to_string())),
         // STRICTLY BRACKETED — `transition`'s own `from:` is declared TWICE,
         // once `text` and once `list` (`transition "X" => "Y", from: "new"`
         // vs `from: ["a", "b"]`), because one named argument genuinely
@@ -392,6 +409,23 @@ mod tests {
         let binding = binding_for("attribute", "Command");
         let bindings = bind_keyword(binding, "attribute :amount, Money");
         assert_eq!(bindings.fields.get("type"), Some(&BoundValue::Text("Money".to_string())));
+    }
+
+    // `literal` MUST NOT STRIP A LEADING COLON — unlike `symbol`, a literal
+    // is "written so its TYPE survives" (syntax.bluebook's own ArgumentKind
+    // comment) and is read downstream by a real literal parser
+    // (mutations.rs's parse_literal) that expects the declaration's raw
+    // text verbatim. Found by tracing what attribute's own `default:`
+    // binding would need (M6 of the generic-bluebook-reader arc) — nothing
+    // had exercised `literal` kind before, since no cutover used it yet.
+    #[test]
+    fn literal_kind_preserves_its_text_exactly_unlike_symbol() {
+        let binding = binding_for("attribute", "Command");
+        let bindings = bind_keyword(binding, r#"attribute :status, String, default: "open""#);
+        assert_eq!(bindings.fields.get("default"), Some(&BoundValue::Text("\"open\"".to_string())));
+
+        let numeric = bind_keyword(binding, "attribute :count, Integer, default: 0");
+        assert_eq!(numeric.fields.get("default"), Some(&BoundValue::Text("0".to_string())));
     }
 
     #[test]

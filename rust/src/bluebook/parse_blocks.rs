@@ -1117,6 +1117,52 @@ mod predicate_join_tests {
     }
 }
 
+/// STAYS HAND-WRITTEN — investigated for the generic-bluebook-reader arc's
+/// M6, and found to be genuinely irregular in THREE separate ways, not one:
+///
+/// 1. NAME/TYPE is not the two-positional shape `Syntax::Argument` declares
+///    (`at:1` symbol -> name, `at:2` constant -> type) alone — there is a
+///    THIRD, undeclared shorthand: `attribute Money` (a bare type name at
+///    position 1, no colon), which mints the attribute's own name from the
+///    type via `Naming.snake` or an `as:` kwarg. `extract_symbol(first)`
+///    failing is what selects this branch ; no `Syntax::Argument` row names
+///    it, because it is not a fixed argument SLOT at all, it is a whole
+///    second grammar for the same two fields.
+/// 2. `list_of(...)`/`one_of(...)` WRAP the type position rather than
+///    filling it plainly — `list_of(Money)` unwraps to `Money` with
+///    `list: true` ; `one_of("a", "b")` REPLACES the type with `"String"`
+///    and populates `enum_values` from the wrapped arguments instead. Both
+///    are real per-token structure the flat `kind: "constant"` reading
+///    cannot express without inventing a compound kind the language does
+///    not (yet) declare.
+/// 3. `pattern:`/`admits:` read through `parse_quoted_kwarg` — DUAL-quote
+///    (`'...'` or `"..."`) and NO escape processing, needed for real corpus
+///    regexes (`pattern: '^[^@ ]+@[^@ ]+\.[^@ ]+$'`, single-quoted so the
+///    backslash-dot survives literally) — a different reading than the
+///    generic binder's `text` kind (`extract_string`: double-quote only,
+///    WITH escape processing, correct for `role`/`goal`/description-shaped
+///    text but wrong for a pattern). Found by grepping the real corpus, not
+///    assumed — banking's own `Customer.address` pattern is exactly this
+///    case.
+///
+/// `optional:`/`default:` alone would cut over cleanly (both scalar, both
+/// context-uniform), but doing so needs `parse_attribute` to know its own
+/// CONTEXT (Aggregate/Entity/Command/Query/ValueObject) to call
+/// `find_binding`, which none of its six call sites currently thread
+/// through — and both are ALREADY held to the declaration by their own
+/// existing conformance checks (`parse_flag_kwarg` asserts against
+/// `FLAG_ARGUMENTS`, `assert_text_kwarg` against `TEXT_ARGUMENTS`), the
+/// same safety property this whole arc exists to add, just via a
+/// per-call-site assertion instead of one generic table walk. Threading
+/// context through the single most common line-type in the entire language
+/// for that marginal a gain was judged not worth the risk — a real
+/// engineering call, not an oversight.
+///
+/// `generic_bind.rs`'s own `literal` kind WAS fixed for this investigation
+/// (it stripped a leading colon, which `default:`'s raw declaration text
+/// must never lose) even though `attribute` itself does not call it yet —
+/// found by tracing what `default:`'s binding WOULD need, not by a test
+/// catching a live bug, since nothing had exercised `literal` kind before.
 pub fn parse_attribute(line: &str) -> Option<Attribute> {
     let line = strip_trailing_comment(line);
     let parts: Vec<&str> = line.splitn(3, ',').collect();
