@@ -975,33 +975,33 @@ pub fn parse_lifecycle(lines: &[&str]) -> (Lifecycle, usize) {
         if line == "end" {
             break;
         }
-        if line.starts_with("transition") {
-            if let Some(cmd) = extract_string(line) {
-                let to_state = line
-                    .find("=>")
-                    .and_then(|arrow| extract_state_token(&line[arrow + 2..]));
-                let from_states: Vec<Option<String>> = if line.contains("from:") {
-                    let after = extract_after(line, "from:").unwrap_or_default();
-                    let trimmed = after.trim_start();
-                    if trimmed.starts_with('[') {
-                        let close = trimmed.find(']').unwrap_or(trimmed.len());
-                        let inner = &trimmed[1..close];
-                        let found: Vec<Option<String>> = inner
-                            .split(',')
-                            .filter_map(|part| extract_state_token(part).map(Some))
-                            .collect();
-                        if found.is_empty() {
-                            vec![None]
-                        } else {
-                            found
-                        }
+        if let Some(binding) = crate::bluebook::generic_bind::find_binding("Lifecycle", line)
+            .filter(|b| b.keyword == "transition")
+        {
+            let bindings = crate::bluebook::generic_bind::bind_keyword(binding, line);
+            if let Some(pair) = bindings.pairs.get("").and_then(|pairs| pairs.first()) {
+                let cmd = crate::bluebook::generic_bind::state_token(&pair.key);
+                let to = crate::bluebook::generic_bind::state_token(&pair.value);
+                // `from:` ADMITS EITHER SHAPE (one state or several — the
+                // one named argument in the corpus where `kind` genuinely
+                // depends on how many values are given, per
+                // spec/rust_syntax_conformance_spec's own DUAL_KIND_NAMES),
+                // and EACH state in the list form becomes its OWN Transition
+                // — a fan-out the generic binder itself does not do (it
+                // binds one line to one set of fields), so it stays here,
+                // unchanged from the hand-written version.
+                let from_states: Vec<Option<String>> = if let Some(items) = bindings.list("from_state") {
+                    if items.is_empty() {
+                        vec![None]
                     } else {
-                        vec![extract_state_token(&after)]
+                        items.iter().map(|s| Some(s.clone())).collect()
                     }
+                } else if let Some(single) = bindings.text("from_state") {
+                    vec![Some(single)]
                 } else {
                     vec![None]
                 };
-                if let Some(to) = to_state {
+                if !cmd.is_empty() && !to.is_empty() {
                     for from_state in from_states {
                         transitions.push(Transition {
                             command: cmd.clone(),
