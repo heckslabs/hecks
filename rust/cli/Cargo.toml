@@ -12,8 +12,23 @@ edition = "2021"
 name = "hecksagain"
 path = "src/main.rs"
 
+# PASSTHROUGH FEATURES, one per projected domain, mirroring storehouse's own
+# — so `cargo build -p hecksagain-cli --no-default-features --features
+# banking` selects a deployment binary directly, without spelling
+# `storehouse/banking`. `default-features = false` on the dependency below
+# is what makes that meaningful: without it, storehouse's own `default`
+# (every domain) would still link regardless of what's passed here.
+[features]
+default = ["storehouse/default"]
+banking = ["storehouse/banking"]
+expression = ["storehouse/expression"]
+pizzas = ["storehouse/pizzas"]
+reflex = ["storehouse/reflex"]
+till_room = ["storehouse/till_room"]
+wire = ["storehouse/wire"]
+
 [dependencies]
-storehouse = { path = ".." }
+storehouse = { path = "..", default-features = false }
 storehouse-sqlite = { path = "../sqlite" }
 storehouse-postgres = { path = "../postgres" }
 serde_json = "1"

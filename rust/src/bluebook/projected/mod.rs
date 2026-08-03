@@ -9,19 +9,25 @@
 // that drifts. `spec/ir_rust_export_spec.rb` holds each file to its generator
 // AND flattens what it returns back through `ir_json::domain_to_value` to diff
 // against Ruby's own `to_h`.
-pub mod banking;
-pub mod expression;
-pub mod pizzas;
-// REFLEX JOINED THE OTHERS once `Query`/`ReadModel` grew the eight
-// specification options — offset, cursor, nulls, consistency, freshness,
-// authorize, inspect_query, use_index. It used to be the one chapter this
-// module could not carry: it declares every option the language holds, and
-// projecting it would have had nowhere to put them. It still sits outside the
-// zero-infrastructure parity corpus (`spec/parity/domains/`) — that was never
-// about the options, and staying there is unrelated to this module.
-pub mod reflex;
-pub mod till_room;
-pub mod wire;
+// EVERY `pub mod` DECLARATION AND THE REGISTRY ITSELF are generated —
+// `bin/ir_rust_registry > registry.rs`, held fresh by
+// `spec/ir_rust_registry_export_spec.rb`. `include!` rather than a
+// `mod registry;` : a bare `pub mod x;` only resolves against the FILE
+// it's written in, and generating the whole of this file (including the
+// integration tests below, which have nothing to do with which domains
+// are registered) would mean folding real Rust test logic into a Ruby
+// heredoc. `include!` splices the generated text here, before path
+// resolution happens, so `registry.rs`'s own `pub mod banking;` resolves
+// exactly as if it had been typed directly into this file.
+//
+// ALWAYS EVERY DOMAIN THAT'S BEEN PROJECTED — which ones actually compile
+// into a given binary is a Cargo feature (`rust/Cargo.toml`'s own
+// `[features]`), not a different generated file. `cargo build`/`cargo
+// test` with no flags links `default` (all six, unchanged from before this
+// was generated) ; `cargo build -p hecksagain-cli --no-default-features
+// --features banking` links only Banking. `registry()`'s own doc comment
+// explains why this is a function and not a `const` table.
+include!("registry.rs");
 
 /// THE PROJECTED DOMAIN FOR A SOURCE, if this binary carries its projection.
 ///
@@ -41,17 +47,10 @@ pub fn by_source(source: &str) -> Option<crate::ir::Domain> {
     let name = chapter_name(source)?;
     let digest = crate::util::sha256_hex(source.as_bytes());
 
-    let (sha, domain): (&str, fn() -> crate::ir::Domain) = match name.as_str() {
-        "Banking" => (banking::SOURCE_SHA, banking::domain),
-        "Expression" => (expression::SOURCE_SHA, expression::domain),
-        "Pizzas" => (pizzas::SOURCE_SHA, pizzas::domain),
-        "Reflex" => (reflex::SOURCE_SHA, reflex::domain),
-        "TillRoom" => (till_room::SOURCE_SHA, till_room::domain),
-        "Wire" => (wire::SOURCE_SHA, wire::domain),
-        _ => return None,
-    };
-
-    (sha == digest).then(domain)
+    registry()
+        .into_iter()
+        .find(|projected| projected.chapter == name && projected.sha == digest)
+        .map(|projected| (projected.domain)())
 }
 
 /// A PROJECTED DOMAIN BY NAME, for a caller that holds no source at all.
@@ -66,20 +65,17 @@ pub fn by_source(source: &str) -> Option<crate::ir::Domain> {
 /// place of what they asked for. That is the whole difference, and it is why
 /// these are two functions and not one with a flag.
 pub fn by_name(name: &str) -> Option<crate::ir::Domain> {
-    match name {
-        "Banking" => Some(banking::domain()),
-        "Expression" => Some(expression::domain()),
-        "Pizzas" => Some(pizzas::domain()),
-        "Reflex" => Some(reflex::domain()),
-        "TillRoom" => Some(till_room::domain()),
-        "Wire" => Some(wire::domain()),
-        _ => None,
-    }
+    registry()
+        .into_iter()
+        .find(|projected| projected.chapter == name)
+        .map(|projected| (projected.domain)())
 }
 
-/// Every chapter this binary carries, in the order they are declared above.
+/// Every chapter THIS BUILD carries — feature-dependent, unlike everything
+/// else in this file, which is the same regardless of which domains were
+/// compiled in.
 pub fn names() -> Vec<&'static str> {
-    vec!["Banking", "Expression", "Pizzas", "Reflex", "TillRoom", "Wire"]
+    registry().iter().map(|projected| projected.chapter).collect()
 }
 
 /// THE CHAPTER A SOURCE DECLARES, without parsing it.
@@ -116,14 +112,10 @@ mod tests {
     /// every defect this arc found had.
     #[test]
     fn every_projected_domain_says_what_ruby_says() {
-        let chapters: Vec<(&str, super::super::ir::Domain)> = vec![
-            ("Banking", super::banking::domain()),
-            ("Expression", super::expression::domain()),
-            ("Pizzas", super::pizzas::domain()),
-            ("Reflex", super::reflex::domain()),
-            ("TillRoom", super::till_room::domain()),
-            ("Wire", super::wire::domain()),
-        ];
+        let chapters: Vec<(&str, super::super::ir::Domain)> = super::registry()
+            .into_iter()
+            .map(|projected| (projected.chapter, (projected.domain)()))
+            .collect();
 
         for (name, domain) in chapters {
             let golden = std::fs::read_to_string(
@@ -233,6 +225,13 @@ mod tests {
 
     /// AND REFUSES BY NAME when the binary does not carry the chapter, saying
     /// what it does carry rather than failing to find a file nobody named.
+    ///
+    /// AGAINST `registry()`, not a hardcoded chapter — this doubles as the
+    /// concrete proof a feature-limited build carries only what it claims
+    /// to: run under `--no-default-features --features banking` and the
+    /// refusal names Banking and nothing else, because `names()` (which the
+    /// refusal message itself lists) only ever reflects what THIS build
+    /// actually registered.
     #[test]
     fn an_unprojected_chapter_says_what_is_carried() {
         let refusal = match crate::dispatcher::Runtime::boot_projected("Nowhere") {
@@ -240,7 +239,13 @@ mod tests {
             Ok(_) => panic!("a chapter this binary does not carry must refuse"),
         };
         assert!(refusal.contains("carries no projection"), "{refusal}");
-        assert!(refusal.contains("Pizzas"), "it names what it does hold: {refusal}");
+
+        let carried = super::registry();
+        assert!(!carried.is_empty(), "this build carries no projected domain at all — nothing to check");
+        assert!(
+            carried.iter().all(|projected| refusal.contains(projected.chapter)),
+            "the refusal must name every chapter this build actually carries: {refusal}"
+        );
     }
 
     /// WHERE THEY DIFFER, not that they differ. `assert_eq!` on a chapter is
