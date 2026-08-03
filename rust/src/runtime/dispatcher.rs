@@ -4,7 +4,8 @@ use crate::interp_expr::State;
 use crate::interp_givens::evaluate_given;
 use crate::interp_mutations::{
     apply_mutation, arithmetic, assign_creation_attributes, coerce_attribute, defaults_for,
-    normalize_command_args, refuse_absent_arguments, refuse_unknown_arguments, resolve_source,
+    normalize_command_args, parse_literal, refuse_absent_arguments, refuse_unknown_arguments,
+    resolve_source,
 };
 use crate::ir::{Direction, MutationOp};
 use crate::runtime::refusal_wording;
@@ -1815,13 +1816,13 @@ impl Runtime {
     }
 
     fn advance_sagas(&mut self, event: &Value, domain: &str) {
-        let pms = self
-            .ir
-            .get(domain)
-            .and_then(|bluebook| bluebook.get("process_managers"))
-            .and_then(Value::as_array)
-            .cloned()
-            .unwrap_or_default();
+        if domain != self.domain.name {
+            return;
+        }
+        // Cloned, not borrowed — begin_saga/advance_saga/end_saga each take
+        // &mut self, matching the shape the old JSON read already had (a
+        // detached local, not a borrow of self.ir).
+        let pms = self.domain.process_managers.clone();
 
         for pm in &pms {
             self.begin_saga(pm, event);
@@ -1836,8 +1837,8 @@ impl Runtime {
     // than keying a saga on a whole value object (Ruby keys on the object
     // itself, Rust on its JSON text — the two disagree unless a scalar is
     // named directly).
-    fn correlation(pm: &Value, event: &Value) -> Option<String> {
-        let field = pm.get("correlates_by").and_then(Value::as_str)?;
+    fn correlation(pm: &crate::ir::ProcessManager, event: &Value) -> Option<String> {
+        let field = pm.correlates_by.as_str();
         let payload = event.get("payload");
         // A LATER EVENT MAY ALREADY HOLD THE SCALAR, matching Ruby's own
         // `saga_correlation` — `reference.value` digs a value object's field
@@ -1911,25 +1912,18 @@ impl Runtime {
         }
     }
 
-    fn begin_saga(&mut self, pm: &Value, event: &Value) {
-        let name = pm
-            .get("name")
-            .and_then(Value::as_str)
-            .unwrap_or_default()
-            .to_string();
+    fn begin_saga(&mut self, pm: &crate::ir::ProcessManager, event: &Value) {
+        let name = pm.name.clone();
         let event_name = event
             .get("name")
             .and_then(Value::as_str)
             .unwrap_or_default();
-        if Some(event_name) != pm.get("starts_on").and_then(Value::as_str) {
+        if event_name != pm.starts_on {
             return;
         }
 
         let Some(correlation) = Self::correlation(pm, event) else {
-            let field = pm
-                .get("correlates_by")
-                .and_then(Value::as_str)
-                .unwrap_or_default();
+            let field = pm.correlates_by.as_str();
             self.sagas.push(json!({
                 "process_manager": name, "on": event_name,
                 "born": false, "reason": format!("no {field} in the payload"),
@@ -1944,13 +1938,7 @@ impl Runtime {
             return;
         }
 
-        let first_state = pm
-            .get("states")
-            .and_then(Value::as_array)
-            .and_then(|s| s.first())
-            .and_then(Value::as_str)
-            .unwrap_or_default()
-            .to_string();
+        let first_state = pm.states.first().cloned().unwrap_or_default();
         let memory = event
             .get("payload")
             .and_then(Value::as_object)
@@ -1967,25 +1955,17 @@ impl Runtime {
         }));
     }
 
-    fn advance_saga(&mut self, pm: &Value, event: &Value, domain: &str) {
-        let pm_name = pm
-            .get("name")
-            .and_then(Value::as_str)
-            .unwrap_or_default()
-            .to_string();
+    fn advance_saga(&mut self, pm: &crate::ir::ProcessManager, event: &Value, domain: &str) {
+        let pm_name = pm.name.clone();
         let event_name = event
             .get("name")
             .and_then(Value::as_str)
             .unwrap_or_default()
             .to_string();
         let Some(handler) = pm
-            .get("handlers")
-            .and_then(Value::as_array)
-            .and_then(|hs| {
-                hs.iter().find(|h| {
-                    h.get("event_type").and_then(Value::as_str) == Some(event_name.as_str())
-                })
-            })
+            .handlers
+            .iter()
+            .find(|h| h.event_type == event_name)
             .cloned()
         else {
             return;
@@ -1994,16 +1974,8 @@ impl Runtime {
             return;
         };
 
-        let from = handler
-            .get("from_state")
-            .and_then(Value::as_str)
-            .unwrap_or_default()
-            .to_string();
-        let to = handler
-            .get("to_state")
-            .and_then(Value::as_str)
-            .unwrap_or_default()
-            .to_string();
+        let from = handler.from_state.clone();
+        let to = handler.to_state.clone();
 
         let Some((state, memory)) = self
             .saga_instances
@@ -2037,29 +2009,22 @@ impl Runtime {
             "advanced": true, "from": from, "to": to,
         }));
 
-        let dispatches = handler
-            .get("dispatches")
-            .and_then(Value::as_array)
-            .cloned()
-            .unwrap_or_default();
+        let dispatches = handler.dispatches.clone();
         for spec in &dispatches {
-            self.deliver_saga_dispatch(&pm_name, spec, event, &memory, &correlation, domain);
+            self.deliver_saga_dispatch(pm, spec, event, &memory, &correlation, domain);
         }
     }
 
     fn deliver_saga_dispatch(
         &mut self,
-        pm_name: &str,
-        spec: &Value,
+        pm: &crate::ir::ProcessManager,
+        spec: &crate::ir::DispatchSpec,
         event: &Value,
         memory: &Map<String, Value>,
         correlation: &str,
         domain: &str,
     ) {
-        let command = spec
-            .get("command_name")
-            .and_then(Value::as_str)
-            .unwrap_or_default();
+        let command = spec.command_name.as_str();
         let payload = event
             .get("payload")
             .and_then(Value::as_object)
@@ -2072,36 +2037,11 @@ impl Runtime {
         // correlates on (dug through a value object's dot). This says what a
         // DOWNSTREAM DISPATCH is allowed to call the already-resolved scalar
         // it carries forward — a plain identifier, never a value object, so
-        // it never needed the dot.
-        let correlates_head = self
-            .ir
-            .get(domain)
-            .and_then(|b| b.get("process_managers"))
-            .and_then(Value::as_array)
-            .and_then(|pms| {
-                pms.iter()
-                    .find(|p| p.get("name").and_then(Value::as_str) == Some(pm_name))
-            })
-            .and_then(|p| p.get("correlates_by"))
-            .and_then(Value::as_str)
-            .unwrap_or_default()
-            .split('.')
-            .next()
-            .unwrap_or_default()
-            .to_string();
+        // it never needed the dot. Same `identity::split` head-taking
+        // `correlation_keys` already uses — reuse, not a second derivation.
+        let correlates_head = identity::split(&pm.correlates_by).0.to_string();
         let mut args = Map::new();
-        for pair in spec
-            .get("with_spec")
-            .and_then(Value::as_array)
-            .cloned()
-            .unwrap_or_default()
-        {
-            let (Some(key), Some(token)) = (
-                pair.get(0).and_then(Value::as_str),
-                pair.get(1).and_then(Value::as_str),
-            ) else {
-                continue;
-            };
+        for (key, token) in &spec.with_spec {
             let value = match token.strip_prefix(':') {
                 Some(name) if name == correlates_head => Value::String(correlation.to_string()),
                 Some(name) => payload
@@ -2109,9 +2049,9 @@ impl Runtime {
                     .or_else(|| memory.get(name))
                     .cloned()
                     .unwrap_or(Value::Null),
-                None => ruby_literal_value(token),
+                None => parse_literal(token),
             };
-            args.insert(key.to_string(), value);
+            args.insert(key.clone(), value);
         }
 
         let target = if command.contains("::") {
@@ -2120,7 +2060,7 @@ impl Runtime {
             format!("{domain}::{command}")
         };
         let mut record = json!({
-            "process_manager": pm_name, "instance": correlation, "dispatch": command,
+            "process_manager": pm.name, "instance": correlation, "dispatch": command,
         });
 
         let outcome = if self.reaction_depth >= MAX_REACTION_DEPTH {
@@ -2156,7 +2096,7 @@ impl Runtime {
         self.sagas.push(record);
 
         if refused {
-            self.unwind_saga(pm_name, event, memory, correlation, domain);
+            self.unwind_saga(pm, event, memory, correlation, domain);
         }
     }
 
@@ -2174,53 +2114,28 @@ impl Runtime {
     /// `from_state` and records that instead. The check is the guard.
     fn unwind_saga(
         &mut self,
-        pm_name: &str,
+        pm: &crate::ir::ProcessManager,
         event: &Value,
         memory: &Map<String, Value>,
         correlation: &str,
         domain: &str,
     ) {
-        let Some(handler) = self
-            .ir
-            .get(domain)
-            .and_then(|b| b.get("process_managers"))
-            .and_then(Value::as_array)
-            .and_then(|pms| {
-                pms.iter()
-                    .find(|p| p.get("name").and_then(Value::as_str) == Some(pm_name))
-            })
-            .and_then(|p| p.get("handlers"))
-            .and_then(Value::as_array)
-            .and_then(|handlers| {
-                handlers
-                    .iter()
-                    .find(|h| h.get("event_type").and_then(Value::as_str) == Some(REFUSED))
-            })
-            .cloned()
-        else {
+        let Some(handler) = pm.handlers.iter().find(|h| h.event_type == REFUSED).cloned() else {
             return;
         };
 
-        let from = handler
-            .get("from_state")
-            .and_then(Value::as_str)
-            .unwrap_or_default()
-            .to_string();
-        let to = handler
-            .get("to_state")
-            .and_then(Value::as_str)
-            .unwrap_or_default()
-            .to_string();
+        let from = handler.from_state.clone();
+        let to = handler.to_state.clone();
         let state = self
             .saga_instances
-            .get(pm_name)
+            .get(&pm.name)
             .and_then(|table| table.get(correlation))
             .map(|instance| instance.0.clone())
             .unwrap_or_default();
 
         if state != from {
             self.sagas.push(json!({
-                "process_manager": pm_name, "on": REFUSED, "instance": correlation,
+                "process_manager": pm.name, "on": REFUSED, "instance": correlation,
                 "advanced": false, "reason": format!("in {state:?}, not {from:?}"),
             }));
             return;
@@ -2228,37 +2143,29 @@ impl Runtime {
 
         if let Some(instance) = self
             .saga_instances
-            .get_mut(pm_name)
+            .get_mut(&pm.name)
             .and_then(|table| table.get_mut(correlation))
         {
             instance.0 = to.clone();
         }
         self.sagas.push(json!({
-            "process_manager": pm_name, "on": REFUSED, "instance": correlation,
+            "process_manager": pm.name, "on": REFUSED, "instance": correlation,
             "advanced": true, "from": from, "to": to,
         }));
 
-        let dispatches = handler
-            .get("dispatches")
-            .and_then(Value::as_array)
-            .cloned()
-            .unwrap_or_default();
+        let dispatches = handler.dispatches.clone();
         for spec in &dispatches {
-            self.deliver_saga_dispatch(pm_name, spec, event, memory, correlation, domain);
+            self.deliver_saga_dispatch(pm, spec, event, memory, correlation, domain);
         }
     }
 
-    fn end_saga(&mut self, pm: &Value, event: &Value) {
-        let name = pm
-            .get("name")
-            .and_then(Value::as_str)
-            .unwrap_or_default()
-            .to_string();
+    fn end_saga(&mut self, pm: &crate::ir::ProcessManager, event: &Value) {
+        let name = pm.name.clone();
         let event_name = event
             .get("name")
             .and_then(Value::as_str)
             .unwrap_or_default();
-        if Some(event_name) != pm.get("ends_on").and_then(Value::as_str) {
+        if Some(event_name) != pm.ends_on.as_deref() {
             return;
         }
         let Some(correlation) = Self::correlation(pm, event) else {
@@ -2280,6 +2187,9 @@ impl Runtime {
     }
 
     fn policies_for(&self, event: &Value, domain: &str) -> Vec<(String, String)> {
+        if domain != self.domain.name {
+            return Vec::new();
+        }
         let Some(name) = event.get("name").and_then(Value::as_str) else {
             return Vec::new();
         };
@@ -2289,43 +2199,20 @@ impl Runtime {
             .map(crate::naming::demodulise)
             .unwrap_or_default();
 
-        let Some(policies) = self
-            .ir
-            .get(domain)
-            .and_then(|bluebook| bluebook.get("policies"))
-            .and_then(Value::as_array)
-        else {
-            return Vec::new();
-        };
-
-        policies
+        self.domain
+            .policies
             .iter()
             .filter_map(|policy| {
-                let on_event = policy.get("on_event").and_then(Value::as_str)?;
-                let qualifier = crate::naming::qualifier(on_event);
-                let event_name = crate::naming::unqualified(on_event);
-
-                if event_name != name {
+                if policy.event_name() != name {
                     return None;
                 }
-                if qualifier.is_some_and(|aggregate| aggregate != emitting) {
+                if policy.event_qualifier().is_some_and(|aggregate| aggregate != emitting) {
                     return None;
                 }
 
-                let trigger = policy.get("trigger_command").and_then(Value::as_str)?;
-                let target_domain = policy
-                    .get("target_domain")
-                    .and_then(Value::as_str)
-                    .unwrap_or(domain);
+                let target_domain = policy.target_domain.as_deref().unwrap_or(domain);
 
-                Some((
-                    policy
-                        .get("name")
-                        .and_then(Value::as_str)
-                        .unwrap_or_default()
-                        .to_string(),
-                    format!("{target_domain}::{trigger}"),
-                ))
+                Some((policy.name.clone(), format!("{target_domain}::{}", policy.trigger_command)))
             })
             .collect()
     }
@@ -2534,24 +2421,6 @@ impl Runtime {
                 )
             })
     }
-}
-
-fn ruby_literal_value(token: &str) -> Value {
-    let token = token.trim();
-    if !token.starts_with('{') || !token.ends_with('}') {
-        return Value::String(token.to_string());
-    }
-
-    let mut fields = Map::new();
-    for pair in token[1..token.len() - 1].split(',') {
-        let Some((key, value)) = pair.split_once("=>") else {
-            continue;
-        };
-        let key = key.trim().trim_start_matches(':');
-        let value = value.trim().trim_matches('"');
-        fields.insert(key.to_string(), Value::String(value.to_string()));
-    }
-    Value::Object(fields)
 }
 
 fn parse_verb(verb: &str) -> Result<(String, String, String), String> {
@@ -3038,7 +2907,14 @@ mod correlation_stamp_tests {
     // an event stamped by one saga can't be misread by an unrelated one.
     #[test]
     fn correlates_on_a_stamp_when_neither_prior_tier_finds_anything() {
-        let pm = json!({ "correlates_by": "code.value" });
+        let pm = crate::ir::ProcessManager {
+            name: String::new(),
+            correlates_by: "code.value".to_string(),
+            starts_on: String::new(),
+            ends_on: None,
+            states: Vec::new(),
+            handlers: Vec::new(),
+        };
         let event = json!({
             "aggregate": "Alarm",
             "id": "evt-2",
@@ -3051,7 +2927,14 @@ mod correlation_stamp_tests {
 
     #[test]
     fn a_stamp_under_a_different_head_is_not_read_as_this_pm_s_own() {
-        let pm = json!({ "correlates_by": "code.value" });
+        let pm = crate::ir::ProcessManager {
+            name: String::new(),
+            correlates_by: "code.value".to_string(),
+            starts_on: String::new(),
+            ends_on: None,
+            states: Vec::new(),
+            handlers: Vec::new(),
+        };
         let event = json!({
             "aggregate": "Alarm",
             "id": "evt-2",

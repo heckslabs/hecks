@@ -51,7 +51,13 @@ fn sign_of(operation: &str) -> i64 {
 /// the WIRE the same reading, and reusing the derivation here (rather than
 /// re-deriving it) is what keeps the two guaranteed to agree rather than
 /// merely hoped to.
-fn parse_literal(text: &str) -> Value {
+///
+/// `pub(crate)` because `dispatcher.rs`'s `deliver_saga_dispatch` needs the
+/// same reading for a saga leg's `with:` literal — same declaration-text
+/// shape (`Mutation.source`, `Attribute.default`, and a `DispatchSpec`'s
+/// literal `with_spec` entries are all raw, unparsed bluebook text), so
+/// this is the third caller of the same rule, not a second derivation of it.
+pub(crate) fn parse_literal(text: &str) -> Value {
     let text = text.trim();
     if text.is_empty() {
         return Value::Null;
