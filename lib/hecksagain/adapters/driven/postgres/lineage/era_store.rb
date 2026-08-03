@@ -83,10 +83,7 @@ module Hecksagain
               return
             end
 
-            raise Runtime::WiringError, Runtime::EraTamper.refusal(
-              domain: @domain, ordinal: ordinal, edited_text: text,
-              stored_projection: stored_projection_json && JSON.parse(stored_projection_json)
-            )
+            raise Runtime::WiringError, Runtime::EraTamper.refusal(domain: @domain, ordinal: ordinal)
           end
 
           # A verified-authentic text backfills what older rows lack: its

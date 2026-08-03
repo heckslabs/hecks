@@ -7,23 +7,24 @@ description = "Postgres persistence adapter for storehouse — implements the Pe
 [lib]
 path = "src/lib.rs"
 
-# `parser` — this crate's own `shape_of`/`shape_of_checked` (lib.rs) call
-# `storehouse::parser::parse` directly, only for the legacy-backfill/
-# tamper-diagnosis paths in postgres_repository.rs (the happy path never
-# reaches either — Ruby's own minting always stores a precomputed shape).
-# `default` carries it, so nothing changes for a plain build ; a caller
-# that wants a parser-free binary passes `default-features = false` on
-# THIS dependency (as hecksagain-cli's own Cargo.toml does) and enables
-# `parser` explicitly only if it still wants it.
-[features]
-default = ["parser"]
-parser = ["storehouse/parser"]
-
-# default-features = false : same reasoning as storehouse-sqlite's own
-# dependency line — an adapter implements a port, not a domain, and feature
-# unification across the workspace would otherwise force every projected
-# domain back in regardless of what the CLI binary itself asked for.
+# NO `[features]` — this crate's production code needs no parser at all.
+# It used to (a legacy-row backfill, a cosmetic-vs-real tamper-diagnosis
+# message), gated behind a `parser` feature ; both call sites are gone now
+# (see lib.rs's own comment on why), so there is nothing left to gate.
+#
+# default-features = false : an adapter implements a port, not a domain,
+# and feature unification across the workspace would otherwise force
+# every projected domain back in regardless of what the CLI binary itself
+# asked for.
 [dependencies]
 storehouse = { path = "..", default-features = false }
 postgres = "0.19"
 serde_json = "1"
+
+# The integration tests still want a REAL shape, built from real bluebook
+# text, to compare era_gate's own behavior against — `storehouse::parser::
+# parse` + `storehouse::runtime::storage_shape::project`, inlined in the
+# test itself now that this crate's own `shape_of` is gone. A dev-only
+# feature bump: the LIBRARY still needs no parser, only its tests do.
+[dev-dependencies]
+storehouse = { path = "..", features = ["parser"] }

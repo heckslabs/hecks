@@ -1,0 +1,86 @@
+#!/usr/bin/env ruby
+
+# Proactively backfills `hecks_eras.held_projection` for every row of one
+# domain that predates that column — an explicit, operator-run version of
+# what `EraStore#eras` already does incidentally, as a side effect, the
+# next time the domain happens to boot through Ruby
+# (`verify_integrity!` -> `backfill_frozen_facts!`,
+# lib/hecksagain/adapters/driven/postgres/lineage/era_store.rb). No new
+# backfill logic lives here — this just calls that existing path and
+# reports what it found, so an operator can PROVE every row is migrated
+# before deploying a Rust binary built without the parser (which refuses,
+# rather than computing one, on any row still missing its projection).
+#
+# Idempotent: a second run against an already-migrated domain reports
+# nothing left to do.
+#
+#   bin/backfill_era_projections <domain path>
+
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+
+require "hecksagain"
+
+domain_path = ARGV.shift
+abort "usage: bin/backfill_era_projections <domain path>" unless domain_path
+
+loading = Hecksagain::Ports::Loading.bootstrap
+directory = loading.bluebook_directory(domain_path)
+registry = Hecksagain::Runtime::Registry.new(root: File.dirname(directory))
+Hecksagain.with_registry(registry) do
+  loading.load_library
+  loading.load_project(loading.shared_root(nil, directory))
+  loading.load_each(directory, %w[*.port *.adapter *.bluebook *.hecksagon *.world])
+end
+
+bluebook = registry.bluebooks.values.first or abort "no bluebook in #{directory}"
+first = bluebook.aggregates.first or abort "#{bluebook.name} declares no aggregates"
+adapter_name = Hecksagain::Ports::Persistence::BindingPolicy.resolve(registry, bluebook.name, first).adapter
+capable =
+  begin
+    adapter_class = registry.adapter_class(adapter_name)
+    adapter_class.respond_to?(:lineage_capable?) && adapter_class.lineage_capable?
+  rescue StandardError
+    false
+  end
+
+unless capable
+  # Only a lineage-capable adapter holds eras at all — every other
+  # adapter has no held_projection column to migrate.
+  abort "#{bluebook.name} is bound to #{adapter_name}, which holds no eras — nothing to migrate."
+end
+
+settings = registry.world(bluebook.name)&.for_binding(Hecksagain::Ports::Persistence::VERB, adapter_name) || {}
+db = Hecksagain::Adapters::Postgres.connect_for(bluebook.name, settings)
+lineage = Hecksagain::Adapters::Postgres::Lineage.new(db, bluebook.name)
+lineage.ensure_base!
+
+missing = -> {
+  db.exec_params(
+    "SELECT count(*)::int AS n FROM hecks_eras WHERE domain = $1 AND held_projection IS NULL",
+    [bluebook.name]
+  )[0]["n"].to_i
+}
+
+before = missing.call
+if before.zero?
+  puts "#{bluebook.name}: every held era already carries a projection — nothing to do."
+  exit 0
+end
+
+begin
+  # The side effect this tool exists to trigger, explicitly — no new
+  # backfill logic, just calling the path Ruby already takes
+  # incidentally. Raises on the FIRST row that fails its own digest
+  # check — a genuinely tampered row, a different problem than a
+  # merely-legacy one, and not something backfilling should paper over.
+  lineage.eras
+rescue Hecksagain::Runtime::WiringError => error
+  puts "#{bluebook.name}: stopped at a row that isn't merely legacy — it fails its own integrity check:"
+  puts "  #{error.message}"
+  puts "  resolve that first (see bin/reattest_era), then run this again for the remaining rows."
+  exit 1
+end
+
+after = missing.call
+backfilled = before - after
+puts "#{bluebook.name}: backfilled #{backfilled} era#{'s' unless backfilled == 1} — every row now carries a projection."

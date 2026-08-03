@@ -67,39 +67,22 @@ struct EraRow {
     projection: serde_json::Value,
 }
 
-/// Byte-identical with Ruby's `Ports::Persistence::EraTamper` — when
-/// the digest fails, say WHICH situation the operator is in, by the
-/// structural comparison every boot already trusts.
-///
-/// WITHOUT `parser`, this always falls to the generic wording below — the
-/// same one it already falls to when `stored_projection` is `None` or
-/// `shape_of_checked` can't make sense of the edit. Tamper is still
-/// DETECTED either way (the digest mismatch alone is what triggers this
-/// function at all) ; what a parser-free binary loses is only the nicer
-/// cosmetic-vs-real-drift distinction in the message.
-#[cfg_attr(not(feature = "parser"), allow(unused_variables))]
-fn integrity_refusal(domain: &str, ordinal: i32, edited_text: &str, stored_projection: Option<&serde_json::Value>) -> String {
-    let base = format!("cannot boot {domain}: the held text of era {ordinal} was edited after it was frozen");
-    #[cfg(feature = "parser")]
-    if let Some(stored) = stored_projection {
-        // `None` here is the near-miss case `shape_of` itself cannot see —
-        // see `shape_of_checked`'s own comment. Falling to the generic
-        // wording below is the same move Ruby's `EraTamper#project` makes
-        // when `Kernel.eval` cannot make sense of the edited text at all.
-        if let Some(edited) = crate::shape_of_checked(edited_text) {
-            if edited == *stored {
-                return format!(
-                    "{base} — the edit is cosmetic to the storage shape; \
-                     re-attest it (bin/reattest_era), or restore the original text from the era archive"
-                );
-            }
-            return format!(
-                "{base} AND the edit changed the storage shape — \
-                 re-attestation will refuse it; restore the original text from the era archive"
-            );
-        }
-    }
-    format!("{base} — held era texts are storage facts; restore the original text, or reset the data")
+/// Byte-identical with Ruby's `Runtime::EraTamper` — the digest mismatch
+/// alone is what DETECTS tampering (a plain SHA256 comparison, unrelated
+/// to any of this) ; this only decides the wording once that's already
+/// fired. Used to also distinguish a cosmetic edit from a real shape
+/// change here, by re-parsing the edited text — a pure quality-of-message
+/// nicety, not a safety property, and the one place doing so would have
+/// cost this crate its zero-parser-dependency, so it's gone: every tamper
+/// refusal reaches the same wording now, the generic one this always fell
+/// to anyway whenever the edit couldn't be classified. An operator judges
+/// "did this matter" themselves, reading the still-archived original —
+/// an anomalous recovery moment already, not a normal boot path.
+fn integrity_refusal(domain: &str, ordinal: i32) -> String {
+    format!(
+        "cannot boot {domain}: the held text of era {ordinal} was edited after it was frozen — \
+         held era texts are storage facts; restore the original text, or reset the data"
+    )
 }
 
 impl PostgresRepository {
@@ -251,8 +234,7 @@ impl PostgresRepository {
                 Some(_) => false,
             };
             if !authentic {
-                let projection = stored_projection.and_then(|json| serde_json::from_str(&json).ok());
-                return Err(integrity_refusal(&self.domain, ordinal, &held_text, projection.as_ref()));
+                return Err(integrity_refusal(&self.domain, ordinal));
             }
             // A verified-authentic text backfills what older rows lack:
             // its projection and its archive copy. Never on a text that
@@ -273,29 +255,18 @@ impl PostgresRepository {
                     // mint_transaction.rb/era_store.rb always store
                     // held_projection alongside a new era row, computed
                     // from the already-booted domain, not from re-parsed
-                    // text. This only fires for a row that PREDATES that
-                    // column, a one-time-per-row legacy backfill cached
-                    // forever after.
-                    #[cfg(feature = "parser")]
-                    {
-                        let projection = crate::shape_of(&held_text);
-                        client
-                            .execute(
-                                "UPDATE hecks_eras SET held_projection = $3::text::jsonb WHERE domain = $1 AND ordinal = $2 AND held_projection IS NULL",
-                                &[&self.domain, &ordinal, &serde_json::to_string(&projection).unwrap_or_default()],
-                            )
-                            .map_err(|error| format!("cannot backfill era projection: {error}"))?;
-                        projection
-                    }
-                    #[cfg(not(feature = "parser"))]
-                    {
-                        return Err(format!(
-                            "cannot boot {}: era {ordinal} predates projection caching and this binary \
-                             was built without the parser to backfill it; reattest it (bin/reattest_era), \
-                             or boot once with a parser-carrying binary",
-                            self.domain
-                        ));
-                    }
+                    // text. A row missing one predates that column, and
+                    // this crate no longer carries a parser to backfill
+                    // it with — `bin/backfill_era_projections` closes the
+                    // gap proactively (it reuses Ruby's own existing
+                    // incidental backfill, not new logic), so this
+                    // refuses rather than silently leaving the row
+                    // unmigrated.
+                    return Err(format!(
+                        "cannot boot {}: era {ordinal} predates projection caching — \
+                         run `bin/backfill_era_projections` to migrate it",
+                        self.domain
+                    ));
                 }
             };
             held.push(EraRow { ordinal, label: row.get(1), projection });

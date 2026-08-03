@@ -259,26 +259,36 @@ RSpec.describe "lineage in the Postgres adapter",
     expect { check!(V1_SOURCE) }.not_to raise_error
   end
 
-  it "refuses an edited hecks_eras row and says which situation the operator is in — with the archive as recovery" do
+  # EVERY EDIT REACHES THE SAME GENERIC WORDING NOW — shape-changing,
+  # cosmetic, or unparseable alike. `EraTamper.refusal` used to re-parse
+  # the edited text and distinguish a cosmetic edit from a real shape
+  # change in the message ; that was a pure quality-of-message nicety, not
+  # a safety property (the digest mismatch alone is what refuses either
+  # way), and the one thing standing between this runtime and a genuinely
+  # parser-free Rust deployment, so both sides dropped it. An operator
+  # judges "did this matter" themselves, reading the still-archived
+  # original — an anomalous recovery moment already, not a normal boot
+  # path.
+  it "refuses an edited hecks_eras row toward the generic wording — with the archive as recovery" do
     check!(V1_SOURCE)
     db = PG.connect(dbname: LINEAGE_DB)
 
+    generic_wording = "cannot boot Ledger: the held text of era 1 was edited after it was frozen — " \
+                       "held era texts are storage facts; restore the original text, or reset the data"
+
     # shape-changing edit
     db.exec_params("UPDATE hecks_eras SET held_text = $1 WHERE domain = 'Ledger' AND ordinal = 1", [V2_SOURCE])
-    expect { check!(V1_SOURCE) }.to raise_error(
-      Hecksagain::Runtime::WiringError,
-      "cannot boot Ledger: the held text of era 1 was edited after it was frozen AND the edit changed " \
-      "the storage shape — re-attestation will refuse it; restore the original text from the era archive"
-    )
+    expect { check!(V1_SOURCE) }.to raise_error(Hecksagain::Runtime::WiringError, generic_wording)
 
     # cosmetic edit
     db.exec_params("UPDATE hecks_eras SET held_text = $1 WHERE domain = 'Ledger' AND ordinal = 1",
                    ["# a typo fixed\n#{V1_SOURCE}"])
-    expect { check!(V1_SOURCE) }.to raise_error(
-      Hecksagain::Runtime::WiringError,
-      "cannot boot Ledger: the held text of era 1 was edited after it was frozen — the edit is cosmetic " \
-      "to the storage shape; re-attest it (bin/reattest_era), or restore the original text from the era archive"
-    )
+    expect { check!(V1_SOURCE) }.to raise_error(Hecksagain::Runtime::WiringError, generic_wording)
+
+    # unparseable edit — a misspelled DSL method mid-`Kernel.eval`
+    unparseable = V1_SOURCE.sub("attribute :cost, Money", "atribute :cost, Money")
+    db.exec_params("UPDATE hecks_eras SET held_text = $1 WHERE domain = 'Ledger' AND ordinal = 1", [unparseable])
+    expect { check!(V1_SOURCE) }.to raise_error(Hecksagain::Runtime::WiringError, generic_wording)
 
     # the archive holds the original bytes; restoring them boots again
     archived = db.exec("SELECT held_text FROM hecks_era_texts WHERE domain = 'Ledger' AND ordinal = 1")
@@ -286,30 +296,6 @@ RSpec.describe "lineage in the Postgres adapter",
     expect(archived[0]["held_text"]).to eq(V1_SOURCE)
     db.exec_params("UPDATE hecks_eras SET held_text = $1 WHERE domain = 'Ledger' AND ordinal = 1",
                    [archived[0]["held_text"]])
-    db.close
-    expect { check!(V1_SOURCE) }.not_to raise_error
-  end
-
-  # `EraTamper#project` returns nil (rather than a shape) when the edited
-  # text cannot be made sense of at all — here, a misspelled DSL method
-  # inside the aggregate body raises `NoMethodError` mid-`Kernel.eval`. The
-  # refusal falls to the generic wording rather than claiming a shape
-  # comparison it never actually managed to make. Rust closes the
-  # equivalent gap for its own permissive parser via `shape_of_checked` and
-  # `strict_boot::scan` — this is the Ruby side of that same pin.
-  it "refuses an edit that cannot be parsed at all, toward the generic wording" do
-    check!(V1_SOURCE)
-    db = PG.connect(dbname: LINEAGE_DB)
-
-    unparseable = V1_SOURCE.sub("attribute :cost, Money", "atribute :cost, Money")
-    db.exec_params("UPDATE hecks_eras SET held_text = $1 WHERE domain = 'Ledger' AND ordinal = 1", [unparseable])
-    expect { check!(V1_SOURCE) }.to raise_error(
-      Hecksagain::Runtime::WiringError,
-      "cannot boot Ledger: the held text of era 1 was edited after it was frozen — held era texts are " \
-      "storage facts; restore the original text, or reset the data"
-    )
-
-    db.exec_params("UPDATE hecks_eras SET held_text = $1 WHERE domain = 'Ledger' AND ordinal = 1", [V1_SOURCE])
     db.close
     expect { check!(V1_SOURCE) }.not_to raise_error
   end

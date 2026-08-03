@@ -1,7 +1,3 @@
-// Exercises `storehouse_postgres::shape_of` directly — not compiled at all
-// without this crate's own `parser` feature.
-#![cfg(feature = "parser")]
-
 //! Runs only when a Postgres server is reachable on localhost — the same
 //! gate the Ruby adapter spec and `bin/parity`'s postgres variant use.
 //! Absent a server, every test here passes with a printed notice rather
@@ -17,6 +13,14 @@ const TEST_DB: &str = "hecksagain_rust_adapter_test";
 
 fn admin() -> Option<Client> {
     Client::connect("host=localhost dbname=postgres", NoTls).ok()
+}
+
+/// What `storehouse_postgres::shape_of` used to be — parse-and-project,
+/// inlined here now that the crate's own production code needs neither
+/// (the `parser` dev-dependency feature is what makes this available to
+/// the test only, not the library).
+fn shape_of(source: &str) -> serde_json::Value {
+    storehouse::runtime::storage_shape::project(&storehouse::parser::parse(source))
 }
 
 /// A fresh scratch database, or None (with a notice) when no server is
@@ -148,8 +152,8 @@ fn era_gate_recognizes_holds_and_refuses_toward_the_ruby_scaffold() {
     let v2 = "Hecks.bluebook \"Ledger\" do\n  aggregate \"Account\" do\n    attribute :amount, Money\n\n    value_object \"Money\" do\n      attribute :cents, Integer\n    end\n  end\nend\n";
 
     let mut repository = PostgresRepository::new("Account", GATE_DB, "Ledger").unwrap();
-    let v1_shape = storehouse_postgres::shape_of(v1);
-    let v2_shape = storehouse_postgres::shape_of(v2);
+    let v1_shape = shape_of(v1);
+    let v2_shape = shape_of(v2);
 
     // first boot holds era 1 as a row
     assert_eq!(repository.era_gate("Ledger", v1, &v1_shape, &[]).unwrap(), Some(1));
@@ -181,25 +185,31 @@ fn era_gate_recognizes_holds_and_refuses_toward_the_ruby_scaffold() {
     );
 
     // a superseded era's shape is recognized and PERMITTED — the old
-    // world keeps booting its own era, and adopts it for its writes
+    // world keeps booting its own era, and adopts it for its writes.
+    // held_projection is supplied here the way real minting always
+    // supplies it (Ruby's own mint_transaction.rb/era_store.rb) — a row
+    // missing one is the legacy case eras() now refuses on outright.
     check
         .execute(
-            "INSERT INTO hecks_eras (domain, ordinal, hash, label, held_text, watermark) VALUES ('Ledger', 2, 'bbbb22', 'bbbb22', $1, 0)",
-            &[&v2],
+            "INSERT INTO hecks_eras (domain, ordinal, hash, label, held_text, watermark, held_projection) \
+             VALUES ('Ledger', 2, 'bbbb22', 'bbbb22', $1, 0, $2::text::jsonb)",
+            &[&v2, &serde_json::to_string(&v2_shape).unwrap()],
         )
         .unwrap();
     assert_eq!(repository.era_gate("Ledger", v1, &v1_shape, &[]).unwrap(), Some(1));
     repository.adopt_era(1);
 
-    // an edited held text refuses in the pinned words — and says WHICH
-    // situation the operator is in (this edit changes the shape)
+    // an edited held text refuses in the pinned words — the generic
+    // wording, always, now that distinguishing cosmetic from real drift
+    // in the message itself is gone (a quality-of-message nicety, not
+    // a safety property — the digest mismatch alone is what refuses)
     check
         .execute("UPDATE hecks_eras SET held_text = $1 WHERE domain = 'Ledger' AND ordinal = 1", &[&v2])
         .unwrap();
     let refusal = repository.era_gate("Ledger", v1, &v1_shape, &[]).unwrap_err();
     assert_eq!(
         refusal,
-        "cannot boot Ledger: the held text of era 1 was edited after it was frozen AND the edit changed the storage shape — re-attestation will refuse it; restore the original text from the era archive"
+        "cannot boot Ledger: the held text of era 1 was edited after it was frozen — held era texts are storage facts; restore the original text, or reset the data"
     );
     // ...and the archive still holds the original for recovery
     let archived: String = check
@@ -210,47 +220,6 @@ fn era_gate_recognizes_holds_and_refuses_toward_the_ruby_scaffold() {
     check
         .execute("UPDATE hecks_eras SET held_text = $1 WHERE domain = 'Ledger' AND ordinal = 1", &[&archived])
         .unwrap();
-
-    drop(check);
-    drop(repository);
-    let _ = admin.batch_execute(&format!("DROP DATABASE IF EXISTS {GATE_DB} WITH (FORCE)"));
-}
-
-// `integrity_refusal` used to reach only two verdicts for an edited held
-// text — cosmetic or shape-changed — because `shape_of` never refuses: the
-// core parser is permissive and silently drops what it cannot read, so a
-// held text edited into a keyword typo still projected to SOME shape.
-// `shape_of_checked` closes the one detectable class of that gap
-// (`strict_boot::scan`'s near-miss keywords), so an edit like this now
-// reaches the SAME generic wording Ruby's `Kernel.eval`-based strictness
-// already gets it to, rather than being misreported as a shape change.
-#[test]
-fn era_gate_refuses_a_near_miss_typo_toward_the_generic_wording() {
-    let Some(mut admin) = admin() else {
-        eprintln!("no reachable Postgres — start one to run this test");
-        return;
-    };
-    const GATE_DB: &str = "hecksagain_rust_gate_typo_test";
-    let _ = admin.batch_execute(&format!("DROP DATABASE IF EXISTS {GATE_DB} WITH (FORCE)"));
-    admin.batch_execute(&format!("CREATE DATABASE {GATE_DB}")).unwrap();
-
-    let v1 = "Hecks.bluebook \"Ledger\" do\n  aggregate \"Account\" do\n    attribute :cost, Money\n\n    value_object \"Money\" do\n      attribute :cents, Integer\n    end\n  end\nend\n";
-    let typoed = "Hecks.bluebook \"Ledger\" do\n  aggregate \"Account\" do\n    atribute :cost, Money\n\n    value_object \"Money\" do\n      attribute :cents, Integer\n    end\n  end\nend\n";
-
-    let mut repository = PostgresRepository::new("Account", GATE_DB, "Ledger").unwrap();
-    let v1_shape = storehouse_postgres::shape_of(v1);
-
-    assert_eq!(repository.era_gate("Ledger", v1, &v1_shape, &[]).unwrap(), Some(1));
-    let mut check = Client::connect(&format!("host=localhost dbname={GATE_DB}"), NoTls).unwrap();
-
-    check
-        .execute("UPDATE hecks_eras SET held_text = $1 WHERE domain = 'Ledger' AND ordinal = 1", &[&typoed])
-        .unwrap();
-    let refusal = repository.era_gate("Ledger", v1, &v1_shape, &[]).unwrap_err();
-    assert_eq!(
-        refusal,
-        "cannot boot Ledger: the held text of era 1 was edited after it was frozen — held era texts are storage facts; restore the original text, or reset the data"
-    );
 
     drop(check);
     drop(repository);
