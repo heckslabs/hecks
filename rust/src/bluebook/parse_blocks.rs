@@ -1554,93 +1554,26 @@ fn parse_dispatch_statement(line: &str) -> Option<DispatchSpec> {
     if !is_dispatch_start(trimmed) {
         return None;
     }
-    let command_name = extract_string(trimmed)?;
-
-    let cmd_end = match trimmed.match_indices('"').nth(1) {
-        Some((idx, _)) => idx + 1,
-        None => trimmed.len(),
-    };
-    let tail = &trimmed[cmd_end..];
-
-    let with_spec = match tail.find("with:") {
-        None => Vec::new(),
-        Some(pos) => {
-            let after = &tail[pos + "with:".len()..];
-            let open = after.find('{')?;
-            let close = match_close_brace(&after[open..])? + open;
-            let body = after[open + 1..close].trim();
-            parse_with_hash(body)
-        }
-    };
+    // `command_name` (text) direct, `with:` (pairs, `verbatim` shape — each
+    // pair captured as-is, resolved later at dispatch time by
+    // `deliver_saga_dispatch`'s own `parse_literal`, not here) both read
+    // through the generic binder now.
+    let binding = crate::bluebook::generic_bind::find_binding("Handler", trimmed)?;
+    let bindings = crate::bluebook::generic_bind::bind_keyword(binding, trimmed);
+    let command_name = bindings.text("command_name")?;
+    let with_spec = bindings
+        .pairs
+        .get("with")
+        .into_iter()
+        .flatten()
+        .map(|pair| (pair.key.clone(), pair.value.clone()))
+        .collect();
 
     Some(DispatchSpec {
         command_name,
         with_spec,
     })
 }
-
-fn match_close_brace(s: &str) -> Option<usize> {
-    let mut depth = 0i32;
-    for (i, c) in s.char_indices() {
-        match c {
-            '{' => depth += 1,
-            '}' => {
-                depth -= 1;
-                if depth == 0 {
-                    return Some(i);
-                }
-            }
-            _ => (),
-        }
-    }
-    None
-}
-
-fn parse_with_hash(body: &str) -> Vec<(String, String)> {
-    let mut out: Vec<(String, String)> = Vec::new();
-    for raw_entry in split_top_level_commas(body) {
-        let entry = raw_entry.trim().trim_end_matches(',').trim();
-        if entry.is_empty() {
-            continue;
-        }
-        let colon = match entry.find(':') {
-            Some(p) => p,
-            None => continue,
-        };
-        let key_raw = entry[..colon].trim();
-        let val_raw = entry[colon + 1..].trim();
-        let key = key_raw
-            .trim_matches(|c| c == '"' || c == '\'' || c == ':')
-            .to_string();
-        if key.is_empty() {
-            continue;
-        }
-        if let Some(value) = parse_binding_value(val_raw) {
-            out.push((key, value));
-        }
-    }
-    out
-}
-
-/// `Dispatch.Bind`'s `value` — the same text `IR.render_value` put on the
-/// wire, and nothing richer. A leading colon (`:source`) means an argument
-/// the event or process manager memory carries ; anything else, including a
-/// nested object literal, is read as-is and interpreted at actual dispatch
-/// time (`dispatcher.rs::deliver_saga_dispatch`), not here.
-fn parse_binding_value(raw: &str) -> Option<String> {
-    let s = raw.trim();
-    if s.starts_with('"') || s.starts_with('\'') {
-        extract_string(s)
-    } else {
-        let token = s.trim_end_matches(',').trim().to_string();
-        if token.is_empty() {
-            None
-        } else {
-            Some(token)
-        }
-    }
-}
-
 
 #[cfg(test)]
 mod dispatch_tests {
@@ -1669,7 +1602,19 @@ mod dispatch_tests {
         let s = parse_dispatch_statement(line).unwrap();
         assert_eq!(s.command_name, "Body.Tick");
         assert_eq!(s.with_spec.len(), 2);
-        assert_eq!(s.with_spec[0], ("name".to_string(), "body".to_string()));
+        // THE QUOTES SURVIVE — matching what the language itself carries
+        // (ir.rs's own DispatchSpec comment: "with_spec's VALUE is the same
+        // text IR.render_value put on the wire") and what `ir_json.rs`'s
+        // `ruby_literal` already leaves untouched for anything that is not a
+        // `{...}` hash literal. The OLD hand-written `parse_binding_value`
+        // stripped a quoted value's quotes immediately, which this cutover
+        // found was the inconsistent one, not the other way round — the
+        // final VALUE `parse_literal` (mutations.rs) resolves at dispatch
+        // time is identical either way (`"body"` and `body` both become
+        // `Value::String("body")`), so this was a representation quirk, not
+        // a behavior difference, but the representation is what this test
+        // checks.
+        assert_eq!(s.with_spec[0], ("name".to_string(), "\"body\"".to_string()));
         assert_eq!(s.with_spec[1], ("tick".to_string(), ":tick".to_string()));
     }
 
