@@ -25,11 +25,18 @@
 //! extraction deleted at each cutover once the full test/parity suite
 //! proved it byte-identical. `attribute` (M6) stays hand-written — see its
 //! own doc comment in `parse_blocks.rs` for the three separate reasons
-//! found, not assumed. `member`/`sets`' `append:` need a different
-//! mechanism entirely (M7's sibling-schema resolver) : their pairs' keys
-//! name a field of an already-declared SIBLING construct, which this
-//! module's own `bind_keyword` has no way to resolve — it only knows the
-//! line in front of it, not what else the file has declared.
+//! found, not assumed.
+//!
+//! `member` and `sets`' `append:`/`to:`/`increment:`/`decrement:` (M7) were
+//! ORIGINALLY planned around a "sibling-schema resolver" — a new mechanism
+//! to validate a pairs argument's keys against an already-declared sibling
+//! construct's own attributes. Neither turned out to need one : `member`'s
+//! pairs are stored on `vo.members` completely unvalidated (`verbatim`
+//! pairs_shape, no lookup at all), and `sets`' four named arguments all
+//! collapse onto ONE field (`Mutation.source`) read downstream, at DISPATCH
+//! time, not parse time (`literal` kind — see `syntax.bluebook`'s own
+//! comment on those four rows). Both cutovers needed a SCHEMA correction,
+//! not new binder machinery.
 
 use crate::bluebook::ir_syntax_bindings::KeywordBinding;
 use crate::bluebook::parse_blocks::{is_kwarg, split_top_level_commas};
@@ -437,10 +444,14 @@ mod tests {
 
     #[test]
     fn selects_pushes_op_alongside_source() {
+        // `increment:`'s value is `literal`-kind, not `symbol` — its colon
+        // is left on (`resolve_source`'s own sentinel for "read this from
+        // the dispatch payload", mutations.rs), the same reason `to:`/
+        // `append:`/`decrement:` all read this way too (M7).
         let binding = binding_for("sets", "Command");
         let bindings = bind_keyword(binding, "sets :balance, increment: :amount");
         assert_eq!(bindings.fields.get("op"), Some(&BoundValue::Text("increment".to_string())));
-        assert_eq!(bindings.fields.get("source"), Some(&BoundValue::Text("amount".to_string())));
+        assert_eq!(bindings.fields.get("source"), Some(&BoundValue::Text(":amount".to_string())));
         assert_eq!(bindings.fields.get("target"), Some(&BoundValue::Text("balance".to_string())));
     }
 

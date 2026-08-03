@@ -621,26 +621,6 @@ fn parse_comparator_hash(raw: &str) -> Option<(WhereOp, &str)> {
     Some((op, value_part))
 }
 
-fn split_member_pairs(s: &str) -> Vec<&str> {
-    let mut pairs = Vec::new();
-    let mut in_quotes = false;
-    let mut last = 0;
-    for (i, c) in s.char_indices() {
-        match c {
-            '"' => in_quotes = !in_quotes,
-            ',' if !in_quotes => {
-                pairs.push(&s[last..i]);
-                last = i + 1;
-            }
-            _ => {}
-        }
-    }
-    if last < s.len() {
-        pairs.push(&s[last..]);
-    }
-    pairs
-}
-
 fn inline_do_pos(line: &str) -> Option<usize> {
     let after_message = match line.find('"') {
         Some(open) => line[open + 1..]
@@ -697,25 +677,23 @@ pub fn parse_value_object(lines: &[&str]) -> (ValueObject, usize) {
                 // (which used to be a hand-rolled `starts_with("member ") ||
                 // starts_with("member(")`, a strict subset of what
                 // `keyword_matches` already checks) is generated.
-                } else if crate::bluebook::ir_dispatch_words::ONE_OF_WORDS
-                    .iter()
-                    .any(|(word, _)| keyword_matches(l, word))
+                // `member`'s own pairs read through the generic binder now
+                // (`verbatim` pairs_shape — flat capture, no sibling-schema
+                // resolution needed at all : `vo.members` stores each row
+                // UNVALIDATED, per this function's own comment above).
+                } else if let Some(binding) =
+                    crate::bluebook::generic_bind::find_binding("OneOf", l).filter(|b| b.keyword == "member")
                 {
-                    let body = l
-                        .trim_start_matches("member")
-                        .trim_start_matches('(')
-                        .trim_end_matches(')');
+                    let bindings = crate::bluebook::generic_bind::bind_keyword(binding, l);
                     let mut fields: Vec<(String, String)> = Vec::new();
-                    for pair in split_member_pairs(body) {
-                        if let Some(colon) = pair.find(':') {
-                            let key = pair[..colon].trim().trim_matches(':').to_string();
-                            let raw_val = pair[colon + 1..].trim();
-                            let bare = raw_val.trim_matches(',').trim();
-                            let val = extract_string(raw_val).unwrap_or_else(|| bare.to_string());
-                            let declared = bare.starts_with('"') || !val.is_empty();
-                            if !key.is_empty() && declared {
-                                fields.push((key, val));
-                            }
+                    for pair in bindings.pairs.get("").into_iter().flatten() {
+                        let key = pair.key.trim().trim_matches(':').to_string();
+                        let raw_val = pair.value.trim();
+                        let bare = raw_val.trim_matches(',').trim();
+                        let val = extract_string(raw_val).unwrap_or_else(|| bare.to_string());
+                        let declared = bare.starts_with('"') || !val.is_empty();
+                        if !key.is_empty() && declared {
+                            fields.push((key, val));
                         }
                     }
                     if !fields.is_empty() {
@@ -1383,14 +1361,41 @@ fn escaped_at(s: &str, i: usize) -> bool {
 
 pub fn parse_mutation(line: &str) -> Option<Mutation> {
     let field = extract_symbol(line)?;
-    let (op, value) = if line.contains("append:") {
-        (MutationOp::Append, extract_after(line, "append:")?)
-    } else if line.contains("increment:") {
-        (MutationOp::Increment, extract_after(line, "increment:")?)
-    } else if line.contains("decrement:") {
-        (MutationOp::Decrement, extract_after(line, "decrement:")?)
-    } else if line.contains("to:") {
-        (MutationOp::Set, extract_after(line, "to:")?)
+    // `to:`/`append:`/`increment:`/`decrement:` all read through the
+    // generic binder now — `selects` (`op=set`/`op=append`/...) derives
+    // `op` from WHICH named argument fired, the exact gap `Syntax::
+    // Argument`'s own comment named ("there is no column for it") before
+    // M1 of the generic-bluebook-reader arc added one. The bare-form
+    // fallback below (no named kwarg at all — `sets :field, "value"` or
+    // `sets :field, :other`) is not a declared Argument row at all, an
+    // undeclared shorthand the same way `attribute`'s bare-type-name form
+    // is (see that function's own doc comment), so it stays hand-written.
+    //
+    // `sets` is the DECLARED word, but `then_set` is the spelling every real
+    // corpus line still uses (see this function's caller, above) — the
+    // binder matches on the declared word literally, so a `then_set` line
+    // is normalized to it before lookup/bind, the same rename `Syntax::
+    // Keyword.was` already documents rather than something new.
+    let normalized = if line.trim_start().starts_with("then_set") {
+        line.replacen("then_set", "sets", 1)
+    } else {
+        line.to_string()
+    };
+    let bound = crate::bluebook::generic_bind::find_binding("Command", &normalized)
+        .filter(|b| b.keyword == "sets")
+        .map(|binding| crate::bluebook::generic_bind::bind_keyword(binding, &normalized))
+        .filter(|bindings| bindings.fields.contains_key("source"))
+        .and_then(|bindings| {
+            let op = match bindings.text("op").as_deref() {
+                Some("append") => MutationOp::Append,
+                Some("increment") => MutationOp::Increment,
+                Some("decrement") => MutationOp::Decrement,
+                _ => MutationOp::Set,
+            };
+            bindings.text("source").map(|source| (op, source))
+        });
+    let (op, value) = if let Some(bound) = bound {
+        bound
     } else {
         let sym_start = line.find(':')? + 1;
         let after_field = &line[sym_start + field.len()..];

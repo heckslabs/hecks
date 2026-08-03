@@ -530,10 +530,22 @@ Hecks.bluebook "Bluebook" do
         member keyword: "reference_to",    context: "Command", at: "",  named: "optional",  kind: "flag",     required: "false", fills: "optional"
         member keyword: "given",           context: "Command", at: "1", named: "",          kind: "text",     required: "true",  fills: "description"
         member keyword: "sets",            context: "Command", at: "1", named: "",          kind: "symbol",   required: "true",  fills: "target"
-        member keyword: "sets",            context: "Command", at: "",  named: "to",        kind: "symbol",   required: "false", fills: "source", selects: "op=set"
-        member keyword: "sets",            context: "Command", at: "",  named: "append",    kind: "pairs",    required: "false", fills: "", selects: "op=append", pairs_shape: "sibling"
-        member keyword: "sets",            context: "Command", at: "",  named: "increment", kind: "symbol",   required: "false", fills: "source", selects: "op=increment"
-        member keyword: "sets",            context: "Command", at: "",  named: "decrement", kind: "symbol",   required: "false", fills: "source", selects: "op=decrement"
+        # `to:`/`increment:`/`decrement:`/`append:` ALL SHARE ONE KIND NOW
+        # (generic-bluebook-reader arc, M7) — every one of them fills
+        # `Mutation.source`, which BOTH runtimes read downstream, not at
+        # parse time : a leading `:` means "read this argument from the
+        # dispatch payload" (`resolve_source`), anything else is a literal
+        # value (`parse_literal`) or, for `append:`, a hash of further
+        # per-field references (`append_field_value`). `symbol` would strip
+        # that leading colon — the one bit `resolve_source` tests to tell
+        # "argument reference" from "literal" apart — so these were never a
+        # bare Ruby symbol the way `correlates_by`'s own `symbol` rows are ;
+        # `literal` already means "raw text, read downstream", `default:`'s
+        # own reading, which is precisely what all four need.
+        member keyword: "sets",            context: "Command", at: "",  named: "to",        kind: "literal",  required: "false", fills: "source", selects: "op=set"
+        member keyword: "sets",            context: "Command", at: "",  named: "append",    kind: "literal",  required: "false", fills: "source", selects: "op=append"
+        member keyword: "sets",            context: "Command", at: "",  named: "increment", kind: "literal",  required: "false", fills: "source", selects: "op=increment"
+        member keyword: "sets",            context: "Command", at: "",  named: "decrement", kind: "literal",  required: "false", fills: "source", selects: "op=decrement"
         member keyword: "emits",           context: "Command", at: "1", named: "",          kind: "text",     required: "true",  fills: "emits"
         member keyword: "attribute",       context: "Command", at: "1", named: "",          kind: "symbol",   required: "true",  fills: "name"
         member keyword: "attribute",       context: "Command", at: "2", named: "",          kind: "constant", required: "false", fills: "type"
@@ -550,7 +562,15 @@ Hecks.bluebook "Bluebook" do
         member keyword: "attribute",       context: "ValueObject", at: "",  named: "admits",   kind: "text",     required: "false", fills: "admits"
         member keyword: "invariant",       context: "ValueObject", at: "1", named: "",         kind: "text",     required: "true",  fills: "description"
 
-        member keyword: "member",          context: "OneOf",     at: "1", named: "",     kind: "pairs", required: "true",  fills: "", pairs_shape: "sibling"
+        # RECLASSIFIED FROM `sibling` (generic-bluebook-reader arc, M7) —
+        # `ValueObject.members: Vec<Vec<(String, String)>>` stores each
+        # `member` row as a flat, UNVALIDATED list of pairs ; nothing
+        # cross-references the enclosing value object's own attributes at
+        # PARSE time (any admission-checking happens later, at dispatch, off
+        # `admitted_sets` — a separate, already-typed mechanism). So this
+        # needs no sibling-schema resolution at all, only the same flat
+        # capture `dispatch`'s own `with:` already uses.
+        member keyword: "member",          context: "OneOf",     at: "1", named: "",     kind: "pairs", required: "true",  fills: "members", pairs_shape: "verbatim"
 
         member keyword: "transition",      context: "Lifecycle", at: "1", named: "",     kind: "pairs", required: "true",  fills: "", pair_key_fills: "command", pair_value_fills: "to_state", pairs_shape: "fields"
         # SPELLED LIKE A KEYWORD ARGUMENT, RECEIVED AS DATA. `transition` takes

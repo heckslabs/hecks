@@ -200,9 +200,10 @@ KeywordBinding {
     keyword: "sets", context: "Command", append_to: "mutations",
     arguments: &[
         ArgumentBinding { at: "1", named: "", kind: "symbol", required: true, fills: "target", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "" },
-        ArgumentBinding { at: "", named: "decrement", kind: "symbol", required: false, fills: "source", selects: "op=decrement", pair_key_fills: "", pair_value_fills: "", pairs_shape: "" },
-        ArgumentBinding { at: "", named: "increment", kind: "symbol", required: false, fills: "source", selects: "op=increment", pair_key_fills: "", pair_value_fills: "", pairs_shape: "" },
-        ArgumentBinding { at: "", named: "to", kind: "symbol", required: false, fills: "source", selects: "op=set", pair_key_fills: "", pair_value_fills: "", pairs_shape: "" },
+        ArgumentBinding { at: "", named: "append", kind: "literal", required: false, fills: "source", selects: "op=append", pair_key_fills: "", pair_value_fills: "", pairs_shape: "" },
+        ArgumentBinding { at: "", named: "decrement", kind: "literal", required: false, fills: "source", selects: "op=decrement", pair_key_fills: "", pair_value_fills: "", pairs_shape: "" },
+        ArgumentBinding { at: "", named: "increment", kind: "literal", required: false, fills: "source", selects: "op=increment", pair_key_fills: "", pair_value_fills: "", pairs_shape: "" },
+        ArgumentBinding { at: "", named: "to", kind: "literal", required: false, fills: "source", selects: "op=set", pair_key_fills: "", pair_value_fills: "", pairs_shape: "" },
     ],
 },
 KeywordBinding {
@@ -273,6 +274,12 @@ KeywordBinding {
         ArgumentBinding { at: "1", named: "", kind: "pairs", required: true, fills: "", selects: "", pair_key_fills: "command", pair_value_fills: "to_state", pairs_shape: "fields" },
         ArgumentBinding { at: "", named: "from", kind: "text", required: false, fills: "from_state", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "" },
         ArgumentBinding { at: "", named: "from", kind: "list", required: false, fills: "from_state", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "" },
+    ],
+},
+KeywordBinding {
+    keyword: "member", context: "OneOf", append_to: "",
+    arguments: &[
+        ArgumentBinding { at: "1", named: "", kind: "pairs", required: true, fills: "members", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "verbatim" },
     ],
 },
 KeywordBinding {

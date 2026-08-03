@@ -11366,7 +11366,7 @@
               ],
               [
                 "kind",
-                "symbol"
+                "literal"
               ],
               [
                 "required",
@@ -11400,7 +11400,7 @@
               ],
               [
                 "kind",
-                "pairs"
+                "literal"
               ],
               [
                 "required",
@@ -11408,15 +11408,11 @@
               ],
               [
                 "fills",
-                ""
+                "source"
               ],
               [
                 "selects",
                 "op=append"
-              ],
-              [
-                "pairs_shape",
-                "sibling"
               ]
             ],
             [
@@ -11438,7 +11434,7 @@
               ],
               [
                 "kind",
-                "symbol"
+                "literal"
               ],
               [
                 "required",
@@ -11472,7 +11468,7 @@
               ],
               [
                 "kind",
-                "symbol"
+                "literal"
               ],
               [
                 "required",
@@ -11934,11 +11930,11 @@
               ],
               [
                 "fills",
-                ""
+                "members"
               ],
               [
                 "pairs_shape",
-                "sibling"
+                "verbatim"
               ]
             ],
             [
