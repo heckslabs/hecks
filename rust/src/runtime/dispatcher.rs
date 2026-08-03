@@ -515,6 +515,149 @@ fn fill_hydrate_defaults_typed(
     state
 }
 
+// THE DECLARED ORDER, HAND-TYPED — mirrors Vocabulary::AggregateDispatchOrder
+// (language/bluebook/vocabulary.bluebook:188-205), held equal to it by
+// spec/vocabulary_conformance_spec.rb (read as TEXT, the technique that spec
+// already uses to hold refusal_wording.rs and FLAG_ARGUMENTS to a
+// declaration) rather than generated — the same call Ruby's own
+// CommandInterpreter::DISPATCH_ORDER makes, for the same reason: this is a
+// plain step-name list, never used as a TYPE anywhere the way
+// MutationOp/WhereOp are (those go through bin/ir_vocabulary), so a fifth
+// generation target buys less than a hand-typed table checked against the
+// declaration, matching RefusalWording's own precedent.
+pub const AGGREGATE_DISPATCH_ORDER: &[&str] = &[
+    "refuse_unknown_arguments",
+    "refuse_absent_arguments",
+    "normalize_args",
+    "resolve_references",
+    "hydrate",
+    "enforce_givens",
+    "admissible_transition",
+    "assign_creation_attributes",
+    "apply_mutations",
+    "advance_lifecycle",
+    "enforce_ensures",
+    "save",
+    "emit",
+];
+
+// THE ENTITY TWIN — mirrors Vocabulary::EntityDispatchOrder
+// (vocabulary.bluebook:217-232). Shorter than the aggregate order for the
+// same reasons the declaration itself gives : no refuse_unknown_arguments/
+// refuse_absent_arguments (an entity inherits its aggregate's own gate) and
+// no assign_creation_attributes (an entity is never created through this
+// path).
+pub const ENTITY_DISPATCH_ORDER: &[&str] = &[
+    "normalize_args",
+    "resolve_references",
+    "hydrate_parent",
+    "locate_element",
+    "enforce_givens",
+    "admissible_transition",
+    "apply_mutations",
+    "advance_lifecycle",
+    "enforce_ensures",
+    "save",
+    "emit",
+];
+
+/// EVERY CROSS-STEP LOCAL `dispatch` used to thread through its own literal
+/// sequence of `let` bindings, held in one place now that the sequence is
+/// data-driven by `AGGREGATE_STEPS` — the Rust twin of Ruby's
+/// `CommandInterpreter::Context` (command_interpreter.rb). `creates`/`id`/
+/// `state` are set at `hydrate` (unconditional, so always populated before
+/// any later step reads them) ; `transition`/`old_state` stay at their
+/// empty default until the step that sets them runs, matching the unset
+/// locals they used to be before that point in the old sequential code.
+struct DispatchContext {
+    domain: String,
+    aggregate_name: String,
+    command_name: String,
+    aggregate: Arc<crate::ir::Aggregate>,
+    command: Arc<crate::ir::Command>,
+    args: State,
+    creates: bool,
+    id: String,
+    state: State,
+    transition: Option<(String, String)>,
+    old_state: Option<State>,
+    announced: Vec<Value>,
+}
+
+/// The entity-path twin of `DispatchContext` — `instance`/`element`/`view`'s
+/// split in Ruby's `EntityInterpreter::Context` becomes `state` (the PARENT
+/// record, what gets saved) versus `element` (the entity piece itself) here.
+/// `elements`/`list_attr`/`position` persist from `locate_element` to `save`,
+/// where the mutated `element` is spliced back before the parent state is
+/// written — the same two-step "copy, mutate, write back" `EntityInterpreter
+/// #element_of`'s own doc comment describes, just done at `save` instead of
+/// continuously via an alias, since nothing here can alias through a `&mut
+/// EntityDispatchContext` field the way a Ruby `Hash` reference can.
+struct EntityDispatchContext {
+    domain: String,
+    aggregate_name: String,
+    entity_name: String,
+    command_name: String,
+    aggregate: Arc<crate::ir::Aggregate>,
+    entity: Arc<crate::ir::Entity>,
+    command: Arc<crate::ir::Command>,
+    args: State,
+    identity: String,
+    parent_id: String,
+    state: State,
+    list_attr: String,
+    elements: Vec<Value>,
+    position: usize,
+    element: State,
+    transition: Option<(String, String)>,
+    old_element: Option<State>,
+    announced: Vec<Value>,
+}
+
+type AggregateStepFn = fn(&mut Runtime, &mut DispatchContext) -> Result<(), String>;
+type EntityStepFn = fn(&mut Runtime, &mut EntityDispatchContext) -> Result<(), String>;
+
+/// NAME-PARALLEL WITH `AGGREGATE_DISPATCH_ORDER` — `dispatch_order_tests::
+/// aggregate_dispatch_order_covers_every_declared_step` holds the two
+/// arrays' names equal, the coverage half of what Ruby's own
+/// `private_method_defined?` check proves (Rust has no `send`, so coverage
+/// is checked by comparing names instead of resolving a symbol) ; `dispatch`
+/// itself just iterates this table in order, unconditionally — a
+/// conditional step still guards ITSELF at the top of its own handler
+/// (`Runtime::step_assign_creation_attributes`,
+/// `Runtime::step_advance_lifecycle`, `Runtime::step_entity_advance_lifecycle`)
+/// and skips tracing when its precondition does not hold, matching Ruby's
+/// M7a `step_<name>` handlers exactly.
+const AGGREGATE_STEPS: &[(&str, AggregateStepFn)] = &[
+    ("refuse_unknown_arguments", Runtime::step_refuse_unknown_arguments),
+    ("refuse_absent_arguments", Runtime::step_refuse_absent_arguments),
+    ("normalize_args", Runtime::step_normalize_args),
+    ("resolve_references", Runtime::step_resolve_references),
+    ("hydrate", Runtime::step_hydrate),
+    ("enforce_givens", Runtime::step_enforce_givens),
+    ("admissible_transition", Runtime::step_admissible_transition),
+    ("assign_creation_attributes", Runtime::step_assign_creation_attributes),
+    ("apply_mutations", Runtime::step_apply_mutations),
+    ("advance_lifecycle", Runtime::step_advance_lifecycle),
+    ("enforce_ensures", Runtime::step_enforce_ensures),
+    ("save", Runtime::step_save),
+    ("emit", Runtime::step_emit),
+];
+
+const ENTITY_STEPS: &[(&str, EntityStepFn)] = &[
+    ("normalize_args", Runtime::step_entity_normalize_args),
+    ("resolve_references", Runtime::step_entity_resolve_references),
+    ("hydrate_parent", Runtime::step_hydrate_parent),
+    ("locate_element", Runtime::step_locate_element),
+    ("enforce_givens", Runtime::step_entity_enforce_givens),
+    ("admissible_transition", Runtime::step_entity_admissible_transition),
+    ("apply_mutations", Runtime::step_entity_apply_mutations),
+    ("advance_lifecycle", Runtime::step_entity_advance_lifecycle),
+    ("enforce_ensures", Runtime::step_entity_enforce_ensures),
+    ("save", Runtime::step_entity_save),
+    ("emit", Runtime::step_entity_emit),
+];
+
 impl Runtime {
     pub fn new(domain: crate::ir::Domain) -> Self {
         let ir = crate::projector::ir_json::domain_to_value(&domain);
@@ -863,89 +1006,137 @@ impl Runtime {
         let aggregate = self.find_aggregate_typed(domain, aggregate_name, dotted)?;
         let entity = Runtime::find_entity_typed(&aggregate, entity_name)?;
         let command = Runtime::find_entity_command_typed(&entity, command_name)?;
-        self.refuse_object_references(domain, &command, args)?;
-        let normalized_args = normalize_command_args(&aggregate, &command, args, &self.admitted_sets)?;
-        self.trace_step("normalize_args");
-        // An entity command can declare a reference-typed attribute the same
-        // way an aggregate command can (CommandRules#resolve_references is
-        // shared by both interpreters on the Ruby side too), even though
-        // nothing in the real corpus does yet. Part of Vocabulary::EntityDispatchOrder.
-        self.resolve_references(domain, &command, &normalized_args)?;
-        self.trace_step("resolve_references");
-        let args = &normalized_args;
 
-        // The parent's identity is derived exactly as an aggregate command
-        // derives its own — every declared path, dug and joined — so a piece
-        // hanging off a composite head is reached by naming both its parts.
-        // `id` stays as the fallback for a caller quoting an id back whole.
-        let identity = identity::reading_of_paths(&aggregate.identified_by);
-        let parent_id = identity::of_paths(&aggregate.identified_by, args)
-            .or_else(|| args.get("id").map(query_text).filter(|id| !id.is_empty()))
+        let mut ctx = EntityDispatchContext {
+            domain: domain.to_string(),
+            aggregate_name: aggregate_name.to_string(),
+            entity_name: entity_name.to_string(),
+            command_name: command_name.to_string(),
+            aggregate,
+            entity,
+            command,
+            args: args.clone(),
+            identity: String::new(),
+            parent_id: String::new(),
+            state: State::new(),
+            list_attr: String::new(),
+            elements: Vec::new(),
+            position: 0,
+            element: State::new(),
+            transition: None,
+            old_element: None,
+            announced: Vec::new(),
+        };
+
+        for (_, step) in ENTITY_STEPS {
+            step(self, &mut ctx)?;
+        }
+
+        for event in &ctx.announced {
+            self.react_to(event, &ctx.domain);
+        }
+        for event in &ctx.announced {
+            self.advance_sagas(event, &ctx.domain);
+        }
+
+        let mut result = ctx.state;
+        result.insert(ctx.identity, Value::String(ctx.parent_id));
+        Ok(result)
+    }
+
+    fn step_entity_normalize_args(&mut self, ctx: &mut EntityDispatchContext) -> Result<(), String> {
+        self.refuse_object_references(&ctx.domain, &ctx.command, &ctx.args)?;
+        ctx.args = normalize_command_args(&ctx.aggregate, &ctx.command, &ctx.args, &self.admitted_sets)?;
+        self.trace_step("normalize_args");
+        Ok(())
+    }
+
+    // An entity command can declare a reference-typed attribute the same way
+    // an aggregate command can (CommandRules#resolve_references is shared by
+    // both interpreters on the Ruby side too), even though nothing in the
+    // real corpus does yet. Part of Vocabulary::EntityDispatchOrder.
+    fn step_entity_resolve_references(&mut self, ctx: &mut EntityDispatchContext) -> Result<(), String> {
+        self.resolve_references(&ctx.domain, &ctx.command, &ctx.args)?;
+        self.trace_step("resolve_references");
+        Ok(())
+    }
+
+    // The parent's identity is derived exactly as an aggregate command
+    // derives its own — every declared path, dug and joined — so a piece
+    // hanging off a composite head is reached by naming both its parts.
+    // `id` stays as the fallback for a caller quoting an id back whole.
+    fn step_hydrate_parent(&mut self, ctx: &mut EntityDispatchContext) -> Result<(), String> {
+        ctx.identity = identity::reading_of_paths(&ctx.aggregate.identified_by);
+        ctx.parent_id = identity::of_paths(&ctx.aggregate.identified_by, &ctx.args)
+            .or_else(|| ctx.args.get("id").map(query_text).filter(|id| !id.is_empty()))
             .ok_or_else(|| {
                 refusal_wording::render(
                     "NotFound",
                     "entity_parent_no_identity",
                     &[
-                        ("command", command_name),
-                        ("aggregate", aggregate_name),
-                        ("entity", entity_name),
-                        ("identity", &identity),
+                        ("command", &ctx.command_name),
+                        ("aggregate", &ctx.aggregate_name),
+                        ("entity", &ctx.entity_name),
+                        ("identity", &ctx.identity),
                     ],
                 )
             })?;
 
-        let mut state = if let Some(adapter) = self.adapters.get(aggregate_name) {
-            adapter.find(&parent_id).map(value_bridge::from_state).ok_or_else(|| {
-                let offered = format!("{parent_id:?}");
+        ctx.state = if let Some(adapter) = self.adapters.get(&ctx.aggregate_name) {
+            adapter.find(&ctx.parent_id).map(value_bridge::from_state).ok_or_else(|| {
+                let offered = format!("{:?}", ctx.parent_id);
                 refusal_wording::render(
                     "NotFound",
                     "record_missing",
-                    &[("aggregate", aggregate_name), ("identity", &identity), ("offered", &offered)],
+                    &[("aggregate", &ctx.aggregate_name), ("identity", &ctx.identity), ("offered", &offered)],
                 )
             })?
         } else {
-            let key = format!("{}::{}#{}", domain, aggregate_name, parent_id);
+            let key = format!("{}::{}#{}", ctx.domain, ctx.aggregate_name, ctx.parent_id);
             self.store.get(&key).cloned().ok_or_else(|| {
-                let offered = format!("{parent_id:?}");
+                let offered = format!("{:?}", ctx.parent_id);
                 refusal_wording::render(
                     "NotFound",
                     "record_missing",
-                    &[("aggregate", aggregate_name), ("identity", &identity), ("offered", &offered)],
+                    &[("aggregate", &ctx.aggregate_name), ("identity", &ctx.identity), ("offered", &offered)],
                 )
             })?
         };
         self.trace_step("hydrate_parent");
+        Ok(())
+    }
 
-        let list_attr = aggregate
+    // ONE ELEMENT, MATCHED ON EVERY PART OF ITS IDENTITY — not just the
+    // first. A piece's identity may be several paths, the same shape a
+    // head's can be, so a dispatch that names the element has to supply
+    // every part and every part has to agree with the stored one.
+    // `EntityInterpreter#element_of` is the same reading on the Ruby side.
+    fn step_locate_element(&mut self, ctx: &mut EntityDispatchContext) -> Result<(), String> {
+        let list_attr = ctx
+            .aggregate
             .attributes
             .iter()
-            .find(|a| a.list && a.r#type == entity_name)
+            .find(|a| a.list && a.r#type == ctx.entity_name)
             .map(|a| a.name.clone())
             .ok_or_else(|| {
                 refusal_wording::render(
                     "UnknownVerb",
                     "entity_holds_no_list",
-                    &[("aggregate", aggregate_name), ("entity", entity_name)],
+                    &[("aggregate", &ctx.aggregate_name), ("entity", &ctx.entity_name)],
                 )
             })?;
 
-        // ONE ELEMENT, MATCHED ON EVERY PART OF ITS IDENTITY — not just the
-        // first. A piece's identity may be several paths, the same shape a
-        // head's can be, so a dispatch that names the element has to supply
-        // every part and every part has to agree with the stored one.
-        // `EntityInterpreter#element_of` is the same reading on the Ruby side.
-        //
         // A PIECE's identity is a path like a head's : the caller passes the
         // head attribute and the id is the scalar dug out of it.
-        let entity_reading = identity::reading_of_paths(&entity.identified_by);
+        let entity_reading = identity::reading_of_paths(&ctx.entity.identified_by);
         let mut wants: Vec<(String, Option<String>, Value)> = Vec::new();
-        for path in &entity.identified_by {
+        for path in &ctx.entity.identified_by {
             let (head, field) = identity::split(path);
-            let raw = args.get(head).cloned().ok_or_else(|| {
+            let raw = ctx.args.get(head).cloned().ok_or_else(|| {
                 refusal_wording::render(
                     "NotFound",
                     "entity_element_no_identity",
-                    &[("command", command_name), ("entity", entity_name), ("identity", &entity_reading)],
+                    &[("command", &ctx.command_name), ("entity", &ctx.entity_name), ("identity", &entity_reading)],
                 )
             })?;
             // An entity's identity is a declared attribute like any other, so
@@ -957,14 +1148,15 @@ impl Runtime {
             // different reasons. It also makes a scalar stand in for a
             // single-field value object here, the way it does everywhere else.
             // Part of Vocabulary::EntityDispatchOrder's locate_element.
-            let want = match entity.attributes.iter().find(|held| held.name == head) {
-                Some(attribute) => coerce_attribute(&aggregate, attribute, &raw, &self.admitted_sets)?,
+            let want = match ctx.entity.attributes.iter().find(|held| held.name == head) {
+                Some(attribute) => coerce_attribute(&ctx.aggregate, attribute, &raw, &self.admitted_sets)?,
                 None => raw,
             };
             wants.push((head.to_string(), field.map(str::to_string), want));
         }
 
-        let mut elements = state
+        let elements = ctx
+            .state
             .get(&list_attr)
             .and_then(Value::as_array)
             .cloned()
@@ -988,119 +1180,139 @@ impl Runtime {
                     .map(|(_, field, want)| query_text(&identity_scalar(want, field.as_deref())))
                     .collect::<Vec<_>>()
                     .join(", ");
-                let parent_id_shown = format!("{parent_id:?}");
+                let parent_id_shown = format!("{:?}", ctx.parent_id);
                 refusal_wording::render(
                     "NotFound",
                     "entity_element_missing",
                     &[
-                        ("entity", entity_name),
+                        ("entity", &ctx.entity_name),
                         ("identity", &entity_reading),
                         ("wants", &named),
-                        ("aggregate", aggregate_name),
+                        ("aggregate", &ctx.aggregate_name),
                         ("parent_id", &parent_id_shown),
                     ],
                 )
             })?;
-        let mut element = elements[position].as_object().cloned().unwrap_or_default();
-        self.trace_step("locate_element");
+        let element = elements[position].as_object().cloned().unwrap_or_default();
 
-        for given in &command.givens {
+        ctx.list_attr = list_attr;
+        ctx.elements = elements;
+        ctx.position = position;
+        ctx.element = element;
+        self.trace_step("locate_element");
+        Ok(())
+    }
+
+    fn step_entity_enforce_givens(&mut self, ctx: &mut EntityDispatchContext) -> Result<(), String> {
+        for given in &ctx.command.givens {
             let canonical = crate::projector::ir_json::canonicalise(&given.canonical);
-            if !evaluate_given(&canonical, &element, args)? {
+            if !evaluate_given(&canonical, &ctx.element, &ctx.args)? {
                 let description = given.description.as_deref().unwrap_or("");
-                return Err(format!("{} refused — {}", command_name, description));
+                return Err(format!("{} refused — {}", ctx.command_name, description));
             }
         }
         self.trace_step("enforce_givens");
-        let transition_to = admissible_transition(entity.lifecycle.as_ref(), command_name, &element)?;
-        self.trace_step("admissible_transition");
+        Ok(())
+    }
 
-        let old_element = if command.ensures.is_empty() {
+    fn step_entity_admissible_transition(&mut self, ctx: &mut EntityDispatchContext) -> Result<(), String> {
+        ctx.transition = admissible_transition(ctx.entity.lifecycle.as_ref(), &ctx.command_name, &ctx.element)?;
+        self.trace_step("admissible_transition");
+        Ok(())
+    }
+
+    fn step_entity_apply_mutations(&mut self, ctx: &mut EntityDispatchContext) -> Result<(), String> {
+        ctx.old_element = if ctx.command.ensures.is_empty() {
             None
         } else {
-            Some(element.clone())
+            Some(ctx.element.clone())
         };
-        for mutation in &command.mutations {
+        for mutation in &ctx.command.mutations {
             match mutation.op {
                 MutationOp::Increment | MutationOp::Decrement => {
                     let operation = if matches!(mutation.op, MutationOp::Increment) { "increment" } else { "decrement" };
-                    let updated = arithmetic(&element, &mutation.target, operation, mutation, args)?;
-                    element.insert(mutation.target.clone(), updated);
+                    let updated = arithmetic(&ctx.element, &mutation.target, operation, mutation, &ctx.args)?;
+                    ctx.element.insert(mutation.target.clone(), updated);
                 }
                 _ => {
-                    let value = resolve_source(mutation, args);
-                    let coerced = entity
+                    let value = resolve_source(mutation, &ctx.args);
+                    let coerced = ctx
+                        .entity
                         .attributes
                         .iter()
                         .find(|attribute| attribute.name == mutation.target)
-                        .map(|attribute| coerce_attribute(&aggregate, attribute, &value, &self.admitted_sets))
+                        .map(|attribute| coerce_attribute(&ctx.aggregate, attribute, &value, &self.admitted_sets))
                         .transpose()?
                         .unwrap_or(value);
-                    element.insert(mutation.target.clone(), coerced);
+                    ctx.element.insert(mutation.target.clone(), coerced);
                 }
             }
         }
         self.trace_step("apply_mutations");
-        if let Some((field, to_state)) = transition_to {
-            element.insert(field, Value::String(to_state));
-            self.trace_step("advance_lifecycle");
-        }
-        for rule in &command.ensures {
+        Ok(())
+    }
+
+    fn step_entity_advance_lifecycle(&mut self, ctx: &mut EntityDispatchContext) -> Result<(), String> {
+        let Some((field, to_state)) = ctx.transition.clone() else {
+            return Ok(());
+        };
+        ctx.element.insert(field, Value::String(to_state));
+        self.trace_step("advance_lifecycle");
+        Ok(())
+    }
+
+    fn step_entity_enforce_ensures(&mut self, ctx: &mut EntityDispatchContext) -> Result<(), String> {
+        for rule in &ctx.command.ensures {
             let canonical = crate::projector::ir_json::canonicalise(&rule.canonical);
-            let mut attrs = args.clone();
+            let mut attrs = ctx.args.clone();
             attrs.insert(
                 "old".to_string(),
-                Value::Object(old_element.clone().unwrap_or_default()),
+                Value::Object(ctx.old_element.clone().unwrap_or_default()),
             );
-            if !evaluate_given(&canonical, &element, &attrs)? {
+            if !evaluate_given(&canonical, &ctx.element, &attrs)? {
                 let description = rule.description.as_deref().unwrap_or("");
-                return Err(format!("{} refused — {}", command_name, description));
+                return Err(format!("{} refused — {}", ctx.command_name, description));
             }
         }
         self.trace_step("enforce_ensures");
+        Ok(())
+    }
 
-        elements[position] = Value::Object(element);
-        state.insert(list_attr, Value::Array(elements));
+    fn step_entity_save(&mut self, ctx: &mut EntityDispatchContext) -> Result<(), String> {
+        ctx.elements[ctx.position] = Value::Object(ctx.element.clone());
+        ctx.state.insert(ctx.list_attr.clone(), Value::Array(ctx.elements.clone()));
 
-        if self.adapters.contains_key(aggregate_name) {
+        if self.adapters.contains_key(&ctx.aggregate_name) {
             self.save_with_mirrors(
-                aggregate_name,
-                value_bridge::to_state(&parent_id, &state),
+                &ctx.aggregate_name,
+                value_bridge::to_state(&ctx.parent_id, &ctx.state),
                 WriteContext::Dispatch {
-                    aggregate: aggregate_name,
-                    command: command_name,
+                    aggregate: &ctx.aggregate_name,
+                    command: &ctx.command_name,
                 },
             )?;
         } else {
-            let key = format!("{}::{}#{}", domain, aggregate_name, parent_id);
-            self.store.insert(key, state.clone());
+            let key = format!("{}::{}#{}", ctx.domain, ctx.aggregate_name, ctx.parent_id);
+            self.store.insert(key, ctx.state.clone());
         }
         self.trace_step("save");
+        Ok(())
+    }
 
-        let mut announced: Vec<Value> = Vec::new();
-        for name in &command.emits {
+    fn step_entity_emit(&mut self, ctx: &mut EntityDispatchContext) -> Result<(), String> {
+        for name in &ctx.command.emits {
             let mut event = json!({
                 "name": name,
-                "aggregate": format!("{}::{}", domain, aggregate_name),
-                "id": parent_id,
-                "payload": Value::Object(args.clone()),
+                "aggregate": format!("{}::{}", ctx.domain, ctx.aggregate_name),
+                "id": ctx.parent_id,
+                "payload": Value::Object(ctx.args.clone()),
             });
             self.events.push(event.clone());
             self.stamp_pending_correlation(&mut event);
-            announced.push(event);
+            ctx.announced.push(event);
         }
         self.trace_step("emit");
-
-        for event in &announced {
-            self.react_to(event, domain);
-        }
-        for event in &announced {
-            self.advance_sagas(event, domain);
-        }
-
-        let mut result = state;
-        result.insert(identity, Value::String(parent_id));
-        Ok(result)
+        Ok(())
     }
 
     pub fn query(&mut self, verb: &str, args: &State) -> Result<Vec<Value>, String> {
@@ -1513,105 +1725,31 @@ impl Runtime {
                 &[("aggregate", &aggregate_name), ("command", &shown)],
             )
         })?;
-        refuse_unknown_arguments(&aggregate, &command, args, &self.correlation_keys(&domain))?;
-        self.trace_step("refuse_unknown_arguments");
-        // Unknown first, deliberately : a payload that both misspells one name and
-        // omits another is more usefully told about the name that does not exist.
-        refuse_absent_arguments(&command, args)?;
-        self.trace_step("refuse_absent_arguments");
-        self.refuse_object_references(&domain, &command, args)?;
-        let normalized_args = normalize_command_args(&aggregate, &command, args, &self.admitted_sets)?;
-        self.trace_step("normalize_args");
-        self.resolve_references(&domain, &command, &normalized_args)?;
-        self.trace_step("resolve_references");
-        let args = &normalized_args;
 
-        let creates = command.references.is_none();
-
-        let (id, mut state) = self.hydrate(&aggregate, &command, args, creates)?;
-        self.trace_step("hydrate");
-
-        for given in &command.givens {
-            let canonical = crate::projector::ir_json::canonicalise(&given.canonical);
-            if !evaluate_given(&canonical, &state, args)? {
-                let description = given.description.as_deref().unwrap_or("");
-                return Err(format!("{} refused — {}", command_name, description));
-            }
-        }
-        self.trace_step("enforce_givens");
-
-        let transition_to = admissible_transition(aggregate.lifecycle.as_ref(), &command_name, &state)?;
-        self.trace_step("admissible_transition");
-
-        if creates {
-            assign_creation_attributes(&mut state, &aggregate, &command, args, &self.admitted_sets)?;
-            self.trace_step("assign_creation_attributes");
-        }
-        // The state as the givens saw it — what `old` names inside an
-        // ensures. Cloned only when the command declares one.
-        let old_state = if command.ensures.is_empty() {
-            None
-        } else {
-            Some(state.clone())
+        let mut ctx = DispatchContext {
+            domain,
+            aggregate_name,
+            command_name,
+            aggregate,
+            command,
+            args: args.clone(),
+            creates: false,
+            id: String::new(),
+            state: State::new(),
+            transition: None,
+            old_state: None,
+            announced: Vec::new(),
         };
-        for mutation in &command.mutations {
-            apply_mutation(&mut state, &aggregate, mutation, args, &self.admitted_sets)?;
-        }
-        self.trace_step("apply_mutations");
-        if let Some((field, to_state)) = transition_to {
-            state.insert(field, Value::String(to_state));
-            self.trace_step("advance_lifecycle");
-        }
-        for rule in &command.ensures {
-            let canonical = crate::projector::ir_json::canonicalise(&rule.canonical);
-            let mut attrs = args.clone();
-            attrs.insert(
-                "old".to_string(),
-                Value::Object(old_state.clone().unwrap_or_default()),
-            );
-            if !evaluate_given(&canonical, &state, &attrs)? {
-                let description = rule.description.as_deref().unwrap_or("");
-                return Err(format!("{} refused — {}", command_name, description));
-            }
-        }
-        self.trace_step("enforce_ensures");
 
-        if self.adapters.contains_key(&aggregate_name) {
-            self.save_with_mirrors(
-                &aggregate_name,
-                value_bridge::to_state(&id, &state),
-                WriteContext::Dispatch {
-                    aggregate: &aggregate_name,
-                    command: &command_name,
-                },
-            )?;
-        } else {
-            let key = format!("{}::{}#{}", domain, aggregate_name, id);
-            self.store.insert(key, state.clone());
-        }
-        self.trace_step("save");
-
-        let mut announced: Vec<Value> = Vec::new();
-        for name in &command.emits {
-            let mut event = json!({
-                "name": name,
-                "aggregate": format!("{}::{}", domain, aggregate_name),
-                "id": id,
-                "payload": Value::Object(args.clone()),
-            });
-
-            self.events.push(event.clone());
-            self.stamp_pending_correlation(&mut event);
-            announced.push(event);
-        }
-        self.trace_step("emit");
-
-        for event in &announced {
-            self.react_to(event, &domain);
+        for (_, step) in AGGREGATE_STEPS {
+            step(self, &mut ctx)?;
         }
 
-        for event in &announced {
-            self.advance_sagas(event, &domain);
+        for event in &ctx.announced {
+            self.react_to(event, &ctx.domain);
+        }
+        for event in &ctx.announced {
+            self.advance_sagas(event, &ctx.domain);
         }
 
         // THE DERIVED ID, HANDED BACK UNDER THE PATH IT CAME FROM — and only
@@ -1621,11 +1759,151 @@ impl Runtime {
         // saying nothing: `Instance#materialize_identity!` reads `identified_by`,
         // which is the single head and is nil the moment an identity has two,
         // so it returns early and leaves the state alone.
-        let mut result = state;
-        if let [only] = aggregate.identified_by.as_slice() {
-            result.insert(only.clone(), Value::String(id));
+        let mut result = ctx.state;
+        if let [only] = ctx.aggregate.identified_by.as_slice() {
+            result.insert(only.clone(), Value::String(ctx.id));
         }
         Ok(result)
+    }
+
+    fn step_refuse_unknown_arguments(&mut self, ctx: &mut DispatchContext) -> Result<(), String> {
+        refuse_unknown_arguments(&ctx.aggregate, &ctx.command, &ctx.args, &self.correlation_keys(&ctx.domain))?;
+        self.trace_step("refuse_unknown_arguments");
+        Ok(())
+    }
+
+    // Unknown first, deliberately : a payload that both misspells one name
+    // and omits another is more usefully told about the name that does not
+    // exist.
+    fn step_refuse_absent_arguments(&mut self, ctx: &mut DispatchContext) -> Result<(), String> {
+        refuse_absent_arguments(&ctx.command, &ctx.args)?;
+        self.trace_step("refuse_absent_arguments");
+        Ok(())
+    }
+
+    fn step_normalize_args(&mut self, ctx: &mut DispatchContext) -> Result<(), String> {
+        self.refuse_object_references(&ctx.domain, &ctx.command, &ctx.args)?;
+        ctx.args = normalize_command_args(&ctx.aggregate, &ctx.command, &ctx.args, &self.admitted_sets)?;
+        self.trace_step("normalize_args");
+        Ok(())
+    }
+
+    fn step_resolve_references(&mut self, ctx: &mut DispatchContext) -> Result<(), String> {
+        self.resolve_references(&ctx.domain, &ctx.command, &ctx.args)?;
+        self.trace_step("resolve_references");
+        Ok(())
+    }
+
+    fn step_hydrate(&mut self, ctx: &mut DispatchContext) -> Result<(), String> {
+        ctx.creates = ctx.command.references.is_none();
+        let (id, state) = self.hydrate(&ctx.aggregate, &ctx.command, &ctx.args, ctx.creates)?;
+        ctx.id = id;
+        ctx.state = state;
+        self.trace_step("hydrate");
+        Ok(())
+    }
+
+    fn step_enforce_givens(&mut self, ctx: &mut DispatchContext) -> Result<(), String> {
+        for given in &ctx.command.givens {
+            let canonical = crate::projector::ir_json::canonicalise(&given.canonical);
+            if !evaluate_given(&canonical, &ctx.state, &ctx.args)? {
+                let description = given.description.as_deref().unwrap_or("");
+                return Err(format!("{} refused — {}", ctx.command_name, description));
+            }
+        }
+        self.trace_step("enforce_givens");
+        Ok(())
+    }
+
+    fn step_admissible_transition(&mut self, ctx: &mut DispatchContext) -> Result<(), String> {
+        ctx.transition = admissible_transition(ctx.aggregate.lifecycle.as_ref(), &ctx.command_name, &ctx.state)?;
+        self.trace_step("admissible_transition");
+        Ok(())
+    }
+
+    fn step_assign_creation_attributes(&mut self, ctx: &mut DispatchContext) -> Result<(), String> {
+        if !ctx.creates {
+            return Ok(());
+        }
+        assign_creation_attributes(&mut ctx.state, &ctx.aggregate, &ctx.command, &ctx.args, &self.admitted_sets)?;
+        self.trace_step("assign_creation_attributes");
+        Ok(())
+    }
+
+    fn step_apply_mutations(&mut self, ctx: &mut DispatchContext) -> Result<(), String> {
+        // The state as the givens saw it — what `old` names inside an
+        // ensures. Cloned only when the command declares one.
+        ctx.old_state = if ctx.command.ensures.is_empty() {
+            None
+        } else {
+            Some(ctx.state.clone())
+        };
+        for mutation in &ctx.command.mutations {
+            apply_mutation(&mut ctx.state, &ctx.aggregate, mutation, &ctx.args, &self.admitted_sets)?;
+        }
+        self.trace_step("apply_mutations");
+        Ok(())
+    }
+
+    fn step_advance_lifecycle(&mut self, ctx: &mut DispatchContext) -> Result<(), String> {
+        let Some((field, to_state)) = ctx.transition.clone() else {
+            return Ok(());
+        };
+        ctx.state.insert(field, Value::String(to_state));
+        self.trace_step("advance_lifecycle");
+        Ok(())
+    }
+
+    fn step_enforce_ensures(&mut self, ctx: &mut DispatchContext) -> Result<(), String> {
+        for rule in &ctx.command.ensures {
+            let canonical = crate::projector::ir_json::canonicalise(&rule.canonical);
+            let mut attrs = ctx.args.clone();
+            attrs.insert(
+                "old".to_string(),
+                Value::Object(ctx.old_state.clone().unwrap_or_default()),
+            );
+            if !evaluate_given(&canonical, &ctx.state, &attrs)? {
+                let description = rule.description.as_deref().unwrap_or("");
+                return Err(format!("{} refused — {}", ctx.command_name, description));
+            }
+        }
+        self.trace_step("enforce_ensures");
+        Ok(())
+    }
+
+    fn step_save(&mut self, ctx: &mut DispatchContext) -> Result<(), String> {
+        if self.adapters.contains_key(&ctx.aggregate_name) {
+            self.save_with_mirrors(
+                &ctx.aggregate_name,
+                value_bridge::to_state(&ctx.id, &ctx.state),
+                WriteContext::Dispatch {
+                    aggregate: &ctx.aggregate_name,
+                    command: &ctx.command_name,
+                },
+            )?;
+        } else {
+            let key = format!("{}::{}#{}", ctx.domain, ctx.aggregate_name, ctx.id);
+            self.store.insert(key, ctx.state.clone());
+        }
+        self.trace_step("save");
+        Ok(())
+    }
+
+    fn step_emit(&mut self, ctx: &mut DispatchContext) -> Result<(), String> {
+        for name in &ctx.command.emits {
+            let mut event = json!({
+                "name": name,
+                "aggregate": format!("{}::{}", ctx.domain, ctx.aggregate_name),
+                "id": ctx.id,
+                "payload": Value::Object(ctx.args.clone()),
+            });
+
+            self.events.push(event.clone());
+            self.stamp_pending_correlation(&mut event);
+            ctx.announced.push(event);
+        }
+        self.trace_step("emit");
+        Ok(())
     }
 
     // THE SAME QUESTION THE "ACTS ON AN EXISTING" BRANCH BELOW ANSWERS BY
@@ -2769,45 +3047,91 @@ mod query_semantics_tests {
 mod dispatch_order_tests {
     use super::*;
 
-    // Mirrors spec/vocabulary_conformance_spec.rb's two trace specs — same
-    // fixtures, same declared order (Vocabulary::AggregateDispatchOrder /
-    // EntityDispatchOrder in language/bluebook.bluebook), proving Rust's
-    // dispatch/dispatch_entity follow it too, not just Ruby's.
+    // COVERAGE : AGGREGATE_STEPS/ENTITY_STEPS must name exactly the steps
+    // AGGREGATE_DISPATCH_ORDER/ENTITY_DISPATCH_ORDER declare, in the same
+    // order — the Rust twin of Ruby's `private_method_defined?` check
+    // (spec/vocabulary_conformance_spec.rb, CommandInterpreter/
+    // EntityInterpreter). Rust has no `send`, so coverage is proven by
+    // comparing the two tables' names directly rather than resolving a
+    // symbol at dispatch time.
     #[test]
-    fn aggregate_dispatch_matches_the_declared_order() {
-        let mut runtime = Runtime::boot("../spec/fixtures/dispatch_order.bluebook").unwrap();
-        runtime.dispatch_trace = Some(Vec::new());
+    fn aggregate_steps_cover_every_declared_step_in_order() {
+        let names: Vec<&str> = AGGREGATE_STEPS.iter().map(|(name, _)| *name).collect();
+        assert_eq!(names, AGGREGATE_DISPATCH_ORDER);
+    }
 
-        let args: State = serde_json::from_value(json!({
-            "id": "w1",
-            "label": {"value": "x"},
-            "amount": {"value": 5},
-            "part_sequence": {"value": 1},
-            "part_note": {"value": "start"}
+    #[test]
+    fn entity_steps_cover_every_declared_step_in_order() {
+        let names: Vec<&str> = ENTITY_STEPS.iter().map(|(name, _)| *name).collect();
+        assert_eq!(names, ENTITY_DISPATCH_ORDER);
+    }
+
+    // CONDITIONAL CORRECTNESS : assign_creation_attributes and
+    // advance_lifecycle (both interpreters) are the two DISPATCH_ORDER
+    // members `dispatch`/`dispatch_entity` do not run unconditionally —
+    // each traces exactly when its own precondition holds, per
+    // `Runtime::step_assign_creation_attributes`/`step_advance_lifecycle`/
+    // `step_entity_advance_lifecycle`'s own internal self-guards. `Open`/
+    // `Advance` fire both ; `Close`/`Touch` (spec/fixtures/
+    // dispatch_order.bluebook) create and transition neither, so together
+    // the dispatches below exercise every conditional step's fire AND
+    // skip — the same split Ruby's own repurposed spec makes.
+    #[test]
+    fn assign_creation_attributes_fires_only_for_a_creating_command() {
+        let mut runtime = Runtime::boot("../spec/fixtures/dispatch_order.bluebook").unwrap();
+
+        runtime.dispatch_trace = Some(Vec::new());
+        let open: State = serde_json::from_value(json!({
+            "label": {"value": "x"}, "amount": {"value": 5},
+            "part_sequence": {"value": 1}, "part_note": {"value": "start"}
         }))
         .unwrap();
+        runtime.dispatch("DispatchOrder::Widget.Open", &open).unwrap();
+        let creating_trace = runtime.dispatch_trace.take().unwrap();
 
-        runtime.dispatch("DispatchOrder::Widget.Open", &args).unwrap();
+        runtime.dispatch_trace = Some(Vec::new());
+        let close: State = serde_json::from_value(json!({ "label": {"value": "x"} })).unwrap();
+        runtime.dispatch("DispatchOrder::Widget.Close", &close).unwrap();
+        let acting_trace = runtime.dispatch_trace.take().unwrap();
 
-        let trace = runtime.dispatch_trace.take().unwrap();
-        assert_eq!(
-            trace,
-            vec![
-                "refuse_unknown_arguments",
-                "refuse_absent_arguments",
-                "normalize_args",
-                "resolve_references",
-                "hydrate",
-                "enforce_givens",
-                "admissible_transition",
-                "assign_creation_attributes",
-                "apply_mutations",
-                "advance_lifecycle",
-                "enforce_ensures",
-                "save",
-                "emit",
-            ]
-        );
+        assert!(creating_trace.contains(&"assign_creation_attributes"));
+        assert!(!acting_trace.contains(&"assign_creation_attributes"));
+    }
+
+    #[test]
+    fn advance_lifecycle_fires_only_when_admissible_transition_finds_one() {
+        let mut runtime = Runtime::boot("../spec/fixtures/dispatch_order.bluebook").unwrap();
+        let open: State = serde_json::from_value(json!({
+            "label": {"value": "x"}, "amount": {"value": 5},
+            "part_sequence": {"value": 1}, "part_note": {"value": "start"}
+        }))
+        .unwrap();
+        runtime.dispatch("DispatchOrder::Widget.Open", &open).unwrap();
+
+        runtime.dispatch_trace = Some(Vec::new());
+        let close: State = serde_json::from_value(json!({ "label": {"value": "x"} })).unwrap();
+        runtime.dispatch("DispatchOrder::Widget.Close", &close).unwrap();
+        let aggregate_trace = runtime.dispatch_trace.take().unwrap();
+
+        runtime.dispatch_trace = Some(Vec::new());
+        let advance: State = serde_json::from_value(json!({
+            "label": {"value": "x"}, "sequence": {"value": 1}, "note": {"value": "done note"}
+        }))
+        .unwrap();
+        runtime.dispatch("DispatchOrder::Widget.Part.Advance", &advance).unwrap();
+        let entity_transitioning_trace = runtime.dispatch_trace.take().unwrap();
+
+        runtime.dispatch_trace = Some(Vec::new());
+        let touch: State = serde_json::from_value(json!({
+            "label": {"value": "x"}, "sequence": {"value": 1}, "note": {"value": "touched"}
+        }))
+        .unwrap();
+        runtime.dispatch("DispatchOrder::Widget.Part.Touch", &touch).unwrap();
+        let entity_acting_trace = runtime.dispatch_trace.take().unwrap();
+
+        assert!(!aggregate_trace.contains(&"advance_lifecycle"));
+        assert!(entity_transitioning_trace.contains(&"advance_lifecycle"));
+        assert!(!entity_acting_trace.contains(&"advance_lifecycle"));
     }
 
 // THE SAME SENTENCE, IN THE OTHER RUNTIME.
@@ -2840,58 +3164,6 @@ fn a_wrapped_reference_is_refused_in_the_same_words_as_ruby() {
     );
 }
 
-    #[test]
-    fn entity_dispatch_matches_the_declared_order() {
-        // Not banking — that domain is really persisted (Heki/Sqlite, per its
-        // own .world/.hecksagon), and Runtime::boot writes real files under
-        // examples/banking/data/ with no in-memory override available on the
-        // Rust side (unlike Ruby's InMemoryDomain::MEMORY_ADAPTER). This
-        // fixture has no .world/.hecksagon sibling at all, so it defaults to
-        // the in-memory store — same fixture the Ruby spec uses.
-        let mut runtime = Runtime::boot("../spec/fixtures/dispatch_order.bluebook").unwrap();
-
-        // ADDRESSED BY ITS LABEL, the way the Ruby twin addresses it
-        // (vocabulary_conformance_spec.rb). A Widget is `identified_by
-        // { label.value }`, so it is stored as "x" — passing `id: "w1"`
-        // opened one widget and then looked for another, and the entity
-        // leg has been refusing "no Widget with label" ever since the
-        // fixture learned to name a field. Nothing minted, nothing guessed.
-        let open: State = serde_json::from_value(json!({
-            "label": {"value": "x"},
-            "amount": {"value": 5},
-            "part_sequence": {"value": 1},
-            "part_note": {"value": "start"}
-        }))
-        .unwrap();
-        runtime.dispatch("DispatchOrder::Widget.Open", &open).unwrap();
-
-        runtime.dispatch_trace = Some(Vec::new());
-        let advance: State = serde_json::from_value(json!({
-            "label": {"value": "x"},
-            "sequence": {"value": 1},
-            "note": {"value": "done note"}
-        }))
-        .unwrap();
-        runtime.dispatch("DispatchOrder::Widget.Part.Advance", &advance).unwrap();
-
-        let trace = runtime.dispatch_trace.take().unwrap();
-        assert_eq!(
-            trace,
-            vec![
-                "normalize_args",
-                "resolve_references",
-                "hydrate_parent",
-                "locate_element",
-                "enforce_givens",
-                "admissible_transition",
-                "apply_mutations",
-                "advance_lifecycle",
-                "enforce_ensures",
-                "save",
-                "emit",
-            ]
-        );
-    }
 }
 
 #[cfg(test)]

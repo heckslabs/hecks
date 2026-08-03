@@ -281,4 +281,30 @@ RSpec.describe "the declared vocabularies" do
     expect(entity_transitioning_trace).to include(:advance_lifecycle)
     expect(entity_acting_trace).not_to include(:advance_lifecycle)
   end
+
+  # RUST'S OWN HAND-TYPED TABLE, HELD EQUAL THE SAME WAY refusal_wording_
+  # conformance_spec.rb already holds refusal_wording.rs to a declaration —
+  # read as TEXT, not executed, the same technique rust_syntax_conformance_
+  # spec uses for FLAG_ARGUMENTS. `dispatch`/`dispatch_entity` mechanically
+  # iterate `AGGREGATE_STEPS`/`ENTITY_STEPS` (dispatcher.rs) in the order
+  # `AGGREGATE_DISPATCH_ORDER`/`ENTITY_DISPATCH_ORDER` name, in Rust, the
+  # same way Ruby's own DISPATCH_ORDER drives `call` — so this is the Rust
+  # twin of this file's own "AggregateDispatchOrder/EntityDispatchOrder
+  # matches the table the runtime uses" checks above, not a duplicate of
+  # them: those hold RUBY's table to the declaration, this holds RUST's.
+  def rust_dispatch_order(const_name)
+    source = File.read(File.join(InMemoryDomain::ROOT, "rust/src/runtime/dispatcher.rs"))
+    match = source.match(/pub const #{const_name}: &\[&str\] = &\[(.*?)\];/m) or
+      raise "no #{const_name} found in dispatcher.rs"
+    match[1].scan(/"([a-z_]+)"/).flatten
+  end
+
+  [
+    ["AggregateDispatchOrder", "AGGREGATE_DISPATCH_ORDER"],
+    ["EntityDispatchOrder", "ENTITY_DISPATCH_ORDER"]
+  ].each do |vocabulary, const_name|
+    it "holds Rust's #{const_name} equal to the declared #{vocabulary}" do
+      expect(rust_dispatch_order(const_name)).to eq(declared(vocabulary))
+    end
+  end
 end
