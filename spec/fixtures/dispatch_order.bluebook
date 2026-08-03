@@ -48,6 +48,18 @@ Hecks.bluebook "DispatchOrder" do
       emits "WidgetOpened"
     end
 
+    # NEITHER CREATING NOR TRANSITIONING — the DISPATCH_ORDER skip branch's
+    # own fixture. `Open` above exercises every step, including both
+    # conditionals firing ; nothing exercised either conditional's SKIP.
+    command "Close" do
+      role "System"
+      goal "Act on an existing widget, creating and transitioning neither"
+
+      reference_to Widget
+
+      emits "WidgetClosed"
+    end
+
     attribute :parts, list_of(Part)
 
     entity "Part" do
@@ -73,6 +85,21 @@ Hecks.bluebook "DispatchOrder" do
         ensures("the note landed") { note.value == note.value }
 
         emits "PartAdvanced"
+      end
+
+      # THE ENTITY TWIN of Widget's own `Close` — nothing in EntityDispatchOrder
+      # is conditional on creation (an entity is never created through this
+      # path at all), but advance_lifecycle still is, so this is that skip
+      # branch's fixture.
+      command "Touch" do
+        role "System"
+        goal "Act on a part without transitioning it"
+
+        attribute :note, Note
+
+        then_set :note, to: :note
+
+        emits "PartTouched"
       end
     end
   end

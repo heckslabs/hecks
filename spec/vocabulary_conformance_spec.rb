@@ -68,7 +68,19 @@ RSpec.describe "the declared vocabularies" do
     "NormalisationStrategy" => -> { Hecksagain::Bluebook::Expression::CanonicalForm::STRATEGIES },
     "LoadOrder"             => -> { Hecksagain::Adapters::Folder::DOMAIN_ORDER },
     "DomainRefusal"         => -> { Hecksagain::Runtime::DOMAIN_REFUSALS.map { |e| e.name.split("::").last } },
-    "Trigger"               => -> { [Hecksagain::Bluebook::IR::ProcessManager::REFUSED] }
+    "Trigger"               => -> { [Hecksagain::Bluebook::IR::ProcessManager::REFUSED] },
+    # AGGREGATE/ENTITY DISPATCH ORDER, THE SAME SPLIT AS EVERY VOCABULARY
+    # ABOVE — CommandInterpreter/EntityInterpreter#DISPATCH_ORDER is a
+    # hand-typed live table now (call is driven BY it), not read live off the
+    # meta-domain at every dispatch, matching RefusalWording::TEMPLATES'
+    # own reasoning. What used to be checked by tracing a real dispatch and
+    # comparing the trace to the declaration is checked below instead —
+    # tautological now that `call` mechanically follows DISPATCH_ORDER, so
+    # what remains worth proving is coverage (every declared step resolves to
+    # a real handler) and conditional correctness (the two conditional steps
+    # actually fire/skip under the right preconditions), not the sequence.
+    "AggregateDispatchOrder" => -> { Hecksagain::Runtime::CommandInterpreter::DISPATCH_ORDER },
+    "EntityDispatchOrder"    => -> { Hecksagain::Runtime::EntityInterpreter::DISPATCH_ORDER }
   }.each do |vocabulary, live|
     it "#{vocabulary} matches the table the runtime uses" do
       expect(declared(vocabulary)).to eq(live.call.map(&:to_s))
@@ -190,12 +202,6 @@ RSpec.describe "the declared vocabularies" do
     )
   end
 
-  # AggregateDispatchOrder/EntityDispatchOrder have no pre-existing Ruby
-  # constant to compare against, unlike every vocabulary above — the order was
-  # never named before this. So the "live" value is a TRACE : dispatch a real
-  # command chosen so every conditional step fires, and hold the declaration
-  # to what actually ran, not to a hand-written list that could silently drift
-  # from the code the same way the order itself once could.
   def boot(bluebook)
     registry = Hecksagain::Runtime::Registry.new
     Hecksagain.with_registry(registry) do
@@ -208,29 +214,71 @@ RSpec.describe "the declared vocabularies" do
     end
   end
 
-  it "AggregateDispatchOrder matches a real dispatch that creates, transitions, and mutates" do
+  # COVERAGE : every step DISPATCH_ORDER names must resolve to a real
+  # `step_<name>` handler `call` can actually `send` to — the thing that
+  # would have silently no-op'd (NoMethodError at dispatch time, really,
+  # but only the FIRST time that step's preconditions were ever met) if a
+  # declared step and its handler ever drifted apart.
+  [
+    ["AggregateDispatchOrder", Hecksagain::Runtime::CommandInterpreter],
+    ["EntityDispatchOrder", Hecksagain::Runtime::EntityInterpreter]
+  ].each do |vocabulary, interpreter|
+    it "every #{vocabulary} step resolves to a registered #{interpreter} handler" do
+      declared(vocabulary).each do |step_name|
+        expect(interpreter.private_method_defined?(:"step_#{step_name}"))
+          .to be(true), "#{interpreter} declares #{step_name} but defines no step_#{step_name} handler"
+      end
+    end
+  end
+
+  # CONDITIONAL CORRECTNESS : assign_creation_attributes and advance_lifecycle
+  # (both interpreters) are the two DISPATCH_ORDER members `call` does not run
+  # unconditionally — each traces exactly when its own precondition holds, per
+  # CommandInterpreter#step_assign_creation_attributes/#step_advance_lifecycle
+  # and EntityInterpreter#step_advance_lifecycle's own internal self-guards.
+  # `Open`/`Advance` fire both ; `Close`/`Touch` (spec/fixtures/
+  # dispatch_order.bluebook) create and transition neither, so together the
+  # four dispatches below exercise every conditional step's fire AND skip.
+  it "assign_creation_attributes fires only for a creating command" do
     runtime = boot(File.join(InMemoryDomain::ROOT, "spec/fixtures/dispatch_order.bluebook"))
 
     Hecksagain::Runtime::CommandInterpreter.trace = []
     runtime.dispatch("DispatchOrder::Widget.Open", label: { value: "x" }, amount: { value: 5 },
                       part_sequence: { value: 1 }, part_note: { value: "start" })
-    trace = Hecksagain::Runtime::CommandInterpreter.trace
+    creating_trace = Hecksagain::Runtime::CommandInterpreter.trace.dup
+
+    Hecksagain::Runtime::CommandInterpreter.trace = []
+    runtime.dispatch("DispatchOrder::Widget.Close", label: { value: "x" })
+    acting_trace = Hecksagain::Runtime::CommandInterpreter.trace.dup
     Hecksagain::Runtime::CommandInterpreter.trace = nil
 
-    expect(trace.map(&:to_s)).to eq(declared("AggregateDispatchOrder"))
+    expect(creating_trace).to include(:assign_creation_attributes)
+    expect(acting_trace).not_to include(:assign_creation_attributes)
   end
 
-  it "EntityDispatchOrder matches a real dispatch that transitions and mutates" do
+  it "advance_lifecycle fires only when admissible_transition finds one" do
     runtime = boot(File.join(InMemoryDomain::ROOT, "spec/fixtures/dispatch_order.bluebook"))
     runtime.dispatch("DispatchOrder::Widget.Open", label: { value: "x" }, amount: { value: 5 },
                       part_sequence: { value: 1 }, part_note: { value: "start" })
 
+    Hecksagain::Runtime::CommandInterpreter.trace = []
+    runtime.dispatch("DispatchOrder::Widget.Close", label: { value: "x" })
+    aggregate_trace = Hecksagain::Runtime::CommandInterpreter.trace.dup
+    Hecksagain::Runtime::CommandInterpreter.trace = nil
+
     Hecksagain::Runtime::EntityInterpreter.trace = []
     runtime.dispatch("DispatchOrder::Widget.Part.Advance", label: { value: "x" }, sequence: { value: 1 },
                       note: { value: "done note" })
-    trace = Hecksagain::Runtime::EntityInterpreter.trace
+    entity_transitioning_trace = Hecksagain::Runtime::EntityInterpreter.trace.dup
+
+    Hecksagain::Runtime::EntityInterpreter.trace = []
+    runtime.dispatch("DispatchOrder::Widget.Part.Touch", label: { value: "x" }, sequence: { value: 1 },
+                      note: { value: "touched" })
+    entity_acting_trace = Hecksagain::Runtime::EntityInterpreter.trace.dup
     Hecksagain::Runtime::EntityInterpreter.trace = nil
 
-    expect(trace.map(&:to_s)).to eq(declared("EntityDispatchOrder"))
+    expect(aggregate_trace).not_to include(:advance_lifecycle)
+    expect(entity_transitioning_trace).to include(:advance_lifecycle)
+    expect(entity_acting_trace).not_to include(:advance_lifecycle)
   end
 end

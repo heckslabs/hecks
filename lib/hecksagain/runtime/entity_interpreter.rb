@@ -14,6 +14,30 @@ module Hecksagain
 
       attr_reader :registry
 
+      # THE DECLARED ORDER, HAND-TYPED — mirrors Vocabulary::EntityDispatchOrder
+      # (language/bluebook/vocabulary.bluebook:217-232), held equal to it by
+      # spec/vocabulary_conformance_spec.rb the same way CommandInterpreter's
+      # own DISPATCH_ORDER is; see that constant's doc comment for why this is
+      # hand-typed rather than read live off the meta-domain at every dispatch.
+      # Shorter than the aggregate order for the same reasons the declaration
+      # itself gives : no refuse_unknown_arguments/refuse_absent_arguments (an
+      # entity inherits its aggregate's own gate) and no
+      # assign_creation_attributes (an entity is never created through this
+      # path).
+      DISPATCH_ORDER = %i[
+        normalize_args resolve_references hydrate_parent locate_element
+        enforce_givens admissible_transition apply_mutations advance_lifecycle
+        enforce_ensures save emit
+      ].freeze
+
+      # `instance` is the PARENT aggregate record (what gets saved and
+      # returned) ; `element`/`view` are the entity piece itself — `view`
+      # wraps `element` as it stood at `locate_element`, pre-mutation, and
+      # `enforce_ensures` builds its own settled wrapper off `element` as it
+      # stands after, the same split the original sequential code made.
+      Context = Struct.new(:domain, :aggregate, :entity, :entity_name, :command, :command_name,
+                            :args, :repository, :instance, :element, :view, :transition, :old_element, :result)
+
       def initialize(registry, rules:)
         @registry = registry
         @rules    = rules
@@ -28,34 +52,70 @@ module Hecksagain
                   raise(UnknownVerb, RefusalWording.render("UnknownVerb", "entity_no_command",
                                                             entity: entity_name, command: command_name.inspect))
 
-        args       = step(:normalize_args) { normalize_args(aggregate, command, args) }
-        step(:resolve_references) { @rules.resolve_references(domain, command, args) }
-        repository = @registry.repository(domain, aggregate)
-        instance   = step(:hydrate_parent) { parent(repository, aggregate, entity_name, command_name, args) }
-        element    = step(:locate_element) { element_of(aggregate, entity, entity_name, command_name, instance, args) }
-
-        view = Instance.new(aggregate: entity, id: element_identity(entity, element).to_s, state: element)
-        step(:enforce_givens) { @rules.enforce_givens(view, command, args) }
-        transition = step(:admissible_transition) { @rules.admissible_transition(entity, command, view) }
-        old_element = element.dup unless command.ensures.empty?
-        step(:apply_mutations) { command.mutations.each { |mutation| apply_to_element(aggregate, entity, element, mutation, args) } }
-        step(:advance_lifecycle) { element[entity.lifecycle.field] = transition.target } if transition
-        # `view` was hydrated ONCE, at locate_element, into its OWN state
-        # hash (Value.hydrate builds a fresh Hash — never aliased with
-        # `element`) — exactly right for enforce_givens, which must read
-        # pre-mutation. An ensures reads the SETTLED record, so it needs a
-        # view hydrated from `element` as it stands now, mutations included.
-        step(:enforce_ensures) do
-          settled = Instance.new(aggregate: entity, id: view.id, state: element)
-          @rules.enforce_ensures(settled, command, args, old: old_element)
-        end
-
-        step(:save) { repository.save(instance) }
-
-        [instance, step(:emit) { @rules.emit(command, domain, aggregate, instance, args, repository) }]
+        ctx = Context.new(domain, aggregate, entity, entity_name, command, command_name, args)
+        run_dispatch_order(DISPATCH_ORDER, ctx)
+        [ctx.instance, ctx.result]
       end
 
       private
+
+      def step_normalize_args(ctx)
+        ctx.args = step(:normalize_args) { normalize_args(ctx.aggregate, ctx.command, ctx.args) }
+      end
+
+      def step_resolve_references(ctx)
+        step(:resolve_references) { @rules.resolve_references(ctx.domain, ctx.command, ctx.args) }
+      end
+
+      def step_hydrate_parent(ctx)
+        ctx.repository = @registry.repository(ctx.domain, ctx.aggregate)
+        ctx.instance = step(:hydrate_parent) { parent(ctx.repository, ctx.aggregate, ctx.entity_name, ctx.command_name, ctx.args) }
+      end
+
+      def step_locate_element(ctx)
+        ctx.element = step(:locate_element) { element_of(ctx.aggregate, ctx.entity, ctx.entity_name, ctx.command_name, ctx.instance, ctx.args) }
+        # `view` was hydrated ONCE, here, into its OWN state hash
+        # (Value.hydrate builds a fresh Hash — never aliased with `element`)
+        # — exactly right for enforce_givens, which must read pre-mutation.
+        ctx.view = Instance.new(aggregate: ctx.entity, id: element_identity(ctx.entity, ctx.element).to_s, state: ctx.element)
+      end
+
+      def step_enforce_givens(ctx)
+        step(:enforce_givens) { @rules.enforce_givens(ctx.view, ctx.command, ctx.args) }
+      end
+
+      def step_admissible_transition(ctx)
+        ctx.transition = step(:admissible_transition) { @rules.admissible_transition(ctx.entity, ctx.command, ctx.view) }
+      end
+
+      def step_apply_mutations(ctx)
+        ctx.old_element = ctx.element.dup unless ctx.command.ensures.empty?
+        step(:apply_mutations) { ctx.command.mutations.each { |mutation| apply_to_element(ctx.aggregate, ctx.entity, ctx.element, mutation, ctx.args) } }
+      end
+
+      def step_advance_lifecycle(ctx)
+        return unless ctx.transition
+
+        step(:advance_lifecycle) { ctx.element[ctx.entity.lifecycle.field] = ctx.transition.target }
+      end
+
+      # An ensures reads the SETTLED record, so it needs a view hydrated from
+      # `element` as it stands now, mutations included — unlike `view` above,
+      # built once and read pre-mutation by enforce_givens.
+      def step_enforce_ensures(ctx)
+        step(:enforce_ensures) do
+          settled = Instance.new(aggregate: ctx.entity, id: ctx.view.id, state: ctx.element)
+          @rules.enforce_ensures(settled, ctx.command, ctx.args, old: ctx.old_element)
+        end
+      end
+
+      def step_save(ctx)
+        step(:save) { ctx.repository.save(ctx.instance) }
+      end
+
+      def step_emit(ctx)
+        ctx.result = step(:emit) { @rules.emit(ctx.command, ctx.domain, ctx.aggregate, ctx.instance, ctx.args, ctx.repository) }
+      end
 
       # THE PARENT AGGREGATE, addressed exactly as `CommandInterpreter#hydrate`
       # addresses one acting on itself — derive from the declared identity first
@@ -153,10 +213,6 @@ module Hecksagain
             @rules.sign_of(mutation.op)
           )
         end
-      end
-
-      def normalize_args(aggregate, command, args)
-        coerce_declared_arguments(aggregate, command, args)
       end
     end
   end
