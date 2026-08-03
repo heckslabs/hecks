@@ -1,4 +1,4 @@
-require_relative "../../../../ports/persistence/era_tamper"
+require_relative "../../../../runtime/era_tamper"
 require_relative "../../../../runtime/registry"
 require_relative "../../../../runtime/storage_shape"
 
@@ -83,7 +83,7 @@ module Hecksagain
               return
             end
 
-            raise Runtime::WiringError, Ports::Persistence::EraTamper.refusal(
+            raise Runtime::WiringError, Runtime::EraTamper.refusal(
               domain: @domain, ordinal: ordinal, edited_text: text,
               stored_projection: stored_projection_json && JSON.parse(stored_projection_json)
             )
@@ -96,7 +96,7 @@ module Hecksagain
             archive_text!(ordinal, text)
             return if stored_projection_json
 
-            projection = Ports::Persistence::EraTamper.project(text)
+            projection = Runtime::EraTamper.project(text)
             return unless projection
 
             @db.exec_params(

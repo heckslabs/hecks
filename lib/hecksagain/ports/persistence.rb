@@ -10,7 +10,6 @@ end
 
 require_relative "persistence/binding_policy"
 require_relative "persistence/lineage"
-require_relative "persistence/era_tamper"
 require_relative "persistence/repository_factory"
 require_relative "persistence/append_only"
 
