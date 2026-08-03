@@ -1364,7 +1364,7 @@ fn bare_vo_type(first: &str) -> Option<String> {
     Some(token)
 }
 
-fn is_kwarg(s: &str) -> bool {
+pub(crate) fn is_kwarg(s: &str) -> bool {
     let Some(colon_pos) = s.find(':') else {
         return false;
     };
@@ -1377,7 +1377,7 @@ fn is_kwarg(s: &str) -> bool {
         && before.chars().all(|c| c.is_alphanumeric() || c == '_')
 }
 
-fn split_top_level_commas(s: &str) -> Vec<&str> {
+pub(crate) fn split_top_level_commas(s: &str) -> Vec<&str> {
     let mut parts = Vec::new();
     let mut depth = 0i32;
     let mut in_str = false;

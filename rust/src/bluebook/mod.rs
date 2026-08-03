@@ -1,4 +1,5 @@
 pub mod expression;
+pub mod generic_bind;
 pub mod hecksagon_helpers;
 pub mod hecksagon_ir;
 pub mod hecksagon_parser;
