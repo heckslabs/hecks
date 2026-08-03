@@ -21,6 +21,18 @@ storehouse = { path = "..", default-features = false }
 postgres = "0.19"
 serde_json = "1"
 
+# native-tls/postgres-native-tls — a managed Postgres service (RDS, Cloud
+# SQL, Azure, Supabase, Neon, ...) commonly requires TLS ; the OS's own TLS
+# stack (Secure Transport/SChannel/OpenSSL, whichever native-tls picks per
+# platform) avoids a separate OpenSSL build/link story. Negotiated per
+# tokio-postgres's own `sslmode` handling (default `prefer`): a local dev
+# Postgres with no TLS configured at all still connects exactly as it did
+# under NoTls, and a deployment whose connection string says `sslmode=
+# require` gets it enforced — the same connector either way, not a
+# separate code path per environment.
+native-tls = "0.2"
+postgres-native-tls = "0.5"
+
 # The integration tests still want a REAL shape, built from real bluebook
 # text, to compare era_gate's own behavior against — `storehouse::parser::
 # parse` + `storehouse::runtime::storage_shape::project`, inlined in the

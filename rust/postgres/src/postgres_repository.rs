@@ -24,7 +24,9 @@
 //! declare compiles fully into SQL; the two ops that cannot (`in`,
 //! `none_in_state`) decline pushdown entirely rather than half-answer.
 
-use postgres::{Client, NoTls};
+use native_tls::TlsConnector;
+use postgres::Client;
+use postgres_native_tls::MakeTlsConnector;
 use std::collections::HashMap;
 use std::sync::Mutex;
 use storehouse::bluebook::translation::ir::Translation;
@@ -94,7 +96,17 @@ impl PostgresRepository {
         } else {
             format!("host=localhost dbname={database}")
         };
-        let mut client = Client::connect(&config, NoTls)
+        // A REAL TLS CONNECTOR, NOT `NoTls` — the OS's own TLS stack
+        // (Secure Transport/SChannel/OpenSSL, whichever native-tls picks),
+        // negotiated per the connection string's own `sslmode` (default
+        // `prefer`, tokio-postgres's own default) : a local dev Postgres
+        // with no TLS configured connects exactly as it always did, and a
+        // managed service (RDS, Cloud SQL, Azure, Supabase, Neon, ...)
+        // that requires TLS gets it, the same connector either way.
+        let connector = TlsConnector::new()
+            .map_err(|error| format!("cannot build a TLS connector: {error}"))?;
+        let connector = MakeTlsConnector::new(connector);
+        let mut client = Client::connect(&config, connector)
             .map_err(|error| format!("cannot bind Postgres at {database} for {aggregate_type}: {error}"))?;
 
         let table = storehouse::naming::snake(aggregate_type);
