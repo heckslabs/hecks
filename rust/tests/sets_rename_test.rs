@@ -1,3 +1,6 @@
+// Exercises `bluebook::parser` directly — not compiled at all without it.
+#![cfg(feature = "parser")]
+
 //! `sets` is the word; `then_set` is the spelling every existing bluebook
 //! was written under — Syntax::Keyword carries the rename as `was:`, and
 //! the contract of that column is that BOTH spellings parse, forever, to

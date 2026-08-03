@@ -1,3 +1,6 @@
+// Exercises `bluebook::parser` directly — not compiled at all without it.
+#![cfg(feature = "parser")]
+
 //! `has_many`, `has_one`, `belongs_to` — relationship vocabulary this parser
 //! already read (cherry-picked from Hecks) while Ruby's DSL had not yet
 //! landed it, so a bluebook using one parsed on ONE SIDE ONLY. Ruby has it

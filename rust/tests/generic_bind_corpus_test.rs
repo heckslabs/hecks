@@ -1,3 +1,7 @@
+// Exercises `bluebook::generic_bind`/`parser` directly — not compiled at
+// all without the `parser` feature.
+#![cfg(feature = "parser")]
+
 //! CORPUS-WIDE DIFFERENTIAL SMOKE CHECK for the generic argument binder
 //! (`storehouse::bluebook::generic_bind::bind_keyword`).
 //!

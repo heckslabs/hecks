@@ -1,3 +1,7 @@
+// Exercises `storehouse_postgres::shape_of` directly — not compiled at all
+// without this crate's own `parser` feature.
+#![cfg(feature = "parser")]
+
 //! Runs only when a Postgres server is reachable on localhost — the same
 //! gate the Ruby adapter spec and `bin/parity`'s postgres variant use.
 //! Absent a server, every test here passes with a printed notice rather

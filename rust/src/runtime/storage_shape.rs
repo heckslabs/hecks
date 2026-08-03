@@ -120,7 +120,9 @@ fn text(value: &Value, key: &str) -> String {
     value.get(key).and_then(Value::as_str).unwrap_or_default().to_string()
 }
 
-#[cfg(test)]
+// Its own fixture-building parses fresh bluebook text via `bluebook::
+// parser` — `project` itself (above) takes an already-parsed `Domain`.
+#[cfg(all(test, feature = "parser"))]
 mod tests {
     use super::*;
     use std::fs;

@@ -7,6 +7,18 @@ description = "Postgres persistence adapter for storehouse — implements the Pe
 [lib]
 path = "src/lib.rs"
 
+# `parser` — this crate's own `shape_of`/`shape_of_checked` (lib.rs) call
+# `storehouse::parser::parse` directly, only for the legacy-backfill/
+# tamper-diagnosis paths in postgres_repository.rs (the happy path never
+# reaches either — Ruby's own minting always stores a precomputed shape).
+# `default` carries it, so nothing changes for a plain build ; a caller
+# that wants a parser-free binary passes `default-features = false` on
+# THIS dependency (as hecksagain-cli's own Cargo.toml does) and enables
+# `parser` explicitly only if it still wants it.
+[features]
+default = ["parser"]
+parser = ["storehouse/parser"]
+
 # default-features = false : same reasoning as storehouse-sqlite's own
 # dependency line — an adapter implements a port, not a domain, and feature
 # unification across the workspace would otherwise force every projected

@@ -19,16 +19,42 @@ path = "src/main.rs"
 # is what makes that meaningful: without it, storehouse's own `default`
 # (every domain) would still link regardless of what's passed here.
 [features]
-default = ["storehouse/default"]
+# `default` must enable this crate's OWN `parser` feature, not just the
+# other two crates' — `#[cfg(feature = "parser")]` in main.rs checks
+# hecksagain-cli's own flag, and enabling storehouse's/storehouse-
+# postgres's alone (as this line first did, a real bug caught by actually
+# running the resulting binary) leaves main.rs's own gates off even
+# though both dependencies compiled their parser-dependent code in.
+default = ["storehouse/default", "parser"]
 banking = ["storehouse/banking"]
 expression = ["storehouse/expression"]
 pizzas = ["storehouse/pizzas"]
 reflex = ["storehouse/reflex"]
 till_room = ["storehouse/till_room"]
 wire = ["storehouse/wire"]
+# The hand-written parser and its own debug subcommands (--dump/
+# --dump-shape/--wiring, gated in main.rs) — passthrough, same reasoning
+# as the domain features above. Enables BOTH crates' own `parser` feature:
+# storehouse's (this binary's own fallback-to-parsing/CLI subcommands) and
+# storehouse-postgres's (its legacy-backfill/tamper-diagnosis paths) — two
+# separate flags because they're two separate crates, not because they
+# mean different things to a caller of THIS one.
+parser = ["storehouse/parser", "storehouse-postgres/parser", "storehouse-sqlite/parser"]
 
 [dependencies]
 storehouse = { path = "..", default-features = false }
-storehouse-sqlite = { path = "../sqlite" }
-storehouse-postgres = { path = "../postgres" }
+# default-features = false : storehouse-sqlite's own `default` (`parser`)
+# would otherwise transitively re-enable `storehouse/parser` regardless of
+# what's asked for here — the same feature-unification reasoning as
+# storehouse-postgres's own dependency line below. storehouse-sqlite's
+# `parser` feature only gates its OWN tests (never compiled into this
+# binary anyway), so this mostly matters for keeping storehouse's own
+# feature set exactly what THIS crate's flags say it is, not incidentally
+# widened by a sibling dependency.
+storehouse-sqlite = { path = "../sqlite", default-features = false }
+# default-features = false : storehouse-postgres's own `parser` feature
+# (its only optional one) must be reachable through THIS crate's own
+# `parser` feature above, not force-linked regardless of what's asked for
+# — the same reasoning storehouse's own dependency line already carries.
+storehouse-postgres = { path = "../postgres", default-features = false }
 serde_json = "1"

@@ -19,7 +19,7 @@ pub fn is_hecksagon_source(source: &str) -> bool {
 
 pub fn parse(source: &str) -> Hecksagon {
     let mut hex = Hecksagon::default();
-    let source = crate::parser::strip_shebang(source);
+    let source = crate::bluebook::parser_helpers::strip_shebang(source);
     let raw: Vec<&str> = source.lines().collect();
 
     let mut i = 0;

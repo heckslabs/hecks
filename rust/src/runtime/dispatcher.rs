@@ -765,6 +765,7 @@ impl Runtime {
 
         let domain = match projected {
             Some(domain) => domain,
+            #[cfg(feature = "parser")]
             None => {
                 let parsed = crate::bluebook::parser::parse(&source);
                 // Interim host-language strictness — see runtime::strict_boot.
@@ -777,6 +778,19 @@ impl Runtime {
                     ));
                 }
                 parsed
+            }
+            // NO PROJECTION MATCHED, AND THIS BINARY CARRIES NO PARSER TO READ
+            // THE SOURCE FRESH — a deliberate deployment shape (see `parser`'s
+            // own feature doc, rust/Cargo.toml), not a missing capability to
+            // silently work around. Refuses rather than half-reading, the same
+            // principle `strict_boot` itself is named for.
+            #[cfg(not(feature = "parser"))]
+            None => {
+                return Err(format!(
+                    "cannot boot from {}: this binary carries no projection of this source, \
+                     and was built without the parser to read it fresh",
+                    bluebook_path.display()
+                ));
             }
         };
         // THE FIELD, NAMED — never the value object that carries it, the same

@@ -1,5 +1,8 @@
+#[cfg(feature = "parser")]
 use storehouse::ports::persistence;
-use storehouse::{dispatcher, ir_json, parser};
+use storehouse::dispatcher;
+#[cfg(feature = "parser")]
+use storehouse::{ir_json, parser};
 
 use dispatcher::Runtime;
 use serde_json::{json, Map, Value};
@@ -8,6 +11,13 @@ use std::fs;
 fn main() {
     let arguments: Vec<String> = std::env::args().collect();
 
+    // `--dump`/`--dump-shape`/`--wiring` all read `bluebook::parser`
+    // directly — debug/dev tooling, not needed by a binary that only ever
+    // boots domains already compiled in. `--dump-translation` is NOT gated
+    // here: it reads through `translation::parser`, a separate, always-on
+    // parser for a different file format (see `parser`'s own feature doc,
+    // rust/Cargo.toml).
+    #[cfg(feature = "parser")]
     if arguments.len() == 3 && arguments[1] == "--dump" {
         println!(
             "{}",
@@ -16,6 +26,7 @@ fn main() {
         return;
     }
 
+    #[cfg(feature = "parser")]
     if arguments.len() == 3 && arguments[1] == "--dump-shape" {
         let source = fs::read_to_string(&arguments[2]).unwrap_or_else(|error| {
             eprintln!("cannot read {}: {}", arguments[2], error);
@@ -39,6 +50,7 @@ fn main() {
         return;
     }
 
+    #[cfg(feature = "parser")]
     if arguments.len() == 3 && arguments[1] == "--wiring" {
         let source = fs::read_to_string(&arguments[2]).unwrap_or_else(|error| {
             eprintln!("cannot read {}: {}", arguments[2], error);
@@ -242,6 +254,7 @@ fn enforce_expectations(script: &Value, output: &Value) -> Vec<String> {
     unmet
 }
 
+#[cfg(feature = "parser")]
 fn read_bluebook(path: &str) -> Value {
     if !path.ends_with(".bluebook") {
         eprintln!(

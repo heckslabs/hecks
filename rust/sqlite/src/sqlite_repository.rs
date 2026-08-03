@@ -399,7 +399,10 @@ pub fn register() {
     storehouse::runtime::register_persistence_adapter("sqlitemirror", sqlite_factory);
 }
 
-#[cfg(test)]
+// READS A REAL BLUEBOOK (`storehouse::parser::parse`), on purpose — see
+// this module's own comment below on why synthetic data isn't enough.
+// Not the production code above, which needs no parser at all.
+#[cfg(all(test, feature = "parser"))]
 mod numeric_path_tests {
     use super::numeric_paths;
 

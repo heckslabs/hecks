@@ -19,6 +19,31 @@ const SKIPPED_DIRECTORIES: &[&str] = &[
     "coverage",
 ];
 
+/// A PROJECTION IS PREFERRED, AND NOT PARSED — the same rule `Runtime::
+/// boot` already holds itself to (`dispatcher.rs`), applied here because
+/// project-wide discovery walks arbitrary `.bluebook` files it cannot
+/// know ahead of time are all compiled in. A source with no projection
+/// parses when this binary carries a parser ; without one, this refuses
+/// by name rather than silently reporting fewer domains than the project
+/// actually declares.
+#[cfg_attr(feature = "parser", allow(unused_variables))]
+fn domain_for(source: &str, source_path: &Path) -> Result<Domain, String> {
+    if let Some(domain) = crate::bluebook::projected::by_source(source) {
+        return Ok(domain);
+    }
+    #[cfg(feature = "parser")]
+    {
+        Ok(crate::bluebook::parser::parse(source))
+    }
+    #[cfg(not(feature = "parser"))]
+    {
+        Err(format!(
+            "cannot load {}: this binary carries no projection of it, and was built without the parser to read it fresh",
+            source_path.display()
+        ))
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct Entry {
     pub fqn: Fqn,
@@ -66,12 +91,8 @@ impl ProjectLoader {
         for directory in bluebook_directories(&root)? {
             let worlds = worlds(&directory)?;
             for (source_path, source) in bluebook_sources(&directory)? {
-                loader.register(
-                    crate::bluebook::parser::parse(&source),
-                    &worlds,
-                    &directory,
-                    &source_path,
-                )?;
+                let domain = domain_for(&source, &source_path)?;
+                loader.register(domain, &worlds, &directory, &source_path)?;
             }
             for (_, source) in translation_sources(&directory)? {
                 loader

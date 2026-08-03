@@ -41,7 +41,7 @@ pub fn parse(source: &str) -> Domain {
         process_managers: vec![],
     };
 
-    let source = strip_shebang(source);
+    let source = crate::bluebook::parser_helpers::strip_shebang(source);
 
     let lines: Vec<&str> = source.lines().collect();
     let mut i = 0;
@@ -135,16 +135,6 @@ pub(crate) fn keyword_matches(line: &str, keyword: &str) -> bool {
     }
     let next = after.as_bytes()[0];
     !(next as char).is_alphanumeric() && next != b'_'
-}
-
-pub fn strip_shebang(source: &str) -> &str {
-    if source.starts_with("#!") {
-        if let Some(nl) = source.find('\n') {
-            return &source[nl + 1..];
-        }
-        return "";
-    }
-    source
 }
 
 /// `attribute`, `reference_to`, `has_many`, `has_one`, `belongs_to`, and the

@@ -1,3 +1,6 @@
+// Exercises `bluebook::parser` directly — not compiled at all without it.
+#![cfg(feature = "parser")]
+
 //! `Command#reference_to`'s `optional:` — declared in `syntax.bluebook`
 //! (`Command.reference_to`'s `optional` argument row), real on Ruby's
 //! `CommandBuilder#reference_to(type, as: nil, optional: false)`, and never

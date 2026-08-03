@@ -21,7 +21,9 @@ pub use bluebook::hecksagon_helpers;
 pub use bluebook::hecksagon_ir;
 pub use bluebook::hecksagon_parser;
 pub use bluebook::ir;
+#[cfg(feature = "parser")]
 pub use bluebook::parse_blocks;
+#[cfg(feature = "parser")]
 pub use bluebook::parser;
 pub use bluebook::parser_helpers;
 pub use bluebook::pattern_subset;

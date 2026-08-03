@@ -53,14 +53,34 @@ fn text_literal(text: &str) -> String {
 struct EraRow {
     ordinal: i32,
     label: Option<String>,
-    held_text: String,
+    // NO `held_text` — `era_gate` used to re-derive each row's shape from
+    // it (`shape_of(&era.held_text)`), which is exactly the redundant
+    // reparse this struct now avoids. Nothing downstream of `eras()`
+    // reads the text itself, only `projection` below, so it never gets
+    // this far.
+    /// Read (or backfilled) once, in `eras()` — `era_gate` compares
+    /// against THIS, never by re-deriving it from held text a second
+    /// time. `eras()` already fetches/backfills `held_projection` per
+    /// row for the tamper-integrity check ; carrying it through here is
+    /// what makes era-matching itself need no parser at all, not merely
+    /// gate one.
+    projection: serde_json::Value,
 }
 
 /// Byte-identical with Ruby's `Ports::Persistence::EraTamper` — when
 /// the digest fails, say WHICH situation the operator is in, by the
 /// structural comparison every boot already trusts.
+///
+/// WITHOUT `parser`, this always falls to the generic wording below — the
+/// same one it already falls to when `stored_projection` is `None` or
+/// `shape_of_checked` can't make sense of the edit. Tamper is still
+/// DETECTED either way (the digest mismatch alone is what triggers this
+/// function at all) ; what a parser-free binary loses is only the nicer
+/// cosmetic-vs-real-drift distinction in the message.
+#[cfg_attr(not(feature = "parser"), allow(unused_variables))]
 fn integrity_refusal(domain: &str, ordinal: i32, edited_text: &str, stored_projection: Option<&serde_json::Value>) -> String {
     let base = format!("cannot boot {domain}: the held text of era {ordinal} was edited after it was frozen");
+    #[cfg(feature = "parser")]
     if let Some(stored) = stored_projection {
         // `None` here is the near-miss case `shape_of` itself cannot see —
         // see `shape_of_checked`'s own comment. Falling to the generic
@@ -243,16 +263,42 @@ impl PostgresRepository {
                     &[&self.domain, &ordinal, &digest, &held_text],
                 )
                 .map_err(|error| format!("cannot archive era text: {error}"))?;
-            if stored_projection.is_none() {
-                let projection = crate::shape_of(&held_text);
-                client
-                    .execute(
-                        "UPDATE hecks_eras SET held_projection = $3::text::jsonb WHERE domain = $1 AND ordinal = $2 AND held_projection IS NULL",
-                        &[&self.domain, &ordinal, &serde_json::to_string(&projection).unwrap_or_default()],
-                    )
-                    .map_err(|error| format!("cannot backfill era projection: {error}"))?;
-            }
-            held.push(EraRow { ordinal, label: row.get(1), held_text });
+            // CARRIED FORWARD, NOT RE-DERIVED — `era_gate` (below) matches
+            // eras by comparing THIS value, never by re-parsing `held_text`
+            // a second time.
+            let projection: serde_json::Value = match stored_projection {
+                Some(json) => serde_json::from_str(&json).unwrap_or(serde_json::Value::Null),
+                None => {
+                    // NORMAL MINTING NEVER REACHES HERE — Ruby's own
+                    // mint_transaction.rb/era_store.rb always store
+                    // held_projection alongside a new era row, computed
+                    // from the already-booted domain, not from re-parsed
+                    // text. This only fires for a row that PREDATES that
+                    // column, a one-time-per-row legacy backfill cached
+                    // forever after.
+                    #[cfg(feature = "parser")]
+                    {
+                        let projection = crate::shape_of(&held_text);
+                        client
+                            .execute(
+                                "UPDATE hecks_eras SET held_projection = $3::text::jsonb WHERE domain = $1 AND ordinal = $2 AND held_projection IS NULL",
+                                &[&self.domain, &ordinal, &serde_json::to_string(&projection).unwrap_or_default()],
+                            )
+                            .map_err(|error| format!("cannot backfill era projection: {error}"))?;
+                        projection
+                    }
+                    #[cfg(not(feature = "parser"))]
+                    {
+                        return Err(format!(
+                            "cannot boot {}: era {ordinal} predates projection caching and this binary \
+                             was built without the parser to backfill it; reattest it (bin/reattest_era), \
+                             or boot once with a parser-carrying binary",
+                            self.domain
+                        ));
+                    }
+                }
+            };
+            held.push(EraRow { ordinal, label: row.get(1), projection });
         }
         Ok(held)
     }
@@ -515,13 +561,12 @@ impl storehouse::runtime::PersistenceAdapter for PostgresRepository {
         }
 
         let latest = eras.last().expect("eras is non-empty");
-        let shape_of = |text: &str| crate::shape_of(text);
-        if shape_of(&latest.held_text) == *current_shape {
+        if latest.projection == *current_shape {
             return Ok(Some(latest.ordinal));
         }
 
         for era in &eras[..eras.len() - 1] {
-            if shape_of(&era.held_text) == *current_shape {
+            if era.projection == *current_shape {
                 // Held but superseded — the old world keeps booting its
                 // era and writing its own partition; the new head's
                 // watermark already excludes those post-cut writes.

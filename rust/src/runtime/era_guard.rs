@@ -262,7 +262,10 @@ fn suggestion(path: &str) -> String {
     }
 }
 
-#[cfg(test)]
+// Its own fixture-building (`check_era`) parses fresh bluebook text via
+// `bluebook::parser` to get a `Domain` to check — `check` itself (above)
+// needs no parser at all, per this file's own module doc.
+#[cfg(all(test, feature = "parser"))]
 mod tests {
     use super::*;
     use std::path::PathBuf;

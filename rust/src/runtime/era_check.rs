@@ -57,7 +57,9 @@ fn adapter_name(context: &EraContext, aggregate: &str) -> String {
         .unwrap_or_else(|| crate::ports::persistence::DEFAULT_ADAPTER.to_string())
 }
 
-#[cfg(test)]
+// Its own fixture-building uses `bluebook::parser`/`translation::parser`
+// directly — the production code above this module needs neither.
+#[cfg(all(test, feature = "parser"))]
 mod tests {
     use super::*;
     use std::fs;

@@ -7,6 +7,15 @@ description = "SQLite persistence adapter for storehouse — implements the Pers
 [lib]
 path = "src/lib.rs"
 
+# `parser` — this crate's PRODUCTION code needs no parser at all (an
+# adapter implements a port, never reaches into DSL-execution machinery
+# for its own operation) ; only its own test fixtures
+# (`numeric_path_tests`, gated the same way) read a real bluebook via
+# `storehouse::parser::parse` to get realistic data rather than synthetic.
+[features]
+default = ["parser"]
+parser = ["storehouse/parser"]
+
 # default-features = false : an adapter never needs a domain compiled in to
 # implement a PORT, and Cargo unifies a path dependency's features across
 # every crate that names it in one build — left default, this adapter alone

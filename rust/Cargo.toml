@@ -25,14 +25,29 @@ path = "src/lib.rs"
 # itself never changes shape; `#[cfg(feature = "...")]` inside it does the
 # selecting. Names match each projected/*.rs file's own stem
 # (`bin/ir_rust_registry`'s own naming), not the chapter's declared name.
+#
+# `parser` GATES THE HAND-WRITTEN `.bluebook` TEXT READER —
+# `bluebook::parser`/`parse_blocks`/`generic_bind` and the generated tables
+# only they consume (`ir_dispatch_words`, `ir_syntax_bindings`,
+# `ir_syntax_flags`, `ir_syntax_text`). In `default`, so nothing changes
+# for a plain build. A binary that only ever boots domains already
+# compiled in (`Runtime::boot_projected`, or `Runtime::boot` against a
+# source whose projection always matches) can exclude it — `Runtime::
+# boot`'s own fallback-to-parsing-unknown-text branch, and the CLI's
+# `--dump`/`--dump-shape`/`--wiring` debug tooling, refuse cleanly instead
+# when it's absent. `world::parser`/`translation::parser` are separate,
+# smaller parsers for different file formats (adapter-deployment wiring,
+# translation edges) and are NOT gated by this — genuinely still needed
+# by any real deployment, unlike the big DSL reader.
 [features]
-default = ["banking", "expression", "pizzas", "reflex", "till_room", "wire"]
+default = ["banking", "expression", "pizzas", "reflex", "till_room", "wire", "parser"]
 banking = []
 expression = []
 pizzas = []
 reflex = []
 till_room = []
 wire = []
+parser = []
 
 [dependencies]
 serde_json = "1"

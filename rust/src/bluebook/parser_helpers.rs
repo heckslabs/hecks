@@ -1,3 +1,18 @@
+/// Shared by every `.bluebook`-family parser (the big DSL reader,
+/// `world::parser`, `hecksagon_parser`) — not just the one this file used
+/// to live beside, which is why it lives here instead: this module stays
+/// compiled regardless of the `parser` feature (see rust/Cargo.toml's own
+/// doc on it), the other two don't.
+pub fn strip_shebang(source: &str) -> &str {
+    if source.starts_with("#!") {
+        if let Some(nl) = source.find('\n') {
+            return &source[nl + 1..];
+        }
+        return "";
+    }
+    source
+}
+
 pub fn extract_string(line: &str) -> Option<String> {
     let start = line.find('"')? + 1;
     let mut out = String::new();

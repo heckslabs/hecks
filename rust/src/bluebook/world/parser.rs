@@ -16,7 +16,7 @@ const SCALAR_KEYS: &[&str] = &["purpose", "vision", "audience", "realm", "latest
 
 pub fn parse(source: &str) -> World {
     let mut world = World::default();
-    let source = crate::parser::strip_shebang(source);
+    let source = crate::bluebook::parser_helpers::strip_shebang(source);
     let raw: Vec<&str> = source.lines().collect();
 
     let mut i = 0;

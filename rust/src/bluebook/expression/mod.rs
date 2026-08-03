@@ -1,5 +1,6 @@
 pub mod evaluator;
 pub mod resolver;
 
-#[cfg(test)]
+// Its own fixtures parse fresh bluebook text via `bluebook::parser`.
+#[cfg(all(test, feature = "parser"))]
 mod tests;
