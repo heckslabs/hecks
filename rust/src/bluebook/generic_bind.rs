@@ -37,6 +37,41 @@
 //! time, not parse time (`literal` kind — see `syntax.bluebook`'s own
 //! comment on those four rows). Both cutovers needed a SCHEMA correction,
 //! not new binder machinery.
+//!
+//! WHAT REMAINS HAND-WRITTEN, and why each is permanent rather than merely
+//! undone (M8) :
+//!
+//! - `attribute`'s own name/type/`list_of`/`one_of`/`pattern:`/`admits:`
+//!   reading — three separate irregularities (see `parse_attribute`'s own
+//!   doc comment), not one shape a bigger table would close.
+//! - `given`/`ensures`/`invariant` — multi-line source-body extraction, a
+//!   different concern than binding one line's own arguments.
+//! - `sets`' own bare form (`sets :field, "value"` / `sets :field, :other`,
+//!   no named kwarg at all) and `attribute`'s own bare-type-name form —
+//!   undeclared shorthand neither has an `Argument` row to bind against.
+//! - `cursor` — `CursorSpec.value` is the one field whose leading colon
+//!   Ruby's own wire format KEEPS, which the generic `symbol` kind always
+//!   strips ; a one-off, not a pattern.
+//! - `.hecksagon`/`.world`'s open adapter-verb vocabulary is OUT OF SCOPE
+//!   for this module entirely, not merely uncut : `syntax.bluebook` only
+//!   declares the `.bluebook` surface (its own header says so), and an
+//!   adapter verb's schema is not even contained in the file being parsed —
+//!   it is registered by host application code (`Hecks.port("post") { verb
+//!   "posted_by" }`), which no generic reader driven by a checked-in table
+//!   can resolve.
+//!
+//! `ir_syntax_flags.rs`/`ir_syntax_text.rs` (`FLAG_ARGUMENTS`/
+//! `TEXT_ARGUMENTS`, checked by `parse_flag_kwarg`/`assert_text_kwarg`)
+//! stay too, unlike `ir_syntax_number.rs` (retired in M5, zero callers
+//! left) : `attribute`'s own `optional:`/`admits:`/`pattern:`, `reference_to`'s
+//! `optional:`, and the file-level `bluebook "X", version:` itself all still
+//! read through them, because the constructs that use them stay
+//! hand-written for the reasons just named. They are not a second copy of
+//! `ir_syntax_bindings::KEYWORD_BINDINGS` — they hold the LAST hand-written
+//! readers to the same declaration this module's own generated table holds
+//! every cut-over keyword to, the one piece of the old verification shape
+//! (`spec/rust_syntax_conformance_spec.rb`'s `KIND_ASSERTIONS`) still load-
+//! bearing once everything cuttable has been cut.
 
 use crate::bluebook::ir_syntax_bindings::KeywordBinding;
 use crate::bluebook::parse_blocks::{is_kwarg, split_top_level_commas};

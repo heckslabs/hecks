@@ -35,6 +35,20 @@ Hecks.bluebook "Bluebook" do
     # with their own builders and their own files ; a parser projected from this
     # reads bluebooks, and half-covering the siblings would say less than naming
     # the exclusion does.
+    #
+    # THIS IS ALSO WHY THE GENERIC-BLUEBOOK-READER ARC STOPS HERE.
+    # `rust/src/bluebook/generic_bind.rs` — the generic reader THIS table
+    # drives — cut over every keyword whose argument-binding this table can
+    # express (M1-M7), down to `member`'s and `sets`' pairs, which turned out
+    # to need a schema correction rather than new machinery. What is left
+    # hand-written on the Rust side either isn't ONE shape a bigger table
+    # would close (`attribute`, three separate irregularities) or isn't
+    # covered by this table AT ALL : `.hecksagon`/`.world`'s open adapter-verb
+    # vocabulary is the one truly PERMANENT exclusion, for the same reason
+    # named above — a verb's schema is not even contained in the file being
+    # parsed, registered instead by host application code
+    # (`Hecks.port("post") { verb "posted_by" }`), so no table this file
+    # could hold would ever be enough.
     description "How a bluebook is SPELLED — every word the surface admits, the body it may open, and the field it fills. The layer every other file in this directory does not have."
 
     # ITS NAME, and nothing else — a syntax hangs under no other thing, exactly
