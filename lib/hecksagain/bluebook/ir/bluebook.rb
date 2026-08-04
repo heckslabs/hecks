@@ -10,7 +10,7 @@ module Hecksagain
         include Construct
 
         attr_reader :name, :version, :vision, :aggregates, :policies, :process_managers,
-                    :classification, :read_models
+                    :classification, :read_models, :ports
 
         def initialize(name:, version: nil, vision: nil, aggregates: [], policies: [],
                        process_managers: [], classification: nil, read_models: [])
@@ -24,6 +24,12 @@ module Hecksagain
           @aggregates = aggregates
           @read_models = read_models
           @classification = classification&.to_s
+          # A port with NO owning aggregate — declared bare at a hecksagon's
+          # root, belonging to the chapter as a whole rather than one record.
+          # Attached the same way an aggregate-scoped one is, after the fact,
+          # from HecksagonBuilder — see IR::Aggregate#add_port's own comment.
+          @ports = []
+          @ports_by_name = {}
 
           # THE CHAPTER STAMPS ITS OWN CHILDREN, exactly as an aggregate does.
           # An aggregate's owner is the chapter above it — the way up a
@@ -36,6 +42,12 @@ module Hecksagain
 
         def aggregate(named) = @aggregates.find { |a| a.name == named.to_s }
         def read_model(named) = @read_models.find { |model| model.name == named.to_s || model.query_name == named.to_s }
+        def port(named)      = @ports_by_name[named.to_s]
+
+        def add_port(port)
+          @ports << port
+          @ports_by_name[port.name] = port
+        end
 
         def verbs
           @aggregates.flat_map do |agg|

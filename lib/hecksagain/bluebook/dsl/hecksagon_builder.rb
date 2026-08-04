@@ -15,9 +15,30 @@ module Hecksagain
         end
 
         # An event this hecksagon takes from OUTSIDE the domain's own
-        # bluebook — mirrors rust/src/bluebook/hecksagon_parser.rs's
-        # `subscribe` handling, which has read this since before Ruby did.
+        # bluebook.
         def subscribe(event) = @subscriptions << event.to_s
+
+        # THE PRIMARY PORT, BARE AT THE ROOT — belongs to the CHAPTER as a
+        # whole, not one aggregate. `BindingProxy#port` is the aggregate-
+        # scoped sibling (`Payments::Payment.port("Gateway") do ... end`);
+        # this is what's left when a port isn't about any one record. The
+        # bluebook must already be built and registered, since a hecksagon
+        # loads after its bluebook, and this attaches to that real, final
+        # object directly rather than building a second copy MetaValidator
+        # would have to know how to reconstruct.
+        def port(name, &block)
+          bluebook_ir = Hecksagain.current_registry.bluebook(@domain) or
+            raise Malformed, "#{@domain} declares no such bluebook — a port needs one to belong to"
+
+          # See BindingProxy#port's own comment on why this resolver swap is
+          # needed — ConstShim's active resolver is one global for the whole
+          # dynamic extent, currently this file's own BindingProxy-minting
+          # one, which would turn a bare constant inside an operation's
+          # `reference_to`/`attribute` into another BindingProxy instead of
+          # a name.
+          domain_port = ConstShim.with(->(const) { const }) { DomainPortBuilder.build(name, &block) }
+          bluebook_ir.add_port(domain_port)
+        end
 
         def build = IR::Hecksagon.new(domain: @domain, binds: @binds, subscriptions: @subscriptions)
 

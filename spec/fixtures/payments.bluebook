@@ -1,0 +1,70 @@
+Hecks.bluebook "Payments" do
+  vision "money changing hands is a fact someone outside tells us about, not a fact we compute"
+  supporting
+
+  aggregate "Payment" do
+    identified_by { payment_id.value }
+
+    value_object "PaymentId" do
+      attribute :value, String
+    end
+
+    value_object "Money" do
+      attribute :cents, Integer
+    end
+
+    value_object "DeclineReason" do
+      attribute :code, String
+      attribute :message, String
+    end
+
+    attribute :payment_id, PaymentId
+    attribute :amount, Money
+    attribute :decline_reason, DeclineReason, optional: true
+
+    lifecycle :status, default: "pending" do
+      transition from: "pending",  to: "received"
+      transition from: "received", to: "confirmed"
+      transition from: "pending",  to: "declined"
+    end
+
+    command "Open" do
+      role "Merchant"
+      goal "start tracking a payment we expect to receive"
+      attribute :payment_id, PaymentId
+      attribute :amount, Money
+      emits "PaymentOpened"
+    end
+
+    command "ConfirmReceipt" do
+      role "System"
+      goal "record that the gateway told us the money arrived"
+      reference_to Payment
+      attribute :amount, Money
+      given("payment is still pending") { status == "pending" }
+      then_set :status, to: "received"
+      emits "PaymentConfirmed"
+    end
+
+    command "RejectPayment" do
+      role "System"
+      goal "record that the gateway declined the charge"
+      reference_to Payment
+      attribute :reason, DeclineReason
+      given("payment is still pending") { status == "pending" }
+      then_set :status, to: "declined"
+      then_set :decline_reason, to: :reason
+      emits "PaymentRejected"
+    end
+  end
+
+  policy "OnPaymentReceived" do
+    on "PaymentReceived"
+    trigger "Payment.ConfirmReceipt"
+  end
+
+  policy "OnPaymentDeclined" do
+    on "PaymentDeclined"
+    trigger "Payment.RejectPayment"
+  end
+end

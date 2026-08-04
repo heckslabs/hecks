@@ -1,6 +1,7 @@
 require "fileutils"
 require "set"
 require "tmpdir"
+require_relative "isolated_boot"
 require_relative "invalid_value_generator"
 require_relative "value_generator"
 require_relative "sequence_generator/catalog"
@@ -11,8 +12,9 @@ require_relative "sequence_generator/outcome_tracker"
 module Hecksagain
   module Fuzzing
     # A random-but-valid sequence of dispatches and queries, in the exact
-    # `{name, note, steps}` shape `spec/parity/*.json` already uses — so it can
-    # run through `bin/parity` completely unchanged. Boots a throwaway copy of
+    # `{name, note, steps}` shape `spec/corpus/*.json` already uses — so a
+    # generated sequence replays as a corpus member, completely unchanged.
+    # Boots a throwaway copy of
     # the domain and DISPATCHES each candidate step for real as it builds the
     # sequence (not just synthesizing plausible-looking JSON) : the only way to
     # know whether a step actually reached a new state, or which id an
@@ -59,11 +61,11 @@ module Hecksagain
       # How many EVENTS the generated sequence actually produced — not
       # steps, not successful dispatches, but the sum of every Result#events
       # length across the run. This is the count bin/fuzz declares as the
-      # script's own `expectations.events` claim: whatever Ruby achieved
-      # DURING generation becomes the claim Rust is held to when bin/parity
-      # replays the same script fresh. Zero means the sequence never
+      # script's own `expectations.events` claim: whatever was achieved
+      # DURING generation becomes the claim a fresh replay of the same
+      # script is held to. Zero means the sequence never
       # reached an interesting state — a fuzzer-effectiveness fact, not a
-      # cross-runtime one.
+      # replay one.
       attr_reader :event_count
 
       def initialize(domain_path, seed:, steps:)
@@ -78,17 +80,14 @@ module Hecksagain
       end
 
       def call
-        Dir.mktmpdir("hecksagain-fuzz") do |tmp|
-          copy = File.join(tmp, File.basename(@domain_path))
-          FileUtils.cp_r(@domain_path, copy)
-          # Real leftover data from ordinary use (bin/parity's own runs,
-          # bin/console, whatever) lives under the example's data/ — copied
-          # along with everything else. A generator that boots against it
-          # starts from state its own known_ids tracking doesn't know about,
-          # which is exactly the silent-contamination bug bin/parity's own
-          # `run_domain` already guards against the same way : reset before
-          # boot, every time.
-          FileUtils.rm_rf(File.join(copy, "data"))
+        # Real leftover data from ordinary use (bin/console, whatever) lives
+        # under the example's data/ — a generator that boots against it
+        # starts from state its own known_ids tracking doesn't know about.
+        # IsolatedBoot resets that AND rebinds persistence to Memory, since
+        # a Postgres-bound domain's real store lives outside the copied
+        # directory entirely and `rm_rf`ing data/ alone cannot reach it —
+        # see isolated_boot.rb's own header.
+        IsolatedBoot.call(@domain_path) do |copy|
           runtime = Hecks.boot(copy)
           catalog = build_catalog(runtime)
           Array.new(@step_count) { attempt_step(runtime, catalog) }.compact

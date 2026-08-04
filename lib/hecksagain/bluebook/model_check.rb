@@ -257,11 +257,23 @@ module Hecksagain
 
       # ── shared enumeration ────────────────────────────────────────────
 
+      # A PORT OPERATION EMITS TOO — the primary/driving port an adapter
+      # outside the bluebook calls through (see hecksagon_builder.rb) is a
+      # second, real source of events, alongside a command's own `emits`.
+      # Ports attach to the aggregate/bluebook from the SIBLING `.hecksagon`
+      # file, not this one — a caller that boots only the `.bluebook` (as
+      # the fixtures under spec/fixtures/model_check/ do, having no
+      # hecksagon at all) simply finds none, which is correct : nothing
+      # can be deaf to an event that isn't even wired up yet.
       def emitted_events(bluebook)
-        bluebook.aggregates.flat_map do |aggregate|
+        aggregate_emits = bluebook.aggregates.flat_map do |aggregate|
           aggregate.commands.map(&:emits) +
-            aggregate.entities.flat_map { |entity| entity.commands.map(&:emits) }
-        end.flatten.uniq
+            aggregate.entities.flat_map { |entity| entity.commands.map(&:emits) } +
+            aggregate.ports.flat_map { |port| port.operations.map(&:emits) }
+        end
+        chapter_emits = bluebook.ports.flat_map { |port| port.operations.map(&:emits) }
+
+        (aggregate_emits + chapter_emits).flatten.uniq
       end
 
       # Fully-qualified, the same spelling DispatchSpec#command_name

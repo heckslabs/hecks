@@ -1,5 +1,6 @@
 require "fileutils"
 require "tmpdir"
+require_relative "isolated_boot"
 
 module Hecksagain
   module Fuzzing
@@ -17,9 +18,9 @@ module Hecksagain
     # event count (removing a step changes what the sequence actually
     # produces, so a shrunk candidate cannot reuse the original claim),
     # and the declared-property checks in properties.rb. Both want it
-    # without a bin/parity subprocess — a property or a shrink-candidate
-    # check is a SINGLE-runtime question, and paying for Rust's rebuild
-    # and a second boot to ask it would be ~100x the cost for nothing.
+    # in-process — a property or a shrink-candidate check is a question
+    # this boot can answer itself, and paying for a subprocess and a
+    # second boot to ask it would be ~100x the cost for nothing.
     #
     # Refuses the same way SequenceGenerator's own safe_call does: a
     # DOMAIN_REFUSAL or an EvaluationError is the domain declining a
@@ -30,10 +31,11 @@ module Hecksagain
       module_function
 
       def call(domain_path, steps)
-        Dir.mktmpdir("hecksagain-replay") do |tmp|
-          copy = File.join(tmp, File.basename(domain_path))
-          FileUtils.cp_r(domain_path, copy)
-          FileUtils.rm_rf(File.join(copy, "data"))
+        # See isolated_boot.rb's own header: resets data/ AND rebinds
+        # persistence to Memory, since a Postgres-bound domain's real store
+        # lives outside the copied directory and cannot be reached by
+        # resetting data/ alone.
+        IsolatedBoot.call(domain_path) do |copy|
           runtime = Hecks.boot(copy)
 
           refusals = []

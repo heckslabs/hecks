@@ -11,10 +11,10 @@ module Hecksagain
 
         # A DOTTED PATH NAMES THE SCALAR FIELD, rather than asking a value object
         # to stand in for one. `correlates_by :end_to_end` would key a saga on
-        # the whole ExternalTransfer::EndToEndReference — and Ruby and Rust
-        # disagree about what a non-scalar correlation key even IS (Ruby keys on
-        # the object itself, Rust on its JSON text). `:"end_to_end.value"` reads
-        # the one field both runtimes can render identically.
+        # the whole ExternalTransfer::EndToEndReference — and what a non-scalar
+        # correlation key even IS is representation-dependent (the object
+        # itself? its serialised text?). `:"end_to_end.value"` reads the one
+        # field with a single unambiguous rendering.
         def saga_correlation(pm, event)
           path  = pm.correlates_by.to_s.split(".")
           # A LATER EVENT MAY ALREADY HOLD THE SCALAR. `reference.value` digs a
@@ -36,13 +36,14 @@ module Hecksagain
           # THE STAMP — `deliver_saga_dispatch` marks its own event before this
           # saga's next step ever asks, for a leg whose command declares
           # NEITHER the correlation field itself nor the emitting aggregate's
-          # own reference key (the two tiers above). docs/porting/behavior-
-          # notes.md named the old payload-only lookup "the weakest part of
-          # the design" : a correlation key arriving on a command only because
-          # `correlation_keys` widens the undeclared-argument allow-list
-          # domain-wide. This is the additive fix — a leg that carries nothing
-          # correlation-shaped at all still correlates, because the saga that
-          # dispatched it already knows the answer. Keyed by `correlation_head`
+          # own reference key (the two tiers above). command_interpreter/
+          # argument_gate.rb names the old payload-only lookup "the weakest
+          # part of the gate" : a correlation key arriving on a command only
+          # because `correlation_keys` widens the undeclared-argument
+          # allow-list domain-wide. This is the additive fix — a leg that
+          # carries nothing correlation-shaped at all still correlates,
+          # because the saga that dispatched it already knows the answer.
+          # Keyed by `correlation_head`
           # rather than a bare scalar so an event stamped by one saga cannot be
           # misread by an unrelated one correlating on a different field.
           stamped = event.correlation && event.correlation[pm.correlation_head.to_s]

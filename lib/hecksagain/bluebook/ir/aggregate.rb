@@ -11,7 +11,7 @@ module Hecksagain
 
         attr_reader :name, :description, :attributes, :value_objects, :commands,
                     :identified_by, :identity_paths, :identity_heads, :lifecycle,
-                    :entities, :queries, :policies, :reference_targets
+                    :entities, :queries, :policies, :ports, :reference_targets
 
         # An aggregate is a MEMBER of its chapter's namespace — "Pizzas::Pizza" —
         # where everything else is declared ON its owner and joins with ".".
@@ -19,10 +19,11 @@ module Hecksagain
 
         def initialize(name:, description: nil, attributes: [], value_objects: [],
                        commands: [], identified_by: [], lifecycle: nil,
-                       entities: [], queries: [], policies: [], reference_targets: [])
+                       entities: [], queries: [], policies: [], ports: [], reference_targets: [])
           @entities      = entities
           @queries       = queries
           @policies      = policies
+          @ports         = ports
           @name          = name.to_s
           @hecks_name    = @name
           @description   = description
@@ -52,6 +53,7 @@ module Hecksagain
           @value_objects_by_name = @value_objects.to_h { |shape| [shape.hecks_name, shape] }
           @commands_by_name      = @commands.to_h { |verb| [verb.hecks_name, verb] }
           @queries_by_name       = @queries.to_h { |ask| [ask.hecks_name, ask] }
+          @ports_by_name         = @ports.to_h { |port| [port.name, port] }
 
           # THE AGGREGATE STAMPS ITS OWN CHILDREN. Owner links are only ever
           # read lazily — hecks_fqn at ask time, Reference#resolve at dispatch
@@ -74,6 +76,20 @@ module Hecksagain
         # An entity has had this finder all along and a head had not, so
         # `QueryInterpreter` hand-rolled the same search — asymmetry, not design.
         def query(named)        = @queries_by_name[named.to_s]
+        def port(named)          = @ports_by_name[named.to_s]
+
+        # A PORT IS DECLARED IN THE HECKSAGON, NOT THE BLUEBOOK — the
+        # boundary between the domain and its adapters, in hexagonal terms,
+        # is exactly what a `.hecksagon` file already IS for every other
+        # port (persistence, projection, ...). So this attaches AFTER the
+        # aggregate already exists and is registered — `HecksagonBuilder`
+        # calls it once per `port` declaration, having already stamped each
+        # operation's reference attributes with `declared_in = self`, since
+        # nothing upstream of a hecksagon load does that for it.
+        def add_port(port)
+          @ports << port
+          @ports_by_name[port.name] = port
+        end
 
         def storage_name = Naming.snake(@name)
 
@@ -88,6 +104,10 @@ module Hecksagain
             lifecycle:     @lifecycle&.to_h,
             entities:      @entities.map(&:to_h),
             queries:       @queries.map(&:to_h)
+            # `ports` deliberately absent — Bluebook#to_h is the byte-for-byte
+            # golden-fixture contract (see ir_golden_spec.rb), and the wire
+            # format does not know about ports yet. Held out of the export until
+            # the wire format and the self-hosted grammar both learn this construct.
           }
         end
       end

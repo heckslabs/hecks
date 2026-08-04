@@ -1,4 +1,6 @@
 require_relative "../../bluebook/dsl/hecksagon_builder"
+require_relative "../../bluebook/dsl/domain_port_builder"
+require_relative "../../bluebook/dsl/const_shim"
 require_relative "../../bluebook/ir/hexagon"
 require_relative "../handle"
 require_relative "../../naming"
@@ -7,8 +9,9 @@ module Hecksagain
   module Facade
     module Surface
       # One aggregate's door: creating verbs as module methods returning
-      # the record in hand, CRUD delegation to the repository, and the
-      # `persisted_by`-style binding collector a `.hecksagon` lands on.
+      # the record in hand, CRUD delegation to the repository, the
+      # `persisted_by`-style binding collector a `.hecksagon` lands on, and
+      # the aggregate-scoped `port` a `.hecksagon` lands on beside it.
       module AggregateDoor
         def aggregate_module(dispatcher, domain, ir)
           fqn  = "#{domain}::#{ir.hecks_name}"
@@ -45,6 +48,38 @@ module Hecksagain
             dispatcher.registry.repository(domain, ir).all.map do |instance|
               Handle.new(dispatcher: dispatcher, domain: domain, ir: ir, instance: instance)
             end
+          end
+
+          # THE SAME REASON `method_missing` BELOW EXISTS AT ALL — a facade
+          # left over from a PREVIOUS boot in this process shadows the fresh
+          # `BindingProxy` a `.hecksagon` would otherwise reach through
+          # `ConstShim`/`const_missing`, so `Pizzas::Pizza.port(...)` lands
+          # HERE instead once any boot has run before.
+          #
+          # RE-RESOLVED, NOT THE CLOSED-OVER `ir` — this door can be a STALE
+          # one, built by a boot from earlier in this same process, sitting
+          # on the `Pizzas`/`Pizza` constants only because nothing has
+          # re-installed them since. Attaching to this door's OWN `ir` would
+          # attach the port to a discarded aggregate from that old boot,
+          # invisible to the CURRENT one actually being loaded — silently,
+          # the exact way `method_missing` below already has to avoid it for
+          # a plain bind, via `HecksagonBuilder.collector` rather than
+          # anything this door closes over. `Hecksagain.current_registry` is
+          # the same "whichever boot is actually in progress" indirection,
+          # and `BindingProxy#port` already re-resolves through it the same
+          # way — this is that door's fallback twin, not a shortcut past it.
+          door.define_singleton_method(:port) do |name, &block|
+            current = Hecksagain.current_registry&.bluebook(domain)&.aggregate(ir.hecks_name) or
+              raise Bluebook::DSL::Malformed, "#{fqn}.port(#{name.inspect}) called outside a boot"
+
+            domain_port = Bluebook::DSL::ConstShim.with(->(const) { const }) do
+              Bluebook::DSL::DomainPortBuilder.build(name, owner: current.hecks_name, &block)
+            end
+            domain_port.operations.each do |operation|
+              operation.attributes.select(&:reference?).each { |attribute| attribute.type.declared_in = current }
+            end
+            current.add_port(domain_port)
+            self
           end
 
           door.define_singleton_method(:method_missing) do |verb, *args, **kwargs, &block|

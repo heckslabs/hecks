@@ -121,9 +121,10 @@ module Hecksagain
         # against. Here, with the whole document assembled, the dotted path
         # is walked for real — against whichever command actually emits an
         # event this process manager reacts to — so a path that still lands
-        # on a value object (RESTART.md's named gap: Ruby keys a saga on the
-        # object itself, Rust on its JSON text) is refused before either
-        # runtime ever has to decide what a non-scalar correlation key means.
+        # on a value object is refused before the runtime ever has to decide
+        # what a non-scalar correlation key even means: a saga keys off this
+        # value directly, and a value object carries no guaranteed-stable
+        # identity to key on the way a scalar does.
         #
         # A command that does not declare the path's first segment at all is
         # silently skipped, not refused — correlation has two other fallback

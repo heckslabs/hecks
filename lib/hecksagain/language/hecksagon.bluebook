@@ -81,4 +81,42 @@ Hecks.bluebook "Hecksagon" do
       emits "Bound"
     end
   end
+
+  aggregate "DomainPort" do
+    description "A primary port — the boundary between a domain and its adapters, in hexagonal terms, is exactly what a hecksagon already IS for every other port. Root-level (belongs to the chapter) or aggregate-scoped (reached the same way persisted_by is, through the open Const.verb(...) door) ; either way its content is a list of operations, never a single field."
+
+    identified_by { name.value }
+
+    attribute :name, PortName
+
+    value_object "PortName" do
+      attribute :value, String
+      invariant("a port is named") { !value.to_s.empty? }
+    end
+  end
+
+  aggregate "PortOperation" do
+    description "One operation a port exposes — the same shape a command's payload has (attributes in, an event out) with none of a command's given/ensures/then_set : a port operation is the translation boundary itself, not a second place business rules live. Those stay on whichever command a policy triggers in reaction to the event it emits."
+
+    identified_by { name.value }
+
+    attribute :name,       OperationName
+    attribute :attributes, list_of(PortOperationField)
+    attribute :emits,      list_of(EmittedEvent)
+
+    value_object "OperationName" do
+      attribute :value, String
+      invariant("an operation is named") { !value.to_s.empty? }
+    end
+
+    value_object "PortOperationField" do
+      attribute :name, String
+      attribute :type, String
+    end
+
+    value_object "EmittedEvent" do
+      attribute :value, String
+      invariant("an emitted event is named") { !value.to_s.empty? }
+    end
+  end
 end

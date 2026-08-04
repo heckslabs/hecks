@@ -31,7 +31,8 @@ module Hecksagain
       def initialize(registry)
         @registry = registry
         rules     = CommandRules.new(registry)
-        @commands = CommandInterpreter.new(registry, rules: rules)
+        @commands  = CommandInterpreter.new(registry, rules: rules)
+        @port_ops  = PortOperationInterpreter.new(registry, rules: rules)
         @entities = EntityInterpreter.new(registry, rules: rules)
         @queries  = QueryInterpreter.new(registry)
         @read_models = ReadModelInterpreter.new(registry)
@@ -73,6 +74,30 @@ module Hecksagain
         announced.each { |event| @sagas.advance(event, domain) }
 
         Result.new(verb: verb, instance: instance, events: announced)
+      end
+
+      # THE DOOR AN ADAPTER OUTSIDE THE BLUEBOOK CALLS THROUGH — never the
+      # domain itself. `port_name`/`operation_name` are separate arguments
+      # rather than one packed verb string on purpose: there is no established
+      # wire spelling for "domain, aggregate, port, operation" yet, and
+      # inventing one is a bigger decision than this call needs to make.
+      #
+      # No adapter-to-port binding lookup happens here — that is
+      # `Hecks.adapter`'s existing job (unchanged by this), and wiring "which
+      # adapter may call this port" through is the next piece, not this one.
+      def dispatch_port(domain, aggregate_name, port_name, operation_name, **args)
+        aggregate = resolve_aggregate(domain, aggregate_name, "#{domain}::#{aggregate_name}.#{port_name}.#{operation_name}")
+        port = aggregate.port(port_name) ||
+               raise(UnknownVerb, "#{aggregate_name} has no port #{port_name.inspect}")
+        operation = port.operation(operation_name) ||
+                    raise(UnknownVerb, "#{port_name} has no operation #{operation_name.inspect}")
+
+        announced = @port_ops.call(domain, aggregate, operation, args)
+
+        announced.each { |event| @policies.react(event, domain) }
+        announced.each { |event| @sagas.advance(event, domain) }
+
+        announced
       end
 
       def query(verb, **args)

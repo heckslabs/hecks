@@ -11,10 +11,10 @@ Hecks.bluebook "Bluebook" do
     #
     # That gap is why the parser could not be projected, and it is also where the
     # bugs were. When `identified_by` became `list_of(IdentityPath)` the projected
-    # struct regenerated to `Vec<String>` with nobody touching it, and was
-    # correct. Both HAND-WRITTEN halves broke : Rust's parser could not read
+    # struct regenerated to a list of strings with nobody touching it, and was
+    # correct. The HAND-WRITTEN halves broke : a hand-written parser could not read
     # `identified_by do` at all and swallowed whole aggregate bodies in silence,
-    # and the dispatcher read the field with `as_str`, got `None` on an array,
+    # and a dispatcher that read the field as a scalar got nothing on an array
     # and fell through to a minted `"id"`. The declared half survived. The
     # undeclared halves did not.
     #
@@ -37,11 +37,11 @@ Hecks.bluebook "Bluebook" do
     # the exclusion does.
     #
     # THIS IS ALSO WHY THE GENERIC-BLUEBOOK-READER ARC STOPS HERE.
-    # `rust/src/bluebook/generic_bind.rs` — the generic reader THIS table
-    # drives — cut over every keyword whose argument-binding this table can
+    # A generic reader driven by THIS table
+    # covers every keyword whose argument-binding this table can
     # express (M1-M7), down to `member`'s and `sets`' pairs, which turned out
-    # to need a schema correction rather than new machinery. What is left
-    # hand-written on the Rust side either isn't ONE shape a bigger table
+    # to need a schema correction rather than new machinery. What stays
+    # outside the table either isn't ONE shape a bigger table
     # would close (`attribute`, three separate irregularities) or isn't
     # covered by this table AT ALL : `.hecksagon`/`.world`'s open adapter-verb
     # vocabulary is the one truly PERMANENT exclusion, for the same reason
@@ -94,6 +94,8 @@ Hecks.bluebook "Bluebook" do
         member name: "Type"
         member name: "Hecksagon"
         member name: "World"
+        member name: "DomainPort"
+        member name: "PortOperation"
       end
     end
 
@@ -242,7 +244,7 @@ Hecks.bluebook "Bluebook" do
       # data translations that taught it the shape. A row whose word was
       # respelled keeps the old spelling here; the old spelling stays
       # answered by the builder and emitted into every projection, so a
-      # bluebook written under it keeps booting — in both runtimes —
+      # bluebook written under it keeps booting —
       # forever. One hop only: renaming an already-renamed word refuses
       # until the language grows real eras for its own words.
       attribute :was,     String
@@ -283,8 +285,8 @@ Hecks.bluebook "Bluebook" do
         member word: "identified_by",   context: "Aggregate", body: "source",   inner: "",              opens: "",               fills: "identified_by"
         member word: "reference_to",    context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "attributes"
         # `has_many`, `has_one`, `belongs_to` — relationship vocabulary Hecks
-        # already grew and Rust's parser already read, ported into this Ruby
-        # only once this table existed to declare it by. All three FILL the
+        # already grew in the wild, declared in this table
+        # only once it existed to declare it by. All three FILL the
         # same field `reference_to` does : each builds one Reference-typed
         # attribute, so a judge reading the built IR cannot tell which word
         # declared it, and does not need to. The naming DIFFERENCE from
@@ -380,8 +382,8 @@ Hecks.bluebook "Bluebook" do
         member word: "include",         context: "ReadModel", body: "none", inner: "", opens: "", fills: "aggregate_heads"
         # A READ MODEL'S FILTERS ARE OPTIONS, WHERE AN ASK'S ARE FIELDS. Same
         # three words, same builder module, different landing — `ReadModel#to_h`
-        # omits wheres/order_by/limit and so does Rust's struct, so they have
-        # never been in the cross-language contract and the language holds them
+        # omits wheres/order_by/limit, so they have
+        # never been in the IR contract and the language holds them
         # as option rows instead (Readings#option_rows, `filters: true`). The
         # `fills` column is where that stops being a comment in one file.
         member word: "where",           context: "ReadModel", body: "none", inner: "", opens: "", fills: "options"
@@ -409,6 +411,21 @@ Hecks.bluebook "Bluebook" do
         # THE ONE FIXED WORD .hecksagon'S BODY HAS. Everything else in a
         # hecksagon is the open Const.verb("Adapter") form named above.
         member word: "subscribe",       context: "Hecksagon", body: "none", inner: "", opens: "", fills: "subscriptions"
+
+        # THE PRIMARY PORT — the boundary between a domain and its adapters,
+        # in hexagonal terms, is exactly what a hecksagon already IS for
+        # every other port ; this is the one word beyond the open
+        # Const.verb("Adapter") bind form and `subscribe` that a hecksagon's
+        # body admits. Root-level (`context: "Hecksagon"`, no owner) or
+        # aggregate-scoped (the SAME open Const.verb(...) door `persisted_by`
+        # already reaches, so it carries no row of its own here — a real
+        # method on BindingProxy/AggregateDoor, not a fixed word the language
+        # could enumerate against an open aggregate name).
+        member word: "port",            context: "Hecksagon",     body: "keywords", inner: "DomainPort",    opens: "DomainPort",    fills: ""
+        member word: "operation",       context: "DomainPort",    body: "keywords", inner: "PortOperation", opens: "PortOperation", fills: ""
+        member word: "reference_to",    context: "PortOperation", body: "none",     inner: "",              opens: "",              fills: "attributes"
+        member word: "attribute",       context: "PortOperation", body: "none",     inner: "",              opens: "",              fills: "attributes"
+        member word: "emits",           context: "PortOperation", body: "none",     inner: "",              opens: "",              fills: "emits"
 
         # THE TWO FIXED WORDS .world'S BODY HAS, beyond the same open
         # verb-settings form (`posted_by("Carrier") { office "EC1" }`) named
@@ -546,7 +563,7 @@ Hecks.bluebook "Bluebook" do
         member keyword: "sets",            context: "Command", at: "1", named: "",          kind: "symbol",   required: "true",  fills: "target"
         # `to:`/`increment:`/`decrement:`/`append:` ALL SHARE ONE KIND NOW
         # (generic-bluebook-reader arc, M7) — every one of them fills
-        # `Mutation.source`, which BOTH runtimes read downstream, not at
+        # `Mutation.source`, which the runtime reads downstream, not at
         # parse time : a leading `:` means "read this argument from the
         # dispatch payload" (`resolve_source`), anything else is a literal
         # value (`parse_literal`) or, for `append:`, a hash of further
@@ -678,6 +695,17 @@ Hecks.bluebook "Bluebook" do
         member keyword: "hecksagon",       context: "File", at: "1", named: "", kind: "text", required: "true", fills: "domain"
         member keyword: "world",           context: "File", at: "1", named: "", kind: "text", required: "true", fills: "domain"
         member keyword: "subscribe",       context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "subscriptions"
+        member keyword: "port",            context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "name"
+        member keyword: "operation",       context: "DomainPort", at: "1", named: "", kind: "text", required: "true", fills: "name"
+        member keyword: "reference_to",    context: "PortOperation", at: "1", named: "",     kind: "constant", required: "true",  fills: "type"
+        member keyword: "reference_to",    context: "PortOperation", at: "",  named: "as",    kind: "symbol",   required: "false", fills: "name"
+        member keyword: "attribute",       context: "PortOperation", at: "1", named: "",        kind: "symbol",   required: "true",  fills: "name"
+        member keyword: "attribute",       context: "PortOperation", at: "2", named: "",        kind: "constant", required: "false", fills: "type"
+        member keyword: "attribute",       context: "PortOperation", at: "",  named: "default",  kind: "literal",  required: "false", fills: "default"
+        member keyword: "attribute",       context: "PortOperation", at: "",  named: "optional", kind: "flag",     required: "false", fills: "optional"
+        member keyword: "attribute",       context: "PortOperation", at: "",  named: "pattern",  kind: "text",     required: "false", fills: "pattern"
+        member keyword: "attribute",       context: "PortOperation", at: "",  named: "admits",   kind: "text",     required: "false", fills: "admits"
+        member keyword: "emits",           context: "PortOperation", at: "1", named: "", kind: "text", required: "true", fills: "emits"
         member keyword: "realm",           context: "World", at: "1", named: "", kind: "text", required: "true", fills: "realm"
         member keyword: "latest",          context: "World", at: "1", named: "", kind: "text", required: "true", fills: "latest"
       end

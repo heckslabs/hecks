@@ -22,7 +22,7 @@
 # NOTE, and it is the reason this file exists : `current_registry` is still
 # process-global. Each boot builds a fresh Registry, and `Loader.bind_runtime`
 # installs a fresh facade door whose modules close over THAT boot's dispatcher
-# — no class-level runtime binding remains, so two runtimes in one process no
+# — no class-level runtime binding remains, so two boots in one process no
 # longer share dispatch state, only the top-level NAME (the last-bound door
 # wins the constant, which is what per-boot install means). Owning the state
 # here was the first move ; the dispatcher reachable per-runtime rather than
@@ -38,6 +38,7 @@ require_relative "runtime/errors"
 require_relative "runtime/refusal_wording"
 require_relative "runtime/command_rules"
 require_relative "runtime/command_interpreter"
+require_relative "runtime/port_operation_interpreter"
 require_relative "runtime/entity_interpreter"
 require_relative "runtime/query_interpreter"
 require_relative "runtime/read_model_interpreter"

@@ -36,6 +36,16 @@ def boot(source)
     Kernel.load(File.join(ROOT, "lib/hecksagain/adapters/driven/memory.adapter"))
     Kernel.load(File.join(ROOT, "lib/hecksagain/adapters/driven/prism.adapter"))
     Kernel.load(source)
+
+    # THE SIBLING HECKSAGON, IF ONE EXISTS — a port attaches to its
+    # aggregate/chapter from there, not the bluebook (see
+    # hecksagon_builder.rb), so a deaf-policy check that never loads it
+    # would see a policy reacting to an event nothing appears to emit.
+    # No adapter needs to actually resolve here : recording a bind builds
+    # IR only, `registry.verify!` (never called by this tool) is what
+    # would need one.
+    hecksagon = source.sub(/\.bluebook\z/, ".hecksagon")
+    Kernel.load(hecksagon) if hecksagon != source && File.exist?(hecksagon)
   end
   registry.bluebooks.values
 end

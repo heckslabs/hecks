@@ -34,8 +34,7 @@ module Hecksagain
           args = attributes.each_with_object({}) do |attribute, built|
             # List-typed direct command arguments have no example in this repo's
             # domains today — every list is populated via a per-element append
-            # command instead (docs/porting/behavior-notes.md). Skipped rather
-            # than guessed at.
+            # command instead. Skipped rather than guessed at.
             next if attribute.list?
 
             built[attribute.name.to_s] = ValueGenerator.value_for(attribute, aggregate, random: @random, known_ids: @known_ids)
@@ -60,12 +59,14 @@ module Hecksagain
           end
         end
 
-        # NEVER THE IDENTITY. A creating command with no id auto-mints one, and the
-        # two runtimes mint differently by design — Ruby a random hex, Rust a
-        # counter — so dropping it manufactures a disagreement that says nothing
-        # about either runtime's behaviour. Every step in the hand-written corpus
+        # NEVER THE IDENTITY. A creating command with no id auto-mints one, and
+        # a minted id is deliberately unreproducible — a random hex, never a
+        # guessable counter — so dropping it manufactures a step whose outcome
+        # cannot be replayed and says nothing about the runtime's behaviour.
+        # Every step in the hand-written corpus
         # supplies an id for the same reason. Whether an auto-minted id OUGHT to
-        # agree is a real question, but it is not one a payload fuzzer can ask.
+        # be reproducible is a real question, but it is not one a payload fuzzer
+        # can ask.
         def drop_one(args, aggregate)
           identity  = (aggregate.identified_by || :id).to_s
           droppable = args.keys - [identity, "id"]
@@ -104,11 +105,11 @@ module Hecksagain
         # declares that identity field as. `Account::LedgerEntry` is addressed
         # by `sequence`, and `sequence` is declared as a value-object-typed
         # attribute (`LedgerSequence`), not a plain identifier — a fuzz run
-        # that skipped this wrapping and dispatched a bare `"1"` is exactly
-        # what surfaced a real cross-runtime gap (Ruby refuses a bare scalar
-        # against a value-object-typed identity with TypeMismatch ; Rust
-        # accepts it and answers NotFound instead — same input, two different
-        # refusals). Left as a bare scalar when the construct declares no such
+        # that skipped this wrapping and dispatched a bare `"1"` had every
+        # such step refused at the type gate (a bare scalar against a
+        # value-object-typed identity is a TypeMismatch, not a NotFound), so
+        # the wrapping is what lets a fuzz step address the record at
+        # all. Left as a bare scalar when the construct declares no such
         # attribute at all — the default `:id` case, which really is untyped.
         def identity_shaped(construct, key, scalar, aggregate)
           return scalar unless key
@@ -137,8 +138,8 @@ module Hecksagain
 
         # A step the runtime declines is not a generator failure — it simply did
         # not take effect, so nothing is recorded and the sequence carries on. The
-        # step still goes into the corpus, because a REFUSAL IS AN ANSWER and the
-        # two runtimes have to word it identically.
+        # step still goes into the corpus, because a REFUSAL IS AN ANSWER, and
+        # its wording is pinned by the corpus.
         #
         # EvaluationError sits alongside the declared refusals deliberately : a
         # payload the interpreter cannot read is the domain declining it, and
@@ -146,7 +147,7 @@ module Hecksagain
         # `positive? expects a number, got "lots"` is one of banking's. Anything
         # else still propagates and fails spec/fuzzing, which is what says the
         # generator built a step that breaks the interpreter for reasons that have
-        # nothing to do with a cross-runtime disagreement.
+        # nothing to do with the domain declining a payload.
         def safe_call
           yield
         rescue *Hecksagain::Runtime::DOMAIN_REFUSALS, Hecksagain::Bluebook::Expression::EvaluationError
