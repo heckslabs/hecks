@@ -1,35 +1,38 @@
 #!/bin/sh
 #
-# pre-push — the corpus must AGREE before anything leaves this machine.
+# pre-push — the suite and the static checks must pass before anything
+# leaves this machine.
 #
-# `bin/parity` is the only thing that reads the corpus, and until now it was
-# hand-run: no hook, no CI. So a corpus member could stop executing entirely
-# and the suite people do run would stay green. Both happened in one tree —
-# the grammar chapter stopped parsing, and pizzas' parity script ran zero
-# steps while parity reported AGREED.
-#
-# rspec + cargo stay OUT of this hook on purpose: they are the fast loop, run
-# constantly, and `spec/corpus_spec.rb` already boots every corpus member in
-# well under a second. What this adds is the slow, whole-truth check — two
-# runtimes, three domains, four stages — which is worth ~40s once per push and
-# far too slow per commit.
+# Used to run `bin/parity` here specifically: two runtimes, three domains,
+# four stages, ~40s, deliberately kept OUT of the fast rspec loop that runs
+# constantly. That comparison is retired (see docs/rust-experiment.md) —
+# there is one runtime now, so the "whole truth" check IS the suite itself,
+# plus the static model checker (unreachable lifecycle states, dead
+# transitions, saga states no handler chain reaches — facts the runtime
+# itself never checks at dispatch time, the same reason it existed
+# alongside parity before).
 #
 # Install:  git config core.hooksPath .githooks
-# Bypass:   git push --no-verify   (say why — a red corpus is a real answer)
+# Bypass:   git push --no-verify   (say why — a red suite is a real answer)
 
 set -e
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 
-printf '\n[pre-push] parity — three domains, two runtimes\n\n'
+printf '\n[pre-push] rspec\n\n'
 
-if ! "$ROOT/bin/parity"; then
-  printf '\n[pre-push] BLOCKED — the corpus does not agree.\n'
-  printf '           SPLIT  = the two runtimes answered differently.\n'
-  printf '           SILENT = a domain executed nothing ; agreement over an\n'
-  printf '                    empty run is not agreement.\n'
+if ! (cd "$ROOT" && bundle exec rspec); then
+  printf '\n[pre-push] BLOCKED — the suite is red.\n'
   printf '           Fix it, or push with --no-verify and say why.\n\n'
   exit 1
 fi
 
-printf '\n[pre-push] corpus agrees.\n\n'
+printf '\n[pre-push] model check — unreachable states, dead transitions, orphaned handlers\n\n'
+
+if ! "$ROOT/bin/model_check"; then
+  printf '\n[pre-push] BLOCKED — the model checker found something.\n'
+  printf '           Fix it, or push with --no-verify and say why.\n\n'
+  exit 1
+fi
+
+printf '\n[pre-push] suite green, model checks clean.\n\n'

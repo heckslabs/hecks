@@ -8,8 +8,8 @@
 # lib/hecksagain/adapters/driven/postgres/lineage/era_store.rb). No new
 # backfill logic lives here — this just calls that existing path and
 # reports what it found, so an operator can PROVE every row is migrated
-# before deploying a Rust binary built without the parser (which refuses,
-# rather than computing one, on any row still missing its projection).
+# before any consumer that refuses, rather than computes one, on a row
+# still missing its projection.
 #
 # Idempotent: a second run against an already-migrated domain reports
 # nothing left to do.

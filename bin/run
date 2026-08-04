@@ -58,7 +58,7 @@ sagas = runtime.sagas
 # the whole run's evidence down with it, which is how a refusal that merely
 # changed its words reads as a runtime that crashed. So: answer to stdout first,
 # every unmet expectation collected rather than aborted on at the first, and the
-# complaints to stderr where a failing parity run already shows them.
+# complaints to stderr, apart from the evidence they complain about.
 puts JSON.pretty_generate(
   instances: instances, events: events, refusals: refusals, reactions: reactions,
   sagas: sagas, queries: queries

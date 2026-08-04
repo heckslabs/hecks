@@ -1,26 +1,25 @@
 #!/usr/bin/env ruby
 require "json"
 
-# THE DIFFERENTIAL TABLE for `pattern:`, and how to regenerate it :
+# THE RECORDED FIXTURE for `pattern:`, and how to regenerate it :
 #
-#   bin/pattern-cases > spec/parity/fixtures/patterns.json
+#   bin/pattern-cases > spec/corpus/fixtures/patterns.json
 #
-# The fixture it writes is a RECORDED CONTRACT both runtimes answer to —
-# spec/pattern_subset_spec.rb and rust/src/bluebook/pattern_subset.rs each read
-# it and neither generates it. This script exists to AUTHOR a new case, not to
-# referee : Ruby computes the expected answer once, and Rust then has to agree.
-# If it does not, that is the finding.
+# spec/pattern_subset_spec.rb reads this fixture and does not generate it —
+# a regression contract for Ruby's own pattern matching, recorded once here
+# rather than computed inline in the spec. This script exists to AUTHOR a
+# new case: Ruby computes the expected answer, and the fixture holds it.
 #
+# Every pattern here is one the subset ADMITS — validate_pattern_subset
+# answers whether a pattern can be parsed at all; this fixture pins WHAT it
+# matches, case by case, so a change in Ruby's own Regexp behavior across
+# versions shows up as a spec failure rather than silently.
 #
-# Every pattern here is one the subset ADMITS. The question is not whether both
-# engines can parse it — that is what validate_pattern_subset answers — but
-# whether they AGREE about what it matches, which the subset says nothing about.
-#
-# The inputs are chosen to hit the places Ruby's Onigmo and Rust's regex crate
-# are documented to differ : embedded newlines (line anchors vs text anchors), a
-# trailing newline (Ruby's $ matches before it), and non-ASCII digits and word
-# characters. The perl classes and POSIX brackets are NOT here because the subset
-# now refuses them ; the cases that established why live in the Rust tests.
+# The inputs were originally chosen to hit places Ruby's Onigmo and a
+# differently-implemented regex engine are documented to differ: embedded
+# newlines (line anchors vs text anchors), a trailing newline (Ruby's $
+# matches before it), and non-ASCII digits and word characters — kept as
+# real edge cases worth pinning even with one engine now.
 CASES = [
   ['^[A-Z]{3}-[0-9]{4}$',                       ["ABC-1234", "abc-1234", "xx\nABC-1234\nyy", "ABC-1234\n", "ABC-١٢٣٤"]],
   ['^[0-9]{5}(-[0-9]{4})?$',                     ["12345", "12345-6789", "1234", "12345\nx", "١٢٣٤٥"]],

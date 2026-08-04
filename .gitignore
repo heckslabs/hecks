@@ -9,10 +9,7 @@
 # runtimes' storage-shape tests walk. They were never committed, nobody saw
 # them missing, and the Ruby suite aborted at load rather than failing a test.
 **/data/eras/
-Cargo.lock
 Gemfile.lock
-projection/rust/target/
-target/
 tmp/
 vendor/bundle/
 coverage/

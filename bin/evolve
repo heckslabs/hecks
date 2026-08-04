@@ -2,9 +2,8 @@
 
 # The language-change convention, made executable. Adding a word to the
 # bluebook surface has always been a many-file walk — syntax row, Ruby
-# builder, Rust parser arm, regenerated projections, moved golden — held
-# together by memory and review. This tool walks it, in the lifecycle
-# the syntax table now carries:
+# builder, moved golden — held together by memory and review. This tool
+# walks it, in the lifecycle the syntax table now carries:
 #
 #   bin/evolve status                             where every word stands
 #   bin/evolve propose <word> --context Aggregate  a row enters, proposed
@@ -20,14 +19,13 @@
 #   bin/evolve argument-admit|argument-deprecate|argument-retire <keyword> --context X [--at N] [--named NAME]
 #
 # Every mutating command does the same dance: snapshot the touched
-# files, rewrite the row, regenerate what the row feeds (the three
-# syntax projections and the golden Bluebook.json), then run the gates —
-# syntax conformance, the lifecycle spec, the export freshness specs.
-# Green: the change stands, and the tool prints what remains by hand
-# (a proposed word still needs its builder and its Rust arm before
-# admission will hold). Red: every file is restored byte-for-byte and
-# the failures print as the checklist they are. The tool never leaves a
-# tree the suite has not accepted.
+# files, rewrite the row, regenerate what the row feeds (the golden
+# Bluebook.json), then run the gates — syntax conformance, the lifecycle
+# spec, the golden IR spec. Green: the change stands, and the tool
+# prints what remains by hand (a proposed word still needs its builder
+# before admission will hold). Red: every file is restored byte-for-byte
+# and the failures print as the checklist they are. The tool never
+# leaves a tree the suite has not accepted.
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 require "hecksagain/grammar/evolve"
@@ -36,23 +34,12 @@ ROOT = File.expand_path("..", __dir__)
 
 SNAPSHOT_PATHS = [
   "lib/hecksagain/language/bluebook/syntax.bluebook",
-  "spec/golden/ir/Bluebook.json",
-  "rust/src/bluebook/ir_syntax.rs",
-  "rust/src/bluebook/ir_syntax_flags.rs",
-  "rust/src/bluebook/ir_syntax_text.rs",
-  "rust/src/bluebook/ir_dispatch_words.rs",
-  "rust/src/bluebook/ir_syntax_bindings.rs"
+  "spec/golden/ir/Bluebook.json"
 ].map { |rel| File.join(ROOT, rel) }.freeze
 
 GATES = %w[
   spec/syntax_conformance_spec.rb
   spec/syntax_lifecycle_spec.rb
-  spec/rust_syntax_conformance_spec.rb
-  spec/ir_syntax_export_spec.rb
-  spec/ir_syntax_flags_export_spec.rb
-  spec/ir_syntax_text_export_spec.rb
-  spec/ir_dispatch_words_export_spec.rb
-  spec/ir_syntax_bindings_export_spec.rb
   spec/ir_golden_spec.rb
 ].freeze
 
@@ -64,15 +51,6 @@ def option(name, default = nil)
 end
 
 def regenerate!
-  { "bin/ir_syntax"         => "rust/src/bluebook/ir_syntax.rs",
-    "bin/ir_syntax_flags"   => "rust/src/bluebook/ir_syntax_flags.rs",
-    "bin/ir_syntax_text"    => "rust/src/bluebook/ir_syntax_text.rs",
-    "bin/ir_dispatch_words" => "rust/src/bluebook/ir_dispatch_words.rs",
-    "bin/ir_syntax_bindings" => "rust/src/bluebook/ir_syntax_bindings.rs" }.each do |script, target|
-    output = `#{File.join(ROOT, script)}`
-    abort "#{script} refused — nothing was written" unless $?.success?
-    File.write(File.join(ROOT, target), output)
-  end
   system({ "GOLDEN" => "rewrite" },
          "bundle", "exec", "rspec", "spec/ir_golden_spec.rb",
          chdir: ROOT, out: File::NULL, err: File::NULL)
@@ -118,8 +96,6 @@ when "propose"
   if ok
     puts "Proposed. It reaches no projection until admitted. Before `bin/evolve admit`:"
     puts "  1. teach the #{context} builder the word (and its spec/dsl_spec example)"
-    puts "  2. teach rust/src/bluebook/parser.rs the same word"
-    puts "  3. run bin/parity"
   end
 when "admit", "deprecate", "retire"
   to = { "admit" => "admitted", "deprecate" => "deprecated", "retire" => "retired" }.fetch(command)
@@ -134,8 +110,7 @@ when "rename"
   if ok
     puts "Renamed. The old spelling keeps parsing — that is the point. Before this holds:"
     puts "  1. alias the new word to the old in the #{context} builder (alias_method :#{to}, :#{word})"
-    puts "  2. teach rust/src/bluebook the new spelling beside the old"
-    puts "  3. add the identical-IR example to spec/dsl_spec.rb, then run bin/parity"
+    puts "  2. add the identical-IR example to spec/dsl_spec.rb"
   end
 when "argument-propose"
   keyword = ARGV.shift or abort "argument-propose which keyword's argument?"
@@ -150,8 +125,6 @@ when "argument-propose"
   if ok
     puts "Proposed. It reaches no projection until admitted. Before `bin/evolve argument-admit`:"
     puts "  1. teach the #{context} builder's #{keyword} method the argument"
-    puts "  2. teach rust/src/bluebook the same argument, if its kind is generated (flag/text/number)"
-    puts "  3. run bin/parity"
   end
 when "argument-admit", "argument-deprecate", "argument-retire"
   to = { "argument-admit" => "admitted", "argument-deprecate" => "deprecated",
