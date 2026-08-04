@@ -246,17 +246,17 @@ module Hecksagain
         # A query must ask about a field the aggregate actually HAS — the same
         # seal `then_set` gets, closing the same silence: a where over a field
         # nothing declares matches nothing and refuses nothing, forever, on
-        # every adapter. Three more silences close with it. An ordered
-        # comparator (lt/gt/gte/lte) over a non-numeric field is answered
-        # DIFFERENTLY per adapter — the reference interpreter quietly matches
-        # no rows while SQL compares text — so it must land on a numeric leaf.
-        # A :symbol value must name one of the query's own declared arguments,
-        # or it resolves to nil at dispatch and matches nothing. And a dotted
-        # field path is refused even when it resolves — the adapters do not
-        # yet answer a nested value-object field identically, and a query the
-        # engines disagree on is worse than one that refuses to boot.
+        # every adapter. Three more silences close with it. A dotted path may
+        # reach through the value-object graph but must LAND on a scalar
+        # member (QuerySpecification::FieldPath is the one walk every engine
+        # now shares) — landing on a value object hands SQL a JSON object
+        # where the reference interpreter unwraps a hash. An ordered
+        # comparator (lt/gt/gte/lte) must land on a numeric leaf — over text
+        # the reference interpreter quietly matches no rows while SQL
+        # compares lexicographically. And a :symbol value must name one of
+        # the query's own declared arguments, or it resolves to nil at
+        # dispatch and matches nothing.
         ORDERED_COMPARATORS = %i[lt lte gt gte].freeze
-        NUMERIC_PRIMITIVES  = %w[Integer Float].freeze
 
         def seal_query_targets
           query_surfaces.each do |owner, fields, lifecycle, queries|
@@ -282,12 +282,13 @@ module Hecksagain
           name, *nested = field.to_s.split(".")
           attribute = fields.find { |candidate| candidate.name.to_s == name }
           return if nested.empty? && (attribute || lifecycle&.field.to_s == name)
+          return if nested.any? && attribute && scalar_path?(attribute, nested)
 
-          if nested.any? && attribute && nested_path_resolves?(attribute, nested)
+          if nested.any? && attribute && resolves?(attribute, nested)
             raise Malformed,
-                  "#{owner}.#{query.hecks_name} reaches inside #{name} (#{field}) — " \
-                  "the adapters do not answer a nested value-object field identically " \
-                  "yet, so a query field names a declared attribute, nothing deeper"
+                  "#{owner}.#{query.hecks_name} asks about #{field}, which lands on a " \
+                  "value object, not a scalar — a dotted query path ends on a scalar " \
+                  "member, or the engines answer it differently"
           end
 
           raise Malformed,
@@ -299,8 +300,10 @@ module Hecksagain
         def seal_ordered_comparator(owner, query, fields, clause)
           return unless ORDERED_COMPARATORS.include?(clause.op.to_s.to_sym)
 
-          attribute = fields.find { |candidate| candidate.name.to_s == clause.field.to_s }
-          return if numeric_leaf?(attribute)
+          name, *nested = clause.field.to_s.split(".")
+          attribute = fields.find { |candidate| candidate.name.to_s == name }
+          return if attribute &&
+                    QuerySpecification::FieldPath.numeric?(attribute, nested) { |type| declared_value_object(type) }
 
           held = attribute ? "holds no number" : "is the lifecycle field, which holds text"
           raise Malformed,
@@ -319,21 +322,12 @@ module Hecksagain
                 "resolves to nil and matches nothing"
         end
 
-        def numeric_leaf?(attribute)
-          return false if attribute.nil? || attribute.list? || attribute.reference?
-          return true if NUMERIC_PRIMITIVES.include?(attribute.type.to_s)
-
-          shape = declared_value_object(attribute.type.to_s)
-          !!shape&.attributes&.any? { |member| NUMERIC_PRIMITIVES.include?(member.type.to_s) }
+        def scalar_path?(attribute, nested)
+          QuerySpecification::FieldPath.scalar_leaf?(attribute, nested) { |type| declared_value_object(type) }
         end
 
-        def nested_path_resolves?(attribute, nested)
-          current = attribute
-          nested.all? do |segment|
-            shape = current && !current.reference? ? declared_value_object(current.type.to_s) : nil
-            current = shape&.attributes&.find { |member| member.name.to_s == segment }
-            !current.nil?
-          end
+        def resolves?(attribute, nested)
+          !QuerySpecification::FieldPath.leaf_attribute(attribute, nested) { |type| declared_value_object(type) }.nil?
         end
 
         def declared_value_object(type_name)

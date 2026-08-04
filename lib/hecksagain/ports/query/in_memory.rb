@@ -1,19 +1,22 @@
 require_relative "ordering"
 require_relative "../../runtime/value"
+require_relative "../../query_specification/field_path"
 
 module Hecksagain
   module Ports
     module Query
       module InMemory
+        FieldPath = QuerySpecification::FieldPath
+
         module_function
 
         def execute(records, declared, args = {})
           matched = records.select do |record|
-            declared.wheres.all? { |clause| holds?(clause, comparable(record[clause.field]), args) }
+            declared.wheres.all? { |clause| holds?(clause, comparable(FieldPath.dig(record, clause.field)), args) }
           end
-          field   = declared.order_by&.field&.to_sym
+          field   = declared.order_by&.field
           matched = Ordering.apply(matched, declared.order_by, declared.null_semantics,
-                                   identity: ->(record) { record.id.to_s }) { |record| comparable(record[field]) }
+                                   identity: ->(record) { record.id.to_s }) { |record| comparable(FieldPath.dig(record, field)) }
           matched = matched.first(resolve(declared.limit.value, args).to_i) if declared.limit
           matched = matched.drop(resolve(declared.offset.value, args).to_i) if declared.offset
           matched

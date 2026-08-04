@@ -253,15 +253,15 @@ module Hecksagain
         "#{order_expression(order_by.field)} #{direction}#{nulls}, id #{direction}"
       end
 
+      # One shared walk decides numericness at ANY depth — this used to
+      # inspect only the first nested segment, so a two-level path
+      # (pizza.price_cents.cents) skipped the ::numeric cast and ordered
+      # as text: "900" above "1200".
       def numeric_field?(field)
         name, *path = field.to_s.split(".")
-        attribute = @aggregate.attribute(name)
-        return %w[Integer Float].include?(attribute&.type.to_s) if path.empty? && attribute && !value_object?(attribute)
-        return false unless attribute && value_object?(attribute)
-
-        object = @aggregate.value_object(attribute.type)
-        member = path.first || object.attributes.find { |candidate| %w[Integer Float].include?(candidate.type) }&.name || "value"
-        %w[Integer Float].include?(object.attribute(member.to_sym)&.type.to_s)
+        QuerySpecification::FieldPath.numeric?(@aggregate.attribute(name), path) do |type|
+          @aggregate.value_object(type)
+        end
       end
 
       # ARRAY[...] of individually-escaped literals, never the hand-rolled

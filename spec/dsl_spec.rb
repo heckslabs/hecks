@@ -1038,15 +1038,40 @@ RSpec.describe "the DSL surface" do
         end.to raise_error(Malformed, /resolves :ceiling from its arguments, but declares no ceiling attribute/)
       end
 
-      it "refuses a dotted path even when it resolves — the adapters do not agree past the top level" do
+      it "admits a dotted path that lands on a scalar member, at any depth" do
+        aggregate = build_aggregate("Nesting") do
+          value_object("Price") { attribute :cents, Integer }
+          value_object("Pizza") { attribute :price, Price }
+          attribute :pizza, Pizza
+          query("Cheap") do
+            where(:"pizza.price.cents" => { lt: 500 })
+            order_by :"pizza.price.cents", :desc
+          end
+        end
+
+        expect(aggregate.queries.first.wheres.first.field.to_s).to eq("pizza.price.cents")
+      end
+
+      it "refuses a dotted path that lands on a value object rather than a scalar" do
         expect do
-          build_aggregate("Nesting") do
+          build_aggregate("Landing") do
             value_object("Price") { attribute :cents, Integer }
             value_object("Pizza") { attribute :price, Price }
             attribute :pizza, Pizza
-            query("Cheap") { where(:"pizza.price.cents" => { lt: 500 }) }
+            query("Cheap") { where(:"pizza.price" => { lt: 500 }) }
           end
-        end.to raise_error(Malformed, /reaches inside pizza \(pizza\.price\.cents\).*nested value-object field/m)
+        end.to raise_error(Malformed, /asks about pizza\.price, which lands on a value object, not a scalar/)
+      end
+
+      it "refuses an ordered comparator on a dotted path to a non-numeric scalar" do
+        expect do
+          build_aggregate("Lettering") do
+            value_object("Label") { attribute :text, String }
+            value_object("Pizza") { attribute :label, Label }
+            attribute :pizza, Pizza
+            query("Sorted") { where(:"pizza.label.text" => { gt: "m" }) }
+          end
+        end.to raise_error(Malformed, /compares pizza\.label\.text with gt.*holds no number/m)
       end
 
       it "admits the shapes both adapters answer identically" do

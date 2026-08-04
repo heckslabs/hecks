@@ -257,6 +257,18 @@
     {
       "query": "Pizzas::Order.Available",
       "args": {}
+    },
+    {
+      "query": "Pizzas::Order.CostingLessThan",
+      "args": {
+        "ceiling": {
+          "cents": 1000
+        }
+      }
+    },
+    {
+      "query": "Pizzas::Order.Expensive",
+      "args": {}
     }
   ]
 }

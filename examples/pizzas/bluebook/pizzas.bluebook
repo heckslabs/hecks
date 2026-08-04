@@ -84,6 +84,30 @@ Hecks.bluebook "Pizzas" do
       order_by :name
     end
 
+    # BOTH price queries reach through the nested Pizza value object with a
+    # dotted path — the shape that could not be asked at all when Pizza
+    # first became a value object. They were dropped then rather than
+    # answered wrongly; QuerySpecification::FieldPath is what let them
+    # return: one walk shared by the reference interpreter, both SQL
+    # dialects, and the build seal, so a nested ask answers identically
+    # everywhere or refuses to build.
+    query "CostingLessThan" do
+      attribute :ceiling, Price
+      where(:"pizza.price_cents.cents" => { lt: :ceiling })
+      order_by :name
+    end
+
+    # A LITERAL, not a kwarg — CostingLessThan's :ceiling is always resolved
+    # from the caller's args before it ever reaches the comparator, so it
+    # never exercised the literal-value path: a where-clause's own number
+    # is stringified when the query is declared ("1000", not 1000), and
+    # gt/gte/lte were never implemented against it at all until this query
+    # gave the corpus something to disagree about.
+    query "Expensive" do
+      where(:"pizza.price_cents.cents" => { gt: 1000 })
+      order_by :name
+    end
+
     command "CreatePizza" do
       role "Chef"
       goal "Put a new pizza on the menu"

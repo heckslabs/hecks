@@ -9,4 +9,5 @@ end
 require_relative "query_specification/common/specification"
 require_relative "query_specification/common/null_policy"
 require_relative "query_specification/common/dsl"
+require_relative "query_specification/field_path"
 require_relative "query_specification/read_model/specification"

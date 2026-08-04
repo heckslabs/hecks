@@ -14,6 +14,28 @@ RSpec.describe "Pizzas" do
     pizza
   end
 
+  describe "asking through the nested value object" do
+    # The dotted-path queries, answered by the REFERENCE interpreter here —
+    # the same declarations answer identically through Postgres against the
+    # live example domain, which is the whole point of FieldPath being one
+    # walk. Margherita costs 1200, Bare 900 (created below).
+    it "CostingLessThan reaches pizza.price_cents.cents with a caller-supplied ceiling" do
+      create(name: "Margherita", price_cents: 1200)
+      create(name: "Bare", price_cents: 900)
+
+      rows = runtime.query("Pizzas::Order.CostingLessThan", ceiling: { cents: 1000 })
+      expect(rows.map { |row| row[:id] }).to eq(["Bare"])
+    end
+
+    it "Expensive compares the nested member against its own literal" do
+      create(name: "Margherita", price_cents: 1200)
+      create(name: "Bare", price_cents: 900)
+
+      rows = runtime.query("Pizzas::Order.Expensive")
+      expect(rows.map { |row| row[:id] }).to eq(["Margherita"])
+    end
+  end
+
   describe "the domain surface" do
     it "exposes every command as a fully-qualified verb" do
       expect(runtime.verbs).to contain_exactly(
