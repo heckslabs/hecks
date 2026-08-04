@@ -18,6 +18,7 @@ module InMemoryDomain
   EXTRACTION_PORT  = File.join(ROOT, "lib/hecksagain/ports/extraction.port")
   MEMORY_ADAPTER   = File.join(ROOT, "lib/hecksagain/adapters/driven/memory.adapter")
   PRISM_ADAPTER    = File.join(ROOT, "lib/hecksagain/adapters/driven/prism.adapter")
+  POSTGRES_ADAPTER = File.join(ROOT, "lib/hecksagain/adapters/driven/postgres.adapter")
 
   def boot_in_memory
     registry = Hecksagain::Runtime::Registry.new
