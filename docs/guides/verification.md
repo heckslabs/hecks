@@ -21,8 +21,8 @@ already decided matter, walked end to end by `bin/run`. And the golden
 IR is a frozen snapshot of what your builder emits, so a shape drift
 shows up before something that reads that shape by name silently
 corrupts. None of them replace the suite — they are what you reach for
-when the suite passing is not, by itself, a complete answer to "can I
-ship this."
+when the suite passing is not, by itself, a complete answer to whether
+it is safe to ship.
 
 ## A small domain with a hole in it
 
@@ -30,7 +30,7 @@ One domain runs the first of these live — Chapelle, a chapel's
 reliquary. Its lifecycle has a hole, on purpose, because the hole is
 the whole demonstration:
 
-```bluebook
+```ruby bluebook
 Hecks.bluebook "Chapelle" do
   vision "A chapel's reliquary — sealed, consecrated, and occasionally reopened for restoration."
   generic
@@ -355,7 +355,7 @@ that stopped happening at all.
 
 ## The golden IR — a drift alarm, not a test you write
 
-One more, briefer, because `extending-hecks.md` covers it at more
+One more, briefer, because [extending-hecks.md](extending-hecks.md) covers it at more
 depth. `spec/ir_golden_spec.rb` freezes what the builder's `to_h`
 emits for every corpus member into `spec/golden/ir/*.json`, and
 compares today's emission against yesterday's FILE rather than against
@@ -381,10 +381,10 @@ The suite and `bin/model_check` are exactly what `.githooks/pre-push`
 runs before anything leaves your machine — not `bin/fuzz`, which stays
 out deliberately: a random sweep is not a fast loop, and pre-push is
 supposed to be one. The suite runs first; then the model checker; and
-either one being red blocks the push outright. So "did I verify enough
-before I ship" has a mechanical answer at the moment it matters most —
-if `git push` went through, the suite passed and the model checker
-found nothing new. Install it once —
+either one being red blocks the push outright. So the question of
+whether verification was sufficient has a mechanical answer at the
+moment it matters most — if `git push` went through, the suite passed
+and the model checker found nothing new. Install it once —
 
 ```sh
 git config core.hooksPath .githooks
@@ -395,20 +395,18 @@ git config core.hooksPath .githooks
 
 ## Which one, when
 
-I do not reach for all four on every change. `model_check` while I am
+Not all four apply to every change. Reach for `model_check` while
 still shaping the domain — it is static, it is fast, and a dead
-transition or an unreachable saga state is exactly the mistake I make
-WHILE writing a lifecycle, not after; pre-push runs it for me anyway.
-`fuzz` before I trust a refactor to the interpreter itself — the
-dispatcher, the saga engine, an adapter's query hook — because that is
-the one that catches the runtime doing something no declaration ever
-sanctioned, and it is too slow to run on every save. The corpus for the
-specific refusal paths I already know matter, on every change near
-them — it is not exploratory, it is a promise I made once and do not
-want to break by accident. And the golden IR I do not run by hand most
-weeks; it is the alarm that goes off when a shape I was not even
-thinking about moved underneath something that reads it by name.
-Four different questions, four different costs — "the suite is green"
-was never going to answer all of them at once.
-
-— Miette
+transition or an unreachable saga state is exactly the mistake most
+likely to happen while writing a lifecycle, not after; pre-push runs
+it regardless. Reach for `fuzz` before trusting a refactor to the
+interpreter itself — the dispatcher, the saga engine, an adapter's
+query hook — because that is the one that catches the runtime doing
+something no declaration ever sanctioned, and it is too slow to run on
+every save. The corpus covers the specific refusal paths already known
+to matter, on every change near them — it is not exploratory, it is a
+permanent guard against regressing a decision already made. And the
+golden IR is not run by hand most weeks; it is the alarm that goes off
+when a shape no one was watching moved underneath something that reads
+it by name. Four different questions, four different costs — "the
+suite is green" was never going to answer all of them at once.

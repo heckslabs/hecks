@@ -1,9 +1,9 @@
 # Policies and process managers
 
-A command answers a caller who is standing right there. Half of what a
-real system does is not that — a payment gateway's webhook fires, a
-delivery truck crosses the gate, and nobody is standing there waiting
-for an answer. Something inside the domain still has to react, and the
+A command answers a synchronous caller directly. Much of what a real
+system does is not synchronous — a payment gateway's webhook fires, a
+delivery truck crosses the gate, and nothing is waiting for a direct
+answer. Something inside the domain still has to react, and the
 reaction is a domain decision, not infrastructure. `policy` is the seam
 where an external fact becomes that decision: not a script, not a
 callback bolted onto an event bus, a declared reaction the runtime
@@ -12,7 +12,7 @@ else. `process_manager` is the seam for the reaction that cannot finish
 in one step — a delivery that has to leave one place before it can
 arrive at another, with a real chance of failing partway through.
 
-Both are provable in one sitting, against one small domain.
+Both are provable within one small domain.
 
 A construction site. Material gets logged onto a stockpile as trucks
 arrive, an alarm gets installed and can be sounded, and units of
@@ -21,7 +21,7 @@ end sometimes shut.
 
 ## The declaration
 
-```bluebook
+```ruby bluebook
 Hecks.bluebook "Chantier" do
   vision "A construction site — material arrives, gets moved, and occasionally an alarm won't stop."
   supporting
@@ -525,8 +525,8 @@ Chantier::Consignment.find("c-2").status  # => "returned"
 leg unwinds on its own. Nobody dispatched `Return` by hand, and nobody
 had to notice the haul had stalled: `on :refused, transition: {
 "hauling" => "returned" }` is the leg that fires the moment
-`Bin.LoadIn` declines, and it dispatches exactly the pair that makes
-the world good again — units back into the source bin, the consignment
+`Bin.LoadIn` declines, and it dispatches exactly the pair that restores
+consistency — units back into the source bin, the consignment
 marked returned. Read the saga log and the refusal that triggered it is
 right there, not swallowed:
 
@@ -535,9 +535,9 @@ returned = runtime.sagas.select { |s| s[:process_manager] == "Haulage" && s[:ins
 returned.find { |s| s[:delivered] == false }[:reason]  # => "LoadIn refused — the bin is open"
 ```
 
-Before this compensation existed, a refusal like this one just sat in
-the log — the units gone from `yard`, credited nowhere, waiting for a
-human to notice a haul had stalled and put them back by hand. A
+Without this compensation, a refusal like this would leave the units
+gone from `yard`, credited nowhere, until a human noticed the stalled
+haul and corrected it by hand. A
 compensating leg that is itself refused does not unwind a second time —
 no flag has to say so, because the state already moved to the
 compensation's own `to_state` before its dispatches ran, and a repeat
@@ -571,7 +571,5 @@ still names as a known, allowed finding rather than a design flaw
 silently fixed out from under the example). The payoff is entirely
 about when you find out: a saga with a state its own protocol can never
 reach, or a compensation nothing can ever trigger, is a bug you want
-`bin/model_check` to name in CI — not a real haul, stuck at 2 in the
-morning, with a customer's material sitting in neither bin.
-
-— Miette
+`bin/model_check` to name in CI — not a stalled haul discovered in
+production, with a customer's material sitting in neither bin.

@@ -56,7 +56,7 @@ of a scripted expectation.
 ## Guides
 
 Task-oriented, doctested the same way the section above is — every guide's
-own examples run against the real runtime on every push. Written by Miette.
+own examples run against the real runtime on every push.
 
 <!-- generated:begin id=guides -->
 - [Aggregates and value objects](docs/guides/aggregates-and-value-objects.md)
@@ -82,7 +82,7 @@ own examples run against the real runtime on every push. Written by Miette.
 
 ## Writing a bluebook
 
-```bluebook
+```ruby bluebook
 Hecks.bluebook "TillFloor" do
   vision "A till takes money in and gives money out, and the drawer count is arithmetic — never a guess."
   generic
@@ -163,7 +163,7 @@ crosses no language boundary. So predicates are **extracted**, not closed
 over. The developer's actual source is parsed by Prism, Ruby's own parser, and
 lowered to canonical text:
 
-```
+```ruby skip
 given("at most 10 toppings") { toppings.size < 10 }
                      ↓
             "toppings.size < 10"
@@ -178,7 +178,7 @@ The admissible subset is conceived in
 [`lib/hecksagain/grammar/expression.bluebook`](lib/hecksagain/grammar/expression.bluebook)
 and bounded by what the interpreter floor can evaluate:
 
-```
+```ruby skip
 ||  →  &&  →  .include?  →  >= <= < > == !=  →  leaves
 ```
 
@@ -195,7 +195,7 @@ chapter's own Admit gate on each suite run
 
 A domain's `bluebook/` folder holds only what is **its own**:
 
-```
+```ruby skip
 examples/pizzas/
   bluebook/
     pizzas.bluebook        the domain
@@ -207,7 +207,7 @@ examples/pizzas/
 Ports and adapters are **not** in there. They are the two halves of the
 inverted arrow, and each ships with the library beside its implementation:
 
-```
+```ruby skip
 lib/hecksagain/ports/            the PORT — the how-verb and the signal
 lib/hecksagain/adapters/driven/
   sqlite.adapter                 the DECLARATION — its port, and the config it needs
@@ -291,7 +291,7 @@ Every domain this repository's own tests and docs draw examples from:
 
 ## The library
 
-```
+```ruby skip
 lib/hecksagain/
   language/     the language, declared in its own bluebooks.  WHAT A BLUEBOOK IS.
   grammar/      the expression and translation sublanguages, and the Admit gate.

@@ -12,14 +12,15 @@ anything is written to your store. Get it wrong — forget to give a
 state an exit, or declare a transition that can never fire — and
 `bin/model_check` is the tool that tells you before your users do.
 
-A warehouse. Crates arrive, get put away, get pulled for an order, and
-either go back on the shelf or go out the door. Small enough to hold in
-one hand, real enough that shipping the wrong crate at the wrong point
-in its life is exactly the bug a lifecycle exists to make impossible.
+The examples in this guide use a warehouse: crates arrive, get put
+away, get pulled for an order, and either go back on the shelf or go
+out the door. It is a small domain, but shipping the wrong crate at
+the wrong point in its life is exactly the bug a lifecycle exists to
+make impossible.
 
 ## The declaration
 
-```bluebook
+```ruby bluebook
 Hecks.bluebook "Depot" do
   vision "A crate's life from the receiving dock to the outbound truck, and nothing skipped."
   supporting
@@ -106,7 +107,7 @@ Hecks.hecksagon("Depot") { Depot::Crate.persisted_by("Memory") }
 
 ## The default, and the automatic move
 
-A crate is born in whichever state you named as `default:` — no
+A crate starts in whichever state is named as `default:` — no
 command sets it, because none has run yet:
 
 ```ruby
@@ -129,7 +130,7 @@ crate.status  # => "stowed"
 `"stowed"` is not only where `Stow` lands a crate — it is also where
 `Restock` sends one back. Pull the crate for an order, then have the
 order fall through, and it returns to the same shelf state by a
-different door:
+different transition:
 
 ```ruby
 crate.pick
@@ -164,8 +165,8 @@ instead of a `nil` or a corrupted record.
 
 ## Terminal states
 
-Pick the crate again and ship it for real, and it lands somewhere
-nothing in this lifecycle ever leaves:
+Pick the crate again and ship it for real, and it lands in a state
+this lifecycle defines no exit from:
 
 ```ruby
 crate.pick
@@ -192,8 +193,8 @@ findings = Hecksagain::Bluebook::ModelCheck.call(runtime.registry.bluebook("Depo
 findings.map { |f| [f.kind, f.severity] }  # => [[:stuck_state, :warning]]
 ```
 
-One finding, one warning, and it names exactly the state we just
-proved has no exit. Nothing here is an error — this crate lifecycle is
+One finding, one warning, and it names exactly the state just shown to
+have no exit. Nothing here is an error — this crate lifecycle is
 clean to ship.
 
 ## What model_check refuses to let you ship
@@ -205,7 +206,7 @@ mean anything at runtime, and `bin/model_check` reports both as
 that names a state, `"flagged"`, that nothing ever actually flags a lot
 INTO:
 
-```bluebook
+```ruby bluebook
 Hecks.bluebook "Depot" do
   vision "A lot logged at the dock, inspected, and either cleared or discarded — except nothing ever flags one."
   supporting
@@ -292,6 +293,4 @@ Everything shown here about an aggregate's `lifecycle` applies
 unchanged to an `entity` nested inside one — `entity_builder.rb`
 declares the same `lifecycle` keyword, and `model_check` walks an
 entity's states exactly as it walks its owning aggregate's. See the
-entities guide for the rest of what an entity carries.
-
-— Miette
+[entities guide](entities.md) for the rest of what an entity carries.

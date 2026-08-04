@@ -1,13 +1,12 @@
 # Queries and read models
 
-You have an aggregate that refuses the wrong things and emits the right
-events. Now someone wants a list — boats under a certain draft, everyone
-who isn't moored, a dashboard that gathers a skipper's whole fleet in one
-read. That is what `query` and `read_model` are for, and this guide is
-about shipping one correctly: what the vocabulary can carry, what the
-build refuses before your report reaches an adapter that would have
-quietly disagreed with itself, and the one comparator you should not
-trust yet.
+An aggregate refuses invalid input and emits events for what changed.
+Reading that data back — boats under a certain draft, everyone who isn't
+moored, a dashboard that gathers a skipper's whole fleet in one read — is
+what `query` and `read_model` are for. This guide covers what the
+vocabulary can carry, what the build refuses before a report reaches an
+adapter that would otherwise silently disagree with itself, and one
+comparator that should not yet be trusted.
 
 Both constructs are built on the same option vocabulary
 (`QuerySpecification::Common::DSL`) — `where`, `order_by`, `limit`, and
@@ -18,9 +17,9 @@ aggregate at once.
 
 ## The domain
 
-A marina: skippers, and the boats they keep here.
+The example domain is a marina: skippers and the boats they keep there.
 
-```bluebook
+```ruby bluebook
 Hecks.bluebook "Marina" do
   vision "Boats swing on their moorings until they don't — and the harbourmaster needs to ask about depth, draft, and home port the same way every time, on whichever adapter is listening."
   supporting
@@ -315,12 +314,12 @@ nothing.
 
 ## The seal — what you don't have to catch by hand
 
-Four mistakes never reach an adapter. They're caught the moment the
+Four mistakes never reach an adapter. They are caught the moment the
 bluebook builds, not the first time a caller runs the query and gets a
-suspiciously empty result. That's the whole value of the seal: it turns
-"this report has been quietly wrong since it shipped" into "this
-domain didn't build." Everything past these four, you still have to get
-right yourself — the open question at the end of this guide is exactly
+suspiciously empty result. That is the value of the seal: a report that
+would otherwise have been silently wrong since it shipped instead causes
+the domain not to build. Everything past these four still has to be
+verified by hand — the open question at the end of this guide is exactly
 that kind of thing.
 
 Reaching the seal directly needs the same ambient registry a `.bluebook`
@@ -468,19 +467,16 @@ you ship a query that must mean the same thing on whichever adapter a
 deployment binds, that file is where the guarantee actually lives, not
 in this guide's prose.
 
-## Don't rely on this yet: `contains` with a comma
+## `contains`: two readings, chosen by the field's own shape
 
-`contains` is exercised above on a plain value (`"leaky"`), and that's
-deliberate. If the value you pass it *contains a comma*, the reference
-interpreter and SQL stop agreeing: the reference interpreter reads
-`contains` as CSV/list membership (splitting on comma, same as `in`
-does), while compiled SQL reads it as a literal substring search. A
-one-word tag survives that difference by accident; a value with a comma
-in it will not, and which adapter is bound decides which answer you get.
-This is a named, open gap in the language, not a corner you can reason
-your way around — `spec/adapters/query_agreement_spec.rb` states it
-plainly rather than testing around it, and so does this guide: don't
-ship a `contains` clause over a value that might carry a comma until
-this is resolved one way or the other.
-
-— Miette
+`contains` means one of two things, decided by what the field holds —
+never guessed, and identical on every engine (Memory, Sqlite, Postgres,
+the reference interpreter). On a `list_of` field (`tags` above) it is
+real ELEMENT membership: `contains: "leaky"` asks whether any element's
+own scalar equals `"leaky"`, exactly. On any other field it is a plain
+SUBSTRING search over that field's text — including a comma the field's
+own content happens to carry, which is not treated as a separator the
+way `in`'s comma-separated argument convention is. `spec/adapters/
+query_agreement_spec.rb`'s "carries a comma" case is the cross-engine
+proof; that is where the guarantee actually lives, not in this guide's
+prose.

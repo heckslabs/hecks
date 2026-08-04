@@ -8,14 +8,15 @@ exceptions your caller has to be ready to catch, and the difference
 between a rule you enforce going in and a guarantee you check coming
 out. All three are provable in one sitting, against one small domain.
 
-An orchard. Trees get planted, they start bearing, they get harvested,
-pruned, occasionally pressed into cider, and eventually taken out.
-Small enough to hold in one hand, real enough to lose money if a
-command lets the wrong thing through.
+The examples below use an orchard domain: trees are planted, begin
+bearing, get harvested, pruned, occasionally pressed into cider, and
+eventually removed. The domain is small enough to cover in one
+sitting, and realistic enough that a command letting the wrong thing
+through would cost real money.
 
 ## The declaration
 
-```bluebook
+```ruby bluebook
 Hecks.bluebook "Verger" do
   vision "Trees are planted, tended, harvested, and eventually taken out — an orchard's whole lifecycle in one small domain."
   supporting
@@ -223,7 +224,7 @@ Verger:
 
 Every one of these is a `StandardError` subclass under
 `Hecksagain::Runtime`, and every one is the domain answering, not the
-runtime breaking. *Un refus est une réponse.*
+runtime breaking. A refusal is a response, not a malfunction.
 
 ## Creating vs. acting
 
@@ -474,5 +475,3 @@ a `LifecycleRefused`, a dangling reference, all stop the same dispatch
 pipeline before `save` ever runs. A command either completes and
 persists, or it refuses and the record you already had stands exactly
 as it was.
-
-— Miette

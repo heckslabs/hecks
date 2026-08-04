@@ -1,22 +1,22 @@
 # Getting started
 
-I am going to show you the whole shape of this language in one sitting —
-a domain declared, wired, booted, and refused. Not a tour of features.
-One small thing, done completely.
+This guide shows the whole shape of the language in one sitting — a
+domain declared, wired, booted, and refused. It is not a tour of
+features, but one small thing, done completely.
 
-First, what you are looking at. A `.bluebook` file declares a business
+First, what is being shown. A `.bluebook` file declares a business
 domain — its aggregates, their rules, what they may do and what they
 must refuse — and the runtime boots that declaration directly. There is
-no handler body anywhere, no class you write, no schema you migrate.
+no handler body anywhere, no class to write, no schema to migrate.
 The domain is data. Everything this project can do — diff a domain,
 store it, translate it across versions, verify it statically — follows
-from that one choice. *Le fond des choses* : if it is data, it can be
-read; and what can be read can be checked.
+from that one choice: if it is data, it can be read, and what can be
+read can be checked.
 
 ## What you need
 
-This is a research language, and I will not pretend otherwise. There is
-no gem. You clone the repository, and the repository is the tool:
+This is a research language: there is no gem. You clone the repository,
+and the repository is the tool:
 
 ```sh
 git clone https://github.com/chrisyoung/hecksagain
@@ -26,15 +26,16 @@ bin/console          # boots the pizzas example — try it first
 ```
 
 Postgres is optional — everything here boots against the in-memory
-adapter. You will want Postgres the day you care about schema
-evolution, and there is a guide for that day.
+adapter. Postgres becomes necessary once schema evolution matters; see
+[Schema evolution](schema-evolution.md).
 
 ## The first declaration
 
-A domain about pressed flowers. Small enough to hold in one hand,
-real enough to refuse things.
+The following example declares a domain about pressed flowers. It is
+small enough to review in full, and demonstrates both what the
+language allows and what it refuses.
 
-```bluebook
+```ruby bluebook
 Hecks.bluebook "Herbier" do
   vision "Pressed specimens, labelled and mounted — nothing enters the folio unnamed."
   generic
@@ -102,8 +103,8 @@ object has no identity at all; a `Label` is only its value, and its
 invariant travels with it everywhere the value goes. The lifecycle
 names the states a specimen may hold and the one transition between
 them. And every command says three things: what it needs, what it
-refuses (`given`), and what it announces (`emits`). There is nothing
-else to a command. That is not a simplification — it is the inventory.
+refuses (`given`), and what it announces (`emits`). A command has no
+additional responsibilities beyond these three.
 
 ## Wiring
 
@@ -131,8 +132,7 @@ specimen.state                 # => "pressed"
 specimen.notes                 # => []
 ```
 
-Commands return the record, so a session chains the way a narrative
-does:
+Commands return the record, so calls can be chained in sequence:
 
 ```ruby
 specimen.annotate(note: { text: "collected at the tree line" })
@@ -166,26 +166,24 @@ command's own rule — it reads the aggregate's state and says no on its
 behalf. The invariant is the value object's rule — it travels with
 `Label` into every command that carries one, declared once, enforced
 everywhere. Neither is an exception in the Ruby sense. A refusal is the
-domain saying no, in words you wrote, and the runtime treats it as half
-of what the domain means. *Un refus est une réponse* — a refusal is an
-answer, not a failure to answer.
+domain saying no, in words declared for it, and the runtime treats it
+as half of what the domain means.
 
-One more thing, and it is the point of the whole arrangement: every
-example on this page was executed against the real runtime before you
-read it, claims and refusals both, by `spec/guides_spec.rb`. This guide
-cannot drift from the language, because the suite would go red the
-moment it did. Documentation that is not read by anything can disagree
-with anything — so here, everything is read.
+Every example on this page is executed against the real runtime by
+`spec/guides_spec.rb`, including the assertions and refusals. This
+guide cannot drift from the language, because the suite fails the
+moment it does. Documentation that is not tested can drift from the
+implementation; every example here is tested.
 
 ## Where to go next
 
-- **aggregates-and-value-objects** — identity in full, composite keys,
-  defaults, patterns, closed sets, references between aggregates.
-- **commands** — everything a command may do and refuse, including
-  postconditions.
-- **wiring** — the hecksagon and world in full: adapters, ports,
-  per-deployment values.
-- **schema-evolution** — what happens when a domain's shape changes and
-  its data must survive; the reason Postgres earns its place.
-
-— Miette
+- **[Aggregates and value objects](aggregates-and-value-objects.md)** —
+  identity in full, composite keys, defaults, patterns, closed sets,
+  references between aggregates.
+- **[Commands](commands.md)** — everything a command may do and refuse,
+  including postconditions.
+- **[Wiring](wiring.md)** — the hecksagon and world in full: adapters,
+  ports, per-deployment values.
+- **[Schema evolution](schema-evolution.md)** — what happens when a
+  domain's shape changes and its data must survive; the reason
+  Postgres earns its place.

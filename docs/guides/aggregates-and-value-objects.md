@@ -1,21 +1,19 @@
 # Aggregates and value objects
 
-You are about to model something real — a feature with state, a shape,
-and rules a wrong shipment would violate quietly. This guide is about
-the decisions that shape carries: does this concept get an identity of
-its own, or is it just a fact two records might share? What happens the
-day a caller sends the wrong shape — does the domain say no at the
-door, or does it wait until row 33 of production data to notice? Every
-section below is a decision you have to make before you write the
-command that needs it, and a demonstration of what happens if you make
-it wrong.
+This guide covers the decisions involved in modeling domain state:
+whether a concept gets an identity of its own or is just a value two
+records might share, and whether an invalid shape is refused at the
+point a caller sends it or only discovered later against production
+data. Each section below covers one such decision, along with a
+demonstration of what happens when it is made incorrectly.
 
-The domain is a pottery workshop — kilns, studios, and the pieces
-thrown in them. Small enough to hold in one hand, real enough to carry
-a composite key, a closed vocabulary, and a reference that gets it
-wrong on purpose. Everything below runs against the one declaration:
+The domain used throughout is a pottery workshop — kilns, studios, and
+the pieces thrown in them. It is small, but exercises a composite key,
+a closed vocabulary, and a reference that is deliberately misused to
+demonstrate a refusal. Everything below runs against the one
+declaration:
 
-```bluebook
+```ruby bluebook
 Hecks.bluebook "Atelier" do
   vision "A workshop, its kilns, and the pieces thrown and fired there."
   supporting
@@ -212,17 +210,17 @@ end
 
 ## Identity: one field, or several — and why that is not a style choice
 
-The first decision, before any attribute: does this concept have a
+The first decision, before any attribute, is whether a concept has a
 lifecycle of its own, addressable by a key that never changes meaning —
-an aggregate — or is it just a value, interchangeable with any other
-instance carrying the same fields — a value object? Get this wrong and
-you either build CRUD around something that was never more than a
-number, or you let two genuinely different records collide because
+an aggregate — or is just a value, interchangeable with any other
+instance carrying the same fields — a value object. Getting this wrong
+means either building CRUD around something that was never more than a
+number, or letting two genuinely different records collide because
 nothing told the runtime how to tell them apart.
 
-`identified_by` is where an aggregate answers "which one is this." A
-single path reads back exactly as written — the tag IS the kiln's
-identity, nothing more to it:
+`identified_by` is where an aggregate declares which field answers
+"which one is this." A single path reads back exactly as written — the
+tag is the kiln's identity:
 
 ```ruby
 kiln = Kiln.install(tag: { value: "kiln-01" })
@@ -231,8 +229,8 @@ kiln.id   # => "kiln-01"
 ```
 
 A composite identity reads back as its parts joined by `:`, in the
-order you declared them — Studio needed one because a studio number by
-itself does not say which building it is in:
+order declared — Studio needs one because a studio number by itself
+does not say which building it is in:
 
 ```ruby
 studio = Studio.establish(district: { value: "north" }, studio_number: { value: 3 }, focus: { value: "ceramics" })
@@ -240,10 +238,10 @@ studio = Studio.establish(district: { value: "north" }, studio_number: { value: 
 studio.id   # => "north:3"
 ```
 
-Now the actual point of `identified_by`. Two studios with the same
-district and number are not two studios that happen to agree — they
-are THE SAME RECORD, and a second `Establish` against that pair is not
-a fresh room, it is a duplicate:
+This is the actual purpose of `identified_by`: two studios with the
+same district and number are not two studios that happen to agree —
+they are the same record, and a second `Establish` against that pair
+is not a fresh room, it is a duplicate:
 
 ```ruby
 Studio.establish(district: { value: "north" }, studio_number: { value: 3 }, focus: { value: "glass" })   # ~> AlreadyExists: already exists
@@ -289,10 +287,10 @@ piece.price.to_h    # => { cents: 0 }
 piece.finish.to_h   # => { value: "matte" }
 ```
 
-Now the trap `default:` sets for you. `price` is typed `Price` — a
-value object — so its default has to fill Price's OWN fields
-(`default: { cents: 0 }`, exactly as declared above). Write a bare
-scalar instead and the bluebook still loads — it fails later, at every
+This is where `default:` becomes a trap. `price` is typed `Price` — a
+value object — so its default has to fill Price's own fields
+(`default: { cents: 0 }`, exactly as declared above). Writing a bare
+scalar instead still lets the bluebook load — it fails later, at every
 single create, because the value object wants its fields and gets a
 number instead:
 
@@ -364,18 +362,18 @@ Piece.throw(serial: { value: "AT-0009" }, discipline: { value: "stone" }, finish
 
 ## Where a rule actually belongs
 
-A value object's `invariant` is not a validation you attach to one
+A value object's `invariant` is not a validation attached to one
 command — it travels with the type, into every command that carries
-it. That is the decision `invariant` makes for you: write the rule
-once, on the value, and every future command that accepts that value
-inherits it whether the author remembers to or not. The alternative —
-a `given` repeated on each command that happens to touch price — is
-the kind of thing that holds for the first three commands and quietly
-stops holding on the fourth, the one added under deadline.
+it. That is what `invariant` provides: the rule is written once, on
+the value, and every future command that accepts that value inherits
+it whether the author remembers to add it or not. The alternative — a
+`given` repeated on each command that touches price — can hold for the
+first several commands and silently stop holding on a later one added
+without noticing the pattern.
 
-`Price` declared its invariant once, above: `cents >= 0`. Watch it fire
-on TWO commands that have nothing else in common — the creating
-`Throw` and the later `Reprice` — because both merely accept a `Price`:
+`Price` declared its invariant once, above: `cents >= 0`. It fires on
+two commands that have nothing else in common — the creating `Throw`
+and the later `Reprice` — because both merely accept a `Price`:
 
 ```ruby
 Piece.throw(serial: { value: "AT-0002" }, discipline: { value: "ceramics" }, finish: { value: "matte" }, glaze: { color: "x", coat: { value: "single" } }, fired_in: "kiln-01", studio: "north:3", price: { cents: -5 })   # ~> InvariantViolation: a price is never negative
@@ -383,10 +381,9 @@ Piece.throw(serial: { value: "AT-0002" }, discipline: { value: "ceramics" }, fin
 piece.reprice(price: { cents: -1 })   # ~> InvariantViolation: a price is never negative
 ```
 
-Neither command wrote that rule. Neither command COULD get it wrong —
-the rule lives on the value, not on the callers of the value, so a
-third command that starts accepting `Price` tomorrow inherits it for
-free:
+Neither command wrote that rule, and neither command could get it
+wrong — the rule lives on the value, not on its callers, so any future
+command that accepts `Price` inherits it automatically:
 
 ```ruby
 piece.reprice(price: { cents: 500 })
@@ -397,10 +394,10 @@ piece.price.to_h   # => { cents: 500 }
 ## Closed vocabularies, and the one that will not nest
 
 `one_of` ships a fixed vocabulary — a field that can only ever be one
-of the values you named, refused at the door for anything else. It has
-two spellings, and knowing which one to reach for (and which one to
-avoid) is the difference between a clean declaration and a crash while
-you are still writing the bluebook.
+of the values named, refused at the door for anything else. It has two
+spellings, and using the wrong one in the wrong place produces a crash
+while the bluebook is still being written, rather than a clean
+declaration.
 
 The block form lives ON the value object — `Studio::Focus`, above, is
 one. It reads well when the closed set is worth naming as its own type
@@ -417,12 +414,12 @@ one_of("matte", "glossy")`, on `Piece`'s head, above — synthesising a
 this one when the set is small, local, and not worth a name anyone
 else will ever reuse.
 
-Here is the trap: the inline shorthand desugars by calling `one_of` on
+The trap: the inline shorthand desugars by calling `one_of` on
 whichever builder currently has `self` — and a nested `value_object`
-block already defines its OWN `one_of`, for closed-set members. Write
-the shorthand INSIDE a `value_object` block and you are not
-synthesising a closed set — you are calling the wrong `one_of`, with
-the wrong arity, and the bluebook does not load:
+block already defines its own `one_of`, for closed-set members. Writing
+the shorthand inside a `value_object` block does not synthesize a
+closed set — it calls the wrong `one_of`, with the wrong arity, and the
+bluebook does not load:
 
 ```ruby
 def atelier_bad_one_of
@@ -484,9 +481,9 @@ quietly stop applying.
 ## Pointing at another aggregate
 
 A reference is how one aggregate names another, and getting the shape
-wrong here does not fail loudly at declaration — it fails as a
-surprise the day someone reads `piece.studios` expecting a list and
-gets `nil`.
+wrong here does not fail loudly at declaration — it fails silently
+later, when code reads `piece.studios` expecting a list and gets `nil`
+instead.
 
 `reference_to Target` is the base form — it mints an attribute named
 `target_id` by default, or whatever you pass as `as:` (`Piece` used
@@ -516,17 +513,24 @@ not `studio_id`, from `Piece`'s `has_one Studio` above):
 piece.studio   # => "north:3"
 ```
 
-Now the one to actually watch for. `has_many` reads like it should
-produce a list — it is spelled with the plural of the target
-(`Piece` wrote `has_many Studios`, above) — but it SINGULARIZES the
-target back down to the aggregate it actually names (`Studio`) and
-mints a single scalar reference under the plural attribute name. It is
-sugar for exactly one relationship, not a one-to-many: a real list of
-references has no precedent in this language at all, because
-`list_of` is checked everywhere as a list of VALUE OBJECTS, not
-references. `has_many` looks like the collection form and is not one —
-declare it expecting a list and the field you get back is `nil` until
-you set it, the same as any other unset reference, never `[]`:
+One direction only: if `Studio` were to declare `reference_to Piece`
+back, the bluebook would refuse to build — two aggregates pointing at
+each other is not a modelling choice this language leaves open, since
+neither side would be a boundary a caller could reason about alone.
+`spec/dsl_spec.rb`'s "refuses two aggregates that reference each
+other" is where that refusal is proven; not reproduced here, since
+demonstrating it live would mean breaking this very domain to show it.
+
+One case to note in particular: `has_many` reads like it should
+produce a list — it is spelled with the plural of the target (`Piece`
+wrote `has_many Studios`, above) — but it singularizes the target back
+down to the aggregate it actually names (`Studio`) and mints a single
+scalar reference under the plural attribute name. It is sugar for
+exactly one relationship, not a one-to-many: a real list of references
+has no precedent in this language, because `list_of` is checked
+everywhere as a list of value objects, not references. `has_many`
+looks like the collection form and is not one — the field it produces
+is `nil` until set, the same as any other unset reference, never `[]`:
 
 ```ruby
 piece.studios   # => nil
@@ -547,18 +551,17 @@ outer one is built:
 piece.glaze.to_h   # => { color: "celadon", coat: { value: "single" } }
 ```
 
-Reaching a nested scalar from a QUERY — `pizza.price_cents.cents`, in
+Reaching a nested scalar from a query — `pizza.price_cents.cents`, in
 the language's own corpus — is its own small topic, with its own
-rules about where a dotted path is allowed to land; the querying guide
-covers it in full.
+rules about where a dotted path is allowed to land; see
+[queries and read models](queries-and-read-models.md) for the full
+treatment.
 
 ## Where to go next
 
-- **getting-started** — the whole shape of the language in one sitting,
+- **[Getting started](getting-started.md)** — the whole shape of the language in one sitting,
   if you have not read it yet.
-- **commands** — everything a command may do and refuse, including
+- **[Commands](commands.md)** — everything a command may do and refuse, including
   postconditions.
-- **wiring** — the hecksagon and world in full: adapters, ports,
+- **[Wiring](wiring.md)** — the hecksagon and world in full: adapters, ports,
   per-deployment values.
-
-— Miette

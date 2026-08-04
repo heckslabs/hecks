@@ -1,22 +1,22 @@
 # Wiring
 
-You already have a domain that boots in memory and refuses correctly —
-`getting-started.md` or `commands.md` got you there. That domain does
+A domain that boots in memory and refuses correctly —
+[getting-started.md](getting-started.md) or [commands.md](commands.md) covers that ground. That domain does
 not yet know where its records will actually live when someone other
-than you is running it, and it should not: a bluebook that named its
-own database would be a bluebook that lied the day you changed
-providers. This page is where that knowledge lives instead — the
-`.hecksagon` and the `.world` — and it is where you make the decisions
-a shipped feature cannot leave unmade: which adapter holds each
+than the developer is running it, and it should not: a bluebook that named its
+own database would be a bluebook that lied the day the provider changed.
+This page is where that knowledge lives instead — the
+`.hecksagon` and the `.world` — and it is where the decisions
+a shipped feature cannot leave unmade get made: which adapter holds each
 aggregate, what an outside fact has to look like before this domain
 will listen to it, and which values differ from one deployment to the
-next. *Le fond des choses* : the domain says WHAT: the wiring says
+next. The domain says WHAT: the wiring says
 WHERE, and neither file is allowed to say the other's part.
 
 ## The folder convention, briefly
 
 `README.md`'s own **folder convention** section is the source of
-truth here and I am not going to repeat it — read it if you have not.
+truth here and is not repeated in full below; read it first if it has not been read yet.
 The shape it settles: a domain's own `bluebook/` folder holds exactly
 three files with three different jobs — `.bluebook` (what the domain
 IS), `.hecksagon` (how THIS deployment wires it), `.world` (what
@@ -30,7 +30,7 @@ second and third of those three files.
 A shop counter. One till, one drawer, one card terminal bolted to it —
 small enough to wire end to end in one sitting.
 
-```bluebook
+```ruby bluebook
 Hecks.bluebook "Comptoir" do
   vision "One counter, one drawer of cash, and a payment terminal bolted to the till."
   supporting
@@ -117,8 +117,8 @@ end
 Two files, three jobs done in them: `persisted_by` binds an aggregate
 to an adapter; `port`/`operation` declares a boundary the domain will
 listen through; `subscribe` names an event taken from elsewhere.
-`.world` supplies the values a binding actually needs. I will walk
-each one separately, live, against what just booted.
+`.world` supplies the values a binding actually needs. Each one is walked through
+separately below, live, against what just booted.
 
 ## Binding persistence, decided outside the domain
 
@@ -151,7 +151,7 @@ confirming a charge, not a cashier ringing one up. Read the inventory
 off `CardReader`'s `Confirm` operation above, because it is the whole
 inventory: a `reference_to` saying which record the fact is about, an
 `attribute` or two, an `emits`. No `given`. No `then_set`. Those are
-not omissions I chose — `DomainPortBuilder`/`PortOperationBuilder`
+not omissions made at the authoring level — `DomainPortBuilder`/`PortOperationBuilder`
 simply define no such methods, so there is nothing to reach for even
 by mistake. A port operation TRANSLATES an external fact into this
 domain's own event vocabulary; it does not hydrate a record, does not
@@ -159,7 +159,7 @@ mutate one, does not save. Whatever should happen next — crediting the
 sale, flagging a mismatch — happens wherever a `policy` reacts to the
 event this emits, exactly the way `pizzas.bluebook`'s
 `OnPizzaPaymentReceived` reacts to `PizzaPaymentReceived`; wiring that
-reaction is `policies-and-process-managers.md`'s job, not this page's.
+reaction is [policies-and-process-managers.md](policies-and-process-managers.md)'s job, not this page's.
 
 Call it the way a real card terminal's webhook handler would — through
 `dispatch_port`, never through the door a cashier's own commands use:
@@ -191,9 +191,9 @@ is — read straight back off the registry once booted:
 runtime.registry.hecksagon("Comptoir").subscriptions   # => ["SupplierInvoiceSettled"]
 ```
 
-I am not going to claim more for it than that. It is a fact recorded
-at the deployment boundary, not a routing table this page can show you
-dispatching anything — if your feature needs a subscribed event to
+Nothing more is claimed for it than that. It is a fact recorded
+at the deployment boundary, not a routing table this page can show
+dispatching anything — if a feature needs a subscribed event to
 actually trigger a reaction, that reaction is a `policy`, the same as
 every other one.
 
@@ -216,7 +216,7 @@ what `comptoir.world` would hold on disk (not run here — `.world`
 files are never loaded through the doctest boot path, only through a
 real `Hecks.boot`):
 
-```
+```ruby skip
 Hecks.world "Comptoir" do
   realm "RiveGauche"
   persisted_by("Postgres") do
@@ -245,7 +245,7 @@ Hecks.adapter "ThermalPrinter" do
 end
 ```
 
-`writing-an-adapter.md` is where that contract lives in full — what
+[writing-an-adapter.md](writing-an-adapter.md) is where that contract lives in full — what
 `field` versus `secret` actually buys you, what a driven adapter must
 implement, how a driving one calls back in. Reach for the library's
 own port before inventing a new one; a new port is a bigger decision
@@ -263,5 +263,3 @@ declares, so a value it does not know is refused at boot, not silently
 dropped. Get a field name wrong in a real `comptoir.world` and you
 find out before the counter ever opens, not the first time someone
 tries to record a sale against it.
-
-— Miette

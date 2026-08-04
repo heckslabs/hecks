@@ -7,7 +7,7 @@ wrong one is the mistake this page exists to prevent:
 
 - No identity, no lifecycle of its own, nothing ever addresses one
   element instead of another — that's a **value object** in a
-  `list_of`. A specimen's notes, in the getting-started guide, are
+  `list_of`. A specimen's notes, in the [getting-started guide](getting-started.md), are
   exactly this: appended, read back, never individually reached.
 - Its own identity, its own commands, its own lifecycle, but it never
   makes sense apart from the thing that holds it — that's an
@@ -15,15 +15,16 @@ wrong one is the mistake this page exists to prevent:
   issued it; nobody looks one up on its own.
 - Identity, AND it needs to be found and acted on directly from
   outside, with no parent in the sentence — that's a separate
-  **aggregate**, referenced the way `commands.md`'s `Tree` references
+  **aggregate**, referenced the way [commands.md](commands.md)'s `Tree` references
   `Orchard`.
 
-The middle one is this page. One small domain, real enough to lose a
-coat if a command lets the wrong thing through.
+The middle case is the subject of this page, illustrated with a small
+domain where an incorrect command could result in a coat being handed
+to the wrong person.
 
 ## The declaration
 
-```bluebook
+```ruby bluebook
 Hecks.bluebook "Foyer" do
   vision "One counter, many claim tickets — nothing is handed back to the wrong hands."
   supporting
@@ -165,13 +166,13 @@ entity had commands of its own.
 
 ## Addressing one ticket
 
-Here is the fact this whole page turns on: `FoyerCheck` gets no door.
-Booting installs a module for every AGGREGATE — `Foyer::FoyerCounter`
-— and nothing for the entities nested inside one. There is no
-`Foyer::FoyerCheck`, and no `check.reclaim` sugar on a ticket you're
-holding, because you are never holding a ticket on its own. You reach
-one the same way the language reaches anything nested: a dotted verb,
-through its aggregate, carrying both identities:
+`FoyerCheck` gets no door. Booting installs a module for every
+AGGREGATE — `Foyer::FoyerCounter` — and nothing for the entities
+nested inside one. There is no `Foyer::FoyerCheck`, and no
+`check.reclaim` sugar on a ticket you're holding, because you are
+never holding a ticket on its own. You reach one the same way the
+language reaches anything nested: a dotted verb, through its
+aggregate, carrying both identities:
 
 ```ruby
 runtime.dispatch("Foyer::FoyerCounter.FoyerCheck.Reclaim",
@@ -199,8 +200,8 @@ counter before the runtime ever looks at the list; get both right and a
 (`owner`) against an argument the command declares (`claimant`) — the
 same shape banking's `LedgerEntry.Amend` reads its own `amount` against
 an incoming `adjustment`. This is a rule that belongs to the ticket,
-not the counter: `FoyerCounter` has no opinion about who checked
-ticket 1 in, and shouldn't have to.
+not the counter: `FoyerCounter` does not need to know who checked
+ticket 1 in.
 
 ```ruby
 counter.check_in(ticket: { value: 3 }, owner: { value: "Odile Vasseur" }, note: { value: "black scarf" })
@@ -249,17 +250,14 @@ against a head, no different for living one level down.
 
 ## What this bought you, and what it didn't
 
-An entity earns its keep exactly when a list needs individual
+An entity is appropriate exactly when a list needs individual
 identity, individual rules, and an individual lifecycle — a claim
-ticket, a ledger entry, an order line. It costs you the door: nothing
-about a `FoyerCheck` is ever addressable except through the
+ticket, a ledger entry, an order line. The tradeoff is the door:
+nothing about a `FoyerCheck` is ever addressable except through the
 `FoyerCounter` that issued it, by design — the same design that makes
 `counter.checks[1]` and `Foyer::FoyerCounter.find("Vestibule")` after a
 `Reclaim` agree, because there was never a second copy of a ticket to
-disagree with. If you find yourself wanting to look one up on its own,
-without its parent in the call, that's the tell you actually wanted a
-separate aggregate all along — the third shape at the top of this
-page, and the one entity can never become without you declaring it
-again.
-
-— Miette
+disagree with. Wanting to look one up on its own, without its parent
+in the call, is the sign a separate aggregate was needed all along —
+the third shape at the top of this page, which an entity can never
+become without declaring it again.

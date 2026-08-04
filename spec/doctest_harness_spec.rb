@@ -23,7 +23,7 @@ RSpec.describe Doctest do
     path = guide(<<~MD)
       # A tiny guide
 
-      ```bluebook
+      ```ruby bluebook
       Hecks.bluebook "DoctestSampleA" do
         vision "A guide's own tiny domain."
         generic
@@ -125,7 +125,7 @@ RSpec.describe Doctest do
       x = 41
       ```
 
-      ```bluebook
+      ```ruby bluebook
       Hecks.bluebook "DoctestWaveTwo" do
         vision "The second narrative in one file."
         generic
@@ -181,7 +181,7 @@ RSpec.describe Doctest do
     path = guide(<<~MD)
       <!-- doctest: postgres -->
 
-      ```bluebook
+      ```ruby bluebook
       Hecks.bluebook "DoctestSampleB" do
       end
       ```

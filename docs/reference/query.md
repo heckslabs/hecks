@@ -55,9 +55,10 @@ declared attribute or the lifecycle field, reached through any depth of
 dotted path as long as it lands on a scalar (landing on a value object
 is refused, and so is a field the aggregate never declared at all); the
 ordered comparators additionally require that scalar to hold a number.
-See the queries-and-read-models guide for the exact refusal wording and
-the open gap where `contains` and a comma-bearing value read
-differently on the reference interpreter versus SQL.
+`contains` means real element membership on a `list_of` field and plain
+substring on anything else — identically on every engine, including a
+field whose own text carries a comma. See the queries-and-read-models
+guide for the exact refusal wording.
 
 ## order_by
 
@@ -112,10 +113,9 @@ Skips that many rows after ordering, for paging. Refused together with
 | positional 1 | symbol | true | value |
 <!-- generated:end -->
 
-Declares an opaque pagination cursor value. The only behavior wired to
-it today is the build-time refusal when paired with `offset` on the
-same query (`Ports::Query.validate!`); no adapter or the reference
-interpreter here reads the cursor value itself to resume a paged read.
+Refused at build (`QueryBuilder#seal_cursor`, raises `Malformed`). No
+interpreter implements cursor pagination — declaring `cursor` here is
+always an error, not a silent no-op. Use `limit`/`offset` instead.
 
 ## consistency
 
@@ -160,9 +160,14 @@ interpreter here — declarative, not enforced.
 | `tenant:` | symbol | false | tenant |
 <!-- generated:end -->
 
-Declares a policy and an optional `tenant:` the ask should be checked
-against. Recorded on the specification only; nothing here evaluates
-it, so an adapter would have to supply the actual check.
+Declares a policy name (recorded, never checked — no caller-identity or
+grant system exists to check it against) and, when `tenant:` is given,
+a mandatory tenant boundary that IS enforced: a caller must pass that
+field as an argument or the ask refuses with `Unauthorized`
+(`Runtime::TenantScope`), and every returned row — on every engine,
+Memory, Sqlite, Postgres, and the entity/sub-list path alike — is
+scoped to the value given, regardless of what other filters were
+declared.
 
 ## nulls
 

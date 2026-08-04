@@ -1,27 +1,26 @@
 # Writing an adapter
 
-You are not here to consume this language. You are here to make it
-talk to something of yours — a storage backend nobody else has bound
-yet, or a webhook that has to turn an external fact into a domain
-event. Two different jobs, two different directions through the
-hexagon, and this page is both: the DRIVEN side (something the domain
-calls, to persist itself) and the DRIVING side (something that calls
-the domain, from outside).
+Writing an adapter means binding this language to something external —
+a storage backend nobody else has bound yet, or a webhook that has to
+turn an external fact into a domain event. These are two different
+jobs, in two different directions through the hexagon, and this page
+covers both: the DRIVEN side (something the domain calls, to persist
+itself) and the DRIVING side (something that calls the domain, from
+outside).
 
-I am not going to ask you to trust an abstraction. I am going to read
-you the two smallest real adapters this codebase ships — Heki and
-Memory — method by method, and then run them, live, against a small
-domain of my own. What you get for free, and what you owe, both come
-out of that reading. *Le fond des choses* : an adapter is not a
-promise, it is a fixed list of methods, and either you wrote all of
-them or you did not.
+Rather than describing an abstraction, this guide walks through the
+two smallest real adapters this codebase ships — Heki and Memory —
+method by method, and then runs them, live, against a small domain.
+What an adapter gets for free, and what it owes, both come out of
+that reading: an adapter is not a promise, it is a fixed list of
+methods, either fully implemented or not.
 
 ## The two-file pattern
 
 Every driven adapter is said twice, on purpose. A `.adapter` file
 declares the shape:
 
-```
+```ruby skip
 Hecks.adapter "Heki" do
   port   "persistence"
   field  :dir
@@ -42,7 +41,7 @@ not at the first save.
 Memory declares even less — no fields at all, because it keeps
 nothing on disk to configure:
 
-```
+```ruby skip
 Hecks.adapter "Memory" do
   port   "persistence"
 end
@@ -80,8 +79,8 @@ they simply fail the first time something calls them if you left them
 out. `record_event` and `events` are optional passthroughs, called
 only `if @adapter.respond_to?(...)`.
 
-I can prove the checked half live — build something that implements
-none of the three and hand it to `AppendOnly` directly:
+The checked half can be proven live by building something that
+implements none of the three and handing it to `AppendOnly` directly:
 
 ```ruby
 class IncompleteStore
@@ -257,9 +256,9 @@ def query(specification, args = {}, context: {})
 end
 ```
 
-Neither compiles anything. Both just hand their own `all` to the
-reference interpreter and let it do the walking. I can prove that
-fallback answers correctly, live, against a declared query:
+Neither compiles anything. Both hand their own `all` to the reference
+interpreter and let it do the walking. That fallback can be shown to
+answer correctly, live, against a declared query:
 
 ```ruby
 queryable = Hecksagain::Bluebook::DSL::AggregateBuilder.new("Crate").tap do |b|
@@ -359,15 +358,14 @@ declared shape drifts, hold that era's frozen source text beside the
 data it describes, and apply a translation across the boundary — the
 whole reason Postgres carries `lineage_manager/` and `lineage.rb` at
 all (era minting, the head/tail view chain, `merge_tail!`). Not
-implementing it costs something real, and I will not pretend
-otherwise: a domain bound to a non-lineage-capable adapter still
-boots, still runs, still refuses everything it always refused — but
-the moment its declared shape changes, there is no edge for that
-change to travel across. You hand-migrate the data yourself, outside
-the language, or you do not change the shape. That may be a fine trade
-for a small adapter that will never carry a domain through a schema
-change — Heki, today, makes exactly that trade — but it is a trade,
-decided once, at the adapter level, not a gap to apologize for.
+implementing it costs something real: a domain bound to a
+non-lineage-capable adapter still boots, still runs, still refuses
+everything it always refused — but the moment its declared shape
+changes, there is no edge for that change to travel across. The data
+must be hand-migrated outside the language, or the shape must not
+change. That may be a fine trade for a small adapter that will never
+carry a domain through a schema change — Heki, today, makes exactly
+that trade — but it is a trade, decided once, at the adapter level.
 
 ## The driving side: anything that calls `dispatch_port`
 
@@ -424,10 +422,10 @@ command-emitted one. The port is the boundary; the business rule stays
 where every other business rule in this language lives, in a command
 or a policy the port never touches directly.
 
-I can show that shape for real, against a domain of my own. Declare
-the aggregate:
+That shape can be shown for real, against a small domain declared for
+this purpose. Declare the aggregate:
 
-```bluebook
+```ruby bluebook
 Hecks.bluebook "Grenier" do
   vision "An attic ledger: what's stored up there, and whether it still is."
   supporting
@@ -493,7 +491,7 @@ runtime.dispatch_port("Grenier", "Crate", "ClimateSensor", "Alert", label: crate
 domain's own vocabulary — a fact a `policy` could react to (raise a
 `Move` command, page someone, whatever the loft actually needs), the
 same way `OnPizzaPaymentReceived` reacts to `PizzaPaymentReceived` in
-the real example. I did not wire that policy here, on purpose — the
+the real example. That policy is not wired here, on purpose — the
 point of this page is the boundary itself, and the boundary is
 already fully proven: an external call came in shaped nothing like
 this domain's own commands, and left as an event shaped exactly like
@@ -520,5 +518,3 @@ every other one it emits.
 - For a driving adapter: nothing to declare in the bluebook at all —
   only a `port`/`operation` in the hecksagon, and a caller that reaches
   it through `dispatch_port`.
-
-— Miette
