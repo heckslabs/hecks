@@ -1,8 +1,0 @@
-Hecks.data_translation "Lineage", from: "688de6", to: "374ba0" do
-  aggregate "Account", was: "Acct" do
-    rename :cost, to: :amount
-    move "amount.currency", to: "denomination.code"
-    convert "kind.label", to: "kind.label", values: { "biz" => "business", "pers" => "personal" }
-    drop :legacy_note
-  end
-end

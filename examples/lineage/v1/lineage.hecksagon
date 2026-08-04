@@ -1,3 +1,0 @@
-Hecks.hecksagon "Lineage" do
-  Lineage::Acct.persisted_by("Postgres")
-end

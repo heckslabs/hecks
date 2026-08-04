@@ -1,6 +1,0 @@
-Hecks.world "Lineage" do
-  realm "Examples"
-  persisted_by("Postgres") do
-    database "postgres://localhost/hecks_lineage_example"
-  end
-end
