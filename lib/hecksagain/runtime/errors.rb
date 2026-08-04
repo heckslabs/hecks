@@ -23,6 +23,12 @@ module Hecksagain
     # record it would have overwritten stands ; the dispatch that tried to
     # mint a second one over it is what refuses.
     class AlreadyExists < StandardError; end
+    # A query or read model declares `authorize policy, tenant: :field` and
+    # the caller did not pass that field — the one half of `authorize` this
+    # runtime can enforce without a caller-identity system: the boundary
+    # itself, not whether the caller actually holds `policy`. See
+    # Runtime::TenantScope.
+    class Unauthorized < StandardError; end
 
     # The domain saying NO — the errors a reaction may legitimately meet and
     # record as an undelivered outcome. A policy whose target refuses is a fact
@@ -50,7 +56,7 @@ module Hecksagain
     # of banking's were InvariantViolation.
     DOMAIN_REFUSALS = [
       AbsentArgument, AlreadyExists, EnsuresNotMet, GivenNotMet, InvariantViolation, LifecycleRefused, NotFound,
-      TypeMismatch, UnknownArgument, UnknownVerb
+      TypeMismatch, Unauthorized, UnknownArgument, UnknownVerb
     ].freeze
   end
 end

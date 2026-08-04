@@ -1,5 +1,8 @@
 require "hecksagain"
 require "tmpdir"
+# `pg` is required explicitly — the adapter only requires it lazily,
+# inside `Postgres.connect_for` — see postgres_spec.rb's own note.
+require "pg"
 
 # WHY THIS GATE EXISTS: every existing adapter spec (postgres_spec.rb,
 # sqlite_spec.rb, memory-backed specs elsewhere) proves each adapter
@@ -83,11 +86,13 @@ RSpec.describe "adapter agreement — declared queries answer identically across
       builder.value_object("Price") { attribute :cents, Integer }
       builder.value_object("Box")   { attribute :price, "Price" }
       builder.value_object("Tag")   { attribute :name, String }
+      builder.value_object("Note")  { attribute :value, String }
 
       builder.attribute :name,    "Name"
       builder.attribute :balance, "Money"
       builder.attribute :box,     "Box"
       builder.attribute :tags,    builder.list_of("Tag")
+      builder.attribute :note,    "Note"
 
       builder.query("OpenOnes")       { where(status: "open") }
       builder.query("NotClosed")      { where(status: { ne: "closed" }) }
@@ -125,14 +130,16 @@ RSpec.describe "adapter agreement — declared queries answer identically across
 
       builder.query("TaggedRed") { where(tags: { contains: "red" }) }
 
-      # Only the no-comma / full-value case is declared and exercised —
-      # a comma-bearing `contains` is a KNOWN, documented open question
-      # (see postgres_spec.rb's own note: the reference interpreter reads
-      # `contains` as CSV/list membership — `members(held).include?` —
-      # while SQL compiles it as a literal substring search; those two
-      # readings agree only when the field carries no comma). Not this
-      # gate's job to resolve, so it is not tested here either way.
       builder.query("StatusContainsOpen") { where(status: { contains: "open" }) }
+
+      # The comma-bearing case — `note.value` genuinely carries a comma as
+      # PART OF ITS OWN CONTENT, not as a separator. `contains` on a
+      # scalar field means substring on every engine (Ports::Query::
+      # InMemory#contains?, QueryInterpreter#contains?,
+      # SqlQueryBuilder#contains_clause) — this exact case used to expose
+      # a divergence, back when the reference interpreter read `contains`
+      # as CSV-split membership and would have split this note in two.
+      builder.query("NoteContainsPhrase") { where(note: { contains: "high, risk" }) }
     end.build
   end
 
@@ -152,12 +159,18 @@ RSpec.describe "adapter agreement — declared queries answer identically across
   # deliberately NOT alphabetical in id order — ByNameAsc must actually
   # sort by the declared field, or a bug that quietly falls back to
   # identity order would pass unnoticed.
+  # `note` deliberately puts a comma in a place that would have broken
+  # the old CSV-split reading of `contains`: r1 and r4 carry the exact
+  # phrase "high, risk" ; r2 carries a comma elsewhere in text that still
+  # contains both words separately (a false positive the old membership
+  # reading could not have produced, but a real regression test for
+  # substring reading getting it right either way).
   RECORDS = {
-    "r1" => { status: "open",   balance: { cents: 100 }, box: { price: { cents: 100 } }, name: { value: "Eve" },   tags: [{ name: "red" }] },
-    "r2" => { status: "open",   balance: { cents: 500 }, box: { price: { cents: 500 } }, name: { value: "Carol" }, tags: [{ name: "blue" }] },
-    "r3" => { status: "closed", balance: { cents: 900 }, box: { price: { cents: 900 } }, name: { value: "Alice" }, tags: [{ name: "green" }] },
-    "r4" => { status: "closed", balance: { cents: 300 }, box: { price: { cents: 300 } }, name: { value: "Dave" },  tags: [{ name: "red" }] },
-    "r5" => { status: "open",   balance: { cents: 700 }, box: { price: { cents: 700 } }, name: { value: "Bob" },   tags: [{ name: "blue" }] }
+    "r1" => { status: "open",   balance: { cents: 100 }, box: { price: { cents: 100 } }, name: { value: "Eve" },   tags: [{ name: "red" }],   note: { value: "flagged: high, risk today" } },
+    "r2" => { status: "open",   balance: { cents: 500 }, box: { price: { cents: 500 } }, name: { value: "Carol" }, tags: [{ name: "blue" }],  note: { value: "high risk, but flagged separately" } },
+    "r3" => { status: "closed", balance: { cents: 900 }, box: { price: { cents: 900 } }, name: { value: "Alice" }, tags: [{ name: "green" }], note: { value: "nothing unusual" } },
+    "r4" => { status: "closed", balance: { cents: 300 }, box: { price: { cents: 300 } }, name: { value: "Dave" },  tags: [{ name: "red" }],   note: { value: "high, risk, reviewed" } },
+    "r5" => { status: "open",   balance: { cents: 700 }, box: { price: { cents: 700 } }, name: { value: "Bob" },   tags: [{ name: "blue" }],  note: { value: "low risk" } }
   }.freeze
 
   before do
@@ -223,5 +236,9 @@ RSpec.describe "adapter agreement — declared queries answer identically across
 
   it "compiles contains on the lifecycle field for a comma-free, whole-value match, the same everywhere" do
     agree!("StatusContainsOpen", expected: %w[r1 r2 r5])
+  end
+
+  it "compiles contains as a real substring on a scalar field whose own content carries a comma, the same everywhere" do
+    agree!("NoteContainsPhrase", expected: %w[r1 r4])
   end
 end

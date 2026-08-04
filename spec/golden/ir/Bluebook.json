@@ -6614,6 +6614,12 @@
             [
               [
                 "name",
+                "Unauthorized"
+              ]
+            ],
+            [
+              [
+                "name",
                 "UnknownArgument"
               ]
             ],
@@ -7149,6 +7155,20 @@
               [
                 "template",
                 "{name} admits {admits}, which this chapter does not declare — a closed set is named Aggregate::SetName, and it must be one the bluebook actually holds"
+              ]
+            ],
+            [
+              [
+                "refusal",
+                "Unauthorized"
+              ],
+              [
+                "site",
+                "tenant_required"
+              ],
+              [
+                "template",
+                "{query} declares authorize with tenant: {field} — pass {field}: to name which {field} this ask is scoped to"
               ]
             ]
           ],

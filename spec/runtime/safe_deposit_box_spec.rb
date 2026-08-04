@@ -123,8 +123,26 @@ RSpec.describe "a composite-identified aggregate with two entities" do
     runtime = boot_banking
     rented_box(runtime)
 
-    rows = runtime.query("Banking::SafeDepositBox.Rented")
+    rows = runtime.query("Banking::SafeDepositBox.Rented", branch_code: "DOWNTOWN")
     expect(rows.map { |row| row[:id] }).to eq(["DOWNTOWN:12"])
     expect(rows.first[:size].to_h).to eq(value: "medium")
+  end
+
+  it "refuses a tenant-scoped query with no tenant, and scopes results away from another branch's box" do
+    runtime = boot_banking
+    rented_box(runtime)
+    runtime.dispatch("Banking::Customer.Register", reference: { value: "c2" },
+                     name: { given: "B", family: "Customer" }, email: { address: "b@example.com" })
+    runtime.dispatch("Banking::SafeDepositBox.Rent", customer_id: "c2", branch_code: { value: "UPTOWN" },
+                                                     box_number: { value: 1 }, size: { value: "small" })
+
+    expect { runtime.query("Banking::SafeDepositBox.Rented") }
+      .to raise_error(Hecksagain::Runtime::Unauthorized, /declares authorize with tenant: branch_code/)
+
+    downtown = runtime.query("Banking::SafeDepositBox.Rented", branch_code: "DOWNTOWN")
+    expect(downtown.map { |row| row[:id] }).to eq(["DOWNTOWN:12"])
+
+    uptown = runtime.query("Banking::SafeDepositBox.Rented", branch_code: "UPTOWN")
+    expect(uptown.map { |row| row[:id] }).to eq(["UPTOWN:1"])
   end
 end

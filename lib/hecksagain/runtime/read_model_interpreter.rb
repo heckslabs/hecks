@@ -2,6 +2,8 @@ require_relative "../rendering"
 require_relative "errors"
 require_relative "value"
 require_relative "refusal_wording"
+require_relative "tenant_scope"
+require_relative "../ports/query/in_memory"
 
 module Hecksagain
   module Runtime
@@ -23,6 +25,12 @@ module Hecksagain
         # Refused up front, identically on every path.
         refuse_object_reference(model, args)
         reference_id = reference(args.fetch(model.reference_name))
+        # Computed off the ORIGINAL model, before TenantScope wraps it — the
+        # "which head do options apply to" question is about what the
+        # bluebook author declared, not about the synthetic tenant clause
+        # the wrapper adds underneath.
+        eligible = model.filtered_head_name
+        model = TenantScope.apply(model, args)
         repository = @registry.read_repository(domain, bluebook.aggregate(model.reference_target))
         if repository.respond_to?(:query_read_model) && repository.adapter.respond_to?(:query_read_model)
           return repository.query_read_model(domain, model, args, bluebook)
@@ -41,6 +49,7 @@ module Hecksagain
                      end
                    end
                  end
+          rows = Ports::Query::InMemory.execute(rows, model, args) if head[:as] == eligible
           projected << { aggregate: head[:aggregate], rows: rows }
           report[head[:as]] = head[:many] ? rows : rows.first
         end

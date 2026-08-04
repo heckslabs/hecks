@@ -245,6 +245,7 @@ Hecks.bluebook "Bluebook" do
         member name: "LifecycleRefused"
         member name: "NotFound"
         member name: "TypeMismatch"
+        member name: "Unauthorized"
         member name: "UnknownArgument"
         member name: "UnknownVerb"
       end
@@ -345,6 +346,9 @@ Hecks.bluebook "Bluebook" do
         member refusal: "InvariantViolation", site: "undeclared_set",
                template: "{name} admits {admits}, which this chapter does not declare — a closed set is named " \
                          "Aggregate::SetName, and it must be one the bluebook actually holds"
+        member refusal: "Unauthorized", site: "tenant_required",
+               template: "{query} declares authorize with tenant: {field} — pass {field}: to name which " \
+                         "{field} this ask is scoped to"
       end
     end
 

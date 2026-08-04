@@ -622,7 +622,6 @@ RSpec.describe "the DSL surface" do
           order_by :id, :desc
           limit 20
           offset 5
-          cursor :after
           nulls :last
           authorize :portfolio_access, tenant: :customer_id
           consistency :snapshot
@@ -637,6 +636,18 @@ RSpec.describe "the DSL surface" do
       expect(model.offset.to_h).to eq(value: "5")
       expect(model.authorization.to_h).to eq(policy: "portfolio_access", tenant: "customer_id")
       expect(model.freshness.to_h).to eq(mode: "bounded", max_age: "60")
+    end
+
+    it "read_model refuses cursor at build — no interpreter implements cursor pagination" do
+      expect {
+        build_bluebook("CursoredPortfolio") do
+          read_model "Portfolio" do
+            reference_to Customer
+            include Account
+            cursor :after
+          end
+        end
+      }.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /declares cursor, but no interpreter implements cursor pagination/)
     end
 
     it "vision records the domain's sentence" do
@@ -940,7 +951,6 @@ RSpec.describe "the DSL surface" do
           order_by :name, :desc
           limit 10
           offset 5
-          cursor :after
           nulls :last
           authorize :customer_access, tenant: :account_id
           consistency :snapshot, timeout: 2
@@ -955,13 +965,26 @@ RSpec.describe "the DSL surface" do
       expect(found.order_by.to_h).to eq({ field: "name", direction: "desc" })
       expect(found.limit.to_h).to eq({ value: "10" })
       expect(found.offset.to_h).to eq({ value: "5" })
-      expect(found.cursor.to_h).to eq({ value: ":after" })
       expect(found.null_semantics.to_h).to eq({ mode: "last" })
       expect(found.authorization.to_h).to eq({ policy: "customer_access", tenant: "account_id" })
       expect(found.consistency.to_h).to eq({ mode: "snapshot", timeout: "2" })
       expect(found.freshness.to_h).to eq({ mode: "eventual", max_age: "30" })
       expect(found.inspection.to_h).to eq({ mode: "sql" })
       expect(found.index_hints.map(&:to_h)).to eq([{ name: "status_name" }])
+    end
+
+    it "query refuses cursor at build — no interpreter implements cursor pagination" do
+      expect {
+        build_aggregate("Cursored") do
+          value_object("Name") { attribute :value, String }
+          attribute :name, Name
+
+          query "Available" do
+            where(name: "x")
+            cursor :after
+          end
+        end
+      }.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /declares cursor, but no interpreter implements cursor pagination/)
     end
 
     it "query reads a comparator from the hash form" do

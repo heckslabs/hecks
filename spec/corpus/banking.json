@@ -2431,6 +2431,10 @@
     },
     {
       "query": "Banking::SafeDepositBox.Rented",
+      "args": { "branch_code": "DOWNTOWN" }
+    },
+    {
+      "query": "Banking::SafeDepositBox.Rented",
       "args": {}
     },
     {

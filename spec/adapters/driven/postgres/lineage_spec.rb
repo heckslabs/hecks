@@ -5,6 +5,11 @@ require "hecksagain"
 # chain of edges — old entries translated at inclusion, never rewritten.
 # Runs only when a Postgres server is reachable, like every other
 # Postgres spec here.
+#
+# `pg` is required explicitly — the adapter only requires it lazily,
+# inside `Postgres.connect_for` — see postgres_spec.rb's own note.
+require "pg"
+
 postgres_available =
   begin
     PG.connect(dbname: "postgres").close

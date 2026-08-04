@@ -205,6 +205,12 @@ module Hecksagain
         "position(#{placeholder} in #{expression}) > 0"
       end
 
+      def list_contains_clause(column, member, placeholder)
+        target = member.empty? ? "elem #>> '{}'" : "elem ->> #{text_literal(member)}"
+        elements = "jsonb_array_elements(state #> ARRAY[#{text_literal(column)}]::text[]) AS elem"
+        "EXISTS (SELECT 1 FROM #{elements} WHERE #{target} = #{placeholder})"
+      end
+
       def plain_column(name) = jsonb_path([name])
 
       def nested_expression(name, path, member)
