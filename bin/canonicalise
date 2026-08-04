@@ -1,5 +1,7 @@
 #!/usr/bin/env ruby
 
+# Sorts a JSON document's object keys, recursively — key order is not
+# semantics, so a diff a human reads should not have to notice it moved.
 
 require "json"
 

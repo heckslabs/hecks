@@ -1,4 +1,11 @@
 #!/usr/bin/env ruby
+
+# Refreshes every read-model projection a domain declares, by hand —
+# the same catch-up a boot runs lazily, forced now rather than on
+# first read.
+#
+#   bin/project <domain>
+
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 require "hecksagain"
 

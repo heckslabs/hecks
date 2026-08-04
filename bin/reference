@@ -1,0 +1,30 @@
+#!/usr/bin/env ruby
+
+# Regenerates docs/reference/ from the language's own Syntax chapter —
+# the tables from the declaration, the prose preserved from the
+# committed pages. Run after any change to
+# lib/hecksagain/language/bluebook/syntax.bluebook; the golden spec
+# (spec/reference_golden_spec.rb) refuses a tree where the two drifted.
+#
+#   bin/reference
+
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+
+require "hecksagain"
+require "hecksagain/doc/reference"
+require "fileutils"
+
+root      = File.expand_path("..", __dir__)
+directory = File.join(root, "docs/reference")
+Hecksagain::Doc::Reference.write!(directory)
+Hecksagain::Doc::Reference.write_readme!(root)
+
+pages = Hecksagain::Doc::Reference.contexts.size + 1
+missing = Hecksagain::Doc::Reference.undocumented(directory)
+puts "wrote #{pages} pages to docs/reference/, and regenerated README.md's own indexes"
+if missing.empty?
+  puts "every live word carries prose."
+else
+  puts "#{missing.size} live words await prose (the coverage gate holds until they have it):"
+  missing.each { |word| puts "  #{word}" }
+end
