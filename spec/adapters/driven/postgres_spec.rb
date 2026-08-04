@@ -4,11 +4,17 @@ require "hecksagain"
 # install will do). CI and pre-push provide one:
 # a local instance or `docker run postgres` — this spec manages its own
 # scratch database and needs no configuration at all.
+#
+# `require "pg"` HERE, explicitly — hecksagain's own require is lazy now
+# (loaded only where Postgres::connect_for actually connects), so this
+# spec's own top-level probe can no longer lean on `require "hecksagain"`
+# to have loaded it as a side effect.
 postgres_available =
   begin
+    require "pg"
     PG.connect(dbname: "postgres").close
     true
-  rescue PG::Error
+  rescue LoadError, PG::Error
     false
   end
 

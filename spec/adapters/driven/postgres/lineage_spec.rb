@@ -4,12 +4,14 @@ require "hecksagain"
 # hecks_eras rows, the one-transaction mint, and the head compiled as a
 # chain of edges — old entries translated at inclusion, never rewritten.
 # Runs only when a Postgres server is reachable, like every other
-# Postgres spec here.
+# Postgres spec here. `require "pg"` explicitly — hecksagain's own
+# require is lazy now.
 postgres_available =
   begin
+    require "pg"
     PG.connect(dbname: "postgres").close
     true
-  rescue PG::Error
+  rescue LoadError, PG::Error
     false
   end
 

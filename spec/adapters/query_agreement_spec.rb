@@ -19,11 +19,14 @@ require "tmpdir"
 # expectation is an independent oracle, worked out by hand from the
 # fixture table, and cross-adapter agreement follows transitively from
 # every engine matching it.
+# `require "pg"` HERE, explicitly — same reasoning as postgres_spec.rb's
+# own comment: hecksagain's own require is lazy now.
 postgres_available =
   begin
+    require "pg"
     PG.connect(dbname: "postgres").close
     true
-  rescue PG::Error
+  rescue LoadError, PG::Error
     false
   end
 

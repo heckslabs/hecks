@@ -24,6 +24,7 @@ module Hecksagain
         @ir         = ir
         @id         = instance.id
         @state      = instance.state
+        define_reference_accessors
         define_verb_methods
       end
 
@@ -100,6 +101,61 @@ module Hecksagain
         identity = { @ir.identified_by => @id }
         @state = @dispatcher.dispatch("#{fqn}.#{command.hecks_name}", **identity, **args).instance.state
         self
+      end
+
+      # THE OTHER HALF OF A CROSS-REFERENCE. `transfer.source` already reads
+      # the raw value — a plain reader, same as any other attribute, still
+      # needed by a `given`. This is the hydrated hop docs/rails-integration.md
+      # designed and marked "nothing built": `transfer.source_account`
+      # resolves it to the actual Account record, on demand — nothing loads
+      # until called, and this hop never triggers the next one. Plain
+      # chaining composes for free from here : `payment.disputed_by_customer.name`
+      # is two ordinary calls, each individually lazy, which is exactly why
+      # this is a named accessor per reference rather than a `through:`
+      # option — that shape was considered and rejected in the same design
+      # note for hiding how many lookups actually happened behind one call.
+      #
+      # Defined BEFORE verb methods, not after — on the vanishing chance a
+      # reference's own accessor name collided with a command's, the verb
+      # should win; `initialize` calls this first so `define_verb_methods`
+      # defines second and last.
+      def define_reference_accessors
+        @ir.attributes.select(&:reference?).each do |attribute|
+          target = attribute.type.resolve
+          next unless target # cross-domain, or otherwise unresolvable — no accessor rather than a guess
+
+          domain     = @domain
+          field      = attribute.name
+          target_fqn = "#{domain}::#{target.hecks_name}"
+          accessor   = reference_accessor_name(field, Naming.snake(target.hecks_name))
+
+          define_singleton_method(accessor) do
+            value = self[field]
+            value && Object.const_get(target_fqn).find(value)
+          end
+        end
+      end
+
+      # `client_id` on Contract, target Client -> `client` — stripping the
+      # storage-shape `_id` suffix is always safe, because the result can
+      # never equal the raw attribute's own name (that name HAD the
+      # suffix). `source` on Transfer (an `as:` reference, no `_id`
+      # suffix), target Account -> `source_account` — the exact example
+      # docs/rails-integration.md itself gives.
+      #
+      # NEVER collapse an `as:` name that already equals the target's own
+      # snake case (`reference_to Studio, as: :studio`) down to the bare
+      # name — caught for real, not hypothetically: `piece.studio` is a
+      # doctested reader answering the raw id ("north:3"), and a first
+      # draft here silently redefined it to answer a hydrated Studio
+      # instead. Suffixing unconditionally in that branch keeps the two
+      # accessors distinct on purpose — `studio` still reads the value,
+      # `studio_studio` reads the record.
+      def reference_accessor_name(attribute_name, target_snake)
+        base = attribute_name.to_s
+        return base.delete_suffix("_id") if base.end_with?("_id")
+
+        "#{base}_#{target_snake}"
       end
     end
   end
