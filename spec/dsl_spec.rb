@@ -650,6 +650,53 @@ RSpec.describe "the DSL surface" do
       }.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /declares cursor, but no interpreter implements cursor pagination/)
     end
 
+    it "refuses two aggregates that reference each other" do
+      expect {
+        build_bluebook("BackAndForth") do
+          aggregate "Rider" do
+            identified_by { tag.value }
+            attribute :tag, RiderTag
+            value_object "RiderTag" do
+              attribute :value, String
+            end
+            reference_to Bicycle
+          end
+
+          aggregate "Bicycle" do
+            identified_by { serial.value }
+            attribute :serial, BicycleSerial
+            value_object "BicycleSerial" do
+              attribute :value, String
+            end
+            reference_to Rider
+          end
+        end
+      }.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /bidirectional aggregate reference.*Bicycle <-> Rider/)
+    end
+
+    it "allows one aggregate to reference another in a single direction" do
+      bluebook = build_bluebook("OneWay") do
+        aggregate "Owner" do
+          identified_by { tag.value }
+          attribute :tag, OwnerTag
+          value_object "OwnerTag" do
+            attribute :value, String
+          end
+        end
+
+        aggregate "Item" do
+          identified_by { serial.value }
+          attribute :serial, ItemSerial
+          value_object "ItemSerial" do
+            attribute :value, String
+          end
+          reference_to Owner
+        end
+      end
+
+      expect(bluebook.aggregate("Item").reference_targets).to eq(["Owner"])
+    end
+
     it "vision records the domain's sentence" do
       expect(build_bluebook("Visioned") { vision "sell pizza" }.vision).to eq("sell pizza")
     end
