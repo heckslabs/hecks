@@ -100,12 +100,36 @@ module Hecksagain
         "two replays of the same #{steps.length} steps produced different histories"
       end
 
+      # THE QUERY ORACLE — differential testing within the one runtime,
+      # the shape the retired cross-runtime harness should always have
+      # been. Every generated ask was answered twice at the same instant
+      # (Replay records both): once through whatever the aggregate is
+      # actually bound to (Memory's native hook is Ports::Query::InMemory;
+      # a SQL binding would compile it), once through the reference
+      # interpreter's own evaluation. The two are separate, live
+      # implementations of the same comparator vocabulary, and they have
+      # drifted before — an adapter that ACCEPTS what the reference says
+      # matches nothing, or orders what it refuses to order, shows up
+      # here as a finding no self-referential adapter spec could see.
+      def query_answers_match_reference(history)
+        offenders = history.fetch(:queries).filter_map do |asked|
+          next if asked[:error] || asked[:reference_rows].nil?
+          next if asked[:rows] == asked[:reference_rows]
+
+          "#{asked[:query]} #{asked[:args].inspect} answered #{asked[:rows].inspect} " \
+            "natively but #{asked[:reference_rows].inspect} through the reference interpreter"
+        end
+
+        offenders.empty? || offenders.join("; ")
+      end
+
       # THE STANDARD BATTERY, run over one replayed history — everything
       # above except determinism, which needs to replay TWICE itself and
       # so takes the steps directly rather than a single history.
       def check(history)
         { lifecycle_values_are_declared: lifecycle_values_are_declared(history),
-          saga_advances_follow_declared_handlers: saga_advances_follow_declared_handlers(history) }
+          saga_advances_follow_declared_handlers: saga_advances_follow_declared_handlers(history),
+          query_answers_match_reference: query_answers_match_reference(history) }
       end
     end
   end

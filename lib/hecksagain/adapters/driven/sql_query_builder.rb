@@ -1,4 +1,5 @@
 require_relative "../../query_specification/common/null_policy"
+require_relative "../../query_specification/field_path"
 require_relative "../../runtime/errors"
 require_relative "../../runtime/value"
 
@@ -48,6 +49,12 @@ module Hecksagain
                  " ORDER BY id"
                end
         sql << " LIMIT #{placeholder(binds, query_value(declared.limit.value, args).to_i)}" if declared.limit
+        # An offset with no declared limit — SQLite refuses a bare OFFSET
+        # outright (LIMIT -1 is its unbounded idiom) while Postgres accepts
+        # one, so the dialect supplies its own unbounded spelling. Found by
+        # the adapter-agreement gate on its first run, not by either
+        # adapter's own spec: each was self-consistent, they just disagreed.
+        sql << unbounded_limit if !declared.limit && declared.offset
         sql << " OFFSET #{placeholder(binds, query_value(declared.offset.value, args).to_i)}" if declared.offset
         execute_query(sql, binds)
       end
@@ -123,6 +130,9 @@ module Hecksagain
 
       # The dialect that casts nothing overrides nothing.
       def comparable_expression(expression, _value) = expression
+
+      # The dialect that accepts a bare OFFSET overrides nothing.
+      def unbounded_limit = ""
     end
   end
 end

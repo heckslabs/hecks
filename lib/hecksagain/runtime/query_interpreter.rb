@@ -1,6 +1,7 @@
 require_relative "../naming"
 require_relative "../ports/query"
 require_relative "../ports/query/ordering"
+require_relative "../query_specification/field_path"
 require_relative "errors"
 require_relative "refusal_wording"
 require_relative "value"
@@ -18,9 +19,7 @@ module Hecksagain
       def call(domain, aggregate, query_name, args)
         return entity_rows(domain, aggregate, query_name, args) if query_name.include?(".")
 
-        declared = aggregate.query(query_name) ||
-                   raise(UnknownVerb, RefusalWording.render("UnknownVerb", "no_query",
-                                                             aggregate: aggregate.hecks_name, query: query_name.inspect))
+        declared = declared_query(aggregate, query_name)
         args = normalize_args(aggregate, declared, args)
 
         repository = @registry.repository(domain, aggregate)
@@ -29,15 +28,38 @@ module Hecksagain
           return records.map { |record| { id: record.id }.merge(record.state) }
         end
 
-        records = repository.all
+        interpret(repository.all, declared, args)
+      end
+
+      # The REFERENCE answer — this interpreter's own evaluation, never an
+      # adapter's native hook. The fuzzer's query oracle replays every
+      # generated ask through both paths and treats a difference as a
+      # finding: the differential gate the retired cross-runtime harness
+      # should always have been, aimed where the divergence actually
+      # lives — between the engines inside this one runtime.
+      def reference_call(domain, aggregate, query_name, args)
+        return entity_rows(domain, aggregate, query_name, args) if query_name.include?(".")
+
+        declared = declared_query(aggregate, query_name)
+        args = normalize_args(aggregate, declared, args)
+        interpret(@registry.repository(domain, aggregate).all, declared, args)
+      end
+
+      private
+
+      def declared_query(aggregate, query_name)
+        aggregate.query(query_name) ||
+          raise(UnknownVerb, RefusalWording.render("UnknownVerb", "no_query",
+                                                    aggregate: aggregate.hecks_name, query: query_name.inspect))
+      end
+
+      def interpret(records, declared, args)
         matched = records.select { |r| declared.wheres.all? { |w| where_holds?(w, r, args) } }
         ordered = ordered(matched, declared.order_by, declared.null_semantics)
         capped  = declared.limit ? ordered.first(resolve_query_value(declared.limit.value, args).to_i) : ordered
 
         capped.map { |r| { id: r.id }.merge(r.state) }
       end
-
-      private
 
       def entity_rows(domain, aggregate, dotted, args)
         entity_name, query_name = Naming.split_dotted(dotted)
@@ -87,17 +109,17 @@ module Hecksagain
       # `nil.to_sym`, so a query against a composite piece did not sort wrongly,
       # it raised. A piece known by one key sorts exactly as it did.
       def ordered_elements(rows, order_by, null_semantics, parent_key, entity_keys)
-        field = order_by&.field&.to_sym
+        field = order_by&.field
         Ports::Query::Ordering.apply(
           rows, order_by, null_semantics,
           identity: lambda { |row|
             [row[parent_key].to_s, *Array(entity_keys).map { |key| comparable(cell(row, key)) }]
           }
-        ) { |row| comparable(row[field]) }
+        ) { |row| comparable(QuerySpecification::FieldPath.dig(row, field)) }
       end
 
       def where_holds?(clause, record, args)
-        holds?(clause, record[clause.field], args)
+        holds?(clause, QuerySpecification::FieldPath.dig(record, clause.field), args)
       end
 
       def holds?(clause, held, args)

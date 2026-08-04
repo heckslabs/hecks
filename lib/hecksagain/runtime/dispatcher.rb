@@ -117,6 +117,17 @@ module Hecksagain
         @queries.call(domain, aggregate, query_name, args)
       end
 
+      # The same ask, answered by the reference interpreter alone — never
+      # the bound adapter's native hook. Read models have no reference
+      # twin, so only the aggregate-query form answers here; the fuzzer's
+      # query oracle diffs this against #query's answer.
+      def reference_query(verb, **args)
+        domain, aggregate_name, query_name = parse(verb)
+        aggregate = resolve_aggregate(domain, aggregate_name, verb)
+
+        @queries.reference_call(domain, aggregate, query_name, args)
+      end
+
       def reenter(verb, saga_correlation: nil, **args)
         depth = @reaction_depth.to_i
         @reaction_depth = depth + 1

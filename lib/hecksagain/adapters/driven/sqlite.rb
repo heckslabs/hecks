@@ -158,6 +158,10 @@ module Hecksagain
         "json_extract(#{quote_ident(name)}, '#{json_path}')"
       end
 
+      # SQLite has no bare OFFSET — LIMIT -1 is its own documented
+      # unbounded spelling, exactly for this case.
+      def unbounded_limit = " LIMIT -1"
+
       def order_clause(order_by, policy)
         QuerySpecification::Common::NullPolicy.sql_order(query_expression(order_by.field), order_by.direction, policy)
       end

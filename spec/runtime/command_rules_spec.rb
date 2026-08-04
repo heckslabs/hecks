@@ -219,7 +219,12 @@ RSpec.describe "the rules a command obeys" do
 
       expect(surface[Hecksagain::Runtime::CommandInterpreter]).to eq([:call])
       expect(surface[Hecksagain::Runtime::EntityInterpreter]).to  eq([:call])
-      expect(surface[Hecksagain::Runtime::QueryInterpreter]).to   eq([:call])
+      # `reference_call` is the query oracle's second DOOR into the same
+      # home — the interpreter's own evaluation, skipping the adapter's
+      # native hook, so the fuzzer can diff the two answers. Same
+      # declared-query resolution, same argument gate, same interpret —
+      # a second entrance, not a second set of rules.
+      expect(surface[Hecksagain::Runtime::QueryInterpreter]).to   eq([:call, :reference_call])
       expect(surface[Hecksagain::Runtime::PolicyInterpreter]).to  eq([:react])
       expect(surface[Hecksagain::Runtime::SagaInterpreter]).to    eq([:advance])
     end

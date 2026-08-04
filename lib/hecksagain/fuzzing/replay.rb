@@ -47,7 +47,16 @@ module Hecksagain
 
             if (question = step["query"])
               begin
-                queries << { query: question, args: args, rows: runtime.query(question, **args) }
+                rows = runtime.query(question, **args)
+                # THE QUERY ORACLE'S OTHER HALF — the same ask at the same
+                # instant, answered by the reference interpreter instead of
+                # the bound adapter's native hook. Recorded side by side so
+                # Properties.query_answers_match_reference can treat any
+                # difference as a finding. Read-model asks (bare domain
+                # form, no "::") have no reference twin and record only the
+                # one answer.
+                reference = question.include?("::") ? runtime.reference_query(question, **args) : nil
+                queries << { query: question, args: args, rows: rows, reference_rows: reference }
               rescue *Runtime::DOMAIN_REFUSALS, Bluebook::Expression::EvaluationError => e
                 queries << { query: question, args: args, error: e.message }
                 refusals << { verb: question, error: e.message }

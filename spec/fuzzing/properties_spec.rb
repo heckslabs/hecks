@@ -82,6 +82,26 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
       expect(Hecksagain::Fuzzing::Properties.saga_advances_follow_declared_handlers(history)).to eq(true)
     end
 
+    it "query_answers_match_reference names a native answer the reference interpreter disputes" do
+      history = { queries: [{ query: "Pizzas::Order.Expensive", args: {},
+                              rows: [{ id: "Margherita" }],
+                              reference_rows: [] }] }
+
+      result = Hecksagain::Fuzzing::Properties.query_answers_match_reference(history)
+      expect(result).to be_a(String)
+      expect(result).to include("Pizzas::Order.Expensive").and include("natively")
+    end
+
+    it "query_answers_match_reference passes agreement, refusals, and read-model asks through" do
+      history = { queries: [
+        { query: "Pizzas::Order.Expensive", args: {}, rows: [{ id: "M" }], reference_rows: [{ id: "M" }] },
+        { query: "Pizzas::Order.Expensive", args: {}, error: "refused" },
+        { query: "Pizzas.some_read_model", args: {}, rows: [], reference_rows: nil }
+      ] }
+
+      expect(Hecksagain::Fuzzing::Properties.query_answers_match_reference(history)).to eq(true)
+    end
+
     it "replay_is_deterministic names a real divergence — a genuinely different step count" do
       # Not a manufactured non-determinism (the runtime does not have
       # one to hand) — a wrong claim that two DIFFERENT step lists are
