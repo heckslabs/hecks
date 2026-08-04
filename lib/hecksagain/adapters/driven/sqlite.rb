@@ -1,4 +1,3 @@
-require "sqlite3"
 require "json"
 require "fileutils"
 
@@ -26,6 +25,11 @@ module Hecksagain
       attr_reader :aggregate, :path
 
       def initialize(aggregate:, settings: {}, root: nil)
+        # LAZY, ON PURPOSE — a domain that never wires Sqlite should never
+        # need the gem installed. `require "hecksagain"` alone must not
+        # force a database client library nobody asked for.
+        require "sqlite3"
+
         @aggregate = aggregate
         @path      = resolve_path(settings, root)
 

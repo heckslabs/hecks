@@ -1,4 +1,3 @@
-require "pg"
 require "json"
 
 require_relative "sql_query_builder"
@@ -50,6 +49,10 @@ module Hecksagain
       end
 
       def self.connect_for(name, settings)
+        # LAZY, ON PURPOSE — same reasoning as Sqlite's own initialize:
+        # a domain that never wires Postgres should never need the gem.
+        require "pg"
+
         declared = settings[:database] || settings["database"]
         if declared.to_s.empty?
           raise Runtime::WiringError,
