@@ -48,12 +48,12 @@ RSpec.describe "a construct's identity" do
     runtime.registry.bluebook(domain).aggregate(name)
   end
 
-  def pizza = aggregate_ir(pizzas, "Pizzas", "Pizza")
+  def pizza = aggregate_ir(pizzas, "Pizzas", "Order")
 
   describe "the name it is declared by" do
     it "spells an aggregate one way, from the owner chain alone" do
-      expect(pizza.hecks_name).to eq("Pizza")
-      expect(pizza.hecks_fqn).to eq("Pizzas::Pizza")
+      expect(pizza.hecks_name).to eq("Order")
+      expect(pizza.hecks_fqn).to eq("Pizzas::Order")
     end
 
     it "spells a value object the way the meta-domain already ids one" do
@@ -61,7 +61,7 @@ RSpec.describe "a construct's identity" do
       # category below an aggregate. Same string, reached by walking the IR's
       # own owners — so a construct and the language's record OF that construct
       # need no translation between them.
-      expect(pizza.value_object("Price").hecks_fqn).to eq("Pizzas::Pizza.Price")
+      expect(pizza.value_object("Price").hecks_fqn).to eq("Pizzas::Order.Price")
     end
 
     it "reaches a value object through the head that declares it" do
@@ -135,7 +135,7 @@ RSpec.describe "a construct's identity" do
         .to raise_error(Hecksagain::Bluebook::DSL::Malformed, /cannot say which aggregate declares it/)
     end
 
-    it "keeps spelling the old reference string in the export, where Rust reads it" do
+    it "keeps spelling the old reference string in the export, whose spelling is contract" do
       account = banking.registry.bluebook("Banking").aggregate("Account")
       customer_id = account.attribute(:customer_id)
 
@@ -145,13 +145,13 @@ RSpec.describe "a construct's identity" do
   end
 
   describe "a command as a class" do
-    def add_topping = pizzas.registry.bluebook("Pizzas").aggregate("Pizza").command("AddTopping")
-    def create      = pizzas.registry.bluebook("Pizzas").aggregate("Pizza").command("CreatePizza")
+    def add_topping = pizzas.registry.bluebook("Pizzas").aggregate("Order").command("AddTopping")
+    def create      = pizzas.registry.bluebook("Pizzas").aggregate("Order").command("CreatePizza")
 
     it "acts on the aggregate itself, not the name of one" do
       expect(add_topping).to be_a(Class)
       expect(add_topping.hecks_name).to eq("AddTopping")
-      expect(add_topping.acts_on).to be(pizzas.registry.bluebook("Pizzas").aggregate("Pizza"))
+      expect(add_topping.acts_on).to be(pizzas.registry.bluebook("Pizzas").aggregate("Order"))
     end
 
     it "acts on nothing when it is the command that creates" do
@@ -159,7 +159,7 @@ RSpec.describe "a construct's identity" do
       expect(create.acts_on).to be_nil
     end
 
-    it "still spells its name in the export, where Rust reads it" do
+    it "still spells its name in the export, whose spelling is contract" do
       expect(add_topping.to_h[:name]).to eq("AddTopping")
     end
 

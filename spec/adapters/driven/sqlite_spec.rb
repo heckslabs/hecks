@@ -10,7 +10,7 @@ RSpec.describe Hecksagain::Adapters::Sqlite do
   end
 
   let(:aggregate) do
-    boot_in_memory.registry.bluebook("Pizzas").aggregate("Pizza")
+    boot_in_memory.registry.bluebook("Pizzas").aggregate("Order")
   end
 
   let(:adapter) do
@@ -30,16 +30,16 @@ RSpec.describe Hecksagain::Adapters::Sqlite do
 
   it "projects its schema from the aggregate IR" do
     adapter
-    schema = `sqlite3 #{File.join(@dir, 'pizzas.db')} ".schema pizza"`
+    schema = `sqlite3 #{File.join(@dir, 'pizzas.db')} ".schema order"`
 
-    expect(schema).to include(%("price_cents" TEXT))
+    expect(schema).to include(%("pizza" TEXT))
     expect(schema).to include(%("name" TEXT))
-    expect(schema).to include(%("toppings" TEXT))       
+    expect(schema).to include(%("toppings" TEXT))
     expect(schema).to include("id TEXT PRIMARY KEY")
   end
 
   it "stores an aggregate whose name is a SQL reserved word" do
-    reserved = boot_in_memory.registry.bluebook("Pizzas").aggregate("Pizza").dup
+    reserved = boot_in_memory.registry.bluebook("Pizzas").aggregate("Order").dup
     def reserved.storage_name = "order"
 
     adapter = described_class.new(
@@ -55,11 +55,11 @@ RSpec.describe Hecksagain::Adapters::Sqlite do
   end
 
   it "saves and finds one back" do
-    adapter.save(instance("p1", name: { value: "Margherita" }, price_cents: { cents: 1200 }, status: "available"))
+    adapter.save(instance("p1", name: { value: "Margherita" }, pizza: { price_cents: { cents: 1200 } }, status: "available"))
 
     found = adapter.find("p1")
     expect(found.name.to_h).to eq(value: "Margherita")
-    expect(found.price_cents.to_h).to eq(cents: 1200)
+    expect(found.pizza.to_h).to eq(price_cents: { cents: 1200 })
     expect(found.status).to eq("available")
   end
 
@@ -79,7 +79,7 @@ RSpec.describe Hecksagain::Adapters::Sqlite do
 
     expect(adapter.count).to eq(1)
     expect(adapter.find("p1").status).to eq("sold")
-    entries = adapter.instance_variable_get(:@db).execute('SELECT state FROM "pizza_entries" ORDER BY sequence')
+    entries = adapter.instance_variable_get(:@db).execute('SELECT state FROM "order_entries" ORDER BY sequence')
     expect(entries.map { |entry| JSON.parse(entry["state"]).fetch("status") }).to eq(%w[available sold])
   end
 
@@ -137,8 +137,8 @@ RSpec.describe Hecksagain::Adapters::Sqlite do
     path = File.join(@dir, "legacy.db")
     described_class.new(aggregate: aggregate, settings: { database: "legacy.db" }, root: @dir)
     db = SQLite3::Database.new(path)
-    db.execute('DROP TABLE "pizza_entries"')
-    db.execute('CREATE TABLE "pizza_entries" (sequence INTEGER PRIMARY KEY AUTOINCREMENT, aggregate_id TEXT NOT NULL, state TEXT NOT NULL)')
+    db.execute('DROP TABLE "order_entries"')
+    db.execute('CREATE TABLE "order_entries" (sequence INTEGER PRIMARY KEY AUTOINCREMENT, aggregate_id TEXT NOT NULL, state TEXT NOT NULL)')
     db.close
 
     upgraded = described_class.new(aggregate: aggregate, settings: { database: "legacy.db" }, root: @dir)

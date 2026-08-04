@@ -4,22 +4,22 @@ RSpec.describe "Pizzas" do
   let(:runtime) { boot_in_memory }
 
   def create(name: "Margherita", price_cents: 1200, size: "large")
-    runtime.dispatch("Pizzas::Pizza.CreatePizza",
-                     name: { value: name }, price_cents: { cents: price_cents }, size: { value: size })
+    runtime.dispatch("Pizzas::Order.CreatePizza",
+                     name: { value: name }, pizza: { price_cents: { cents: price_cents }, size: { value: size } })
   end
 
   def topped(**overrides)
     pizza = create
-    runtime.dispatch("Pizzas::Pizza.AddTopping", name: pizza.id, topping: { value: "Basil" }, amount: { value: 3 }, **overrides)
+    runtime.dispatch("Pizzas::Order.AddTopping", name: pizza.id, topping: { value: "Basil" }, amount: { value: 3 }, **overrides)
     pizza
   end
 
   describe "the domain surface" do
     it "exposes every command as a fully-qualified verb" do
       expect(runtime.verbs).to contain_exactly(
-        "Pizzas::Pizza.AddTopping",
-        "Pizzas::Pizza.CreatePizza",
-        "Pizzas::Pizza.Purchase"
+        "Pizzas::Order.AddTopping",
+        "Pizzas::Order.CreatePizza",
+        "Pizzas::Order.Purchase"
       )
     end
 
@@ -33,7 +33,7 @@ RSpec.describe "Pizzas" do
   describe "selling a pizza" do
     it "emits PizzaPurchased and records the customer" do
       pizza  = topped
-      result = runtime.dispatch("Pizzas::Pizza.Purchase", name: pizza.id, customer_name: { value: "Chris" })
+      result = runtime.dispatch("Pizzas::Order.Purchase", name: pizza.id, customer_name: { value: "Chris" }, amount: { cents: 1200 })
 
       expect(result.events.map(&:name)).to eq(["PizzaPurchased"])
       expect(result.state[:customer_name].to_h).to eq(value: "Chris")
@@ -42,14 +42,14 @@ RSpec.describe "Pizzas" do
 
     it "appends toppings as value objects" do
       pizza = topped
-      state = runtime.dispatch("Pizzas::Pizza.AddTopping", name: pizza.id, topping: { value: "Olive" }, amount: { value: 2 }).state
+      state = runtime.dispatch("Pizzas::Order.AddTopping", name: pizza.id, topping: { value: "Olive" }, amount: { value: 2 }).state
 
       expect(state[:toppings].map(&:to_h)).to eq([{ name: "Basil", amount: 3 }, { name: "Olive", amount: 2 }])
     end
 
     it "keeps every emitted event in order" do
       pizza = topped
-      runtime.dispatch("Pizzas::Pizza.Purchase", name: pizza.id, customer_name: { value: "Chris" })
+      runtime.dispatch("Pizzas::Order.Purchase", name: pizza.id, customer_name: { value: "Chris" }, amount: { cents: 1200 })
 
       expect(runtime.events.map(&:name)).to eq(%w[PizzaCreated ToppingAdded PizzaPurchased])
     end
@@ -58,66 +58,66 @@ RSpec.describe "Pizzas" do
   describe "the rules the bluebook declares" do
     it "refuses a purchase with no toppings" do
       pizza = create
-      expect { runtime.dispatch("Pizzas::Pizza.Purchase", name: pizza.id, customer_name: { value: "Chris" }) }
+      expect { runtime.dispatch("Pizzas::Order.Purchase", name: pizza.id, customer_name: { value: "Chris" }, amount: { cents: 1200 }) }
         .to raise_error(Hecksagain::Runtime::GivenNotMet, /at least one topping/)
     end
 
     it "refuses a second purchase" do
       pizza = topped
-      runtime.dispatch("Pizzas::Pizza.Purchase", name: pizza.id, customer_name: { value: "Chris" })
+      runtime.dispatch("Pizzas::Order.Purchase", name: pizza.id, customer_name: { value: "Chris" }, amount: { cents: 1200 })
 
-      expect { runtime.dispatch("Pizzas::Pizza.Purchase", name: pizza.id, customer_name: { value: "Someone" }) }
+      expect { runtime.dispatch("Pizzas::Order.Purchase", name: pizza.id, customer_name: { value: "Someone" }, amount: { cents: 1200 }) }
         .to raise_error(Hecksagain::Runtime::GivenNotMet, /still be available/)
     end
 
     it "refuses a topping on a sold pizza" do
       pizza = topped
-      runtime.dispatch("Pizzas::Pizza.Purchase", name: pizza.id, customer_name: { value: "Chris" })
+      runtime.dispatch("Pizzas::Order.Purchase", name: pizza.id, customer_name: { value: "Chris" }, amount: { cents: 1200 })
 
-      expect { runtime.dispatch("Pizzas::Pizza.AddTopping", name: pizza.id, topping: { value: "Late" }, amount: { value: 1 }) }
+      expect { runtime.dispatch("Pizzas::Order.AddTopping", name: pizza.id, topping: { value: "Late" }, amount: { value: 1 }) }
         .to raise_error(Hecksagain::Runtime::GivenNotMet, /cannot be changed/)
     end
 
     it "enforces the ToppingAmount invariant before the value reaches the pizza" do
       pizza = create
-      expect { runtime.dispatch("Pizzas::Pizza.AddTopping", name: pizza.id, topping: { value: "Air" }, amount: { value: 0 }) }
+      expect { runtime.dispatch("Pizzas::Order.AddTopping", name: pizza.id, topping: { value: "Air" }, amount: { value: 0 }) }
         .to raise_error(Hecksagain::Runtime::InvariantViolation, /ToppingAmount .* an amount is positive/)
 
-      expect(runtime.dispatch("Pizzas::Pizza.AddTopping", name: pizza.id, topping: { value: "Basil" }, amount: { value: 1 })
+      expect(runtime.dispatch("Pizzas::Order.AddTopping", name: pizza.id, topping: { value: "Basil" }, amount: { value: 1 })
                     .state[:toppings].size).to eq(1)
     end
 
     it "leaves the instance untouched when a command is refused" do
       pizza = topped
       begin
-        runtime.dispatch("Pizzas::Pizza.AddTopping", name: pizza.id, topping: { value: "Air" }, amount: { value: -5 })
+        runtime.dispatch("Pizzas::Order.AddTopping", name: pizza.id, topping: { value: "Air" }, amount: { value: -5 })
       rescue Hecksagain::Runtime::InvariantViolation
       end
 
-      repository = runtime.registry.repository("Pizzas", runtime.registry.bluebook("Pizzas").aggregate("Pizza"))
+      repository = runtime.registry.repository("Pizzas", runtime.registry.bluebook("Pizzas").aggregate("Order"))
       expect(repository.find(pizza.id).toppings.size).to eq(1)
     end
   end
 
   describe "the door" do
     it "rejects an unknown command" do
-      expect { runtime.dispatch("Pizzas::Pizza.Nope") }
+      expect { runtime.dispatch("Pizzas::Order.Nope") }
         .to raise_error(Hecksagain::Runtime::UnknownVerb, /no command/)
     end
 
     it "rejects an unqualified verb" do
-      expect { runtime.dispatch("Pizza.Purchase") }
+      expect { runtime.dispatch("Order.Purchase") }
         .to raise_error(Hecksagain::Runtime::UnknownVerb, /fully-qualified/)
     end
 
     it "requires an id for a command that acts on an existing instance" do
-      expect { runtime.dispatch("Pizzas::Pizza.Purchase", customer_name: { value: "Chris" }) }
+      expect { runtime.dispatch("Pizzas::Order.Purchase", customer_name: { value: "Chris" }, amount: { cents: 1200 }) }
         .to raise_error(Hecksagain::Runtime::NotFound, /pass name/)
     end
 
     it "reports an id that does not exist" do
-      expect { runtime.dispatch("Pizzas::Pizza.Purchase", name: "pizza-nope", customer_name: { value: "Chris" }) }
-        .to raise_error(Hecksagain::Runtime::NotFound, /no Pizza with name/)
+      expect { runtime.dispatch("Pizzas::Order.Purchase", name: "pizza-nope", customer_name: { value: "Chris" }, amount: { cents: 1200 }) }
+        .to raise_error(Hecksagain::Runtime::NotFound, /no Order with name/)
     end
   end
 
@@ -132,7 +132,7 @@ RSpec.describe "Pizzas" do
           Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
           Kernel.load(InMemoryDomain::PRISM_ADAPTER)
           Kernel.load(InMemoryDomain::PIZZAS_BLUEBOOK)
-          Hecks.hecksagon("Pizzas") { Pizzas::Pizza.charged_by("Memory") }
+          Hecks.hecksagon("Pizzas") { Pizzas::Order.charged_by("Memory") }
         end
         registry.verify!
       end.to raise_error(
@@ -170,13 +170,13 @@ RSpec.describe "Pizzas" do
         Hecksagain::Runtime::Dispatcher.new(registry)
       end
 
-      pizza = registry.bluebook("Pizzas").aggregate("Pizza")
+      pizza = registry.bluebook("Pizzas").aggregate("Order")
       expect(registry.repository("Pizzas", pizza)).to be_a(Hecksagain::Ports::Persistence::AppendOnly)
 
       # `name:` was written TWICE here — once as a bare string, once as the value
       # object — and Ruby warned on every run while silently keeping the second.
-      runtime.dispatch("Pizzas::Pizza.CreatePizza",
-                       name: { value: "Margherita" }, price_cents: { cents: 900 }, size: { value: "small" })
+      runtime.dispatch("Pizzas::Order.CreatePizza",
+                       name: { value: "Margherita" }, pizza: { price_cents: { cents: 900 }, size: { value: "small" } })
       expect(registry.repository("Pizzas", pizza).count).to eq(1)
     end
 
@@ -190,14 +190,14 @@ RSpec.describe "Pizzas" do
           Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
           Kernel.load(InMemoryDomain::PRISM_ADAPTER)
           Kernel.load(InMemoryDomain::PIZZAS_BLUEBOOK)
-          Hecks.hecksagon("Pizzas") { Pizzas::Pizza.charged_by("Memory") }
+          Hecks.hecksagon("Pizzas") { Pizzas::Order.charged_by("Memory") }
         end
 
-        pizza = registry.bluebook("Pizzas").aggregate("Pizza")
+        pizza = registry.bluebook("Pizzas").aggregate("Order")
         registry.repository("Pizzas", pizza)
       end.to raise_error(
         Hecksagain::Runtime::WiringError,
-        /Pizza has no persisted_by bind.*forgotten decision/m
+        /Order has no persisted_by bind.*forgotten decision/m
       )
     end
 
@@ -210,10 +210,10 @@ RSpec.describe "Pizzas" do
         Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
         Kernel.load(InMemoryDomain::PRISM_ADAPTER)
         Kernel.load(InMemoryDomain::PIZZAS_BLUEBOOK)
-        Hecks.hecksagon("Pizzas") { Pizzas::Pizza.persisted_by("Memory") }
+        Hecks.hecksagon("Pizzas") { Pizzas::Order.persisted_by("Memory") }
       end
 
-      pizza = registry.bluebook("Pizzas").aggregate("Pizza")
+      pizza = registry.bluebook("Pizzas").aggregate("Order")
       expect(registry.repository("Pizzas", pizza)).to be_a(Hecksagain::Ports::Persistence::AppendOnly)
     end
   end

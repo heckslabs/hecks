@@ -26,11 +26,11 @@ puts <<~BANNER
   hecksagain #{Hecksagain::VERSION}
 
   try:
-    pizza = Pizza.create_pizza(name: "Margherita", price_cents: 1200)
-    pizza.add_topping(name: "Basil", amount: 3)
-    pizza.purchase(customer_name: "Chris")
-    pizza.status
-    pizza.events.last
+    order = Order.create_pizza(name: { value: "Margherita" }, pizza: { price_cents: { cents: 1200 }, size: { value: "large" } })
+    order.add_topping(topping: { value: "Basil" }, amount: { value: 3 })
+    order.purchase(customer_name: { value: "Chris" }, amount: { cents: 1200 })
+    order.status
+    order.events.last
 
 BANNER
 

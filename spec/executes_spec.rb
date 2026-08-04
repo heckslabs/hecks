@@ -114,12 +114,12 @@ RSpec.describe "the language holds a bluebook, and gives it back" do
     # The IR is a contract field for field AND INDEX FOR INDEX, so the order a
     # bluebook declares its commands in is a fact about the source. `DeclaredIn`
     # preserves it.
-    # "Pizzas:Pizza" — the Aggregate-within-Bluebook record's OWN derived id
-    # (bluebook_id:name.value), not the real "Pizzas::Pizza" Ruby constant path.
-    rows = runtime.query("Bluebook::Command.DeclaredIn", aggregate_id: { value: "Pizzas:Pizza" })
+    # "Pizzas:Order" — the Aggregate-within-Bluebook record's OWN derived id
+    # (bluebook_id:name.value), not the real "Pizzas::Order" Ruby constant path.
+    rows = runtime.query("Bluebook::Command.DeclaredIn", aggregate_id: { value: "Pizzas:Order" })
 
     expect(rows.map { |row| text(row[:name]) })
-      .to eq(pizzas.aggregate("Pizza").commands.map(&:hecks_name))
+      .to eq(pizzas.aggregate("Order").commands.map(&:hecks_name))
   end
 
   it "keeps the order that changes behaviour" do
@@ -131,7 +131,7 @@ RSpec.describe "the language holds a bluebook, and gives it back" do
     # the transfer. Reorder any of those and the domain does something else.
     whole    = runtime.query("Bluebook.whole_bluebook", bluebook: "Pizzas").first
     purchase = whole[:commands].find { |c| text(c[:name]) == "Purchase" }
-    source   = pizzas.aggregate("Pizza").command("Purchase")
+    source   = pizzas.aggregate("Order").command("Purchase")
 
     expect(purchase[:mutations].map { |m| text(m[:target]) })
       .to eq(source.mutations.map { |m| m.target.to_s })
@@ -142,25 +142,25 @@ RSpec.describe "the language holds a bluebook, and gives it back" do
     # PRESENTATION ONLY: which order an aggregate's commands happen to be listed
     # in. Nothing looks a command up by position — find_command is by name — so
     # ReadModelInterpreter#matching ending `.sort_by(&:id)` is not a loss, it is a
-    # canonical form. And it is the right call: two hand-written stores cannot be
-    # trusted to iterate identically, so a read model returning store order would
-    # split parity on the first disagreement.
+    # canonical form. And it is the right call: no hand-written store can be
+    # trusted to iterate stably, so a read model returning store order would
+    # make its answers depend on storage accident rather than declaration.
     #
     # Which means the byte-for-byte proof compares with the head lists sorted on
     # both sides. That is not a weakening of the claim — it is the claim stated on
     # the axis the machine actually reads.
     whole    = runtime.query("Bluebook.whole_bluebook", bluebook: "Pizzas").first
-    declared = pizzas.aggregate("Pizza").commands.map(&:hecks_name)
+    declared = pizzas.aggregate("Order").commands.map(&:hecks_name)
 
     expect(whole[:commands].map { |c| text(c[:name]) }).to eq(declared.sort)
   end
 
   it "names a gathered collection the way English does" do
-    # These four came back as `querys`, `entitys`, `policys` and `dispatchs`, in
-    # BOTH runtimes, because each derived the name with snake(target) + "s". Parity
-    # was green on every one of them — two hand-written runtimes identically
-    # wrong. The pluraliser now lives in one place per runtime, mirroring the same
-    # three rules.
+    # These four came back as `querys`, `entitys`, `policys` and `dispatchs`,
+    # because the name was derived with snake(target) + "s" — and every
+    # cross-check was green, consistently wrong being indistinguishable from
+    # right. The pluraliser now lives in one place, carrying the
+    # three real rules.
     expect(Hecksagain::Naming.plural("query")).to eq("queries")
     expect(Hecksagain::Naming.plural("entity")).to eq("entities")
     expect(Hecksagain::Naming.plural("policy")).to eq("policies")
@@ -238,7 +238,7 @@ RSpec.describe "the language holds a bluebook, and gives it back" do
     # Persistence is an adapter BELOW the aggregate. If the way back reached into
     # a repository it would bypass the rules, the authorisation and the shape that
     # every writer goes through — and the read side would drift from the write
-    # side exactly as the two runtimes' tables used to.
+    # side exactly as independently hand-kept tables always do.
     expect(Hecksagain::Bluebook::MetaValidator.grammar_registry
              .bluebook("Bluebook").aggregates
              .flat_map { |a| a.queries.map { |q| "#{a.name}.#{q.name}" } })

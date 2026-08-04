@@ -338,12 +338,12 @@ RSpec.describe "a graph assembled from declarations" do
     # the same verbs, fields and owned shapes the DSL would have built.
     built     = load_chapter(ASSEMBLY_CORPUS.fetch("Pizzas")).bluebook("Pizzas")
     assembled = Hecksagain::Bluebook::Assembly.call(built.to_h)
-    pizza     = assembled.aggregate("Pizza")
+    pizza     = assembled.aggregate("Order")
 
     expect(pizza.command("CreatePizza").creates?).to be(true)
     expect(pizza.command("AddTopping").acts_on).to be(pizza)
     expect(pizza.attributes.map(&:name)).to include(:name, :toppings)
-    expect(pizza.value_object("Price").hecks_fqn).to eq("Pizzas::Pizza.Price")
+    expect(pizza.value_object("Price").hecks_fqn).to eq("Pizzas::Order.Price")
   end
 
   it "gives an assembled reference a resolvable edge" do

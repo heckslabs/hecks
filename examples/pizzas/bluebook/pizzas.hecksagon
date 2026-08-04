@@ -1,3 +1,18 @@
 Hecks.hecksagon "Pizzas" do
-  Pizzas::Pizza.persisted_by("SqlitePersistence")
+  Pizzas::Order.persisted_by("Postgres")
+
+  # THE PRIMARY PORT — called by an adapter outside this domain entirely (a
+  # payment processor's webhook, in practice). No given, no then_set: this
+  # is the boundary translating an external fact into our own vocabulary,
+  # not a place business rules live. Those stay on Purchase itself
+  # (pizzas.bluebook), reached only through the OnPizzaPaymentReceived
+  # policy beside it.
+  Pizzas::Order.port "PaymentGateway" do
+    operation "Receive" do
+      reference_to Order, as: :name
+      attribute :customer_name, CustomerName
+      attribute :amount, Price
+      emits "PizzaPaymentReceived"
+    end
+  end
 end

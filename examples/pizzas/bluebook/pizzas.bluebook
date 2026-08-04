@@ -2,16 +2,15 @@ Hecks.bluebook "Pizzas" do
   vision "Put toppings on a pizza and sell it to a customer."
   supporting
 
-  aggregate "Pizza" do
-    description "A pizza that gathers toppings and is eventually sold to a customer."
+  aggregate "Order" do
+    description "An order that gathers toppings on a pizza and is eventually sold to a customer."
 
     identified_by { name.value }
 
     attribute :name,          PizzaName
+    attribute :pizza,         Pizza
     attribute :toppings,      list_of(Topping)
-    attribute :price_cents,   Price
     attribute :customer_name, CustomerName
-    attribute :size,          one_of("small", "large")
 
     value_object "PizzaName" do
       attribute :value, String
@@ -48,6 +47,34 @@ Hecks.bluebook "Pizzas" do
       attribute :amount, Integer
     end
 
+    # A closed set written the long way (`one_of do member ... end`), not the
+    # inline `attribute :size, one_of(...)` shorthand — the shorthand desugars
+    # by calling `one_of` on the ENCLOSING builder, and here that builder is a
+    # nested `value_object`, which already has its own `one_of` (a value
+    # object's OWN closed-set members, e.g. LedgerDirection in the banking
+    # corpus). Calling the shorthand inside `value_object "Pizza"` would reach
+    # THAT `one_of` instead and crash with a wrong-arity ArgumentError — a real
+    # collision, hit while writing this, not a hypothetical one. So `Size` is
+    # declared as its own sibling value object, the same pattern LedgerDirection
+    # and AccountKind already use, and `Pizza` below just holds one by name.
+    value_object "Size" do
+      attribute :value, String
+
+      one_of do
+        member value: "small"
+        member value: "large"
+      end
+    end
+
+    # WHAT WAS ORDERED, not who ordered it or whether it's been paid for —
+    # those live on Order itself, which has the identity and lifecycle a
+    # pizza never needed. Two large Margheritas with the same toppings are
+    # interchangeable value, exactly what a value object means.
+    value_object "Pizza" do
+      attribute :price_cents, Price
+      attribute :size,        Size
+    end
+
     lifecycle :status, default: "available" do
       transition "Purchase" => "sold", from: "available"
     end
@@ -57,28 +84,12 @@ Hecks.bluebook "Pizzas" do
       order_by :name
     end
 
-    query "CostingLessThan" do
-      attribute :ceiling, Price
-      where(price_cents: { lt: :ceiling })
-    end
-
-    # A LITERAL, not a kwarg — CostingLessThan's :ceiling is always resolved
-    # from the caller's args before it ever reaches the comparator, so it
-    # never exercised the literal-value path : a where-clause's own number
-    # is stringified when the query is declared ("1000", not 1000), and
-    # gt/gte/lte were never implemented against it at all until this query
-    # gave both runtimes' parity corpus something to disagree about.
-    query "Expensive" do
-      where(price_cents: { gt: 1000 })
-    end
-
     command "CreatePizza" do
       role "Chef"
       goal "Put a new pizza on the menu"
 
-      attribute :name,        PizzaName
-      attribute :price_cents, Price
-      attribute :size,        Size
+      attribute :name,  PizzaName
+      attribute :pizza, Pizza
 
       emits "PizzaCreated"
     end
@@ -87,7 +98,7 @@ Hecks.bluebook "Pizzas" do
       role "Chef"
       goal "Customize a pizza with an ingredient"
 
-      reference_to Pizza
+      reference_to Order
       attribute :topping, ToppingName
       attribute :amount, ToppingAmount
 
@@ -103,16 +114,27 @@ Hecks.bluebook "Pizzas" do
       role "Customer"
       goal "Buy the pizza"
 
-      reference_to Pizza
+      reference_to Order
       attribute :customer_name, CustomerName
+      attribute :amount, Price
 
       given("a pizza needs at least one topping") { toppings.size.positive? }
       given("it must still be available")         { status == "available" }
+      given("a payment was actually made")         { amount.cents.positive? }
 
       then_set :customer_name, to: :customer_name
       then_set :status,        to: "sold"
 
       emits "PizzaPurchased"
     end
+  end
+
+  # A PAYMENT ARRIVING IS AN EXTERNAL FACT, NOT A DECISION THIS DOMAIN MAKES —
+  # the actual business rules (must have a topping, must still be available)
+  # stay on Purchase itself, reached only through this. See
+  # pizzas.hecksagon for the port this reacts to.
+  policy "OnPizzaPaymentReceived" do
+    on "PizzaPaymentReceived"
+    trigger "Order.Purchase"
   end
 end

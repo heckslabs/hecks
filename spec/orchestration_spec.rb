@@ -19,7 +19,8 @@ require "spec_helper"
 #   a closed set's member values    a set admitting "0" refusing the 0 passed
 #   an aggregate's reference targets Pizza pointing at itself, twice
 #
-# Each looked identical on the wire and stopped the runtime dead. Only bin/parity
+# Each looked identical on the wire and stopped the runtime dead. Only running
+# the corpus end to end (spec/corpus/ scripts do this now)
 # caught the third, because a saga that silently does nothing looks exactly like a
 # saga with nothing to do.
 RSpec.describe "the distance between the builder's graph and the language's" do
@@ -36,13 +37,13 @@ RSpec.describe "the distance between the builder's graph and the language's" do
   #
   # It held thirteen entries, all of them justified by the same wrong belief: that
   # the language may only hold what `to_h` carries. `ReadModel#to_h` omits a read
-  # model's filters, Rust's ReadModel struct has no room for them, and a hoisted
+  # model's filters, and a hoisted
   # policy lost which head declared it — so all of that looked unrecoverable.
   #
-  # It was not. `to_h` is a PROJECTION for the other runtime ; the language is the
+  # It was not. `to_h` is a PROJECTION for consumers ; the language is the
   # SOURCE. They must agree about everything to_h spells and need not be the same
   # size. Both are held now — the filters as option rows, the policy's head as a
-  # field — and the wire format did not move, so Rust never noticed.
+  # field — and the wire format did not move, so no consumer noticed.
   #
   # Anything added here from now on is a claim that the language cannot hold
   # something, and that claim should be very hard to make.
@@ -117,12 +118,12 @@ RSpec.describe "the distance between the builder's graph and the language's" do
   it "assembles a working runtime graph from what the language holds" do
     built     = load_chapter(ORCHESTRATION_CORPUS.fetch("Pizzas")).bluebook("Pizzas")
     assembled = assembled_from_the_language(built)
-    pizza     = assembled.aggregate("Pizza")
+    pizza     = assembled.aggregate("Order")
 
     expect(pizza.command("CreatePizza").creates?).to be(true)
     expect(pizza.command("AddTopping").acts_on).to be(pizza)
     expect(pizza.attribute(:toppings)).not_to be_nil
-    expect(pizza.value_object("Price").hecks_fqn).to eq("Pizzas::Pizza.Price")
+    expect(pizza.value_object("Price").hecks_fqn).to eq("Pizzas::Order.Price")
   end
 
   it "keeps the gap list empty, because there is nothing it cannot hold" do

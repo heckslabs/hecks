@@ -1,9 +1,8 @@
 require "hecksagain"
 
 # Runs only when a Postgres server is reachable (any local default
-# install will do). CI and pre-push provide one the same way bin/parity
-# does: a local instance or `docker run postgres`, named through
-# HECKS_PARITY_POSTGRES for the parity gate — this spec manages its own
+# install will do). CI and pre-push provide one:
+# a local instance or `docker run postgres` — this spec manages its own
 # scratch database and needs no configuration at all.
 postgres_available =
   begin
@@ -38,7 +37,7 @@ RSpec.describe Hecksagain::Adapters::Postgres,
   end
 
   let(:aggregate) do
-    boot_in_memory.registry.bluebook("Pizzas").aggregate("Pizza")
+    boot_in_memory.registry.bluebook("Pizzas").aggregate("Order")
   end
 
   let(:adapter) do
@@ -58,15 +57,15 @@ RSpec.describe Hecksagain::Adapters::Postgres,
 
   it "refuses loudly when the declared database is unreachable" do
     expect { described_class.new(aggregate: aggregate, settings: { database: "postgres://localhost:1/nowhere" }) }
-      .to raise_error(Hecksagain::Runtime::WiringError, /cannot bind Postgres at postgres:\/\/localhost:1\/nowhere for Pizza/)
+      .to raise_error(Hecksagain::Runtime::WiringError, /cannot bind Postgres at postgres:\/\/localhost:1\/nowhere for Order/)
   end
 
   it "saves and finds one back through the jsonb head" do
-    adapter.save(instance("p1", name: { value: "Margherita" }, price_cents: { cents: 1200 }, status: "available"))
+    adapter.save(instance("p1", name: { value: "Margherita" }, pizza: { price_cents: { cents: 1200 } }, status: "available"))
 
     found = adapter.find("p1")
     expect(found.name.to_h).to eq(value: "Margherita")
-    expect(found.price_cents.to_h).to eq(cents: 1200)
+    expect(found.pizza.to_h).to eq(price_cents: { cents: 1200 })
     expect(found.status).to eq("available")
   end
 
@@ -125,9 +124,9 @@ RSpec.describe Hecksagain::Adapters::Postgres,
 
   describe "query pushdown — compile fully into SQL, or refuse" do
     before do
-      adapter.save(instance("p1", name: { value: "Margherita" }, price_cents: { cents: 1200 }, status: "available"))
-      adapter.save(instance("p2", name: { value: "Diavola" }, price_cents: { cents: 1500 }, status: "available"))
-      adapter.save(instance("p3", name: { value: "Bare" }, price_cents: { cents: 900 }, status: "sold"))
+      adapter.save(instance("p1", name: { value: "Margherita" }, pizza: { price_cents: { cents: 1200 } }, status: "available"))
+      adapter.save(instance("p2", name: { value: "Diavola" }, pizza: { price_cents: { cents: 1500 } }, status: "available"))
+      adapter.save(instance("p3", name: { value: "Bare" }, pizza: { price_cents: { cents: 900 } }, status: "sold"))
     end
 
     it "compiles equality on the lifecycle field" do
@@ -136,18 +135,6 @@ RSpec.describe Hecksagain::Adapters::Postgres,
       end.build.queries.first
 
       expect(adapter.query(declared, {}).map(&:id)).to eq(%w[p1 p2])
-    end
-
-    it "compiles an ordered comparison through a value object's numeric member, with ordering and limit" do
-      declared = Hecksagain::Bluebook::DSL::AggregateBuilder.new("Pizza").tap do |builder|
-        builder.query("Cheap") do
-          where(price_cents: { lt: 1400 })
-          order_by :price_cents, :desc
-          limit 5
-        end
-      end.build.queries.first
-
-      expect(adapter.query(declared, {}).map(&:id)).to eq(%w[p1 p3])
     end
 
     it "refuses an operator it cannot compile, rather than answering from memory" do
@@ -207,9 +194,9 @@ RSpec.describe Hecksagain::Adapters::Postgres,
     end
 
     it "compiles gt/gte/lte through a value object's numeric member" do
-      expect(where("price_cents", "gt", { cents: 1200 })).to eq(%w[p2])
-      expect(where("price_cents", "gte", { cents: 1200 })).to eq(%w[p1 p2])
-      expect(where("price_cents", "lte", { cents: 1200 })).to eq(%w[p1 p3])
+      expect(where("pizza.price_cents.cents", "gt", 1200)).to eq(%w[p2])
+      expect(where("pizza.price_cents.cents", "gte", 1200)).to eq(%w[p1 p2])
+      expect(where("pizza.price_cents.cents", "lte", 1200)).to eq(%w[p1 p3])
     end
 
     # NOTE ON SEMANTICS, not just mechanics: the reference (in-memory)
@@ -241,17 +228,9 @@ RSpec.describe Hecksagain::Adapters::Postgres,
       expect(where("status", "in", "")).to eq([])
     end
 
-    it "compiles offset alongside limit" do
-      offset_spec = Hecksagain::QuerySpecification::Common::OffsetSpec.new(value: 1)
-      declared = Struct.new(:wheres, :order_by, :limit, :offset, :null_semantics).new(
-        [], Struct.new(:field, :direction).new("price_cents", :asc), nil, offset_spec, nil
-      )
-      expect(adapter.query(declared, {}).map(&:id)).to eq(%w[p1 p2])
-    end
-
     it "places nulls per the declared policy, not Postgres's own ASC/DESC default" do
-      adapter.save(instance("p4", name: { value: "Unpurchased" }, price_cents: { cents: 500 }, status: "available"))
-      adapter.save(instance("p1", name: { value: "Margherita" }, price_cents: { cents: 1200 },
+      adapter.save(instance("p4", name: { value: "Unpurchased" }, pizza: { price_cents: { cents: 500 } }, status: "available"))
+      adapter.save(instance("p1", name: { value: "Margherita" }, pizza: { price_cents: { cents: 1200 } },
                                     status: "available", customer_name: { value: "Alex" }))
 
       first_mode = Struct.new(:mode).new("first")
@@ -264,6 +243,82 @@ RSpec.describe Hecksagain::Adapters::Postgres,
       # ASC, disagreeing with the other adapters).
       expect(adapter.query(declared, {}).map(&:id).first(2)).to contain_exactly("p2", "p3")
       expect(adapter.query(declared, {}).map(&:id).last).to eq("p1")
+    end
+
+    # `pizza.price_cents.cents` (the live Pizzas domain's own numeric field)
+    # is a value object nested TWO levels deep, and `numeric_field?`
+    # (postgres.rb) only ever inspects the first nested segment — it was
+    # never built to recurse. A dotted path that deep still compiles a
+    # correct jsonb EXTRACTION (arbitrary depth), but the numeric CAST is
+    # skipped, so ordering falls back to lexicographic text — wrong for any
+    # values of differing digit width. Rather than growing the query
+    # compiler to recurse (a real, separate change), these two cases are
+    # proven here against a fixture shaped the way pushdown numeric
+    # comparison actually supports today: one level of value-object nesting.
+    describe "ordering through a value object nested exactly one level deep" do
+      NUMERIC_PUSHDOWN_SOURCE = <<~BLUEBOOK.freeze
+        Hecks.bluebook "NumericPushdown" do
+          aggregate "Widget" do
+            identified_by { sku.value }
+            attribute :sku,   Sku
+            attribute :price, Price
+
+            value_object "Sku" do
+              attribute :value, String
+            end
+
+            value_object "Price" do
+              attribute :cents, Integer
+            end
+          end
+        end
+      BLUEBOOK
+
+      let(:numeric_registry) do
+        registry = Hecksagain::Runtime::Registry.new
+        loading  = Hecksagain::Ports::Loading.bootstrap
+        file     = Tempfile.new(["numeric-pushdown-", ".bluebook"])
+        file.write(NUMERIC_PUSHDOWN_SOURCE)
+        file.flush
+        Hecksagain.with_registry(registry) do
+          loading.load_library
+          Kernel.eval(NUMERIC_PUSHDOWN_SOURCE, TOPLEVEL_BINDING, file.path, 1)
+        end
+        registry
+      ensure
+        file&.close!
+      end
+
+      let(:widget)          { numeric_registry.bluebooks.values.first.aggregate("Widget") }
+      let(:numeric_adapter) { described_class.new(aggregate: widget, settings: { database: SPEC_DB, domain: "NumericPushdown" }) }
+
+      def widget_instance(id, cents:)
+        Hecksagain::Runtime::Instance.new(aggregate: widget, id: id,
+                                           state: { sku: { value: id }, price: { cents: cents } })
+      end
+
+      before do
+        numeric_adapter.save(widget_instance("w1", cents: 1200))
+        numeric_adapter.save(widget_instance("w2", cents: 1500))
+        numeric_adapter.save(widget_instance("w3", cents: 900))
+      end
+
+      it "compiles an ordered comparison through a value object's numeric member, with ordering and limit" do
+        declared = Struct.new(:wheres, :order_by, :limit, :offset, :null_semantics).new(
+          [Struct.new(:field, :op, :value).new("price.cents", "lt", 1400)],
+          Struct.new(:field, :direction).new("price.cents", :desc),
+          Hecksagain::QuerySpecification::Common::LimitSpec.new(value: 5), nil, nil
+        )
+        expect(numeric_adapter.query(declared, {}).map(&:id)).to eq(%w[w1 w3])
+      end
+
+      it "compiles offset alongside limit" do
+        offset_spec = Hecksagain::QuerySpecification::Common::OffsetSpec.new(value: 1)
+        declared = Struct.new(:wheres, :order_by, :limit, :offset, :null_semantics).new(
+          [], Struct.new(:field, :direction).new("price.cents", :asc), nil, offset_spec, nil
+        )
+        expect(numeric_adapter.query(declared, {}).map(&:id)).to eq(%w[w1 w2])
+      end
     end
   end
 

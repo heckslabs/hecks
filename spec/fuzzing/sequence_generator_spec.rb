@@ -27,7 +27,7 @@ RSpec.describe Hecksagain::Fuzzing::SequenceGenerator do
     # so anything else propagates and fails this example. That's exactly what
     # should happen if the generator ever produces a step shaped wrongly
     # enough to crash the interpreter for reasons that have nothing to do
-    # with a genuine cross-runtime disagreement.
+    # with a genuine domain refusal.
     it "never crashes the interpreter for pizzas, across many seeds" do
       5.times do |seed|
         expect { described_class.generate(domain("pizzas"), seed: seed, steps: 40) }
@@ -53,7 +53,7 @@ RSpec.describe Hecksagain::Fuzzing::SequenceGenerator do
       expect(verbs.any? { |verb| !verb.end_with?(".CreatePizza") }).to be(true)
     end
 
-    it "produces steps in the exact shape spec/parity/*.json already uses" do
+    it "produces steps in the exact shape spec/corpus/*.json already uses" do
       steps = described_class.generate(domain("pizzas"), seed: 9, steps: 10)
 
       steps.each do |step|

@@ -22,9 +22,9 @@ RSpec.describe "a policy" do
   def topped_pizza(runtime)
     # `name:` was written TWICE here — once bare, once as the value object — and
     # Ruby warned on every run while silently keeping the second.
-    pizza = runtime.dispatch("Pizzas::Pizza.CreatePizza",
-                             name: { value: "Margherita" }, price_cents: { cents: 900 }, size: { value: "small" })
-    runtime.dispatch("Pizzas::Pizza.AddTopping", name: pizza.id, topping: { value: "Basil" }, amount: { value: 3 })
+    pizza = runtime.dispatch("Pizzas::Order.CreatePizza",
+                             name: { value: "Margherita" }, pizza: { price_cents: { cents: 900 }, size: { value: "small" } })
+    runtime.dispatch("Pizzas::Order.AddTopping", name: pizza.id, topping: { value: "Basil" }, amount: { value: 3 })
     pizza
   end
 
@@ -83,8 +83,8 @@ RSpec.describe "a policy" do
   it "leaves the triggering command's own state committed" do
     runtime = boot_in_memory
     pizza   = topped_pizza(runtime)
-    runtime.dispatch("Pizzas::Pizza.Purchase", name: pizza.id, customer_name: { value: "Chris" })
+    runtime.dispatch("Pizzas::Order.Purchase", name: pizza.id, customer_name: { value: "Chris" }, amount: { cents: 900 })
 
-    expect(Pizzas::Pizza.find(pizza.id).status).to eq("sold")
+    expect(Pizzas::Order.find(pizza.id).status).to eq("sold")
   end
 end

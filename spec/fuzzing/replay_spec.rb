@@ -7,13 +7,14 @@ RSpec.describe "Hecksagain::Fuzzing::Replay" do
   REPLAY_PIZZAS = File.join(ROOT_DIR, "examples/pizzas")
 
   def create_step
-    { "verb" => "Pizzas::Pizza.CreatePizza",
-      "args" => { "name" => { "value" => "Margherita" }, "price_cents" => { "cents" => 1200 },
-                  "size" => { "value" => "large" } } }
+    { "verb" => "Pizzas::Order.CreatePizza",
+      "args" => { "name" => { "value" => "Margherita" },
+                  "pizza" => { "price_cents" => { "cents" => 1200 },
+                               "size" => { "value" => "large" } } } }
   end
 
   def topping_step
-    { "verb" => "Pizzas::Pizza.AddTopping",
+    { "verb" => "Pizzas::Order.AddTopping",
       "args" => { "amount" => { "value" => 3 }, "topping" => { "value" => "Basil" },
                   "name" => "Margherita" } }
   end
@@ -22,24 +23,24 @@ RSpec.describe "Hecksagain::Fuzzing::Replay" do
     history = Hecksagain::Fuzzing::Replay.call(REPLAY_PIZZAS, [create_step, topping_step])
 
     expect(history[:events].map { |e| e[:name] }).to eq(["PizzaCreated", "ToppingAdded"])
-    expect(history[:instances].keys).to eq(["Pizzas::Pizza#Margherita"])
+    expect(history[:instances].keys).to eq(["Pizzas::Order#Margherita"])
     expect(history[:refusals]).to be_empty
     expect(history[:bluebook].name).to eq("Pizzas")
   end
 
   it "records a refusal rather than raising, for a domain refusal" do
-    bad = { "verb" => "Pizzas::Pizza.AddTopping",
+    bad = { "verb" => "Pizzas::Order.AddTopping",
             "args" => { "amount" => { "value" => 3 }, "topping" => { "value" => "Basil" },
                         "name" => "nobody-home" } }
 
     history = Hecksagain::Fuzzing::Replay.call(REPLAY_PIZZAS, [bad])
 
     expect(history[:events]).to be_empty
-    expect(history[:refusals].first[:verb]).to eq("Pizzas::Pizza.AddTopping")
+    expect(history[:refusals].first[:verb]).to eq("Pizzas::Order.AddTopping")
   end
 
   it "propagates anything that is not a domain refusal — a broken step is a defect, not data" do
-    malformed = { "verb" => "Pizzas::Pizza.CreatePizza", "args" => "not-a-hash" }
+    malformed = { "verb" => "Pizzas::Order.CreatePizza", "args" => "not-a-hash" }
 
     expect { Hecksagain::Fuzzing::Replay.call(REPLAY_PIZZAS, [malformed]) }.to raise_error(StandardError)
   end

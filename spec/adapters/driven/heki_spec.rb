@@ -12,7 +12,7 @@ RSpec.describe Hecksagain::Adapters::Heki do
   end
 
   let(:aggregate) do
-    boot_in_memory.registry.bluebook("Pizzas").aggregate("Pizza")
+    boot_in_memory.registry.bluebook("Pizzas").aggregate("Order")
   end
 
   let(:adapter) do
@@ -81,7 +81,7 @@ RSpec.describe Hecksagain::Adapters::Heki do
     it "writes one store per aggregate, named for it" do
       adapter.save(instance("p1", name: { value: "Named" }))
 
-      expect(File.exist?(File.join(@dir, "pizza.heki"))).to be true
+      expect(File.exist?(File.join(@dir, "order.heki"))).to be true
     end
   end
 
@@ -89,7 +89,7 @@ RSpec.describe Hecksagain::Adapters::Heki do
     let(:bytes) do
       adapter.save(instance("p1", name: { value: "Margherita" }))
       adapter.save(instance("p2", name: { value: "Marinara" }))
-      File.binread(File.join(@dir, "pizza.heki"))
+      File.binread(File.join(@dir, "order.heki"))
     end
 
     it "opens with the HEKI magic" do
@@ -110,19 +110,19 @@ RSpec.describe Hecksagain::Adapters::Heki do
     it "writes ids in sorted order, so the same records give the same bytes" do
       first = bytes
 
-      FileUtils.rm_f(File.join(@dir, "pizza.heki"))
-      FileUtils.rm_f(File.join(@dir, "pizza.heki.journal"))
+      FileUtils.rm_f(File.join(@dir, "order.heki"))
+      FileUtils.rm_f(File.join(@dir, "order.heki.journal"))
       rewritten = described_class.new(aggregate: aggregate, settings: { dir: "." }, root: @dir)
       rewritten.save(instance("p2", name: { value: "Marinara" }))
       rewritten.save(instance("p1", name: { value: "Margherita" }))
 
-      expect(File.binread(File.join(@dir, "pizza.heki"))).to eq(first)
+      expect(File.binread(File.join(@dir, "order.heki"))).to eq(first)
     end
   end
 
   describe "refusing what it cannot read" do
     def write_raw(contents)
-      File.binwrite(File.join(@dir, "pizza.heki"), contents)
+      File.binwrite(File.join(@dir, "order.heki"), contents)
       described_class.new(aggregate: aggregate, settings: { dir: "." }, root: @dir)
     end
 

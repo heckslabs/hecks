@@ -174,7 +174,7 @@ RSpec.describe "the DSL surface" do
     it ".boot loads a domain directory and returns the door" do
       runtime = Hecks.boot(File.expand_path("../examples/pizzas", __dir__))
       expect(runtime).to be_a(Hecksagain::Runtime::Dispatcher)
-      expect(runtime.verbs).to include("Pizzas::Pizza.Purchase")
+      expect(runtime.verbs).to include("Pizzas::Order.Purchase")
     end
 
     it ".boot refuses a declaration loaded outside a boot" do
@@ -269,7 +269,7 @@ RSpec.describe "the DSL surface" do
     # A DEFAULT FILLS THE SHAPE IT IS DECLARED ON. `default: "open"` on a
     # value-object attribute built cleanly and then refused every create at
     # dispatch, which cost a corpus member 33 refusals out of 40 steps while
-    # `bin/parity` reported AGREED — both runtimes refusing identically is
+    # every downstream check still passed — refusing consistently is
     # agreement about nothing.
     it "refuses a bare default where the type wants fields" do
       expect do
@@ -400,9 +400,9 @@ RSpec.describe "the DSL surface" do
     end
 
     it "desugars an inline one_of into a value object named for the attribute" do
-      # Rust parsed this spelling already and threw the values away — the
-      # attribute became a plain String and the closed set meant nothing. Both
-      # runtimes desugar it now, identically.
+      # An earlier reader parsed this spelling and threw the values away — the
+      # attribute became a plain String and the closed set meant nothing. The
+      # desugaring here keeps the set closed.
       aggregate = build_aggregate("Inline") do
         attribute :status, one_of("open", "shut")
       end
@@ -1057,8 +1057,8 @@ RSpec.describe "the DSL surface" do
       expect(aggregate.attribute(:pizza_id).to_h[:type]).to eq("Reference<Pizza>")
     end
 
-    # `has_many`, `has_one`, `belongs_to` — sugar Hecks already grew and
-    # Rust's parser already read, ported here for the first time. Each
+    # `has_many`, `has_one`, `belongs_to` — sugar Hecks already grew,
+    # ported here for the first time. Each
     # builds exactly the Reference-typed attribute `reference_to` does ; what
     # differs is the DEFAULT NAME, which carries no `_id` mint.
     it "has_one is a single reference, named for the target with no _id mint" do
@@ -1296,6 +1296,114 @@ RSpec.describe "the DSL surface" do
 
     it "an adapter needing no configuration declares nothing" do
       expect(build_adapter { port "post" }.all_fields).to eq([])
+    end
+  end
+
+  describe "a domain port" do
+    def build_domain_port(&block)
+      registry = in_registry do
+        Hecks.bluebook("DomPort") do
+          aggregate("Thing") do
+            identified_by { thing_id.value }
+          end
+        end
+        Hecks.hecksagon("DomPort") { DomPort::Thing.port("Gateway", &block) }
+      end
+      registry.bluebook("DomPort").aggregate("Thing").port("Gateway")
+    end
+
+    it "operation adds a named operation" do
+      port = build_domain_port do
+        operation("Receive") do
+          reference_to Thing, as: :thing_id
+          emits "Received"
+        end
+      end
+
+      expect(port.operation("Receive").hecks_name).to eq("Receive")
+    end
+
+    it "refuses a port with no operations" do
+      expect { build_domain_port {} }.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /declares no operations/)
+    end
+
+    it "a bare port at a hecksagon's root belongs to the chapter, not one aggregate" do
+      registry = in_registry do
+        Hecks.bluebook("RootPort") do
+          aggregate("Thing") do
+            identified_by { thing_id.value }
+          end
+        end
+        Hecks.hecksagon("RootPort") do
+          port("Clock") { operation("Tick") { emits "Ticked" } }
+        end
+      end
+
+      port = registry.bluebook("RootPort").port("Clock")
+      expect(port.operation("Tick").emits).to eq(["Ticked"])
+    end
+  end
+
+  describe "a port operation" do
+    def build_operation(&block)
+      registry = in_registry do
+        Hecks.bluebook("PortOp") do
+          aggregate("Thing") do
+            identified_by { thing_id.value }
+          end
+        end
+        Hecks.hecksagon("PortOp") { PortOp::Thing.port("Gateway") { operation("Do", &block) } }
+      end
+      registry.bluebook("PortOp").aggregate("Thing").port("Gateway").operation("Do")
+    end
+
+    it "reference_to adds a reference attribute, always — no self-reference form" do
+      operation = build_operation do
+        reference_to Thing, as: :thing_id
+        emits "Done"
+      end
+
+      expect(operation.attribute(:thing_id).type.target_name).to eq("Thing")
+    end
+
+    it "attribute adds a payload field alongside the reference" do
+      operation = build_operation do
+        reference_to Thing, as: :thing_id
+        attribute :amount, Integer
+        emits "Done"
+      end
+
+      expect(operation.attribute(:amount).type).to eq("Integer")
+    end
+
+    it "emits records the event the operation announces" do
+      operation = build_operation do
+        reference_to Thing, as: :thing_id
+        emits "Done"
+      end
+
+      expect(operation.emits).to eq(["Done"])
+    end
+
+    it "identity_attribute finds the reference targeting the owning aggregate" do
+      operation = build_operation do
+        reference_to Thing, as: :thing_id
+        emits "Done"
+      end
+
+      expect(operation.identity_attribute("Thing").name).to eq(:thing_id)
+    end
+
+    it "refuses an operation with no reference to its owning aggregate" do
+      expect {
+        build_operation { emits "Done" }
+      }.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /names no reference_to/)
+    end
+
+    it "refuses an operation with no emits" do
+      expect {
+        build_operation { reference_to Thing, as: :thing_id }
+      }.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /declares no emits/)
     end
   end
 

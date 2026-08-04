@@ -7,7 +7,7 @@ require "hecksagain/fuzzing"
 # usual: the standard battery HOLDS over real generated sequences
 # (below), and each property actually FIRES against a hand-built
 # history that violates it — a property nothing can ever fail is
-# decoration, the exact lesson bin/undeclared exists to catch for
+# decoration, the same lesson the coverage gates state for
 # declarations.
 RSpec.describe "Hecksagain::Fuzzing::Properties" do
   ROOT_DIR = InMemoryDomain::ROOT
@@ -50,7 +50,7 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
 
     it "lifecycle_values_are_declared names an instance holding an undeclared state" do
       history = { bluebook: bluebook_for(PROPERTIES_PIZZAS),
-                  instances: { "Pizzas::Pizza#p1" => { status: "teleported" } } }
+                  instances: { "Pizzas::Order#p1" => { status: "teleported" } } }
 
       result = Hecksagain::Fuzzing::Properties.lifecycle_values_are_declared(history)
       expect(result).to be_a(String)
@@ -59,7 +59,7 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
 
     it "lifecycle_values_are_declared passes a genuinely declared state through" do
       history = { bluebook: bluebook_for(PROPERTIES_PIZZAS),
-                  instances: { "Pizzas::Pizza#p1" => { status: "available" } } }
+                  instances: { "Pizzas::Order#p1" => { status: "available" } } }
 
       expect(Hecksagain::Fuzzing::Properties.lifecycle_values_are_declared(history)).to eq(true)
     end
@@ -90,8 +90,9 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
       first  = Hecksagain::Fuzzing::Replay.call(PROPERTIES_PIZZAS, [])
       second = Hecksagain::Fuzzing::Replay.call(
         PROPERTIES_PIZZAS,
-        [{ "verb" => "Pizzas::Pizza.CreatePizza",
-           "args" => { "name" => { "value" => "X" }, "price_cents" => { "cents" => 100 }, "size" => { "value" => "small" } } }]
+        [{ "verb" => "Pizzas::Order.CreatePizza",
+           "args" => { "name" => { "value" => "X" },
+                       "pizza" => { "price_cents" => { "cents" => 100 }, "size" => { "value" => "small" } } } }]
       )
       comparable = ->(h) { h.reject { |k, _| k == :bluebook } }
 

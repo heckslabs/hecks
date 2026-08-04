@@ -14,6 +14,15 @@
         {
           "admits": null,
           "default": null,
+          "list": false,
+          "name": "pizza",
+          "optional": false,
+          "pattern": null,
+          "type": "Pizza"
+        },
+        {
+          "admits": null,
+          "default": null,
           "list": true,
           "name": "toppings",
           "optional": false,
@@ -24,28 +33,10 @@
           "admits": null,
           "default": null,
           "list": false,
-          "name": "price_cents",
-          "optional": false,
-          "pattern": null,
-          "type": "Price"
-        },
-        {
-          "admits": null,
-          "default": null,
-          "list": false,
           "name": "customer_name",
           "optional": false,
           "pattern": null,
           "type": "CustomerName"
-        },
-        {
-          "admits": null,
-          "default": null,
-          "list": false,
-          "name": "size",
-          "optional": false,
-          "pattern": null,
-          "type": "Size"
         }
       ],
       "commands": [
@@ -64,19 +55,10 @@
               "admits": null,
               "default": null,
               "list": false,
-              "name": "price_cents",
+              "name": "pizza",
               "optional": false,
               "pattern": null,
-              "type": "Price"
-            },
-            {
-              "admits": null,
-              "default": null,
-              "list": false,
-              "name": "size",
-              "optional": false,
-              "pattern": null,
-              "type": "Size"
+              "type": "Pizza"
             }
           ],
           "emits": [
@@ -145,7 +127,7 @@
             }
           ],
           "name": "AddTopping",
-          "references": "Pizza",
+          "references": "Order",
           "role": "Chef"
         },
         {
@@ -158,6 +140,15 @@
               "optional": false,
               "pattern": null,
               "type": "CustomerName"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "amount",
+              "optional": false,
+              "pattern": null,
+              "type": "Price"
             }
           ],
           "emits": [
@@ -174,6 +165,10 @@
             {
               "canonical": "status == \"available\"",
               "description": "it must still be available"
+            },
+            {
+              "canonical": "amount.cents.positive?",
+              "description": "a payment was actually made"
             }
           ],
           "goal": "Buy the pizza",
@@ -196,11 +191,11 @@
             }
           ],
           "name": "Purchase",
-          "references": "Pizza",
+          "references": "Order",
           "role": "Customer"
         }
       ],
-      "description": "A pizza that gathers toppings and is eventually sold to a customer.",
+      "description": "An order that gathers toppings on a pizza and is eventually sold to a customer.",
       "entities": [
 
       ],
@@ -218,7 +213,7 @@
           }
         ]
       },
-      "name": "Pizza",
+      "name": "Order",
       "queries": [
         {
           "attributes": [
@@ -236,46 +231,6 @@
               "field": "status",
               "op": "eq",
               "value": "available"
-            }
-          ]
-        },
-        {
-          "attributes": [
-            {
-              "admits": null,
-              "default": null,
-              "list": false,
-              "name": "ceiling",
-              "optional": false,
-              "pattern": null,
-              "type": "Price"
-            }
-          ],
-          "description": null,
-          "limit": null,
-          "name": "CostingLessThan",
-          "order_by": null,
-          "wheres": [
-            {
-              "field": "price_cents",
-              "op": "lt",
-              "value": ":ceiling"
-            }
-          ]
-        },
-        {
-          "attributes": [
-
-          ],
-          "description": null,
-          "limit": null,
-          "name": "Expensive",
-          "order_by": null,
-          "wheres": [
-            {
-              "field": "price_cents",
-              "op": "gt",
-              "value": "1000"
             }
           ]
         }
@@ -462,6 +417,36 @@
             ]
           ],
           "name": "Size"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "price_cents",
+              "optional": false,
+              "pattern": null,
+              "type": "Price"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "size",
+              "optional": false,
+              "pattern": null,
+              "type": "Size"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Pizza"
         }
       ]
     }
@@ -485,7 +470,12 @@
   "classification": "supporting",
   "name": "Pizzas",
   "policies": [
-
+    {
+      "name": "OnPizzaPaymentReceived",
+      "on_event": "PizzaPaymentReceived",
+      "target_domain": null,
+      "trigger_command": "Order.Purchase"
+    }
   ],
   "process_managers": [
 

@@ -1,0 +1,6 @@
+Hecks.data_translation "Pizzas", from: "e3f3d7", to: "77625c" do
+  aggregate "Order", was: "Pizza" do
+    move :price_cents, to: "pizza.price_cents"
+    move :size,         to: "pizza.size"
+  end
+end
