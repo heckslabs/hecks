@@ -131,6 +131,11 @@ RSpec.describe Hecksagain::Adapters::Postgres,
 
     it "compiles equality on the lifecycle field" do
       declared = Hecksagain::Bluebook::DSL::AggregateBuilder.new("Pizza").tap do |builder|
+        # seal_query_targets holds a query to fields the aggregate declares,
+        # so the throwaway builder declares the lifecycle the query asks about.
+        builder.lifecycle(:status, default: "available") do
+          transition "Sell" => "sold", from: "available"
+        end
         builder.query("Available") { where(status: "available") }
       end.build.queries.first
 

@@ -926,6 +926,15 @@ RSpec.describe "the DSL surface" do
 
     it "query records filters, ordering and a cap as DATA, never a proc" do
       found = build_aggregate("Readable") do
+        # The fields the query below asks about. A query must name a field the
+        # aggregate declares (AggregateBuilder#seal_query_targets), so the
+        # fixture declares them instead of asking into a void.
+        value_object("Name") { attribute :value, String }
+        attribute :name, Name
+        lifecycle :status, default: "available" do
+          transition "Retire" => "retired", from: "available"
+        end
+
         query "Available" do
           where(status: "available")
           order_by :name, :desc
@@ -957,6 +966,9 @@ RSpec.describe "the DSL surface" do
 
     it "query reads a comparator from the hash form" do
       found = build_aggregate("Compared") do
+        value_object("Price") { attribute :cents, Integer }
+        attribute :price, Price
+
         query "Cheap" do
           where(price: { lt: 500 })
         end
@@ -973,6 +985,92 @@ RSpec.describe "the DSL surface" do
           end
         end
       end.to raise_error(ArgumentError, /unknown comparator/)
+    end
+
+    # THE QUERY SEAL — the same gate then_set gets, closing the same silence.
+    # Every case here used to build cleanly and answer wrongly forever: a
+    # where over an undeclared field matches nothing on every adapter, an
+    # ordered comparator over text is answered differently per adapter (the
+    # reference interpreter quietly matches no rows; SQL compares
+    # lexicographically), a :symbol naming no argument resolves to nil, and a
+    # dotted path is answered by SQL and silently ignored by Memory.
+    describe "a query the aggregate cannot answer" do
+      it "refuses a where over a field nothing declares" do
+        expect do
+          build_aggregate("Asking") { query("Lost") { where(price: { lt: 500 }) } }
+        end.to raise_error(Malformed, /asks about price, which Thing never declares.*matches nothing and refuses nothing/)
+      end
+
+      it "refuses an order_by over a field nothing declares" do
+        expect do
+          build_aggregate("Sorting") { query("Lost") { order_by :price } }
+        end.to raise_error(Malformed, /asks about price, which Thing never declares/)
+      end
+
+      it "refuses an ordered comparator over a field that holds no number" do
+        expect do
+          build_aggregate("Texting") do
+            value_object("Label") { attribute :value, String }
+            attribute :label, Label
+            query("Sorted") { where(label: { gt: "m" }) }
+          end
+        end.to raise_error(Malformed, /compares label with gt.*holds no number.*adapters answer differently/m)
+      end
+
+      it "refuses an ordered comparator over the lifecycle field" do
+        expect do
+          build_aggregate("Cycling") do
+            lifecycle :status, default: "open" do
+              transition "Close" => "closed", from: "open"
+            end
+            query("Sorted") { where(status: { lt: "open" }) }
+          end
+        end.to raise_error(Malformed, /compares status with lt.*lifecycle field, which holds text/m)
+      end
+
+      it "refuses a :symbol value naming no declared query argument" do
+        expect do
+          build_aggregate("Arguing") do
+            value_object("Price") { attribute :cents, Integer }
+            attribute :price, Price
+            query("Cheap") { where(price: { lt: :ceiling }) }
+          end
+        end.to raise_error(Malformed, /resolves :ceiling from its arguments, but declares no ceiling attribute/)
+      end
+
+      it "refuses a dotted path even when it resolves — the adapters do not agree past the top level" do
+        expect do
+          build_aggregate("Nesting") do
+            value_object("Price") { attribute :cents, Integer }
+            value_object("Pizza") { attribute :price, Price }
+            attribute :pizza, Pizza
+            query("Cheap") { where(:"pizza.price.cents" => { lt: 500 }) }
+          end
+        end.to raise_error(Malformed, /reaches inside pizza \(pizza\.price\.cents\).*nested value-object field/m)
+      end
+
+      it "admits the shapes both adapters answer identically" do
+        aggregate = build_aggregate("Sound") do
+          value_object("Money")  { attribute :cents, Integer }
+          value_object("Name")   { attribute :value, String }
+          value_object("Tag")    { attribute :name, String }
+          attribute :balance, Money
+          attribute :name,    Name
+          attribute :tags,    list_of(Tag)
+          lifecycle :status, default: "open" do
+            transition "Close" => "closed", from: "open"
+          end
+          query "Everything" do
+            attribute :floor, Money
+            where(status: { in: "open,closed" }, balance: { lt: :floor },
+                  tags: { contains: "hot" }, name: { ne: "x" })
+            order_by :name
+            limit 10
+          end
+        end
+
+        expect(aggregate.queries.first.wheres.size).to eq(4)
+      end
     end
 
     it "reference_to another root is an attribute, and leaves the command creating" do

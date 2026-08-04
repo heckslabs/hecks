@@ -122,6 +122,7 @@ module Hecksagain
 
         def build
           seal_mutation_targets
+          seal_query_targets
           seal_defaults
 
           ir = IR::Aggregate.new(
@@ -240,6 +241,103 @@ module Hecksagain
                     "writes nothing and refuses nothing"
             end
           end
+        end
+
+        # A query must ask about a field the aggregate actually HAS — the same
+        # seal `then_set` gets, closing the same silence: a where over a field
+        # nothing declares matches nothing and refuses nothing, forever, on
+        # every adapter. Three more silences close with it. An ordered
+        # comparator (lt/gt/gte/lte) over a non-numeric field is answered
+        # DIFFERENTLY per adapter — the reference interpreter quietly matches
+        # no rows while SQL compares text — so it must land on a numeric leaf.
+        # A :symbol value must name one of the query's own declared arguments,
+        # or it resolves to nil at dispatch and matches nothing. And a dotted
+        # field path is refused even when it resolves — the adapters do not
+        # yet answer a nested value-object field identically, and a query the
+        # engines disagree on is worse than one that refuses to boot.
+        ORDERED_COMPARATORS = %i[lt lte gt gte].freeze
+        NUMERIC_PRIMITIVES  = %w[Integer Float].freeze
+
+        def seal_query_targets
+          query_surfaces.each do |owner, fields, lifecycle, queries|
+            queries.each do |query|
+              query.wheres.each do |clause|
+                seal_query_field(owner, query, fields, lifecycle, clause.field)
+                seal_ordered_comparator(owner, query, fields, clause)
+                seal_query_argument(owner, query, clause.value)
+              end
+              seal_query_field(owner, query, fields, lifecycle, query.order_by.field) if query.order_by
+              seal_query_argument(owner, query, query.limit&.value)
+              seal_query_argument(owner, query, query.offset&.value)
+            end
+          end
+        end
+
+        def query_surfaces
+          [[@name, attributes, @lifecycle, @queries]] +
+            @entities.map { |entity| ["#{@name}::#{entity.hecks_name}", entity.attributes, entity.lifecycle, entity.queries] }
+        end
+
+        def seal_query_field(owner, query, fields, lifecycle, field)
+          name, *nested = field.to_s.split(".")
+          attribute = fields.find { |candidate| candidate.name.to_s == name }
+          return if nested.empty? && (attribute || lifecycle&.field.to_s == name)
+
+          if nested.any? && attribute && nested_path_resolves?(attribute, nested)
+            raise Malformed,
+                  "#{owner}.#{query.hecks_name} reaches inside #{name} (#{field}) — " \
+                  "the adapters do not answer a nested value-object field identically " \
+                  "yet, so a query field names a declared attribute, nothing deeper"
+          end
+
+          raise Malformed,
+                "#{owner}.#{query.hecks_name} asks about #{field}, which #{owner} " \
+                "never declares — a query over a field that does not exist " \
+                "matches nothing and refuses nothing"
+        end
+
+        def seal_ordered_comparator(owner, query, fields, clause)
+          return unless ORDERED_COMPARATORS.include?(clause.op.to_s.to_sym)
+
+          attribute = fields.find { |candidate| candidate.name.to_s == clause.field.to_s }
+          return if numeric_leaf?(attribute)
+
+          held = attribute ? "holds no number" : "is the lifecycle field, which holds text"
+          raise Malformed,
+                "#{owner}.#{query.hecks_name} compares #{clause.field} with #{clause.op}, " \
+                "but #{clause.field} #{held} — an ordered comparison needs a numeric " \
+                "field, and over anything else the adapters answer differently or not at all"
+        end
+
+        def seal_query_argument(owner, query, value)
+          return unless value.is_a?(Symbol)
+          return if query.attribute(value)
+
+          raise Malformed,
+                "#{owner}.#{query.hecks_name} resolves :#{value} from its arguments, " \
+                "but declares no #{value} attribute — an argument that does not exist " \
+                "resolves to nil and matches nothing"
+        end
+
+        def numeric_leaf?(attribute)
+          return false if attribute.nil? || attribute.list? || attribute.reference?
+          return true if NUMERIC_PRIMITIVES.include?(attribute.type.to_s)
+
+          shape = declared_value_object(attribute.type.to_s)
+          !!shape&.attributes&.any? { |member| NUMERIC_PRIMITIVES.include?(member.type.to_s) }
+        end
+
+        def nested_path_resolves?(attribute, nested)
+          current = attribute
+          nested.all? do |segment|
+            shape = current && !current.reference? ? declared_value_object(current.type.to_s) : nil
+            current = shape&.attributes&.find { |member| member.name.to_s == segment }
+            !current.nil?
+          end
+        end
+
+        def declared_value_object(type_name)
+          (@value_objects + closed_sets).find { |shape| shape.hecks_name.to_s == type_name }
         end
 
       end
