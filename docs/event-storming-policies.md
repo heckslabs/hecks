@@ -1,5 +1,9 @@
 # Event storming's Policy, in hecksagain
 
+> The consumer guide for policies and process managers now lives at
+> [guides/policies-and-process-managers.md](guides/policies-and-process-managers.md);
+> this file remains the original investigation record.
+
 **Status: mostly a record of what's already built, verified directly.** Event
 storming's reactive building block — the lilac sticky, "whenever this event happens,
 trigger this command" — already exists in this language under the name `Policy`, and

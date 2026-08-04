@@ -1,8 +1,13 @@
 # Doctested guides, generated DSL reference, and a generated README
 
-**Status: planned, not built.** Shape decided (doctested Markdown over YARD;
-inline `# =>` assertions; full guide set in one pass) — this records the whole
-design so the work can start cold. Written 2026-08-04.
+**Status: built.** Landed 2026-08-04 — the doctest harness
+(`spec/support/doctest.rb`, `spec/guides_spec.rb`), all twelve guides plus
+`AUTHORING.md` and `index.md` under `docs/guides/`, the generated reference
+(`bin/reference`, `lib/hecksagain/doc/reference.rb`, `docs/reference/`,
+golden-checked and coverage-gated by `spec/reference_golden_spec.rb`), and
+README's own generated regions (guides index, reference pointer, corpus
+roster, tool table). This file is kept as the design record — the plan below
+is what was actually built, not a forward-looking proposal anymore.
 
 ## Context
 

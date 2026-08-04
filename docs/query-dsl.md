@@ -1,3 +1,5 @@
+> The consumer guide for queries now lives at [guides/queries-and-read-models.md](guides/queries-and-read-models.md); this file remains the original design record.
+
 # The query DSL: what exists, and what might extend it
 
 **Status: mostly a record of what's already built, verified directly — plus a short,
