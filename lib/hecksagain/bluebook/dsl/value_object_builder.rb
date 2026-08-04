@@ -36,7 +36,7 @@ module Hecksagain
           if canonical.to_s.empty?
             raise Malformed,
                   "#{@name}'s invariant #{description.inspect} did not survive " \
-                  "extraction — it would be a rule no other runtime could read"
+                  "extraction — it would be a rule the IR cannot carry"
           end
 
           @invariants << IR::Invariant.new(

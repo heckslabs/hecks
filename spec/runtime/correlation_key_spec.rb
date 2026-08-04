@@ -1,7 +1,7 @@
 require "spec_helper"
 
-# docs/porting/behavior-notes.md names this "the weakest part of the
-# design": a saga's correlation key legitimately arrives on commands that
+# command_interpreter/argument_gate.rb names this "the weakest part of the
+# gate": a saga's correlation key legitimately arrives on commands that
 # never declare it, because `correlation_keys` widens the allow-list
 # domain-wide. `deliver_saga_dispatch` now stamps the key it already knows
 # onto the event(s) its own dispatch causes, so a leg that stops smuggling

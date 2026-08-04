@@ -30,7 +30,7 @@ module Hecksagain
 
       # THE DOOR IS INSTALLED HERE, NOT STAMPED. This used to write the
       # dispatcher onto every aggregate's class (`ruby_class.runtime =`) — the
-      # class-level global that made two runtimes in one process share one
+      # class-level global that made two boots in one process share one
       # name. The facade's modules close over THIS dispatcher instead, so the
       # binding lives in the surface a boot installs, not on anything shared.
       def self.bind_runtime(dispatcher)

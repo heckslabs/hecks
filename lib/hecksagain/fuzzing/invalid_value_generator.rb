@@ -5,16 +5,17 @@ module Hecksagain
     # a declared type.
     #
     # That limit is why the fuzzer could not reach the space a hand-written
-    # adversarial corpus covers. spec/parity/banking.json got there one step at a
+    # adversarial corpus covers. spec/corpus/banking.json got there one step at a
     # time, by hand : a value object where an Integer is declared, a Float where an
     # Integer is declared, a numeral wearing quotes, an attribute missing entirely,
     # an attribute the command never declared. One of those — a hash reaching a
-    # refusal message — is the exact shape that split the two runtimes, because
-    # Ruby rendered it with `inspect` and Rust with JSON, and no generated value
+    # refusal message — is the exact shape that exposed refusal wording drift
+    # (a composite rendered with `inspect` at one site and JSON at another —
+    # Rendering's whole story), and no generated value
     # could ever have produced it.
     #
     # These are expected to be REFUSED, and that is the point : a refusal is an
-    # answer, and the two runtimes have to word it identically. The bugs live in
+    # answer, and its wording is pinned byte-for-byte. The bugs live in
     # the sentence, not in the happy path.
     module InvalidValueGenerator
       module_function

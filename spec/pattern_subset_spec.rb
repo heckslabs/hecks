@@ -1,22 +1,23 @@
 require "spec_helper"
 require "json"
 
-# WHICH REGEXES A BLUEBOOK MAY SAY, from Ruby's side.
+# WHICH REGEXES A BLUEBOOK MAY SAY.
 #
-# The Rust half is rust/src/bluebook/pattern_subset.rs, and both read the same
-# fixture. A pattern one runtime admits and the other refuses is a bluebook that
-# loads in one and not the other, which is the failure this exists to stop.
+# A `pattern:` is declared data, so it stays inside what regex engines agree
+# on. A pattern one engine admits and another refuses is a bluebook that
+# loads in one place and not another, which is the failure this exists to stop.
 RSpec.describe Hecksagain::Bluebook::PatternSubset do
   # PATTERNS_CONTRACT, not CONTRACT : a constant assigned inside an RSpec.describe
   # block lands on Object, so a bare `CONTRACT` here silently overwrote the one in
   # naming_spec and broke a test in a file this one never mentions. Whichever
   # loaded second won, which made it look like load-order flakiness.
-  PATTERNS_CONTRACT = File.join(InMemoryDomain::ROOT, "spec/parity/fixtures/patterns.json").freeze
+  PATTERNS_CONTRACT = File.join(InMemoryDomain::ROOT, "spec/corpus/fixtures/patterns.json").freeze
 
   describe "the constructs it refuses" do
-    # The first four cannot both be PARSED. The last two can — and mean different
-    # things, which is the dangerous half : nothing errors, the two runtimes just
-    # quietly disagree about whether a value is valid.
+    # The first four only a backtracking engine can PARSE. The last two every
+    # engine parses — and means differently, which is the dangerous half :
+    # nothing errors, engines just quietly disagree about whether a value is
+    # valid.
     {
       '(a)\1'          => "backreference",
       '(?<x>a)\k<x>'   => "named backreference",
@@ -62,10 +63,11 @@ RSpec.describe Hecksagain::Bluebook::PatternSubset do
     end
   end
 
-  # THE DIFFERENTIAL. The same file the Rust test reads : a recorded contract both
-  # runtimes answer to, so a regression in EITHER is caught. Recording one
-  # runtime's answers and diffing the other against them would have made the
-  # first unilaterally right.
+  # A RECORDED CONTRACT, not a re-derived one : the fixture holds the
+  # expected verdicts, so a regression in the walk is caught against what was
+  # agreed rather than against whatever the walk now says. Recording the
+  # implementation's own answers and diffing it against itself would have
+  # made it unilaterally right.
   describe "the recorded contract" do
     it "reads every admitted pattern the way the fixture says" do
       rows = JSON.parse(File.read(PATTERNS_CONTRACT))

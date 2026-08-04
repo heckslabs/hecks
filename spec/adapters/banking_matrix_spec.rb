@@ -68,7 +68,7 @@ RSpec.describe "Banking across persistence adapters" do
   end
 
   def replay_matrix(runtime)
-    script = JSON.parse(File.read(File.join(InMemoryDomain::ROOT, "spec/parity/banking.json")))
+    script = JSON.parse(File.read(File.join(InMemoryDomain::ROOT, "spec/corpus/banking.json")))
     refusals = []
     queries = []
 
@@ -166,7 +166,7 @@ RSpec.describe "Banking across persistence adapters" do
 
   it "runs every banking command and query through every persistence topology" do
     coverage = boot("Memory", root: File.join(@dir, "coverage"))
-    script = JSON.parse(File.read(File.join(InMemoryDomain::ROOT, "spec/parity/banking.json")))
+    script = JSON.parse(File.read(File.join(InMemoryDomain::ROOT, "spec/corpus/banking.json")))
     commands = script.fetch("steps").filter_map { |step| step["verb"] }.uniq.sort
     queries = script.fetch("steps").filter_map { |step| step["query"] }.uniq.sort
     expect(commands).to include(*declared_verbs(coverage, :commands))
@@ -188,7 +188,7 @@ RSpec.describe "Banking across persistence adapters" do
 
     # Exercise the complete banking matrix before comparing the domain-level
     # report. This ensures the read model sees the same successful commands,
-    # refusals, and aggregate heads as the parity run.
+    # refusals, and aggregate heads as the corpus replay.
     replay_matrix(memory)
     replay_matrix(sqlite)
 

@@ -35,12 +35,9 @@ module Hecksagain
     #                 list, not by name) is first in line, and that
     #                 change bumps FORM_VERSION.
     #
-    # Projection runs over the SAME dump form both runtimes already hold
-    # byte-identical under `bin/parity` (Ruby `to_h`, Rust
-    # `ir_json::domain_to_value`), so the two runtimes cannot disagree on
-    # a verdict without already failing IR parity. Structural comparison
-    # only — never a hash comparison (rust/src/runtime/storage_shape.rs
-    # is the twin).
+    # Projection runs over the canonical dump form (`to_h`, JSON
+    # round-tripped), so a verdict depends only on the IR — never on live
+    # object graphs. Structural comparison only, never a hash comparison.
     module StorageShape
       module_function
 

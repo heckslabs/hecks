@@ -56,9 +56,9 @@ Hecks.bluebook "Reflex" do
     # verb nothing dispatches cannot fire.
     #
     # Here rather than in banking on purpose. Adding an option to an example would
-    # change that example's IR, and the Rust parser's Query struct does not carry
-    # these yet — parity would split at stage one. A fixture is not in the parity
-    # corpus, so this exercises the verb without claiming both runtimes read it.
+    # change that example's frozen IR for the sake of coverage alone. A fixture is
+    # not in the frozen corpus, so this exercises the verb without disturbing any
+    # golden.
     query "Lit" do
       description "Lights that are on, most recent first, with every option a query can carry"
       where(condition: "on")
@@ -153,8 +153,8 @@ Hecks.bluebook "Reflex" do
   # A read model carrying the same options an ask does — the other half of the
   # coverage gap. `ReadModel.Option` is declared in the language and no corpus read
   # model exercised it, so the judge never offered it. Its filters (where, order_by,
-  # limit) are deliberately absent: `ReadModel#to_h` omits those and so does Rust's
-  # ReadModel struct, so declaring them here would claim a contract that does not
+  # limit) are deliberately absent: `ReadModel#to_h` omits those,
+  # so declaring them here would claim a wire contract that does not
   # exist. See spec/orchestration_spec's gap list.
   read_model "Signals" do
     description "Every echo gathered around a light, with the options a projection can carry"

@@ -57,13 +57,12 @@ RSpec.describe "the rules a command obeys" do
     # AN ABSENT ARGUMENT IS NIL, NOT ITS OWN NAME.
     #
     # `resolve_source` used to fall through to the Symbol when the argument was
-    # missing, so an absent `amount` arrived at coercion AS `:amount` and Ruby
+    # missing, so an absent `amount` arrived at coercion AS `:amount` and was
     # refused with "amount is a Money — pass its fields as an object, not
     # :amount" — which describes passing the wrong SHAPE, a mistake the caller
-    # had not made. Rust then grew a branch reproducing that exact sentence so
-    # the two would agree. Both are gone : the message now names what is
-    # actually wrong, and both runtimes word it identically because Ruby's
-    # Rendering.describe and Rust's describe() both spell nil "nil".
+    # had not made. That sentence became load-bearing downstream before anyone
+    # noticed it was wrong. It is gone : the message now names what is
+    # actually wrong, worded through Rendering.describe, which spells nil "nil".
     it "says an absent OPTIONAL argument is nil, not the name of the argument" do
       runtime = boot_till
       runtime.dispatch("TillRoom::Till.OpenTill", number: { value: "till-1" })
@@ -92,10 +91,10 @@ RSpec.describe "the rules a command obeys" do
 
     # The counterpart on the OTHER side of the arithmetic : a total that has
     # never been set reads as zero (`current ||= 0`), and only the total does.
-    # Rust conflated the two — one `integer_field` mapping Null to 0 for both —
-    # so an absent amount there incremented by zero and silently SUCCEEDED
-    # while Ruby refused. That asymmetry is the whole reason the imitation
-    # branch above had to exist.
+    # Conflating the two — mapping every absent value to 0 —
+    # once let an absent amount increment by zero and silently SUCCEED
+    # where a refusal was owed. The distinction is the whole point : an unset
+    # TOTAL is zero ; an absent AMOUNT is a caller's mistake.
     it "still starts an unset total at zero" do
       runtime = funded_account(boot_banking)
       state   = runtime.dispatch("Banking::Account.ApplyFee",

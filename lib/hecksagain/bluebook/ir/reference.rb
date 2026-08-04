@@ -21,7 +21,7 @@ module Hecksagain
       # loaded domain is unreachable rather than defended against.
       #
       # `to_s` still spells `"Reference<Customer>"`, because `Attribute#to_h` is
-      # part of the byte-for-byte contract with the Rust parser. IR objects in
+      # part of the pinned byte-for-byte export contract. IR objects in
       # the graph, strings in the export.
       class Reference
         attr_reader :target_name
@@ -48,7 +48,7 @@ module Hecksagain
           declared_in.hecks_owner&.aggregate(@target_name)
         end
 
-        # The IR spelling, which the export and the Rust parser share.
+        # The IR spelling, the one the export carries.
         def to_s = "Reference<#{@target_name}>"
         def inspect = "#<Reference #{@target_name}>"
 

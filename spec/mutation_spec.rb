@@ -77,7 +77,7 @@ RSpec.describe "then_set arithmetic" do
   # The language says only `given("a mutation names a target") { !target.value
   # .to_s.empty? }`. Non-emptiness, nothing more. So a then_set naming a field
   # the aggregate never declared is, as far as the language is concerned, well
-  # formed — and at runtime it writes into nothing while both runtimes agree,
+  # formed — and at runtime it writes into nothing while every check stays green,
   # which is the signature of every defect this corpus has produced.
   #
   # Found while giving CardPayment a `disputed_by` : the then_set was in place

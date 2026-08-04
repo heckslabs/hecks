@@ -55,13 +55,11 @@ module Hecksagain
         return nil if paths.empty?
 
         parts = paths.map { |path| from(construct, args, path, value_owner: value_owner) }
-        # A BLANK PART NAMES NOTHING, the same as an ABSENT one — Rust's hydrate
-        # has always refused an empty scalar for exactly this reason ("AN ID IS
-        # A SCALAR", and "" is not a fact about anything). Ruby only checked
-        # `nil?` here, so a canonical text extracted as "" (an expression whose
+        # A BLANK PART NAMES NOTHING, the same as an ABSENT one — AN ID IS A
+        # SCALAR, and "" is not a fact about anything. This used to check only
+        # `nil?`, so a canonical text extracted as "" (an expression whose
         # source did not survive extraction) resolved to a REAL, empty-string
-        # identity on the Ruby side while Rust refused to address it at all —
-        # the same record, findable through one runtime and not the other.
+        # identity — a record addressable by an id no caller could have meant.
         return nil if parts.any? { |part| part.nil? || part.empty? }
 
         Naming.identity(parts)

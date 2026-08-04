@@ -61,19 +61,19 @@ module Hecksagain
         end
 
         # `has_many`, `has_one`, `belongs_to` — relationship vocabulary Hecks
-        # already grew (README's cherry-pick note) and Rust's parser already
-        # read, but this Ruby never declared: a bluebook using one parsed on
-        # ONE SIDE ONLY. All three are sugar over `reference_to`, differing
+        # already grew (README's cherry-pick note) but this DSL never
+        # declared: a bluebook using one simply failed to load here. All
+        # three are sugar over `reference_to`, differing
         # from its default only in the attribute name they mint : no `_id`
-        # suffix (matching Hecks and Rust's own reading of them, not
+        # suffix (matching Hecks' own reading of them, not
         # `reference_to`'s own `_id` mint), and `has_many`'s target is the
         # SINGULAR of what was written (`has_many Invoices` points at Invoice).
         #
-        # `has_many` keeps Rust's EXISTING shape — a single reference, not a
+        # `has_many` keeps the EXISTING shape — a single reference, not a
         # list. `list_of(Reference<X>)` has no precedent anywhere in this IR :
         # `list_of` is checked everywhere as a list of VALUE OBJECTS
-        # (bin/ir_structs, ir_json, both dispatchers' mutation and read
-        # paths). A real one-to-many is a separate arc, not a rename of what
+        # (the mutation and read paths alike). A real one-to-many is a
+        # separate arc, not a rename of what
         # already parses.
         def has_many(type, as: nil)
           plural = Naming.demodulise(type)
@@ -194,7 +194,7 @@ module Hecksagain
         #
         # So it lives here, at build, where every declaration is present. Found by
         # writing `then_set :disputed_by` on CardPayment before the field existed :
-        # it wrote into nothing, refused nothing, and both runtimes agreed.
+        # it wrote into nothing, refused nothing, and every check stayed green.
         # A DEFAULT FILLS THE SHAPE IT IS DECLARED ON, or it fills nothing.
         #
         # `attribute :cover, one_of("covered", "open"), default: "open"` builds
@@ -203,9 +203,9 @@ module Hecksagain
         # fields and got a bare string. The bluebook is wrong at the line where
         # it is written and says so nowhere near it.
         #
-        # It cost a corpus member 33 refusals out of 40 steps, and `bin/parity`
-        # reported AGREED throughout: both runtimes refused identically, which is
-        # agreement about nothing. `till.bluebook` has always had the right shape
+        # It cost a corpus member 33 refusals out of 40 steps, with every gate
+        # green throughout: the refusals were perfectly consistent, which is
+        # consistency about nothing. `till.bluebook` has always had the right shape
         # — `default: { cents: 0 }`.
         #
         # A PRIMITIVE takes a scalar and a VALUE OBJECT takes its fields, so the

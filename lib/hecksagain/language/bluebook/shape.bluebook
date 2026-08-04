@@ -45,7 +45,7 @@ Hecks.bluebook "Bluebook" do
     # The way back: everything DECLARED IN the aggregate above. The parent
     # reference IS the query.
     # WHERE IT SITS AMONG ITS SIBLINGS. Declaration order is a FACT ABOUT THE
-    # SOURCE — Rust reads it straight out of the file, and the IR is a contract
+    # SOURCE — the IR is a contract read straight from this file,
     # field for field AND INDEX FOR INDEX. So the language HOLDS it, instead of
     # inheriting it from whatever order a store happens to iterate: an ask that
     # does not say how it is ordered is answered in identity order, which is
@@ -166,7 +166,7 @@ Hecks.bluebook "Bluebook" do
     # The way back: everything DECLARED IN the value object above. The parent
     # reference IS the query.
     # WHERE IT SITS AMONG ITS SIBLINGS. Declaration order is a FACT ABOUT THE
-    # SOURCE — Rust reads it straight out of the file, and the IR is a contract
+    # SOURCE — the IR is a contract read straight from this file,
     # field for field AND INDEX FOR INDEX. So the language HOLDS it, instead of
     # inheriting it from whatever order a store happens to iterate: an ask that
     # does not say how it is ordered is answered in identity order, which is

@@ -32,7 +32,7 @@ module Hecksagain
         # declared once, elsewhere, and is named rather than restated.
         #
         # Without this the word was a DECLARATION and nothing more — read by
-        # bin/ir_structs to type a Rust field, read by nobody at the door. A rule
+        # projections, read by nobody at the door. A rule
         # that cannot be the one to refuse is decoration, and this language has
         # paid for that mistake before.
         def admit_declared_set(owner, attribute, value)

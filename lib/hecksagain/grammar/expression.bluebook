@@ -1,12 +1,12 @@
 
 Hecks.bluebook "Expression" do
-  vision "The subset of regular Ruby a predicate is allowed to be — small enough that every target can evaluate it, and carried as canonical text so Ruby and Rust agree."
+  vision "The subset of regular Ruby a predicate is allowed to be — small enough that every target can evaluate it, and carried as canonical text so no two readers can disagree about what was said."
   generic
 
   aggregate "Operator" do
     description "One admitted operation — its symbol, its precedence, and how it reads in every target that must evaluate it."
 
-    # WHAT IS NOT HERE, on purpose. docs/porting/grammar.md's outer grammar
+    # WHAT IS NOT HERE, on purpose. The outer grammar
     # has two rules that are not operators: parenthesization (a structural
     # strip-and-recurse, no symbol of its own) and the bare-leaf fallback
     # (whatever matches nothing else falls through to the inner grammar).
@@ -14,10 +14,10 @@ Hecks.bluebook "Expression" do
     # literals and the dotted-lookup fallback are TERMINAL productions —
     # they recognize text, they do not combine operands, and they have
     # nothing meaningful to render per target (a literal's spelling does
-    # not differ between Ruby and Rust the way an operation's might).
+    # not differ between targets the way an operation's might).
     # Forcing them into this shape would stretch `renderings` and the
     # Arity invariant past what they mean. They stay declared only in
-    # grammar.md's prose — named here rather than silently left out.
+    # prose — named here rather than silently left out.
     identified_by { symbol.value }
 
     attribute :symbol,     OperatorSymbol
@@ -52,13 +52,13 @@ Hecks.bluebook "Expression" do
     value_object "Arity" do
       attribute :value, Integer
       # WRITTEN ACROSS LINES ON PURPOSE, and this is the only predicate in the
-      # corpus that is. A CONTINUATION line is where the two parsers used to
-      # disagree: Ruby collapsed it, Rust joined every line with ` && ` and so
-      # read `value > 0 && && value <= 3` — a different canonical form for the
-      # same source, which is an IR-parity split waiting for the first
-      # multi-line rule anyone wrote. Every predicate here was kept on one line
-      # to dodge that. The join is continuation-aware now, so this case holds
-      # the fix : if it regresses, `bin/parity` stage 1 splits on grammar.
+      # corpus that is. A CONTINUATION line is where extraction used to break:
+      # a naive line join reads `value > 0 && && value <= 3` — a different
+      # canonical form for the same source, waiting for the first multi-line
+      # rule anyone wrote. Every predicate here was kept on one line to dodge
+      # that. The join is continuation-aware now, so this case holds the fix:
+      # if it regresses, the canonical text of THIS invariant changes and the
+      # golden IR goes red.
       invariant("an operator takes one, two or three operands") do
         value > 0 &&
           value <= 3
@@ -66,8 +66,8 @@ Hecks.bluebook "Expression" do
     end
 
     # OUTER checks a leaf against `.include?`/comparators/`!` before falling
-    # through to INNER's arithmetic/dotted-lookup grammar — the two-grammar
-    # split docs/porting/grammar.md describes. Which one an operator belongs
+    # through to INNER's arithmetic/dotted-lookup grammar — two stacked
+    # grammars. Which one an operator belongs
     # to is not derivable from its symbol alone (`+` reads like it could be
     # either), so it is its own column rather than inferred.
     value_object "Grammar" do
@@ -155,7 +155,7 @@ Hecks.bluebook "Expression" do
 
       reference_to Operator
 
-      given("an operator must read in every target before it is admitted") { renderings.size >= 2 }
+      given("an operator must read in every target before it is admitted") { renderings.size >= 1 }
 
       emits "OperatorAdmitted"
     end
@@ -286,7 +286,7 @@ Hecks.bluebook "Expression" do
 
       reference_to Normalisation
 
-      given("a rule must read in every target before it is admitted") { readings.size >= 2 }
+      given("a rule must read in every target before it is admitted") { readings.size >= 1 }
 
       emits "NormalisationAdmitted"
     end
@@ -302,7 +302,7 @@ Hecks.bluebook "Expression" do
   end
 
   aggregate "Expression" do
-    description "One predicate extracted from regular Ruby — the source as written, the canonical text both runtimes evaluate, and the subject it reads against."
+    description "One predicate extracted from regular Ruby — the source as written, the canonical text the evaluator runs, and the subject it reads against."
 
     identified_by { canonical.value }
 
@@ -416,100 +416,4 @@ Hecks.bluebook "Expression" do
     end
   end
 
-  aggregate "Agreement" do
-    description "One expression evaluated by every runtime against the same state — the standing proof that Ruby and Rust mean the same thing."
-
-    identified_by { canonical.value }
-
-    attribute :canonical, Canonical
-    attribute :subject,   Subject
-    attribute :verdicts,  list_of(Verdict)
-
-    lifecycle :status, default: "open" do
-      transition "Settle" => "settled", from: "open"
-      transition "Split"  => "split",   from: "open"
-    end
-
-    value_object "Canonical" do
-      attribute :value, String
-    end
-
-    value_object "Subject" do
-      attribute :value, String
-      invariant("an agreement is asked about something") { !value.to_s.empty? }
-    end
-
-    value_object "Runtime" do
-      attribute :value, String
-      invariant("a verdict must name its runtime") { !value.to_s.empty? }
-    end
-
-    value_object "Outcome" do
-      attribute :value, String
-      invariant("an outcome is true, false, or error") do
-        value.to_s == "true" || value.to_s == "false" || value.to_s == "error"
-      end
-    end
-
-    value_object "Reason" do
-      attribute :value, String
-      invariant("a split gives a reason") { !value.to_s.empty? }
-    end
-
-    value_object "Verdict" do
-      attribute :runtime, String
-      attribute :outcome, String
-
-      invariant("a verdict must name its runtime") { !runtime.to_s.empty? }
-      invariant("an outcome is true, false, or error") do
-        outcome.to_s == "true" || outcome.to_s == "false" || outcome.to_s == "error"
-      end
-    end
-
-    command "Ask" do
-      role "System"
-      goal "Put one expression to every runtime against the same state"
-
-      attribute :canonical, Canonical
-      attribute :subject,   Subject
-
-      emits "AgreementAsked"
-    end
-
-    command "Answer" do
-      role "System"
-      goal "Record what one runtime said"
-
-      reference_to Agreement
-      attribute :runtime, Runtime
-      attribute :outcome, Outcome
-
-      given("a settled agreement takes no further answers") { status == "open" }
-
-      then_set :verdicts, append: { runtime: :runtime, outcome: :outcome }
-
-      emits "VerdictRecorded"
-    end
-
-    command "Settle" do
-      role "System"
-      goal "Record that every runtime reached the same verdict"
-
-      reference_to Agreement
-
-      given("agreement needs at least two runtimes") { verdicts.size >= 2 }
-
-      emits "AgreementSettled"
-    end
-
-    command "Split" do
-      role "System"
-      goal "Record that the runtimes disagreed — a defect in the sublanguage"
-
-      reference_to Agreement
-      attribute :reason, Reason
-
-      emits "AgreementSplit"
-    end
-  end
 end

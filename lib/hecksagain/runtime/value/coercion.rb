@@ -145,8 +145,8 @@ module Hecksagain
 
         # "(Account is known by number)" — what to send instead. No article, on
         # purpose: "an Account" and "a Customer" differ by the target's first
-        # letter, and both runtimes would have to agree on that rule to keep the
-        # refusal byte-identical. Silent when the target is another chapter's,
+        # letter, and a refusal pinned byte-for-byte should not hinge on an
+        # article-choosing rule. Silent when the target is another chapter's,
         # where this runtime cannot see what it is known by.
         #
         # EVERY HEAD, because a caller has to pass every one. This read
@@ -219,7 +219,7 @@ module Hecksagain
         #
         # Which regexes may be written at all is PatternSubset's job, enforced when
         # the bluebook is declared — so by the time a value arrives here the pattern
-        # is already one both runtimes read the same way, and this is a plain match.
+        # is already a vetted, unambiguous one, and this is a plain match.
         private def check_patterns(value_object, fields)
           value_object.attributes.each do |attribute|
             pattern = attribute.pattern

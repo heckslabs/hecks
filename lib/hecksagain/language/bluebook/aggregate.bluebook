@@ -140,7 +140,7 @@ Hecks.bluebook "Bluebook" do
     # the chapter above, and calling that a name for aggregates was sloppiness that
     # would read as a lie the first time somebody looked.
     # WHERE IT SITS AMONG ITS SIBLINGS. Declaration order is a FACT ABOUT THE
-    # SOURCE — Rust reads it straight out of the file, and the IR is a contract
+    # SOURCE — the IR is a contract read straight from this file,
     # field for field AND INDEX FOR INDEX. So the language HOLDS it, instead of
     # inheriting it from whatever order a store happens to iterate: an ask that
     # does not say how it is ordered is answered in identity order, which is
@@ -180,7 +180,7 @@ Hecks.bluebook "Bluebook" do
       attribute :default, LiteralText, optional: true
       # FREE TEXT, not a reference. A closed set is a value object INSIDE an
       # aggregate, and `reference_to` reaches heads only — so the qualified name
-      # is carried as text and checked where it is READ, by bin/ir_structs, which
+      # is carried as text and checked where it is READ, by the reader, which
       # already raises for the other things the language cannot say about itself.
       attribute :admits,  LiteralText, optional: true
 

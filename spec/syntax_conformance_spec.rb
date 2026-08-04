@@ -5,9 +5,10 @@ require "spec_helper"
 #
 # `language/bluebook/syntax.bluebook` says how a bluebook is SPELLED — every
 # word, the body it opens, the arguments it takes. Nothing else in this project
-# says that. The Ruby builders are where the spelling really lives, Rust's
-# `strict_boot` keeps a twelve-word near-miss list "because nothing declares
-# what the keywords are", and the two have never been held to each other.
+# says that. The builders are where the spelling really lives, and before this
+# spec the declaration and the builders had never been held to each other —
+# a near-miss list could only be kept by hand "because nothing declares
+# what the keywords are".
 #
 # This is the same shape as spec/vocabulary_conformance_spec, for the same
 # reason: a declaration nothing reads cannot disagree with anything. It reads
@@ -86,7 +87,9 @@ RSpec.describe "the declared syntax" do
     "ReadModel"      => D::ReadModelBuilder,
     "Type"           => D::AttributeCollector,
     "Hecksagon"      => D::HecksagonBuilder,
-    "World"          => D::WorldBuilder
+    "World"          => D::WorldBuilder,
+    "DomainPort"     => D::DomainPortBuilder,
+    "PortOperation"  => D::PortOperationBuilder
   }.freeze
 
   # PUBLIC AND NOT A WORD — each with its reason, because an unexplained
@@ -408,7 +411,9 @@ RSpec.describe "the declared syntax" do
     "ReadModel"      => %w[ReadModel],
     "Type"           => [],
     "Hecksagon"      => %w[Hecksagon],
-    "World"          => %w[World]
+    "World"          => %w[World],
+    "DomainPort"     => %w[DomainPort],
+    "PortOperation"  => %w[PortOperation]
   }.freeze
 
   # Hecksagon and World are SIBLING chapters, not aggregates inside
@@ -488,34 +493,4 @@ RSpec.describe "the declared syntax" do
     end
   end
 
-  # ------------------------------------------------------------ the near-miss list
-
-  # `runtime::strict_boot`'s keyword list used to be hand-written, "because
-  # nothing declares what the keywords are" — its own comment. It had drifted:
-  # five of its twelve words (`view`, `rule`, `factory`, `create`, and
-  # `invariant` — a real word, but typed in a value object rather than an
-  # aggregate) were not words the language admits at aggregate-body level at
-  # all, so each was treated as a KNOWN keyword and let straight through the
-  # check meant to catch exactly that — `factory do` would have been waved
-  # through and then raised a Ruby-side NoMethodError with no warning. That
-  # first pass ALSO only covered words that open a `do` block ; `attribute`,
-  # `description`, and the bare-symbol form of `identified_by` never do, so a
-  # typo of one of them fell through the same hole, unfiltered by body.
-  #
-  # `bin/ir_syntax` now PROJECTS the whole list from these same rows into
-  # rust/src/bluebook/ir_syntax.rs, and `strict_boot` reads it from there — so
-  # this is no longer two copies to hold equal. It is one copy, checked twice:
-  # spec/ir_syntax_export_spec.rb holds the checked-in Rust to the generator's
-  # output ; this holds the generator's own selection rule (context Aggregate,
-  # every body) to exactly what the projected file contains, so a change to
-  # either the rule or the file without the other goes red.
-  it "projects exactly the words it declares at aggregate-body level" do
-    source    = File.read(File.join(InMemoryDomain::ROOT, "rust/src/bluebook/ir_syntax.rs"))
-    listed    = source[/const AGGREGATE_KEYWORDS: &\[&str\] = &\[(.*?)\];/m, 1]
-    projected = listed.scan(/"([^"]+)"/).flatten
-
-    every_word = declared_in("Aggregate").map { |row| row[:word] }.uniq.sort
-
-    expect(projected).to eq(every_word)
-  end
 end

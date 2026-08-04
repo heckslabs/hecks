@@ -3,7 +3,7 @@ module Hecksagain
     class Assembly
       # The leaf shapes an assembly reads, and the encodings it undoes.
       #
-      # `to_h` spells things as text so a second runtime can read them, and every
+      # `to_h` spells things as text so the export stands on its own, and every
       # one of those spellings has to come back apart here. This is the same family
       # of work `MetaValidator::Shapes` does for the reconstruction — the difference
       # is that Shapes rebuilds HASHES and this rebuilds OBJECTS, so it has to
@@ -38,7 +38,7 @@ module Hecksagain
             # THE SAME LESSON, ONE FACT LATER. `admits` is not on `to_h` — the
             # wire does not carry it, on purpose — but it must still survive the
             # round trip, because the grammar registry keeps the ASSEMBLED graph
-            # and bin/ir_structs reads the link off that. Dropped here, the
+            # and downstream projections read the link off that. Dropped here, the
             # language could not say `admits` about itself no matter how plainly
             # the source wrote it, which is word for word what the note above
             # already learned about `optional`.
@@ -155,7 +155,8 @@ module Hecksagain
         # as text. Read as a string it reached the runtime as
         # `"{:text=>\"transfer out\"}"`, coercion refused it, the debit leg was never
         # delivered, and the whole settlement wire stopped: banking emitted
-        # TransferRequested five times and TransferDebited never. Parity caught what
+        # TransferRequested five times and TransferDebited never. A whole-history
+        # replay gate caught what
         # every other gate missed, because a saga that silently does nothing looks
         # exactly like a saga with nothing to do.
         def read(value)

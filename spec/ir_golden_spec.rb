@@ -3,29 +3,29 @@ require "spec_helper"
 require "json"
 require "fileutils"
 
-# THE DIFF TARGET FOR THE REFACTOR THAT MAKES THE BUILDERS OUTPUT CLASSES.
+# `Bluebook#to_h` IS the wire format two production mechanisms stand on:
+# `StorageShape.project` reads it by key name to mint era hashes and detect
+# drift (a silently renamed or dropped key would corrupt era identity with no
+# error anywhere), and `MetaValidator` hashes it as the verdict-cache key. So
+# it is the one shape in this codebase that must never move by accident.
 #
-# `Bluebook#to_h` is a byte-for-byte contract with the Rust parser — `bin/ir`
-# feeds `bin/parity`, and both sides are canonicalised and diffed. It is also
-# the `MetaValidator` verdict-cache key. So it is the one shape in this codebase
-# that must survive a rewrite of everything behind it UNCHANGED.
+# `round_trip_spec` cannot hold it still. It compares the builder's IR against
+# the meta-domain's records — two sides BOTH computed fresh at test time, so
+# an emission bug on a path the corpus never exercises is simply absent from
+# both and passes vacuously. `Field#default` was legal and unexercised for
+# precisely that reason. A frozen file is the one check immune to correlated
+# drift: it pins today's emission against a reference nothing live can move.
 #
-# `round_trip_spec` cannot play that role. It compares the builder's IR against
-# the meta-domain's records — and the refactor CONSUMES one of those two sides,
-# so the comparator dies exactly when it would be needed most. This spec holds
-# the answer as a FROZEN FILE instead, produced by the builder as it stands
-# today, which nothing downstream of the refactor can have influenced.
-#
-# The corpus is every chapter in the tree, not the four `round_trip_spec` walks:
-# a shape only one bluebook exercises is exactly the shape a partial corpus lets
-# through. `Field#default` was legal and unexercised for precisely that reason.
+# The corpus is every chapter in the tree, not the four `round_trip_spec`
+# walks: a shape only one bluebook exercises is exactly the shape a partial
+# corpus lets through.
 #
 # Regenerate deliberately, never casually:
 #
 #     GOLDEN=rewrite bundle exec rspec spec/ir_golden_spec.rb
 #
-# A rewrite is a claim that the wire format CHANGED. `bin/parity` is the second
-# opinion — if the Rust side still agrees, the change was intended.
+# A rewrite is a claim that the wire format CHANGED — read the diff before
+# trusting it, because every held era's projection was minted off the old one.
 RSpec.describe "the IR the builder produces, frozen" do
   GOLDEN_DIR = File.join(InMemoryDomain::ROOT, "spec/golden/ir").freeze
 
@@ -67,7 +67,7 @@ RSpec.describe "the IR the builder produces, frozen" do
 
   # Pretty-printed and key-sorted, so a diff a human reads names the field that
   # moved rather than the whole document. Sorting is the same normalisation
-  # `bin/canonicalise` applies before parity diffs — key order is not semantics.
+  # `bin/canonicalise` applies — key order is not semantics.
   def rendered(bluebook) = "#{JSON.pretty_generate(sorted(bluebook.to_h))}\n"
 
   def sorted(value)

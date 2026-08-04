@@ -1,6 +1,6 @@
 module Hecksagain
   module Fuzzing
-    # One attribute, one value — in the exact JSON shape the hand-written parity
+    # One attribute, one value — in the exact JSON shape the hand-written
     # corpus already uses (a value-object-typed attribute is a nested hash keyed
     # by its own field names ; a reference is the BARE ID of the head it points
     # at, because that is what a reference is). Everything
@@ -78,7 +78,7 @@ module Hecksagain
       # THE ID ITSELF. This minted `{"value" => id}` back when a reference was
       # stored wrapped ; the payload gate refuses that shape now, so a fuzzer
       # still emitting it would have every generated reference refused and
-      # `bin/parity`'s SILENT guard would report the fuzzer broken rather than
+      # the SILENT guard would report the fuzzer broken rather than
       # the runtime.
       def reference_value(attribute, random:, known_ids:)
         pool = known_ids[attribute.type.target_name.to_s] || []

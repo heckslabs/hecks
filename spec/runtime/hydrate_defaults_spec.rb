@@ -5,8 +5,7 @@ require "spec_helper"
 # translation rule. `Instance#initialize` always filled defaults for a
 # FRESH instance; loading existing state never ran that same fill, so a
 # record written before the attribute existed hydrated to nil forever.
-# Both runtimes now fill declared defaults on the hydrate path too
-# (Rust: dispatcher::fill_hydrate_defaults).
+# The runtime now fills declared defaults on the hydrate path too.
 RSpec.describe "hydrating stored state through declared defaults" do
   def aggregate_with_defaults
     registry = Hecksagain::Runtime::Registry.new

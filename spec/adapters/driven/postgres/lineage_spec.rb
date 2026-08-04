@@ -264,8 +264,8 @@ RSpec.describe "lineage in the Postgres adapter",
   # the edited text and distinguish a cosmetic edit from a real shape
   # change in the message ; that was a pure quality-of-message nicety, not
   # a safety property (the digest mismatch alone is what refuses either
-  # way), and the one thing standing between this runtime and a genuinely
-  # parser-free Rust deployment, so both sides dropped it. An operator
+  # way), and the one thing forcing a boot path to re-parse held era
+  # text, so it was dropped. An operator
   # judges "did this matter" themselves, reading the still-archived
   # original — an anomalous recovery moment already, not a normal boot
   # path.

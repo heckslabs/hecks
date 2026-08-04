@@ -15,8 +15,8 @@ module Hecksagain
         # builder, and that is where the runtime reads it — so nothing was ever lost
         # at runtime. What was lost is the record of where it was written, which is
         # a fact about the source, and the language holds facts about the source.
-        # Deliberately absent from `to_h`: the wire format is the contract with the
-        # other runtime, and it does not carry this.
+        # Deliberately absent from `to_h`: the wire format is a pinned
+        # contract, and it does not carry this.
         attr_accessor :aggregate
 
         def initialize(name:, on_event: nil, trigger_command: nil, target_domain: nil, aggregate: nil)

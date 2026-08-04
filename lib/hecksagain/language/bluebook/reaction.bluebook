@@ -18,8 +18,8 @@ Hecks.bluebook "Bluebook" do
     # builder, and the chapter is where the runtime reads it — so nothing was ever
     # lost at runtime. What was lost is where it was WRITTEN, which is a fact about
     # the source, and facts about the source are what this language holds.
-    # `Aggregate#to_h` does not carry it and does not need to: the wire format is the
-    # contract with the other runtime, and the language may hold more than it.
+    # `Aggregate#to_h` does not carry it and does not need to: the wire format is
+    # a contract, and the language may hold more than it.
     attribute :aggregate,       PolicyText
     attribute :on_event,        PolicyText
     attribute :trigger_command, PolicyText
@@ -37,7 +37,7 @@ Hecks.bluebook "Bluebook" do
     # The way back: everything DECLARED IN the chapter above. The parent
     # reference IS the query.
     # WHERE IT SITS AMONG ITS SIBLINGS. Declaration order is a FACT ABOUT THE
-    # SOURCE — Rust reads it straight out of the file, and the IR is a contract
+    # SOURCE — the IR is a contract read straight from this file,
     # field for field AND INDEX FOR INDEX. So the language HOLDS it, instead of
     # inheriting it from whatever order a store happens to iterate: an ask that
     # does not say how it is ordered is answered in identity order, which is
@@ -103,7 +103,7 @@ Hecks.bluebook "Bluebook" do
     # The way back: everything DECLARED IN the chapter above. The parent
     # reference IS the query.
     # WHERE IT SITS AMONG ITS SIBLINGS. Declaration order is a FACT ABOUT THE
-    # SOURCE — Rust reads it straight out of the file, and the IR is a contract
+    # SOURCE — the IR is a contract read straight from this file,
     # field for field AND INDEX FOR INDEX. So the language HOLDS it, instead of
     # inheriting it from whatever order a store happens to iterate: an ask that
     # does not say how it is ordered is answered in identity order, which is
@@ -127,10 +127,10 @@ Hecks.bluebook "Bluebook" do
       attribute :name,      ProcessManagerName
       attribute :correlates_by, ProcessManagerText
       attribute :starts_on,     ProcessManagerText
-      # A PROCEDURE NEED NOT DECLARE AN ENDING. Both runtimes have always held
-      # this optional — Ruby's ProcessManagerBuilder defaults `@ends_on` to nil
-      # and validates only correlates_by/starts_on/states/handlers, and Rust's
-      # parser starts it at `None` and only fills it if the line is written. The
+      # A PROCEDURE NEED NOT DECLARE AN ENDING. The runtime has always held
+      # this optional — ProcessManagerBuilder defaults `@ends_on` to nil,
+      # validates only correlates_by/starts_on/states/handlers,
+      # and fills it only if the line is written. The
       # language was the one saying it was required, and nothing in the corpus
       # had to disagree because every procedure in it happens to end.
       attribute :ends_on,       ProcessManagerText, optional: true
@@ -185,7 +185,7 @@ Hecks.bluebook "Bluebook" do
     # The way back: everything DECLARED IN the process manager above. The parent
     # reference IS the query.
     # WHERE IT SITS AMONG ITS SIBLINGS. Declaration order is a FACT ABOUT THE
-    # SOURCE — Rust reads it straight out of the file, and the IR is a contract
+    # SOURCE — the IR is a contract read straight from this file,
     # field for field AND INDEX FOR INDEX. So the language HOLDS it, instead of
     # inheriting it from whatever order a store happens to iterate: an ask that
     # does not say how it is ordered is answered in identity order, which is
@@ -209,11 +209,11 @@ Hecks.bluebook "Bluebook" do
       attribute :event_type, HandlerText
       # A LEG ALWAYS SAYS WHERE IT MOVES FROM. There is no wildcard leg to be
       # optional for: `on "Event", transition: { from => to }` is the only
-      # spelling either runtime reads, and both refuse anything else — Ruby's
+      # spelling the runtime reads, and it refuses anything else —
       # `single_transition` raises unless the hash holds exactly one from => to
-      # pair, and Rust's `parse_pm_handler` returns None when `transition:` is
-      # absent, so the handler is never built at all. `optional: true` here was
-      # the language admitting a leg neither runtime can parse.
+      # pair, so a leg without one
+      # is never built at all. `optional: true` here was
+      # the language admitting a leg the runtime cannot parse.
       attribute :from_state, HandlerText
       attribute :to_state,   HandlerText
 
@@ -250,7 +250,7 @@ Hecks.bluebook "Bluebook" do
     # The way back: everything DECLARED IN the handler above. The parent
     # reference IS the query.
     # WHERE IT SITS AMONG ITS SIBLINGS. Declaration order is a FACT ABOUT THE
-    # SOURCE — Rust reads it straight out of the file, and the IR is a contract
+    # SOURCE — the IR is a contract read straight from this file,
     # field for field AND INDEX FOR INDEX. So the language HOLDS it, instead of
     # inheriting it from whatever order a store happens to iterate: an ask that
     # does not say how it is ordered is answered in identity order, which is

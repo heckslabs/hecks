@@ -33,14 +33,12 @@ module Hecksagain
         # made an ABSENT argument fall through to `source` and return THE SYMBOL
         # ITSELF as the value. `Customer.Register` without its `name` set name to
         # the literal `:name`, coercion met a Symbol where a PersonName belonged,
-        # and Ruby refused with "name is a PersonName — pass its fields as an
+        # and the refusal read "name is a PersonName — pass its fields as an
         # object, not :name" — a message describing a mistake the caller had not
-        # made. Rust reads the same IR structurally (`kind: "argument"` vs a literal
-        # `value`) and returned Null, so it accepted and wrote `name: null`. Neither
-        # runtime was refusing the real mistake and they disagreed about what to do
-        # instead, which is how it surfaced : as a parity SPLIT, from fuzz.
+        # made. The real mistake, an absent argument, was never the one refused,
+        # which is what fuzz surfaced.
         #
-        # Absent now resolves to nil in both. Whether it should be REFUSED instead
+        # Absent now resolves to nil. Whether it should be REFUSED instead
         # is a separate question — the language cannot yet say which arguments are
         # optional, and the meta-domain has plenty that are.
         def resolve_source(source, args)

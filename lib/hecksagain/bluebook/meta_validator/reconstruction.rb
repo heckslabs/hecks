@@ -23,11 +23,11 @@ module Hecksagain
       #
       # `Meta.whole_bluebook` gathers a chapter in a single read, and it sorts:
       # `ReadModelInterpreter#matching` ends `.sort_by(&:id)` deliberately, because
-      # two hand-written stores cannot be trusted to iterate identically and a read
-      # model returning store order would split parity on the first disagreement.
+      # a store's iteration order is an accident, and a read model returning store
+      # order would let that accident leak into an answer.
       # Right for a read model, fatal here — the order a bluebook declares its
       # commands in is a FACT ABOUT THE SOURCE, and the IR is a contract field for
-      # field and index for index. Rust reads that order straight out of the file.
+      # field and index for index ; the export carries that order verbatim.
       # `DeclaredIn` preserves it (spec/executes_spec says so), so this asks each
       # level for its own children rather than filtering one sorted gather.
       #

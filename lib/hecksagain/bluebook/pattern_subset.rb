@@ -1,65 +1,68 @@
 module Hecksagain
   module Bluebook
-    # WHICH REGEXES A BLUEBOOK MAY SAY, and how the two runtimes read the ones it
-    # admits.
+    # WHICH REGEXES A BLUEBOOK MAY SAY.
     #
-    # A `pattern:` is a fact about a value, so both runtimes have to reach the
-    # same verdict about it. Ruby's Onigmo and Rust's regex crate do not agree by
-    # default, and they disagree in two different ways :
+    # A `pattern:` is a fact about a value, carried in a bluebook — declared
+    # data, not Ruby code, so it must not lean on what any one engine happens
+    # to accept. Regex engines disagree in two different ways :
     #
-    #   CANNOT BOTH PARSE IT — lookahead, lookbehind, backreferences, atomic
-    #   groups, possessive quantifiers. Ruby has them, Rust does not (most are
-    #   impossible to match in linear time). Refused.
+    #   ONLY A BACKTRACKING ENGINE CAN MATCH IT — lookahead, lookbehind,
+    #   backreferences, atomic groups, possessive quantifiers. None of these
+    #   can be matched in linear time, and linear-time engines refuse them
+    #   outright. Refused here for the same reason.
     #
-    #   BOTH PARSE IT AND MEAN DIFFERENT THINGS — the dangerous half, because
-    #   nothing errors. `\d` `\w` `\s` are ASCII in Ruby and Unicode in Rust ;
-    #   `[:digit:]` and friends are the exact mirror, Unicode in Ruby and ASCII in
-    #   Rust. Both families are refused, and a domain spells the range it means.
+    #   EVERY ENGINE PARSES IT AND THEY MEAN DIFFERENT THINGS — the dangerous
+    #   half, because nothing errors. `\d` `\w` `\s` are ASCII in some engines
+    #   and Unicode in others ; `[:digit:]` and friends flip the same way in
+    #   the other direction. Both families are refused, and a domain spells
+    #   the range it means.
     #
-    # What remains — explicit ranges, alternation, quantifiers, anchors, groups —
-    # the two engines read identically once Rust is told to treat `^` and `$` as
-    # LINE anchors, which is Ruby's reading. That alignment and this subset are
-    # one design ; neither is sufficient alone. The evidence is
-    # spec/parity/fixtures/patterns.json, which both runtimes answer to.
+    # What remains — explicit ranges, alternation, quantifiers, anchors,
+    # groups — reads identically everywhere, with `^` and `$` as LINE anchors
+    # (Ruby's reading). The evidence is spec/corpus/fixtures/patterns.json.
     module PatternSubset
       Rejection = Struct.new(:construct, :reason)
 
       REASONS = {
         backreference:
-          "Rust's regex crate has no backreferences (they cannot be matched in " \
-          "linear time) ; Ruby does, so the two engines would disagree",
+          "backreferences cannot be matched in linear time and portable " \
+          "engines refuse them ; a declared pattern may not depend on one",
         named_backreference:
-          "Rust's regex crate has no backreferences ; Ruby does",
+          "a named backreference is still a backreference — it cannot be " \
+          "matched in linear time ; a declared pattern may not depend on one",
         perl_class:
-          "the two engines read it in OPPOSITE directions : Ruby's are ASCII and " \
-          "Rust's are Unicode, so an Arabic-Indic digit satisfies one and not the " \
-          "other. Spell the range you mean — [0-9], [A-Za-z0-9_], [ \t] — which " \
-          "both read the same way",
+          "engines read it in OPPOSITE directions : ASCII in some and " \
+          "Unicode in others, so an Arabic-Indic digit satisfies one and not " \
+          "the other. Spell the range you mean — [0-9], [A-Za-z0-9_], [ \t] " \
+          "— which every engine reads the same way",
         posix_class:
-          "Ruby reads [:digit:] and friends as UNICODE and Rust reads them as " \
-          "ASCII — the mirror of the perl classes, and wrong in the same way. " \
-          "Spell the range you mean",
+          "[:digit:] and friends flip between ASCII and Unicode across " \
+          "engines — the mirror of the perl classes, and wrong in the same " \
+          "way. Spell the range you mean",
         lookahead:
-          "Rust's regex crate has no lookahead (it cannot be matched in linear " \
-          "time) ; Ruby does, so the two engines would disagree",
+          "lookahead cannot be matched in linear time and portable engines " \
+          "refuse it ; a declared pattern may not depend on it",
         lookbehind:
-          "Rust's regex crate has no lookbehind ; Ruby does",
+          "lookbehind cannot be matched in linear time and portable engines " \
+          "refuse it ; a declared pattern may not depend on it",
         atomic_group:
-          "Ruby-only : Rust's regex crate rejects `(?>` as a syntax error",
+          "an atomic group is a backtracking-engine control knob — " \
+          "linear-time engines reject `(?>` as a syntax error",
         possessive:
-          "Ruby-only : Rust's regex crate rejects it as a syntax error"
+          "a possessive quantifier is a backtracking-engine control knob — " \
+          "linear-time engines reject it as a syntax error"
       }.freeze
 
       module_function
 
       # nil when the pattern is admitted, a Rejection when it is not.
       #
-      # A CHARACTER WALK, in the same order as the Rust side and deliberately in
-      # the same shape : the two are read side by side when either changes, and a
-      # cleverer Ruby spelling would make that impossible. An escaped construct is
-      # a LITERAL, not a violation — `\(\?=` is the three characters "(?=" and says
-      # nothing about lookahead — which is why this steps over each backslash pair
-      # rather than matching the pattern as a whole.
+      # A CHARACTER WALK, deliberately plain : the subset is defined by this
+      # walk, and a cleverer spelling would hide what it admits. An escaped
+      # construct is a LITERAL, not a violation — `\(\?=` is the three
+      # characters "(?=" and says nothing about lookahead — which is why this
+      # steps over each backslash pair rather than matching the pattern as a
+      # whole.
       def validate(pattern)
         chars = pattern.to_s.chars
         index = 0
@@ -90,8 +93,8 @@ module Hecksagain
         nil
       end
 
-      # SPELLED OUT, not derived from the key : these strings are the refusal a
-      # caller reads, so they have to match the Rust side character for character.
+      # SPELLED OUT, not derived from the key : these strings are the refusal
+      # a caller reads.
       CONSTRUCTS = {
         backreference:       "backreference",
         named_backreference: "named backreference",

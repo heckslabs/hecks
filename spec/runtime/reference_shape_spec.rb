@@ -2,15 +2,14 @@ require "spec_helper"
 
 # A REFERENCE IS AN ID, SO AN OBJECT IS NOT ONE.
 #
-# Nothing coerced a reference in either runtime: the value-object lookup misses
+# Nothing coerced a reference anywhere: the value-object lookup misses
 # on "Reference<Drawer>", which is no value object's name, so the argument was
 # stored exactly as it arrived. There was nowhere it could be refused, and so
 # whatever the first caller happened to write — `{"value":"a"}` — became the
 # shape the corpus used for years.
 #
-# The refusal's WORDING is contract, not prose: bin/parity diffs refusal text
-# byte for byte, so the string here is asserted exactly and the Rust twin in
-# rust/src/runtime/dispatcher.rs asserts the same literal.
+# The refusal's WORDING is contract, not prose: the corpus scripts pin refusal
+# text byte for byte, so the string here is asserted exactly.
 RSpec.describe "a reference that arrives as an object" do
   SETTLEMENT = File.join(InMemoryDomain::ROOT, "spec/fixtures/settlement.bluebook")
 
@@ -44,9 +43,9 @@ RSpec.describe "a reference that arrives as an object" do
   end
 
   # DECLARATION ORDER, not payload order. `refuse_unknown_arguments` had to sort
-  # its list because the two runtimes iterate a map differently ; this one walks
-  # the command's own attributes, which are the same array in both IRs, so the
-  # argument named first is the same one on both sides without sorting.
+  # its list because map iteration order is an accident of the store ; this one
+  # walks the command's own attributes, an array with a declared order, so the
+  # argument named first is stable without sorting.
   it "names the first reference the command declares, not the first one passed" do
     expect do
       runtime.dispatch("Wire::Wire.Ask", reference: { value: "w1" }, amount: { cents: 100 },
@@ -68,8 +67,8 @@ RSpec.describe "a reference that arrives as an object" do
   end
 
   # AN ASK'S REFERENCE IS AN ID TOO, and this one closes a real split rather
-  # than a hypothetical: Rust's `query_text` opens a wrapped reference and
-  # answers, while Ruby reads it whole and finds nothing. Only a stale caller
+  # than a hypothetical: one query path once opened a wrapped reference and
+  # answered, while another read it whole and found nothing. Only a stale caller
   # would show it, which is exactly the kind of divergence that waits.
   describe "a read model's reference argument" do
     BANKING = File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/banking.bluebook")

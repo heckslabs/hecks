@@ -8,20 +8,20 @@ require "json"
 # nullable field is ever filled at all. Both measure one property at a time —
 # and every defect this arc found lived where two met:
 #
-#   a composite identity  ×  a Rust parser        the block was never consumed,
+#   a composite identity  ×  a hand-written parser  the block was never consumed,
 #                                                 and the aggregate came back empty
 #   a composite identity  ×  an entity            the element matched on the
 #                                                 first part of the piece's id
 #   two events            ×  a reaction           nothing had ever ordered two
 #                                                 announcements from one dispatch
-#   a plain argument      ×  a cross-reference    the two parsers disagreed about
-#                                                 attribute ORDER, and only because
+#   a plain argument      ×  a cross-reference    the derived attribute ORDER
+#                                                 came out wrong, and only because
 #                                                 no command had ever declared them
 #                                                 in that order
 #
 # The last one is this spec's own catch, and it is the argument for the whole
-# idea: both runtimes were right about references and right about arguments, and
-# wrong together the first time a command put an argument before a reference.
+# idea: a reader can be right about references and right about arguments, and
+# wrong the first time a command puts an argument before a reference.
 #
 # PAIRWISE, NOT EVERY SUBSET. Thirteen properties is 78 pairs and 8192 subsets;
 # pairwise is the standard tractable cut and it is where the interactions above
@@ -84,10 +84,10 @@ RSpec.describe "every pair of declared forms, met on one aggregate" do
 
         #{unnamed.map { |left, right| "#{left} + #{right}" }.join("\n        ")}
 
-      Both runtimes can be right about each form alone and wrong about the two
+      A runtime can be right about each form alone and wrong about the two
       together — that is how a command declaring an argument before a
-      cross-reference put Ruby's and Rust's attribute order out of step, having
-      agreed on every command in the corpus that declared them the other way.
+      cross-reference put the derived attribute order out of step, having
+      been right on every command in the corpus that declared them the other way.
 
       Closing these is cheaper than it looks: the gaps cluster on the rare forms,
       so enriching one aggregate that already carries a rare one usually closes

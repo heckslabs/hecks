@@ -13,12 +13,9 @@ module Hecksagain
         JSON.pretty_generate(call(registry))
       end
 
-      # Translation IR, always as an array, matching the Rust CLI's
-      # `--dump-translation` so `bin/parity`'s translation stage can diff
-      # the two parsers' readings through `bin/canonicalise`. `values:`
-      # tables serialize as `[key, value]` pairs, never an object,
-      # because JSON object keys are always strings and a convert's keys
-      # are typed.
+      # Translation IR, always as an array. `values:` tables serialize as
+      # `[key, value]` pairs, never an object, because JSON object keys are
+      # always strings and a convert's keys are typed.
       def translations(registry)
         registry.translations.map { |translation| translation_hash(translation) }
       end

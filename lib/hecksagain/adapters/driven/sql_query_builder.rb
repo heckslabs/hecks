@@ -62,8 +62,8 @@ module Hecksagain
           contains_clause(expression, placeholder(binds, value.to_s))
         when "in"
           # The same comma-separated convention every other where-clause
-          # comparator uses (Ports::Query::InMemory, QueryInterpreter,
-          # Rust's dispatcher.rs) — see QuerySpecification.numeric_literal's
+          # comparator uses (Ports::Query::InMemory, QueryInterpreter) —
+          # see QuerySpecification.numeric_literal's
           # neighbourhood for why a literal arrives as text at all.
           members = value.to_s.split(",").map(&:strip).reject(&:empty?)
           return empty_in_clause if members.empty?

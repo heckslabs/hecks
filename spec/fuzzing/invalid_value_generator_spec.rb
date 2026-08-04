@@ -62,7 +62,7 @@ RSpec.describe Hecksagain::Fuzzing::InvalidValueGenerator do
     # Built directly rather than drawn from banking, because banking types its
     # money as a value object — so `kinds_for` correctly never offers these two
     # for it. The kinds still have to produce what they claim to produce.
-    it "builds the hash-where-a-scalar-belongs shape that split the two runtimes" do
+    it "builds the hash-where-a-scalar-belongs shape that once split refusal behavior" do
       held  = attribute("Credit", "amount")
       value = described_class.build(:object_for_scalar, held, aggregate, random: Random.new(5))
 

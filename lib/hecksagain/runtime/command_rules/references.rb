@@ -8,9 +8,9 @@ module Hecksagain
       #
       # `reference_to Customer` is the one guarantee an aggregate reference is
       # for, and it was declared 14 times across banking and enforced nowhere :
-      # an Account could belong to a customer who was never registered, in both
-      # runtimes, and parity stayed green because both were equally permissive
-      # and no corpus step ever passed a dangling reference.
+      # an Account could belong to a customer who was never registered, and
+      # every gate stayed green because
+      # no corpus step ever passed a dangling reference.
       module References
         # Resolved here rather than in coercion because coercion is pure — it
         # holds no repository. A reference INTO ANOTHER DOMAIN is left alone : a
@@ -43,7 +43,7 @@ module Hecksagain
             # composite target was reported as known by `id` — a field it does
             # not have, and the one word this runtime is careful never to invent.
             # Single-path targets read exactly as before, which is every member
-            # of the parity corpus but Market.
+            # of the corpus but Market.
             raise NotFound,
                   RefusalWording.render("NotFound", "reference_target_missing",
                                         target: target.name, heads: target.identity_heads.join(", "),

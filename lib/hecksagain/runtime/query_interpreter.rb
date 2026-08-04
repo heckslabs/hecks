@@ -126,8 +126,8 @@ module Hecksagain
       # untouched (a bluebook's own in-process value, before any wire
       # serialisation), each element unwrapped the same way a scalar field
       # is (a list of value objects is a list of single-field hashes) ;
-      # anything else is treated as CSV text, matching the convention Rust's
-      # parser and the SQLite adapter already use.
+      # anything else is treated as CSV text — the established wire
+      # convention for list-valued clauses.
       def members(value)
         return value.map { |element| comparable(element).to_s } if value.is_a?(Array)
 

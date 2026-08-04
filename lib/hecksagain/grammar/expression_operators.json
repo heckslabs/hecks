@@ -43,20 +43,6 @@
       }
     },
     {
-      "verb": "Expression::Operator.Render",
-      "args": {
-        "symbol": {
-          "value": "||"
-        },
-        "target": {
-          "value": "rust"
-        },
-        "form": {
-          "value": "a || b"
-        }
-      }
-    },
-    {
       "verb": "Expression::Operator.Admit",
       "args": {
         "symbol": {
@@ -98,20 +84,6 @@
         },
         "target": {
           "value": "ruby"
-        },
-        "form": {
-          "value": "a && b"
-        }
-      }
-    },
-    {
-      "verb": "Expression::Operator.Render",
-      "args": {
-        "symbol": {
-          "value": "&&"
-        },
-        "target": {
-          "value": "rust"
         },
         "form": {
           "value": "a && b"
@@ -167,20 +139,6 @@
       }
     },
     {
-      "verb": "Expression::Operator.Render",
-      "args": {
-        "symbol": {
-          "value": ".include?"
-        },
-        "target": {
-          "value": "rust"
-        },
-        "form": {
-          "value": "haystack.include?(needle)"
-        }
-      }
-    },
-    {
       "verb": "Expression::Operator.Admit",
       "args": {
         "symbol": {
@@ -222,20 +180,6 @@
         },
         "target": {
           "value": "ruby"
-        },
-        "form": {
-          "value": "a >= b"
-        }
-      }
-    },
-    {
-      "verb": "Expression::Operator.Render",
-      "args": {
-        "symbol": {
-          "value": ">="
-        },
-        "target": {
-          "value": "rust"
         },
         "form": {
           "value": "a >= b"
@@ -291,20 +235,6 @@
       }
     },
     {
-      "verb": "Expression::Operator.Render",
-      "args": {
-        "symbol": {
-          "value": "<="
-        },
-        "target": {
-          "value": "rust"
-        },
-        "form": {
-          "value": "a <= b"
-        }
-      }
-    },
-    {
       "verb": "Expression::Operator.Admit",
       "args": {
         "symbol": {
@@ -346,20 +276,6 @@
         },
         "target": {
           "value": "ruby"
-        },
-        "form": {
-          "value": "a < b"
-        }
-      }
-    },
-    {
-      "verb": "Expression::Operator.Render",
-      "args": {
-        "symbol": {
-          "value": "<"
-        },
-        "target": {
-          "value": "rust"
         },
         "form": {
           "value": "a < b"
@@ -415,20 +331,6 @@
       }
     },
     {
-      "verb": "Expression::Operator.Render",
-      "args": {
-        "symbol": {
-          "value": ">"
-        },
-        "target": {
-          "value": "rust"
-        },
-        "form": {
-          "value": "a > b"
-        }
-      }
-    },
-    {
       "verb": "Expression::Operator.Admit",
       "args": {
         "symbol": {
@@ -477,20 +379,6 @@
       }
     },
     {
-      "verb": "Expression::Operator.Render",
-      "args": {
-        "symbol": {
-          "value": "=="
-        },
-        "target": {
-          "value": "rust"
-        },
-        "form": {
-          "value": "a == b"
-        }
-      }
-    },
-    {
       "verb": "Expression::Operator.Admit",
       "args": {
         "symbol": {
@@ -532,20 +420,6 @@
         },
         "target": {
           "value": "ruby"
-        },
-        "form": {
-          "value": "a != b"
-        }
-      }
-    },
-    {
-      "verb": "Expression::Operator.Render",
-      "args": {
-        "symbol": {
-          "value": "!="
-        },
-        "target": {
-          "value": "rust"
         },
         "form": {
           "value": "a != b"
@@ -601,20 +475,6 @@
       }
     },
     {
-      "verb": "Expression::Operator.Render",
-      "args": {
-        "symbol": {
-          "value": "!"
-        },
-        "target": {
-          "value": "rust"
-        },
-        "form": {
-          "value": "!a"
-        }
-      }
-    },
-    {
       "verb": "Expression::Operator.Admit",
       "args": {
         "symbol": {
@@ -656,20 +516,6 @@
         },
         "target": {
           "value": "ruby"
-        },
-        "form": {
-          "value": "a + b"
-        }
-      }
-    },
-    {
-      "verb": "Expression::Operator.Render",
-      "args": {
-        "symbol": {
-          "value": "+"
-        },
-        "target": {
-          "value": "rust"
         },
         "form": {
           "value": "a + b"
@@ -725,20 +571,6 @@
       }
     },
     {
-      "verb": "Expression::Operator.Render",
-      "args": {
-        "symbol": {
-          "value": ".modulo"
-        },
-        "target": {
-          "value": "rust"
-        },
-        "form": {
-          "value": "a.modulo(b)"
-        }
-      }
-    },
-    {
       "verb": "Expression::Operator.Admit",
       "args": {
         "symbol": {
@@ -780,20 +612,6 @@
         },
         "target": {
           "value": "ruby"
-        },
-        "form": {
-          "value": "a.positive?"
-        }
-      }
-    },
-    {
-      "verb": "Expression::Operator.Render",
-      "args": {
-        "symbol": {
-          "value": ".positive?"
-        },
-        "target": {
-          "value": "rust"
         },
         "form": {
           "value": "a.positive?"
@@ -849,20 +667,6 @@
       }
     },
     {
-      "verb": "Expression::Operator.Render",
-      "args": {
-        "symbol": {
-          "value": ".negative?"
-        },
-        "target": {
-          "value": "rust"
-        },
-        "form": {
-          "value": "a.negative?"
-        }
-      }
-    },
-    {
       "verb": "Expression::Operator.Admit",
       "args": {
         "symbol": {
@@ -904,20 +708,6 @@
         },
         "target": {
           "value": "ruby"
-        },
-        "form": {
-          "value": "a.zero?"
-        }
-      }
-    },
-    {
-      "verb": "Expression::Operator.Render",
-      "args": {
-        "symbol": {
-          "value": ".zero?"
-        },
-        "target": {
-          "value": "rust"
         },
         "form": {
           "value": "a.zero?"
@@ -973,20 +763,6 @@
       }
     },
     {
-      "verb": "Expression::Operator.Render",
-      "args": {
-        "symbol": {
-          "value": ".empty?"
-        },
-        "target": {
-          "value": "rust"
-        },
-        "form": {
-          "value": "a.empty?"
-        }
-      }
-    },
-    {
       "verb": "Expression::Operator.Admit",
       "args": {
         "symbol": {
@@ -1028,20 +804,6 @@
         },
         "target": {
           "value": "ruby"
-        },
-        "form": {
-          "value": "a.to_s"
-        }
-      }
-    },
-    {
-      "verb": "Expression::Operator.Render",
-      "args": {
-        "symbol": {
-          "value": ".to_s"
-        },
-        "target": {
-          "value": "rust"
         },
         "form": {
           "value": "a.to_s"
@@ -1097,20 +859,6 @@
       }
     },
     {
-      "verb": "Expression::Operator.Render",
-      "args": {
-        "symbol": {
-          "value": ".size"
-        },
-        "target": {
-          "value": "rust"
-        },
-        "form": {
-          "value": "a.size"
-        }
-      }
-    },
-    {
       "verb": "Expression::Operator.Admit",
       "args": {
         "symbol": {
@@ -1156,20 +904,6 @@
       }
     },
     {
-      "verb": "Expression::Normalisation.Read",
-      "args": {
-        "name": {
-          "value": "collapse_whitespace"
-        },
-        "target": {
-          "value": "rust"
-        },
-        "form": {
-          "value": "WHITESPACE.replace_all(text, \" \")"
-        }
-      }
-    },
-    {
       "verb": "Expression::Normalisation.Admit",
       "args": {
         "name": {
@@ -1211,20 +945,6 @@
         },
         "form": {
           "value": "text.gsub(/\\.length(?![[:alnum:]_])/, \".size\")"
-        }
-      }
-    },
-    {
-      "verb": "Expression::Normalisation.Read",
-      "args": {
-        "name": {
-          "value": "length_to_size"
-        },
-        "target": {
-          "value": "rust"
-        },
-        "form": {
-          "value": "replace_word_bounded(text, \".length\", \".size\")"
         }
       }
     },

@@ -22,7 +22,7 @@ module Hecksagain
         #
         # QUALIFIED, because a closed set is a value object INSIDE an aggregate
         # and `reference_to` reaches heads only — so this is text, checked where
-        # it is read (bin/ir_structs) rather than by reference resolution.
+        # it is read rather than by reference resolution.
         #
         # AND WRITTEN AS TEXT, not as the constant path `Vocabulary::QueryComparator`
         # it reads like. The constant spelling was tried — `ConstShim` returning
@@ -61,18 +61,18 @@ module Hecksagain
         # attribute's type is still a DECLARED value object, which is now a
         # structural rule rather than a predicate.
         #
-        # Rust parsed this spelling already and threw the values away: the
-        # attribute became a plain String and the closed set meant nothing, in a
-        # construct that looked supported. Both runtimes desugar identically now,
-        # or the same bluebook yields two different IRs.
+        # An earlier reading of this spelling parsed it and threw the values
+        # away: the attribute became a plain String and the closed set meant
+        # nothing, in a construct that looked supported. The desugaring is
+        # pinned now — the same bluebook must always yield the same IR.
         def one_of(*values) = OneOf.new(values)
 
         private
 
         # A pattern is refused AT DECLARATION, not when a value first meets it :
-        # a regex the two engines read differently is a defect in the bluebook,
-        # and a bluebook that loads is one whose patterns both runtimes agree
-        # about. PatternSubset says which those are, and why each is refused.
+        # a regex whose meaning depends on which engine reads it is a defect in
+        # the bluebook, and a bluebook that loads is one whose patterns carry
+        # one meaning. PatternSubset says which those are, and why each is refused.
         def refuse_unshared_pattern(name, pattern)
           rejection = PatternSubset.validate(pattern)
           return unless rejection

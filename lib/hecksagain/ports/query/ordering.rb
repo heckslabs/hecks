@@ -13,10 +13,10 @@ module Hecksagain
       # Two tiers, in this order : the DECLARED order_by when there is one,
       # then IDENTITY, always. The identity tier is what makes an ask total.
       # Without it, an ask with no order_by — or a declared order with tied
-      # keys — hands back whatever order the store happened to hold, which is
-      # how a heki-backed Ruby and a heki-backed Rust came to disagree while
-      # every hand-written query in the corpus stayed green : not one of them
-      # had a tie for the two runtimes to disagree about.
+      # keys — hands back whatever order the store happened to hold, and
+      # store order was quietly standing in for a rule while every
+      # hand-written query in the corpus stayed green : not one of them
+      # had a tie for store order to decide.
       #
       # An adapter that pushes ordering down MUST push limit down with it.
       # Re-ordering a page the store already cut would be a top-N of the

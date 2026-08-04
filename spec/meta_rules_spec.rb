@@ -6,8 +6,8 @@ require "spec_helper"
 # Seventeen rules live as `raise Malformed` across seven builder files. Stage
 # one of defining the language in itself is porting them into the meta-domain
 # as `given` and `invariant`, where they are declarations rather than code —
-# and where a second runtime could read them, which today it cannot (Rust's
-# parser has zero error sites and accepts bluebooks Ruby refuses).
+# facts any reader of the meta-domain can consume, instead of behavior buried
+# in the builders.
 #
 # Every rule here must be SEEN REFUSING. A ported rule that never fires is the
 # same defect the whole corpus keeps producing, and porting rules is exactly
@@ -149,10 +149,10 @@ RSpec.describe "the language's own rules" do
   end
 
   # A PIECE MUST SAY WHAT IT IS KNOWN BY. Not invented for the rule's own sake:
-  # `bin/undeclared` perturbs banking's Withdrawal by dropping this very line and
-  # reported it MASKING A DIVERGENCE — without it Ruby refused with "pass :" and
-  # Rust with "pass id:", so the declaration was the only reason the two runtimes
-  # agreed. The rule removes the default there was to disagree about.
+  # perturbing banking's Withdrawal by dropping this very line once exposed
+  # that the refusal's wording depended on a fallback default ("pass :" versus
+  # "pass id:") — the declaration was the only thing pinning the answer.
+  # The rule removes the default there was to disagree about.
   #
   # An entity's identity is no longer an ARGUMENT of Declare — it is appended
   # one part at a time by `Entity.Identify`, exactly as an aggregate's is, so

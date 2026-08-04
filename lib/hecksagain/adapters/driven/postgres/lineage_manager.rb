@@ -18,12 +18,12 @@ module Hecksagain
       # else refuses, as loudly and as specifically as the situation
       # allows, naming both authoring tools.
       #
-      # Minting is Ruby-only: era identity (SHA-256 of the canonical
+      # Minting happens here, once: era identity (SHA-256 of the canonical
       # storage-shape serialization; the short prefix is the label edges
-      # and refusals use) is computed here, once, and stored in
-      # hecks_eras. The Rust runtime reads stored names and never hashes
-      # anything — a Rust boot that finds an unminted era refuses toward
-      # this side.
+      # and refusals use) is computed at mint time and stored in
+      # hecks_eras. Everything else reads stored names and never hashes
+      # anything — an era name is a storage fact, minted on this path or
+      # absent, never reconstructed.
       #
       # One concern per file under lineage_manager/: era_resolver (which
       # era is this boot?), minter (the mint path and its refusals),

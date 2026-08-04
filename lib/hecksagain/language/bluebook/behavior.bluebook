@@ -110,7 +110,7 @@ Hecks.bluebook "Bluebook" do
     # The way back: everything DECLARED IN the aggregate above. The parent
     # reference IS the query.
     # WHERE IT SITS AMONG ITS SIBLINGS. Declaration order is a FACT ABOUT THE
-    # SOURCE — Rust reads it straight out of the file, and the IR is a contract
+    # SOURCE — the IR is a contract read straight from this file,
     # field for field AND INDEX FOR INDEX. So the language HOLDS it, instead of
     # inheriting it from whatever order a store happens to iterate: an ask that
     # does not say how it is ordered is answered in identity order, which is
@@ -270,8 +270,8 @@ Hecks.bluebook "Bluebook" do
 
     # THE SET IT ADMITS IS NAMED, NOT RESTATED. This carried
     # `set || append || increment || decrement` — Vocabulary::MutationOp written
-    # out a second time, one level in, which is exactly the copy `bin/ir_vocabulary`
-    # exists to stop Rust from keeping. `Change.op` now says `admits:
+    # out a second time, one level in, which is exactly the kind of copy
+    # that drifts. `Change.op` now says `admits:
     # Vocabulary::MutationOp`, so there is no second list left to drift.
     value_object "OpName" do
       attribute :value, String
@@ -358,11 +358,11 @@ Hecks.bluebook "Bluebook" do
 
     value_object "Filter" do
       attribute :field, String
-      # THE FIRST USE OF THE WORD. Rust has always typed this as the `WhereOp`
-      # enum and mapped the eight strings by hand ; the set it is mapping to is
-      # one the language DECLARES, so bin/ir_structs refused to derive the typing
-      # and said so — "the link is real and worth declaring ; until it is
-      # declared, typing it here would be a guess." This declares it.
+      # THE FIRST USE OF THE WORD. The runtime maps these eight strings
+      # through a hand-typed comparator table ; the set it is mapping to is
+      # one the language DECLARES, and until the link between them was
+      # declared, typing it downstream
+      # would have been a guess. This declares it.
       attribute :op,    String, admits: "Vocabulary::QueryComparator"
       attribute :value, String
     end
@@ -393,7 +393,7 @@ Hecks.bluebook "Bluebook" do
     # The way back: everything DECLARED IN the aggregate above. The parent
     # reference IS the query.
     # WHERE IT SITS AMONG ITS SIBLINGS. Declaration order is a FACT ABOUT THE
-    # SOURCE — Rust reads it straight out of the file, and the IR is a contract
+    # SOURCE — the IR is a contract read straight from this file,
     # field for field AND INDEX FOR INDEX. So the language HOLDS it, instead of
     # inheriting it from whatever order a store happens to iterate: an ask that
     # does not say how it is ordered is answered in identity order, which is

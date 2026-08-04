@@ -117,16 +117,17 @@ module Hecksagain
       def hydrate(repository, aggregate, command, args)
         if command.creates?
           # NOTHING IS MINTED. An identity that is invented is neither derived
-          # from the record nor permanently associated with it — Ruby minted a
-          # random hex and Rust a counter, so the same dispatch produced two
-          # different records, and Ruby's was not even stable across two runs of
-          # itself. A store written yesterday could not be reasoned about today.
+          # from the record nor permanently associated with it — this used to
+          # mint a random hex, so the same dispatch was not even stable across
+          # two runs of itself. A store written yesterday could not be
+          # reasoned about today.
           #
           # So a creating command that cannot say WHICH ONE THIS IS is refused,
-          # and an aggregate with no `identified_by` must be told. bin/undeclared
-          # found this the other way round : the only two declarations in banking
-          # whose removal made the runtimes disagree were both `identified_by`,
-          # and they disagreed because removing them fell through to here.
+          # and an aggregate with no `identified_by` must be told. Mutation
+          # testing found this the other way round : the only two declarations
+          # in banking whose removal changed observable dispatch behaviour
+          # were both `identified_by`, and they changed it because removing
+          # them fell through to here.
           id = identity_of(aggregate, args) ||
                raise(NotFound, RefusalWording.render("NotFound", "creating_no_identity",
                                                       command: command.hecks_name, aggregate: aggregate.hecks_name,

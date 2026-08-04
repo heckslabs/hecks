@@ -19,6 +19,12 @@ RSpec.describe "the model checker" do
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       Kernel.load(bluebook)
+
+      # THE SIBLING HECKSAGON, IF ONE EXISTS — see bin/model_check's own
+      # copy of this comment. Fixtures under spec/fixtures/model_check/
+      # have none, so this is a no-op for every test but the real corpus.
+      hecksagon = bluebook.sub(/\.bluebook\z/, ".hecksagon")
+      Kernel.load(hecksagon) if hecksagon != bluebook && File.exist?(hecksagon)
     end
     registry.bluebooks.values.first
   end

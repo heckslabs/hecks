@@ -29,6 +29,14 @@ RSpec.describe "the DSL surface is fully covered" do
       Hecksagain::Bluebook::DSL::PortBuilder,
       %i[verb signal]
     ],
+    "DomainPortBuilder" => [
+      Hecksagain::Bluebook::DSL::DomainPortBuilder,
+      %i[operation]
+    ],
+    "PortOperationBuilder" => [
+      Hecksagain::Bluebook::DSL::PortOperationBuilder,
+      %i[reference_to emits attribute list_of attributes]
+    ],
     "AdapterBuilder" => [
       Hecksagain::Bluebook::DSL::AdapterBuilder,
       %i[port field secret]
@@ -43,11 +51,11 @@ RSpec.describe "the DSL surface is fully covered" do
     ],
     "BindingProxy" => [
       Hecksagain::Bluebook::DSL::BindingProxy,
-      %i[method_missing to_s]
+      %i[port method_missing to_s]
     ],
     "HecksagonBuilder" => [
       Hecksagain::Bluebook::DSL::HecksagonBuilder,
-      %i[binds subscribe subscriptions]
+      %i[binds subscribe subscriptions port]
     ],
     "TranslationBuilder" => [
       Hecksagain::Bluebook::DSL::TranslationBuilder,

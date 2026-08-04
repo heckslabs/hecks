@@ -3,26 +3,25 @@ require "json"
 
 # A LIST THE CORPUS ONLY EVER FILLS WITH ONE IS A SCALAR AS FAR AS ANYTHING CAN TELL.
 #
-# `bin/parity` proves the two runtimes answer alike on the corpus. `bin/undeclared`
-# perturbs a DECLARATION and watches what changes. Neither can reach a form no
+# The corpus specs prove the runtime answers as the frozen IR says it should,
+# and perturbing a DECLARATION shows what changes. Neither can reach a form no
 # corpus bluebook uses at all — there is nothing to run and nothing to perturb —
 # and that is precisely where the composite identity hid.
 #
 # `identified_by` has been `list_of(IdentityPath)` since identity became a path.
 # Every example declared exactly one, so `paths.first()` and "every path, joined"
-# were the same function on the whole corpus. Rust took the first. It also could
-# not PARSE a second one: `identified_by do` opened a block the aggregate parser
-# never consumed, so every attribute, command and value object after it was
-# swallowed and the aggregate came back empty — silently, because an empty
-# aggregate does not look like a parse failure. Green everywhere, for as long as
-# the corpus said one.
+# were the same function on the whole corpus. A reader once took the first. It
+# also could not PARSE a second one: `identified_by do` opened a block the
+# aggregate parser never consumed, so every attribute, command and value object
+# after it was swallowed and the aggregate came back empty — silently, because
+# an empty aggregate does not look like a parse failure. Green everywhere, for
+# as long as the corpus said one.
 #
 # So this asks the language what it declares as a LIST, and asks the corpus
 # whether any member ever holds two. A field that never does is not a bug on its
 # own — it is a claim nobody has tested, and it must be NAMED here with a reason,
-# the way `contracts.rb`'s `derived:` column names what the IR does not carry and
-# `ir_structs.rs`'s header names what the generator will not guess. A claim needs
-# a kind.
+# the way `contracts.rb`'s `derived:` column names what the IR does not carry. A
+# claim needs a kind.
 #
 # ADDING A LIST TO THE LANGUAGE AND NO CORPUS MEMBER THAT FILLS IT TWICE IS WHAT
 # THIS CATCHES. That is the shape of the bug, stated once, instead of waiting for
@@ -48,7 +47,7 @@ RSpec.describe "every list the language declares, filled more than once" do
   # workaround rather than a design.
   #
   # It held one: `Dispatch.with_spec` was spelled `with` on the wire, and only
-  # there — the language, Ruby's `IR::Dispatch`, Rust's `DispatchSpec` and
+  # there — the language, `IR::Dispatch` and
   # `contracts.rb`'s own field map all said `with_spec`, and `to_h` renamed it on
   # the way out. The wire was the outlier, so the wire moved.
   WIRE_SPELLING = {}.freeze
@@ -74,8 +73,7 @@ RSpec.describe "every list the language declares, filled more than once" do
     #   read_models       banking: CustomerPortfolio and ComplianceDashboard,
     #                     projecting different roots
     #   index_hints       reflex: two hints on one ask — still the only
-    #                     corpus member declaring two, now that Rust's Query
-    #                     struct carries the field; nothing about banking's
+    #                     corpus member declaring two; nothing about banking's
     #                     own indexed queries needed a second hint
     #
     # Each was deleted because the guard below demanded it once the corpus grew.
@@ -153,9 +151,9 @@ RSpec.describe "every list the language declares, filled more than once" do
 
       A list the corpus only ever fills with one is indistinguishable from a scalar,
       so a runtime that reads the first element passes every check there is. That is
-      how `identified_by` hid a Rust parser that could not read a second path at all.
+      how `identified_by` hid a parser that could not read a second path at all.
 
-      Either add a corpus member that fills it twice — spec/parity/domains/ exists
+      Either add a corpus member that fills it twice — spec/corpus/domains/ exists
       for exactly this, and `market` was added for exactly this — or add an entry to
       ALLOWED_SINGLETON saying what is untested and why.
     WHY

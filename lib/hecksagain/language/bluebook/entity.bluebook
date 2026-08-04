@@ -59,7 +59,7 @@ Hecks.bluebook "Bluebook" do
     # The way back: everything DECLARED IN the aggregate above. The parent
     # reference IS the query.
     # WHERE IT SITS AMONG ITS SIBLINGS. Declaration order is a FACT ABOUT THE
-    # SOURCE — Rust reads it straight out of the file, and the IR is a contract
+    # SOURCE — the IR is a contract read straight from this file,
     # field for field AND INDEX FOR INDEX. So the language HOLDS it, instead of
     # inheriting it from whatever order a store happens to iterate: an ask that
     # does not say how it is ordered is answered in identity order, which is
@@ -93,10 +93,10 @@ Hecks.bluebook "Bluebook" do
     # A PIECE MUST SAY WHAT IT IS KNOWN BY — the rule, where the language keeps
     # its rules. An entity is an element with an identity of ITS OWN ; that is
     # the whole difference between a piece and a value object, so a command
-    # acting on one must be able to say which one. Undeclared, the two runtimes
-    # each invented a different answer (Ruby fell through to nothing, Rust
-    # assumed `id`) and agreed only because every entity in the corpus happened
-    # to declare it — `bin/undeclared` reported precisely that, a divergence the
+    # acting on one must be able to say which one. Undeclared, every reader
+    # has to invent its own answer — fall through to nothing, or assume
+    # `id` — and inventions agree only because every entity in the corpus happened
+    # to declare it: a divergence the
     # declaration was masking. Requiring it removes the default there was to
     # disagree about. That requirement now sits on Seal, where a whole-document
     # rule belongs ; what stays here is the shape of each part.

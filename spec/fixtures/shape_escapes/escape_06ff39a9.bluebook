@@ -48,10 +48,10 @@ Hecks.bluebook "Banking" do
       # say it. A pattern says it once, and says it strictly : "a b@c.d" and
       # "a@b" passed the old invariant and are not addresses.
       #
-      # Spelled with explicit ranges rather than \S, because the perl classes are
-      # ASCII in Ruby and Unicode in Rust — see PatternSubset, which refuses them
-      # when the bluebook is declared rather than letting the two runtimes
-      # disagree about a customer later.
+      # Spelled with explicit ranges rather than \S, because the perl classes
+      # mean ASCII in one regex engine and Unicode in another — see PatternSubset,
+      # which refuses them when the bluebook is declared rather than letting two
+      # engines disagree about a customer later.
       attribute :address, String, pattern: '^[^@ ]+@[^@ ]+\.[^@ ]+$'
     end
 

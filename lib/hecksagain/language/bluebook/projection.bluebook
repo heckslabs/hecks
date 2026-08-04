@@ -52,7 +52,7 @@ Hecks.bluebook "Bluebook" do
     # The way back: everything DECLARED IN the chapter above. The parent
     # reference IS the query.
     # WHERE IT SITS AMONG ITS SIBLINGS. Declaration order is a FACT ABOUT THE
-    # SOURCE — Rust reads it straight out of the file, and the IR is a contract
+    # SOURCE — the IR is a contract read straight from this file,
     # field for field AND INDEX FOR INDEX. So the language HOLDS it, instead of
     # inheriting it from whatever order a store happens to iterate: an ask that
     # does not say how it is ordered is answered in identity order, which is
@@ -89,10 +89,10 @@ Hecks.bluebook "Bluebook" do
 
       reference_to ReadModel
       # A HEAD IS THE AGGREGATE IT NAMES. There is no head with nothing gathered:
-      # Ruby's `add_aggregate_head` is only ever reached from an `include Target`,
-      # and Rust pushes an AggregateHead only when `extract_word_after(line,
-      # "include")` actually yields a word — so neither runtime can produce one
-      # without it, and Rust types the field as a plain required String. `as` and
+      # `add_aggregate_head` is only ever reached from an `include Target`,
+      # so the builder cannot produce one
+      # without it — the field is a plain
+      # required, non-empty name. `as` and
       # `many` are both DERIVED from it when the author does not spell them, which
       # is the clearest statement that it is the part that cannot be missing.
       attribute :aggregate, ReadModelText

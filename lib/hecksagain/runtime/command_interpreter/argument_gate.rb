@@ -22,9 +22,9 @@ module Hecksagain
         def refuse_unknown_arguments(domain, aggregate, command, args)
           addressing = [:id, *aggregate.identity_heads, reference_key(command)] + correlation_keys(domain)
           known      = (command.attributes.map(&:name) + addressing).compact.map(&:to_sym)
-          # SORTED. Payload order is whatever the caller happened to write, and the
-          # two runtimes iterate a map differently — an unsorted list makes the same
-          # refusal read differently in Ruby and Rust, and parity says so.
+          # SORTED. Payload order is whatever the caller happened to write, and
+          # refusal wording is contract — pinned byte-for-byte by the corpus, so
+          # it cannot depend on hash iteration order.
           unknown = (args.keys.map(&:to_sym) - known).sort
           return if unknown.empty?
 
@@ -38,13 +38,12 @@ module Hecksagain
         # until fuzz went looking : a name the command never declared was refused,
         # while a name it DID declare could simply be left out.
         #
-        # Ruby happened to refuse `Customer.Register` without its `name` — but by
+        # `Customer.Register` without its `name` used to be refused — but by
         # ACCIDENT, and with a lie for a message. `then_set :name, to: :name` found
         # nothing to resolve, passed the literal symbol on, and coercion reported
         # `name is a PersonName — pass its fields as an object`, which describes a
-        # mistake the caller did not make. Rust had no such accident and wrote
-        # `name: null`. So neither runtime was refusing the real mistake, and the
-        # seam between the two accidents is what showed up as a parity SPLIT.
+        # mistake the caller did not make. The real mistake — an argument simply
+        # missing — was never the one named, and nothing refused it on purpose.
         #
         # No command attribute anywhere in the corpus carries a default — checked,
         # all eight chapters, zero — so there is no optional argument for this to
@@ -52,9 +51,9 @@ module Hecksagain
         def refuse_absent_arguments(command, args)
           given    = args.keys.map(&:to_sym)
           required = command.attributes.reject(&:optional?).map { |attribute| attribute.name.to_sym }
-          # SORTED, for the same reason the unknown list is : declaration order is
-          # stable but the two runtimes reach it differently, and a refusal has to
-          # read identically in both or parity says so.
+          # SORTED, for the same reason the unknown list is : refusal wording is
+          # contract, and a pinned wording cannot depend on the order a set
+          # difference happens to be computed in.
           absent = (required - given).sort
           return if absent.empty?
 

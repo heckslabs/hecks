@@ -27,14 +27,12 @@ module Hecksagain
     #   rows. `project` is therefore a no-op — old entries are never
     #   rewritten, and the head is never a table anything writes.
     # - State is ONE jsonb column. jsonb normalizes key order (and drops
-    #   duplicate keys), so anything comparing stored state — the parity
+    #   duplicate keys), so anything comparing stored state — the corpus
     #   history gate above all — must compare CANONICALIZED state, never
     #   raw bytes; `bin/canonicalise` deep-sorts keys, which is exactly
     #   why the gate survives this normalization.
     # - Query pushdown is the shared SqlQueryBuilder: every declared
     #   operator compiles fully into SQL, or the query refuses loudly.
-    #   (The Rust SQLite crate's oracle-subset contract is unrelated
-    #   prior art, deliberately not adopted.)
     class Postgres
       include SqlQueryBuilder
 
@@ -241,8 +239,8 @@ module Hecksagain
       end
 
       # Postgres defaults to NULLS LAST on ASC; the port's in-memory
-      # semantics (NullPolicy.order, matched by the Rust runtime and by
-      # SQLite's own default) put null rows FIRST ascending and LAST
+      # semantics (NullPolicy.order, which SQLite's own default happens
+      # to match) put null rows FIRST ascending and LAST
       # descending. Compile the placement explicitly so a declared query
       # answers identically no matter which adapter serves it.
       def order_clause(order_by, policy)

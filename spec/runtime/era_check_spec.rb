@@ -8,9 +8,8 @@ require "tmpdir"
 # Postgres side of this lives in spec/adapters/postgres_lineage_spec.rb.)
 #
 # What remains adapter-agnostic is the compute gate, which was never an
-# era fact. Its refusal is pinned byte-for-byte — the Rust twin asserts
-# the SAME string against the same fixture
-# (rust/src/runtime/era_check.rs).
+# era fact. Its refusal is pinned byte-for-byte — the wording is contract,
+# asserted here against the fixture.
 RSpec.describe "the era check at boot" do
   ERA_FIXTURES = File.join(InMemoryDomain::ROOT, "spec", "fixtures", "eras")
 

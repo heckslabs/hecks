@@ -64,10 +64,10 @@ Hecks.bluebook "Banking", version: "v1" do
       # say it. A pattern says it once, and says it strictly : "a b@c.d" and
       # "a@b" passed the old invariant and are not addresses.
       #
-      # Spelled with explicit ranges rather than \S, because the perl classes are
-      # ASCII in Ruby and Unicode in Rust — see PatternSubset, which refuses them
-      # when the bluebook is declared rather than letting the two runtimes
-      # disagree about a customer later.
+      # Spelled with explicit ranges rather than \S, because the perl classes
+      # flip between ASCII and Unicode across regex engines — see
+      # PatternSubset, which refuses them when the bluebook is declared rather
+      # than letting readers disagree about a customer later.
       attribute :address, String, pattern: '^[^@ ]+@[^@ ]+\.[^@ ]+$'
     end
 
@@ -1240,11 +1240,11 @@ Hecks.bluebook "Banking", version: "v1" do
   # proved out, pointed at the network leg instead of the internal one.
   #
   # THE FIELD, NAMED — not the value object that carries it. `end_to_end` is
-  # declared as a VALUE OBJECT, and Ruby and Rust disagree about what a
-  # non-scalar correlation key even IS (Ruby keys the saga on the whole
-  # object, Rust on its JSON text — relay's own comment names this exact
-  # split). `:"end_to_end.value"` reaches past the wrapper for the one
-  # field both runtimes can render identically, the same way `identified_by
+  # declared as a VALUE OBJECT, and a non-scalar correlation key is ambiguous
+  # by construction: keying the saga on the whole object and keying it on the
+  # object's rendered text are both defensible readings that correlate
+  # differently. `:"end_to_end.value"` reaches past the wrapper for the one
+  # scalar with a single unambiguous rendering, the same way `identified_by
   # { end_to_end.value }` already does on the aggregate this saga watches.
   process_manager "ExternalSettlement" do
     correlates_by :"end_to_end.value"

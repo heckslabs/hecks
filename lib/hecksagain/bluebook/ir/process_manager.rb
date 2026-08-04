@@ -91,8 +91,8 @@ module Hecksagain
         # NAMED here and nowhere an author can type it. `saga` is not a word a
         # bank says, so it never appears in a .bluebook — the author declares a
         # compensating leg and the saga follows. Derived, so it cannot drift from
-        # the thing it describes, and deliberately NOT in to_h : the IR is a
-        # shared contract with the Rust parser, and a derived fact is not a fact
+        # the thing it describes, and deliberately NOT in to_h : the IR export
+        # spells the SOURCE, and a derived fact is not a fact
         # about the source.
         #
         # nil for a procedure with no answer to a refusal, which is a legitimate

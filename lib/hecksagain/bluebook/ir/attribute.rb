@@ -14,18 +14,19 @@ module Hecksagain
         #
         # ON THE WIRE, because it is a RULE and not only a typing hint.
         #
-        # It began as neither. The link existed so the generator could type
-        # `WhereClause.op` as `WhereOp` — something Rust already did by hand —
-        # so carrying it would have moved 710 attribute records across eight
-        # goldens to tell the other side what it already knew. Then `admits`
+        # It began as neither. The link existed so a generator could type
+        # `WhereClause.op` as `WhereOp` — a typing convenience, not worth
+        # moving 710 attribute records across eight goldens for. Then `admits`
         # grew teeth (coercion refuses a non-member) and the argument
-        # inverted: a rule ONE runtime enforces is one bluebook meaning two
-        # things. Proved rather than assumed — the same domain refused
-        # "burnt" in Ruby and emitted the event in Rust.
+        # inverted: a rule the wire does not carry is one a reader of the IR
+        # cannot enforce, and a bluebook whose meaning depends on the reader
+        # means two things. Proved rather than assumed — the same domain
+        # refused "burnt" through one reading and emitted the event through
+        # another.
         #
-        # The wire carries the NAME, not the members. Each runtime resolves it
-        # against its own IR, so neither holds a copy of a set the other
-        # declared — which is the same reason `admits` exists at all.
+        # The wire carries the NAME, not the members. A reader resolves it
+        # against the IR it holds, so the members are declared once and
+        # copied nowhere — which is the same reason `admits` exists at all.
         def initialize(name:, type:, list: false, default: nil, optional: false, pattern: nil,
                        admits: nil)
           @name     = name.to_sym
@@ -59,7 +60,7 @@ module Hecksagain
         PRIMITIVES = %w[String Integer Float TrueClass FalseClass].freeze
 
         # `type` is spelled, never handed over. A Reference renders as
-        # "Reference<Customer>" here because that is what the Rust parser reads.
+        # "Reference<Customer>" here because that is the export's pinned spelling.
         def to_h
           { name: @name, type: @type.to_s, list: @list, default: @default, optional: @optional,
             pattern: @pattern, admits: @admits }

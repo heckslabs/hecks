@@ -6,11 +6,10 @@ require "json"
 #
 # lib/hecksagain/grammar/expression.bluebook has always declared what an
 # operator IS: proposed until it reads in every target, admitted after,
-# retired when withdrawn. Nothing read it — docs/porting/grammar.md
-# called it "a content-management domain about operators, not the parser
-# itself", and the evaluator's tables were free to drift from it
-# (they did once, into DISJOINT sets — see vocabulary_conformance_spec's
-# header for that story).
+# retired when withdrawn. Nothing read it — a content-management domain
+# about operators, not the parser itself — and the evaluator's tables were
+# free to drift from it (they did once, into DISJOINT sets — see
+# vocabulary_conformance_spec's header for that story).
 #
 # This spec closes the gap at this project's honest claim level,
 # agreement by checking: the admission ledger
@@ -28,8 +27,7 @@ require "json"
 # deliberately not attempted: the Prism adapter normalises every
 # predicate through CanonicalForm while a bluebook loads, so the
 # expression machinery cannot boot the chapter that would configure it —
-# that becomes a checked-in projection in a later milestone, the same
-# shape Rust already consumes.
+# hence the checked-in projection (bin/expression_projection).
 RSpec.describe "the operator domain" do
   ROOT_DIR = InMemoryDomain::ROOT
   LEDGER   = JSON.parse(File.read(File.join(ROOT_DIR, "lib/hecksagain/grammar/expression_operators.json"))).freeze
@@ -39,10 +37,10 @@ RSpec.describe "the operator domain" do
   Resolver      = Hecksagain::Bluebook::Expression::Resolver
   CanonicalForm = Hecksagain::Bluebook::Expression::CanonicalForm
 
-  # The same boot corpus_spec proves and bin/parity stages — fresh
-  # registry, ports and adapters loaded as data, the chapter itself,
-  # then a dispatcher over it. No facade: the ledger dispatches by FQN,
-  # the same path MetaValidator judges through.
+  # The same boot corpus_spec proves — fresh registry, ports and adapters
+  # loaded as data, the chapter itself, then a dispatcher over it. No
+  # facade: the ledger dispatches by FQN, the same path MetaValidator
+  # judges through.
   def self.boot_expression
     registry = Hecksagain::Runtime::Registry.new
     Hecksagain.with_registry(registry) do
@@ -111,8 +109,8 @@ RSpec.describe "the operator domain" do
     expect(symbols(admitted("comparison"))).to eq(declared)
   end
 
-  # docs/porting/grammar.md's own claim, made checkable: "order IS the
-  # grammar." `position` is scoped per `grammar` (outer/inner each start
+  # THE CLAIM MADE CHECKABLE: "order IS the grammar." `position` is
+  # scoped per `grammar` (outer/inner each start
   # their own count at 1) and must be dense — a gap or a duplicate would
   # mean either a slot the parser skips or two operators claiming the same
   # turn, neither of which the ledger can represent honestly.
@@ -196,20 +194,13 @@ RSpec.describe "the operator domain" do
     expect(Evaluator.parse("a || b && c")).to be_a(Evaluator::Or)
   end
 
-  it "renders every admitted operator in ruby AND rust — the guard's claim, strengthened" do
+  it "renders every admitted operator in ruby — the guard's claim, strengthened" do
     ADMITTED.each do |op|
       targets = Array(op[:renderings]).map { |rendering| rendering[:target] }
-      expect(targets).to include("ruby", "rust"),
+      expect(targets).to include("ruby"),
                          "#{op[:symbol].value} was admitted reading in #{targets.inspect} — " \
-                         "every target means ruby and rust both"
+                         "every target means ruby, at minimum"
     end
-  end
-
-  it "appears, comparison for comparison, in the table Rust embeds" do
-    rust_table = JSON.parse(File.read(File.join(ROOT_DIR, "rust/src/bluebook/expression/operators.json")))
-    rust_symbols = rust_table.map { |row| row.fetch("symbol") }
-
-    expect(rust_symbols).to eq(symbols(admitted("comparison")))
   end
 
   it "admits exactly the normalisation rules canonical form applies, field for field" do
@@ -272,8 +263,6 @@ RSpec.describe "the operator domain" do
                          position: { value: 9 })
       throwaway.dispatch("Expression::Operator.Render",
                          symbol: { value: "**" }, target: { value: "ruby" }, form: { value: "a ** b" })
-      throwaway.dispatch("Expression::Operator.Render",
-                         symbol: { value: "**" }, target: { value: "rust" }, form: { value: "a ** b" })
       throwaway.dispatch("Expression::Operator.Admit",  symbol: { value: "**" })
       throwaway.dispatch("Expression::Operator.Retire", symbol: { value: "**" })
 
@@ -286,7 +275,7 @@ RSpec.describe "the operator domain" do
     it "gives a spelling the ledger never admitted the ordinary unknown refusal" do
       # Not a slow operator, not a gated operator — NOT AN OPERATOR. The
       # refusal is the same one any unresolvable spelling gets; nothing
-      # about the lifecycle invents a third wording for parity to hold.
+      # about the lifecycle invents a third wording.
       expect { Evaluator.call("a ** b", {}) }
         .to raise_error(Hecksagain::Bluebook::Expression::EvaluationError, /cannot resolve/)
     end

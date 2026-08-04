@@ -1,6 +1,6 @@
 
 Hecks.bluebook "Translation" do
-  vision "The declared bridge from one era of a domain's storage shape to the next — every rule checkable, every loss written down, carried as one edge file both runtimes read identically."
+  vision "The declared bridge from one era of a domain's storage shape to the next — every rule checkable, every loss written down, carried as one edge file."
   generic
 
   aggregate "Rule" do
@@ -18,10 +18,24 @@ Hecks.bluebook "Translation" do
       transition "Retire" => "retired",  from: "admitted"
     end
 
+    # THE CLOSED SET OF RULE KINDS — declared as members, not a hand-rolled
+    # OR-chain, so the set is data a conformance spec can hold the live
+    # builder to (spec/translation_vocabulary_conformance_spec.rb). Seven of
+    # these are TranslationAggregateBuilder's own rule methods ; "retired" is
+    # the edge-level declaration (TranslationBuilder#retired), in the set
+    # because it is one admitted way a shape survives — by not surviving.
     value_object "Kind" do
       attribute :value, String
-      invariant("a rule is one of the declared kinds") do
-        value.to_s == "rename" || value.to_s == "move" || value.to_s == "convert" || value.to_s == "drop" || value.to_s == "retype" || value.to_s == "retired" || value.to_s == "compute" || value.to_s == "unresolved"
+
+      one_of do
+        member value: "rename"
+        member value: "move"
+        member value: "convert"
+        member value: "drop"
+        member value: "retype"
+        member value: "retired"
+        member value: "compute"
+        member value: "unresolved"
       end
     end
 

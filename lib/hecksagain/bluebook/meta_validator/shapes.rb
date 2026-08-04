@@ -29,8 +29,8 @@ module Hecksagain
             pattern: presence(text(field[:pattern])),
             # THE ROUND TRIP IS THE ONLY WAY IN. The grammar registry keeps the
             # ASSEMBLED graph — the language as its own judge read it back — so a
-            # fact dropped here is a fact bin/ir_structs never sees, no matter how
-            # plainly the .bluebook file declares it.
+            # fact dropped here is a fact no downstream projection ever sees, no
+            # matter how plainly the .bluebook file declares it.
             admits: presence(text(field[:admits]))
           }
         end

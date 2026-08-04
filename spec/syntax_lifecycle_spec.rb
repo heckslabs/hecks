@@ -15,11 +15,10 @@ require "spec_helper"
 #
 # What makes the status LOAD-BEARING rather than decorative is the
 # projection rule this file pins: a proposed or retired word reaches no
-# generated parser table (bin/ir_syntax, bin/ir_syntax_flags,
-# bin/ir_dispatch_words all reject them), so to every projected reader
-# such a word simply does not exist — the operator rule, applied at the
-# syntax layer. The language also declares its own VERSION now, on the
-# chapter itself, bumped when the admitted surface changes.
+# generated parser table, so to every projected reader such a word simply
+# does not exist — the operator rule, applied at the syntax layer. The
+# language also declares its own VERSION now, on the chapter itself,
+# bumped when the admitted surface changes.
 RSpec.describe "the syntax lifecycle" do
   def self.judged_meta = Hecksagain::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
 
@@ -38,8 +37,8 @@ RSpec.describe "the syntax lifecycle" do
   # uses for a column grown after rows existed (canon_form NULL reads as
   # an implicit 1). Spelling `status: "admitted"` on 197 rows would bury
   # the table in ceremony, and applying the attribute DEFAULT to member
-  # rows on the Ruby side only would hand the golden IR a field Rust's
-  # parser does not mint — an IR-parity split bought for nothing. Only a
+  # rows before export would hand the golden IR a field the source never
+  # spells — a drift from the declared text bought for nothing. Only a
   # word entering or leaving the language spells its status.
   def self.status_of(row) = row[:status].to_s.empty? ? "admitted" : row[:status].to_s
   def status_of(row)      = self.class.status_of(row)
@@ -64,23 +63,22 @@ RSpec.describe "the syntax lifecycle" do
   # builder exactly as before. The suite still names every transition; it
   # just no longer forbids being in one.)
 
-  it "projects no proposed or retired word into any generated table" do
-    # The generators reject them at the source; this holds the rule from
-    # the reading side by deriving what each table WOULD hold and
-    # asserting the invisible statuses are absent from all of it.
+  it "reports no word as both visible and hidden — the projection rule, held over the rows themselves" do
+    # No generated table exists to read back since the code-generating
+    # projection was retired ; what's still checkable from the rows alone is that the
+    # visible/hidden partition itself is well-formed — every word is one or
+    # the other, never both, and every hidden word really is proposed or
+    # retired rather than merely absent from a stale visible list.
     visible = WORD_ROWS.reject { |row| %w[proposed retired].include?(status_of(row)) }
                       .map { |row| row[:word] }
     hidden = WORD_ROWS.map { |row| row[:word] } - visible
 
-    root = InMemoryDomain::ROOT
-    projections = [
-      `#{File.join(root, 'bin/ir_syntax')}`,
-      `#{File.join(root, 'bin/ir_dispatch_words')}`
-    ].join("\n")
+    expect(visible & hidden).to be_empty
 
     hidden.each do |word|
-      expect(projections).not_to match(/"#{Regexp.escape(word)}"/),
-                                 "#{word} is proposed or retired and still reaches a projection"
+      row = WORD_ROWS.find { |r| r[:word] == word }
+      expect(%w[proposed retired]).to include(status_of(row)),
+                                      "#{word} is hidden but its own status is #{status_of(row).inspect}"
     end
   end
 

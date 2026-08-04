@@ -1,7 +1,7 @@
 require "spec_helper"
 require "json"
 
-# A FIELD THE CORPUS NEVER SETS IS A FIELD NEITHER RUNTIME HAS BEEN ASKED TO READ.
+# A FIELD THE CORPUS NEVER SETS IS A FIELD THE RUNTIME HAS NEVER BEEN ASKED TO READ.
 #
 # The sibling of spec/plurality_coverage_spec.rb, in the other direction. That one
 # asks whether a declared LIST is ever filled with two. This asks whether a
@@ -10,17 +10,16 @@ require "json"
 # The wire says which fields are nullable without being asked: a key that is null
 # in some golden and set in another is exercised both ways, and there is nothing
 # to check. A key that is null in EVERY golden it appears in is a field the corpus
-# declares nowhere — so neither parser has ever read it from a real bluebook, and
-# their agreement about it is a guess, not a measurement.
+# declares nowhere — so no parser has ever read it from a real bluebook, and
+# anything believed about it is a guess, not a measurement.
 #
 # `version` was exactly that. `Hecks.bluebook "Pizzas", version: "v2"` has been
-# in the language since the language held a chapter's version ; both runtimes
-# parse it — Ruby through `BluebookBuilder.new(name, version:)`, Rust through
-# `extract_kwarg_string(line, "version")` — and not one of the ten chapters in
-# the tree declared one. Two parsers agreeing about a keyword neither had ever
-# been handed. `spec/parity/domains/relay` was the first corpus member to
-# declare one, proving the two agree, before that domain folded into banking
-# (`Hecks.bluebook "Banking", version: "v1"`) and carried the proof forward.
+# in the language since the language held a chapter's version ; the builder
+# parses it — `BluebookBuilder.new(name, version:)` — and not one of the ten
+# chapters in the tree declared one. A keyword accepted that had never once
+# been handed a value. `spec/corpus/domains/relay` was the first corpus member to
+# declare one, proving the keyword is really read, before that domain folded into
+# banking (`Hecks.bluebook "Banking", version: "v1"`) and carried the proof forward.
 #
 # WHY THIS IS MEASURED ON THE WIRE AND NOT FROM THE LANGUAGE. The language's
 # `optional` marks a COMMAND ARGUMENT that may be left out — a dispatch-time
@@ -72,12 +71,12 @@ RSpec.describe "every nullable field the wire carries, actually filled" do
 
         #{unnamed.join("\n        ")}
 
-      Neither parser has been handed a real value for these, so whatever they
-      agree about is agreement by luck — `bin/parity` cannot diff a keyword no
-      corpus member spells. That is how `version` sat parsed-by-both and
-      read-by-neither.
+      No parser has been handed a real value for these, so whatever is believed
+      about them is belief by luck — no gate can exercise a keyword no
+      corpus member spells. That is how `version` sat parsed and never
+      once read from a real bluebook.
 
-      Either declare one in a corpus member — spec/parity/domains/ exists for
+      Either declare one in a corpus member — spec/corpus/domains/ exists for
       exactly this — or add an entry to ALLOWED_UNSET saying why it is not worth
       a fixture.
     WHY

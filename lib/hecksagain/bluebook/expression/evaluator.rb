@@ -11,8 +11,7 @@ module Hecksagain
         # which primitive(s) OR together, negated inverts the result.
         #
         # READ, NOT RESTATED. This table is the checked-in projection of the
-        # grammar chapter's admitted set (bin/expression_projection — the same
-        # relationship Rust's operators.json has to bin/operators), joined with
+        # grammar chapter's admitted set (bin/expression_projection), joined with
         # the algebra Vocabulary::Comparison declares. The evaluator cannot
         # boot the chapter that configures it — the Prism adapter normalises
         # every predicate through CanonicalForm while a bluebook loads — so

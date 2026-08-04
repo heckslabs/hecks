@@ -2,7 +2,7 @@ require "hecksagain"
 require "json"
 
 RSpec.describe Hecksagain::Naming do
-  CONTRACT_PATH = File.expand_path("parity/fixtures/naming.json", __dir__)
+  CONTRACT_PATH = File.expand_path("corpus/fixtures/naming.json", __dir__)
   CONTRACT = JSON.parse(File.read(CONTRACT_PATH)).freeze
 
   def self.cases(rule) = CONTRACT.fetch(rule)
@@ -76,12 +76,11 @@ RSpec.describe Hecksagain::Naming do
 
   # NOT in the shared contract above, the same way `.plural` beside it in the
   # source is not : both are used to derive one aggregate's name from
-  # another's, which the SAME cross-runtime rule (`snake`, `reference_key`, …)
+  # another's, which the SAME naming rule (`snake`, `reference_key`, …)
   # is checked against everywhere else, so a divergence here would already
-  # show up as a parity split rather than a silent one. Kept as its own direct
-  # spec, mirrored by `singularize`'s test module in rust/src/naming.rs — Ruby
-  # `has_many`/`has_one`/`belongs_to` and Rust's `parser::absorb_has_many` must
-  # resolve `has_many Invoices` to the same target on both sides.
+  # surface downstream rather than silently. Kept as its own direct
+  # spec because `has_many`/`has_one`/`belongs_to` must resolve
+  # `has_many Invoices` to the Invoice aggregate, and this pins how.
   describe ".singularize" do
     it "turns ies into y" do
       expect(described_class.singularize("Invoices")).to eq("Invoice")

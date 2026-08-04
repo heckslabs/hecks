@@ -3,11 +3,11 @@ require "spec_helper"
 
 # The declared vocabularies must equal the tables the runtime actually uses.
 #
-# Seven closed sets decide what any runtime may accept — the comparison
+# Seven closed sets decide what the runtime may accept — the comparison
 # operators, the sign tests, the primitive types, the normalisation strategies,
 # the mutation ops, the declaration load order, and which errors count as the
 # domain refusing rather than the runtime breaking. Each lives in a Ruby
-# constant, and each is something a SECOND runtime has to agree on.
+# constant, and each is something the language's own declaration must pin.
 #
 # Nothing held them together before. The grammar chapter's operator table and
 # Expression::Evaluator::COMPARISONS drifted into DISJOINT sets and no gate
@@ -98,10 +98,9 @@ RSpec.describe "the declared vocabularies" do
   # The language grew the word. `Change.op` says `admits: Vocabulary::MutationOp`
   # and the invariant is deleted, so there is no second copy to hold honest —
   # which is what this gate asked for in so many words. What replaces it is not
-  # another comparison: `bin/ir_structs` raises if an `admits` names a set the
-  # language does not declare, and spec/ir_structs_export_spec holds the emitted
-  # Rust to the generator's output, so dropping the link turns WhereClause.op
-  # back into a String and goes red there.
+  # another comparison but the link itself: an `admits` must name a set the
+  # language declares, so dropping the link turns WhereClause.op
+  # back into a plain String instead of a closed set.
 
   # The name lists above only prove the SET of operators agrees. This proves
   # the SEMANTICS do too : Vocabulary::Comparison declares, per symbol, which
@@ -186,7 +185,7 @@ RSpec.describe "the declared vocabularies" do
   # Only the NAMES are held to the corpus — signs are checked above against
   # the live table instead, the same split Comparison uses.
   it "MutationOp admits every op the corpus uses" do
-    used = Dir.glob(File.join(InMemoryDomain::ROOT, "spec/parity/*.json")).flat_map { |path|
+    used = Dir.glob(File.join(InMemoryDomain::ROOT, "spec/corpus/*.json")).flat_map { |path|
       JSON.parse(File.read(path)).fetch("steps", [])
     }
     ops = %w[set append increment decrement]
@@ -282,29 +281,4 @@ RSpec.describe "the declared vocabularies" do
     expect(entity_acting_trace).not_to include(:advance_lifecycle)
   end
 
-  # RUST'S OWN HAND-TYPED TABLE, HELD EQUAL THE SAME WAY refusal_wording_
-  # conformance_spec.rb already holds refusal_wording.rs to a declaration —
-  # read as TEXT, not executed, the same technique rust_syntax_conformance_
-  # spec uses for FLAG_ARGUMENTS. `dispatch`/`dispatch_entity` mechanically
-  # iterate `AGGREGATE_STEPS`/`ENTITY_STEPS` (dispatcher.rs) in the order
-  # `AGGREGATE_DISPATCH_ORDER`/`ENTITY_DISPATCH_ORDER` name, in Rust, the
-  # same way Ruby's own DISPATCH_ORDER drives `call` — so this is the Rust
-  # twin of this file's own "AggregateDispatchOrder/EntityDispatchOrder
-  # matches the table the runtime uses" checks above, not a duplicate of
-  # them: those hold RUBY's table to the declaration, this holds RUST's.
-  def rust_dispatch_order(const_name)
-    source = File.read(File.join(InMemoryDomain::ROOT, "rust/src/runtime/dispatcher.rs"))
-    match = source.match(/pub const #{const_name}: &\[&str\] = &\[(.*?)\];/m) or
-      raise "no #{const_name} found in dispatcher.rs"
-    match[1].scan(/"([a-z_]+)"/).flatten
-  end
-
-  [
-    ["AggregateDispatchOrder", "AGGREGATE_DISPATCH_ORDER"],
-    ["EntityDispatchOrder", "ENTITY_DISPATCH_ORDER"]
-  ].each do |vocabulary, const_name|
-    it "holds Rust's #{const_name} equal to the declared #{vocabulary}" do
-      expect(rust_dispatch_order(const_name)).to eq(declared(vocabulary))
-    end
-  end
 end

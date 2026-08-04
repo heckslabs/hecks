@@ -204,7 +204,12 @@ RSpec.describe "the evolve surgery" do
       Hecksagain::Grammar::Evolve.rename(word: "emits", context: "Command", to: "announces", path: path)
       rows = Hecksagain::Grammar::Evolve.argument_rows(path)
 
-      expect(rows.none? { |r| r[:keyword] == "emits" }).to be(true)
+      # SCOPED TO THE RENAMED (keyword, context) PAIR, not the bare word —
+      # "emits" legitimately still exists under "PortOperation" (a hecksagon
+      # port operation's own emits, a different keyword-in-context entirely),
+      # untouched because the rename named "Command" specifically.
+      expect(rows.none? { |r| r[:keyword] == "emits" && r[:context] == "Command" }).to be(true)
+      expect(rows.any? { |r| r[:keyword] == "emits" && r[:context] == "PortOperation" }).to be(true)
       # `attribute`'s OWN rows (a different keyword) must survive untouched —
       # the cascade is scoped to the renamed keyword only, never a blind
       # substring match across the whole table.

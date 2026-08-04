@@ -8,9 +8,9 @@ require "fileutils"
 #
 # `Runtime::DOMAIN_REFUSALS` declares that boundary, and the policy and saga
 # interpreters honour it — they rescue only those classes, so a crash in a
-# reaction propagates instead of being logged as "declined". The RUNNERS did
-# not: `bin/run` and the Rust CLI both catch everything a dispatch throws and
-# write it into `refusals`, so a crash arrives in the run contract wearing a
+# reaction propagates instead of being logged as "declined". The RUNNER did
+# not: `bin/run` catches everything a dispatch throws and
+# writes it into `refusals`, so a crash arrives in the run contract wearing a
 # refusal's clothes.
 #
 # That is not hypothetical. Every one of these was recorded as a refusal:
@@ -35,7 +35,7 @@ RSpec.describe "every refusal the corpus provokes" do
 
   CORPUS.each do |name, path|
     it "#{name} raises only errors the domain is allowed to raise" do
-      script = JSON.parse(File.read(File.join(InMemoryDomain::ROOT, "spec/parity/#{name}.json")))
+      script = JSON.parse(File.read(File.join(InMemoryDomain::ROOT, "spec/corpus/#{name}.json")))
       Dir.mktmpdir do |tmp|
         domain = File.join(tmp, name)
         FileUtils.cp_r(File.join(InMemoryDomain::ROOT, path), domain)

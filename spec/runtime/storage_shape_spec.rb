@@ -1,10 +1,9 @@
 require "spec_helper"
 
-# What bumps an era and what does not — the parity-critical boundary.
-# The fixtures under spec/fixtures/eras/ are SHARED with the Rust suite
-# (rust/src/runtime/storage_shape.rs walks the same directory): each
-# filename carries its own expected verdict (`bump_*` / `same_*`), so
-# the two runtimes read one set of expectations and cannot silently
+# What bumps an era and what does not — a contract-critical boundary.
+# The fixtures under spec/fixtures/eras/ each carry their own expected
+# verdict in the filename (`bump_*` / `same_*`), so every suite that
+# walks the directory reads one set of expectations and cannot silently
 # disagree about whether an era exists.
 RSpec.describe "the storage-shape projection" do
   FIXTURES = File.join(InMemoryDomain::ROOT, "spec", "fixtures", "eras")

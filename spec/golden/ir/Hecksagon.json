@@ -314,6 +314,186 @@
           "name": "BindingText"
         }
       ]
+    },
+    {
+      "attributes": [
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "name",
+          "optional": false,
+          "pattern": null,
+          "type": "PortName"
+        }
+      ],
+      "commands": [
+
+      ],
+      "description": "A primary port — the boundary between a domain and its adapters, in hexagonal terms, is exactly what a hecksagon already IS for every other port. Root-level (belongs to the chapter) or aggregate-scoped (reached the same way persisted_by is, through the open Const.verb(...) door) ; either way its content is a list of operations, never a single field.",
+      "entities": [
+
+      ],
+      "identified_by": [
+        "name.value"
+      ],
+      "lifecycle": null,
+      "name": "DomainPort",
+      "queries": [
+
+      ],
+      "value_objects": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "a port is named"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "PortName"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "name",
+          "optional": false,
+          "pattern": null,
+          "type": "OperationName"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": true,
+          "name": "attributes",
+          "optional": false,
+          "pattern": null,
+          "type": "PortOperationField"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": true,
+          "name": "emits",
+          "optional": false,
+          "pattern": null,
+          "type": "EmittedEvent"
+        }
+      ],
+      "commands": [
+
+      ],
+      "description": "One operation a port exposes — the same shape a command's payload has (attributes in, an event out) with none of a command's given/ensures/then_set : a port operation is the translation boundary itself, not a second place business rules live. Those stay on whichever command a policy triggers in reaction to the event it emits.",
+      "entities": [
+
+      ],
+      "identified_by": [
+        "name.value"
+      ],
+      "lifecycle": null,
+      "name": "PortOperation",
+      "queries": [
+
+      ],
+      "value_objects": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "an operation is named"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "OperationName"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "name",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "type",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "PortOperationField"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "an emitted event is named"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "EmittedEvent"
+        }
+      ]
     }
   ],
   "canonical_form": [

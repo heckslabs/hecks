@@ -9,7 +9,7 @@ module Hecksagain
     # `Hecksagain::Aggregate` per head and defined a reader per field ; this
     # wraps the same `Runtime::Instance` state hash and answers readers and
     # verbs through `method_missing`, closing over the dispatcher and the
-    # aggregate's IR — so a boot mints no classes at all, and two runtimes in
+    # aggregate's IR — so a boot mints no classes at all, and two boots in
     # one process each hand out handles bound to their own dispatcher.
     #
     # A non-creating verb is a method returning self, so commands chain :

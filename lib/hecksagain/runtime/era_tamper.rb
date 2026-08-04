@@ -12,21 +12,18 @@ module Hecksagain
     #
     # LIVES HERE, NOT UNDER `Ports::Persistence` — `project` below directly
     # calls `Runtime::EraGuard.shadow_parse`/`Runtime::StorageShape.project`
-    # (DSL-execution machinery), the same "an adapter/port reaches into
-    # the runtime instead of being handed already-computed data" shape
-    # Rust's own `postgres_repository.rs` had, calling `storehouse::
-    # parser` directly, before that arc gated it. A capability this
-    # dependent on the runtime is a runtime-owned one that the Postgres
-    # adapter CALLS, not a ports-level module that happens to reach
-    # sideways into it.
+    # (DSL-execution machinery), the "an adapter/port reaches into the
+    # runtime instead of being handed already-computed data" shape that
+    # has caused trouble here before. A capability this dependent on the
+    # runtime is a runtime-owned one that the Postgres adapter CALLS, not
+    # a ports-level module that happens to reach sideways into it.
     #
-    # Byte-identical with the Rust twin (rust/postgres/src/
-    # postgres_repository.rs). Used to also distinguish a cosmetic edit
-    # from a real shape change here, by re-parsing the edited text — a
-    # pure quality-of-message nicety, not a safety property, dropped on
-    # both sides: every tamper refusal reaches the same generic wording
-    # now, the one this already fell to whenever it couldn't classify an
-    # edit anyway. An operator judges "did this matter" themselves,
+    # Used to also distinguish a cosmetic edit from a real shape change
+    # here, by re-parsing the edited text — a pure quality-of-message
+    # nicety, not a safety property, since dropped: every tamper refusal
+    # reaches the same generic wording now, the one this already fell to
+    # whenever it couldn't classify an edit anyway. An operator judges
+    # "did this matter" themselves,
     # reading the still-archived original — an anomalous recovery moment
     # already, not a normal boot path.
     module EraTamper

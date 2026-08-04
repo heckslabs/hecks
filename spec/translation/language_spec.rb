@@ -3,9 +3,8 @@ require "tmpdir"
 
 # Layer 0 of the translation language's validation story: a written rule
 # means what its author intended, or refuses loudly at load. Every
-# message here is pinned byte-for-byte — the Rust parser raises the SAME
-# strings (rust/src/bluebook/translation/parser.rs asserts them in its
-# own tests), so a wording drift in either runtime fails a suite.
+# message here is pinned byte-for-byte — refusal wording is contract,
+# so a wording drift fails the suite.
 RSpec.describe "the translation language" do
   Malformed = Hecksagain::Bluebook::DSL::Malformed
 
@@ -48,7 +47,7 @@ RSpec.describe "the translation language" do
     end
   end
 
-  describe "Layer-0 refusals, byte-identical in both runtimes" do
+  describe "Layer-0 refusals, pinned byte-for-byte" do
     def refusal_for(&block)
       build_translation(&block)
       nil
@@ -138,8 +137,8 @@ RSpec.describe "the translation language" do
   # plain Ruby String, raising an unrelated-looking IndexError instead
   # of the clean, named refusal every other "this would lose data
   # silently" case in this language gets (see convert's own refusal,
-  # the identical shape). Both runtimes now raise the same wording —
-  # this spec pins the Ruby half; spec/adapters/postgres_lineage_spec.rb
+  # the identical shape). The refusal wording is pinned —
+  # this spec pins the in-memory half; spec/adapters/postgres_lineage_spec.rb
   # pins the SQL half through a real mint.
   describe "a move/convert whose destination collides with an existing non-object value" do
     it "refuses by name instead of crashing with an unrelated error" do

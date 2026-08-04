@@ -66,9 +66,9 @@ module Hecksagain
 
           # THE FIELD, NAMED — never the value object that carries it. A bare
           # `correlates_by :end_to_end` reads whatever the payload holds under
-          # that key AS the correlation key, and Ruby and Rust disagree about
-          # what a non-scalar key even is (Ruby keys a saga on the object
-          # itself, Rust on its JSON text). Requiring the dotted spelling —
+          # that key AS the correlation key, and what a non-scalar key even
+          # is stays open (the object itself? its serialised text?).
+          # Requiring the dotted spelling —
           # `:"end_to_end.value"` — makes every correlates_by name a scalar
           # by construction, the same discipline `identified_by` already
           # holds a head to. This is a syntactic check, not a type check: it

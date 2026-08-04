@@ -1,6 +1,6 @@
 {
   "name": "expression-parity",
-  "note": "The chapter that DEFINES the sublanguage, read by both parsers. It was outside the corpus until now, which is how it came to be written in an invariant form Rust could only half-read : six rules in Ruby, two in Rust, shipped and unseen. Every step here walks a declared gate — admitting an operator before it renders in two targets, answering a settled agreement, admitting an expression whose source did not survive extraction — because a chapter about rules is worth nothing if its own rules do not fire.",
+  "note": "The chapter that DEFINES the sublanguage, walked as a corpus member so it can never sit outside the walk again — it once stopped parsing entirely while the suite stayed green, because nothing in spec/ booted it. Every step walks a declared gate: rendering before admission, admitting twice, retiring, answering after retirement.",
   "expectations": {
     "events": 26
   },
@@ -44,20 +44,6 @@
       "args": {
         "target": {
           "value": "ruby"
-        },
-        "form": {
-          "value": "a && b"
-        },
-        "symbol": {
-          "value": "&&"
-        }
-      }
-    },
-    {
-      "verb": "Expression::Operator.Render",
-      "args": {
-        "target": {
-          "value": "rust"
         },
         "form": {
           "value": "a && b"
@@ -191,20 +177,6 @@
       }
     },
     {
-      "verb": "Expression::Normalisation.Read",
-      "args": {
-        "name": {
-          "value": "collapse_whitespace"
-        },
-        "target": {
-          "value": "rust"
-        },
-        "form": {
-          "value": "source.split_whitespace().collect::<Vec<_>>().join(\" \")"
-        }
-      }
-    },
-    {
       "verb": "Expression::Normalisation.Admit",
       "args": {
         "name": {
@@ -246,20 +218,6 @@
         },
         "form": {
           "value": "gsub(/\\.length\\b/, '.size')"
-        }
-      }
-    },
-    {
-      "verb": "Expression::Normalisation.Read",
-      "args": {
-        "name": {
-          "value": "fold_length"
-        },
-        "target": {
-          "value": "rust"
-        },
-        "form": {
-          "value": "fold_length : find(\".length\") then require the next char be non-word"
         }
       }
     },
@@ -347,87 +305,6 @@
       }
     },
     {
-      "verb": "Expression::Agreement.Ask",
-      "args": {
-        "id": "ag-1",
-        "canonical": {
-          "value": "toppings.size < 10"
-        },
-        "subject": {
-          "value": "Pizza"
-        }
-      }
-    },
-    {
-      "verb": "Expression::Agreement.Settle",
-      "args": {
-        "canonical": {
-          "value": "toppings.size < 10"
-        }
-      }
-    },
-    {
-      "verb": "Expression::Agreement.Answer",
-      "args": {
-        "runtime": {
-          "value": "ruby"
-        },
-        "outcome": {
-          "value": "true"
-        },
-        "canonical": {
-          "value": "toppings.size < 10"
-        }
-      }
-    },
-    {
-      "verb": "Expression::Agreement.Answer",
-      "args": {
-        "runtime": {
-          "value": "rust"
-        },
-        "outcome": {
-          "value": "true"
-        },
-        "canonical": {
-          "value": "toppings.size < 10"
-        }
-      }
-    },
-    {
-      "verb": "Expression::Agreement.Settle",
-      "args": {
-        "canonical": {
-          "value": "toppings.size < 10"
-        }
-      }
-    },
-    {
-      "verb": "Expression::Agreement.Answer",
-      "args": {
-        "runtime": {
-          "value": "go"
-        },
-        "outcome": {
-          "value": "true"
-        },
-        "canonical": {
-          "value": "toppings.size < 10"
-        }
-      }
-    },
-    {
-      "verb": "Expression::Agreement.Split",
-      "args": {
-        "reason": {
-          "value": "already settled"
-        },
-        "canonical": {
-          "value": "toppings.size < 10"
-        }
-      }
-    },
-    {
       "verb": "Expression::Expression.Extract",
       "args": {
         "id": "ex-length-cm",
@@ -447,54 +324,6 @@
     },
     {
       "verb": "Expression::Expression.Admit",
-      "args": {
-        "canonical": {
-          "value": "dims.length_cm > 0"
-        }
-      }
-    },
-    {
-      "verb": "Expression::Agreement.Ask",
-      "args": {
-        "id": "ag-length-cm",
-        "canonical": {
-          "value": "dims.length_cm > 0"
-        },
-        "subject": {
-          "value": "Box"
-        }
-      }
-    },
-    {
-      "verb": "Expression::Agreement.Answer",
-      "args": {
-        "runtime": {
-          "value": "ruby"
-        },
-        "outcome": {
-          "value": "true"
-        },
-        "canonical": {
-          "value": "dims.length_cm > 0"
-        }
-      }
-    },
-    {
-      "verb": "Expression::Agreement.Answer",
-      "args": {
-        "runtime": {
-          "value": "rust"
-        },
-        "outcome": {
-          "value": "true"
-        },
-        "canonical": {
-          "value": "dims.length_cm > 0"
-        }
-      }
-    },
-    {
-      "verb": "Expression::Agreement.Settle",
       "args": {
         "canonical": {
           "value": "dims.length_cm > 0"

@@ -109,10 +109,10 @@ module Hecksagain
       #
       # It stayed unlanded for one wrong belief, worth naming because it looked so
       # much like a wall: that the language may only hold what `to_h` carries.
-      # `ReadModel#to_h` omits a read model's filters and Rust's ReadModel struct has
-      # no room for them, so read-model filtering seemed impossible to read back —
+      # `ReadModel#to_h` omits a read model's filters, so read-model filtering
+      # seemed impossible to read back —
       # and hoisted policies lost which head declared them for the same reason.
-      # But `to_h` is a PROJECTION for the other runtime and the language is the
+      # But `to_h` is a PROJECTION and the language is the
       # SOURCE. They must agree about everything to_h spells ; they need not be the
       # same size. Both are held now, as declarations the wire format never sees, and
       # the wire format did not move an inch.

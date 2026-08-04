@@ -24,8 +24,8 @@ module Hecksagain
     #
     # Detection and identity are separate jobs: this check never hashes
     # anything — era names come from the store, already minted (by the
-    # Ruby scaffold) or absent. Wordings are byte-identical with
-    # rust/src/runtime/era_check.rs.
+    # scaffold) or absent. Refusal wordings are contract, pinned by the
+    # corpus.
     module EraCheck
       module_function
 

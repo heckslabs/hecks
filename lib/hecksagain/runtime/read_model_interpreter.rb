@@ -17,9 +17,10 @@ module Hecksagain
       def project(domain, model, args)
         bluebook = @registry.bluebook(domain)
         # BEFORE the adapter early-return below, so the SQLite path inherits it.
-        # Without this the two runtimes split on a stale caller: Rust's
-        # `query_text` quietly opens a wrapped reference and answers, while Ruby
-        # reads it whole and finds nothing.
+        # Without this a stale caller passing a wrapped reference gets a
+        # path-dependent answer — an adapter could quietly open the wrapped
+        # reference while the in-process path reads it whole and finds nothing.
+        # Refused up front, identically on every path.
         refuse_object_reference(model, args)
         reference_id = reference(args.fetch(model.reference_name))
         repository = @registry.read_repository(domain, bluebook.aggregate(model.reference_target))

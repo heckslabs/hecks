@@ -21,8 +21,8 @@ module Hecksagain
     end
 
     # snake_case -> PascalCase. The name a synthesised closed-set value object
-    # takes when an attribute declares one inline. Both runtimes derive it the
-    # same way, or the same bluebook produces two different IRs.
+    # takes when an attribute declares one inline. The derivation is part of
+    # the IR contract: the same bluebook must always produce the same name.
     def pascal(text)
       text.to_s.split("_").map { |part| part.sub(/\A(.)/) { Regexp.last_match(1).upcase } }.join
     end
@@ -37,13 +37,12 @@ module Hecksagain
     # The name a COLLECTION of something takes.
     #
     # There were two of these and one was wrong. A read model's gathered heads
-    # derived their name with `"#{snake(target)}s"` in BOTH runtimes, so the
-    # meta-domain's own whole-bluebook read model handed back `querys`, `entitys`,
-    # `policys` and `dispatchs` — and bin/parity was green on every one of them,
-    # because the two hand-written runtimes were identically wrong. Agreement is
-    # not correctness; it never was.
+    # derived their name with a bare `"#{snake(target)}s"`, so the meta-domain's
+    # own whole-bluebook read model handed back `querys`, `entitys`, `policys`
+    # and `dispatchs` — and every check was green, because the checks compared
+    # the wrong rule against itself. Agreement is not correctness; it never was.
     #
-    # So: one pluraliser, and the Rust side mirrors these three rules exactly.
+    # So: one pluraliser, three rules, and every collection name flows through it.
     def plural(text)
       word = text.to_s
       return "#{word[0..-2]}ies" if word.match?(/[^aeiou]y\z/)
@@ -57,8 +56,8 @@ module Hecksagain
     # above earns its precision (three suffix rules) because getting a COLLECTION
     # name wrong reads as a typo forever ; this only ever recovers a name someone
     # already wrote as a real aggregate, so "ies -> y, trailing s dropped" is the
-    # whole rule — the same one Rust's `parser::singularize` carries, mirrored
-    # exactly so `has_many Invoices` resolves to the same target on both sides.
+    # whole rule — enough for `has_many Invoices` to resolve to the aggregate
+    # actually named Invoice.
     def singularize(text)
       word = text.to_s
       return "#{word[0..-4]}y" if word.length > 3 && word.end_with?("ies")

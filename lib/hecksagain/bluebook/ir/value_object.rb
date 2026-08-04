@@ -12,8 +12,8 @@ module Hecksagain
       # reaches a shape through `aggregate.value_object(name)`, the IR's own
       # finder ; there is no constant nesting and no second index.
       #
-      # `to_h` does not move. It is a byte-for-byte contract with the Rust parser
-      # through `bin/parity`, so it keeps spelling the short declared name, which
+      # `to_h` does not move. It is a byte-for-byte contract pinned by the
+      # golden fixtures, so it keeps spelling the short declared name, which
       # is what `hecks_name` carries. DECLARATIONS IN THE GRAPH, STRINGS IN THE
       # EXPORT.
       class ValueObject

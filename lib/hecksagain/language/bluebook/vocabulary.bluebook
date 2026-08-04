@@ -3,9 +3,9 @@ Hecks.bluebook "Bluebook" do
     # These are DECLARATIONS, not runtime state — a language's admitted sets are
     # fixed when the language is defined, which is what one_of means. They carry
     # no commands on purpose : nothing dispatches a vocabulary, the conformance
-    # check READS them from the IR and holds each runtime's own table to them.
+    # check READS them from the IR and holds the runtime's hand-typed tables to them.
     #
-    # Every one of these is a set two runtimes must agree on, and every one has
+    # Every one of these is a set the runtime must agree with, and every one has
     # already drifted or leaked at least once :
     #   Comparison            went disjoint from the grammar chapter's operator table
     #   NormalisationStrategy is the third, unchecked copy of the canonical-form table
@@ -25,8 +25,8 @@ Hecks.bluebook "Bluebook" do
       invariant("a vocabulary is named") { !value.to_s.empty? }
     end
 
-    # Expression::Evaluator::COMPARISONS — six operators, all reduced by both
-    # runtimes to two primitives (less_than, equal) combined with a small boolean
+    # Expression::Evaluator::COMPARISONS — six operators, all reduced by the
+    # evaluator to two primitives (less_than, equal) combined with a small boolean
     # algebra: compares_less_than and compares_equal choose which primitive(s) OR
     # together, negated inverts the result. `compare` reads this table instead of
     # hardcoding a six-way case statement — see Evaluator::COMPARISONS.
@@ -93,7 +93,7 @@ Hecks.bluebook "Bluebook" do
     end
 
     # `.size` and `.empty?` admit exactly the same closed set — a list, a
-    # string, or an open map — and each just calls the one Ruby/Rust method
+    # string, or an open map — and each just calls the one Ruby method
     # already named for it. One declaration for both, since the set itself is
     # the only thing either needed to say.
     value_object "SizedType" do
@@ -128,7 +128,7 @@ Hecks.bluebook "Bluebook" do
 
     # the ops Runtime::CommandInterpreter applies. `sign` is the arithmetic
     # delta increment/decrement share one primitive by — CommandRules#arithmetic
-    # (Ruby) and mutations.rs' `arithmetic` (Rust) both apply `current + sign *
+    # applies `current + sign *
     # amount`, differing only in which sign. set and append do no arithmetic,
     # so they carry no sign — ABSENT IS NOT EMPTY, same reading as elsewhere in
     # this file.
@@ -175,12 +175,12 @@ Hecks.bluebook "Bluebook" do
       end
     end
 
-    # CommandInterpreter#call / dispatcher.rs::dispatch — an aggregate command's
+    # CommandInterpreter#call — an aggregate command's
     # own interpretation, ending at the events it emits. Reaction (policies,
-    # sagas) is a structurally separate phase in both runtimes and is not part
-    # of this : Ruby returns from CommandInterpreter#call before it runs, in a
-    # different class ; Rust runs it after, inside the same function, but it is
-    # still what a command's OWN emitted events cause, not what interpreting
+    # sagas) is a structurally separate phase and is not part
+    # of this : CommandInterpreter#call returns before it runs, in a
+    # different class — reaction is
+    # what a command's OWN emitted events cause, not what interpreting
     # the command does. Two conditional steps — assign_creation_attributes only
     # fires for a creating command, advance_lifecycle only when a transition
     # applies — so this is the order a command that does both follows,
@@ -204,7 +204,7 @@ Hecks.bluebook "Bluebook" do
       end
     end
 
-    # EntityInterpreter#call / dispatcher.rs::dispatch_entity — the same shape
+    # EntityInterpreter#call — the same shape
     # one level down, on a piece an aggregate holds rather than the aggregate
     # itself. Shorter than AggregateDispatchOrder because an entity is never
     # CREATED through this path (no assign_creation_attributes) and inherits
@@ -257,8 +257,8 @@ Hecks.bluebook "Bluebook" do
     # refusal, the same wording for every domain, not authored per-bluebook —
     # closer to Comparison/SignTest beside it than to a given. So it follows
     # THEIR pattern, not given's: declared here for a human to read and a
-    # conformance spec to hold equal, and a hand-typed table in each runtime
-    # (RefusalWording, Ruby ; refusal_wording.rs, Rust) is what a dispatch
+    # conformance spec to hold equal, and a hand-typed table
+    # (RefusalWording) is what a dispatch
     # actually reads — the same reason Evaluator::SIGN_TEST_OPERATORS is
     # hand-typed rather than read live off this very chapter at every call.
     #
@@ -348,13 +348,13 @@ Hecks.bluebook "Bluebook" do
       end
     end
 
-    # SagaInterpreter::REFUSED, and its counterpart in the Rust dispatcher.
+    # SagaInterpreter::REFUSED.
     #
     # A leg answers an EVENT — `on "AccountDebited"` — or it answers one of these,
     # which are not events at all: no aggregate announces that a leg the procedure
     # dispatched was declined. `on :refused` is the compensating leg, and without
-    # this declaration the word lived only as a magic string in two runtimes
-    # agreeing by coincidence, and a reader of the language could not discover the
+    # this declaration the word lived only as a magic string in the interpreter,
+    # and a reader of the language could not discover the
     # trigger existed.
     value_object "Trigger" do
       attribute :name, String

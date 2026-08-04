@@ -1,6 +1,6 @@
 {
   "name": "banking-parity",
-  "note": "Every declared banking command and query is exercised in both runtimes, including refusal paths. The adversarial cases assert that nested Narrative values are validated before an entity is appended, an amendment cannot reduce a ledger entry below zero, and a transfer cannot settle until a destination credit produced TransferCredited. Persistence retains every write as an append-only version entry while reads materialize the last entry for each identity. One external transfer names a direction outside Account::LedgerDirection: `admits` is a rule about a set declared in ANOTHER aggregate, and a rule only one runtime enforces is one bluebook meaning two things \u2014 which is precisely what this file exists to catch.",
+  "note": "Every declared banking command and query is exercised, including refusal paths. The flagship corpus member: composite identity, entities, read models, process managers, policies — every rare form the coverage gates exist to catch, walked end to end.",
   "expectations": {
     "event_names": [
       "TransferCredited"
@@ -193,7 +193,7 @@
     },
     {
       "verb": "Banking::Customer.Register",
-      "note": "An @ and a space \u2014 the old invariant admitted it",
+      "note": "An @ and a space — the old invariant admitted it",
       "args": {
         "reference": {
           "value": "CUST-0010"
@@ -209,7 +209,7 @@
     },
     {
       "verb": "Banking::Customer.Register",
-      "note": "An @ and no dot \u2014 the old invariant admitted it too",
+      "note": "An @ and no dot — the old invariant admitted it too",
       "args": {
         "reference": {
           "value": "CUST-0011"
@@ -350,7 +350,7 @@
           "value": 2
         },
         "narrative": {
-          "text": "Posted in error \u2014 reversed"
+          "text": "Posted in error — reversed"
         },
         "number": {
           "value": "acct-1"
@@ -681,7 +681,7 @@
           "currency": "USD"
         },
         "narrative": {
-          "text": "Corrected \u2014 posted for the wrong amount"
+          "text": "Corrected — posted for the wrong amount"
         },
         "number": {
           "value": "acct-1"
@@ -699,7 +699,7 @@
           "currency": "USD"
         },
         "narrative": {
-          "text": "Corrected \u2014 posted for the wrong amount"
+          "text": "Corrected — posted for the wrong amount"
         },
         "number": {
           "value": "acct-1"
@@ -717,7 +717,7 @@
           "currency": "USD"
         },
         "narrative": {
-          "text": "Corrected \u2014 posted for the wrong amount"
+          "text": "Corrected — posted for the wrong amount"
         },
         "number": {
           "value": "acct-1"
@@ -1295,7 +1295,7 @@
           "currency": "USD"
         },
         "narrative": {
-          "text": "Refused \u2014 colour is not an argument Credit declares"
+          "text": "Refused — colour is not an argument Credit declares"
         },
         "colour": "red",
         "number": {

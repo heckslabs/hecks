@@ -60,7 +60,7 @@ RSpec.describe "a bluebook dispatched in and read back out" do
   # preserves declaration order, so both sides are compared exactly as written. The
   # IR is a contract field for field AND INDEX FOR INDEX, and this says index for
   # index without a caveat. Which is what a reconstruction has to manage before it
-  # can be the SOURCE rather than a check: Rust reads the order out of the file.
+  # can be the SOURCE rather than a check: consumers read the order out of the file.
   def canonical(node)
     case node
     when Hash then node.to_h { |key, value| [key, canonical(value)] }
@@ -77,7 +77,7 @@ RSpec.describe "a bluebook dispatched in and read back out" do
     if source.is_a?(Hash) && back.is_a?(Hash)
       # SOURCE KEYS ONLY, so the language is allowed to hold MORE than `to_h`
       # spells. It was `source.keys | back.keys`, which reads as symmetry and is
-      # actually a claim nobody needs: `to_h` is a PROJECTION for the other runtime,
+      # actually a claim nobody needs: `to_h` is a PROJECTION for consumers,
       # and the language is the source. What must hold is that everything the
       # contract spells comes back identically — a field the language stops holding
       # still shows up here as a source key with nothing behind it, and a field

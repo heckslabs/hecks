@@ -103,11 +103,12 @@ RSpec.describe "a procedure, and when it is a saga" do
     )
   end
 
-  it "keeps the word out of the IR the two parsers share" do
+  it "keeps the word out of the shared IR contract" do
     # `saga?` is DERIVED. Putting it in to_h would make it a fact about the source
-    # that the Rust parser would also have to emit — and it is not a fact about the
-    # source, it is a reading of it. The IR is a shared contract; adding a field on
-    # one side splits parity immediately, twice already in this project's history.
+    # that every reader of the IR would then have to carry — and it is not a fact
+    # about the source, it is a reading of it. The IR is a shared contract; adding
+    # a derived field to it has split contract from source twice already in this
+    # project's history.
     expect(settlement.to_h.keys).not_to include(:saga, :saga?)
   end
 end

@@ -1,26 +1,28 @@
 {
   "name": "pizzas-parity",
-  "note": "Successes and every refusal path. A runtime that ACCEPTS what the other refuses is the failure worth catching, so the refusals matter more than the successes. The final step passes a non-numeric amount, so the sign predicate itself must refuse \u2014 proving the two runtimes word an evaluation failure identically, not just a rule failure.",
+  "note": "Successes and every refusal path. A runtime that ACCEPTS what the corpus says must be refused is the failure worth catching, so the refusals matter more than the successes. The final step passes a non-numeric amount, so the sign predicate itself must refuse — proving an evaluation failure is worded as a refusal, not just a rule failure.",
   "expectations": {
     "events": 3
   },
   "steps": [
     {
-      "verb": "Pizzas::Pizza.CreatePizza",
+      "verb": "Pizzas::Order.CreatePizza",
       "args": {
         "name": {
           "value": "Margherita"
         },
-        "price_cents": {
-          "cents": 1200
-        },
-        "size": {
-          "value": "large"
+        "pizza": {
+          "price_cents": {
+            "cents": 1200
+          },
+          "size": {
+            "value": "large"
+          }
         }
       }
     },
     {
-      "verb": "Pizzas::Pizza.AddTopping",
+      "verb": "Pizzas::Order.AddTopping",
       "args": {
         "amount": {
           "value": 3
@@ -32,7 +34,7 @@
       }
     },
     {
-      "verb": "Pizzas::Pizza.AddTopping",
+      "verb": "Pizzas::Order.AddTopping",
       "args": {
         "amount": {
           "value": 2
@@ -44,7 +46,7 @@
       }
     },
     {
-      "verb": "Pizzas::Pizza.Purchase",
+      "verb": "Pizzas::Order.Purchase",
       "args": {
         "customer_name": {
           "value": "Chris"
@@ -53,7 +55,7 @@
       }
     },
     {
-      "verb": "Pizzas::Pizza.Purchase",
+      "verb": "Pizzas::Order.Purchase",
       "args": {
         "customer_name": {
           "value": "Someone"
@@ -62,7 +64,7 @@
       }
     },
     {
-      "verb": "Pizzas::Pizza.AddTopping",
+      "verb": "Pizzas::Order.AddTopping",
       "args": {
         "amount": {
           "value": 1
@@ -74,21 +76,23 @@
       }
     },
     {
-      "verb": "Pizzas::Pizza.CreatePizza",
+      "verb": "Pizzas::Order.CreatePizza",
       "args": {
         "name": {
           "value": "Bare"
         },
-        "price_cents": {
-          "cents": 900
-        },
-        "size": {
-          "value": "large"
+        "pizza": {
+          "price_cents": {
+            "cents": 900
+          },
+          "size": {
+            "value": "large"
+          }
         }
       }
     },
     {
-      "verb": "Pizzas::Pizza.Purchase",
+      "verb": "Pizzas::Order.Purchase",
       "args": {
         "customer_name": {
           "value": "Nobody"
@@ -97,7 +101,7 @@
       }
     },
     {
-      "verb": "Pizzas::Pizza.AddTopping",
+      "verb": "Pizzas::Order.AddTopping",
       "args": {
         "amount": {
           "value": 0
@@ -109,7 +113,7 @@
       }
     },
     {
-      "verb": "Pizzas::Pizza.Purchase",
+      "verb": "Pizzas::Order.Purchase",
       "args": {
         "customer_name": {
           "value": "Nobody"
@@ -118,7 +122,7 @@
       }
     },
     {
-      "verb": "Pizzas::Pizza.AddTopping",
+      "verb": "Pizzas::Order.AddTopping",
       "args": {
         "amount": {
           "value": "three"
@@ -130,35 +134,39 @@
       }
     },
     {
-      "verb": "Pizzas::Pizza.CreatePizza",
+      "verb": "Pizzas::Order.CreatePizza",
       "args": {
         "name": {
           "value": ""
         },
-        "price_cents": {
-          "cents": 1200
-        },
-        "size": {
-          "value": "large"
+        "pizza": {
+          "price_cents": {
+            "cents": 1200
+          },
+          "size": {
+            "value": "large"
+          }
         }
       }
     },
     {
-      "verb": "Pizzas::Pizza.CreatePizza",
+      "verb": "Pizzas::Order.CreatePizza",
       "args": {
         "name": {
           "value": "Neg"
         },
-        "price_cents": {
-          "cents": -1
-        },
-        "size": {
-          "value": "large"
+        "pizza": {
+          "price_cents": {
+            "cents": -1
+          },
+          "size": {
+            "value": "large"
+          }
         }
       }
     },
     {
-      "verb": "Pizzas::Pizza.AddTopping",
+      "verb": "Pizzas::Order.AddTopping",
       "args": {
         "amount": {
           "value": 1
@@ -170,7 +178,7 @@
       }
     },
     {
-      "verb": "Pizzas::Pizza.Purchase",
+      "verb": "Pizzas::Order.Purchase",
       "args": {
         "customer_name": {
           "value": ""
@@ -179,91 +187,75 @@
       }
     },
     {
-      "query": "Pizzas::Pizza.Available",
+      "query": "Pizzas::Order.Available",
       "args": {}
     },
     {
-      "query": "Pizzas::Pizza.CostingLessThan",
-      "args": {
-        "ceiling": {
-          "cents": 1000
-        }
-      }
-    },
-    {
-      "query": "Pizzas::Pizza.Expensive",
-      "args": {}
-    },
-    {
-      "verb": "Pizzas::Pizza.CreatePizza",
+      "verb": "Pizzas::Order.CreatePizza",
       "args": {
         "name": {
           "value": "Huge"
         },
-        "price_cents": {
-          "cents": 2000
-        },
-        "size": {
-          "value": "enormous"
+        "pizza": {
+          "price_cents": {
+            "cents": 2000
+          },
+          "size": {
+            "value": "enormous"
+          }
         }
       }
     },
     {
-      "verb": "Pizzas::Pizza.CreatePizza",
+      "verb": "Pizzas::Order.CreatePizza",
       "args": {
         "name": {
           "value": "Twin"
         },
-        "price_cents": {
-          "cents": 1500
-        },
-        "size": {
-          "value": "large"
+        "pizza": {
+          "price_cents": {
+            "cents": 1500
+          },
+          "size": {
+            "value": "large"
+          }
         }
       }
     },
     {
-      "verb": "Pizzas::Pizza.CreatePizza",
+      "verb": "Pizzas::Order.CreatePizza",
       "args": {
         "name": {
           "value": "Twin"
         },
-        "price_cents": {
-          "cents": 1500
-        },
-        "size": {
-          "value": "large"
+        "pizza": {
+          "price_cents": {
+            "cents": 1500
+          },
+          "size": {
+            "value": "large"
+          }
         }
       }
     },
     {
-      "verb": "Pizzas::Pizza.CreatePizza",
+      "verb": "Pizzas::Order.CreatePizza",
       "args": {
         "name": {
           "value": "Twin"
         },
-        "price_cents": {
-          "cents": 1500
-        },
-        "size": {
-          "value": "large"
+        "pizza": {
+          "price_cents": {
+            "cents": 1500
+          },
+          "size": {
+            "value": "large"
+          }
         }
       }
     },
     {
-      "query": "Pizzas::Pizza.Available",
-      "args": {}
-    },
-    {
-      "query": "Pizzas::Pizza.CostingLessThan",
-      "args": {
-        "ceiling": {
-          "cents": 3000
-        }
-      }
-    },
-    {
-      "query": "Pizzas::Pizza.Expensive",
+      "query": "Pizzas::Order.Available",
       "args": {}
     }
   ]

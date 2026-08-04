@@ -5,8 +5,8 @@ module Hecksagain
     # Declared properties, checked over a REPLAYED history — the other
     # half of property-based testing the fuzzer was missing: it already
     # generates and (with bin/fuzz's shrinker) minimizes, but checked
-    # nothing beyond "did the interpreter crash" and "did the two
-    # runtimes agree." A property here is a fact that should hold of
+    # nothing beyond "did the interpreter crash" and "did the replay
+    # match the claim." A property here is a fact that should hold of
     # ANY history a valid domain produces, independent of which seed
     # produced it.
     #
