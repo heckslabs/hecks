@@ -63,6 +63,17 @@ module Hecksagain
                                       process_managers: @process_managers,
                                       classification: @classification)
 
+          # Every hop AggregateBuilder#seal_query_field recognised and
+          # deferred gets checked for real here — the earliest point a
+          # hop CAN be checked, for exactly the reason
+          # validate_no_bidirectional_references! above already gives:
+          # `IR::Bluebook.new` just stamped `hecks_owner` on every
+          # aggregate, so `Reference#resolve` finally has a chapter to
+          # walk. Before this line every target in the file (including
+          # ones declared ABOVE the aggregate doing the asking) would
+          # have resolved to nil.
+          validate_query_hops!(bluebook)
+
           # The language judges the bluebook, in the language. Last, so the
           # meta-domain sees a fully built IR — the whole-document rules need
           # every declaration present, which is why they cannot be givens fired
@@ -152,6 +163,108 @@ module Hecksagain
                 "another by id in one direction only ; decide which one owns the " \
                 "relationship, and let the other side be found through a query instead " \
                 "of a reference pointing back"
+        end
+
+        # THE OTHER HALF OF A HOP — AggregateBuilder#seal_query_field
+        # recognised the HEAD of a dotted where-field that names one of
+        # its own references and deferred it here, unable to check
+        # further: it cannot yet resolve what the reference points AT.
+        # This runs once every aggregate exists in one chapter, so it
+        # can.
+        #
+        # Only WHERE clauses ever reach here — a hop on ORDER BY is
+        # refused outright, immediately, back in seal_query_field
+        # itself (that answer never needed the target's shape). An
+        # entity's own queries never reach here either, structurally:
+        # an entity has no `reference_to` at all, so
+        # HopPath.hop_head? can never answer true for one of its
+        # fields, and nothing about them was ever deferred to begin
+        # with.
+        def validate_query_hops!(bluebook)
+          bluebook.aggregates.each do |aggregate|
+            aggregate.queries.each do |query|
+              query.wheres.each do |clause|
+                next unless QuerySpecification::HopPath.hop_head?(clause.field, aggregate.attributes)
+
+                validate_hop_clause!(aggregate, query, clause)
+              end
+            end
+          end
+        end
+
+        def validate_hop_clause!(aggregate, query, clause)
+          plan = QuerySpecification::HopPath.plan(clause.field, aggregate.attributes)
+
+          case plan.refusal
+          when :unresolvable
+            # HopPath.plan pushes even an unresolved hop onto `hops`
+            # before reporting this, specifically so `target_name` —
+            # real, known at declaration, independent of whether
+            # `resolve` succeeded — is always here to name.
+            raise Malformed,
+                  "#{aggregate.hecks_name}.#{query.hecks_name} asks about #{clause.field}, " \
+                  "which hops to #{plan.hops.last.target_name}, which this chapter never " \
+                  "declares — a hop into an aggregate this chapter cannot see resolves to " \
+                  "nothing, and a where that resolves to nothing matches nothing and " \
+                  "refuses nothing"
+          when :too_deep
+            raise Malformed,
+                  "#{aggregate.hecks_name}.#{query.hecks_name} asks about #{clause.field}, " \
+                  "whose hop chain reaches #{QuerySpecification::HopPath::MAX_HOPS} " \
+                  "references deep without landing — a chain this long is refused as a " \
+                  "likely mistake, not a structural limit"
+          end
+
+          target = plan.hops.last.target
+          validate_hop_tail!(aggregate, query, clause, target, plan.tail)
+        end
+
+        # The same three-way answer seal_query_field gives for its OWN
+        # aggregate's fields — landing on a real scalar (fine), landing
+        # on a value object (refused by name), or naming nothing at all
+        # (refused by name) — asked instead of the hop's TARGET aggregate,
+        # since that is whose shape the tail actually has to answer for.
+        def validate_hop_tail!(aggregate, query, clause, target, tail)
+          name, *nested = tail.to_s.split(".")
+          attribute = target.attributes.find { |candidate| candidate.name.to_s == name }
+          return validate_hop_comparator!(aggregate, query, clause, target, attribute, nested) if
+            nested.empty? && (attribute || target.lifecycle&.field.to_s == name)
+          return validate_hop_comparator!(aggregate, query, clause, target, attribute, nested) if
+            nested.any? && attribute &&
+            QuerySpecification::FieldPath.scalar_leaf?(attribute, nested) { |type| target.value_object(type) }
+
+          if nested.any? && attribute &&
+             !QuerySpecification::FieldPath.leaf_attribute(attribute, nested) { |type| target.value_object(type) }.nil?
+            raise Malformed,
+                  "#{aggregate.hecks_name}.#{query.hecks_name} asks about #{clause.field}, " \
+                  "which hops to #{target.hecks_name} and then asks about #{tail}, which " \
+                  "lands on a value object, not a scalar — a dotted query path ends on a " \
+                  "scalar member, or the engines answer it differently"
+          end
+
+          raise Malformed,
+                "#{aggregate.hecks_name}.#{query.hecks_name} asks about #{clause.field}, " \
+                "which hops to #{target.hecks_name} and then asks about #{tail}, which " \
+                "#{target.hecks_name} never declares — a query over a field that does " \
+                "not exist matches nothing and refuses nothing"
+        end
+
+        # A WHERE hop with an ordered comparator is legitimate ("client
+        # whose balance > 500") — AggregateBuilder#seal_ordered_comparator
+        # already deferred this exact check for the same reason every
+        # other hop check is deferred, and this is where it gets asked,
+        # against the hop's TARGET instead of the querying aggregate.
+        def validate_hop_comparator!(aggregate, query, clause, target, attribute, nested)
+          return unless AggregateBuilder::ORDERED_COMPARATORS.include?(clause.op.to_s.to_sym)
+          return if attribute &&
+                    QuerySpecification::FieldPath.numeric?(attribute, nested) { |type| target.value_object(type) }
+
+          held = attribute ? "holds no number" : "is the lifecycle field, which holds text"
+          raise Malformed,
+                "#{aggregate.hecks_name}.#{query.hecks_name} compares #{clause.field} with " \
+                "#{clause.op} after hopping to #{target.hecks_name}, but the field it lands " \
+                "on #{held} — an ordered comparison needs a numeric field, and over " \
+                "anything else the adapters answer differently or not at all"
         end
 
         # `correlates_by` NAMES A SCALAR, NOW CHECKED RATHER THAN TRUSTED.

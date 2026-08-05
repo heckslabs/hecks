@@ -57,8 +57,21 @@ is refused, and so is a field the aggregate never declared at all); the
 ordered comparators additionally require that scalar to hold a number.
 `contains` means real element membership on a `list_of` field and plain
 substring on anything else — identically on every engine, including a
-field whose own text carries a comma. See the queries-and-read-models
-guide for the exact refusal wording.
+field whose own text carries a comma.
+
+A dotted path's HEAD may also hop through a `reference_to` attribute
+— `where(:"customer.status" => "suspended")` on an aggregate that
+`reference_to Customer` filters on Customer's own field, not
+anything the querying aggregate declares itself. The hop's own
+segment name is the same one `Facade::Handle`'s reference accessors
+answer to (`account.customer` in Ruby, `:"customer.status"` in a
+query — one name, both places), multi-hop chains read left to right
+(`:"engagement.client.status"`), and a hop is `where`-only — `order_by`
+through a hop is refused outright, since an ask is ordered by what its
+own rows hold and a hop answers with a candidate set, not a sort key.
+See the queries-and-read-models guide for the exact refusal wording,
+including the existential-negation case (a nil or dangling reference
+never satisfies a hop clause, whatever the comparator).
 
 ## order_by
 

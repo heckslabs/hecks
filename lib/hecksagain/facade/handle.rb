@@ -141,26 +141,14 @@ module Hecksagain
         end
       end
 
-      # `client_id` on Contract, target Client -> `client` — stripping the
-      # storage-shape `_id` suffix is always safe, because the result can
-      # never equal the raw attribute's own name (that name HAD the
-      # suffix). `source` on Transfer (an `as:` reference, no `_id`
-      # suffix), target Account -> `source_account` — the exact example
-      # docs/rails-integration.md itself gives.
-      #
-      # NEVER collapse an `as:` name that already equals the target's own
-      # snake case (`reference_to Studio, as: :studio`) down to the bare
-      # name — caught for real, not hypothetically: `piece.studio` is a
-      # doctested reader answering the raw id ("north:3"), and a first
-      # draft here silently redefined it to answer a hydrated Studio
-      # instead. Suffixing unconditionally in that branch keeps the two
-      # accessors distinct on purpose — `studio` still reads the value,
-      # `studio_studio` reads the record.
+      # `Naming.reference_hop` owns the actual rule now — a cross-aggregate
+      # query's dotted hop needs the identical name (`piece.studio` and
+      # `:"studio_studio.x"` must agree on what "studio" means), so the
+      # rule moved somewhere both callers can reach it rather than stay
+      # duplicated. See Naming.reference_hop's own comment for the
+      # `_id`-strip / `as:`-suffix reasoning this used to carry directly.
       def reference_accessor_name(attribute_name, target_snake)
-        base = attribute_name.to_s
-        return base.delete_suffix("_id") if base.end_with?("_id")
-
-        "#{base}_#{target_snake}"
+        Naming.reference_hop(attribute_name, target_snake)
       end
     end
   end

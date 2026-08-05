@@ -31,11 +31,23 @@ module Hecksagain
           # the whole dynamic extent, and it is currently this file's own
           # BindingProxy-minting one, which would turn a bare `Pizza` inside
           # `reference_to Pizza` into another BindingProxy instead of a name.
-          domain_port = ConstShim.with(->(const) { const }) { DomainPortBuilder.build(name, owner: aggregate_name, &block) }
-          domain_port.operations.each do |operation|
+          built = ConstShim.with(->(const) { const }) { DomainPortBuilder.build(name, owner: aggregate_name, &block) }
+
+          # A `verb`-shaped port is a plain `IR::Port` — the exact struct
+          # `Hecks.port`'s own top-level method registers, so it goes
+          # through the same `add_port` the registry already answers for
+          # that call. It belongs to no aggregate IR the way an
+          # operations-shaped `IR::DomainPort` does; the aggregate above
+          # was only needed to resolve `owner` for the operations branch.
+          if built.is_a?(IR::Port)
+            Hecksagain.current_registry.add_port(built)
+            return self
+          end
+
+          built.operations.each do |operation|
             operation.attributes.select(&:reference?).each { |attribute| attribute.type.declared_in = aggregate_ir }
           end
-          aggregate_ir.add_port(domain_port)
+          aggregate_ir.add_port(built)
           self
         end
 

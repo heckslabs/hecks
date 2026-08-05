@@ -3,6 +3,7 @@ require_relative "../ports/query"
 require_relative "../ports/query/ordering"
 require_relative "../query_specification/field_path"
 require_relative "errors"
+require_relative "reference_hop"
 require_relative "refusal_wording"
 require_relative "tenant_scope"
 require_relative "value"
@@ -23,6 +24,14 @@ module Hecksagain
         declared = declared_query(aggregate, query_name)
         args = normalize_args(aggregate, declared, args)
         declared = TenantScope.apply(declared, args)
+        # AFTER TenantScope, so its synthetic clause is already present
+        # in `.wheres` and rides through as an ordinary LOCAL clause on
+        # the OUTER query. It does not reach the hop's own inner
+        # sub-query against the TARGET aggregate — a hop's target may
+        # not even declare the same tenant boundary, and propagating one
+        # aggregate's tenant scope onto an unrelated aggregate's own
+        # query is a real design question of its own, not answered here.
+        declared = ReferenceHop.apply(declared, args, registry: @registry, domain: domain, aggregate: aggregate)
 
         repository = @registry.repository(domain, aggregate)
         if (native = Ports::Query.execute(repository, declared, args, context: { domain: domain, aggregate: aggregate }))
@@ -39,13 +48,23 @@ module Hecksagain
       # finding: the differential gate the retired cross-runtime harness
       # should always have been, aimed where the divergence actually
       # lives — between the engines inside this one runtime.
+      #
+      # A hop clause is answered here by its OWN, deliberately naive
+      # walk (reference_where_holds?) — never Runtime::ReferenceHop's
+      # partition/fold/IN-clause. Sharing that algorithm would have made
+      # this oracle blind to exactly the code the hop feature adds: every
+      # PHASE of a shared fold would still get diffed against the native
+      # adapters, but the fold itself — the empty candidate set, a
+      # duplicate id, a dangling reference, a chain's inside-out
+      # resolution order — would only ever be compared against itself.
       def reference_call(domain, aggregate, query_name, args)
         return entity_rows(domain, aggregate, query_name, args) if query_name.include?(".")
 
         declared = declared_query(aggregate, query_name)
         args = normalize_args(aggregate, declared, args)
         declared = TenantScope.apply(declared, args)
-        interpret(@registry.repository(domain, aggregate).all, declared, args)
+        reference_interpret(@registry.repository(domain, aggregate).all, declared, args,
+                             domain: domain, shape: aggregate)
       end
 
       private
@@ -62,6 +81,44 @@ module Hecksagain
         capped  = declared.limit ? ordered.first(resolve_query_value(declared.limit.value, args).to_i) : ordered
 
         capped.map { |r| { id: r.id }.merge(r.state) }
+      end
+
+      # `interpret`'s own twin, for reference_call alone — same
+      # select/order/limit shape, but a clause that hops through a
+      # reference is answered by reference_where_holds? instead of the
+      # plain FieldPath.dig(record, field) `where_holds?` uses (which
+      # has no concept of a reference at all — it would just read the
+      # raw id straight off the record and compare THAT).
+      def reference_interpret(records, declared, args, domain:, shape:)
+        matched = records.select { |r| declared.wheres.all? { |w| reference_where_holds?(w, r, args, domain: domain, shape: shape) } }
+        ordered = ordered(matched, declared.order_by, declared.null_semantics)
+        capped  = declared.limit ? ordered.first(resolve_query_value(declared.limit.value, args).to_i) : ordered
+
+        capped.map { |r| { id: r.id }.merge(r.state) }
+      end
+
+      # THE NAIVE READING OF A HOP: not a fold, not an id set — for
+      # each candidate row, walk the reference by hand and dig the
+      # field out of whatever it actually points at. A nil reference,
+      # or one that resolves to nothing (a dangling id), makes the
+      # WHOLE clause false outright, whatever the comparator — "points
+      # at a client that is not active" is false for a proposal with no
+      # client at all, the same way it is false for one whose client
+      # really is active; falling through to holds?(clause, nil, args)
+      # instead would answer `ne` wrong (nil != "active" is true).
+      def reference_where_holds?(clause, record, args, domain:, shape:)
+        step = QuerySpecification::HopPath.next_hop(clause.field, shape.attributes)
+        return where_holds?(clause, record, args) unless step
+
+        hop, rest = step
+        reference_id = record[hop.attribute.name]
+        return false if reference_id.nil?
+
+        target_record = @registry.repository(domain, hop.target).find(reference_id)
+        return false unless target_record
+
+        inner = QuerySpecification::Common::WhereClause.new(field: rest, op: clause.op, value: clause.value)
+        reference_where_holds?(inner, target_record, args, domain: domain, shape: hop.target)
       end
 
       def entity_rows(domain, aggregate, dotted, args)

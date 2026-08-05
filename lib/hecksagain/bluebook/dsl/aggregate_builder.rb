@@ -266,7 +266,7 @@ module Hecksagain
                 seal_ordered_comparator(owner, query, fields, clause)
                 seal_query_argument(owner, query, clause.value)
               end
-              seal_query_field(owner, query, fields, lifecycle, query.order_by.field) if query.order_by
+              seal_query_field(owner, query, fields, lifecycle, query.order_by.field, ordering: true) if query.order_by
               seal_query_argument(owner, query, query.limit&.value)
               seal_query_argument(owner, query, query.offset&.value)
             end
@@ -278,7 +278,7 @@ module Hecksagain
             @entities.map { |entity| ["#{@name}::#{entity.hecks_name}", entity.attributes, entity.lifecycle, entity.queries] }
         end
 
-        def seal_query_field(owner, query, fields, lifecycle, field)
+        def seal_query_field(owner, query, fields, lifecycle, field, ordering: false)
           name, *nested = field.to_s.split(".")
           attribute = fields.find { |candidate| candidate.name.to_s == name }
           return if nested.empty? && (attribute || lifecycle&.field.to_s == name)
@@ -289,6 +289,36 @@ module Hecksagain
                   "#{owner}.#{query.hecks_name} asks about #{field}, which lands on a " \
                   "value object, not a scalar — a dotted query path ends on a scalar " \
                   "member, or the engines answer it differently"
+          end
+
+          if nested.any? && QuerySpecification::HopPath.hop_head?(field, fields)
+            # ORDER BY refuses a hop OUTRIGHT, right here — unlike a
+            # WHERE hop (deferred below), this doesn't need the
+            # target's shape to answer: an ask is ordered by what its
+            # own answering rows hold, and a hop answers with a
+            # candidate set, not a sort key (see Runtime::ReferenceHop).
+            if ordering
+              raise Malformed,
+                    "#{owner}.#{query.hecks_name} orders by #{field}, which hops through " \
+                    "a reference — an ask is ordered by what its own answering rows " \
+                    "hold, and a hop answers with a candidate set, not a sort key"
+            end
+
+            # RECOGNISED HERE, CHECKED LATER. The head names one of
+            # this aggregate's own references, which is answerable
+            # now — a Reference knows its own target_name at
+            # declaration. What it points AT is not: stamp_references
+            # has already run by this point, but the chapter
+            # (IR::Bluebook, and the owning aggregate's OWN place in
+            # it) does not exist yet, so Reference#resolve would
+            # answer nil for every target in the file, including ones
+            # declared above this one. The tail, and whether the
+            # target even exists, are BluebookBuilder's business —
+            # see validate_query_hops!, which runs once the chapter is
+            # real, for exactly the reason
+            # validate_no_bidirectional_references! already gives for
+            # living at that same later point.
+            return
           end
 
           raise Malformed,
@@ -304,6 +334,16 @@ module Hecksagain
           attribute = fields.find { |candidate| candidate.name.to_s == name }
           return if attribute &&
                     QuerySpecification::FieldPath.numeric?(attribute, nested) { |type| declared_value_object(type) }
+
+          # A WHERE clause hopping through a reference with an ordered
+          # comparator is legitimate ("client whose balance > 500") —
+          # unlike ORDER BY (refused outright in seal_query_field, see
+          # its own comment), a where-clause hop answers a real
+          # candidate set either way, ordered or not. Deferred for the
+          # same reason any other hop is: whether the tail is even
+          # numeric is BluebookBuilder#validate_query_hops!'s question
+          # to ask of the TARGET's shape, not this aggregate's own.
+          return if nested.any? && QuerySpecification::HopPath.hop_head?(clause.field, fields)
 
           held = attribute ? "holds no number" : "is the lifecycle field, which holds text"
           raise Malformed,

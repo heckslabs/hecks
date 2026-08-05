@@ -247,6 +247,28 @@ Hecks.adapter "ThermalPrinter" do
 end
 ```
 
+That declares "receipt" as a project-wide port — reusable by any
+aggregate, worth its own file the moment more than one might bind it.
+A port that belongs to exactly one aggregate does not need a file of
+its own: the same `verb` word reached from *inside* the hecksagon,
+right beside the aggregate it addresses, registers the identical
+`IR::Port` — bound, verified, and settings-resolved exactly the same
+way, just spelled where it is actually used instead of a level of
+indirection away:
+
+```ruby skip
+Pizzas::Order.port "receipt" do
+  verb "receipted_by"
+end
+```
+
+Same name, same aggregate-scoped `port` call [Driving ports](#driving-ports)
+above already reaches for `operation` — a port is one shape or the
+other, `verb` or `operation`, never both. `Hecks.adapter
+"ThermalPrinter"` does not change at all; an adapter names the port it
+answers by string (`port "receipt"`), and does not care which of the
+two ways that port was declared.
+
 [writing-an-adapter.md](writing-an-adapter.md) is where that contract lives in full — what
 `field` versus `secret` actually buys you, what a driven adapter must
 implement, how a driving one calls back in. Reach for the library's

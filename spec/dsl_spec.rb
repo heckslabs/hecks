@@ -1144,6 +1144,223 @@ RSpec.describe "the DSL surface" do
         end.to raise_error(Malformed, /compares pizza\.label\.text with gt.*holds no number/m)
       end
 
+      describe "a dotted path that hops through a reference" do
+        def build_hop_bluebook(name = "Hopping", client: nil, &proposal_query)
+          build_bluebook(name) do
+            aggregate "Client" do
+              identified_by { name.value }
+              attribute :name, "ClientName"
+              value_object("ClientName") { attribute :value, String }
+              lifecycle :status, default: "active" do
+                transition "Churn" => "churned", from: "active"
+              end
+              instance_eval(&client) if client
+            end
+
+            aggregate "Proposal" do
+              identified_by { number.value }
+              reference_to Client
+              attribute :number, "ProposalNumber"
+              value_object("ProposalNumber") { attribute :value, String }
+              instance_eval(&proposal_query)
+            end
+          end
+        end
+
+        it "admits a hop that lands on a scalar the target declares" do
+          bluebook = build_hop_bluebook do
+            query("AwaitingReply") { where(:"client.status" => "active") }
+          end
+
+          expect(bluebook.aggregate("Proposal").queries.first.wheres.first.field.to_s).to eq("client.status")
+        end
+
+        it "admits a WHERE hop with an ordered comparator — the target's own field decides, not the ask" do
+          expect do
+            build_hop_bluebook(client: proc { value_object("Balance") { attribute :cents, Integer }; attribute :balance, "Balance" }) do
+              query("HighValue") { where(:"client.balance.cents" => { gt: 500 }) }
+            end
+          end.not_to raise_error
+        end
+
+        it "refuses ORDER BY through a hop outright — an ask is ordered by its own rows, not a candidate set" do
+          expect do
+            build_hop_bluebook do
+              query("BadOrder") { order_by :"client.status" }
+            end
+          end.to raise_error(Malformed, /orders by client\.status, which hops through a reference/)
+        end
+
+        it "refuses a hop into an aggregate this chapter never declares" do
+          expect do
+            build_bluebook("Dangling") do
+              aggregate "Proposal" do
+                identified_by { number.value }
+                reference_to Client
+                attribute :number, "ProposalNumber"
+                value_object("ProposalNumber") { attribute :value, String }
+                query("Bad") { where(:"client.status" => "active") }
+              end
+            end
+          end.to raise_error(Malformed, /asks about client\.status, which hops to Client, which this chapter never declares/)
+        end
+
+        it "refuses a hop whose tail names nothing the target declares" do
+          expect do
+            build_hop_bluebook do
+              query("Bad") { where(:"client.nonexistent" => "x") }
+            end
+          end.to raise_error(Malformed, /hops to Client and then asks about nonexistent, which Client never declares/)
+        end
+
+        it "refuses a hop whose tail lands on a value object rather than a scalar" do
+          # A BARE tail landing on a value object ("client.balance") is
+          # fine — the same one-level convention a same-aggregate bare
+          # field already gets (query_agreement_spec.rb's AtLeast500Desc
+          # does exactly this). It takes a SECOND dotted level, landing
+          # on a nested value object instead of finally reaching a
+          # scalar, to trigger this refusal — Box -> Price, mirroring
+          # the existing same-aggregate "lands on a value object" spec's
+          # own Pizza -> Price shape above.
+          client = proc do
+            value_object("Price") { attribute :cents, Integer }
+            value_object("Box")   { attribute :price, "Price" }
+            attribute :box, "Box"
+          end
+
+          expect do
+            build_hop_bluebook(client: client) do
+              query("Bad") { where(:"client.box.price" => { gt: 500 }) }
+            end
+          end.to raise_error(Malformed, /hops to Client and then asks about box\.price, which lands on a value object, not a scalar/)
+        end
+
+        it "refuses an ordered comparator on a hop's tail when it holds no number" do
+          expect do
+            build_hop_bluebook do
+              query("Bad") { where(:"client.status" => { gt: "active" }) }
+            end
+          end.to raise_error(Malformed, /compares client\.status with gt after hopping to Client.*is the lifecycle field, which holds text/m)
+        end
+
+        it "refuses an ordered comparator on a hop's tail that's a real attribute holding no number" do
+          expect do
+            build_hop_bluebook(client: proc { attribute :note, String }) do
+              query("Bad") { where(:"client.note" => { gt: "z" }) }
+            end
+          end.to raise_error(Malformed, /compares client\.note with gt after hopping to Client.*holds no number/m)
+        end
+
+        it "a multi-hop chain reads left to right, outward to inward" do
+          bluebook = build_bluebook("MultiHop") do
+            aggregate "Client" do
+              identified_by { name.value }
+              attribute :name, "ClientName"
+              value_object("ClientName") { attribute :value, String }
+              lifecycle :status, default: "active" do
+                transition "Churn" => "churned", from: "active"
+              end
+            end
+
+            aggregate "Engagement" do
+              identified_by { reference.value }
+              reference_to Client
+              attribute :reference, "EngagementRef"
+              value_object("EngagementRef") { attribute :value, String }
+            end
+
+            aggregate "Proposal" do
+              identified_by { number.value }
+              reference_to Engagement
+              attribute :number, "ProposalNumber"
+              value_object("ProposalNumber") { attribute :value, String }
+              query("AwaitingReply") { where(:"engagement.client.status" => "active") }
+            end
+          end
+
+          expect(bluebook.aggregate("Proposal").queries.first.wheres.first.field.to_s)
+            .to eq("engagement.client.status")
+        end
+
+        it "admits a self-referential hop chain — revisiting the same aggregate TYPE is not a cycle" do
+          expect do
+            build_bluebook("SelfRef") do
+              aggregate "Node" do
+                identified_by { label.value }
+                reference_to Node, as: :parent
+                attribute :label, "NodeLabel"
+                value_object("NodeLabel") { attribute :value, String }
+                query("GrandparentLabel") { where(:"parent_node.parent_node.label" => "root") }
+              end
+            end
+          end.not_to raise_error
+        end
+
+        it "refuses a hop chain deep enough to be a mistake, not because anything could loop forever" do
+          expect do
+            build_bluebook("TooDeep") do
+              aggregate "Node" do
+                identified_by { label.value }
+                reference_to Node
+                attribute :label, "NodeLabel"
+                value_object("NodeLabel") { attribute :value, String }
+                nine = (["node"] * 9 + ["label"]).join(".")
+                query("TooFar") { where(nine.to_sym => "root") }
+              end
+            end
+          end.to raise_error(Malformed, /whose hop chain reaches 8 references deep/)
+        end
+
+        # THE NON-COLLAPSE EDGE CASE — Facade::Handle#reference_accessor_name
+        # never lets an `as:` name that already equals the target's own
+        # snake case collapse onto the bare name (`piece.studio` stays the
+        # raw id reader). Naming.reference_hop is the same rule now, so the
+        # query DSL has to agree: `studio` is the REFERENCE ATTRIBUTE's own
+        # raw name here (a real local attribute wins before HopPath is ever
+        # asked), so `:"studio.x"` dead-ends the same way any dotted path
+        # onto a bare reference always has — refused as "never declares,"
+        # not recognised as a hop at all. `:"studio_studio.x"` is the hop.
+        it "never reads an as:-named self-collision as the hop — only the suffixed spelling" do
+          expect do
+            build_bluebook("NonCollapse") do
+              aggregate "Studio" do
+                identified_by { name.value }
+                attribute :name, "StudioName"
+                value_object("StudioName") { attribute :value, String }
+              end
+
+              aggregate "Piece" do
+                identified_by { tag.value }
+                reference_to Studio, as: :studio
+                attribute :tag, "PieceTag"
+                value_object("PieceTag") { attribute :value, String }
+                query("Bad") { where(:"studio.name" => "x") }
+              end
+            end
+          end.to raise_error(Malformed, /asks about studio\.name, which Piece never declares/)
+        end
+
+        it "the suffixed spelling IS the hop, for the same as:-named reference" do
+          bluebook = build_bluebook("NonCollapseHop") do
+            aggregate "Studio" do
+              identified_by { name.value }
+              attribute :name, "StudioName"
+              value_object("StudioName") { attribute :value, String }
+            end
+
+            aggregate "Piece" do
+              identified_by { tag.value }
+              reference_to Studio, as: :studio
+              attribute :tag, "PieceTag"
+              value_object("PieceTag") { attribute :value, String }
+              query("Good") { where(:"studio_studio.name.value" => "x") }
+            end
+          end
+
+          expect(bluebook.aggregate("Piece").queries.first.wheres.first.field.to_s).to eq("studio_studio.name.value")
+        end
+      end
+
       it "admits the shapes both adapters answer identically" do
         aggregate = build_aggregate("Sound") do
           value_object("Money")  { attribute :cents, Integer }
@@ -1516,8 +1733,39 @@ RSpec.describe "the DSL surface" do
       expect(port.operation("Receive").hecks_name).to eq("Receive")
     end
 
-    it "refuses a port with no operations" do
-      expect { build_domain_port {} }.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /declares no operations/)
+    # THE DRIVEN HALF, reached through the same `port` call — registered
+    # the same way `Hecks.port`'s own top-level method registers one
+    # (`registry.ports`, not the aggregate's own IR — that's where an
+    # operations-shaped port lands, checked above).
+    it "verb builds a resource-style port, registered the same way Hecks.port is" do
+      registry = in_registry do
+        Hecks.bluebook("DomPortVerb") do
+          aggregate("Thing") do
+            identified_by { thing_id.value }
+          end
+        end
+        Hecks.hecksagon("DomPortVerb") { DomPortVerb::Thing.port("Checkout") { verb "opened_by" } }
+      end
+
+      port = registry.ports["Checkout"]
+      expect(port.verb).to eq("opened_by")
+      expect(registry.bluebook("DomPortVerb").aggregate("Thing").port("Checkout")).to be_nil
+    end
+
+    it "refuses a port declaring both a verb and operations" do
+      expect do
+        build_domain_port do
+          verb "opened_by"
+          operation("Receive") do
+            reference_to Thing, as: :thing_id
+            emits "Received"
+          end
+        end
+      end.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /declares both a verb and operations/)
+    end
+
+    it "refuses a port with no verb and no operations" do
+      expect { build_domain_port {} }.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /declares no verb and no operations/)
     end
 
     it "a bare port at a hecksagon's root belongs to the chapter, not one aggregate" do
@@ -1534,6 +1782,21 @@ RSpec.describe "the DSL surface" do
 
       port = registry.bluebook("RootPort").port("Clock")
       expect(port.operation("Tick").emits).to eq(["Ticked"])
+    end
+
+    it "a bare verb port at a hecksagon's root registers the same way a bound one does" do
+      registry = in_registry do
+        Hecks.bluebook("RootPortVerb") do
+          aggregate("Thing") do
+            identified_by { thing_id.value }
+          end
+        end
+        Hecks.hecksagon("RootPortVerb") { port("Weather") { verb "provided_by" } }
+      end
+
+      port = registry.ports["Weather"]
+      expect(port.verb).to eq("provided_by")
+      expect(registry.bluebook("RootPortVerb").port("Weather")).to be_nil
     end
   end
 

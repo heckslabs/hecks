@@ -423,6 +423,12 @@ Hecks.bluebook "Bluebook" do
         # could enumerate against an open aggregate name).
         member word: "port",            context: "Hecksagon",     body: "keywords", inner: "DomainPort",    opens: "DomainPort",    fills: ""
         member word: "operation",       context: "DomainPort",    body: "keywords", inner: "PortOperation", opens: "PortOperation", fills: ""
+        # THE DRIVEN HALF OF THE SAME `port` call — a swappable resource
+        # port (`registry.add_port`, the same target `Hecks.port`'s own
+        # top-level word reaches) rather than an operation translating an
+        # inbound fact. One or the other, never both — DomainPortBuilder#build
+        # enforces it.
+        member word: "verb",            context: "DomainPort",    body: "none",     inner: "",              opens: "",              fills: "verb"
         member word: "reference_to",    context: "PortOperation", body: "none",     inner: "",              opens: "",              fills: "attributes"
         member word: "attribute",       context: "PortOperation", body: "none",     inner: "",              opens: "",              fills: "attributes"
         member word: "emits",           context: "PortOperation", body: "none",     inner: "",              opens: "",              fills: "emits"
@@ -697,6 +703,7 @@ Hecks.bluebook "Bluebook" do
         member keyword: "subscribe",       context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "subscriptions"
         member keyword: "port",            context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "name"
         member keyword: "operation",       context: "DomainPort", at: "1", named: "", kind: "text", required: "true", fills: "name"
+        member keyword: "verb",            context: "DomainPort", at: "1", named: "", kind: "text", required: "true", fills: "verb"
         member keyword: "reference_to",    context: "PortOperation", at: "1", named: "",     kind: "constant", required: "true",  fills: "type"
         member keyword: "reference_to",    context: "PortOperation", at: "",  named: "as",    kind: "symbol",   required: "false", fills: "name"
         member keyword: "attribute",       context: "PortOperation", at: "1", named: "",        kind: "symbol",   required: "true",  fills: "name"

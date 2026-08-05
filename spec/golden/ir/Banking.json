@@ -1319,6 +1319,30 @@
               "value": "open,frozen"
             }
           ]
+        },
+        {
+          "attributes": [
+
+          ],
+          "description": "Open accounts whose customer has since been suspended — live money movement nobody should be approving right now.",
+          "limit": null,
+          "name": "OpenForSuspendedCustomers",
+          "order_by": {
+            "direction": "asc",
+            "field": "number"
+          },
+          "wheres": [
+            {
+              "field": "status",
+              "op": "eq",
+              "value": "open"
+            },
+            {
+              "field": "customer.status",
+              "op": "eq",
+              "value": "suspended"
+            }
+          ]
         }
       ],
       "value_objects": [

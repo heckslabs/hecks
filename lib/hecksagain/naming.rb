@@ -70,6 +70,35 @@ module Hecksagain
       snake(demodulise(type)).to_sym
     end
 
+    # THE NAME A REFERENCE ANSWERS TO, PAST ITS OWN STORAGE SHAPE.
+    #
+    # `client_id` on Contract, target Client -> `client` — stripping the
+    # storage-shape `_id` suffix is always safe, because the result can
+    # never equal the raw attribute's own name (that name HAD the
+    # suffix). `source` on Transfer (an `as:` reference, no `_id`
+    # suffix), target Account -> `source_account`.
+    #
+    # NEVER collapse an `as:` name that already equals the target's own
+    # snake case (`reference_to Studio, as: :studio`) down to the bare
+    # name — caught for real, not hypothetically: `piece.studio` is a
+    # doctested reader answering the raw id ("north:3"), and a first
+    # draft of `Facade::Handle`'s own accessor silently redefined it to
+    # answer a hydrated Studio instead. Suffixing unconditionally in
+    # that branch keeps the two names distinct on purpose — `studio`
+    # still reads the value, `studio_studio` reads the record.
+    #
+    # One rule, two callers: `Facade::Handle#define_reference_accessors`
+    # (the Ruby accessor `piece.studio`) and a cross-aggregate query's
+    # dotted hop (`:"studio_studio.x"`) name the same concept — a
+    # reference spelled two ways was exactly the bug `IDENTITY_JOIN`'s
+    # own comment above describes.
+    def reference_hop(attribute_name, target_snake)
+      base = attribute_name.to_s
+      return base.delete_suffix("_id") if base.end_with?("_id")
+
+      "#{base}_#{target_snake}"
+    end
+
 
     def split_dotted(dotted)
       first, second = dotted.to_s.split(".", 2)

@@ -76,17 +76,35 @@ module Hecksagain
             contains_clause(expression, placeholder(binds, value.to_s))
           end
         when "in"
-          # The same comma-separated convention every other where-clause
-          # comparator uses (Ports::Query::InMemory, QueryInterpreter) —
-          # see QuerySpecification.numeric_literal's
-          # neighbourhood for why a literal arrives as text at all.
-          members = value.to_s.split(",").map(&:strip).reject(&:empty?)
+          members = in_members(value)
           return empty_in_clause if members.empty?
 
           "#{expression} IN (#{members.map { |member| placeholder(binds, member) }.join(', ')})"
         else
           raise ArgumentError, "#{dialect_name} query adapter does not support #{op.inspect}"
         end
+      end
+
+      # A REAL ARRAY ALREADY SAYS WHERE ITS MEMBERS END. Splitting one on
+      # commas re-reads a boundary it already drew — and an id is a
+      # domain value (Naming::IDENTITY_JOIN joins a composite identity's
+      # own parts, and the parts it joins are whatever an identity path
+      # pulled out of real data), so a name carrying a comma would
+      # silently become two members matching the wrong rows, or nothing.
+      # This branch used to call `value.to_s` unconditionally, which
+      # meant only a comma-joined STRING ever worked here, while
+      # Ports::Query::InMemory and QueryInterpreter's own `members`
+      # already handled a real Array — three implementations of `in`,
+      # two readings of it. Narrower than those two on one point,
+      # deliberately: they unwrap a value-object/Hash element to its
+      # own scalar first (`comparable`) before stringifying, a rule
+      # this doesn't reproduce — every real caller of `in` today, and
+      # the cross-aggregate hop this exists for, passes plain scalar
+      # ids, never a value-object element.
+      def in_members(value)
+        return value.map(&:to_s).reject(&:empty?) if value.is_a?(Array)
+
+        value.to_s.split(",").map(&:strip).reject(&:empty?)
       end
 
       # Every declared field compiles into an expression over the stored

@@ -141,6 +141,16 @@ RSpec.describe "adapter agreement — declared queries answer identically across
       builder.query("OpenOnes")       { where(status: "open") }
       builder.query("NotClosed")      { where(status: { ne: "closed" }) }
       builder.query("InBothStatuses") { where(status: { in: "open,closed" }) }
+      # A REAL ARRAY, not a comma-joined string — and every member is a
+      # whole sentence that carries its own commas as CONTENT, the exact
+      # shape an id built from a joined identity path could take. Under
+      # the old `value.to_s.split(",")` reading this matched nothing at
+      # all on Sqlite/Postgres (the array's own `.to_s` gets re-split on
+      # every comma inside it, member and content alike) while Memory
+      # already read a real Array correctly — a divergence, not a typo.
+      builder.query("NoteValuesIn") do
+        where(:"note.value" => { in: ["flagged: high, risk today", "high, risk, reviewed"] })
+      end
       # An empty in-list is not refused at the seal — only lt/lte/gt/gte
       # get the numeric-field check — so this stays admitted, and every
       # engine's own documented reading is "empty candidate set matches
@@ -266,6 +276,10 @@ RSpec.describe "adapter agreement — declared queries answer identically across
 
   it "compiles an empty in-list as matching nothing, the same everywhere" do
     agree!("InNoStatuses", expected: [])
+  end
+
+  it "compiles in on a real Array whose own members carry commas, the same everywhere" do
+    agree!("NoteValuesIn", expected: %w[r1 r4])
   end
 
   it "compiles lt through a :symbol query argument on a bare value object, ordered, the same everywhere" do

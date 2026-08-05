@@ -9879,6 +9879,32 @@
             [
               [
                 "word",
+                "verb"
+              ],
+              [
+                "context",
+                "DomainPort"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "verb"
+              ]
+            ],
+            [
+              [
+                "word",
                 "reference_to"
               ],
               [
@@ -14083,6 +14109,36 @@
               [
                 "fills",
                 "name"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "verb"
+              ],
+              [
+                "context",
+                "DomainPort"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "verb"
               ]
             ],
             [

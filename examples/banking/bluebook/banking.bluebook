@@ -437,6 +437,21 @@ Hecks.bluebook "Banking", version: "v1" do
       order_by :number
     end
 
+    # A DOTTED WHERE, HOPPING THROUGH A REFERENCE — the shape a
+    # hand-written precondition check used to be the only way to ask
+    # for: "an open account whose OWN customer is suspended," not
+    # anything about the account's own declared fields. `customer` is
+    # the hop — Account's own `reference_to Customer` above, addressed
+    # by the same name Facade::Handle's own hydrated accessor answers
+    # to (`account.customer`) — and `status` is Customer's own
+    # lifecycle field, checked on the TARGET, not this aggregate.
+    query "OpenForSuspendedCustomers" do
+      description "Open accounts whose customer has since been suspended — live money movement nobody should be approving right now."
+      where(status: "open")
+      where(:"customer.status" => "suspended")
+      order_by :number
+    end
+
     policy "ReviewOnFreeze" do
       on      "Account.AccountFrozen"
       trigger "Compliance.OpenReview"

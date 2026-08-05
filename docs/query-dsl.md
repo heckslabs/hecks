@@ -28,11 +28,30 @@ use_index(name)
 ```
 
 `read_model` (`ReadModelBuilder`) additionally has `reference_to`/`include` — a real,
-already-built answer to "through relationships, like SQL." This was gotten wrong
-once in this project's own reasoning before being checked directly: plain `query`
-never crosses an aggregate boundary, but `read_model` does, and it's not dormant
-scaffolding — there's a live consumer (`adapters/driven/sqlite/projection.rb`) and
-real corpus usage:
+already-built answer to "through relationships, like SQL" at the scale of GATHERING
+several aggregates' own rows into one projected shape. This was gotten wrong once in
+this project's own reasoning before being checked directly, and is worth stating
+precisely now that it's wrong a second way: it used to read "plain `query` never
+crosses an aggregate boundary, but `read_model` does" — true when written, no longer
+true. A plain `query`'s dotted `where` field can now HOP through a `reference_to`
+attribute to filter on the referenced aggregate's own field (`QuerySpecification::HopPath`,
+`Runtime::ReferenceHop`) — a different capability than `read_model`'s, answering a
+different question. A hop FILTERS one aggregate's own rows by a fact about what they
+point at (`Account.OpenForSuspendedCustomers`, in `examples/banking`: `where(status:
+"open"); where(:"customer.status" => "suspended")` — still just `Account` rows back,
+narrowed by a fact about each one's own `Customer`); `read_model` GATHERS rows from
+several aggregates into one new, wider shape. Neither replaces the other:
+
+```ruby
+query "OpenForSuspendedCustomers" do
+  where(status: "open")
+  where(:"customer.status" => "suspended")
+  order_by :number
+end
+```
+
+`read_model`'s own `reference_to`/`include` is not dormant scaffolding either — there's
+a live consumer (`adapters/driven/sqlite/projection.rb`) and real corpus usage:
 
 ```ruby
 read_model "CustomerPortfolio" do
@@ -85,6 +104,13 @@ the account.
   empty collection" — `many:` only ever answers cardinality, never optionality.
   Adding the lever would resolve the ambiguity rather than leave it to be discovered
   by whatever the adapter happens to do.
+- **Compiling a hop into a real SQL `JOIN`.** A hop resolves today by running one
+  ordinary query against the hop's target aggregate and folding the ids it answers
+  back in as a local `in` clause (`Runtime::ReferenceHop`) — correct on every adapter,
+  including a mix of them, but two round trips where a shared Postgres connection
+  could in principle answer one JOINed query instead. A real, bounded optimization
+  layered on a correct baseline, not a prerequisite for one — worth doing if a hop
+  query's two-round-trip cost is ever actually measured to matter, not before.
 - **Era/time-aware reads — "as of."** More speculative than the others, and not
   checked against the existing era/lineage system (`EraGuard`, the translation arc) —
   this may already exist there under a different name. Worth naming because it's

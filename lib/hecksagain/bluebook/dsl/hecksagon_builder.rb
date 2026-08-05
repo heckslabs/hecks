@@ -36,8 +36,16 @@ module Hecksagain
           # one, which would turn a bare constant inside an operation's
           # `reference_to`/`attribute` into another BindingProxy instead of
           # a name.
-          domain_port = ConstShim.with(->(const) { const }) { DomainPortBuilder.build(name, &block) }
-          bluebook_ir.add_port(domain_port)
+          built = ConstShim.with(->(const) { const }) { DomainPortBuilder.build(name, &block) }
+
+          # See BindingProxy#port's own comment on the same branch — a
+          # `verb`-shaped port is a plain `IR::Port`, registered the same
+          # way `Hecks.port`'s top-level method already does, not attached
+          # to this bluebook's own IR the way an operations-shaped
+          # `IR::DomainPort` is.
+          return Hecksagain.current_registry.add_port(built) if built.is_a?(IR::Port)
+
+          bluebook_ir.add_port(built)
         end
 
         def build = IR::Hecksagon.new(domain: @domain, binds: @binds, subscriptions: @subscriptions)

@@ -1,0 +1,132 @@
+Hecks.bluebook "HopChain" do
+  generic
+
+  # Proposal -> Engagement -> Client, the real shape this feature exists
+  # for (Embryonaut's own hand-written PRECONDITIONS table, made a
+  # declared query instead).
+  aggregate "Client" do
+    identified_by { name.value }
+    attribute :name, "Name"
+    value_object("Name") { attribute :value, String }
+
+    lifecycle :status, default: "active" do
+      transition "Churn" => "churned", from: "active"
+    end
+
+    command "Register" do
+      attribute :name, "Name"
+      then_set :name, to: :name
+      emits "Registered"
+    end
+
+    command "Churn" do
+      reference_to Client
+      emits "Churned"
+    end
+  end
+
+  aggregate "Engagement" do
+    identified_by { reference.value }
+    reference_to Client
+    attribute :reference, "Reference"
+    value_object("Reference") { attribute :value, String }
+
+    lifecycle :stage, default: "started" do
+      transition "Demo" => "demo_shown", from: "started"
+    end
+
+    command "Start" do
+      reference_to Client
+      attribute :reference, "Reference"
+      then_set :reference, to: :reference
+      emits "Started"
+    end
+
+    command "Demo" do
+      reference_to Engagement
+      emits "Demoed"
+    end
+
+    query "WithActiveClient" do
+      where :"client.status" => "active"
+    end
+  end
+
+  aggregate "Proposal" do
+    identified_by { number.value }
+    reference_to Engagement
+    attribute :number, "Number"
+    value_object("Number") { attribute :value, String }
+
+    lifecycle :status, default: "drafted" do
+      transition "Send" => "sent", from: "drafted"
+      transition "Accept" => "accepted", from: "sent"
+    end
+
+    # The command's own reference is optional, even though the aggregate
+    # head's is not — a nil/never-set reference is real state a hop has
+    # to answer for (it never holds, whatever the comparator), and this
+    # is the one way to reach it: an aggregate-head reference_to cannot
+    # itself be declared optional.
+    command "Draft" do
+      reference_to Engagement, optional: true
+      attribute :number, "Number"
+      then_set :number, to: :number
+      emits "Drafted"
+    end
+
+    command "Send" do
+      reference_to Proposal
+      emits "Sent"
+    end
+
+    query "AwaitingReplyFromActiveClients" do
+      where status: "sent"
+      where :"engagement.client.status" => "active"
+      order_by :number
+    end
+
+    # The existential-negation case: NOT active must mean "points at a
+    # client that is churned," not "nil/dangling reference also counts."
+    query "SentButNotFromActiveClients" do
+      where status: "sent"
+      where :"engagement.client.status" => { ne: "active" }
+    end
+
+    query "PricedAboveViaEngagement" do
+      where :"engagement.client.status" => "active"
+      order_by :number
+      limit 1
+    end
+  end
+
+  # A SELF-REFERENCE, TWO HOPS DEEP — "grandparent" — proving a hop
+  # chain revisiting the same aggregate TYPE is real and safe, not a
+  # cycle to refuse. HopPath.MAX_HOPS bounds chain LENGTH, deliberately
+  # not aggregate identity: nothing about walking Node -> Node -> Node
+  # can loop forever, since the walk is bounded by the query's own
+  # literal dotted string, not by the reference graph's shape.
+  aggregate "Node" do
+    identified_by { label.value }
+    # `as:` is required for a self-reference to mean a plain ATTRIBUTE
+    # rather than "the root this command acts on" —
+    # CommandBuilder#reference_to's own comment names this exactly:
+    # without it, a command referencing its own aggregate's type reads
+    # as a second self-reference, refused as naming two roots.
+    reference_to Node, as: :parent
+    attribute :label, "Label"
+    value_object("Label") { attribute :value, String }
+
+    command "Plant" do
+      reference_to Node, as: :parent, optional: true
+      attribute :label, "Label"
+      then_set :label, to: :label
+      emits "Planted"
+    end
+
+    query "GrandparentLabelled" do
+      where :"parent_node.parent_node.label" => :label
+      attribute :label, "Label"
+    end
+  end
+end

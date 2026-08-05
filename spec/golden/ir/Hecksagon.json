@@ -325,12 +325,21 @@
           "optional": false,
           "pattern": null,
           "type": "PortName"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "verb",
+          "optional": true,
+          "pattern": null,
+          "type": "PortVerb"
         }
       ],
       "commands": [
 
       ],
-      "description": "A primary port — the boundary between a domain and its adapters, in hexagonal terms, is exactly what a hecksagon already IS for every other port. Root-level (belongs to the chapter) or aggregate-scoped (reached the same way persisted_by is, through the open Const.verb(...) door) ; either way its content is a list of operations, never a single field.",
+      "description": "A primary port — the boundary between a domain and its adapters, in hexagonal terms, is exactly what a hecksagon already IS for every other port. Root-level (belongs to the chapter) or aggregate-scoped (reached the same way persisted_by is, through the open Const.verb(...) door). One of two shapes, never both: a list of operations translating an inbound fact into this domain's own events, or a bare verb naming a swappable resource port (the same Hecks.port a project's own .port file declares, reached from inside the hecksagon instead).",
       "entities": [
 
       ],
@@ -366,6 +375,30 @@
 
           ],
           "name": "PortName"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "a verb is named"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "PortVerb"
         }
       ]
     },

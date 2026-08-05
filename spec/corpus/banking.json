@@ -543,6 +543,10 @@
       "args": {}
     },
     {
+      "query": "Banking::Account.OpenForSuspendedCustomers",
+      "args": {}
+    },
+    {
       "verb": "Banking::Customer.Reinstate",
       "args": {
         "reference": {
