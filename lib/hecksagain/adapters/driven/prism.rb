@@ -35,7 +35,16 @@ module Hecksagain
       end
 
       def tree_for(file)
-        TREES[file] ||= ::Prism.parse_file(file).value
+        # ::Prism.parse_file(file) reads the file itself, at the C
+        # extension level — bypassing Ruby's own File/IO layer entirely.
+        # That's invisible to anything that virtualizes the filesystem at
+        # the Ruby level instead of the OS level (e.g. tebako's memfs,
+        # used to press a hecksagain-based app into a single executable —
+        # see domain/README.md's "Deploying" section in lifeadelics for
+        # why that matters). ::Prism.parse(File.read(file)) parses the
+        # exact same bytes, just read through Ruby's File.read first,
+        # which those tools do intercept.
+        TREES[file] ||= ::Prism.parse(File.read(file)).value
       end
 
       def walk(node, &visit)
