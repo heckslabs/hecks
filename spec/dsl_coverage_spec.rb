@@ -6,7 +6,7 @@ RSpec.describe "the DSL surface is fully covered" do
   COVERED = {
     "Hecksagain (module surface)" => [
       Hecksagain.singleton_class,
-      %i[boot with_registry bluebook hecksagon port adapter world data_translation current_registry]
+      %i[boot with_registry bluebook hecksagon port adapter world data_translation current_registry as_caller]
     ],
     "BluebookBuilder" => [
       Hecksagain::Bluebook::DSL::BluebookBuilder,

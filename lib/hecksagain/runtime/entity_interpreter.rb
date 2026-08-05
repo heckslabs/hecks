@@ -25,9 +25,9 @@ module Hecksagain
       # assign_creation_attributes (an entity is never created through this
       # path).
       DISPATCH_ORDER = %i[
-        normalize_args resolve_references hydrate_parent locate_element
-        enforce_givens admissible_transition apply_mutations advance_lifecycle
-        enforce_ensures save emit
+        normalize_args refuse_role_mismatch resolve_references hydrate_parent
+        locate_element enforce_givens admissible_transition apply_mutations
+        advance_lifecycle enforce_ensures save emit
       ].freeze
 
       # `instance` is the PARENT aggregate record (what gets saved and
@@ -61,6 +61,10 @@ module Hecksagain
 
       def step_normalize_args(ctx)
         ctx.args = step(:normalize_args) { normalize_args(ctx.aggregate, ctx.command, ctx.args) }
+      end
+
+      def step_refuse_role_mismatch(ctx)
+        step(:refuse_role_mismatch) { @rules.refuse_role_mismatch(ctx.command) }
       end
 
       def step_resolve_references(ctx)

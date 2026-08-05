@@ -36,6 +36,7 @@ require_relative "runtime/instance"
 require_relative "runtime/registry"
 require_relative "runtime/errors"
 require_relative "runtime/refusal_wording"
+require_relative "runtime/caller"
 require_relative "runtime/command_rules"
 require_relative "runtime/command_interpreter"
 require_relative "runtime/port_operation_interpreter"
@@ -71,6 +72,11 @@ module Hecksagain
       ensure
         @current_registry = previous
       end
+
+      # Bind the ambient caller (see Runtime::Caller) for the duration of
+      # the block — who a command's declared `role`, if any, is checked
+      # against.
+      def as_caller(role:, &block) = Caller.as(role: role, &block)
     end
   end
 end

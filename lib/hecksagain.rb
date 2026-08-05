@@ -33,6 +33,12 @@ module Hecksagain
 
     def current_registry = Runtime.current_registry
 
+    # Bind who is dispatching for the duration of the block — checked
+    # against a command's declared `role`, if it has one. Unbound (the
+    # default), a command's role stays exactly what it is without this:
+    # decoration.
+    def as_caller(role:, &block) = Runtime.as_caller(role: role, &block)
+
     def bluebook(name, version: nil, &block) = collect(:add_bluebook, Bluebook::DSL::BluebookBuilder.build(name, version: version, &block))
     def hecksagon(name, &block) = collect(:add_hecksagon, Bluebook::DSL::HecksagonBuilder.build(name, &block))
     def port(name, &block)    = collect(:add_port,    Bluebook::DSL::PortBuilder.build(name, &block))

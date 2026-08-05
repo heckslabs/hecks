@@ -191,6 +191,7 @@ Hecks.bluebook "Bluebook" do
         member step: "refuse_unknown_arguments"
         member step: "refuse_absent_arguments"
         member step: "normalize_args"
+        member step: "refuse_role_mismatch"
         member step: "resolve_references"
         member step: "hydrate"
         member step: "enforce_givens"
@@ -218,6 +219,7 @@ Hecks.bluebook "Bluebook" do
       attribute :step, String
       one_of do
         member step: "normalize_args"
+        member step: "refuse_role_mismatch"
         member step: "resolve_references"
         member step: "hydrate_parent"
         member step: "locate_element"
@@ -349,6 +351,8 @@ Hecks.bluebook "Bluebook" do
         member refusal: "Unauthorized", site: "tenant_required",
                template: "{query} declares authorize with tenant: {field} — pass {field}: to name which " \
                          "{field} this ask is scoped to"
+        member refusal: "Unauthorized", site: "role_mismatch",
+               template: "{command} refused — role: {role}, and the caller stated {caller_role}"
       end
     end
 

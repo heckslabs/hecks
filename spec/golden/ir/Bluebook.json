@@ -6400,6 +6400,12 @@
             [
               [
                 "step",
+                "refuse_role_mismatch"
+              ]
+            ],
+            [
+              [
+                "step",
                 "resolve_references"
               ]
             ],
@@ -6481,6 +6487,12 @@
               [
                 "step",
                 "normalize_args"
+              ]
+            ],
+            [
+              [
+                "step",
+                "refuse_role_mismatch"
               ]
             ],
             [
@@ -7169,6 +7181,20 @@
               [
                 "template",
                 "{query} declares authorize with tenant: {field} — pass {field}: to name which {field} this ask is scoped to"
+              ]
+            ],
+            [
+              [
+                "refusal",
+                "Unauthorized"
+              ],
+              [
+                "site",
+                "role_mismatch"
+              ],
+              [
+                "template",
+                "{command} refused — role: {role}, and the caller stated {caller_role}"
               ]
             ]
           ],
