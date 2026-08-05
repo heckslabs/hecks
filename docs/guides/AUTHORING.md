@@ -67,11 +67,27 @@ Claims:
 
 Rules that keep the suite honest:
 
-- **Your guide owns its domain names.** Facade constants install
-  globally and are never uninstalled; the collision gate in
-  `spec/guides_spec.rb` fails loudly if two guides declare the same
-  chapter. Invent fresh names — do not reuse Pizzas, Banking, TillFloor,
-  Reflex, or another guide's names.
+- **Use the real corpus — do not invent a domain.** `examples/pizzas`
+  and `examples/banking` are what every guide teaches from now:
+  `Kernel.load` the real bluebook file the same way
+  `docs/guides/verification.md` or `docs/guides/schema-evolution.md`
+  does, and dispatch/query real constructs. If neither domain currently
+  has the shape or feature your guide needs, **extend banking with it**
+  — a real, sensible addition a bank would plausibly make (see the
+  `OnboardingCase`/`Onboarding` saga and `ScheduledPayment`'s retry
+  mechanism for two worked examples of this, both added specifically to
+  cover guide content that used to be fictional) — rather than
+  reaching for a fictional stand-in. The one exception: content that is
+  deliberately *invalid* (a malformed declaration proving a build-time
+  refusal, an unreachable lifecycle state proving a `bin/model_check`
+  finding, or a controlled multi-version diff that would mean minting a
+  fake historical era onto real, settled data) cannot be expressed in a
+  domain that must stay valid and golden — that stays a small,
+  explicitly-labelled throwaway fixture, torn down inside the guide
+  itself, with prose saying plainly why it isn't the real corpus (see
+  `docs/guides/lifecycles.md`'s and `docs/guides/verification.md`'s own
+  model-check fragments, or `docs/guides/schema-evolution.md`'s
+  scaffold-walkthrough fixture, for the pattern).
 - A guide needing real Postgres opens with `<!-- doctest: postgres -->`
   on its first line, and skips cleanly where none answers. Everything
   else boots Memory.

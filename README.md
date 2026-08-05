@@ -82,69 +82,161 @@ own examples run against the real runtime on every push.
 
 ## Writing a bluebook
 
-```ruby bluebook
-Hecks.bluebook "TillFloor" do
-  vision "A till takes money in and gives money out, and the drawer count is arithmetic — never a guess."
-  generic
+Above is `pizzas.bluebook` already running — booted, and every command in it
+real. Here is what declaring one from scratch actually looks like, the same
+file quoted piece by piece: identity, a value object with an invariant, a
+`list_of`, a simple lifecycle, one creating command, and one mutating command
+that refuses before it mutates.
 
-  aggregate "Till" do
+```ruby skip
+aggregate "Order" do
+  identified_by { name.value }
+
+  attribute :name,     PizzaName
+  attribute :toppings, list_of(Topping)
+
+  value_object "PizzaName" do
+    attribute :value, String
+
+    invariant("a pizza is named") { !value.to_s.empty? }
+  end
+
+  value_object "Topping" do
+    attribute :name,   String
+    attribute :amount, Integer
+  end
+
+  lifecycle :status, default: "available" do
+    transition "Purchase" => "sold", from: "available"
+  end
+
+  command "CreatePizza" do
+    role "Chef"
+    goal "Put a new pizza on the menu"
+
+    attribute :name,  PizzaName
+    attribute :pizza, Pizza
+
+    emits "PizzaCreated"
+  end
+
+  command "AddTopping" do
+    role "Chef"
+    goal "Customize a pizza with an ingredient"
+
+    reference_to Order
+    attribute :topping, ToppingName
+    attribute :amount, ToppingAmount
+
+    given("a sold pizza cannot be changed") { status == "available" }
+    given("at most 10 toppings")            { toppings.size < 10 }
+
+    then_set :toppings, append: { name: :topping, amount: :amount }
+
+    emits "ToppingAdded"
+  end
+end
+```
+
+(That is `examples/pizzas/bluebook/pizzas.bluebook`, trimmed to the pieces
+this section walks through — `Pizza`, `ToppingName`, and `ToppingAmount` are
+declared alongside it and read in full there.)
+
+A creating command is a module method; a mutating command is a method on the
+record it references, and never mutates without being asked to justify
+itself first — `given` refuses before `then_set` ever runs, and `PizzaName`'s
+invariant refuses before either does, on the same booted domain from above:
+
+```ruby
+Order.create_pizza(name: { value: "" }, pizza: { price_cents: { cents: 900 }, size: { value: "small" } })   # ~> InvariantViolation: a pizza is named
+```
+
+Pizzas' own mutations either replace a field (`then_set :status, to: "sold"`,
+on `Purchase`) or append to a list (`then_set :toppings, append: ...`,
+above) — this corpus never needed to increment a running total, so it never
+declared one. The banking corpus did: an account's balance is a number
+`Credit` raises rather than replaces. It is real too, so here it is, declared
+and booted the same way, trimmed to the one aggregate that needs it:
+
+```ruby bluebook
+Hecks.bluebook "Banking" do
+  vision "Customers hold accounts, accounts move money, and every movement is a transfer that can fail halfway. The domain that has to get it right twice — once in the rules, once in the recovery."
+  core
+
+  aggregate "Account" do
     identified_by { number.value }
 
-    attribute :number,  TillNumber
-    attribute :balance, Money, default: { cents: 0 }
-    attribute :marks,   list_of(Mark)
+    attribute :number,  AccountNumber
+    attribute :balance, Money
 
-    value_object "TillNumber" do
+    value_object "AccountNumber" do
       attribute :value, String
+      invariant("an account number is present") { !value.to_s.empty? }
     end
 
     value_object "Money" do
-      attribute :cents, Integer
-      invariant("a cash amount is never negative") { cents >= 0 }
+      attribute :cents,    Integer, default: 0
+      attribute :currency, String,  default: "USD"
+
+      invariant("a currency is a three-letter code") { currency.to_s.size == 3 }
     end
 
-    value_object "Mark" do
-      attribute :amount,    Integer
-      attribute :direction, String
+    value_object "PositiveMoney" do
+      attribute :cents,    Integer
+      attribute :currency, String, default: "USD"
+
+      invariant("an amount is positive") { cents.positive? }
+      invariant("a currency is a three-letter code") { currency.to_s.size == 3 }
+    end
+
+    lifecycle :status, default: "open" do
+      transition "Freeze" => "frozen", from: "open"
     end
 
     command "Open" do
-      role "Clerk"
-      goal "Put a till on the floor"
+      role "Branch clerk"
+      goal "Give a customer somewhere to keep money"
 
-      attribute :number, TillNumber
+      attribute :number, AccountNumber
 
-      emits "Opened"
+      then_set :number, to: :number
+
+      emits "AccountOpened"
     end
 
-    command "TakeIn" do
-      role "Clerk"
-      goal "Add cents to the drawer"
+    command "Credit" do
+      role "Teller"
+      goal "Put money in"
 
-      reference_to Till
-      attribute :amount, Money
+      reference_to Account
+      attribute :amount, PositiveMoney
+
+      given("the account is open") { status == "open" }
 
       then_set :balance, increment: :amount
-      then_set :marks,   append: { amount: :amount, direction: "in" }
 
-      emits "TakenIn"
+      emits "AccountCredited"
     end
   end
 end
 ```
 
 ```ruby boot
-Hecks.hecksagon("TillFloor") { TillFloor::Till.persisted_by("Memory") }
+Hecks.hecksagon("Banking") { Banking::Account.persisted_by("Memory") }
 ```
 
 ```ruby
-till = Till.open(number: { value: "7" })
-till.take_in(amount: { cents: 500 })
+account = Account.open(number: { value: "1001" })
+account.credit(amount: { cents: 500, currency: "USD" })
 
-till.balance.to_h           # => { cents: 500 }
-till.marks.map(&:to_h)      # => [{ amount: 500, direction: "in" }]
-till.take_in(amount: { cents: -1 })   # ~> InvariantViolation: a cash amount is never negative
+account.balance.to_h                                     # => { cents: 500, currency: "USD" }
+account.credit(amount: { cents: -1, currency: "USD" })    # ~> InvariantViolation: an amount is positive
 ```
+
+(That aggregate is a trimmed real subset of
+`examples/banking/bluebook/banking.bluebook` — the full `Account` also holds a
+`kind`, a `daily_limit`, a `ledger` of `LedgerEntry`, and a `Customer` it
+belongs to, none of which this one point needed.)
 
 Everything a command may do is one of a closed set of declared effects, and
 everything it may refuse is a named `given` or `invariant`. Refusals are not

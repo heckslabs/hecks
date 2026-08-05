@@ -12,83 +12,30 @@ anything is written to your store. Get it wrong — forget to give a
 state an exit, or declare a transition that can never fire — and
 `bin/model_check` is the tool that tells you before your users do.
 
-The examples in this guide use a warehouse: crates arrive, get put
-away, get pulled for an order, and either go back on the shelf or go
-out the door. It is a small domain, but shipping the wrong crate at
-the wrong point in its life is exactly the bug a lifecycle exists to
-make impossible.
+The examples in this guide run against the real corpus,
+`examples/banking/bluebook/banking.bluebook`'s `CardPayment` aggregate:
+a card authorisation that is captured, may be challenged after it
+settles, and either comes back from that dispute or is charged back
+for good. It is one aggregate out of a much larger domain, but
+charging back a payment nobody ever disputed is exactly the bug a
+lifecycle exists to make impossible.
 
 ## The declaration
 
-```ruby bluebook
-Hecks.bluebook "Depot" do
-  vision "A crate's life from the receiving dock to the outbound truck, and nothing skipped."
-  supporting
+`CardPayment`'s own lifecycle, exactly as it reads in the real file —
+shown here, not redeclared, so nothing on this page can drift from
+what the corpus actually says:
 
-  aggregate "Crate" do
-    description "One crate of goods, tracked from arrival to departure."
-
-    identified_by { label.value }
-
-    attribute :label, CrateLabel
-
-    value_object "CrateLabel" do
-      attribute :value, String
-      invariant("a crate is labelled") { !value.to_s.empty? }
-    end
-
-    lifecycle :status, default: "received" do
-      transition "Stow"    => "stowed",  from: "received"
-      transition "Pick"    => "picked",  from: "stowed"
-      transition "Restock" => "stowed",  from: "picked"
-      transition "Ship"    => "shipped", from: "picked"
-    end
-
-    command "Receive" do
-      role "Dock clerk"
-      goal "Log a crate as it comes off the inbound truck"
-
-      attribute :label, CrateLabel
-
-      emits "Received"
-    end
-
-    command "Stow" do
-      role "Warehouse operative"
-      goal "Put a received crate on a shelf"
-
-      reference_to Crate
-
-      emits "Stowed"
-    end
-
-    command "Pick" do
-      role "Warehouse operative"
-      goal "Pull a stowed crate to fill an order"
-
-      reference_to Crate
-
-      emits "Picked"
-    end
-
-    command "Restock" do
-      role "Warehouse operative"
-      goal "Put a picked crate back — the order it was pulled for fell through"
-
-      reference_to Crate
-
-      emits "Restocked"
-    end
-
-    command "Ship" do
-      role "Dock clerk"
-      goal "Load a picked crate onto the outbound truck"
-
-      reference_to Crate
-
-      emits "Shipped"
-    end
-  end
+```ruby skip
+# excerpted from examples/banking/bluebook/banking.bluebook
+lifecycle :status, default: "authorized" do
+  transition "Capture" => "captured", from: "authorized"
+  transition "Void" => "voided", from: "authorized"
+  transition "Refund" => "refunded", from: "captured"
+  transition "Reverse" => "reversed", from: "captured"
+  transition "Dispute" => "disputed", from: ["captured", "refunded"]
+  transition "Chargeback" => "charged_back", from: "disputed"
+  transition "RejectDispute" => "captured", from: "disputed"
 end
 ```
 
@@ -96,119 +43,154 @@ That `lifecycle` block is the whole shape: a field (`:status`), a
 `default:` it starts at, and one `transition` line per legal move —
 `"Command" => "target", from: "source"`. Nothing else belongs to it.
 `from:` may also be an array, when more than one state lets a command
-fire — `Close` on a bank customer moves from either `"active"` or
-`"suspended"`, the same idea one array wider.
+fire — `Dispute` above fires from either `"captured"` or `"refunded"`,
+the same command handling a challenge whether or not the charge was
+ever refunded first.
 
 ## Wiring
 
 ```ruby boot
-Hecks.hecksagon("Depot") { Depot::Crate.persisted_by("Memory") }
+Kernel.load(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/banking.bluebook"))
+Hecks.hecksagon("Banking") do
+  Banking::Customer.persisted_by("Memory")
+  Banking::Account.persisted_by("Memory")
+  Banking::CardPayment.persisted_by("Memory")
+end
+```
+
+A card payment authorizes against an existing account, so the
+walkthrough needs one first:
+
+```ruby
+runtime.dispatch("Banking::Customer.Register", reference: { value: "c1" },
+                 name: { given: "Odile", family: "Payer" }, email: { address: "odile@example.com" })
+runtime.dispatch("Banking::Account.Open", customer_id: "c1", number: { value: "a1" },
+                 kind: { name: "current" }, daily_limit: { cents: 50_000 })
 ```
 
 ## The default, and the automatic move
 
-A crate starts in whichever state is named as `default:` — no
-command sets it, because none has run yet:
+A payment starts in whichever state is named as `default:` — no
+transition sets it, because `Authorize` is the creating command and
+`"authorized"` is simply where a payment is born:
 
 ```ruby
-crate = Depot::Crate.receive(label: { value: "PLT-1042" })
-crate.status  # => "received"
+payment = Banking::CardPayment.authorize(account_id: "a1",
+  authorisation: { value: "auth-742" }, amount: { cents: 4200 },
+  merchant: { value: "Corner Shop" })
+payment.status  # => "authorized"
 ```
 
-Stow it, and the field moves on its own. There is no `then_set
-:status` anywhere on `Stow` — the transition IS the assignment, applied
-after the command's other mutations, the step `command_interpreter.rb`
-calls `advance_lifecycle`:
+Capture it, and the field moves on its own. There is no `then_set
+:status` anywhere on `Capture` — the transition IS the assignment,
+applied after the command's other mutations, the step
+`command_interpreter.rb` calls `advance_lifecycle`:
 
 ```ruby
-crate.stow
-crate.status  # => "stowed"
+payment.capture
+payment.status  # => "captured"
 ```
 
 ## One state, reached by more than one command
 
-`"stowed"` is not only where `Stow` lands a crate — it is also where
-`Restock` sends one back. Pull the crate for an order, then have the
-order fall through, and it returns to the same shelf state by a
+`"captured"` is not only where `Capture` lands a payment — it is also
+where `RejectDispute` sends one back. Challenge the charge, then have
+the dispute thrown out, and it returns to the same settled state by a
 different transition:
 
 ```ruby
-crate.pick
-crate.status  # => "picked"
+payment.dispute(disputed_by: "c1")
+payment.status  # => "disputed"
 
-crate.restock
-crate.status  # => "stowed"
+payment.reject_dispute
+payment.status  # => "captured"
 ```
 
 Two commands, one target state, and neither has to know the other
 exists. That is the whole benefit of naming states instead of a
-boolean per fact: `"stowed"` means one thing, however a crate arrived
-there.
+boolean per fact: `"captured"` means one thing, however a payment
+arrived there.
 
 ## The refusal
 
-Try to ship a crate that was never picked — it is sitting there
-`"stowed"`, not `"picked"` — and the command refuses before anything is
-written:
+Try to charge back a payment that was never disputed — it is sitting
+there `"captured"`, not `"disputed"` — and the command refuses before
+anything is written:
 
 ```ruby
-crate.ship  # ~> LifecycleRefused: status is "stowed", and Ship moves it only from "picked"
+payment.chargeback  # ~> LifecycleRefused: status is "captured", and Chargeback moves it only from "disputed"
 ```
 
-Nothing in `Ship`'s declaration wrote that sentence — no `given`
+Nothing in `Chargeback`'s declaration wrote that sentence — no `given`
 reading `status`, no hand-rolled check. The transition's own `from:`
 IS the rule, and `LifecycleRefused` is what a command raises when the
 current state names no matching transition. This is the whole point:
-you declared which states `Ship` may fire from once, at the lifecycle,
-and every caller who gets the order wrong meets the same refusal
-instead of a `nil` or a corrupted record.
+you declared which states `Chargeback` may fire from once, at the
+lifecycle, and every caller who gets the order wrong meets the same
+refusal instead of a `nil` or a corrupted record.
 
 ## Terminal states
 
-Pick the crate again and ship it for real, and it lands in a state
-this lifecycle defines no exit from:
+Dispute the payment again, and this time carry the charge back for
+real — it lands in a state this lifecycle defines no exit from:
 
 ```ruby
-crate.pick
-crate.ship
-crate.status  # => "shipped"
+payment.dispute(disputed_by: "c1")
+payment.chargeback
+payment.status  # => "charged_back"
 
-crate.stow  # ~> LifecycleRefused: status is "shipped", and Stow moves it only from "received"
+payment.reject_dispute  # ~> LifecycleRefused: status is "charged_back", and RejectDispute moves it only from "disputed"
 ```
 
-No transition names `from: "shipped"` — on purpose, a shipped crate is
-done. `bin/model_check` notices this shape on every lifecycle in the
-corpus and reports it as a `stuck_state` finding — but at `:warning`
-severity, not `:error`, because a genuinely terminal state (`"sold"`
-in the pizzas example, `"closed"` on a bank account) is completely
-fine. The finding exists so you *notice* and confirm it is what you
-meant, not so the checker blocks you for it. Ask the checker yourself,
-the same way `spec/model_check_spec.rb` does — boot a registry, hand
-the bluebook to `ModelCheck.call`:
+No transition names `from: "charged_back"` — on purpose, a charged-back
+payment is done. `bin/model_check` notices this shape on every
+lifecycle in the corpus and reports it as a `stuck_state` finding —
+but at `:warning` severity, not `:error`, because a genuinely terminal
+state (`"sold"` in the pizzas example, `"closed"` on a bank account) is
+completely fine. The finding exists so you *notice* and confirm it is
+what you meant, not so the checker blocks you for it. Ask the checker
+yourself, the same way `spec/model_check_spec.rb` does — boot a
+registry, hand the bluebook to `ModelCheck.call`:
 
 ```ruby
 require "hecksagain/bluebook/model_check"
 
-findings = Hecksagain::Bluebook::ModelCheck.call(runtime.registry.bluebook("Depot"))
-findings.map { |f| [f.kind, f.severity] }  # => [[:stuck_state, :warning]]
+findings = Hecksagain::Bluebook::ModelCheck.call(runtime.registry.bluebook("Banking"))
+cp_findings = findings.select { |f| f.subject == "CardPayment" }
+
+cp_findings.map { |f| [f.kind, f.severity] }  # => [[:stuck_state, :warning], [:stuck_state, :warning], [:stuck_state, :warning]]
+cp_findings.any? { |f| f.message.include?("voided") }        # => true
+cp_findings.any? { |f| f.message.include?("reversed") }      # => true
+cp_findings.any? { |f| f.message.include?("charged_back") }  # => true
 ```
 
-One finding, one warning, and it names exactly the state just shown to
-have no exit. Nothing here is an error — this crate lifecycle is
-clean to ship.
+Three findings this time, not one — `CardPayment` has three states
+this lifecycle never declares an exit from: `"voided"` and
+`"reversed"`, reached by paths this walkthrough never took, and
+`"charged_back"`, just shown live above. The checker names all three
+anyway, because it reads the declaration, not a run — `bin/model_check`
+would find `"voided"` and `"reversed"` stuck the same way even if this
+page never dispatched a single command. Nothing here is an error — this
+lifecycle is clean to ship, with three states its own domain considers
+done.
 
 ## What model_check refuses to let you ship
 
 A stuck state is a judgment call. A **dead transition** and an
 **unreachable state** are not — they are declarations that can never
 mean anything at runtime, and `bin/model_check` reports both as
-`:error`. Here is the shape that produces them, a lot-inspection flow
-that names a state, `"flagged"`, that nothing ever actually flags a lot
-INTO:
+`:error`. Nothing in `examples/banking` has either — the corpus stays
+free of them on purpose, so the shape that produces them cannot come
+from it. What follows is not a domain: it is a small, standalone
+fragment, invented for exactly one purpose — giving the checker
+something genuinely broken to catch, the same footing
+`spec/fixtures/model_check/lifecycle_findings.bluebook` already stands
+on in the test suite. It names a state, `"flagged"`, that nothing ever
+actually flags a lot INTO:
 
 ```ruby bluebook
-Hecks.bluebook "Depot" do
-  vision "A lot logged at the dock, inspected, and either cleared or discarded — except nothing ever flags one."
+Hecks.bluebook "Impasse" do
+  vision "A lot logged at the dock, inspected, and either cleared or discarded — except nothing ever flags one. A fragment, not a domain: the only place in this guide that is not banking."
   supporting
 
   aggregate "InboundLot" do
@@ -262,7 +244,7 @@ end
 ```
 
 ```ruby
-findings = Hecksagain::Bluebook::ModelCheck.call(runtime.registry.bluebook("Depot"))
+findings = Hecksagain::Bluebook::ModelCheck.call(runtime.registry.bluebook("Impasse"))
 
 findings.map { |f| [f.kind, f.severity] }.uniq.sort_by { |kind, _| kind.to_s }
 # => [[:dead_transition, :error], [:stuck_state, :warning], [:unreachable_state, :error]]
@@ -285,12 +267,15 @@ and maybe you forgot a `Stow` transition out of it. The checker cannot
 tell your intent apart from your typo; it can only tell you dead code
 apart from a live one. Run `bin/model_check` before you ship a
 lifecycle, not after a caller reports that a command they expected to
-work simply never fires.
+work simply never fires. `Impasse` stops here — the rest of this guide,
+and every other page that runs against real data, is banking.
 
 ## Entities have lifecycles too
 
 Everything shown here about an aggregate's `lifecycle` applies
 unchanged to an `entity` nested inside one — `entity_builder.rb`
 declares the same `lifecycle` keyword, and `model_check` walks an
-entity's states exactly as it walks its owning aggregate's. See the
+entity's states exactly as it walks its owning aggregate's. Banking's
+own `SafeDepositBox::KeyIssuance` carries one (`"issued"` to
+`"returned"`, on the key itself, not the box that issued it). See the
 [entities guide](entities.md) for the rest of what an entity carries.

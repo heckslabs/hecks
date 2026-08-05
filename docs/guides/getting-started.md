@@ -31,80 +31,130 @@ adapter. Postgres becomes necessary once schema evolution matters; see
 
 ## The first declaration
 
-The following example declares a domain about pressed flowers. It is
+The following example declares a domain about selling pizzas. It is
 small enough to review in full, and demonstrates both what the
-language allows and what it refuses.
+language allows and what it refuses. It is, in fact, the same
+`pizzas.bluebook` that `bin/console` already boots for you.
 
 ```ruby bluebook
-Hecks.bluebook "Herbier" do
-  vision "Pressed specimens, labelled and mounted — nothing enters the folio unnamed."
-  generic
+Hecks.bluebook "Pizzas" do
+  vision "Put toppings on a pizza and sell it to a customer."
+  supporting
 
-  aggregate "Specimen" do
-    description "One pressed plant, from collection to mounting."
+  aggregate "Order" do
+    description "An order that gathers toppings on a pizza and is eventually sold to a customer."
 
-    identified_by { label.value }
+    identified_by { name.value }
 
-    attribute :label,     Label
-    attribute :notes,     list_of(Note)
+    attribute :name,          PizzaName
+    attribute :pizza,         Pizza
+    attribute :toppings,      list_of(Topping)
+    attribute :customer_name, CustomerName
 
-    value_object "Label" do
+    value_object "PizzaName" do
       attribute :value, String
-      invariant("a specimen is named") { !value.to_s.empty? }
+      invariant("a pizza is named") { !value.to_s.empty? }
     end
 
-    value_object "Note" do
-      attribute :text, String
+    value_object "Price" do
+      attribute :cents, Integer
+      invariant("a price is never negative") { cents >= 0 }
     end
 
-    lifecycle :state, default: "pressed" do
-      transition "Mount" => "mounted", from: "pressed"
+    value_object "CustomerName" do
+      attribute :value, String
+      invariant("a customer is named") { !value.to_s.empty? }
     end
 
-    command "Collect" do
-      role "Botanist"
-      goal "Bring a specimen into the folio"
-
-      attribute :label, Label
-
-      emits "Collected"
+    value_object "ToppingName" do
+      attribute :value, String
+      invariant("a topping is named") { !value.to_s.empty? }
     end
 
-    command "Annotate" do
-      role "Botanist"
-      goal "Record an observation on the sheet"
-
-      reference_to Specimen
-      attribute :note, Note
-
-      given("a mounted sheet is closed") { state == "pressed" }
-
-      then_set :notes, append: { text: :note }
-
-      emits "Annotated"
+    value_object "ToppingAmount" do
+      attribute :value, Integer
+      invariant("an amount is positive") { value.positive? }
     end
 
-    command "Mount" do
-      role "Botanist"
-      goal "Fix the specimen to its sheet"
+    value_object "Topping" do
+      attribute :name,   String
+      attribute :amount, Integer
+    end
 
-      reference_to Specimen
+    value_object "Size" do
+      attribute :value, String
 
-      emits "Mounted"
+      one_of do
+        member value: "small"
+        member value: "large"
+      end
+    end
+
+    value_object "Pizza" do
+      attribute :price_cents, Price
+      attribute :size,        Size
+    end
+
+    lifecycle :status, default: "available" do
+      transition "Purchase" => "sold", from: "available"
+    end
+
+    command "CreatePizza" do
+      role "Chef"
+      goal "Put a new pizza on the menu"
+
+      attribute :name,  PizzaName
+      attribute :pizza, Pizza
+
+      emits "PizzaCreated"
+    end
+
+    command "AddTopping" do
+      role "Chef"
+      goal "Customize a pizza with an ingredient"
+
+      reference_to Order
+      attribute :topping, ToppingName
+      attribute :amount, ToppingAmount
+
+      given("a sold pizza cannot be changed") { status == "available" }
+      given("at most 10 toppings")            { toppings.size < 10 }
+
+      then_set :toppings, append: { name: :topping, amount: :amount }
+
+      emits "ToppingAdded"
+    end
+
+    command "Purchase" do
+      role "Customer"
+      goal "Buy the pizza"
+
+      reference_to Order
+      attribute :customer_name, CustomerName
+      attribute :amount, Price
+
+      given("a pizza needs at least one topping") { toppings.size.positive? }
+      given("it must still be available")         { status == "available" }
+      given("a payment was actually made")         { amount.cents.positive? }
+
+      then_set :customer_name, to: :customer_name
+      then_set :status,        to: "sold"
+
+      emits "PizzaPurchased"
     end
   end
 end
 ```
 
 Read it once as prose before you read it as code. An aggregate is the
-thing with identity — two specimens with the same label ARE the same
-specimen, which is exactly what `identified_by` declares. A value
-object has no identity at all; a `Label` is only its value, and its
-invariant travels with it everywhere the value goes. The lifecycle
-names the states a specimen may hold and the one transition between
-them. And every command says three things: what it needs, what it
-refuses (`given`), and what it announces (`emits`). A command has no
-additional responsibilities beyond these three.
+thing with identity — two orders named `"Margherita"` ARE the same
+order, which is exactly what `identified_by { name.value }` declares.
+A value object has no identity at all; a `PizzaName` is only its
+value, and its invariant travels with it everywhere the value goes.
+The lifecycle names the states an order may hold and the one
+transition between them. And every command says three things: what it
+needs, what it refuses (`given`), and what it announces (`emits`). A
+command has no additional responsibilities beyond these three.
 
 ## Wiring
 
@@ -113,7 +163,7 @@ domain's state lives is a decision, and decisions are made in the
 `.hecksagon` — one line here:
 
 ```ruby boot
-Hecks.hecksagon("Herbier") { Herbier::Specimen.persisted_by("Memory") }
+Hecks.hecksagon("Pizzas") { Pizzas::Order.persisted_by("Memory") }
 ```
 
 Memory for now. The same domain binds to Sqlite or Postgres by changing
@@ -126,21 +176,22 @@ constants, a creating command as a module method, everything else as a
 method on the record in hand:
 
 ```ruby
-specimen = Specimen.collect(label: { value: "Achillea millefolium" })
+order = Order.create_pizza(name: { value: "Margherita" },
+                            pizza: { price_cents: { cents: 1200 }, size: { value: "large" } })
 
-specimen.state                 # => "pressed"
-specimen.notes                 # => []
+order.status                   # => "available"
+order.toppings                 # => []
 ```
 
 Commands return the record, so calls can be chained in sequence:
 
 ```ruby
-specimen.annotate(note: { text: "collected at the tree line" })
-specimen.mount
+order.add_topping(topping: { value: "Basil" }, amount: { value: 3 })
+order.purchase(customer_name: { value: "Chris" }, amount: { cents: 1200 })
 
-specimen.state                 # => "mounted"
-specimen.notes.map(&:to_h)     # => [{ text: "collected at the tree line" }]
-specimen.events.map(&:name)    # => ["Collected", "Annotated", "Mounted"]
+order.status                   # => "sold"
+order.toppings.map(&:to_h)     # => [{ name: "Basil", amount: 3 }]
+order.events.map(&:name)       # => ["PizzaCreated", "ToppingAdded", "PizzaPurchased"]
 ```
 
 Notice what you did not write: no `save`, no repository call, no id
@@ -149,25 +200,25 @@ passed by hand. Identity was declared once, and the door carries it.
 ## The refusals
 
 Now the half of the language most systems treat as an afterthought.
-Try to annotate the mounted sheet:
+Try to add a topping to the pizza you just sold:
 
 ```ruby
-specimen.annotate(note: { text: "too late" })   # ~> GivenNotMet: a mounted sheet is closed
+order.add_topping(topping: { value: "Late" }, amount: { value: 1 })   # ~> GivenNotMet: a sold pizza cannot be changed
 ```
 
-And try to collect a specimen with no name:
+And try to put a nameless pizza on the menu:
 
 ```ruby
-Specimen.collect(label: { value: "" })          # ~> InvariantViolation: a specimen is named
+Order.create_pizza(name: { value: "" }, pizza: { price_cents: { cents: 1200 }, size: { value: "large" } })   # ~> InvariantViolation: a pizza is named
 ```
 
 Two different refusals, and the difference matters. The `given` is the
 command's own rule — it reads the aggregate's state and says no on its
 behalf. The invariant is the value object's rule — it travels with
-`Label` into every command that carries one, declared once, enforced
-everywhere. Neither is an exception in the Ruby sense. A refusal is the
-domain saying no, in words declared for it, and the runtime treats it
-as half of what the domain means.
+`PizzaName` into every command that carries one, declared once,
+enforced everywhere. Neither is an exception in the Ruby sense. A
+refusal is the domain saying no, in words declared for it, and the
+runtime treats it as half of what the domain means.
 
 Every example on this page is executed against the real runtime by
 `spec/guides_spec.rb`, including the assertions and refusals. This

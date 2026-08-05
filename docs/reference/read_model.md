@@ -52,7 +52,7 @@ Cardinality is inferred, not declared: the reference target comes back
 as the one record, any other included aggregate comes back as a list
 — there's no `many:` to spell out yourself. Declaring the same `as:`
 name twice is refused. See the queries-and-read-models guide for the
-full `Roster` example.
+full `ComplianceDashboard` example.
 
 ## where
 

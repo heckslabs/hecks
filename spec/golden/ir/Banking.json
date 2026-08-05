@@ -3407,6 +3407,24 @@
           "optional": false,
           "pattern": null,
           "type": "PaymentDueDate"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "attempts",
+          "optional": false,
+          "pattern": null,
+          "type": "RetryCount"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "max_attempts",
+          "optional": false,
+          "pattern": null,
+          "type": "RetryLimit"
         }
       ],
       "commands": [
@@ -3539,6 +3557,87 @@
           "name": "Cancel",
           "references": "ScheduledPayment",
           "role": null
+        },
+        {
+          "attributes": [
+
+          ],
+          "emits": [
+            "ScheduledPaymentFailed"
+          ],
+          "ensures": [
+
+          ],
+          "givens": [
+
+          ],
+          "goal": "Record that today's presentment could not be collected",
+          "mutations": [
+
+          ],
+          "name": "Fail",
+          "references": "ScheduledPayment",
+          "role": "System"
+        },
+        {
+          "attributes": [
+
+          ],
+          "emits": [
+            "ScheduledPaymentFailed"
+          ],
+          "ensures": [
+            {
+              "canonical": "attempts.value == old.attempts.value + 1",
+              "description": "a retry never lowers the attempt count"
+            }
+          ],
+          "givens": [
+            {
+              "canonical": "attempts.value < max_attempts.value",
+              "description": "a retry is still allowed"
+            }
+          ],
+          "goal": "Re-present a failed payment, up to the limit the schedule names",
+          "mutations": [
+            {
+              "op": "increment",
+              "source": {
+                "kind": "literal",
+                "value": {
+                  "value": 1
+                }
+              },
+              "target": "attempts"
+            }
+          ],
+          "name": "Retry",
+          "references": "ScheduledPayment",
+          "role": "System"
+        },
+        {
+          "attributes": [
+
+          ],
+          "emits": [
+            "ScheduledPaymentAbandoned"
+          ],
+          "ensures": [
+
+          ],
+          "givens": [
+            {
+              "canonical": "attempts.value >= max_attempts.value",
+              "description": "every retry is exhausted"
+            }
+          ],
+          "goal": "Give up on a payment that could not be collected after every retry",
+          "mutations": [
+
+          ],
+          "name": "Abandon",
+          "references": "ScheduledPayment",
+          "role": "Back office"
         }
       ],
       "description": "An instruction held for a future date, which may execute once or be cancelled before it does.",
@@ -3561,6 +3660,21 @@
             "command": "Cancel",
             "from_state": "scheduled",
             "to_state": "cancelled"
+          },
+          {
+            "command": "Fail",
+            "from_state": "scheduled",
+            "to_state": "failed"
+          },
+          {
+            "command": "Retry",
+            "from_state": "failed",
+            "to_state": "failed"
+          },
+          {
+            "command": "Abandon",
+            "from_state": "failed",
+            "to_state": "abandoned"
           }
         ]
       },
@@ -3679,6 +3793,54 @@
 
           ],
           "name": "PaymentDueDate"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": 0,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "Integer"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.negative?",
+              "description": "a retry count is non-negative"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "RetryCount"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": 3,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "Integer"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "value.positive?",
+              "description": "a retry limit is positive"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "RetryLimit"
         }
       ]
     },
@@ -4348,6 +4510,238 @@
           "name": "Size"
         }
       ]
+    },
+    {
+      "attributes": [
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "customer",
+          "optional": false,
+          "pattern": null,
+          "type": "Reference<Customer>"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "reference",
+          "optional": false,
+          "pattern": null,
+          "type": "OnboardingReference"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "account_number",
+          "optional": false,
+          "pattern": null,
+          "type": "AccountNumber"
+        }
+      ],
+      "commands": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "customer",
+              "optional": false,
+              "pattern": null,
+              "type": "Reference<Customer>"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "reference",
+              "optional": false,
+              "pattern": null,
+              "type": "OnboardingReference"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "account_number",
+              "optional": false,
+              "pattern": null,
+              "type": "AccountNumber"
+            }
+          ],
+          "emits": [
+            "OnboardingOpened"
+          ],
+          "ensures": [
+
+          ],
+          "givens": [
+
+          ],
+          "goal": "Open a KYC case for a newly registered customer, naming the account it will become",
+          "mutations": [
+            {
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "reference"
+              },
+              "target": "reference"
+            },
+            {
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "account_number"
+              },
+              "target": "account_number"
+            }
+          ],
+          "name": "Open",
+          "references": null,
+          "role": "Branch clerk"
+        },
+        {
+          "attributes": [
+
+          ],
+          "emits": [
+            "OnboardingCleared"
+          ],
+          "ensures": [
+
+          ],
+          "givens": [
+
+          ],
+          "goal": "Pass a customer's identity and screening checks",
+          "mutations": [
+
+          ],
+          "name": "Clear",
+          "references": "OnboardingCase",
+          "role": "Compliance officer"
+        },
+        {
+          "attributes": [
+
+          ],
+          "emits": [
+            "OnboardingDeclined"
+          ],
+          "ensures": [
+
+          ],
+          "givens": [
+
+          ],
+          "goal": "Refuse a customer who does not clear screening — no account was ever opened, so nothing is undone",
+          "mutations": [
+
+          ],
+          "name": "Decline",
+          "references": "OnboardingCase",
+          "role": "Compliance officer"
+        }
+      ],
+      "description": "The KYC check a newly registered customer clears before an account exists for them — screened once, and if it does not clear there is nothing to undo, because nothing was ever opened.",
+      "entities": [
+
+      ],
+      "identified_by": [
+        "reference.value"
+      ],
+      "lifecycle": {
+        "default": "screening",
+        "field": "status",
+        "transitions": [
+          {
+            "command": "Clear",
+            "from_state": "screening",
+            "to_state": "cleared"
+          },
+          {
+            "command": "Decline",
+            "from_state": "screening",
+            "to_state": "declined"
+          }
+        ]
+      },
+      "name": "OnboardingCase",
+      "queries": [
+        {
+          "attributes": [
+
+          ],
+          "description": "Cases still waiting on a compliance decision.",
+          "limit": null,
+          "name": "Screening",
+          "order_by": {
+            "direction": "asc",
+            "field": "reference"
+          },
+          "wheres": [
+            {
+              "field": "status",
+              "op": "eq",
+              "value": "screening"
+            }
+          ]
+        }
+      ],
+      "value_objects": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "an onboarding case is referenced"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "OnboardingReference"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "an account number is present"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "AccountNumber"
+        }
+      ]
     }
   ],
   "canonical_form": [
@@ -4374,6 +4768,12 @@
       "on_event": "Account.AccountFrozen",
       "target_domain": "Compliance",
       "trigger_command": "Compliance.OpenReview"
+    },
+    {
+      "name": "RetryOnPaymentFailure",
+      "on_event": "ScheduledPayment.ScheduledPaymentFailed",
+      "target_domain": null,
+      "trigger_command": "ScheduledPayment.Retry"
     },
     {
       "name": "FreezeAccountsOnSuspension",
@@ -4588,6 +4988,55 @@
         "requested",
         "sent",
         "returned"
+      ]
+    },
+    {
+      "correlates_by": "reference.value",
+      "ends_on": "AccountOpened",
+      "handlers": [
+        {
+          "dispatches": [
+            {
+              "command_name": "Banking::Account.Open",
+              "with_spec": [
+                [
+                  "customer_id",
+                  ":customer"
+                ],
+                [
+                  "number",
+                  ":account_number"
+                ],
+                [
+                  "kind",
+                  "{:name=>\"current\"}"
+                ],
+                [
+                  "daily_limit",
+                  "{:cents=>0}"
+                ]
+              ]
+            }
+          ],
+          "event_type": "OnboardingCleared",
+          "from_state": "screening",
+          "to_state": "cleared"
+        },
+        {
+          "dispatches": [
+
+          ],
+          "event_type": "OnboardingDeclined",
+          "from_state": "screening",
+          "to_state": "declined"
+        }
+      ],
+      "name": "Onboarding",
+      "starts_on": "OnboardingOpened",
+      "states": [
+        "screening",
+        "cleared",
+        "declined"
       ]
     }
   ],

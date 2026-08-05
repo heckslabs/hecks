@@ -27,55 +27,24 @@ second and third of those three files.
 
 ## The declaration
 
-A shop counter. One till, one drawer, one card terminal bolted to it —
-small enough to wire end to end in one sitting.
+This page wires `examples/pizzas/bluebook/pizzas.bluebook` — the same
+domain [getting-started.md](getting-started.md) declares in full and
+[commands.md](commands.md) exercises command by command, not repeated
+here. Two pieces of it matter for what follows: the aggregate's own
+name, and the policy sitting beside it that a driving port below ends
+up triggering.
 
-```ruby bluebook
-Hecks.bluebook "Comptoir" do
-  vision "One counter, one drawer of cash, and a payment terminal bolted to the till."
-  supporting
+```ruby skip
+aggregate "Order" do
+  identified_by { name.value }
+  # ...
+end
 
-  aggregate "Counter" do
-    description "A single counter's cash drawer, open for the day and rung up sale by sale."
-
-    identified_by { label.value }
-
-    attribute :label,   CounterLabel
-    attribute :balance, Amount
-
-    value_object "CounterLabel" do
-      attribute :value, String
-      invariant("a counter is labelled") { !value.to_s.empty? }
-    end
-
-    value_object "Amount" do
-      attribute :cents, Integer, default: 0
-      invariant("an amount is never negative") { cents >= 0 }
-    end
-
-    command "Open" do
-      role "Cashier"
-      goal "Start a counter for the day"
-
-      attribute :label, CounterLabel
-
-      emits "Opened"
-    end
-
-    command "RecordSale" do
-      role "Cashier"
-      goal "Ring up a sale at the counter"
-
-      reference_to Counter
-      attribute :amount, Amount
-
-      given("a sale is never free") { amount.cents.positive? }
-
-      then_set :balance, increment: :amount
-
-      emits "SaleRecorded"
-    end
-  end
+# A PAYMENT ARRIVING IS AN EXTERNAL FACT, NOT A DECISION THIS DOMAIN MAKES —
+# the business rules stay on Purchase itself, reached only through this.
+policy "OnPizzaPaymentReceived" do
+  on "PizzaPaymentReceived"
+  trigger "Order.Purchase"
 end
 ```
 
@@ -86,30 +55,34 @@ the entire reason a `.hecksagon` exists.
 ## Wiring it
 
 ```ruby boot
-Hecks.hecksagon("Comptoir") do
-  Comptoir::Counter.persisted_by("Memory")
+Kernel.load(File.join(InMemoryDomain::ROOT, "examples/pizzas/bluebook/pizzas.bluebook"))
 
-  # An event this hecksagon takes from OUTSIDE Comptoir's own bluebook —
+Hecks.hecksagon("Pizzas") do
+  Pizzas::Order.persisted_by("Memory")
+
+  # An event this hecksagon takes from OUTSIDE Pizzas' own bluebook —
   # see "subscribe", below.
-  subscribe "SupplierInvoiceSettled"
+  subscribe "IngredientShipmentReceived"
 
-  # THE DRIVING PORT — called by a card terminal outside this domain
-  # entirely, never by the domain itself. Pizzas' PaymentGateway/Receive
-  # (examples/pizzas/bluebook/pizzas.hecksagon) is the precedent this
-  # shape follows.
-  Comptoir::Counter.port "CardReader" do
-    operation "Confirm" do
-      reference_to Counter, as: :label
-      attribute :amount, Amount
-      emits "CardPaymentConfirmed"
+  # THE DRIVING PORT — called by a payment processor's webhook, never by
+  # the domain itself. This is pizzas.hecksagon's own real
+  # PaymentGateway/Receive (examples/pizzas/bluebook/pizzas.hecksagon),
+  # reproduced here so this page can wire it against Memory rather than
+  # the Postgres binding that file actually ships with.
+  Pizzas::Order.port "PaymentGateway" do
+    operation "Receive" do
+      reference_to Order, as: :name
+      attribute :customer_name, CustomerName
+      attribute :amount, Price
+      emits "PizzaPaymentReceived"
     end
   end
 end
 ```
 
 ```ruby boot
-Hecks.world("Comptoir") do
-  realm "RiveGauche"
+Hecks.world("Pizzas") do
+  realm "Examples"
   persisted_by("Memory")
 end
 ```
@@ -124,34 +97,41 @@ separately below, live, against what just booted.
 
 `persisted_by` is the whole syntax: an aggregate, a string naming an
 adapter. Swap the string and the domain never learns — there is no
-hook, no callback, nothing in `Comptoir::Counter`'s own declaration
+hook, no callback, nothing in `Pizzas::Order`'s own declaration
 that could even ask which adapter answered:
 
 ```ruby
-counter = Comptoir::Counter.open(label: { value: "Comptoir-1" })
-counter.balance.to_h   # => { cents: 0 }
+order = Order.create_pizza(name: { value: "Margherita" },
+                            pizza: { price_cents: { cents: 1200 }, size: { value: "large" } })
+order.status   # => "available"
 
-counter.record_sale(amount: { cents: 500 })
-counter.balance.to_h   # => { cents: 500 }
+order.add_topping(topping: { value: "Basil" }, amount: { value: 3 })
+order.toppings.map(&:to_h)   # => [{ name: "Basil", amount: 3 }]
 ```
 
-`Comptoir` binds to Memory above because that is what this page needs
+This page binds `Order` to Memory above because that is what it needs
 to run without a database behind it. The exact same shape, unchanged,
-already ships against a real one: `pizzas.hecksagon` binds `Order`
-with `Pizzas::Order.persisted_by("Postgres")`, one line, and
-`pizzas.bluebook` did not change a single character to make that true.
+already ships against a real one: `pizzas.hecksagon` itself binds
+`Order` with `Pizzas::Order.persisted_by("Postgres")`, one line —
+quoted here, not run, since this page does not require a database:
+
+```ruby skip
+Pizzas::Order.persisted_by("Postgres")
+```
+
 That is what "decided outside the domain" means in practice, not in
 theory — a real file in this repository proves it.
 
 ## Driving ports
 
 A `port` declared in the hecksagon is a second front door, for facts
-that did not originate inside this domain at all — a card terminal
-confirming a charge, not a cashier ringing one up. Read the inventory
-off `CardReader`'s `Confirm` operation above, because it is the whole
-inventory: a `reference_to` saying which record the fact is about, an
-`attribute` or two, an `emits`. No `given`. No `then_set`. Those are
-not omissions made at the authoring level — `DomainPortBuilder`/`PortOperationBuilder`
+that did not originate inside this domain at all — a payment
+processor's webhook confirming a charge, not a chef ringing one up on
+the menu. Read the inventory off `PaymentGateway`'s `Receive`
+operation above, because it is the whole inventory: a `reference_to`
+saying which record the fact is about, an `attribute` or two, an
+`emits`. No `given`. No `then_set`. Those are not omissions made at
+the authoring level — `DomainPortBuilder`/`PortOperationBuilder`
 simply define no such methods, so there is nothing to reach for even
 by mistake. A port operation TRANSLATES an external fact into this
 domain's own event vocabulary; it does not hydrate a record, does not
@@ -161,34 +141,56 @@ event this emits, exactly the way `pizzas.bluebook`'s
 `OnPizzaPaymentReceived` reacts to `PizzaPaymentReceived`; wiring that
 reaction is [policies-and-process-managers.md](policies-and-process-managers.md)'s job, not this page's.
 
-Call it the way a real card terminal's webhook handler would — through
-`dispatch_port`, never through the door a cashier's own commands use:
+Call it the way a real payment processor's webhook handler would —
+through `dispatch_port`, never through the door a chef's own commands
+use:
 
 ```ruby
-events = runtime.dispatch_port("Comptoir", "Counter", "CardReader", "Confirm",
-                                label: counter.id, amount: { cents: 500 })
-events.map(&:name)   # => ["CardPaymentConfirmed"]
+events = runtime.dispatch_port("Pizzas", "Order", "PaymentGateway", "Receive",
+                                name: order.id, customer_name: { value: "Chris" }, amount: { cents: 1200 })
+events.map(&:name)   # => ["PizzaPaymentReceived"]
 ```
 
 And here is the "no `then_set`" claim, not just asserted but shown:
-the counter's balance is exactly what `record_sale` left it at, one
-sale's worth, not two — the port never touched it:
+`events` above holds exactly the one event `PaymentGateway`'s `Receive`
+itself declares with `emits` — not `"PizzaPurchased"`, which belongs to
+`Purchase`, never to the port that led to it. The port's own return
+value proves it touched nothing beyond translating the call.
+
+The order sold anyway — read it back:
 
 ```ruby
-Comptoir::Counter.find(counter.id).balance.to_h   # => { cents: 500 }
+Order.find(order.id).status              # => "sold"
+Order.find(order.id).customer_name.to_h  # => { value: "Chris" }
 ```
+
+That mutation did not come from the port. It came from
+`OnPizzaPaymentReceived`, wired in `pizzas.bluebook` itself, reacting
+to the very event the port above just emitted and dispatching
+`Purchase` — the same command, the same `given` guards, that a real
+purchase flow would call directly. The reaction is on the record, not
+just asserted:
+
+```ruby
+runtime.registry.reaction_log   # => [{ policy: "OnPizzaPaymentReceived", on: "PizzaPaymentReceived", trigger: "Pizzas::Order.Purchase", delivered: true }]
+```
+
+An external call came in shaped nothing like this domain's own
+commands, and everything that happened because of it stayed exactly
+where every other business rule in this language lives — in a command,
+reached through a policy, never inside the port.
 
 ## `subscribe`
 
 `subscribe "EventName"` inside a hecksagon names an event this
-domain's own wiring takes in from OUTSIDE `Comptoir`'s own bluebook —
+domain's own wiring takes in from OUTSIDE `Pizzas`' own bluebook —
 `hecksagon_builder.rb`'s own comment on the method calls it exactly
 that: an event this hecksagon takes from outside the domain's own
 bluebook. It is declared the same way everything else in a hecksagon
 is — read straight back off the registry once booted:
 
 ```ruby
-runtime.registry.hecksagon("Comptoir").subscriptions   # => ["SupplierInvoiceSettled"]
+runtime.registry.hecksagon("Pizzas").subscriptions   # => ["IngredientShipmentReceived"]
 ```
 
 Nothing more is claimed for it than that. It is a fact recorded
@@ -204,24 +206,24 @@ needs to actually run — values, and only values, checked against the
 exact binding they answer:
 
 ```ruby
-runtime.registry.world("Comptoir").realm                                  # => "RiveGauche"
-runtime.registry.world("Comptoir").for_binding("persisted_by", "Memory")  # => { adapter: "Memory" }
+runtime.registry.world("Pizzas").realm                                  # => "Examples"
+runtime.registry.world("Pizzas").for_binding("persisted_by", "Memory")  # => { adapter: "Memory" }
 ```
 
 Memory needs nothing beyond its own name, which is why that block
 above is one bare word. A real deployment binding to Postgres instead
-carries the values Postgres actually declares — `database`, `role`,
-the same two fields `postgres.adapter` names and nothing more. This is
-what `comptoir.world` would hold on disk (not run here — `.world`
-files are never loaded through the doctest boot path, only through a
-real `Hecks.boot`):
+carries the values Postgres actually declares — `database` and `role`,
+the two fields `postgres.adapter` names, though a deployment only ever
+supplies what it actually uses. This is not hypothetical for Pizzas
+either — this is `examples/pizzas/bluebook/pizzas.world`, quoted
+verbatim, not run here (`.world` files are never loaded through the
+doctest boot path, only through a real `Hecks.boot`):
 
 ```ruby skip
-Hecks.world "Comptoir" do
-  realm "RiveGauche"
+Hecks.world "Pizzas" do
+  realm "Examples"
   persisted_by("Postgres") do
-    database "postgres://localhost/hecks_comptoir"
-    role     "app"
+    database "postgres://localhost/hecks_pizzas"
   end
 end
 ```
@@ -230,8 +232,8 @@ end
 
 Everything above reached for a port and an adapter the library already
 ships (`persistence`, and `Memory`/`Postgres` answering it). A project
-whose feature needs neither — a receipt printer at the counter, say —
-declares its own the same two ways the library's own are said:
+whose feature needs neither — a receipt printer, say — declares its
+own the same two ways the library's own are said:
 
 ```ruby skip
 Hecks.port "receipt" do
@@ -260,6 +262,6 @@ answer `persistence`, and they genuinely need different things —
 `database`, in Postgres's case; nothing at all, in Memory's. A
 `.world` block is checked against exactly what the named adapter
 declares, so a value it does not know is refused at boot, not silently
-dropped. Get a field name wrong in a real `comptoir.world` and you
-find out before the counter ever opens, not the first time someone
-tries to record a sale against it.
+dropped. Get a field name wrong in a real `pizzas.world` and you find
+out before the kitchen ever opens, not the first time a customer tries
+to buy a pizza against it.

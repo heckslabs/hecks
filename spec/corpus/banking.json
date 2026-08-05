@@ -83,7 +83,7 @@
         "status": "vacant"
       }
     },
-    "events": 110
+    "events": 126
   },
   "steps": [
     {
@@ -2431,7 +2431,9 @@
     },
     {
       "query": "Banking::SafeDepositBox.Rented",
-      "args": { "branch_code": "DOWNTOWN" }
+      "args": {
+        "branch_code": "DOWNTOWN"
+      }
     },
     {
       "query": "Banking::SafeDepositBox.Rented",
@@ -2520,6 +2522,112 @@
           "cents": 1000,
           "currency": "USD"
         }
+      }
+    },
+    {
+      "verb": "Banking::OnboardingCase.Open",
+      "args": {
+        "customer": "CUST-0001",
+        "reference": {
+          "value": "case-corpus-1"
+        },
+        "account_number": {
+          "value": "acct-onboard-1"
+        }
+      }
+    },
+    {
+      "verb": "Banking::OnboardingCase.Clear",
+      "args": {
+        "reference": "case-corpus-1"
+      }
+    },
+    {
+      "verb": "Banking::OnboardingCase.Open",
+      "args": {
+        "customer": "CUST-0002",
+        "reference": {
+          "value": "case-corpus-2"
+        },
+        "account_number": {
+          "value": "acct-onboard-2"
+        }
+      }
+    },
+    {
+      "verb": "Banking::OnboardingCase.Decline",
+      "args": {
+        "reference": "case-corpus-2"
+      }
+    },
+    {
+      "query": "Banking::OnboardingCase.Screening",
+      "args": {}
+    },
+    {
+      "verb": "Banking::ScheduledPayment.Schedule",
+      "args": {
+        "account_id": "acct-onboard-1",
+        "instruction": {
+          "value": "sched-retry-1"
+        },
+        "amount": {
+          "cents": 500
+        },
+        "recipient": {
+          "value": "Utility Co"
+        },
+        "due_on": {
+          "value": "2026-09-01"
+        }
+      }
+    },
+    {
+      "verb": "Banking::ScheduledPayment.Fail",
+      "args": {
+        "instruction": "sched-retry-1"
+      }
+    },
+    {
+      "verb": "Banking::ScheduledPayment.Abandon",
+      "args": {
+        "instruction": "sched-retry-1"
+      }
+    },
+    {
+      "query": "Banking.compliance_dashboard",
+      "args": {
+        "account": "acct-onboard-1"
+      }
+    },
+    {
+      "verb": "Banking::ScheduledPayment.Schedule",
+      "args": {
+        "account_id": "acct-onboard-1",
+        "instruction": {
+          "value": "sched-retry-2"
+        },
+        "amount": {
+          "cents": 250
+        },
+        "recipient": {
+          "value": "Second Utility"
+        },
+        "due_on": {
+          "value": "2026-09-15"
+        }
+      }
+    },
+    {
+      "verb": "Banking::ScheduledPayment.Fail",
+      "args": {
+        "instruction": "sched-retry-2"
+      }
+    },
+    {
+      "verb": "Banking::ScheduledPayment.Retry",
+      "args": {
+        "instruction": "sched-retry-2"
       }
     }
   ]

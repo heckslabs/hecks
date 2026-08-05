@@ -213,7 +213,7 @@ file on disk and not a metaphor:
 ```ruby
 require "tmpdir"
 
-dir  = Dir.mktmpdir("grenier-heki-")
+dir  = Dir.mktmpdir("writing-an-adapter-heki-")
 heki = Hecksagain::Adapters::Heki.new(aggregate: aggregate, root: dir)
 heki.save(crate(aggregate, "crate-2", label: { value: "cedar chest" }))
 
@@ -422,80 +422,83 @@ command-emitted one. The port is the boundary; the business rule stays
 where every other business rule in this language lives, in a command
 or a policy the port never touches directly.
 
-That shape can be shown for real, against a small domain declared for
-this purpose. Declare the aggregate:
-
-```ruby bluebook
-Hecks.bluebook "Grenier" do
-  vision "An attic ledger: what's stored up there, and whether it still is."
-  supporting
-
-  aggregate "Crate" do
-    description "One crate, stored in the loft until it comes back down."
-
-    identified_by { label.value }
-
-    attribute :label, Label
-
-    value_object "Label" do
-      attribute :value, String
-      invariant("a crate is named") { !value.to_s.empty? }
-    end
-
-    lifecycle :status, default: "stored" do
-      transition "Move" => "moved", from: "stored"
-    end
-
-    command "Store" do
-      role "Keeper"
-      goal "Put a crate up in the loft"
-
-      attribute :label, Label
-
-      emits "Stored"
-    end
-  end
-end
-```
-
-Declare the port in the hecksagon — a driving port lives here,
-never in the bluebook, the same boundary a `persisted_by` line marks
-for storage:
+That shape can be shown for real, extending the very file just quoted
+into a live call rather than inventing a second domain to make the
+same point twice. Boot Pizzas' own bluebook — the real one, unedited —
+bound to Memory so this page needs nothing running behind it, and wire
+the identical `PaymentGateway`/`Receive` port `pizzas.hecksagon`
+already declares:
 
 ```ruby boot
-Hecks.hecksagon("Grenier") do
-  Grenier::Crate.persisted_by("Memory")
+Kernel.load(InMemoryDomain::PIZZAS_BLUEBOOK)
 
-  Grenier::Crate.port "ClimateSensor" do
-    operation "Alert" do
-      reference_to Crate, as: :label
-      attribute :reading, Integer
+Hecks.hecksagon("Pizzas") do
+  Pizzas::Order.persisted_by("Memory")
 
-      emits "TemperatureAlerted"
+  Pizzas::Order.port "PaymentGateway" do
+    operation "Receive" do
+      reference_to Order, as: :name
+      attribute :customer_name, CustomerName
+      attribute :amount, Price
+
+      emits "PizzaPaymentReceived"
     end
   end
 end
 ```
 
-And call it exactly the way a real sensor's webhook handler would —
-through `dispatch_port`, never through the facade a command would use:
+A port's `reference_to` still has to find a record that actually
+exists — `command_rules/references.rb` refuses a payment about an
+order nobody created, the same check a command's own reference goes
+through — so set the stage exactly the way the real handler's script
+does, a pizza with a topping already on it so `Purchase`'s own `given`
+(at least one topping, still available, a positive payment) can pass
+once the reaction beneath this event runs it:
 
 ```ruby
-crate = Grenier::Crate.store(label: { value: "wool blankets" })
-crate.status  # => "stored"
+NAME = "GuideMargherita"
 
-runtime.dispatch_port("Grenier", "Crate", "ClimateSensor", "Alert", label: crate.id, reading: 41).map(&:name)  # => ["TemperatureAlerted"]
+order = Pizzas::Order.create_pizza(
+  name:  { value: NAME },
+  pizza: { price_cents: { cents: 1200 }, size: { value: "large" } }
+)
+order.add_topping(topping: { value: "Basil" }, amount: { value: 3 })
+
+order.status  # => "available"
 ```
 
-`TemperatureAlerted` is now in this domain's event log, in this
-domain's own vocabulary — a fact a `policy` could react to (raise a
-`Move` command, page someone, whatever the loft actually needs), the
-same way `OnPizzaPaymentReceived` reacts to `PizzaPaymentReceived` in
-the real example. That policy is not wired here, on purpose — the
-point of this page is the boundary itself, and the boundary is
-already fully proven: an external call came in shaped nothing like
-this domain's own commands, and left as an event shaped exactly like
-every other one it emits.
+And call it exactly the way the real
+`mock_stripe_payment_adapter.rb` does — through `dispatch_port`, never
+through the facade a command would use:
+
+```ruby
+announced = runtime.dispatch_port(
+  "Pizzas", "Order", "PaymentGateway", "Receive",
+  name:          NAME,
+  customer_name: { value: "Chris" },
+  amount:        { cents: 1200 }
+)
+announced.map(&:name)  # => ["PizzaPaymentReceived"]
+```
+
+`PizzaPaymentReceived` is now in this domain's event log, in this
+domain's own vocabulary — not `Purchase`'s own, and nothing on
+`Purchase` was reached directly by that call. What DID reach it is
+`OnPizzaPaymentReceived`, the policy `pizzas.bluebook` declares beside
+`Purchase` (quoted at the top of this section): it reacted to the
+event this port just emitted, in this same call, and drove `Purchase`
+itself — `given` clauses, `then_set`, all of it:
+
+```ruby
+sold = Pizzas::Order.find(NAME)
+sold.status               # => "sold"
+sold.customer_name.to_h   # => { value: "Chris" }
+```
+
+The port is the boundary; the business rule stays where every other
+business rule in this language lives, in a command or a policy the
+port never touches directly — and that is not a description of the
+split, it is the split, with real code standing on both sides of it.
 
 ## Shipping checklist
 

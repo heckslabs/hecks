@@ -54,6 +54,20 @@ true.
 
 ## The mechanism
 
+The walkthrough below needs a shape to actually change, live, in front
+of you — a real drift introduced on purpose, then scaffolded and
+resolved. Pizzas' real era 1→2 history above already happened; there is
+no more drift left in it to discover. Banking's real history has none
+at all. Reproducing a controlled drift against either would mean
+minting a fake historical era onto a domain whose whole value is being
+the real, settled record — a different and larger kind of dishonesty
+than a small, clearly-labelled scratch fixture. So this one section
+uses a throwaway domain, built and torn down inside the walkthrough
+itself, exactly the way `spec/fixtures/eras/` and
+`spec/adapters/driven/postgres/lineage_spec.rb`'s own era fixtures do
+for the same reason — the one deliberate exception in an otherwise
+real-corpus guide.
+
 Three pieces, and you will use all three every time your shape changes:
 
 - **`bin/scaffold_translation <domain>`** — diffs the shape your

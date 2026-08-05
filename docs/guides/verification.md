@@ -26,25 +26,28 @@ it is safe to ship.
 
 ## A small domain with a hole in it
 
-One domain runs the first of these live — Chapelle, a chapel's
-reliquary. Its lifecycle has a hole, on purpose, because the hole is
-the whole demonstration:
+Every other example on this page — below, and everywhere else this
+guide's doctests run — is real: banking, pizzas, the frozen corpus.
+This one section is the deliberate exception, and it stays that way on
+purpose: `model_check` needs something genuinely BROKEN to catch, and
+banking and pizzas have to stay valid, golden, and frozen, so wiring a
+real unreachable state into either of them would corrupt the fixture
+every other section on this page relies on. What follows is not a
+domain — it is the smallest fragment that still trips the finding, on
+the same footing as
+[`spec/fixtures/model_check/lifecycle_findings.bluebook`](../../spec/fixtures/model_check/lifecycle_findings.bluebook)
+in the test suite: one aggregate, one lifecycle, one hole, on purpose,
+because the hole is the whole demonstration:
 
 ```ruby bluebook
 Hecks.bluebook "Chapelle" do
-  vision "A chapel's reliquary — sealed, consecrated, and occasionally reopened for restoration."
-  generic
-
   aggregate "Reliquary" do
-    description "One relic case, from enshrining onward."
-
     identified_by { label.value }
 
     attribute :label, Label
 
     value_object "Label" do
       attribute :value, String
-      invariant("a reliquary is labelled") { !value.to_s.empty? }
     end
 
     lifecycle :state, default: "sealed" do
@@ -52,28 +55,13 @@ Hecks.bluebook "Chapelle" do
       transition "Reopen"     => "opened",       from: "locked"
     end
 
-    command "Enshrine" do
-      role "Sacristan"
-      goal "Place a relic into the chapel's keeping"
-
-      attribute :label, Label
-
-      emits "Enshrined"
-    end
-
     command "Consecrate" do
-      role "Priest"
-      goal "Bless the case shut"
-
       reference_to Reliquary
 
       emits "Consecrated"
     end
 
     command "Reopen" do
-      role "Priest"
-      goal "Reopen a locked case for restoration"
-
       reference_to Reliquary
 
       emits "Reopened"
@@ -86,9 +74,9 @@ end
 Hecks.hecksagon("Chapelle") { Chapelle::Reliquary.persisted_by("Memory") }
 ```
 
-`Enshrine` creates one; nothing below ever calls it, because
-`model_check` needs no dispatch at all. It reads the declaration, not
-a run.
+Nothing above is ever dispatched — there is no creating command, and
+nothing below ever calls one — because `model_check` needs no run at
+all. It reads the declaration, not a dispatch.
 
 ## `bin/model_check` — what a dispatch never tells you
 
@@ -319,8 +307,8 @@ every step, and reports the first expectation that did not hold.
 
 The same check, run in process against an isolated copy of banking —
 the flagship corpus member, composite identity, entities, two read
-models, a process manager, walking every declared command and query
-including its refusal paths:
+models, three process managers, walking every declared command and
+query including its refusal paths:
 
 ```ruby
 require "json"
