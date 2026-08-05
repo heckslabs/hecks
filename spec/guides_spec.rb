@@ -33,6 +33,10 @@ RSpec.describe "the guides" do
     it "#{File.basename(path)} says nothing its examples cannot back" do
       guide = Doctest.parse(path)
       skip "no reachable Postgres — start one to run this guide" if guide.postgres && !Doctest::POSTGRES_AVAILABLE
+      if File.basename(path) == "schema-evolution.md" && !Doctest::PIZZAS_HISTORY_AVAILABLE
+        skip "documents examples/pizzas' own real era-1→2 migration — only present on a machine " \
+             "that actually lived through it, not a fresh hecks_pizzas database"
+      end
 
       expect(Doctest.run(path)).to be(true)
     end

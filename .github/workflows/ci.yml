@@ -1,0 +1,76 @@
+name: CI
+
+# The same two checks .githooks/pre-push already requires before anything
+# leaves a machine — run again here so a push that skipped the hook (or
+# a PR from a branch that never had it installed) can't land red. Real
+# Postgres and SQLite both provisioned, not skipped: the adapter specs
+# check their own reachability and skip themselves silently otherwise,
+# which would mean this workflow "passing" without ever having run them.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+          # spec/adapters/driven/postgres/lineage_spec.rb creates its own
+          # unprivileged roles at runtime (`CREATE ROLE ... LOGIN`, no
+          # password — it's testing GRANTs, not credentials) and connects
+          # as them; the official image's default password auth would
+          # refuse every one of those logins since none has a password to
+          # check. trust is scoped to this ephemeral service container.
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: postgres
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+
+      # examples/pizzas/bluebook/pizzas.world wires straight at this
+      # database by name — spec/dsl_spec.rb, spec/runtime/domain_refusal_spec.rb,
+      # and the schema-evolution guide's own live example all boot it.
+      # Nothing creates it on demand (unlike the adapter specs' own
+      # scratch databases, which manage their own lifecycle); a fresh
+      # Postgres needs it provisioned once, up front.
+      - name: Create the pizzas example's database
+        run: createdb -h localhost -U postgres hecks_pizzas
+
+      # The whole suite — corpus, adapters (Postgres and SQLite both
+      # reachable here, so neither skips itself), the guides' own doctests,
+      # the reference golden, everything bundle exec rspec already runs
+      # locally and at the pre-push hook.
+      - name: rspec
+        run: bundle exec rspec
+
+      # Static analysis over the IR — unreachable lifecycle states, dead
+      # transitions, saga states no handler chain reaches — facts the
+      # runtime itself never checks at dispatch time. Boots every corpus
+      # member the same way corpus_spec does, plus the language's own
+      # meta chapters.
+      - name: model check
+        run: bin/model_check

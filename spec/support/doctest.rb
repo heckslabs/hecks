@@ -58,6 +58,27 @@ module Doctest
       false
     end
 
+  # schema-evolution.md's opening section is not a fixture — it reads
+  # `examples/pizzas`' own real era-1→2 migration back out of whatever
+  # Postgres is reachable, on purpose (see the guide's own "It already
+  # happened here" section for why faking that history would be a
+  # larger dishonesty than skipping it). That real history exists on
+  # exactly one machine: whoever's local Postgres lived through the
+  # actual pizza migration. A fresh database — CI's, or anyone else's
+  # first `createdb hecks_pizzas` — has the schema and none of the
+  # history, so this checks for the second era's own row rather than
+  # assume reachable Postgres means this specific guide can run.
+  PIZZAS_HISTORY_AVAILABLE =
+    POSTGRES_AVAILABLE &&
+    begin
+      db = PG.connect(dbname: "hecks_pizzas")
+      count = db.exec("SELECT count(*) FROM hecks_eras").getvalue(0, 0).to_i
+      db.close
+      count >= 2
+    rescue PG::Error
+      false
+    end
+
   module_function
 
   def parse(path)
