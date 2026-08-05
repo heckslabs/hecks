@@ -1,0 +1,12 @@
+Hecks.adapter "D1" do
+  port  "persistence"
+  field :account_id
+  field :database_id
+  secret :api_token
+end
+
+# No "D1Projection" declared yet, unlike Sqlite/SqliteProjection —
+# read-model projection support (query_read_model, mirroring
+# sqlite/projection.rb) is real future work, not started here. Declaring
+# the adapter without the class behind it would just be a WiringError trap
+# for whoever binds projected_by("D1Projection") first.

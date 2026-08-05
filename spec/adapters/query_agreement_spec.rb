@@ -30,11 +30,33 @@ postgres_available =
     false
   end
 
-RSpec.describe "adapter agreement — declared queries answer identically across Memory, Sqlite, and Postgres" do
+# D1 needs real Cloudflare credentials (CLOUDFLARE_ACCOUNT_ID,
+# CLOUDFLARE_D1_DATABASE_ID, CLOUDFLARE_D1_API_TOKEN) — optional, same as
+# Postgres above: this gate runs Memory-vs-Sqlite-vs-Postgres agreement on
+# any machine, and additionally includes D1 wherever those three env vars
+# point at a real, reachable database.
+d1_available =
+  begin
+    if ENV["CLOUDFLARE_ACCOUNT_ID"] && ENV["CLOUDFLARE_D1_DATABASE_ID"] && ENV["CLOUDFLARE_D1_API_TOKEN"]
+      Hecksagain::Adapters::D1::Connection.new(
+        account_id:  ENV.fetch("CLOUDFLARE_ACCOUNT_ID"),
+        database_id: ENV.fetch("CLOUDFLARE_D1_DATABASE_ID"),
+        api_token:   ENV.fetch("CLOUDFLARE_D1_API_TOKEN")
+      ).execute("SELECT 1")
+      true
+    else
+      false
+    end
+  rescue StandardError
+    false
+  end
+
+RSpec.describe "adapter agreement — declared queries answer identically across Memory, Sqlite, Postgres, and D1" do
   AGREEMENT_DB = "hecksagain_query_agreement_spec".freeze
   # A def sees no file-local the way the hook blocks do — the probe's
   # verdict crosses into agree! as a constant.
   POSTGRES_AVAILABLE = postgres_available
+  D1_AVAILABLE = d1_available
 
   before(:all) do
     next unless postgres_available
@@ -60,6 +82,25 @@ RSpec.describe "adapter agreement — declared queries answer identically across
     scrub.exec("DROP SCHEMA public CASCADE")
     scrub.exec("CREATE SCHEMA public")
     scrub.close
+  end
+
+  # D1 has no throwaway-database-per-run the way Postgres does here (one
+  # real, persistent database was provisioned for this, not minted and
+  # dropped per suite run) — so instead of DROP SCHEMA/CREATE SCHEMA, this
+  # drops just the two tables the "Thing" fixture actually uses, which
+  # gets to the same state: empty tables, freshly recreated by whichever
+  # adapter's own schema-creation runs next when `d1` is first touched.
+  before do
+    next unless d1_available
+
+    scrub = Hecksagain::Adapters::D1::Connection.new(
+      account_id:  ENV.fetch("CLOUDFLARE_ACCOUNT_ID"),
+      database_id: ENV.fetch("CLOUDFLARE_D1_DATABASE_ID"),
+      api_token:   ENV.fetch("CLOUDFLARE_D1_API_TOKEN")
+    )
+    scrub.execute("DROP TABLE IF EXISTS thing")
+    scrub.execute("DROP TABLE IF EXISTS thing_entries")
+    scrub.execute("DROP TABLE IF EXISTS events")
   end
 
   around do |example|
@@ -148,6 +189,18 @@ RSpec.describe "adapter agreement — declared queries answer identically across
   let(:memory)   { Hecksagain::Adapters::Memory.new(aggregate: aggregate) }
   let(:sqlite)   { Hecksagain::Adapters::Sqlite.new(aggregate: aggregate, settings: { database: "agreement.db" }, root: @dir) }
   let(:postgres) { postgres_available ? Hecksagain::Adapters::Postgres.new(aggregate: aggregate, settings: { database: AGREEMENT_DB }) : nil }
+  let(:d1) do
+    next nil unless d1_available
+
+    Hecksagain::Adapters::D1.new(
+      aggregate: aggregate,
+      settings: {
+        account_id:  ENV.fetch("CLOUDFLARE_ACCOUNT_ID"),
+        database_id: ENV.fetch("CLOUDFLARE_D1_DATABASE_ID"),
+        api_token:   ENV.fetch("CLOUDFLARE_D1_API_TOKEN")
+      }
+    )
+  end
 
   def instance(id, **fields)
     built = Hecksagain::Runtime::Instance.new(aggregate: aggregate, id: id)
@@ -178,12 +231,13 @@ RSpec.describe "adapter agreement — declared queries answer identically across
       memory.save(instance(id, **fields))
       sqlite.save(instance(id, **fields))
       postgres&.save(instance(id, **fields))
+      d1&.save(instance(id, **fields))
     end
   end
 
   # Runs the named declared query against every adapter under test and
   # checks each against the SAME hand-computed `expected` — the
-  # independent oracle. Postgres participates only when reachable, so
+  # independent oracle. Postgres and D1 participate only when reachable, so
   # Memory-vs-Sqlite agreement still runs (and still means something) on
   # a machine with no local Postgres.
   def agree!(query_name, args = {}, expected:)
@@ -192,6 +246,7 @@ RSpec.describe "adapter agreement — declared queries answer identically across
     expect(memory.query(declared, args).map(&:id)).to eq(expected)
     expect(sqlite.query(declared, args).map(&:id)).to eq(expected)
     expect(postgres.query(declared, args).map(&:id)).to eq(expected) if POSTGRES_AVAILABLE
+    expect(d1.query(declared, args).map(&:id)).to eq(expected) if D1_AVAILABLE
   end
 
   it "compiles eq on the lifecycle field the same everywhere" do
