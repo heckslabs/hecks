@@ -49,7 +49,7 @@ RSpec.describe "the declared translation rule kinds" do
   end
 
   it "names the same kinds method_missing refuses toward" do
-    builder = Hecksagain::Bluebook::DSL::TranslationAggregateBuilder.new("Thing")
+    builder = Hecksagain::Bluebook::DSL::TranslationAggregateBuilder.new("Account")
     message = begin
       builder.banana
       nil

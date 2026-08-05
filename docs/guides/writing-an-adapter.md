@@ -1,27 +1,26 @@
 # Writing an adapter
 
-You are not here to consume this language. You are here to make it
-talk to something of yours — a storage backend nobody else has bound
-yet, or a webhook that has to turn an external fact into a domain
-event. Two different jobs, two different directions through the
-hexagon, and this page is both: the DRIVEN side (something the domain
-calls, to persist itself) and the DRIVING side (something that calls
-the domain, from outside).
+Writing an adapter means binding this language to something external —
+a storage backend nobody else has bound yet, or a webhook that has to
+turn an external fact into a domain event. These are two different
+jobs, in two different directions through the hexagon, and this page
+covers both: the DRIVEN side (something the domain calls, to persist
+itself) and the DRIVING side (something that calls the domain, from
+outside).
 
-I am not going to ask you to trust an abstraction. I am going to read
-you the two smallest real adapters this codebase ships — Heki and
-Memory — method by method, and then run them, live, against a small
-domain of my own. What you get for free, and what you owe, both come
-out of that reading. *Le fond des choses* : an adapter is not a
-promise, it is a fixed list of methods, and either you wrote all of
-them or you did not.
+Rather than describing an abstraction, this guide walks through the
+two smallest real adapters this codebase ships — Heki and Memory —
+method by method, and then runs them, live, against a small domain.
+What an adapter gets for free, and what it owes, both come out of
+that reading: an adapter is not a promise, it is a fixed list of
+methods, either fully implemented or not.
 
 ## The two-file pattern
 
 Every driven adapter is said twice, on purpose. A `.adapter` file
 declares the shape:
 
-```
+```ruby skip
 Hecks.adapter "Heki" do
   port   "persistence"
   field  :dir
@@ -42,7 +41,7 @@ not at the first save.
 Memory declares even less — no fields at all, because it keeps
 nothing on disk to configure:
 
-```
+```ruby skip
 Hecks.adapter "Memory" do
   port   "persistence"
 end
@@ -80,8 +79,8 @@ they simply fail the first time something calls them if you left them
 out. `record_event` and `events` are optional passthroughs, called
 only `if @adapter.respond_to?(...)`.
 
-I can prove the checked half live — build something that implements
-none of the three and hand it to `AppendOnly` directly:
+The checked half can be proven live by building something that
+implements none of the three and handing it to `AppendOnly` directly:
 
 ```ruby
 class IncompleteStore
@@ -214,7 +213,7 @@ file on disk and not a metaphor:
 ```ruby
 require "tmpdir"
 
-dir  = Dir.mktmpdir("grenier-heki-")
+dir  = Dir.mktmpdir("writing-an-adapter-heki-")
 heki = Hecksagain::Adapters::Heki.new(aggregate: aggregate, root: dir)
 heki.save(crate(aggregate, "crate-2", label: { value: "cedar chest" }))
 
@@ -257,9 +256,9 @@ def query(specification, args = {}, context: {})
 end
 ```
 
-Neither compiles anything. Both just hand their own `all` to the
-reference interpreter and let it do the walking. I can prove that
-fallback answers correctly, live, against a declared query:
+Neither compiles anything. Both hand their own `all` to the reference
+interpreter and let it do the walking. That fallback can be shown to
+answer correctly, live, against a declared query:
 
 ```ruby
 queryable = Hecksagain::Bluebook::DSL::AggregateBuilder.new("Crate").tap do |b|
@@ -359,15 +358,14 @@ declared shape drifts, hold that era's frozen source text beside the
 data it describes, and apply a translation across the boundary — the
 whole reason Postgres carries `lineage_manager/` and `lineage.rb` at
 all (era minting, the head/tail view chain, `merge_tail!`). Not
-implementing it costs something real, and I will not pretend
-otherwise: a domain bound to a non-lineage-capable adapter still
-boots, still runs, still refuses everything it always refused — but
-the moment its declared shape changes, there is no edge for that
-change to travel across. You hand-migrate the data yourself, outside
-the language, or you do not change the shape. That may be a fine trade
-for a small adapter that will never carry a domain through a schema
-change — Heki, today, makes exactly that trade — but it is a trade,
-decided once, at the adapter level, not a gap to apologize for.
+implementing it costs something real: a domain bound to a
+non-lineage-capable adapter still boots, still runs, still refuses
+everything it always refused — but the moment its declared shape
+changes, there is no edge for that change to travel across. The data
+must be hand-migrated outside the language, or the shape must not
+change. That may be a fine trade for a small adapter that will never
+carry a domain through a schema change — Heki, today, makes exactly
+that trade — but it is a trade, decided once, at the adapter level.
 
 ## The driving side: anything that calls `dispatch_port`
 
@@ -424,80 +422,83 @@ command-emitted one. The port is the boundary; the business rule stays
 where every other business rule in this language lives, in a command
 or a policy the port never touches directly.
 
-I can show that shape for real, against a domain of my own. Declare
-the aggregate:
-
-```bluebook
-Hecks.bluebook "Grenier" do
-  vision "An attic ledger: what's stored up there, and whether it still is."
-  supporting
-
-  aggregate "Crate" do
-    description "One crate, stored in the loft until it comes back down."
-
-    identified_by { label.value }
-
-    attribute :label, Label
-
-    value_object "Label" do
-      attribute :value, String
-      invariant("a crate is named") { !value.to_s.empty? }
-    end
-
-    lifecycle :status, default: "stored" do
-      transition "Move" => "moved", from: "stored"
-    end
-
-    command "Store" do
-      role "Keeper"
-      goal "Put a crate up in the loft"
-
-      attribute :label, Label
-
-      emits "Stored"
-    end
-  end
-end
-```
-
-Declare the port in the hecksagon — a driving port lives here,
-never in the bluebook, the same boundary a `persisted_by` line marks
-for storage:
+That shape can be shown for real, extending the very file just quoted
+into a live call rather than inventing a second domain to make the
+same point twice. Boot Pizzas' own bluebook — the real one, unedited —
+bound to Memory so this page needs nothing running behind it, and wire
+the identical `PaymentGateway`/`Receive` port `pizzas.hecksagon`
+already declares:
 
 ```ruby boot
-Hecks.hecksagon("Grenier") do
-  Grenier::Crate.persisted_by("Memory")
+Kernel.load(InMemoryDomain::PIZZAS_BLUEBOOK)
 
-  Grenier::Crate.port "ClimateSensor" do
-    operation "Alert" do
-      reference_to Crate, as: :label
-      attribute :reading, Integer
+Hecks.hecksagon("Pizzas") do
+  Pizzas::Order.persisted_by("Memory")
 
-      emits "TemperatureAlerted"
+  Pizzas::Order.port "PaymentGateway" do
+    operation "Receive" do
+      reference_to Order, as: :name
+      attribute :customer_name, CustomerName
+      attribute :amount, Price
+
+      emits "PizzaPaymentReceived"
     end
   end
 end
 ```
 
-And call it exactly the way a real sensor's webhook handler would —
-through `dispatch_port`, never through the facade a command would use:
+A port's `reference_to` still has to find a record that actually
+exists — `command_rules/references.rb` refuses a payment about an
+order nobody created, the same check a command's own reference goes
+through — so set the stage exactly the way the real handler's script
+does, a pizza with a topping already on it so `Purchase`'s own `given`
+(at least one topping, still available, a positive payment) can pass
+once the reaction beneath this event runs it:
 
 ```ruby
-crate = Grenier::Crate.store(label: { value: "wool blankets" })
-crate.status  # => "stored"
+NAME = "GuideMargherita"
 
-runtime.dispatch_port("Grenier", "Crate", "ClimateSensor", "Alert", label: crate.id, reading: 41).map(&:name)  # => ["TemperatureAlerted"]
+order = Pizzas::Order.create_pizza(
+  name:  { value: NAME },
+  pizza: { price_cents: { cents: 1200 }, size: { value: "large" } }
+)
+order.add_topping(topping: { value: "Basil" }, amount: { value: 3 })
+
+order.status  # => "available"
 ```
 
-`TemperatureAlerted` is now in this domain's event log, in this
-domain's own vocabulary — a fact a `policy` could react to (raise a
-`Move` command, page someone, whatever the loft actually needs), the
-same way `OnPizzaPaymentReceived` reacts to `PizzaPaymentReceived` in
-the real example. I did not wire that policy here, on purpose — the
-point of this page is the boundary itself, and the boundary is
-already fully proven: an external call came in shaped nothing like
-this domain's own commands, and left as an event shaped exactly like
-every other one it emits.
+And call it exactly the way the real
+`mock_stripe_payment_adapter.rb` does — through `dispatch_port`, never
+through the facade a command would use:
+
+```ruby
+announced = runtime.dispatch_port(
+  "Pizzas", "Order", "PaymentGateway", "Receive",
+  name:          NAME,
+  customer_name: { value: "Chris" },
+  amount:        { cents: 1200 }
+)
+announced.map(&:name)  # => ["PizzaPaymentReceived"]
+```
+
+`PizzaPaymentReceived` is now in this domain's event log, in this
+domain's own vocabulary — not `Purchase`'s own, and nothing on
+`Purchase` was reached directly by that call. What DID reach it is
+`OnPizzaPaymentReceived`, the policy `pizzas.bluebook` declares beside
+`Purchase` (quoted at the top of this section): it reacted to the
+event this port just emitted, in this same call, and drove `Purchase`
+itself — `given` clauses, `then_set`, all of it:
+
+```ruby
+sold = Pizzas::Order.find(NAME)
+sold.status               # => "sold"
+sold.customer_name.to_h   # => { value: "Chris" }
+```
+
+The port is the boundary; the business rule stays where every other
+business rule in this language lives, in a command or a policy the
+port never touches directly — and that is not a description of the
+split, it is the split, with real code standing on both sides of it.
 
 ## Shipping checklist
 
@@ -520,5 +521,3 @@ every other one it emits.
 - For a driving adapter: nothing to declare in the bluebook at all —
   only a `port`/`operation` in the hecksagon, and a caller that reaches
   it through `dispatch_port`.
-
-— Miette

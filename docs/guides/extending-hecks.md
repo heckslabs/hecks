@@ -5,9 +5,9 @@ adapter. It is about the day you need a word the DSL does not have yet
 — a new keyword, a new argument, a new closed vocabulary term — and you
 have to ship it without breaking every `.bluebook` file that already
 boots today. That is a different kind of change from the ones the
-other guides cover, and it has its own discipline. *Le fond des
-choses* : the language is not exempt from the rule it enforces on
-everyone else. It is data too, and it gets checked the same way.
+other guides cover, and it has its own discipline: the language is not
+exempt from the rule it enforces on everyone else. It is data too, and
+it gets checked the same way.
 
 ## The language describes itself
 
@@ -50,7 +50,7 @@ anything else follows from it.
 Every row in `Syntax::Keyword` and `Syntax::Argument` carries a
 `status`, and the set is closed and small:
 
-```
+```ruby skip
 proposed → admitted → deprecated → retired
 ```
 
@@ -70,7 +70,7 @@ from booting.
 The two value objects that carry all of this, read straight out of
 `lib/hecksagain/language/bluebook/syntax.bluebook`:
 
-```
+```ruby skip
 Keyword  — word, context, body, inner, opens, fills, status, was
 Argument — keyword, context, at, named, kind, required, fills,
            selects, pair_key_fills, pair_value_fills, pairs_shape, status
@@ -94,7 +94,7 @@ walk that used to live in memory and review alone. `bin/evolve` makes
 it mechanical. Read its header comment before you touch anything; this
 is what it actually does, station by station:
 
-```
+```ruby skip
 bin/evolve status
 bin/evolve propose <word> --context Aggregate [--body ...] [--inner ...] [--opens ...] [--fills ...]
 bin/evolve admit <word> --context Aggregate
@@ -254,7 +254,7 @@ changes the emitted `Syntax`/`Argument` rows, which is exactly the kind
 of change the golden file is supposed to catch — the tool trusts the
 gate, not the other way around. (What happens when a *domain's own
 data* has to survive a shape change, rather than the language's wire
-format, is schema-evolution.md's whole subject — a sibling discipline,
+format, is [schema-evolution.md](schema-evolution.md)'s whole subject — a sibling discipline,
 same reflex: review the diff before you believe it.)
 
 ## Teaching the model checker a new finding
@@ -385,5 +385,3 @@ suite would have stayed green for the identical reason: nothing read
 the two against each other. It does now. Every gate in this guide is
 that same insurance, bought once, for one more pair of things that
 used to be able to disagree in silence.
-
-— Miette

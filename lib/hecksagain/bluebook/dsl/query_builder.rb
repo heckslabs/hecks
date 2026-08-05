@@ -14,6 +14,7 @@ module Hecksagain
         def description(value) = @description = value
 
         def build
+          seal_cursor
           IR::Query.new(
             name:        @name,
             description: @description,
@@ -38,6 +39,20 @@ module Hecksagain
           builder.build
         end
 
+        private
+
+        # `cursor` parses, round-trips through the IR, and is read by nothing —
+        # no interpreter (Memory, Sqlite, Postgres) ever applies it. Refusing
+        # it here, rather than deleting the word, keeps the declared syntax
+        # honest (the language still knows the shape) while refusing to let a
+        # bluebook author believe cursor-based pagination actually happens.
+        def seal_cursor
+          return unless @cursor
+
+          raise Malformed,
+                "#{@name} declares cursor, but no interpreter implements cursor " \
+                "pagination — use limit/offset instead"
+        end
       end
     end
   end

@@ -28,9 +28,9 @@ module Hecksagain
       # Runtime::RefusalWording's own doc comment gives the same reason.
       DISPATCH_ORDER = %i[
         refuse_unknown_arguments refuse_absent_arguments normalize_args
-        resolve_references hydrate enforce_givens admissible_transition
-        assign_creation_attributes apply_mutations advance_lifecycle
-        enforce_ensures save emit
+        refuse_role_mismatch resolve_references hydrate enforce_givens
+        admissible_transition assign_creation_attributes apply_mutations
+        advance_lifecycle enforce_ensures save emit
       ].freeze
 
       # EVERY CROSS-STEP LOCAL `call` used to thread through its own literal
@@ -62,6 +62,10 @@ module Hecksagain
 
       def step_normalize_args(ctx)
         ctx.args = step(:normalize_args) { normalize_args(ctx.aggregate, ctx.command, ctx.args) }
+      end
+
+      def step_refuse_role_mismatch(ctx)
+        step(:refuse_role_mismatch) { @rules.refuse_role_mismatch(ctx.command) }
       end
 
       def step_resolve_references(ctx)

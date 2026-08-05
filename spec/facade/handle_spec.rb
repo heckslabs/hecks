@@ -16,6 +16,7 @@ RSpec.describe Hecksagain::Facade::Handle do
       Hecks.hecksagon("Banking") do
         ::Banking::Customer.persisted_by("Memory")
         ::Banking::Account.persisted_by("Memory")
+        ::Banking::SafeDepositBox.persisted_by("Memory")
       end
     end
 
@@ -55,5 +56,34 @@ RSpec.describe Hecksagain::Facade::Handle do
     # reassign @state.
     account.unfreeze
     expect(account.status).to eq("open")
+  end
+
+  # `Handle#run` used to address every non-creating verb with
+  # `{ @ir.identified_by => @id }` — `identified_by` is nil the moment an
+  # identity is composite, so this built `{ nil => @id }`, and dispatch's
+  # own argument gate crashed on `nil.to_sym` reading the args back (worse
+  # still on a zero-attribute command like `Surrender`, where that stray nil
+  # key was the ONLY thing in the payload). `SafeDepositBox`'s
+  # `branch_code`/`box_number` identity is banking's one composite head,
+  # so it is what proves door sugar addresses a multi-part identity, not
+  # just a single one.
+  it "dispatches non-creating verbs on a composite-identity aggregate" do
+    boot_banking_in_memory
+
+    Banking::Customer.register(reference: { value: "c1" }, name: { given: "Ada", family: "Lovelace" },
+                                email: { address: "ada@example.com" })
+    box = Banking::SafeDepositBox.rent(customer_id: "c1", branch_code: { value: "BR01" },
+                                        box_number: { value: 12 }, size: { value: "small" })
+
+    box.log_visit(date: { value: "2026-08-04" }, sequence: { value: 1 })
+    expect(box[:visits].size).to eq(1)
+
+    box.issue_key(serial: { value: "K1" })
+    expect(box[:keys].size).to eq(1)
+
+    # Zero declared attributes — the identity payload is the ENTIRE args
+    # hash, so a stray `nil` key had nowhere to hide.
+    box.surrender
+    expect(box.status).to eq("vacant")
   end
 end

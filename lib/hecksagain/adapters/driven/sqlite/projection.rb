@@ -1,5 +1,6 @@
 require_relative "../../../runtime/instance"
 require_relative "../../../runtime/value"
+require_relative "../../../ports/query/in_memory"
 
 # The subclass needs its parent — and sqlite.rb requires this file at
 # its BOTTOM, after class Sqlite is defined, so the require cycle this
@@ -32,6 +33,7 @@ module Hecksagain
         # reads it — not the identity unwrap, which is gone : an identity is
         # declared as a path and followed.
         reference_id = args.fetch(model.reference_name).to_s
+        eligible = model.filtered_head_name
         reports = {}
         model.aggregate_heads.each do |head|
           aggregate = bluebook.aggregate(head[:aggregate])
@@ -40,6 +42,7 @@ module Hecksagain
                  else
                    select_related(aggregate, model.reference_target, reference_id)
                  end
+          rows = Ports::Query::InMemory.execute(rows, model, args) if head[:as] == eligible
           reports[head[:as]] = if head[:many]
                                  rows.map { |row| Runtime::Value.materialize(row.to_h) }
                                else

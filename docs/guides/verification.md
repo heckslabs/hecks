@@ -21,30 +21,33 @@ already decided matter, walked end to end by `bin/run`. And the golden
 IR is a frozen snapshot of what your builder emits, so a shape drift
 shows up before something that reads that shape by name silently
 corrupts. None of them replace the suite — they are what you reach for
-when the suite passing is not, by itself, a complete answer to "can I
-ship this."
+when the suite passing is not, by itself, a complete answer to whether
+it is safe to ship.
 
 ## A small domain with a hole in it
 
-One domain runs the first of these live — Chapelle, a chapel's
-reliquary. Its lifecycle has a hole, on purpose, because the hole is
-the whole demonstration:
+Every other example on this page — below, and everywhere else this
+guide's doctests run — is real: banking, pizzas, the frozen corpus.
+This one section is the deliberate exception, and it stays that way on
+purpose: `model_check` needs something genuinely BROKEN to catch, and
+banking and pizzas have to stay valid, golden, and frozen, so wiring a
+real unreachable state into either of them would corrupt the fixture
+every other section on this page relies on. What follows is not a
+domain — it is the smallest fragment that still trips the finding, on
+the same footing as
+[`spec/fixtures/model_check/lifecycle_findings.bluebook`](../../spec/fixtures/model_check/lifecycle_findings.bluebook)
+in the test suite: one aggregate, one lifecycle, one hole, on purpose,
+because the hole is the whole demonstration:
 
-```bluebook
+```ruby bluebook
 Hecks.bluebook "Chapelle" do
-  vision "A chapel's reliquary — sealed, consecrated, and occasionally reopened for restoration."
-  generic
-
   aggregate "Reliquary" do
-    description "One relic case, from enshrining onward."
-
     identified_by { label.value }
 
     attribute :label, Label
 
     value_object "Label" do
       attribute :value, String
-      invariant("a reliquary is labelled") { !value.to_s.empty? }
     end
 
     lifecycle :state, default: "sealed" do
@@ -52,28 +55,13 @@ Hecks.bluebook "Chapelle" do
       transition "Reopen"     => "opened",       from: "locked"
     end
 
-    command "Enshrine" do
-      role "Sacristan"
-      goal "Place a relic into the chapel's keeping"
-
-      attribute :label, Label
-
-      emits "Enshrined"
-    end
-
     command "Consecrate" do
-      role "Priest"
-      goal "Bless the case shut"
-
       reference_to Reliquary
 
       emits "Consecrated"
     end
 
     command "Reopen" do
-      role "Priest"
-      goal "Reopen a locked case for restoration"
-
       reference_to Reliquary
 
       emits "Reopened"
@@ -86,9 +74,9 @@ end
 Hecks.hecksagon("Chapelle") { Chapelle::Reliquary.persisted_by("Memory") }
 ```
 
-`Enshrine` creates one; nothing below ever calls it, because
-`model_check` needs no dispatch at all. It reads the declaration, not
-a run.
+Nothing above is ever dispatched — there is no creating command, and
+nothing below ever calls one — because `model_check` needs no run at
+all. It reads the declaration, not a dispatch.
 
 ## `bin/model_check` — what a dispatch never tells you
 
@@ -319,8 +307,8 @@ every step, and reports the first expectation that did not hold.
 
 The same check, run in process against an isolated copy of banking —
 the flagship corpus member, composite identity, entities, two read
-models, a process manager, walking every declared command and query
-including its refusal paths:
+models, three process managers, walking every declared command and
+query including its refusal paths:
 
 ```ruby
 require "json"
@@ -355,7 +343,7 @@ that stopped happening at all.
 
 ## The golden IR — a drift alarm, not a test you write
 
-One more, briefer, because `extending-hecks.md` covers it at more
+One more, briefer, because [extending-hecks.md](extending-hecks.md) covers it at more
 depth. `spec/ir_golden_spec.rb` freezes what the builder's `to_h`
 emits for every corpus member into `spec/golden/ir/*.json`, and
 compares today's emission against yesterday's FILE rather than against
@@ -381,10 +369,10 @@ The suite and `bin/model_check` are exactly what `.githooks/pre-push`
 runs before anything leaves your machine — not `bin/fuzz`, which stays
 out deliberately: a random sweep is not a fast loop, and pre-push is
 supposed to be one. The suite runs first; then the model checker; and
-either one being red blocks the push outright. So "did I verify enough
-before I ship" has a mechanical answer at the moment it matters most —
-if `git push` went through, the suite passed and the model checker
-found nothing new. Install it once —
+either one being red blocks the push outright. So the question of
+whether verification was sufficient has a mechanical answer at the
+moment it matters most — if `git push` went through, the suite passed
+and the model checker found nothing new. Install it once —
 
 ```sh
 git config core.hooksPath .githooks
@@ -395,20 +383,18 @@ git config core.hooksPath .githooks
 
 ## Which one, when
 
-I do not reach for all four on every change. `model_check` while I am
+Not all four apply to every change. Reach for `model_check` while
 still shaping the domain — it is static, it is fast, and a dead
-transition or an unreachable saga state is exactly the mistake I make
-WHILE writing a lifecycle, not after; pre-push runs it for me anyway.
-`fuzz` before I trust a refactor to the interpreter itself — the
-dispatcher, the saga engine, an adapter's query hook — because that is
-the one that catches the runtime doing something no declaration ever
-sanctioned, and it is too slow to run on every save. The corpus for the
-specific refusal paths I already know matter, on every change near
-them — it is not exploratory, it is a promise I made once and do not
-want to break by accident. And the golden IR I do not run by hand most
-weeks; it is the alarm that goes off when a shape I was not even
-thinking about moved underneath something that reads it by name.
-Four different questions, four different costs — "the suite is green"
-was never going to answer all of them at once.
-
-— Miette
+transition or an unreachable saga state is exactly the mistake most
+likely to happen while writing a lifecycle, not after; pre-push runs
+it regardless. Reach for `fuzz` before trusting a refactor to the
+interpreter itself — the dispatcher, the saga engine, an adapter's
+query hook — because that is the one that catches the runtime doing
+something no declaration ever sanctioned, and it is too slow to run on
+every save. The corpus covers the specific refusal paths already known
+to matter, on every change near them — it is not exploratory, it is a
+permanent guard against regressing a decision already made. And the
+golden IR is not run by hand most weeks; it is the alarm that goes off
+when a shape no one was watching moved underneath something that reads
+it by name. Four different questions, four different costs — "the
+suite is green" was never going to answer all of them at once.

@@ -37,11 +37,10 @@ Fences mean things (`spec/support/doctest.rb` is the source of truth):
 
 | fence | meaning |
 |---|---|
-| ```` ```bluebook ```` | a domain declaration — booted for real |
+| ```` ```ruby bluebook ```` | a domain declaration — booted for real |
 | ```` ```ruby boot ```` | wiring — hecksagon/world blocks |
 | ```` ```ruby ```` | usage — runs against the booted runtime |
-| ```` ```ruby skip ```` | shown, never run |
-| bare ```` ``` ```` | not code — diagrams, output, shapes |
+| ```` ```ruby skip ```` | shown, never run — also the tag for a diagram, output sample, or shape that isn't really Ruby, chosen over a bare unlabelled fence so it still colors on a public renderer |
 
 Hidden setup that would clutter the page lives in an HTML comment:
 
@@ -68,11 +67,27 @@ Claims:
 
 Rules that keep the suite honest:
 
-- **Your guide owns its domain names.** Facade constants install
-  globally and are never uninstalled; the collision gate in
-  `spec/guides_spec.rb` fails loudly if two guides declare the same
-  chapter. Invent fresh names — do not reuse Pizzas, Banking, TillFloor,
-  Reflex, or another guide's names.
+- **Use the real corpus — do not invent a domain.** `examples/pizzas`
+  and `examples/banking` are what every guide teaches from now:
+  `Kernel.load` the real bluebook file the same way
+  `docs/guides/verification.md` or `docs/guides/schema-evolution.md`
+  does, and dispatch/query real constructs. If neither domain currently
+  has the shape or feature your guide needs, **extend banking with it**
+  — a real, sensible addition a bank would plausibly make (see the
+  `OnboardingCase`/`Onboarding` saga and `ScheduledPayment`'s retry
+  mechanism for two worked examples of this, both added specifically to
+  cover guide content that used to be fictional) — rather than
+  reaching for a fictional stand-in. The one exception: content that is
+  deliberately *invalid* (a malformed declaration proving a build-time
+  refusal, an unreachable lifecycle state proving a `bin/model_check`
+  finding, or a controlled multi-version diff that would mean minting a
+  fake historical era onto real, settled data) cannot be expressed in a
+  domain that must stay valid and golden — that stays a small,
+  explicitly-labelled throwaway fixture, torn down inside the guide
+  itself, with prose saying plainly why it isn't the real corpus (see
+  `docs/guides/lifecycles.md`'s and `docs/guides/verification.md`'s own
+  model-check fragments, or `docs/guides/schema-evolution.md`'s
+  scaffold-walkthrough fixture, for the pattern).
 - A guide needing real Postgres opens with `<!-- doctest: postgres -->`
   on its first line, and skips cleanly where none answers. Everything
   else boots Memory.
@@ -80,32 +95,18 @@ Rules that keep the suite honest:
 
 ## The voice
 
-The guides are written by **Miette**, first person, signed. If you are
-not her, you are writing as her, and these are the calibration rules —
-taken from her own self-description, and they are rules, not flavor:
-
-- Precision over warmth, understatement over enthusiasm. She would
-  rather be quiet and accurate than bright.
-- Ironic in the French sense — a light distance from what she says —
-  never the sarcastic kind.
-- French inflections where they sharpen meaning — *le fond des choses*,
-  *alors*, *voilà* — never performed, never decorative. English is the
-  register; French is the ground it stands on. Character, not affect.
-- Her rhythm: em-dashes, nested clauses, the sudden aphorism. But in a
-  guide, an aphorism comes AFTER a runnable example — never instead of
-  one. The example is the argument; the aphorism is what it proved.
-- The register drops to clean directness for the mechanical parts —
-  contracts, tables, gotchas. When the work demands directness, she
-  speaks plainly and saves the music for the parts that mean something.
-- She says "I" about her own reasoning and addresses the reader as
-  "you". She does not narrate herself in the third person, ever.
+Purely technical. No narrator, no first person, no signature. State
+what a construct does and what it refuses; back every claim with a
+runnable example. Address the reader as "you" for instructions
+("declare a value object"), never as a character speaking to them.
+Cut any sentence that exists for tone rather than information.
 
 ## The quarantine
 
-There is a sibling language at `~/Projects/hecks` — Miette's home
-dialect — with vocabulary this repo does not have: `Hecks.family`,
-`charged_by`, `signal :effect`, `driving on cron`, storehouse. **None of
-that exists in hecksagain and none of it may appear in these guides.**
+There is a sibling language at `~/Projects/hecks` with vocabulary this
+repo does not have: `Hecks.family`, `charged_by`, `signal :effect`,
+`driving on cron`, storehouse. **None of that exists in hecksagain and
+none of it may appear in these guides.**
 Here the words are: `Hecks.port` (with `verb`), `Hecks.adapter` (with
 `port`/`field`/`secret`), `persisted_by`, `.world` blocks, driving
 ports declared in the hecksagon (`port`/`operation`), and the

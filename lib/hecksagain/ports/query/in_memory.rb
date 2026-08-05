@@ -37,7 +37,7 @@ module Hecksagain
           when "gt"       then ordered?(held, want) && held > want
           when "gte"      then ordered?(held, want) && held >= want
           when "in"       then members(want).include?(held.to_s)
-          when "contains" then members(held).include?(want.to_s)
+          when "contains" then contains?(held, want)
           else                 held == want
           end
         end
@@ -46,10 +46,31 @@ module Hecksagain
 
         # A list of value objects is a list of single-field hashes — unwrap
         # each element the same way a scalar field is, before stringifying.
+        # This is `in`'s own reading of ITS ARGUMENT (a caller may legitimately
+        # pass "a,b,c" meaning "any of these") — unrelated to `contains`,
+        # which reads the STORED field and never splits it this way. See
+        # `contains?`.
         def members(value)
           return value.map { |element| comparable(element).to_s } if value.is_a?(Array)
 
           value.to_s.split(",").map(&:strip)
+        end
+
+        # `contains` means two different things depending on what is HELD —
+        # real ELEMENT membership for a `list_of` field (a genuine Array
+        # arrives already, one element one member, nothing to split), and
+        # plain SUBSTRING for anything else. It used to fall through to
+        # `members`' comma-split for the scalar case too, silently reading a
+        # free-text field's own comma as a separator — which the SQL side's
+        # `instr`/`position` never did, so the two disagreed the moment a
+        # scalar's real content held a comma. Matching SQL's substring
+        # reading here, rather than the other way around, keeps every
+        # engine (Memory, Heki, Sqlite, Postgres, the reference interpreter)
+        # answering `contains` identically for the same declared field.
+        def contains?(held, want)
+          return members(held).include?(want.to_s) if held.is_a?(Array)
+
+          held.to_s.include?(want.to_s)
         end
 
         def resolve(value, args) = value.is_a?(Symbol) ? args[value] : value

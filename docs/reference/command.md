@@ -17,7 +17,7 @@ between them is hand-written and survives regeneration.*
 | positional 1 | text | true | role |
 <!-- generated:end -->
 
-Names who calls this command — "Orchardist", "Cidermaker". It travels with the command's `to_h` for anything downstream that wants to show it, but nothing in the runtime reads it back to authorize a caller; declaring `role "Cidermaker"` does not stop anyone else from calling `Press`.
+Names who calls this command — "Compliance officer", "Back office". Optional: a command with no declared `role` is never checked against anything. Where it IS declared, enforcement is opt-in on the caller's side too — unchecked by default, real once a caller states one. `Hecksagain.as_caller(role:, &block)` binds who is dispatching for the block (`Runtime::Caller`, `Thread.current`-backed, safe under nesting); a command whose declared `role` doesn't match refuses with `Unauthorized` (`CommandRules::Authorization#refuse_role_mismatch`, the `role_mismatch` refusal template). A policy or saga reaction never inherits the triggering caller's role — `Dispatcher#reenter` clears it, since a reaction is the system acting, not the original caller.
 
 ## goal
 
@@ -29,7 +29,7 @@ Names who calls this command — "Orchardist", "Cidermaker". It travels with the
 | positional 1 | text | true | goal |
 <!-- generated:end -->
 
-A one-line statement of intent — "Bring in one basket and count it toward the tree's yield." Descriptive only, same as `role`: nothing enforces that the command's body actually does what its `goal` claims.
+A one-line statement of intent — "Bring in one basket and count it toward the tree's yield." Descriptive only, unlike `role`: nothing enforces that the command's body actually does what its `goal` claims.
 
 ## reference_to
 

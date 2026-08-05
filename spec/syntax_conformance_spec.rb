@@ -121,6 +121,7 @@ RSpec.describe "the declared syntax" do
       boot:             "the runtime facade, not a declaration",
       with_registry:    "the runtime facade, not a declaration",
       current_registry: "the runtime facade, not a declaration",
+      as_caller:        "the runtime facade, not a declaration",
       port:             "a sibling artifact — .port has its own builder and its own file",
       adapter:          "a sibling artifact — .adapter has its own builder and its own file",
       data_translation: "a sibling artifact — translations/ has its own builder and its own file"

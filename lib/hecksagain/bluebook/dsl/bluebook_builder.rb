@@ -47,6 +47,7 @@ module Hecksagain
           # so an undeclared value object fails reference resolution
           validate_reference_value_objects!
           validate_correlation_keys!
+          validate_no_bidirectional_references!
           policies = @aggregates.flat_map(&:policies) + @policies
 
           # The chapter is the top of the construct chain — `IR::Bluebook` is a
@@ -110,6 +111,47 @@ module Hecksagain
 
           raise Malformed,
                 "an entity command is addressed through its aggregate; #{violations.uniq.join('; ')}"
+        end
+
+        # TWO AGGREGATES REFERENCING EACH OTHER IS NOT A MODELLING CHOICE,
+        # IT IS A MISSING ONE — a DDD aggregate is a consistency boundary
+        # precisely because something outside it can only ever point IN,
+        # by id, never the other way. A caller must be able to reason about
+        # one aggregate alone ; a reference back the other way means
+        # neither one is a boundary anyone can reason about without the
+        # other, and the two are really one aggregate wearing two names.
+        #
+        # Checked at the bluebook level, not inside `AggregateBuilder`
+        # itself, because seeing a cycle needs BOTH ends declared — an
+        # aggregate finishes building long before it can know whether some
+        # later aggregate in the same file points back at it.
+        #
+        # This catches the direct pair (A -> B -> A) only, not a longer
+        # cycle (A -> B -> C -> A) — a chain that returns to its start
+        # after passing through a third aggregate is a different, murkier
+        # question this does not take a position on.
+        def validate_no_bidirectional_references!
+          by_name = @aggregates.each_with_object({}) { |aggregate, index| index[aggregate.hecks_name] = aggregate }
+
+          violations = @aggregates.flat_map do |aggregate|
+            aggregate.reference_targets.uniq.filter_map do |target|
+              next if target == aggregate.hecks_name
+
+              other = by_name[target]
+              next unless other&.reference_targets&.include?(aggregate.hecks_name)
+
+              [aggregate.hecks_name, target].sort
+            end
+          end.uniq
+
+          return if violations.empty?
+
+          pairs = violations.map { |a, b| "#{a} <-> #{b}" }.join(", ")
+          raise Malformed,
+                "bidirectional aggregate reference(s): #{pairs} — an aggregate points at " \
+                "another by id in one direction only ; decide which one owns the " \
+                "relationship, and let the other side be found through a query instead " \
+                "of a reference pointing back"
         end
 
         # `correlates_by` NAMES A SCALAR, NOW CHECKED RATHER THAN TRUSTED.

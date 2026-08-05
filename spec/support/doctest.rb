@@ -9,9 +9,14 @@ require "prism"
 #
 # A guide is a Markdown file whose fences mean:
 #
-#   ```bluebook        a domain declaration — booted, via its own
+#   ```ruby bluebook   a domain declaration — booted, via its own
 #                      Tempfile (Prism's extraction memoises per PATH,
-#                      so every block gets a fresh one)
+#                      so every block gets a fresh one). Spelled
+#                      "ruby bluebook", not bare "bluebook", so a
+#                      public renderer (GitHub Pages' Rouge highlighter
+#                      reads only the first info-string word) colors it
+#                      as the real Ruby it is, the same reason
+#                      "ruby boot" / "ruby skip" already do.
 #   ```ruby boot       wiring — hecksagon/world blocks, still inside
 #                      with_registry
 #   ```ruby            usage — runs against the bound runtime, one
@@ -77,7 +82,7 @@ module Doctest
       end
 
       case line.rstrip
-      when "```bluebook"          then fence = :bluebook
+      when "```ruby bluebook"     then fence = :bluebook
       when "```ruby boot"         then fence = :boot
       when "```ruby"              then fence = :usage
       when "```ruby skip"         then fence = :skip

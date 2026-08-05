@@ -6400,6 +6400,12 @@
             [
               [
                 "step",
+                "refuse_role_mismatch"
+              ]
+            ],
+            [
+              [
+                "step",
                 "resolve_references"
               ]
             ],
@@ -6481,6 +6487,12 @@
               [
                 "step",
                 "normalize_args"
+              ]
+            ],
+            [
+              [
+                "step",
+                "refuse_role_mismatch"
               ]
             ],
             [
@@ -6609,6 +6621,12 @@
               [
                 "name",
                 "TypeMismatch"
+              ]
+            ],
+            [
+              [
+                "name",
+                "Unauthorized"
               ]
             ],
             [
@@ -7149,6 +7167,34 @@
               [
                 "template",
                 "{name} admits {admits}, which this chapter does not declare — a closed set is named Aggregate::SetName, and it must be one the bluebook actually holds"
+              ]
+            ],
+            [
+              [
+                "refusal",
+                "Unauthorized"
+              ],
+              [
+                "site",
+                "tenant_required"
+              ],
+              [
+                "template",
+                "{query} declares authorize with tenant: {field} — pass {field}: to name which {field} this ask is scoped to"
+              ]
+            ],
+            [
+              [
+                "refusal",
+                "Unauthorized"
+              ],
+              [
+                "site",
+                "role_mismatch"
+              ],
+              [
+                "template",
+                "{command} refused — role: {role}, and the caller stated {caller_role}"
               ]
             ]
           ],

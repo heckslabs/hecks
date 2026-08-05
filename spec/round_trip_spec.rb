@@ -115,32 +115,15 @@ RSpec.describe "a bluebook dispatched in and read back out" do
     expect(Hecksagain::Bluebook::IR::Bluebook.instance_method(:to_h).owner).to be_truthy
   end
 
-  it "carries a chapter's version, which no corpus member declares" do
-    # The language grew `version` so a graph assembled purely from these records
-    # would stop losing it. No bluebook in the tree declares one, so without this
-    # the field would be legal and unexercised — the exact pattern that let
-    # `Field#default` sit unproven, and that this spec exists to refuse.
-    registry = Hecksagain::Runtime::Registry.new
-    Hecksagain.with_registry(registry) do
-      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-      Hecks.bluebook("Pinned", version: "v2") do
-        vision "a chapter that pins its contract version"
-        supporting
-
-        aggregate "Thing" do
-          identified_by { id.value }
-          description "a thing"
-          attribute :label, Label
-          value_object("Label") { attribute :value, String }
-        end
-      end
-    end
-
-    back, refusals = read_back(registry.bluebook("Pinned"))
+  it "carries a chapter's version, which banking pins for real" do
+    # The language grew `version` so a graph assembled purely from these
+    # records would stop losing it. Banking pins one for real
+    # (`Hecks.bluebook "Banking", version: "v1"`) — a scratch fixture used
+    # to prove this before banking declared one itself; no longer needed.
+    back, refusals = read_back(load_corpus(ROUND_TRIP_CORPUS["Banking"]).bluebook("Banking"))
 
     expect(refusals).to be_empty
-    expect(back[:version]).to eq("v2")
+    expect(back[:version]).to eq("v1")
   end
 
   it "leaves version absent when a chapter pins none, since ABSENT IS NOT EMPTY" do

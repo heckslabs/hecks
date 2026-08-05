@@ -4,6 +4,7 @@ require_relative "../ports/query/ordering"
 require_relative "../query_specification/field_path"
 require_relative "errors"
 require_relative "refusal_wording"
+require_relative "tenant_scope"
 require_relative "value"
 
 
@@ -21,6 +22,7 @@ module Hecksagain
 
         declared = declared_query(aggregate, query_name)
         args = normalize_args(aggregate, declared, args)
+        declared = TenantScope.apply(declared, args)
 
         repository = @registry.repository(domain, aggregate)
         if (native = Ports::Query.execute(repository, declared, args, context: { domain: domain, aggregate: aggregate }))
@@ -42,6 +44,7 @@ module Hecksagain
 
         declared = declared_query(aggregate, query_name)
         args = normalize_args(aggregate, declared, args)
+        declared = TenantScope.apply(declared, args)
         interpret(@registry.repository(domain, aggregate).all, declared, args)
       end
 
@@ -69,6 +72,7 @@ module Hecksagain
         declared = entity.query(query_name) ||
                    raise(UnknownVerb, RefusalWording.render("UnknownVerb", "entity_query_missing",
                                                              entity: entity_name, query: query_name.inspect))
+        declared = TenantScope.apply(declared, args)
         list_attr = aggregate.attributes.find { |a| a.list? && a.type.to_s == entity_name } ||
                     raise(UnknownVerb, RefusalWording.render("UnknownVerb", "entity_holds_no_list",
                                                               aggregate: aggregate.hecks_name, entity: entity_name))
@@ -134,7 +138,7 @@ module Hecksagain
         when "gt"       then ordered?(held, want) && held > want
         when "gte"      then ordered?(held, want) && held >= want
         when "in"       then members(want).include?(held.to_s)
-        when "contains" then members(held).include?(want.to_s)
+        when "contains" then contains?(held, want)
         else                 held == want
         end
       end
@@ -144,16 +148,34 @@ module Hecksagain
       # predates this change (lt was already exactly this permissive).
       def ordered?(held, want) = held.is_a?(Numeric) && want.is_a?(Numeric)
 
-      # in/contains both read a comma-separated list — a real Array survives
-      # untouched (a bluebook's own in-process value, before any wire
-      # serialisation), each element unwrapped the same way a scalar field
-      # is (a list of value objects is a list of single-field hashes) ;
-      # anything else is treated as CSV text — the established wire
-      # convention for list-valued clauses.
+      # `in` reads a comma-separated list — a real Array survives untouched
+      # (a bluebook's own in-process value, before any wire serialisation),
+      # each element unwrapped the same way a scalar field is (a list of
+      # value objects is a list of single-field hashes) ; anything else is
+      # treated as CSV text. This is `in`'s reading of ITS ARGUMENT (a
+      # caller may legitimately pass "a,b,c" meaning "any of these") —
+      # unrelated to `contains`, which reads the STORED field. See
+      # `contains?`.
       def members(value)
         return value.map { |element| comparable(element).to_s } if value.is_a?(Array)
 
         value.to_s.split(",").map(&:strip)
+      end
+
+      # `contains` means two different things depending on what is HELD —
+      # real ELEMENT membership for a `list_of` field (a genuine Array
+      # arrives already, one element one member, nothing to split), and
+      # plain SUBSTRING for anything else. It used to fall through to
+      # `members`' comma-split for the scalar case too, silently reading a
+      # free-text field's own comma as a separator — which the SQL side's
+      # `instr`/`position` never did, so the two disagreed the moment a
+      # scalar's real content held a comma. Matching SQL's substring
+      # reading here, rather than the other way around, keeps every
+      # engine answering `contains` identically for the same declared field.
+      def contains?(held, want)
+        return members(held).include?(want.to_s) if held.is_a?(Array)
+
+        held.to_s.include?(want.to_s)
       end
 
       def resolve_query_value(value, args)

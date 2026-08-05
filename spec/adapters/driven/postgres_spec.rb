@@ -210,20 +210,18 @@ RSpec.describe Hecksagain::Adapters::Postgres,
       expect(where("pizza.price_cents.cents", "lte", 1200)).to eq(%w[p1 p3])
     end
 
-    # NOTE ON SEMANTICS, not just mechanics: the reference (in-memory)
-    # interpreter's "contains" means CSV/list membership — `members(held)
-    # .include?(want.to_s)`, query_interpreter.rb:102-114 — while this
-    # compiles to a literal SQL substring search, `position($1 in
-    # expression) > 0`. Those agree by coincidence on a single-token
-    # field (no commas to split on) but are not the same operator for
-    # anything with a comma in it. That divergence predates this spec and
-    # is a real, separate question — flagging it here rather than baking
-    # one interpretation into an unrelated fix. This test verifies only
-    # that Postgres's OWN documented behavior (substring, on a plain
-    # scalar field — a value-object member would also need query_value's
+    # NOTE ON SEMANTICS, not just mechanics: `contains` on a plain scalar
+    # field means substring everywhere now — the reference (in-memory)
+    # interpreter's `contains?` (query_interpreter.rb) reads the same way,
+    # having previously read `contains` as CSV/list membership even for a
+    # scalar, which agreed with this SQL substring search only by
+    # coincidence on a comma-free field. See
+    # spec/adapters/query_agreement_spec.rb's "carries a comma" case for
+    # the cross-engine proof. This test verifies only that Postgres's own
+    # compilation (a value-object member would also need query_value's
     # hash-unwrapping to resolve a string, which it does not: it only
-    # extracts a NUMERIC member and returns nil otherwise) compiles and
-    # executes correctly.
+    # extracts a NUMERIC member and returns nil otherwise) executes
+    # correctly.
     it "compiles contains as a literal SQL substring match on a plain scalar field" do
       expect(where("status", "contains", "avail")).to eq(%w[p1 p2])
     end

@@ -1,0 +1,104 @@
+require "spec_helper"
+
+# `role` used to be pure decoration — declared, stored, read by nothing at
+# dispatch time. This holds the fix: opt-in on both sides (no caller bound,
+# or a command with no declared role, both dispatch exactly as before), and
+# a real refusal once a caller states a role and it doesn't match.
+RSpec.describe "role-based command rejections" do
+  def build(&block)
+    registry = Hecksagain::Runtime::Registry.new
+    Hecksagain.with_registry(registry) do
+      Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
+      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
+      Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
+      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+      Hecks.bluebook("Cafeteria", &block)
+      Hecks.hecksagon("Cafeteria") { Cafeteria::Order.persisted_by("Memory") }
+    end
+    registry.verify!
+    Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
+  end
+
+  CAFETERIA_DOMAIN = proc do
+    vision "An order, placed and prepared."
+    generic
+
+    aggregate "Order" do
+      identified_by { ref.value }
+      attribute :ref, OrderRef
+      value_object "OrderRef" do
+        attribute :value, String
+      end
+
+      command "Place" do
+        role "Customer"
+        attribute :ref, OrderRef
+        emits "OrderPlaced"
+      end
+
+      command "Prepare" do
+        role "Chef"
+        reference_to Order
+        emits "OrderPrepared"
+      end
+
+      command "Cancel" do
+        reference_to Order
+        emits "OrderCancelled"
+      end
+    end
+
+    policy "StartPrep" do
+      on      "OrderPlaced"
+      trigger "Order.Prepare"
+    end
+  end
+
+  it "dispatches unchanged when no caller is bound" do
+    build(&CAFETERIA_DOMAIN)
+    order = Order.place(ref: { value: "o1" })
+    expect(order.events.map(&:name)).to include("OrderPlaced")
+  end
+
+  it "dispatches when the bound caller's role matches the command's" do
+    build(&CAFETERIA_DOMAIN)
+    Hecksagain.as_caller(role: "Customer") do
+      order = Order.place(ref: { value: "o1" })
+      expect(order.events.map(&:name)).to include("OrderPlaced")
+    end
+  end
+
+  it "refuses when the bound caller's role does not match" do
+    build(&CAFETERIA_DOMAIN)
+    expect {
+      Hecksagain.as_caller(role: "Chef") { Order.place(ref: { value: "o1" }) }
+    }.to raise_error(Hecksagain::Runtime::Unauthorized, /refused — role: Customer, and the caller stated Chef/)
+  end
+
+  it "dispatches unchanged when the command declares no role at all" do
+    build(&CAFETERIA_DOMAIN)
+    order = Order.place(ref: { value: "o1" })
+    Hecksagain.as_caller(role: "Anyone At All") { order.cancel }
+    expect(order.events.last.name).to eq("OrderCancelled")
+  end
+
+  it "restores the outer binding once a nested as_caller block exits" do
+    build(&CAFETERIA_DOMAIN)
+    Hecksagain.as_caller(role: "Customer") do
+      Hecksagain.as_caller(role: "Chef") do
+        expect(Hecksagain::Runtime::Caller.current.role).to eq("Chef")
+      end
+      expect(Hecksagain::Runtime::Caller.current.role).to eq("Customer")
+    end
+    expect(Hecksagain::Runtime::Caller.current).to be_nil
+  end
+
+  it "does not carry the triggering caller's role into a policy's reaction command" do
+    runtime = build(&CAFETERIA_DOMAIN)
+    Hecksagain.as_caller(role: "Customer") { Order.place(ref: { value: "o1" }) }
+
+    reaction = runtime.reactions.first
+    expect(reaction[:delivered]).to eq(true)
+    expect(Order.find("o1").events.map(&:name)).to include("OrderPrepared")
+  end
+end

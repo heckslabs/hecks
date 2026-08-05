@@ -25,6 +25,18 @@ module Hecksagain
 
         def query_name = Naming.snake(@name)
 
+        # The one many-side head where/order_by/limit/offset/authorize's
+        # tenant apply to, or nil if none are declared —
+        # ReadModelBuilder#seal_query_options already refuses ambiguity
+        # (zero or several many-heads with options declared), so any
+        # interpreter can ask this directly rather than re-deriving or
+        # re-checking it.
+        def filtered_head_name
+          return nil unless wheres.any? || order_by || limit || offset || authorization&.tenant
+
+          @aggregate_heads.find { |head| head[:many] }&.fetch(:as)
+        end
+
         def to_h
           { name: @name, description: @description, reference_name: @reference_name,
             reference_target: @reference_target, query_name: query_name }

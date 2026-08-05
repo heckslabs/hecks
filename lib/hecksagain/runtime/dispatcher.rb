@@ -1,5 +1,6 @@
 require_relative "errors"
 require_relative "refusal_wording"
+require_relative "caller"
 require_relative "command_rules"
 require_relative "command_interpreter"
 require_relative "entity_interpreter"
@@ -128,10 +129,15 @@ module Hecksagain
         @queries.reference_call(domain, aggregate, query_name, args)
       end
 
+      # A reaction is the SYSTEM acting, not the caller who happened to be
+      # on the stack when the triggering command ran — the ambient caller
+      # is cleared for the reaction's own dispatch, so a triggering
+      # caller's role can neither satisfy nor block a reaction command it
+      # has nothing to do with (Runtime::Caller.without).
       def reenter(verb, saga_correlation: nil, **args)
         depth = @reaction_depth.to_i
         @reaction_depth = depth + 1
-        dispatch(verb, saga_correlation: saga_correlation, **args)
+        Caller.without { dispatch(verb, saga_correlation: saga_correlation, **args) }
       ensure
         @reaction_depth = depth
       end

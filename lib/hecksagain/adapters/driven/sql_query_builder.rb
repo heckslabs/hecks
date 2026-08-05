@@ -16,7 +16,10 @@ module Hecksagain
     # supplies exactly those hooks:
     #
     #   placeholder(binds, value)     — "?" or "$N", recording the bind
-    #   contains_clause(expr, ph)     — instr() or position()
+    #   contains_clause(expr, ph)     — instr() or position(), for a SCALAR field
+    #   list_contains_clause(name, member, ph) — real element containment,
+    #                                  for a `list_of` field (json_each /
+    #                                  jsonb_array_elements)
     #   empty_in_clause               — "0" or "FALSE"
     #   comparable_expression(e, v)   — ::numeric cast, where the dialect casts
     #   plain_column(name)            — a real column or a jsonb path
@@ -40,7 +43,7 @@ module Hecksagain
             clauses << null_predicate.first
             next
           end
-          clauses << where_clause(clause.op.to_s, expression, value, binds)
+          clauses << where_clause(clause.op.to_s, expression, value, binds, field: clause.field)
         end
         sql << " WHERE #{clauses.join(' AND ')}" unless clauses.empty?
         sql << if declared.order_by
@@ -61,12 +64,17 @@ module Hecksagain
 
       private
 
-      def where_clause(op, expression, value, binds)
+      def where_clause(op, expression, value, binds, field: nil)
         case op
         when "eq", "ne", "gt", "gte", "lt", "lte"
           "#{comparable_expression(expression, value)} #{COMPARATORS.fetch(op)} #{placeholder(binds, value)}"
         when "contains"
-          contains_clause(expression, placeholder(binds, value.to_s))
+          member = field && list_member(field)
+          if member
+            list_contains_clause(field.to_s, member, placeholder(binds, value.to_s))
+          else
+            contains_clause(expression, placeholder(binds, value.to_s))
+          end
         when "in"
           # The same comma-separated convention every other where-clause
           # comparator uses (Ports::Query::InMemory, QueryInterpreter) —
@@ -126,6 +134,32 @@ module Hecksagain
 
       def value_object?(attr)
         !attr.list? && !@aggregate.value_object(attr.type).nil?
+      end
+
+      # `contains` on a `list_of` field means real ELEMENT membership, not
+      # a substring search over the column's raw JSON text — the reading
+      # QueryInterpreter#holds? and Ports::Query::InMemory already give a
+      # real Array, and the SQL side used to disagree with it (a substring
+      # match over `[{"value":"not_high_risk"}]` falsely matches
+      # "high_risk"). Returns nil for a non-list field (the caller falls
+      # back to `contains_clause`, unchanged), "" for a list of bare
+      # scalars (no member to walk into), or the one field name a
+      # single-field value-object element carries. A list of a
+      # MULTI-field value object has no one scalar to compare against and
+      # is refused rather than guessed.
+      def list_member(field)
+        return nil if field.to_s.include?(".")
+
+        attribute = @aggregate.attribute(field.to_s)
+        return nil unless attribute&.list?
+
+        object = @aggregate.value_object(attribute.type)
+        return "" unless object
+        return object.attributes.first.name.to_s if object.attributes.size == 1
+
+        raise ArgumentError,
+              "#{dialect_name} query adapter cannot compile contains on #{field} — " \
+              "#{attribute.type} carries more than one field, so no single scalar to compare"
       end
 
       # The dialect that casts nothing overrides nothing.

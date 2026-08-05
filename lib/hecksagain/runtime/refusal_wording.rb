@@ -84,7 +84,12 @@ module Hecksagain
           "{name} admits {admits} — {admitted} — got {offered}",
         %w[InvariantViolation undeclared_set] =>
           "{name} admits {admits}, which this chapter does not declare — a closed set is named " \
-          "Aggregate::SetName, and it must be one the bluebook actually holds"
+          "Aggregate::SetName, and it must be one the bluebook actually holds",
+        %w[Unauthorized tenant_required] =>
+          "{query} declares authorize with tenant: {field} — pass {field}: to name which " \
+          "{field} this ask is scoped to",
+        %w[Unauthorized role_mismatch] =>
+          "{command} refused — role: {role}, and the caller stated {caller_role}"
       }.freeze
 
       module_function

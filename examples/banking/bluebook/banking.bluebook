@@ -23,6 +23,17 @@ Hecks.bluebook "Banking", version: "v1" do
     include Account
     include CardPayment
 
+    # THE FILTERED, ORDERED, CAPPED VIEW — the one shape seal_query_options
+    # allows on a read model with more than one included aggregate: it names
+    # exactly one many-side collection (CardPayment; Account is the
+    # reference itself) and confines where/order_by/limit to it. A reviewer
+    # does not want the account's whole card history, just the disputes
+    # that matter — the five largest, since that is where a false dispute
+    # costs the bank the most first.
+    where(status: "disputed")
+    order_by :amount, :desc
+    limit 5
+
     # A REVIEW WORKS FROM A SNAPSHOT, not a page reloaded mid-read while a
     # dispute updates underneath it — the same reasoning as Overdrawn's own,
     # a projection over on the read_model rather than a query.
@@ -902,6 +913,8 @@ Hecks.bluebook "Banking", version: "v1" do
     attribute :instruction, InstructionReference
     attribute :recipient, PaymentRecipient
     attribute :due_on,    PaymentDueDate
+    attribute :attempts,     RetryCount
+    attribute :max_attempts, RetryLimit
 
     value_object "InstructionReference" do
       attribute :value, String
@@ -922,9 +935,22 @@ Hecks.bluebook "Banking", version: "v1" do
       invariant("a payment due date is present") { !value.to_s.empty? }
     end
 
+    value_object "RetryCount" do
+      attribute :value, Integer, default: 0
+      invariant("a retry count is non-negative") { !value.negative? }
+    end
+
+    value_object "RetryLimit" do
+      attribute :value, Integer, default: 3
+      invariant("a retry limit is positive") { value.positive? }
+    end
+
     lifecycle :status, default: "scheduled" do
-      transition "Execute" => "executed", from: "scheduled"
-      transition "Cancel" => "cancelled", from: "scheduled"
+      transition "Execute" => "executed",  from: "scheduled"
+      transition "Cancel"  => "cancelled", from: "scheduled"
+      transition "Fail"    => "failed",    from: "scheduled"
+      transition "Retry"   => "failed",    from: "failed"
+      transition "Abandon" => "abandoned", from: "failed"
     end
 
     command "Schedule" do
@@ -949,9 +975,63 @@ Hecks.bluebook "Banking", version: "v1" do
       emits "ScheduledPaymentCancelled"
     end
 
+    command "Fail" do
+      role "System"
+      goal "Record that today's presentment could not be collected"
+
+      reference_to ScheduledPayment
+
+      emits "ScheduledPaymentFailed"
+    end
+
+    # SELF-TRIGGERING, ON PURPOSE — the same shape reflex.bluebook's Echo/Ring
+    # proves MAX_REACTION_DEPTH with, grounded in a real rule instead of an
+    # unbounded ring: an automated re-presentment against an account still
+    # short of funds fails for the identical reason, so it re-announces the
+    # identical event, and `RetryOnPaymentFailure` below re-enters this same
+    # command. `given` is the REAL bound a bank actually enforces — a
+    # schedule's own `max_attempts`, ordinarily well inside the runtime's
+    # five-deep reaction ceiling, which exists as the backstop under
+    # whatever a caller configures it to, not as this policy's normal exit.
+    #
+    # MUTATING, NOT CREATING — same reason Echo.Ring is: the reaction
+    # re-dispatches this against the SAME record every time it re-enters,
+    # and a creating command now refuses a second creation over one
+    # identity (AlreadyExists).
+    command "Retry" do
+      role "System"
+      goal "Re-present a failed payment, up to the limit the schedule names"
+
+      reference_to ScheduledPayment
+
+      given("a retry is still allowed") { attempts.value < max_attempts.value }
+
+      then_set :attempts, increment: { value: 1 }
+
+      ensures("a retry never lowers the attempt count") { attempts.value == old.attempts.value + 1 }
+
+      emits "ScheduledPaymentFailed"
+    end
+
+    command "Abandon" do
+      role "Back office"
+      goal "Give up on a payment that could not be collected after every retry"
+
+      reference_to ScheduledPayment
+
+      given("every retry is exhausted") { attempts.value >= max_attempts.value }
+
+      emits "ScheduledPaymentAbandoned"
+    end
+
     query "Due" do
       where(status: "scheduled")
       order_by :due_on
+    end
+
+    policy "RetryOnPaymentFailure" do
+      on      "ScheduledPayment.ScheduledPaymentFailed"
+      trigger "ScheduledPayment.Retry"
     end
   end
 
@@ -1154,6 +1234,74 @@ Hecks.bluebook "Banking", version: "v1" do
     end
   end
 
+  aggregate "OnboardingCase" do
+    description "The KYC check a newly registered customer clears before an account exists for them — screened once, and if it does not clear there is nothing to undo, because nothing was ever opened."
+
+    identified_by { reference.value }
+
+    # THE FIRST `belongs_to` IN THE CORPUS — sugar over `reference_to` that
+    # mints `customer` rather than `customer_id` (AggregateBuilder's own
+    # comment gives the naming split : no `_id` suffix, matching Hecks' own
+    # reading of the word). Real here for the same reason the relationship
+    # is : a case belongs to exactly one customer, one at a time.
+    belongs_to Customer
+
+    attribute :reference,      OnboardingReference
+    attribute :account_number, AccountNumber
+
+    value_object "OnboardingReference" do
+      attribute :value, String
+      invariant("an onboarding case is referenced") { !value.to_s.empty? }
+    end
+
+    value_object "AccountNumber" do
+      attribute :value, String
+      invariant("an account number is present") { !value.to_s.empty? }
+    end
+
+    lifecycle :status, default: "screening" do
+      transition "Clear"   => "cleared",  from: "screening"
+      transition "Decline" => "declined", from: "screening"
+    end
+
+    command "Open" do
+      role "Branch clerk"
+      goal "Open a KYC case for a newly registered customer, naming the account it will become"
+
+      reference_to Customer, as: :customer
+      attribute :reference,      OnboardingReference
+      attribute :account_number, AccountNumber
+
+      then_set :reference,      to: :reference
+      then_set :account_number, to: :account_number
+
+      emits "OnboardingOpened"
+    end
+
+    command "Clear" do
+      role "Compliance officer"
+      goal "Pass a customer's identity and screening checks"
+
+      reference_to OnboardingCase
+
+      emits "OnboardingCleared"
+    end
+
+    command "Decline" do
+      role "Compliance officer"
+      goal "Refuse a customer who does not clear screening — no account was ever opened, so nothing is undone"
+
+      reference_to OnboardingCase
+
+      emits "OnboardingDeclined"
+    end
+
+    query "Screening" do
+      description "Cases still waiting on a compliance decision."
+      where(status: "screening")
+      order_by :reference
+    end
+  end
 
   policy "FreezeAccountsOnSuspension" do
     on      "CustomerSuspended"
@@ -1265,5 +1413,39 @@ Hecks.bluebook "Banking", version: "v1" do
     on :refused, transition: { "requested" => "returned" } do
       dispatch "Banking::ExternalTransfer.Return", with: { end_to_end: :end_to_end }
     end
+  end
+
+  # THE FIRST SAGA THAT DOES NOT COMPENSATE. Settlement and ExternalSettlement
+  # both carry an `on :refused` leg because a transfer stopped halfway is
+  # money unaccounted for — something must be put back. A KYC case that does
+  # not clear has nothing to put back: no account was ever opened and no
+  # money ever moved, so Decline is simply where the flow stops. There is no
+  # `on :refused` leg here — compare its shape against Settlement's above
+  # rather than trusting the claim.
+  process_manager "Onboarding" do
+    correlates_by :"reference.value"
+    starts_on "OnboardingOpened"
+    ends_on   "AccountOpened"
+
+    state "screening"
+    state "cleared"
+    state "declined"
+
+    on "OnboardingCleared", transition: { "screening" => "cleared" } do
+      # A STANDARD ACCOUNT, OPENED AUTOMATICALLY — kind and opening limit are
+      # the bank's default terms for a just-cleared customer, not something
+      # onboarding negotiates; a customer who wants something else changes it
+      # afterward through Account's own commands.
+      dispatch "Banking::Account.Open", with: {
+        customer_id: :customer,
+        number:      :account_number,
+        kind:        { name: "current" },
+        daily_limit: { cents: 0 }
+      }
+    end
+
+    # THE NON-COMPENSATING LEG — no dispatch, because nothing was ever
+    # created to undo.
+    on "OnboardingDeclined", transition: { "screening" => "declined" }
   end
 end

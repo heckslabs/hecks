@@ -155,6 +155,11 @@ module Hecksagain
         "instr(#{expression}, #{placeholder}) > 0"
       end
 
+      def list_contains_clause(column, member, placeholder)
+        target = member.empty? ? "json_each.value" : "json_extract(json_each.value, '$.#{member}')"
+        "EXISTS (SELECT 1 FROM json_each(#{quote_ident(column)}) WHERE #{target} = #{placeholder})"
+      end
+
       def plain_column(name) = quote_ident(name)
 
       def nested_expression(name, path, member)

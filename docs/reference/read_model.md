@@ -52,7 +52,7 @@ Cardinality is inferred, not declared: the reference target comes back
 as the one record, any other included aggregate comes back as a list
 — there's no `many:` to spell out yourself. Declaring the same `as:`
 name twice is refused. See the queries-and-read-models guide for the
-full `Roster` example.
+full `ComplianceDashboard` example.
 
 ## where
 
@@ -65,15 +65,16 @@ full `Roster` example.
 <!-- generated:end -->
 
 Same eight comparators as a query's `where` (`eq`, `ne`, `gt`, `gte`,
-`lt`, `lte`, `in`, `contains`). Worth knowing before you rely on it:
-the build-time seal that catches an undeclared field, a non-numeric
-ordered comparison, or an unresolved `:symbol` argument on an
-aggregate's own `query` walks each aggregate's declared queries, and a
-read model isn't one — that seal doesn't run here. Worse, neither
-runtime path that answers a read model (`ReadModelInterpreter`, or
-`SqliteProjection#query_read_model` where an adapter defines one) reads
-`wheres` off the declared model at all; declaring `where` on a
-`read_model` today changes nothing about what comes back.
+`lt`, `lte`, `in`, `contains`), including the same real-membership-vs-
+substring split on `contains` (see query.md's `where`). Applied for
+real (`ReadModelInterpreter#project` and `SqliteProjection#query_read_model`
+both run `Ports::Query::InMemory.execute` against it) — but only
+against ONE collection: `ReadModelBuilder#seal_query_options` refuses
+at build unless the read model includes exactly one many-side
+aggregate, since `where`/`order_by`/`limit`/`offset`/`authorize`'s
+tenant all have to mean the same collection or naming which one is
+ambiguous. The "one" side (the reference target itself) is never
+filtered — a single row has nothing to filter.
 
 ## order_by
 
@@ -86,11 +87,11 @@ runtime path that answers a read model (`ReadModelInterpreter`, or
 | positional 2 | symbol | false | direction |
 <!-- generated:end -->
 
-Same shape as a query's `order_by`, but not applied: neither runtime
-path that answers a read model reads it. Rows on the "many" side of an
-`include` come back sorted by record id regardless of what this names
-— both `ReadModelInterpreter` and `SqliteProjection` sort that way
-unconditionally, not because `order_by` asked for it.
+Same shape as a query's `order_by`, applied to the same one many-side
+collection `where` is (see `where`). Without it, that collection still
+comes back in a stable order (record id) — not because ordering is
+optional, but because the underlying fetch has to answer in SOME
+order, and id is the fallback every engine agrees on.
 
 ## limit
 
@@ -102,9 +103,8 @@ unconditionally, not because `order_by` asked for it.
 | positional 1 | number | true | value |
 <!-- generated:end -->
 
-Same shape as a query's `limit`, but not applied by either runtime
-path that answers a read model — declaring it doesn't trim a read
-model's rows.
+Same shape as a query's `limit`, applied to the same one many-side
+collection `where` is (see `where`).
 
 ## offset
 
@@ -116,9 +116,8 @@ model's rows.
 | positional 1 | number | true | value |
 <!-- generated:end -->
 
-Same shape as a query's `offset`, and equally unapplied here — see
-`cursor` for the one behavior this pair still triggers on the `query`
-side that a read model doesn't get.
+Same shape as a query's `offset`, applied to the same one many-side
+collection `where` is (see `where`).
 
 ## cursor
 
@@ -130,11 +129,9 @@ side that a read model doesn't get.
 | positional 1 | symbol | true | value |
 <!-- generated:end -->
 
-Declares an opaque pagination cursor. On the aggregate-`query` path
-this pairs with `offset` to trigger a build-time refusal
-(`Ports::Query.validate!`); a read model never reaches that check at
-all — the read model runtime doesn't call `Ports::Query`, so today
-neither that refusal nor any actual pagination happens here.
+Refused at build (`ReadModelBuilder#seal_cursor`, raises `Malformed`). No
+interpreter implements cursor pagination — declaring `cursor` here is
+always an error, not a silent no-op. Use `limit`/`offset` instead.
 
 ## consistency
 
@@ -177,9 +174,15 @@ Declares a freshness mode and an optional `max_age:`. Same status as
 | `tenant:` | symbol | false | tenant |
 <!-- generated:end -->
 
-Declares a policy and an optional `tenant:` the ask should be checked
-against. Recorded on the specification only; nothing here evaluates
-it.
+Declares a policy name (recorded, never checked — no caller-identity or
+grant system exists to check it against) and, when `tenant:` is given,
+a mandatory tenant boundary that IS enforced: a caller must pass that
+field as an argument or the ask refuses with `Unauthorized`
+(`Runtime::TenantScope`), and every returned row is scoped to the
+value given, regardless of what other filters were declared. `tenant:`
+must name the same collection `where`/`order_by`/`limit`/`offset`
+would (`ReadModelBuilder#seal_query_options` holds it to the same
+"exactly one many-side head" rule).
 
 ## nulls
 
@@ -191,11 +194,9 @@ it.
 | positional 1 | symbol | true | mode |
 <!-- generated:end -->
 
-Sets how nulls sort relative to real values. On the aggregate-`query`
-path both the in-memory and SQL ordering read this; the read model
-runtime never reads `null_semantics` at all, so it's currently just
-accepted syntax here — a read model doesn't apply a declared order in
-the first place (see `order_by`).
+Sets how nulls sort relative to real values, for the same one
+many-side collection `order_by` sorts (see `order_by`). Same reading
+on every engine as a `query`'s `nulls`.
 
 ## inspect_query
 

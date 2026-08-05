@@ -113,9 +113,6 @@
             "mode": "snapshot",
             "timeout": "2"
           },
-          "cursor": {
-            "value": ":after"
-          },
           "description": "Lights that are on, most recent first, with every option a query can carry",
           "freshness": {
             "max_age": "30",
@@ -455,9 +452,6 @@
       "authorization": {
         "policy": "operator_access",
         "tenant": "condition"
-      },
-      "cursor": {
-        "value": ":after"
       },
       "description": "Every echo gathered around a light, with the options a projection can carry",
       "freshness": {

@@ -236,7 +236,18 @@ module Hecksagain
         emitted = emitted_events(bluebook)
         findings = []
 
-        unless emitted.include?(bare(policy.on_event))
+        # `policy.event_name` (Naming.unqualified) — NOT `bare`, which only
+        # strips a "::" domain qualifier. An AGGREGATE-scoped policy's
+        # `on_event` carries a "." aggregate qualifier instead (PolicyBuilder
+        # stores whatever was typed, verbatim — see `on "Account.
+        # AccountFrozen"`), and `bare` left it untouched, silently comparing
+        # "Account.AccountFrozen" against a list of bare emitted names that
+        # can never contain it. Latent until now : banking's one aggregate-
+        # scoped same-domain policy check would have caught it, but its only
+        # prior aggregate-scoped policy (ReviewOnFreeze) is also cross-domain
+        # (`across "Compliance"`), which exits this method one line above
+        # before the mismatch is ever reached.
+        unless emitted.include?(policy.event_name)
           findings << Finding.new(kind: :deaf_policy, severity: :error, subject: policy.name,
                                    message: "on #{policy.on_event.inspect}, which no command in this domain emits")
         end

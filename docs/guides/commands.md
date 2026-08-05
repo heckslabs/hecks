@@ -6,199 +6,108 @@ says why not. Before you write one, you need three things — the full
 inventory of what a command can declare (there is nothing else), the
 exceptions your caller has to be ready to catch, and the difference
 between a rule you enforce going in and a guarantee you check coming
-out. All three are provable in one sitting, against one small domain.
+out. All three are provable in one sitting, against a real domain.
 
-An orchard. Trees get planted, they start bearing, they get harvested,
-pruned, occasionally pressed into cider, and eventually taken out.
-Small enough to hold in one hand, real enough to lose money if a
-command lets the wrong thing through.
+The examples below use `examples/banking/bluebook/banking.bluebook` —
+customers hold accounts, accounts move money, cards get disputed,
+scheduled payments retry themselves against a limit, and a compliance
+officer freezes what needs investigating. It is a real, running
+domain, not a rehearsal: every dispatch below is a real command
+declared in that file, executed against a real boot of it.
 
 ## The declaration
 
-```bluebook
-Hecks.bluebook "Verger" do
-  vision "Trees are planted, tended, harvested, and eventually taken out — an orchard's whole lifecycle in one small domain."
-  supporting
+A command is `role`, `goal`, one or more `attribute`s, an optional
+`reference_to`, zero or more `given`s, zero or more `ensures`, zero or
+more `then_set`s, and one or more `emits` — nothing else, no handler
+body to smuggle a side effect into. `Account`'s own commands carry
+every piece of that inventory at least once, quoted here directly from
+the bluebook (never run as shown — the boot below loads the real file
+instead of retyping it):
 
-  aggregate "Orchard" do
-    description "A block of land holding trees."
+```ruby skip
+command "Open" do
+  role "Branch clerk"
+  goal "Give a customer somewhere to keep money"
 
-    identified_by { name.value }
+  reference_to Customer
+  attribute :number,      AccountNumber
+  attribute :kind,        AccountKind
+  attribute :daily_limit, DailyLimit
 
-    attribute :name, OrchardName
+  then_set :number,      to: :number
+  then_set :kind,        to: :kind
+  then_set :daily_limit, to: :daily_limit
 
-    value_object "OrchardName" do
-      attribute :value, String
-      invariant("an orchard is named") { !value.to_s.empty? }
-    end
+  emits "AccountOpened"
+end
 
-    command "Establish" do
-      role "Orchard manager"
-      goal "Register a new orchard block"
+command "Credit" do
+  role "Teller"
+  goal "Put money in"
 
-      attribute :name, OrchardName
+  reference_to Account
+  attribute :amount,    PositiveMoney
+  attribute :narrative, Narrative
 
-      emits "Established"
-    end
-  end
+  given("the account is open")      { status == "open" }
+  then_set :balance, increment: :amount
+  then_set :ledger,  append: { amount: :amount, narrative: :narrative, direction: { value: "credit" } }
 
-  aggregate "Tree" do
-    description "One tree, from planting to uprooting, and everything it bears in between."
+  emits "AccountCredited"
+end
 
-    identified_by { label.value }
+command "Debit" do
+  role "Teller"
+  goal "Take money out, if it is there to take"
 
-    attribute :label,       TreeLabel
-    attribute :variety,     Variety
-    attribute :keeper,      Keeper
-    attribute :fruit_count, Yield
-    attribute :baskets,     list_of(Basket)
+  reference_to Account
+  attribute :amount,    PositiveMoney
+  attribute :narrative, Narrative
 
-    value_object "TreeLabel" do
-      attribute :value, String
-      invariant("a tree is labelled") { !value.to_s.empty? }
-    end
+  given("the account is open")       { status == "open" }
+  given("the balance covers it")     { balance.cents >= amount.cents }
+  given("the daily limit allows it") { daily_limit.cents >= amount.cents }
 
-    value_object "Variety" do
-      attribute :value, String
-      invariant("a variety is named") { !value.to_s.empty? }
-    end
+  then_set :balance, decrement: :amount
+  then_set :ledger,  append: { amount: :amount, narrative: :narrative, direction: { value: "debit" } }
 
-    value_object "Keeper" do
-      attribute :name, String
-      invariant("a keeper is named") { !name.to_s.empty? }
-    end
+  ensures("the balance fell by exactly the amount") { old.balance.cents == balance.cents + amount.cents }
+  ensures("no debit leaves the balance negative")   { balance.cents >= 0 }
 
-    # ONE FIELD, DEFAULTED — the only member Yield has gets `default: 0`,
-    # which is what lets a fresh tree start at count 0 with no command
-    # ever setting it: Instance.defaults auto-builds a value object whose
-    # every field defaults, the same reason banking's Money(cents: 0,
-    # currency: "USD") needs no command to touch it either.
-    value_object "Yield" do
-      attribute :count, Integer, default: 0
-    end
+  emits "AccountDebited"
+end
 
-    value_object "BasketWeight" do
-      attribute :count, Integer
-      invariant("a basket is not empty") { count.positive? }
-    end
+command "Freeze" do
+  role "Compliance officer"
+  goal "Stop an account moving while something is investigated"
 
-    value_object "BasketNote" do
-      attribute :value, String
-    end
-
-    value_object "Basket" do
-      attribute :note,   String
-      attribute :weight, Integer
-    end
-
-    value_object "PruneCount" do
-      attribute :count, Integer
-      invariant("a prune removes at least one fruit") { count.positive? }
-    end
-
-    lifecycle :status, default: "sapling" do
-      transition "Bear"   => "bearing",   from: "sapling"
-      transition "Uproot" => "uprooted",  from: ["sapling", "bearing"]
-    end
-
-    command "Plant" do
-      role "Orchardist"
-      goal "Put a new tree in the ground"
-
-      reference_to Orchard
-      attribute :label,   TreeLabel
-      attribute :variety, Variety
-
-      emits "Planted"
-    end
-
-    # NO GIVEN HERE, ON PURPOSE — the lifecycle transition below is the
-    # only gate. Call this twice and the SECOND call has nothing to blame
-    # but the lifecycle itself: LifecycleRefused, not GivenNotMet.
-    command "Bear" do
-      role "Orchardist"
-      goal "Confirm a tree has begun bearing, and note who tends it"
-
-      reference_to Tree
-      attribute :keeper, Keeper
-
-      then_set :keeper, to: :keeper
-      then_set :status,  to: "bearing"
-
-      emits "Bore"
-    end
-
-    command "Harvest" do
-      role "Picker"
-      goal "Bring in one basket and count it toward the tree's yield"
-
-      reference_to Tree
-      attribute :note,   BasketNote
-      attribute :weight, BasketWeight
-
-      given("only a bearing tree is harvested") { status == "bearing" }
-
-      then_set :baskets,     append:    { note: :note, weight: :weight }
-      then_set :fruit_count, increment: :weight
-
-      emits "Harvested"
-    end
-
-    command "Prune" do
-      role "Orchardist"
-      goal "Remove fruit before it drops, on purpose or by mistake"
-
-      reference_to Tree
-      attribute :count, PruneCount
-
-      then_set :fruit_count, decrement: :count
-
-      ensures("the yield fell by exactly the count")        { old.fruit_count.count == fruit_count.count + count.count }
-      ensures("pruning never leaves fewer than zero fruit")  { fruit_count.count >= 0 }
-
-      emits "Pruned"
-    end
-
-    command "Press" do
-      role "Cidermaker"
-      goal "Turn stored yield into cider, once there is enough of it"
-
-      reference_to Tree
-
-      given("at least ten fruit are needed to press") { fruit_count.count >= 10 }
-      given("only a bearing tree is pressed")          { status == "bearing" }
-
-      emits "Pressed"
-    end
-
-    # TWO FACTS FROM ONE ACT, same shape as banking's SafeDepositBox
-    # Surrender: the tree is gone, and the plot it stood on is a separate
-    # fact worth its own event, not a detail folded into the first.
-    command "Uproot" do
-      role "Orchardist"
-      goal "Take the tree out for good"
-
-      reference_to Tree
-
-      emits "Uprooted"
-      emits "PlotVacated"
-    end
-  end
+  reference_to Account
+  emits "AccountFrozen"
 end
 ```
 
-Read the inventory off that file, because it is the whole file: `role`,
-`goal`, one or more `attribute`s, an optional `reference_to`, zero or
-more `given`s, zero or more `ensures`, zero or more `then_set`s, one or
-more `emits`. A command cannot declare anything else — there is no
-handler body to smuggle a side effect into.
+`Open` takes in a customer and gives back a fresh account: a creating
+command, no `given`, three `then_set to:`. `Credit` and `Debit` are
+where the rest of the inventory earns its place — a `given` guarding
+mutation, `then_set increment:`/`decrement:` doing arithmetic,
+`then_set append:` growing the ledger, and, on `Debit` alone, two real
+`ensures`. `Freeze` is the floor of the inventory: `role`, `goal`,
+`reference_to`, `emits`, nothing more — a command needs no `given`, no
+`attribute`, no `then_set` to be a complete one, as long as something
+downstream (here, the account's own lifecycle) still gates it.
 
 ## Wiring
 
 ```ruby boot
-Hecks.hecksagon("Verger") do
-  Verger::Orchard.persisted_by("Memory")
-  Verger::Tree.persisted_by("Memory")
+Kernel.load(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/banking.bluebook"))
+
+Hecks.hecksagon("Banking") do
+  Banking::Customer.persisted_by("Memory")
+  Banking::Account.persisted_by("Memory")
+  Banking::CardPayment.persisted_by("Memory")
+  Banking::ScheduledPayment.persisted_by("Memory")
+  Banking::SafeDepositBox.persisted_by("Memory")
 end
 ```
 
@@ -208,54 +117,57 @@ Every command you write can fail in a fixed set of ways, and your
 caller — a controller action, a saga step, a test — has to be ready for
 whichever ones apply to it. This is the complete roster for a command
 dispatch; the rest of this page proves each row once, live, against
-Verger:
+`Banking`:
 
 | raises | when | shown |
 |---|---|---|
-| `GivenNotMet` | a declared `given` reads false | Harvest before Bear |
-| `EnsuresNotMet` | a declared `ensures` reads false, AFTER the mutation ran | over-pruning |
-| `InvariantViolation` | a value object's own rule rejects the fields it was built from | an unlabelled tree |
-| `LifecycleRefused` | the command names a transition the current state cannot take | bearing twice |
-| `AlreadyExists` | a creating command's identity already names a record | planting the same label twice |
-| `NotFound` | an acting command's identity names no record | tending a tree that was never planted |
-| `AbsentArgument` | a required attribute never arrived | planting with no variety |
-| `TypeMismatch` | an argument arrived in the wrong shape — a reference handed as an object is the case that costs the most in practice | an orchard passed as a hash |
+| `GivenNotMet` | a declared `given` reads false | debiting a frozen account |
+| `EnsuresNotMet` | a declared `ensures` reads false, AFTER the mutation ran | `Debit`'s own two postconditions — discussed below |
+| `InvariantViolation` | a value object's own rule rejects the fields it was built from | an account opened with no number |
+| `LifecycleRefused` | the command names a transition the current state cannot take | freezing an already-frozen account |
+| `AlreadyExists` | a creating command's identity already names a record | opening the same account number twice |
+| `NotFound` | an acting command's identity names no record | freezing an account that was never opened |
+| `AbsentArgument` | a required attribute never arrived | opening an account with no `kind` |
+| `UnknownArgument` | an argument arrived that the command never declared | crediting with a stray `memo:` |
+| `TypeMismatch` | an argument arrived in the wrong shape — a reference handed as an object is the case that costs the most in practice | a customer passed as an object instead of an id |
 
 Every one of these is a `StandardError` subclass under
 `Hecksagain::Runtime`, and every one is the domain answering, not the
-runtime breaking. *Un refus est une réponse.*
+runtime breaking. A refusal is a response, not a malfunction.
 
 ## Creating vs. acting
 
 A command either creates a new record or acts on one that already
 exists, and the DSL reads this off one fact: does the command
-`reference_to` its own aggregate. `Plant` doesn't — it references
-`Orchard`, a different aggregate, to say which orchard the tree belongs
-to — so `Plant` creates, and the facade installs it as a method on the
-aggregate module itself. `Bear`, `Harvest`, `Prune`, `Press`, and
-`Uproot` all `reference_to Tree`, their own aggregate, so each is a
-method on the record in hand. Get this backwards in your own bluebook —
-add a stray `reference_to Self` to what should be a creating command —
-and it silently stops being callable the way a controller expects.
+`reference_to` its own aggregate. `Open` doesn't — it references
+`Customer`, a different aggregate, to say whose account this is — so
+`Open` creates, and the facade installs it as a method on the
+aggregate module itself. `Credit`, `Debit`, and `Freeze` all
+`reference_to Account`, their own aggregate, so each is a method on
+the record in hand. Get this backwards in your own bluebook — add a
+stray `reference_to Self` to what should be a creating command — and
+it silently stops being callable the way a controller expects.
 
 ```ruby
-Verger::Tree.respond_to?(:plant)    # => true
-Verger::Tree.respond_to?(:harvest)  # => false
+Banking::Account.respond_to?(:open)    # => true
+Banking::Account.respond_to?(:credit)  # => false
 ```
 
 ```ruby
-orchard = Verger::Orchard.establish(name: { value: "Domaine des Merisiers" })
-tree    = Verger::Tree.plant(orchard_id: orchard.id,
-                              label: { value: "Elstar-1" }, variety: { value: "Elstar" })
-tree.label.to_h  # => { value: "Elstar-1" }
+customer = Banking::Customer.register(reference: { value: "C-1" },
+                                       name: { given: "Ada", family: "Lovelace" },
+                                       email: { address: "ada@example.com" })
+account  = Banking::Account.open(customer_id: customer.id, number: { value: "AC-1" },
+                                  kind: { name: "current" }, daily_limit: { cents: 100_000 })
+account.number.to_h  # => { value: "AC-1" }
 ```
 
-A creating command's identity still has to be FRESH — dispatch `Plant`
-again with a label you already used and there is no second tree, only
-a collision with the one you have:
+A creating command's identity still has to be FRESH — dispatch `Open`
+again with a number you already used and there is no second account,
+only a collision with the one you have:
 
 ```ruby
-Verger::Tree.plant(orchard_id: orchard.id, label: { value: "Elstar-1" }, variety: { value: "Elstar" })  # ~> AlreadyExists: Plant creates a Tree that already exists
+Banking::Account.open(customer_id: customer.id, number: { value: "AC-1" }, kind: { name: "current" }, daily_limit: { cents: 100_000 })  # ~> AlreadyExists: Open creates a Account that already exists
 ```
 
 ## `given` — the rule you enforce going in
@@ -263,45 +175,86 @@ Verger::Tree.plant(orchard_id: orchard.id, label: { value: "Elstar-1" }, variety
 A `given` reads the record as it stands BEFORE any mutation and refuses
 if it doesn't like what it sees. The refusal is `GivenNotMet`, and the
 message is exactly the description you wrote — nothing templated, no
-translation between what you declared and what the caller reads:
+translation between what you declared and what the caller reads.
+`Freeze` carries no `given` at all — its lifecycle transition is the
+only gate it has, and that is enough on its own:
 
 ```ruby
-tree.harvest(note: { value: "too soon" }, weight: { count: 4 })  # ~> GivenNotMet: only a bearing tree is harvested
-```
-
-Multiple givens run in the order you wrote them, and the FIRST one that
-reads false is the one your caller sees — the others never run at all.
-`Press` declares its fruit-count check before its bearing check, so a
-tree that fails both still reports only the first:
-
-```ruby
-tree2 = Verger::Tree.plant(orchard_id: orchard.id,
-                            label: { value: "Elstar-2" }, variety: { value: "Elstar" })
-
-tree2.press  # ~> GivenNotMet: at least ten fruit are needed to press
-```
-
-That tree is also not bearing, which would fail `Press`'s second given
-just as surely — but you will never see that message from this call,
-because the first refusal wins and the dispatch stops there. Write your
-givens with the cheapest or most-likely-to-fail check first if you want
-your callers reading the most useful message; the runtime will not
-reorder them for you.
-
-`Bear` carries no `given` at all — its lifecycle transition is the only
-gate it has, and that is enough on its own:
-
-```ruby
-tree.bear(keeper: { name: "R. Aubert" })
-tree.status  # => "bearing"
+account.freeze
+account.status  # => "frozen"
 ```
 
 Call it again and there is no state left for the transition to move
 from — the refusal is `LifecycleRefused`, not `GivenNotMet`, because
-nothing declared on `Bear` itself objected:
+nothing declared on `Freeze` itself objected:
 
 ```ruby
-tree.bear(keeper: { name: "Someone else" })  # ~> LifecycleRefused: Bear refused
+account.freeze  # ~> LifecycleRefused: Freeze refused
+```
+
+`Debit` declares three givens, and multiple givens run in the order you
+wrote them — the FIRST one that reads false is the one your caller
+sees, and the others never run at all. Its order is "the account is
+open", then "the balance covers it", then "the daily limit allows it",
+so a frozen account with an amount that would also blow both the
+balance and the limit still only reports the first:
+
+```ruby
+account.unfreeze
+account.freeze
+account.debit(amount: { cents: 999_999 }, narrative: { text: "frozen debit" })  # ~> GivenNotMet: the account is open
+```
+
+That account is also nowhere near covering that amount, which would
+fail `Debit`'s second given just as surely — but you will never see
+that message from this call, because the first refusal wins and the
+dispatch stops there. Unfreeze it and the second given gets its turn:
+
+```ruby
+account.unfreeze
+account.debit(amount: { cents: 999_999 }, narrative: { text: "too much" })  # ~> GivenNotMet: the balance covers it
+```
+
+Write your givens with the cheapest or most-likely-to-fail check first
+if you want your callers reading the most useful message; the runtime
+will not reorder them for you.
+
+A `given` can also name the record ITSELF as the thing it refuses a
+second run of. `ScheduledPayment.Retry` declares `given("a retry is
+still allowed") { attempts.value < max_attempts.value }` on a command
+that `reference_to ScheduledPayment` — its own aggregate — and whose
+own `emits "ScheduledPaymentFailed"` is the SAME event a policy in this
+chapter answers by triggering `Retry` again. One failed presentment
+already re-enters itself, live, up to its own limit, before your code
+ever gets control back:
+
+```ruby
+sp = Banking::ScheduledPayment.schedule(account_id: account.id, instruction: { value: "I-1" },
+                                         amount: { cents: 5000 }, recipient: { value: "Landlord" },
+                                         due_on: { value: "2026-09-01" })
+sp.fail
+Banking::ScheduledPayment.find(sp.id).attempts.to_h  # => { value: 3 }
+```
+
+`max_attempts` defaults to 3, and the reflex ran itself out to exactly
+that before this line even returned — a refusal raised INSIDE a
+policy's own reaction is caught and recorded there, not thrown back at
+whoever dispatched the command that started the chain (see
+[Policies and process managers](policies-and-process-managers.md) for
+the mechanism). Dispatch `Retry` again yourself, directly, and the same
+`given` refuses it the ordinary way:
+
+```ruby
+Banking::ScheduledPayment.find(sp.id).retry  # ~> GivenNotMet: a retry is still allowed
+```
+
+`Abandon` declares the mirror image — `given("every retry is
+exhausted") { attempts.value >= max_attempts.value }` — which only
+reads true now that the reflex above has run its course:
+
+```ruby
+Banking::ScheduledPayment.find(sp.id).abandon
+Banking::ScheduledPayment.find(sp.id).status  # => "abandoned"
 ```
 
 ## `ensures` — the guarantee you check coming out
@@ -309,86 +262,78 @@ tree.bear(keeper: { name: "Someone else" })  # ~> LifecycleRefused: Bear refused
 A `given` reads the record before the mutation runs. An `ensures` reads
 it AFTER — against the settled state, with `old` naming the record as
 it stood before, so you can assert a relationship between the two
-rather than just a fact about one. This is how you catch a command that
-computed the right thing for the wrong reason, or the wrong thing
-outright, in a test instead of in production: `enforce_ensures` is the
-step right after `apply_mutations` in the dispatch pipeline, and it
-still sits before `save` — a failed `ensures` never reaches the store.
+rather than just a fact about one. `enforce_ensures` is the step right
+after `apply_mutations` in the dispatch pipeline, and it still sits
+before `save` — a failed `ensures` never reaches the store.
 
-`Prune` carries two. The first is an identity that arithmetic alone
-already guarantees, so it never actually fires — it is there as a
-written-down guarantee, not a trap:
+`Debit` carries two, and a credit followed by a debit proves both
+without either one raising:
 
 ```ruby
-tree.harvest(note: { value: "first pick" },  weight: { count: 6 })
-tree.harvest(note: { value: "second pick" }, weight: { count: 3 })
-tree.fruit_count.to_h  # => { count: 9 }
-
-tree.prune(count: { count: 4 })
-tree.fruit_count.to_h  # => { count: 5 }
+account.credit(amount: { cents: 500 }, narrative: { text: "paycheck" })
+account.debit(amount: { cents: 200 }, narrative: { text: "rent" })
+account.balance.to_h  # => { cents: 300, currency: "USD" }
 ```
 
-The second is the one that earns its place — nothing upstream of it
-stops you from pruning more fruit than the tree has, so it is the only
-thing standing between an over-eager prune and a negative yield sitting
-in your store:
-
-```ruby
-tree.prune(count: { count: 20 })  # ~> EnsuresNotMet: pruning never leaves fewer than zero fruit
-```
-
-`Prune` never declared a `given` bounding `count` against the current
-yield — it could have, and that would have caught this earlier, before
-the mutation ran at all. The `ensures` catches it anyway, after the
-fact, which is the whole point of having both: a `given` is a rule you
-remembered to write going in, an `ensures` is a guarantee that holds
-regardless of what you remembered.
+Neither of `Debit`'s `ensures` has ever needed to fire here, and that
+is not an oversight — it is what the three `given`s above already
+bought. "the balance fell by exactly the amount" is arithmetic
+`decrement:` guarantees on its own; "no debit leaves the balance
+negative" can only be threatened by an amount the SECOND given, "the
+balance covers it", already refused before the mutation ran at all.
+Written down anyway, it is not a trap waiting to be tripped by THIS
+domain's own commands — it is what would catch a later edit that
+loosens or removes that given without anyone noticing the postcondition
+it was quietly protecting. A `given` is a rule you remembered to write
+going in; an `ensures` is a guarantee that holds regardless of what a
+future you remembers.
 
 ## `then_set` — one op per field, and the op is a real decision
 
 Four operations, and which one you reach for is not stylistic — it is
 the difference between overwriting a field, growing a list, and doing
-arithmetic on one:
+arithmetic on one.
 
 **`to:`** replaces the field outright, from an argument or a literal.
-`Bear` does both in the same command:
+`Open` does it three times over, from arguments:
 
 ```ruby
-tree.status       # => "bearing"
-tree.keeper.to_h  # => { name: "R. Aubert" }
+account.kind.to_h  # => { name: "current" }
 ```
 
-(`then_set :status, to: "bearing"` is redundant here — the lifecycle
-transition already moves `status` to `"bearing"` on its own — shown
-because a literal target is legal, not because this one is load-bearing.)
+A literal target is legal too — `Customer.Reinstate` sets its standing
+back with `then_set :standing, to: { value: "good" }` rather than
+reading it off an argument, because a reinstated customer's standing is
+always "good", not whatever the caller happened to pass.
 
 **`append:`** grows a list attribute by one value object, built from
-the fields you name. When one of those fields is itself a value object
-with exactly one member, it flattens into the scalar the list element
-actually declares — `weight:` arrives as a `BasketWeight` (one Integer
-field) and lands in `Basket#weight`, a bare `Integer`:
+the fields you name. `Credit` and `Debit` both append to `Account`'s
+`ledger`, and the credit and debit above already proved it grew:
 
 ```ruby
-tree.baskets.map(&:to_h)  # => [{ note: "first pick", weight: 6 }, { note: "second pick", weight: 3 }]
+account.ledger.map { |entry| entry[:amount].to_h }      # => [{ cents: 500, currency: "USD" }, { cents: 200, currency: "USD" }]
+account.ledger.map { |entry| entry[:direction].to_h }    # => [{ value: "credit" }, { value: "debit" }]
 ```
 
-Hand `append:` a value object with more than one member for a scalar
-slot and it has no single field to flatten to — that refusal is
-`TypeMismatch: ... cannot stand in for a scalar`, not shown here
-because nothing in this domain can trigger it, but worth knowing before
-you design a value object that might.
+`direction:` is not an argument at all in either command — `{ value:
+"credit" }` and `{ value: "debit" }` are literals baked into the
+`then_set` itself, the same way `append:` can take a literal alongside
+an argument-sourced field. Hand `append:` a value object with more than
+one member for a slot the target entity declares as a bare scalar and
+it has no single field to flatten to — that refusal is `TypeMismatch: …
+cannot stand in for a scalar`, not shown here because no entity field
+in this chapter is declared that way, but worth knowing before you
+design one that is.
 
 **`increment:` / `decrement:`** do arithmetic on a numeric field —
 either a plain Integer or, as here, the one shared Integer field
-between two value objects. `Yield#count` and `BasketWeight#count`
-share a name and a type, the same way banking's `Money#cents` and
-`PositiveMoney#cents` do, and that shared name is what lets the
-runtime know which field to add — already proven above, alongside the
-`ensures` that watches it:
-
-```ruby
-tree.fruit_count.to_h  # => { count: 5 }
-```
+between two value objects. `Money#cents` and `PositiveMoney#cents`
+share a name and a type, and that shared name is what lets the runtime
+know which field to add or subtract — already proven above, alongside
+the `ensures` that watches the result. `ScheduledPayment.Retry` does
+the same arithmetic on a bare Integer instead of a shared field name:
+`then_set :attempts, increment: { value: 1 }` moved `attempts` from 0
+to 3 across the reflex proven in the `given` section above.
 
 ## `emits` — a promise made after the write, not before
 
@@ -396,83 +341,100 @@ Events are announced only once the record has actually been saved:
 `save` runs before `emit` in the dispatch order, so a command that gets
 all the way to raising `EnsuresNotMet` never announces anything —
 there is nothing after a refusal for a caller to react to. Read them
-back off the record:
+back off the record — every attempt above that refused left no mark;
+only the ones that actually ran show up:
 
 ```ruby
-tree.events.map(&:name)  # => ["Planted", "Bore", "Harvested", "Harvested", "Pruned"]
+account.events.map(&:name)  # => ["AccountOpened", "AccountFrozen", "AccountUnfrozen", "AccountFrozen", "AccountUnfrozen", "AccountCredited", "AccountDebited"]
 ```
 
-One command can announce more than one fact. `Uproot` does — the tree
-is gone, and the plot it stood on is vacant, and those are two
-different things a reaction downstream might care about separately:
+One command can announce more than one fact. `SafeDepositBox.Surrender`
+does — the box is given back, and the keys still outstanding against it
+are a separate fact worth their own event, not a detail folded into the
+first. A composite identity like this one — `branch_code` and
+`box_number` together — is addressed by naming both parts directly
+rather than through the single-argument facade sugar used above:
 
 ```ruby
-tree.uproot
-tree.events.last(2).map(&:name)  # => ["Uprooted", "PlotVacated"]
+runtime.dispatch("Banking::SafeDepositBox.Rent", customer_id: customer.id,
+                  branch_code: { value: "DT" }, box_number: { value: 12 }, size: { value: "small" })
+runtime.dispatch("Banking::SafeDepositBox.Surrender", branch_code: { value: "DT" }, box_number: { value: 12 })
+Banking::SafeDepositBox.find("DT:12").events.last(2).map(&:name)  # => ["BoxSurrendered", "KeyReturnDue"]
 ```
 
 ## The argument gate
 
 Before any rule runs, before the record is even hydrated, a command's
-arguments are checked for shape. Four things to know before you wire a
+arguments are checked for shape. Five things to know before you wire a
 caller to one of these:
 
 A required attribute that never arrives refuses before anything else
 happens — no partial record, no half-run mutation:
 
 ```ruby
-Verger::Tree.plant(orchard_id: orchard.id, label: { value: "Elstar-3" })  # ~> AbsentArgument: Plant was not given variety
+Banking::Account.open(customer_id: customer.id, number: { value: "AC-2" }, daily_limit: { cents: 0 })  # ~> AbsentArgument: Open was not given kind
+```
+
+An argument the command never declared at all refuses just as early,
+the other half of the same gate — a misspelled or stray field does not
+ride along in silence:
+
+```ruby
+account.credit(amount: { cents: 100 }, narrative: { text: "x" }, memo: "nope")  # ~> UnknownArgument: Credit does not declare memo
 ```
 
 A value object's own invariant travels with it into every command that
 carries one, checked the moment the argument is coerced — before
-`Plant`'s given, before its identity is even looked up:
+`Open`'s given, before its identity is even looked up:
 
 ```ruby
-Verger::Tree.plant(orchard_id: orchard.id, label: { value: "" }, variety: { value: "Elstar" })  # ~> InvariantViolation: TreeLabel invariant violated — a tree is labelled
+Banking::Account.open(customer_id: customer.id, number: { value: "" }, kind: { name: "current" }, daily_limit: { cents: 0 })  # ~> InvariantViolation: AccountNumber invariant violated — an account number is present
 ```
 
-A value object arrives as its fields, plainly — `{ value: "Elstar" }`,
-`{ count: 6 }` — never as a constructed instance. A reference to
+A value object arrives as its fields, plainly — `{ name: "current" }`,
+`{ cents: 100 }` — never as a constructed instance. A reference to
 another aggregate, by contrast, arrives as a bare id — the string
-`orchard.id`, not an object describing the orchard:
+`customer.id`, not an object describing the customer:
 
 ```ruby
-Verger::Tree.plant(orchard_id: orchard.id, label: { value: "Elstar-4" }, variety: { value: "Elstar" }).variety.to_h  # => { value: "Elstar" }
+Banking::Account.open(customer_id: { reference: customer.id }, number: { value: "AC-4" }, kind: { name: "current" }, daily_limit: { cents: 0 })  # ~> TypeMismatch: a reference is an id, and customer_id arrived as an object
 ```
 
-Hand a reference the object it stands for instead of the id, and it
-refuses — this is the mistake that costs the most in practice, because
-it is the one that LOOKS like it should work (you have the orchard
-right there, why not pass it):
+`CardPayment.Dispute` is the one command in this chapter carrying BOTH
+a self reference and a cross-aggregate one at once — `reference_to
+CardPayment` makes it act on the payment in hand, and `reference_to
+Customer, as: :disputed_by` names who is challenging the charge, since
+neither the payment nor its account says which holder of a joint
+account raised the dispute. The same rule about a bare id applies to
+that second reference exactly as it did to `Open`'s:
 
 ```ruby
-Verger::Tree.plant(orchard_id: { name: "Domaine des Merisiers" }, label: { value: "Elstar-5" }, variety: { value: "Elstar" })  # ~> TypeMismatch: a reference is an id, and orchard_id arrived as an object
+cp = Banking::CardPayment.authorize(account_id: account.id, authorisation: { value: "AUTH-1" },
+                                     amount: { cents: 4200 }, merchant: { value: "Cafe" })
+cp.capture
+cp.dispute(disputed_by: { reference: customer.id })  # ~> TypeMismatch: a reference is an id, and disputed_by arrived as an object
+cp.dispute(disputed_by: customer.id)
+cp.disputed_by  # => "C-1"
 ```
 
 And a command acting on an identity that names no record refuses with
 `NotFound`, not a nil you have to check for yourself:
 
 ```ruby
-runtime.dispatch("Verger::Tree.Bear", label: "never-planted", keeper: { name: "Someone" })  # ~> NotFound: no Tree with label
+runtime.dispatch("Banking::Account.Freeze", number: "no-such-account")  # ~> NotFound: no Account with number.value
 ```
 
 ## Refusals leave state untouched
 
 A refusal that happens after mutation but before save — an `ensures`,
-mainly — never reaches the store. The over-prune above raised before
-anything was written, and a fresh read proves it: the tree's yield is
-still what the last SUCCESSFUL prune left it at, not the negative
-number the refused call tried to write.
+mainly — never reaches the store. A `given` that refuses, a
+`LifecycleRefused`, a dangling reference, all stop the same dispatch
+pipeline the same way: a command either completes and persists, or it
+refuses and the record you already had stands exactly as it was. The
+account above still holds exactly what its last SUCCESSFUL debit left
+it at, not whatever a refused call tried to write:
 
 ```ruby
-Verger::Tree.find(tree.id).fruit_count.to_h  # => { count: 5 }
+account.debit(amount: { cents: 999_999 }, narrative: { text: "nope" })  # ~> GivenNotMet: the balance covers it
+Banking::Account.find(account.id).balance.to_h  # => { cents: 300, currency: "USD" }
 ```
-
-Nothing about this is specific to `ensures` — a `given` that refuses,
-a `LifecycleRefused`, a dangling reference, all stop the same dispatch
-pipeline before `save` ever runs. A command either completes and
-persists, or it refuses and the record you already had stands exactly
-as it was.
-
-— Miette

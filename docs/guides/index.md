@@ -3,12 +3,10 @@
 *Not doctested itself — an index. Every guide it points to is; see
 [AUTHORING.md](AUTHORING.md) if you're about to write one.*
 
-I wrote these for the person who has a feature to ship, not a language
-to admire. Each one answers a decision you actually have to make —
-which field wants a value object, how a rule refuses, what a query can
-and cannot reach — with a real example the suite runs before you read
-it. If a guide is wrong, it goes red. *Voilà* — that's the whole
-promise, and it's the only kind of documentation I trust enough to sign.
+Each guide answers a decision you actually have to make — which field
+wants a value object, how a rule refuses, what a query can and cannot
+reach — with a real example the suite runs before you read it. If a
+guide is wrong, it goes red.
 
 Start at the top if you're new; jump straight to the one you need if
 you're not.
@@ -40,5 +38,3 @@ you're not.
 12. **[Extending hecks](extending-hecks.md)** — adding a word to the
     language itself, and the conformance gates that stop it drifting
     from what it says.
-
-— Miette

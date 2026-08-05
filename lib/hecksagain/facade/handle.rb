@@ -97,8 +97,13 @@ module Hecksagain
         end
       end
 
+      # ONE HEAD ADDRESSES THE SAME WAY AS SEVERAL. `@ir.identified_by` is only
+      # the single-head shorthand — nil the moment an identity is composite
+      # (`SafeDepositBox`'s `branch_code`/`box_number`) — so building the
+      # identity payload from `identity_heads` instead reads every head, one
+      # or many alike, straight out of state that already carries them.
       def run(command, **args)
-        identity = { @ir.identified_by => @id }
+        identity = @ir.identity_heads.to_h { |head| [head, @state[head]] }
         @state = @dispatcher.dispatch("#{fqn}.#{command.hecks_name}", **identity, **args).instance.state
         self
       end

@@ -40,6 +40,8 @@ Names which unchanging field or fields say which record this is — a single pat
 
 Points at another aggregate by id, not by object — the attribute holds a bare id string, and handing it a nested value instead is refused at the door. Mints an attribute named `target_id` by default, or whatever `as:` names.
 
+One direction only: if the target aggregate also references this one back, the bluebook refuses to build (`BluebookBuilder#validate_no_bidirectional_references!`, raises `Malformed`) — two aggregates pointing at each other means neither is a boundary a caller can reason about alone. `has_many`/`has_one`/`belongs_to` below are sugar over this same call and are held to the same rule.
+
 ## has_many
 
 <!-- generated:begin word=has_many -->

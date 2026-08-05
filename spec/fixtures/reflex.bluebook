@@ -48,8 +48,11 @@ Hecks.bluebook "Reflex" do
 
     # THE SPECIFICATION OPTIONS, EXERCISED SOMEWHERE.
     #
-    # The language holds every option an ask can carry — offset, cursor, nulls,
+    # The language holds every option an ask can carry — offset, nulls,
     # authorize, consistency, freshness, inspect_query, use_index — as an open map,
+    # (`cursor` is declared syntax too, but refused unconditionally at build —
+    # see QueryBuilder#seal_cursor / ReadModelBuilder#seal_cursor — so it is
+    # never exercised here or anywhere else),
     # and `Query.Option` is the verb that stores one. No bluebook in the corpus
     # declared any, so the judge never offered that verb and
     # spec/judge_coverage_spec called it decoration, correctly: a rule hanging off a
@@ -65,7 +68,6 @@ Hecks.bluebook "Reflex" do
       order_by :condition, :desc
       limit 10
       offset 5
-      cursor :after
       nulls :last
       authorize :operator_access, tenant: :condition
       consistency :snapshot, timeout: 2
@@ -163,7 +165,6 @@ Hecks.bluebook "Reflex" do
     include Echo
 
     offset 5
-    cursor :after
     nulls :last
     authorize :operator_access, tenant: :condition
     freshness :bounded, max_age: 60

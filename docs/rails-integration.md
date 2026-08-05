@@ -41,7 +41,7 @@ Rails or ActiveModel dependency.** Anything Rails-specific lives in a decoration
 built on top of the core facade, applied once at boot — never inside
 `lib/hecksagain/facade/`.
 
-```
+```ruby skip
 lib/hecksagain/facade/handle.rb      core, adapter-agnostic, used by bin/console too
   ↓ decorated once, at boot, for Rails specifically
 WebHandle (Rails-only)               ActiveModel::Conversion + a real ActiveModel::Errors
@@ -84,7 +84,7 @@ redundant declaration.
 `Handle#method_missing`-based dispatch collides with real `Kernel`/`Object` methods.
 Verified directly, not assumed:
 
-```
+```ruby skip
 COLLIDES  Freeze -> freeze   (Object#freeze)
 COLLIDES  Open   -> open     (Kernel#open, private)
 COLLIDES  Send   -> send     (Object#send)
