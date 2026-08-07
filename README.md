@@ -71,6 +71,7 @@ own examples run against the real runtime on every push.
 - [Schema evolution](docs/guides/schema-evolution.md)
 - [Verification](docs/guides/verification.md)
 - [Wiring](docs/guides/wiring.md)
+- [Writing a port](docs/guides/writing-a-port.md)
 - [Writing an adapter](docs/guides/writing-an-adapter.md)
 <!-- generated:end -->
 
@@ -372,6 +373,7 @@ Every domain this repository's own tests and docs draw examples from:
 | `bin/model_check` | STATIC ANALYSIS OVER THE IR — unreachable lifecycle states, transitions nothing can ever fire, saga states no handler chain reaches, a co... |
 | `bin/pattern-cases` | THE RECORDED FIXTURE for `pattern:`, and how to regenerate it : bin/pattern-cases > spec/corpus/fixtures/patterns.json spec/pattern_subse... |
 | `bin/project` | Refreshes every read-model projection a domain declares, by hand — the same catch-up a boot runs lazily, forced now rather than on first ... |
+| `bin/project_rust` | THE RUST PROJECTION — a build-time code generator, not a runtime interpreter. Reads canonical IR (the same shape bin/ir prints, Hecksagai... |
 | `bin/reattest_era` | The recovery path after a held-text integrity refusal. The digest is tamper-EVIDENCE — it catches accident and drift, not an adversary (a... |
 | `bin/reference` | Regenerates docs/reference/ from the language's own Syntax chapter — the tables from the declaration, the prose preserved from the commit... |
 | `bin/run` | Executes a step list — commands and queries, declared as JSON — and reports instances, events, refusals, reactions, sagas, and query rows... |

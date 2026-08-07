@@ -38,3 +38,7 @@ you're not.
 12. **[Extending hecks](extending-hecks.md)** — adding a word to the
     language itself, and the conformance gates that stop it drifting
     from what it says.
+13. **[Writing a port](writing-a-port.md)** — for a second runtime, not
+    a domain: the canonical IR's exact shape, the dispatch order, and
+    how to read the expression grammar `given`/`ensures`/`invariant`
+    compile down to.

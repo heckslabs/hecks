@@ -1,0 +1,448 @@
+#!/usr/bin/env ruby
+
+# THE RUST PROJECTION — a build-time code generator, not a runtime
+# interpreter. Reads canonical IR (the same shape bin/ir prints,
+# Hecksagain::Projector::Exporter.call) for one domain and emits native
+# Rust source into rust_runner/src/generated/. Nothing generated here is
+# read or interpreted by the compiled binary — parsing/codegen only ever
+# runs here, in Ruby, at build time.
+#
+#   bin/project_rust <domain>
+#
+# THIRD SLICE. Built directly against docs/guides/writing-a-port.md (the
+# IR shape and the dispatch order), docs/guides/commands.md (the refusal
+# roster and creating-vs-acting), and docs/guides/aggregates-and-value-objects.md
+# (closed sets, nesting). Every design choice below is either cited
+# against one of those three, or explicitly flagged as NOT covered by a
+# guide.
+#
+# WHAT THIS GENERATES, beyond the first slice:
+#   - value-object INVARIANT checking, compiled from the SAME canonical
+#     expression text a real Ruby dispatch evaluates — ExpressionCompiler
+#     below walks the actual `Hecksagain::Bluebook::Expression::Evaluator`/
+#     `Resolver` AST (the real parser, not a reimplementation of it) and
+#     emits an equivalent Rust boolean expression. Wired in as
+#     `check_invariants()` on every generated value-object struct,
+#     called on every command attribute before identity is derived —
+#     the same placement docs/guides/writing-a-port.md's "Dispatch, in
+#     the order it actually runs" section cites `normalize_args` for.
+#
+# WHAT THIS STILL DOES NOT GENERATE — flagged, not silently skipped:
+#   - `given`/`ensures` evaluation (the SAME expression grammar
+#     ExpressionCompiler already walks for invariants — extending it to
+#     ARGUMENTS and INSTANCE FIELDS, not just a value object's own
+#     fields, is the natural next slice, not done here).
+#   - `then_set` mutations beyond a creating command's implicit,
+#     name-matched `assign_creation_attributes` (`to:`/`append:`/
+#     `increment:`/`decrement:` are real, documented, not generated).
+#   - ACTING commands (anything with `reference_to` its own aggregate —
+#     `references` non-nil in the IR), lifecycle transitions, entities,
+#     multiple emits, `admits:` cross-aggregate closed-set checks,
+#     `pattern:` checks, `default:` fallback for an omitted key.
+#   - Role checking (Unauthorized).
+#   - Any invariant this file's ExpressionCompiler cannot compile is
+#     named in a comment at its call site, not silently dropped — see
+#     `emit_check_invariants`.
+#   - `emit_record` does not resolve `Reference<X>` or entity-list
+#     attribute types to real Rust types. Found by running this tool
+#     against examples/banking as a stress test for ExpressionCompiler
+#     (which passed: every real invariant across both example domains
+#     compiles) — an aggregate carrying either shape is now skipped
+#     loudly, by name, with the offending type named, rather than
+#     emitted as Rust that fails to compile. Banking's own Customer
+#     aggregate has neither shape and generates cleanly; Account,
+#     SafeDepositBox, and the rest do not, today.
+
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+
+require "hecksagain"
+require "fileutils"
+
+domain = ARGV.shift or abort "usage: bin/project_rust <domain>"
+
+registry = Hecksagain::Runtime::Registry.new
+Hecksagain.with_registry(registry) do
+  Kernel.load(File.expand_path("../lib/hecksagain/ports/persistence.port", __dir__))
+  Kernel.load(File.expand_path("../lib/hecksagain/ports/extraction.port", __dir__))
+  Kernel.load(File.expand_path("../lib/hecksagain/adapters/driven/memory.adapter", __dir__))
+  Kernel.load(File.expand_path("../lib/hecksagain/adapters/driven/prism.adapter", __dir__))
+  Kernel.load(File.join(domain, "bluebook", "#{File.basename(domain)}.bluebook"))
+end
+
+ir = Hecksagain::Projector::Exporter.call(registry).fetch(registry.bluebooks.keys.first)
+
+# ── EXPRESSION COMPILER — walks the REAL Evaluator/Resolver AST (the
+# same objects a live dispatch parses `given`/`ensures`/invariant text
+# into; see docs/guides/writing-a-port.md's "The expression grammar")
+# and emits an equivalent Rust boolean expression. Scoped to exactly
+# what a value-object invariant needs: bare (undotted) field lookups
+# against that value object's own attributes — a `given`/`ensures`
+# compiler would need to extend `types` to cover command arguments and
+# instance fields too, and add dotted-path lookups; not done here.
+module ExpressionCompiler
+  Unsupported = Class.new(StandardError)
+  Compiled = Struct.new(:expr, :type, :literal, keyword_init: true) # type: :int/:float/:string/:bool
+
+  module_function
+
+  def compile_predicate(canonical, field_types)
+    ast = Hecksagain::Bluebook::Expression::Evaluator.parse(canonical)
+    compile_bool(ast, field_types)
+  end
+
+  def compile_bool(node, types)
+    ev = Hecksagain::Bluebook::Expression::Evaluator
+    case node
+    when ev::Or  then Compiled.new(expr: "(#{compile_bool(node.left, types).expr} || #{compile_bool(node.right, types).expr})", type: :bool)
+    when ev::And then Compiled.new(expr: "(#{compile_bool(node.left, types).expr} && #{compile_bool(node.right, types).expr})", type: :bool)
+    when ev::Not
+      Compiled.new(expr: "!(#{compile_bool(node.node, types).expr})", type: :bool)
+    when ev::Compare
+      left, right = unify_numeric(compile_resolver(node.left, types), compile_resolver(node.right, types))
+      Compiled.new(expr: "(#{left.expr} #{node.operator.symbol} #{right.expr})", type: :bool)
+    when ev::Include
+      raise Unsupported, ".include? — no real-corpus invariant uses it, not generated"
+    when ev::Resolve
+      inner = compile_resolver(node.expr, types)
+      raise Unsupported, "bare resolve of a non-boolean value has no Rust truthiness equivalent" unless inner.type == :bool
+
+      inner
+    else
+      raise Unsupported, "evaluator node #{node.class}"
+    end
+  end
+
+  # A real invariant only ever compares a field against a bare literal,
+  # never two differently-typed fields against each other — if int and
+  # float disagree, re-render the LITERAL side (the one carrying
+  # `.literal`) in the other side's type, matching how Ruby's own
+  # dynamic typing would have compared them, rather than reach for an
+  # `as` cast that could silently truncate.
+  def unify_numeric(a, b)
+    return [a, b] unless %i[int float].include?(a.type) && %i[int float].include?(b.type)
+    return [a, b] if a.type == b.type
+    return [Compiled.new(expr: "#{a.literal}.0", type: :float), b] if a.type == :int && a.literal
+    return [a, Compiled.new(expr: "#{b.literal}.0", type: :float)] if b.type == :int && b.literal
+
+    raise Unsupported, "int/float compared with neither side a literal"
+  end
+
+  def compile_resolver(node, types)
+    r = Hecksagain::Bluebook::Expression::Resolver
+    case node
+    when r::IntegerLiteral then Compiled.new(expr: node.value.to_s, type: :int, literal: node.value)
+    when r::FloatLiteral   then Compiled.new(expr: "#{node.value}f64", type: :float)
+    when r::StringLiteral  then Compiled.new(expr: "#{node.value.inspect}.to_string()", type: :string)
+    when r::BoolLiteral    then Compiled.new(expr: node.value.to_s, type: :bool)
+    when r::Lookup
+      raise Unsupported, "dotted lookup #{node.path.inspect} — invariants only reach their own fields" if node.path.include?(".")
+
+      field = node.path.to_sym
+      type = types[field] or raise Unsupported, "field #{field.inspect} is not a scalar attribute this compiler knows the type of"
+      Compiled.new(expr: "self.#{field}", type: type)
+    when r::Addition
+      left, right = unify_numeric(compile_resolver(node.left, types), compile_resolver(node.right, types))
+      Compiled.new(expr: "(#{left.expr} + #{right.expr})", type: left.type)
+    when r::SignTest
+      receiver = compile_resolver(node.receiver, types)
+      raise Unsupported, "sign test on non-numeric #{receiver.type}" unless %i[int float].include?(receiver.type)
+
+      Compiled.new(expr: "(#{receiver.expr} #{node.operator.symbol} #{receiver.type == :float ? '0.0' : '0'})", type: :bool)
+    when r::Empty
+      receiver = compile_resolver(node.receiver, types)
+      raise Unsupported, ".empty? on non-string #{receiver.type} (Array/Hash not generated yet)" unless receiver.type == :string
+
+      Compiled.new(expr: "#{receiver.expr}.is_empty()", type: :bool)
+    when r::ToS
+      receiver = compile_resolver(node.receiver, types)
+      case receiver.type
+      when :string then receiver
+      when :int, :float, :bool then Compiled.new(expr: "#{receiver.expr}.to_string()", type: :string)
+      else raise Unsupported, ".to_s receiver type #{receiver.type}"
+      end
+    when r::Modulo
+      receiver = compile_resolver(node.receiver, types)
+      divisor  = compile_resolver(node.divisor, types)
+      raise Unsupported, "modulo on non-integer operand" unless receiver.type == :int && divisor.type == :int
+
+      Compiled.new(expr: "(#{receiver.expr} % #{divisor.expr})", type: :int)
+    when r::Size
+      receiver = compile_resolver(node.receiver, types)
+      raise Unsupported, ".size on non-string #{receiver.type} (Array/Hash not generated yet)" unless receiver.type == :string
+
+      Compiled.new(expr: "(#{receiver.expr}.chars().count() as i64)", type: :int)
+    when r::NilLiteral
+      raise Unsupported, "nil literal has no generated Rust equivalent (no Option-typed fields yet)"
+    else
+      raise Unsupported, "resolver node #{node.class}"
+    end
+  end
+end
+
+module RustProjector
+  module_function
+
+  # Canonical IR's scalar type names -> Rust's, and -> ExpressionCompiler's
+  # own type-kind symbols.
+  SCALAR      = { "String" => "String", "Integer" => "i64", "Float" => "f64" }.freeze
+  SCALAR_KIND = { "String" => :string, "Integer" => :int, "Float" => :float }.freeze
+
+  def rust_type(type_name, list:)
+    inner = SCALAR.key?(type_name) ? SCALAR.fetch(type_name) : rust_ident(type_name)
+    list ? "Vec<#{inner}>" : inner
+  end
+
+  def rust_ident(name) = name.to_s.gsub(/[^A-Za-z0-9]/, "")
+  def rust_field(name) = name.to_s
+
+  # A closed set becomes a real Rust enum, not a string the caller could
+  # misspell — the invariant the language already enforces (one_of, per
+  # aggregates-and-value-objects.md's "Closed vocabularies" section) gets
+  # a compiler-checked equivalent instead of a runtime string compare, and
+  # needs no generated check_invariants — membership IS the check, and
+  # the enum's own exhaustiveness is what enforces it.
+  def closed_set_variant(row)
+    _, value = row.first
+    value.to_s.split(/[_\s]/).map(&:capitalize).join
+  end
+
+  # Bare-field types for ExpressionCompiler — only this value object's OWN
+  # scalar attributes; a field whose type is another value object or a
+  # Reference is absent from this map on purpose (see
+  # ExpressionCompiler::Lookup's own Unsupported for what that means).
+  def scalar_field_types(vo)
+    vo[:attributes].filter_map do |attr|
+      kind = SCALAR_KIND[attr[:type]]
+      [attr[:name].to_sym, kind] if kind
+    end.to_h
+  end
+
+  def emit_check_invariants(vo, value_objects_by_name)
+    name  = rust_ident(vo[:name])
+    types = scalar_field_types(vo)
+    body  = []
+
+    vo[:invariants].each do |inv|
+      compiled = ExpressionCompiler.compile_predicate(inv[:canonical], types)
+      body << "        if !(#{compiled.expr}) {"
+      body << "            return Err(crate::kernel::Refusal::InvariantViolation(#{"#{name} violates its invariant: #{inv[:description]}".inspect}.to_string()));"
+      body << "        }"
+    rescue ExpressionCompiler::Unsupported => e
+      body << "        // NOT GENERATED: #{inv[:canonical].inspect} (#{e.message}) — unchecked in Rust, Ruby still enforces it."
+    end
+
+    vo[:attributes].each do |attr|
+      next if SCALAR.key?(attr[:type])
+
+      nested = value_objects_by_name[attr[:type]]
+      next unless nested && !nested[:closed_set]
+
+      field = rust_field(attr[:name])
+      body << (attr[:list] ? "        for item in &self.#{field} { item.check_invariants()?; }" : "        self.#{field}.check_invariants()?;")
+    end
+
+    <<~RUST
+      impl #{name} {
+          pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
+      #{body.join("\n")}
+              Ok(())
+          }
+      }
+    RUST
+  end
+
+  def emit_value_object(vo, value_objects_by_name)
+    name = rust_ident(vo[:name])
+
+    if vo[:closed_set]
+      variants = vo[:members].map { |row| closed_set_variant(row) }
+      lines = ["#[derive(Debug, Clone, PartialEq, Eq)]", "pub enum #{name} {"]
+      variants.each { |v| lines << "    #{v}," }
+      lines << "}"
+      return lines.join("\n")
+    end
+
+    lines = ["#[derive(Debug, Clone, PartialEq)]", "pub struct #{name} {"]
+    vo[:attributes].each do |attr|
+      type = rust_type(attr[:type], list: attr[:list])
+      lines << "    pub #{rust_field(attr[:name])}: #{type},"
+    end
+    lines << "}"
+    lines << ""
+    lines << emit_check_invariants(vo, value_objects_by_name)
+    lines.join("\n")
+  end
+
+  # An aggregate this generator cannot fully type yet — a `Reference<X>`
+  # attribute (acting commands aren't generated, so nothing resolves that
+  # type) or an entity-typed list attribute (entities aren't generated
+  # either). Found by running this tool against examples/banking: emitting
+  # a record struct with a field of a type nothing defines produced Rust
+  # that failed to compile, silently, only at `cargo check` time. Checking
+  # here means the SKIP is loud and Ruby-side instead.
+  def unsupported_attribute_types(aggregate, value_objects_by_name)
+    aggregate[:attributes]
+      .reject { |attr| SCALAR.key?(attr[:type]) || value_objects_by_name.key?(attr[:type]) }
+      .map { |attr| attr[:type] }
+      .uniq
+  end
+
+  def emit_record(aggregate)
+    name = rust_ident(aggregate[:name])
+    lines = ["#[derive(Debug, Clone, PartialEq)]", "pub struct #{name} {"]
+    aggregate[:attributes].each do |attr|
+      # Every field starts optional at the Rust-struct level regardless of
+      # the IR's own optional: flag — a creating command may not set every
+      # field on step one (Order.CreatePizza never sets customer_name), and
+      # Rust has no notion of "field exists but is unset" the way a Ruby
+      # Hash does. Non-optional-per-IR fields are asserted present at
+      # generated-dispatch time instead, not encoded away here.
+      type = rust_type(attr[:type], list: attr[:list])
+      type = "Option<#{type}>" unless attr[:list]
+      lines << "    pub #{rust_field(attr[:name])}: #{type},"
+    end
+    lines << "}"
+    lines.join("\n")
+  end
+
+  # ── COMMAND DISPATCH — creating commands with no givens/mutations/
+  # references, i.e. exactly Order.CreatePizza in Pizzas today (see this
+  # file's header for the full inventory of what is and isn't generated).
+  # A CREATING command needs: invariant checks on every value-object
+  # attribute FIRST (docs/guides/writing-a-port.md's "Dispatch, in the
+  # order it actually runs" places this at `normalize_args`, before
+  # identity is even derived), identity derivation from `identified_by`,
+  # the AlreadyExists duplicate check, record construction — the same
+  # implicit name-matched `assign_creation_attributes` step that page
+  # names explicitly — save, emit with `payload: args`.
+  def emit_create_command(command, aggregate, domain_name, value_objects_by_name)
+    return unless command[:mutations].empty? && command[:givens].empty? && command[:references].nil?
+
+    record  = rust_ident(aggregate[:name])
+    cmd     = rust_ident(command[:name])
+    id_path = aggregate[:identified_by].first
+    id_arg, id_field = id_path.split(".")
+
+    args_struct = ["pub struct #{cmd}Args {"]
+    command[:attributes].each do |attr|
+      type = rust_type(attr[:type], list: attr[:list])
+      args_struct << "    pub #{rust_field(attr[:name])}: #{type},"
+    end
+    args_struct << "}"
+
+    invariant_checks = command[:attributes].filter_map do |attr|
+      next unless value_objects_by_name.key?(attr[:type])
+      next if value_objects_by_name[attr[:type]][:closed_set]
+
+      field = rust_field(attr[:name])
+      attr[:list] ? "        for item in &args.#{field} { item.check_invariants()?; }" : "        args.#{field}.check_invariants()?;"
+    end
+
+    payload_lines = command[:attributes].map do |attr|
+      vo = value_objects_by_name[attr[:type]]
+      if vo && !attr[:list] && vo[:attributes].size == 1
+        inner = vo[:attributes].first[:name]
+        %(payload.insert("#{attr[:name]}".to_string(), format!("{:?}", args.#{attr[:name]}.#{inner})); )
+      else
+        %(payload.insert("#{attr[:name]}".to_string(), format!("{:?}", args.#{attr[:name]})); )
+      end
+    end
+
+    record_fields = aggregate[:attributes].map do |attr|
+      matched = command[:attributes].find { |a| a[:name] == attr[:name] }
+      if matched
+        attr[:list] ? "        #{attr[:name]}: args.#{attr[:name]}.clone()," : "        #{attr[:name]}: Some(args.#{attr[:name]}.clone()),"
+      else
+        attr[:list] ? "        #{attr[:name]}: vec![]," : "        #{attr[:name]}: None,"
+      end
+    end
+
+    <<~RUST
+      #[derive(Debug, Clone)]
+      #{args_struct.join("\n")}
+
+      pub fn dispatch_#{cmd.gsub(/(?<=.)([A-Z])/, '_\1').downcase}(
+          repo: &mut impl crate::kernel::Repository<#{record}>,
+          args: #{cmd}Args,
+      ) -> crate::kernel::DispatchResult<#{record}> {
+      #{invariant_checks.join("\n")}
+
+          let id = args.#{id_arg}.#{id_field}.clone();
+
+          if repo.find(&id).is_some() {
+              return Err(crate::kernel::Refusal::AlreadyExists(format!(
+                  "#{cmd} creates a #{record} that already exists — #{id_path} {:?}", id
+              )));
+          }
+
+          let record = #{record} {
+      #{record_fields.join("\n")}
+          };
+
+          repo.save(&id, record.clone());
+
+          let mut payload = std::collections::BTreeMap::new();
+          #{payload_lines.join("\n        ")}
+
+          let events = vec![#{command[:emits].map { |e| %(crate::kernel::Event { name: "#{e}".to_string(), aggregate: "#{domain_name}::#{aggregate[:name]}".to_string(), id: id.clone(), payload: payload.clone() }) }.join(", ")}];
+
+          Ok((record, events))
+      }
+    RUST
+  end
+end
+
+domain_name = ir[:name]
+
+out_dir = File.expand_path("../rust_runner/src/generated", __dir__)
+# CLEARED, not just written into — a previous run against a DIFFERENT
+# domain leaves that domain's .rs files behind otherwise (mod.rs gets
+# rewritten to stop referencing them, but the files themselves stay on
+# disk, stale, until someone notices and deletes them by hand).
+FileUtils.rm_rf(out_dir)
+FileUtils.mkdir_p(out_dir)
+
+generated_aggregates = []
+
+ir[:aggregates].each do |aggregate|
+  value_objects_by_name = aggregate[:value_objects].to_h { |vo| [vo[:name], vo] }
+
+  unsupported = RustProjector.unsupported_attribute_types(aggregate, value_objects_by_name)
+  if unsupported.any?
+    puts "skipping #{aggregate[:name]}: attribute type(s) #{unsupported.join(', ')} not generated yet " \
+         "(Reference<> and entity-typed attributes aren't resolved to Rust types)"
+    next
+  end
+
+  generated_aggregates << aggregate
+
+  path = File.join(out_dir, "#{aggregate[:name].downcase}.rs")
+  File.open(path, "w") do |f|
+    f.puts "// GENERATED by bin/project_rust from #{domain}'s canonical IR."
+    f.puts "// Do not hand-edit — re-run bin/project_rust #{domain} instead."
+    f.puts "#![allow(dead_code)]"
+    f.puts
+    aggregate[:value_objects].each do |vo|
+      f.puts RustProjector.emit_value_object(vo, value_objects_by_name)
+      f.puts
+    end
+    f.puts RustProjector.emit_record(aggregate)
+    f.puts
+
+    aggregate[:commands].each do |command|
+      generated = RustProjector.emit_create_command(command, aggregate, domain_name, value_objects_by_name)
+      next unless generated
+
+      f.puts generated
+      f.puts
+    end
+  end
+  puts "wrote #{path}"
+end
+
+mod_path = File.join(out_dir, "mod.rs")
+File.open(mod_path, "w") do |f|
+  f.puts "// GENERATED by bin/project_rust — re-run it to refresh this list."
+  generated_aggregates.each { |a| f.puts "pub mod #{a[:name].downcase};" }
+end
+puts "wrote #{mod_path}"

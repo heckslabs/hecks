@@ -1,0 +1,474 @@
+# Writing a port
+
+A port is a second implementation of dispatch — a runtime, likely in a
+different language, that accepts the same commands and queries a
+bluebook declares and produces the same refusals and events a real
+boot of it would. This page is the single place to start: what the
+canonical IR actually contains, field by field, the exact order a
+command's dispatch runs in, and how the `given`/`ensures`/invariant
+text you'll find in that IR is supposed to be read. Everything here is
+either proven live against a real domain below, or cited against the
+Ruby source that is the actual authority, named so you can go verify
+it yourself rather than trust a paraphrase.
+
+One architectural choice is yours to make and this page does not make
+it for you: whether your port INTERPRETS the IR at your runtime's own
+start-up (read the JSON, hold the AST, dispatch generically against
+it) or COMPILES it once, ahead of time, into native dispatch code for
+each command (a build step emits real functions; nothing at your
+runtime reads IR at all). Both are legitimate; the facts below hold
+either way, because they describe what the IR contains and what order
+dispatch runs in, not how your port chooses to consume that.
+
+## Getting the IR
+
+The IR is `Hecksagain::Bluebook#to_h`, per aggregate, per bluebook —
+the same shape `spec/golden/ir/*.json` pins and `bin/ir` prints.
+`Hecksagain::Projector::Exporter.call(registry)` returns it as a real
+Ruby `Hash`, keyed by bluebook name; `.json(registry)` wraps it in
+`JSON.pretty_generate` for a file or a pipe. Boot the domain the same
+way any other guide does — `Kernel.load` the real bluebook file, wire
+every aggregate to `"Memory"` — and read it off `runtime.registry`:
+
+```ruby boot
+Kernel.load(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/banking.bluebook"))
+
+Hecks.hecksagon("Banking") do
+  Banking::Customer.persisted_by("Memory")
+  Banking::Account.persisted_by("Memory")
+  Banking::ATMCard.persisted_by("Memory")
+  Banking::Transfer.persisted_by("Memory")
+  Banking::CardPayment.persisted_by("Memory")
+  Banking::ExternalTransfer.persisted_by("Memory")
+  Banking::ScheduledPayment.persisted_by("Memory")
+  Banking::SafeDepositBox.persisted_by("Memory")
+  Banking::OnboardingCase.persisted_by("Memory")
+end
+```
+
+```ruby
+ir = Hecksagain::Projector::Exporter.call(runtime.registry).fetch("Banking")
+
+ir.keys # => [:name, :version, :vision, :classification, :aggregates, :read_models, :policies, :process_managers, :canonical_form]
+```
+
+Every key below is a real Ruby `Symbol`, not a JSON string — `Exporter.call`
+returns the object graph's own `to_h`, unconverted. Round-trip it
+through `Exporter.json` and `JSON.parse` instead and every key becomes
+a string; pick whichever your build step wants to consume, but don't
+mix assumptions about which one you're holding.
+
+If your build step shells out instead of running in-process, `bin/ir
+<domain>` prints the same thing — with one trap: booting a domain's
+*real* `.hecksagon` (as opposed to the Memory wiring above) may wire a
+Postgres-backed adapter, and Postgres's own `NOTICE` lines land on the
+same stdout your script is trying to parse as pure JSON. Wire your own
+hecksagon against `"Memory"`, the way every doctested example on this
+page does, rather than booting the domain's committed one, and this
+never comes up.
+
+## The shape: bluebook → aggregate → attribute
+
+An aggregate carries eight keys. `lifecycle` is `nil` when the
+aggregate declares none; `entities`, `queries`, `commands`,
+`value_objects` are always arrays, empty when there's nothing to say:
+
+```ruby
+account = ir.fetch(:aggregates).find { |a| a[:name] == "Account" }
+
+account.keys # => [:name, :description, :identified_by, :attributes, :value_objects, :commands, :lifecycle, :entities, :queries]
+```
+
+`identified_by` is always an array of dotted paths, even for a single
+scalar field — `["reference.value"]` for `Customer`, one entry per
+identity component. A composite identity is more than one entry,
+joined by `:` at dispatch time; `SafeDepositBox` is the real one in
+this corpus:
+
+```ruby
+account[:identified_by] # => ["number.value"]
+
+safe_deposit_box = ir.fetch(:aggregates).find { |a| a[:name] == "SafeDepositBox" }
+safe_deposit_box[:identified_by] # => ["branch_code.value", "box_number.value"]
+```
+
+Every `attributes` entry — on an aggregate, a value object, a command,
+or an entity, the shape never varies — carries the same six keys:
+
+```ruby
+balance_attr = account[:attributes].find { |a| a[:name] == :balance }
+balance_attr # => { name: :balance, type: "Money", list: false, default: nil, optional: false, pattern: nil, admits: nil }
+```
+
+An attribute's `name` is a `Symbol` (the DSL takes `attribute :balance,
+Money`); an aggregate's, a command's, and a value object's own `name`
+are all plain `String`s (the DSL takes those as quoted chapter/verb
+names) — the export does not normalize the two onto one type, so match
+each key with the kind it actually is, not the kind that reads more
+consistently.
+
+`type` is one of three things: a scalar (`"String"`, `"Integer"`,
+`"Float"`), the name of a value object declared on the same aggregate
+(resolve it against that aggregate's own `value_objects`, not a global
+namespace — two aggregates may each declare a `Money`), or
+`"Reference<AggregateName>"` for a pointer at another aggregate's
+identity:
+
+```ruby
+account[:attributes].find { |a| a[:name] == :customer_id }[:type] # => "Reference<Customer>"
+```
+
+`list` marks a repeated attribute (an aggregate's `has_many`-shaped
+field, or a command's `list_of`) — a `Vec`/array of `type`, never
+`Option`-wrapped the way a scalar attribute might be in a language
+that distinguishes the two. `pattern` is a regex string when a value
+object's field was declared with `pattern:` (an email address, for
+instance); `admits` is set only when an attribute's closed set is
+borrowed from a DIFFERENT aggregate's value object rather than its
+own:
+
+```ruby
+external_transfer = ir.fetch(:aggregates).find { |a| a[:name] == "ExternalTransfer" }
+external_transfer[:attributes].find { |a| a[:name] == :direction }[:admits] # => "Account::LedgerDirection"
+```
+
+`default` is `nil` when nothing was declared, the literal value when
+it's a scalar, and a nested `Hash` when the default is itself a value
+object — `SafeDepositBox`'s `size` defaults to `Size`, not to a bare
+string:
+
+```ruby
+safe_deposit_box[:attributes].find { |a| a[:name] == :size }[:default] # => { value: "small" }
+```
+
+## Value objects: fields, invariants, closed sets
+
+A `value_objects` entry is `name`, `attributes` (the same six-key
+shape as above, recursively — a value object can nest another one),
+`invariants`, `closed_set`, `members`. A ordinary value object has
+`closed_set: false` and an empty `members`; its `invariants` are the
+rules your port has to check at construction time, each one already
+reduced to the same canonical text the expression grammar section
+below reads:
+
+```ruby
+account[:value_objects].find { |vo| vo[:name] == "DailyLimit" }
+# => { name: "DailyLimit", attributes: [{ name: :cents, type: "Integer", list: false, default: 0, optional: false, pattern: nil, admits: nil }], invariants: [{ description: "a daily limit is non-negative", canonical: "!cents.negative?" }], closed_set: false, members: [] }
+```
+
+A closed set inverts that: `invariants` is empty (membership IS the
+rule) and `members` lists every admitted value, one row per member, a
+row being an array of `[field, value]` pairs — almost always one pair,
+`[["value", "small"]]`, because most closed sets wrap a single scalar,
+but the shape doesn't assume that:
+
+```ruby
+size_vo = safe_deposit_box[:value_objects].find { |vo| vo[:name] == "Size" }
+size_vo[:closed_set] # => true
+size_vo[:members]    # => [[["value", "small"]], [["value", "medium"]], [["value", "large"]]]
+```
+
+The natural target for a closed set in a language with real enums is a
+real enum, not a string your port compares by hand — one variant per
+member row, named from its value.
+
+## Commands: the roster and what each key means
+
+A command carries `name`, `role`, `goal`, `references`, `attributes`,
+`givens`, `ensures`, `mutations`, `emits`. `role` and `goal` are prose,
+not load-bearing for dispatch itself (role-checking, when a command
+declares one, is a separate opt-in rule — see
+[commands.md](commands.md)). `references` is the field that decides
+creating vs. acting, and it decides it exactly the way
+`IR::Command#creates?` is actually implemented — `references.nil?`,
+nothing more:
+
+```ruby
+credit = account[:commands].find { |c| c[:name] == "Credit" }
+open   = account[:commands].find { |c| c[:name] == "Open" }
+
+credit[:references] # => "Account"
+open[:references]   # => nil
+```
+
+A creating command derives its own identity from its own arguments (no
+record exists yet to look one up on); an acting command's `references`
+names the aggregate its identity is derived against instead — for
+`Credit`, `"Account"`, matched by the addressing key
+`docs/guides/commands.md` calls `reference_to`.
+
+`givens` and `ensures` are both arrays of `{ description:, canonical: }`
+— `description` is the human-readable prose you'd show in a refusal
+message, `canonical` is the normalized boolean expression text the
+next section walks in full:
+
+```ruby
+debit = account[:commands].find { |c| c[:name] == "Debit" }
+
+debit[:givens].map { |g| g[:canonical] }
+# => ["status == \"open\"", "balance.cents >= amount.cents", "daily_limit.cents >= amount.cents"]
+
+debit[:ensures].map { |e| e[:canonical] }
+# => ["old.balance.cents == balance.cents + amount.cents", "balance.cents >= 0"]
+```
+
+`mutations` is the one worth being careful with, because its shape
+branches on `op`. A `set`/`increment`/`decrement` entry carries
+`source`, itself a small tagged union — `{ kind: "argument", name: }`
+when the mutation reads a command argument (the overwhelming majority
+of real mutations), `{ kind: "literal", value: }` when the bluebook
+wrote a bare literal instead:
+
+```ruby
+credit[:mutations].find { |m| m[:target] == :balance }
+# => { target: :balance, op: :increment, source: { kind: "argument", name: "amount" } }
+```
+
+An `append` entry carries `fields` instead of `source` — and here is
+the one real gotcha in the whole export: a field whose value is a bare
+argument name serializes as that name's plain string, but a field
+whose value is a LITERAL nested value object (as `Credit`'s own
+`then_set :ledger, append: { ..., direction: { value: "credit" } }`
+does) serializes as that literal `Hash`'s `Kernel#inspect` string, not
+as structured JSON — because `IR::Command::Mutation#appended_fields`
+calls `.inspect` on anything that isn't a bare `Symbol`, not a second
+recursive `to_h`:
+
+```ruby
+credit[:mutations].find { |m| m[:target] == :ledger }
+# => { target: :ledger, op: :append, fields: { amount: "amount", narrative: "narrative", direction: "{:value=>\"credit\"}" } }
+```
+
+A port that wants that literal back as data, not as a string to
+re-parse, has to special-case it — walk the ORIGINAL declaration
+instead of the exported field, or teach your codegen to recognize a
+`{:key=>"value", ...}`-shaped string and treat it as the literal it
+came from. This is a real shape a real bluebook writes (`Credit` and
+`Debit` both do it, for `direction`), not an edge case you can defer.
+
+`emits` is the plain array of event name strings a successful dispatch
+raises, in the order they were declared — one for almost every command
+in this corpus, but the shape does not assume exactly one.
+
+## Lifecycles
+
+An aggregate with a `lifecycle` block exports `field`, `default`,
+`transitions` — the last one a flat array, one entry per `transition`
+line, `{ command:, to_state:, from_state: }`. A `from:` naming more
+than one source state in the bluebook flattens into more than one
+transition row here, one per source, all sharing the same `command`
+and `to_state`:
+
+```ruby
+account[:lifecycle][:field]   # => "status"
+account[:lifecycle][:default] # => "open"
+account[:lifecycle][:transitions].select { |t| t[:command] == "CloseAccount" }
+# => [{ command: "CloseAccount", to_state: "closed", from_state: "open" }, { command: "CloseAccount", to_state: "closed", from_state: "frozen" }]
+```
+
+A command not named in any `transitions` row runs with no lifecycle
+gate at all — dispatch's own `admissible_transition` step (next
+section) simply finds nothing to check and moves on.
+
+## Entities
+
+`entities` is an array of the same aggregate shape, one level down —
+`name`, `description`, `identified_by`, `attributes`, plus its own
+`lifecycle` when it declares one. An entity never gets a `commands`
+key of its own; it's addressed only through `then_set append:` on the
+aggregate that holds it, which is why the mutation's `fields` shape
+above is the part of this export an entity-bearing aggregate actually
+needs a port to read correctly. Full identity-minting and nesting
+rules for entities are [entities.md](entities.md)'s subject, not
+repeated here.
+
+## Dispatch, in the order it actually runs
+
+Fourteen steps, hand-typed in `Runtime::CommandInterpreter::DISPATCH_ORDER`
+and held equal to the language's own declared vocabulary by
+`spec/vocabulary_conformance_spec.rb` — this is not a summary, it is
+the literal list:
+
+```ruby skip
+refuse_unknown_arguments   # every arg key must be a declared attribute or an addressing key (id/identity/reference)
+refuse_absent_arguments    # every non-optional declared attribute must be present
+normalize_args             # coerce raw hashes into typed Values — invariant checks fire HERE
+refuse_role_mismatch       # only if the command declares role: and the caller opted into role checking
+resolve_references         # a reference argument (bare id string) is checked to actually exist
+hydrate                    # creating: derive identity, refuse AlreadyExists; acting: look up, refuse NotFound
+enforce_givens              # every given must read true against the hydrated instance + args
+admissible_transition       # if the command names a lifecycle transition, its from: must match the current state
+assign_creation_attributes  # creating commands only — see below
+apply_mutations              # every declared then_set, in declared order
+advance_lifecycle            # if a transition was found, write the target state
+enforce_ensures               # every ensures must read true, args merged with old: the pre-mutation state
+save                          # write the instance back through the aggregate's repository
+emit                          # build and return the declared events
+```
+
+Two facts about that list are true and not written down anywhere else
+in this repository's guides, because nothing before this page needed
+a second runtime to know them:
+
+**`assign_creation_attributes` and `apply_mutations` are two different
+steps, and only the first is implicit.** A creating command's
+attributes are copied onto the fresh instance by NAME MATCH alone —
+every command attribute whose name matches one of the aggregate's own
+attribute names is assigned, unconditionally, with no `then_set`
+required to say so. `Pizzas::Order.CreatePizza` never declares a
+single `then_set`, and its exported `mutations` array is empty — the
+whole record is built by this implicit step alone:
+
+```ruby
+open[:mutations].map { |m| m[:target] }
+# => [:number, :kind, :daily_limit]
+```
+
+`Account.Open` DOES declare `then_set :number, to: :number` and its
+siblings, even though every name already matches — legal, and not a
+no-op collision: `assign_creation_attributes` runs first and sets
+`number` from `args[:number]`; `apply_mutations` runs after and sets
+it again, from the identical source, to the identical value. Redundant
+in this specific case, but the two steps are not the same step wearing
+two names — a `then_set` whose source is NOT a plain pass-through (an
+`increment:`, a literal, a differently-named argument) only ever runs
+through the second step, never the first.
+
+**Every `given`/`ensures`/invariant expression resolves a bare name
+against the command's ARGUMENTS first, the INSTANCE second, and raises
+if neither has it** — `Bluebook::Expression::Resolver#fetch`, read
+directly:
+
+```ruby skip
+def fetch(name, state, attrs)
+  key = name.to_sym
+  return attrs[key] if attrs.key?(key)
+  return state[key] if known?(state, key)
+  raise EvaluationError, "cannot resolve #{name.inspect} — no such attribute or argument"
+end
+```
+
+That's why `Debit`'s own given, `"balance.cents >= amount.cents"`, can
+mix `balance` (an instance field) and `amount` (a command argument) in
+one comparison with no marker distinguishing them in the text — the
+resolver tries the argument hash first, by design, so an argument name
+that happens to collide with an instance field name always wins as the
+argument. A dotted path (`balance.cents`) resolves its head the same
+way, then walks the rest with plain `[]`, on whatever the head
+resolved to.
+
+## The expression grammar
+
+`given`, `ensures`, and every value-object `invariant` are strings —
+already normalized at DSL-build time (whitespace collapsed, `.length`
+rewritten to `.size`), so the SAME text you see in the IR is exactly
+what a real dispatch evaluates, byte for byte. The grammar is small
+and closed, projected from `lib/hecksagain/bluebook/expression/projection.json`
+and held equal to it by `spec/operator_conformance_spec.rb`:
+
+| symbol | category | arity | notes |
+|---|---|---|---|
+| `\|\|` | logical | 2 | lowest precedence |
+| `&&` | logical | 2 | |
+| `.include?` | membership | 2 | `haystack.include?(needle)`; haystack must resolve to `Array` or `String` |
+| `>=`, `<=`, `<`, `>`, `==`, `!=` | comparison | 2 | reduced to two primitives, next section |
+| `!` | logical | 1 | prefix negation of the whole remaining expression |
+| `+` | arithmetic | 2 | |
+| `.modulo` | arithmetic | 2 | |
+| `.positive?`, `.negative?`, `.zero?` | sign_test | 1 | sugar for comparing the receiver against literal `0` |
+| `.empty?`, `.size` | sized | 1 | `Array`, `String`, `Hash` only |
+| `.to_s` | to_string | 1 | `String`, `Integer`, `Float`, `Boolean`, `nil` only — raises `EvaluationError` on anything else |
+
+Every one of the six comparison operators reduces to two primitives —
+`less_than` and `equal` — combined with a boolean algebra rather than
+six separate code paths: each operator's row says which primitive(s)
+OR together and whether the result negates.
+
+```ruby
+ops = Hecksagain::Bluebook::Expression::Evaluator::OPERATORS
+ops.map { |op| [op.symbol, op.compares_less_than, op.compares_equal, op.negated] }.sort
+# => [["!=", false, true, true], ["<", true, false, false], ["<=", true, true, false], ["==", false, true, false], [">", true, true, true], [">=", true, false, true]]
+```
+
+Read `>=` off that table: `compares_less_than: true`,
+`compares_equal: false`, `negated: true` — `a >= b` is computed as
+`!(a < b)`, not as its own comparison. A sign test is sugar over the
+identical primitives, against a literal `0` — `x.positive?` parses to
+exactly the same shape `x > 0` would.
+
+A `given`/`ensures` string parses into one of six node kinds —
+`Or`, `And`, `Not`, `Compare`, `Include`, `Resolve` — parsed once (per
+distinct string, cached) and interpreted fresh against every dispatch,
+against two inputs: `state` (the instance, or for an `ensures`, the
+instance PLUS the merged key `old:` holding the pre-mutation snapshot)
+and `attrs` (the command's arguments). Every real leaf in this
+corpus's own commands, walked directly rather than invented:
+
+```ruby
+Hecksagain::Bluebook::Expression::Evaluator.parse("status == \"open\"").class.name.split("::").last
+# => "Compare"
+
+Hecksagain::Bluebook::Expression::Evaluator.parse("toppings.size < 10").class.name.split("::").last
+# => "Compare"
+
+Hecksagain::Bluebook::Expression::Evaluator.parse("old.balance.cents == balance.cents + amount.cents").class.name.split("::").last
+# => "Compare"
+```
+
+Below `Compare`, the left and right sides are `Resolver` leaves — a
+smaller grammar for the non-boolean part: integer/float/string/bool/nil
+literals, `+` addition, `.modulo`, a sign test, `.empty?`/`.size`,
+`.to_s`, and the true leaf, `Lookup` — a bare or dotted name resolved
+against `attrs` then `state`, per `fetch` above. A `given` that only
+ever reads a bare instance field, no operator at all, still parses —
+into a `Resolve` node, whose value is checked for Ruby truthiness
+(`!nil? && != false`), not equality against literal `true`:
+
+```ruby
+node = Hecksagain::Bluebook::Expression::Evaluator.parse("some_flag")
+node.class.name.split("::").last # => "Resolve"
+```
+
+## The persistence contract
+
+A port needs somewhere to put and find records, exactly the shape a
+Ruby adapter needs. That contract — which methods are required, which
+are delegated without a presence check, which are optional passthroughs,
+and the one method (`delete`) whose return value is explicitly NOT part
+of the contract — is already documented in full, with a worked example
+against the smallest real adapter, in
+[writing-an-adapter.md](writing-an-adapter.md). Nothing about that
+contract is Ruby-specific; read it there rather than here.
+
+## A build order that keeps every intermediate state honest
+
+Roughly the order the facts above unlock capability, smallest first:
+
+1. **Types.** Every `value_objects` entry (closed sets as real enums),
+   every aggregate's own record shape from `attributes`.
+2. **Creating commands with empty `mutations`.** `assign_creation_attributes`
+   alone — no `given`, no invariant check yet, just identity derivation
+   and the `AlreadyExists` refusal.
+3. **Invariant checking.** Every value object's `invariants` — this is
+   what turns step 2 from "always accepts" into a real refusal path,
+   and it's the expression grammar above, applied to a value object's
+   own fields as `state` with an empty `attrs`.
+4. **`given` evaluation and `apply_mutations`.** Unlocks acting
+   commands with no lifecycle — `enforce_givens`, the `source`
+   tagged-union walk (`argument` vs `literal`), `append`'s `fields`
+   gotcha from above.
+5. **Lifecycle.** `admissible_transition` + `advance_lifecycle`,
+   against the flattened `transitions` array.
+6. **`ensures`, with `old:`.** Needs the pre-mutation snapshot kept
+   around across step 4's mutation.
+7. **Entities.** `append`-typed mutations whose element type is
+   another aggregate-local record, with its own identity-minting rule.
+
+Sagas, policies, and the query DSL are real parts of the IR
+(`process_managers`, `policies`, and each aggregate's own `queries`
+key) that this page does not walk — they're
+[policies-and-process-managers.md](policies-and-process-managers.md)
+and [queries-and-read-models.md](queries-and-read-models.md)'s
+subjects, written for a domain author rather than a port author, but
+the IR shapes those pages describe are the same ones
+`Hecksagain::Projector::Exporter` emits, not a second format.
