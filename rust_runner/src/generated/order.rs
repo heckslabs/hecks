@@ -110,6 +110,7 @@ pub struct Order {
     pub pizza: Option<Pizza>,
     pub toppings: Vec<Topping>,
     pub customer_name: Option<CustomerName>,
+    pub status: String,
 }
 
 #[derive(Debug, Clone)]
@@ -138,6 +139,7 @@ pub fn dispatch_create_pizza(
         pizza: Some(args.pizza.clone()),
         toppings: vec![],
         customer_name: None,
+        status: "available".to_string(),
     };
 
     repo.save(&id, record.clone());
@@ -147,6 +149,84 @@ pub fn dispatch_create_pizza(
         payload.insert("pizza".to_string(), format!("{:?}", args.pizza)); 
 
     let events = vec![crate::kernel::Event { name: "PizzaCreated".to_string(), aggregate: "Pizzas::Order".to_string(), id: id.clone(), payload: payload.clone() }];
+
+    Ok((record, events))
+}
+
+#[derive(Debug, Clone)]
+pub struct AddToppingArgs {
+    pub topping: ToppingName,
+    pub amount: ToppingAmount,
+}
+
+pub fn dispatch_add_topping(
+    repo: &mut impl crate::kernel::Repository<Order>,
+    id: &str,
+    args: AddToppingArgs,
+) -> crate::kernel::DispatchResult<Order> {
+        args.topping.check_invariants()?;
+        args.amount.check_invariants()?;
+
+    let mut record = repo.find(id).ok_or_else(|| crate::kernel::Refusal::NotFound(
+        format!("AddTopping references a Order that was never created — {:?}", id)
+    ))?;
+
+        if !((record.status == "available".to_string())) {
+            return Err(crate::kernel::Refusal::GivenNotMet("a sold pizza cannot be changed".to_string()));
+        }
+        if !(((record.toppings.len() as i64) < 10)) {
+            return Err(crate::kernel::Refusal::GivenNotMet("at most 10 toppings".to_string()));
+        }
+
+        record.toppings.push(Topping { name: args.topping.value.clone(), amount: args.amount.value.clone() });
+
+    repo.save(id, record.clone());
+
+    let mut payload = std::collections::BTreeMap::new();
+    payload.insert("topping".to_string(), format!("{:?}", args.topping.value)); 
+        payload.insert("amount".to_string(), format!("{:?}", args.amount.value)); 
+
+    let events = vec![crate::kernel::Event { name: "ToppingAdded".to_string(), aggregate: "Pizzas::Order".to_string(), id: id.to_string(), payload: payload.clone() }];
+
+    Ok((record, events))
+}
+
+#[derive(Debug, Clone)]
+pub struct PurchaseArgs {
+    pub customer_name: CustomerName,
+    pub amount: Price,
+}
+
+pub fn dispatch_purchase(
+    repo: &mut impl crate::kernel::Repository<Order>,
+    id: &str,
+    args: PurchaseArgs,
+) -> crate::kernel::DispatchResult<Order> {
+        args.customer_name.check_invariants()?;
+        args.amount.check_invariants()?;
+
+    let mut record = repo.find(id).ok_or_else(|| crate::kernel::Refusal::NotFound(
+        format!("Purchase references a Order that was never created — {:?}", id)
+    ))?;
+
+        if !(((record.toppings.len() as i64) > 0)) {
+            return Err(crate::kernel::Refusal::GivenNotMet("a pizza needs at least one topping".to_string()));
+        }
+        if !((record.status == "available".to_string())) {
+            return Err(crate::kernel::Refusal::GivenNotMet("it must still be available".to_string()));
+        }
+        // NOT GENERATED: given "amount.cents.positive?" (dotted lookup "amount.cents" — invariants only reach their own fields)
+
+
+
+
+    repo.save(id, record.clone());
+
+    let mut payload = std::collections::BTreeMap::new();
+    payload.insert("customer_name".to_string(), format!("{:?}", args.customer_name.value)); 
+        payload.insert("amount".to_string(), format!("{:?}", args.amount.cents)); 
+
+    let events = vec![crate::kernel::Event { name: "PizzaPurchased".to_string(), aggregate: "Pizzas::Order".to_string(), id: id.to_string(), payload: payload.clone() }];
 
     Ok((record, events))
 }

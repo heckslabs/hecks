@@ -1,7 +1,7 @@
 mod generated;
 mod kernel;
 
-use generated::order::{dispatch_create_pizza, CreatePizzaArgs, Order, Pizza, PizzaName, Price, Size};
+use generated::order::{dispatch_create_pizza, dispatch_add_topping, CreatePizzaArgs, AddToppingArgs, Order, Pizza, PizzaName, Price, Size, ToppingName, ToppingAmount};
 use kernel::{InMemoryRepository, Repository};
 
 fn main() {
@@ -46,11 +46,63 @@ fn main() {
         Err(refusal) => println!("refused: {refusal}"),
     }
 
-    // And the invariant this slice still does NOT generate a check for:
-    // `given`/`ensures` on ACTING commands. AddTopping is out of scope
-    // (it declares `references` and `mutations`), so nothing here even
-    // attempts it — the gap is in what bin/project_rust skips generating,
-    // not in what the generated code silently accepts.
+    // Now test AddTopping — an ACTING command with givens and mutations,
+    // the main new feature this slice generates.
 
-    println!("repository now holds {} record(s)", repo.count());
+    println!("\n--- Testing AddTopping ---");
+
+    let id = "Margherita";
+    let topping_args = AddToppingArgs {
+        topping: ToppingName { value: "Pepperoni".to_string() },
+        amount: ToppingAmount { value: 1 },
+    };
+
+    match dispatch_add_topping(&mut repo, id, topping_args) {
+        Ok((record, events)) => {
+            println!("accepted: toppings now has {} items", record.toppings.len());
+            for event in events {
+                println!("emitted: {} for {} ({:?})", event.name, event.id, event.payload);
+            }
+        }
+        Err(refusal) => println!("refused: {refusal}"),
+    }
+
+    // Add toppings until we hit the "at most 10 toppings" limit
+    for i in 2..11 {
+        let topping_args = AddToppingArgs {
+            topping: ToppingName { value: format!("Topping{}", i) },
+            amount: ToppingAmount { value: 1 },
+        };
+        match dispatch_add_topping(&mut repo, id, topping_args) {
+            Ok((record, _)) => {
+                println!("added topping {}: now has {} items", i, record.toppings.len());
+            }
+            Err(refusal) => {
+                println!("topping {} refused: {refusal}", i);
+                break;
+            }
+        }
+    }
+
+    // Try to add when already at the limit (should refuse with GivenNotMet)
+    let topping_args = AddToppingArgs {
+        topping: ToppingName { value: "ExtraTopping".to_string() },
+        amount: ToppingAmount { value: 1 },
+    };
+    match dispatch_add_topping(&mut repo, id, topping_args) {
+        Ok((record, _)) => println!("accepted (unexpected!): {record:?}"),
+        Err(refusal) => println!("refused as expected: {refusal}"),
+    }
+
+    // Try to add to a pizza that was never created (should refuse with NotFound)
+    let topping_args = AddToppingArgs {
+        topping: ToppingName { value: "Mushroom".to_string() },
+        amount: ToppingAmount { value: 1 },
+    };
+    match dispatch_add_topping(&mut repo, "NonExistentPizza", topping_args) {
+        Ok((record, _)) => println!("accepted (unexpected!): {record:?}"),
+        Err(refusal) => println!("refused as expected (not found): {refusal}"),
+    }
+
+    println!("\nrepository now holds {} record(s)", repo.count());
 }

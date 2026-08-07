@@ -90,6 +90,15 @@ module ExpressionCompiler
     compile_bool(ast, field_types)
   end
 
+  # Extended compiler for `given` and `ensures` that can reference instance
+  # fields, command arguments, and lifecycle fields. Types map includes:
+  # - scalar types (:int, :float, :string, :bool) for fields
+  # - :array for list fields
+  def compile_given(canonical, instance_field_types, arg_types = {})
+    ast = Hecksagain::Bluebook::Expression::Evaluator.parse(canonical)
+    compile_bool(ast, instance_field_types.merge(arg_types))
+  end
+
   def compile_bool(node, types)
     ev = Hecksagain::Bluebook::Expression::Evaluator
     case node
@@ -139,7 +148,9 @@ module ExpressionCompiler
 
       field = node.path.to_sym
       type = types[field] or raise Unsupported, "field #{field.inspect} is not a scalar attribute this compiler knows the type of"
-      Compiled.new(expr: "self.#{field}", type: type)
+      # For given/ensures in acting commands, reference instance fields via record.field instead of self.field
+      reference = (types[:__instance_context__] == :record ? "record.#{field}" : "self.#{field}")
+      Compiled.new(expr: reference, type: type)
     when r::Addition
       left, right = unify_numeric(compile_resolver(node.left, types), compile_resolver(node.right, types))
       Compiled.new(expr: "(#{left.expr} + #{right.expr})", type: left.type)
@@ -168,9 +179,14 @@ module ExpressionCompiler
       Compiled.new(expr: "(#{receiver.expr} % #{divisor.expr})", type: :int)
     when r::Size
       receiver = compile_resolver(node.receiver, types)
-      raise Unsupported, ".size on non-string #{receiver.type} (Array/Hash not generated yet)" unless receiver.type == :string
-
-      Compiled.new(expr: "(#{receiver.expr}.chars().count() as i64)", type: :int)
+      case receiver.type
+      when :string
+        Compiled.new(expr: "(#{receiver.expr}.chars().count() as i64)", type: :int)
+      when :array
+        Compiled.new(expr: "(#{receiver.expr}.len() as i64)", type: :int)
+      else
+        raise Unsupported, ".size on non-string/non-array #{receiver.type}"
+      end
     when r::NilLiteral
       raise Unsupported, "nil literal has no generated Rust equivalent (no Option-typed fields yet)"
     else
@@ -215,6 +231,24 @@ module RustProjector
       kind = SCALAR_KIND[attr[:type]]
       [attr[:name].to_sym, kind] if kind
     end.to_h
+  end
+
+  # Instance field types for use in `given`/`ensures` evaluation — includes
+  # scalar attributes, list attributes (as :array), and lifecycle field (as :string).
+  def instance_field_types(aggregate)
+    types = {}
+    aggregate[:attributes].each do |attr|
+      if attr[:list]
+        types[attr[:name].to_sym] = :array
+      elsif SCALAR_KIND.key?(attr[:type])
+        types[attr[:name].to_sym] = SCALAR_KIND[attr[:type]]
+      end
+    end
+    if aggregate[:lifecycle]
+      types[aggregate[:lifecycle][:field].to_sym] = :string
+    end
+    types[:__instance_context__] = :record  # marker to use record.field instead of self.field
+    types
   end
 
   def emit_check_invariants(vo, value_objects_by_name)
@@ -301,6 +335,10 @@ module RustProjector
       type = "Option<#{type}>" unless attr[:list]
       lines << "    pub #{rust_field(attr[:name])}: #{type},"
     end
+    # Add lifecycle field if present
+    if aggregate[:lifecycle]
+      lines << "    pub #{rust_field(aggregate[:lifecycle][:field])}: String,"
+    end
     lines << "}"
     lines.join("\n")
   end
@@ -356,6 +394,10 @@ module RustProjector
         attr[:list] ? "        #{attr[:name]}: vec![]," : "        #{attr[:name]}: None,"
       end
     end
+    # Add lifecycle field initialization
+    if aggregate[:lifecycle]
+      record_fields << "        #{aggregate[:lifecycle][:field]}: #{aggregate[:lifecycle][:default].inspect}.to_string(),"
+    end
 
     <<~RUST
       #[derive(Debug, Clone)]
@@ -385,6 +427,132 @@ module RustProjector
           #{payload_lines.join("\n        ")}
 
           let events = vec![#{command[:emits].map { |e| %(crate::kernel::Event { name: "#{e}".to_string(), aggregate: "#{domain_name}::#{aggregate[:name]}".to_string(), id: id.clone(), payload: payload.clone() }) }.join(", ")}];
+
+          Ok((record, events))
+      }
+    RUST
+  end
+
+  # ── ACTING COMMAND DISPATCH — commands with `references` set to their
+  # own aggregate (references: "Order" for Order.AddTopping). An ACTING
+  # command needs: invariant checks on command attributes, lookup of the
+  # existing record by identity (refuse NotFound), evaluation of `given`
+  # conditions against the record's fields, application of `then_set`
+  # mutations (currently append only), save, emit.
+  def emit_act_command(command, aggregate, domain_name, value_objects_by_name)
+    return unless command[:references] == aggregate[:name]
+    return if command[:mutations].empty? && command[:givens].empty?
+
+    record  = rust_ident(aggregate[:name])
+    cmd     = rust_ident(command[:name])
+    id_path = aggregate[:identified_by].first
+    id_arg, id_field = id_path.split(".")
+
+    args_struct = ["pub struct #{cmd}Args {"]
+    command[:attributes].each do |attr|
+      type = rust_type(attr[:type], list: attr[:list])
+      args_struct << "    pub #{rust_field(attr[:name])}: #{type},"
+    end
+    args_struct << "}"
+
+    invariant_checks = command[:attributes].filter_map do |attr|
+      next unless value_objects_by_name.key?(attr[:type])
+      next if value_objects_by_name[attr[:type]][:closed_set]
+
+      field = rust_field(attr[:name])
+      attr[:list] ? "        for item in &args.#{field} { item.check_invariants()?; }" : "        args.#{field}.check_invariants()?;"
+    end
+
+    # Build instance field types for given evaluation
+    inst_types = instance_field_types(aggregate)
+
+    # Compile given conditions
+    given_checks = command[:givens].flat_map do |given|
+      begin
+        compiled = ExpressionCompiler.compile_given(given[:canonical], inst_types)
+        [
+          "        if !(#{compiled.expr}) {",
+          "            return Err(crate::kernel::Refusal::GivenNotMet(#{given[:description].inspect}.to_string()));",
+          "        }"
+        ]
+      rescue ExpressionCompiler::Unsupported => e
+        ["        // NOT GENERATED: given #{given[:canonical].inspect} (#{e.message})"]
+      end
+    end
+
+    # Generate mutation application code
+    mutation_code = command[:mutations].map do |mutation|
+      case mutation[:op]
+      when :append
+        # mutation[:fields] has the structure: { field_name: source, ... }
+        # source is either a string (argument name or literal) or a parsed literal hash
+        target_field = rust_field(mutation[:target])
+
+        # Find the value object type for this list field
+        target_attr = aggregate[:attributes].find { |a| a[:name] == mutation[:target] }
+        vo_name = target_attr[:type] if target_attr
+        vo_type = rust_ident(vo_name) if vo_name
+
+        fields_assignment = mutation[:fields].map do |field_name, source|
+          if source.start_with?("{")
+            # It's a literal hash string, not currently handled
+            "// TODO: handle literal value object in append"
+          else
+            # It's an argument name
+            arg_name = source
+            arg_attr = command[:attributes].find { |a| a[:name].to_s == arg_name }
+            if arg_attr
+              arg_vo = value_objects_by_name[arg_attr[:type]]
+              if arg_vo && !arg_attr[:list] && arg_vo[:attributes].size == 1
+                inner = arg_vo[:attributes].first[:name]
+                "#{field_name}: args.#{arg_name}.#{inner}.clone()"
+              else
+                "#{field_name}: args.#{arg_name}.clone()"
+              end
+            else
+              "#{field_name}: args.#{arg_name}.clone()"
+            end
+          end
+        end.join(", ")
+        "        record.#{target_field}.push(#{vo_type} { #{fields_assignment} });"
+      end
+    end
+
+    payload_lines = command[:attributes].map do |attr|
+      vo = value_objects_by_name[attr[:type]]
+      if vo && !attr[:list] && vo[:attributes].size == 1
+        inner = vo[:attributes].first[:name]
+        %(payload.insert("#{attr[:name]}".to_string(), format!("{:?}", args.#{attr[:name]}.#{inner})); )
+      else
+        %(payload.insert("#{attr[:name]}".to_string(), format!("{:?}", args.#{attr[:name]})); )
+      end
+    end
+
+    <<~RUST
+      #[derive(Debug, Clone)]
+      #{args_struct.join("\n")}
+
+      pub fn dispatch_#{cmd.gsub(/(?<=.)([A-Z])/, '_\1').downcase}(
+          repo: &mut impl crate::kernel::Repository<#{record}>,
+          id: &str,
+          args: #{cmd}Args,
+      ) -> crate::kernel::DispatchResult<#{record}> {
+      #{invariant_checks.join("\n")}
+
+          let mut record = repo.find(id).ok_or_else(|| crate::kernel::Refusal::NotFound(
+              format!("#{cmd} references a #{record} that was never created — {:?}", id)
+          ))?;
+
+      #{given_checks.join("\n")}
+
+      #{mutation_code.join("\n")}
+
+          repo.save(id, record.clone());
+
+          let mut payload = std::collections::BTreeMap::new();
+          #{payload_lines.join("\n        ")}
+
+          let events = vec![#{command[:emits].map { |e| %(crate::kernel::Event { name: "#{e}".to_string(), aggregate: "#{domain_name}::#{aggregate[:name]}".to_string(), id: id.to_string(), payload: payload.clone() }) }.join(", ")}];
 
           Ok((record, events))
       }
@@ -431,10 +599,16 @@ ir[:aggregates].each do |aggregate|
 
     aggregate[:commands].each do |command|
       generated = RustProjector.emit_create_command(command, aggregate, domain_name, value_objects_by_name)
-      next unless generated
+      if generated
+        f.puts generated
+        f.puts
+      end
 
-      f.puts generated
-      f.puts
+      generated = RustProjector.emit_act_command(command, aggregate, domain_name, value_objects_by_name)
+      if generated
+        f.puts generated
+        f.puts
+      end
     end
   end
   puts "wrote #{path}"
