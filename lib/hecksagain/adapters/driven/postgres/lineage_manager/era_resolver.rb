@@ -22,7 +22,7 @@ module Hecksagain
               bluebook.aggregates.each { |aggregate| lineage.ensure_first_head!(aggregate.storage_name) }
               # hold_first! already established era 1 as current for
               # EVERY role; this one just needs its own privileges.
-              lineage.grant_role!(role) if role
+              lineage.grant_role!(role, aggregates: bluebook.aggregates, era: 1) if role
               return
             end
 
@@ -34,7 +34,7 @@ module Hecksagain
               bluebook.aggregates.each { |aggregate| lineage.ensure_first_head!(aggregate.storage_name) } if latest[:ordinal] == 1
               # A quiet reboot changes no era, so there is nothing to
               # advance — only this role's own privileges, if it is new.
-              lineage.grant_role!(role) if role
+              lineage.grant_role!(role, aggregates: bluebook.aggregates, era: latest[:ordinal]) if role
               registry.resolved_eras[bluebook.name] = latest[:ordinal]
               return
             end
@@ -50,7 +50,7 @@ module Hecksagain
               # this role's privileges, never advance_era!, is what keeps
               # that true — see advance_era!'s own warning against being
               # called with a superseded ordinal.
-              lineage.grant_role!(role) if role
+              lineage.grant_role!(role, aggregates: bluebook.aggregates, era: matched[:ordinal]) if role
               registry.resolved_eras[bluebook.name] = matched[:ordinal]
               return
             end

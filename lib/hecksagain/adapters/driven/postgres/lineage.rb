@@ -101,6 +101,16 @@ module Hecksagain
         def sequence = "#{journal}_ordinal"
         def partition(era) = "#{journal}_era_#{era}"
         def head_view(storage_name) = "#{storage_name}_head"
+        # The transactionally-upserted read cache behind head_view — one row
+        # per LIVE id, keyed by id, carrying the ordinal it was last written
+        # at. Scoped by ERA, not just storage_name — an aggregate that
+        # ISN'T renamed across a mint keeps the SAME storage_name in both
+        # eras, so storage_name alone would have era N+1 sharing one
+        # physical table with era N: a freshly-minted era would inherit
+        # every pre-mint (and, worse, pre-rekey/pre-translation) row
+        # instead of starting empty. era-qualified naming is what
+        # `partition`/`matview` already do for exactly this reason.
+        def head_snapshot(storage_name, era) = "#{storage_name}_head_snapshot_#{era}"
         def matview(storage_name, era, label) = "#{storage_name}_lineage_#{era}_#{label}"
 
         private

@@ -96,6 +96,12 @@ module Hecksagain
         # partition); a directly-instantiated adapter defaults to the
         # newest.
         @era = settings[:era] || settings["era"] || @lineage.current_era
+        # Unconditional and idempotent, regardless of era — belt-and-
+        # suspenders self-healing (compile_head! already ensures this for
+        # a freshly-minted era's own name; ensure_first_head! for era 1's)
+        # against any boot-ordering surprise, at the cost of one
+        # CREATE TABLE IF NOT EXISTS nobody pays for twice.
+        @lineage.ensure_head_snapshot!(table, @era)
         @lineage.ensure_first_head!(table) if @era == 1
         create_event_table!
       end
@@ -122,25 +128,48 @@ module Hecksagain
       # `hecks_eras:domain` : this serializes plain writes against EACH
       # OTHER, never against a mint. See postgres/lineage.rb's own comment
       # for why only that half of the race is closed.
+      # The journal insert and the snapshot upsert/delete happen in the
+      # SAME transaction — real ACID atomicity, not the append-then-
+      # project two-step a file-based adapter needs a crash-recovery
+      # replay for (see Heki). If this transaction commits, the snapshot
+      # is already exactly as current as the journal; if it doesn't,
+      # neither happened. `project` stays uninvolved on purpose — it
+      # still runs, cheaply, during AppendOnly#recover!'s full replay on
+      # every boot (see `project` below), and a second write there would
+      # make that replay pay real DB cost for a snapshot that's already
+      # correct.
       def append(entry)
         @db.transaction do
           @db.exec_params(
             "SELECT pg_advisory_xact_lock(hashtext('hecks_ordinal:' || $1))",
             [@lineage.domain]
           )
-          @db.exec_params(
+          ordinal = @db.exec_params(
             "INSERT INTO #{@lineage.quoted_journal} (era, aggregate, aggregate_id, operation, state, mirrors) " \
-            "VALUES ($1, $2, $3, $4, $5, $6)",
+            "VALUES ($1, $2, $3, $4, $5, $6) RETURNING ordinal",
             [@era, table, entry.id, entry.operation,
              entry.state && JSON.generate(entry.state), entry.mirrors && JSON.generate(entry.mirrors)]
-          )
+          )[0]["ordinal"]
+
+          if entry.save?
+            @db.exec_params(
+              "INSERT INTO #{quoted_head_snapshot} (id, ordinal, state) VALUES ($1, $2, $3) " \
+              "ON CONFLICT (id) DO UPDATE SET ordinal = EXCLUDED.ordinal, state = EXCLUDED.state " \
+              "WHERE #{quoted_head_snapshot}.ordinal < EXCLUDED.ordinal",
+              [entry.id, ordinal, JSON.generate(entry.state)]
+            )
+          else
+            @db.exec_params("DELETE FROM #{quoted_head_snapshot} WHERE id = $1", [entry.id])
+          end
         end
         entry
       end
 
       # The head is DERIVED — projecting is reading, so there is nothing
-      # to write here. The instance is still built (and validated) so a
-      # save returns what every other adapter returns.
+      # to write here. `append` above already keeps the snapshot the head
+      # view reads from current, transactionally. The instance is still
+      # built (and validated) so a save returns what every other adapter
+      # returns.
       def project(entry)
         return if entry.delete?
 
@@ -253,6 +282,7 @@ module Hecksagain
 
       def quote_ident(name) = PG::Connection.quote_ident(name.to_s)
       def quoted_head = quote_ident(@lineage.head_view(table))
+      def quoted_head_snapshot = quote_ident(@lineage.head_snapshot(table, @era))
 
       def order_expression(field)
         expression = query_expression(field)

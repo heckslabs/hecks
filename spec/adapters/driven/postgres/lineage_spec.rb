@@ -517,9 +517,19 @@ RSpec.describe "lineage in the Postgres adapter",
     expect(old_registry.resolved_eras["Ledger"]).to eq(1)
 
     db = PG.connect(dbname: LINEAGE_DB)
+    state = JSON.generate(cost: { "cents" => 5, "currency" => "USD" }, kind: { "label" => "biz" }, legacy_note: { "text" => "late" })
+    ordinal = db.exec_params(
+      "INSERT INTO hecks_journal_ledger (era, aggregate, aggregate_id, operation, state) VALUES (1, 'acct', $1, 'save', $2) RETURNING ordinal",
+      ["a9", state]
+    )[0]["ordinal"]
+    # ...and the era-1 snapshot table Postgres#append would ALSO have
+    # written in the same transaction, a real race-condition write always
+    # going through append() rather than raw SQL the way this stand-in
+    # does — old_world.find below reads head_view, which for era 1 is
+    # this snapshot table verbatim, not a live re-derivation.
     db.exec_params(
-      "INSERT INTO hecks_journal_ledger (era, aggregate, aggregate_id, operation, state) VALUES (1, 'acct', $1, 'save', $2)",
-      ["a9", JSON.generate(cost: { "cents" => 5, "currency" => "USD" }, kind: { "label" => "biz" }, legacy_note: { "text" => "late" })]
+      "INSERT INTO acct_head_snapshot_1 (id, ordinal, state) VALUES ($1, $2, $3)",
+      ["a9", ordinal, state]
     )
 
     # the post-cut write landed in the era-1 partition...

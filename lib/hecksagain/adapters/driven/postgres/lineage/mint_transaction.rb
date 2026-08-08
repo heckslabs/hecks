@@ -37,8 +37,13 @@ module Hecksagain
             )
             archive_text!(ordinal, held_text)
             ensure_partition!(ordinal)
-            grant_role!(role) if role
+            # AFTER compile_head!, not before — this era's own snapshot
+            # table (a possibly-renamed name, per aggregate) is what
+            # grant_role! grants on, and compile_head! is what creates it.
+            # Granting first would GRANT on a relation that does not
+            # exist yet for any aggregate renamed in this very edge.
             aggregates.each { |aggregate| compile_head!(aggregate, ordinal, label, edges) }
+            grant_role!(role, aggregates: aggregates, era: ordinal) if role
             # LAST, right before COMMIT — not merely unconditional. Once
             # acquired, a lock is held until the TRANSACTION ends, not
             # just for the statement that took it — so advance_era!'s
@@ -84,12 +89,35 @@ module Hecksagain
           # Owner-only work, so a non-owner app boot skips it: the
           # provisioner has already granted that role, and re-affirming is
           # idempotent anyway.
-          def grant_role!(role)
+          #
+          # `aggregates:`/`era:` cover the read-cache side of the same
+          # story: unlike the journal (immutable, owner-provisioned once),
+          # each aggregate's head_snapshot table is a table an app role
+          # must itself INSERT/UPDATE/DELETE into — Postgres#append writes
+          # it directly, not through a view — so it needs real DML grants,
+          # not just the SELECT a derived read surface would need. `era:`
+          # is the ordinal THIS role is about to write under (the one
+          # hold_first!/mint_era! just made current, or the superseded one
+          # a stale checkout still speaks) — head_snapshot is era-scoped,
+          # so granting on the wrong era's table would grant on a table
+          # this role will never touch. Every caller passes its own
+          # bluebook's aggregates and resolved era — including a
+          # held-but-superseded checkout, since a role connecting to it
+          # for the first time (a new instance of an old checkout) has no
+          # privileges yet either.
+          def grant_role!(role, aggregates: [], era: nil)
             return unless provisioner?
 
             quoted_role = quote(role)
             @db.exec("GRANT INSERT, SELECT ON #{quoted_journal} TO #{quoted_role}")
             @db.exec("GRANT USAGE ON SEQUENCE #{quote(sequence)} TO #{quoted_role}")
+            return unless era
+
+            aggregates.each do |aggregate|
+              storage_name = aggregate.storage_name
+              @db.exec("GRANT SELECT, INSERT, UPDATE, DELETE ON #{quote(head_snapshot(storage_name, era))} TO #{quoted_role}")
+              @db.exec("GRANT SELECT ON #{quote(head_view(storage_name))} TO #{quoted_role}") if view_exists?(head_view(storage_name))
+            end
           end
 
           # THE current-era fence — ONE policy, shared by every granted

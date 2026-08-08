@@ -89,10 +89,23 @@ module Hecksagain
                   end
                 next unless state
 
-                @db.exec_params(
+                # Same two-step append does for a live write — journal
+                # first, snapshot second — because this INSERT bypasses
+                # Postgres#append entirely (it writes through Lineage
+                # directly). Skipping the snapshot half here would mean a
+                # merge winner lands in the journal but head_view — which
+                # reads this era's live rows from the snapshot table, not
+                # by re-scanning the journal — never shows it.
+                ordinal = @db.exec_params(
                   "INSERT INTO #{quoted_journal} (era, aggregate, aggregate_id, operation, state) " \
-                  "VALUES ($1, $2, $3, 'save', $4)",
+                  "VALUES ($1, $2, $3, 'save', $4) RETURNING ordinal",
                   [era, aggregate.storage_name, id, state]
+                )[0]["ordinal"]
+                @db.exec_params(
+                  "INSERT INTO #{quote(head_snapshot(aggregate.storage_name, era))} (id, ordinal, state) VALUES ($1, $2, $3) " \
+                  "ON CONFLICT (id) DO UPDATE SET ordinal = EXCLUDED.ordinal, state = EXCLUDED.state " \
+                  "WHERE #{quote(head_snapshot(aggregate.storage_name, era))}.ordinal < EXCLUDED.ordinal",
+                  [id, ordinal, state]
                 )
               end
             end
