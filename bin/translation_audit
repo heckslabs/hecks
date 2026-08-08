@@ -3,11 +3,12 @@
 # The audit derives its assertions. Layer 1: every translated state
 # passes the new era's types, invariants, and lifecycle. Layer 2: the
 # compiled SQL and the port's reference transform agree on every path a
-# compute doesn't own, and the id set is conserved. Layer 3: a
-# before/after sample of real records for HUMAN approval — for a
-# compute rule, the only verification there is. The same layers run
-# inside every era mint; this tool runs them standalone, including over
-# a PENDING edge before anything is minted.
+# compute doesn't own, and the id set is conserved (or, under a rekey,
+# the record COUNT is — see layer_two.rb's own comment for why). Layer
+# 3: a before/after sample of real records for HUMAN approval — for a
+# compute or rekey rule, the only verification there is. The same
+# layers run inside every era mint; this tool runs them standalone,
+# including over a PENDING edge before anything is minted.
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
@@ -100,8 +101,8 @@ bluebook.aggregates.each do |aggregate|
   puts "   unfed (no rule, no default — add default: if required): #{verdict.unfed.join(', ')}" unless verdict.unfed.empty?
   verdict.samples.each do |sample|
     puts "   ##{sample[:id]}"
-    puts "     before: #{JSON.generate(sample[:before])}"
-    puts "     after:  #{JSON.generate(sample[:after])}"
+    puts "     before: #{JSON.generate(sample[:before])}" if sample[:before]
+    puts "     after:  #{JSON.generate(sample[:after])}" if sample[:after]
   end
   failed ||= !verdict.ok?
 end
@@ -112,8 +113,8 @@ if failed
   exit 1
 end
 
-carries_compute = edge.aggregates.any? { |declared| !declared.computes.empty? }
-if carries_compute && approve
+needs_approval = edge.aggregates.any? { |declared| !declared.computes.empty? || !declared.rekeys.empty? }
+if needs_approval && approve
   # The approval binds to what was reviewed, on both axes: this edge's
   # parsed content, and the journal as it stands RIGHT NOW — the same
   # journal the samples above were computed from. It lives in the
@@ -123,11 +124,11 @@ if carries_compute && approve
     edge_digest: Hecksagain::Translation::Audit.edge_digest(edge)
   )
   db.close
-  puts "AUDIT PASSED — compute approval recorded in the database, bound to this edge and this journal."
+  puts "AUDIT PASSED — approval recorded in the database, bound to this edge and this journal."
   puts "A journal that advances before the mint invalidates it; re-run with --approve if that happens."
-elsif carries_compute
+elsif needs_approval
   db.close
-  puts "AUDIT PASSED — this edge carries a compute rule, and the samples above are its ONLY verification."
+  puts "AUDIT PASSED — this edge carries a compute or rekey rule, and the samples above are its ONLY verification."
   puts "If they show what you intended, run again with --approve; the mint refuses until you do."
 else
   db.close

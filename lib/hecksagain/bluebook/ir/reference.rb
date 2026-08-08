@@ -52,6 +52,24 @@ module Hecksagain
         def to_s = "Reference<#{@target_name}>"
         def inspect = "#<Reference #{@target_name}>"
 
+        # VALUE EQUALITY, not identity — without this, two references to
+        # the SAME target, parsed from two SEPARATE bluebook reads (era
+        # N's own boot and a held era's own shadow reconstruction,
+        # coverage_check.rb's own comparison), are different objects and
+        # compare unequal by Ruby's default `==`. `EraGuard::ShapeDiff
+        # #diff_type`'s `held_type != current_type` check then reads as
+        # true for EVERY reference_to attribute on EVERY mint, regardless
+        # of whether the reference actually changed — a real refusal for
+        # attributes nothing about. `declared_in` (which aggregate carries
+        # this reference) is deliberately excluded: the same reference
+        # attribute exists once, but its `held_type`/`current_type` come
+        # from separately-parsed bluebooks with structurally different
+        # (if same-shaped) owning aggregates, and `declared_in` is a
+        # cross-reference for `resolve`, not part of what this attribute
+        # itself IS.
+        def ==(other) = other.is_a?(Reference) && target_name == other.target_name
+        alias eql? ==
+        def hash = [self.class, target_name].hash
       end
     end
   end
