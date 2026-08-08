@@ -29,3 +29,4 @@ require_relative "driven/secure_random_identity"
 # consumer, forever, not just specs that want the deterministic one.
 require_relative "driven/governance_authorization"
 require_relative "driven/identity_registry"
+require_relative "driven/google_authentication"
