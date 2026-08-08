@@ -1,12 +1,14 @@
 // THE LAMBDA ENTRY POINT — provided.al2023 custom runtime, no
-// container (per explicit direction: PackageType Zip, not Image). One
-// Lambda event IS one command: `{"verb": "...", "args": {...}}`, the
-// same shape a single entry of the kernel's own `{"steps": [...]}`
-// array already has — no new request shape invented. The response is
-// the kernel's own `{"instances","events","refusals"}` output,
-// unchanged, so anything that already knows how to read
-// bin/rust_conformance's JSON (a human, a test, future tooling) reads
-// this Lambda's response the same way.
+// container (per explicit direction: PackageType Zip, not Image). A
+// Lambda event is EITHER a command (`{"verb": "...", "args": {...}}`,
+// the same shape a single entry of the kernel's own `{"steps": [...]}`
+// array already has — no new request shape invented for that path) OR
+// a read (`{"read": true}` — no verb at all, checked first so it can
+// never be confused with a command that simply omitted one). Both
+// response shapes are the kernel's own `{"instances","events",
+// "refusals"}` output, unchanged, so anything that already knows how
+// to read bin/rust_conformance's JSON (a human, a test, future
+// tooling) reads this Lambda's response either way.
 //
 // Postgres and wasmtime are BOTH held only here and in the two modules
 // this file composes (journal, wasm_runner) — dispatch.rs is the only
@@ -57,6 +59,39 @@ async fn main() -> Result<(), Error> {
     journal::ensure_schema(&client)
         .await
         .map_err(|e| format!("provisioning hecks_lambda_journal: {e}"))?;
+
+    // Which Ruby-shaped lineage journal/era this deployed binary writes
+    // as -- operational facts, like Ruby's own settings[:domain]/
+    // settings[:era] (journal.rs's own header on why neither is
+    // computed here). No default for either: a binary silently writing
+    // under the wrong domain or era is exactly the failure mode this
+    // whole design exists to prevent.
+    let domain = std::env::var("HECKS_DOMAIN").map_err(|_| "HECKS_DOMAIN is required")?;
+    let era: i64 = std::env::var("HECKS_ERA")
+        .map_err(|_| "HECKS_ERA is required")?
+        .parse()
+        .map_err(|e| format!("HECKS_ERA must be an integer era ordinal: {e}"))?;
+
+    // THE BOOT GATE -- refuses to start rather than write into tables
+    // that may not exist. rust/host never provisions hecks_eras, the
+    // journal partition, or the head-snapshot tables itself; that's
+    // Ruby's LineageManager alone (mint_era!/hold_first!). A missing
+    // row here means either this domain/era was never minted, or the
+    // ordinal is simply wrong -- either way, a clear refusal beats a
+    // raw "relation does not exist" the first time a command lands.
+    if !journal::era_exists(&client, &domain, era)
+        .await
+        .map_err(|e| format!("checking hecks_eras for {domain} era {era}: {e}"))?
+    {
+        return Err(format!(
+            "cannot boot: {domain} holds no era {era} in hecks_eras -- \
+             this domain/era must already be minted by Ruby's own LineageManager \
+             (hold_first!/mint_era!) before rust/host can write into it"
+        )
+        .into());
+    }
+    let lineage_config = Arc::new(journal::LineageConfig { domain, era });
+
     // Mutex, not a bare Arc<Client> -- dispatch::handle needs
     // Client::transaction (which takes &mut Client) to hold the
     // advisory lock across the whole rehydrate-then-append sequence.
@@ -67,8 +102,15 @@ async fn main() -> Result<(), Error> {
     lambda_runtime::run(service_fn(move |event: LambdaEvent<serde_json::Value>| {
         let client = Arc::clone(&client);
         let wasm_path = Arc::clone(&wasm_path);
+        let lineage_config = Arc::clone(&lineage_config);
         async move {
             let (body, _context) = event.into_parts();
+
+            if body.get("read").and_then(|v| v.as_bool()) == Some(true) {
+                let result = dispatch::read(&client, &wasm_path).await?;
+                return Ok::<serde_json::Value, Error>(result);
+            }
+
             let verb = body
                 .get("verb")
                 .and_then(|v| v.as_str())
@@ -79,7 +121,7 @@ async fn main() -> Result<(), Error> {
                 .cloned()
                 .unwrap_or_else(|| serde_json::json!({}));
 
-            let outcome = dispatch::handle(&client, &wasm_path, &verb, args).await?;
+            let outcome = dispatch::handle(&client, &wasm_path, &verb, args, &lineage_config).await?;
             Ok::<serde_json::Value, Error>(outcome.result)
         }
     }))

@@ -5,6 +5,7 @@
 // step, persist the new step iff the module itself accepted it.
 
 use crate::journal;
+use crate::journal::LineageConfig;
 use crate::wasm_runner;
 use std::path::Path;
 use tokio::sync::Mutex;
@@ -21,11 +22,18 @@ pub struct Outcome {
 // default loop is one-event-at-a-time, but nothing in this crate
 // depends on that staying true), two calls can't interleave statements
 // on the one connection this crate holds.
+//
+// `config` names which Ruby-shaped lineage journal/era this call writes
+// its mutations into (journal.rs's own header) — required, not
+// optional: `main.rs` already refused to boot if the configured
+// domain/era isn't provisioned (`journal::era_exists`), so by the time
+// `handle` runs that schema is guaranteed to exist.
 pub async fn handle(
     client: &Mutex<Client>,
     wasm_path: &Path,
     verb: &str,
     args: serde_json::Value,
+    config: &LineageConfig,
 ) -> anyhow::Result<Outcome> {
     let mut guard = client.lock().await;
     let txn = guard.transaction().await?;
@@ -76,6 +84,47 @@ pub async fn handle(
 
     if accepted {
         journal::append(&txn, verb, &args).await?;
+
+        // The kernel's new per-step "mutations" field (adf38fd) — one
+        // entry per step in `steps` above, so the LAST entry is exactly
+        // this call's own new step (everything before it is history
+        // already recorded on a prior, successful invocation). Written
+        // into Ruby's own per-aggregate journal/head-snapshot schema,
+        // same transaction, same advisory lock already held — see
+        // journal.rs's own header for why this doesn't replace the
+        // hecks_lambda_journal append just above, only supplements it.
+        let step_mutations = result
+            .get("mutations")
+            .and_then(|m| m.as_array())
+            .and_then(|steps| steps.last())
+            .and_then(|last| last.as_array())
+            .cloned()
+            .unwrap_or_default();
+
+        for mutation in &step_mutations {
+            let aggregate = mutation
+                .get("aggregate")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| anyhow::anyhow!("mutation record missing \"aggregate\": {mutation}"))?;
+            let id = mutation
+                .get("id")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| anyhow::anyhow!("mutation record missing \"id\": {mutation}"))?;
+            let operation = mutation
+                .get("operation")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| anyhow::anyhow!("mutation record missing \"operation\": {mutation}"))?;
+            let state = mutation
+                .get("state")
+                .ok_or_else(|| anyhow::anyhow!("mutation record missing \"state\": {mutation}"))?;
+
+            journal::append_lineage_mutation(
+                &txn,
+                config,
+                &journal::Mutation { aggregate, id, operation, state },
+            )
+            .await?;
+        }
     }
 
     // Commits (and releases the advisory lock) whether or not anything
@@ -84,6 +133,28 @@ pub async fn handle(
     txn.commit().await?;
 
     Ok(Outcome { result, accepted })
+}
+
+// READ-ONLY: the exact same rehydration `handle` already does before
+// ever touching the new step, minus the new step and minus the
+// append. No advisory lock needed — nothing here writes, so a plain
+// snapshot read is enough (Postgres's own read-committed guarantee is
+// already stronger than anything a lock would add for a read). Every
+// step replayed here already succeeded once (journal.rs's own
+// determinism argument), so `refusals` in the returned JSON should
+// always come back empty — this returns the whole result verbatim
+// rather than unwrapping just `instances`, so a caller can tell the
+// two apart instead of that being silently assumed.
+pub async fn read(client: &Mutex<Client>, wasm_path: &Path) -> anyhow::Result<serde_json::Value> {
+    let guard = client.lock().await;
+    let steps = journal::load_steps(&*guard).await?;
+    drop(guard);
+
+    let input = serde_json::json!({ "steps": steps }).to_string();
+    let owned_wasm_path = wasm_path.to_path_buf();
+    let output =
+        tokio::task::spawn_blocking(move || wasm_runner::run(&owned_wasm_path, &input)).await??;
+    Ok(serde_json::from_str(&output)?)
 }
 
 #[cfg(test)]
@@ -125,6 +196,62 @@ mod tests {
         Mutex::new(client)
     }
 
+    // NOT Ruby's real provisioning (Lineage::Provisioning) -- no
+    // partitioning, no RLS, no full hecks_eras column set. Just enough
+    // structure for `journal::era_exists` and `append_lineage_mutation`'s
+    // own INSERT/upsert statements to succeed, so these tests exercise
+    // THIS crate's write logic without reproducing Ruby's full DDL --
+    // era_exists's own query only ever reads domain/ordinal, so a
+    // minimal hecks_eras row satisfies the SAME boot-gate check main.rs
+    // runs for real.
+    async fn provision_lineage(client: &Client, domain: &str, era: i64, aggregate_storage_names: &[&str]) {
+        // bigint, not int — LineageConfig::era and every binding of it
+        // (era_exists, append_lineage_mutation) are i64; tokio_postgres
+        // requires the Rust and Postgres types to match exactly, not
+        // just be numerically compatible (a real, live "WrongType"
+        // error otherwise).
+        client
+            .batch_execute("CREATE TABLE IF NOT EXISTS hecks_eras (domain text, ordinal bigint, held_text text)")
+            .await
+            .unwrap();
+        client
+            .execute(
+                "INSERT INTO hecks_eras (domain, ordinal, held_text) VALUES ($1, $2, 'test')",
+                &[&domain, &era],
+            )
+            .await
+            .unwrap();
+
+        let journal_table = format!("hecks_journal_{}", journal::snake(domain));
+        client
+            .batch_execute(&format!(
+                "CREATE TABLE IF NOT EXISTS \"{journal_table}\" (
+                    ordinal      bigserial PRIMARY KEY,
+                    era          bigint NOT NULL,
+                    aggregate    text NOT NULL,
+                    aggregate_id text NOT NULL,
+                    operation    text NOT NULL,
+                    state        jsonb
+                )"
+            ))
+            .await
+            .unwrap();
+
+        for name in aggregate_storage_names {
+            let snapshot_table = format!("{}_head_snapshot_{era}", journal::snake(name));
+            client
+                .batch_execute(&format!(
+                    "CREATE TABLE IF NOT EXISTS \"{snapshot_table}\" (id text PRIMARY KEY, ordinal bigint NOT NULL, state jsonb NOT NULL)"
+                ))
+                .await
+                .unwrap();
+        }
+    }
+
+    fn test_config(domain: &str, era: i64) -> LineageConfig {
+        LineageConfig { domain: domain.to_string(), era }
+    }
+
     fn wasm_path() -> std::path::PathBuf {
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../dist/banking.wasm")
     }
@@ -140,31 +267,60 @@ mod tests {
     #[tokio::test]
     async fn accepts_and_persists_a_first_command() {
         let client = scratch_db("rust_host_dispatch_test_1").await;
+        provision_lineage(&*client.lock().await, "Banking", 1, &["Customer"]).await;
 
         let outcome = handle(
             &client,
             &wasm_path(),
             "Banking::Customer.Register",
             register("CUST-0001"),
+            &test_config("Banking", 1),
         )
         .await
         .unwrap();
 
         assert!(outcome.accepted);
         assert_eq!(outcome.result["refusals"].as_array().unwrap().len(), 0);
-        let steps = journal::load_steps(&*client.lock().await).await.unwrap();
+        let guard = client.lock().await;
+        let steps = journal::load_steps(&*guard).await.unwrap();
         assert_eq!(steps.len(), 1);
+
+        // THE LINEAGE WRITE ITSELF — a row landed in Ruby's own journal
+        // shape (era-tagged, storage-name-keyed), not just the flat
+        // command log above.
+        let journal_rows = guard
+            .query("SELECT era, aggregate, aggregate_id, operation FROM hecks_journal_banking", &[])
+            .await
+            .unwrap();
+        assert_eq!(journal_rows.len(), 1);
+        let row = &journal_rows[0];
+        let era: i64 = row.get(0);
+        let aggregate: String = row.get(1);
+        let aggregate_id: String = row.get(2);
+        let operation: String = row.get(3);
+        assert_eq!((era, aggregate.as_str(), aggregate_id.as_str(), operation.as_str()), (1, "customer", "CUST-0001", "save"));
+
+        let snapshot_rows = guard
+            .query("SELECT id FROM customer_head_snapshot_1", &[])
+            .await
+            .unwrap();
+        assert_eq!(snapshot_rows.len(), 1, "the head-snapshot table should carry exactly the one live record");
+        let id: String = snapshot_rows[0].get(0);
+        assert_eq!(id, "CUST-0001");
     }
 
     #[tokio::test]
     async fn rehydrates_prior_history_before_evaluating_the_new_command() {
         let client = scratch_db("rust_host_dispatch_test_2").await;
+        provision_lineage(&*client.lock().await, "Banking", 1, &["Customer"]).await;
+        let config = test_config("Banking", 1);
 
         let first = handle(
             &client,
             &wasm_path(),
             "Banking::Customer.Register",
             register("CUST-0001"),
+            &config,
         )
         .await
         .unwrap();
@@ -186,6 +342,7 @@ mod tests {
             &wasm_path(),
             "Banking::Customer.Register",
             register("CUST-0001"),
+            &config,
         )
         .await
         .unwrap();
@@ -212,11 +369,13 @@ mod tests {
         // itself enforces. With the lock serializing the whole
         // read-then-append sequence, exactly one must be accepted.
         let client = scratch_db("rust_host_dispatch_test_3").await;
+        provision_lineage(&*client.lock().await, "Banking", 1, &["Customer"]).await;
+        let config = test_config("Banking", 1);
         let wasm_path = wasm_path();
 
         let (first, second) = tokio::join!(
-            handle(&client, &wasm_path, "Banking::Customer.Register", register("CUST-0002")),
-            handle(&client, &wasm_path, "Banking::Customer.Register", register("CUST-0002")),
+            handle(&client, &wasm_path, "Banking::Customer.Register", register("CUST-0002"), &config),
+            handle(&client, &wasm_path, "Banking::Customer.Register", register("CUST-0002"), &config),
         );
         let (first, second) = (first.unwrap(), second.unwrap());
 
@@ -227,5 +386,41 @@ mod tests {
         );
         let steps = journal::load_steps(&*client.lock().await).await.unwrap();
         assert_eq!(steps.len(), 1, "only the accepted registration should be persisted");
+    }
+
+    #[tokio::test]
+    async fn read_reflects_prior_dispatches_without_persisting_anything_new() {
+        let client = scratch_db("rust_host_dispatch_test_4").await;
+        provision_lineage(&*client.lock().await, "Banking", 1, &["Customer"]).await;
+
+        handle(
+            &client,
+            &wasm_path(),
+            "Banking::Customer.Register",
+            register("CUST-0003"),
+            &test_config("Banking", 1),
+        )
+        .await
+        .unwrap()
+        .accepted
+        .then_some(())
+        .expect("registration should succeed");
+
+        let result = read(&client, &wasm_path()).await.unwrap();
+
+        assert!(
+            result["refusals"].as_array().unwrap().is_empty(),
+            "a read replaying only already-accepted history should never refuse: {result:?}"
+        );
+        let instances = result["instances"].as_object().unwrap();
+        assert!(
+            instances.keys().any(|k| k.contains("CUST-0003")),
+            "read should reflect the prior dispatch: {instances:?}"
+        );
+
+        // THE SHARP PROOF a read never appends: the journal is exactly
+        // as long after the read as it was before it.
+        let steps = journal::load_steps(&*client.lock().await).await.unwrap();
+        assert_eq!(steps.len(), 1, "a read must never persist a journal row");
     }
 }

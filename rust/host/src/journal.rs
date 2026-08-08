@@ -74,3 +74,196 @@ pub async fn append<C: GenericClient>(
         .await?;
     Ok(())
 }
+
+// ── THE RUBY-SHAPED LINEAGE JOURNAL — an ADDITIONAL write path, not a
+// replacement for the flat log above. `hecks_lambda_journal` remains
+// the sole source `dispatch::handle` rehydrates from; the functions
+// below write each accepted command's own mutations (the kernel's new
+// "mutations" output field, adf38fd) into the SAME per-aggregate,
+// era-partitioned schema Ruby's own Postgres adapter uses
+// (lib/hecksagain/adapters/driven/postgres.rb + postgres/lineage.rb) —
+// same table names, same era fence — so the two runtimes can point at
+// the SAME database and a human/Ruby tooling reading it sees this
+// runtime's writes the same way Ruby's own `head_view` already
+// presents them.
+//
+// rust/host never PROVISIONS this schema — no CREATE TABLE, no era
+// mint, no RLS policy. That's Ruby's LineageManager's job alone (it
+// needs the bluebook parser and translation-rule DSL this crate
+// deliberately doesn't have — ADR 0007). `era_exists` below is a
+// boot-time READ, refusing cleanly if Ruby hasn't provisioned the
+// configured domain/era yet, and a write for a stale era refuses
+// through Postgres's own RLS row policy (`hecks_current_era`,
+// postgres/lineage/mint_transaction.rb) — not a second, Rust-side
+// staleness check duplicating that logic.
+
+/// Which domain journal and era this deployed binary writes as —
+/// operational facts, like Ruby's own `settings[:domain]`/`settings[:era]`,
+/// never computed or embedded by this crate itself (main.rs reads them
+/// from `HECKS_DOMAIN`/`HECKS_ERA`).
+pub struct LineageConfig {
+    pub domain: String,
+    pub era: i64,
+}
+
+/// `Naming.snake` (lib/hecksagain/naming.rb:30-35), ported verbatim — a
+/// pure syntactic transform (PascalCase/camelCase -> snake_case) with
+/// no semantic judgment, unlike shape-hashing or translation-rule
+/// compilation, so duplicating it here (rather than inventing a
+/// different convention Ruby would need to match) is safe. Two passes,
+/// matching the two `gsub`s exactly:
+///   1. `([A-Z]+)([A-Z][a-z])` — an acronym running into a word
+///      ("HTTPServer" -> "HTTP_Server").
+///   2. `([a-z\d])([A-Z])` — an ordinary word boundary
+///      ("SafeDeposit" -> "Safe_Deposit").
+pub fn snake(name: &str) -> String {
+    word_boundary(&acronym_boundary(name)).to_ascii_lowercase()
+}
+
+fn acronym_boundary(s: &str) -> String {
+    let chars: Vec<char> = s.chars().collect();
+    let mut out = String::new();
+    let mut i = 0;
+    while i < chars.len() {
+        if chars[i].is_ascii_uppercase() {
+            let mut j = i;
+            while j < chars.len() && chars[j].is_ascii_uppercase() {
+                j += 1;
+            }
+            let run_len = j - i;
+            if run_len >= 2 && j < chars.len() && chars[j].is_ascii_lowercase() {
+                out.extend(&chars[i..j - 1]);
+                out.push('_');
+                out.push(chars[j - 1]);
+                i = j;
+                continue;
+            }
+            out.extend(&chars[i..j]);
+            i = j;
+            continue;
+        }
+        out.push(chars[i]);
+        i += 1;
+    }
+    out
+}
+
+fn word_boundary(s: &str) -> String {
+    let chars: Vec<char> = s.chars().collect();
+    let mut out = String::new();
+    for (idx, &c) in chars.iter().enumerate() {
+        if idx > 0 && c.is_ascii_uppercase() {
+            let prev = chars[idx - 1];
+            if prev.is_ascii_lowercase() || prev.is_ascii_digit() {
+                out.push('_');
+            }
+        }
+        out.push(c);
+    }
+    out
+}
+
+/// `aggregate.storage_name` (ir/aggregate.rb:96: `Naming.snake(@name)`)
+/// — `@name` is the aggregate's own short Pascal name WITHIN its
+/// bluebook, never domain-qualified, so this demodulizes a
+/// `MutationRecord.aggregate` value like `"Banking::Customer"` (the
+/// kernel's own qualified form, orchestrate.rs's `rsplit("::")`
+/// convention) down to `"Customer"` before snaking it.
+fn storage_name(qualified_aggregate: &str) -> String {
+    let short = qualified_aggregate.rsplit("::").next().unwrap_or(qualified_aggregate);
+    snake(short)
+}
+
+/// `PG::Connection.quote_ident`'s own rule: wrap in double quotes,
+/// double any embedded double quote. Every identifier this module
+/// builds from a domain/aggregate NAME (never from caller-controlled
+/// data) goes through this before reaching a `CREATE`/table-name
+/// position — table names can't be bound as query parameters.
+fn quote_ident(name: &str) -> String {
+    format!("\"{}\"", name.replace('"', "\"\""))
+}
+
+fn journal_table(domain: &str) -> String {
+    format!("hecks_journal_{}", snake(domain))
+}
+
+fn head_snapshot_table(qualified_aggregate: &str, era: i64) -> String {
+    format!("{}_head_snapshot_{}", storage_name(qualified_aggregate), era)
+}
+
+/// The boot-time gate: does Ruby's own `hecks_eras` already hold a row
+/// for this exact domain/era? If not, this binary was deployed against
+/// a domain/era Ruby's LineageManager hasn't provisioned yet (or the
+/// era ordinal is simply wrong) — `main.rs` refuses to start rather
+/// than write into tables that may not exist.
+pub async fn era_exists(client: &Client, domain: &str, era: i64) -> anyhow::Result<bool> {
+    let rows = client
+        .query(
+            "SELECT 1 FROM hecks_eras WHERE domain = $1 AND ordinal = $2",
+            &[&domain, &era],
+        )
+        .await?;
+    Ok(!rows.is_empty())
+}
+
+/// One `MutationRecord` (kernel/mod.rs) as the kernel's own JSON
+/// output shapes it — parsed generically since rust/host never links
+/// the kernel crate (it only ever sees JSON, ADR 0012).
+pub struct Mutation<'a> {
+    pub aggregate: &'a str,
+    pub id: &'a str,
+    pub operation: &'a str,
+    pub state: &'a serde_json::Value,
+}
+
+/// The SAME two-step append `Postgres#append` (postgres.rb:141-166)
+/// does for a live Ruby write: journal INSERT first (era-tagged,
+/// `RETURNING ordinal`), then a head-snapshot upsert guarded by
+/// `WHERE ordinal < EXCLUDED.ordinal` (never regress a snapshot from
+/// a stale/reordered write) — same transaction, same ACID atomicity
+/// argument. `operation` is always `"save"` today (see mod.rs's own
+/// `MutationRecord` doc — no generated dispatch path calls delete);
+/// this only handles that case, matching current real behavior.
+pub async fn append_lineage_mutation<C: GenericClient>(
+    client: &C,
+    config: &LineageConfig,
+    mutation: &Mutation<'_>,
+) -> anyhow::Result<()> {
+    if mutation.operation != "save" {
+        anyhow::bail!(
+            "hecks_journal_{}: unsupported operation {:?} — only \"save\" is generated today",
+            snake(&config.domain),
+            mutation.operation
+        );
+    }
+
+    let journal = journal_table(&config.domain);
+    let snapshot = head_snapshot_table(mutation.aggregate, config.era);
+    let storage = storage_name(mutation.aggregate);
+
+    let row = client
+        .query_one(
+            &format!(
+                "INSERT INTO {} (era, aggregate, aggregate_id, operation, state) \
+                 VALUES ($1, $2, $3, $4, $5) RETURNING ordinal",
+                quote_ident(&journal)
+            ),
+            &[&config.era, &storage, &mutation.id, &mutation.operation, &mutation.state],
+        )
+        .await?;
+    let ordinal: i64 = row.get(0);
+
+    client
+        .execute(
+            &format!(
+                "INSERT INTO {snap} (id, ordinal, state) VALUES ($1, $2, $3) \
+                 ON CONFLICT (id) DO UPDATE SET ordinal = EXCLUDED.ordinal, state = EXCLUDED.state \
+                 WHERE {snap}.ordinal < EXCLUDED.ordinal",
+                snap = quote_ident(&snapshot)
+            ),
+            &[&mutation.id, &ordinal, &mutation.state],
+        )
+        .await?;
+
+    Ok(())
+}
