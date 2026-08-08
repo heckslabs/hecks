@@ -4766,6 +4766,304 @@
           "name": "AccountNumber"
         }
       ]
+    },
+    {
+      "attributes": [
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "account_id",
+          "optional": false,
+          "pattern": null,
+          "type": "Reference<Account>"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "period",
+          "optional": false,
+          "pattern": null,
+          "type": "StatementPeriod"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "opening_balance",
+          "optional": false,
+          "pattern": null,
+          "type": "StatementAmount"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "closing_balance",
+          "optional": false,
+          "pattern": null,
+          "type": "StatementAmount"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "generated_on",
+          "optional": false,
+          "pattern": null,
+          "type": "StatementDate"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "frequency",
+          "optional": false,
+          "pattern": null,
+          "type": "StatementFrequency"
+        }
+      ],
+      "commands": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "account_id",
+              "optional": false,
+              "pattern": null,
+              "type": "Reference<Account>"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "period",
+              "optional": false,
+              "pattern": null,
+              "type": "StatementPeriod"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "opening_balance",
+              "optional": false,
+              "pattern": null,
+              "type": "StatementAmount"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "closing_balance",
+              "optional": false,
+              "pattern": null,
+              "type": "StatementAmount"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "generated_on",
+              "optional": false,
+              "pattern": null,
+              "type": "StatementDate"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "frequency",
+              "optional": false,
+              "pattern": null,
+              "type": "StatementFrequency"
+            }
+          ],
+          "emits": [
+            "StatementGenerated"
+          ],
+          "ensures": [
+
+          ],
+          "givens": [
+
+          ],
+          "goal": "Close out one period's activity into a permanent record",
+          "mutations": [
+
+          ],
+          "name": "Generate",
+          "references": null,
+          "role": "System"
+        }
+      ],
+      "description": "A snapshot of one account's activity over one period, generated once and never revised.",
+      "entities": [
+
+      ],
+      "identified_by": [
+        "account_id",
+        "period.value"
+      ],
+      "lifecycle": null,
+      "name": "Statement",
+      "queries": [
+
+      ],
+      "value_objects": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "a statement names its period"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "StatementPeriod"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "cents",
+              "optional": false,
+              "pattern": null,
+              "type": "Integer"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "StatementAmount"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "a statement is dated"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "StatementDate"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "cadence",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "retention_months",
+              "optional": false,
+              "pattern": null,
+              "type": "Integer"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "paper_fee_cents",
+              "optional": false,
+              "pattern": null,
+              "type": "Integer"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "cadence",
+                "monthly"
+              ],
+              [
+                "retention_months",
+                "84"
+              ],
+              [
+                "paper_fee_cents",
+                "0"
+              ]
+            ],
+            [
+              [
+                "cadence",
+                "quarterly"
+              ],
+              [
+                "retention_months",
+                "120"
+              ],
+              [
+                "paper_fee_cents",
+                "0"
+              ]
+            ],
+            [
+              [
+                "cadence",
+                "annual"
+              ],
+              [
+                "retention_months",
+                "240"
+              ],
+              [
+                "paper_fee_cents",
+                "500"
+              ]
+            ]
+          ],
+          "name": "StatementFrequency"
+        }
+      ]
     }
   ],
   "canonical_form": [

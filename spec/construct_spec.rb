@@ -103,7 +103,7 @@ RSpec.describe "a construct's identity" do
     it "resolves every reference in banking to a head in its own chapter" do
       found = references_in(banking, "Banking")
 
-      expect(found.size).to eq(20)
+      expect(found.size).to eq(22)
       found.each do |owner, attribute|
         resolved = attribute.type.resolve
 

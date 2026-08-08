@@ -3,7 +3,8 @@
   "note": "Every declared banking command and query is exercised, including refusal paths. The flagship corpus member: composite identity, entities, read models, process managers, policies — every rare form the coverage gates exist to catch, walked end to end.",
   "expectations": {
     "event_names": [
-      "TransferCredited"
+      "TransferCredited",
+      "StatementGenerated"
     ],
     "refusals": [
       {
@@ -48,6 +49,10 @@
       },
       {
         "verb": "Banking::ATMCard.Issue",
+        "includes": "that already exists"
+      },
+      {
+        "verb": "Banking::Statement.Generate",
         "includes": "that already exists"
       }
     ],
@@ -2632,6 +2637,28 @@
       "verb": "Banking::ScheduledPayment.Retry",
       "args": {
         "instruction": "sched-retry-2"
+      }
+    },
+    {
+      "verb": "Banking::Statement.Generate",
+      "args": {
+        "account_id": "acct-1",
+        "period": { "value": "2026-08" },
+        "opening_balance": { "cents": 0 },
+        "closing_balance": { "cents": 0 },
+        "generated_on": { "value": "2026-09-01" },
+        "frequency": { "cadence": "monthly", "retention_months": 84, "paper_fee_cents": 0 }
+      }
+    },
+    {
+      "verb": "Banking::Statement.Generate",
+      "args": {
+        "account_id": "acct-1",
+        "period": { "value": "2026-08" },
+        "opening_balance": { "cents": 0 },
+        "closing_balance": { "cents": 0 },
+        "generated_on": { "value": "2026-09-02" },
+        "frequency": { "cadence": "monthly", "retention_months": 84, "paper_fee_cents": 0 }
       }
     }
   ]

@@ -17,4 +17,6 @@ Hecks.hecksagon "Banking" do
   Banking::SafeDepositBox.projected_by("SqliteProjection")
   Banking::OnboardingCase.persisted_by("Heki")
   Banking::OnboardingCase.projected_by("SqliteProjection")
+  Banking::Statement.persisted_by("Heki")
+  Banking::Statement.projected_by("SqliteProjection")
 end

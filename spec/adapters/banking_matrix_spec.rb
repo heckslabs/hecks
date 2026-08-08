@@ -50,6 +50,8 @@ RSpec.describe "Banking across persistence adapters" do
         Banking::SafeDepositBox.projected_by("SqliteProjection") if projected
         Banking::OnboardingCase.persisted_by(adapter)
         Banking::OnboardingCase.projected_by("SqliteProjection") if projected
+        Banking::Statement.persisted_by(adapter)
+        Banking::Statement.projected_by("SqliteProjection") if projected
       end
       if adapter != "Memory"
         adapter_name = adapter

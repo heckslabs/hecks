@@ -1318,6 +1318,80 @@ Hecks.bluebook "Banking", version: "v1" do
     end
   end
 
+  aggregate "Statement" do
+    description "A snapshot of one account's activity over one period, generated once and never revised."
+
+    reference_to Account
+    # A COMPOSITE IDENTITY WHOSE FIRST PART IS A BARE REFERENCE, not a
+    # dotted value-object field — SafeDepositBox's own composite identity
+    # dots into two value objects (branch_code.value, box_number.value);
+    # this is the other real shape the language allows.
+    # `AggregateBuilder#identified_by` reads whatever tokens its block's
+    # source holds, with no structural requirement that a component be
+    # dotted — `account_id` here is `reference_to Account`'s own minted
+    # attribute, addressed bare, resolved the same way
+    # `Runtime::Identity.from` resolves any identity head that IS a
+    # declared attribute: read directly, no walk into a value object.
+    identified_by do
+      account_id
+      period.value
+    end
+
+    attribute :period,          StatementPeriod
+    attribute :opening_balance, StatementAmount
+    attribute :closing_balance, StatementAmount
+    attribute :generated_on,    StatementDate
+    attribute :frequency,       StatementFrequency
+
+    value_object "StatementPeriod" do
+      attribute :value, String
+      invariant("a statement names its period") { !value.to_s.empty? }
+    end
+
+    value_object "StatementAmount" do
+      attribute :cents, Integer
+    end
+
+    value_object "StatementDate" do
+      attribute :value, String
+      invariant("a statement is dated") { !value.to_s.empty? }
+    end
+
+    # A CLOSED SET WITH MORE THAN ONE FIELD PER MEMBER — ordinary, public
+    # `one_of do member ... end` syntax (Vocabulary::Comparison in the
+    # self-hosted grammar uses the identical form), not a self-hosted-
+    # grammar exclusive. `admit_member` (Runtime::Value::Admission) only
+    # ever validates the DISCRIMINANT field a caller offers (`cadence`
+    # here) against the members table — it does not fill the other
+    # fields in for you, so a command dispatching this always states
+    # every field, the same as `AddTopping`'s own append fields do.
+    value_object "StatementFrequency" do
+      attribute :cadence,          String
+      attribute :retention_months, Integer
+      attribute :paper_fee_cents,  Integer
+
+      one_of do
+        member cadence: "monthly",   retention_months: 84,  paper_fee_cents: 0
+        member cadence: "quarterly", retention_months: 120, paper_fee_cents: 0
+        member cadence: "annual",    retention_months: 240, paper_fee_cents: 500
+      end
+    end
+
+    command "Generate" do
+      role "System"
+      goal "Close out one period's activity into a permanent record"
+
+      reference_to Account
+      attribute :period,          StatementPeriod
+      attribute :opening_balance, StatementAmount
+      attribute :closing_balance, StatementAmount
+      attribute :generated_on,    StatementDate
+      attribute :frequency,       StatementFrequency
+
+      emits "StatementGenerated"
+    end
+  end
+
   policy "FreezeAccountsOnSuspension" do
     on      "CustomerSuspended"
     trigger "Account.Freeze"
