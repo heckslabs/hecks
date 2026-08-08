@@ -1,6 +1,8 @@
 require_relative "../ports/persistence"
 require_relative "../ports/persistence/binding_policy"
 require_relative "../ports/persistence/lineage"
+require_relative "../naming"
+require_relative "../framework"
 require_relative "registry"
 
 module Hecksagain
@@ -29,12 +31,48 @@ module Hecksagain
     module EraCheck
       module_function
 
+      # EACH BLUEBOOK'S OWN SOURCE, not one file read once and reused
+      # for every bluebook in the registry — true as long as a domain
+      # directory only ever held exactly one, and silently wrong the
+      # moment `uses_framework` made a second, differently-sourced
+      # bluebook (Governance, Identity — `lib/hecksagain/framework/bluebook/`,
+      # not the domain's own directory) share a boot with the first.
+      # Caught the hard way: three domains booted together, one real
+      # source text (the domain's own), and every OTHER domain's era-1
+      # held THAT text under its own name — a shadow-parse of it later
+      # reconstructs a completely different shape, and every boot after
+      # the first refuses toward a scaffold that was never the real
+      # drift.
       def check!(registry, directory)
-        source_path = Dir[File.join(directory, "*.bluebook")].first
-        return unless source_path
+        registry.bluebooks.each_value do |bluebook|
+          check_bluebook!(registry, bluebook, source_text_for(bluebook, directory), directory: directory)
+        end
+      end
 
-        current_text = File.read(source_path)
-        registry.bluebooks.each_value { |bluebook| check_bluebook!(registry, bluebook, current_text, directory: directory) }
+      # The domain's own directory first, matched by name — a real app's
+      # directory may hold more than one file once `uses_framework`
+      # exists, so ".first" alone can no longer be trusted, the exact
+      # way it silently wasn't the day this was found: three domains
+      # booted together, one real source text read once (the domain's
+      # own, ".first"'d), and every OTHER domain's era-1 held THAT text
+      # under its own name — a later shadow-parse of it reconstructs a
+      # completely different shape, and every boot after the first
+      # refuses toward a scaffold that was never the real drift.
+      #
+      # A single-file directory whose one file names something ELSE
+      # falls back to it anyway (a fixture may legitimately name its
+      # file differently from the `Hecks.bluebook` it declares) — UNLESS
+      # this bluebook is a known framework member, in which case that
+      # one file is certainly some OTHER domain's, not this one's, and
+      # the framework registry is asked instead — the only other place a
+      # bluebook in this registry could have come from, per
+      # `uses_framework`.
+      def source_text_for(bluebook, directory)
+        domain_files = Dir[File.join(directory, "*.bluebook")]
+        own = domain_files.find { |path| Naming.pascal(File.basename(path, ".bluebook")) == bluebook.name }
+        own ||= domain_files.first if domain_files.size == 1 && !Framework.members.key?(bluebook.name)
+        path = own || Framework.members[bluebook.name]
+        path && File.read(path)
       end
 
       def check_bluebook!(registry, bluebook, current_text, directory: nil)
@@ -45,6 +83,12 @@ module Hecksagain
 
         adapter_name = adapter_for(registry, bluebook.name, first)
         return unless lineage_capable?(registry, adapter_name)
+
+        unless current_text
+          raise WiringError,
+                "cannot boot #{bluebook.name}: bound to a lineage-capable adapter, but no source file for " \
+                "it could be found (checked #{directory.inspect} and the framework registry)"
+        end
 
         settings = registry.world(bluebook.name)&.for_binding(Ports::Persistence::VERB, adapter_name) || {}
         registry.adapter_class(adapter_name).era_check!(
