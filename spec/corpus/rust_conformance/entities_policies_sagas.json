@@ -1,0 +1,16 @@
+{
+  "domain": "examples/banking",
+  "note": "spec/rust_conformance_spec.rb's own fixture — decision 0013's three additions in one script: an entity command (LedgerEntry.Amend), a policy attempt (Customer.Suspend, always refused per docs/guides/policies-and-process-managers.md's own documented example, exercised for coverage of the attempt-and-swallow path itself), and both Settlement saga legs (xfer-1 settles; xfer-2's destination is frozen, so it compensates/reverses). Not the full spec/corpus/banking.json — that corpus deliberately exercises process managers/entities/policies together with subsystems this generator still doesn't cover (role/reference-existence checking, read models), so running it wholesale would gate CI on gaps 0013 already documents as open, not on regressions in what it built.",
+  "steps": [
+    {"verb": "Banking::Customer.Register", "args": {"reference": {"value": "CUST-0001"}, "name": {"given": "Ada", "family": "Lovelace"}, "email": {"address": "ada@example.com"}}},
+    {"verb": "Banking::Account.Open", "args": {"number": {"value": "acct-1"}, "kind": {"name": "current"}, "daily_limit": {"cents": 50000}, "customer_id": "CUST-0001"}},
+    {"verb": "Banking::Account.Open", "args": {"number": {"value": "acct-2"}, "kind": {"name": "savings"}, "daily_limit": {"cents": 10000}, "customer_id": "CUST-0001"}},
+    {"verb": "Banking::Account.Open", "args": {"number": {"value": "acct-3"}, "kind": {"name": "current"}, "daily_limit": {"cents": 50000}, "customer_id": "CUST-0001"}},
+    {"verb": "Banking::Account.Credit", "args": {"amount": {"cents": 10000, "currency": "USD"}, "narrative": {"text": "Opening deposit"}, "number": {"value": "acct-1"}}},
+    {"verb": "Banking::Account.LedgerEntry.Amend", "args": {"number": {"value": "acct-1"}, "sequence": {"value": 1}, "adjustment": {"cents": 500, "currency": "USD"}, "narrative": {"text": "Corrected"}}},
+    {"verb": "Banking::Account.Freeze", "args": {"number": {"value": "acct-3"}}},
+    {"verb": "Banking::Customer.Suspend", "args": {"standing": {"value": "under review"}, "reference": {"value": "CUST-0001"}}},
+    {"verb": "Banking::Transfer.Request", "args": {"source": "acct-1", "destination": "acct-2", "amount": {"cents": 2500}, "narrative": {"text": "Rent"}, "reference": {"value": "xfer-1"}}},
+    {"verb": "Banking::Transfer.Request", "args": {"source": "acct-1", "destination": "acct-3", "amount": {"cents": 1000}, "narrative": {"text": "Into a frozen account"}, "reference": {"value": "xfer-2"}}}
+  ]
+}

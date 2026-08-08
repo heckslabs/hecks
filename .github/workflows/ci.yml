@@ -60,10 +60,25 @@ jobs:
       - name: Create the pizzas example's database
         run: createdb -h localhost -U postgres hecks_pizzas
 
+      # bin/rust_conformance's `native` mode (0012/0013) — regenerated
+      # from the CURRENT generator, not just the checked-in rust/src/
+      # generated/ snapshot (which could silently drift from it), then
+      # built, so spec/rust_conformance_spec.rb below has a binary to run
+      # against rather than skipping itself the way it would locally
+      # without one — the same "provision it for real, don't skip"
+      # discipline this workflow already holds Postgres/SQLite to.
+      # ubuntu-latest ships a Rust toolchain already; no separate setup
+      # action needed.
+      - name: Build the Rust conformance binary
+        run: |
+          bin/project_rust examples/banking
+          cd rust && cargo build --release
+
       # The whole suite — corpus, adapters (Postgres and SQLite both
       # reachable here, so neither skips itself), the guides' own doctests,
-      # the reference golden, everything bundle exec rspec already runs
-      # locally and at the pre-push hook.
+      # the reference golden, the Rust conformance check above (also
+      # provisioned, not skipped), everything bundle exec rspec already
+      # runs locally and at the pre-push hook.
       - name: rspec
         run: bundle exec rspec
 
