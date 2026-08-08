@@ -60,11 +60,23 @@ module Hecksagain
                 "but its world declares no \"database\"."
         end
 
-        if declared.start_with?("postgres://", "postgresql://")
-          PG.connect(declared)
-        else
-          PG.connect(dbname: declared)
-        end
+        connection =
+          if declared.start_with?("postgres://", "postgresql://")
+            PG.connect(declared)
+          else
+            PG.connect(dbname: declared)
+          end
+
+        # QUIET ON PURPOSE. Provisioning re-runs its own idempotent
+        # `CREATE ... IF NOT EXISTS` checks on every boot — a schema that
+        # already exists is the ORDINARY case, not news, and Postgres
+        # surfaces every one as a NOTICE by default. `bin/set-password`
+        # boots a real registry just to mint an Identity, and nobody
+        # setting a password needs to see a page of "relation ...
+        # already exists, skipping" to do it. WARNING and above (real
+        # problems) still surface.
+        connection.exec("SET client_min_messages = warning")
+        connection
       rescue PG::Error => error
         raise Runtime::WiringError,
               "cannot bind Postgres at #{declared} for #{name}: #{error.message.strip}"
