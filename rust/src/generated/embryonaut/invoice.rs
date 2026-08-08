@@ -196,6 +196,19 @@ impl Invoice {
     }
 }
 
+impl Invoice {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        client_id: match v.get("client_id") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Invoice.client_id: expected String".to_string()))?), },
+        contract_id: match v.get("contract_id") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Invoice.contract_id: expected String".to_string()))?), },
+        number: match v.get("number") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(InvoiceNumber::from_json(x)?), },
+        due_on: match v.get("due_on") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(InvoiceDueDate::from_json(x)?), },
+        line_items: match v.get("line_items").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(LineItem::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
+        status: v.require("status", "Invoice")?.as_str().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Invoice.status: expected a string".to_string()))?.to_string(),
+        })
+    }
+}
+
 impl crate::kernel::ToJson for Invoice {
     fn to_json(&self) -> crate::kernel::Json {
         Invoice::to_json(self)

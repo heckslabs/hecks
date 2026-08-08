@@ -165,6 +165,17 @@ impl Client {
     }
 }
 
+impl Client {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        reference: match v.get("reference") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ClientReference::from_json(x)?), },
+        name: match v.get("name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ClientName::from_json(x)?), },
+        contact_email: match v.get("contact_email") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(EmailAddress::from_json(x)?), },
+        status: v.require("status", "Client")?.as_str().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Client.status: expected a string".to_string()))?.to_string(),
+        })
+    }
+}
+
 impl crate::kernel::ToJson for Client {
     fn to_json(&self) -> crate::kernel::Json {
         Client::to_json(self)

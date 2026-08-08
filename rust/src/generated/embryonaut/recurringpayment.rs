@@ -217,6 +217,20 @@ impl RecurringPayment {
     }
 }
 
+impl RecurringPayment {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        client_id: match v.get("client_id") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RecurringPayment.client_id: expected String".to_string()))?), },
+        contract_id: match v.get("contract_id") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RecurringPayment.contract_id: expected String".to_string()))?), },
+        reference: match v.get("reference") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(RecurringPaymentReference::from_json(x)?), },
+        amount: match v.get("amount") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(RecurringAmount::from_json(x)?), },
+        cadence: match v.get("cadence") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Cadence::from_json(x)?), },
+        next_due_on: match v.get("next_due_on") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(DueDate::from_json(x)?), },
+        status: v.require("status", "RecurringPayment")?.as_str().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RecurringPayment.status: expected a string".to_string()))?.to_string(),
+        })
+    }
+}
+
 impl crate::kernel::ToJson for RecurringPayment {
     fn to_json(&self) -> crate::kernel::Json {
         RecurringPayment::to_json(self)

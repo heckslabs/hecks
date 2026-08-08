@@ -416,6 +416,22 @@ impl Member {
     }
 }
 
+impl Member {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        email: match v.get("email") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Email::from_json(x)?), },
+        name: match v.get("name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(MemberName::from_json(x)?), },
+        title: match v.get("title") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(MemberTitle::from_json(x)?), },
+        units: match v.get("units") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Units::from_json(x)?), },
+        percentage_interest: match v.get("percentage_interest") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PercentageInterest::from_json(x)?), },
+        vesting: match v.get("vesting") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(VestingSchedule::from_json(x)?), },
+        role: match v.get("role") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Role::from_json(x)?), },
+        identity_id: match v.get("identity_id") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(IdentityId::from_json(x)?), },
+        status: v.require("status", "Member")?.as_str().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Member.status: expected a string".to_string()))?.to_string(),
+        })
+    }
+}
+
 impl crate::kernel::ToJson for Member {
     fn to_json(&self) -> crate::kernel::Json {
         Member::to_json(self)

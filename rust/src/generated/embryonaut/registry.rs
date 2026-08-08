@@ -3,6 +3,11 @@
 // re-run bin/project_rust instead.
 #![allow(dead_code, unused_variables)]
 
+// `Repository::save` (from_seed, below) is a TRAIT method —
+// `InMemoryRepository`'s own inherent methods (entries(), used
+// by instances()) need no import, but save() does.
+use crate::kernel::Repository;
+
 pub struct Store {
     pub member: crate::kernel::InMemoryRepository<crate::generated::embryonaut::member::Member>,
     pub foundingagreement: crate::kernel::InMemoryRepository<crate::generated::embryonaut::foundingagreement::FoundingAgreement>,
@@ -70,6 +75,61 @@ for (id, record) in self.recurringpayment.entries() {
     instances.push((format!("{}{}", "Embryonaut::RecurringPayment#", id), record.to_json()));
 }
         instances
+    }
+
+    /// Seeds a fresh `Store` from a prior `instances()` dump —
+    /// the exact "Domain::Aggregate#id" -> state shape, read
+    /// back instead of written. Not `Result`-returning on a
+    /// non-Object `seed`: an absent/malformed seed just yields
+    /// an empty Store, the same starting point `Store::new()`
+    /// already gives a caller with no prior state to seed from.
+    pub fn from_seed(seed: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        let mut store = Self::new();
+        if let crate::kernel::Json::Object(fields) = seed {
+            for (key, value) in fields {
+if let Some(id) = key.strip_prefix("Embryonaut::Member#") {
+    store.member.save(id, crate::generated::embryonaut::member::Member::from_json(value)?);
+    continue;
+}
+if let Some(id) = key.strip_prefix("Embryonaut::FoundingAgreement#") {
+    store.foundingagreement.save(id, crate::generated::embryonaut::foundingagreement::FoundingAgreement::from_json(value)?);
+    continue;
+}
+if let Some(id) = key.strip_prefix("Embryonaut::Client#") {
+    store.client.save(id, crate::generated::embryonaut::client::Client::from_json(value)?);
+    continue;
+}
+if let Some(id) = key.strip_prefix("Embryonaut::Engagement#") {
+    store.engagement.save(id, crate::generated::embryonaut::engagement::Engagement::from_json(value)?);
+    continue;
+}
+if let Some(id) = key.strip_prefix("Embryonaut::Proposal#") {
+    store.proposal.save(id, crate::generated::embryonaut::proposal::Proposal::from_json(value)?);
+    continue;
+}
+if let Some(id) = key.strip_prefix("Embryonaut::Contract#") {
+    store.contract.save(id, crate::generated::embryonaut::contract::Contract::from_json(value)?);
+    continue;
+}
+if let Some(id) = key.strip_prefix("Embryonaut::Product#") {
+    store.product.save(id, crate::generated::embryonaut::product::Product::from_json(value)?);
+    continue;
+}
+if let Some(id) = key.strip_prefix("Embryonaut::Invoice#") {
+    store.invoice.save(id, crate::generated::embryonaut::invoice::Invoice::from_json(value)?);
+    continue;
+}
+if let Some(id) = key.strip_prefix("Embryonaut::Payment#") {
+    store.payment.save(id, crate::generated::embryonaut::payment::Payment::from_json(value)?);
+    continue;
+}
+if let Some(id) = key.strip_prefix("Embryonaut::RecurringPayment#") {
+    store.recurringpayment.save(id, crate::generated::embryonaut::recurringpayment::RecurringPayment::from_json(value)?);
+    continue;
+}
+            }
+        }
+        Ok(store)
     }
 }
 

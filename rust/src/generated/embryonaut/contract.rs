@@ -292,6 +292,21 @@ impl Contract {
     }
 }
 
+impl Contract {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        client_id: match v.get("client_id") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Contract.client_id: expected String".to_string()))?), },
+        proposal_id: match v.get("proposal_id") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Contract.proposal_id: expected String".to_string()))?), },
+        number: match v.get("number") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ContractNumber::from_json(x)?), },
+        title: match v.get("title") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ContractTitle::from_json(x)?), },
+        value: match v.get("value") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ContractValue::from_json(x)?), },
+        scope_of_work: match v.get("scope_of_work") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ScopeOfWork::from_json(x)?), },
+        revisions: match v.get("revisions").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Revision::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
+        status: v.require("status", "Contract")?.as_str().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Contract.status: expected a string".to_string()))?.to_string(),
+        })
+    }
+}
+
 impl crate::kernel::ToJson for Contract {
     fn to_json(&self) -> crate::kernel::Json {
         Contract::to_json(self)

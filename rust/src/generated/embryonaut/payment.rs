@@ -231,6 +231,19 @@ impl Payment {
     }
 }
 
+impl Payment {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        invoice_id: match v.get("invoice_id") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Payment.invoice_id: expected String".to_string()))?), },
+        reference: match v.get("reference") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PaymentReference::from_json(x)?), },
+        amount: match v.get("amount") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PaymentAmount::from_json(x)?), },
+        method: match v.get("method") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PaymentMethod::from_json(x)?), },
+        received_on: match v.get("received_on") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PaymentDate::from_json(x)?), },
+        status: v.require("status", "Payment")?.as_str().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Payment.status: expected a string".to_string()))?.to_string(),
+        })
+    }
+}
+
 impl crate::kernel::ToJson for Payment {
     fn to_json(&self) -> crate::kernel::Json {
         Payment::to_json(self)

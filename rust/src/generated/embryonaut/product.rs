@@ -170,6 +170,17 @@ impl Product {
     }
 }
 
+impl Product {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        codename: match v.get("codename") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ProductCodename::from_json(x)?), },
+        name: match v.get("name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ProductName::from_json(x)?), },
+        vision: match v.get("vision") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(VisionStatement::from_json(x)?), },
+        stage: v.require("stage", "Product")?.as_str().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Product.stage: expected a string".to_string()))?.to_string(),
+        })
+    }
+}
+
 impl crate::kernel::ToJson for Product {
     fn to_json(&self) -> crate::kernel::Json {
         Product::to_json(self)

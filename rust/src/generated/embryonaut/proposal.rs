@@ -417,6 +417,23 @@ impl Proposal {
     }
 }
 
+impl Proposal {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        client_id: match v.get("client_id") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Proposal.client_id: expected String".to_string()))?), },
+        engagement_id: match v.get("engagement_id") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Proposal.engagement_id: expected String".to_string()))?), },
+        number: match v.get("number") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ProposalNumber::from_json(x)?), },
+        overview: match v.get("overview") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ProposalOverview::from_json(x)?), },
+        deliverables: match v.get("deliverables").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Deliverable::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
+        term: match v.get("term") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(EngagementTerm::from_json(x)?), },
+        exclusions: match v.get("exclusions") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_array().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Proposal.exclusions: expected an array".to_string()))?.iter().map(Exclusion::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?), },
+        line_items: match v.get("line_items").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(LineItem::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
+        valid_for: match v.get("valid_for") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ValidityWindow::from_json(x)?), },
+        status: v.require("status", "Proposal")?.as_str().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Proposal.status: expected a string".to_string()))?.to_string(),
+        })
+    }
+}
+
 impl crate::kernel::ToJson for Proposal {
     fn to_json(&self) -> crate::kernel::Json {
         Proposal::to_json(self)

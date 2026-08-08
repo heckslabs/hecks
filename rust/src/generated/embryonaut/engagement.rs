@@ -221,6 +221,19 @@ impl Engagement {
     }
 }
 
+impl Engagement {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        client_id: match v.get("client_id") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Engagement.client_id: expected String".to_string()))?), },
+        reference: match v.get("reference") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(EngagementReference::from_json(x)?), },
+        use_cases: match v.get("use_cases").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(UseCase::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
+        domain_reference: match v.get("domain_reference") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(DomainReference::from_json(x)?), },
+        demo_reference: match v.get("demo_reference") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(DemoReference::from_json(x)?), },
+        stage: v.require("stage", "Engagement")?.as_str().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Engagement.stage: expected a string".to_string()))?.to_string(),
+        })
+    }
+}
+
 impl crate::kernel::ToJson for Engagement {
     fn to_json(&self) -> crate::kernel::Json {
         Engagement::to_json(self)

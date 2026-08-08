@@ -249,6 +249,19 @@ impl FoundingAgreement {
     }
 }
 
+impl FoundingAgreement {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        reference: match v.get("reference") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(AgreementReference::from_json(x)?), },
+        title: match v.get("title") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(AgreementTitle::from_json(x)?), },
+        kind: match v.get("kind") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Kind::from_json(x)?), },
+        version: match v.get("version") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(AgreementVersion::from_json(x)?), },
+        signatories: match v.get("signatories").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Signatory::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
+        status: v.require("status", "FoundingAgreement")?.as_str().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("FoundingAgreement.status: expected a string".to_string()))?.to_string(),
+        })
+    }
+}
+
 impl crate::kernel::ToJson for FoundingAgreement {
     fn to_json(&self) -> crate::kernel::Json {
         FoundingAgreement::to_json(self)
