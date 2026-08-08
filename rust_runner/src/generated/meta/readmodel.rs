@@ -273,6 +273,9 @@ pub fn dispatch_declare(
         let _ = record;
             Ok(())
         },
+        &[
+
+        ],
         &["ProjectionDeclared"],
         payload,
     )
@@ -325,6 +328,9 @@ pub fn dispatch_gather(
         record.aggregate_heads.push(Head { aggregate: args.aggregate.value.clone(), r#as: args.r#as.value.clone(), many: args.many.value.clone() });
             Ok(())
         },
+        &[
+
+        ],
         &["HeadGathered"],
         payload,
     )
@@ -381,6 +387,9 @@ pub fn dispatch_option(
         record.options.push(ProjectionOption { option: args.option.value.clone(), key: args.key.value.clone(), value: args.value.value.clone(), at: args.at.value.clone() });
             Ok(())
         },
+        &[
+
+        ],
         &["OptionAttached"],
         payload,
     )

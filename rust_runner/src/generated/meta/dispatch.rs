@@ -159,6 +159,9 @@ pub fn dispatch_declare(
         let _ = record;
             Ok(())
         },
+        &[
+
+        ],
         &["SendDeclared"],
         payload,
     )
@@ -207,6 +210,9 @@ pub fn dispatch_bind(
         record.with_spec.push(Binding { key: args.key.value.clone(), value: args.value.value.clone() });
             Ok(())
         },
+        &[
+
+        ],
         &["BindingAttached"],
         payload,
     )

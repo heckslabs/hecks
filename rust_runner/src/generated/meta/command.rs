@@ -505,6 +505,9 @@ pub fn dispatch_declare(
         let _ = record;
             Ok(())
         },
+        &[
+
+        ],
         &["VerbDeclared"],
         payload,
     )
@@ -573,6 +576,9 @@ pub fn dispatch_argument(
         record.attributes.push(Argument { name: args.name.value.clone(), r#type: args.r#type.value.clone(), list: args.list.value.clone(), default: args.default.value.clone(), optional: args.optional.value.clone(), pattern: args.pattern.value.clone(), admits: args.admits.value.clone() });
             Ok(())
         },
+        &[
+
+        ],
         &["ArgumentAttached"],
         payload,
     )
@@ -640,6 +646,9 @@ pub fn dispatch_reference(
         record.attributes.push(Argument { name: args.name.value.clone(), r#type: args.points_at.clone(), list: args.list.value.clone(), default: args.default.value.clone(), optional: args.optional.value.clone(), pattern: args.pattern.value.clone(), admits: args.admits.value.clone() });
             Ok(())
         },
+        &[
+
+        ],
         &["ArgumentReferenceAttached"],
         payload,
     )
@@ -689,6 +698,9 @@ pub fn dispatch_rule(
         record.givens.push(Rule { description: args.description.value.clone(), canonical: args.canonical.value.clone() });
             Ok(())
         },
+        &[
+
+        ],
         &["RuleAttached"],
         payload,
     )
@@ -738,6 +750,9 @@ pub fn dispatch_ensure(
         record.ensures.push(Rule { description: args.description.value.clone(), canonical: args.canonical.value.clone() });
             Ok(())
         },
+        &[
+
+        ],
         &["EnsureAttached"],
         payload,
     )
@@ -799,6 +814,9 @@ pub fn dispatch_change(
         record.mutations.push(Change { target: args.target.value.clone(), op: args.op.value.clone(), field: args.field.value.clone(), kind: args.kind.value.clone(), source: args.source.value.clone() });
             Ok(())
         },
+        &[
+
+        ],
         &["ChangeAttached"],
         payload,
     )
@@ -844,6 +862,9 @@ pub fn dispatch_acts_on(
         record.references = Some(args.root.clone());
             Ok(())
         },
+        &[
+
+        ],
         &["ReferenceNamed"],
         payload,
     )
@@ -888,6 +909,9 @@ pub fn dispatch_announce(
         record.emits.push(Announcement { name: args.announces.value.clone() });
             Ok(())
         },
+        &[
+
+        ],
         &["AnnouncementNamed"],
         payload,
     )

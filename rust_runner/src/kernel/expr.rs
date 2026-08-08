@@ -71,6 +71,27 @@ impl Fielded for NoFields {
     }
 }
 
+/// `args.merge(old: old)` — `CommandRules::Admissibility#enforce_ensures`,
+/// read directly. `ensures` runs with the SAME `attrs` a `given` would,
+/// plus one merged key: `old`, the instance as it stood before
+/// `apply_mutations` ran. `old` is checked first, the same order Ruby's
+/// own `Hash#merge` gives it precedence in — a real argument named `old`
+/// would be shadowed the identical way in both runtimes, not just this
+/// one.
+pub struct WithOld<'a> {
+    pub args: &'a dyn Fielded,
+    pub old: &'a dyn Fielded,
+}
+
+impl<'a> Fielded for WithOld<'a> {
+    fn field(&self, name: &str) -> Option<Field<'_>> {
+        if name == "old" {
+            return Some(Field::Nested(self.old));
+        }
+        self.args.field(name)
+    }
+}
+
 // ── COMPARISON — mirrors `Evaluator::Operator` exactly: six comparison
 // operators reduced to two primitives (`less_than`, `equal`) combined
 // with a negation, rather than six separate code paths.

@@ -11,15 +11,26 @@
 // mirroring `normalize_args` running before `hydrate`).
 //
 // NOT YET GENERIC HERE, flagged rather than silently assumed away:
-// `ensures` (needs the pre-mutation `old:` snapshot threaded through —
-// real, undone), `enforce_role_mismatch`/`resolve_references` (no role
-// checking or reference-existence checking generated yet).
+// `enforce_role_mismatch`/`resolve_references` (no role checking or
+// reference-existence checking generated yet).
 
-use super::expr::{interpret, EvalContext, Expr, Field, Fielded, Value};
+use super::expr::{interpret, EvalContext, Expr, Field, Fielded, Value, WithOld};
 use super::{Event, Refusal, Repository};
 use std::collections::BTreeMap;
 
 pub struct GivenSpec {
+    pub description: &'static str,
+    pub expr: Expr,
+}
+
+/// `enforce_ensures` — `CommandRules::Admissibility#enforce_ensures`, read
+/// directly. Runs after `apply_mutations`, against `old:` merged into
+/// `args` (`WithOld`, expr.rs) — "the state as the givens saw it," per
+/// `CommandInterpreter#step_apply_mutations`'s own comment on where the
+/// snapshot is taken: after `enforce_givens`/`admissible_transition`,
+/// before the mutation that makes `old` and the post-mutation state
+/// actually differ.
+pub struct EnsuresSpec {
     pub description: &'static str,
     pub expr: Expr,
 }
@@ -84,6 +95,7 @@ pub fn dispatch<'a, T, R>(
     // needs the real type, which a type-erased `&dyn Fielded` cannot
     // provide.
     apply_mutations: impl FnOnce(&mut T) -> Result<(), Refusal> + 'a,
+    ensures: &[EnsuresSpec],
     emits: &[&'static str],
     payload: BTreeMap<String, String>,
 ) -> Result<(T, Vec<Event>), Refusal>
@@ -142,7 +154,23 @@ where
         }
     }
 
+    // THE STATE AS THE GIVENS SAW IT — `old` inside an `ensures`, taken
+    // right before the mutation that makes it differ from what follows.
+    // Only cloned when a real `ensures` needs it, the same guard Ruby's
+    // own `step_apply_mutations` uses (`unless ctx.command.ensures.empty?`).
+    let old_snapshot = if ensures.is_empty() { None } else { Some(record.clone()) };
+
     apply_mutations(&mut record)?;
+
+    if let Some(old) = &old_snapshot {
+        let with_old = WithOld { args, old };
+        for rule in ensures {
+            let ctx = EvalContext { args: &with_old, instance: &record };
+            if !interpret(&rule.expr, &ctx)?.truthy() {
+                return Err(Refusal::EnsuresNotMet(rule.description.to_string()));
+            }
+        }
+    }
 
     repo.save(&id, record.clone());
 

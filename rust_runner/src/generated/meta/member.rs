@@ -152,6 +152,9 @@ pub fn dispatch_declare(
         let _ = record;
             Ok(())
         },
+        &[
+
+        ],
         &["MemberDeclared"],
         payload,
     )
@@ -200,6 +203,9 @@ pub fn dispatch_pair(
         record.pairs.push(Pair { key: args.key.value.clone(), value: args.value.value.clone() });
             Ok(())
         },
+        &[
+
+        ],
         &["PairBound"],
         payload,
     )

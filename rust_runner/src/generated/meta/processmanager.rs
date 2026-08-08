@@ -200,6 +200,9 @@ pub fn dispatch_declare(
         let _ = record;
             Ok(())
         },
+        &[
+
+        ],
         &["SagaDeclared"],
         payload,
     )
@@ -244,6 +247,9 @@ pub fn dispatch_state(
         record.states.push(SagaState { name: args.name.value.clone() });
             Ok(())
         },
+        &[
+
+        ],
         &["SagaStateAttached"],
         payload,
     )

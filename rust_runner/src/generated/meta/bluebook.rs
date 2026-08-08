@@ -258,6 +258,9 @@ pub fn dispatch_declare(
         let _ = record;
             Ok(())
         },
+        &[
+
+        ],
         &["ChapterDeclared"],
         payload,
     )
@@ -318,6 +321,9 @@ pub fn dispatch_normalise(
         record.normalisations.push(NormalisationRule { strategy: args.strategy.value.clone(), source_token: args.source_token.value.clone(), replacement: args.replacement.value.clone(), boundary: args.boundary.value.clone(), position: args.position.value.clone() });
             Ok(())
         },
+        &[
+
+        ],
         &["NormalisationAttached"],
         payload,
     )

@@ -429,6 +429,9 @@ pub fn dispatch_declare(
         let _ = record;
             Ok(())
         },
+        &[
+
+        ],
         &["RootDeclared"],
         payload,
     )
@@ -473,6 +476,9 @@ pub fn dispatch_identify(
         record.identified_by.push(IdentityPath { value: args.path.value.clone() });
             Ok(())
         },
+        &[
+
+        ],
         &["RootIdentified"],
         payload,
     )
@@ -540,6 +546,9 @@ pub fn dispatch_attribute(
         record.attributes.push(Field { name: args.name.value.clone(), r#type: args.r#type.clone(), list: args.list.value.clone(), default: args.default.value.clone(), optional: args.optional.value.clone(), pattern: args.pattern.value.clone(), admits: args.admits.value.clone() });
             Ok(())
         },
+        &[
+
+        ],
         &["AttributeAttached"],
         payload,
     )
@@ -607,6 +616,9 @@ pub fn dispatch_reference(
         record.attributes.push(Field { name: args.name.value.clone(), r#type: args.points_at.clone(), list: args.list.value.clone(), default: args.default.value.clone(), optional: args.optional.value.clone(), pattern: args.pattern.value.clone(), admits: args.admits.value.clone() });
             Ok(())
         },
+        &[
+
+        ],
         &["ReferenceAttached"],
         payload,
     )
@@ -674,6 +686,9 @@ pub fn dispatch_holds(
         record.attributes.push(Field { name: args.name.value.clone(), r#type: args.holds.clone(), list: args.list.value.clone(), default: args.default.value.clone(), optional: args.optional.value.clone(), pattern: args.pattern.value.clone(), admits: args.admits.value.clone() });
             Ok(())
         },
+        &[
+
+        ],
         &["PieceHeld"],
         payload,
     )
@@ -723,6 +738,9 @@ pub fn dispatch_lifecycle(
         record.state_start = Some(IdentityField { value: args.state_start.value.clone() });
             Ok(())
         },
+        &[
+
+        ],
         &["LifecycleNamed"],
         payload,
     )
@@ -775,6 +793,9 @@ pub fn dispatch_transition(
         record.transitions.push(Transition { command: args.command.value.clone(), from_state: args.from_state.value.clone(), to_state: args.to_state.value.clone() });
             Ok(())
         },
+        &[
+
+        ],
         &["TransitionAttached"],
         payload,
     )
@@ -818,6 +839,9 @@ pub fn dispatch_seal(
         let _ = record;
             Ok(())
         },
+        &[
+
+        ],
         &["RootSealed"],
         payload,
     )
@@ -862,6 +886,9 @@ pub fn dispatch_value(
         record.value_objects.push(ValueName { name: args.name.value.clone() });
             Ok(())
         },
+        &[
+
+        ],
         &["ValueDeclared"],
         payload,
     )

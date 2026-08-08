@@ -49,21 +49,23 @@
 #     `.include?`, dotted lookups, `nil` literals, and int/float literal
 #     unification are gone because a runtime interpreter needs none of
 #     that static machinery).
-#   - Creating AND acting commands, uniformly, as long as: they declare
-#     no `ensures` (needs the pre-mutation `old:` snapshot — not wired),
-#     name no lifecycle transition (`advance_lifecycle` — not wired),
-#     and every `then_set` is `append` with no literal value-object
-#     field (the other three ops, and a literal append field, still need
-#     generated write-glue this slice doesn't produce — seeAppend below).
-#     A command failing any of those is SKIPPED, loudly, by name and
-#     reason, rather than generated as code that would silently do less
-#     than it claims to.
+#   - Creating AND acting commands, uniformly, as long as: every `given`/
+#     `ensures` is expression data the kernel interpreter can walk (always
+#     true — see above), every `then_set` op (`set`/`append`/`increment`/
+#     `decrement`) resolves to a Rust type it can actually construct (a
+#     literal Hash source bridges when the target VO's fields are all
+#     present in it; an `append` literal field does NOT, still — it's
+#     `.inspect`'d text, not a raw Hash; see literal_set_bridgeable? and
+#     command_skip_reason below), and any lifecycle transition it names is
+#     one `TransitionCheck` can express. A command failing any of those is
+#     SKIPPED, loudly, by name and reason, rather than generated as code
+#     that would silently do less than it claims to.
 #
 # WHAT THIS STILL DOES NOT GENERATE — flagged, not silently skipped:
-#   - `ensures`, `increment`/`decrement` mutations, a literal value
-#     object inside an `append` — all named per-command by
-#     `command_skip_reason`, below. `set`/`append` mutations and
-#     lifecycle transitions ARE generated.
+#   - A literal value object inside an `append` field (still `.inspect`'d
+#     text, not a raw Hash the way `:set`/`:increment`/`:decrement`'s
+#     literals are) — named per-command by `command_skip_reason`, below.
+#     `ensures`, and `increment`/`decrement` mutations, ARE generated now.
 #   - Role checking (Unauthorized), reference-existence checking
 #     (resolve_references — a `Reference<X>` attribute is represented
 #     as a bare `String` id, per aggregates-and-value-objects.md; NOTHING
@@ -492,28 +494,32 @@ module RustProjector
   end
 
   def command_skip_reason(command, aggregate, value_objects_by_name)
-    unless command[:ensures].empty?
-      return "declares #{command[:ensures].size} ensures — not generated yet (needs the pre-mutation old: snapshot)"
-    end
-
-    unsupported_ops = command[:mutations].reject { |m| %i[append set].include?(m[:op]) }.map { |m| m[:op] }.uniq
-    return "then_set op(s) #{unsupported_ops.join(', ')} not generated yet (only append/set are)" if unsupported_ops.any?
+    unsupported_ops = command[:mutations].reject { |m| %i[append set increment decrement].include?(m[:op]) }.map { |m| m[:op] }.uniq
+    return "then_set op(s) #{unsupported_ops.join(', ')} not generated yet (only append/set/increment/decrement are)" if unsupported_ops.any?
 
     literal_fields = command[:mutations].select { |m| m[:op] == :append }
                                          .flat_map { |m| m[:fields].select { |_, v| v.start_with?("{") }.keys }
     return "append carries a literal value object (#{literal_fields.join(', ')}) — not parsed back from its .inspect string yet" if literal_fields.any?
 
-    # A `:set` mutation's literal source is a bare scalar (`to: "sold"`) in
-    # every case this generator handles — Command::Mutation#classified_source
-    # wraps ANY non-Symbol source as `{kind: "literal", value: source}`
-    # untouched, so a literal VALUE OBJECT (`to: { value: "good" }`) arrives
-    # here as a real Ruby Hash, not a re-parseable string the way a literal
-    # `append` field is. Checked generically (not just "is it a Hash") so
-    # nothing NEW and unexpected can crash the run instead of being skipped.
-    scalar_literal = ->(v) { v.is_a?(String) || v.is_a?(Numeric) || v == true || v == false }
-    literal_set_targets = command[:mutations].select { |m| m[:op] == :set && m[:source][:kind] == "literal" && !scalar_literal.call(m[:source][:value]) }
-                                              .map { |m| m[:target] }
-    return "then_set to: a non-scalar literal (#{literal_set_targets.join(', ')}) — not generated yet" if literal_set_targets.any?
+    lifecycle_field = aggregate[:lifecycle] && aggregate[:lifecycle][:field].to_sym
+    target_type_for = ->(target) { target == lifecycle_field ? "String" : aggregate[:attributes].find { |a| a[:name] == target }&.dig(:type) }
+
+    # A `:set` mutation's literal source is EITHER a bare scalar (`to:
+    # "sold"`) or a raw Ruby Hash (`to: { value: "good" }` —
+    # Command::Mutation#classified_source wraps any non-Symbol source as
+    # `{kind: "literal", value: source}` UNTOUCHED, unlike `:append`'s
+    # `.inspect`'d fields, so a literal value object needs no re-parsing —
+    # `literal_struct_rhs`, below, builds its Rust struct literal straight
+    # from the Hash). Bridgeable only when every field the target VO
+    # declares is actually present in the literal; checked generically (not
+    # just "is it a Hash") so nothing NEW and unexpected can crash the run
+    # instead of being skipped.
+    literal_set_targets = command[:mutations].select do |m|
+      next false unless m[:op] == :set && m[:source][:kind] == "literal"
+
+      !literal_set_bridgeable?(m[:source][:value], target_type_for.call(m[:target]), value_objects_by_name)
+    end.map { |m| m[:target] }
+    return "then_set to: a literal that doesn't bridge to the target's type (#{literal_set_targets.join(', ')}) — not generated yet" if literal_set_targets.any?
 
     # Ruby's real `apply`, for `:set`, does `Value.for(aggregate, mutation.target,
     # value)` — it coerces whatever arrived into the TARGET attribute's OWN
@@ -524,17 +530,88 @@ module RustProjector
     # argument's own type straight across, which only compiles when source
     # and target genuinely agree — checked here so a real mismatch is a named
     # skip, not a `cargo build` error with no Ruby-side explanation.
-    lifecycle_field = aggregate[:lifecycle] && aggregate[:lifecycle][:field].to_sym
     mismatched_sets = command[:mutations].select do |m|
       next false unless m[:op] == :set && m[:source][:kind] == "argument"
 
-      target_type = m[:target] == lifecycle_field ? "String" : aggregate[:attributes].find { |a| a[:name] == m[:target] }&.dig(:type)
+      target_type = target_type_for.call(m[:target])
       source_type = command[:attributes].find { |a| a[:name].to_s == m[:source][:name] }&.dig(:type)
       target_type && source_type && !bridgeable_set_types?(source_type, target_type, value_objects_by_name)
     end.map { |m| m[:target] }
     return "then_set :#{mismatched_sets.join(', ')} sources an argument no single-field rewrap can bridge to the target's type — not generated yet" if mismatched_sets.any?
 
+    # `:increment`/`:decrement` — Ruby's real `arithmetic_value_object`
+    # (command_rules/arithmetic.rb, read directly) finds the ONE field
+    # that's `Integer` in both the target VO and the (already
+    # target-type-coerced) amount, and changes only that field. Bridgeable
+    # when the target names such a field AND the amount resolves to a raw
+    # integer expression — `arithmetic_amount_expr`, below, is the same
+    # "can we generate this" / "here's how" pairing `bridgeable_set_types?`/
+    # `mutation_set_rhs` already use for `:set`.
+    arithmetic_targets = command[:mutations].select { |m| %i[increment decrement].include?(m[:op]) }
+    unsupported_arithmetic = arithmetic_targets.reject do |m|
+      target = arithmetic_target_field(m, aggregate, value_objects_by_name)
+      target && arithmetic_amount_expr(m[:source], command, value_objects_by_name, target[1])
+    end.map { |m| m[:target] }
+    return "then_set :#{unsupported_arithmetic.join(', ')} increment/decrement amount or target field isn't bridgeable — not generated yet" if unsupported_arithmetic.any?
+
     nil
+  end
+
+  def literal_set_bridgeable?(value, target_type, value_objects_by_name)
+    return true if value.is_a?(String) || value.is_a?(Numeric) || value == true || value == false
+    return false unless value.is_a?(Hash) && target_type
+
+    vo = value_objects_by_name[target_type]
+    vo && !vo[:closed_set] && vo[:attributes].all? { |attr| value.key?(attr[:name]) || value.key?(attr[:name].to_s) }
+  end
+
+  def integer_field_of(vo)
+    return nil unless vo && !vo[:closed_set]
+
+    attr = vo[:attributes].find { |a| a[:type] == "Integer" }
+    attr && attr[:name]
+  end
+
+  # The target half of an `:increment`/`:decrement` mutation — the
+  # attribute plus which of ITS OWN fields is the one Integer field the
+  # arithmetic actually touches. `nil` when the target isn't a plain
+  # (non-list) value-object attribute with exactly one such field.
+  def arithmetic_target_field(mutation, aggregate, value_objects_by_name)
+    target_attr = aggregate[:attributes].find { |a| a[:name] == mutation[:target] }
+    return nil unless target_attr && !target_attr[:list]
+
+    field = integer_field_of(value_objects_by_name[target_attr[:type]])
+    field && [target_attr, field]
+  end
+
+  # The amount half — resolved to a raw Rust integer-typed EXPRESSION, not
+  # a value object, since only the one shared field ever actually
+  # participates in the arithmetic (arithmetic.rb's own
+  # `arithmetic_value_object`, read directly: `current.with(field,
+  # current[field] + sign*amount[field])` — every OTHER field of `current`
+  # passes through untouched, which is exactly what emit_mutation_line's
+  # `..current` struct-update syntax gives it). A bare `Integer`-typed
+  # argument needs no field walk; a VO-typed argument needs its own
+  # Integer field read off; a literal (`ScheduledPayment.Retry`'s `{value:
+  # 1}` — not `.inspect`'d, see literal_set_bridgeable? above) reads that
+  # same field out of the Hash directly. Returns nil, not raise, when
+  # nothing bridges — command_skip_reason's half of this pairing.
+  def arithmetic_amount_expr(source, command, value_objects_by_name, target_integer_field)
+    if source[:kind] == "literal"
+      value = source[:value]
+      return literal_rhs(value) if value.is_a?(Integer)
+      return nil unless value.is_a?(Hash)
+
+      key = [target_integer_field, target_integer_field.to_s].find { |k| value.key?(k) }
+      key && value[key].is_a?(Integer) ? literal_rhs(value[key]) : nil
+    elsif source[:kind] == "argument"
+      arg_attr = command[:attributes].find { |a| a[:name].to_s == source[:name] }
+      return nil unless arg_attr
+      return "args.#{rust_ident_field(arg_attr[:name])}" if arg_attr[:type] == "Integer"
+
+      field = integer_field_of(value_objects_by_name[arg_attr[:type]])
+      field && "args.#{rust_ident_field(arg_attr[:name])}.#{rust_ident_field(field)}"
+    end
   end
 
   # All transition rows this command names, collapsed into the one
@@ -564,7 +641,12 @@ module RustProjector
   # `command_skip_reason` bug — this should never be reached for a
   # command that wasn't already skipped.
   def mutation_set_rhs(source, target_type, command, value_objects_by_name)
-    return literal_rhs(source[:value]) if source[:kind] == "literal"
+    if source[:kind] == "literal"
+      value = source[:value]
+      return literal_struct_rhs(value, target_type, value_objects_by_name) if value.is_a?(Hash)
+
+      return literal_rhs(value)
+    end
 
     source_attr = command[:attributes].find { |a| a[:name].to_s == source[:name] }
     source_arg  = "args.#{rust_ident_field(source[:name])}"
@@ -582,6 +664,30 @@ module RustProjector
     end
   end
 
+  # An aggregate attribute a CREATING command's own arguments never
+  # mention — `Runtime::Instance.defaults`/`.default_for`, read directly:
+  # every declared attribute gets a value the moment a record is minted,
+  # not just the ones the creating command happened to name. Two real
+  # shapes: the attribute itself carries a `default:` (rare — checked
+  # first, so it wins the way Ruby's own `default_for` orders its two
+  # `return`s), or its VALUE OBJECT's every field carries one of its own
+  # (`RetryCount { value: Integer, default: 0 }` — `ScheduledPayment`
+  # never sets `attempts:` at all; `Value.build(value_object, {})` builds
+  # it from nothing but those defaults). `nil` — not raise — for anything
+  # else, the same as Ruby's own `default_for` returning a real `nil`
+  # (no default anywhere): the record's field is genuinely unset, not a
+  # gap this generator failed to bridge.
+  def creation_default_rhs(attr, value_objects_by_name)
+    default = attr[:default]
+    return default.is_a?(Hash) ? literal_struct_rhs(default, attr[:type], value_objects_by_name) : literal_rhs(default) unless default.nil?
+
+    vo = value_objects_by_name[attr[:type]]
+    return nil unless vo && !vo[:closed_set] && vo[:attributes].all? { |f| !f[:default].nil? }
+
+    fields = vo[:attributes].map { |f| "#{rust_ident_field(f[:name])}: #{literal_rhs(f[:default])}" }
+    "#{rust_ident(attr[:type])} { #{fields.join(', ')} }"
+  end
+
   def literal_rhs(literal)
     case literal
     when String        then "#{literal.inspect}.to_string()"
@@ -589,6 +695,26 @@ module RustProjector
     when true, false     then literal.to_s
     else raise "unsupported literal mutation source #{literal.inspect} — not one of String/Integer/Float/Boolean"
     end
+  end
+
+  # A literal `:set` source that's a raw Ruby Hash, not a scalar
+  # (`Customer.Reinstate`'s `to: { value: "good" }`) — built straight from
+  # the Hash's own values, no string round-trip, since `:set`'s literal
+  # source is never `.inspect`'d (unlike `:append`'s fields; see
+  # literal_set_bridgeable? above for why). Every field the target VO
+  # declares must be present — `command_skip_reason` already checked this
+  # exact condition, so reaching a missing field here is a generator bug.
+  def literal_struct_rhs(hash, target_type, value_objects_by_name)
+    vo = value_objects_by_name[target_type]
+    raise "unsupported literal struct source #{hash.inspect} -> #{target_type} — command_skip_reason should have caught this" unless vo && !vo[:closed_set]
+
+    fields = vo[:attributes].map do |attr|
+      key = [attr[:name], attr[:name].to_s].find { |k| hash.key?(k) }
+      raise "literal #{hash.inspect} missing field #{attr[:name]} for #{target_type} — command_skip_reason should have caught this" unless key
+
+      "#{rust_ident_field(attr[:name])}: #{literal_rhs(hash[key])}"
+    end
+    "#{rust_ident(target_type)} { #{fields.join(', ')} }"
   end
 
   # `:append` and `:set` — the two `then_set` ops this slice generates.
@@ -660,6 +786,14 @@ module RustProjector
         rhs = mutation_set_rhs(mutation[:source], target_attr[:type], command, value_objects_by_name)
         target_attr[:list] ? "        record.#{target_field} = #{rhs};" : "        record.#{target_field} = Some(#{rhs});"
       end
+    when :increment, :decrement
+      target_attr, integer_field = arithmetic_target_field(mutation, aggregate, value_objects_by_name)
+      vo_type = rust_ident(target_attr[:type])
+      field_ident = rust_ident_field(integer_field)
+      amount_expr = arithmetic_amount_expr(mutation[:source], command, value_objects_by_name, integer_field)
+      sign = mutation[:op] == :increment ? "+" : "-"
+      "        { let current = record.#{target_field}.clone().unwrap(); " \
+      "record.#{target_field} = Some(#{vo_type} { #{field_ident}: current.#{field_ident} #{sign} (#{amount_expr}), ..current }); }"
     end
   end
 
@@ -694,6 +828,10 @@ module RustProjector
 
     given_specs = command[:givens].map do |given|
       "            crate::kernel::GivenSpec { description: #{given[:description].inspect}, expr: #{ExprEmitter.emit_predicate(given[:canonical])} },"
+    end
+
+    ensures_specs = command[:ensures].map do |rule|
+      "            crate::kernel::EnsuresSpec { description: #{rule[:description].inspect}, expr: #{ExprEmitter.emit_predicate(rule[:canonical])} },"
     end
 
     payload_lines = command[:attributes].map do |attr|
@@ -731,8 +869,11 @@ module RustProjector
         field = rust_ident_field(attr[:name])
         if matched
           attr[:list] ? "            #{field}: args.#{field}.clone()," : "            #{field}: Some(args.#{field}.clone()),"
+        elsif attr[:list]
+          "            #{field}: vec![],"
         else
-          attr[:list] ? "            #{field}: vec![]," : "            #{field}: None,"
+          default_rhs = creation_default_rhs(attr, value_objects_by_name)
+          default_rhs ? "            #{field}: Some(#{default_rhs})," : "            #{field}: None,"
         end
       end
       record_fields << "            #{rust_ident_field(aggregate[:lifecycle][:field])}: #{aggregate[:lifecycle][:default].inspect}.to_string()," if aggregate[:lifecycle]
@@ -779,6 +920,9 @@ module RustProjector
       #{mutation_lines.join("\n")}
                   Ok(())
               },
+              &[
+      #{ensures_specs.join("\n")}
+              ],
               &[#{command[:emits].map(&:inspect).join(", ")}],
               payload,
           )

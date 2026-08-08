@@ -289,6 +289,9 @@ pub fn dispatch_declare(
         let _ = record;
             Ok(())
         },
+        &[
+
+        ],
         &["AskDeclared"],
         payload,
     )
@@ -341,6 +344,9 @@ pub fn dispatch_filter(
         record.wheres.push(Filter { field: args.field.value.clone(), op: args.op.value.clone(), value: args.value.value.clone() });
             Ok(())
         },
+        &[
+
+        ],
         &["FilterAttached"],
         payload,
     )
@@ -397,6 +403,9 @@ pub fn dispatch_option(
         record.options.push(AskOption { option: args.option.value.clone(), key: args.key.value.clone(), value: args.value.value.clone(), at: args.at.value.clone() });
             Ok(())
         },
+        &[
+
+        ],
         &["OptionAttached"],
         payload,
     )
@@ -465,6 +474,9 @@ pub fn dispatch_argument(
         record.attributes.push(AskArgument { name: args.name.value.clone(), r#type: args.r#type.value.clone(), list: args.list.value.clone(), default: args.default.value.clone(), optional: args.optional.value.clone(), pattern: args.pattern.value.clone(), admits: args.admits.value.clone() });
             Ok(())
         },
+        &[
+
+        ],
         &["AskArgumentAttached"],
         payload,
     )

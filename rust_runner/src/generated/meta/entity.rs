@@ -269,6 +269,9 @@ pub fn dispatch_declare(
         let _ = record;
             Ok(())
         },
+        &[
+
+        ],
         &["PieceDeclared"],
         payload,
     )
@@ -313,6 +316,9 @@ pub fn dispatch_identify(
         record.identified_by.push(IdentityPath { value: args.path.value.clone() });
             Ok(())
         },
+        &[
+
+        ],
         &["PieceIdentified"],
         payload,
     )
@@ -356,6 +362,9 @@ pub fn dispatch_seal(
         let _ = record;
             Ok(())
         },
+        &[
+
+        ],
         &["PieceSealed"],
         payload,
     )
@@ -424,6 +433,9 @@ pub fn dispatch_attribute(
         record.attributes.push(PieceField { name: args.name.value.clone(), r#type: args.r#type.value.clone(), list: args.list.value.clone(), default: args.default.value.clone(), optional: args.optional.value.clone(), pattern: args.pattern.value.clone(), admits: args.admits.value.clone() });
             Ok(())
         },
+        &[
+
+        ],
         &["PieceAttributeAttached"],
         payload,
     )
@@ -473,6 +485,9 @@ pub fn dispatch_lifecycle(
         record.state_start = Some(args.state_start.clone());
             Ok(())
         },
+        &[
+
+        ],
         &["PieceLifecycleNamed"],
         payload,
     )
@@ -525,6 +540,9 @@ pub fn dispatch_transition(
         record.transitions.push(PieceTransition { command: args.command.value.clone(), from_state: args.from_state.value.clone(), to_state: args.to_state.value.clone() });
             Ok(())
         },
+        &[
+
+        ],
         &["PieceTransitionAttached"],
         payload,
     )

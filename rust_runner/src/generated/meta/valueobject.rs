@@ -247,6 +247,9 @@ pub fn dispatch_declare(
         let _ = record;
             Ok(())
         },
+        &[
+
+        ],
         &["ShapeDeclared"],
         payload,
     )
@@ -315,6 +318,9 @@ pub fn dispatch_field(
         record.attributes.push(ShapeField { name: args.name.value.clone(), r#type: args.r#type.value.clone(), list: args.list.value.clone(), default: args.default.value.clone(), optional: args.optional.value.clone(), pattern: args.pattern.value.clone(), admits: args.admits.value.clone() });
             Ok(())
         },
+        &[
+
+        ],
         &["ShapeFieldAttached"],
         payload,
     )
@@ -359,6 +365,9 @@ pub fn dispatch_close(
         record.rows = Some(args.rows.clone());
             Ok(())
         },
+        &[
+
+        ],
         &["ShapeClosed"],
         payload,
     )
@@ -408,6 +417,9 @@ pub fn dispatch_assert(
         record.invariants.push(Assertion { description: args.description.value.clone(), canonical: args.canonical.value.clone() });
             Ok(())
         },
+        &[
+
+        ],
         &["AssertionAttached"],
         payload,
     )

@@ -180,6 +180,9 @@ pub fn dispatch_declare(
         let _ = record;
             Ok(())
         },
+        &[
+
+        ],
         &["ReactionDeclared"],
         payload,
     )

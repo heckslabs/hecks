@@ -280,6 +280,9 @@ pub fn dispatch_create_pizza(
         let _ = record;
             Ok(())
         },
+        &[
+
+        ],
         &["PizzaCreated"],
         payload,
     )
@@ -329,6 +332,9 @@ pub fn dispatch_add_topping(
         record.toppings.push(Topping { name: args.topping.value.clone(), amount: args.amount.value.clone() });
             Ok(())
         },
+        &[
+
+        ],
         &["ToppingAdded"],
         payload,
     )
@@ -381,6 +387,9 @@ pub fn dispatch_purchase(
         record.status = "sold".to_string();
             Ok(())
         },
+        &[
+
+        ],
         &["PizzaPurchased"],
         payload,
     )

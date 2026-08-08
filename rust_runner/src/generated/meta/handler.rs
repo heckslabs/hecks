@@ -137,6 +137,9 @@ pub fn dispatch_declare(
         let _ = record;
             Ok(())
         },
+        &[
+
+        ],
         &["LegDeclared"],
         payload,
     )
