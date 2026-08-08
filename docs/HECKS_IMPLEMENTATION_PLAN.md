@@ -1230,7 +1230,31 @@ Use outbox/ports for those.
 
 # 11. OIDC client projection
 
-**Status:** New projection  
+**Status:** Integration layer done (2026-08-08) — the real provider-
+facing half (redirect, code exchange, JWT/JWKS signature verification
+against a live provider) is deliberately NOT built: security-critical,
+needs real external dependencies and provider credentials neither
+available nor meaningfully testable here, scoped out on purpose rather
+than stubbed. What IS built and proven against real Banking: a new
+`identity_resolution` port (`lib/hecksagain/ports/identity_resolution.{port,rb}`),
+resolved zero/one/many exactly like the `authorization` port
+`Ports::Authorization` built for `§2`, fulfilled by `Hecksagain::Adapters::IdentityRegistry`
+(`lib/hecksagain/adapters/driven/identity_registry.rb`) — a same-registry
+dispatch against `Identity::ExternalIdentifier.ResolvedBy`, mirroring
+`GovernanceAuthorization`'s own shape exactly. `spec/oidc_projection_spec.rb`
+composes it with `Ports::Authorization.holds_role?` and `Hecks.as_caller`
+— the plan's own sketch, just spelled out — booted through the real
+`Hecks.boot("examples/banking")` path (both Governance and Identity are
+already attached there via `uses_framework`, see `§4`/`§5`'s own notes).
+Every acceptance criterion below is proven, not merely asserted: no
+password field exists on `Identity`/`ExternalIdentifier` (checked
+against the real declared attributes), `(issuer, subject)` uniquely
+resolves (checked against `Link`'s own natural key), two different
+external identifiers link to one identity and both authenticate
+(dispatched for real, against real Banking commands), and the
+unauthorized/unresolved paths refuse BEFORE any dispatch — command
+authorization stays exactly Governance's job, `identity_resolution`
+never touches `CommandInterpreter`/`Dispatcher`/`CommandRules::Authorization`.  
 **Priority:** P1  
 **Complexity:** M
 

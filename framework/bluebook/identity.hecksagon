@@ -1,4 +1,0 @@
-Hecks.hecksagon "Identity" do
-  Identity::Identity.persisted_by("Memory")
-  Identity::ExternalIdentifier.persisted_by("Memory")
-end

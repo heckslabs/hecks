@@ -1,4 +1,0 @@
-Hecks.hecksagon "Governance" do
-  Governance::RoleAssignment.persisted_by("Memory")
-  Governance::RoleTransition.persisted_by("Memory")
-end
