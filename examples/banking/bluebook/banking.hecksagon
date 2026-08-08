@@ -23,3 +23,28 @@ Hecks.hecksagon "Banking" do
   Banking::Statement.persisted_by("Heki")
   Banking::Statement.projected_by("SqliteProjection")
 end
+
+# A FRAMEWORK MEMBER BRINGS ITS OWN SHAPE, NOT ITS OWN PERSISTENCE —
+# `Framework.load!` (`uses_framework`, above) only loads the bluebook.
+# Binding `Governance::RoleAssignment` etc. INSIDE Banking's own
+# hecksagon would not work even syntactically-correctly written:
+# `Ports::Persistence::BindingPolicy.resolve` looks up
+# `registry.hecksagon(aggregate's OWN domain)`, not the domain doing the
+# binding — a persistence bind belongs in a hecksagon registered under
+# the SAME name as the aggregate's own chapter, the one invariant this
+# runtime holds everywhere else too. So this is a second, SIBLING
+# hecksagon — same shape framework/bluebook/governance.hecksagon and
+# identity.hecksagon used to be, before persistence became the
+# consumer's decision instead of the framework member's own default.
+# Memory here because this is a spec/example corpus member, not a real
+# deployment — a real app (see embryonaut's own hecksagon) binds these
+# to something durable instead.
+Hecks.hecksagon "Governance" do
+  Governance::RoleAssignment.persisted_by("Memory")
+  Governance::RoleTransition.persisted_by("Memory")
+end
+
+Hecks.hecksagon "Identity" do
+  Identity::Identity.persisted_by("Memory")
+  Identity::ExternalIdentifier.persisted_by("Memory")
+end

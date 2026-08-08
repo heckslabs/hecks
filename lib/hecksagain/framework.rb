@@ -35,9 +35,22 @@ module Hecksagain
     # directory — there is nothing here for a relocated copy to break,
     # the way a symlink carried along with the copy would.
     #
-    # A framework member's own `.hecksagon` travels with it, the same
-    # order `Adapters::Folder::DOMAIN_ORDER` already loads any other
-    # domain's own bluebook-then-hecksagon pair in.
+    # ONLY THE BLUEBOOK — a framework member's own `.hecksagon`, if it
+    # has one, is NOT auto-loaded. Persistence is a WIRING decision, the
+    # same as any other aggregate's, and belongs to whoever is doing the
+    # deploying, not to a default baked into the framework member
+    # itself: a consuming app needs `Governance::RoleAssignment` durable
+    # (Postgres, say), and a framework member hard-coding Memory for its
+    # own specs would silently make that decision FOR every app that
+    # attaches it. The consuming app declares its OWN, SEPARATE
+    # `Hecks.hecksagon "Governance" do ... end` block for that — not
+    # binds folded into its own hecksagon, which would build but never
+    # resolve: `Ports::Persistence::BindingPolicy.resolve` looks up
+    # `registry.hecksagon` by the AGGREGATE's own domain name, not the
+    # domain doing the binding, the one invariant this runtime holds
+    # everywhere else too. See `examples/banking/bluebook/banking.hecksagon`
+    # for the pattern — a real `.hecksagon` file can hold more than one
+    # `Hecks.hecksagon` call, one per domain it wires.
     def self.load!(name)
       path = members.fetch(name.to_s) do
         raise Runtime::WiringError,
@@ -45,8 +58,6 @@ module Hecksagain
       end
 
       Kernel.load(path)
-      hecksagon = path.sub(/\.bluebook\z/, ".hecksagon")
-      Kernel.load(hecksagon) if File.exist?(hecksagon)
     end
   end
 end
