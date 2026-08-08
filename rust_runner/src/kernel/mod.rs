@@ -10,7 +10,7 @@ pub mod dispatch;
 pub mod expr;
 pub mod repository;
 
-pub use dispatch::{dispatch, GivenSpec, Hydrate};
+pub use dispatch::{dispatch, GivenSpec, Hydrate, TransitionCheck};
 pub use expr::{interpret, Comparison, EvalContext, Expr, Field, Fielded, NoFields, Value};
 pub use repository::{InMemoryRepository, Repository};
 

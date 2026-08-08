@@ -13,17 +13,35 @@
 // NOT YET GENERIC HERE, flagged rather than silently assumed away:
 // `ensures` (needs the pre-mutation `old:` snapshot threaded through —
 // real, undone), `enforce_role_mismatch`/`resolve_references` (no role
-// checking or reference-existence checking generated yet), lifecycle
-// transitions (`admissible_transition`/`advance_lifecycle` — a command
-// naming a transition isn't wired into `dispatch` yet).
+// checking or reference-existence checking generated yet).
 
-use super::expr::{interpret, EvalContext, Expr, Fielded};
+use super::expr::{interpret, EvalContext, Expr, Field, Fielded, Value};
 use super::{Event, Refusal, Repository};
 use std::collections::BTreeMap;
 
 pub struct GivenSpec {
     pub description: &'static str,
     pub expr: Expr,
+}
+
+/// `admissible_transition` — the check half of a lifecycle transition.
+/// The write half (`advance_lifecycle`, unconditional once a transition
+/// applies at all) isn't a separate step here: nothing in the currently
+/// generated dispatch pipeline observes the record between
+/// `apply_mutations` and where `advance_lifecycle` would run (`ensures`
+/// isn't generated yet), so the generated `apply_mutations` closure just
+/// writes the target state as one more line — same observable order,
+/// one fewer moving part in the kernel. Revisit this folding once
+/// `ensures` is generated, in case an `ensures` ever needs to read the
+/// lifecycle field's PRE-advance value specifically.
+///
+/// Reuses the record's own `Fielded` impl to read the current state —
+/// unlike a WRITE, reading the lifecycle field generically needs no new
+/// per-type glue, because it's already exposed the same way every other
+/// field is.
+pub struct TransitionCheck {
+    pub field: &'static str,
+    pub from_states: &'static [&'static str],
 }
 
 /// How this dispatch obtains its starting record — the one real branch
@@ -55,6 +73,7 @@ pub fn dispatch<'a, T, R>(
     aggregate_qualified_name: &'static str,
     args: &'a dyn Fielded,
     givens: &[GivenSpec],
+    transition: Option<TransitionCheck>,
     // Takes no `args` parameter of its own — the generated closure passed
     // in captures the CONCRETE, typed args struct directly from its
     // enclosing scope (by reference — not `move`, for the same reason
@@ -95,6 +114,31 @@ where
         let ctx = EvalContext { args, instance: &record };
         if !interpret(&given.expr, &ctx)?.truthy() {
             return Err(Refusal::GivenNotMet(given.description.to_string()));
+        }
+    }
+
+    if let Some(check) = &transition {
+        match record.field(check.field) {
+            Some(Field::Value(Value::Str(current))) => {
+                if !check.from_states.contains(&current.as_str()) {
+                    return Err(Refusal::LifecycleRefused(format!(
+                        "{command_name} cannot run from {current:?} — admits {:?}",
+                        check.from_states
+                    )));
+                }
+            }
+            // Not a codegen-emitted mismatch a real dispatch should ever hit —
+            // the lifecycle field is always a plain string on every generated
+            // record. Surfaced as TypeMismatch, the same way an expression
+            // evaluation bug is (see expr.rs's own `eval_error`), because
+            // reaching this means the GENERATOR is wrong, not that the
+            // command was refused for a real business reason.
+            _ => {
+                return Err(Refusal::TypeMismatch(format!(
+                    "{command_name}: lifecycle field {:?} missing or not a string — a codegen bug",
+                    check.field
+                )))
+            }
         }
     }
 

@@ -275,6 +275,7 @@ pub fn dispatch_create_pizza(
         &[
 
         ],
+        None,
         |record| {
         let _ = record;
             Ok(())
@@ -323,11 +324,64 @@ pub fn dispatch_add_topping(
             crate::kernel::GivenSpec { description: "a sold pizza cannot be changed", expr: Expr::Compare { op: Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("available".to_string())) } },
             crate::kernel::GivenSpec { description: "at most 10 toppings", expr: Expr::Compare { op: Comparison { less_than: true, equal: false, negated: false }, left: Box::new(Expr::Size(Box::new(Expr::Lookup("toppings")))), right: Box::new(Expr::Int(10)) } },
         ],
+        None,
         |record| {
         record.toppings.push(Topping { name: args.topping.value.clone(), amount: args.amount.value.clone() });
             Ok(())
         },
         &["ToppingAdded"],
+        payload,
+    )
+}
+
+impl crate::kernel::Fielded for PurchaseArgs {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        
+        match name {
+            "customer_name" => Some(Field::Nested(&self.customer_name)),
+            "amount" => Some(Field::Nested(&self.amount)),
+            _ => None,
+        }
+    }
+}
+
+
+#[derive(Debug, Clone)]
+pub struct PurchaseArgs {
+    pub customer_name: CustomerName,
+    pub amount: Price,
+}
+
+pub fn dispatch_purchase(
+    repo: &mut impl crate::kernel::Repository<Order>, id: &str, args: PurchaseArgs,
+) -> crate::kernel::DispatchResult<Order> {
+        args.customer_name.check_invariants()?;
+        args.amount.check_invariants()?;
+
+    let mut payload = std::collections::BTreeMap::new();
+    payload.insert("customer_name".to_string(), format!("{:?}", args.customer_name.value)); 
+        payload.insert("amount".to_string(), format!("{:?}", args.amount.cents)); 
+
+    crate::kernel::dispatch(
+        repo,
+        crate::kernel::Hydrate::Act { id: id.to_string() },
+        "Purchase",
+        "Pizzas::Order",
+        &args,
+        &[
+            crate::kernel::GivenSpec { description: "a pizza needs at least one topping", expr: Expr::SignTest { op: Comparison { less_than: true, equal: true, negated: true }, receiver: Box::new(Expr::Size(Box::new(Expr::Lookup("toppings")))) } },
+            crate::kernel::GivenSpec { description: "it must still be available", expr: Expr::Compare { op: Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("available".to_string())) } },
+            crate::kernel::GivenSpec { description: "a payment was actually made", expr: Expr::SignTest { op: Comparison { less_than: true, equal: true, negated: true }, receiver: Box::new(Expr::Lookup("amount.cents")) } },
+        ],
+        Some(crate::kernel::TransitionCheck { field: "status", from_states: &["available"] }),
+        |record| {
+        record.customer_name = Some(args.customer_name.clone());
+        record.status = "sold".to_string();
+        record.status = "sold".to_string();
+            Ok(())
+        },
+        &["PizzaPurchased"],
         payload,
     )
 }

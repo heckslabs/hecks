@@ -341,12 +341,8 @@ module RustProjector
       return "declares #{command[:ensures].size} ensures — not generated yet (needs the pre-mutation old: snapshot)"
     end
 
-    if aggregate[:lifecycle]&.dig(:transitions)&.any? { |t| t[:command] == command[:name] }
-      return "names a lifecycle transition — advance_lifecycle isn't wired into kernel::dispatch yet"
-    end
-
-    unsupported_ops = command[:mutations].reject { |m| m[:op] == :append }.map { |m| m[:op] }.uniq
-    return "then_set op(s) #{unsupported_ops.join(', ')} not generated yet (only append is)" if unsupported_ops.any?
+    unsupported_ops = command[:mutations].reject { |m| %i[append set].include?(m[:op]) }.map { |m| m[:op] }.uniq
+    return "then_set op(s) #{unsupported_ops.join(', ')} not generated yet (only append/set are)" if unsupported_ops.any?
 
     literal_fields = command[:mutations].select { |m| m[:op] == :append }
                                          .flat_map { |m| m[:fields].select { |_, v| v.start_with?("{") }.keys }
@@ -355,23 +351,70 @@ module RustProjector
     nil
   end
 
-  def emit_append_mutation(mutation, aggregate, command, value_objects_by_name)
-    target_field = rust_field(mutation[:target])
-    target_attr = aggregate[:attributes].find { |a| a[:name] == mutation[:target] }
-    vo_type = rust_ident(target_attr[:type])
+  # All transition rows this command names, collapsed into the one
+  # `field`/`from_states` shape `TransitionCheck` wants — a command with
+  # more than one `from:` (CloseAccount: from "open" OR "frozen") shares
+  # one `to_state` across every matching row, per the "Lifecycles"
+  # section above, so only `from_states` needs to be a list.
+  def lifecycle_transition_for(command, aggregate)
+    return nil unless aggregate[:lifecycle]
 
-    fields_assignment = mutation[:fields].map do |field_name, arg_name|
-      arg_attr = command[:attributes].find { |a| a[:name].to_s == arg_name }
-      arg_vo = arg_attr && value_objects_by_name[arg_attr[:type]]
-      if arg_vo && !arg_attr[:list] && arg_vo[:attributes].size == 1
-        inner = arg_vo[:attributes].first[:name]
-        "#{field_name}: args.#{arg_attr[:name]}.#{inner}.clone()"
-      else
-        "#{field_name}: args.#{arg_attr[:name]}.clone()"
+    rows = aggregate[:lifecycle][:transitions].select { |t| t[:command] == command[:name] }
+    return nil if rows.empty?
+
+    { field: aggregate[:lifecycle][:field], to_state: rows.first[:to_state], from_states: rows.map { |r| r[:from_state] }.uniq }
+  end
+
+  def mutation_set_rhs(source)
+    if source[:kind] == "argument"
+      "args.#{source[:name]}.clone()"
+    else
+      literal = source[:value]
+      case literal
+      when String        then "#{literal.inspect}.to_string()"
+      when Integer, Float then literal.to_s
+      when true, false     then literal.to_s
+      else raise "unsupported literal mutation source #{literal.inspect} — not one of String/Integer/Float/Boolean"
       end
-    end.join(", ")
+    end
+  end
 
-    "        record.#{target_field}.push(#{vo_type} { #{fields_assignment} });"
+  # `:append` and `:set` — the two `then_set` ops this slice generates.
+  # `:set` has one real special case: the LIFECYCLE field is not one of
+  # the aggregate's own `attributes` (see "Lifecycles" above), so it
+  # can't be looked up there and isn't `Option`-wrapped on the record the
+  # way every other field is — `Purchase`'s own `then_set :status, to:
+  # "sold"` is a real, redundant instance of this (redundant with the
+  # transition's own advance, harmless, same pattern as `Account.Open`'s
+  # redundant `then_set` on an already-implicit creation attribute).
+  def emit_mutation_line(mutation, aggregate, command, value_objects_by_name)
+    target_field   = rust_field(mutation[:target])
+    lifecycle_field = aggregate[:lifecycle] && aggregate[:lifecycle][:field].to_sym
+
+    case mutation[:op]
+    when :append
+      target_attr = aggregate[:attributes].find { |a| a[:name] == mutation[:target] }
+      vo_type = rust_ident(target_attr[:type])
+      fields_assignment = mutation[:fields].map do |field_name, arg_name|
+        arg_attr = command[:attributes].find { |a| a[:name].to_s == arg_name }
+        arg_vo = arg_attr && value_objects_by_name[arg_attr[:type]]
+        if arg_vo && !arg_attr[:list] && arg_vo[:attributes].size == 1
+          inner = arg_vo[:attributes].first[:name]
+          "#{field_name}: args.#{arg_attr[:name]}.#{inner}.clone()"
+        else
+          "#{field_name}: args.#{arg_attr[:name]}.clone()"
+        end
+      end.join(", ")
+      "        record.#{target_field}.push(#{vo_type} { #{fields_assignment} });"
+    when :set
+      rhs = mutation_set_rhs(mutation[:source])
+      if mutation[:target] == lifecycle_field
+        "        record.#{target_field} = #{rhs};"
+      else
+        target_attr = aggregate[:attributes].find { |a| a[:name] == mutation[:target] }
+        target_attr[:list] ? "        record.#{target_field} = #{rhs};" : "        record.#{target_field} = Some(#{rhs});"
+      end
+    end
   end
 
   # ── ONE emitter for every command shape kernel::dispatch can run —
@@ -417,7 +460,22 @@ module RustProjector
       end
     end
 
-    mutation_lines = command[:mutations].map { |m| emit_append_mutation(m, aggregate, command, value_objects_by_name) }
+    transition = lifecycle_transition_for(command, aggregate)
+    transition_arg =
+      if transition
+        "Some(crate::kernel::TransitionCheck { field: #{transition[:field].inspect}, from_states: &[#{transition[:from_states].map(&:inspect).join(', ')}] })"
+      else
+        "None"
+      end
+
+    mutation_lines = command[:mutations].map { |m| emit_mutation_line(m, aggregate, command, value_objects_by_name) }
+    # advance_lifecycle: unconditional once a transition applies at all —
+    # see kernel/dispatch.rs's TransitionCheck comment for why this lives
+    # here, as one more line in the SAME closure, rather than as its own
+    # dispatch() step. Covers commands with no explicit then_set on the
+    # lifecycle field (Banking's Freeze/Unfreeze have none) — Purchase's
+    # own explicit then_set above already covers itself, redundantly.
+    mutation_lines << "        record.#{rust_field(transition[:field])} = #{transition[:to_state].inspect}.to_string();" if transition
     mutation_lines = ["        let _ = record;"] if mutation_lines.empty? # nothing to apply — silence the unused-param warning
 
     if creates
@@ -468,6 +526,7 @@ module RustProjector
               &[
       #{given_specs.join("\n")}
               ],
+              #{transition_arg},
               |record| {
       #{mutation_lines.join("\n")}
                   Ok(())
