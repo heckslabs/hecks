@@ -204,14 +204,15 @@ mod tests {
     // era_exists's own query only ever reads domain/ordinal, so a
     // minimal hecks_eras row satisfies the SAME boot-gate check main.rs
     // runs for real.
-    async fn provision_lineage(client: &Client, domain: &str, era: i64, aggregate_storage_names: &[&str]) {
-        // bigint, not int — LineageConfig::era and every binding of it
-        // (era_exists, append_lineage_mutation) are i64; tokio_postgres
-        // requires the Rust and Postgres types to match exactly, not
-        // just be numerically compatible (a real, live "WrongType"
-        // error otherwise).
+    async fn provision_lineage(client: &Client, domain: &str, era: i32, aggregate_storage_names: &[&str]) {
+        // `int`, matching Ruby's real DDL (era_store.rb's `ordinal int
+        // NOT NULL`, provisioning.rb's `era int NOT NULL`) exactly —
+        // LineageConfig::era is i32 for the same reason: tokio_postgres
+        // requires the Rust and Postgres types to match, not just be
+        // numerically compatible, and this fixture should mirror the
+        // real schema, not a convenient stand-in for it.
         client
-            .batch_execute("CREATE TABLE IF NOT EXISTS hecks_eras (domain text, ordinal bigint, held_text text)")
+            .batch_execute("CREATE TABLE IF NOT EXISTS hecks_eras (domain text, ordinal int, held_text text)")
             .await
             .unwrap();
         client
@@ -227,7 +228,7 @@ mod tests {
             .batch_execute(&format!(
                 "CREATE TABLE IF NOT EXISTS \"{journal_table}\" (
                     ordinal      bigserial PRIMARY KEY,
-                    era          bigint NOT NULL,
+                    era          int NOT NULL,
                     aggregate    text NOT NULL,
                     aggregate_id text NOT NULL,
                     operation    text NOT NULL,
@@ -248,7 +249,7 @@ mod tests {
         }
     }
 
-    fn test_config(domain: &str, era: i64) -> LineageConfig {
+    fn test_config(domain: &str, era: i32) -> LineageConfig {
         LineageConfig { domain: domain.to_string(), era }
     }
 
@@ -294,7 +295,7 @@ mod tests {
             .unwrap();
         assert_eq!(journal_rows.len(), 1);
         let row = &journal_rows[0];
-        let era: i64 = row.get(0);
+        let era: i32 = row.get(0);
         let aggregate: String = row.get(1);
         let aggregate_id: String = row.get(2);
         let operation: String = row.get(3);

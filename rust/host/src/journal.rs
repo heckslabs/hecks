@@ -103,7 +103,7 @@ pub async fn append<C: GenericClient>(
 /// from `HECKS_DOMAIN`/`HECKS_ERA`).
 pub struct LineageConfig {
     pub domain: String,
-    pub era: i64,
+    pub era: i32,
 }
 
 /// `Naming.snake` (lib/hecksagain/naming.rb:30-35), ported verbatim — a
@@ -187,7 +187,7 @@ fn journal_table(domain: &str) -> String {
     format!("hecks_journal_{}", snake(domain))
 }
 
-fn head_snapshot_table(qualified_aggregate: &str, era: i64) -> String {
+fn head_snapshot_table(qualified_aggregate: &str, era: i32) -> String {
     format!("{}_head_snapshot_{}", storage_name(qualified_aggregate), era)
 }
 
@@ -196,7 +196,7 @@ fn head_snapshot_table(qualified_aggregate: &str, era: i64) -> String {
 /// a domain/era Ruby's LineageManager hasn't provisioned yet (or the
 /// era ordinal is simply wrong) — `main.rs` refuses to start rather
 /// than write into tables that may not exist.
-pub async fn era_exists(client: &Client, domain: &str, era: i64) -> anyhow::Result<bool> {
+pub async fn era_exists(client: &Client, domain: &str, era: i32) -> anyhow::Result<bool> {
     let rows = client
         .query(
             "SELECT 1 FROM hecks_eras WHERE domain = $1 AND ordinal = $2",
@@ -266,4 +266,76 @@ pub async fn append_lineage_mutation<C: GenericClient>(
         .await?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod lineage_tests {
+    use super::*;
+    use tokio_postgres::NoTls;
+
+    // MINTS A REAL ERA 2 — via Ruby's own LineageManager, not this
+    // crate's own writes, against a scratch database with a genuinely
+    // fenced (non-superuser) app role. Proves the central claim
+    // `append_lineage_mutation`'s own header makes: staleness is
+    // refused by Postgres's OWN RLS row policy
+    // (`hecks_current_era`, mint_transaction.rb), not by any check this
+    // crate performs itself. See tests/fixtures/mint_stale_era.rb,
+    // itself a close port of
+    // spec/adapters/driven/postgres/lineage_spec.rb's own
+    // "fences a deployment's app role" setup — proven Ruby code, not
+    // reinvented here.
+    #[tokio::test]
+    async fn a_stale_era_write_is_refused_by_postgres_rls_not_this_crate() {
+        let db = "rust_host_rls_test";
+        let owner_role = "rust_host_rls_owner";
+        let app_role = "rust_host_rls_app";
+
+        let script = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/mint_stale_era.rb");
+        let status = std::process::Command::new("ruby")
+            .arg(&script)
+            .arg(db)
+            .arg(owner_role)
+            .arg(app_role)
+            .status()
+            .expect("run mint_stale_era.rb -- is `ruby` on PATH?");
+        assert!(status.success(), "mint_stale_era.rb failed -- see its own stderr above");
+
+        // Connect AS the fenced app role -- the exact connection shape
+        // a real deployed rust/host uses (never the table owner, which
+        // bypasses RLS by default and would prove nothing).
+        let (client, connection) =
+            tokio_postgres::connect(&format!("host=localhost dbname={db} user={app_role}"), NoTls)
+                .await
+                .expect("connect as the app role");
+        tokio::spawn(async move {
+            let _ = connection.await;
+        });
+
+        let state = serde_json::json!({ "cents": 100 });
+
+        // The era this checkout speaks -- allowed.
+        let current_era = LineageConfig { domain: "Ledger".to_string(), era: 2 };
+        let accepted = append_lineage_mutation(
+            &client,
+            &current_era,
+            &Mutation { aggregate: "Account", id: "current-era", operation: "save", state: &state },
+        )
+        .await;
+        assert!(accepted.is_ok(), "writing under the CURRENT era should succeed: {accepted:?}");
+
+        // The SUPERSEDED era -- refused by Postgres's own RLS policy.
+        let stale_era = LineageConfig { domain: "Ledger".to_string(), era: 1 };
+        let refused = append_lineage_mutation(
+            &client,
+            &stale_era,
+            &Mutation { aggregate: "Account", id: "stale-era", operation: "save", state: &state },
+        )
+        .await;
+        assert!(refused.is_err(), "writing under a SUPERSEDED era should be refused");
+        let message = format!("{:#}", refused.unwrap_err()).to_lowercase();
+        assert!(
+            message.contains("row-level security") || message.contains("row level security"),
+            "the refusal should be Postgres's RLS policy specifically, not some other error: {message}"
+        );
+    }
 }

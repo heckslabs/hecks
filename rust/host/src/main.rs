@@ -67,7 +67,12 @@ async fn main() -> Result<(), Error> {
     // under the wrong domain or era is exactly the failure mode this
     // whole design exists to prevent.
     let domain = std::env::var("HECKS_DOMAIN").map_err(|_| "HECKS_DOMAIN is required")?;
-    let era: i64 = std::env::var("HECKS_ERA")
+    // i32, matching Postgres `int` -- hecks_eras.ordinal and every
+    // journal's own `era` column are `int` (int4) in Ruby's real DDL
+    // (era_store.rb/provisioning.rb), not bigint; tokio_postgres
+    // requires the Rust and Postgres types to match exactly, not just
+    // be numerically compatible.
+    let era: i32 = std::env::var("HECKS_ERA")
         .map_err(|_| "HECKS_ERA is required")?
         .parse()
         .map_err(|e| format!("HECKS_ERA must be an integer era ordinal: {e}"))?;
