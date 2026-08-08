@@ -351,7 +351,7 @@ sketch below closely showed `Governance.authorize_transition!` called by
 APPLICATION code, before `Runtime::Caller.as(role:)` wraps a nested
 dispatch — not woven into `CommandInterpreter`/`Dispatcher`/
 `CommandRules::Authorization` at all. So none of those three changed.
-`framework/bluebook/governance.bluebook` gained a second aggregate,
+`lib/hecksagain/framework/bluebook/governance.bluebook` gained a second aggregate,
 `RoleTransition` (`from_role`/`to_role`, `Grant`/`Revoke`, an `Allowed`
 query) — the fact "role X may act as role Y" that `RoleAssignment` alone
 could not answer. `spec/act_as_spec.rb` demonstrates the full pattern
@@ -502,7 +502,7 @@ The domain event itself may remain business-focused; the execution/evidence enve
 
 # 3. Governance Bluebook
 
-**Status:** Done (2026-08-07) — `framework/bluebook/governance.bluebook`
+**Status:** Done (2026-08-07) — `lib/hecksagain/framework/bluebook/governance.bluebook`
 (+ `.hecksagon`, Memory-persisted). `RoleAssignment` aggregate: composite
 identity `(actor_id, role_name, starts_at)` rather than the sketch's
 synthetic `assignment_id` — no UUID adapter exists yet (`§5`), and a real
@@ -517,7 +517,7 @@ query); `AssignmentsForActor` is an ordinary `query`, the construct that
 actually answers "who holds what" — no new DSL surface needed anywhere
 in this build. `spec/corpus_spec.rb`/`spec/model_check_spec.rb` extended
 with a `FRAMEWORK_MEMBERS` glob (mirrors `GRAMMAR_CHAPTERS`'s flat-file
-pattern) so `framework/bluebook/*.bluebook` gets the same
+pattern) so `lib/hecksagain/framework/bluebook/*.bluebook` gets the same
 must-load/must-have-a-corpus-script/no-unnamed-model-check-finding
 guarantees `examples/*` domains get. `spec/governance_spec.rb` (4
 examples) + `spec/corpus/governance.json`, full suite green (1004
@@ -629,7 +629,7 @@ end
 
 # 4. Identities Bluebook
 
-**Status:** Done (2026-08-07) — `framework/bluebook/identity.bluebook`
+**Status:** Done (2026-08-07) — `lib/hecksagain/framework/bluebook/identity.bluebook`
 (+ `.hecksagon`, Memory-persisted; chapter renamed from `Identities` to
 `Identity` on 2026-08-08, matching Governance's own singular naming —
 the aggregate inside is ALSO named `Identity`, so its FQN is the

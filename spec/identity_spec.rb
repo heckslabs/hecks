@@ -14,7 +14,7 @@ RSpec.describe "Identity" do
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       Kernel.load(File.expand_path("../lib/hecksagain/ports/identity_generation.port", __dir__))
       Kernel.load(File.expand_path("../lib/hecksagain/adapters/driven/sequential_identity.adapter", __dir__))
-      Kernel.load(File.join(InMemoryDomain::ROOT, "framework/bluebook/identity.bluebook"))
+      Kernel.load(File.join(InMemoryDomain::ROOT, "lib/hecksagain/framework/bluebook/identity.bluebook"))
       Hecks.hecksagon("Identity") do
         ::Identity::Identity.persisted_by("Memory")
         ::Identity::ExternalIdentifier.persisted_by("Memory")

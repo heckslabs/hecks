@@ -2,24 +2,37 @@ require_relative "runtime/registry"
 
 module Hecksagain
   # THE REGISTRY OF FRAMEWORK BLUEBOOKS — Governance, Identity, and
-  # whatever lands beside them in `framework/bluebook/`: domain-agnostic
-  # chapters no single example owns, shared by reference rather than
-  # copied into every domain that wants one.
+  # whatever lands beside them in `lib/hecksagain/framework/bluebook/`:
+  # domain-agnostic chapters no single example owns, shared by reference
+  # rather than copied into every domain that wants one.
+  #
+  # UNDER `lib/`, not a top-level sibling — a real consumer (embryonaut)
+  # vendors ONLY `lib/` (`bin/vendor-hecksagain`, and this gem's own
+  # `hecksagain.gemspec`, both glob `lib/**/*`), so a `framework/`
+  # sitting beside `lib/` rather than inside it packaged and vendored
+  # cleanly but left `uses_framework` finding nothing at runtime —
+  # `Framework::ROOT` pointed at a directory that simply never shipped.
+  # Nothing in THIS repo's own suite caught it, since every spec here
+  # reads the working tree directly; only vendoring into a real consumer
+  # did. Same reasoning `lib/hecksagain/language/bluebook/` already
+  # settled for the self-hosted grammar's own `.bluebook` files —
+  # non-Ruby data a module owns lives inside `lib/` with the code that
+  # reads it, not beside it.
   #
   # DERIVED FROM THE DIRECTORY, not hand-listed a second time — the same
   # reasoning `Assembly::CONTRACTS` gives for reading the language's own
-  # fields from a table instead of restating them: a member added to
-  # `framework/bluebook/` and forgotten here would be a member
-  # `uses_framework` could never find, and a hand-kept list is exactly
-  # the shape that goes stale in silence. `spec/corpus_spec.rb`'s own
-  # `FRAMEWORK_MEMBERS` glob is the precedent this mirrors.
+  # fields from a table instead of restating them: a member added here
+  # and forgotten in a list would be a member `uses_framework` could
+  # never find, and a hand-kept list is exactly the shape that goes
+  # stale in silence. `spec/corpus_spec.rb`'s own `FRAMEWORK_MEMBERS`
+  # glob is the precedent this mirrors.
   #
   # NAMED BY FILE STEM, capitalized — `governance.bluebook` holds
   # `Hecks.bluebook "Governance"`, the same one-to-one spelling every
   # other chapter in this codebase already keeps between its filename
   # and its declared name.
   module Framework
-    ROOT = File.expand_path("../../framework/bluebook", __dir__).freeze
+    ROOT = File.expand_path("framework/bluebook", __dir__).freeze
 
     def self.members
       Dir.glob(File.join(ROOT, "*.bluebook")).to_h do |path|

@@ -19,7 +19,7 @@ module Hecksagain
         # bluebook.
         def subscribe(event) = @subscriptions << event.to_s
 
-        # A `framework/bluebook/` member this domain wants attached —
+        # A framework/ member this domain wants attached —
         # Governance, Identity, whatever else lands beside them.
         # Attaching one is a WIRING decision, the same kind `persisted_by`/
         # `projected_by` already are, so it lives here rather than as a

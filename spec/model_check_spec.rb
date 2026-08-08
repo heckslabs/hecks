@@ -142,9 +142,9 @@ RSpec.describe "the model checker" do
     MODEL_CHECK_EXAMPLE_ROOTS = Dir.glob(File.join(InMemoryDomain::ROOT, "examples", "*"))
                        .select { |path| File.directory?(path) }.sort.freeze
     MODEL_CHECK_GRAMMAR_CHAPTERS = Dir.glob(File.join(InMemoryDomain::ROOT, "lib/hecksagain/grammar", "*.bluebook")).sort.freeze
-    # `framework/bluebook/`'s flat sibling-file shape — see corpus_spec.rb's
+    # `lib/hecksagain/framework/bluebook/`'s flat sibling-file shape — see corpus_spec.rb's
     # own FRAMEWORK_MEMBERS comment for why this isn't EXAMPLE_ROOTS-shaped.
-    MODEL_CHECK_FRAMEWORK_MEMBERS = Dir.glob(File.join(InMemoryDomain::ROOT, "framework/bluebook", "*.bluebook")).sort.freeze
+    MODEL_CHECK_FRAMEWORK_MEMBERS = Dir.glob(File.join(InMemoryDomain::ROOT, "lib/hecksagain/framework/bluebook", "*.bluebook")).sort.freeze
 
     MODEL_CHECK_CORPUS = (
       MODEL_CHECK_EXAMPLE_ROOTS.map { |domain| [File.basename(domain), bluebook_in(domain)] } +

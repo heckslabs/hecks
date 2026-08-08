@@ -101,7 +101,7 @@ RSpec.describe "the DSL surface" do
         .to eq(["OutsideEventHappened", "AnotherOutsideEvent"])
     end
 
-    it ".hecksagon's uses_framework loads a framework/bluebook/ member into the same registry" do
+    it ".hecksagon's uses_framework loads a framework member into the same registry" do
       registry = in_registry do
         Hecks.hecksagon("Hexed") do
           uses_framework "Governance"
