@@ -825,6 +825,13 @@ impl DeclareArgs {
 
 impl DeclareArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["aggregate_id", "entity_id", "name", "role", "goal", "provenance", "position", "id", "owner_id"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "DeclareArgs does not declare {} — it takes aggregate_id, entity_id, name, role, goal, provenance, position",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         aggregate_id: v.require("aggregate_id", "DeclareArgs")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.aggregate_id: expected String".to_string()))?,
         entity_id: v.require("entity_id", "DeclareArgs")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.entity_id: expected String".to_string()))?,
@@ -915,6 +922,13 @@ impl ArgumentArgs {
 
 impl ArgumentArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["name", "type", "list", "optional", "pattern", "default", "admits", "id", "command", "owner_id"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "ArgumentArgs does not declare {} — it takes name, type, list, optional, pattern, default, admits",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         name: ArgName::from_json(v.require("name", "ArgumentArgs")?)?,
         r#type: ArgType::from_json(v.require("type", "ArgumentArgs")?)?,
@@ -1004,6 +1018,13 @@ impl ReferenceArgs {
 
 impl ReferenceArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["points_at", "name", "list", "optional", "pattern", "default", "admits", "id", "command", "owner_id"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "ReferenceArgs does not declare {} — it takes points_at, name, list, optional, pattern, default, admits",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         points_at: v.require("points_at", "ReferenceArgs")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ReferenceArgs.points_at: expected String".to_string()))?,
         name: ArgName::from_json(v.require("name", "ReferenceArgs")?)?,
@@ -1075,6 +1096,13 @@ impl RuleArgs {
 
 impl RuleArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["description", "canonical", "id", "command", "owner_id", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "RuleArgs does not declare {} — it takes description, canonical",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         description: RuleText::from_json(v.require("description", "RuleArgs")?)?,
         canonical: RuleText::from_json(v.require("canonical", "RuleArgs")?)?,
@@ -1141,6 +1169,13 @@ impl EnsureArgs {
 
 impl EnsureArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["description", "canonical", "id", "command", "owner_id", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "EnsureArgs does not declare {} — it takes description, canonical",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         description: RuleText::from_json(v.require("description", "EnsureArgs")?)?,
         canonical: RuleText::from_json(v.require("canonical", "EnsureArgs")?)?,
@@ -1219,6 +1254,13 @@ impl ChangeArgs {
 
 impl ChangeArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["target", "op", "field", "kind", "source", "id", "command", "owner_id", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "ChangeArgs does not declare {} — it takes target, op, field, kind, source",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         target: FieldRef::from_json(v.require("target", "ChangeArgs")?)?,
         op: OpName::from_json(v.require("op", "ChangeArgs")?)?,
@@ -1284,6 +1326,13 @@ impl ActsOnArgs {
 
 impl ActsOnArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["root", "id", "command", "owner_id", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "ActsOnArgs does not declare {} — it takes root",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         root: EventName::from_json(v.require("root", "ActsOnArgs")?)?,
         })
@@ -1344,6 +1393,13 @@ impl AnnounceArgs {
 
 impl AnnounceArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["announces", "id", "command", "owner_id", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "AnnounceArgs does not declare {} — it takes announces",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         announces: EventName::from_json(v.require("announces", "AnnounceArgs")?)?,
         })

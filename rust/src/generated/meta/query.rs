@@ -456,6 +456,13 @@ impl DeclareArgs {
 
 impl DeclareArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["aggregate_id", "entity_id", "name", "description", "order_field", "order_way", "limit", "position", "id", "owner_id"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "DeclareArgs does not declare {} — it takes aggregate_id, entity_id, name, description, order_field, order_way, limit, position",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         aggregate_id: v.require("aggregate_id", "DeclareArgs")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.aggregate_id: expected String".to_string()))?,
         entity_id: v.require("entity_id", "DeclareArgs")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.entity_id: expected String".to_string()))?,
@@ -531,6 +538,13 @@ impl FilterArgs {
 
 impl FilterArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["field", "op", "value", "id", "query", "owner_id", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "FilterArgs does not declare {} — it takes field, op, value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         field: QueryText::from_json(v.require("field", "FilterArgs")?)?,
         op: QueryText::from_json(v.require("op", "FilterArgs")?)?,
@@ -605,6 +619,13 @@ impl OptionArgs {
 
 impl OptionArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["option", "key", "value", "at", "id", "query", "owner_id", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "OptionArgs does not declare {} — it takes option, key, value, at",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         option: QueryText::from_json(v.require("option", "OptionArgs")?)?,
         key: QueryText::from_json(v.require("key", "OptionArgs")?)?,
@@ -692,6 +713,13 @@ impl ArgumentArgs {
 
 impl ArgumentArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["name", "type", "list", "optional", "pattern", "default", "admits", "id", "query", "owner_id"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "ArgumentArgs does not declare {} — it takes name, type, list, optional, pattern, default, admits",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         name: QueryText::from_json(v.require("name", "ArgumentArgs")?)?,
         r#type: QueryText::from_json(v.require("type", "ArgumentArgs")?)?,

@@ -401,6 +401,13 @@ impl DeclareArgs {
 
 impl DeclareArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["aggregate_id", "name", "position", "id"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "DeclareArgs does not declare {} — it takes aggregate_id, name, position",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         aggregate_id: v.require("aggregate_id", "DeclareArgs")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.aggregate_id: expected String".to_string()))?,
         name: ValueObjectName::from_json(v.require("name", "DeclareArgs")?)?,
@@ -487,6 +494,13 @@ impl FieldArgs {
 
 impl FieldArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["name", "type", "list", "optional", "pattern", "default", "admits", "id", "value_object", "aggregate_id"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "FieldArgs does not declare {} — it takes name, type, list, optional, pattern, default, admits",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         name: ValueObjectName::from_json(v.require("name", "FieldArgs")?)?,
         r#type: ValueObjectName::from_json(v.require("type", "FieldArgs")?)?,
@@ -553,6 +567,13 @@ impl CloseArgs {
 
 impl CloseArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["rows", "id", "value_object", "aggregate_id", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "CloseArgs does not declare {} — it takes rows",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         rows: RowCount::from_json(v.require("rows", "CloseArgs")?)?,
         })
@@ -618,6 +639,13 @@ impl AssertArgs {
 
 impl AssertArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["description", "canonical", "id", "value_object", "aggregate_id", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "AssertArgs does not declare {} — it takes description, canonical",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         description: ValueObjectText::from_json(v.require("description", "AssertArgs")?)?,
         canonical: ValueObjectText::from_json(v.require("canonical", "AssertArgs")?)?,

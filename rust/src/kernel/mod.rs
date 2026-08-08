@@ -48,13 +48,19 @@ pub struct Event {
 /// command name that doesn't exist at all is a router-level concern, not
 /// something one generated dispatch function raises about itself).
 ///
-/// `AbsentArgument` and `UnknownArgument` are ALSO not variants here, and
-/// that's not an oversight: a generated Rust args struct (e.g.
-/// `CreatePizzaArgs`) makes both structurally impossible at compile time
-/// — you cannot construct one missing a required field or carrying an
-/// extra one. Ruby needs a runtime check because its argument hash has no
-/// static shape; Rust's type system already closes that gate. A real
-/// architectural difference, not a gap.
+/// `AbsentArgument`/`UnknownArgument` ARE variants here, but only ever
+/// raised at the JSON boundary (`from_json`, `rust/project/json_codec.rb`'s
+/// `emit_unknown_argument_check`), never by a generated `dispatch_*`
+/// function itself: a TYPED args struct still makes both structurally
+/// impossible to construct once `from_json` has already succeeded — the
+/// gap this refusal closes is that `from_json`'s own JSON input has no
+/// static shape at all, exactly the reason Ruby needs a runtime check on
+/// its own argument hash. `AbsentArgument` is mostly redundant with the
+/// existing `v.require(...)` failures inside `from_json` (both refuse a
+/// missing required field; this variant exists for a caller who wants to
+/// distinguish "missing" from "wrong shape" by refusal KIND, not just
+/// wording) — `UnknownArgument` is the one that closed a real gap: nothing
+/// checked for an EXTRA key before this.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Refusal {
     GivenNotMet(String),
@@ -64,6 +70,8 @@ pub enum Refusal {
     AlreadyExists(String),
     NotFound(String),
     TypeMismatch(String),
+    AbsentArgument(String),
+    UnknownArgument(String),
 }
 
 impl std::fmt::Display for Refusal {
@@ -75,7 +83,9 @@ impl std::fmt::Display for Refusal {
             | Refusal::LifecycleRefused(msg)
             | Refusal::AlreadyExists(msg)
             | Refusal::NotFound(msg)
-            | Refusal::TypeMismatch(msg) => write!(f, "{msg}"),
+            | Refusal::TypeMismatch(msg)
+            | Refusal::AbsentArgument(msg)
+            | Refusal::UnknownArgument(msg) => write!(f, "{msg}"),
         }
     }
 }

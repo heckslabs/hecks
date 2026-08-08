@@ -672,6 +672,13 @@ impl RentArgs {
 
 impl RentArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["customer_id", "branch_code", "box_number", "size", "id", "reference", "end_to_end"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "RentArgs does not declare {} — it takes customer_id, branch_code, box_number, size",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         customer_id: v.require("customer_id", "RentArgs")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RentArgs.customer_id: expected String".to_string()))?,
         branch_code: BranchCode::from_json(v.require("branch_code", "RentArgs")?)?,
@@ -734,6 +741,13 @@ impl SurrenderArgs {
 
 impl SurrenderArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["id", "safe_deposit_box", "branch_code", "box_number", "reference", "end_to_end"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "SurrenderArgs does not declare {} — it takes ",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
 
         })
@@ -802,6 +816,13 @@ impl LogVisitArgs {
 
 impl LogVisitArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["date", "sequence", "note", "id", "safe_deposit_box", "branch_code", "box_number", "reference", "end_to_end"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "LogVisitArgs does not declare {} — it takes date, sequence, note",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         date: VisitDate::from_json(v.require("date", "LogVisitArgs")?)?,
         sequence: VisitSequence::from_json(v.require("sequence", "LogVisitArgs")?)?,
@@ -864,6 +885,13 @@ impl IssueKeyArgs {
 
 impl IssueKeyArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["serial", "id", "safe_deposit_box", "branch_code", "box_number", "reference", "end_to_end"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "IssueKeyArgs does not declare {} — it takes serial",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         serial: KeySerial::from_json(v.require("serial", "IssueKeyArgs")?)?,
         })

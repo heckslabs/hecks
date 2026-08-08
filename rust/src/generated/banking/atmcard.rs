@@ -513,6 +513,13 @@ impl IssueArgs {
 
 impl IssueArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["account_id", "serial", "daily_fee", "id", "reference", "end_to_end"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "IssueArgs does not declare {} — it takes account_id, serial, daily_fee",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         account_id: v.require("account_id", "IssueArgs")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("IssueArgs.account_id: expected String".to_string()))?,
         serial: CardSerial::from_json(v.require("serial", "IssueArgs")?)?,
@@ -575,6 +582,13 @@ impl RenameArgs {
 
 impl RenameArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["nickname", "id", "atm_card", "serial", "reference", "end_to_end"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "RenameArgs does not declare {} — it takes nickname",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         nickname: CardNickname::from_json(v.require("nickname", "RenameArgs")?)?,
         })
@@ -639,6 +653,13 @@ impl WithdrawArgs {
 
 impl WithdrawArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["cents", "narrative", "id", "atm_card", "serial", "reference", "end_to_end"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "WithdrawArgs does not declare {} — it takes cents, narrative",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         cents: WithdrawalAmount::from_json(v.require("cents", "WithdrawArgs")?)?,
         narrative: Narrative::from_json(v.require("narrative", "WithdrawArgs")?)?,
@@ -699,6 +720,13 @@ impl ActivateArgs {
 
 impl ActivateArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["id", "atm_card", "serial", "reference", "end_to_end"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "ActivateArgs does not declare {} — it takes ",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
 
         })
@@ -758,6 +786,13 @@ impl RetireArgs {
 
 impl RetireArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["id", "atm_card", "serial", "reference", "end_to_end"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "RetireArgs does not declare {} — it takes ",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
 
         })

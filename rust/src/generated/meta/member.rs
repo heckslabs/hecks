@@ -244,6 +244,13 @@ impl DeclareArgs {
 
 impl DeclareArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value_object_id", "shape", "position", "id"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "DeclareArgs does not declare {} — it takes value_object_id, shape, position",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value_object_id: v.require("value_object_id", "DeclareArgs")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.value_object_id: expected String".to_string()))?,
         shape: MemberText::from_json(v.require("shape", "DeclareArgs")?)?,
@@ -310,6 +317,13 @@ impl PairArgs {
 
 impl PairArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["key", "value", "id", "member", "value_object_id", "position"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "PairArgs does not declare {} — it takes key, value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         key: MemberText::from_json(v.require("key", "PairArgs")?)?,
         value: MemberText::from_json(v.require("value", "PairArgs")?)?,

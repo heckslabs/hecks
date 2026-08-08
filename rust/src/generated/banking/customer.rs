@@ -311,6 +311,13 @@ impl RegisterArgs {
 
 impl RegisterArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["reference", "name", "email", "id", "end_to_end"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "RegisterArgs does not declare {} — it takes reference, name, email",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         reference: CustomerNumber::from_json(v.require("reference", "RegisterArgs")?)?,
         name: PersonName::from_json(v.require("name", "RegisterArgs")?)?,
@@ -374,6 +381,13 @@ impl SuspendArgs {
 
 impl SuspendArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["standing", "id", "customer", "reference", "end_to_end"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "SuspendArgs does not declare {} — it takes standing",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         standing: CustomerStanding::from_json(v.require("standing", "SuspendArgs")?)?,
         })
@@ -434,6 +448,13 @@ impl ReinstateArgs {
 
 impl ReinstateArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["id", "customer", "reference", "end_to_end"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "ReinstateArgs does not declare {} — it takes ",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
 
         })
@@ -493,6 +514,13 @@ impl CloseArgs {
 
 impl CloseArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["id", "customer", "reference", "end_to_end"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "CloseArgs does not declare {} — it takes ",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
 
         })

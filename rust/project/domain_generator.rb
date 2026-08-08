@@ -152,7 +152,8 @@ module RustProjection
             # real data into a re-triggered command's own from_json.
             f.puts Projector.emit_to_json_flat(args_struct, command[:attributes], value_objects_by_name)
             f.puts
-            f.puts Projector.emit_from_json_flat(args_struct, command[:attributes], value_objects_by_name)
+            allowlist = Projector.command_argument_allowlist(aggregate, command, ir[:process_managers])
+            f.puts Projector.emit_from_json_flat(args_struct, command[:attributes], value_objects_by_name, unknown_argument_allowlist: allowlist)
             f.puts
 
             # A CREATING command's identity comes from its own typed args

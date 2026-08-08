@@ -693,6 +693,13 @@ impl DeclareArgs {
 
 impl DeclareArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["bluebook_id", "name", "description", "provenance", "position", "id"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "DeclareArgs does not declare {} — it takes bluebook_id, name, description, provenance, position",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         bluebook_id: v.require("bluebook_id", "DeclareArgs")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.bluebook_id: expected String".to_string()))?,
         name: AggregateName::from_json(v.require("name", "DeclareArgs")?)?,
@@ -757,6 +764,13 @@ impl IdentifyArgs {
 
 impl IdentifyArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["path", "id", "aggregate", "bluebook_id", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "IdentifyArgs does not declare {} — it takes path",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         path: IdentityPath::from_json(v.require("path", "IdentifyArgs")?)?,
         })
@@ -840,6 +854,13 @@ impl AttributeArgs {
 
 impl AttributeArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["type", "name", "list", "optional", "pattern", "default", "admits", "id", "aggregate", "bluebook_id"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "AttributeArgs does not declare {} — it takes type, name, list, optional, pattern, default, admits",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         r#type: v.require("type", "AttributeArgs")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AttributeArgs.type: expected String".to_string()))?,
         name: FieldName::from_json(v.require("name", "AttributeArgs")?)?,
@@ -929,6 +950,13 @@ impl ReferenceArgs {
 
 impl ReferenceArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["points_at", "name", "list", "optional", "pattern", "default", "admits", "id", "aggregate", "bluebook_id"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "ReferenceArgs does not declare {} — it takes points_at, name, list, optional, pattern, default, admits",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         points_at: v.require("points_at", "ReferenceArgs")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ReferenceArgs.points_at: expected String".to_string()))?,
         name: FieldName::from_json(v.require("name", "ReferenceArgs")?)?,
@@ -1018,6 +1046,13 @@ impl HoldsArgs {
 
 impl HoldsArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["holds", "name", "list", "optional", "pattern", "default", "admits", "id", "aggregate", "bluebook_id"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "HoldsArgs does not declare {} — it takes holds, name, list, optional, pattern, default, admits",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         holds: v.require("holds", "HoldsArgs")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("HoldsArgs.holds: expected String".to_string()))?,
         name: FieldName::from_json(v.require("name", "HoldsArgs")?)?,
@@ -1089,6 +1124,13 @@ impl LifecycleArgs {
 
 impl LifecycleArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["state_field", "state_start", "id", "aggregate", "bluebook_id", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "LifecycleArgs does not declare {} — it takes state_field, state_start",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         state_field: FieldName::from_json(v.require("state_field", "LifecycleArgs")?)?,
         state_start: FieldName::from_json(v.require("state_start", "LifecycleArgs")?)?,
@@ -1158,6 +1200,13 @@ impl TransitionArgs {
 
 impl TransitionArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["command", "from_state", "to_state", "id", "aggregate", "bluebook_id", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "TransitionArgs does not declare {} — it takes command, from_state, to_state",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         command: FieldName::from_json(v.require("command", "TransitionArgs")?)?,
         from_state: FieldName::from_json(v.require("from_state", "TransitionArgs")?)?,
@@ -1219,6 +1268,13 @@ impl SealArgs {
 
 impl SealArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["id", "aggregate", "bluebook_id", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "SealArgs does not declare {} — it takes ",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
 
         })
@@ -1279,6 +1335,13 @@ impl ValueArgs {
 
 impl ValueArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["name", "id", "aggregate", "bluebook_id"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "ValueArgs does not declare {} — it takes name",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         name: FieldName::from_json(v.require("name", "ValueArgs")?)?,
         })

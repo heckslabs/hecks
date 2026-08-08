@@ -307,6 +307,13 @@ impl RequestArgs {
 
 impl RequestArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["account_id", "end_to_end", "amount", "beneficiary", "direction", "id", "reference"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "RequestArgs does not declare {} — it takes account_id, end_to_end, amount, beneficiary, direction",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         account_id: v.require("account_id", "RequestArgs")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RequestArgs.account_id: expected String".to_string()))?,
         end_to_end: EndToEndReference::from_json(v.require("end_to_end", "RequestArgs")?)?,
@@ -370,6 +377,13 @@ impl SendArgs {
 
 impl SendArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["id", "external_transfer", "end_to_end", "reference"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "SendArgs does not declare {} — it takes ",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
 
         })
@@ -429,6 +443,13 @@ impl RecallArgs {
 
 impl RecallArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["id", "external_transfer", "end_to_end", "reference"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "RecallArgs does not declare {} — it takes ",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
 
         })
@@ -488,6 +509,13 @@ impl ReturnArgs {
 
 impl ReturnArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["id", "external_transfer", "end_to_end", "reference"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "ReturnArgs does not declare {} — it takes ",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
 
         })

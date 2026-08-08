@@ -299,6 +299,13 @@ impl GenerateArgs {
 
 impl GenerateArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["account_id", "period", "opening_balance", "closing_balance", "generated_on", "frequency", "id", "reference", "end_to_end"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "GenerateArgs does not declare {} — it takes account_id, period, opening_balance, closing_balance, generated_on, frequency",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         account_id: v.require("account_id", "GenerateArgs")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("GenerateArgs.account_id: expected String".to_string()))?,
         period: StatementPeriod::from_json(v.require("period", "GenerateArgs")?)?,

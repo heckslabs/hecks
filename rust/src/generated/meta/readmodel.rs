@@ -426,6 +426,13 @@ impl DeclareArgs {
 
 impl DeclareArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["bluebook_id", "name", "description", "query_name", "reference_name", "reference_target", "position", "id"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "DeclareArgs does not declare {} — it takes bluebook_id, name, description, query_name, reference_name, reference_target, position",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         bluebook_id: v.require("bluebook_id", "DeclareArgs")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.bluebook_id: expected String".to_string()))?,
         name: ReadModelName::from_json(v.require("name", "DeclareArgs")?)?,
@@ -500,6 +507,13 @@ impl GatherArgs {
 
 impl GatherArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["aggregate", "as", "many", "id", "read_model", "bluebook_id", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "GatherArgs does not declare {} — it takes aggregate, as, many",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         aggregate: ReadModelText::from_json(v.require("aggregate", "GatherArgs")?)?,
         r#as: ReadModelText::from_json(v.require("as", "GatherArgs")?)?,
@@ -574,6 +588,13 @@ impl OptionArgs {
 
 impl OptionArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["option", "key", "value", "at", "id", "read_model", "bluebook_id", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "OptionArgs does not declare {} — it takes option, key, value, at",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         option: ReadModelText::from_json(v.require("option", "OptionArgs")?)?,
         key: ReadModelText::from_json(v.require("key", "OptionArgs")?)?,

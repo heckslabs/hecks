@@ -212,6 +212,13 @@ impl DeclareArgs {
 
 impl DeclareArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["process_manager_id", "event_type", "from_state", "to_state", "position", "id"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "DeclareArgs does not declare {} — it takes process_manager_id, event_type, from_state, to_state, position",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         process_manager_id: v.require("process_manager_id", "DeclareArgs")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.process_manager_id: expected String".to_string()))?,
         event_type: HandlerText::from_json(v.require("event_type", "DeclareArgs")?)?,

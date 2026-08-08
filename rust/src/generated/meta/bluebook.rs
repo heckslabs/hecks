@@ -404,6 +404,13 @@ impl DeclareArgs {
 
 impl DeclareArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["name", "vision", "classification", "version", "id"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "DeclareArgs does not declare {} — it takes name, vision, classification, version",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         name: BluebookName::from_json(v.require("name", "DeclareArgs")?)?,
         vision: Vision::from_json(v.require("vision", "DeclareArgs")?)?,
@@ -483,6 +490,13 @@ impl NormaliseArgs {
 
 impl NormaliseArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["strategy", "source_token", "replacement", "boundary", "position", "id", "bluebook", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "NormaliseArgs does not declare {} — it takes strategy, source_token, replacement, boundary, position",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         strategy: RuleText::from_json(v.require("strategy", "NormaliseArgs")?)?,
         source_token: RuleText::from_json(v.require("source_token", "NormaliseArgs")?)?,

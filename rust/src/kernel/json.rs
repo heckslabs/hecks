@@ -74,9 +74,12 @@ impl Json {
         }
     }
 
+    /// `None` for a fractional number, not a silent truncation — an
+    /// `Integer`-typed field given `25.5` is a type mismatch Ruby's own
+    /// `Value.for_attribute` coercion refuses, not "close enough."
     pub fn as_i64(&self) -> Option<i64> {
         match self {
-            Json::Num(n) => Some(*n as i64),
+            Json::Num(n) if n.fract() == 0.0 => Some(*n as i64),
             _ => None,
         }
     }
@@ -102,6 +105,27 @@ impl Json {
     pub fn require(&self, key: &str, struct_name: &str) -> Result<&Json, Refusal> {
         self.get(key)
             .ok_or_else(|| Refusal::TypeMismatch(format!("{struct_name}.{key}: missing from JSON args")))
+    }
+
+    /// `CommandInterpreter::ArgumentGate#refuse_unknown_arguments`'s own
+    /// check, ported to the ONE place a command's JSON args has no static
+    /// shape yet — before `from_json` builds the typed struct that makes an
+    /// extra field structurally impossible to construct. `known` is the
+    /// declared attributes plus whatever `json_codec.rb`'s
+    /// `command_argument_allowlist` adds (identity heads, a command's own
+    /// `reference_key`, every process manager's `correlation_head` in the
+    /// domain — Ruby's own allowlist, read directly). Sorted, matching
+    /// `ArgumentGate`'s own `.sort` — refusal wording is pinned by corpus
+    /// fixtures on the Ruby side, so it can't depend on JSON key order.
+    pub fn unknown_keys(&self, known: &[&str]) -> Vec<String> {
+        match self {
+            Json::Object(fields) => {
+                let mut unknown: Vec<String> = fields.iter().filter(|(k, _)| !known.contains(&k.as_str())).map(|(k, _)| k.clone()).collect();
+                unknown.sort();
+                unknown
+            }
+            _ => Vec::new(),
+        }
     }
 
     /// Stringifies a scalar leaf for identity-component joining —

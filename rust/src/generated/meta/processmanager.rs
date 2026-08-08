@@ -309,6 +309,13 @@ impl DeclareArgs {
 
 impl DeclareArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["bluebook_id", "name", "correlates_by", "starts_on", "ends_on", "position", "id"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "DeclareArgs does not declare {} — it takes bluebook_id, name, correlates_by, starts_on, ends_on, position",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         bluebook_id: v.require("bluebook_id", "DeclareArgs")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.bluebook_id: expected String".to_string()))?,
         name: ProcessManagerName::from_json(v.require("name", "DeclareArgs")?)?,
@@ -374,6 +381,13 @@ impl StateArgs {
 
 impl StateArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["name", "id", "process_manager", "bluebook_id"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "StateArgs does not declare {} — it takes name",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         name: ProcessManagerText::from_json(v.require("name", "StateArgs")?)?,
         })

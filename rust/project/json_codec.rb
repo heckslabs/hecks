@@ -46,13 +46,49 @@ module RustProjection
       end
     end
 
+    # `CommandInterpreter::ArgumentGate#refuse_unknown_arguments`'s own
+    # allowlist (argument_gate.rb, read directly): `known = command.
+    # attributes + [:id, *aggregate.identity_heads, reference_key(command)]
+    # + correlation_keys(domain)` — declared attributes plus every OTHER
+    # name a caller is legitimately allowed to address a command by or
+    # smuggle a saga's correlation through. Only ever passed for an
+    # AGGREGATE-level command's own `from_json` (`emit_unknown_argument_
+    # check`'s own caller) — entity commands run no such check at all
+    # (`EntityInterpreter::DISPATCH_ORDER` has no `refuse_unknown_arguments`/
+    # `refuse_absent_arguments` step, commands.rb's own header on
+    # `emit_entity_command`), and a nested value object's own fields are a
+    # different, more permissive concern `Value.for_attribute`'s coercion
+    # already covers — never this gate.
+    def command_argument_allowlist(aggregate, command, process_managers)
+      reference_key = command[:references].to_s.empty? ? nil : Hecksagain::Naming.reference_key(command[:references]).to_s
+      identity_heads = aggregate[:identified_by].map { |path| path.split(".").first }
+      correlation_keys = Array(process_managers).filter_map { |pm| pm[:correlates_by]&.split(".")&.first }
+      (["id", reference_key] + identity_heads + correlation_keys).compact.uniq
+    end
+
+    def emit_unknown_argument_check(struct_name, known_keys, declared_names)
+      <<~RUST
+                let unknown = v.unknown_keys(&[#{known_keys.map(&:inspect).join(', ')}]);
+                if !unknown.is_empty() {
+                    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+                        "#{struct_name} does not declare {} — it takes #{declared_names.join(', ')}",
+                        unknown.join(", ")
+                    )));
+                }
+      RUST
+    end
+
     # One constructor per real attribute — value objects and Args structs
     # only (see header). A list attribute's element type must carry its own
     # `from_json` (every real element type here is a plain value object,
     # per this corpus — `CardPayment.Authorize`'s `tags: Vec<Tag>` is the
     # one live case; an entity-typed list attribute is not a shape any
     # command argument declares, per emit_entity's own header).
-    def emit_from_json_flat(struct_name, attributes, value_objects_by_name)
+    #
+    # `unknown_argument_allowlist:` — nil (the default, VOs and entity
+    # commands) skips `refuse_unknown_arguments` entirely; an Array (only
+    # ever an AGGREGATE command's own args struct) emits the check first.
+    def emit_from_json_flat(struct_name, attributes, value_objects_by_name, unknown_argument_allowlist: nil)
       field_exprs = attributes.map do |attr|
         ident = rust_ident_field(attr[:name])
         key = rust_field(attr[:name])
@@ -72,10 +108,18 @@ module RustProjection
         "        #{ident}: #{rhs},"
       end
 
+      unknown_check =
+        if unknown_argument_allowlist
+          known_keys = (attributes.map { |a| rust_field(a[:name]) } + unknown_argument_allowlist).uniq
+          emit_unknown_argument_check(struct_name, known_keys, attributes.map { |a| a[:name] })
+        else
+          ""
+        end
+
       <<~RUST
         impl #{struct_name} {
             pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-                Ok(Self {
+        #{unknown_check}        Ok(Self {
         #{field_exprs.join("\n")}
                 })
             }
@@ -103,6 +147,19 @@ module RustProjection
         scalar = effective_scalar_type(attr[:type])
         value_expr =
           if attr[:list]
+            # NOT simply "empty vec -> Null": tried that, and it broke
+            # `ledger`-shaped fields (unmatched by their creating command,
+            # legitimately `[]` in Ruby too) to fix `tags`-shaped ones
+            # (an `optional: true` LIST argument the caller omitted,
+            # which Ruby leaves `nil` rather than defaulting to `[]`).
+            # Those are different cases Ruby itself tells apart by
+            # whether the CREATING command's own attributes matched the
+            # field at all — this generator doesn't carry that distinction
+            # into the Rust type today (the same still-open "optional
+            # attributes aren't modeled with Option<T> anywhere" gap a
+            # scalar/VO optional argument like `SafeDepositBox.LogVisit`'s
+            # `note:` hits too), so it stays a plain array here rather
+            # than a wrong, broader heuristic.
             "crate::kernel::Json::Array(self.#{ident}.iter().map(|x| x.to_json()).collect())"
           elsif optional && scalar
             "self.#{ident}.as_ref().map(|v| #{scalar_to_json_expr(scalar, 'v')}).unwrap_or(crate::kernel::Json::Null)"

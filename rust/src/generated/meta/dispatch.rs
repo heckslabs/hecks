@@ -252,6 +252,13 @@ impl DeclareArgs {
 
 impl DeclareArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["handler_id", "handler", "command_name", "position", "id"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "DeclareArgs does not declare {} — it takes handler_id, handler, command_name, position",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         handler_id: v.require("handler_id", "DeclareArgs")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.handler_id: expected String".to_string()))?,
         handler: DispatchText::from_json(v.require("handler", "DeclareArgs")?)?,
@@ -319,6 +326,13 @@ impl BindArgs {
 
 impl BindArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["key", "value", "id", "dispatch", "handler_id", "command_name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "BindArgs does not declare {} — it takes key, value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         key: DispatchText::from_json(v.require("key", "BindArgs")?)?,
         value: DispatchText::from_json(v.require("value", "BindArgs")?)?,
