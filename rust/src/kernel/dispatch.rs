@@ -15,8 +15,7 @@
 // reference-existence checking generated yet).
 
 use super::expr::{interpret, EvalContext, Expr, Field, Fielded, Value, WithOld};
-use super::{Event, Refusal, Repository};
-use std::collections::BTreeMap;
+use super::{Event, Json, Refusal, Repository};
 
 pub struct GivenSpec {
     pub description: &'static str,
@@ -97,7 +96,7 @@ pub fn dispatch<'a, T, R>(
     apply_mutations: impl FnOnce(&mut T) -> Result<(), Refusal> + 'a,
     ensures: &[EnsuresSpec],
     emits: &[&'static str],
-    payload: BTreeMap<String, String>,
+    payload: Json,
 ) -> Result<(T, Vec<Event>), Refusal>
 where
     T: Fielded + Clone,
@@ -180,6 +179,124 @@ where
             name: name.to_string(),
             aggregate: aggregate_qualified_name.to_string(),
             id: id.clone(),
+            payload: payload.clone(),
+        })
+        .collect();
+
+    Ok((record, events))
+}
+
+/// A direct port of `EntityInterpreter#call` walking its own, SHORTER
+/// `DISPATCH_ORDER` (docs/guides/entities.md): `normalize_args`/
+/// `refuse_role_mismatch`/`resolve_references` are the same not-yet-generic
+/// gaps `dispatch` above already carries; there is no `hydrate` branch (an
+/// entity command never creates — it always addresses a parent AND one of
+/// the parent's own list elements, both of which must already exist) and
+/// no `assign_creation_attributes` for the same reason.
+///
+/// `get_list`/`get_list_mut` are the generated per-command closures reading
+/// the ONE list attribute on `T` whose declared element type names this
+/// entity (`element_of`'s own `aggregate.attributes.find { |a| a.list? &&
+/// a.type == entity_name }`, mirrored at codegen time instead of a runtime
+/// search, since the generator already knows which attribute that is).
+/// `matches` compares each element's own generated `identity()` against
+/// the caller-supplied element id — the Rust-typed counterpart of Ruby's
+/// `wants.all? { |head, _, want| el[head] == want }` (`element_of`),
+/// collapsed to one string comparison because both sides already agree on
+/// the SAME dotted-path-join-by-":" convention `extract_id`/`identity()`
+/// (json_codec.rb) use everywhere else.
+#[allow(clippy::too_many_arguments)]
+pub fn dispatch_entity<'a, T, E, R>(
+    repo: &mut R,
+    parent_id: &str,
+    get_list: impl Fn(&T) -> &Vec<E>,
+    get_list_mut: impl FnOnce(&mut T) -> &mut Vec<E>,
+    matches: impl Fn(&E) -> bool,
+    command_name: &'static str,
+    aggregate_qualified_name: &'static str,
+    args: &'a dyn Fielded,
+    givens: &[GivenSpec],
+    transition: Option<TransitionCheck>,
+    apply_mutations: impl FnOnce(&mut E) -> Result<(), Refusal> + 'a,
+    ensures: &[EnsuresSpec],
+    emits: &[&'static str],
+    payload: Json,
+) -> Result<(T, Vec<Event>), Refusal>
+where
+    T: Fielded + Clone,
+    E: Fielded + Clone,
+    R: Repository<T>,
+{
+    let mut record = repo.find(parent_id).ok_or_else(|| {
+        Refusal::NotFound(format!(
+            "{command_name} references a {aggregate_qualified_name} that was never created — {parent_id:?}"
+        ))
+    })?;
+
+    let position = get_list(&record).iter().position(|el| matches(el)).ok_or_else(|| {
+        Refusal::NotFound(format!("{command_name} references an element of {aggregate_qualified_name} that doesn't exist"))
+    })?;
+
+    // COPY-ON-WRITE, same guarantee `element_of`'s own comment names: never
+    // alias the stored element until every check has passed. `element` is
+    // what `given`/`ensures` see as `instance` (Ruby's `ctx.view`/`ctx.
+    // element`) — the WHOLE parent is never exposed to entity-command
+    // expression evaluation, only its one addressed element.
+    let mut element = get_list(&record)[position].clone();
+
+    for given in givens {
+        let ctx = EvalContext { args, instance: &element };
+        if !interpret(&given.expr, &ctx)?.truthy() {
+            return Err(Refusal::GivenNotMet(given.description.to_string()));
+        }
+    }
+
+    if let Some(check) = &transition {
+        match element.field(check.field) {
+            Some(Field::Value(Value::Str(current))) => {
+                if !check.from_states.contains(&current.as_str()) {
+                    return Err(Refusal::LifecycleRefused(format!(
+                        "{command_name} cannot run from {current:?} — admits {:?}",
+                        check.from_states
+                    )));
+                }
+            }
+            _ => {
+                return Err(Refusal::TypeMismatch(format!(
+                    "{command_name}: lifecycle field {:?} missing or not a string — a codegen bug",
+                    check.field
+                )))
+            }
+        }
+    }
+
+    let old_snapshot = if ensures.is_empty() { None } else { Some(element.clone()) };
+
+    apply_mutations(&mut element)?;
+
+    if let Some(old) = &old_snapshot {
+        let with_old = WithOld { args, old };
+        for rule in ensures {
+            let ctx = EvalContext { args: &with_old, instance: &element };
+            if !interpret(&rule.expr, &ctx)?.truthy() {
+                return Err(Refusal::EnsuresNotMet(rule.description.to_string()));
+            }
+        }
+    }
+
+    get_list_mut(&mut record)[position] = element;
+    repo.save(parent_id, record.clone());
+
+    // SAVE AND EMIT BOTH OPERATE ON THE PARENT — docs/guides/entities.md:
+    // "announces onto the SAME event log the parent's own commands write
+    // to, because there is only ever one identity in play here, the
+    // parent's." The element's own identity never appears on the Event.
+    let events = emits
+        .iter()
+        .map(|name| Event {
+            name: name.to_string(),
+            aggregate: aggregate_qualified_name.to_string(),
+            id: parent_id.to_string(),
             payload: payload.clone(),
         })
         .collect();

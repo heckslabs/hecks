@@ -211,7 +211,17 @@ impl ProcessManager {
 
 impl ProcessManager {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
-        Ok(vec![(v.get("bluebook_id")).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ProcessManager: missing identity component bluebook_id".to_string()))?.to_id_component()?, (v.get("name").and_then(|x| x.get("value"))).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ProcessManager: missing identity component name.value".to_string()))?.to_id_component()?].join(":"))
+        let by_identity = (|| -> Option<String> {
+            let c0 = v.dig("bluebook_id")?.to_id_component().ok()?;
+            let c1 = v.dig("name.value")?.to_id_component().ok()?;
+            Some(vec![c0, c1].join(":"))
+        })();
+        let by_id_key = v.get("id").and_then(|j| j.to_id_component().ok());
+        let by_reference_key = v.get("process_manager").and_then(|j| j.to_id_component().ok());
+
+        by_identity.or(by_id_key).or(by_reference_key).ok_or_else(|| {
+            crate::kernel::Refusal::TypeMismatch("ProcessManager: no identity found (tried bluebook_id, name.value, id, process_manager)".to_string())
+        })
     }
 }
 
@@ -251,14 +261,6 @@ pub fn dispatch_declare(
         args.ends_on.check_invariants()?;
         args.position.check_invariants()?;
 
-    let mut payload = std::collections::BTreeMap::new();
-    payload.insert("bluebook_id".to_string(), format!("{:?}", args.bluebook_id)); 
-        payload.insert("name".to_string(), format!("{:?}", args.name.value)); 
-        payload.insert("correlates_by".to_string(), format!("{:?}", args.correlates_by.value)); 
-        payload.insert("starts_on".to_string(), format!("{:?}", args.starts_on.value)); 
-        payload.insert("ends_on".to_string(), format!("{:?}", args.ends_on.value)); 
-        payload.insert("position".to_string(), format!("{:?}", args.position.value)); 
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Create {
@@ -288,8 +290,21 @@ pub fn dispatch_declare(
 
         ],
         &["SagaDeclared"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl DeclareArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("bluebook_id".to_string(), crate::kernel::Json::Str(self.bluebook_id.clone())),
+        ("name".to_string(), self.name.to_json()),
+        ("correlates_by".to_string(), self.correlates_by.to_json()),
+        ("starts_on".to_string(), self.starts_on.to_json()),
+        ("ends_on".to_string(), self.ends_on.to_json()),
+        ("position".to_string(), self.position.to_json()),
+        ])
+    }
 }
 
 impl DeclareArgs {
@@ -327,9 +342,6 @@ pub fn dispatch_state(
 ) -> crate::kernel::DispatchResult<ProcessManager> {
         args.name.check_invariants()?;
 
-    let mut payload = std::collections::BTreeMap::new();
-    payload.insert("name".to_string(), format!("{:?}", args.name.value)); 
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Act { id: id.to_string() },
@@ -348,8 +360,16 @@ pub fn dispatch_state(
 
         ],
         &["SagaStateAttached"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl StateArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("name".to_string(), self.name.to_json()),
+        ])
+    }
 }
 
 impl StateArgs {

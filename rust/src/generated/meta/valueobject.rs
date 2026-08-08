@@ -316,7 +316,17 @@ impl ValueObject {
 
 impl ValueObject {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
-        Ok(vec![(v.get("aggregate_id")).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ValueObject: missing identity component aggregate_id".to_string()))?.to_id_component()?, (v.get("name").and_then(|x| x.get("value"))).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ValueObject: missing identity component name.value".to_string()))?.to_id_component()?].join(":"))
+        let by_identity = (|| -> Option<String> {
+            let c0 = v.dig("aggregate_id")?.to_id_component().ok()?;
+            let c1 = v.dig("name.value")?.to_id_component().ok()?;
+            Some(vec![c0, c1].join(":"))
+        })();
+        let by_id_key = v.get("id").and_then(|j| j.to_id_component().ok());
+        let by_reference_key = v.get("value_object").and_then(|j| j.to_id_component().ok());
+
+        by_identity.or(by_id_key).or(by_reference_key).ok_or_else(|| {
+            crate::kernel::Refusal::TypeMismatch("ValueObject: no identity found (tried aggregate_id, name.value, id, value_object)".to_string())
+        })
     }
 }
 
@@ -347,11 +357,6 @@ pub fn dispatch_declare(
         args.name.check_invariants()?;
         args.position.check_invariants()?;
 
-    let mut payload = std::collections::BTreeMap::new();
-    payload.insert("aggregate_id".to_string(), format!("{:?}", args.aggregate_id)); 
-        payload.insert("name".to_string(), format!("{:?}", args.name.value)); 
-        payload.insert("position".to_string(), format!("{:?}", args.position.value)); 
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Create {
@@ -380,8 +385,18 @@ pub fn dispatch_declare(
 
         ],
         &["ShapeDeclared"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl DeclareArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("aggregate_id".to_string(), crate::kernel::Json::Str(self.aggregate_id.clone())),
+        ("name".to_string(), self.name.to_json()),
+        ("position".to_string(), self.position.to_json()),
+        ])
+    }
 }
 
 impl DeclareArgs {
@@ -434,15 +449,6 @@ pub fn dispatch_field(
         args.default.check_invariants()?;
         args.admits.check_invariants()?;
 
-    let mut payload = std::collections::BTreeMap::new();
-    payload.insert("name".to_string(), format!("{:?}", args.name.value)); 
-        payload.insert("type".to_string(), format!("{:?}", args.r#type.value)); 
-        payload.insert("list".to_string(), format!("{:?}", args.list.value)); 
-        payload.insert("optional".to_string(), format!("{:?}", args.optional.value)); 
-        payload.insert("pattern".to_string(), format!("{:?}", args.pattern.value)); 
-        payload.insert("default".to_string(), format!("{:?}", args.default.value)); 
-        payload.insert("admits".to_string(), format!("{:?}", args.admits.value)); 
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Act { id: id.to_string() },
@@ -461,8 +467,22 @@ pub fn dispatch_field(
 
         ],
         &["ShapeFieldAttached"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl FieldArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("name".to_string(), self.name.to_json()),
+        ("type".to_string(), self.r#type.to_json()),
+        ("list".to_string(), self.list.to_json()),
+        ("optional".to_string(), self.optional.to_json()),
+        ("pattern".to_string(), self.pattern.to_json()),
+        ("default".to_string(), self.default.to_json()),
+        ("admits".to_string(), self.admits.to_json()),
+        ])
+    }
 }
 
 impl FieldArgs {
@@ -501,9 +521,6 @@ pub fn dispatch_close(
 ) -> crate::kernel::DispatchResult<ValueObject> {
         args.rows.check_invariants()?;
 
-    let mut payload = std::collections::BTreeMap::new();
-    payload.insert("rows".to_string(), format!("{:?}", args.rows.value)); 
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Act { id: id.to_string() },
@@ -522,8 +539,16 @@ pub fn dispatch_close(
 
         ],
         &["ShapeClosed"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl CloseArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("rows".to_string(), self.rows.to_json()),
+        ])
+    }
 }
 
 impl CloseArgs {
@@ -559,10 +584,6 @@ pub fn dispatch_assert(
         args.description.check_invariants()?;
         args.canonical.check_invariants()?;
 
-    let mut payload = std::collections::BTreeMap::new();
-    payload.insert("description".to_string(), format!("{:?}", args.description.value)); 
-        payload.insert("canonical".to_string(), format!("{:?}", args.canonical.value)); 
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Act { id: id.to_string() },
@@ -582,8 +603,17 @@ pub fn dispatch_assert(
 
         ],
         &["AssertionAttached"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl AssertArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("description".to_string(), self.description.to_json()),
+        ("canonical".to_string(), self.canonical.to_json()),
+        ])
+    }
 }
 
 impl AssertArgs {

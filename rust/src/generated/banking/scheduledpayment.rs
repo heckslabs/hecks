@@ -218,7 +218,7 @@ impl RetryCount {
 impl RetryCount {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        value: v.require("value", "RetryCount")?.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RetryCount.value: expected Integer".to_string()))?,
+        value: v.get("value").and_then(crate::kernel::Json::as_i64).unwrap_or_else(|| 0),
         })
     }
 }
@@ -263,7 +263,7 @@ impl RetryLimit {
 impl RetryLimit {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        value: v.require("value", "RetryLimit")?.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RetryLimit.value: expected Integer".to_string()))?,
+        value: v.get("value").and_then(crate::kernel::Json::as_i64).unwrap_or_else(|| 3),
         })
     }
 }
@@ -314,7 +314,16 @@ impl ScheduledPayment {
 
 impl ScheduledPayment {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
-        Ok((v.get("instruction").and_then(|x| x.get("value"))).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ScheduledPayment: missing identity component instruction.value".to_string()))?.to_id_component()?)
+        let by_identity = (|| -> Option<String> {
+            let c0 = v.dig("instruction.value")?.to_id_component().ok()?;
+            Some(c0)
+        })();
+        let by_id_key = v.get("id").and_then(|j| j.to_id_component().ok());
+        let by_reference_key = v.get("scheduled_payment").and_then(|j| j.to_id_component().ok());
+
+        by_identity.or(by_id_key).or(by_reference_key).ok_or_else(|| {
+            crate::kernel::Refusal::TypeMismatch("ScheduledPayment: no identity found (tried instruction.value, id, scheduled_payment)".to_string())
+        })
     }
 }
 
@@ -351,13 +360,6 @@ pub fn dispatch_schedule(
         args.recipient.check_invariants()?;
         args.due_on.check_invariants()?;
 
-    let mut payload = std::collections::BTreeMap::new();
-    payload.insert("account_id".to_string(), format!("{:?}", args.account_id)); 
-        payload.insert("instruction".to_string(), format!("{:?}", args.instruction.value)); 
-        payload.insert("amount".to_string(), format!("{:?}", args.amount.cents)); 
-        payload.insert("recipient".to_string(), format!("{:?}", args.recipient.value)); 
-        payload.insert("due_on".to_string(), format!("{:?}", args.due_on.value)); 
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Create {
@@ -390,8 +392,20 @@ pub fn dispatch_schedule(
 
         ],
         &["PaymentScheduled"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl ScheduleArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("account_id".to_string(), crate::kernel::Json::Str(self.account_id.clone())),
+        ("instruction".to_string(), self.instruction.to_json()),
+        ("amount".to_string(), self.amount.to_json()),
+        ("recipient".to_string(), self.recipient.to_json()),
+        ("due_on".to_string(), self.due_on.to_json()),
+        ])
+    }
 }
 
 impl ScheduleArgs {
@@ -427,9 +441,6 @@ pub fn dispatch_execute(
 ) -> crate::kernel::DispatchResult<ScheduledPayment> {
 
 
-    let mut payload = std::collections::BTreeMap::new();
-    
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Act { id: id.to_string() },
@@ -448,8 +459,16 @@ pub fn dispatch_execute(
 
         ],
         &["ScheduledPaymentExecuted"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl ExecuteArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+
+        ])
+    }
 }
 
 impl ExecuteArgs {
@@ -481,9 +500,6 @@ pub fn dispatch_cancel(
 ) -> crate::kernel::DispatchResult<ScheduledPayment> {
 
 
-    let mut payload = std::collections::BTreeMap::new();
-    
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Act { id: id.to_string() },
@@ -502,8 +518,16 @@ pub fn dispatch_cancel(
 
         ],
         &["ScheduledPaymentCancelled"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl CancelArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+
+        ])
+    }
 }
 
 impl CancelArgs {
@@ -535,9 +559,6 @@ pub fn dispatch_fail(
 ) -> crate::kernel::DispatchResult<ScheduledPayment> {
 
 
-    let mut payload = std::collections::BTreeMap::new();
-    
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Act { id: id.to_string() },
@@ -556,8 +577,16 @@ pub fn dispatch_fail(
 
         ],
         &["ScheduledPaymentFailed"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl FailArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+
+        ])
+    }
 }
 
 impl FailArgs {
@@ -589,9 +618,6 @@ pub fn dispatch_retry(
 ) -> crate::kernel::DispatchResult<ScheduledPayment> {
 
 
-    let mut payload = std::collections::BTreeMap::new();
-    
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Act { id: id.to_string() },
@@ -611,8 +637,16 @@ pub fn dispatch_retry(
             crate::kernel::EnsuresSpec { description: "a retry never lowers the attempt count", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("attempts.value")), right: Box::new(Expr::Add(Box::new(Expr::Lookup("old.attempts.value")), Box::new(Expr::Int(1)))) } },
         ],
         &["ScheduledPaymentFailed"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl RetryArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+
+        ])
+    }
 }
 
 impl RetryArgs {
@@ -644,9 +678,6 @@ pub fn dispatch_abandon(
 ) -> crate::kernel::DispatchResult<ScheduledPayment> {
 
 
-    let mut payload = std::collections::BTreeMap::new();
-    
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Act { id: id.to_string() },
@@ -665,8 +696,16 @@ pub fn dispatch_abandon(
 
         ],
         &["ScheduledPaymentAbandoned"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl AbandonArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+
+        ])
+    }
 }
 
 impl AbandonArgs {

@@ -88,7 +88,7 @@ impl DailyLimit {
 impl DailyLimit {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        cents: v.require("cents", "DailyLimit")?.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DailyLimit.cents: expected Integer".to_string()))?,
+        cents: v.get("cents").and_then(crate::kernel::Json::as_i64).unwrap_or_else(|| 0),
         })
     }
 }
@@ -207,8 +207,8 @@ impl Money {
 impl Money {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        cents: v.require("cents", "Money")?.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Money.cents: expected Integer".to_string()))?,
-        currency: v.require("currency", "Money")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Money.currency: expected String".to_string()))?,
+        cents: v.get("cents").and_then(crate::kernel::Json::as_i64).unwrap_or_else(|| 0),
+        currency: v.get("currency").and_then(crate::kernel::Json::as_str).map(|s| s.to_string()).unwrap_or_else(|| "USD".to_string()),
         })
     }
 }
@@ -263,7 +263,7 @@ impl PositiveMoney {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
         cents: v.require("cents", "PositiveMoney")?.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PositiveMoney.cents: expected Integer".to_string()))?,
-        currency: v.require("currency", "PositiveMoney")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PositiveMoney.currency: expected String".to_string()))?,
+        currency: v.get("currency").and_then(crate::kernel::Json::as_str).map(|s| s.to_string()).unwrap_or_else(|| "USD".to_string()),
         })
     }
 }
@@ -354,11 +354,12 @@ pub struct LedgerEntry {
 impl crate::kernel::Fielded for LedgerEntry {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
-        
+        use crate::kernel::Value;
         match name {
             "sequence" => Some(Field::Nested(&self.sequence)),
             "amount" => Some(Field::Nested(&self.amount)),
             "narrative" => Some(Field::Nested(&self.narrative)),
+            "state" => Some(Field::Value(Value::Str(self.state.clone()))),
             _ => None,
         }
     }
@@ -374,6 +375,165 @@ impl LedgerEntry {
         ("state".to_string(), crate::kernel::Json::Str(self.state.clone())),
         ])
     }
+}
+
+impl LedgerEntry {
+    pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
+        let by_identity = (|| -> Option<String> {
+            let c0 = v.dig("sequence.value")?.to_id_component().ok()?;
+            Some(c0)
+        })();
+        let by_id_key = v.get("id").and_then(|j| j.to_id_component().ok());
+        let by_reference_key = v.get("ledger_entry").and_then(|j| j.to_id_component().ok());
+
+        by_identity.or(by_id_key).or(by_reference_key).ok_or_else(|| {
+            crate::kernel::Refusal::TypeMismatch("LedgerEntry: no identity found (tried sequence.value, id, ledger_entry)".to_string())
+        })
+    }
+}
+
+impl LedgerEntry {
+    pub fn identity(&self) -> String {
+        self.sequence.value.to_string()
+    }
+}
+
+impl crate::kernel::Fielded for LedgerEntryAmendArgs {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        
+        match name {
+            "adjustment" => Some(Field::Nested(&self.adjustment)),
+            "narrative" => Some(Field::Nested(&self.narrative)),
+            _ => None,
+        }
+    }
+}
+
+
+#[derive(Debug, Clone)]
+pub struct LedgerEntryAmendArgs {
+    pub adjustment: Money,
+    pub narrative: Narrative,
+}
+
+impl LedgerEntryAmendArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("adjustment".to_string(), self.adjustment.to_json()),
+        ("narrative".to_string(), self.narrative.to_json()),
+        ])
+    }
+}
+
+
+impl LedgerEntryAmendArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        adjustment: Money::from_json(v.require("adjustment", "LedgerEntryAmendArgs")?)?,
+        narrative: Narrative::from_json(v.require("narrative", "LedgerEntryAmendArgs")?)?,
+        })
+    }
+}
+
+
+pub fn dispatch_entity_ledgerentry_amend(
+    repo: &mut impl crate::kernel::Repository<Account>, parent_id: &str, element_id: &str, args: LedgerEntryAmendArgs,
+) -> crate::kernel::DispatchResult<Account> {
+        args.adjustment.check_invariants()?;
+        args.narrative.check_invariants()?;
+
+    crate::kernel::dispatch_entity(
+        repo,
+        parent_id,
+        |r: &Account| &r.ledger,
+        |r: &mut Account| &mut r.ledger,
+        |el: &LedgerEntry| el.identity() == element_id,
+        "LedgerEntry.Amend",
+        "Banking::Account",
+        &args,
+        &[
+            crate::kernel::GivenSpec { description: "an amendment leaves a non-negative amount", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: true, equal: false, negated: true }, left: Box::new(Expr::Add(Box::new(Expr::Lookup("amount.cents")), Box::new(Expr::Lookup("adjustment.cents")))), right: Box::new(Expr::Int(0)) } },
+        ],
+        Some(crate::kernel::TransitionCheck { field: "state", from_states: &["posted"] }),
+        |record| {
+        { let current = record.amount.clone(); record.amount = Money { cents: current.cents + (args.adjustment.cents), ..current }; }
+        record.narrative = args.narrative.clone();
+        record.state = "posted".to_string();
+            Ok(())
+        },
+        &[
+
+        ],
+        &["LedgerEntryAmended"],
+        args.to_json(),
+    )
+}
+
+impl crate::kernel::Fielded for LedgerEntryReverseArgs {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        
+        match name {
+            "narrative" => Some(Field::Nested(&self.narrative)),
+            _ => None,
+        }
+    }
+}
+
+
+#[derive(Debug, Clone)]
+pub struct LedgerEntryReverseArgs {
+    pub narrative: Narrative,
+}
+
+impl LedgerEntryReverseArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("narrative".to_string(), self.narrative.to_json()),
+        ])
+    }
+}
+
+
+impl LedgerEntryReverseArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        narrative: Narrative::from_json(v.require("narrative", "LedgerEntryReverseArgs")?)?,
+        })
+    }
+}
+
+
+pub fn dispatch_entity_ledgerentry_reverse(
+    repo: &mut impl crate::kernel::Repository<Account>, parent_id: &str, element_id: &str, args: LedgerEntryReverseArgs,
+) -> crate::kernel::DispatchResult<Account> {
+        args.narrative.check_invariants()?;
+
+    crate::kernel::dispatch_entity(
+        repo,
+        parent_id,
+        |r: &Account| &r.ledger,
+        |r: &mut Account| &mut r.ledger,
+        |el: &LedgerEntry| el.identity() == element_id,
+        "LedgerEntry.Reverse",
+        "Banking::Account",
+        &args,
+        &[
+
+        ],
+        Some(crate::kernel::TransitionCheck { field: "state", from_states: &["posted"] }),
+        |record| {
+        record.narrative = args.narrative.clone();
+        record.state = "reversed".to_string();
+            Ok(())
+        },
+        &[
+
+        ],
+        &["LedgerEntryReversed"],
+        args.to_json(),
+    )
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -424,7 +584,16 @@ impl Account {
 
 impl Account {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
-        Ok((v.get("number").and_then(|x| x.get("value"))).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Account: missing identity component number.value".to_string()))?.to_id_component()?)
+        let by_identity = (|| -> Option<String> {
+            let c0 = v.dig("number.value")?.to_id_component().ok()?;
+            Some(c0)
+        })();
+        let by_id_key = v.get("id").and_then(|j| j.to_id_component().ok());
+        let by_reference_key = v.get("account").and_then(|j| j.to_id_component().ok());
+
+        by_identity.or(by_id_key).or(by_reference_key).ok_or_else(|| {
+            crate::kernel::Refusal::TypeMismatch("Account: no identity found (tried number.value, id, account)".to_string())
+        })
     }
 }
 
@@ -455,12 +624,6 @@ pub fn dispatch_open(
 ) -> crate::kernel::DispatchResult<Account> {
         args.number.check_invariants()?;
         args.daily_limit.check_invariants()?;
-
-    let mut payload = std::collections::BTreeMap::new();
-    payload.insert("customer_id".to_string(), format!("{:?}", args.customer_id)); 
-        payload.insert("number".to_string(), format!("{:?}", args.number.value)); 
-        payload.insert("kind".to_string(), format!("{:?}", args.kind)); 
-        payload.insert("daily_limit".to_string(), format!("{:?}", args.daily_limit.cents)); 
 
     crate::kernel::dispatch(
         repo,
@@ -495,8 +658,19 @@ pub fn dispatch_open(
 
         ],
         &["AccountOpened"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl OpenArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("customer_id".to_string(), crate::kernel::Json::Str(self.customer_id.clone())),
+        ("number".to_string(), self.number.to_json()),
+        ("kind".to_string(), self.kind.to_json()),
+        ("daily_limit".to_string(), self.daily_limit.to_json()),
+        ])
+    }
 }
 
 impl OpenArgs {
@@ -535,10 +709,6 @@ pub fn dispatch_credit(
         args.amount.check_invariants()?;
         args.narrative.check_invariants()?;
 
-    let mut payload = std::collections::BTreeMap::new();
-    payload.insert("amount".to_string(), format!("{:?}", args.amount)); 
-        payload.insert("narrative".to_string(), format!("{:?}", args.narrative.text)); 
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Act { id: id.to_string() },
@@ -558,8 +728,17 @@ pub fn dispatch_credit(
 
         ],
         &["AccountCredited"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl CreditArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("amount".to_string(), self.amount.to_json()),
+        ("narrative".to_string(), self.narrative.to_json()),
+        ])
+    }
 }
 
 impl CreditArgs {
@@ -596,10 +775,6 @@ pub fn dispatch_debit(
         args.amount.check_invariants()?;
         args.narrative.check_invariants()?;
 
-    let mut payload = std::collections::BTreeMap::new();
-    payload.insert("amount".to_string(), format!("{:?}", args.amount)); 
-        payload.insert("narrative".to_string(), format!("{:?}", args.narrative.text)); 
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Act { id: id.to_string() },
@@ -622,8 +797,17 @@ pub fn dispatch_debit(
             crate::kernel::EnsuresSpec { description: "no debit leaves the balance negative", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: true, equal: false, negated: true }, left: Box::new(Expr::Lookup("balance.cents")), right: Box::new(Expr::Int(0)) } },
         ],
         &["AccountDebited"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl DebitArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("amount".to_string(), self.amount.to_json()),
+        ("narrative".to_string(), self.narrative.to_json()),
+        ])
+    }
 }
 
 impl DebitArgs {
@@ -656,9 +840,6 @@ pub fn dispatch_freeze(
 ) -> crate::kernel::DispatchResult<Account> {
 
 
-    let mut payload = std::collections::BTreeMap::new();
-    
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Act { id: id.to_string() },
@@ -677,8 +858,16 @@ pub fn dispatch_freeze(
 
         ],
         &["AccountFrozen"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl FreezeArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+
+        ])
+    }
 }
 
 impl FreezeArgs {
@@ -710,9 +899,6 @@ pub fn dispatch_unfreeze(
 ) -> crate::kernel::DispatchResult<Account> {
 
 
-    let mut payload = std::collections::BTreeMap::new();
-    
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Act { id: id.to_string() },
@@ -731,8 +917,16 @@ pub fn dispatch_unfreeze(
 
         ],
         &["AccountUnfrozen"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl UnfreezeArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+
+        ])
+    }
 }
 
 impl UnfreezeArgs {
@@ -764,9 +958,6 @@ pub fn dispatch_close_account(
 ) -> crate::kernel::DispatchResult<Account> {
 
 
-    let mut payload = std::collections::BTreeMap::new();
-    
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Act { id: id.to_string() },
@@ -785,8 +976,16 @@ pub fn dispatch_close_account(
 
         ],
         &["AccountClosed"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl CloseAccountArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+
+        ])
+    }
 }
 
 impl CloseAccountArgs {
@@ -822,10 +1021,6 @@ pub fn dispatch_apply_fee(
         args.amount.check_invariants()?;
         args.narrative.check_invariants()?;
 
-    let mut payload = std::collections::BTreeMap::new();
-    payload.insert("amount".to_string(), format!("{:?}", args.amount)); 
-        payload.insert("narrative".to_string(), format!("{:?}", args.narrative.text)); 
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Act { id: id.to_string() },
@@ -845,8 +1040,17 @@ pub fn dispatch_apply_fee(
 
         ],
         &["FeeApplied"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl ApplyFeeArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("amount".to_string(), self.amount.to_json()),
+        ("narrative".to_string(), self.narrative.to_json()),
+        ])
+    }
 }
 
 impl ApplyFeeArgs {
@@ -880,9 +1084,6 @@ pub fn dispatch_correct_fee(
 ) -> crate::kernel::DispatchResult<Account> {
         args.amount.check_invariants()?;
 
-    let mut payload = std::collections::BTreeMap::new();
-    payload.insert("amount".to_string(), format!("{:?}", args.amount)); 
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Act { id: id.to_string() },
@@ -902,8 +1103,16 @@ pub fn dispatch_correct_fee(
 
         ],
         &["FeeCorrected"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl CorrectFeeArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("amount".to_string(), self.amount.to_json()),
+        ])
+    }
 }
 
 impl CorrectFeeArgs {
@@ -936,9 +1145,6 @@ pub fn dispatch_accrue_interest(
 ) -> crate::kernel::DispatchResult<Account> {
         args.amount.check_invariants()?;
 
-    let mut payload = std::collections::BTreeMap::new();
-    payload.insert("amount".to_string(), format!("{:?}", args.amount)); 
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Act { id: id.to_string() },
@@ -958,8 +1164,16 @@ pub fn dispatch_accrue_interest(
 
         ],
         &["InterestAccrued"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl AccrueInterestArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("amount".to_string(), self.amount.to_json()),
+        ])
+    }
 }
 
 impl AccrueInterestArgs {
@@ -992,9 +1206,6 @@ pub fn dispatch_correct_interest(
 ) -> crate::kernel::DispatchResult<Account> {
         args.amount.check_invariants()?;
 
-    let mut payload = std::collections::BTreeMap::new();
-    payload.insert("amount".to_string(), format!("{:?}", args.amount)); 
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Act { id: id.to_string() },
@@ -1015,8 +1226,16 @@ pub fn dispatch_correct_interest(
 
         ],
         &["InterestCorrected"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl CorrectInterestArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("amount".to_string(), self.amount.to_json()),
+        ])
+    }
 }
 
 impl CorrectInterestArgs {

@@ -127,7 +127,16 @@ impl OnboardingCase {
 
 impl OnboardingCase {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
-        Ok((v.get("reference").and_then(|x| x.get("value"))).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("OnboardingCase: missing identity component reference.value".to_string()))?.to_id_component()?)
+        let by_identity = (|| -> Option<String> {
+            let c0 = v.dig("reference.value")?.to_id_component().ok()?;
+            Some(c0)
+        })();
+        let by_id_key = v.get("id").and_then(|j| j.to_id_component().ok());
+        let by_reference_key = v.get("onboarding_case").and_then(|j| j.to_id_component().ok());
+
+        by_identity.or(by_id_key).or(by_reference_key).ok_or_else(|| {
+            crate::kernel::Refusal::TypeMismatch("OnboardingCase: no identity found (tried reference.value, id, onboarding_case)".to_string())
+        })
     }
 }
 
@@ -158,11 +167,6 @@ pub fn dispatch_open(
         args.reference.check_invariants()?;
         args.account_number.check_invariants()?;
 
-    let mut payload = std::collections::BTreeMap::new();
-    payload.insert("customer".to_string(), format!("{:?}", args.customer)); 
-        payload.insert("reference".to_string(), format!("{:?}", args.reference.value)); 
-        payload.insert("account_number".to_string(), format!("{:?}", args.account_number.value)); 
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Create {
@@ -190,8 +194,18 @@ pub fn dispatch_open(
 
         ],
         &["OnboardingOpened"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl OpenArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("customer".to_string(), crate::kernel::Json::Str(self.customer.clone())),
+        ("reference".to_string(), self.reference.to_json()),
+        ("account_number".to_string(), self.account_number.to_json()),
+        ])
+    }
 }
 
 impl OpenArgs {
@@ -225,9 +239,6 @@ pub fn dispatch_clear(
 ) -> crate::kernel::DispatchResult<OnboardingCase> {
 
 
-    let mut payload = std::collections::BTreeMap::new();
-    
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Act { id: id.to_string() },
@@ -246,8 +257,16 @@ pub fn dispatch_clear(
 
         ],
         &["OnboardingCleared"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl ClearArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+
+        ])
+    }
 }
 
 impl ClearArgs {
@@ -279,9 +298,6 @@ pub fn dispatch_decline(
 ) -> crate::kernel::DispatchResult<OnboardingCase> {
 
 
-    let mut payload = std::collections::BTreeMap::new();
-    
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Act { id: id.to_string() },
@@ -300,8 +316,16 @@ pub fn dispatch_decline(
 
         ],
         &["OnboardingDeclined"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl DeclineArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+
+        ])
+    }
 }
 
 impl DeclineArgs {

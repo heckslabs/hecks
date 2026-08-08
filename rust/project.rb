@@ -62,20 +62,37 @@
 #     SKIPPED, loudly, by name and reason, rather than generated as code
 #     that would silently do less than it claims to.
 #
+# FIFTH SLICE (0013) — entity commands, policies, and process managers/
+# sagas, none of which the fourth slice above touched. `commands.rb`'s
+# `emit_entity_command` extends the SAME "compile shapes, interpret
+# behavior" split to `EntityInterpreter#call`'s own shorter DISPATCH_ORDER
+# (kernel::dispatch_entity); `reactions.rb` extends it again to
+# `Dispatcher#dispatch`'s reaction plumbing (kernel::orchestrate, one
+# generic recursive function for both `PolicyInterpreter#react` and
+# `SagaInterpreter#advance`/`#unwind`). See 0013's own Consequences for
+# what running the full Banking corpus through this actually found (three
+# real bugs, two still-open pre-existing gaps).
+#
 # WHAT THIS STILL DOES NOT GENERATE — flagged, not silently skipped:
-#   - An entity's OWN commands (`LedgerEntry.Amend`/`.Reverse`) — those
-#     address ONE element of a list by its own identity, not the whole
-#     aggregate, and nothing here generates that addressing. An entity
-#     IS now resolved to a Rust type and usable as an `append` TARGET
-#     (`Account.ledger`, a `Vec<LedgerEntry>`, with its identity and
-#     lifecycle field auto-minted the way `entity_element` mints them) —
-#     that's the whole of what "generated" means for one here.
 #   - A BARE (non-`list_of`), non-entity-list attribute whose type names
 #     an entity — not a real shape any aggregate in this corpus declares.
 #   - Role checking (Unauthorized), reference-existence checking
 #     (resolve_references — a `Reference<X>` attribute is represented
 #     as a bare `String` id, per aggregates-and-value-objects.md; NOTHING
-#     checks that id actually names a real record).
+#     checks that id actually names a real record). 0013 traced a real
+#     corpus mismatch to this specifically: an unknown argument a saga
+#     forwards is silently accepted by JSON `from_json` where Ruby's
+#     `refuse_unknown_arguments` would refuse the whole command.
+#   - The reaction/saga LOG (`reaction_log`/`saga_log`) — `orchestrate`
+#     produces the right SIDE EFFECTS without also reproducing the log
+#     `bin/rust_conformance`'s own comparable surface never reads.
+#   - `Correlation#saga_correlation`'s middle tier (an explicit
+#     `event.correlation` stamp) — only the first (current event's own
+#     payload) and third (`Naming.reference_key`) tiers are ported.
+#   - Cross-domain policies (`across` a domain this single-domain `Store`
+#     never generated) — omitted from the generated table entirely, a
+#     real match for Ruby's own behavior when that domain isn't loaded
+#     either, not a narrowing (0013's own Consequences).
 #
 # ONE CONCERN PER FILE, all reopening the SAME two module_function
 # modules (`ExprEmitter`, `Projector`) — mirrors this codebase's own
@@ -92,4 +109,5 @@ require_relative "project/bridging"
 require_relative "project/mutations"
 require_relative "project/commands"
 require_relative "project/registry"
+require_relative "project/reactions"
 require_relative "project/domain_generator"

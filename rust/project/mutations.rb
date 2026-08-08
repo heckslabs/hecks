@@ -173,7 +173,14 @@ module RustProjection
       end
     end
 
-    def emit_mutation_line(mutation, aggregate, command, value_objects_by_name)
+    # `optional:` — true for an aggregate RECORD (every non-list field is
+    # `Option`-wrapped, emit_record's own reason) and false for an ENTITY
+    # element (emit_entity's fields are plain, never `Option`-wrapped — an
+    # entity command's own `element_of`/copy-on-write already guarantees
+    # the element it hands `apply_mutations` exists, so there is nothing
+    # for `Option` to represent here the way "field exists but is unset on
+    # a freshly created aggregate" needs it to on a record).
+    def emit_mutation_line(mutation, aggregate, command, value_objects_by_name, optional: true)
       target_field   = rust_ident_field(mutation[:target])
       lifecycle_field = aggregate[:lifecycle] && aggregate[:lifecycle][:field].to_sym
 
@@ -217,7 +224,8 @@ module RustProjection
         else
           target_attr = aggregate[:attributes].find { |a| a[:name] == mutation[:target] }
           rhs = mutation_set_rhs(mutation[:source], target_attr[:type], command, value_objects_by_name)
-          target_attr[:list] ? "        record.#{target_field} = #{rhs};" : "        record.#{target_field} = Some(#{rhs});"
+          wrap = optional && !target_attr[:list]
+          "        record.#{target_field} = #{wrap ? "Some(#{rhs})" : rhs};"
         end
       when :increment, :decrement
         target_attr, integer_field = arithmetic_target_field(mutation, aggregate, value_objects_by_name)
@@ -225,8 +233,9 @@ module RustProjection
         field_ident = rust_ident_field(integer_field)
         amount_expr = arithmetic_amount_expr(mutation[:source], command, value_objects_by_name, integer_field)
         sign = mutation[:op] == :increment ? "+" : "-"
-        "        { let current = record.#{target_field}.clone().unwrap(); " \
-        "record.#{target_field} = Some(#{vo_type} { #{field_ident}: current.#{field_ident} #{sign} (#{amount_expr}), ..current }); }"
+        current = optional ? "record.#{target_field}.clone().unwrap()" : "record.#{target_field}.clone()"
+        updated = "#{vo_type} { #{field_ident}: current.#{field_ident} #{sign} (#{amount_expr}), ..current }"
+        "        { let current = #{current}; record.#{target_field} = #{optional ? "Some(#{updated})" : updated}; }"
       end
     end
   end

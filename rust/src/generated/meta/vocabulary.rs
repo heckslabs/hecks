@@ -670,7 +670,16 @@ impl Vocabulary {
 
 impl Vocabulary {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
-        Ok((v.get("name").and_then(|x| x.get("value"))).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Vocabulary: missing identity component name.value".to_string()))?.to_id_component()?)
+        let by_identity = (|| -> Option<String> {
+            let c0 = v.dig("name.value")?.to_id_component().ok()?;
+            Some(c0)
+        })();
+        let by_id_key = v.get("id").and_then(|j| j.to_id_component().ok());
+        let by_reference_key = v.get("vocabulary").and_then(|j| j.to_id_component().ok());
+
+        by_identity.or(by_id_key).or(by_reference_key).ok_or_else(|| {
+            crate::kernel::Refusal::TypeMismatch("Vocabulary: no identity found (tried name.value, id, vocabulary)".to_string())
+        })
     }
 }
 

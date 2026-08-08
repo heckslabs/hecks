@@ -128,7 +128,7 @@ impl DailyFee {
 impl DailyFee {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        amount: v.require("amount", "DailyFee")?.as_f64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DailyFee.amount: expected Float".to_string()))?,
+        amount: v.get("amount").and_then(crate::kernel::Json::as_f64).unwrap_or_else(|| 0.0),
         })
     }
 }
@@ -279,11 +279,12 @@ pub struct Withdrawal {
 impl crate::kernel::Fielded for Withdrawal {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
-        
+        use crate::kernel::Value;
         match name {
             "sequence" => Some(Field::Nested(&self.sequence)),
             "cents" => Some(Field::Nested(&self.cents)),
             "narrative" => Some(Field::Nested(&self.narrative)),
+            "state" => Some(Field::Value(Value::Str(self.state.clone()))),
             _ => None,
         }
     }
@@ -298,6 +299,93 @@ impl Withdrawal {
         ("state".to_string(), crate::kernel::Json::Str(self.state.clone())),
         ])
     }
+}
+
+impl Withdrawal {
+    pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
+        let by_identity = (|| -> Option<String> {
+            let c0 = v.dig("sequence.value")?.to_id_component().ok()?;
+            Some(c0)
+        })();
+        let by_id_key = v.get("id").and_then(|j| j.to_id_component().ok());
+        let by_reference_key = v.get("withdrawal").and_then(|j| j.to_id_component().ok());
+
+        by_identity.or(by_id_key).or(by_reference_key).ok_or_else(|| {
+            crate::kernel::Refusal::TypeMismatch("Withdrawal: no identity found (tried sequence.value, id, withdrawal)".to_string())
+        })
+    }
+}
+
+impl Withdrawal {
+    pub fn identity(&self) -> String {
+        self.sequence.value.to_string()
+    }
+}
+
+impl crate::kernel::Fielded for WithdrawalDisputeArgs {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        
+        match name {
+            "narrative" => Some(Field::Nested(&self.narrative)),
+            _ => None,
+        }
+    }
+}
+
+
+#[derive(Debug, Clone)]
+pub struct WithdrawalDisputeArgs {
+    pub narrative: Narrative,
+}
+
+impl WithdrawalDisputeArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("narrative".to_string(), self.narrative.to_json()),
+        ])
+    }
+}
+
+
+impl WithdrawalDisputeArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        narrative: Narrative::from_json(v.require("narrative", "WithdrawalDisputeArgs")?)?,
+        })
+    }
+}
+
+
+pub fn dispatch_entity_withdrawal_dispute(
+    repo: &mut impl crate::kernel::Repository<ATMCard>, parent_id: &str, element_id: &str, args: WithdrawalDisputeArgs,
+) -> crate::kernel::DispatchResult<ATMCard> {
+        args.narrative.check_invariants()?;
+
+    crate::kernel::dispatch_entity(
+        repo,
+        parent_id,
+        |r: &ATMCard| &r.withdrawals,
+        |r: &mut ATMCard| &mut r.withdrawals,
+        |el: &Withdrawal| el.identity() == element_id,
+        "Withdrawal.Dispute",
+        "Banking::ATMCard",
+        &args,
+        &[
+
+        ],
+        Some(crate::kernel::TransitionCheck { field: "state", from_states: &["taken"] }),
+        |record| {
+        record.narrative = args.narrative.clone();
+        record.state = "disputed".to_string();
+            Ok(())
+        },
+        &[
+
+        ],
+        &["WithdrawalDisputed"],
+        args.to_json(),
+    )
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -340,7 +428,16 @@ impl ATMCard {
 
 impl ATMCard {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
-        Ok((v.get("serial").and_then(|x| x.get("value"))).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ATMCard: missing identity component serial.value".to_string()))?.to_id_component()?)
+        let by_identity = (|| -> Option<String> {
+            let c0 = v.dig("serial.value")?.to_id_component().ok()?;
+            Some(c0)
+        })();
+        let by_id_key = v.get("id").and_then(|j| j.to_id_component().ok());
+        let by_reference_key = v.get("atm_card").and_then(|j| j.to_id_component().ok());
+
+        by_identity.or(by_id_key).or(by_reference_key).ok_or_else(|| {
+            crate::kernel::Refusal::TypeMismatch("ATMCard: no identity found (tried serial.value, id, atm_card)".to_string())
+        })
     }
 }
 
@@ -371,11 +468,6 @@ pub fn dispatch_issue(
         args.serial.check_invariants()?;
         args.daily_fee.check_invariants()?;
 
-    let mut payload = std::collections::BTreeMap::new();
-    payload.insert("account_id".to_string(), format!("{:?}", args.account_id)); 
-        payload.insert("serial".to_string(), format!("{:?}", args.serial.value)); 
-        payload.insert("daily_fee".to_string(), format!("{:?}", args.daily_fee.amount)); 
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Create {
@@ -405,8 +497,18 @@ pub fn dispatch_issue(
 
         ],
         &["ATMCardIssued"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl IssueArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("account_id".to_string(), crate::kernel::Json::Str(self.account_id.clone())),
+        ("serial".to_string(), self.serial.to_json()),
+        ("daily_fee".to_string(), self.daily_fee.to_json()),
+        ])
+    }
 }
 
 impl IssueArgs {
@@ -441,9 +543,6 @@ pub fn dispatch_rename(
 ) -> crate::kernel::DispatchResult<ATMCard> {
         args.nickname.check_invariants()?;
 
-    let mut payload = std::collections::BTreeMap::new();
-    payload.insert("nickname".to_string(), format!("{:?}", args.nickname.value)); 
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Act { id: id.to_string() },
@@ -462,8 +561,16 @@ pub fn dispatch_rename(
 
         ],
         &["ATMCardRenamed"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl RenameArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("nickname".to_string(), self.nickname.to_json()),
+        ])
+    }
 }
 
 impl RenameArgs {
@@ -499,10 +606,6 @@ pub fn dispatch_withdraw(
         args.cents.check_invariants()?;
         args.narrative.check_invariants()?;
 
-    let mut payload = std::collections::BTreeMap::new();
-    payload.insert("cents".to_string(), format!("{:?}", args.cents.cents)); 
-        payload.insert("narrative".to_string(), format!("{:?}", args.narrative.text)); 
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Act { id: id.to_string() },
@@ -521,8 +624,17 @@ pub fn dispatch_withdraw(
 
         ],
         &["CashWithdrawn"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl WithdrawArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("cents".to_string(), self.cents.to_json()),
+        ("narrative".to_string(), self.narrative.to_json()),
+        ])
+    }
 }
 
 impl WithdrawArgs {
@@ -555,9 +667,6 @@ pub fn dispatch_activate(
 ) -> crate::kernel::DispatchResult<ATMCard> {
 
 
-    let mut payload = std::collections::BTreeMap::new();
-    
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Act { id: id.to_string() },
@@ -576,8 +685,16 @@ pub fn dispatch_activate(
 
         ],
         &["ATMCardActivated"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl ActivateArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+
+        ])
+    }
 }
 
 impl ActivateArgs {
@@ -609,9 +726,6 @@ pub fn dispatch_retire(
 ) -> crate::kernel::DispatchResult<ATMCard> {
 
 
-    let mut payload = std::collections::BTreeMap::new();
-    
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Act { id: id.to_string() },
@@ -630,8 +744,16 @@ pub fn dispatch_retire(
 
         ],
         &["ATMCardRetired"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl RetireArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+
+        ])
+    }
 }
 
 impl RetireArgs {

@@ -322,7 +322,17 @@ impl ReadModel {
 
 impl ReadModel {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
-        Ok(vec![(v.get("bluebook_id")).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ReadModel: missing identity component bluebook_id".to_string()))?.to_id_component()?, (v.get("name").and_then(|x| x.get("value"))).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ReadModel: missing identity component name.value".to_string()))?.to_id_component()?].join(":"))
+        let by_identity = (|| -> Option<String> {
+            let c0 = v.dig("bluebook_id")?.to_id_component().ok()?;
+            let c1 = v.dig("name.value")?.to_id_component().ok()?;
+            Some(vec![c0, c1].join(":"))
+        })();
+        let by_id_key = v.get("id").and_then(|j| j.to_id_component().ok());
+        let by_reference_key = v.get("read_model").and_then(|j| j.to_id_component().ok());
+
+        by_identity.or(by_id_key).or(by_reference_key).ok_or_else(|| {
+            crate::kernel::Refusal::TypeMismatch("ReadModel: no identity found (tried bluebook_id, name.value, id, read_model)".to_string())
+        })
     }
 }
 
@@ -365,15 +375,6 @@ pub fn dispatch_declare(
         args.reference_target.check_invariants()?;
         args.position.check_invariants()?;
 
-    let mut payload = std::collections::BTreeMap::new();
-    payload.insert("bluebook_id".to_string(), format!("{:?}", args.bluebook_id)); 
-        payload.insert("name".to_string(), format!("{:?}", args.name.value)); 
-        payload.insert("description".to_string(), format!("{:?}", args.description.value)); 
-        payload.insert("query_name".to_string(), format!("{:?}", args.query_name.value)); 
-        payload.insert("reference_name".to_string(), format!("{:?}", args.reference_name.value)); 
-        payload.insert("reference_target".to_string(), format!("{:?}", args.reference_target.value)); 
-        payload.insert("position".to_string(), format!("{:?}", args.position.value)); 
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Create {
@@ -405,8 +406,22 @@ pub fn dispatch_declare(
 
         ],
         &["ProjectionDeclared"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl DeclareArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("bluebook_id".to_string(), crate::kernel::Json::Str(self.bluebook_id.clone())),
+        ("name".to_string(), self.name.to_json()),
+        ("description".to_string(), self.description.to_json()),
+        ("query_name".to_string(), self.query_name.to_json()),
+        ("reference_name".to_string(), self.reference_name.to_json()),
+        ("reference_target".to_string(), self.reference_target.to_json()),
+        ("position".to_string(), self.position.to_json()),
+        ])
+    }
 }
 
 impl DeclareArgs {
@@ -451,11 +466,6 @@ pub fn dispatch_gather(
         args.r#as.check_invariants()?;
         args.many.check_invariants()?;
 
-    let mut payload = std::collections::BTreeMap::new();
-    payload.insert("aggregate".to_string(), format!("{:?}", args.aggregate.value)); 
-        payload.insert("as".to_string(), format!("{:?}", args.r#as.value)); 
-        payload.insert("many".to_string(), format!("{:?}", args.many.value)); 
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Act { id: id.to_string() },
@@ -474,8 +484,18 @@ pub fn dispatch_gather(
 
         ],
         &["HeadGathered"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl GatherArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("aggregate".to_string(), self.aggregate.to_json()),
+        ("as".to_string(), self.r#as.to_json()),
+        ("many".to_string(), self.many.to_json()),
+        ])
+    }
 }
 
 impl GatherArgs {
@@ -519,12 +539,6 @@ pub fn dispatch_option(
         args.value.check_invariants()?;
         args.at.check_invariants()?;
 
-    let mut payload = std::collections::BTreeMap::new();
-    payload.insert("option".to_string(), format!("{:?}", args.option.value)); 
-        payload.insert("key".to_string(), format!("{:?}", args.key.value)); 
-        payload.insert("value".to_string(), format!("{:?}", args.value.value)); 
-        payload.insert("at".to_string(), format!("{:?}", args.at.value)); 
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Act { id: id.to_string() },
@@ -543,8 +557,19 @@ pub fn dispatch_option(
 
         ],
         &["OptionAttached"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl OptionArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("option".to_string(), self.option.to_json()),
+        ("key".to_string(), self.key.to_json()),
+        ("value".to_string(), self.value.to_json()),
+        ("at".to_string(), self.at.to_json()),
+        ])
+    }
 }
 
 impl OptionArgs {

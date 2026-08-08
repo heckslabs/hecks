@@ -102,22 +102,6 @@ module RustProjection
         "            crate::kernel::EnsuresSpec { description: #{rule[:description].inspect}, expr: #{ExprEmitter.emit_predicate(rule[:canonical])} },"
       end
 
-      payload_lines = command[:attributes].map do |attr|
-        vo = value_objects_by_name[attr[:type]]
-        field = rust_ident_field(attr[:name])
-        # A single-field CLOSED SET (`AccountKind`, `Size`) is a Rust ENUM,
-        # not a struct — `emit_value_object`'s own branch on `closed_set`
-        # — so it carries no named field to read here the way an ordinary
-        # single-field VO does. `{:?}` on the enum value itself already
-        # renders something readable.
-        if vo && !vo[:closed_set] && !attr[:list] && vo[:attributes].size == 1
-          inner = rust_ident_field(vo[:attributes].first[:name])
-          %(payload.insert("#{attr[:name]}".to_string(), format!("{:?}", args.#{field}.#{inner})); )
-        else
-          %(payload.insert("#{attr[:name]}".to_string(), format!("{:?}", args.#{field})); )
-        end
-      end
-
       transition = lifecycle_transition_for(command, aggregate)
       transition_arg =
         if transition
@@ -176,9 +160,6 @@ module RustProjection
         ) -> crate::kernel::DispatchResult<#{record}> {
         #{invariant_checks.join("\n")}
 
-            let mut payload = std::collections::BTreeMap::new();
-            #{payload_lines.join("\n        ")}
-
             crate::kernel::dispatch(
                 repo,
                 #{hydrate},
@@ -197,7 +178,137 @@ module RustProjection
         #{ensures_specs.join("\n")}
                 ],
                 &[#{command[:emits].map(&:inspect).join(", ")}],
-                payload,
+                args.to_json(),
+            )
+        }
+      RUST
+    end
+
+    # `entity_command_skip_reason` — deliberately just `command_skip_reason`
+    # with `entity` standing in for `aggregate`: an entity's own IR shape
+    # (`attributes`/`lifecycle`/`commands`) is the SAME six-key shape an
+    # aggregate's is (docs/guides/running-a-runtime.md, "Entities" —
+    # exported recursively, identically). The one real divergence —
+    # `append_field_problems`/`append_element` reading `aggregate[:entities]`,
+    # which an entity node doesn't carry — is why this guards `:append`
+    # BEFORE delegating, rather than risking a `nil.find` crash reaching
+    # that branch: no entity command in either example domain ever appends
+    # to a nested list of its own (an entity addressing one element of
+    # ANOTHER entity's list isn't a shape this corpus declares), so this is
+    # a real, separate, still-open gap flagged loudly, not silently worked
+    # around by the delegation below.
+    def entity_command_skip_reason(command, entity, value_objects_by_name)
+      return "then_set append: on an entity's own command not generated yet (nested list)" if command[:mutations].any? { |m| m[:op] == :append }
+
+      command_skip_reason(command, entity, value_objects_by_name)
+    end
+
+    # ── AN ENTITY COMMAND — `EntityInterpreter#call`'s shorter
+    # `DISPATCH_ORDER` (docs/guides/entities.md), ported the same way
+    # `emit_command` ports `CommandInterpreter#call`: compile the type
+    # shapes, hand the kernel `Expr` data plus closures to interpret.
+    # `kernel::dispatch_entity` (dispatch.rs) is the generic, hand-written
+    # counterpart to `kernel::dispatch` this reuses — no `Hydrate` branch
+    # (an entity command never creates), a `matches` closure in place of
+    # `Hydrate::Act`'s bare `id` (an entity is addressed by ITS OWN
+    # identity, found via `identity()`, not the parent's), and BOTH a
+    # `parent_id` and the entity's own address as separate caller-supplied
+    # strings, mirroring `EntityInterpreter#parent`/`#element_of`'s two
+    # separate lookups.
+    def emit_entity_command(command, entity, parent_aggregate, domain_name, value_objects_by_name)
+      parent_record  = rust_ident(parent_aggregate[:name])
+      element_record = rust_ident(entity[:name])
+      cmd = rust_ident(command[:name])
+
+      # THE PARENT'S LIST ATTRIBUTE HOLDING THIS ENTITY — found the exact
+      # way `element_of` finds it at Ruby's own runtime (`a.list? &&
+      # a.type == entity_name`), just resolved once here at generation
+      # time instead of once per dispatch.
+      list_attr = parent_aggregate[:attributes].find { |a| a[:list] && a[:type] == entity[:name] }
+      raise "#{entity[:name]}: no list attribute on #{parent_aggregate[:name]} holds it — unsupported_attribute_types should have caught this" unless list_attr
+
+      list_field = rust_ident_field(list_attr[:name])
+      args_struct_name = "#{element_record}#{cmd}Args"
+
+      args_struct = ["pub struct #{args_struct_name} {"]
+      command[:attributes].each do |attr|
+        type = rust_type(attr[:type], list: attr[:list])
+        args_struct << "    pub #{rust_ident_field(attr[:name])}: #{type},"
+      end
+      args_struct << "}"
+
+      invariant_checks = command[:attributes].filter_map do |attr|
+        next unless value_objects_by_name.key?(attr[:type])
+        next if value_objects_by_name[attr[:type]][:closed_set]
+
+        field = rust_ident_field(attr[:name])
+        attr[:list] ? "        for item in &args.#{field} { item.check_invariants()?; }" : "        args.#{field}.check_invariants()?;"
+      end
+
+      given_specs = command[:givens].map do |given|
+        "            crate::kernel::GivenSpec { description: #{given[:description].inspect}, expr: #{ExprEmitter.emit_predicate(given[:canonical])} },"
+      end
+
+      ensures_specs = command[:ensures].map do |rule|
+        "            crate::kernel::EnsuresSpec { description: #{rule[:description].inspect}, expr: #{ExprEmitter.emit_predicate(rule[:canonical])} },"
+      end
+
+      # THE ENTITY's OWN lifecycle, not the parent aggregate's —
+      # `lifecycle_transition_for`/`emit_mutation_line` (bridging.rb/
+      # mutations.rb) already take a "declaring" node generically; passing
+      # `entity` here is exactly that, not a special case either helper
+      # needs to know about.
+      transition = lifecycle_transition_for(command, entity)
+      transition_arg =
+        if transition
+          "Some(crate::kernel::TransitionCheck { field: #{transition[:field].inspect}, from_states: &[#{transition[:from_states].map(&:inspect).join(', ')}] })"
+        else
+          "None"
+        end
+
+      mutation_lines = command[:mutations].map { |m| emit_mutation_line(m, entity, command, value_objects_by_name, optional: false) }
+      mutation_lines << "        record.#{rust_ident_field(transition[:field])} = #{transition[:to_state].inspect}.to_string();" if transition
+      mutation_lines = ["        let _ = record;"] if mutation_lines.empty?
+
+      qualified_command_name = "#{entity[:name]}.#{command[:name]}"
+
+      <<~RUST
+        #{emit_fielded_flat(args_struct_name, command[:attributes], value_objects_by_name)}
+
+        #[derive(Debug, Clone)]
+        #{args_struct.join("\n")}
+
+        #{emit_to_json_flat(args_struct_name, command[:attributes], value_objects_by_name)}
+
+        #{emit_from_json_flat(args_struct_name, command[:attributes], value_objects_by_name)}
+
+        pub fn dispatch_entity_#{entity[:name].downcase}_#{dispatch_fn_name(cmd)}(
+            repo: &mut impl crate::kernel::Repository<#{parent_record}>, parent_id: &str, element_id: &str, args: #{args_struct_name},
+        ) -> crate::kernel::DispatchResult<#{parent_record}> {
+        #{invariant_checks.join("\n")}
+
+            crate::kernel::dispatch_entity(
+                repo,
+                parent_id,
+                |r: &#{parent_record}| &r.#{list_field},
+                |r: &mut #{parent_record}| &mut r.#{list_field},
+                |el: &#{element_record}| el.identity() == element_id,
+                #{qualified_command_name.inspect},
+                #{"#{domain_name}::#{parent_aggregate[:name]}".inspect},
+                &args,
+                &[
+        #{given_specs.join("\n")}
+                ],
+                #{transition_arg},
+                |record| {
+        #{mutation_lines.join("\n")}
+                    Ok(())
+                },
+                &[
+        #{ensures_specs.join("\n")}
+                ],
+                &[#{command[:emits].map(&:inspect).join(", ")}],
+                args.to_json(),
             )
         }
       RUST

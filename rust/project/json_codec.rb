@@ -19,9 +19,22 @@ module RustProjection
 
     SCALAR_JSON_ACCESSOR = { "String" => "as_str", "Integer" => "as_i64", "Float" => "as_f64" }.freeze
 
-    def scalar_from_json_expr(struct_name, key, scalar_type)
+    # `default:` — `Value.build`'s own fallback (bridging.rb's
+    # `creation_default_rhs` comment, the same rule applied here instead of
+    # only at creation time): a scalar field the caller's JSON doesn't
+    # carry isn't automatically a missing-argument refusal if the
+    # ATTRIBUTE itself declares a `default:` — `PositiveMoney.currency`
+    # (default `"USD"`) is the live example a process manager's own `with:`
+    # forwarding surfaces: `Transfer`'s own `amount` type (`TransferMoney`)
+    # has no `currency` field at all, so a leg dispatching `Account.Debit`
+    # with `amount: :amount` forwards a bare `{"cents": N}` — Ruby's
+    # `Value.for_attribute` fills the missing field from the TARGET type's
+    # own default the identical way; this is that, generated.
+    def scalar_from_json_expr(struct_name, key, scalar_type, default: nil)
       accessor = SCALAR_JSON_ACCESSOR.fetch(scalar_type)
       wrap = scalar_type == "String" ? ".map(|s| s.to_string())" : ""
+      return %(v.get(#{key.inspect}).and_then(crate::kernel::Json::#{accessor})#{wrap}.unwrap_or_else(|| #{literal_rhs(default)})) if default
+
       %(v.require(#{key.inspect}, #{struct_name.inspect})?.#{accessor}()#{wrap}.ok_or_else(|| #{json_type_error(struct_name, key, scalar_type)})?)
     end
 
@@ -51,7 +64,7 @@ module RustProjection
               "Some(items) => items.iter().map(#{elem_type}::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, " \
               "None => Vec::new(), }"
           elsif scalar
-            scalar_from_json_expr(struct_name, key, scalar)
+            scalar_from_json_expr(struct_name, key, scalar, default: attr[:default])
           else
             nested_type = rust_ident(attr[:type])
             "#{nested_type}::from_json(v.require(#{key.inspect}, #{struct_name.inspect})?)?"
@@ -233,21 +246,80 @@ module RustProjection
       end
     end
 
+    # `CommandInterpreter#hydrate`'s own acting-command identity chain,
+    # read directly:
+    #
+    #   id = identity_of(aggregate, args) ||
+    #        identity_from(aggregate, args, :id) ||
+    #        identity_from(aggregate, args, reference_key(command)) ||
+    #        raise NotFound
+    #
+    # THREE tiers, tried in order, not one — `extract_id` used to be tier 1
+    # alone, which is right for a caller who names the identity field
+    # directly (`Account.Credit`'s own `number:`, matching `identified_by`'s
+    # head) but wrong for a command whose own `reference_to` names a
+    # DIFFERENT argument (`Transfer.Debited`'s `transfer:` — `Naming.
+    # reference_key("Banking::Transfer") == "transfer"`, not `reference`,
+    # the field `identified_by` actually names). A process manager's own
+    # `with:` forwarding is what surfaces tier 3 for real: `Settlement`
+    # dispatches `Transfer.Debited` with only `transfer:` set, never
+    # `reference:`, exactly the shape tier 1 alone cannot resolve.
     def emit_extract_id(aggregate)
       name = rust_ident(aggregate[:name])
-      components = aggregate[:identified_by].map do |path|
-        head, *rest = path.split(".")
-        walk = (["v.get(#{head.inspect})"] + rest.map { |seg| ".and_then(|x| x.get(#{seg.inspect}))" }).join
-        missing = "#{name}: missing identity component #{path}"
-        "(#{walk}).ok_or_else(|| crate::kernel::Refusal::TypeMismatch(#{missing.inspect}.to_string()))?.to_id_component()?"
-      end
+      reference_key = Hecksagain::Naming.snake(aggregate[:name])
 
-      body = components.size == 1 ? components.first : "vec![#{components.join(', ')}].join(\":\")"
+      tier1_lines = aggregate[:identified_by].each_with_index.map do |path, i|
+        "            let c#{i} = v.dig(#{path.inspect})?.to_id_component().ok()?;"
+      end
+      tier1_join =
+        if aggregate[:identified_by].size == 1
+          "c0"
+        else
+          "vec![#{aggregate[:identified_by].size.times.map { |i| "c#{i}" }.join(', ')}].join(\":\")"
+        end
+
+      tried = (aggregate[:identified_by] + ["id", reference_key]).join(", ")
 
       <<~RUST
         impl #{name} {
             pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
-                Ok(#{body})
+                let by_identity = (|| -> Option<String> {
+        #{tier1_lines.join("\n")}
+                    Some(#{tier1_join})
+                })();
+                let by_id_key = v.get("id").and_then(|j| j.to_id_component().ok());
+                let by_reference_key = v.get(#{reference_key.inspect}).and_then(|j| j.to_id_component().ok());
+
+                by_identity.or(by_id_key).or(by_reference_key).ok_or_else(|| {
+                    crate::kernel::Refusal::TypeMismatch(#{"#{name}: no identity found (tried #{tried})".inspect}.to_string())
+                })
+            }
+        }
+      RUST
+    end
+
+    # An entity ELEMENT's own identity, read off an ALREADY-CONSTRUCTED
+    # Rust value instead of raw JSON — `extract_id`'s counterpart for
+    # `dispatch_entity`'s `matches` closure (kernel/dispatch.rs), which
+    # compares each list element's OWN identity against the caller-supplied
+    # target rather than walking JSON a second time. Same dotted-path,
+    # same join-with-":", `self.` field access in place of `v.get(...)` —
+    # deliberately the SAME string shape `extract_id` produces from JSON,
+    # so `matches = |el| el.identity() == wanted_id` (wanted_id built by
+    # `extract_id` against the entity's OWN identity fields in the raw
+    # step args) is a plain string comparison, not a second parse.
+    def emit_self_identity(entity)
+      name = rust_ident(entity[:name])
+      components = entity[:identified_by].map do |path|
+        head, *rest = path.split(".")
+        (["self.#{rust_ident_field(head)}"] + rest.map { |seg| ".#{rust_ident_field(seg)}" }).join + ".to_string()"
+      end
+      body = components.size == 1 ? components.first : "vec![#{components.join(', ')}].join(\":\")"
+
+      <<~RUST
+        impl #{name} {
+            pub fn identity(&self) -> String {
+                #{body}
             }
         }
       RUST

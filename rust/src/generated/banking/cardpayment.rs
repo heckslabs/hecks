@@ -221,7 +221,16 @@ impl CardPayment {
 
 impl CardPayment {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
-        Ok((v.get("authorisation").and_then(|x| x.get("value"))).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("CardPayment: missing identity component authorisation.value".to_string()))?.to_id_component()?)
+        let by_identity = (|| -> Option<String> {
+            let c0 = v.dig("authorisation.value")?.to_id_component().ok()?;
+            Some(c0)
+        })();
+        let by_id_key = v.get("id").and_then(|j| j.to_id_component().ok());
+        let by_reference_key = v.get("card_payment").and_then(|j| j.to_id_component().ok());
+
+        by_identity.or(by_id_key).or(by_reference_key).ok_or_else(|| {
+            crate::kernel::Refusal::TypeMismatch("CardPayment: no identity found (tried authorisation.value, id, card_payment)".to_string())
+        })
     }
 }
 
@@ -258,13 +267,6 @@ pub fn dispatch_authorize(
         args.merchant.check_invariants()?;
         for item in &args.tags { item.check_invariants()?; }
 
-    let mut payload = std::collections::BTreeMap::new();
-    payload.insert("account_id".to_string(), format!("{:?}", args.account_id)); 
-        payload.insert("authorisation".to_string(), format!("{:?}", args.authorisation.value)); 
-        payload.insert("amount".to_string(), format!("{:?}", args.amount.cents)); 
-        payload.insert("merchant".to_string(), format!("{:?}", args.merchant.value)); 
-        payload.insert("tags".to_string(), format!("{:?}", args.tags)); 
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Create {
@@ -296,8 +298,20 @@ pub fn dispatch_authorize(
 
         ],
         &["CardAuthorized"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl AuthorizeArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("account_id".to_string(), crate::kernel::Json::Str(self.account_id.clone())),
+        ("authorisation".to_string(), self.authorisation.to_json()),
+        ("amount".to_string(), self.amount.to_json()),
+        ("merchant".to_string(), self.merchant.to_json()),
+        ("tags".to_string(), crate::kernel::Json::Array(self.tags.iter().map(|x| x.to_json()).collect())),
+        ])
+    }
 }
 
 impl AuthorizeArgs {
@@ -333,9 +347,6 @@ pub fn dispatch_capture(
 ) -> crate::kernel::DispatchResult<CardPayment> {
 
 
-    let mut payload = std::collections::BTreeMap::new();
-    
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Act { id: id.to_string() },
@@ -354,8 +365,16 @@ pub fn dispatch_capture(
 
         ],
         &["CardCaptured"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl CaptureArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+
+        ])
+    }
 }
 
 impl CaptureArgs {
@@ -387,9 +406,6 @@ pub fn dispatch_void(
 ) -> crate::kernel::DispatchResult<CardPayment> {
 
 
-    let mut payload = std::collections::BTreeMap::new();
-    
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Act { id: id.to_string() },
@@ -408,8 +424,16 @@ pub fn dispatch_void(
 
         ],
         &["CardVoided"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl VoidArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+
+        ])
+    }
 }
 
 impl VoidArgs {
@@ -441,9 +465,6 @@ pub fn dispatch_refund(
 ) -> crate::kernel::DispatchResult<CardPayment> {
 
 
-    let mut payload = std::collections::BTreeMap::new();
-    
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Act { id: id.to_string() },
@@ -462,8 +483,16 @@ pub fn dispatch_refund(
 
         ],
         &["CardRefunded"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl RefundArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+
+        ])
+    }
 }
 
 impl RefundArgs {
@@ -495,9 +524,6 @@ pub fn dispatch_reverse(
 ) -> crate::kernel::DispatchResult<CardPayment> {
 
 
-    let mut payload = std::collections::BTreeMap::new();
-    
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Act { id: id.to_string() },
@@ -516,8 +542,16 @@ pub fn dispatch_reverse(
 
         ],
         &["CardReversed"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl ReverseArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+
+        ])
+    }
 }
 
 impl ReverseArgs {
@@ -550,9 +584,6 @@ pub fn dispatch_dispute(
 ) -> crate::kernel::DispatchResult<CardPayment> {
 
 
-    let mut payload = std::collections::BTreeMap::new();
-    payload.insert("disputed_by".to_string(), format!("{:?}", args.disputed_by)); 
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Act { id: id.to_string() },
@@ -572,8 +603,16 @@ pub fn dispatch_dispute(
 
         ],
         &["CardDisputed"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl DisputeArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("disputed_by".to_string(), crate::kernel::Json::Str(self.disputed_by.clone())),
+        ])
+    }
 }
 
 impl DisputeArgs {
@@ -605,9 +644,6 @@ pub fn dispatch_chargeback(
 ) -> crate::kernel::DispatchResult<CardPayment> {
 
 
-    let mut payload = std::collections::BTreeMap::new();
-    
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Act { id: id.to_string() },
@@ -626,8 +662,16 @@ pub fn dispatch_chargeback(
 
         ],
         &["CardChargedBack"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl ChargebackArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+
+        ])
+    }
 }
 
 impl ChargebackArgs {
@@ -659,9 +703,6 @@ pub fn dispatch_reject_dispute(
 ) -> crate::kernel::DispatchResult<CardPayment> {
 
 
-    let mut payload = std::collections::BTreeMap::new();
-    
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Act { id: id.to_string() },
@@ -680,8 +721,16 @@ pub fn dispatch_reject_dispute(
 
         ],
         &["CardDisputeRejected"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl RejectDisputeArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+
+        ])
+    }
 }
 
 impl RejectDisputeArgs {

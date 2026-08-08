@@ -308,11 +308,12 @@ pub struct Visit {
 impl crate::kernel::Fielded for Visit {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
-        
+        use crate::kernel::Value;
         match name {
             "date" => Some(Field::Nested(&self.date)),
             "sequence" => Some(Field::Nested(&self.sequence)),
             "note" => Some(Field::Nested(&self.note)),
+            "state" => Some(Field::Value(Value::Str(self.state.clone()))),
             _ => None,
         }
     }
@@ -329,6 +330,104 @@ impl Visit {
     }
 }
 
+impl Visit {
+    pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
+        let by_identity = (|| -> Option<String> {
+            let c0 = v.dig("date.value")?.to_id_component().ok()?;
+            let c1 = v.dig("sequence.value")?.to_id_component().ok()?;
+            Some(vec![c0, c1].join(":"))
+        })();
+        let by_id_key = v.get("id").and_then(|j| j.to_id_component().ok());
+        let by_reference_key = v.get("visit").and_then(|j| j.to_id_component().ok());
+
+        by_identity.or(by_id_key).or(by_reference_key).ok_or_else(|| {
+            crate::kernel::Refusal::TypeMismatch("Visit: no identity found (tried date.value, sequence.value, id, visit)".to_string())
+        })
+    }
+}
+
+impl Visit {
+    pub fn identity(&self) -> String {
+        vec![self.date.value.to_string(), self.sequence.value.to_string()].join(":")
+    }
+}
+
+impl crate::kernel::Fielded for VisitAnnotateArgs {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        
+        match name {
+            "date" => Some(Field::Nested(&self.date)),
+            "sequence" => Some(Field::Nested(&self.sequence)),
+            "note" => Some(Field::Nested(&self.note)),
+            _ => None,
+        }
+    }
+}
+
+
+#[derive(Debug, Clone)]
+pub struct VisitAnnotateArgs {
+    pub date: VisitDate,
+    pub sequence: VisitSequence,
+    pub note: VisitNote,
+}
+
+impl VisitAnnotateArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("date".to_string(), self.date.to_json()),
+        ("sequence".to_string(), self.sequence.to_json()),
+        ("note".to_string(), self.note.to_json()),
+        ])
+    }
+}
+
+
+impl VisitAnnotateArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        date: VisitDate::from_json(v.require("date", "VisitAnnotateArgs")?)?,
+        sequence: VisitSequence::from_json(v.require("sequence", "VisitAnnotateArgs")?)?,
+        note: VisitNote::from_json(v.require("note", "VisitAnnotateArgs")?)?,
+        })
+    }
+}
+
+
+pub fn dispatch_entity_visit_annotate(
+    repo: &mut impl crate::kernel::Repository<SafeDepositBox>, parent_id: &str, element_id: &str, args: VisitAnnotateArgs,
+) -> crate::kernel::DispatchResult<SafeDepositBox> {
+        args.date.check_invariants()?;
+        args.sequence.check_invariants()?;
+        args.note.check_invariants()?;
+
+    crate::kernel::dispatch_entity(
+        repo,
+        parent_id,
+        |r: &SafeDepositBox| &r.visits,
+        |r: &mut SafeDepositBox| &mut r.visits,
+        |el: &Visit| el.identity() == element_id,
+        "Visit.Annotate",
+        "Banking::SafeDepositBox",
+        &args,
+        &[
+
+        ],
+        Some(crate::kernel::TransitionCheck { field: "state", from_states: &["logged"] }),
+        |record| {
+        record.note = args.note.clone();
+        record.state = "logged".to_string();
+            Ok(())
+        },
+        &[
+
+        ],
+        &["VisitAnnotated"],
+        args.to_json(),
+    )
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct KeyIssuance {
     pub serial: KeySerial,
@@ -338,9 +437,10 @@ pub struct KeyIssuance {
 impl crate::kernel::Fielded for KeyIssuance {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
-        
+        use crate::kernel::Value;
         match name {
             "serial" => Some(Field::Nested(&self.serial)),
+            "status" => Some(Field::Value(Value::Str(self.status.clone()))),
             _ => None,
         }
     }
@@ -353,6 +453,92 @@ impl KeyIssuance {
         ("status".to_string(), crate::kernel::Json::Str(self.status.clone())),
         ])
     }
+}
+
+impl KeyIssuance {
+    pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
+        let by_identity = (|| -> Option<String> {
+            let c0 = v.dig("serial.value")?.to_id_component().ok()?;
+            Some(c0)
+        })();
+        let by_id_key = v.get("id").and_then(|j| j.to_id_component().ok());
+        let by_reference_key = v.get("key_issuance").and_then(|j| j.to_id_component().ok());
+
+        by_identity.or(by_id_key).or(by_reference_key).ok_or_else(|| {
+            crate::kernel::Refusal::TypeMismatch("KeyIssuance: no identity found (tried serial.value, id, key_issuance)".to_string())
+        })
+    }
+}
+
+impl KeyIssuance {
+    pub fn identity(&self) -> String {
+        self.serial.value.to_string()
+    }
+}
+
+impl crate::kernel::Fielded for KeyIssuanceReturnArgs {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        
+        match name {
+            "serial" => Some(Field::Nested(&self.serial)),
+            _ => None,
+        }
+    }
+}
+
+
+#[derive(Debug, Clone)]
+pub struct KeyIssuanceReturnArgs {
+    pub serial: KeySerial,
+}
+
+impl KeyIssuanceReturnArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("serial".to_string(), self.serial.to_json()),
+        ])
+    }
+}
+
+
+impl KeyIssuanceReturnArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        serial: KeySerial::from_json(v.require("serial", "KeyIssuanceReturnArgs")?)?,
+        })
+    }
+}
+
+
+pub fn dispatch_entity_keyissuance_return(
+    repo: &mut impl crate::kernel::Repository<SafeDepositBox>, parent_id: &str, element_id: &str, args: KeyIssuanceReturnArgs,
+) -> crate::kernel::DispatchResult<SafeDepositBox> {
+        args.serial.check_invariants()?;
+
+    crate::kernel::dispatch_entity(
+        repo,
+        parent_id,
+        |r: &SafeDepositBox| &r.keys,
+        |r: &mut SafeDepositBox| &mut r.keys,
+        |el: &KeyIssuance| el.identity() == element_id,
+        "KeyIssuance.Return",
+        "Banking::SafeDepositBox",
+        &args,
+        &[
+            crate::kernel::GivenSpec { description: "only an issued key is returned", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("issued".to_string())) } },
+        ],
+        Some(crate::kernel::TransitionCheck { field: "status", from_states: &["issued"] }),
+        |record| {
+        record.status = "returned".to_string();
+            Ok(())
+        },
+        &[
+
+        ],
+        &["KeyReturned"],
+        args.to_json(),
+    )
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -397,7 +583,17 @@ impl SafeDepositBox {
 
 impl SafeDepositBox {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
-        Ok(vec![(v.get("branch_code").and_then(|x| x.get("value"))).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("SafeDepositBox: missing identity component branch_code.value".to_string()))?.to_id_component()?, (v.get("box_number").and_then(|x| x.get("value"))).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("SafeDepositBox: missing identity component box_number.value".to_string()))?.to_id_component()?].join(":"))
+        let by_identity = (|| -> Option<String> {
+            let c0 = v.dig("branch_code.value")?.to_id_component().ok()?;
+            let c1 = v.dig("box_number.value")?.to_id_component().ok()?;
+            Some(vec![c0, c1].join(":"))
+        })();
+        let by_id_key = v.get("id").and_then(|j| j.to_id_component().ok());
+        let by_reference_key = v.get("safe_deposit_box").and_then(|j| j.to_id_component().ok());
+
+        by_identity.or(by_id_key).or(by_reference_key).ok_or_else(|| {
+            crate::kernel::Refusal::TypeMismatch("SafeDepositBox: no identity found (tried branch_code.value, box_number.value, id, safe_deposit_box)".to_string())
+        })
     }
 }
 
@@ -429,12 +625,6 @@ pub fn dispatch_rent(
         args.branch_code.check_invariants()?;
         args.box_number.check_invariants()?;
 
-    let mut payload = std::collections::BTreeMap::new();
-    payload.insert("customer_id".to_string(), format!("{:?}", args.customer_id)); 
-        payload.insert("branch_code".to_string(), format!("{:?}", args.branch_code.value)); 
-        payload.insert("box_number".to_string(), format!("{:?}", args.box_number.value)); 
-        payload.insert("size".to_string(), format!("{:?}", args.size)); 
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Create {
@@ -465,8 +655,19 @@ pub fn dispatch_rent(
 
         ],
         &["BoxRented"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl RentArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("customer_id".to_string(), crate::kernel::Json::Str(self.customer_id.clone())),
+        ("branch_code".to_string(), self.branch_code.to_json()),
+        ("box_number".to_string(), self.box_number.to_json()),
+        ("size".to_string(), self.size.to_json()),
+        ])
+    }
 }
 
 impl RentArgs {
@@ -501,9 +702,6 @@ pub fn dispatch_surrender(
 ) -> crate::kernel::DispatchResult<SafeDepositBox> {
 
 
-    let mut payload = std::collections::BTreeMap::new();
-    
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Act { id: id.to_string() },
@@ -522,8 +720,16 @@ pub fn dispatch_surrender(
 
         ],
         &["BoxSurrendered", "KeyReturnDue"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl SurrenderArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+
+        ])
+    }
 }
 
 impl SurrenderArgs {
@@ -562,11 +768,6 @@ pub fn dispatch_log_visit(
         args.sequence.check_invariants()?;
         args.note.check_invariants()?;
 
-    let mut payload = std::collections::BTreeMap::new();
-    payload.insert("date".to_string(), format!("{:?}", args.date.value)); 
-        payload.insert("sequence".to_string(), format!("{:?}", args.sequence.value)); 
-        payload.insert("note".to_string(), format!("{:?}", args.note.text)); 
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Act { id: id.to_string() },
@@ -585,8 +786,18 @@ pub fn dispatch_log_visit(
 
         ],
         &["BoxOpened"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl LogVisitArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("date".to_string(), self.date.to_json()),
+        ("sequence".to_string(), self.sequence.to_json()),
+        ("note".to_string(), self.note.to_json()),
+        ])
+    }
 }
 
 impl LogVisitArgs {
@@ -621,9 +832,6 @@ pub fn dispatch_issue_key(
 ) -> crate::kernel::DispatchResult<SafeDepositBox> {
         args.serial.check_invariants()?;
 
-    let mut payload = std::collections::BTreeMap::new();
-    payload.insert("serial".to_string(), format!("{:?}", args.serial.value)); 
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Act { id: id.to_string() },
@@ -642,8 +850,16 @@ pub fn dispatch_issue_key(
 
         ],
         &["KeyIssued"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl IssueKeyArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("serial".to_string(), self.serial.to_json()),
+        ])
+    }
 }
 
 impl IssueKeyArgs {

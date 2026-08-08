@@ -204,7 +204,17 @@ impl Statement {
 
 impl Statement {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
-        Ok(vec![(v.get("account_id")).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Statement: missing identity component account_id".to_string()))?.to_id_component()?, (v.get("period").and_then(|x| x.get("value"))).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Statement: missing identity component period.value".to_string()))?.to_id_component()?].join(":"))
+        let by_identity = (|| -> Option<String> {
+            let c0 = v.dig("account_id")?.to_id_component().ok()?;
+            let c1 = v.dig("period.value")?.to_id_component().ok()?;
+            Some(vec![c0, c1].join(":"))
+        })();
+        let by_id_key = v.get("id").and_then(|j| j.to_id_component().ok());
+        let by_reference_key = v.get("statement").and_then(|j| j.to_id_component().ok());
+
+        by_identity.or(by_id_key).or(by_reference_key).ok_or_else(|| {
+            crate::kernel::Refusal::TypeMismatch("Statement: no identity found (tried account_id, period.value, id, statement)".to_string())
+        })
     }
 }
 
@@ -242,14 +252,6 @@ pub fn dispatch_generate(
         args.closing_balance.check_invariants()?;
         args.generated_on.check_invariants()?;
 
-    let mut payload = std::collections::BTreeMap::new();
-    payload.insert("account_id".to_string(), format!("{:?}", args.account_id)); 
-        payload.insert("period".to_string(), format!("{:?}", args.period.value)); 
-        payload.insert("opening_balance".to_string(), format!("{:?}", args.opening_balance.cents)); 
-        payload.insert("closing_balance".to_string(), format!("{:?}", args.closing_balance.cents)); 
-        payload.insert("generated_on".to_string(), format!("{:?}", args.generated_on.value)); 
-        payload.insert("frequency".to_string(), format!("{:?}", args.frequency)); 
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Create {
@@ -278,8 +280,21 @@ pub fn dispatch_generate(
 
         ],
         &["StatementGenerated"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl GenerateArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("account_id".to_string(), crate::kernel::Json::Str(self.account_id.clone())),
+        ("period".to_string(), self.period.to_json()),
+        ("opening_balance".to_string(), self.opening_balance.to_json()),
+        ("closing_balance".to_string(), self.closing_balance.to_json()),
+        ("generated_on".to_string(), self.generated_on.to_json()),
+        ("frequency".to_string(), self.frequency.to_json()),
+        ])
+    }
 }
 
 impl GenerateArgs {

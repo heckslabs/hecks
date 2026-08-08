@@ -151,7 +151,20 @@ module RustProjection
       lines << "    pub #{rust_ident_field(entity[:lifecycle][:field])}: String," if entity[:lifecycle]
       lines << "}"
       lines << ""
-      lines << emit_fielded_flat(name, entity[:attributes], value_objects_by_name)
+      # An entity command's own TransitionCheck reads this field generically
+      # (kernel::dispatch_entity, the same way an aggregate command's does
+      # off emit_fielded_record's own lifecycle arm) — entity_lifecycle_arm
+      # is this struct's one, in the flat (non-Option) shape emit_entity's
+      # own field actually has.
+      lifecycle_arm =
+        if entity[:lifecycle]
+          field = rust_field(entity[:lifecycle][:field])
+          ident = rust_ident_field(entity[:lifecycle][:field])
+          [%(            "#{field}" => Some(Field::Value(Value::Str(self.#{ident}.clone()))),)]
+        else
+          []
+        end
+      lines << emit_fielded_flat(name, entity[:attributes], value_objects_by_name, extra_arms: lifecycle_arm)
       lines.join("\n")
     end
 

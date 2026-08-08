@@ -10,11 +10,15 @@ pub mod cli;
 pub mod dispatch;
 pub mod expr;
 pub mod json;
+pub mod orchestrate;
 pub mod repository;
 
-pub use dispatch::{dispatch, EnsuresSpec, GivenSpec, Hydrate, TransitionCheck};
+pub use dispatch::{dispatch, dispatch_entity, EnsuresSpec, GivenSpec, Hydrate, TransitionCheck};
 pub use expr::{interpret, Comparison, EvalContext, Expr, Field, Fielded, NoFields, Value};
 pub use json::Json;
+pub use orchestrate::{
+    orchestrate, DispatchSpec, Handler, PolicyRule, ProcessManagerDef, SagaInstance, WithValue, MAX_REACTION_DEPTH, REFUSED,
+};
 pub use repository::{InMemoryRepository, Repository};
 
 #[derive(Debug, Clone)]
@@ -25,8 +29,12 @@ pub struct Event {
     /// Mirrors Ruby's `payload: args` (running-a-runtime.md's "Commands: the
     /// roster and what each key means" section — `emits` is the plain list
     /// of event names a successful dispatch raises; the payload shape
-    /// itself is `Runtime::CommandRules::Emission#emit`, read directly).
-    pub payload: std::collections::BTreeMap<String, String>,
+    /// itself is `Runtime::CommandRules::Emission#emit`, read directly) —
+    /// the dispatching command's own `args.to_json()`, structurally, not a
+    /// debug-formatted string dump (that was this kernel's shape before
+    /// policies/process managers needed to actually forward payload DATA
+    /// into a re-triggered command's own `from_json`, not just print it).
+    pub payload: json::Json,
     // NOT YET GENERATED: `occurred_at`. Ruby's Event carries a timestamp;
     // this kernel doesn't have a clock port yet, so it's left off rather
     // than faked with a wrong value. Flagged, not silently dropped.

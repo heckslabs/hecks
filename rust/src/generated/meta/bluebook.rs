@@ -316,7 +316,16 @@ impl Bluebook {
 
 impl Bluebook {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
-        Ok((v.get("name").and_then(|x| x.get("value"))).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Bluebook: missing identity component name.value".to_string()))?.to_id_component()?)
+        let by_identity = (|| -> Option<String> {
+            let c0 = v.dig("name.value")?.to_id_component().ok()?;
+            Some(c0)
+        })();
+        let by_id_key = v.get("id").and_then(|j| j.to_id_component().ok());
+        let by_reference_key = v.get("bluebook").and_then(|j| j.to_id_component().ok());
+
+        by_identity.or(by_id_key).or(by_reference_key).ok_or_else(|| {
+            crate::kernel::Refusal::TypeMismatch("Bluebook: no identity found (tried name.value, id, bluebook)".to_string())
+        })
     }
 }
 
@@ -351,12 +360,6 @@ pub fn dispatch_declare(
         args.classification.check_invariants()?;
         args.version.check_invariants()?;
 
-    let mut payload = std::collections::BTreeMap::new();
-    payload.insert("name".to_string(), format!("{:?}", args.name.value)); 
-        payload.insert("vision".to_string(), format!("{:?}", args.vision.value)); 
-        payload.insert("classification".to_string(), format!("{:?}", args.classification.value)); 
-        payload.insert("version".to_string(), format!("{:?}", args.version.value)); 
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Create {
@@ -384,8 +387,19 @@ pub fn dispatch_declare(
 
         ],
         &["ChapterDeclared"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl DeclareArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("name".to_string(), self.name.to_json()),
+        ("vision".to_string(), self.vision.to_json()),
+        ("classification".to_string(), self.classification.to_json()),
+        ("version".to_string(), self.version.to_json()),
+        ])
+    }
 }
 
 impl DeclareArgs {
@@ -433,13 +447,6 @@ pub fn dispatch_normalise(
         args.boundary.check_invariants()?;
         args.position.check_invariants()?;
 
-    let mut payload = std::collections::BTreeMap::new();
-    payload.insert("strategy".to_string(), format!("{:?}", args.strategy.value)); 
-        payload.insert("source_token".to_string(), format!("{:?}", args.source_token.value)); 
-        payload.insert("replacement".to_string(), format!("{:?}", args.replacement.value)); 
-        payload.insert("boundary".to_string(), format!("{:?}", args.boundary.value)); 
-        payload.insert("position".to_string(), format!("{:?}", args.position.value)); 
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Act { id: id.to_string() },
@@ -458,8 +465,20 @@ pub fn dispatch_normalise(
 
         ],
         &["NormalisationAttached"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl NormaliseArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("strategy".to_string(), self.strategy.to_json()),
+        ("source_token".to_string(), self.source_token.to_json()),
+        ("replacement".to_string(), self.replacement.to_json()),
+        ("boundary".to_string(), self.boundary.to_json()),
+        ("position".to_string(), self.position.to_json()),
+        ])
+    }
 }
 
 impl NormaliseArgs {

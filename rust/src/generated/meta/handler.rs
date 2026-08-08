@@ -120,7 +120,17 @@ impl Handler {
 
 impl Handler {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
-        Ok(vec![(v.get("process_manager_id")).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Handler: missing identity component process_manager_id".to_string()))?.to_id_component()?, (v.get("event_type").and_then(|x| x.get("value"))).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Handler: missing identity component event_type.value".to_string()))?.to_id_component()?].join(":"))
+        let by_identity = (|| -> Option<String> {
+            let c0 = v.dig("process_manager_id")?.to_id_component().ok()?;
+            let c1 = v.dig("event_type.value")?.to_id_component().ok()?;
+            Some(vec![c0, c1].join(":"))
+        })();
+        let by_id_key = v.get("id").and_then(|j| j.to_id_component().ok());
+        let by_reference_key = v.get("handler").and_then(|j| j.to_id_component().ok());
+
+        by_identity.or(by_id_key).or(by_reference_key).ok_or_else(|| {
+            crate::kernel::Refusal::TypeMismatch("Handler: no identity found (tried process_manager_id, event_type.value, id, handler)".to_string())
+        })
     }
 }
 
@@ -157,13 +167,6 @@ pub fn dispatch_declare(
         args.to_state.check_invariants()?;
         args.position.check_invariants()?;
 
-    let mut payload = std::collections::BTreeMap::new();
-    payload.insert("process_manager_id".to_string(), format!("{:?}", args.process_manager_id)); 
-        payload.insert("event_type".to_string(), format!("{:?}", args.event_type.value)); 
-        payload.insert("from_state".to_string(), format!("{:?}", args.from_state.value)); 
-        payload.insert("to_state".to_string(), format!("{:?}", args.to_state.value)); 
-        payload.insert("position".to_string(), format!("{:?}", args.position.value)); 
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Create {
@@ -191,8 +194,20 @@ pub fn dispatch_declare(
 
         ],
         &["LegDeclared"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl DeclareArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("process_manager_id".to_string(), crate::kernel::Json::Str(self.process_manager_id.clone())),
+        ("event_type".to_string(), self.event_type.to_json()),
+        ("from_state".to_string(), self.from_state.to_json()),
+        ("to_state".to_string(), self.to_state.to_json()),
+        ("position".to_string(), self.position.to_json()),
+        ])
+    }
 }
 
 impl DeclareArgs {

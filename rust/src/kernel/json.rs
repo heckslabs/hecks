@@ -45,6 +45,28 @@ impl Json {
         }
     }
 
+    /// A tolerant dotted-path walk — `extract_id`/a process manager's
+    /// `correlates_by` both want "the scalar this path names," and a
+    /// single-field value object's own wrapped shape (`{"value": "x"}`)
+    /// isn't the only way that scalar arrives: a `Reference<X>` argument
+    /// (Transfer's own `source`/`destination`, forwarded verbatim by a
+    /// process manager's `with:` into a `number:` slot Account's own
+    /// `identified_by` expects wrapped) is a BARE string, the same
+    /// coercion Ruby's `Value.for_attribute` performs implicitly for a
+    /// single-field VO. If the walk still has segments left but the
+    /// current value ISN'T an object to walk further into, the value
+    /// found so far IS the answer, not a dead end.
+    pub fn dig(&self, path: &str) -> Option<&Json> {
+        let mut current = self;
+        for segment in path.split('.') {
+            match current {
+                Json::Object(_) => current = current.get(segment)?,
+                _ => return Some(current),
+            }
+        }
+        Some(current)
+    }
+
     pub fn as_str(&self) -> Option<&str> {
         match self {
             Json::Str(s) => Some(s),

@@ -47,6 +47,7 @@ module RustProjection
         generated_aggregates << aggregate
         can_route = Projector.extract_id_supported?(aggregate)
         registry_commands = []
+        entity_commands = []
         record_name = Projector.rust_ident(aggregate[:name])
 
         path = File.join(mod_dir, "#{aggregate[:name].downcase}.rs")
@@ -84,9 +85,42 @@ module RustProjection
           aggregate[:entities].each do |entity|
             f.puts Projector.emit_entity(entity, value_objects_by_name)
             f.puts
-            name = Projector.rust_ident(entity[:name])
-            f.puts Projector.emit_to_json_flat(name, entity[:attributes], value_objects_by_name, extra_fields: lifecycle_extra_field(entity))
+            entity_name = Projector.rust_ident(entity[:name])
+            f.puts Projector.emit_to_json_flat(entity_name, entity[:attributes], value_objects_by_name, extra_fields: lifecycle_extra_field(entity))
             f.puts
+
+            entity_can_route = Projector.extract_id_supported?(entity)
+            if entity_can_route
+              f.puts Projector.emit_extract_id(entity)
+              f.puts
+              f.puts Projector.emit_self_identity(entity)
+              f.puts
+            else
+              puts "skipping #{domain_name}::#{aggregate[:name]}.#{entity[:name]}'s JSON router entries: identity " \
+                   "#{entity[:identified_by].inspect} isn't a shape extract_id resolves yet (json_codec.rb)"
+            end
+
+            entity[:commands].each do |command|
+              reason = Projector.entity_command_skip_reason(command, entity, value_objects_by_name)
+              if reason
+                puts "skipping #{domain_name}::#{aggregate[:name]}.#{entity[:name]}.#{command[:name]}: #{reason}"
+                next
+              end
+
+              f.puts Projector.emit_entity_command(command, entity, aggregate, domain_name, value_objects_by_name)
+              f.puts
+
+              next unless entity_can_route
+
+              entity_commands << {
+                verb: "#{domain_name}::#{aggregate[:name]}.#{entity[:name]}.#{command[:name]}",
+                entity_record: entity_name,
+                # Matches commands.rb's `emit_entity_command` naming exactly:
+                # `dispatch_entity_#{entity[:name].downcase}_#{dispatch_fn_name(cmd)}`.
+                fn: "#{entity[:name].downcase}_#{Projector.dispatch_fn_name(Projector.rust_ident(command[:name]))}",
+                args_struct: "#{entity_name}#{Projector.rust_ident(command[:name])}Args",
+              }
+            end
           end
 
           f.puts Projector.emit_record(aggregate, value_objects_by_name)
@@ -111,6 +145,13 @@ module RustProjection
             f.puts Projector.emit_command(command, aggregate, domain_name, value_objects_by_name)
             f.puts
             args_struct = "#{Projector.rust_ident(command[:name])}Args"
+            # to_json (not just from_json): an Event's payload is now
+            # args.to_json() directly (commands.rb's own dispatch call) —
+            # the SAME structural shape Ruby's `payload: args` already is,
+            # and what a policy/process-manager reaction needs to forward
+            # real data into a re-triggered command's own from_json.
+            f.puts Projector.emit_to_json_flat(args_struct, command[:attributes], value_objects_by_name)
+            f.puts
             f.puts Projector.emit_from_json_flat(args_struct, command[:attributes], value_objects_by_name)
             f.puts
 
@@ -149,6 +190,7 @@ module RustProjection
           mod: aggregate[:name].downcase,
           record: record_name,
           commands: registry_commands,
+          entity_commands: entity_commands,
         }
       end
 
@@ -162,7 +204,15 @@ module RustProjection
       puts "wrote #{metadata_path}"
 
       registry_path = File.join(mod_dir, "registry.rs")
-      File.open(registry_path, "w") { |f| f.puts Projector.emit_registry(domain_name, registry_aggregates) }
+      File.open(registry_path, "w") do |f|
+        f.puts Projector.emit_registry(domain_name, registry_aggregates)
+        f.puts
+        f.puts Projector.emit_policy_table(domain_name, ir[:policies])
+        f.puts
+        f.puts Projector.emit_process_manager_table(ir[:process_managers])
+        f.puts
+        f.puts Projector.emit_reference_key_table(domain_name, generated_aggregates.map { |a| a[:name] })
+      end
       puts "wrote #{registry_path}"
 
       mod_path = File.join(mod_dir, "mod.rs")

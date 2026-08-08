@@ -595,7 +595,17 @@ impl Aggregate {
 
 impl Aggregate {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
-        Ok(vec![(v.get("bluebook_id")).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Aggregate: missing identity component bluebook_id".to_string()))?.to_id_component()?, (v.get("name").and_then(|x| x.get("value"))).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Aggregate: missing identity component name.value".to_string()))?.to_id_component()?].join(":"))
+        let by_identity = (|| -> Option<String> {
+            let c0 = v.dig("bluebook_id")?.to_id_component().ok()?;
+            let c1 = v.dig("name.value")?.to_id_component().ok()?;
+            Some(vec![c0, c1].join(":"))
+        })();
+        let by_id_key = v.get("id").and_then(|j| j.to_id_component().ok());
+        let by_reference_key = v.get("aggregate").and_then(|j| j.to_id_component().ok());
+
+        by_identity.or(by_id_key).or(by_reference_key).ok_or_else(|| {
+            crate::kernel::Refusal::TypeMismatch("Aggregate: no identity found (tried bluebook_id, name.value, id, aggregate)".to_string())
+        })
     }
 }
 
@@ -632,13 +642,6 @@ pub fn dispatch_declare(
         args.provenance.check_invariants()?;
         args.position.check_invariants()?;
 
-    let mut payload = std::collections::BTreeMap::new();
-    payload.insert("bluebook_id".to_string(), format!("{:?}", args.bluebook_id)); 
-        payload.insert("name".to_string(), format!("{:?}", args.name.value)); 
-        payload.insert("description".to_string(), format!("{:?}", args.description.value)); 
-        payload.insert("provenance".to_string(), format!("{:?}", args.provenance.value)); 
-        payload.insert("position".to_string(), format!("{:?}", args.position.value)); 
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Create {
@@ -672,8 +675,20 @@ pub fn dispatch_declare(
 
         ],
         &["RootDeclared"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl DeclareArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("bluebook_id".to_string(), crate::kernel::Json::Str(self.bluebook_id.clone())),
+        ("name".to_string(), self.name.to_json()),
+        ("description".to_string(), self.description.to_json()),
+        ("provenance".to_string(), self.provenance.to_json()),
+        ("position".to_string(), self.position.to_json()),
+        ])
+    }
 }
 
 impl DeclareArgs {
@@ -710,9 +725,6 @@ pub fn dispatch_identify(
 ) -> crate::kernel::DispatchResult<Aggregate> {
         args.path.check_invariants()?;
 
-    let mut payload = std::collections::BTreeMap::new();
-    payload.insert("path".to_string(), format!("{:?}", args.path.value)); 
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Act { id: id.to_string() },
@@ -731,8 +743,16 @@ pub fn dispatch_identify(
 
         ],
         &["RootIdentified"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl IdentifyArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("path".to_string(), self.path.to_json()),
+        ])
+    }
 }
 
 impl IdentifyArgs {
@@ -782,15 +802,6 @@ pub fn dispatch_attribute(
         args.default.check_invariants()?;
         args.admits.check_invariants()?;
 
-    let mut payload = std::collections::BTreeMap::new();
-    payload.insert("type".to_string(), format!("{:?}", args.r#type)); 
-        payload.insert("name".to_string(), format!("{:?}", args.name.value)); 
-        payload.insert("list".to_string(), format!("{:?}", args.list.value)); 
-        payload.insert("optional".to_string(), format!("{:?}", args.optional.value)); 
-        payload.insert("pattern".to_string(), format!("{:?}", args.pattern.value)); 
-        payload.insert("default".to_string(), format!("{:?}", args.default.value)); 
-        payload.insert("admits".to_string(), format!("{:?}", args.admits.value)); 
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Act { id: id.to_string() },
@@ -809,8 +820,22 @@ pub fn dispatch_attribute(
 
         ],
         &["AttributeAttached"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl AttributeArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("type".to_string(), crate::kernel::Json::Str(self.r#type.clone())),
+        ("name".to_string(), self.name.to_json()),
+        ("list".to_string(), self.list.to_json()),
+        ("optional".to_string(), self.optional.to_json()),
+        ("pattern".to_string(), self.pattern.to_json()),
+        ("default".to_string(), self.default.to_json()),
+        ("admits".to_string(), self.admits.to_json()),
+        ])
+    }
 }
 
 impl AttributeArgs {
@@ -866,15 +891,6 @@ pub fn dispatch_reference(
         args.default.check_invariants()?;
         args.admits.check_invariants()?;
 
-    let mut payload = std::collections::BTreeMap::new();
-    payload.insert("points_at".to_string(), format!("{:?}", args.points_at)); 
-        payload.insert("name".to_string(), format!("{:?}", args.name.value)); 
-        payload.insert("list".to_string(), format!("{:?}", args.list.value)); 
-        payload.insert("optional".to_string(), format!("{:?}", args.optional.value)); 
-        payload.insert("pattern".to_string(), format!("{:?}", args.pattern.value)); 
-        payload.insert("default".to_string(), format!("{:?}", args.default.value)); 
-        payload.insert("admits".to_string(), format!("{:?}", args.admits.value)); 
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Act { id: id.to_string() },
@@ -893,8 +909,22 @@ pub fn dispatch_reference(
 
         ],
         &["ReferenceAttached"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl ReferenceArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("points_at".to_string(), crate::kernel::Json::Str(self.points_at.clone())),
+        ("name".to_string(), self.name.to_json()),
+        ("list".to_string(), self.list.to_json()),
+        ("optional".to_string(), self.optional.to_json()),
+        ("pattern".to_string(), self.pattern.to_json()),
+        ("default".to_string(), self.default.to_json()),
+        ("admits".to_string(), self.admits.to_json()),
+        ])
+    }
 }
 
 impl ReferenceArgs {
@@ -950,15 +980,6 @@ pub fn dispatch_holds(
         args.default.check_invariants()?;
         args.admits.check_invariants()?;
 
-    let mut payload = std::collections::BTreeMap::new();
-    payload.insert("holds".to_string(), format!("{:?}", args.holds)); 
-        payload.insert("name".to_string(), format!("{:?}", args.name.value)); 
-        payload.insert("list".to_string(), format!("{:?}", args.list.value)); 
-        payload.insert("optional".to_string(), format!("{:?}", args.optional.value)); 
-        payload.insert("pattern".to_string(), format!("{:?}", args.pattern.value)); 
-        payload.insert("default".to_string(), format!("{:?}", args.default.value)); 
-        payload.insert("admits".to_string(), format!("{:?}", args.admits.value)); 
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Act { id: id.to_string() },
@@ -977,8 +998,22 @@ pub fn dispatch_holds(
 
         ],
         &["PieceHeld"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl HoldsArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("holds".to_string(), crate::kernel::Json::Str(self.holds.clone())),
+        ("name".to_string(), self.name.to_json()),
+        ("list".to_string(), self.list.to_json()),
+        ("optional".to_string(), self.optional.to_json()),
+        ("pattern".to_string(), self.pattern.to_json()),
+        ("default".to_string(), self.default.to_json()),
+        ("admits".to_string(), self.admits.to_json()),
+        ])
+    }
 }
 
 impl HoldsArgs {
@@ -1020,10 +1055,6 @@ pub fn dispatch_lifecycle(
         args.state_field.check_invariants()?;
         args.state_start.check_invariants()?;
 
-    let mut payload = std::collections::BTreeMap::new();
-    payload.insert("state_field".to_string(), format!("{:?}", args.state_field.value)); 
-        payload.insert("state_start".to_string(), format!("{:?}", args.state_start.value)); 
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Act { id: id.to_string() },
@@ -1043,8 +1074,17 @@ pub fn dispatch_lifecycle(
 
         ],
         &["LifecycleNamed"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl LifecycleArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("state_field".to_string(), self.state_field.to_json()),
+        ("state_start".to_string(), self.state_start.to_json()),
+        ])
+    }
 }
 
 impl LifecycleArgs {
@@ -1084,11 +1124,6 @@ pub fn dispatch_transition(
         args.from_state.check_invariants()?;
         args.to_state.check_invariants()?;
 
-    let mut payload = std::collections::BTreeMap::new();
-    payload.insert("command".to_string(), format!("{:?}", args.command.value)); 
-        payload.insert("from_state".to_string(), format!("{:?}", args.from_state.value)); 
-        payload.insert("to_state".to_string(), format!("{:?}", args.to_state.value)); 
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Act { id: id.to_string() },
@@ -1107,8 +1142,18 @@ pub fn dispatch_transition(
 
         ],
         &["TransitionAttached"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl TransitionArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("command".to_string(), self.command.to_json()),
+        ("from_state".to_string(), self.from_state.to_json()),
+        ("to_state".to_string(), self.to_state.to_json()),
+        ])
+    }
 }
 
 impl TransitionArgs {
@@ -1142,9 +1187,6 @@ pub fn dispatch_seal(
 ) -> crate::kernel::DispatchResult<Aggregate> {
 
 
-    let mut payload = std::collections::BTreeMap::new();
-    
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Act { id: id.to_string() },
@@ -1163,8 +1205,16 @@ pub fn dispatch_seal(
 
         ],
         &["RootSealed"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl SealArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+
+        ])
+    }
 }
 
 impl SealArgs {
@@ -1197,9 +1247,6 @@ pub fn dispatch_value(
 ) -> crate::kernel::DispatchResult<Aggregate> {
         args.name.check_invariants()?;
 
-    let mut payload = std::collections::BTreeMap::new();
-    payload.insert("name".to_string(), format!("{:?}", args.name.value)); 
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Act { id: id.to_string() },
@@ -1218,8 +1265,16 @@ pub fn dispatch_value(
 
         ],
         &["ValueDeclared"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl ValueArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("name".to_string(), self.name.to_json()),
+        ])
+    }
 }
 
 impl ValueArgs {

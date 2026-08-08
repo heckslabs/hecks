@@ -9,13 +9,17 @@
 // (`bin/rust_conformance`'s own header comment: "this tool does not invoke
 // Rust itself... until then, 'give me a JSON file to compare against' is
 // the whole interface"). `run` knows nothing domain-specific — every
-// verb/args pair is handed to `generated::active::dispatch_by_name`
-// (rust/project/registry.rb's `emit_registry`), the one alias
-// `bin/project_rust` rewrites to point at whichever domain was last
+// verb/args pair is handed to `kernel::orchestrate`, which recursively
+// routes through `generated::active::dispatch_by_name`,
+// `generated::active::POLICIES`, and `generated::active::PROCESS_MANAGERS`
+// (rust/project/registry.rb's `emit_registry`, rust/project/reactions.rb's
+// `emit_policy_table`/`emit_process_manager_table`) — the domain-agnostic
+// alias `bin/project_rust` rewrites to point at whichever domain was last
 // generated.
 
-use super::{Event, Json, Refusal};
-use crate::generated::active::{dispatch_by_name, Store};
+use super::{orchestrate, Event, Json, Refusal, SagaInstance};
+use crate::generated::active::{dispatch_by_name, reference_key_for_aggregate, Store, POLICIES, PROCESS_MANAGERS};
+use std::collections::HashMap;
 
 pub fn run(input: &str) -> String {
     let parsed = match Json::parse(input) {
@@ -31,6 +35,9 @@ pub fn run(input: &str) -> String {
     let mut store = Store::new();
     let mut events: Vec<Event> = Vec::new();
     let mut refusals: Vec<(String, Refusal)> = Vec::new();
+    // Process-manager instances — domain-level, not per-aggregate, so
+    // deliberately not a `Store` field (orchestrate.rs's own header).
+    let mut sagas: HashMap<(String, String), SagaInstance> = HashMap::new();
 
     for step in steps {
         // A `"query"` step (Fuzzing::Replay's other real shape,
@@ -53,9 +60,14 @@ pub fn run(input: &str) -> String {
         let empty_args = Json::Object(vec![]);
         let args = step.get("args").unwrap_or(&empty_args);
 
-        match dispatch_by_name(&mut store, verb, args) {
-            Ok(mut emitted) => events.append(&mut emitted),
-            Err(refusal) => refusals.push((verb.to_string(), refusal)),
+        // `orchestrate` appends every event — this step's own AND every
+        // policy reaction it triggers — into `events` itself; only the
+        // TOP-level verb's own refusal is recorded per step, matching
+        // `Fuzzing::Replay.call`'s own `rescue *Runtime::DOMAIN_REFUSALS`
+        // scope (a reaction's downstream refusal is swallowed inside
+        // `orchestrate`, never surfaced to this loop at all).
+        if let Err(refusal) = orchestrate(&mut store, dispatch_by_name, POLICIES, PROCESS_MANAGERS, reference_key_for_aggregate, &mut sagas, verb, args, 0, &mut events) {
+            refusals.push((verb.to_string(), refusal));
         }
     }
 
@@ -76,12 +88,11 @@ pub fn run(input: &str) -> String {
 }
 
 fn event_to_json(event: &Event) -> Json {
-    let payload = Json::Object(event.payload.iter().map(|(k, v)| (k.clone(), Json::Str(v.clone()))).collect());
     Json::obj(vec![
         ("name", Json::str(event.name.clone())),
         ("aggregate", Json::str(event.aggregate.clone())),
         ("id", Json::str(event.id.clone())),
-        ("payload", payload),
+        ("payload", event.payload.clone()),
     ])
 }
 

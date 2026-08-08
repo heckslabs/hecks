@@ -88,7 +88,7 @@ impl CustomerStanding {
 impl CustomerStanding {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        value: v.require("value", "CustomerStanding")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("CustomerStanding.value: expected String".to_string()))?,
+        value: v.get("value").and_then(crate::kernel::Json::as_str).map(|s| s.to_string()).unwrap_or_else(|| "good".to_string()),
         })
     }
 }
@@ -225,7 +225,16 @@ impl Customer {
 
 impl Customer {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
-        Ok((v.get("reference").and_then(|x| x.get("value"))).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Customer: missing identity component reference.value".to_string()))?.to_id_component()?)
+        let by_identity = (|| -> Option<String> {
+            let c0 = v.dig("reference.value")?.to_id_component().ok()?;
+            Some(c0)
+        })();
+        let by_id_key = v.get("id").and_then(|j| j.to_id_component().ok());
+        let by_reference_key = v.get("customer").and_then(|j| j.to_id_component().ok());
+
+        by_identity.or(by_id_key).or(by_reference_key).ok_or_else(|| {
+            crate::kernel::Refusal::TypeMismatch("Customer: no identity found (tried reference.value, id, customer)".to_string())
+        })
     }
 }
 
@@ -257,11 +266,6 @@ pub fn dispatch_register(
         args.name.check_invariants()?;
         args.email.check_invariants()?;
 
-    let mut payload = std::collections::BTreeMap::new();
-    payload.insert("reference".to_string(), format!("{:?}", args.reference.value)); 
-        payload.insert("name".to_string(), format!("{:?}", args.name)); 
-        payload.insert("email".to_string(), format!("{:?}", args.email.address)); 
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Create {
@@ -291,8 +295,18 @@ pub fn dispatch_register(
 
         ],
         &["CustomerRegistered"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl RegisterArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("reference".to_string(), self.reference.to_json()),
+        ("name".to_string(), self.name.to_json()),
+        ("email".to_string(), self.email.to_json()),
+        ])
+    }
 }
 
 impl RegisterArgs {
@@ -327,9 +341,6 @@ pub fn dispatch_suspend(
 ) -> crate::kernel::DispatchResult<Customer> {
         args.standing.check_invariants()?;
 
-    let mut payload = std::collections::BTreeMap::new();
-    payload.insert("standing".to_string(), format!("{:?}", args.standing.value)); 
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Act { id: id.to_string() },
@@ -349,8 +360,16 @@ pub fn dispatch_suspend(
 
         ],
         &["CustomerSuspended"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl SuspendArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("standing".to_string(), self.standing.to_json()),
+        ])
+    }
 }
 
 impl SuspendArgs {
@@ -382,9 +401,6 @@ pub fn dispatch_reinstate(
 ) -> crate::kernel::DispatchResult<Customer> {
 
 
-    let mut payload = std::collections::BTreeMap::new();
-    
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Act { id: id.to_string() },
@@ -404,8 +420,16 @@ pub fn dispatch_reinstate(
 
         ],
         &["CustomerReinstated"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl ReinstateArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+
+        ])
+    }
 }
 
 impl ReinstateArgs {
@@ -437,9 +461,6 @@ pub fn dispatch_close(
 ) -> crate::kernel::DispatchResult<Customer> {
 
 
-    let mut payload = std::collections::BTreeMap::new();
-    
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Act { id: id.to_string() },
@@ -458,8 +479,16 @@ pub fn dispatch_close(
 
         ],
         &["CustomerClosed"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl CloseArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+
+        ])
+    }
 }
 
 impl CloseArgs {

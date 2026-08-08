@@ -8,7 +8,17 @@ module RustProjection
     # reflection still requires — READING a named field generically, unlike
     # WRITING one, needs no per-command bespoke control flow, only this
     # uniform per-type table.
-    def emit_fielded_flat(struct_name, attributes, value_objects_by_name)
+    # `extra_arms:` — raw `"key" => ...,` lines appended verbatim, never
+    # run through the attribute-typed branches above. Exists for the
+    # LIFECYCLE field on an ENTITY: `emit_entity` gives an entity struct a
+    # bare `String` field for it (the same as `emit_record` does for an
+    # aggregate), but unlike `emit_record` (which routes through
+    # `emit_fielded_record`, its own record-shaped sibling with a
+    # lifecycle arm built in), `emit_fielded_flat` had no lifecycle
+    # awareness at all until an entity command's own `TransitionCheck`
+    # needed to read it generically — the same gap `emit_to_json_flat`'s
+    # `extra_fields:` closes for JSON, here for `Fielded` lookup.
+    def emit_fielded_flat(struct_name, attributes, value_objects_by_name, extra_arms: [])
       arms = attributes.filter_map do |attr|
         key   = rust_field(attr[:name])
         ident = rust_ident_field(attr[:name])
@@ -24,6 +34,7 @@ module RustProjection
           %(            "#{key}" => Some(Field::Nested(&self.#{ident})),)
         end
       end
+      arms += extra_arms
 
       <<~RUST
         impl crate::kernel::Fielded for #{struct_name} {

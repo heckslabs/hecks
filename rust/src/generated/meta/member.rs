@@ -161,7 +161,17 @@ impl Member {
 
 impl Member {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
-        Ok(vec![(v.get("value_object_id")).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Member: missing identity component value_object_id".to_string()))?.to_id_component()?, (v.get("position").and_then(|x| x.get("value"))).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Member: missing identity component position.value".to_string()))?.to_id_component()?].join(":"))
+        let by_identity = (|| -> Option<String> {
+            let c0 = v.dig("value_object_id")?.to_id_component().ok()?;
+            let c1 = v.dig("position.value")?.to_id_component().ok()?;
+            Some(vec![c0, c1].join(":"))
+        })();
+        let by_id_key = v.get("id").and_then(|j| j.to_id_component().ok());
+        let by_reference_key = v.get("member").and_then(|j| j.to_id_component().ok());
+
+        by_identity.or(by_id_key).or(by_reference_key).ok_or_else(|| {
+            crate::kernel::Refusal::TypeMismatch("Member: no identity found (tried value_object_id, position.value, id, member)".to_string())
+        })
     }
 }
 
@@ -192,11 +202,6 @@ pub fn dispatch_declare(
         args.shape.check_invariants()?;
         args.position.check_invariants()?;
 
-    let mut payload = std::collections::BTreeMap::new();
-    payload.insert("value_object_id".to_string(), format!("{:?}", args.value_object_id)); 
-        payload.insert("shape".to_string(), format!("{:?}", args.shape.value)); 
-        payload.insert("position".to_string(), format!("{:?}", args.position.value)); 
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Create {
@@ -223,8 +228,18 @@ pub fn dispatch_declare(
 
         ],
         &["MemberDeclared"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl DeclareArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("value_object_id".to_string(), crate::kernel::Json::Str(self.value_object_id.clone())),
+        ("shape".to_string(), self.shape.to_json()),
+        ("position".to_string(), self.position.to_json()),
+        ])
+    }
 }
 
 impl DeclareArgs {
@@ -262,10 +277,6 @@ pub fn dispatch_pair(
         args.key.check_invariants()?;
         args.value.check_invariants()?;
 
-    let mut payload = std::collections::BTreeMap::new();
-    payload.insert("key".to_string(), format!("{:?}", args.key.value)); 
-        payload.insert("value".to_string(), format!("{:?}", args.value.value)); 
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Act { id: id.to_string() },
@@ -284,8 +295,17 @@ pub fn dispatch_pair(
 
         ],
         &["PairBound"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl PairArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("key".to_string(), self.key.to_json()),
+        ("value".to_string(), self.value.to_json()),
+        ])
+    }
 }
 
 impl PairArgs {

@@ -178,7 +178,16 @@ impl Transfer {
 
 impl Transfer {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
-        Ok((v.get("reference").and_then(|x| x.get("value"))).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Transfer: missing identity component reference.value".to_string()))?.to_id_component()?)
+        let by_identity = (|| -> Option<String> {
+            let c0 = v.dig("reference.value")?.to_id_component().ok()?;
+            Some(c0)
+        })();
+        let by_id_key = v.get("id").and_then(|j| j.to_id_component().ok());
+        let by_reference_key = v.get("transfer").and_then(|j| j.to_id_component().ok());
+
+        by_identity.or(by_id_key).or(by_reference_key).ok_or_else(|| {
+            crate::kernel::Refusal::TypeMismatch("Transfer: no identity found (tried reference.value, id, transfer)".to_string())
+        })
     }
 }
 
@@ -214,13 +223,6 @@ pub fn dispatch_request(
         args.amount.check_invariants()?;
         args.narrative.check_invariants()?;
 
-    let mut payload = std::collections::BTreeMap::new();
-    payload.insert("source".to_string(), format!("{:?}", args.source)); 
-        payload.insert("destination".to_string(), format!("{:?}", args.destination)); 
-        payload.insert("reference".to_string(), format!("{:?}", args.reference.value)); 
-        payload.insert("amount".to_string(), format!("{:?}", args.amount.cents)); 
-        payload.insert("narrative".to_string(), format!("{:?}", args.narrative.text)); 
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Create {
@@ -254,8 +256,20 @@ pub fn dispatch_request(
 
         ],
         &["TransferRequested"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl RequestArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("source".to_string(), crate::kernel::Json::Str(self.source.clone())),
+        ("destination".to_string(), crate::kernel::Json::Str(self.destination.clone())),
+        ("reference".to_string(), self.reference.to_json()),
+        ("amount".to_string(), self.amount.to_json()),
+        ("narrative".to_string(), self.narrative.to_json()),
+        ])
+    }
 }
 
 impl RequestArgs {
@@ -291,9 +305,6 @@ pub fn dispatch_debited(
 ) -> crate::kernel::DispatchResult<Transfer> {
 
 
-    let mut payload = std::collections::BTreeMap::new();
-    
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Act { id: id.to_string() },
@@ -312,8 +323,16 @@ pub fn dispatch_debited(
 
         ],
         &["TransferDebited"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl DebitedArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+
+        ])
+    }
 }
 
 impl DebitedArgs {
@@ -345,9 +364,6 @@ pub fn dispatch_settle(
 ) -> crate::kernel::DispatchResult<Transfer> {
 
 
-    let mut payload = std::collections::BTreeMap::new();
-    
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Act { id: id.to_string() },
@@ -366,8 +382,16 @@ pub fn dispatch_settle(
 
         ],
         &["TransferSettled"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl SettleArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+
+        ])
+    }
 }
 
 impl SettleArgs {
@@ -399,9 +423,6 @@ pub fn dispatch_credited(
 ) -> crate::kernel::DispatchResult<Transfer> {
 
 
-    let mut payload = std::collections::BTreeMap::new();
-    
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Act { id: id.to_string() },
@@ -420,8 +441,16 @@ pub fn dispatch_credited(
 
         ],
         &["TransferCredited"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl CreditedArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+
+        ])
+    }
 }
 
 impl CreditedArgs {
@@ -453,9 +482,6 @@ pub fn dispatch_reverse(
 ) -> crate::kernel::DispatchResult<Transfer> {
 
 
-    let mut payload = std::collections::BTreeMap::new();
-    
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Act { id: id.to_string() },
@@ -474,8 +500,16 @@ pub fn dispatch_reverse(
 
         ],
         &["TransferReversed"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl ReverseArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+
+        ])
+    }
 }
 
 impl ReverseArgs {
@@ -507,9 +541,6 @@ pub fn dispatch_reject(
 ) -> crate::kernel::DispatchResult<Transfer> {
 
 
-    let mut payload = std::collections::BTreeMap::new();
-    
-
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Act { id: id.to_string() },
@@ -528,8 +559,16 @@ pub fn dispatch_reject(
 
         ],
         &["TransferRejected"],
-        payload,
+        args.to_json(),
     )
+}
+
+impl RejectArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+
+        ])
+    }
 }
 
 impl RejectArgs {
