@@ -336,6 +336,15 @@ RSpec.describe "the DSL surface" do
       end.to raise_error(Malformed, /acts on ONE/)
     end
 
+    it "refuses a command that declares role twice" do
+      expect do
+        build_command("DoubleRole") do
+          role "Teller"
+          role "Branch manager"
+        end
+      end.to raise_error(Malformed, /role twice/)
+    end
+
     it "refuses a given whose source could not be read" do
       expect do
         in_registry do
@@ -548,6 +557,24 @@ RSpec.describe "the DSL surface" do
         { aggregate: "Customer", as: :customer, many: false },
         { aggregate: "Account", as: :accounts, many: true }
       ])
+    end
+
+    it "report is the same word as read_model, just newer" do
+      build = ->(chapter, word) do
+        build_bluebook(chapter) do
+          aggregate "Customer" do
+            identified_by { id.value }
+
+            attribute :reference, CustomerNumber
+            value_object "CustomerNumber" do
+              attribute :value, String
+            end
+          end
+          public_send(word, "CustomerPortfolio") { reference_to Customer, as: :reference }
+        end.read_models.first.to_h
+      end
+
+      expect(build.call("Portfolio", :report)).to eq(build.call("Portfolio2", :read_model))
     end
 
     it "gathers includes declared before the reference, in either order" do

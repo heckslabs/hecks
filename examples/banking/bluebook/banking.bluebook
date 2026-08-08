@@ -2,7 +2,7 @@ Hecks.bluebook "Banking", version: "v1" do
   vision "Customers hold accounts, accounts move money, and every movement is a transfer that can fail halfway. The domain that has to get it right twice — once in the rules, once in the recovery."
   core
 
-  read_model "CustomerPortfolio" do
+  report "CustomerPortfolio" do
     description "A customer's cross-account position, rebuilt from aggregate heads."
     reference_to Customer
     include Customer
@@ -17,7 +17,7 @@ Hecks.bluebook "Banking", version: "v1" do
   # A SECOND ROOT, ON PURPOSE. CustomerPortfolio gathers around a customer;
   # this gathers around an account — the compliance officer's actual unit of
   # work, since a hold or a dispute is filed against an account, not a person.
-  read_model "ComplianceDashboard" do
+  report "ComplianceDashboard" do
     description "One account, its own status, and any card charges disputed against it — the working set for a compliance review."
     reference_to Account
     include Account
@@ -36,7 +36,7 @@ Hecks.bluebook "Banking", version: "v1" do
 
     # A REVIEW WORKS FROM A SNAPSHOT, not a page reloaded mid-read while a
     # dispute updates underneath it — the same reasoning as Overdrawn's own,
-    # a projection over on the read_model rather than a query.
+    # a projection over on the report rather than a query.
     freshness :eventual, max_age: 60
     use_index :account_index
   end

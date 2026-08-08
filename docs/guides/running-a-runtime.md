@@ -1,24 +1,37 @@
-# Writing a port
+# Running a runtime
 
 A port is a second implementation of dispatch — a runtime, likely in a
 different language, that accepts the same commands and queries a
 bluebook declares and produces the same refusals and events a real
-boot of it would. This page is the single place to start: what the
-canonical IR actually contains, field by field, the exact order a
-command's dispatch runs in, and how the `given`/`ensures`/invariant
-text you'll find in that IR is supposed to be read. Everything here is
-either proven live against a real domain below, or cited against the
-Ruby source that is the actual authority, named so you can go verify
-it yourself rather than trust a paraphrase.
+boot of it would. One exists: `rust/` (Cargo crate + Ruby generator,
+`bin/project_rust` the driver — see `docs/decisions/0011-rust-compiles-types-interprets-dispatch.md`
+for the architecture decision, and `docs/HECKS_IMPLEMENTATION_PLAN.md`
+§8 for its current, honestly-scoped status). This page is what running
+it, extending it to a new domain construct, or starting an analogous
+port in a different language actually requires: what the canonical IR
+contains, field by field, the exact order a command's dispatch runs
+in, and how the `given`/`ensures`/invariant text you'll find in that
+IR is supposed to be read. Everything here is either proven live
+against a real domain below, or cited against the Ruby source that is
+the actual authority, named so you can go verify it yourself rather
+than trust a paraphrase.
 
-One architectural choice is yours to make and this page does not make
-it for you: whether your port INTERPRETS the IR at your runtime's own
-start-up (read the JSON, hold the AST, dispatch generically against
-it) or COMPILES it once, ahead of time, into native dispatch code for
-each command (a build step emits real functions; nothing at your
-runtime reads IR at all). Both are legitimate; the facts below hold
-either way, because they describe what the IR contains and what order
-dispatch runs in, not how your port chooses to consume that.
+One architectural choice this page used to leave open, and doesn't
+anymore: whether a port INTERPRETS the IR at its own runtime start-up
+(read the JSON, hold the AST, dispatch generically against it) or
+COMPILES it once, ahead of time, into native dispatch code for each
+command (a build step emits real functions; nothing at runtime reads
+IR at all). `rust/` does neither purely — it compiles TYPE SHAPES
+ahead of time and interprets DISPATCH BEHAVIOR (`given`/`ensures`/
+mutations, as data) generically at runtime, through one small,
+hand-written kernel. "Interpret data, don't compile source," below, is
+the argument for why; it's not a hypothetical anymore, it's what got
+built, after a pure-compile first attempt didn't converge. The facts
+in the rest of this page hold regardless of which split a NEW port
+chooses, because they describe what the IR contains and what order
+dispatch runs in, not how any one port consumes that — but "Interpret
+data, don't compile source" is no longer just an argument to weigh, it's
+also a report from having tried the alternative first.
 
 ## Getting the IR
 
@@ -49,7 +62,7 @@ end
 ```ruby
 ir = Hecksagain::Projector::Exporter.call(runtime.registry).fetch("Banking")
 
-ir.keys # => [:name, :version, :vision, :classification, :aggregates, :read_models, :policies, :process_managers, :canonical_form]
+ir.keys # => [:ir_version, :name, :version, :vision, :classification, :aggregates, :read_models, :policies, :process_managers, :canonical_form]
 ```
 
 Every key below is a real Ruby `Symbol`, not a JSON string — `Exporter.call`
@@ -57,6 +70,19 @@ returns the object graph's own `to_h`, unconverted. Round-trip it
 through `Exporter.json` and `JSON.parse` instead and every key becomes
 a string; pick whichever your build step wants to consume, but don't
 mix assumptions about which one you're holding.
+
+`ir_version` and `version` name two different things, easy to
+conflate: `ir_version` is this **export shape's own** version (bump it
+when `to_h`'s own keys change in a way a consumer needs to know about,
+not when a domain adds a command) — it's the same for every bluebook,
+current value `1`. `version` is Banking's own declared business
+version (`"v1"`, the DSL's `Hecks.bluebook "Banking", version: "v1"`)
+and is `nil` for a domain that never set one, Pizzas among them:
+
+```ruby
+ir[:ir_version] # => 1
+ir[:version]    # => "v1"
+```
 
 If your build step shells out instead of running in-process, `bin/ir
 <domain>` prints the same thing — with one trap: booting a domain's
@@ -586,6 +612,16 @@ small amount of per-command generated glue — real, worth being honest
 about, and a much smaller boundary than "generate the whole dispatch
 function by hand" was.
 
+This is exactly the split `rust/` runs on, not a hypothetical: `Expr`
+and `interpret()` (`rust/src/kernel/expr.rs`) are the generic
+READING/behavior half, hand-written once; `dispatch()`
+(`rust/src/kernel/dispatch.rs`) is the generic per-command orchestration,
+also hand-written once; `bin/project_rust` (driving `rust/project.rb`)
+is the small, per-command WRITING glue this paragraph names as the one
+place generation still earns its keep — real Rust struct literals and
+`Vec::push` calls, generated because constructing a specific type has
+no generic equivalent, nothing more.
+
 ## The persistence contract
 
 A port needs somewhere to put and find records, exactly the shape a
@@ -599,7 +635,14 @@ contract is Ruby-specific; read it there rather than here.
 
 ## A build order that keeps every intermediate state honest
 
-Roughly the order the facts above unlock capability, smallest first:
+Roughly the order the facts above unlock capability, smallest first —
+and, for `rust/`, the order things actually happened in, not just a
+plan: types and empty-mutation creating commands first (against
+Pizzas), then invariants/`given`/mutations, then lifecycle, then
+`ensures` (needed a real kernel change — see
+`docs/decisions/0011-rust-compiles-types-interprets-dispatch.md`), then
+entities last, against Banking, once Pizzas alone stopped exercising
+new shapes:
 
 1. **Types.** Every `value_objects` entry (closed sets as real enums),
    every aggregate's own record shape from `attributes`.

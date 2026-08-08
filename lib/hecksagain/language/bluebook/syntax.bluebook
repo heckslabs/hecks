@@ -277,7 +277,7 @@ Hecks.bluebook "Bluebook" do
         member word: "supporting",      context: "Bluebook", body: "none",     inner: "",               opens: "",               fills: "classification"
         member word: "generic",         context: "Bluebook", body: "none",     inner: "",               opens: "",               fills: "classification"
         member word: "aggregate",       context: "Bluebook", body: "keywords", inner: "Aggregate",      opens: "Aggregate",      fills: ""
-        member word: "read_model",      context: "Bluebook", body: "keywords", inner: "ReadModel",      opens: "ReadModel",      fills: ""
+        member word: "report",          context: "Bluebook", body: "keywords", inner: "ReadModel",      opens: "ReadModel",      fills: "", was: "read_model"
         member word: "policy",          context: "Bluebook", body: "keywords", inner: "Policy",         opens: "Policy",         fills: ""
         member word: "process_manager", context: "Bluebook", body: "keywords", inner: "ProcessManager", opens: "ProcessManager", fills: ""
 
@@ -506,7 +506,7 @@ Hecks.bluebook "Bluebook" do
 
         member keyword: "vision",          context: "Bluebook", at: "1", named: "",        kind: "text",     required: "true",  fills: "vision"
         member keyword: "aggregate",       context: "Bluebook", at: "1", named: "",        kind: "text",     required: "true",  fills: "name"
-        member keyword: "read_model",      context: "Bluebook", at: "1", named: "",        kind: "text",     required: "true",  fills: "name"
+        member keyword: "report",          context: "Bluebook", at: "1", named: "",        kind: "text",     required: "true",  fills: "name"
         member keyword: "policy",          context: "Bluebook", at: "1", named: "",        kind: "text",     required: "true",  fills: "name"
         member keyword: "process_manager", context: "Bluebook", at: "1", named: "",        kind: "text",     required: "true",  fills: "name"
 

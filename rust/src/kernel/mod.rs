@@ -2,7 +2,7 @@
 // function calls into. It knows nothing about Order, PizzaCreated, or any
 // other domain-specific name; everything domain-specific lives in
 // src/generated/, produced by bin/project_rust from canonical IR. Every
-// fact below is cited against docs/guides/writing-a-port.md and
+// fact below is cited against docs/guides/running-a-runtime.md and
 // docs/guides/commands.md, not guessed or half-remembered from a prior
 // read of the Ruby source.
 
@@ -19,7 +19,7 @@ pub struct Event {
     pub name: String,
     pub aggregate: String,
     pub id: String,
-    /// Mirrors Ruby's `payload: args` (writing-a-port.md's "Commands: the
+    /// Mirrors Ruby's `payload: args` (running-a-runtime.md's "Commands: the
     /// roster and what each key means" section — `emits` is the plain list
     /// of event names a successful dispatch raises; the payload shape
     /// itself is `Runtime::CommandRules::Emission#emit`, read directly).

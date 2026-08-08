@@ -1,8 +1,9 @@
 #!/usr/bin/env ruby
 
-# Generates Rust source for one domain into rust_runner/src/generated/ —
-# the driver for `Hecksagain::RustProjection` (lib/hecksagain/rust_projection.rb),
-# which carries the architecture and what-is/isn't-generated notes in full.
+# Generates Rust source for one domain into rust/src/generated/ — the
+# driver for `RustProjection` (rust/project.rb, alongside the Rust crate
+# it targets, not under lib/hecksagain/), which carries the architecture
+# and what-is/isn't-generated notes in full.
 #
 #   bin/project_rust <domain>
 
@@ -10,7 +11,7 @@ $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
 require "hecksagain"
 require "hecksagain/bluebook/meta_validator"
-require "hecksagain/rust_projection"
+require_relative "../rust/project"
 require "fileutils"
 
 domain = ARGV.shift or abort "usage: bin/project_rust <domain>"
@@ -38,15 +39,15 @@ target_ir = Hecksagain::Projector::Exporter.call(target_registry).fetch(target_r
 # itself actually loads.
 meta_ir = Hecksagain::Projector::Exporter.call(Hecksagain::Bluebook::MetaValidator.grammar_registry).fetch("Bluebook")
 
-out_root = File.expand_path("../rust_runner/src/generated", __dir__)
+out_root = File.expand_path("../rust/src/generated", __dir__)
 # CLEARED, not just written into — a previous run leaves stale .rs files
 # behind otherwise (a different target domain's, or none at all yet).
 FileUtils.rm_rf(out_root)
 FileUtils.mkdir_p(out_root)
 
 target_mod_name = File.basename(domain)
-Hecksagain::RustProjection::DomainGenerator.call(meta_ir, "the self-hosted language (lib/hecksagain/language/bluebook)", File.join(out_root, "meta"), "meta")
-Hecksagain::RustProjection::DomainGenerator.call(target_ir, domain, File.join(out_root, target_mod_name), target_mod_name)
+RustProjection::DomainGenerator.call(meta_ir, "the self-hosted language (lib/hecksagain/language/bluebook)", File.join(out_root, "meta"), "meta")
+RustProjection::DomainGenerator.call(target_ir, domain, File.join(out_root, target_mod_name), target_mod_name)
 
 root_mod_path = File.join(out_root, "mod.rs")
 File.open(root_mod_path, "w") do |f|

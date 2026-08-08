@@ -1,5 +1,5 @@
 // HAND-WRITTEN, ONCE, GENERIC — a direct port of `CommandInterpreter#call`
-// walking `DISPATCH_ORDER` (docs/guides/writing-a-port.md's "Dispatch, in
+// walking `DISPATCH_ORDER` (docs/guides/running-a-runtime.md's "Dispatch, in
 // the order it actually runs"), not one generated function per command
 // shape. What still has to be generated per command is deliberately
 // small: identity derivation, the mutation-application closure (writing
@@ -58,7 +58,7 @@ pub struct TransitionCheck {
 /// How this dispatch obtains its starting record — the one real branch
 /// `DISPATCH_ORDER`'s `hydrate` step takes, decided by whether the
 /// command declares `references` at all (`creates?` in Ruby,
-/// `references.nil?` in the exported IR — see writing-a-port.md).
+/// `references.nil?` in the exported IR — see running-a-runtime.md).
 ///
 /// The `'a` lifetime ties `build` to however long the generated dispatch
 /// function's own `args` local lives — `build` only ever reads `args`

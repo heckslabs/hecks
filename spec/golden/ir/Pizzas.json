@@ -514,6 +514,7 @@
     }
   ],
   "classification": "supporting",
+  "ir_version": 1,
   "name": "Pizzas",
   "policies": [
     {

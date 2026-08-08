@@ -10,7 +10,7 @@ RSpec.describe "the DSL surface is fully covered" do
     ],
     "BluebookBuilder" => [
       Hecksagain::Bluebook::DSL::BluebookBuilder,
-      %i[vision core supporting generic aggregate read_model policy process_manager classification]
+      %i[vision core supporting generic aggregate report read_model policy process_manager classification]
     ],
     "AggregateBuilder" => [
       Hecksagain::Bluebook::DSL::AggregateBuilder,

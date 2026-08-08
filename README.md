@@ -68,10 +68,10 @@ own examples run against the real runtime on every push.
 - [Lifecycles](docs/guides/lifecycles.md)
 - [Policies and process managers](docs/guides/policies-and-process-managers.md)
 - [Queries and read models](docs/guides/queries-and-read-models.md)
+- [Running a runtime](docs/guides/running-a-runtime.md)
 - [Schema evolution](docs/guides/schema-evolution.md)
 - [Verification](docs/guides/verification.md)
 - [Wiring](docs/guides/wiring.md)
-- [Writing a port](docs/guides/writing-a-port.md)
 - [Writing an adapter](docs/guides/writing-an-adapter.md)
 <!-- generated:end -->
 
@@ -373,10 +373,11 @@ Every domain this repository's own tests and docs draw examples from:
 | `bin/model_check` | STATIC ANALYSIS OVER THE IR — unreachable lifecycle states, transitions nothing can ever fire, saga states no handler chain reaches, a co... |
 | `bin/pattern-cases` | THE RECORDED FIXTURE for `pattern:`, and how to regenerate it : bin/pattern-cases > spec/corpus/fixtures/patterns.json spec/pattern_subse... |
 | `bin/project` | Refreshes every read-model projection a domain declares, by hand — the same catch-up a boot runs lazily, forced now rather than on first ... |
-| `bin/project_rust` | Generates Rust source for one domain into rust_runner/src/generated/ — the driver for `Hecksagain::RustProjection` (lib/hecksagain/rust_p... |
+| `bin/project_rust` | Generates Rust source for one domain into rust/src/generated/ — the driver for `RustProjection` (rust/project.rb, alongside the Rust crat... |
 | `bin/reattest_era` | The recovery path after a held-text integrity refusal. The digest is tamper-EVIDENCE — it catches accident and drift, not an adversary (a... |
 | `bin/reference` | Regenerates docs/reference/ from the language's own Syntax chapter — the tables from the declaration, the prose preserved from the commit... |
 | `bin/run` | Executes a step list — commands and queries, declared as JSON — and reports instances, events, refusals, reactions, sagas, and query rows... |
+| `bin/rust_conformance` | THE DIFFERENTIAL HARNESS — docs/decisions/0010-ruby-is-the-reference-implementation.md. Ruby is the oracle a second runtime is checked ag... |
 | `bin/scaffold_translation` | The scaffold writes translations; humans resolve ambiguity. Diffs the held era against the current bluebook and writes the edge file: con... |
 | `bin/shape` | The storage-shape projection of one bluebook file, as JSON — the exact form StorageShape.mint_hash hashes to name an era, printed so a bu... |
 | `bin/stores` | Prints every aggregate's current records, as JSON — the head, not the journal (bin/history prints the full write history instead). bin/st... |

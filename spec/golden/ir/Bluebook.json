@@ -7899,7 +7899,7 @@
             [
               [
                 "word",
-                "read_model"
+                "report"
               ],
               [
                 "context",
@@ -7920,6 +7920,10 @@
               [
                 "fills",
                 ""
+              ],
+              [
+                "was",
+                "read_model"
               ]
             ],
             [
@@ -10274,7 +10278,7 @@
             [
               [
                 "keyword",
-                "read_model"
+                "report"
               ],
               [
                 "context",
@@ -15008,6 +15012,7 @@
     }
   ],
   "classification": "core",
+  "ir_version": 1,
   "name": "Bluebook",
   "policies": [
 

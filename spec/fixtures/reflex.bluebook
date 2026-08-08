@@ -158,7 +158,7 @@ Hecks.bluebook "Reflex" do
   # limit) are deliberately absent: `ReadModel#to_h` omits those,
   # so declaring them here would claim a wire contract that does not
   # exist. See spec/orchestration_spec's gap list.
-  read_model "Signals" do
+  report "Signals" do
     description "Every echo gathered around a light, with the options a projection can carry"
     reference_to Light
 

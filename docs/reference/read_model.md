@@ -1,6 +1,6 @@
 # ReadModel
 
-Words available inside `read_model do ... end`.
+Words available inside `report do ... end`.
 
 *The tables on this page are generated from the language's own
 Syntax chapter (`lib/hecksagain/language/bluebook/syntax.bluebook`)

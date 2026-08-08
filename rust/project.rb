@@ -1,10 +1,12 @@
 # THE RUST PROJECTION — a build-time code generator, not a runtime
 # interpreter. Reads canonical IR (the same shape bin/ir prints,
 # Hecksagain::Projector::Exporter.call) for one domain and emits native
-# Rust source into rust_runner/src/generated/. Nothing generated here is
+# Rust source into rust/src/generated/. Nothing generated here is
 # read or interpreted by the compiled binary — parsing/codegen only ever
-# runs here, in Ruby, at build time. Not required by lib/hecksagain.rb on
-# purpose — a booted domain never needs it; only bin/project_rust does.
+# runs here, in Ruby, at build time. Lives alongside the Rust crate it
+# targets, not under lib/hecksagain/ — it's tooling FOR hecksagain, not
+# part of the library itself; nothing under lib/hecksagain.rb requires
+# it, only bin/project_rust does.
 #
 #   bin/project_rust <domain>
 #
@@ -19,7 +21,7 @@
 # whatever IR a command carries.
 #
 # This slice ports that idea, not just more of the old one:
-#   - `rust_runner/src/kernel/expr.rs` is a hand-written, GENERIC
+#   - `rust/src/kernel/expr.rs` is a hand-written, GENERIC
 #     interpreter for the full expression grammar (Or/And/Not/Compare/
 #     Include, every Resolver leaf and operator) — a direct structural
 #     port of Evaluator#interpret/Resolver#interpret, not a
@@ -27,7 +29,7 @@
 #     `given`/`ensures`/invariant to bespoke Rust boolean SOURCE; it
 #     parses the real canonical text with the REAL Ruby parser and emits
 #     `Expr` DATA literals for the kernel's `interpret()` to walk.
-#   - `rust_runner/src/kernel/dispatch.rs` is a hand-written, GENERIC
+#   - `rust/src/kernel/dispatch.rs` is a hand-written, GENERIC
 #     `dispatch()` implementing the real DISPATCH_ORDER steps this slice
 #     covers (creates-vs-acts branch, identity/AlreadyExists/NotFound,
 #     given evaluation, mutation application, save, emit) — ONE function
@@ -78,16 +80,14 @@
 # ONE CONCERN PER FILE, all reopening the SAME two module_function
 # modules (`ExprEmitter`, `Projector`) — mirrors this codebase's own
 # `runtime/command_rules/` split, not a new pattern invented for this.
-module Hecksagain
-  module RustProjection
-  end
+module RustProjection
 end
 
-require_relative "rust_projection/expr_emitter"
-require_relative "rust_projection/naming"
-require_relative "rust_projection/fielded"
-require_relative "rust_projection/types"
-require_relative "rust_projection/bridging"
-require_relative "rust_projection/mutations"
-require_relative "rust_projection/commands"
-require_relative "rust_projection/domain_generator"
+require_relative "project/expr_emitter"
+require_relative "project/naming"
+require_relative "project/fielded"
+require_relative "project/types"
+require_relative "project/bridging"
+require_relative "project/mutations"
+require_relative "project/commands"
+require_relative "project/domain_generator"

@@ -546,6 +546,7 @@
     }
   ],
   "classification": "core",
+  "ir_version": 1,
   "name": "Hecksagon",
   "policies": [
 

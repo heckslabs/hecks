@@ -1,8 +1,8 @@
 [package]
-name = "rust_runner"
+name = "rust"
 version = "0.1.0"
 edition = "2021"
 
 [[bin]]
-name = "rust_runner"
+name = "rust"
 path = "src/main.rs"

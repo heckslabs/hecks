@@ -37,7 +37,7 @@ fn main() {
 
     // Now a REAL refusal, not a known gap: PizzaName's own invariant ("a
     // pizza is named") is generated and checked before identity is even
-    // derived, exactly where docs/guides/writing-a-port.md's dispatch-order
+    // derived, exactly where docs/guides/running-a-runtime.md's dispatch-order
     // section places it (`normalize_args`, ahead of `hydrate`).
     let empty_name_args = CreatePizzaArgs {
         name: PizzaName { value: "".to_string() },

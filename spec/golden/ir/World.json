@@ -408,6 +408,7 @@
     }
   ],
   "classification": "core",
+  "ir_version": 1,
   "name": "World",
   "policies": [
 

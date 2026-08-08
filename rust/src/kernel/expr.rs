@@ -1,6 +1,6 @@
 // HAND-WRITTEN, ONCE, GENERIC — a direct structural port of
 // `Hecksagain::Bluebook::Expression::Evaluator` and `::Resolver`
-// (docs/guides/writing-a-port.md's "The expression grammar"), not a
+// (docs/guides/running-a-runtime.md's "The expression grammar"), not a
 // reimplementation of parsing. bin/project_rust parses real canonical
 // `given`/`ensures`/invariant text with the REAL Ruby parser and emits
 // `Expr` DATA literals from that AST; the only thing written here is
