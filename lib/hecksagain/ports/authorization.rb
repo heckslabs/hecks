@@ -2,19 +2,20 @@ require_relative "../runtime/registry"
 
 module Hecksagain
   module Ports
-    # TWO YES/NO QUESTIONS an application asks BEFORE binding a caller —
-    # resolved the same way `Ports::IdentityGeneration` resolves its own
-    # adapter: one adapter registry-wide answers this port, not a
-    # per-aggregate binding, since a domain has no reason to want a
-    # different authorization source per aggregate. What answers it is
-    # deliberately not named here — the governance-backed adapter is one
-    # implementation, not the only possible one, the same way
+    # TWO YES/NO QUESTIONS AND ONE VALUE an application asks BEFORE
+    # binding a caller — resolved the same way `Ports::IdentityGeneration`
+    # resolves its own adapter: one adapter registry-wide answers this
+    # port, not a per-aggregate binding, since a domain has no reason to
+    # want a different authorization source per aggregate. What answers
+    # it is deliberately not named here — the governance-backed adapter
+    # is one implementation, not the only possible one, the same way
     # `SequentialIdentity` and `SecureRandomIdentity` are two
     # implementations of `identity_generation`.
     #
     # A caller decides what to DO with the answer — dispatch under that
-    # role, refuse, log — this only answers the yes/no question. Nothing
-    # here binds a `Runtime::Caller`, and nothing here is consulted by
+    # role, refuse, log, prefer it over some other fallback value — this
+    # only answers the question asked. Nothing here binds a
+    # `Runtime::Caller`, and nothing here is consulted by
     # `CommandRules::Authorization`: that rule still only compares an
     # ALREADY-BOUND caller's role against a command's, the same as it
     # always has. `spec/act_as_spec.rb` remains the precedent for the
@@ -33,6 +34,10 @@ module Hecksagain
 
       def authorized_as?(registry, from_role:, to_role:)
         adapter(registry).authorized_as?(registry, from_role: from_role, to_role: to_role)
+      end
+
+      def live_role_for(registry, actor_id:)
+        adapter(registry).live_role_for(registry, actor_id: actor_id)
       end
 
       def adapter(registry)

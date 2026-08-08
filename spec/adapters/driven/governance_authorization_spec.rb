@@ -108,6 +108,25 @@ RSpec.describe Hecksagain::Adapters::GovernanceAuthorization do
       .find(customer.instance.id).state[:standing][:value]).to eq("good")
   end
 
+  describe "#live_role_for" do
+    it "returns nil for an actor with no assignment at all" do
+      expect(described_class.live_role_for(business.registry, actor_id: "nobody")).to be_nil
+    end
+
+    it "returns the live role for an actor who currently holds one" do
+      assign(business, actor: "officer-1", role: "Compliance officer")
+
+      expect(described_class.live_role_for(business.registry, actor_id: "officer-1")).to eq("Compliance officer")
+    end
+
+    it "returns nil once the assignment is revoked" do
+      created = assign(business, actor: "officer-1", role: "Compliance officer")
+      business.dispatch("Governance::RoleAssignment.Revoke", id: created.instance.id, ends_at: { value: "2026-02-01" })
+
+      expect(described_class.live_role_for(business.registry, actor_id: "officer-1")).to be_nil
+    end
+  end
+
   describe "#authorized_as? — the RoleTransition half" do
     it "answers true for a granted transition" do
       grant_transition(business, from: "Branch clerk", to: "Compliance officer")

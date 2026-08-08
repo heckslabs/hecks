@@ -1,0 +1,4 @@
+Hecks.port "access_control" do
+  verb   "granted_by"
+  signal :reply
+end

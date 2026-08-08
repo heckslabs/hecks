@@ -41,6 +41,22 @@ module Hecksagain
 
         rows.any? { |row| row[:ends_at].nil? }
       end
+
+      # THE ROLE ITSELF, not just a yes/no about one — the same
+      # `AssignmentsForActor` query `holds_role?` runs, just returning
+      # the live (non-revoked) row's `role_name` instead of comparing it
+      # against a caller-supplied guess. `nil` for no live assignment at
+      # all — the caller's own fallback (an aggregate's own role field,
+      # a default) is domain-specific and does not belong here.
+      def live_role_for(registry, actor_id:)
+        rows = Runtime::Dispatcher.new(registry).query(
+          "Governance::RoleAssignment.AssignmentsForActor",
+          actor_id: { value: actor_id.to_s }
+        )
+
+        live = rows.find { |row| row[:ends_at].nil? }
+        live && live[:role_name][:value]
+      end
     end
   end
 end
