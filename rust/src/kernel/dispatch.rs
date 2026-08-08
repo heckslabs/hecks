@@ -127,7 +127,10 @@ where
     for given in givens {
         let ctx = EvalContext { args, instance: &record };
         if !interpret(&given.expr, &ctx)?.truthy() {
-            return Err(Refusal::GivenNotMet(given.description.to_string()));
+            // `CommandRules::Admissibility#enforce_givens`, read directly:
+            // `"#{command.hecks_name} refused — #{given.description}"` —
+            // the prefix this field-only message used to be missing.
+            return Err(Refusal::GivenNotMet(format!("{command_name} refused — {}", given.description)));
         }
     }
 
@@ -169,7 +172,10 @@ where
         for rule in ensures {
             let ctx = EvalContext { args: &with_old, instance: &record };
             if !interpret(&rule.expr, &ctx)?.truthy() {
-                return Err(Refusal::EnsuresNotMet(rule.description.to_string()));
+                // Same prefix, same source: `CommandRules::Admissibility
+                // #enforce_ensures` — `"#{command.hecks_name} refused —
+                // #{rule.description}"`.
+                return Err(Refusal::EnsuresNotMet(format!("{command_name} refused — {}", rule.description)));
             }
         }
     }
@@ -250,7 +256,10 @@ where
     for given in givens {
         let ctx = EvalContext { args, instance: &element };
         if !interpret(&given.expr, &ctx)?.truthy() {
-            return Err(Refusal::GivenNotMet(given.description.to_string()));
+            // `CommandRules::Admissibility#enforce_givens`, read directly:
+            // `"#{command.hecks_name} refused — #{given.description}"` —
+            // the prefix this field-only message used to be missing.
+            return Err(Refusal::GivenNotMet(format!("{command_name} refused — {}", given.description)));
         }
     }
 
@@ -282,7 +291,10 @@ where
         for rule in ensures {
             let ctx = EvalContext { args: &with_old, instance: &element };
             if !interpret(&rule.expr, &ctx)?.truthy() {
-                return Err(Refusal::EnsuresNotMet(rule.description.to_string()));
+                // Same prefix, same source: `CommandRules::Admissibility
+                // #enforce_ensures` — `"#{command.hecks_name} refused —
+                // #{rule.description}"`.
+                return Err(Refusal::EnsuresNotMet(format!("{command_name} refused — {}", rule.description)));
             }
         }
     }

@@ -38,7 +38,7 @@ impl InstructionReference {
 impl InstructionReference {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        value: v.require("value", "InstructionReference")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("InstructionReference.value: expected String".to_string()))?,
+        value: { let x = v.require("value", "InstructionReference")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("InstructionReference.value: expected String".to_string()))? },
         })
     }
 }
@@ -83,7 +83,7 @@ impl ScheduledAmount {
 impl ScheduledAmount {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        cents: v.require("cents", "ScheduledAmount")?.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ScheduledAmount.cents: expected Integer".to_string()))?,
+        cents: { let x = v.require("cents", "ScheduledAmount")?; x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("ScheduledAmount.cents expects Integer, got {}", x.inspect())))? },
         })
     }
 }
@@ -128,7 +128,7 @@ impl PaymentRecipient {
 impl PaymentRecipient {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        value: v.require("value", "PaymentRecipient")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PaymentRecipient.value: expected String".to_string()))?,
+        value: { let x = v.require("value", "PaymentRecipient")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PaymentRecipient.value: expected String".to_string()))? },
         })
     }
 }
@@ -173,7 +173,7 @@ impl PaymentDueDate {
 impl PaymentDueDate {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        value: v.require("value", "PaymentDueDate")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PaymentDueDate.value: expected String".to_string()))?,
+        value: { let x = v.require("value", "PaymentDueDate")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PaymentDueDate.value: expected String".to_string()))? },
         })
     }
 }
@@ -218,7 +218,7 @@ impl RetryCount {
 impl RetryCount {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        value: match v.get("value") { Some(x) => x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RetryCount.value: expected Integer".to_string()))?, None => 0 },
+        value: match v.get("value") { Some(x) => x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("RetryCount.value expects Integer, got {}", x.inspect())))?, None => 0 },
         })
     }
 }
@@ -263,7 +263,7 @@ impl RetryLimit {
 impl RetryLimit {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        value: match v.get("value") { Some(x) => x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RetryLimit.value: expected Integer".to_string()))?, None => 3 },
+        value: match v.get("value") { Some(x) => x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("RetryLimit.value expects Integer, got {}", x.inspect())))?, None => 3 },
         })
     }
 }
@@ -413,12 +413,12 @@ impl ScheduleArgs {
 let unknown = v.unknown_keys(&["account_id", "instruction", "amount", "recipient", "due_on", "id", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "ScheduleArgs does not declare {} — it takes account_id, instruction, amount, recipient, due_on",
+        "Schedule does not declare {} — it takes account_id, instruction, amount, recipient, due_on",
         unknown.join(", ")
     )));
 }
         Ok(Self {
-        account_id: v.require("account_id", "ScheduleArgs")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ScheduleArgs.account_id: expected String".to_string()))?,
+        account_id: { let x = v.require("account_id", "ScheduleArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ScheduleArgs.account_id: expected String".to_string()))? },
         instruction: InstructionReference::from_json(v.require("instruction", "ScheduleArgs")?)?,
         amount: ScheduledAmount::from_json(v.require("amount", "ScheduleArgs")?)?,
         recipient: PaymentRecipient::from_json(v.require("recipient", "ScheduleArgs")?)?,
@@ -483,7 +483,7 @@ impl ExecuteArgs {
 let unknown = v.unknown_keys(&["id", "scheduled_payment", "instruction", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "ExecuteArgs does not declare {} — it takes ",
+        "Execute does not declare {} — it takes ",
         unknown.join(", ")
     )));
 }
@@ -549,7 +549,7 @@ impl CancelArgs {
 let unknown = v.unknown_keys(&["id", "scheduled_payment", "instruction", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "CancelArgs does not declare {} — it takes ",
+        "Cancel does not declare {} — it takes ",
         unknown.join(", ")
     )));
 }
@@ -615,7 +615,7 @@ impl FailArgs {
 let unknown = v.unknown_keys(&["id", "scheduled_payment", "instruction", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "FailArgs does not declare {} — it takes ",
+        "Fail does not declare {} — it takes ",
         unknown.join(", ")
     )));
 }
@@ -682,7 +682,7 @@ impl RetryArgs {
 let unknown = v.unknown_keys(&["id", "scheduled_payment", "instruction", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "RetryArgs does not declare {} — it takes ",
+        "Retry does not declare {} — it takes ",
         unknown.join(", ")
     )));
 }
@@ -748,7 +748,7 @@ impl AbandonArgs {
 let unknown = v.unknown_keys(&["id", "scheduled_payment", "instruction", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "AbandonArgs does not declare {} — it takes ",
+        "Abandon does not declare {} — it takes ",
         unknown.join(", ")
     )));
 }

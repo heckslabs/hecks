@@ -43,7 +43,7 @@ impl ReadModelName {
 impl ReadModelName {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        value: v.require("value", "ReadModelName")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ReadModelName.value: expected String".to_string()))?,
+        value: { let x = v.require("value", "ReadModelName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ReadModelName.value: expected String".to_string()))? },
         })
     }
 }
@@ -83,7 +83,7 @@ impl ReadModelText {
 impl ReadModelText {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        value: v.require("value", "ReadModelText")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ReadModelText.value: expected String".to_string()))?,
+        value: { let x = v.require("value", "ReadModelText")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ReadModelText.value: expected String".to_string()))? },
         })
     }
 }
@@ -128,7 +128,7 @@ impl ProjectionPurpose {
 impl ProjectionPurpose {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        value: v.require("value", "ProjectionPurpose")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ProjectionPurpose.value: expected String".to_string()))?,
+        value: { let x = v.require("value", "ProjectionPurpose")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ProjectionPurpose.value: expected String".to_string()))? },
         })
     }
 }
@@ -174,9 +174,9 @@ impl Head {
 impl Head {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        aggregate: v.require("aggregate", "Head")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Head.aggregate: expected String".to_string()))?,
-        r#as: v.require("as", "Head")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Head.as: expected String".to_string()))?,
-        many: v.require("many", "Head")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Head.many: expected String".to_string()))?,
+        aggregate: { let x = v.require("aggregate", "Head")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Head.aggregate: expected String".to_string()))? },
+        r#as: { let x = v.require("as", "Head")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Head.as: expected String".to_string()))? },
+        many: { let x = v.require("many", "Head")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Head.many: expected String".to_string()))? },
         })
     }
 }
@@ -225,10 +225,10 @@ impl ProjectionOption {
 impl ProjectionOption {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        option: v.require("option", "ProjectionOption")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ProjectionOption.option: expected String".to_string()))?,
-        key: v.require("key", "ProjectionOption")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ProjectionOption.key: expected String".to_string()))?,
-        value: v.require("value", "ProjectionOption")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ProjectionOption.value: expected String".to_string()))?,
-        at: v.require("at", "ProjectionOption")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ProjectionOption.at: expected String".to_string()))?,
+        option: { let x = v.require("option", "ProjectionOption")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ProjectionOption.option: expected String".to_string()))? },
+        key: { let x = v.require("key", "ProjectionOption")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ProjectionOption.key: expected String".to_string()))? },
+        value: { let x = v.require("value", "ProjectionOption")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ProjectionOption.value: expected String".to_string()))? },
+        at: { let x = v.require("at", "ProjectionOption")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ProjectionOption.at: expected String".to_string()))? },
         })
     }
 }
@@ -268,7 +268,7 @@ impl Position {
 impl Position {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        value: v.require("value", "Position")?.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Position.value: expected Integer".to_string()))?,
+        value: { let x = v.require("value", "Position")?; x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("Position.value expects Integer, got {}", x.inspect())))? },
         })
     }
 }
@@ -429,12 +429,12 @@ impl DeclareArgs {
 let unknown = v.unknown_keys(&["bluebook_id", "name", "description", "query_name", "reference_name", "reference_target", "position", "id"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "DeclareArgs does not declare {} — it takes bluebook_id, name, description, query_name, reference_name, reference_target, position",
+        "Declare does not declare {} — it takes bluebook_id, name, description, query_name, reference_name, reference_target, position",
         unknown.join(", ")
     )));
 }
         Ok(Self {
-        bluebook_id: v.require("bluebook_id", "DeclareArgs")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.bluebook_id: expected String".to_string()))?,
+        bluebook_id: { let x = v.require("bluebook_id", "DeclareArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.bluebook_id: expected String".to_string()))? },
         name: ReadModelName::from_json(v.require("name", "DeclareArgs")?)?,
         description: match v.get("description") { Some(x) => Some(ProjectionPurpose::from_json(x)?), None => None, },
         query_name: ReadModelText::from_json(v.require("query_name", "DeclareArgs")?)?,
@@ -510,7 +510,7 @@ impl GatherArgs {
 let unknown = v.unknown_keys(&["aggregate", "as", "many", "id", "read_model", "bluebook_id", "name"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "GatherArgs does not declare {} — it takes aggregate, as, many",
+        "Gather does not declare {} — it takes aggregate, as, many",
         unknown.join(", ")
     )));
 }

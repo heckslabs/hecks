@@ -83,326 +83,382 @@ pub fn dispatch_by_name(
           "Banking::Customer.Register" => {
               let args = super::customer::RegisterArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Branch clerk"), "Register", caller_role)?;
-              super::customer::dispatch_register(&mut store.customer, args).map(|(_, events)| stamp_payload(events, args_json))
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              super::customer::dispatch_register(&mut store.customer, args).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::Customer.Suspend" => {
               let id = super::customer::Customer::extract_id(args_json)?;
               let args = super::customer::SuspendArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Compliance officer"), "Suspend", caller_role)?;
-              super::customer::dispatch_suspend(&mut store.customer, &id, args).map(|(_, events)| stamp_payload(events, args_json))
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              super::customer::dispatch_suspend(&mut store.customer, &id, args).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::Customer.Reinstate" => {
               let id = super::customer::Customer::extract_id(args_json)?;
               let args = super::customer::ReinstateArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Compliance officer"), "Reinstate", caller_role)?;
-              super::customer::dispatch_reinstate(&mut store.customer, &id, args).map(|(_, events)| stamp_payload(events, args_json))
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              super::customer::dispatch_reinstate(&mut store.customer, &id, args).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::Customer.Close" => {
               let id = super::customer::Customer::extract_id(args_json)?;
               let args = super::customer::CloseArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Branch clerk"), "Close", caller_role)?;
-              super::customer::dispatch_close(&mut store.customer, &id, args).map(|(_, events)| stamp_payload(events, args_json))
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              super::customer::dispatch_close(&mut store.customer, &id, args).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::Account.Open" => {
               let args = super::account::OpenArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Branch clerk"), "Open", caller_role)?;
               crate::kernel::check_reference(&store.customer, &args.customer_id, "Customer", "reference")?;
-              super::account::dispatch_open(&mut store.account, args).map(|(_, events)| stamp_payload(events, args_json))
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              super::account::dispatch_open(&mut store.account, args).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::Account.Credit" => {
               let id = super::account::Account::extract_id(args_json)?;
               let args = super::account::CreditArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Teller"), "Credit", caller_role)?;
-              super::account::dispatch_credit(&mut store.account, &id, args).map(|(_, events)| stamp_payload(events, args_json))
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              super::account::dispatch_credit(&mut store.account, &id, args).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::Account.Debit" => {
               let id = super::account::Account::extract_id(args_json)?;
               let args = super::account::DebitArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Teller"), "Debit", caller_role)?;
-              super::account::dispatch_debit(&mut store.account, &id, args).map(|(_, events)| stamp_payload(events, args_json))
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              super::account::dispatch_debit(&mut store.account, &id, args).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::Account.Freeze" => {
               let id = super::account::Account::extract_id(args_json)?;
               let args = super::account::FreezeArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Compliance officer"), "Freeze", caller_role)?;
-              super::account::dispatch_freeze(&mut store.account, &id, args).map(|(_, events)| stamp_payload(events, args_json))
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              super::account::dispatch_freeze(&mut store.account, &id, args).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::Account.Unfreeze" => {
               let id = super::account::Account::extract_id(args_json)?;
               let args = super::account::UnfreezeArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Compliance officer"), "Unfreeze", caller_role)?;
-              super::account::dispatch_unfreeze(&mut store.account, &id, args).map(|(_, events)| stamp_payload(events, args_json))
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              super::account::dispatch_unfreeze(&mut store.account, &id, args).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::Account.CloseAccount" => {
               let id = super::account::Account::extract_id(args_json)?;
               let args = super::account::CloseAccountArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Branch clerk"), "CloseAccount", caller_role)?;
-              super::account::dispatch_close_account(&mut store.account, &id, args).map(|(_, events)| stamp_payload(events, args_json))
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              super::account::dispatch_close_account(&mut store.account, &id, args).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::Account.ApplyFee" => {
               let id = super::account::Account::extract_id(args_json)?;
               let args = super::account::ApplyFeeArgs::from_json(args_json)?;
-              super::account::dispatch_apply_fee(&mut store.account, &id, args).map(|(_, events)| stamp_payload(events, args_json))
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              super::account::dispatch_apply_fee(&mut store.account, &id, args).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::Account.CorrectFee" => {
               let id = super::account::Account::extract_id(args_json)?;
               let args = super::account::CorrectFeeArgs::from_json(args_json)?;
-              super::account::dispatch_correct_fee(&mut store.account, &id, args).map(|(_, events)| stamp_payload(events, args_json))
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              super::account::dispatch_correct_fee(&mut store.account, &id, args).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::Account.AccrueInterest" => {
               let id = super::account::Account::extract_id(args_json)?;
               let args = super::account::AccrueInterestArgs::from_json(args_json)?;
-              super::account::dispatch_accrue_interest(&mut store.account, &id, args).map(|(_, events)| stamp_payload(events, args_json))
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              super::account::dispatch_accrue_interest(&mut store.account, &id, args).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::Account.CorrectInterest" => {
               let id = super::account::Account::extract_id(args_json)?;
               let args = super::account::CorrectInterestArgs::from_json(args_json)?;
-              super::account::dispatch_correct_interest(&mut store.account, &id, args).map(|(_, events)| stamp_payload(events, args_json))
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              super::account::dispatch_correct_interest(&mut store.account, &id, args).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::ATMCard.Issue" => {
               let args = super::atmcard::IssueArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Branch clerk"), "Issue", caller_role)?;
               crate::kernel::check_reference(&store.account, &args.account_id, "Account", "number")?;
-              super::atmcard::dispatch_issue(&mut store.atmcard, args).map(|(_, events)| stamp_payload(events, args_json))
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              super::atmcard::dispatch_issue(&mut store.atmcard, args).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::ATMCard.Rename" => {
               let id = super::atmcard::ATMCard::extract_id(args_json)?;
               let args = super::atmcard::RenameArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Customer"), "Rename", caller_role)?;
-              super::atmcard::dispatch_rename(&mut store.atmcard, &id, args).map(|(_, events)| stamp_payload(events, args_json))
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              super::atmcard::dispatch_rename(&mut store.atmcard, &id, args).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::ATMCard.Withdraw" => {
               let id = super::atmcard::ATMCard::extract_id(args_json)?;
               let args = super::atmcard::WithdrawArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Customer"), "Withdraw", caller_role)?;
-              super::atmcard::dispatch_withdraw(&mut store.atmcard, &id, args).map(|(_, events)| stamp_payload(events, args_json))
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              super::atmcard::dispatch_withdraw(&mut store.atmcard, &id, args).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::ATMCard.Activate" => {
               let id = super::atmcard::ATMCard::extract_id(args_json)?;
               let args = super::atmcard::ActivateArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Customer"), "Activate", caller_role)?;
-              super::atmcard::dispatch_activate(&mut store.atmcard, &id, args).map(|(_, events)| stamp_payload(events, args_json))
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              super::atmcard::dispatch_activate(&mut store.atmcard, &id, args).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::ATMCard.Retire" => {
               let id = super::atmcard::ATMCard::extract_id(args_json)?;
               let args = super::atmcard::RetireArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Back office"), "Retire", caller_role)?;
-              super::atmcard::dispatch_retire(&mut store.atmcard, &id, args).map(|(_, events)| stamp_payload(events, args_json))
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              super::atmcard::dispatch_retire(&mut store.atmcard, &id, args).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::Transfer.Request" => {
               let args = super::transfer::RequestArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Customer"), "Request", caller_role)?;
               crate::kernel::check_reference(&store.account, &args.source, "Account", "number")?;
               crate::kernel::check_reference(&store.account, &args.destination, "Account", "number")?;
-              super::transfer::dispatch_request(&mut store.transfer, args).map(|(_, events)| stamp_payload(events, args_json))
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              super::transfer::dispatch_request(&mut store.transfer, args).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::Transfer.Debited" => {
               let id = super::transfer::Transfer::extract_id(args_json)?;
               let args = super::transfer::DebitedArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("System"), "Debited", caller_role)?;
-              super::transfer::dispatch_debited(&mut store.transfer, &id, args).map(|(_, events)| stamp_payload(events, args_json))
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              super::transfer::dispatch_debited(&mut store.transfer, &id, args).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::Transfer.Settle" => {
               let id = super::transfer::Transfer::extract_id(args_json)?;
               let args = super::transfer::SettleArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("System"), "Settle", caller_role)?;
-              super::transfer::dispatch_settle(&mut store.transfer, &id, args).map(|(_, events)| stamp_payload(events, args_json))
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              super::transfer::dispatch_settle(&mut store.transfer, &id, args).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::Transfer.Credited" => {
               let id = super::transfer::Transfer::extract_id(args_json)?;
               let args = super::transfer::CreditedArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("System"), "Credited", caller_role)?;
-              super::transfer::dispatch_credited(&mut store.transfer, &id, args).map(|(_, events)| stamp_payload(events, args_json))
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              super::transfer::dispatch_credited(&mut store.transfer, &id, args).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::Transfer.Reverse" => {
               let id = super::transfer::Transfer::extract_id(args_json)?;
               let args = super::transfer::ReverseArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("System"), "Reverse", caller_role)?;
-              super::transfer::dispatch_reverse(&mut store.transfer, &id, args).map(|(_, events)| stamp_payload(events, args_json))
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              super::transfer::dispatch_reverse(&mut store.transfer, &id, args).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::Transfer.Reject" => {
               let id = super::transfer::Transfer::extract_id(args_json)?;
               let args = super::transfer::RejectArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("System"), "Reject", caller_role)?;
-              super::transfer::dispatch_reject(&mut store.transfer, &id, args).map(|(_, events)| stamp_payload(events, args_json))
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              super::transfer::dispatch_reject(&mut store.transfer, &id, args).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::CardPayment.Authorize" => {
               let args = super::cardpayment::AuthorizeArgs::from_json(args_json)?;
               crate::kernel::check_reference(&store.account, &args.account_id, "Account", "number")?;
-              super::cardpayment::dispatch_authorize(&mut store.cardpayment, args).map(|(_, events)| stamp_payload(events, args_json))
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              super::cardpayment::dispatch_authorize(&mut store.cardpayment, args).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::CardPayment.Capture" => {
               let id = super::cardpayment::CardPayment::extract_id(args_json)?;
               let args = super::cardpayment::CaptureArgs::from_json(args_json)?;
-              super::cardpayment::dispatch_capture(&mut store.cardpayment, &id, args).map(|(_, events)| stamp_payload(events, args_json))
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              super::cardpayment::dispatch_capture(&mut store.cardpayment, &id, args).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::CardPayment.Void" => {
               let id = super::cardpayment::CardPayment::extract_id(args_json)?;
               let args = super::cardpayment::VoidArgs::from_json(args_json)?;
-              super::cardpayment::dispatch_void(&mut store.cardpayment, &id, args).map(|(_, events)| stamp_payload(events, args_json))
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              super::cardpayment::dispatch_void(&mut store.cardpayment, &id, args).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::CardPayment.Refund" => {
               let id = super::cardpayment::CardPayment::extract_id(args_json)?;
               let args = super::cardpayment::RefundArgs::from_json(args_json)?;
-              super::cardpayment::dispatch_refund(&mut store.cardpayment, &id, args).map(|(_, events)| stamp_payload(events, args_json))
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              super::cardpayment::dispatch_refund(&mut store.cardpayment, &id, args).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::CardPayment.Reverse" => {
               let id = super::cardpayment::CardPayment::extract_id(args_json)?;
               let args = super::cardpayment::ReverseArgs::from_json(args_json)?;
-              super::cardpayment::dispatch_reverse(&mut store.cardpayment, &id, args).map(|(_, events)| stamp_payload(events, args_json))
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              super::cardpayment::dispatch_reverse(&mut store.cardpayment, &id, args).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::CardPayment.Dispute" => {
               let id = super::cardpayment::CardPayment::extract_id(args_json)?;
               let args = super::cardpayment::DisputeArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Customer"), "Dispute", caller_role)?;
               crate::kernel::check_reference(&store.customer, &args.disputed_by, "Customer", "reference")?;
-              super::cardpayment::dispatch_dispute(&mut store.cardpayment, &id, args).map(|(_, events)| stamp_payload(events, args_json))
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              super::cardpayment::dispatch_dispute(&mut store.cardpayment, &id, args).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::CardPayment.Chargeback" => {
               let id = super::cardpayment::CardPayment::extract_id(args_json)?;
               let args = super::cardpayment::ChargebackArgs::from_json(args_json)?;
-              super::cardpayment::dispatch_chargeback(&mut store.cardpayment, &id, args).map(|(_, events)| stamp_payload(events, args_json))
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              super::cardpayment::dispatch_chargeback(&mut store.cardpayment, &id, args).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::CardPayment.RejectDispute" => {
               let id = super::cardpayment::CardPayment::extract_id(args_json)?;
               let args = super::cardpayment::RejectDisputeArgs::from_json(args_json)?;
-              super::cardpayment::dispatch_reject_dispute(&mut store.cardpayment, &id, args).map(|(_, events)| stamp_payload(events, args_json))
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              super::cardpayment::dispatch_reject_dispute(&mut store.cardpayment, &id, args).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::ExternalTransfer.Request" => {
               let args = super::externaltransfer::RequestArgs::from_json(args_json)?;
               crate::kernel::check_reference(&store.account, &args.account_id, "Account", "number")?;
-              super::externaltransfer::dispatch_request(&mut store.externaltransfer, args).map(|(_, events)| stamp_payload(events, args_json))
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              super::externaltransfer::dispatch_request(&mut store.externaltransfer, args).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::ExternalTransfer.Send" => {
               let id = super::externaltransfer::ExternalTransfer::extract_id(args_json)?;
               let args = super::externaltransfer::SendArgs::from_json(args_json)?;
-              super::externaltransfer::dispatch_send(&mut store.externaltransfer, &id, args).map(|(_, events)| stamp_payload(events, args_json))
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              super::externaltransfer::dispatch_send(&mut store.externaltransfer, &id, args).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::ExternalTransfer.Recall" => {
               let id = super::externaltransfer::ExternalTransfer::extract_id(args_json)?;
               let args = super::externaltransfer::RecallArgs::from_json(args_json)?;
-              super::externaltransfer::dispatch_recall(&mut store.externaltransfer, &id, args).map(|(_, events)| stamp_payload(events, args_json))
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              super::externaltransfer::dispatch_recall(&mut store.externaltransfer, &id, args).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::ExternalTransfer.Return" => {
               let id = super::externaltransfer::ExternalTransfer::extract_id(args_json)?;
               let args = super::externaltransfer::ReturnArgs::from_json(args_json)?;
-              super::externaltransfer::dispatch_return(&mut store.externaltransfer, &id, args).map(|(_, events)| stamp_payload(events, args_json))
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              super::externaltransfer::dispatch_return(&mut store.externaltransfer, &id, args).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::ScheduledPayment.Schedule" => {
               let args = super::scheduledpayment::ScheduleArgs::from_json(args_json)?;
               crate::kernel::check_reference(&store.account, &args.account_id, "Account", "number")?;
-              super::scheduledpayment::dispatch_schedule(&mut store.scheduledpayment, args).map(|(_, events)| stamp_payload(events, args_json))
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              super::scheduledpayment::dispatch_schedule(&mut store.scheduledpayment, args).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::ScheduledPayment.Execute" => {
               let id = super::scheduledpayment::ScheduledPayment::extract_id(args_json)?;
               let args = super::scheduledpayment::ExecuteArgs::from_json(args_json)?;
-              super::scheduledpayment::dispatch_execute(&mut store.scheduledpayment, &id, args).map(|(_, events)| stamp_payload(events, args_json))
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              super::scheduledpayment::dispatch_execute(&mut store.scheduledpayment, &id, args).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::ScheduledPayment.Cancel" => {
               let id = super::scheduledpayment::ScheduledPayment::extract_id(args_json)?;
               let args = super::scheduledpayment::CancelArgs::from_json(args_json)?;
-              super::scheduledpayment::dispatch_cancel(&mut store.scheduledpayment, &id, args).map(|(_, events)| stamp_payload(events, args_json))
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              super::scheduledpayment::dispatch_cancel(&mut store.scheduledpayment, &id, args).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::ScheduledPayment.Fail" => {
               let id = super::scheduledpayment::ScheduledPayment::extract_id(args_json)?;
               let args = super::scheduledpayment::FailArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("System"), "Fail", caller_role)?;
-              super::scheduledpayment::dispatch_fail(&mut store.scheduledpayment, &id, args).map(|(_, events)| stamp_payload(events, args_json))
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              super::scheduledpayment::dispatch_fail(&mut store.scheduledpayment, &id, args).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::ScheduledPayment.Retry" => {
               let id = super::scheduledpayment::ScheduledPayment::extract_id(args_json)?;
               let args = super::scheduledpayment::RetryArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("System"), "Retry", caller_role)?;
-              super::scheduledpayment::dispatch_retry(&mut store.scheduledpayment, &id, args).map(|(_, events)| stamp_payload(events, args_json))
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              super::scheduledpayment::dispatch_retry(&mut store.scheduledpayment, &id, args).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::ScheduledPayment.Abandon" => {
               let id = super::scheduledpayment::ScheduledPayment::extract_id(args_json)?;
               let args = super::scheduledpayment::AbandonArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Back office"), "Abandon", caller_role)?;
-              super::scheduledpayment::dispatch_abandon(&mut store.scheduledpayment, &id, args).map(|(_, events)| stamp_payload(events, args_json))
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              super::scheduledpayment::dispatch_abandon(&mut store.scheduledpayment, &id, args).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::SafeDepositBox.Rent" => {
               let args = super::safedepositbox::RentArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Branch clerk"), "Rent", caller_role)?;
               crate::kernel::check_reference(&store.customer, &args.customer_id, "Customer", "reference")?;
-              super::safedepositbox::dispatch_rent(&mut store.safedepositbox, args).map(|(_, events)| stamp_payload(events, args_json))
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              super::safedepositbox::dispatch_rent(&mut store.safedepositbox, args).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::SafeDepositBox.Surrender" => {
               let id = super::safedepositbox::SafeDepositBox::extract_id(args_json)?;
               let args = super::safedepositbox::SurrenderArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Customer"), "Surrender", caller_role)?;
-              super::safedepositbox::dispatch_surrender(&mut store.safedepositbox, &id, args).map(|(_, events)| stamp_payload(events, args_json))
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              super::safedepositbox::dispatch_surrender(&mut store.safedepositbox, &id, args).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::SafeDepositBox.LogVisit" => {
               let id = super::safedepositbox::SafeDepositBox::extract_id(args_json)?;
               let args = super::safedepositbox::LogVisitArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Vault officer"), "LogVisit", caller_role)?;
-              super::safedepositbox::dispatch_log_visit(&mut store.safedepositbox, &id, args).map(|(_, events)| stamp_payload(events, args_json))
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              super::safedepositbox::dispatch_log_visit(&mut store.safedepositbox, &id, args).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::SafeDepositBox.IssueKey" => {
               let id = super::safedepositbox::SafeDepositBox::extract_id(args_json)?;
               let args = super::safedepositbox::IssueKeyArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Vault officer"), "IssueKey", caller_role)?;
-              super::safedepositbox::dispatch_issue_key(&mut store.safedepositbox, &id, args).map(|(_, events)| stamp_payload(events, args_json))
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              super::safedepositbox::dispatch_issue_key(&mut store.safedepositbox, &id, args).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::OnboardingCase.Open" => {
               let args = super::onboardingcase::OpenArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Branch clerk"), "Open", caller_role)?;
               crate::kernel::check_reference(&store.customer, &args.customer, "Customer", "reference")?;
-              super::onboardingcase::dispatch_open(&mut store.onboardingcase, args).map(|(_, events)| stamp_payload(events, args_json))
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              super::onboardingcase::dispatch_open(&mut store.onboardingcase, args).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::OnboardingCase.Clear" => {
               let id = super::onboardingcase::OnboardingCase::extract_id(args_json)?;
               let args = super::onboardingcase::ClearArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Compliance officer"), "Clear", caller_role)?;
-              super::onboardingcase::dispatch_clear(&mut store.onboardingcase, &id, args).map(|(_, events)| stamp_payload(events, args_json))
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              super::onboardingcase::dispatch_clear(&mut store.onboardingcase, &id, args).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::OnboardingCase.Decline" => {
               let id = super::onboardingcase::OnboardingCase::extract_id(args_json)?;
               let args = super::onboardingcase::DeclineArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Compliance officer"), "Decline", caller_role)?;
-              super::onboardingcase::dispatch_decline(&mut store.onboardingcase, &id, args).map(|(_, events)| stamp_payload(events, args_json))
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              super::onboardingcase::dispatch_decline(&mut store.onboardingcase, &id, args).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::Statement.Generate" => {
               let args = super::statement::GenerateArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("System"), "Generate", caller_role)?;
               crate::kernel::check_reference(&store.account, &args.account_id, "Account", "number")?;
-              super::statement::dispatch_generate(&mut store.statement, args).map(|(_, events)| stamp_payload(events, args_json))
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              super::statement::dispatch_generate(&mut store.statement, args).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::Account.LedgerEntry.Amend" => {
               let parent_id = super::account::Account::extract_id(args_json)?;
               let element_id = super::account::LedgerEntry::extract_id(args_json)?;
               let args = super::account::LedgerEntryAmendArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Back office"), "Amend", caller_role)?;
-              super::account::dispatch_entity_ledgerentry_amend(&mut store.account, &parent_id, &element_id, args).map(|(_, events)| stamp_payload(events, args_json))
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              super::account::dispatch_entity_ledgerentry_amend(&mut store.account, &parent_id, &element_id, args).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::Account.LedgerEntry.Reverse" => {
               let parent_id = super::account::Account::extract_id(args_json)?;
               let element_id = super::account::LedgerEntry::extract_id(args_json)?;
               let args = super::account::LedgerEntryReverseArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Back office"), "Reverse", caller_role)?;
-              super::account::dispatch_entity_ledgerentry_reverse(&mut store.account, &parent_id, &element_id, args).map(|(_, events)| stamp_payload(events, args_json))
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              super::account::dispatch_entity_ledgerentry_reverse(&mut store.account, &parent_id, &element_id, args).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::ATMCard.Withdrawal.Dispute" => {
               let parent_id = super::atmcard::ATMCard::extract_id(args_json)?;
               let element_id = super::atmcard::Withdrawal::extract_id(args_json)?;
               let args = super::atmcard::WithdrawalDisputeArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Customer"), "Dispute", caller_role)?;
-              super::atmcard::dispatch_entity_withdrawal_dispute(&mut store.atmcard, &parent_id, &element_id, args).map(|(_, events)| stamp_payload(events, args_json))
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              super::atmcard::dispatch_entity_withdrawal_dispute(&mut store.atmcard, &parent_id, &element_id, args).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::SafeDepositBox.Visit.Annotate" => {
               let parent_id = super::safedepositbox::SafeDepositBox::extract_id(args_json)?;
               let element_id = super::safedepositbox::Visit::extract_id(args_json)?;
               let args = super::safedepositbox::VisitAnnotateArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Vault officer"), "Annotate", caller_role)?;
-              super::safedepositbox::dispatch_entity_visit_annotate(&mut store.safedepositbox, &parent_id, &element_id, args).map(|(_, events)| stamp_payload(events, args_json))
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              super::safedepositbox::dispatch_entity_visit_annotate(&mut store.safedepositbox, &parent_id, &element_id, args).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::SafeDepositBox.KeyIssuance.Return" => {
               let parent_id = super::safedepositbox::SafeDepositBox::extract_id(args_json)?;
               let element_id = super::safedepositbox::KeyIssuance::extract_id(args_json)?;
               let args = super::safedepositbox::KeyIssuanceReturnArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Vault officer"), "Return", caller_role)?;
-              super::safedepositbox::dispatch_entity_keyissuance_return(&mut store.safedepositbox, &parent_id, &element_id, args).map(|(_, events)| stamp_payload(events, args_json))
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              super::safedepositbox::dispatch_entity_keyissuance_return(&mut store.safedepositbox, &parent_id, &element_id, args).map(|(_, events)| stamp_payload(events, &payload))
           }
         other => Err(crate::kernel::Refusal::TypeMismatch(format!("unknown command {other:?}"))),
     }

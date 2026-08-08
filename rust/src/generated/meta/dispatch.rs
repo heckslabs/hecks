@@ -38,7 +38,7 @@ impl DispatchText {
 impl DispatchText {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        value: v.require("value", "DispatchText")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DispatchText.value: expected String".to_string()))?,
+        value: { let x = v.require("value", "DispatchText")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DispatchText.value: expected String".to_string()))? },
         })
     }
 }
@@ -81,8 +81,8 @@ impl Binding {
 impl Binding {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        key: v.require("key", "Binding")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Binding.key: expected String".to_string()))?,
-        value: v.require("value", "Binding")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Binding.value: expected String".to_string()))?,
+        key: { let x = v.require("key", "Binding")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Binding.key: expected String".to_string()))? },
+        value: { let x = v.require("value", "Binding")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Binding.value: expected String".to_string()))? },
         })
     }
 }
@@ -122,7 +122,7 @@ impl Position {
 impl Position {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        value: v.require("value", "Position")?.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Position.value: expected Integer".to_string()))?,
+        value: { let x = v.require("value", "Position")?; x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("Position.value expects Integer, got {}", x.inspect())))? },
         })
     }
 }
@@ -255,12 +255,12 @@ impl DeclareArgs {
 let unknown = v.unknown_keys(&["handler_id", "handler", "command_name", "position", "id"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "DeclareArgs does not declare {} — it takes handler_id, handler, command_name, position",
+        "Declare does not declare {} — it takes handler_id, handler, command_name, position",
         unknown.join(", ")
     )));
 }
         Ok(Self {
-        handler_id: v.require("handler_id", "DeclareArgs")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.handler_id: expected String".to_string()))?,
+        handler_id: { let x = v.require("handler_id", "DeclareArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.handler_id: expected String".to_string()))? },
         handler: DispatchText::from_json(v.require("handler", "DeclareArgs")?)?,
         command_name: DispatchText::from_json(v.require("command_name", "DeclareArgs")?)?,
         position: match v.get("position") { Some(x) => Some(Position::from_json(x)?), None => None, },
@@ -329,7 +329,7 @@ impl BindArgs {
 let unknown = v.unknown_keys(&["key", "value", "id", "dispatch", "handler_id", "command_name"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "BindArgs does not declare {} — it takes key, value",
+        "Bind does not declare {} — it takes key, value",
         unknown.join(", ")
     )));
 }

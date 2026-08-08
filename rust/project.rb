@@ -109,9 +109,26 @@
 # (`CardPayment.tags`) — the last named corpus mismatch. Full corpus
 # parity reached: 35/35 matching instances.
 #
+# ELEVENTH SLICE (0021) — event payload default-fill (`Json::overlay`,
+# json.rs) and `GivenNotMet`/`EnsuresNotMet` wording now match Ruby
+# exactly. `spec/rust_conformance_spec.rb` now compares `events` and full
+# refusal wording, not just `instances`/refusal verbs — the two gaps that
+# made a looser comparison the right bar are both closed.
+#
 # WHAT THIS STILL DOES NOT GENERATE — flagged, not silently skipped:
 #   - A BARE (non-`list_of`), non-entity-list attribute whose type names
 #     an entity — not a real shape any aggregate in this corpus declares.
+#   - The REST of the refusal-wording table (`refusal_wording.rb`'s own
+#     ~20 entries) — `LifecycleRefused`'s `transition_blocked` template,
+#     the general VO-`invariant()` message (missing Ruby's own `"(given
+#     {offered})"` suffix), `one_of` closed-set membership wording, and
+#     entity-element-missing `NotFound` wording all still differ from
+#     Ruby's own templates (found running the FULL `spec/corpus/
+#     banking.json` through the differential harness — 0021's own
+#     Consequences). None affect `instances` (full 35/35 parity, per
+#     0020) — pure wording, the same class of gap 0021 closes two
+#     instances of, just a longer remaining tail. A real, deliberately
+#     out-of-scope future slice, not silently skipped.
 #   - The reaction/saga LOG (`reaction_log`/`saga_log`) — `orchestrate`
 #     produces the right SIDE EFFECTS without also reproducing the log
 #     `bin/rust_conformance`'s own comparable surface never reads.

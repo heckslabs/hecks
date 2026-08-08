@@ -43,7 +43,7 @@ impl AccountNumber {
 impl AccountNumber {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        value: v.require("value", "AccountNumber")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AccountNumber.value: expected String".to_string()))?,
+        value: { let x = v.require("value", "AccountNumber")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AccountNumber.value: expected String".to_string()))? },
         })
     }
 }
@@ -88,7 +88,7 @@ impl DailyLimit {
 impl DailyLimit {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        cents: match v.get("cents") { Some(x) => x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DailyLimit.cents: expected Integer".to_string()))?, None => 0 },
+        cents: match v.get("cents") { Some(x) => x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("DailyLimit.cents expects Integer, got {}", x.inspect())))?, None => 0 },
         })
     }
 }
@@ -133,7 +133,7 @@ impl LedgerSequence {
 impl LedgerSequence {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        value: v.require("value", "LedgerSequence")?.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("LedgerSequence.value: expected Integer".to_string()))?,
+        value: { let x = v.require("value", "LedgerSequence")?; x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("LedgerSequence.value expects Integer, got {}", x.inspect())))? },
         })
     }
 }
@@ -207,7 +207,7 @@ impl Money {
 impl Money {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        cents: match v.get("cents") { Some(x) => x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Money.cents: expected Integer".to_string()))?, None => 0 },
+        cents: match v.get("cents") { Some(x) => x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("Money.cents expects Integer, got {}", x.inspect())))?, None => 0 },
         currency: match v.get("currency") { Some(x) => x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Money.currency: expected String".to_string()))?, None => "USD".to_string() },
         })
     }
@@ -262,7 +262,7 @@ impl PositiveMoney {
 impl PositiveMoney {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        cents: v.require("cents", "PositiveMoney")?.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PositiveMoney.cents: expected Integer".to_string()))?,
+        cents: { let x = v.require("cents", "PositiveMoney")?; x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("PositiveMoney.cents expects Integer, got {}", x.inspect())))? },
         currency: match v.get("currency") { Some(x) => x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PositiveMoney.currency: expected String".to_string()))?, None => "USD".to_string() },
         })
     }
@@ -337,7 +337,7 @@ impl Narrative {
 impl Narrative {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        text: v.require("text", "Narrative")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Narrative.text: expected String".to_string()))?,
+        text: { let x = v.require("text", "Narrative")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Narrative.text: expected String".to_string()))? },
         })
     }
 }
@@ -678,12 +678,12 @@ impl OpenArgs {
 let unknown = v.unknown_keys(&["customer_id", "number", "kind", "daily_limit", "id", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "OpenArgs does not declare {} — it takes customer_id, number, kind, daily_limit",
+        "Open does not declare {} — it takes customer_id, number, kind, daily_limit",
         unknown.join(", ")
     )));
 }
         Ok(Self {
-        customer_id: v.require("customer_id", "OpenArgs")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("OpenArgs.customer_id: expected String".to_string()))?,
+        customer_id: { let x = v.require("customer_id", "OpenArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("OpenArgs.customer_id: expected String".to_string()))? },
         number: AccountNumber::from_json(v.require("number", "OpenArgs")?)?,
         kind: AccountKind::from_json(v.require("kind", "OpenArgs")?)?,
         daily_limit: DailyLimit::from_json(v.require("daily_limit", "OpenArgs")?)?,
@@ -753,7 +753,7 @@ impl CreditArgs {
 let unknown = v.unknown_keys(&["amount", "narrative", "id", "account", "number", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "CreditArgs does not declare {} — it takes amount, narrative",
+        "Credit does not declare {} — it takes amount, narrative",
         unknown.join(", ")
     )));
 }
@@ -829,7 +829,7 @@ impl DebitArgs {
 let unknown = v.unknown_keys(&["amount", "narrative", "id", "account", "number", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "DebitArgs does not declare {} — it takes amount, narrative",
+        "Debit does not declare {} — it takes amount, narrative",
         unknown.join(", ")
     )));
 }
@@ -896,7 +896,7 @@ impl FreezeArgs {
 let unknown = v.unknown_keys(&["id", "account", "number", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "FreezeArgs does not declare {} — it takes ",
+        "Freeze does not declare {} — it takes ",
         unknown.join(", ")
     )));
 }
@@ -962,7 +962,7 @@ impl UnfreezeArgs {
 let unknown = v.unknown_keys(&["id", "account", "number", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "UnfreezeArgs does not declare {} — it takes ",
+        "Unfreeze does not declare {} — it takes ",
         unknown.join(", ")
     )));
 }
@@ -1028,7 +1028,7 @@ impl CloseAccountArgs {
 let unknown = v.unknown_keys(&["id", "account", "number", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "CloseAccountArgs does not declare {} — it takes ",
+        "CloseAccount does not declare {} — it takes ",
         unknown.join(", ")
     )));
 }
@@ -1100,7 +1100,7 @@ impl ApplyFeeArgs {
 let unknown = v.unknown_keys(&["amount", "narrative", "id", "account", "number", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "ApplyFeeArgs does not declare {} — it takes amount, narrative",
+        "ApplyFee does not declare {} — it takes amount, narrative",
         unknown.join(", ")
     )));
 }
@@ -1169,7 +1169,7 @@ impl CorrectFeeArgs {
 let unknown = v.unknown_keys(&["amount", "id", "account", "number", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "CorrectFeeArgs does not declare {} — it takes amount",
+        "CorrectFee does not declare {} — it takes amount",
         unknown.join(", ")
     )));
 }
@@ -1237,7 +1237,7 @@ impl AccrueInterestArgs {
 let unknown = v.unknown_keys(&["amount", "id", "account", "number", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "AccrueInterestArgs does not declare {} — it takes amount",
+        "AccrueInterest does not declare {} — it takes amount",
         unknown.join(", ")
     )));
 }
@@ -1306,7 +1306,7 @@ impl CorrectInterestArgs {
 let unknown = v.unknown_keys(&["amount", "id", "account", "number", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "CorrectInterestArgs does not declare {} — it takes amount",
+        "CorrectInterest does not declare {} — it takes amount",
         unknown.join(", ")
     )));
 }

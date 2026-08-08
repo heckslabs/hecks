@@ -43,7 +43,7 @@ impl StatementPeriod {
 impl StatementPeriod {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        value: v.require("value", "StatementPeriod")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("StatementPeriod.value: expected String".to_string()))?,
+        value: { let x = v.require("value", "StatementPeriod")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("StatementPeriod.value: expected String".to_string()))? },
         })
     }
 }
@@ -83,7 +83,7 @@ impl StatementAmount {
 impl StatementAmount {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        cents: v.require("cents", "StatementAmount")?.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("StatementAmount.cents: expected Integer".to_string()))?,
+        cents: { let x = v.require("cents", "StatementAmount")?; x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("StatementAmount.cents expects Integer, got {}", x.inspect())))? },
         })
     }
 }
@@ -128,7 +128,7 @@ impl StatementDate {
 impl StatementDate {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        value: v.require("value", "StatementDate")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("StatementDate.value: expected String".to_string()))?,
+        value: { let x = v.require("value", "StatementDate")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("StatementDate.value: expected String".to_string()))? },
         })
     }
 }
@@ -302,12 +302,12 @@ impl GenerateArgs {
 let unknown = v.unknown_keys(&["account_id", "period", "opening_balance", "closing_balance", "generated_on", "frequency", "id", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "GenerateArgs does not declare {} — it takes account_id, period, opening_balance, closing_balance, generated_on, frequency",
+        "Generate does not declare {} — it takes account_id, period, opening_balance, closing_balance, generated_on, frequency",
         unknown.join(", ")
     )));
 }
         Ok(Self {
-        account_id: v.require("account_id", "GenerateArgs")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("GenerateArgs.account_id: expected String".to_string()))?,
+        account_id: { let x = v.require("account_id", "GenerateArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("GenerateArgs.account_id: expected String".to_string()))? },
         period: StatementPeriod::from_json(v.require("period", "GenerateArgs")?)?,
         opening_balance: StatementAmount::from_json(v.require("opening_balance", "GenerateArgs")?)?,
         closing_balance: StatementAmount::from_json(v.require("closing_balance", "GenerateArgs")?)?,

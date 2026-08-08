@@ -67,6 +67,34 @@ impl Json {
         Some(current)
     }
 
+    /// Ruby's own `#inspect`, close enough for what a refusal message
+    /// ever quotes an "offered" JSON value as (`refusal_wording.rb`'s
+    /// `numeric_field` template: `"{type}.{field} expects {expected},
+    /// got {offered}"` — `offered` is `value.inspect`, read directly). A
+    /// String gets quoted (the same escaping `write_escaped_string`
+    /// already does for the wire format); a number/bool prints bare;
+    /// `nil`/arrays/objects are never actually offered where this is
+    /// called (an Integer/Float-typed field's own wrong-shape value is
+    /// always a scalar or explicit JSON `null` in practice) but fall
+    /// back to something reasonable rather than panicking.
+    pub fn inspect(&self) -> String {
+        match self {
+            Json::Str(s) => {
+                let mut out = String::new();
+                write_escaped_string(s, &mut out);
+                out
+            }
+            Json::Null => "nil".to_string(),
+            // Num/Bool/Array/Object — `to_json_string`'s own rendering
+            // already matches Ruby's `.inspect` for a number or bool
+            // (no quotes, same digit formatting `write`'s own fract==0.0
+            // branch already gives); arrays/objects are never actually
+            // offered here in practice, so this is a reasonable fallback
+            // rather than a precise match for THAT case.
+            _ => self.to_json_string(),
+        }
+    }
+
     pub fn as_str(&self) -> Option<&str> {
         match self {
             Json::Str(s) => Some(s),
@@ -126,6 +154,39 @@ impl Json {
             }
             _ => Vec::new(),
         }
+    }
+
+    /// `registry.rs`'s own `stamp_payload` needs BOTH halves of the story
+    /// an event's payload tells: the router's raw, unfiltered
+    /// `args_json` (0013/0014's own fix — an identity-reference argument
+    /// like `number:` isn't a declared struct field, so a saga's
+    /// correlation forwarding needs it to survive onto the payload), AND
+    /// the TYPED args struct's own `to_json()` (whose `from_json` already
+    /// filled in any declared `default:` a bare/partial raw value never
+    /// carried — `Transfer`'s own `amount` forwards `{"cents": N}` with no
+    /// `currency` field at all into `Account.Debit`'s `PositiveMoney`,
+    /// which DOES declare `currency: "USD"` as a default; Ruby's own
+    /// event payload reflects the post-coercion value, this kernel's raw
+    /// `args_json` alone does not). `overlay` merges them the way Ruby's
+    /// own `payload: args` effectively already is (a coerced args hash,
+    /// not the raw wire input) — for each top-level key `patch` declares,
+    /// its value REPLACES `base`'s own (the fuller, defaulted nested
+    /// value); every key `patch` doesn't touch (an identity/reference
+    /// argument no declared attribute names) passes through from `base`
+    /// unchanged. Non-`Object` inputs pass through `base` unchanged —
+    /// nothing generated ever calls this on anything else.
+    pub fn overlay(base: &Json, patch: &Json) -> Json {
+        let (Json::Object(base_fields), Json::Object(patch_fields)) = (base, patch) else {
+            return base.clone();
+        };
+        let mut merged = base_fields.clone();
+        for (key, value) in patch_fields {
+            match merged.iter_mut().find(|(k, _)| k == key) {
+                Some(entry) => entry.1 = value.clone(),
+                None => merged.push((key.clone(), value.clone())),
+            }
+        }
+        Json::Object(merged)
     }
 
     /// Stringifies a scalar leaf for identity-component joining —

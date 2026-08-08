@@ -43,7 +43,7 @@ impl OnboardingReference {
 impl OnboardingReference {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        value: v.require("value", "OnboardingReference")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("OnboardingReference.value: expected String".to_string()))?,
+        value: { let x = v.require("value", "OnboardingReference")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("OnboardingReference.value: expected String".to_string()))? },
         })
     }
 }
@@ -88,7 +88,7 @@ impl AccountNumber {
 impl AccountNumber {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        value: v.require("value", "AccountNumber")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AccountNumber.value: expected String".to_string()))?,
+        value: { let x = v.require("value", "AccountNumber")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AccountNumber.value: expected String".to_string()))? },
         })
     }
 }
@@ -213,12 +213,12 @@ impl OpenArgs {
 let unknown = v.unknown_keys(&["customer", "reference", "account_number", "id", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "OpenArgs does not declare {} — it takes customer, reference, account_number",
+        "Open does not declare {} — it takes customer, reference, account_number",
         unknown.join(", ")
     )));
 }
         Ok(Self {
-        customer: v.require("customer", "OpenArgs")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("OpenArgs.customer: expected String".to_string()))?,
+        customer: { let x = v.require("customer", "OpenArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("OpenArgs.customer: expected String".to_string()))? },
         reference: OnboardingReference::from_json(v.require("reference", "OpenArgs")?)?,
         account_number: AccountNumber::from_json(v.require("account_number", "OpenArgs")?)?,
         })
@@ -281,7 +281,7 @@ impl ClearArgs {
 let unknown = v.unknown_keys(&["id", "onboarding_case", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "ClearArgs does not declare {} — it takes ",
+        "Clear does not declare {} — it takes ",
         unknown.join(", ")
     )));
 }
@@ -347,7 +347,7 @@ impl DeclineArgs {
 let unknown = v.unknown_keys(&["id", "onboarding_case", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "DeclineArgs does not declare {} — it takes ",
+        "Decline does not declare {} — it takes ",
         unknown.join(", ")
     )));
 }

@@ -17,6 +17,20 @@ module RustProjection
       "crate::kernel::Refusal::TypeMismatch(#{"#{struct_name}.#{key}: expected #{expectation}".inspect}.to_string())"
     end
 
+    # `TypeMismatch numeric_field`'s own template (`refusal_wording.rb`):
+    # `"{type}.{field} expects {expected}, got {offered}"` — `offered` is
+    # `value.inspect` on the Ruby side, `Json::inspect` (json.rs) on this
+    # one. Scoped to `Integer`/`Float` specifically (the template's own
+    # name) — a `String` scalar mismatch keeps `json_type_error`'s own
+    # generic wording, since nothing in this corpus exercises Ruby's own
+    # wording for THAT shape and this generator shouldn't guess at it.
+    def scalar_type_error(struct_name, key, scalar_type, value_var)
+      return json_type_error(struct_name, key, scalar_type) unless %w[Integer Float].include?(scalar_type)
+
+      template = "#{struct_name}.#{key} expects #{scalar_type}, got {}"
+      "crate::kernel::Refusal::TypeMismatch(format!(#{template.inspect}, #{value_var}.inspect()))"
+    end
+
     SCALAR_JSON_ACCESSOR = { "String" => "as_str", "Integer" => "as_i64", "Float" => "as_f64" }.freeze
 
     # `default:` — `Value.build`'s own fallback (bridging.rb's
@@ -45,9 +59,9 @@ module RustProjection
       # non-numeric string silently became the default instead of a
       # refusal. `match` on presence FIRST, so only the "absent" arm ever
       # reaches for the default.
-      return %(match v.get(#{key.inspect}) { Some(x) => x.#{accessor}()#{wrap}.ok_or_else(|| #{json_type_error(struct_name, key, scalar_type)})?, None => #{literal_rhs(default)} }) if default
+      return %(match v.get(#{key.inspect}) { Some(x) => x.#{accessor}()#{wrap}.ok_or_else(|| #{scalar_type_error(struct_name, key, scalar_type, 'x')})?, None => #{literal_rhs(default)} }) if default
 
-      %(v.require(#{key.inspect}, #{struct_name.inspect})?.#{accessor}()#{wrap}.ok_or_else(|| #{json_type_error(struct_name, key, scalar_type)})?)
+      %({ let x = v.require(#{key.inspect}, #{struct_name.inspect})?; x.#{accessor}()#{wrap}.ok_or_else(|| #{scalar_type_error(struct_name, key, scalar_type, 'x')})? })
     end
 
     # The scalar-extraction half of `scalar_from_json_expr`, applied to an
@@ -58,7 +72,7 @@ module RustProjection
     def scalar_from_json_value_expr(struct_name, key, scalar_type, value_expr)
       accessor = SCALAR_JSON_ACCESSOR.fetch(scalar_type)
       wrap = scalar_type == "String" ? ".map(|s| s.to_string())" : ""
-      %(#{value_expr}.#{accessor}()#{wrap}.ok_or_else(|| #{json_type_error(struct_name, key, scalar_type)})?)
+      %(#{value_expr}.#{accessor}()#{wrap}.ok_or_else(|| #{scalar_type_error(struct_name, key, scalar_type, value_expr)})?)
     end
 
     def scalar_to_json_expr(scalar_type, rust_expr)
@@ -89,12 +103,19 @@ module RustProjection
       (["id", reference_key] + identity_heads + correlation_keys).compact.uniq
     end
 
-    def emit_unknown_argument_check(struct_name, known_keys, declared_names)
+    # `command_name` — `ArgumentGate#refuse_unknown_arguments`'s own
+    # `UnknownArgument unknown_args` template (`refusal_wording.rb`):
+    # `"{command} does not declare {unknown} — it takes {declared}"` —
+    # `command` is `command.hecks_name` ("Credit"), NOT the args struct's
+    # own name ("CreditArgs") — the two differ by exactly the same "Args"
+    # suffix `rust_ident(command[:name]) + "Args"` always adds, confirmed
+    # against Ruby's own live wording.
+    def emit_unknown_argument_check(command_name, known_keys, declared_names)
       <<~RUST
                 let unknown = v.unknown_keys(&[#{known_keys.map(&:inspect).join(', ')}]);
                 if !unknown.is_empty() {
                     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-                        "#{struct_name} does not declare {} — it takes #{declared_names.join(', ')}",
+                        "#{command_name} does not declare {} — it takes #{declared_names.join(', ')}",
                         unknown.join(", ")
                     )));
                 }
@@ -111,7 +132,12 @@ module RustProjection
     # `unknown_argument_allowlist:` — nil (the default, VOs and entity
     # commands) skips `refuse_unknown_arguments` entirely; an Array (only
     # ever an AGGREGATE command's own args struct) emits the check first.
-    def emit_from_json_flat(struct_name, attributes, value_objects_by_name, unknown_argument_allowlist: nil)
+    # `command_name:` — the command's own short name (`emit_unknown_
+    # argument_check`'s own header), defaulting to `struct_name` for
+    # every OTHER caller (value objects, entity commands — neither ever
+    # passes `unknown_argument_allowlist`, so this default is never
+    # actually read).
+    def emit_from_json_flat(struct_name, attributes, value_objects_by_name, unknown_argument_allowlist: nil, command_name: struct_name)
       field_exprs = attributes.map do |attr|
         ident = rust_ident_field(attr[:name])
         key = rust_field(attr[:name])
@@ -149,7 +175,7 @@ module RustProjection
       unknown_check =
         if unknown_argument_allowlist
           known_keys = (attributes.map { |a| rust_field(a[:name]) } + unknown_argument_allowlist).uniq
-          emit_unknown_argument_check(struct_name, known_keys, attributes.map { |a| a[:name] })
+          emit_unknown_argument_check(command_name, known_keys, attributes.map { |a| a[:name] })
         else
           ""
         end

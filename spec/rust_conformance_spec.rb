@@ -12,17 +12,24 @@ require "hecksagain/fuzzing"
 # (`.github/workflows/ci.yml`), the same "provision it for real, don't
 # skip" discipline that workflow already holds Postgres/SQLite to.
 #
-# Compares `instances` and `refusals` ONLY, not `events` — two real,
-# documented, PRE-EXISTING gaps (0013's own Consequences) make exact event
-# comparison the wrong bar here: `Event.payload` is the router's raw,
-# unfiltered args (0013's own `stamp_payload`), not Ruby's
-# post-value-coercion hash, so a value object field filled from a
-# TARGET-type default (`PositiveMoney.currency`) shows up in Ruby's event
-# payload and not Rust's; and `GivenNotMet` refusal wording lacks Ruby's
-# command-name prefix (0012's own Consequences). Both are cosmetic —
-# `instances` (the actual state every command/entity-command/policy/saga
-# leg produces) and `refusals` (which verbs got refused) are the real
-# regression signal, and neither carries either gap.
+# Compares `instances`, `events`, AND full refusal wording (`verb` +
+# `error`, not just `verb`) — the two gaps that used to make exact
+# `events`/wording comparison the wrong bar here are both closed now
+# (0021): `Event.payload` used to be the router's raw, unfiltered args
+# (0013's own `stamp_payload`) with no post-coercion default-fill —
+# `Json::overlay` (json.rs) now merges the raw args with the typed args
+# struct's OWN `to_json()`, matching Ruby's own coerced-hash payload; and
+# `GivenNotMet`/`EnsuresNotMet` refusal wording now carries the same
+# `"{command} refused — {description}"` prefix Ruby's own
+# `CommandRules::Admissibility` raises with. Both fixtures below are
+# picked/maintained specifically to stay clear of the OTHER refusal-
+# wording templates this generator still doesn't match byte-for-byte
+# (LifecycleRefused's `transition_blocked`, the general VO-`invariant`
+# message, `one_of` closed-set membership, entity-element-missing —
+# `rust/project.rb`'s own header names these as a real, separate,
+# deliberately out-of-scope gap) — a NEW fixture that exercises one of
+# those will legitimately fail here until that gap is closed too, the
+# same way any pinned fixture needs verifying before it's added.
 RSpec.describe "Rust conformance (native binary)" do
   RUST_CONFORMANCE_FIXTURES = Dir.glob(File.join(InMemoryDomain::ROOT, "spec/corpus/rust_conformance/*.json")).sort
 
@@ -33,7 +40,7 @@ RSpec.describe "Rust conformance (native binary)" do
   end
 
   RUST_CONFORMANCE_FIXTURES.each do |fixture_path|
-    it "#{File.basename(fixture_path)}: instances and refusals match Ruby exactly" do
+    it "#{File.basename(fixture_path)}: instances, events, and refusals match Ruby exactly" do
       binary = native_rust_binary
       skip "no native rust binary built — run `cd rust && cargo build` first" unless binary
 
@@ -43,7 +50,8 @@ RSpec.describe "Rust conformance (native binary)" do
 
       ruby_result = Hecksagain::Fuzzing::Replay.call(domain, steps)
       ruby_instances = ruby_result[:instances].transform_values { |state| JSON.parse(JSON.generate(state)) }
-      ruby_refusal_verbs = ruby_result[:refusals].map { |r| r[:verb] }
+      ruby_events = JSON.parse(JSON.generate(ruby_result[:events]))
+      ruby_refusals = ruby_result[:refusals].map { |r| { "verb" => r[:verb].to_s, "error" => r[:error] } }
 
       stdout, status = Open3.capture2(binary, stdin_data: JSON.generate({ "steps" => steps }))
       expect(status).to be_success, "#{binary} exited #{status.exitstatus}:\n#{stdout}"
@@ -51,7 +59,8 @@ RSpec.describe "Rust conformance (native binary)" do
       rust_output = JSON.parse(stdout)
 
       expect(rust_output["instances"]).to eq(ruby_instances)
-      expect(rust_output["refusals"].map { |r| r["verb"] }).to eq(ruby_refusal_verbs)
+      expect(rust_output["events"]).to eq(ruby_events)
+      expect(rust_output["refusals"]).to eq(ruby_refusals)
     end
   end
 end

@@ -43,7 +43,7 @@ impl TransferReference {
 impl TransferReference {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        value: v.require("value", "TransferReference")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("TransferReference.value: expected String".to_string()))?,
+        value: { let x = v.require("value", "TransferReference")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("TransferReference.value: expected String".to_string()))? },
         })
     }
 }
@@ -88,7 +88,7 @@ impl TransferMoney {
 impl TransferMoney {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        cents: v.require("cents", "TransferMoney")?.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("TransferMoney.cents: expected Integer".to_string()))?,
+        cents: { let x = v.require("cents", "TransferMoney")?; x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("TransferMoney.cents expects Integer, got {}", x.inspect())))? },
         })
     }
 }
@@ -133,7 +133,7 @@ impl Narrative {
 impl Narrative {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        text: v.require("text", "Narrative")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Narrative.text: expected String".to_string()))?,
+        text: { let x = v.require("text", "Narrative")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Narrative.text: expected String".to_string()))? },
         })
     }
 }
@@ -277,13 +277,13 @@ impl RequestArgs {
 let unknown = v.unknown_keys(&["source", "destination", "reference", "amount", "narrative", "id", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "RequestArgs does not declare {} — it takes source, destination, reference, amount, narrative",
+        "Request does not declare {} — it takes source, destination, reference, amount, narrative",
         unknown.join(", ")
     )));
 }
         Ok(Self {
-        source: v.require("source", "RequestArgs")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RequestArgs.source: expected String".to_string()))?,
-        destination: v.require("destination", "RequestArgs")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RequestArgs.destination: expected String".to_string()))?,
+        source: { let x = v.require("source", "RequestArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RequestArgs.source: expected String".to_string()))? },
+        destination: { let x = v.require("destination", "RequestArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RequestArgs.destination: expected String".to_string()))? },
         reference: TransferReference::from_json(v.require("reference", "RequestArgs")?)?,
         amount: TransferMoney::from_json(v.require("amount", "RequestArgs")?)?,
         narrative: Narrative::from_json(v.require("narrative", "RequestArgs")?)?,
@@ -347,7 +347,7 @@ impl DebitedArgs {
 let unknown = v.unknown_keys(&["id", "transfer", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "DebitedArgs does not declare {} — it takes ",
+        "Debited does not declare {} — it takes ",
         unknown.join(", ")
     )));
 }
@@ -413,7 +413,7 @@ impl SettleArgs {
 let unknown = v.unknown_keys(&["id", "transfer", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "SettleArgs does not declare {} — it takes ",
+        "Settle does not declare {} — it takes ",
         unknown.join(", ")
     )));
 }
@@ -479,7 +479,7 @@ impl CreditedArgs {
 let unknown = v.unknown_keys(&["id", "transfer", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "CreditedArgs does not declare {} — it takes ",
+        "Credited does not declare {} — it takes ",
         unknown.join(", ")
     )));
 }
@@ -545,7 +545,7 @@ impl ReverseArgs {
 let unknown = v.unknown_keys(&["id", "transfer", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "ReverseArgs does not declare {} — it takes ",
+        "Reverse does not declare {} — it takes ",
         unknown.join(", ")
     )));
 }
@@ -611,7 +611,7 @@ impl RejectArgs {
 let unknown = v.unknown_keys(&["id", "transfer", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "RejectArgs does not declare {} — it takes ",
+        "Reject does not declare {} — it takes ",
         unknown.join(", ")
     )));
 }

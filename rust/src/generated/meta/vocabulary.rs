@@ -43,7 +43,7 @@ impl VocabularyName {
 impl VocabularyName {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        value: v.require("value", "VocabularyName")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("VocabularyName.value: expected String".to_string()))?,
+        value: { let x = v.require("value", "VocabularyName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("VocabularyName.value: expected String".to_string()))? },
         })
     }
 }

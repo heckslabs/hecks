@@ -43,7 +43,7 @@ impl CustomerNumber {
 impl CustomerNumber {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        value: v.require("value", "CustomerNumber")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("CustomerNumber.value: expected String".to_string()))?,
+        value: { let x = v.require("value", "CustomerNumber")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("CustomerNumber.value: expected String".to_string()))? },
         })
     }
 }
@@ -142,8 +142,8 @@ impl PersonName {
 impl PersonName {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        given: v.require("given", "PersonName")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PersonName.given: expected String".to_string()))?,
-        family: v.require("family", "PersonName")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PersonName.family: expected String".to_string()))?,
+        given: { let x = v.require("given", "PersonName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PersonName.given: expected String".to_string()))? },
+        family: { let x = v.require("family", "PersonName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PersonName.family: expected String".to_string()))? },
         })
     }
 }
@@ -183,7 +183,7 @@ impl EmailAddress {
 impl EmailAddress {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        address: v.require("address", "EmailAddress")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("EmailAddress.address: expected String".to_string()))?,
+        address: { let x = v.require("address", "EmailAddress")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("EmailAddress.address: expected String".to_string()))? },
         })
     }
 }
@@ -314,7 +314,7 @@ impl RegisterArgs {
 let unknown = v.unknown_keys(&["reference", "name", "email", "id", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "RegisterArgs does not declare {} — it takes reference, name, email",
+        "Register does not declare {} — it takes reference, name, email",
         unknown.join(", ")
     )));
 }
@@ -384,7 +384,7 @@ impl SuspendArgs {
 let unknown = v.unknown_keys(&["standing", "id", "customer", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "SuspendArgs does not declare {} — it takes standing",
+        "Suspend does not declare {} — it takes standing",
         unknown.join(", ")
     )));
 }
@@ -451,7 +451,7 @@ impl ReinstateArgs {
 let unknown = v.unknown_keys(&["id", "customer", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "ReinstateArgs does not declare {} — it takes ",
+        "Reinstate does not declare {} — it takes ",
         unknown.join(", ")
     )));
 }
@@ -517,7 +517,7 @@ impl CloseArgs {
 let unknown = v.unknown_keys(&["id", "customer", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "CloseArgs does not declare {} — it takes ",
+        "Close does not declare {} — it takes ",
         unknown.join(", ")
     )));
 }

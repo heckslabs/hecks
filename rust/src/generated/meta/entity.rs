@@ -43,7 +43,7 @@ impl EntityName {
 impl EntityName {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        value: v.require("value", "EntityName")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("EntityName.value: expected String".to_string()))?,
+        value: { let x = v.require("value", "EntityName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("EntityName.value: expected String".to_string()))? },
         })
     }
 }
@@ -83,7 +83,7 @@ impl EntityText {
 impl EntityText {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        value: v.require("value", "EntityText")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("EntityText.value: expected String".to_string()))?,
+        value: { let x = v.require("value", "EntityText")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("EntityText.value: expected String".to_string()))? },
         })
     }
 }
@@ -123,7 +123,7 @@ impl IdentityPath {
 impl IdentityPath {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        value: v.require("value", "IdentityPath")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("IdentityPath.value: expected String".to_string()))?,
+        value: { let x = v.require("value", "IdentityPath")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("IdentityPath.value: expected String".to_string()))? },
         })
     }
 }
@@ -181,12 +181,12 @@ impl PieceField {
 impl PieceField {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        name: v.require("name", "PieceField")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PieceField.name: expected String".to_string()))?,
-        r#type: v.require("type", "PieceField")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PieceField.type: expected String".to_string()))?,
-        list: v.require("list", "PieceField")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PieceField.list: expected String".to_string()))?,
+        name: { let x = v.require("name", "PieceField")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PieceField.name: expected String".to_string()))? },
+        r#type: { let x = v.require("type", "PieceField")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PieceField.type: expected String".to_string()))? },
+        list: { let x = v.require("list", "PieceField")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PieceField.list: expected String".to_string()))? },
         optional: match v.get("optional") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PieceField.optional: expected String".to_string()))?), None => None, },
         pattern: match v.get("pattern") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PieceField.pattern: expected String".to_string()))?), None => None, },
-        default: v.require("default", "PieceField")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PieceField.default: expected String".to_string()))?,
+        default: { let x = v.require("default", "PieceField")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PieceField.default: expected String".to_string()))? },
         admits: match v.get("admits") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PieceField.admits: expected String".to_string()))?), None => None, },
         })
     }
@@ -233,9 +233,9 @@ impl PieceTransition {
 impl PieceTransition {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        command: v.require("command", "PieceTransition")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PieceTransition.command: expected String".to_string()))?,
-        from_state: v.require("from_state", "PieceTransition")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PieceTransition.from_state: expected String".to_string()))?,
-        to_state: v.require("to_state", "PieceTransition")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PieceTransition.to_state: expected String".to_string()))?,
+        command: { let x = v.require("command", "PieceTransition")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PieceTransition.command: expected String".to_string()))? },
+        from_state: { let x = v.require("from_state", "PieceTransition")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PieceTransition.from_state: expected String".to_string()))? },
+        to_state: { let x = v.require("to_state", "PieceTransition")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PieceTransition.to_state: expected String".to_string()))? },
         })
     }
 }
@@ -275,7 +275,7 @@ impl Position {
 impl Position {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        value: v.require("value", "Position")?.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Position.value: expected Integer".to_string()))?,
+        value: { let x = v.require("value", "Position")?; x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("Position.value expects Integer, got {}", x.inspect())))? },
         })
     }
 }
@@ -432,12 +432,12 @@ impl DeclareArgs {
 let unknown = v.unknown_keys(&["aggregate_id", "owner", "name", "description", "position", "id"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "DeclareArgs does not declare {} — it takes aggregate_id, owner, name, description, position",
+        "Declare does not declare {} — it takes aggregate_id, owner, name, description, position",
         unknown.join(", ")
     )));
 }
         Ok(Self {
-        aggregate_id: v.require("aggregate_id", "DeclareArgs")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.aggregate_id: expected String".to_string()))?,
+        aggregate_id: { let x = v.require("aggregate_id", "DeclareArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.aggregate_id: expected String".to_string()))? },
         owner: EntityText::from_json(v.require("owner", "DeclareArgs")?)?,
         name: EntityName::from_json(v.require("name", "DeclareArgs")?)?,
         description: match v.get("description") { Some(x) => Some(EntityName::from_json(x)?), None => None, },
@@ -503,7 +503,7 @@ impl IdentifyArgs {
 let unknown = v.unknown_keys(&["path", "id", "entity", "aggregate_id", "name"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "IdentifyArgs does not declare {} — it takes path",
+        "Identify does not declare {} — it takes path",
         unknown.join(", ")
     )));
 }
@@ -569,7 +569,7 @@ impl SealArgs {
 let unknown = v.unknown_keys(&["id", "entity", "aggregate_id", "name"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "SealArgs does not declare {} — it takes ",
+        "Seal does not declare {} — it takes ",
         unknown.join(", ")
     )));
 }
@@ -641,7 +641,7 @@ impl LifecycleArgs {
 let unknown = v.unknown_keys(&["state_field", "state_start", "id", "entity", "aggregate_id", "name"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "LifecycleArgs does not declare {} — it takes state_field, state_start",
+        "Lifecycle does not declare {} — it takes state_field, state_start",
         unknown.join(", ")
     )));
 }

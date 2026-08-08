@@ -43,7 +43,7 @@ impl SyntaxName {
 impl SyntaxName {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        value: v.require("value", "SyntaxName")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("SyntaxName.value: expected String".to_string()))?,
+        value: { let x = v.require("value", "SyntaxName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("SyntaxName.value: expected String".to_string()))? },
         })
     }
 }

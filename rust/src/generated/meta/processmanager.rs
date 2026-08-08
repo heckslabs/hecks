@@ -43,7 +43,7 @@ impl ProcessManagerName {
 impl ProcessManagerName {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        value: v.require("value", "ProcessManagerName")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ProcessManagerName.value: expected String".to_string()))?,
+        value: { let x = v.require("value", "ProcessManagerName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ProcessManagerName.value: expected String".to_string()))? },
         })
     }
 }
@@ -83,7 +83,7 @@ impl ProcessManagerText {
 impl ProcessManagerText {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        value: v.require("value", "ProcessManagerText")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ProcessManagerText.value: expected String".to_string()))?,
+        value: { let x = v.require("value", "ProcessManagerText")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ProcessManagerText.value: expected String".to_string()))? },
         })
     }
 }
@@ -123,7 +123,7 @@ impl SagaState {
 impl SagaState {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        name: v.require("name", "SagaState")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("SagaState.name: expected String".to_string()))?,
+        name: { let x = v.require("name", "SagaState")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("SagaState.name: expected String".to_string()))? },
         })
     }
 }
@@ -163,7 +163,7 @@ impl Position {
 impl Position {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        value: v.require("value", "Position")?.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Position.value: expected Integer".to_string()))?,
+        value: { let x = v.require("value", "Position")?; x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("Position.value expects Integer, got {}", x.inspect())))? },
         })
     }
 }
@@ -312,12 +312,12 @@ impl DeclareArgs {
 let unknown = v.unknown_keys(&["bluebook_id", "name", "correlates_by", "starts_on", "ends_on", "position", "id"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "DeclareArgs does not declare {} — it takes bluebook_id, name, correlates_by, starts_on, ends_on, position",
+        "Declare does not declare {} — it takes bluebook_id, name, correlates_by, starts_on, ends_on, position",
         unknown.join(", ")
     )));
 }
         Ok(Self {
-        bluebook_id: v.require("bluebook_id", "DeclareArgs")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.bluebook_id: expected String".to_string()))?,
+        bluebook_id: { let x = v.require("bluebook_id", "DeclareArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.bluebook_id: expected String".to_string()))? },
         name: ProcessManagerName::from_json(v.require("name", "DeclareArgs")?)?,
         correlates_by: ProcessManagerText::from_json(v.require("correlates_by", "DeclareArgs")?)?,
         starts_on: ProcessManagerText::from_json(v.require("starts_on", "DeclareArgs")?)?,
@@ -384,7 +384,7 @@ impl StateArgs {
 let unknown = v.unknown_keys(&["name", "id", "process_manager", "bluebook_id"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "StateArgs does not declare {} — it takes name",
+        "State does not declare {} — it takes name",
         unknown.join(", ")
     )));
 }

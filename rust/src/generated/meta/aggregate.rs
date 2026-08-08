@@ -43,7 +43,7 @@ impl AggregateName {
 impl AggregateName {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        value: v.require("value", "AggregateName")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AggregateName.value: expected String".to_string()))?,
+        value: { let x = v.require("value", "AggregateName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AggregateName.value: expected String".to_string()))? },
         })
     }
 }
@@ -88,7 +88,7 @@ impl Description {
 impl Description {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        value: v.require("value", "Description")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Description.value: expected String".to_string()))?,
+        value: { let x = v.require("value", "Description")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Description.value: expected String".to_string()))? },
         })
     }
 }
@@ -128,7 +128,7 @@ impl IdentityField {
 impl IdentityField {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        value: v.require("value", "IdentityField")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("IdentityField.value: expected String".to_string()))?,
+        value: { let x = v.require("value", "IdentityField")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("IdentityField.value: expected String".to_string()))? },
         })
     }
 }
@@ -168,7 +168,7 @@ impl IdentityPath {
 impl IdentityPath {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        value: v.require("value", "IdentityPath")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("IdentityPath.value: expected String".to_string()))?,
+        value: { let x = v.require("value", "IdentityPath")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("IdentityPath.value: expected String".to_string()))? },
         })
     }
 }
@@ -226,12 +226,12 @@ impl Field {
 impl Field {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        name: v.require("name", "Field")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Field.name: expected String".to_string()))?,
-        r#type: v.require("type", "Field")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Field.type: expected String".to_string()))?,
-        list: v.require("list", "Field")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Field.list: expected String".to_string()))?,
+        name: { let x = v.require("name", "Field")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Field.name: expected String".to_string()))? },
+        r#type: { let x = v.require("type", "Field")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Field.type: expected String".to_string()))? },
+        list: { let x = v.require("list", "Field")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Field.list: expected String".to_string()))? },
         optional: match v.get("optional") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Field.optional: expected String".to_string()))?), None => None, },
         pattern: match v.get("pattern") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Field.pattern: expected String".to_string()))?), None => None, },
-        default: v.require("default", "Field")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Field.default: expected String".to_string()))?,
+        default: { let x = v.require("default", "Field")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Field.default: expected String".to_string()))? },
         admits: match v.get("admits") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Field.admits: expected String".to_string()))?), None => None, },
         })
     }
@@ -272,7 +272,7 @@ impl ValueName {
 impl ValueName {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        name: v.require("name", "ValueName")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ValueName.name: expected String".to_string()))?,
+        name: { let x = v.require("name", "ValueName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ValueName.name: expected String".to_string()))? },
         })
     }
 }
@@ -318,9 +318,9 @@ impl Transition {
 impl Transition {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        command: v.require("command", "Transition")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Transition.command: expected String".to_string()))?,
-        from_state: v.require("from_state", "Transition")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Transition.from_state: expected String".to_string()))?,
-        to_state: v.require("to_state", "Transition")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Transition.to_state: expected String".to_string()))?,
+        command: { let x = v.require("command", "Transition")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Transition.command: expected String".to_string()))? },
+        from_state: { let x = v.require("from_state", "Transition")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Transition.from_state: expected String".to_string()))? },
+        to_state: { let x = v.require("to_state", "Transition")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Transition.to_state: expected String".to_string()))? },
         })
     }
 }
@@ -360,7 +360,7 @@ impl Position {
 impl Position {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        value: v.require("value", "Position")?.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Position.value: expected Integer".to_string()))?,
+        value: { let x = v.require("value", "Position")?; x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("Position.value expects Integer, got {}", x.inspect())))? },
         })
     }
 }
@@ -405,7 +405,7 @@ impl FieldName {
 impl FieldName {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        value: v.require("value", "FieldName")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("FieldName.value: expected String".to_string()))?,
+        value: { let x = v.require("value", "FieldName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("FieldName.value: expected String".to_string()))? },
         })
     }
 }
@@ -450,7 +450,7 @@ impl TypeName {
 impl TypeName {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        value: v.require("value", "TypeName")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("TypeName.value: expected String".to_string()))?,
+        value: { let x = v.require("value", "TypeName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("TypeName.value: expected String".to_string()))? },
         })
     }
 }
@@ -490,7 +490,7 @@ impl LiteralText {
 impl LiteralText {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        value: v.require("value", "LiteralText")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("LiteralText.value: expected String".to_string()))?,
+        value: { let x = v.require("value", "LiteralText")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("LiteralText.value: expected String".to_string()))? },
         })
     }
 }
@@ -535,7 +535,7 @@ impl ListFlag {
 impl ListFlag {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        value: v.require("value", "ListFlag")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ListFlag.value: expected String".to_string()))?,
+        value: { let x = v.require("value", "ListFlag")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ListFlag.value: expected String".to_string()))? },
         })
     }
 }
@@ -696,12 +696,12 @@ impl DeclareArgs {
 let unknown = v.unknown_keys(&["bluebook_id", "name", "description", "provenance", "position", "id"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "DeclareArgs does not declare {} — it takes bluebook_id, name, description, provenance, position",
+        "Declare does not declare {} — it takes bluebook_id, name, description, provenance, position",
         unknown.join(", ")
     )));
 }
         Ok(Self {
-        bluebook_id: v.require("bluebook_id", "DeclareArgs")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.bluebook_id: expected String".to_string()))?,
+        bluebook_id: { let x = v.require("bluebook_id", "DeclareArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.bluebook_id: expected String".to_string()))? },
         name: AggregateName::from_json(v.require("name", "DeclareArgs")?)?,
         description: match v.get("description") { Some(x) => Some(Description::from_json(x)?), None => None, },
         provenance: match v.get("provenance") { Some(x) => Some(LiteralText::from_json(x)?), None => None, },
@@ -767,7 +767,7 @@ impl IdentifyArgs {
 let unknown = v.unknown_keys(&["path", "id", "aggregate", "bluebook_id", "name"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "IdentifyArgs does not declare {} — it takes path",
+        "Identify does not declare {} — it takes path",
         unknown.join(", ")
     )));
 }
@@ -839,7 +839,7 @@ impl LifecycleArgs {
 let unknown = v.unknown_keys(&["state_field", "state_start", "id", "aggregate", "bluebook_id", "name"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "LifecycleArgs does not declare {} — it takes state_field, state_start",
+        "Lifecycle does not declare {} — it takes state_field, state_start",
         unknown.join(", ")
     )));
 }
@@ -906,7 +906,7 @@ impl SealArgs {
 let unknown = v.unknown_keys(&["id", "aggregate", "bluebook_id", "name"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "SealArgs does not declare {} — it takes ",
+        "Seal does not declare {} — it takes ",
         unknown.join(", ")
     )));
 }
@@ -973,7 +973,7 @@ impl ValueArgs {
 let unknown = v.unknown_keys(&["name", "id", "aggregate", "bluebook_id"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "ValueArgs does not declare {} — it takes name",
+        "Value does not declare {} — it takes name",
         unknown.join(", ")
     )));
 }

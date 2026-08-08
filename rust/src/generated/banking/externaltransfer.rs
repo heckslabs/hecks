@@ -38,7 +38,7 @@ impl EndToEndReference {
 impl EndToEndReference {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        value: v.require("value", "EndToEndReference")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("EndToEndReference.value: expected String".to_string()))?,
+        value: { let x = v.require("value", "EndToEndReference")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("EndToEndReference.value: expected String".to_string()))? },
         })
     }
 }
@@ -78,7 +78,7 @@ impl MovementDirection {
 impl MovementDirection {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        value: v.require("value", "MovementDirection")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("MovementDirection.value: expected String".to_string()))?,
+        value: { let x = v.require("value", "MovementDirection")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("MovementDirection.value: expected String".to_string()))? },
         })
     }
 }
@@ -123,7 +123,7 @@ impl ExternalAmount {
 impl ExternalAmount {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        cents: v.require("cents", "ExternalAmount")?.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ExternalAmount.cents: expected Integer".to_string()))?,
+        cents: { let x = v.require("cents", "ExternalAmount")?; x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("ExternalAmount.cents expects Integer, got {}", x.inspect())))? },
         })
     }
 }
@@ -168,7 +168,7 @@ impl BeneficiaryName {
 impl BeneficiaryName {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        value: v.require("value", "BeneficiaryName")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("BeneficiaryName.value: expected String".to_string()))?,
+        value: { let x = v.require("value", "BeneficiaryName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("BeneficiaryName.value: expected String".to_string()))? },
         })
     }
 }
@@ -311,12 +311,12 @@ impl RequestArgs {
 let unknown = v.unknown_keys(&["account_id", "end_to_end", "amount", "beneficiary", "direction", "id", "reference"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "RequestArgs does not declare {} — it takes account_id, end_to_end, amount, beneficiary, direction",
+        "Request does not declare {} — it takes account_id, end_to_end, amount, beneficiary, direction",
         unknown.join(", ")
     )));
 }
         Ok(Self {
-        account_id: v.require("account_id", "RequestArgs")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RequestArgs.account_id: expected String".to_string()))?,
+        account_id: { let x = v.require("account_id", "RequestArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RequestArgs.account_id: expected String".to_string()))? },
         end_to_end: EndToEndReference::from_json(v.require("end_to_end", "RequestArgs")?)?,
         amount: ExternalAmount::from_json(v.require("amount", "RequestArgs")?)?,
         beneficiary: BeneficiaryName::from_json(v.require("beneficiary", "RequestArgs")?)?,
@@ -381,7 +381,7 @@ impl SendArgs {
 let unknown = v.unknown_keys(&["id", "external_transfer", "end_to_end", "reference"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "SendArgs does not declare {} — it takes ",
+        "Send does not declare {} — it takes ",
         unknown.join(", ")
     )));
 }
@@ -447,7 +447,7 @@ impl RecallArgs {
 let unknown = v.unknown_keys(&["id", "external_transfer", "end_to_end", "reference"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "RecallArgs does not declare {} — it takes ",
+        "Recall does not declare {} — it takes ",
         unknown.join(", ")
     )));
 }
@@ -513,7 +513,7 @@ impl ReturnArgs {
 let unknown = v.unknown_keys(&["id", "external_transfer", "end_to_end", "reference"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "ReturnArgs does not declare {} — it takes ",
+        "Return does not declare {} — it takes ",
         unknown.join(", ")
     )));
 }

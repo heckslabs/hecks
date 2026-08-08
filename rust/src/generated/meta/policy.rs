@@ -43,7 +43,7 @@ impl PolicyName {
 impl PolicyName {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        value: v.require("value", "PolicyName")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PolicyName.value: expected String".to_string()))?,
+        value: { let x = v.require("value", "PolicyName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PolicyName.value: expected String".to_string()))? },
         })
     }
 }
@@ -83,7 +83,7 @@ impl PolicyText {
 impl PolicyText {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        value: v.require("value", "PolicyText")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PolicyText.value: expected String".to_string()))?,
+        value: { let x = v.require("value", "PolicyText")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PolicyText.value: expected String".to_string()))? },
         })
     }
 }
@@ -123,7 +123,7 @@ impl Position {
 impl Position {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        value: v.require("value", "Position")?.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Position.value: expected Integer".to_string()))?,
+        value: { let x = v.require("value", "Position")?; x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("Position.value expects Integer, got {}", x.inspect())))? },
         })
     }
 }
@@ -276,12 +276,12 @@ impl DeclareArgs {
 let unknown = v.unknown_keys(&["bluebook_id", "name", "aggregate", "on_event", "trigger_command", "target_domain", "position", "id"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "DeclareArgs does not declare {} — it takes bluebook_id, name, aggregate, on_event, trigger_command, target_domain, position",
+        "Declare does not declare {} — it takes bluebook_id, name, aggregate, on_event, trigger_command, target_domain, position",
         unknown.join(", ")
     )));
 }
         Ok(Self {
-        bluebook_id: v.require("bluebook_id", "DeclareArgs")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.bluebook_id: expected String".to_string()))?,
+        bluebook_id: { let x = v.require("bluebook_id", "DeclareArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.bluebook_id: expected String".to_string()))? },
         name: PolicyName::from_json(v.require("name", "DeclareArgs")?)?,
         aggregate: match v.get("aggregate") { Some(x) => Some(PolicyText::from_json(x)?), None => None, },
         on_event: PolicyText::from_json(v.require("on_event", "DeclareArgs")?)?,

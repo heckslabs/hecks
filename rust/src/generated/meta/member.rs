@@ -38,7 +38,7 @@ impl MemberText {
 impl MemberText {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        value: v.require("value", "MemberText")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("MemberText.value: expected String".to_string()))?,
+        value: { let x = v.require("value", "MemberText")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("MemberText.value: expected String".to_string()))? },
         })
     }
 }
@@ -81,8 +81,8 @@ impl Pair {
 impl Pair {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        key: v.require("key", "Pair")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Pair.key: expected String".to_string()))?,
-        value: v.require("value", "Pair")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Pair.value: expected String".to_string()))?,
+        key: { let x = v.require("key", "Pair")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Pair.key: expected String".to_string()))? },
+        value: { let x = v.require("value", "Pair")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Pair.value: expected String".to_string()))? },
         })
     }
 }
@@ -122,7 +122,7 @@ impl Position {
 impl Position {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        value: v.require("value", "Position")?.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Position.value: expected Integer".to_string()))?,
+        value: { let x = v.require("value", "Position")?; x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("Position.value expects Integer, got {}", x.inspect())))? },
         })
     }
 }
@@ -236,7 +236,7 @@ impl PairArgs {
 let unknown = v.unknown_keys(&["key", "value", "id", "member", "value_object_id", "position"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "PairArgs does not declare {} — it takes key, value",
+        "Pair does not declare {} — it takes key, value",
         unknown.join(", ")
     )));
 }

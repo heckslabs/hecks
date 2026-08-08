@@ -43,7 +43,7 @@ impl QueryName {
 impl QueryName {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        value: v.require("value", "QueryName")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("QueryName.value: expected String".to_string()))?,
+        value: { let x = v.require("value", "QueryName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("QueryName.value: expected String".to_string()))? },
         })
     }
 }
@@ -83,7 +83,7 @@ impl QueryText {
 impl QueryText {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        value: v.require("value", "QueryText")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("QueryText.value: expected String".to_string()))?,
+        value: { let x = v.require("value", "QueryText")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("QueryText.value: expected String".to_string()))? },
         })
     }
 }
@@ -129,9 +129,9 @@ impl Filter {
 impl Filter {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        field: v.require("field", "Filter")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Filter.field: expected String".to_string()))?,
-        op: v.require("op", "Filter")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Filter.op: expected String".to_string()))?,
-        value: v.require("value", "Filter")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Filter.value: expected String".to_string()))?,
+        field: { let x = v.require("field", "Filter")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Filter.field: expected String".to_string()))? },
+        op: { let x = v.require("op", "Filter")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Filter.op: expected String".to_string()))? },
+        value: { let x = v.require("value", "Filter")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Filter.value: expected String".to_string()))? },
         })
     }
 }
@@ -189,12 +189,12 @@ impl AskArgument {
 impl AskArgument {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        name: v.require("name", "AskArgument")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AskArgument.name: expected String".to_string()))?,
-        r#type: v.require("type", "AskArgument")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AskArgument.type: expected String".to_string()))?,
-        list: v.require("list", "AskArgument")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AskArgument.list: expected String".to_string()))?,
+        name: { let x = v.require("name", "AskArgument")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AskArgument.name: expected String".to_string()))? },
+        r#type: { let x = v.require("type", "AskArgument")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AskArgument.type: expected String".to_string()))? },
+        list: { let x = v.require("list", "AskArgument")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AskArgument.list: expected String".to_string()))? },
         optional: match v.get("optional") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AskArgument.optional: expected String".to_string()))?), None => None, },
         pattern: match v.get("pattern") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AskArgument.pattern: expected String".to_string()))?), None => None, },
-        default: v.require("default", "AskArgument")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AskArgument.default: expected String".to_string()))?,
+        default: { let x = v.require("default", "AskArgument")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AskArgument.default: expected String".to_string()))? },
         admits: match v.get("admits") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AskArgument.admits: expected String".to_string()))?), None => None, },
         })
     }
@@ -244,10 +244,10 @@ impl AskOption {
 impl AskOption {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        option: v.require("option", "AskOption")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AskOption.option: expected String".to_string()))?,
-        key: v.require("key", "AskOption")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AskOption.key: expected String".to_string()))?,
-        value: v.require("value", "AskOption")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AskOption.value: expected String".to_string()))?,
-        at: v.require("at", "AskOption")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AskOption.at: expected String".to_string()))?,
+        option: { let x = v.require("option", "AskOption")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AskOption.option: expected String".to_string()))? },
+        key: { let x = v.require("key", "AskOption")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AskOption.key: expected String".to_string()))? },
+        value: { let x = v.require("value", "AskOption")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AskOption.value: expected String".to_string()))? },
+        at: { let x = v.require("at", "AskOption")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AskOption.at: expected String".to_string()))? },
         })
     }
 }
@@ -287,7 +287,7 @@ impl Position {
 impl Position {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        value: v.require("value", "Position")?.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Position.value: expected Integer".to_string()))?,
+        value: { let x = v.require("value", "Position")?; x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("Position.value expects Integer, got {}", x.inspect())))? },
         })
     }
 }
@@ -459,12 +459,12 @@ impl DeclareArgs {
 let unknown = v.unknown_keys(&["aggregate_id", "entity_id", "name", "description", "order_field", "order_way", "limit", "position", "id", "owner_id"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "DeclareArgs does not declare {} — it takes aggregate_id, entity_id, name, description, order_field, order_way, limit, position",
+        "Declare does not declare {} — it takes aggregate_id, entity_id, name, description, order_field, order_way, limit, position",
         unknown.join(", ")
     )));
 }
         Ok(Self {
-        aggregate_id: v.require("aggregate_id", "DeclareArgs")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.aggregate_id: expected String".to_string()))?,
+        aggregate_id: { let x = v.require("aggregate_id", "DeclareArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.aggregate_id: expected String".to_string()))? },
         entity_id: match v.get("entity_id") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.entity_id: expected String".to_string()))?), None => None, },
         name: QueryName::from_json(v.require("name", "DeclareArgs")?)?,
         description: match v.get("description") { Some(x) => Some(QueryText::from_json(x)?), None => None, },
@@ -542,7 +542,7 @@ impl FilterArgs {
 let unknown = v.unknown_keys(&["field", "op", "value", "id", "query", "owner_id", "name"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "FilterArgs does not declare {} — it takes field, op, value",
+        "Filter does not declare {} — it takes field, op, value",
         unknown.join(", ")
     )));
 }

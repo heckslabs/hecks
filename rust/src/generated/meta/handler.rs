@@ -38,7 +38,7 @@ impl HandlerText {
 impl HandlerText {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        value: v.require("value", "HandlerText")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("HandlerText.value: expected String".to_string()))?,
+        value: { let x = v.require("value", "HandlerText")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("HandlerText.value: expected String".to_string()))? },
         })
     }
 }
@@ -78,7 +78,7 @@ impl Position {
 impl Position {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        value: v.require("value", "Position")?.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Position.value: expected Integer".to_string()))?,
+        value: { let x = v.require("value", "Position")?; x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("Position.value expects Integer, got {}", x.inspect())))? },
         })
     }
 }
@@ -215,12 +215,12 @@ impl DeclareArgs {
 let unknown = v.unknown_keys(&["process_manager_id", "event_type", "from_state", "to_state", "position", "id"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "DeclareArgs does not declare {} — it takes process_manager_id, event_type, from_state, to_state, position",
+        "Declare does not declare {} — it takes process_manager_id, event_type, from_state, to_state, position",
         unknown.join(", ")
     )));
 }
         Ok(Self {
-        process_manager_id: v.require("process_manager_id", "DeclareArgs")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.process_manager_id: expected String".to_string()))?,
+        process_manager_id: { let x = v.require("process_manager_id", "DeclareArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.process_manager_id: expected String".to_string()))? },
         event_type: HandlerText::from_json(v.require("event_type", "DeclareArgs")?)?,
         from_state: HandlerText::from_json(v.require("from_state", "DeclareArgs")?)?,
         to_state: HandlerText::from_json(v.require("to_state", "DeclareArgs")?)?,

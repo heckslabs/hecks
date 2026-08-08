@@ -79,7 +79,8 @@ module RustProjection
           reference_lines = c[:reference_checks].map { |check| emit_reference_check(check) }
 
           body = [id_line, "let args = super::#{a[:mod]}::#{c[:args_struct]}::from_json(args_json)?;", role_line, *reference_lines,
-                  "#{dispatch_call}.map(|(_, events)| stamp_payload(events, args_json))"].compact.reject(&:empty?)
+                  "let payload = crate::kernel::Json::overlay(args_json, &args.to_json());",
+                  "#{dispatch_call}.map(|(_, events)| stamp_payload(events, &payload))"].compact.reject(&:empty?)
 
           "          #{c[:verb].inspect} => {\n#{body.map { |line| "              #{line}" }.join("\n")}\n          }"
         end
@@ -96,12 +97,14 @@ module RustProjection
         a[:entity_commands].map do |c|
           role_line = emit_role_check(c[:role], c[:name])
           reference_lines = c[:reference_checks].map { |check| emit_reference_check(check) }
-          dispatch_call = "super::#{a[:mod]}::dispatch_entity_#{c[:fn]}(&mut store.#{a[:mod]}, &parent_id, &element_id, args).map(|(_, events)| stamp_payload(events, args_json))"
+          dispatch_call = "super::#{a[:mod]}::dispatch_entity_#{c[:fn]}(&mut store.#{a[:mod]}, &parent_id, &element_id, args).map(|(_, events)| stamp_payload(events, &payload))"
 
           body = ["let parent_id = super::#{a[:mod]}::#{a[:record]}::extract_id(args_json)?;",
                   "let element_id = super::#{a[:mod]}::#{c[:entity_record]}::extract_id(args_json)?;",
                   "let args = super::#{a[:mod]}::#{c[:args_struct]}::from_json(args_json)?;",
-                  role_line, *reference_lines, dispatch_call].compact
+                  role_line, *reference_lines,
+                  "let payload = crate::kernel::Json::overlay(args_json, &args.to_json());",
+                  dispatch_call].compact
 
           "          #{c[:verb].inspect} => {\n#{body.map { |line| "              #{line}" }.join("\n")}\n          }"
         end
