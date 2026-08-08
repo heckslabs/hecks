@@ -7,13 +7,13 @@
 // wasm32-wasip1 — WASI implements stdin/stdout the same way a native
 // process does, so THIS is "the WASM projector wraps the Rust binary":
 // one source, two `cargo build --target` invocations (bin/project_wasm).
-mod generated;
-mod kernel;
-
+// `generated`/`kernel` live in lib.rs, not here — rust/web (the browser
+// wasm-bindgen projection, docs/decisions/0015) depends on this crate's
+// lib face the same way this bin does.
 use std::io::Read;
 
 fn main() {
     let mut input = String::new();
     std::io::stdin().read_to_string(&mut input).expect("failed to read stdin");
-    println!("{}", kernel::cli::run(&input));
+    println!("{}", rust::kernel::cli::run(&input));
 }

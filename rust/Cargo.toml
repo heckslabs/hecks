@@ -3,6 +3,10 @@ name = "rust"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+name = "rust"
+path = "src/lib.rs"
+
 [[bin]]
 name = "rust"
 path = "src/main.rs"
