@@ -1,0 +1,93 @@
+# THE RUST PROJECTION — a build-time code generator, not a runtime
+# interpreter. Reads canonical IR (the same shape bin/ir prints,
+# Hecksagain::Projector::Exporter.call) for one domain and emits native
+# Rust source into rust_runner/src/generated/. Nothing generated here is
+# read or interpreted by the compiled binary — parsing/codegen only ever
+# runs here, in Ruby, at build time. Not required by lib/hecksagain.rb on
+# purpose — a booted domain never needs it; only bin/project_rust does.
+#
+#   bin/project_rust <domain>
+#
+# FOURTH SLICE — an architecture change, not just more coverage. The
+# first three slices generated bespoke Rust CONTROL FLOW per command
+# SHAPE: one Ruby method for a plain creating command, a second for an
+# acting command with givens and an append mutation, and every new shape
+# (a lifecycle transition, an ensures, a set/increment mutation) would
+# have needed a THIRD, a FOURTH — unbounded, and the wrong shape on its
+# own terms, because Ruby's own `CommandInterpreter` isn't N methods
+# either. It's ONE method that walks `DISPATCH_ORDER` generically over
+# whatever IR a command carries.
+#
+# This slice ports that idea, not just more of the old one:
+#   - `rust_runner/src/kernel/expr.rs` is a hand-written, GENERIC
+#     interpreter for the full expression grammar (Or/And/Not/Compare/
+#     Include, every Resolver leaf and operator) — a direct structural
+#     port of Evaluator#interpret/Resolver#interpret, not a
+#     reimplementation of parsing. This file no longer compiles each
+#     `given`/`ensures`/invariant to bespoke Rust boolean SOURCE; it
+#     parses the real canonical text with the REAL Ruby parser and emits
+#     `Expr` DATA literals for the kernel's `interpret()` to walk.
+#   - `rust_runner/src/kernel/dispatch.rs` is a hand-written, GENERIC
+#     `dispatch()` implementing the real DISPATCH_ORDER steps this slice
+#     covers (creates-vs-acts branch, identity/AlreadyExists/NotFound,
+#     given evaluation, mutation application, save, emit) — ONE function
+#     for every command shape, not one per shape.
+#   - This file's job shrinks to: emit typed structs/enums (genuinely
+#     domain-specific, still worth real Rust types), emit a `Fielded`
+#     impl per type (mechanical — one match arm per real attribute, the
+#     SAME shape for every type), and package each command's IR
+#     (givens as `Expr` data, an `append` mutation closure, identity) as
+#     data for `kernel::dispatch()` to run. `emit_create_command` and
+#     `emit_act_command` are gone; there is one `emit_command`.
+#
+# WHAT THIS GENERATES:
+#   - Types, closed-set enums, `Fielded` impls, value-object invariant
+#     checking (now via the generic interpreter, not compiled source —
+#     and because of that, EVERY expression the real grammar can produce
+#     is supported; the old ExpressionCompiler's `Unsupported` cases for
+#     `.include?`, dotted lookups, `nil` literals, and int/float literal
+#     unification are gone because a runtime interpreter needs none of
+#     that static machinery).
+#   - Creating AND acting commands, uniformly, as long as: every `given`/
+#     `ensures` is expression data the kernel interpreter can walk (always
+#     true — see above), every `then_set` op (`set`/`append`/`increment`/
+#     `decrement`) resolves to a Rust type it can actually construct (a
+#     literal Hash source bridges when the target VO's fields are all
+#     present in it; an `append` literal field does NOT, still — it's
+#     `.inspect`'d text, not a raw Hash; see literal_set_bridgeable? and
+#     command_skip_reason below), and any lifecycle transition it names is
+#     one `TransitionCheck` can express. A command failing any of those is
+#     SKIPPED, loudly, by name and reason, rather than generated as code
+#     that would silently do less than it claims to.
+#
+# WHAT THIS STILL DOES NOT GENERATE — flagged, not silently skipped:
+#   - An entity's OWN commands (`LedgerEntry.Amend`/`.Reverse`) — those
+#     address ONE element of a list by its own identity, not the whole
+#     aggregate, and nothing here generates that addressing. An entity
+#     IS now resolved to a Rust type and usable as an `append` TARGET
+#     (`Account.ledger`, a `Vec<LedgerEntry>`, with its identity and
+#     lifecycle field auto-minted the way `entity_element` mints them) —
+#     that's the whole of what "generated" means for one here.
+#   - A BARE (non-`list_of`), non-entity-list attribute whose type names
+#     an entity — not a real shape any aggregate in this corpus declares.
+#   - Role checking (Unauthorized), reference-existence checking
+#     (resolve_references — a `Reference<X>` attribute is represented
+#     as a bare `String` id, per aggregates-and-value-objects.md; NOTHING
+#     checks that id actually names a real record).
+#
+# ONE CONCERN PER FILE, all reopening the SAME two module_function
+# modules (`ExprEmitter`, `Projector`) — mirrors this codebase's own
+# `runtime/command_rules/` split, not a new pattern invented for this.
+module Hecksagain
+  module Rust
+  end
+end
+
+require_relative "rust/expr_emitter"
+require_relative "rust/naming"
+require_relative "rust/fielded"
+require_relative "rust/types"
+require_relative "rust/bridging"
+require_relative "rust/mutations"
+require_relative "rust/commands"
+require_relative "rust/domain_generator"
