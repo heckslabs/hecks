@@ -110,6 +110,7 @@ module RustProjection
       lines = ["#[derive(Debug, Clone, PartialEq)]", "pub struct #{name} {"]
       vo[:attributes].each do |attr|
         type = rust_type(attr[:type], list: attr[:list])
+        type = "Option<#{type}>" if attr[:optional]
         lines << "    pub #{rust_ident_field(attr[:name])}: #{type},"
       end
       lines << "}"
@@ -146,6 +147,15 @@ module RustProjection
       lines = ["#[derive(Debug, Clone, PartialEq)]", "pub struct #{name} {"]
       entity[:attributes].each do |attr|
         type = rust_type(attr[:type], list: attr[:list])
+        # `optional: true` — a caller-omittable field (0014/0015's own
+        # gap: `SafeDepositBox::Visit.note`, populated by `LogVisit`'s
+        # `append` and later overwritten by `Visit.Annotate`'s `set`, is
+        # the one real case). `command_skip_reason`'s own new check
+        # (bridging.rb) guarantees anything that reaches this branch has
+        # only OPTIONAL sources feeding it, or only feeds a field this IS
+        # optional here — the mismatched case (an optional source into a
+        # non-optional VO field) is skipped, loudly, before generation.
+        type = "Option<#{type}>" if attr[:optional]
         lines << "    pub #{rust_ident_field(attr[:name])}: #{type},"
       end
       lines << "    pub #{rust_ident_field(entity[:lifecycle][:field])}: String," if entity[:lifecycle]

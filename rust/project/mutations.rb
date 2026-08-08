@@ -224,8 +224,29 @@ module RustProjection
         else
           target_attr = aggregate[:attributes].find { |a| a[:name] == mutation[:target] }
           rhs = mutation_set_rhs(mutation[:source], target_attr[:type], command, value_objects_by_name)
-          wrap = optional && !target_attr[:list]
-          "        record.#{target_field} = #{wrap ? "Some(#{rhs})" : rhs};"
+          source_attr = mutation[:source][:kind] == "argument" ? command[:attributes].find { |a| a[:name].to_s == mutation[:source][:name].to_s } : nil
+
+          if target_attr[:list] && source_attr && source_attr[:optional]
+            # A record's own list field is ALWAYS plain `Vec<T>` (never
+            # `Option`, emit_record's own absolute rule) — an OPTIONAL
+            # source argument (`CardPayment.Authorize`'s own redundant
+            # `then_set :tags, to: :tags`, the same "re-set an already-
+            # implicit creation attribute" pattern `Purchase`'s own status
+            # set already is) unwraps with the identical `[]` fallback
+            # `record_fields`' own creation-time case already uses —
+            # cleanly resolvable, not the `optional_source_mismatches`
+            # shape that has to be skipped.
+            "        record.#{target_field} = #{rhs}.unwrap_or_default();"
+          elsif target_attr[:list]
+            "        record.#{target_field} = #{rhs};"
+          else
+            # `target_attr[:optional]` — a PER-FIELD `Option<T>` target
+            # (0014/0015's struct-field change: `SafeDepositBox::Visit.note`,
+            # written by `Visit.Annotate`'s `then_set :note, to: :note`) —
+            # not just `optional:`'s own whole-RECORD blanket wrap.
+            wrap = (optional || target_attr[:optional])
+            "        record.#{target_field} = #{wrap ? "Some(#{rhs})" : rhs};"
+          end
         end
       when :increment, :decrement
         target_attr, integer_field = arithmetic_target_field(mutation, aggregate, value_objects_by_name)

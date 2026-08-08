@@ -143,7 +143,7 @@ impl crate::kernel::Fielded for DeclareArgs {
             "event_type" => Some(Field::Nested(&self.event_type)),
             "from_state" => Some(Field::Nested(&self.from_state)),
             "to_state" => Some(Field::Nested(&self.to_state)),
-            "position" => Some(Field::Nested(&self.position)),
+            "position" => self.position.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             _ => None,
         }
     }
@@ -156,7 +156,7 @@ pub struct DeclareArgs {
     pub event_type: HandlerText,
     pub from_state: HandlerText,
     pub to_state: HandlerText,
-    pub position: Position,
+    pub position: Option<Position>,
 }
 
 pub fn dispatch_declare(
@@ -165,7 +165,7 @@ pub fn dispatch_declare(
         args.event_type.check_invariants()?;
         args.from_state.check_invariants()?;
         args.to_state.check_invariants()?;
-        args.position.check_invariants()?;
+        if let Some(v) = &args.position { v.check_invariants()?; }
 
     crate::kernel::dispatch(
         repo,
@@ -176,7 +176,7 @@ pub fn dispatch_declare(
             event_type: Some(args.event_type.clone()),
             from_state: Some(args.from_state.clone()),
             to_state: Some(args.to_state.clone()),
-            position: Some(args.position.clone()),
+            position: args.position.clone(),
         }),
     },
         "Declare",
@@ -205,7 +205,7 @@ impl DeclareArgs {
         ("event_type".to_string(), self.event_type.to_json()),
         ("from_state".to_string(), self.from_state.to_json()),
         ("to_state".to_string(), self.to_state.to_json()),
-        ("position".to_string(), self.position.to_json()),
+        ("position".to_string(), self.position.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ])
     }
 }
@@ -224,7 +224,7 @@ if !unknown.is_empty() {
         event_type: HandlerText::from_json(v.require("event_type", "DeclareArgs")?)?,
         from_state: HandlerText::from_json(v.require("from_state", "DeclareArgs")?)?,
         to_state: HandlerText::from_json(v.require("to_state", "DeclareArgs")?)?,
-        position: Position::from_json(v.require("position", "DeclareArgs")?)?,
+        position: match v.get("position") { Some(x) => Some(Position::from_json(x)?), None => None, },
         })
     }
 }

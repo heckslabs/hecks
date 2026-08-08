@@ -192,11 +192,11 @@ impl crate::kernel::Fielded for DeclareArgs {
         match name {
             "bluebook_id" => Some(Field::Value(Value::Str(self.bluebook_id.clone()))),
             "name" => Some(Field::Nested(&self.name)),
-            "aggregate" => Some(Field::Nested(&self.aggregate)),
+            "aggregate" => self.aggregate.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "on_event" => Some(Field::Nested(&self.on_event)),
             "trigger_command" => Some(Field::Nested(&self.trigger_command)),
-            "target_domain" => Some(Field::Nested(&self.target_domain)),
-            "position" => Some(Field::Nested(&self.position)),
+            "target_domain" => self.target_domain.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "position" => self.position.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             _ => None,
         }
     }
@@ -207,22 +207,22 @@ impl crate::kernel::Fielded for DeclareArgs {
 pub struct DeclareArgs {
     pub bluebook_id: String,
     pub name: PolicyName,
-    pub aggregate: PolicyText,
+    pub aggregate: Option<PolicyText>,
     pub on_event: PolicyText,
     pub trigger_command: PolicyText,
-    pub target_domain: PolicyText,
-    pub position: Position,
+    pub target_domain: Option<PolicyText>,
+    pub position: Option<Position>,
 }
 
 pub fn dispatch_declare(
     repo: &mut impl crate::kernel::Repository<Policy>, args: DeclareArgs,
 ) -> crate::kernel::DispatchResult<Policy> {
         args.name.check_invariants()?;
-        args.aggregate.check_invariants()?;
+        if let Some(v) = &args.aggregate { v.check_invariants()?; }
         args.on_event.check_invariants()?;
         args.trigger_command.check_invariants()?;
-        args.target_domain.check_invariants()?;
-        args.position.check_invariants()?;
+        if let Some(v) = &args.target_domain { v.check_invariants()?; }
+        if let Some(v) = &args.position { v.check_invariants()?; }
 
     crate::kernel::dispatch(
         repo,
@@ -231,11 +231,11 @@ pub fn dispatch_declare(
         build: Box::new(|| Policy {
             bluebook_id: Some(args.bluebook_id.clone()),
             name: Some(args.name.clone()),
-            aggregate: Some(args.aggregate.clone()),
+            aggregate: args.aggregate.clone(),
             on_event: Some(args.on_event.clone()),
             trigger_command: Some(args.trigger_command.clone()),
-            target_domain: Some(args.target_domain.clone()),
-            position: Some(args.position.clone()),
+            target_domain: args.target_domain.clone(),
+            position: args.position.clone(),
         }),
     },
         "Declare",
@@ -262,11 +262,11 @@ impl DeclareArgs {
         crate::kernel::Json::Object(vec![
         ("bluebook_id".to_string(), crate::kernel::Json::Str(self.bluebook_id.clone())),
         ("name".to_string(), self.name.to_json()),
-        ("aggregate".to_string(), self.aggregate.to_json()),
+        ("aggregate".to_string(), self.aggregate.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("on_event".to_string(), self.on_event.to_json()),
         ("trigger_command".to_string(), self.trigger_command.to_json()),
-        ("target_domain".to_string(), self.target_domain.to_json()),
-        ("position".to_string(), self.position.to_json()),
+        ("target_domain".to_string(), self.target_domain.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("position".to_string(), self.position.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ])
     }
 }
@@ -283,11 +283,11 @@ if !unknown.is_empty() {
         Ok(Self {
         bluebook_id: v.require("bluebook_id", "DeclareArgs")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.bluebook_id: expected String".to_string()))?,
         name: PolicyName::from_json(v.require("name", "DeclareArgs")?)?,
-        aggregate: PolicyText::from_json(v.require("aggregate", "DeclareArgs")?)?,
+        aggregate: match v.get("aggregate") { Some(x) => Some(PolicyText::from_json(x)?), None => None, },
         on_event: PolicyText::from_json(v.require("on_event", "DeclareArgs")?)?,
         trigger_command: PolicyText::from_json(v.require("trigger_command", "DeclareArgs")?)?,
-        target_domain: PolicyText::from_json(v.require("target_domain", "DeclareArgs")?)?,
-        position: Position::from_json(v.require("position", "DeclareArgs")?)?,
+        target_domain: match v.get("target_domain") { Some(x) => Some(PolicyText::from_json(x)?), None => None, },
+        position: match v.get("position") { Some(x) => Some(Position::from_json(x)?), None => None, },
         })
     }
 }

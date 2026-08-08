@@ -23,8 +23,20 @@ module RustProjection
         key   = rust_field(attr[:name])
         ident = rust_ident_field(attr[:name])
         scalar = effective_scalar_type(attr[:type])
-        if attr[:list]
+        # `attr[:optional]` — a real `Option<T>` field per se (0014/0015's
+        # struct-field change), distinct from `emit_fielded_record`'s own
+        # BLANKET Option-wrap below (every record field, unconditionally).
+        if attr[:list] && attr[:optional]
+          %(            "#{key}" => self.#{ident}.as_ref().map(|v| Field::Value(Value::List(v.len()))).or(Some(Field::Value(Value::Nil))),)
+        elsif attr[:list]
           %(            "#{key}" => Some(Field::Value(Value::List(self.#{ident}.len()))),)
+        elsif attr[:optional] && scalar
+          %(            "#{key}" => self.#{ident}.as_ref().map(|v| Field::Value(#{scalar_to_value(scalar, "v")})).or(Some(Field::Value(Value::Nil))),)
+        elsif attr[:optional]
+          nested = value_objects_by_name[attr[:type]]
+          next nil unless nested && !nested[:closed_set]
+
+          %(            "#{key}" => self.#{ident}.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),)
         elsif scalar
           %(            "#{key}" => Some(Field::Value(#{scalar_to_value(scalar, "self.#{ident}")})),)
         else

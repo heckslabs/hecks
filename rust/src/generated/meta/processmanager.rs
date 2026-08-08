@@ -234,8 +234,8 @@ impl crate::kernel::Fielded for DeclareArgs {
             "name" => Some(Field::Nested(&self.name)),
             "correlates_by" => Some(Field::Nested(&self.correlates_by)),
             "starts_on" => Some(Field::Nested(&self.starts_on)),
-            "ends_on" => Some(Field::Nested(&self.ends_on)),
-            "position" => Some(Field::Nested(&self.position)),
+            "ends_on" => self.ends_on.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "position" => self.position.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             _ => None,
         }
     }
@@ -248,8 +248,8 @@ pub struct DeclareArgs {
     pub name: ProcessManagerName,
     pub correlates_by: ProcessManagerText,
     pub starts_on: ProcessManagerText,
-    pub ends_on: ProcessManagerText,
-    pub position: Position,
+    pub ends_on: Option<ProcessManagerText>,
+    pub position: Option<Position>,
 }
 
 pub fn dispatch_declare(
@@ -258,8 +258,8 @@ pub fn dispatch_declare(
         args.name.check_invariants()?;
         args.correlates_by.check_invariants()?;
         args.starts_on.check_invariants()?;
-        args.ends_on.check_invariants()?;
-        args.position.check_invariants()?;
+        if let Some(v) = &args.ends_on { v.check_invariants()?; }
+        if let Some(v) = &args.position { v.check_invariants()?; }
 
     crate::kernel::dispatch(
         repo,
@@ -270,9 +270,9 @@ pub fn dispatch_declare(
             name: Some(args.name.clone()),
             correlates_by: Some(args.correlates_by.clone()),
             starts_on: Some(args.starts_on.clone()),
-            ends_on: Some(args.ends_on.clone()),
+            ends_on: args.ends_on.clone(),
             states: vec![],
-            position: Some(args.position.clone()),
+            position: args.position.clone(),
         }),
     },
         "Declare",
@@ -301,8 +301,8 @@ impl DeclareArgs {
         ("name".to_string(), self.name.to_json()),
         ("correlates_by".to_string(), self.correlates_by.to_json()),
         ("starts_on".to_string(), self.starts_on.to_json()),
-        ("ends_on".to_string(), self.ends_on.to_json()),
-        ("position".to_string(), self.position.to_json()),
+        ("ends_on".to_string(), self.ends_on.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("position".to_string(), self.position.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ])
     }
 }
@@ -321,8 +321,8 @@ if !unknown.is_empty() {
         name: ProcessManagerName::from_json(v.require("name", "DeclareArgs")?)?,
         correlates_by: ProcessManagerText::from_json(v.require("correlates_by", "DeclareArgs")?)?,
         starts_on: ProcessManagerText::from_json(v.require("starts_on", "DeclareArgs")?)?,
-        ends_on: ProcessManagerText::from_json(v.require("ends_on", "DeclareArgs")?)?,
-        position: Position::from_json(v.require("position", "DeclareArgs")?)?,
+        ends_on: match v.get("ends_on") { Some(x) => Some(ProcessManagerText::from_json(x)?), None => None, },
+        position: match v.get("position") { Some(x) => Some(Position::from_json(x)?), None => None, },
         })
     }
 }

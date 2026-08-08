@@ -343,11 +343,11 @@ impl crate::kernel::Fielded for DeclareArgs {
         match name {
             "bluebook_id" => Some(Field::Value(Value::Str(self.bluebook_id.clone()))),
             "name" => Some(Field::Nested(&self.name)),
-            "description" => Some(Field::Nested(&self.description)),
+            "description" => self.description.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "query_name" => Some(Field::Nested(&self.query_name)),
             "reference_name" => Some(Field::Nested(&self.reference_name)),
             "reference_target" => Some(Field::Nested(&self.reference_target)),
-            "position" => Some(Field::Nested(&self.position)),
+            "position" => self.position.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             _ => None,
         }
     }
@@ -358,22 +358,22 @@ impl crate::kernel::Fielded for DeclareArgs {
 pub struct DeclareArgs {
     pub bluebook_id: String,
     pub name: ReadModelName,
-    pub description: ProjectionPurpose,
+    pub description: Option<ProjectionPurpose>,
     pub query_name: ReadModelText,
     pub reference_name: ReadModelText,
     pub reference_target: ReadModelText,
-    pub position: Position,
+    pub position: Option<Position>,
 }
 
 pub fn dispatch_declare(
     repo: &mut impl crate::kernel::Repository<ReadModel>, args: DeclareArgs,
 ) -> crate::kernel::DispatchResult<ReadModel> {
         args.name.check_invariants()?;
-        args.description.check_invariants()?;
+        if let Some(v) = &args.description { v.check_invariants()?; }
         args.query_name.check_invariants()?;
         args.reference_name.check_invariants()?;
         args.reference_target.check_invariants()?;
-        args.position.check_invariants()?;
+        if let Some(v) = &args.position { v.check_invariants()?; }
 
     crate::kernel::dispatch(
         repo,
@@ -382,13 +382,13 @@ pub fn dispatch_declare(
         build: Box::new(|| ReadModel {
             bluebook_id: Some(args.bluebook_id.clone()),
             name: Some(args.name.clone()),
-            description: Some(args.description.clone()),
+            description: args.description.clone(),
             query_name: Some(args.query_name.clone()),
             reference_name: Some(args.reference_name.clone()),
             reference_target: Some(args.reference_target.clone()),
             aggregate_heads: vec![],
             options: vec![],
-            position: Some(args.position.clone()),
+            position: args.position.clone(),
         }),
     },
         "Declare",
@@ -415,11 +415,11 @@ impl DeclareArgs {
         crate::kernel::Json::Object(vec![
         ("bluebook_id".to_string(), crate::kernel::Json::Str(self.bluebook_id.clone())),
         ("name".to_string(), self.name.to_json()),
-        ("description".to_string(), self.description.to_json()),
+        ("description".to_string(), self.description.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("query_name".to_string(), self.query_name.to_json()),
         ("reference_name".to_string(), self.reference_name.to_json()),
         ("reference_target".to_string(), self.reference_target.to_json()),
-        ("position".to_string(), self.position.to_json()),
+        ("position".to_string(), self.position.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ])
     }
 }
@@ -436,11 +436,11 @@ if !unknown.is_empty() {
         Ok(Self {
         bluebook_id: v.require("bluebook_id", "DeclareArgs")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.bluebook_id: expected String".to_string()))?,
         name: ReadModelName::from_json(v.require("name", "DeclareArgs")?)?,
-        description: ProjectionPurpose::from_json(v.require("description", "DeclareArgs")?)?,
+        description: match v.get("description") { Some(x) => Some(ProjectionPurpose::from_json(x)?), None => None, },
         query_name: ReadModelText::from_json(v.require("query_name", "DeclareArgs")?)?,
         reference_name: ReadModelText::from_json(v.require("reference_name", "DeclareArgs")?)?,
         reference_target: ReadModelText::from_json(v.require("reference_target", "DeclareArgs")?)?,
-        position: Position::from_json(v.require("position", "DeclareArgs")?)?,
+        position: match v.get("position") { Some(x) => Some(Position::from_json(x)?), None => None, },
         })
     }
 }
@@ -518,88 +518,6 @@ if !unknown.is_empty() {
         aggregate: ReadModelText::from_json(v.require("aggregate", "GatherArgs")?)?,
         r#as: ReadModelText::from_json(v.require("as", "GatherArgs")?)?,
         many: ReadModelText::from_json(v.require("many", "GatherArgs")?)?,
-        })
-    }
-}
-
-impl crate::kernel::Fielded for OptionArgs {
-    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
-        use crate::kernel::Field;
-        
-        match name {
-            "option" => Some(Field::Nested(&self.option)),
-            "key" => Some(Field::Nested(&self.key)),
-            "value" => Some(Field::Nested(&self.value)),
-            "at" => Some(Field::Nested(&self.at)),
-            _ => None,
-        }
-    }
-}
-
-
-#[derive(Debug, Clone)]
-pub struct OptionArgs {
-    pub option: ReadModelText,
-    pub key: ReadModelText,
-    pub value: ReadModelText,
-    pub at: ReadModelText,
-}
-
-pub fn dispatch_option(
-    repo: &mut impl crate::kernel::Repository<ReadModel>, id: &str, args: OptionArgs,
-) -> crate::kernel::DispatchResult<ReadModel> {
-        args.option.check_invariants()?;
-        args.key.check_invariants()?;
-        args.value.check_invariants()?;
-        args.at.check_invariants()?;
-
-    crate::kernel::dispatch(
-        repo,
-        crate::kernel::Hydrate::Act { id: id.to_string() },
-        "Option",
-        "Bluebook::ReadModel",
-        &args,
-        &[
-            crate::kernel::GivenSpec { description: "an option is named", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("option.value"))))))) },
-        ],
-        None,
-        |record| {
-        record.options.push(ProjectionOption { option: args.option.value.clone(), key: args.key.value.clone(), value: args.value.value.clone(), at: args.at.value.clone() });
-            Ok(())
-        },
-        &[
-
-        ],
-        &["OptionAttached"],
-        args.to_json(),
-    )
-}
-
-impl OptionArgs {
-    pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("option".to_string(), self.option.to_json()),
-        ("key".to_string(), self.key.to_json()),
-        ("value".to_string(), self.value.to_json()),
-        ("at".to_string(), self.at.to_json()),
-        ])
-    }
-}
-
-impl OptionArgs {
-    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-let unknown = v.unknown_keys(&["option", "key", "value", "at", "id", "read_model", "bluebook_id", "name"]);
-if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "OptionArgs does not declare {} — it takes option, key, value, at",
-        unknown.join(", ")
-    )));
-}
-        Ok(Self {
-        option: ReadModelText::from_json(v.require("option", "OptionArgs")?)?,
-        key: ReadModelText::from_json(v.require("key", "OptionArgs")?)?,
-        value: ReadModelText::from_json(v.require("value", "OptionArgs")?)?,
-        at: ReadModelText::from_json(v.require("at", "OptionArgs")?)?,
         })
     }
 }

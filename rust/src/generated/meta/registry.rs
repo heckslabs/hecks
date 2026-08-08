@@ -103,11 +103,6 @@ pub fn dispatch_by_name(
     let args = super::bluebook::DeclareArgs::from_json(args_json)?;
     super::bluebook::dispatch_declare(&mut store.bluebook, args).map(|(_, events)| stamp_payload(events, args_json))
 }
-"Bluebook::Bluebook.Normalise" => {
-    let id = super::bluebook::Bluebook::extract_id(args_json)?;
-                    let args = super::bluebook::NormaliseArgs::from_json(args_json)?;
-    super::bluebook::dispatch_normalise(&mut store.bluebook, &id, args).map(|(_, events)| stamp_payload(events, args_json))
-}
 "Bluebook::Aggregate.Declare" => {
     let args = super::aggregate::DeclareArgs::from_json(args_json)?;
     super::aggregate::dispatch_declare(&mut store.aggregate, args).map(|(_, events)| stamp_payload(events, args_json))
@@ -117,30 +112,10 @@ pub fn dispatch_by_name(
                     let args = super::aggregate::IdentifyArgs::from_json(args_json)?;
     super::aggregate::dispatch_identify(&mut store.aggregate, &id, args).map(|(_, events)| stamp_payload(events, args_json))
 }
-"Bluebook::Aggregate.Attribute" => {
-    let id = super::aggregate::Aggregate::extract_id(args_json)?;
-                    let args = super::aggregate::AttributeArgs::from_json(args_json)?;
-    super::aggregate::dispatch_attribute(&mut store.aggregate, &id, args).map(|(_, events)| stamp_payload(events, args_json))
-}
-"Bluebook::Aggregate.Reference" => {
-    let id = super::aggregate::Aggregate::extract_id(args_json)?;
-                    let args = super::aggregate::ReferenceArgs::from_json(args_json)?;
-    super::aggregate::dispatch_reference(&mut store.aggregate, &id, args).map(|(_, events)| stamp_payload(events, args_json))
-}
-"Bluebook::Aggregate.Holds" => {
-    let id = super::aggregate::Aggregate::extract_id(args_json)?;
-                    let args = super::aggregate::HoldsArgs::from_json(args_json)?;
-    super::aggregate::dispatch_holds(&mut store.aggregate, &id, args).map(|(_, events)| stamp_payload(events, args_json))
-}
 "Bluebook::Aggregate.Lifecycle" => {
     let id = super::aggregate::Aggregate::extract_id(args_json)?;
                     let args = super::aggregate::LifecycleArgs::from_json(args_json)?;
     super::aggregate::dispatch_lifecycle(&mut store.aggregate, &id, args).map(|(_, events)| stamp_payload(events, args_json))
-}
-"Bluebook::Aggregate.Transition" => {
-    let id = super::aggregate::Aggregate::extract_id(args_json)?;
-                    let args = super::aggregate::TransitionArgs::from_json(args_json)?;
-    super::aggregate::dispatch_transition(&mut store.aggregate, &id, args).map(|(_, events)| stamp_payload(events, args_json))
 }
 "Bluebook::Aggregate.Seal" => {
     let id = super::aggregate::Aggregate::extract_id(args_json)?;
@@ -151,26 +126,6 @@ pub fn dispatch_by_name(
     let id = super::aggregate::Aggregate::extract_id(args_json)?;
                     let args = super::aggregate::ValueArgs::from_json(args_json)?;
     super::aggregate::dispatch_value(&mut store.aggregate, &id, args).map(|(_, events)| stamp_payload(events, args_json))
-}
-"Bluebook::Command.Argument" => {
-    let id = super::command::Command::extract_id(args_json)?;
-                    let args = super::command::ArgumentArgs::from_json(args_json)?;
-    super::command::dispatch_argument(&mut store.command, &id, args).map(|(_, events)| stamp_payload(events, args_json))
-}
-"Bluebook::Command.Reference" => {
-    let id = super::command::Command::extract_id(args_json)?;
-                    let args = super::command::ReferenceArgs::from_json(args_json)?;
-    super::command::dispatch_reference(&mut store.command, &id, args).map(|(_, events)| stamp_payload(events, args_json))
-}
-"Bluebook::Command.Rule" => {
-    let id = super::command::Command::extract_id(args_json)?;
-                    let args = super::command::RuleArgs::from_json(args_json)?;
-    super::command::dispatch_rule(&mut store.command, &id, args).map(|(_, events)| stamp_payload(events, args_json))
-}
-"Bluebook::Command.Ensure" => {
-    let id = super::command::Command::extract_id(args_json)?;
-                    let args = super::command::EnsureArgs::from_json(args_json)?;
-    super::command::dispatch_ensure(&mut store.command, &id, args).map(|(_, events)| stamp_payload(events, args_json))
 }
 "Bluebook::Command.Change" => {
     let id = super::command::Command::extract_id(args_json)?;
@@ -192,38 +147,14 @@ pub fn dispatch_by_name(
                     let args = super::query::FilterArgs::from_json(args_json)?;
     super::query::dispatch_filter(&mut store.query, &id, args).map(|(_, events)| stamp_payload(events, args_json))
 }
-"Bluebook::Query.Option" => {
-    let id = super::query::Query::extract_id(args_json)?;
-                    let args = super::query::OptionArgs::from_json(args_json)?;
-    super::query::dispatch_option(&mut store.query, &id, args).map(|(_, events)| stamp_payload(events, args_json))
-}
-"Bluebook::Query.Argument" => {
-    let id = super::query::Query::extract_id(args_json)?;
-                    let args = super::query::ArgumentArgs::from_json(args_json)?;
-    super::query::dispatch_argument(&mut store.query, &id, args).map(|(_, events)| stamp_payload(events, args_json))
-}
 "Bluebook::ValueObject.Declare" => {
     let args = super::valueobject::DeclareArgs::from_json(args_json)?;
     super::valueobject::dispatch_declare(&mut store.valueobject, args).map(|(_, events)| stamp_payload(events, args_json))
-}
-"Bluebook::ValueObject.Field" => {
-    let id = super::valueobject::ValueObject::extract_id(args_json)?;
-                    let args = super::valueobject::FieldArgs::from_json(args_json)?;
-    super::valueobject::dispatch_field(&mut store.valueobject, &id, args).map(|(_, events)| stamp_payload(events, args_json))
 }
 "Bluebook::ValueObject.Close" => {
     let id = super::valueobject::ValueObject::extract_id(args_json)?;
                     let args = super::valueobject::CloseArgs::from_json(args_json)?;
     super::valueobject::dispatch_close(&mut store.valueobject, &id, args).map(|(_, events)| stamp_payload(events, args_json))
-}
-"Bluebook::ValueObject.Assert" => {
-    let id = super::valueobject::ValueObject::extract_id(args_json)?;
-                    let args = super::valueobject::AssertArgs::from_json(args_json)?;
-    super::valueobject::dispatch_assert(&mut store.valueobject, &id, args).map(|(_, events)| stamp_payload(events, args_json))
-}
-"Bluebook::Member.Declare" => {
-    let args = super::member::DeclareArgs::from_json(args_json)?;
-    super::member::dispatch_declare(&mut store.member, args).map(|(_, events)| stamp_payload(events, args_json))
 }
 "Bluebook::Member.Pair" => {
     let id = super::member::Member::extract_id(args_json)?;
@@ -244,20 +175,10 @@ pub fn dispatch_by_name(
                     let args = super::entity::SealArgs::from_json(args_json)?;
     super::entity::dispatch_seal(&mut store.entity, &id, args).map(|(_, events)| stamp_payload(events, args_json))
 }
-"Bluebook::Entity.Attribute" => {
-    let id = super::entity::Entity::extract_id(args_json)?;
-                    let args = super::entity::AttributeArgs::from_json(args_json)?;
-    super::entity::dispatch_attribute(&mut store.entity, &id, args).map(|(_, events)| stamp_payload(events, args_json))
-}
 "Bluebook::Entity.Lifecycle" => {
     let id = super::entity::Entity::extract_id(args_json)?;
                     let args = super::entity::LifecycleArgs::from_json(args_json)?;
     super::entity::dispatch_lifecycle(&mut store.entity, &id, args).map(|(_, events)| stamp_payload(events, args_json))
-}
-"Bluebook::Entity.Transition" => {
-    let id = super::entity::Entity::extract_id(args_json)?;
-                    let args = super::entity::TransitionArgs::from_json(args_json)?;
-    super::entity::dispatch_transition(&mut store.entity, &id, args).map(|(_, events)| stamp_payload(events, args_json))
 }
 "Bluebook::Policy.Declare" => {
     let args = super::policy::DeclareArgs::from_json(args_json)?;
@@ -293,11 +214,6 @@ pub fn dispatch_by_name(
     let id = super::readmodel::ReadModel::extract_id(args_json)?;
                     let args = super::readmodel::GatherArgs::from_json(args_json)?;
     super::readmodel::dispatch_gather(&mut store.readmodel, &id, args).map(|(_, events)| stamp_payload(events, args_json))
-}
-"Bluebook::ReadModel.Option" => {
-    let id = super::readmodel::ReadModel::extract_id(args_json)?;
-                    let args = super::readmodel::OptionArgs::from_json(args_json)?;
-    super::readmodel::dispatch_option(&mut store.readmodel, &id, args).map(|(_, events)| stamp_payload(events, args_json))
 }
         other => Err(crate::kernel::Refusal::TypeMismatch(format!("unknown command {other:?}"))),
     }

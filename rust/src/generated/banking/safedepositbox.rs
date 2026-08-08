@@ -301,7 +301,7 @@ impl Size {
 pub struct Visit {
     pub date: VisitDate,
     pub sequence: VisitSequence,
-    pub note: VisitNote,
+    pub note: Option<VisitNote>,
     pub state: String,
 }
 
@@ -312,7 +312,7 @@ impl crate::kernel::Fielded for Visit {
         match name {
             "date" => Some(Field::Nested(&self.date)),
             "sequence" => Some(Field::Nested(&self.sequence)),
-            "note" => Some(Field::Nested(&self.note)),
+            "note" => self.note.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "state" => Some(Field::Value(Value::Str(self.state.clone()))),
             _ => None,
         }
@@ -324,7 +324,7 @@ impl Visit {
         crate::kernel::Json::Object(vec![
         ("date".to_string(), self.date.to_json()),
         ("sequence".to_string(), self.sequence.to_json()),
-        ("note".to_string(), self.note.to_json()),
+        ("note".to_string(), self.note.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("state".to_string(), crate::kernel::Json::Str(self.state.clone())),
         ])
     }
@@ -416,7 +416,7 @@ pub fn dispatch_entity_visit_annotate(
         ],
         Some(crate::kernel::TransitionCheck { field: "state", from_states: &["logged"] }),
         |record| {
-        record.note = args.note.clone();
+        record.note = Some(args.note.clone());
         record.state = "logged".to_string();
             Ok(())
         },
@@ -757,11 +757,11 @@ if !unknown.is_empty() {
 impl crate::kernel::Fielded for LogVisitArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
-        
+        use crate::kernel::Value;
         match name {
             "date" => Some(Field::Nested(&self.date)),
             "sequence" => Some(Field::Nested(&self.sequence)),
-            "note" => Some(Field::Nested(&self.note)),
+            "note" => self.note.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             _ => None,
         }
     }
@@ -772,7 +772,7 @@ impl crate::kernel::Fielded for LogVisitArgs {
 pub struct LogVisitArgs {
     pub date: VisitDate,
     pub sequence: VisitSequence,
-    pub note: VisitNote,
+    pub note: Option<VisitNote>,
 }
 
 pub fn dispatch_log_visit(
@@ -780,7 +780,7 @@ pub fn dispatch_log_visit(
 ) -> crate::kernel::DispatchResult<SafeDepositBox> {
         args.date.check_invariants()?;
         args.sequence.check_invariants()?;
-        args.note.check_invariants()?;
+        if let Some(v) = &args.note { v.check_invariants()?; }
 
     crate::kernel::dispatch(
         repo,
@@ -809,7 +809,7 @@ impl LogVisitArgs {
         crate::kernel::Json::Object(vec![
         ("date".to_string(), self.date.to_json()),
         ("sequence".to_string(), self.sequence.to_json()),
-        ("note".to_string(), self.note.to_json()),
+        ("note".to_string(), self.note.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ])
     }
 }
@@ -826,7 +826,7 @@ if !unknown.is_empty() {
         Ok(Self {
         date: VisitDate::from_json(v.require("date", "LogVisitArgs")?)?,
         sequence: VisitSequence::from_json(v.require("sequence", "LogVisitArgs")?)?,
-        note: VisitNote::from_json(v.require("note", "LogVisitArgs")?)?,
+        note: match v.get("note") { Some(x) => Some(VisitNote::from_json(x)?), None => None, },
         })
     }
 }

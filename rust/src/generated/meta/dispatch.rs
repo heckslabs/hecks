@@ -186,7 +186,7 @@ impl crate::kernel::Fielded for DeclareArgs {
             "handler_id" => Some(Field::Value(Value::Str(self.handler_id.clone()))),
             "handler" => Some(Field::Nested(&self.handler)),
             "command_name" => Some(Field::Nested(&self.command_name)),
-            "position" => Some(Field::Nested(&self.position)),
+            "position" => self.position.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             _ => None,
         }
     }
@@ -198,7 +198,7 @@ pub struct DeclareArgs {
     pub handler_id: String,
     pub handler: DispatchText,
     pub command_name: DispatchText,
-    pub position: Position,
+    pub position: Option<Position>,
 }
 
 pub fn dispatch_declare(
@@ -206,7 +206,7 @@ pub fn dispatch_declare(
 ) -> crate::kernel::DispatchResult<Dispatch> {
         args.handler.check_invariants()?;
         args.command_name.check_invariants()?;
-        args.position.check_invariants()?;
+        if let Some(v) = &args.position { v.check_invariants()?; }
 
     crate::kernel::dispatch(
         repo,
@@ -217,7 +217,7 @@ pub fn dispatch_declare(
             handler: Some(args.handler.clone()),
             command_name: Some(args.command_name.clone()),
             with_spec: vec![],
-            position: Some(args.position.clone()),
+            position: args.position.clone(),
         }),
     },
         "Declare",
@@ -245,7 +245,7 @@ impl DeclareArgs {
         ("handler_id".to_string(), crate::kernel::Json::Str(self.handler_id.clone())),
         ("handler".to_string(), self.handler.to_json()),
         ("command_name".to_string(), self.command_name.to_json()),
-        ("position".to_string(), self.position.to_json()),
+        ("position".to_string(), self.position.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ])
     }
 }
@@ -263,7 +263,7 @@ if !unknown.is_empty() {
         handler_id: v.require("handler_id", "DeclareArgs")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.handler_id: expected String".to_string()))?,
         handler: DispatchText::from_json(v.require("handler", "DeclareArgs")?)?,
         command_name: DispatchText::from_json(v.require("command_name", "DeclareArgs")?)?,
-        position: Position::from_json(v.require("position", "DeclareArgs")?)?,
+        position: match v.get("position") { Some(x) => Some(Position::from_json(x)?), None => None, },
         })
     }
 }

@@ -62,7 +62,94 @@ module RustProjection
       end.map { |m| m[:target] }
       return "then_set :#{unsupported_arithmetic.join(', ')} increment/decrement amount or target field isn't bridgeable — not generated yet" if unsupported_arithmetic.any?
 
+      optional_problems = optional_source_mismatches(command, aggregate, value_objects_by_name)
+      return "optional argument feeds a non-optional target: #{optional_problems.join('; ')} — not generated yet" if optional_problems.any?
+
       nil
+    end
+
+    # `attr[:optional]` (0014/0015) means a caller-omittable ARGUMENT — a
+    # fact about the COMMAND. Nothing in this IR ever marks a value
+    # object's or entity's OWN attribute `optional: true` by declaration;
+    # the only way one becomes `Option<T>`-representable here is by
+    # RECEIVING one (an entity attribute this generator Option-wraps
+    # because SOME command's optional argument feeds it — `SafeDepositBox
+    # ::Visit.note`, via `LogVisit`'s `append`). That works cleanly when
+    # the target is ALSO the thing Option-wrapped for the same reason. It
+    # does NOT work when an optional argument feeds a field this generator
+    # has no OTHER reason to make `Option<T>` — the self-hosted meta
+    # grammar's own `Attribute.Declare` is the real example: `default:`/
+    # `pattern:`/`admits:` are optional COMMAND arguments, appended onto a
+    # `Field` value object whose OWN attributes are never Option-wrapped
+    # (nothing else in this corpus ever needs `Field.default` to be
+    # absent). Ruby stores `nil` there without complaint — its args hash
+    # has no static shape to violate. A generated Rust struct's shape is
+    # fixed at compile time, so there is no honest choice here between
+    # "leave the target non-optional and lose the omission" and "generate
+    # something this domain's OWN declarations never asked for" — skipped,
+    # loudly, the same as every other ungenerable shape above.
+    def optional_source_mismatches(command, aggregate, value_objects_by_name)
+      lifecycle_field = aggregate[:lifecycle] && aggregate[:lifecycle][:field].to_sym
+      problems = []
+
+      # `identified_by` (creating commands only — `identity_components`,
+      # mutations.rb, is never called for an acting command) is read
+      # straight off the command's own arguments to build the record's
+      # `id:` at creation time — never Option-wrapped, since a record has
+      # no "identity absent" state. An optional argument feeding it
+      # (`Member.Declare`'s own `position`) isn't a `then_set` mutation at
+      # all, so the checks below never see it; caught here instead.
+      if command[:references].nil?
+        aggregate[:identified_by].each do |path|
+          head, = path.split(".")
+          source_attr = command[:attributes].find { |a| a[:name].to_s == head }
+          next unless source_attr && source_attr[:optional]
+
+          problems << "identified_by :#{path} sources optional argument #{source_attr[:name]}"
+        end
+      end
+
+      command[:mutations].each do |m|
+        case m[:op]
+        when :set
+          next unless m[:source][:kind] == "argument"
+
+          source_attr = command[:attributes].find { |a| a[:name].to_s == m[:source][:name].to_s }
+          next unless source_attr && source_attr[:optional]
+
+          if m[:target] == lifecycle_field
+            problems << "then_set :#{m[:target]} sources optional argument #{source_attr[:name]} into the lifecycle field"
+            next
+          end
+
+          target_attr = aggregate[:attributes].find { |a| a[:name] == m[:target] }
+          # A LIST target is exempt — a record's own list field is
+          # ALWAYS plain `Vec<T>` (never `Option`, emit_record's own
+          # rule), so `emit_mutation_line`'s `:set` branch already
+          # resolves this cleanly with `.unwrap_or_default()` (the
+          # SAME fallback `record_fields`' own creation-time case
+          # uses) — not a real mismatch to skip over.
+          next if target_attr && target_attr[:list]
+
+          problems << "then_set :#{m[:target]} sources optional argument #{source_attr[:name]}" unless target_attr && target_attr[:optional]
+        when :append
+          target_attr = aggregate[:attributes].find { |a| a[:name] == m[:target] }
+          element = target_attr && append_element(aggregate, target_attr[:type], value_objects_by_name)
+          next unless element
+
+          m[:fields].each do |field_name, source|
+            next if source.to_s.start_with?("{") # a literal, not a caller-omittable argument
+
+            source_attr = command[:attributes].find { |a| a[:name].to_s == source.to_s }
+            next unless source_attr && source_attr[:optional]
+
+            field_attr = element[:attributes].find { |a| a[:name].to_s == field_name.to_s }
+            problems << "then_set append #{m[:target]}.#{field_name} sources optional argument #{source_attr[:name]}" unless field_attr && field_attr[:optional]
+          end
+        end
+      end
+
+      problems
     end
 
     # ── ONE emitter for every command shape kernel::dispatch can run —
@@ -82,6 +169,18 @@ module RustProjection
       args_struct = ["pub struct #{cmd}Args {"]
       command[:attributes].each do |attr|
         type = rust_type(attr[:type], list: attr[:list])
+        # `optional: true`, no default — a caller-omittable argument
+        # (`refuse_absent_arguments`'s own `required = attributes.reject
+        # (&:optional?)`, argument_gate.rb, read directly). Modeled as
+        # `Option<T>` — 0014/0015's own fix: nothing here used to
+        # represent "omitted" at all, so a real, legal call omitting one
+        # (`SafeDepositBox.LogVisit`'s own `note:`) failed with a
+        # manufactured "missing from JSON args" refusal Ruby never
+        # raises. `command_skip_reason` guards the one shape this can't
+        # honestly represent yet (an optional source feeding a
+        # NON-optional VO/entity field) before generation ever reaches
+        # here.
+        type = "Option<#{type}>" if attr[:optional]
         args_struct << "    pub #{rust_ident_field(attr[:name])}: #{type},"
       end
       args_struct << "}"
@@ -91,7 +190,11 @@ module RustProjection
         next if value_objects_by_name[attr[:type]][:closed_set]
 
         field = rust_ident_field(attr[:name])
-        attr[:list] ? "        for item in &args.#{field} { item.check_invariants()?; }" : "        args.#{field}.check_invariants()?;"
+        if attr[:optional]
+          attr[:list] ? "        if let Some(items) = &args.#{field} { for item in items { item.check_invariants()?; } }" : "        if let Some(v) = &args.#{field} { v.check_invariants()?; }"
+        else
+          attr[:list] ? "        for item in &args.#{field} { item.check_invariants()?; }" : "        args.#{field}.check_invariants()?;"
+        end
       end
 
       given_specs = command[:givens].map do |given|
@@ -124,7 +227,18 @@ module RustProjection
         record_fields = aggregate[:attributes].map do |attr|
           matched = command[:attributes].find { |a| a[:name] == attr[:name] }
           field = rust_ident_field(attr[:name])
-          if matched
+          if matched && matched[:optional]
+            # The COMMAND's own attribute is `Option<T>` now — a
+            # list-typed record field stays plain `Vec<T>` (emit_record's
+            # own rule: lists are never Option-wrapped), so
+            # `Option<Vec<T>>` needs unwrapping with the same `[]`
+            # fallback `default_for` already gives an UNMATCHED list
+            # attribute; a scalar/VO record field is ALREADY `Option<T>`
+            # unconditionally, so the optional arg's own `Option<T>`
+            # assigns straight across — wrapping it in another `Some(...)`
+            # would be `Option<Option<T>>`, not this record field's type.
+            attr[:list] ? "            #{field}: args.#{field}.clone().unwrap_or_default()," : "            #{field}: args.#{field}.clone(),"
+          elsif matched
             attr[:list] ? "            #{field}: args.#{field}.clone()," : "            #{field}: Some(args.#{field}.clone()),"
           elsif attr[:list]
             "            #{field}: vec![],"
@@ -233,6 +347,7 @@ module RustProjection
       args_struct = ["pub struct #{args_struct_name} {"]
       command[:attributes].each do |attr|
         type = rust_type(attr[:type], list: attr[:list])
+        type = "Option<#{type}>" if attr[:optional]
         args_struct << "    pub #{rust_ident_field(attr[:name])}: #{type},"
       end
       args_struct << "}"
@@ -242,7 +357,11 @@ module RustProjection
         next if value_objects_by_name[attr[:type]][:closed_set]
 
         field = rust_ident_field(attr[:name])
-        attr[:list] ? "        for item in &args.#{field} { item.check_invariants()?; }" : "        args.#{field}.check_invariants()?;"
+        if attr[:optional]
+          attr[:list] ? "        if let Some(items) = &args.#{field} { for item in items { item.check_invariants()?; } }" : "        if let Some(v) = &args.#{field} { v.check_invariants()?; }"
+        else
+          attr[:list] ? "        for item in &args.#{field} { item.check_invariants()?; }" : "        args.#{field}.check_invariants()?;"
+        end
       end
 
       given_specs = command[:givens].map do |given|

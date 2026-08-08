@@ -332,12 +332,12 @@ impl Bluebook {
 impl crate::kernel::Fielded for DeclareArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
-        
+        use crate::kernel::Value;
         match name {
             "name" => Some(Field::Nested(&self.name)),
-            "vision" => Some(Field::Nested(&self.vision)),
-            "classification" => Some(Field::Nested(&self.classification)),
-            "version" => Some(Field::Nested(&self.version)),
+            "vision" => self.vision.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "classification" => self.classification.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "version" => self.version.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             _ => None,
         }
     }
@@ -347,18 +347,18 @@ impl crate::kernel::Fielded for DeclareArgs {
 #[derive(Debug, Clone)]
 pub struct DeclareArgs {
     pub name: BluebookName,
-    pub vision: Vision,
-    pub classification: Classification,
-    pub version: Version,
+    pub vision: Option<Vision>,
+    pub classification: Option<Classification>,
+    pub version: Option<Version>,
 }
 
 pub fn dispatch_declare(
     repo: &mut impl crate::kernel::Repository<Bluebook>, args: DeclareArgs,
 ) -> crate::kernel::DispatchResult<Bluebook> {
         args.name.check_invariants()?;
-        args.vision.check_invariants()?;
-        args.classification.check_invariants()?;
-        args.version.check_invariants()?;
+        if let Some(v) = &args.vision { v.check_invariants()?; }
+        if let Some(v) = &args.classification { v.check_invariants()?; }
+        if let Some(v) = &args.version { v.check_invariants()?; }
 
     crate::kernel::dispatch(
         repo,
@@ -366,9 +366,9 @@ pub fn dispatch_declare(
         id: args.name.value.to_string(),
         build: Box::new(|| Bluebook {
             name: Some(args.name.clone()),
-            vision: Some(args.vision.clone()),
-            classification: Some(args.classification.clone()),
-            version: Some(args.version.clone()),
+            vision: args.vision.clone(),
+            classification: args.classification.clone(),
+            version: args.version.clone(),
             normalisations: vec![],
         }),
     },
@@ -395,9 +395,9 @@ impl DeclareArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
         crate::kernel::Json::Object(vec![
         ("name".to_string(), self.name.to_json()),
-        ("vision".to_string(), self.vision.to_json()),
-        ("classification".to_string(), self.classification.to_json()),
-        ("version".to_string(), self.version.to_json()),
+        ("vision".to_string(), self.vision.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("classification".to_string(), self.classification.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("version".to_string(), self.version.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ])
     }
 }
@@ -413,96 +413,9 @@ if !unknown.is_empty() {
 }
         Ok(Self {
         name: BluebookName::from_json(v.require("name", "DeclareArgs")?)?,
-        vision: Vision::from_json(v.require("vision", "DeclareArgs")?)?,
-        classification: Classification::from_json(v.require("classification", "DeclareArgs")?)?,
-        version: Version::from_json(v.require("version", "DeclareArgs")?)?,
-        })
-    }
-}
-
-impl crate::kernel::Fielded for NormaliseArgs {
-    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
-        use crate::kernel::Field;
-        
-        match name {
-            "strategy" => Some(Field::Nested(&self.strategy)),
-            "source_token" => Some(Field::Nested(&self.source_token)),
-            "replacement" => Some(Field::Nested(&self.replacement)),
-            "boundary" => Some(Field::Nested(&self.boundary)),
-            "position" => Some(Field::Nested(&self.position)),
-            _ => None,
-        }
-    }
-}
-
-
-#[derive(Debug, Clone)]
-pub struct NormaliseArgs {
-    pub strategy: RuleText,
-    pub source_token: RuleText,
-    pub replacement: RuleText,
-    pub boundary: RuleText,
-    pub position: RuleText,
-}
-
-pub fn dispatch_normalise(
-    repo: &mut impl crate::kernel::Repository<Bluebook>, id: &str, args: NormaliseArgs,
-) -> crate::kernel::DispatchResult<Bluebook> {
-        args.strategy.check_invariants()?;
-        args.source_token.check_invariants()?;
-        args.replacement.check_invariants()?;
-        args.boundary.check_invariants()?;
-        args.position.check_invariants()?;
-
-    crate::kernel::dispatch(
-        repo,
-        crate::kernel::Hydrate::Act { id: id.to_string() },
-        "Normalise",
-        "Bluebook::Bluebook",
-        &args,
-        &[
-
-        ],
-        None,
-        |record| {
-        record.normalisations.push(NormalisationRule { strategy: args.strategy.value.clone(), source_token: args.source_token.value.clone(), replacement: args.replacement.value.clone(), boundary: args.boundary.value.clone(), position: args.position.value.clone() });
-            Ok(())
-        },
-        &[
-
-        ],
-        &["NormalisationAttached"],
-        args.to_json(),
-    )
-}
-
-impl NormaliseArgs {
-    pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("strategy".to_string(), self.strategy.to_json()),
-        ("source_token".to_string(), self.source_token.to_json()),
-        ("replacement".to_string(), self.replacement.to_json()),
-        ("boundary".to_string(), self.boundary.to_json()),
-        ("position".to_string(), self.position.to_json()),
-        ])
-    }
-}
-
-impl NormaliseArgs {
-    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-let unknown = v.unknown_keys(&["strategy", "source_token", "replacement", "boundary", "position", "id", "bluebook", "name"]);
-if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "NormaliseArgs does not declare {} — it takes strategy, source_token, replacement, boundary, position",
-        unknown.join(", ")
-    )));
-}
-        Ok(Self {
-        strategy: RuleText::from_json(v.require("strategy", "NormaliseArgs")?)?,
-        source_token: RuleText::from_json(v.require("source_token", "NormaliseArgs")?)?,
-        replacement: RuleText::from_json(v.require("replacement", "NormaliseArgs")?)?,
-        boundary: RuleText::from_json(v.require("boundary", "NormaliseArgs")?)?,
-        position: RuleText::from_json(v.require("position", "NormaliseArgs")?)?,
+        vision: match v.get("vision") { Some(x) => Some(Vision::from_json(x)?), None => None, },
+        classification: match v.get("classification") { Some(x) => Some(Classification::from_json(x)?), None => None, },
+        version: match v.get("version") { Some(x) => Some(Version::from_json(x)?), None => None, },
         })
     }
 }

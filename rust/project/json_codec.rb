@@ -38,6 +38,17 @@ module RustProjection
       %(v.require(#{key.inspect}, #{struct_name.inspect})?.#{accessor}()#{wrap}.ok_or_else(|| #{json_type_error(struct_name, key, scalar_type)})?)
     end
 
+    # The scalar-extraction half of `scalar_from_json_expr`, applied to an
+    # ALREADY-LOCATED Json value (`x`) instead of looking the key up itself
+    # — `emit_from_json_flat`'s own `attr[:optional]` branch already has
+    # `x` in hand from a `Some(x) = v.get(key)` match, so it needs just the
+    # "read a scalar out of this value" part, not a second key lookup.
+    def scalar_from_json_value_expr(struct_name, key, scalar_type, value_expr)
+      accessor = SCALAR_JSON_ACCESSOR.fetch(scalar_type)
+      wrap = scalar_type == "String" ? ".map(|s| s.to_string())" : ""
+      %(#{value_expr}.#{accessor}()#{wrap}.ok_or_else(|| #{json_type_error(struct_name, key, scalar_type)})?)
+    end
+
     def scalar_to_json_expr(scalar_type, rust_expr)
       case scalar_type
       when "String"  then "crate::kernel::Json::Str(#{rust_expr}.clone())"
@@ -94,11 +105,26 @@ module RustProjection
         key = rust_field(attr[:name])
         scalar = effective_scalar_type(attr[:type])
         rhs =
-          if attr[:list]
+          if attr[:list] && attr[:optional]
+            # `Option<Vec<T>>` — `None` when the caller never supplied
+            # the key at all (`CardPayment.Authorize`'s own `tags:`),
+            # not defaulted to an empty Vec the way a REQUIRED list
+            # argument's own absent-key case still is, below.
+            elem_type = rust_ident(attr[:type])
+            array_error = json_type_error(struct_name, key, "an array")
+            "match v.get(#{key.inspect}) { " \
+              "Some(x) => Some(x.as_array().ok_or_else(|| #{array_error})?.iter().map(#{elem_type}::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?), " \
+              "None => None, }"
+          elsif attr[:list]
             elem_type = rust_ident(attr[:type])
             "match v.get(#{key.inspect}).and_then(crate::kernel::Json::as_array) { " \
               "Some(items) => items.iter().map(#{elem_type}::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, " \
               "None => Vec::new(), }"
+          elsif attr[:optional] && scalar
+            "match v.get(#{key.inspect}) { Some(x) => Some(#{scalar_from_json_value_expr(struct_name, key, scalar, 'x')}), None => None, }"
+          elsif attr[:optional]
+            nested_type = rust_ident(attr[:type])
+            "match v.get(#{key.inspect}) { Some(x) => Some(#{nested_type}::from_json(x)?), None => None, }"
           elsif scalar
             scalar_from_json_expr(struct_name, key, scalar, default: attr[:default])
           else
@@ -145,25 +171,24 @@ module RustProjection
         ident = rust_ident_field(attr[:name])
         key = rust_field(attr[:name])
         scalar = effective_scalar_type(attr[:type])
+        # `attr[:optional]` — a real `Option<T>` struct field now
+        # (0014/0015's struct-field change), data-driven off the
+        # declaration, not a runtime "is it empty" heuristic (tried that
+        # first for lists specifically, broke `ledger`-shaped fields —
+        # unmatched by their creating command, legitimately `[]` in Ruby
+        # too — see git history). `attr[:optional]` names EXACTLY the
+        # fields Ruby itself treats as possibly-absent, leaving every
+        # other field — including ones that happen to be empty right
+        # now — exactly as it's always been.
+        field_optional = optional || attr[:optional]
         value_expr =
-          if attr[:list]
-            # NOT simply "empty vec -> Null": tried that, and it broke
-            # `ledger`-shaped fields (unmatched by their creating command,
-            # legitimately `[]` in Ruby too) to fix `tags`-shaped ones
-            # (an `optional: true` LIST argument the caller omitted,
-            # which Ruby leaves `nil` rather than defaulting to `[]`).
-            # Those are different cases Ruby itself tells apart by
-            # whether the CREATING command's own attributes matched the
-            # field at all — this generator doesn't carry that distinction
-            # into the Rust type today (the same still-open "optional
-            # attributes aren't modeled with Option<T> anywhere" gap a
-            # scalar/VO optional argument like `SafeDepositBox.LogVisit`'s
-            # `note:` hits too), so it stays a plain array here rather
-            # than a wrong, broader heuristic.
+          if attr[:list] && attr[:optional]
+            "self.#{ident}.as_ref().map(|v| crate::kernel::Json::Array(v.iter().map(|x| x.to_json()).collect())).unwrap_or(crate::kernel::Json::Null)"
+          elsif attr[:list]
             "crate::kernel::Json::Array(self.#{ident}.iter().map(|x| x.to_json()).collect())"
-          elsif optional && scalar
+          elsif field_optional && scalar
             "self.#{ident}.as_ref().map(|v| #{scalar_to_json_expr(scalar, 'v')}).unwrap_or(crate::kernel::Json::Null)"
-          elsif optional
+          elsif field_optional
             "self.#{ident}.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)"
           elsif scalar
             scalar_to_json_expr(scalar, "self.#{ident}")

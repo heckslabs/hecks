@@ -141,10 +141,10 @@ pub struct AskArgument {
     pub name: String,
     pub r#type: String,
     pub list: String,
-    pub optional: String,
-    pub pattern: String,
+    pub optional: Option<String>,
+    pub pattern: Option<String>,
     pub default: String,
-    pub admits: String,
+    pub admits: Option<String>,
 }
 
 impl crate::kernel::Fielded for AskArgument {
@@ -155,10 +155,10 @@ impl crate::kernel::Fielded for AskArgument {
             "name" => Some(Field::Value(Value::Str(self.name.clone()))),
             "type" => Some(Field::Value(Value::Str(self.r#type.clone()))),
             "list" => Some(Field::Value(Value::Str(self.list.clone()))),
-            "optional" => Some(Field::Value(Value::Str(self.optional.clone()))),
-            "pattern" => Some(Field::Value(Value::Str(self.pattern.clone()))),
+            "optional" => self.optional.as_ref().map(|v| Field::Value(Value::Str(v.clone()))).or(Some(Field::Value(Value::Nil))),
+            "pattern" => self.pattern.as_ref().map(|v| Field::Value(Value::Str(v.clone()))).or(Some(Field::Value(Value::Nil))),
             "default" => Some(Field::Value(Value::Str(self.default.clone()))),
-            "admits" => Some(Field::Value(Value::Str(self.admits.clone()))),
+            "admits" => self.admits.as_ref().map(|v| Field::Value(Value::Str(v.clone()))).or(Some(Field::Value(Value::Nil))),
             _ => None,
         }
     }
@@ -178,10 +178,10 @@ impl AskArgument {
         ("name".to_string(), crate::kernel::Json::Str(self.name.clone())),
         ("type".to_string(), crate::kernel::Json::Str(self.r#type.clone())),
         ("list".to_string(), crate::kernel::Json::Str(self.list.clone())),
-        ("optional".to_string(), crate::kernel::Json::Str(self.optional.clone())),
-        ("pattern".to_string(), crate::kernel::Json::Str(self.pattern.clone())),
+        ("optional".to_string(), self.optional.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
+        ("pattern".to_string(), self.pattern.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
         ("default".to_string(), crate::kernel::Json::Str(self.default.clone())),
-        ("admits".to_string(), crate::kernel::Json::Str(self.admits.clone())),
+        ("admits".to_string(), self.admits.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
         ])
     }
 }
@@ -192,10 +192,10 @@ impl AskArgument {
         name: v.require("name", "AskArgument")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AskArgument.name: expected String".to_string()))?,
         r#type: v.require("type", "AskArgument")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AskArgument.type: expected String".to_string()))?,
         list: v.require("list", "AskArgument")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AskArgument.list: expected String".to_string()))?,
-        optional: v.require("optional", "AskArgument")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AskArgument.optional: expected String".to_string()))?,
-        pattern: v.require("pattern", "AskArgument")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AskArgument.pattern: expected String".to_string()))?,
+        optional: match v.get("optional") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AskArgument.optional: expected String".to_string()))?), None => None, },
+        pattern: match v.get("pattern") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AskArgument.pattern: expected String".to_string()))?), None => None, },
         default: v.require("default", "AskArgument")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AskArgument.default: expected String".to_string()))?,
-        admits: v.require("admits", "AskArgument")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AskArgument.admits: expected String".to_string()))?,
+        admits: match v.get("admits") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AskArgument.admits: expected String".to_string()))?), None => None, },
         })
     }
 }
@@ -367,13 +367,13 @@ impl crate::kernel::Fielded for DeclareArgs {
         use crate::kernel::Value;
         match name {
             "aggregate_id" => Some(Field::Value(Value::Str(self.aggregate_id.clone()))),
-            "entity_id" => Some(Field::Value(Value::Str(self.entity_id.clone()))),
+            "entity_id" => self.entity_id.as_ref().map(|v| Field::Value(Value::Str(v.clone()))).or(Some(Field::Value(Value::Nil))),
             "name" => Some(Field::Nested(&self.name)),
-            "description" => Some(Field::Nested(&self.description)),
-            "order_field" => Some(Field::Nested(&self.order_field)),
-            "order_way" => Some(Field::Nested(&self.order_way)),
-            "limit" => Some(Field::Nested(&self.limit)),
-            "position" => Some(Field::Nested(&self.position)),
+            "description" => self.description.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "order_field" => self.order_field.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "order_way" => self.order_way.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "limit" => self.limit.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "position" => self.position.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             _ => None,
         }
     }
@@ -383,24 +383,24 @@ impl crate::kernel::Fielded for DeclareArgs {
 #[derive(Debug, Clone)]
 pub struct DeclareArgs {
     pub aggregate_id: String,
-    pub entity_id: String,
+    pub entity_id: Option<String>,
     pub name: QueryName,
-    pub description: QueryText,
-    pub order_field: QueryText,
-    pub order_way: QueryText,
-    pub limit: QueryText,
-    pub position: Position,
+    pub description: Option<QueryText>,
+    pub order_field: Option<QueryText>,
+    pub order_way: Option<QueryText>,
+    pub limit: Option<QueryText>,
+    pub position: Option<Position>,
 }
 
 pub fn dispatch_declare(
     repo: &mut impl crate::kernel::Repository<Query>, owner_id: &str, args: DeclareArgs,
 ) -> crate::kernel::DispatchResult<Query> {
         args.name.check_invariants()?;
-        args.description.check_invariants()?;
-        args.order_field.check_invariants()?;
-        args.order_way.check_invariants()?;
-        args.limit.check_invariants()?;
-        args.position.check_invariants()?;
+        if let Some(v) = &args.description { v.check_invariants()?; }
+        if let Some(v) = &args.order_field { v.check_invariants()?; }
+        if let Some(v) = &args.order_way { v.check_invariants()?; }
+        if let Some(v) = &args.limit { v.check_invariants()?; }
+        if let Some(v) = &args.position { v.check_invariants()?; }
 
     crate::kernel::dispatch(
         repo,
@@ -408,16 +408,16 @@ pub fn dispatch_declare(
         id: format!("{}:{}", owner_id, args.name.value.to_string()),
         build: Box::new(|| Query {
             aggregate_id: Some(args.aggregate_id.clone()),
-            entity_id: Some(args.entity_id.clone()),
+            entity_id: args.entity_id.clone(),
             name: Some(args.name.clone()),
-            description: Some(args.description.clone()),
-            order_field: Some(args.order_field.clone()),
-            order_way: Some(args.order_way.clone()),
-            limit: Some(args.limit.clone()),
+            description: args.description.clone(),
+            order_field: args.order_field.clone(),
+            order_way: args.order_way.clone(),
+            limit: args.limit.clone(),
             wheres: vec![],
             attributes: vec![],
             options: vec![],
-            position: Some(args.position.clone()),
+            position: args.position.clone(),
         }),
     },
         "Declare",
@@ -443,13 +443,13 @@ impl DeclareArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
         crate::kernel::Json::Object(vec![
         ("aggregate_id".to_string(), crate::kernel::Json::Str(self.aggregate_id.clone())),
-        ("entity_id".to_string(), crate::kernel::Json::Str(self.entity_id.clone())),
+        ("entity_id".to_string(), self.entity_id.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
         ("name".to_string(), self.name.to_json()),
-        ("description".to_string(), self.description.to_json()),
-        ("order_field".to_string(), self.order_field.to_json()),
-        ("order_way".to_string(), self.order_way.to_json()),
-        ("limit".to_string(), self.limit.to_json()),
-        ("position".to_string(), self.position.to_json()),
+        ("description".to_string(), self.description.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("order_field".to_string(), self.order_field.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("order_way".to_string(), self.order_way.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("limit".to_string(), self.limit.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("position".to_string(), self.position.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ])
     }
 }
@@ -465,13 +465,13 @@ if !unknown.is_empty() {
 }
         Ok(Self {
         aggregate_id: v.require("aggregate_id", "DeclareArgs")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.aggregate_id: expected String".to_string()))?,
-        entity_id: v.require("entity_id", "DeclareArgs")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.entity_id: expected String".to_string()))?,
+        entity_id: match v.get("entity_id") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.entity_id: expected String".to_string()))?), None => None, },
         name: QueryName::from_json(v.require("name", "DeclareArgs")?)?,
-        description: QueryText::from_json(v.require("description", "DeclareArgs")?)?,
-        order_field: QueryText::from_json(v.require("order_field", "DeclareArgs")?)?,
-        order_way: QueryText::from_json(v.require("order_way", "DeclareArgs")?)?,
-        limit: QueryText::from_json(v.require("limit", "DeclareArgs")?)?,
-        position: Position::from_json(v.require("position", "DeclareArgs")?)?,
+        description: match v.get("description") { Some(x) => Some(QueryText::from_json(x)?), None => None, },
+        order_field: match v.get("order_field") { Some(x) => Some(QueryText::from_json(x)?), None => None, },
+        order_way: match v.get("order_way") { Some(x) => Some(QueryText::from_json(x)?), None => None, },
+        limit: match v.get("limit") { Some(x) => Some(QueryText::from_json(x)?), None => None, },
+        position: match v.get("position") { Some(x) => Some(Position::from_json(x)?), None => None, },
         })
     }
 }
@@ -549,185 +549,6 @@ if !unknown.is_empty() {
         field: QueryText::from_json(v.require("field", "FilterArgs")?)?,
         op: QueryText::from_json(v.require("op", "FilterArgs")?)?,
         value: QueryText::from_json(v.require("value", "FilterArgs")?)?,
-        })
-    }
-}
-
-impl crate::kernel::Fielded for OptionArgs {
-    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
-        use crate::kernel::Field;
-        
-        match name {
-            "option" => Some(Field::Nested(&self.option)),
-            "key" => Some(Field::Nested(&self.key)),
-            "value" => Some(Field::Nested(&self.value)),
-            "at" => Some(Field::Nested(&self.at)),
-            _ => None,
-        }
-    }
-}
-
-
-#[derive(Debug, Clone)]
-pub struct OptionArgs {
-    pub option: QueryText,
-    pub key: QueryText,
-    pub value: QueryText,
-    pub at: QueryText,
-}
-
-pub fn dispatch_option(
-    repo: &mut impl crate::kernel::Repository<Query>, id: &str, args: OptionArgs,
-) -> crate::kernel::DispatchResult<Query> {
-        args.option.check_invariants()?;
-        args.key.check_invariants()?;
-        args.value.check_invariants()?;
-        args.at.check_invariants()?;
-
-    crate::kernel::dispatch(
-        repo,
-        crate::kernel::Hydrate::Act { id: id.to_string() },
-        "Option",
-        "Bluebook::Query",
-        &args,
-        &[
-            crate::kernel::GivenSpec { description: "an option is named", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("option.value"))))))) },
-        ],
-        None,
-        |record| {
-        record.options.push(AskOption { option: args.option.value.clone(), key: args.key.value.clone(), value: args.value.value.clone(), at: args.at.value.clone() });
-            Ok(())
-        },
-        &[
-
-        ],
-        &["OptionAttached"],
-        args.to_json(),
-    )
-}
-
-impl OptionArgs {
-    pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("option".to_string(), self.option.to_json()),
-        ("key".to_string(), self.key.to_json()),
-        ("value".to_string(), self.value.to_json()),
-        ("at".to_string(), self.at.to_json()),
-        ])
-    }
-}
-
-impl OptionArgs {
-    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-let unknown = v.unknown_keys(&["option", "key", "value", "at", "id", "query", "owner_id", "name"]);
-if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "OptionArgs does not declare {} — it takes option, key, value, at",
-        unknown.join(", ")
-    )));
-}
-        Ok(Self {
-        option: QueryText::from_json(v.require("option", "OptionArgs")?)?,
-        key: QueryText::from_json(v.require("key", "OptionArgs")?)?,
-        value: QueryText::from_json(v.require("value", "OptionArgs")?)?,
-        at: QueryText::from_json(v.require("at", "OptionArgs")?)?,
-        })
-    }
-}
-
-impl crate::kernel::Fielded for ArgumentArgs {
-    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
-        use crate::kernel::Field;
-        
-        match name {
-            "name" => Some(Field::Nested(&self.name)),
-            "type" => Some(Field::Nested(&self.r#type)),
-            "list" => Some(Field::Nested(&self.list)),
-            "optional" => Some(Field::Nested(&self.optional)),
-            "pattern" => Some(Field::Nested(&self.pattern)),
-            "default" => Some(Field::Nested(&self.default)),
-            "admits" => Some(Field::Nested(&self.admits)),
-            _ => None,
-        }
-    }
-}
-
-
-#[derive(Debug, Clone)]
-pub struct ArgumentArgs {
-    pub name: QueryText,
-    pub r#type: QueryText,
-    pub list: QueryText,
-    pub optional: QueryText,
-    pub pattern: QueryText,
-    pub default: QueryText,
-    pub admits: QueryText,
-}
-
-pub fn dispatch_argument(
-    repo: &mut impl crate::kernel::Repository<Query>, id: &str, args: ArgumentArgs,
-) -> crate::kernel::DispatchResult<Query> {
-        args.name.check_invariants()?;
-        args.r#type.check_invariants()?;
-        args.list.check_invariants()?;
-        args.optional.check_invariants()?;
-        args.pattern.check_invariants()?;
-        args.default.check_invariants()?;
-        args.admits.check_invariants()?;
-
-    crate::kernel::dispatch(
-        repo,
-        crate::kernel::Hydrate::Act { id: id.to_string() },
-        "Argument",
-        "Bluebook::Query",
-        &args,
-        &[
-
-        ],
-        None,
-        |record| {
-        record.attributes.push(AskArgument { name: args.name.value.clone(), r#type: args.r#type.value.clone(), list: args.list.value.clone(), default: args.default.value.clone(), optional: args.optional.value.clone(), pattern: args.pattern.value.clone(), admits: args.admits.value.clone() });
-            Ok(())
-        },
-        &[
-
-        ],
-        &["AskArgumentAttached"],
-        args.to_json(),
-    )
-}
-
-impl ArgumentArgs {
-    pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("name".to_string(), self.name.to_json()),
-        ("type".to_string(), self.r#type.to_json()),
-        ("list".to_string(), self.list.to_json()),
-        ("optional".to_string(), self.optional.to_json()),
-        ("pattern".to_string(), self.pattern.to_json()),
-        ("default".to_string(), self.default.to_json()),
-        ("admits".to_string(), self.admits.to_json()),
-        ])
-    }
-}
-
-impl ArgumentArgs {
-    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-let unknown = v.unknown_keys(&["name", "type", "list", "optional", "pattern", "default", "admits", "id", "query", "owner_id"]);
-if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "ArgumentArgs does not declare {} — it takes name, type, list, optional, pattern, default, admits",
-        unknown.join(", ")
-    )));
-}
-        Ok(Self {
-        name: QueryText::from_json(v.require("name", "ArgumentArgs")?)?,
-        r#type: QueryText::from_json(v.require("type", "ArgumentArgs")?)?,
-        list: QueryText::from_json(v.require("list", "ArgumentArgs")?)?,
-        optional: QueryText::from_json(v.require("optional", "ArgumentArgs")?)?,
-        pattern: QueryText::from_json(v.require("pattern", "ArgumentArgs")?)?,
-        default: QueryText::from_json(v.require("default", "ArgumentArgs")?)?,
-        admits: QueryText::from_json(v.require("admits", "ArgumentArgs")?)?,
         })
     }
 }

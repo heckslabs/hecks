@@ -243,7 +243,7 @@ impl crate::kernel::Fielded for AuthorizeArgs {
             "authorisation" => Some(Field::Nested(&self.authorisation)),
             "amount" => Some(Field::Nested(&self.amount)),
             "merchant" => Some(Field::Nested(&self.merchant)),
-            "tags" => Some(Field::Value(Value::List(self.tags.len()))),
+            "tags" => self.tags.as_ref().map(|v| Field::Value(Value::List(v.len()))).or(Some(Field::Value(Value::Nil))),
             _ => None,
         }
     }
@@ -256,7 +256,7 @@ pub struct AuthorizeArgs {
     pub authorisation: AuthorisationCode,
     pub amount: PaymentAmount,
     pub merchant: MerchantName,
-    pub tags: Vec<Tag>,
+    pub tags: Option<Vec<Tag>>,
 }
 
 pub fn dispatch_authorize(
@@ -265,7 +265,7 @@ pub fn dispatch_authorize(
         args.authorisation.check_invariants()?;
         args.amount.check_invariants()?;
         args.merchant.check_invariants()?;
-        for item in &args.tags { item.check_invariants()?; }
+        if let Some(items) = &args.tags { for item in items { item.check_invariants()?; } }
 
     crate::kernel::dispatch(
         repo,
@@ -277,7 +277,7 @@ pub fn dispatch_authorize(
             authorisation: Some(args.authorisation.clone()),
             amount: Some(args.amount.clone()),
             merchant: Some(args.merchant.clone()),
-            tags: args.tags.clone(),
+            tags: args.tags.clone().unwrap_or_default(),
             status: "authorized".to_string(),
         }),
     },
@@ -291,7 +291,7 @@ pub fn dispatch_authorize(
         |record| {
         record.amount = Some(args.amount.clone());
         record.merchant = Some(args.merchant.clone());
-        record.tags = args.tags.clone();
+        record.tags = args.tags.clone().unwrap_or_default();
             Ok(())
         },
         &[
@@ -309,7 +309,7 @@ impl AuthorizeArgs {
         ("authorisation".to_string(), self.authorisation.to_json()),
         ("amount".to_string(), self.amount.to_json()),
         ("merchant".to_string(), self.merchant.to_json()),
-        ("tags".to_string(), crate::kernel::Json::Array(self.tags.iter().map(|x| x.to_json()).collect())),
+        ("tags".to_string(), self.tags.as_ref().map(|v| crate::kernel::Json::Array(v.iter().map(|x| x.to_json()).collect())).unwrap_or(crate::kernel::Json::Null)),
         ])
     }
 }
@@ -328,7 +328,7 @@ if !unknown.is_empty() {
         authorisation: AuthorisationCode::from_json(v.require("authorisation", "AuthorizeArgs")?)?,
         amount: PaymentAmount::from_json(v.require("amount", "AuthorizeArgs")?)?,
         merchant: MerchantName::from_json(v.require("merchant", "AuthorizeArgs")?)?,
-        tags: match v.get("tags").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Tag::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
+        tags: match v.get("tags") { Some(x) => Some(x.as_array().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AuthorizeArgs.tags: expected an array".to_string()))?.iter().map(Tag::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?), None => None, },
         })
     }
 }

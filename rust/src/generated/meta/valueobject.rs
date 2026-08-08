@@ -93,10 +93,10 @@ pub struct ShapeField {
     pub name: String,
     pub r#type: String,
     pub list: String,
-    pub optional: String,
-    pub pattern: String,
+    pub optional: Option<String>,
+    pub pattern: Option<String>,
     pub default: String,
-    pub admits: String,
+    pub admits: Option<String>,
 }
 
 impl crate::kernel::Fielded for ShapeField {
@@ -107,10 +107,10 @@ impl crate::kernel::Fielded for ShapeField {
             "name" => Some(Field::Value(Value::Str(self.name.clone()))),
             "type" => Some(Field::Value(Value::Str(self.r#type.clone()))),
             "list" => Some(Field::Value(Value::Str(self.list.clone()))),
-            "optional" => Some(Field::Value(Value::Str(self.optional.clone()))),
-            "pattern" => Some(Field::Value(Value::Str(self.pattern.clone()))),
+            "optional" => self.optional.as_ref().map(|v| Field::Value(Value::Str(v.clone()))).or(Some(Field::Value(Value::Nil))),
+            "pattern" => self.pattern.as_ref().map(|v| Field::Value(Value::Str(v.clone()))).or(Some(Field::Value(Value::Nil))),
             "default" => Some(Field::Value(Value::Str(self.default.clone()))),
-            "admits" => Some(Field::Value(Value::Str(self.admits.clone()))),
+            "admits" => self.admits.as_ref().map(|v| Field::Value(Value::Str(v.clone()))).or(Some(Field::Value(Value::Nil))),
             _ => None,
         }
     }
@@ -130,10 +130,10 @@ impl ShapeField {
         ("name".to_string(), crate::kernel::Json::Str(self.name.clone())),
         ("type".to_string(), crate::kernel::Json::Str(self.r#type.clone())),
         ("list".to_string(), crate::kernel::Json::Str(self.list.clone())),
-        ("optional".to_string(), crate::kernel::Json::Str(self.optional.clone())),
-        ("pattern".to_string(), crate::kernel::Json::Str(self.pattern.clone())),
+        ("optional".to_string(), self.optional.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
+        ("pattern".to_string(), self.pattern.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
         ("default".to_string(), crate::kernel::Json::Str(self.default.clone())),
-        ("admits".to_string(), crate::kernel::Json::Str(self.admits.clone())),
+        ("admits".to_string(), self.admits.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
         ])
     }
 }
@@ -144,10 +144,10 @@ impl ShapeField {
         name: v.require("name", "ShapeField")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ShapeField.name: expected String".to_string()))?,
         r#type: v.require("type", "ShapeField")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ShapeField.type: expected String".to_string()))?,
         list: v.require("list", "ShapeField")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ShapeField.list: expected String".to_string()))?,
-        optional: v.require("optional", "ShapeField")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ShapeField.optional: expected String".to_string()))?,
-        pattern: v.require("pattern", "ShapeField")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ShapeField.pattern: expected String".to_string()))?,
+        optional: match v.get("optional") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ShapeField.optional: expected String".to_string()))?), None => None, },
+        pattern: match v.get("pattern") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ShapeField.pattern: expected String".to_string()))?), None => None, },
         default: v.require("default", "ShapeField")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ShapeField.default: expected String".to_string()))?,
-        admits: v.require("admits", "ShapeField")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ShapeField.admits: expected String".to_string()))?,
+        admits: match v.get("admits") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ShapeField.admits: expected String".to_string()))?), None => None, },
         })
     }
 }
@@ -337,7 +337,7 @@ impl crate::kernel::Fielded for DeclareArgs {
         match name {
             "aggregate_id" => Some(Field::Value(Value::Str(self.aggregate_id.clone()))),
             "name" => Some(Field::Nested(&self.name)),
-            "position" => Some(Field::Nested(&self.position)),
+            "position" => self.position.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             _ => None,
         }
     }
@@ -348,14 +348,14 @@ impl crate::kernel::Fielded for DeclareArgs {
 pub struct DeclareArgs {
     pub aggregate_id: String,
     pub name: ValueObjectName,
-    pub position: Position,
+    pub position: Option<Position>,
 }
 
 pub fn dispatch_declare(
     repo: &mut impl crate::kernel::Repository<ValueObject>, args: DeclareArgs,
 ) -> crate::kernel::DispatchResult<ValueObject> {
         args.name.check_invariants()?;
-        args.position.check_invariants()?;
+        if let Some(v) = &args.position { v.check_invariants()?; }
 
     crate::kernel::dispatch(
         repo,
@@ -367,7 +367,7 @@ pub fn dispatch_declare(
             attributes: vec![],
             invariants: vec![],
             rows: None,
-            position: Some(args.position.clone()),
+            position: args.position.clone(),
         }),
     },
         "Declare",
@@ -394,7 +394,7 @@ impl DeclareArgs {
         crate::kernel::Json::Object(vec![
         ("aggregate_id".to_string(), crate::kernel::Json::Str(self.aggregate_id.clone())),
         ("name".to_string(), self.name.to_json()),
-        ("position".to_string(), self.position.to_json()),
+        ("position".to_string(), self.position.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ])
     }
 }
@@ -411,104 +411,7 @@ if !unknown.is_empty() {
         Ok(Self {
         aggregate_id: v.require("aggregate_id", "DeclareArgs")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.aggregate_id: expected String".to_string()))?,
         name: ValueObjectName::from_json(v.require("name", "DeclareArgs")?)?,
-        position: Position::from_json(v.require("position", "DeclareArgs")?)?,
-        })
-    }
-}
-
-impl crate::kernel::Fielded for FieldArgs {
-    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
-        use crate::kernel::Field;
-        
-        match name {
-            "name" => Some(Field::Nested(&self.name)),
-            "type" => Some(Field::Nested(&self.r#type)),
-            "list" => Some(Field::Nested(&self.list)),
-            "optional" => Some(Field::Nested(&self.optional)),
-            "pattern" => Some(Field::Nested(&self.pattern)),
-            "default" => Some(Field::Nested(&self.default)),
-            "admits" => Some(Field::Nested(&self.admits)),
-            _ => None,
-        }
-    }
-}
-
-
-#[derive(Debug, Clone)]
-pub struct FieldArgs {
-    pub name: ValueObjectName,
-    pub r#type: ValueObjectName,
-    pub list: ValueObjectName,
-    pub optional: ValueObjectName,
-    pub pattern: ValueObjectText,
-    pub default: ValueObjectText,
-    pub admits: ValueObjectText,
-}
-
-pub fn dispatch_field(
-    repo: &mut impl crate::kernel::Repository<ValueObject>, id: &str, args: FieldArgs,
-) -> crate::kernel::DispatchResult<ValueObject> {
-        args.name.check_invariants()?;
-        args.r#type.check_invariants()?;
-        args.list.check_invariants()?;
-        args.optional.check_invariants()?;
-        args.pattern.check_invariants()?;
-        args.default.check_invariants()?;
-        args.admits.check_invariants()?;
-
-    crate::kernel::dispatch(
-        repo,
-        crate::kernel::Hydrate::Act { id: id.to_string() },
-        "Field",
-        "Bluebook::ValueObject",
-        &args,
-        &[
-
-        ],
-        None,
-        |record| {
-        record.attributes.push(ShapeField { name: args.name.value.clone(), r#type: args.r#type.value.clone(), list: args.list.value.clone(), default: args.default.value.clone(), optional: args.optional.value.clone(), pattern: args.pattern.value.clone(), admits: args.admits.value.clone() });
-            Ok(())
-        },
-        &[
-
-        ],
-        &["ShapeFieldAttached"],
-        args.to_json(),
-    )
-}
-
-impl FieldArgs {
-    pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("name".to_string(), self.name.to_json()),
-        ("type".to_string(), self.r#type.to_json()),
-        ("list".to_string(), self.list.to_json()),
-        ("optional".to_string(), self.optional.to_json()),
-        ("pattern".to_string(), self.pattern.to_json()),
-        ("default".to_string(), self.default.to_json()),
-        ("admits".to_string(), self.admits.to_json()),
-        ])
-    }
-}
-
-impl FieldArgs {
-    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-let unknown = v.unknown_keys(&["name", "type", "list", "optional", "pattern", "default", "admits", "id", "value_object", "aggregate_id"]);
-if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "FieldArgs does not declare {} — it takes name, type, list, optional, pattern, default, admits",
-        unknown.join(", ")
-    )));
-}
-        Ok(Self {
-        name: ValueObjectName::from_json(v.require("name", "FieldArgs")?)?,
-        r#type: ValueObjectName::from_json(v.require("type", "FieldArgs")?)?,
-        list: ValueObjectName::from_json(v.require("list", "FieldArgs")?)?,
-        optional: ValueObjectName::from_json(v.require("optional", "FieldArgs")?)?,
-        pattern: ValueObjectText::from_json(v.require("pattern", "FieldArgs")?)?,
-        default: ValueObjectText::from_json(v.require("default", "FieldArgs")?)?,
-        admits: ValueObjectText::from_json(v.require("admits", "FieldArgs")?)?,
+        position: match v.get("position") { Some(x) => Some(Position::from_json(x)?), None => None, },
         })
     }
 }
@@ -576,79 +479,6 @@ if !unknown.is_empty() {
 }
         Ok(Self {
         rows: RowCount::from_json(v.require("rows", "CloseArgs")?)?,
-        })
-    }
-}
-
-impl crate::kernel::Fielded for AssertArgs {
-    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
-        use crate::kernel::Field;
-        
-        match name {
-            "description" => Some(Field::Nested(&self.description)),
-            "canonical" => Some(Field::Nested(&self.canonical)),
-            _ => None,
-        }
-    }
-}
-
-
-#[derive(Debug, Clone)]
-pub struct AssertArgs {
-    pub description: ValueObjectText,
-    pub canonical: ValueObjectText,
-}
-
-pub fn dispatch_assert(
-    repo: &mut impl crate::kernel::Repository<ValueObject>, id: &str, args: AssertArgs,
-) -> crate::kernel::DispatchResult<ValueObject> {
-        args.description.check_invariants()?;
-        args.canonical.check_invariants()?;
-
-    crate::kernel::dispatch(
-        repo,
-        crate::kernel::Hydrate::Act { id: id.to_string() },
-        "Assert",
-        "Bluebook::ValueObject",
-        &args,
-        &[
-            crate::kernel::GivenSpec { description: "a rule says what it means", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("description.value"))))))) },
-            crate::kernel::GivenSpec { description: "a rule survives extraction", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("canonical.value"))))))) },
-        ],
-        None,
-        |record| {
-        record.invariants.push(Assertion { description: args.description.value.clone(), canonical: args.canonical.value.clone() });
-            Ok(())
-        },
-        &[
-
-        ],
-        &["AssertionAttached"],
-        args.to_json(),
-    )
-}
-
-impl AssertArgs {
-    pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("description".to_string(), self.description.to_json()),
-        ("canonical".to_string(), self.canonical.to_json()),
-        ])
-    }
-}
-
-impl AssertArgs {
-    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-let unknown = v.unknown_keys(&["description", "canonical", "id", "value_object", "aggregate_id", "name"]);
-if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "AssertArgs does not declare {} — it takes description, canonical",
-        unknown.join(", ")
-    )));
-}
-        Ok(Self {
-        description: ValueObjectText::from_json(v.require("description", "AssertArgs")?)?,
-        canonical: ValueObjectText::from_json(v.require("canonical", "AssertArgs")?)?,
         })
     }
 }
