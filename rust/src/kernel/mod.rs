@@ -11,6 +11,7 @@ pub mod dispatch;
 pub mod expr;
 pub mod json;
 pub mod orchestrate;
+pub mod pattern;
 pub mod repository;
 
 pub use dispatch::{dispatch, dispatch_entity, EnsuresSpec, GivenSpec, Hydrate, TransitionCheck};

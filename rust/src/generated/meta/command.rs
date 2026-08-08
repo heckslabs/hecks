@@ -343,7 +343,7 @@ impl crate::kernel::Fielded for Change {
 
 impl Change {
     pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
-
+        if !["set", "append", "increment", "decrement"].contains(&self.op.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(format!("{}{:?}", "op admits Vocabulary::MutationOp — \"set\", \"append\", \"increment\", \"decrement\" — got ", self.op))); }
         Ok(())
     }
 }
@@ -873,6 +873,7 @@ pub fn dispatch_change(
     repo: &mut impl crate::kernel::Repository<Command>, id: &str, args: ChangeArgs,
 ) -> crate::kernel::DispatchResult<Command> {
         args.target.check_invariants()?;
+        if !["set", "append", "increment", "decrement"].contains(&args.op.value.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(format!("{}{:?}", "op admits Vocabulary::MutationOp — \"set\", \"append\", \"increment\", \"decrement\" — got ", args.op.value))); }
         args.op.check_invariants()?;
         args.field.check_invariants()?;
         args.kind.check_invariants()?;

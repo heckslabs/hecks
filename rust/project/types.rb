@@ -2,7 +2,7 @@ module RustProjection
   module Projector
     module_function
 
-    def emit_check_invariants(vo, value_objects_by_name)
+    def emit_check_invariants(vo, value_objects_by_name, aggregates_by_name)
       name = rust_ident(vo[:name])
       body = vo[:invariants].map do |inv|
         expr = ExprEmitter.emit_predicate(inv[:canonical])
@@ -15,6 +15,22 @@ module RustProjection
                       }
                   }
         RUST
+      end
+
+      # `check_admitted`/`check_patterns` — `admission.rb`'s/`coercion.rb`'s
+      # OWN door: `pattern:`/`admits:` declared on the VALUE OBJECT'S OWN
+      # field (`EmailAddress.address, pattern: ...`), not on some outer
+      # usage — the OTHER door is `commands.rb`'s own `invariant_checks`,
+      # for a command/entity-command argument's usage-level `admits:`
+      # (`ExternalTransfer.Request`'s own `direction`).
+      vo[:attributes].each do |attr|
+        next if attr[:list]
+
+        field = "self.#{rust_ident_field(attr[:name])}"
+        admits_line = emit_admits_check(field, attr, aggregates_by_name, value_objects_by_name)
+        body << "        #{admits_line}" if admits_line
+        pattern_line = emit_pattern_check(field, attr, name, value_objects_by_name)
+        body << "        #{pattern_line}" if pattern_line
       end
 
       vo[:attributes].each do |attr|
@@ -84,7 +100,7 @@ module RustProjection
       lines.join("\n")
     end
 
-    def emit_value_object(vo, value_objects_by_name)
+    def emit_value_object(vo, value_objects_by_name, aggregates_by_name)
       name = rust_ident(vo[:name])
 
       if vo[:closed_set]
@@ -117,7 +133,7 @@ module RustProjection
       lines << ""
       lines << emit_fielded_flat(name, vo[:attributes], value_objects_by_name)
       lines << ""
-      lines << emit_check_invariants(vo, value_objects_by_name)
+      lines << emit_check_invariants(vo, value_objects_by_name, aggregates_by_name)
       lines.join("\n")
     end
 

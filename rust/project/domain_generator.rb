@@ -97,7 +97,7 @@ module RustProjection
           f.puts
 
           aggregate[:value_objects].each do |vo|
-            f.puts Projector.emit_value_object(vo, value_objects_by_name)
+            f.puts Projector.emit_value_object(vo, value_objects_by_name, aggregates_by_name)
             f.puts
             if vo[:closed_set] && vo[:attributes].size == 1
               # A single-field closed set collapses to a Rust ENUM
@@ -145,7 +145,7 @@ module RustProjection
                 next
               end
 
-              f.puts Projector.emit_entity_command(command, entity, aggregate, domain_name, value_objects_by_name)
+              f.puts Projector.emit_entity_command(command, entity, aggregate, domain_name, value_objects_by_name, aggregates_by_name)
               f.puts
 
               next unless entity_can_route
@@ -181,7 +181,7 @@ module RustProjection
               next
             end
 
-            f.puts Projector.emit_command(command, aggregate, domain_name, value_objects_by_name)
+            f.puts Projector.emit_command(command, aggregate, domain_name, value_objects_by_name, aggregates_by_name)
             f.puts
             args_struct = "#{Projector.rust_ident(command[:name])}Args"
             # to_json (not just from_json): an Event's payload is now

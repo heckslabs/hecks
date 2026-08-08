@@ -88,19 +88,20 @@
 # `check_reference`) — the one place with access to every OTHER
 # aggregate's repo, not just the dispatching command's own.
 #
+# EIGHTH SLICE (0018) — `admits:`/`pattern:` attribute-level constraint
+# checks, the two remaining gaps 0017's own investigation found (the
+# third — an `Integer` field accepting a non-numeric JSON string — was a
+# real bug in 0014's own `default:` fallback, fixed directly, not a
+# missing generated check). `pattern:` needed a hand-rolled, zero-Cargo-
+# dependency regex matcher (`rust/src/kernel/pattern.rs`) — bounded to
+# exactly the dialect `PatternSubset` admits into a bluebook in the first
+# place (no backreferences/lookaround/POSIX classes ever reach it).
+#
 # WHAT THIS STILL DOES NOT GENERATE — flagged, not silently skipped:
 #   - A BARE (non-`list_of`), non-entity-list attribute whose type names
 #     an entity — not a real shape any aggregate in this corpus declares.
-#   - Role checking (Unauthorized).
-#   - Scalar-attribute `pattern:` regex checks (`EmailAddress.address,
-#     pattern: '^[^@ ]+@[^@ ]+\.[^@ ]+$'` — not generated/checked at all),
-#     a closed-set attribute declared `admits: "Other::ClosedSet"`
-#     accepting a member outside that admitted subset, and an
-#     `Integer`-typed JSON value arriving as a non-numeric string not
-#     being refused. Three DISTINCT gaps 0017's own investigation found
-#     once reference-existence checking stopped masking them behind
-#     bigger corpus mismatches — none of them reference-existence
-#     checking itself.
+#   - Role checking (Unauthorized) — the one item left from 0014's
+#     original two-item list (0017 closed reference-existence checking).
 #   - The reaction/saga LOG (`reaction_log`/`saga_log`) — `orchestrate`
 #     produces the right SIDE EFFECTS without also reproducing the log
 #     `bin/rust_conformance`'s own comparable surface never reads.
@@ -120,6 +121,7 @@ end
 
 require_relative "project/expr_emitter"
 require_relative "project/naming"
+require_relative "project/constraints"
 require_relative "project/fielded"
 require_relative "project/json_codec"
 require_relative "project/types"

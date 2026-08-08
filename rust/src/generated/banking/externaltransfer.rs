@@ -257,6 +257,7 @@ pub fn dispatch_request(
         args.end_to_end.check_invariants()?;
         args.amount.check_invariants()?;
         args.beneficiary.check_invariants()?;
+        if !["credit", "debit"].contains(&args.direction.value.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(format!("{}{:?}", "direction admits Account::LedgerDirection — \"credit\", \"debit\" — got ", args.direction.value))); }
         args.direction.check_invariants()?;
 
     crate::kernel::dispatch(

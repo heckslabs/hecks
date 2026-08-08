@@ -33,7 +33,19 @@ module RustProjection
     def scalar_from_json_expr(struct_name, key, scalar_type, default: nil)
       accessor = SCALAR_JSON_ACCESSOR.fetch(scalar_type)
       wrap = scalar_type == "String" ? ".map(|s| s.to_string())" : ""
-      return %(v.get(#{key.inspect}).and_then(crate::kernel::Json::#{accessor})#{wrap}.unwrap_or_else(|| #{literal_rhs(default)})) if default
+      # A KEY the caller's JSON never mentions at all falls back to the
+      # attribute's own `default:`, matching `Value.build`'s own rule
+      # (bridging.rb's `creation_default_rhs` comment). A key that IS
+      # present but the wrong shape (`{"cents": "lots"}` for an `Integer`
+      # field) is a real `TypeMismatch` Ruby's own `Value.for_attribute`
+      # refuses regardless of whether a default exists — found live
+      # (`Banking::Account#acct-6`'s own corpus mismatch): the OLD
+      # `.and_then(accessor)...unwrap_or_else(default)` chain couldn't
+      # distinguish "absent" from "present but unparseable," so a
+      # non-numeric string silently became the default instead of a
+      # refusal. `match` on presence FIRST, so only the "absent" arm ever
+      # reaches for the default.
+      return %(match v.get(#{key.inspect}) { Some(x) => x.#{accessor}()#{wrap}.ok_or_else(|| #{json_type_error(struct_name, key, scalar_type)})?, None => #{literal_rhs(default)} }) if default
 
       %(v.require(#{key.inspect}, #{struct_name.inspect})?.#{accessor}()#{wrap}.ok_or_else(|| #{json_type_error(struct_name, key, scalar_type)})?)
     end

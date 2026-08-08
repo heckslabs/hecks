@@ -88,7 +88,7 @@ impl CustomerStanding {
 impl CustomerStanding {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        value: v.get("value").and_then(crate::kernel::Json::as_str).map(|s| s.to_string()).unwrap_or_else(|| "good".to_string()),
+        value: match v.get("value") { Some(x) => x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("CustomerStanding.value: expected String".to_string()))?, None => "good".to_string() },
         })
     }
 }
@@ -167,7 +167,7 @@ impl crate::kernel::Fielded for EmailAddress {
 
 impl EmailAddress {
     pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
-
+        if !crate::kernel::pattern::matches("^[^@ ]+@[^@ ]+\\.[^@ ]+$", &self.address) { return Err(crate::kernel::Refusal::TypeMismatch(format!("{}{:?}", "EmailAddress.address must match ^[^@ ]+@[^@ ]+\\.[^@ ]+$, got ", self.address))); }
         Ok(())
     }
 }

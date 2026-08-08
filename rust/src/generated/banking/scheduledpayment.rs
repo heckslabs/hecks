@@ -218,7 +218,7 @@ impl RetryCount {
 impl RetryCount {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        value: v.get("value").and_then(crate::kernel::Json::as_i64).unwrap_or_else(|| 0),
+        value: match v.get("value") { Some(x) => x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RetryCount.value: expected Integer".to_string()))?, None => 0 },
         })
     }
 }
@@ -263,7 +263,7 @@ impl RetryLimit {
 impl RetryLimit {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        value: v.get("value").and_then(crate::kernel::Json::as_i64).unwrap_or_else(|| 3),
+        value: match v.get("value") { Some(x) => x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RetryLimit.value: expected Integer".to_string()))?, None => 3 },
         })
     }
 }

@@ -65,6 +65,9 @@ module RustProjection
       optional_problems = optional_source_mismatches(command, aggregate, value_objects_by_name)
       return "optional argument feeds a non-optional target: #{optional_problems.join('; ')} — not generated yet" if optional_problems.any?
 
+      constraint_problems = constraint_list_problems(command)
+      return constraint_problems.join('; ') if constraint_problems.any?
+
       nil
     end
 
@@ -152,6 +155,53 @@ module RustProjection
       problems
     end
 
+    # Shared by `emit_command`/`emit_entity_command` — identical logic
+    # either way, since an entity command's own `command[:attributes]` has
+    # the exact same shape an aggregate command's does. Two independent
+    # concerns per attribute: the EXISTING nested-VO-invariant recursion
+    # (`args.field.check_invariants()?`, unchanged), and the NEW `admits:`/
+    # `pattern:` constraint check (`constraints.rb`) — a command/entity-
+    # command argument's own usage-level declaration, the OTHER door from
+    # `types.rb`'s own value-object-field-level check. `attr[:list]`
+    # attributes are skipped for the constraint check specifically — no
+    # `admits:`/`pattern:` usage in this corpus is ever list-typed, and
+    # checking each element generically would be new, unverified surface.
+    def invariant_checks_for(command, aggregates_by_name, value_objects_by_name)
+      command[:attributes].flat_map do |attr|
+        field = rust_ident_field(attr[:name])
+        lines = []
+
+        unless attr[:list]
+          value_expr = attr[:optional] ? "v" : "args.#{field}"
+          constraints = [emit_admits_check(value_expr, attr, aggregates_by_name, value_objects_by_name),
+                         emit_pattern_check(value_expr, attr, attr[:name].to_s, value_objects_by_name)].compact
+          constraints.each { |c| lines << (attr[:optional] ? "        if let Some(v) = &args.#{field} { #{c} }" : "        #{c}") }
+        end
+
+        if value_objects_by_name.key?(attr[:type]) && !value_objects_by_name[attr[:type]][:closed_set]
+          lines << if attr[:optional]
+            attr[:list] ? "        if let Some(items) = &args.#{field} { for item in items { item.check_invariants()?; } }" : "        if let Some(v) = &args.#{field} { v.check_invariants()?; }"
+          else
+            attr[:list] ? "        for item in &args.#{field} { item.check_invariants()?; }" : "        args.#{field}.check_invariants()?;"
+          end
+        end
+
+        lines
+      end
+    end
+
+    # A LIST-typed attribute carrying `admits:`/`pattern:` — no real
+    # command in this corpus declares one, and `invariant_checks_for`
+    # deliberately skips the constraint check for list attributes (a
+    # per-element check is new, unverified surface, not a mechanical
+    # extension of the scalar case) — skipped loudly rather than silently
+    # dropping a constraint the IR actually declares.
+    def constraint_list_problems(command)
+      command[:attributes].select { |attr| attr[:list] && (attr[:admits] || attr[:pattern]) }.map do |attr|
+        "#{attr[:name]} is a list carrying admits:/pattern: — not generated yet"
+      end
+    end
+
     # ── ONE emitter for every command shape kernel::dispatch can run —
     # creating or acting, with or without givens or an append mutation.
     # What used to be emit_create_command's implicit, name-matched
@@ -159,7 +209,7 @@ module RustProjection
     # `build` closure; what used to be emit_act_command's given/mutation
     # generation is now just data (`GivenSpec`s, a closure) handed to
     # kernel::dispatch instead of hand-assembled control flow.
-    def emit_command(command, aggregate, domain_name, value_objects_by_name)
+    def emit_command(command, aggregate, domain_name, value_objects_by_name, aggregates_by_name)
       record = rust_ident(aggregate[:name])
       cmd    = rust_ident(command[:name])
       creates = command[:references].nil?
@@ -185,17 +235,7 @@ module RustProjection
       end
       args_struct << "}"
 
-      invariant_checks = command[:attributes].filter_map do |attr|
-        next unless value_objects_by_name.key?(attr[:type])
-        next if value_objects_by_name[attr[:type]][:closed_set]
-
-        field = rust_ident_field(attr[:name])
-        if attr[:optional]
-          attr[:list] ? "        if let Some(items) = &args.#{field} { for item in items { item.check_invariants()?; } }" : "        if let Some(v) = &args.#{field} { v.check_invariants()?; }"
-        else
-          attr[:list] ? "        for item in &args.#{field} { item.check_invariants()?; }" : "        args.#{field}.check_invariants()?;"
-        end
-      end
+      invariant_checks = invariant_checks_for(command, aggregates_by_name, value_objects_by_name)
 
       given_specs = command[:givens].map do |given|
         "            crate::kernel::GivenSpec { description: #{given[:description].inspect}, expr: #{ExprEmitter.emit_predicate(given[:canonical])} },"
@@ -329,7 +369,7 @@ module RustProjection
     # `parent_id` and the entity's own address as separate caller-supplied
     # strings, mirroring `EntityInterpreter#parent`/`#element_of`'s two
     # separate lookups.
-    def emit_entity_command(command, entity, parent_aggregate, domain_name, value_objects_by_name)
+    def emit_entity_command(command, entity, parent_aggregate, domain_name, value_objects_by_name, aggregates_by_name)
       parent_record  = rust_ident(parent_aggregate[:name])
       element_record = rust_ident(entity[:name])
       cmd = rust_ident(command[:name])
@@ -352,17 +392,7 @@ module RustProjection
       end
       args_struct << "}"
 
-      invariant_checks = command[:attributes].filter_map do |attr|
-        next unless value_objects_by_name.key?(attr[:type])
-        next if value_objects_by_name[attr[:type]][:closed_set]
-
-        field = rust_ident_field(attr[:name])
-        if attr[:optional]
-          attr[:list] ? "        if let Some(items) = &args.#{field} { for item in items { item.check_invariants()?; } }" : "        if let Some(v) = &args.#{field} { v.check_invariants()?; }"
-        else
-          attr[:list] ? "        for item in &args.#{field} { item.check_invariants()?; }" : "        args.#{field}.check_invariants()?;"
-        end
-      end
+      invariant_checks = invariant_checks_for(command, aggregates_by_name, value_objects_by_name)
 
       given_specs = command[:givens].map do |given|
         "            crate::kernel::GivenSpec { description: #{given[:description].inspect}, expr: #{ExprEmitter.emit_predicate(given[:canonical])} },"

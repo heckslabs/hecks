@@ -128,7 +128,7 @@ impl DailyFee {
 impl DailyFee {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        amount: v.get("amount").and_then(crate::kernel::Json::as_f64).unwrap_or_else(|| 0.0),
+        amount: match v.get("amount") { Some(x) => x.as_f64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DailyFee.amount: expected Float".to_string()))?, None => 0.0 },
         })
     }
 }

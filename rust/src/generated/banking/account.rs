@@ -88,7 +88,7 @@ impl DailyLimit {
 impl DailyLimit {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        cents: v.get("cents").and_then(crate::kernel::Json::as_i64).unwrap_or_else(|| 0),
+        cents: match v.get("cents") { Some(x) => x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DailyLimit.cents: expected Integer".to_string()))?, None => 0 },
         })
     }
 }
@@ -207,8 +207,8 @@ impl Money {
 impl Money {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        cents: v.get("cents").and_then(crate::kernel::Json::as_i64).unwrap_or_else(|| 0),
-        currency: v.get("currency").and_then(crate::kernel::Json::as_str).map(|s| s.to_string()).unwrap_or_else(|| "USD".to_string()),
+        cents: match v.get("cents") { Some(x) => x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Money.cents: expected Integer".to_string()))?, None => 0 },
+        currency: match v.get("currency") { Some(x) => x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Money.currency: expected String".to_string()))?, None => "USD".to_string() },
         })
     }
 }
@@ -263,7 +263,7 @@ impl PositiveMoney {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
         cents: v.require("cents", "PositiveMoney")?.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PositiveMoney.cents: expected Integer".to_string()))?,
-        currency: v.get("currency").and_then(crate::kernel::Json::as_str).map(|s| s.to_string()).unwrap_or_else(|| "USD".to_string()),
+        currency: match v.get("currency") { Some(x) => x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PositiveMoney.currency: expected String".to_string()))?, None => "USD".to_string() },
         })
     }
 }
