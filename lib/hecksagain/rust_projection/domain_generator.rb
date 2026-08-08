@@ -2,7 +2,7 @@ require "fileutils"
 require "json"
 
 module Hecksagain
-  module Rust
+  module RustProjection
     # Generates one domain's worth of types/Fielded impls/commands into
     # `mod_dir`, plus a `metadata.rs` carrying that domain's own canonical IR
     # as an embedded JSON constant — SELF-DESCRIPTION: an app holding the

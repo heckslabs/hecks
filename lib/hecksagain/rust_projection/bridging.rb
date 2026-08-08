@@ -1,5 +1,5 @@
 module Hecksagain
-  module Rust
+  module RustProjection
     module Projector
       module_function
 

@@ -1,5 +1,5 @@
 module Hecksagain
-  module Rust
+  module RustProjection
     # ── EXPR EMITTER — walks the REAL Evaluator/Resolver AST (the same
     # objects a live dispatch parses `given`/`ensures`/invariant text into;
     # see docs/guides/writing-a-port.md's "The expression grammar") and

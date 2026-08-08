@@ -79,15 +79,15 @@
 # modules (`ExprEmitter`, `Projector`) — mirrors this codebase's own
 # `runtime/command_rules/` split, not a new pattern invented for this.
 module Hecksagain
-  module Rust
+  module RustProjection
   end
 end
 
-require_relative "rust/expr_emitter"
-require_relative "rust/naming"
-require_relative "rust/fielded"
-require_relative "rust/types"
-require_relative "rust/bridging"
-require_relative "rust/mutations"
-require_relative "rust/commands"
-require_relative "rust/domain_generator"
+require_relative "rust_projection/expr_emitter"
+require_relative "rust_projection/naming"
+require_relative "rust_projection/fielded"
+require_relative "rust_projection/types"
+require_relative "rust_projection/bridging"
+require_relative "rust_projection/mutations"
+require_relative "rust_projection/commands"
+require_relative "rust_projection/domain_generator"
