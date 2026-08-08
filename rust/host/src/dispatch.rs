@@ -7,6 +7,7 @@
 use crate::journal;
 use crate::wasm_runner;
 use std::path::Path;
+use tokio::sync::Mutex;
 use tokio_postgres::Client;
 
 pub struct Outcome {
@@ -14,13 +15,40 @@ pub struct Outcome {
     pub accepted: bool,
 }
 
+// A Mutex, not a bare Arc<Client> — `handle` needs `Client::transaction`,
+// which takes `&mut Client`. Locking here also means that if this
+// process is ever invoked concurrently in-process (lambda_runtime's
+// default loop is one-event-at-a-time, but nothing in this crate
+// depends on that staying true), two calls can't interleave statements
+// on the one connection this crate holds.
 pub async fn handle(
-    client: &Client,
+    client: &Mutex<Client>,
     wasm_path: &Path,
     verb: &str,
     args: serde_json::Value,
 ) -> anyhow::Result<Outcome> {
-    let mut steps = journal::load_steps(client).await?;
+    let mut guard = client.lock().await;
+    let txn = guard.transaction().await?;
+
+    // SERIALIZES THE WHOLE READ-THEN-APPEND SEQUENCE, not just the
+    // final INSERT — mirrors postgres.rb's own `pg_advisory_xact_lock`
+    // around its ordinal-assigning append (postgres.rb:118-124: "HELD
+    // FOR THE WHOLE TRANSACTION, not just around the INSERT"). Without
+    // this, two concurrent Lambda invocations (separate execution
+    // environments, separate connections — exactly what advisory locks
+    // are for) could both rehydrate against the same prior steps, both
+    // pass a uniqueness check the domain thinks it's enforcing, and
+    // both append: the replay-determinism argument in journal.rs's own
+    // header only holds if invocations serialize. One fixed key is
+    // correct here (unlike postgres.rb's per-domain key) because this
+    // journal is already flat and domain-agnostic — see journal.rs.
+    txn.execute(
+        "SELECT pg_advisory_xact_lock(hashtext('hecks_lambda_journal'))",
+        &[],
+    )
+    .await?;
+
+    let mut steps = journal::load_steps(&txn).await?;
     steps.push(serde_json::json!({ "verb": verb, "args": args.clone() }));
 
     let input = serde_json::json!({ "steps": steps }).to_string();
@@ -47,8 +75,13 @@ pub async fn handle(
     let accepted = refusals.is_empty();
 
     if accepted {
-        journal::append(client, verb, &args).await?;
+        journal::append(&txn, verb, &args).await?;
     }
+
+    // Commits (and releases the advisory lock) whether or not anything
+    // was appended — a refused command still needs the lock released
+    // for the next invocation to proceed.
+    txn.commit().await?;
 
     Ok(Outcome { result, accepted })
 }
@@ -65,7 +98,7 @@ mod tests {
     // to. Uniquely named per test (not one shared scratch DB) so
     // `cargo test`'s default parallelism doesn't race two tests
     // against the same journal table.
-    async fn scratch_db(name: &str) -> Client {
+    async fn scratch_db(name: &str) -> Mutex<Client> {
         let (admin, conn) = tokio_postgres::connect("host=localhost dbname=postgres", NoTls)
             .await
             .expect("connect to postgres");
@@ -89,7 +122,7 @@ mod tests {
             let _ = conn.await;
         });
         journal::ensure_schema(&client).await.unwrap();
-        client
+        Mutex::new(client)
     }
 
     fn wasm_path() -> std::path::PathBuf {
@@ -119,7 +152,7 @@ mod tests {
 
         assert!(outcome.accepted);
         assert_eq!(outcome.result["refusals"].as_array().unwrap().len(), 0);
-        let steps = journal::load_steps(&client).await.unwrap();
+        let steps = journal::load_steps(&*client.lock().await).await.unwrap();
         assert_eq!(steps.len(), 1);
     }
 
@@ -162,11 +195,37 @@ mod tests {
             "duplicate registration should be refused, proving prior state was rehydrated: {:?}",
             second.result
         );
-        let steps = journal::load_steps(&client).await.unwrap();
+        let steps = journal::load_steps(&*client.lock().await).await.unwrap();
         assert_eq!(
             steps.len(),
             1,
             "the refused duplicate must not be persisted"
         );
+    }
+
+    #[tokio::test]
+    async fn serializes_concurrent_invocations_against_the_same_journal() {
+        // THE RACE THE ADVISORY LOCK CLOSES: without it, two concurrent
+        // registrations of the SAME reference could both rehydrate
+        // against zero prior steps, both see no conflict, and both get
+        // appended — silently violating the uniqueness the domain
+        // itself enforces. With the lock serializing the whole
+        // read-then-append sequence, exactly one must be accepted.
+        let client = scratch_db("rust_host_dispatch_test_3").await;
+        let wasm_path = wasm_path();
+
+        let (first, second) = tokio::join!(
+            handle(&client, &wasm_path, "Banking::Customer.Register", register("CUST-0002")),
+            handle(&client, &wasm_path, "Banking::Customer.Register", register("CUST-0002")),
+        );
+        let (first, second) = (first.unwrap(), second.unwrap());
+
+        assert_ne!(
+            first.accepted, second.accepted,
+            "exactly one of two concurrent duplicate registrations should be accepted: {:?} / {:?}",
+            first.result, second.result
+        );
+        let steps = journal::load_steps(&*client.lock().await).await.unwrap();
+        assert_eq!(steps.len(), 1, "only the accepted registration should be persisted");
     }
 }

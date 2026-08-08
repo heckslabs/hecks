@@ -20,6 +20,7 @@ mod wasm_runner;
 use lambda_runtime::{service_fn, Error, LambdaEvent};
 use std::path::PathBuf;
 use std::sync::Arc;
+use tokio::sync::Mutex;
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
@@ -40,14 +41,27 @@ async fn main() -> Result<(), Error> {
         .with_root_certificates(roots)
         .with_no_client_auth();
     let tls = tokio_postgres_rustls::MakeRustlsConnect::new(tls_config);
-    let (client, connection) = tokio_postgres::connect(&database_url, tls).await?;
+    // Named, operator-facing context on failure -- mirrors postgres.rb's
+    // own WiringError wrapping (`cannot bind Postgres at ... for ...`).
+    // DATABASE_URL itself is never interpolated into either message
+    // (it carries credentials); the underlying error text is the only
+    // detail that travels.
+    let (client, connection) = tokio_postgres::connect(&database_url, tls)
+        .await
+        .map_err(|e| format!("connecting to Postgres via DATABASE_URL: {e}"))?;
     tokio::spawn(async move {
         if let Err(e) = connection.await {
             eprintln!("postgres connection error: {e}");
         }
     });
-    journal::ensure_schema(&client).await?;
-    let client = Arc::new(client);
+    journal::ensure_schema(&client)
+        .await
+        .map_err(|e| format!("provisioning hecks_lambda_journal: {e}"))?;
+    // Mutex, not a bare Arc<Client> -- dispatch::handle needs
+    // Client::transaction (which takes &mut Client) to hold the
+    // advisory lock across the whole rehydrate-then-append sequence.
+    // See dispatch.rs's own comment for what that guards against.
+    let client = Arc::new(Mutex::new(client));
     let wasm_path = Arc::new(wasm_path);
 
     lambda_runtime::run(service_fn(move |event: LambdaEvent<serde_json::Value>| {

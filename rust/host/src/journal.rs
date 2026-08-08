@@ -19,7 +19,7 @@
 // end up in `refusals` is the newest one, appended last. That's the
 // entire correctness argument `append_if_accepted` below leans on.
 
-use tokio_postgres::Client;
+use tokio_postgres::{Client, GenericClient};
 
 pub async fn ensure_schema(client: &Client) -> anyhow::Result<()> {
     client
@@ -37,7 +37,13 @@ pub async fn ensure_schema(client: &Client) -> anyhow::Result<()> {
 
 /// Every command ever successfully dispatched, in order, as `{"verb",
 /// "args"}` objects — the exact shape a `{"steps": [...]}` entry needs.
-pub async fn load_steps(client: &Client) -> anyhow::Result<Vec<serde_json::Value>> {
+///
+/// Generic over `GenericClient` (implemented by both `Client` and
+/// `Transaction<'_>`) so `dispatch::handle` can run this — and `append`
+/// below — inside the SAME transaction that holds the advisory lock
+/// serializing concurrent invocations. See dispatch.rs's own comment
+/// for why that matters.
+pub async fn load_steps<C: GenericClient>(client: &C) -> anyhow::Result<Vec<serde_json::Value>> {
     let rows = client
         .query(
             "SELECT verb, args FROM hecks_lambda_journal ORDER BY ordinal",
@@ -55,7 +61,11 @@ pub async fn load_steps(client: &Client) -> anyhow::Result<Vec<serde_json::Value
         .collect())
 }
 
-pub async fn append(client: &Client, verb: &str, args: &serde_json::Value) -> anyhow::Result<()> {
+pub async fn append<C: GenericClient>(
+    client: &C,
+    verb: &str,
+    args: &serde_json::Value,
+) -> anyhow::Result<()> {
     client
         .execute(
             "INSERT INTO hecks_lambda_journal (verb, args) VALUES ($1, $2)",
