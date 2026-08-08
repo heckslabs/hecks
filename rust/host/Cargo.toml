@@ -29,5 +29,29 @@ wasmtime-wasi = "47.0.3"
 lambda_runtime = "0.13"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 tokio-postgres = { version = "0.7", features = ["with-serde_json-1"] }
+# RDS Postgres requires TLS by default (confirmed live: "no pg_hba.conf
+# entry ... no encryption" refusing a plain NoTls connection). Pure
+# Rust (rustls), not native-tls/OpenSSL -- OpenSSL's -sys crate needs a
+# real cross-compiled sysroot for aarch64-unknown-linux-gnu that isn't
+# set up when cross-compiling from macOS (confirmed: "Could not find
+# openssl via pkg-config... has not been configured to support
+# cross-compilation"), exactly the C-toolchain pain cargo-lambda's own
+# Zig-based linking exists to avoid.
+#
+# NOT webpki-roots -- confirmed live (InvalidCertificate(UnknownIssuer))
+# that Mozilla's bundle doesn't include Amazon's own RDS CA, a private
+# PKI webpki-roots has no reason to carry. rds-ca-bundle.pem (checked
+# in, embedded via include_bytes!) is AWS's own published bundle
+# (https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem)
+# -- the actual, specific trust anchor this app needs, since it only
+# ever talks to the one RDS instance its own template creates.
+#
+# default-features = false: rustls's OWN default pulls in aws_lc_rs
+# (another C-dependent backend, wrapping AWS-LC/BoringSSL) regardless
+# of what's requested on tokio-postgres-rustls -- explicit "ring" here
+# is what actually keeps this pure Rust.
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+tokio-postgres-rustls = { version = "0.14", default-features = false, features = ["ring"] }
+rustls-pemfile = "2"
 serde_json = "1"
 anyhow = "1"

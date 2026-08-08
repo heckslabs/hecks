@@ -20,7 +20,6 @@ mod wasm_runner;
 use lambda_runtime::{service_fn, Error, LambdaEvent};
 use std::path::PathBuf;
 use std::sync::Arc;
-use tokio_postgres::NoTls;
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
@@ -29,7 +28,19 @@ async fn main() -> Result<(), Error> {
         std::env::var("HECKS_WASM_PATH").unwrap_or_else(|_| "banking.wasm".to_string()),
     );
 
-    let (client, connection) = tokio_postgres::connect(&database_url, NoTls).await?;
+    // RDS Postgres refuses a plain NoTls connection by default (real,
+    // live error: "no pg_hba.conf entry ... no encryption") -- and
+    // needs AWS's own RDS CA specifically, not a generic public bundle
+    // (see Cargo.toml's own comment on both points).
+    let mut roots = rustls::RootCertStore::empty();
+    for cert in rustls_pemfile::certs(&mut include_bytes!("../rds-ca-bundle.pem").as_slice()) {
+        roots.add(cert.map_err(|e| format!("parsing rds-ca-bundle.pem: {e}"))?)?;
+    }
+    let tls_config = rustls::ClientConfig::builder()
+        .with_root_certificates(roots)
+        .with_no_client_auth();
+    let tls = tokio_postgres_rustls::MakeRustlsConnect::new(tls_config);
+    let (client, connection) = tokio_postgres::connect(&database_url, tls).await?;
     tokio::spawn(async move {
         if let Err(e) = connection.await {
             eprintln!("postgres connection error: {e}");
