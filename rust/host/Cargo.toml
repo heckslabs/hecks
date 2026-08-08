@@ -1,0 +1,33 @@
+[package]
+name = "rust_host"
+version = "0.1.0"
+edition = "2021"
+
+# Empty table, deliberate, same reasoning rust/web's own Cargo.toml
+# gives for itself: makes THIS crate its own workspace root instead of
+# Cargo folding it into whatever workspace `rust` (the kernel crate)
+# might belong to.
+[workspace]
+
+[[bin]]
+name = "bootstrap"
+path = "src/main.rs"
+
+# NO path dependency on `rust` — unlike rust/web (which links the
+# kernel in-process for a JS-callable function, sacrificing nothing
+# since a browser tab is already the sandbox), this crate treats the
+# compiled `.wasm` artifact as an opaque, untrusted-by-default module
+# loaded through wasmtime at runtime, not a Rust library to link
+# against. That's the whole point of keeping WASM in the loop here:
+# dispatch logic runs inside wasmtime's sandbox, with ZERO ambient
+# access to the Postgres connection this crate itself holds — a real
+# capability boundary a direct `rust::kernel::cli::run(...)` call
+# would throw away.
+[dependencies]
+wasmtime = "47.0.3"
+wasmtime-wasi = "47.0.3"
+lambda_runtime = "0.13"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+tokio-postgres = { version = "0.7", features = ["with-serde_json-1"] }
+serde_json = "1"
+anyhow = "1"
