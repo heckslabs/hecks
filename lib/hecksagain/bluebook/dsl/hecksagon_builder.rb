@@ -6,17 +6,32 @@ module Hecksagain
           attr_accessor :collector
         end
 
-        attr_reader :binds, :subscriptions
+        attr_reader :binds, :subscriptions, :framework_members
 
         def initialize(domain)
-          @domain        = domain
-          @binds         = []
-          @subscriptions = []
+          @domain             = domain
+          @binds              = []
+          @subscriptions      = []
+          @framework_members  = []
         end
 
         # An event this hecksagon takes from OUTSIDE the domain's own
         # bluebook.
         def subscribe(event) = @subscriptions << event.to_s
+
+        # A `framework/bluebook/` member this domain wants attached —
+        # Governance, Identities, whatever else lands beside them.
+        # Attaching one is a WIRING decision, the same kind `persisted_by`/
+        # `projected_by` already are, so it lives here rather than as a
+        # fact stated in the domain's own bluebook. Recorded onto THIS
+        # hecksagon, the same way `subscribe` records onto its own
+        # `subscriptions` — and loads the member's bluebook then its own
+        # hecksagon into whatever registry this one is loading into, see
+        # `Framework.load!`.
+        def uses_framework(name)
+          @framework_members << name.to_s
+          Hecksagain::Framework.load!(name)
+        end
 
         # THE PRIMARY PORT, BARE AT THE ROOT — belongs to the CHAPTER as a
         # whole, not one aggregate. `BindingProxy#port` is the aggregate-
@@ -48,7 +63,10 @@ module Hecksagain
           bluebook_ir.add_port(built)
         end
 
-        def build = IR::Hecksagon.new(domain: @domain, binds: @binds, subscriptions: @subscriptions)
+        def build
+          IR::Hecksagon.new(domain: @domain, binds: @binds, subscriptions: @subscriptions,
+                             framework_members: @framework_members)
+        end
 
         def self.build(domain, &block)
           builder  = new(domain)

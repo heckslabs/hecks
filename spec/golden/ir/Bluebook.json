@@ -9973,6 +9973,32 @@
             [
               [
                 "word",
+                "uses_framework"
+              ],
+              [
+                "context",
+                "Hecksagon"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "framework_members"
+              ]
+            ],
+            [
+              [
+                "word",
                 "port"
               ],
               [
@@ -14255,6 +14281,36 @@
               [
                 "fills",
                 "subscriptions"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "uses_framework"
+              ],
+              [
+                "context",
+                "Hecksagon"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "framework_members"
               ]
             ],
             [

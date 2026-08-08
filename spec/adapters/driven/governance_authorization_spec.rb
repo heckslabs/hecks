@@ -1,54 +1,27 @@
 require "hecksagain"
+require "hecksagain/fuzzing/isolated_boot"
 
-# THE SAME-REGISTRY CASE. Banking and Governance loaded into ONE boot, so
-# `GovernanceAuthorization` needs no bridge to a second runtime — it just
-# dispatches a query against records already sitting in the registry it is
-# handed. This is the shape `spec/act_as_spec.rb` deliberately did NOT use
-# (two separate registries, for Governance/RoleTransition's own reasons) —
-# a same-registry app gets to skip that coordination entirely. Covers both
-# halves the port answers: `holds_role?` (RoleAssignment) and
+# THE REAL, SHIPPED WIRING — not a hand-composed registry. Banking's own
+# `.hecksagon` declares `uses_framework "Governance"` (see
+# examples/banking/bluebook/banking.hecksagon), so a plain `Hecks.boot`
+# already attaches Governance to the same registry ; `GovernanceAuthorization`
+# needs no bridge to a second runtime, just a dispatch against records
+# already sitting in the store it is handed. `Fuzzing::IsolatedBoot` is
+# what every other spec touching a Heki-backed example already uses to
+# avoid writing into the real examples/banking/data/ files — it copies the
+# domain to a tmpdir and rebinds every persistence there to Memory ;
+# Governance's own hecksagon is Memory already and lives outside the
+# copied tree entirely (`Framework.load!` always reaches its real path),
+# so nothing about attaching it needs isolating twice.
+#
+# Covers both halves the port answers: `holds_role?` (RoleAssignment) and
 # `authorized_as?` (RoleTransition) — the latter proved end to end as an
 # `act_as` flow through the port, the same shape `act_as_spec.rb` proves
-# by querying Governance directly.
+# by querying Governance directly (two separate registries, for
+# RoleTransition's own reasons — see that file's own header).
 RSpec.describe Hecksagain::Adapters::GovernanceAuthorization do
-  def banking_bluebook
-    File.expand_path("../../../examples/banking/bluebook/banking.bluebook", __dir__)
-  end
-
-  def governance_bluebook
-    File.expand_path("../../../framework/bluebook/governance.bluebook", __dir__)
-  end
-
-  def authorization_port
-    File.expand_path("../../../lib/hecksagain/ports/authorization.port", __dir__)
-  end
-
-  def governance_adapter
-    File.expand_path("../../../lib/hecksagain/adapters/driven/governance_authorization.adapter", __dir__)
-  end
-
   def runtime
-    registry = Hecksagain::Runtime::Registry.new
-
-    Hecksagain.with_registry(registry) do
-      Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-      Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-      Kernel.load(authorization_port)
-      Kernel.load(governance_adapter)
-      Kernel.load(governance_bluebook)
-      Kernel.load(banking_bluebook)
-
-      Hecks.hecksagon("Governance") do
-        ::Governance::RoleAssignment.persisted_by("Memory")
-        ::Governance::RoleTransition.persisted_by("Memory")
-      end
-      Hecks.hecksagon("Banking") { ::Banking::Customer.persisted_by("Memory") }
-    end
-
-    registry.verify!
-    Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
+    Hecksagain::Fuzzing::IsolatedBoot.call("examples/banking") { |copy| return Hecks.boot(copy) }
   end
 
   let(:business) { runtime }

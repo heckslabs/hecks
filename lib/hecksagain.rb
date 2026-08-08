@@ -14,6 +14,7 @@ require_relative "hecksagain/runtime"
 require_relative "hecksagain/translation"
 require_relative "hecksagain/adapters"
 require_relative "hecksagain/projector"
+require_relative "hecksagain/framework"
 
 module Hecksagain
   VERSION = "2026.07.25.1"

@@ -101,6 +101,19 @@ RSpec.describe "the DSL surface" do
         .to eq(["OutsideEventHappened", "AnotherOutsideEvent"])
     end
 
+    it ".hecksagon's uses_framework loads a framework/bluebook/ member into the same registry" do
+      registry = in_registry do
+        Hecks.hecksagon("Hexed") do
+          uses_framework "Governance"
+          Hexed::Thing.posted_by("Carrier")
+        end
+      end
+
+      expect(registry.bluebook("Governance")).not_to be_nil
+      expect(registry.bluebook("Governance").aggregate("RoleAssignment")).not_to be_nil
+      expect(registry.hecksagon("Hexed").framework_members).to eq(["Governance"])
+    end
+
     it ".data_translation registers a rename, a move, a convert, and a drop between two eras" do
       registry = in_registry do
         Hecks.data_translation("Translated", from: "1", to: "2") do

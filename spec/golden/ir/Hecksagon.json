@@ -19,6 +19,15 @@
           "optional": false,
           "pattern": null,
           "type": "Subscription"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": true,
+          "name": "framework_members",
+          "optional": false,
+          "pattern": null,
+          "type": "FrameworkMember"
         }
       ],
       "commands": [
@@ -87,6 +96,42 @@
           "provenance": null,
           "references": "Hecksagon",
           "role": "Deployment"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "member",
+              "optional": false,
+              "pattern": null,
+              "type": "FrameworkMember"
+            }
+          ],
+          "emits": [
+            "FrameworkMemberAttached"
+          ],
+          "ensures": [
+
+          ],
+          "givens": [
+
+          ],
+          "goal": "Attach a framework/bluebook/ member to this hecksagon",
+          "mutations": [
+            {
+              "fields": {
+                "value": "member"
+              },
+              "op": "append",
+              "target": "framework_members"
+            }
+          ],
+          "name": "UsesFramework",
+          "provenance": null,
+          "references": "Hecksagon",
+          "role": "Deployment"
         }
       ],
       "description": "One .hecksagon — the events a domain subscribes to, and the root every binding hangs off. A sibling artifact to the bluebook, not part of it.",
@@ -150,6 +195,30 @@
 
           ],
           "name": "Subscription"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "a framework member is named"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "FrameworkMember"
         }
       ]
     },
